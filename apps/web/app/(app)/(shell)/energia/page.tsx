@@ -247,8 +247,8 @@ export default function EnergiaPage() {
           tablero ? (
             <span className="demo-num text-[12px] text-muted">
               {t('energia.resumen', {
-                meses: t(tablero.meses.length === 1 ? 'energia.meses.uno' : 'energia.meses.otros', { n: formatNumero(tablero.meses.length) }),
-                puntos: t(tablero.puntos.length === 1 ? 'energia.puntos.uno' : 'energia.puntos.otros', { n: formatNumero(tablero.puntos.length) }),
+                meses: t(tablero.meses.length === 1 ? 'energia.meses.uno' : 'energia.meses.otros', { n: formatNumero(tablero.meses.length, 0, idioma) }),
+                puntos: t(tablero.puntos.length === 1 ? 'energia.puntos.uno' : 'energia.puntos.otros', { n: formatNumero(tablero.puntos.length, 0, idioma) }),
               })}
             </span>
           ) : null

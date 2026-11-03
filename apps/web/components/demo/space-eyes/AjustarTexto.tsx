@@ -24,6 +24,7 @@ import {
   type PesoMarca,
 } from '@/lib/space-eyes-marca-editor'
 import { useIdioma } from '@/lib/i18n/contexto'
+import { fijo } from './piezas'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 
@@ -635,11 +636,12 @@ function Deslizador({
   rango: { min: number; max: number; step: number }
   onChange: (v: number) => void
 }) {
+  const { idioma } = useIdioma()
   return (
     <label className="block">
       <span className="flex items-baseline justify-between text-[12px] text-muted">
         {etiqueta}
-        <span className="demo-num text-ink">{Number(valor).toFixed(decimales)}</span>
+        <span className="demo-num text-ink">{fijo(Number(valor), decimales, idioma)}</span>
       </span>
       <input
         type="range"

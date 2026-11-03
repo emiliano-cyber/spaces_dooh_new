@@ -256,7 +256,7 @@ export function FallasFlota() {
         <section>
           <h2 className="mb-2 text-[11px] uppercase tracking-wide text-muted">
             {interpolarNodos(t('spaceeyes.fallas.atencion'), {
-              n: <span className="tabular-nums">{formatNumero(abiertas.length)}</span>,
+              n: <span className="tabular-nums">{formatNumero(abiertas.length, 0, idioma)}</span>,
             })}
           </h2>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">

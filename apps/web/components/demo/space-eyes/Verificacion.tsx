@@ -5,7 +5,7 @@ import { AlertTriangle, ChevronLeft, ChevronRight, ImageOff, Loader2, RefreshCw,
 import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
 import { fotoSE, seApi, textoDeError } from '@/lib/data/space-eyes-se'
-import { fechaHora } from './piezas'
+import { fechaHora, fijo } from './piezas'
 import { useIdioma } from '@/lib/i18n/contexto'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
 
@@ -179,7 +179,7 @@ export function Verificacion() {
                   </div>
                   <div className="demo-num flex flex-wrap gap-x-3 text-muted">
                     <span>{t('spaceeyes.verif.confianza', { pct: conf !== null ? `${(conf * 100).toFixed(0)}%` : '—' })}</span>
-                    <span>SSIM {ssim !== null && ssim !== 0 ? ssim.toFixed(3) : '—'}</span>
+                    <span>SSIM {ssim !== null && ssim !== 0 ? fijo(ssim, 3, idioma) : '—'}</span>
                     <span>pHash {phash ?? '—'}</span>
                     <span className={v.ocr_match ? 'text-success' : 'text-error'}>
                       OCR {v.ocr_match ? t('spaceeyes.verif.si') : t('spaceeyes.verif.no')}
@@ -238,7 +238,7 @@ export function Verificacion() {
                       )}
                     </td>
                     <td className="px-4 py-2.5 text-ink">{v.device_name ?? '—'}</td>
-                    <td className="demo-num px-4 py-2.5 text-ink">{ssim !== null && ssim !== 0 ? ssim.toFixed(3) : '—'}</td>
+                    <td className="demo-num px-4 py-2.5 text-ink">{ssim !== null && ssim !== 0 ? fijo(ssim, 3, idioma) : '—'}</td>
                     <td className="demo-num px-4 py-2.5 text-ink">{phash ?? '—'}</td>
                     <td className="px-4 py-2.5">
                       <span className={v.ocr_match ? 'text-success' : 'text-error'}>

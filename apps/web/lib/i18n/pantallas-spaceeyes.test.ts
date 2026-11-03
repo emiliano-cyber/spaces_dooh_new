@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest'
 import { huellasDeFormatoEspanol } from './guardias-ingles'
+import { huellasEnItaliano } from './guardias-italiano'
 import { createElement, type ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -3359,6 +3360,191 @@ describe('lote SPACE EYES · barrido con el diccionario entero', () => {
         const t = trozo.trim()
         if (t.length < 4 || en.includes(t)) continue
         if (new RegExp(`(^|[^\\p{L}])${escapar(t)}($|[^\\p{L}])`, 'u').test(html)) culpables.push(`${clave} · «${t}»`)
+      }
+    }
+    expect(culpables).toEqual([])
+  }, 60_000)
+})
+
+// ═══ ITALIANO · lote L1 (2026-11-03) ════════════════════════════════════════
+// Las MISMAS pantallas, rendidas en `it`. Lo que se exige:
+//   (a) ninguna frase espanola de la lista de cada pantalla (salvo COMUNES y
+//       lo que en italiano se dice igual) y, donde la hay, el italiano de
+//       `ITALIANO` letra por letra;
+//   (b) ningun formato espanol ni ingles (`guardias-italiano.ts`), quitada la
+//       marca de la foto, que es la evidencia y sigue en es-MX;
+//   (c) el barrido: ningun trozo espanol NI INGLES del diccionario del lote en
+//       el HTML italiano. Es el que caza la caida al ingles de una clave sin
+//       italiano (`DICCIONARIOS.it`), que no da ningun error.
+// Lo de otros ambitos (`compartidos`, `comun.*`, el veredicto `comercial.eye.*`)
+// es de otros lotes del italiano y aqui no se exige.
+const COMUNES_IT = new Set<string>([
+  ...COMUNES,
+  'Raspberry Pi',
+  'Zona', // la zona de una falla: igual en italiano
+  'Temperatura', // igual en italiano
+  'Periodo', // igual en italiano
+  'Centro', // la alineacion: igual en italiano
+  'Fluorescente', // igual en italiano
+  'Dispositivo', // la etiqueta de Graficas: igual en italiano
+  'Usado', // igual en italiano
+  'PC',
+  'Foto', // igual en italiano
+  'Foto del cliente', // igual en italiano
+  'FOTO DEL CLIENTE',
+  'Temperatura CPU', // igual en italiano
+  'n/d', // igual en italiano
+])
+
+// Un trozo espanol «aparece» solo si no esta pegado a otra letra: «Mes» esta
+// dentro de «Mese», «Nitidez» dentro de «Nitidezza» y «Eliminar» dentro de
+// «Eliminare», y eso es italiano, no un resto del espanol.
+const escaparRe = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const aparece = (html: string, t: string) => new RegExp(`(^|[^\\p{L}])${escaparRe(t)}($|[^\\p{L}])`, 'u').test(html)
+
+const ITALIANO: Record<string, string[]> = {
+  'lista · con equipos': [
+    'I dispositivi che sorvegliano i tuoi impianti: cosa stanno vedendo e come stanno.',
+    'Aggiorna', 'Aggiungi dispositivo', 'di 4 dispositivi', 'Non comunica', 'oltre 10 min', 'Batteria critica', 'sotto il 20%',
+    'Ultimo scatto', 'di tutto il parco dispositivi', 'Tutti · 4', 'Online · 1', 'Da controllare · 3', 'Si aggiornano manualmente · 2',
+    'Tutte le aziende', 'Cerca dispositivo o impianto', 'Azienda', 'Ultimo scatto di Reforma 222 · Cara A',
+    'Ancora nessuno scatto', 'nessun impianto assegnato', 'Per aggiornarlo serve un sopralluogo',
+    'Per aggiornarlo serve una conferma sul telefono', 'nessun dato', 'Rete mobile', '2 min fa', '5 h fa', '30 min fa',
+    '4 settimane fa', 'mai', 'ONLINE', 'NON COMUNICA', 'IN ATTESA DI ABBINAMENTO',
+  ],
+  'pantalla y creativos · donde de cada falla, como lo manda el servidor (ola 7)': [
+    'Cabinet 8 (riga 2, colonna 3)', 'Cabinet 2, 5, 8 (3 di 15)', 'Tutto lo schermo', 'Cabinet 4',
+    'Possibile cabinet spento', 'Diversi cabinet bloccati o coperti',
+  ],
+  'programacion · lista': [
+    'Programmazione delle foto',
+    'Le foto si scattano da sole, a un’ora imprevedibile all’interno delle fasce orarie che definisci.',
+    'Nuova programmazione', 'Tutti i dispositivi', 'Campagna: Verano', 'Gruppo: Norte', '08:00-10:00 (casuale)',
+    'Nessuna fascia oraria', 'Ogni 2 h', 'Ogni 45 min', 'In pausa', 'Inizio: 1 dic 2026', 'Scaduta: 1 ott 2026',
+    'Non scatta prima di: 1 dic 2026', 'Non scatta: scaduta', 'Non calcolata', ' (tra 30 min)', ' (tra 5 h)', ' (in coda)',
+    'Prossima: ', '(3 questa settimana)', 'Metti in pausa', 'Si applica a', 'Quando', 'Prossima foto', 'Azioni',
+  ],
+  'fallas · abiertas, historial y descartar': [
+    'Guasti degli schermi',
+    'Ciò che ogni dispositivo ha rilevato da solo controllando il suo schermo. Si aggiorna ogni minuto.',
+    'Tutti i dispositivi', 'Aperti', 'Risolti', 'Non erano guasti', 'Vedi la foto di prova', 'Prova del guasto',
+    'Guasto rilevato', 'Cabinet 4 (riga 1, colonna 4)', 'Cabinet 4, 9 (2 di 15)', 'Cabinet 2',
+    'Fotocamera (bisogna segnare di nuovo lo schermo)',
+  ],
+  'demo · la demostracion': [
+    'ESEMPIO', 'IL TUO MARCHIO', 'Illustrazione di un cartellone di esempio', 'Città di esempio',
+    'I tuoi impianti, visti dal sito, senza andare sul sito', 'Prova di messa in onda', 'I guasti prima del cliente',
+    'Meno sopralluoghi', 'Cosa è andato in onda', 'Online · Rete mobile, segnale buono', '92% · in carica',
+    'Richiedi l’attivazione', 'Lo vuoi per i tuoi impianti?',
+  ],
+  // Validacion L1: «{hace}» ya trae el «fa»; la plantilla lo repetia.
+  // El contador va en su propio nodo (`interpolarNodos`); el «<» detras exige
+  // que la frase acabe ahi, sin un segundo «fa».
+  'pantalla y creativos · con fallas y creativos': ['Vista <span', '42</span> volte · l’ultima 5 min fa<'],
+  // Validacion L1 (V1): el SSIM con coma, no «0.812».
+  'verificacion · resultados con paginas': ['SSIM 0,812'],
+  'sin respuesta': [
+    'Il servizio delle fotocamere non risponde in questo momento', 'Riprova',
+    'Se continua così per più di un’ora, avvisa il supporto da Impostazioni › Impostazioni aziendali › Supporto.',
+  ],
+  'solicitudes de activacion · con y sin pendientes': [
+    'Richieste di attivazione di Space Eyes', '2 in sospeso', ' · ticket T-0012', 'Copia comando', 'pannello dei ticket',
+    'Nessuna in sospeso',
+  ],
+}
+
+describe('lote SPACE EYES · en ITALIANO no queda ninguna frase espanola y sale el italiano', () => {
+  for (const p of PANTALLAS) {
+    it(p.nombre, async () => {
+      const html = texto(await p.pintar('it'))
+      const quedan = p.espanol.filter((f) => aparece(html, f) && !COMUNES_IT.has(f))
+      expect(quedan).toEqual([])
+      const faltan = (ITALIANO[p.nombre] ?? []).filter((f) => !html.includes(f))
+      expect(faltan).toEqual([])
+      // Una plantilla que repite lo que ya trae su hueco («5 min fa fa»).
+      expect(html).not.toMatch(/\bfa fa\b/)
+    })
+  }
+
+  // Validacion L1 (V6): el total de la galeria con millar, que las pruebas del
+  // ingles no rendian (su total es 45).
+  it('galeria · un total de 1234 fotos sale «1.234», no «1,234»', async () => {
+    const C = await galeria()
+    forzar(esNull, FOTOS)
+    forzar(esCero, 1234)
+    forzar(esTrue, false)
+    forzar(esArregloVacio, [{ id: 1, name: 'Reforma 222' }])
+    const html = texto(pintar('it', el(C)))
+    expect(html).toContain('1.234')
+    expect(html).not.toContain('1,234')
+  })
+
+  it('cada pantalla de `ITALIANO` existe (un nombre mal escrito no prueba nada)', () => {
+    const nombres = new Set(PANTALLAS.map((p) => p.nombre))
+    expect(Object.keys(ITALIANO).filter((n) => !nombres.has(n))).toEqual([])
+  })
+})
+
+describe('lote SPACE EYES · en ITALIANO ningun formato espanol ni ingles', () => {
+  for (const p of PANTALLAS) {
+    it(p.nombre, async () => {
+      const crudo = (await p.pintar('it')).replace(MARCA, '')
+      // «0,812» (el SSIM) es una cifra italiana con tres decimales; la guardia
+      // la toma por un millar ingles, que nunca empieza por «0,».
+      expect(huellasEnItaliano(crudo, { permitidos: [/^0,\d{3}$/] })).toEqual([])
+    })
+  }
+
+  it('la marca de la foto SI sigue en es-MX en italiano (es la evidencia)', async () => {
+    const p = PANTALLAS.find((x) => x.nombre === 'texto · con foto, capturando y sin guardar')!
+    forzado.cola = []
+    const marca = (await p.pintar('it')).match(MARCA)?.[0] ?? ''
+    expect(marca).toMatch(/<div>\d{2}\/\d{2}\/\d{4}<\/div>/)
+    expect(marca).toMatch(/[ap]\.\s?m\./)
+  })
+})
+
+async function htmlItaliano(): Promise<string> {
+  let html = ''
+  for (const p of PANTALLAS) {
+    forzado.cola = []
+    sesion.puede = true
+    nav.params = { id: '7' }
+    const crudo = (await p.pintar('it')).replace(MARCA, '')
+    const visibles = [...crudo.matchAll(/(?:title|aria-label|placeholder|alt)="([^"]*)"/g)].map((m) => m[1])
+    html += texto(crudo.replace(/<[^>]*>/g, '\n') + '\n' + visibles.join('\n'))
+  }
+  return html
+}
+
+describe('lote SPACE EYES · barrido italiano con el diccionario entero', () => {
+  it('ningun trozo espanol ni ingles del diccionario del lote aparece en las pantallas en italiano', async () => {
+    const { ES_SPACEEYES, EN_SPACEEYES, IT_SPACEEYES } = await import('./textos/spaceeyes')
+    const { EN_COMERCIAL } = await import('./textos/comercial')
+    let html = await htmlItaliano()
+    // El veredicto de la foto usa `comercial.eye.*` (lote L2): mientras ese
+    // lote no lo traduzca, cae al ingles («Correct ad · confidence 93%») y no
+    // es de este ambito. Se quita antes de barrer.
+    for (const [clave, en] of Object.entries(EN_COMERCIAL)) {
+      if (!clave.startsWith('comercial.eye.')) continue
+      for (const trozo of en.split(/\{\w+\}/)) if (trozo.trim().length >= 5) html = html.split(trozo.trim()).join('\n')
+    }
+    // Palabras inglesas que tambien son italiano: «compare» (aparece) y
+    // «report», que el italiano usa tal cual.
+    const TAMBIEN_ITALIANO = new Set(['Compare', 'report'])
+    const escapar = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const it = IT_SPACEEYES as Partial<Record<string, string>>
+    const culpables: string[] = []
+    for (const [clave, es] of Object.entries(ES_SPACEEYES)) {
+      const italiano = it[clave] ?? ''
+      const en = EN_SPACEEYES[clave as keyof typeof EN_SPACEEYES]
+      for (const [idioma, frase] of [['es', es], ['en', en]] as const) {
+        for (const trozo of frase.split(/\{\w+\}/)) {
+          const t = trozo.trim()
+          // Trozos cortos («de», «a») chocan con texto italiano o con datos.
+          if (t.length < 5 || italiano.includes(t) || TAMBIEN_ITALIANO.has(t)) continue
+          if (new RegExp(`(^|[^\\p{L}])${escapar(t)}($|[^\\p{L}])`, 'u').test(html)) culpables.push(`${idioma} · ${clave} · «${t}»`)
+        }
       }
     }
     expect(culpables).toEqual([])

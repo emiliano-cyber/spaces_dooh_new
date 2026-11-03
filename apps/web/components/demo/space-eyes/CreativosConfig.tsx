@@ -96,7 +96,7 @@ function usaPantalla(version: string | null | undefined): boolean {
 // Los datos del chip en el mes contra el tope de 4 GB. Las fotos son lo de
 // menos: casi todo se va en la vista en vivo.
 function MedidorMes({ bytes }: { bytes: number | null }) {
-  const t = useIdioma().t
+  const { t, idioma } = useIdioma()
   const pct = bytes == null ? 0 : Math.min(100, (bytes / TOPE_MES) * 100)
   const tono = pct >= 90 ? 'bg-error' : pct >= 70 ? 'bg-warning' : 'bg-success'
   return (
@@ -110,7 +110,7 @@ function MedidorMes({ bytes }: { bytes: number | null }) {
       ) : (
         <>
           <p className="mt-1 text-lg tabular-nums text-ink">
-            {gigas(bytes)}
+            {gigas(bytes, idioma)}
             <span className="text-muted"> / 4 GB</span>
           </p>
           <div

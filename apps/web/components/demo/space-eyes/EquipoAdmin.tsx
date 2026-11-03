@@ -7,7 +7,7 @@ import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { ConfirmDialog } from '@/components/demo/ui/ConfirmDialog'
 import { seApi, fotoSE, ErrorSE, textoDeError } from '@/lib/data/space-eyes-se'
-import { fechaHora } from './piezas'
+import { fechaHora, fijo } from './piezas'
 import { comoSeActualiza } from '@/lib/space-eyes-actualizacion'
 import { formatNumero } from '@/lib/formato-numero'
 import { useIdioma } from '@/lib/i18n/contexto'
@@ -321,7 +321,7 @@ function FichaYDatos({
           <Dato k={t('spaceeyes.admin.ultima-conexion')} v={fechaHora(equipo.last_seen_at, idioma)} />
           <Dato
             k={t('spaceeyes.comun.almacenamiento')}
-            v={estado?.storage_free_mb ? `${formatNumero(estado.storage_free_mb)} MB` : null}
+            v={estado?.storage_free_mb ? `${formatNumero(estado.storage_free_mb, 0, idioma)} MB` : null}
             mono
           />
           <Dato k={t('spaceeyes.admin.temp-cpu')} v={estado?.cpu_temp ? `${estado.cpu_temp} °C` : null} mono />
@@ -707,7 +707,7 @@ function AjustesImagen({
       <label key={campo} className="block">
         <span className="mb-1 flex justify-between text-[12px] text-muted">
           <span>{nombre}</span>
-          <span className="tabular-nums text-ink">{texto ? texto(valor) : valor.toFixed(2)}</span>
+          <span className="tabular-nums text-ink">{texto ? texto(valor) : fijo(valor, 2, idioma)}</span>
         </span>
         <input
           type="range"
@@ -803,7 +803,7 @@ function AjustesImagen({
               {expManual && (
                 <>
                   <div className="grid grid-cols-2 gap-3">
-                    {deslizador('obturador', t('spaceeyes.admin.obturador'), 200, 40000, 100, 8000, (v) => `${formatNumero(v)} µs`)}
+                    {deslizador('obturador', t('spaceeyes.admin.obturador'), 200, 40000, 100, 8000, (v) => `${formatNumero(v, 0, idioma)} µs`)}
                     {deslizador('ganancia', t('spaceeyes.admin.ganancia'), 1, 16, 0.25, 1)}
                   </div>
                   <p className="mt-1 text-[11px] text-muted">{t('spaceeyes.admin.exposicion-mano.texto')}</p>

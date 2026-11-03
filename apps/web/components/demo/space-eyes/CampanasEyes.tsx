@@ -433,7 +433,7 @@ export function CampanasEyes() {
                   {cargandoEquiposAsignados
                     ? t('spaceeyes.campanas.leyendo-asignados')
                     : t(form.device_ids.length === 1 ? 'spaceeyes.campanas.seleccionados.uno' : 'spaceeyes.campanas.seleccionados.otros', {
-                        n: formatNumero(form.device_ids.length),
+                        n: formatNumero(form.device_ids.length, 0, idioma),
                       })}
                 </p>
               </div>
@@ -654,10 +654,11 @@ function TarjetaCampana({ campana: c, onEditar }: { campana: CampanaSE; onEditar
 }
 
 function Dato({ titulo, valor }: { titulo: string; valor: number | string }) {
+  const { idioma } = useIdioma()
   return (
     <div className="min-w-0">
       <div className="text-[11px] text-muted">{titulo}</div>
-      <div className="demo-num truncate font-medium text-ink">{typeof valor === 'number' ? formatNumero(valor) : valor}</div>
+      <div className="demo-num truncate font-medium text-ink">{typeof valor === 'number' ? formatNumero(valor, 0, idioma) : valor}</div>
     </div>
   )
 }

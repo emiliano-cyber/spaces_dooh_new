@@ -15,6 +15,7 @@ import type { Idioma } from '@/lib/i18n/idiomas'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 import { formatFecha } from '@/lib/data/derive'
 import { localeDe } from '@/lib/i18n/formato-idioma'
+import { cifra, fijo } from './piezas'
 
 // ============================================================================
 //  Space Eyes — programación de fotos.
@@ -245,14 +246,14 @@ function fotosPorDiaTexto(f: Formulario, idioma: Idioma): string {
   const n = fotosPorDia(f)
   if (!n) return traducir(idioma, 'spaceeyes.prog.sin-fotos')
   const r = Math.round(n * 10) / 10
-  return traducir(idioma, r === 1 ? 'spaceeyes.prog.fotos-dia.uno' : 'spaceeyes.prog.fotos-dia.otros', { n: r })
+  return traducir(idioma, r === 1 ? 'spaceeyes.prog.fotos-dia.uno' : 'spaceeyes.prog.fotos-dia.otros', { n: cifra(r, idioma) })
 }
 
 function consumoMesTexto(f: Formulario, idioma: Idioma): string {
   const mb = fotosPorDia(f) * 30 * MB_POR_FOTO
   if (!mb) return '—'
   return mb >= 1024
-    ? traducir(idioma, 'spaceeyes.prog.gb-mes', { n: (mb / 1024).toFixed(1) })
+    ? traducir(idioma, 'spaceeyes.prog.gb-mes', { n: fijo(mb / 1024, 1, idioma) })
     : traducir(idioma, 'spaceeyes.prog.mb-mes', { n: Math.round(mb) })
 }
 
@@ -651,7 +652,7 @@ function FormularioProgramacion({
             {f.destino === 'todos' && (
               <p className="text-[12px] text-muted">
                 {t(equipos.length === 1 ? 'spaceeyes.prog.todos.texto.uno' : 'spaceeyes.prog.todos.texto.otros', {
-                  n: formatNumero(equipos.length),
+                  n: formatNumero(equipos.length, 0, idioma),
                 })}
               </p>
             )}

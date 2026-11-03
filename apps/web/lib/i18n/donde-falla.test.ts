@@ -38,6 +38,25 @@ describe('donde de una falla · en ingles', () => {
   })
 })
 
+// Lote L1 del italiano (2026-11-03): las mismas tres formas, en italiano.
+describe('donde de una falla · en italiano', () => {
+  const casos: Array<[string, string]> = [
+    ['Gabinete 8 (fila 2, columna 3)', 'Cabinet 8 (riga 2, colonna 3)'],
+    ['Gabinetes 2, 5, 8 (3 de 15)', 'Cabinet 2, 5, 8 (3 di 15)'],
+    ['Gabinetes 2, 5, 8', 'Cabinet 2, 5, 8'],
+    ['Gabinetes 4 (1 de 15)', 'Cabinet 4 (1 di 15)'],
+    ['Gabinetes 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12… (14 de 20)', 'Cabinet 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12… (14 di 20)'],
+    ['Toda la pantalla', 'Tutto lo schermo'],
+  ]
+  for (const [es, it_] of casos) {
+    it(es, () => expect(dondeDeFallaEnIdioma(es, 'it')).toBe(it_))
+  }
+  it('lo que no reconoce se pinta como llega', () => {
+    for (const x of ['ZONA-4', 'Gabinete 8', 'Toda la pantalla ', 'Gabinetes norte'])
+      expect(dondeDeFallaEnIdioma(x, 'it')).toBe(x)
+  })
+})
+
 describe('nombre de una falla · el que escribe el telefono', async () => {
   const { nombreDeFallaEnIdioma } = await import('./donde-falla')
   const { DICCIONARIOS } = await import('./diccionario')
@@ -50,6 +69,13 @@ describe('nombre de una falla · el que escribe el telefono', async () => {
     for (const k of claves) {
       expect(nombreDeFallaEnIdioma(ES[k], 'en'), k).toBe(EN[k])
       expect(nombreDeFallaEnIdioma(ES[k], 'es')).toBe(ES[k])
+    }
+  })
+  it('y en italiano: los ocho, con su italiano y distinto del ingles (lote L1)', () => {
+    const IT = DICCIONARIOS.it as Record<string, string>
+    for (const k of claves) {
+      expect(nombreDeFallaEnIdioma(ES[k], 'it'), k).toBe(IT[k])
+      expect(IT[k], k).not.toBe(EN[k])
     }
   })
   it('un nombre que no es del catalogo (o con otra forma) se pinta como llega', () => {

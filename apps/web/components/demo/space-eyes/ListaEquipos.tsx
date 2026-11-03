@@ -164,7 +164,7 @@ export function ListaEquipos() {
               titulo={t('spaceeyes.conexion.en-linea')}
               valor={enLinea}
               pie={t(conEstado.length === 1 ? 'spaceeyes.lista.kpi.de-equipos.uno' : 'spaceeyes.lista.kpi.de-equipos.otros', {
-                n: formatNumero(conEstado.length),
+                n: formatNumero(conEstado.length, 0, idioma),
               })}
               punto="bg-success"
             />
@@ -187,13 +187,13 @@ export function ListaEquipos() {
           <div className="flex flex-wrap items-center gap-2">
             <div className="inline-flex rounded-md border border-border bg-surface p-0.5 text-[13px]">
               <Pestana activa={filtro === 'todos'} onClick={() => setFiltro('todos')}>
-                {t('spaceeyes.lista.filtro.todos', { n: formatNumero(conEstado.length) })}
+                {t('spaceeyes.lista.filtro.todos', { n: formatNumero(conEstado.length, 0, idioma) })}
               </Pestana>
               <Pestana activa={filtro === 'linea'} onClick={() => setFiltro('linea')}>
                 {t('spaceeyes.lista.filtro.linea', { n: enLinea })}
               </Pestana>
               <Pestana activa={filtro === 'atencion'} onClick={() => setFiltro('atencion')}>
-                {t('spaceeyes.lista.filtro.atencion', { n: formatNumero(conEstado.filter(necesitaAtencion).length) })}
+                {t('spaceeyes.lista.filtro.atencion', { n: formatNumero(conEstado.filter(necesitaAtencion).length, 0, idioma) })}
               </Pestana>
               <Pestana activa={filtro === 'manual'} onClick={() => setFiltro('manual')}>
                 {t('spaceeyes.lista.filtro.manual', { n: conEstado.filter((e) => e.actualizacion?.sola === false).length })}

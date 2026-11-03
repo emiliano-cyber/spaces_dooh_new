@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { ES_SPACEEYES, EN_SPACEEYES } from './spaceeyes'
+import { ES_SPACEEYES, EN_SPACEEYES, IT_SPACEEYES } from './spaceeyes'
 import { vi } from 'vitest'
 
 // ============================================================================
@@ -254,5 +254,104 @@ describe('spaceeyes · los errores del cliente, en los dos idiomas', () => {
     expect(vivo).toMatch(/new VisorWhep\(id, videoRef\.current, perdida, idioma\)/)
     const graf = readFileSync(path.join(__dirname, '../../../components/demo/space-eyes/Graficas.tsx'), 'utf8')
     expect(graf).toMatch(/if \(!r\.ok\) throw new Error\(textoRespondio\(r\.status, idioma\)\)/)
+  })
+})
+
+// ============================================================================
+//  EL ITALIANO DEL LOTE L1 (2026-11-03): completo, congelado y con la forma
+//  de la casa italiana (`vault/03-Frontend/italiano-olas.md`).
+// ============================================================================
+describe('diccionario de Space Eyes · italiano', () => {
+  const IT = IT_SPACEEYES as Partial<Record<string, string>>
+  const it_ = Object.entries(IT) as [string, string][]
+  // Iguales al espanol a proposito: cifras con unidad, nombres de producto y
+  // el boton «Vincular» de la app Android, que solo esta en español.
+  const IGUALES_IT = new Set([
+    'spaceeyes.demo.estado.temperatura.v', // «38 °C»
+    'spaceeyes.demo.estado.datos.v', // «312 MB»
+    'spaceeyes.alta.tipo.raspberry', // «Raspberry Pi»
+    'spaceeyes.alta.nombre.raspberry', // «Raspberry»
+    'spaceeyes.alta.nombre.pc', // «PC»
+    'spaceeyes.alta.pi.1.no', // el boton «No» del Raspberry Pi Imager
+    'spaceeyes.alta.tel.vincular', // «Vincular»: la app Android solo esta en español (dueño, 02/11)
+    'spaceeyes.verif.no', // «No»
+    // Igual que el INGLES: palabras que el italiano toma del ingles.
+    'spaceeyes.conexion.en-linea', // «Online»
+    'spaceeyes.lista.filtro.linea', // «Online · {n}»
+    'spaceeyes.solicitudes.folio', // « · ticket {folio}»
+    'spaceeyes.demo.aviso.demo', // «demo»
+    'spaceeyes.fallas.donde.gabinetes.uno', // «Cabinet {lista}»: «cabinet» es invariable
+    'spaceeyes.graficas.pct', // «{n}%»
+    'spaceeyes.alta.pi.clave', // «Password»
+    // Igual que el ESPANOL: la misma palabra en los dos idiomas.
+    'spaceeyes.demo.estado.temperatura', // «Temperatura»
+    'spaceeyes.ficha.cliente', // «Foto del cliente»
+    'spaceeyes.balance.fluorescent', // «Fluorescente»
+    'spaceeyes.admin.temp-cpu', // «Temperatura CPU»
+    'spaceeyes.vivo.foto', // «Foto»
+    'spaceeyes.fallas.zona', // «Zona»
+    'spaceeyes.comun.periodo', // «Periodo»
+    'spaceeyes.graficas.dispositivo', // «Dispositivo»
+    'spaceeyes.graficas.nd', // «n/d»
+    'spaceeyes.texto.centro', // «Centro»
+  ])
+
+  it('esta COMPLETO: cada clave del espanol tiene su italiano, y ninguna sobra', () => {
+    expect(Object.keys(ES_SPACEEYES).filter((k) => !IT[k])).toEqual([])
+    expect(Object.keys(IT).filter((k) => !(k in ES_SPACEEYES))).toEqual([])
+  })
+
+  it('no cambia sin que se vea', () => {
+    expect(IT_SPACEEYES).toMatchSnapshot()
+  })
+
+  it('ninguna entrada italiana es igual a la espanola ni a la inglesa, salvo las declaradas', () => {
+    const iguales = it_.filter(
+      ([k, v]) => v === ES_SPACEEYES[k as keyof typeof ES_SPACEEYES] || v === EN_SPACEEYES[k as keyof typeof EN_SPACEEYES],
+    ).map(([k]) => k)
+    expect(iguales.filter((k) => !IGUALES_IT.has(k))).toEqual([])
+  })
+
+  it('los huecos son los mismos que en espanol', () => {
+    const huecos = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort().join(',')
+    expect(it_.filter(([k, v]) => huecos(v) !== huecos(ES_SPACEEYES[k as keyof typeof ES_SPACEEYES])).map(([k]) => k)).toEqual([])
+  })
+
+  it('sin espacio antes del «%», apostrofo tipografico y comillas « »', () => {
+    expect(it_.filter(([, v]) => /\S %|\d %/.test(v)).map(([k]) => k)).toEqual([])
+    expect(it_.filter(([, v]) => /[A-Za-zÀ-ú]'[A-Za-zÀ-ú]|"/.test(v)).map(([k]) => k)).toEqual([])
+  })
+
+  it('ni cifras con punto decimal ni signos de apertura espanoles', () => {
+    // Las versiones («app 0.15», «v1.0», «0.15.0») no son cifras: llevan punto.
+    const sinVersiones = (v: string) => v.replace(/\d+\.\d+\.\d+/g, '').replace(/(?:\bapp |\bv)\d+\.\d+/g, '')
+    expect(it_.filter(([, v]) => /\d\.\d/.test(sinVersiones(v)) || /[¿¡ñ]/.test(v)).map(([k]) => k)).toEqual([])
+  })
+
+  it('las frecuencias fijas van en letra: «ogni due ore», nunca «ogni 2»', () => {
+    expect(it_.filter(([, v]) => /\bogni \d/i.test(v)).map(([k]) => k)).toEqual([])
+  })
+
+  it('en la web se «clicca»: nunca «tocca»/«premi» (el telefono «conferma»)', () => {
+    expect(it_.filter(([, v]) => /\btocc[ah]i?\b|\bprem[ie]\b/i.test(v)).map(([k]) => k)).toEqual([])
+  })
+
+  // Validacion L1 + decision del orquestador para TODO el italiano: ninguna
+  // fecha con articulo delante («il 8 dic», «al 11 ott» piden elision y no la
+  // llevan): «Inizio: {fecha}», «Valido fino a: {fecha}».
+  it('ninguna fecha con articulo delante: «Inizio: {fecha}», no «il {fecha}»', () => {
+    expect(it_.filter(([, v]) => /\b(?:il|al|del|dal|nel|sul|l’|all’|dell’) ?\{fecha\}/i.test(v)).map(([k]) => k)).toEqual([])
+  })
+
+  it('{hace} ya trae el «fa»: la plantilla no lo repite', () => {
+    expect(it_.filter(([, v]) => /\{hace\} fa\b/.test(v)).map(([k]) => k)).toEqual([])
+  })
+
+  it('glosario de la validacion: parco dispositivi, sovrimpressione, messa in onda', () => {
+    expect(it_.filter(([, v]) => /\bflotta\b|etichett|affissione/i.test(v)).map(([k]) => k)).toEqual([])
+  })
+
+  it('los anglicismos del sector se quedan: ni «bucle» ni «riproduzione» por loop/spot', () => {
+    expect(it_.filter(([, v]) => /\bbucle\b|\bciclo di riproduzione\b/i.test(v)).map(([k]) => k)).toEqual([])
   })
 })

@@ -51,12 +51,15 @@ describe('catalogos fuera de textos/ · italiano = ingles mientras falte', () =>
     expect(etiquetaDePuntoOT('Inspección de estructura', 'it')).toBe('Inspección de estructura')
   })
 
-  it('nombres y lugares de falla de Space Eyes', () => {
-    for (const d of ['Gabinete 3 (fila 1, columna 2)', 'Gabinetes 1, 2 (2 de 8)', ES['spaceeyes.fallas.donde.toda']]) {
-      expect(dondeDeFallaEnIdioma(d, 'it')).toBe(dondeDeFallaEnIdioma(d, 'en'))
-    }
+  // Lote L1 (2026-11-03): Space Eyes ya tiene italiano, asi que aqui la
+  // igualdad con el ingles se rompe a proposito. El detalle, en
+  // `donde-falla.test.ts`.
+  it('nombres y lugares de falla de Space Eyes · YA en italiano (lote L1)', () => {
+    expect(dondeDeFallaEnIdioma('Gabinete 3 (fila 1, columna 2)', 'it')).toBe('Cabinet 3 (riga 1, colonna 2)')
+    expect(dondeDeFallaEnIdioma('Gabinetes 1, 2 (2 de 8)', 'it')).toBe('Cabinet 1, 2 (2 di 8)')
+    expect(dondeDeFallaEnIdioma(ES['spaceeyes.fallas.donde.toda'], 'it')).toBe('Tutto lo schermo')
     const nombre = ES['spaceeyes.fallas.nombre.zona-apagada']
-    expect(nombreDeFallaEnIdioma(nombre, 'it')).toBe(nombreDeFallaEnIdioma(nombre, 'en'))
+    expect(nombreDeFallaEnIdioma(nombre, 'it')).toBe('Possibile cabinet spento')
   })
 
   it('la campanita', () => {
