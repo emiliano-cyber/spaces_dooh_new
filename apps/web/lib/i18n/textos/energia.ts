@@ -151,7 +151,9 @@ export const ES_ENERGIA = {
   'energia.lectura.repetidos': '{n} ya capturados: volver a guardarlos DUPLICA el costo',
   'energia.lectura.alerta': 'Se leyeron {leidos} de {total} archivos y salen {filas} renglones. Revisa antes de confirmar: {pegas}.',
   'energia.lectura.ninguno': 'No salió ningún renglón de estos archivos.',
-  'energia.lectura.ok':
+  'energia.lectura.ok.uno':
+    'Se leyeron los {total} {archivos} y salen {filas} {renglones}. Míralos contra el recibo y confírmalos: nada se guarda hasta que le des a guardar.',
+  'energia.lectura.ok.otros':
     'Se leyeron los {total} {archivos} y salen {filas} {renglones}. Míralos contra el recibo y confírmalos: nada se guarda hasta que le des a guardar.',
   'energia.lectura.archivo.uno': 'archivo',
   'energia.lectura.archivo.otros': 'archivos',
@@ -180,8 +182,8 @@ export const EN_ENERGIA: Record<ClaveEnergia, string> = {
   'energia.cobertura.titulo': 'What’s entered and what’s missing',
   'energia.meses.uno': '{n} month',
   'energia.meses.otros': '{n} months',
-  'energia.puntos.uno': '{n} point',
-  'energia.puntos.otros': '{n} points',
+  'energia.puntos.uno': '{n} metering point',
+  'energia.puntos.otros': '{n} metering points',
   'energia.resumen': '{meses} · {puntos}',
   'energia.vacio.error': 'Could not load the entries',
   'energia.vacio.periodo': 'Check the period',
@@ -218,7 +220,7 @@ export const EN_ENERGIA: Record<ClaveEnergia, string> = {
   'energia.rejilla.borrar-este': 'Delete this bill',
   'energia.rejilla.borrar-aria': 'Delete the bill for meter {medidor}',
   'energia.rejilla.borrar': 'Delete the bill',
-  'energia.sin-numero': 'no number',
+  'energia.sin-numero': '(no number)',
 
   'energia.subir.error-leer': 'Could not read the files',
   'energia.subir.no-guardar': 'Could not save',
@@ -282,17 +284,19 @@ export const EN_ENERGIA: Record<ClaveEnergia, string> = {
   'energia.lectura.importe.falta': 'Enter the amount: it could not be read from the PDF',
   'energia.lectura.no-recibo.uno': '{n} file is not a CFE bill',
   'energia.lectura.no-recibo.otros': '{n} files are not CFE bills',
-  'energia.lectura.desajuste.uno': '{n} doesn’t match the {esperados} months you declared',
-  'energia.lectura.desajuste.otros': '{n} don’t match the {esperados} months you declared',
-  'energia.lectura.cubre.uno': '{base}: it covers {unico} calendar months',
-  'energia.lectura.cubre.otros': '{base}: all {n} cover {unico} calendar months',
+  'energia.lectura.desajuste.uno': '{n} doesn’t match the number of months you declared ({esperados})',
+  'energia.lectura.desajuste.otros': '{n} don’t match the number of months you declared ({esperados})',
+  'energia.lectura.cubre.uno': '{base}: the number of calendar months it covers is {unico}',
+  'energia.lectura.cubre.otros': '{base}: the number of calendar months covered by those {n} is {unico}',
   'energia.lectura.sin-predio': '{n} with no property: choose it yourself',
   'energia.lectura.sin-cifra': '{n} with a figure that could not be read',
   'energia.lectura.repetidos': '{n} already entered: saving them again DOUBLES the cost',
-  'energia.lectura.alerta': '{leidos} of {total} files were read and they produce {filas} rows. Check before confirming: {pegas}.',
+  'energia.lectura.alerta': 'Files read: {leidos} of {total}; rows: {filas}. Check before confirming: {pegas}.',
   'energia.lectura.ninguno': 'These files produced no rows.',
-  'energia.lectura.ok':
-    'All {total} {archivos} were read and they produce {filas} {renglones}. Check them against the bill and confirm them: nothing is saved until you click save.',
+  'energia.lectura.ok.uno':
+    '{total} {archivos} was read and it produces {filas} {renglones}. Check them against the bill and confirm them: nothing is saved until you click save.',
+  'energia.lectura.ok.otros':
+    '{total} {archivos} were read and they produce {filas} {renglones}. Check them against the bill and confirm them: nothing is saved until you click save.',
   'energia.lectura.archivo.uno': 'file',
   'energia.lectura.archivo.otros': 'files',
   'energia.lectura.renglon.uno': 'row',
@@ -301,7 +305,7 @@ export const EN_ENERGIA: Record<ClaveEnergia, string> = {
   'energia.leido.medidor': 'meter {n}',
   'energia.leido.periodo': 'period {desde} → {hasta}',
   'energia.leido.pdf-dice': 'the PDF says {kwh} kWh',
-  'energia.leido.facturacion': 'billing {monto}',
+  'energia.leido.facturacion': 'period charges {monto}',
   'energia.leido.alumbrado': 'street lighting {monto}',
   'energia.leido.total': 'Bill total {monto} (includes past-due balances and payments)',
 }

@@ -5,7 +5,7 @@ import { ES_INICIO, EN_INICIO } from './inicio'
 import { traducir } from '../diccionario'
 import { TIPOS_ALERTA } from '@/lib/alertas-visibles'
 import { TRAMOS_COBRANZA, pipelineComercial } from '@/components/demo/inicio/indicadores'
-import { CLAVE_LICENCIA, LICENCIA_LABEL, dashboardMetrics } from '@/lib/data/derive'
+import { CLAVE_INCIDENCIA, CLAVE_LICENCIA, LICENCIA_LABEL, dashboardMetrics } from '@/lib/data/derive'
 import { ESTADO_ALERTAS } from '../estado-alertas.fixture'
 
 // ============================================================================
@@ -77,6 +77,11 @@ describe('inicio · espejos de las tablas espanolas', () => {
   it('cada licencia dice en espanol lo mismo que `LICENCIA_LABEL`', () => {
     expect(Object.keys(CLAVE_LICENCIA).sort()).toEqual(Object.keys(LICENCIA_LABEL).sort())
     for (const [k, v] of Object.entries(LICENCIA_LABEL)) expect(traducir('es', CLAVE_LICENCIA[k])).toBe(v)
+  })
+  it('cada tipo de incidencia (enum `TipoIncidencia`) tiene su clave, y su espanol es el dato en minusculas', () => {
+    const tipos = ['CLIMA', 'MANTENIMIENTO', 'LEGAL', 'VANDALISMO', 'SUSPENSION_OPERATIVA', 'ACCIDENTE', 'OTRO']
+    expect(Object.keys(CLAVE_INCIDENCIA).sort()).toEqual([...tipos].sort())
+    for (const t of tipos) expect(traducir('es', CLAVE_INCIDENCIA[t])).toBe(t.toLowerCase())
   })
   it('el selector de granularidad dice en espanol lo mismo que `GRANS`', () => {
     for (const [g, label] of [['dia', 'Día'], ['semana', 'Semana'], ['mes', 'Mes']]) {

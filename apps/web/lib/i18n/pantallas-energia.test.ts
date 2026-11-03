@@ -165,10 +165,10 @@ export const ESTADOS: Estado[] = [
       'Bill month', 'Meter', '>Amount<', 'Save bill', '1 · How many calendar months does each bill in this batch cover?',
       '— choose before uploading —', '3 calendar months — the usual for a bill issued EVERY TWO MONTHS',
       'Count the calendar months the period <strong>touches</strong>, not how long it lasts.',
-      '2 · Upload the bill PDF', 'What’s entered and what’s missing', '2 months · 3 points',
+      '2 · Upload the bill PDF', 'What’s entered and what’s missing', '2 months · 3 metering points',
       '3 of 6 bills for the period are missing.', '1 entered bill for MX$50.00 doesn’t reach any screen',
-      'Jan 2026', 'Feb 2026', 'Standalone screen', '>2 screens<', 'aria-label="Delete the bill for meter no number"',
-      'title="Delete this bill"', 'no number</button>',
+      'Jan 2026', 'Feb 2026', 'Standalone screen', '>2 screens<', 'aria-label="Delete the bill for meter (no number)"',
+      'title="Delete this bill"', '(no number)</button>',
     ],
   },
   {
@@ -267,9 +267,9 @@ export const ESTADOS: Estado[] = [
       'Elige a qué predio o pantalla corresponde este recibo',
     ],
     ingles: [
-      '2 of 3 files were read and they produce 2 rows. Check before confirming: 1 file is not a CFE bill; 2 don’t match the 1 months you declared: all 2 cover 3 calendar months; 1 with no property: choose it yourself; 1 with a figure that could not be read; 1 already entered: saving them again DOUBLES the cost.',
+      'Files read: 2 of 3; rows: 2. Check before confirming: 1 file is not a CFE bill; 2 don’t match the number of months you declared (1): the number of calendar months covered by those 2 is 3; 1 with no property: choose it yourself; 1 with a figure that could not be read; 1 already entered: saving them again DOUBLES the cost.',
       '>Month<', '>Days<', '— choose —', 'placeholder="type it"',
-      'service 123456789012 · meter AB12 · PDBT · period 2025-11-10 → 2026-01-09 · the PDF says 1,500 kWh · billing MX$ 4,000.00 · street lighting MX$ 200.00 · Bill total MX$ 9,000.00 (includes past-due balances and payments)',
+      'service 123456789012 · meter AB12 · PDBT · period 2025-11-10 → 2026-01-09 · the PDF says 1,500 kWh · period charges MX$ 4,000.00 · street lighting MX$ 200.00 · Bill total MX$ 9,000.00 (includes past-due balances and payments)',
       'You declared 1 month and this bill covers 3. It was split according to the PDF.',
       'One is already entered for 2026-01: 1,200 kWh for MX$ 3,400.50. Saving again DOUBLES that month’s cost.',
       'Choose which property or screen this bill belongs to',
@@ -286,7 +286,7 @@ export const ESTADOS: Estado[] = [
       return pintar(idioma, createElement(SubirRecibos, { puntos: PUNTOS as never, onGuardado: () => {} }))
     },
     espanol: ['Se leyeron los 1 archivo y salen 1 renglón. Míralos contra el recibo y confírmalos: nada se guarda hasta que le des a guardar.', ' Guardado</span>'],
-    ingles: ['All 1 file were read and they produce 1 row.', ' Saved</span>'],
+    ingles: ['1 file was read and it produces 1 row.', ' Saved</span>'],
   },
   {
     nombre: 'energia · leyendo, sin renglones, un error y un renglon guardando',

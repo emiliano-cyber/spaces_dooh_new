@@ -299,7 +299,7 @@ export function resumenDeLectura(r: RespuestaRecibosUI, idioma: Idioma = 'es'): 
       `Se leyeron los ${r.total} ${r.total === 1 ? 'archivo' : 'archivos'} y salen ` +
         `${filas.length} ${filas.length === 1 ? 'renglón' : 'renglones'}. ` +
         'Míralos contra el recibo y confírmalos: nada se guarda hasta que le des a guardar.',
-      'energia.lectura.ok',
+      r.total === 1 ? 'energia.lectura.ok.uno' : 'energia.lectura.ok.otros',
       {
         total: r.total,
         archivos: traducir(idioma, r.total === 1 ? 'energia.lectura.archivo.uno' : 'energia.lectura.archivo.otros'),

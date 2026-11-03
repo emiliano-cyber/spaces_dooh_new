@@ -169,7 +169,7 @@ const CAMPANAS = [{ id: 'c1', nombre: 'Verano' }, { id: 'c2', nombre: 'Otoño' }
 const USUARIOS = [{ id: 'u1', nombre: 'Luisa Campo', activo: true, rol: 'OPERACIONES' }]
 const EVIDENCIAS = [{ id: 'e1', otId: '1' }, { id: 'e2', otId: '1' }, { id: 'e3', otId: '2' }]
 
-const FICHA_CAMPANA = { id: 'c1', nombre: 'Verano', tipoCampana: 'DIGITAL', ocRecibida: true, fotosComprobatorias: true, reportePublicacion: true }
+const FICHA_CAMPANA = { id: 'c1', nombre: 'Verano', tipoCampana: 'DOOH', ocRecibida: true, fotosComprobatorias: true, reportePublicacion: true }
 const FICHA_SITIO = { id: 's1', nombre: 'Pantalla Reforma', direccion: 'Av. Reforma 1', lat: 19.4, lng: -99.1 }
 const CHECKLIST = [{ label: 'Inspección de estructura y herrajes', hecho: true }, { label: 'Montaje / ejecución', hecho: false }]
 const fichaAbierta = (extra: Record<string, unknown> = {}) => ({
@@ -217,7 +217,7 @@ export const ESTADOS_OT: Estado[] = [
       'Luisa Campo', '20/10/2026',
     ],
     ingles: [
-      '>Open<', '1 in progress', '>Overdue<', 'they keep the billing lock closed', 'Due soon', 'due in 2 days or less',
+      '>Open<', '1 in progress', '>Overdue<', 'keeping the billing lock closed', 'Due soon', 'due in 2 days or less',
       'Unassigned', 'open with no assignee', '1 overdue work order', '1 due soon',
       '— an open work order past its due date keeps the billing lock closed.', '4 of 4', 'Vinyl installation',
       'Corrective maintenance', 'Electrical', 'Removal', 'Urgent', '>High<', 'title="Due date"', 'title="Open work order"',
@@ -291,7 +291,7 @@ export const ESTADOS_OT: Estado[] = [
       'New work order', 'Assign a task to a crew', 'Cancel', 'Create work order', 'Campaign', '— No campaign —', 'Screen',
       '(set by the campaign)', '— No screen —', 'Pantalla Reforma · Digital', 'Task type', '(options for a digital screen)',
       'Inspection', 'Preventive maintenance', 'Description', 'placeholder="e.g. Vinyl installation on a billboard…"',
-      'Priority', '>Low<', '>High<', 'Urgent', 'Due date', 'Assign to (assignee)', '— Unassigned —',
+      'Priority', '>Low<', '>High<', 'Urgent', 'Due date', '>Assign to<', '— Unassigned —',
     ],
   },
   {
@@ -459,7 +459,8 @@ const SITIOS_CREA = [
   { id: 'd2', nombre: 'Pantalla Sur', tipoMedio: 'PANTALLA_DIGITAL' },
   { id: 'f1', nombre: 'Valla Norte', tipoMedio: 'VALLA' },
 ]
-const camp = (id: string, nombre: string) => ({ id, nombre, folio: `CA-${id}`, tipoCampana: 'DIGITAL', clienteId: 'k1', creadoEn: `2026-10-0${id.length}` })
+const camp = (id: string, nombre: string) => ({ id, nombre, folio: `CA-${id}`, tipoCampana: 'HIBRIDA', // un valor valido del enum (OOH/DOOH/HIBRIDA)
+  clienteId: 'k1', creadoEn: `2026-10-0${id.length}` })
 const reserva = (id: string, campanaId: string, sitioId: string, extra: Record<string, unknown> = {}) => ({
   id, campanaId, sitioId, spotsReservados: 2, spotsPorDia: 100, creativos: [], ...extra,
 })
@@ -503,7 +504,7 @@ export const ESTADOS_CREATIVOS: Estado[] = [
     espanol: [
       'Creativos', 'Sube y aprueba las imágenes de cada campaña, y asigna cuál va en cada slot reservado.',
       'Por aprobar', 'frenan la publicación', 'Aprobados', 'listos para asignar', 'Rechazados', 'hay que reemplazarlos',
-      'Spots sin creativo', 'de 4 spots reservados', 'placeholder="Buscar por campaña, folio, cliente o nombre del creativo…"',
+      'Spots sin creativo', 'de 4 spots reservados', 'CA-c1 · HIBRIDA', 'placeholder="Buscar por campaña, folio, cliente o nombre del creativo…"',
       'Todos los creativos', 'Con pendientes de aprobar', 'Con aprobados', 'Con rechazados', 'Sin creativos todavía', '3 de 3',
       '1 por aprobar', '1/3 spots con creativo', ' Imagen</button>', ' Código</button>', 'Nombre del creativo',
       'placeholder="Pega aquí el código del creativo (HTML/UTF)…"', 'Cancelar', 'Guardar código', 'Creativos (5)',
@@ -518,10 +519,10 @@ export const ESTADOS_CREATIVOS: Estado[] = [
     ],
     ingles: [
       'Creatives', 'Upload and approve each campaign’s images, and assign which one goes in each booked slot.',
-      'Pending approval', 'they hold back publishing', '>Approved<', 'ready to assign', '>Rejected<', 'they need to be replaced',
-      'Spots with no creative', 'of 4 booked spots', 'placeholder="Search by campaign, internal ref., client or creative name…"',
+      'Pending approval', 'holding back publishing', '>Approved<', 'ready to assign', '>Rejected<', 'they need to be replaced',
+      'Slots with no creative', 'of 4 booked slots', 'CA-c1 · Hybrid', 'placeholder="Search by campaign, internal ref., client or creative name…"',
       'All creatives', 'With creatives pending approval', 'No creatives yet', '3 of 3', '1 pending approval',
-      '1/3 spots with a creative', ' Image</button>', ' Code</button>', 'Creative name', 'Save code', 'Creatives (5)',
+      '1/3 slots with a creative', ' Image</button>', ' Code</button>', 'Creative name', 'Save code', 'Creatives (5)',
       ' code</span>', 'Withdrawn · pending in DOOHmain', ' View HTML</button>', ' Approve</button>', ' Reject</button>',
       'aria-label="Replace the artwork of arte-k1.png"', 'aria-label="Delete arte-k1.png"', 'title="Delete"', '>Pending<',
       'Booked slots (3)', '2 creatives rotate', 'No creative', 'Site creative', '>Unassigned<',
@@ -609,7 +610,7 @@ export const ESTADOS_CREATIVOS: Estado[] = [
     ],
     ingles: [
       'No campaign has digital screens',
-      'Only creatives for digital screens are managed here. Your 1 campaign is on static media: its artwork is handled in Printing.',
+      'Only creatives for digital screens are managed here. You have 1 campaign and it is on static media: its artwork is handled in Printing.',
       'Go to Printing',
     ],
   },

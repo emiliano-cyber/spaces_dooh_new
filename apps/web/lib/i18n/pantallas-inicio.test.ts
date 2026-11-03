@@ -70,10 +70,17 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/inicio',
   useSearchParams: () => new URLSearchParams(''),
 }))
+// El mock PINTA `className` y `contentClassName` (segunda vuelta, hallazgo del
+// validador): antes las tiraba, y cambiar una clase del Dashboard que viajara
+// por la tarjeta (`lg:col-span-2`, el `space-y-3` del contenido) no lo veia
+// ninguna prueba ni el volcado.
 vi.mock('@/components/demo/ui/CardColapsable', () => ({
-  CardColapsable: (p: { titulo: string; subtitulo?: unknown; resumen?: unknown; accion?: unknown; children?: unknown }) =>
-    createElement('section', null, createElement('h3', null, p.titulo), p.subtitulo as never, p.resumen as never,
-      p.accion as never, p.children as never),
+  CardColapsable: (p: {
+    titulo: string; subtitulo?: unknown; resumen?: unknown; accion?: unknown; children?: unknown
+    className?: string; contentClassName?: string
+  }) =>
+    createElement('section', { className: p.className }, createElement('h3', null, p.titulo), p.subtitulo as never,
+      p.resumen as never, p.accion as never, createElement('div', { className: p.contentClassName }, p.children as never)),
 }))
 vi.mock('@/components/demo/MapView', () => ({ MapView: () => createElement('div', { 'data-mapa': '' }) }))
 vi.mock('@/components/demo/charts', () => ({ OcupacionChart: () => createElement('div', { 'data-grafica': '' }) }))
@@ -244,7 +251,7 @@ export const ESTADOS: Estado[] = [
       'Printing (separate)', 'View by screen', 'Performance', 'Rent / revenue', 'Published rate charged',
       'of 4 sales with a published rate · 2 with no rate to compare against', '1,234 space·days occupied out of 5,678 available',
       '>Open<', '2 proposals', '3 approved', 'last 90 days', 'Won by sales rep', 'Other sales reps', 'No sales rep',
-      'Overdue rent · ', 'Contracts expiring soon · ', 'Invoices (collections) · ', 'Sites blocked by an incident · ',
+      'Rent issues · ', 'Contract issues · ', 'Invoices (collections) · ', 'Blocked or paused sites · ',
       'Work orders (SLA) · ', 'Licenses and permits · ', ' urgent<',
       'Pantalla Reforma — 2 installments unpaid since 2026-09-01 (MX$ 2,000.00)', 'Pantalla Sur — payment 2026-10-01 unpaid (MX$ 1,000.00)',
       'Rent due soon', 'Valla Centro — due today (MX$ 1,000.00)', 'Valla Centro — due in 1 day (MX$ 1,000.00)',
@@ -252,14 +259,14 @@ export const ESTADOS: Estado[] = [
       'Contract expiring soon', 'Valla Centro — expires in 1 day<', 'Valla Centro — expires in 20 days', 'Contract expired',
       'Pantalla Sur — expired 1 day ago', 'Pantalla Sur — expired 13 days ago', 'License expired',
       'Pantalla Reforma — Municipal license LM-1 expired 1 day ago', 'Valla Norte — Environmental permit expired 32 days ago',
-      'License expiring soon', 'Location — Structural report expires in 1 day<', 'Pantalla Reforma — Permit X expires in 48 days',
+      'License expiring soon', 'Location — Structural inspection report expires in 1 day<', 'Pantalla Reforma — Permit X expires in 48 days',
       'The contract does not cover the campaign', 'Pantalla Reforma — “Verano” runs until Mar 1, 2028 and the contract expires on Dec 31, 2027',
       'Valla Norte — “campaign” runs until Mar 1, 2028 and the contract has no end date', 'Overdue invoice', 'A-101 — MX$ 5,000.00',
-      'Invoice due soon', 'Invoice — MX$ 0.00', 'Screen on legal hold', 'Site blocked by an incident', 'Site — otro',
+      'Invoice due soon', 'Invoice — MX$ 0.00', 'Screen under legal restriction', 'Site blocked by an incident', 'Pantalla Reforma — vandalism', 'Site — other',
       'Overdue work order', 'OT-1 · Pantalla Reforma — 1 day overdue · unassigned', 'OT-2 · no site — 13 days overdue<', 'Work order due soon',
       'OT-3 · Valla Norte — due in 1 day · unassigned', 'OT-4 · Valla Norte — due in 2 days<', 'Show less',
-      'what is left without a campaign in the next', 'Cliente Uno leaves · <a class="hover:underline" href="/campanas/c1">Verano</a> · ends Nov 2, 2026',
-      'no client', '>today<', 'in 18 d', 'free face', 'Not yet due', '1–30 days', 'Over 90',
+      'what becomes free in the next', 'Ending Nov 2, 2026: <a class="hover:underline" href="/campanas/c1">Verano</a> (Cliente Uno)',
+      '(no client)', '>today<', 'in 18 d', 'available face', 'Not yet due', '1–30 days', 'Over 90 days',
       'title="Not yet due: MX$ 3,000.00 in 1 installment"', 'title="1–30 days: MX$ 4,000.00 in 2 installments"',
       'Overdue: <span class="demo-num text-error">MX$ 4,000.00</span>',
     ],
@@ -347,7 +354,21 @@ describe('DASHBOARD · en ESPANOL sale el texto de siempre', () => {
 
 // Iguales en ingles a proposito: el nombre de la pagina, la palabra «Total»,
 // rangos con cifras y los datos de prueba.
-const COMUNES = new Set<string>(['Dashboard', '>Total<', 'Pantalla Sur — clausura-municipal', 'Pantalla Reforma — vandalismo', 'slot'])
+// «vandalismo» y «otro» ya NO estan aqui: son el enum `TipoIncidencia`, no datos.
+const COMUNES = new Set<string>(['Dashboard', '>Total<', 'Pantalla Sur — clausura-municipal', 'slot'])
+
+// El HTML espanol ENTERO de cada estado, congelado (segunda vuelta): las
+// listas de arriba comprueban frases con `includes` y dejaban vivir cualquier
+// cambio de clase. El diseño del Dashboard esta aprobado; cambiar una clase, un
+// nodo o un texto español pone esta prueba en rojo y el diff de
+// `__snapshots__/` enseña que cambio.
+describe('DASHBOARD · el HTML espanol, congelado', () => {
+  ESTADOS.forEach((p) => {
+    it(p.nombre, async () => {
+      expect(await p.pintar('es')).toMatchSnapshot()
+    })
+  })
+})
 
 describe('DASHBOARD · en INGLES no queda ninguna frase espanola', () => {
   for (const p of ESTADOS) {

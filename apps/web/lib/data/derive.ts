@@ -363,6 +363,19 @@ export const LICENCIA_LABEL: Record<string, string> = {
 
 // I18N · la clave de cada etiqueta de `LICENCIA_LABEL`, para las alertas en
 // ingles. La tabla espanola sigue siendo la verdad (`textos/inicio.test.ts`).
+// I18N · el tipo de incidencia (`TipoIncidencia`) es un enum: en español la
+// alerta lo pinta en minúsculas desde el dato, como siempre; en inglés, por
+// clave (hallazgo del validador: salía «vandalismo» en la pantalla inglesa).
+export const CLAVE_INCIDENCIA: Record<string, ClaveTexto> = {
+  CLIMA: 'inicio.incidencia.clima',
+  MANTENIMIENTO: 'inicio.incidencia.mantenimiento',
+  LEGAL: 'inicio.incidencia.legal',
+  VANDALISMO: 'inicio.incidencia.vandalismo',
+  SUSPENSION_OPERATIVA: 'inicio.incidencia.suspension-operativa',
+  ACCIDENTE: 'inicio.incidencia.accidente',
+  OTRO: 'inicio.incidencia.otro',
+}
+
 export const CLAVE_LICENCIA: Record<string, ClaveTexto> = {
   MUNICIPAL: 'inicio.licencia.municipal',
   AMBIENTAL: 'inicio.licencia.ambiental',
@@ -1039,7 +1052,9 @@ function construirAlertas(state: DemoState, idioma: Idioma = 'es'): Alerta[] {
         tipo: 'incidencia',
         nivel: 'rojo',
         titulo: m('Sitio bloqueado por incidencia', 'inicio.alerta.incidencia'),
-        detalle: `${sit?.nombre ?? sitioGenerico} — ${inc.tipo.toLowerCase()}`,
+        detalle: `${sit?.nombre ?? sitioGenerico} — ${
+          idioma === 'es' ? inc.tipo.toLowerCase() : traducir(idioma, CLAVE_INCIDENCIA[inc.tipo] ?? 'inicio.incidencia.otro')
+        }`,
       })
     }
   }

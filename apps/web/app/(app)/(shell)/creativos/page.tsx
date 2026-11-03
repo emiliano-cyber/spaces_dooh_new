@@ -29,6 +29,7 @@ import { rotacionEnSpot } from '@/lib/reparto-creativos'
 import { useIdioma } from '@/lib/i18n/contexto'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
 import { interpolarNodos } from '@/lib/i18n/nodos'
+import { CLAVE_TIPO_CAMPANA } from '@/components/demo/campanas/etiquetas'
 
 // Si un creativo HTML es una imagen envuelta (ver imagenAHtml), devuelve su data
 // URL para mostrarlo como imagen en previews/miniaturas; si no, null.
@@ -315,7 +316,13 @@ function CampanaCard({
   sitios: Sitio[]
   puede: boolean
 }) {
-  const t = useIdioma().t
+  const { t, idioma } = useIdioma()
+  // El tipo de campaña (OOH/DOOH/HIBRIDA) es un enum: en español, el dato tal
+  // cual, como siempre; en inglés, la clave de Campañas («Hybrid»).
+  const tipoCampana =
+    idioma !== 'es' && campana.tipoCampana && CLAVE_TIPO_CAMPANA[campana.tipoCampana]
+      ? t(CLAVE_TIPO_CAMPANA[campana.tipoCampana])
+      : campana.tipoCampana
   const fileRef = useRef<HTMLInputElement | null>(null)
   const reemplazarRef = useRef<HTMLInputElement | null>(null)
   const [subiendo, setSubiendo] = useState(false)
@@ -550,7 +557,7 @@ function CampanaCard({
         // Conteos de la campaña en chips (lenguaje del Dashboard), para ver lo
         // pendiente sin desplegar. `CardColapsable` no cambia: solo el nodo.
         <span className="inline-flex flex-wrap items-center gap-1.5">
-          <span className="demo-num">{[campana.folio, campana.tipoCampana].filter(Boolean).join(' · ')}</span>
+          <span className="demo-num">{[campana.folio, tipoCampana].filter(Boolean).join(' · ')}</span>
           {pendientesAqui > 0 && (
             <span className="rounded-full border border-transparent bg-warning-soft px-2 py-0.5 text-[11px] font-medium text-[#9a6700]">
               {t('operaciones2.creativos.chip.por-aprobar', { n: pendientesAqui })}
