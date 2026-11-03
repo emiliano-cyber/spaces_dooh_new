@@ -611,7 +611,9 @@ const PANTALLAS: Pantalla[] = [
       return pintar(i, createElement(P), [f('NetworkPage', 1, 'si')])
     },
     espanol: ['— ningún espacio digital compartido aún.', 'Ninguna pantalla coincide con el filtro.', 'Todas las pantallas de la red son tuyas (1); aquí aparecerán las de otros operadores.', 'Ver todas (1) →'],
-    ingles: ['— no digital space shared yet.', 'No screens match the filter.', 'All the screens in the network are yours (1)', 'See all (1) →'],
+    // Un solo espacio: el singular con su cierre (costura 2, mutante N4). «of 1
+    // space» a secas es subcadena de «of 1 spaces» y no mordia.
+    ingles: ['— no digital space shared yet.', 'No screens match the filter.', 'All the screens in the network are yours (1)', 'See all (1) →', '>of 1 space<'],
   },
   {
     nombre: 'network · red vacia',
