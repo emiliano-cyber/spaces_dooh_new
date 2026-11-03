@@ -963,6 +963,54 @@ const PANTALLAS: Pantalla[] = [
     espanol: ['aria-label="Cerrar menú"'],
     ingles: ['aria-label="Close menu"'],
   },
+  // ── Ola 6 · se AÑADEN al final: el volcado numera los estados por posicion ──
+  {
+    // Los cinco papeles fijos en la bienvenida: las etiquetas de cada campo
+    // (y la del campo que junta operacion y ventas) y los CODIGOS del plan.
+    nombre: 'cuenta · bienvenida, el cuestionario con los cinco papeles (ola 6)',
+    pintar: async (idioma) => {
+      const { default: Pagina } = await import('../../app/(app)/bienvenida/page')
+      forzar(esNull, { pendiente: true, totalEntidades: 0, entidades: [], roles: PAPELES })
+      forzar(esNull, null) // error
+      forzar(esNull, true) // varias
+      forzar(esNull, true) // juntas
+      forzar(es(''), '') // unica
+      forzar((v) => typeof v === 'object' && v !== null && Object.keys(v).length === 0, {
+        ARRENDAMIENTOS: 'Rentas SA', ACTIVOS: 'Activos SA', LICENCIAS: 'Rentas SA', 'OPERACION+VENTAS': 'Medios SA',
+      })
+      return pintar(idioma, createElement(Pagina))
+    },
+    espanol: [
+      'Paga las rentas a los arrendadores', 'Compra los activos y el equipo', 'Tramites y licencias con gobierno',
+      'Operacion y nomina · Vende publicidad', ' — ARRENDAMIENTOS, LICENCIAS', ' — ACTIVOS', ' — OPERACION, VENTAS',
+    ],
+    ingles: [
+      'Pays rent to landlords', 'Buys assets and equipment', 'Government permits and licenses',
+      'Operations and payroll · Sells advertising', ' — RENT, PERMITS', ' — ASSETS', ' — OPERATIONS, SALES',
+    ],
+  },
+  {
+    nombre: 'cuenta · bienvenida, ya contestada con papeles (ola 6)',
+    pintar: async (idioma) => {
+      const { default: Pagina } = await import('../../app/(app)/bienvenida/page')
+      forzar(esNull, {
+        pendiente: false, totalEntidades: 1, roles: PAPELES,
+        entidades: [{ id: 'e1', razonSocial: 'Medios SA', roles: ['ACTIVOS', 'VENTAS'], activo: true }],
+      })
+      return pintar(idioma, createElement(Pagina))
+    },
+    espanol: ['— ACTIVOS, VENTAS'],
+    ingles: ['— ASSETS, SALES'],
+  },
+]
+
+// Ola 6 · el catalogo de partida de `catalogo_roles_entidad`, tal cual.
+const PAPELES = [
+  { rol: 'ARRENDAMIENTOS', etiqueta: 'Paga las rentas a los arrendadores' },
+  { rol: 'ACTIVOS', etiqueta: 'Compra los activos y el equipo' },
+  { rol: 'LICENCIAS', etiqueta: 'Tramites y licencias con gobierno' },
+  { rol: 'OPERACION', etiqueta: 'Operacion y nomina' },
+  { rol: 'VENTAS', etiqueta: 'Vende publicidad' },
 ]
 
 function volcar(i: number, html: string) {

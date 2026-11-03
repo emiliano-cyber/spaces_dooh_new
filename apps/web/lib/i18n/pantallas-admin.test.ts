@@ -162,6 +162,18 @@ const CATALOGO = [
   { rol: 'VENTAS', etiqueta: 'Ventas' },
   { rol: 'RENTAS', etiqueta: 'Rentas' },
 ]
+// Ola 6 · el catalogo de partida, tal cual lo deja la migracion.
+const CATALOGO_PAPELES = [
+  { rol: 'ARRENDAMIENTOS', etiqueta: 'Paga las rentas a los arrendadores' },
+  { rol: 'ACTIVOS', etiqueta: 'Compra los activos y el equipo' },
+  { rol: 'LICENCIAS', etiqueta: 'Tramites y licencias con gobierno' },
+  { rol: 'OPERACION', etiqueta: 'Operacion y nomina' },
+  { rol: 'VENTAS', etiqueta: 'Vende publicidad' },
+]
+const ENTIDADES_PAPELES = [
+  { id: 'e1', razonSocial: 'Medios Norte SA', rfc: null, regimen: null, cpFiscal: null, serieFolios: null, roles: ['VENTAS', 'ACTIVOS'], activo: true },
+  { id: 'e2', razonSocial: 'Rentas Norte SC', rfc: null, regimen: null, cpFiscal: null, serieFolios: null, roles: ['VENTAS'], activo: true },
+]
 
 const SITIOS = [
   { id: 's1', nombre: 'Pantalla Reforma', codigoProveedor: 'PR-1', tipoMedio: 'PANTALLA_DIGITAL', esRotativo: true, exhibicion: 'digital', totalSpots: 8, enNetwork: true, comercializacion: 'PROGRAMATICO', cms: 'DOOHMAIN', estatusComercial: 'DISPONIBLE' },
@@ -724,6 +736,28 @@ const PANTALLAS: Pantalla[] = [
       'Si prefieres capturarlas contestando tres preguntas, el ', 'cuestionario de bienvenida', ' las crea de una vez con sus papeles.',
     ],
     ingles: ['No legal entity has been registered yet.', 'welcome questionnaire'],
+  },
+  {
+    // Ola 6 · los cinco papeles FIJOS del catalogo, con su etiqueta de partida:
+    // en ingles salen en ingles (botones, chips de cada razon social y los dos
+    // avisos de papeles sin dueno y compartidos).
+    nombre: 'razones sociales · los cinco papeles del catalogo (ola 6)',
+    pintar: async (i) => {
+      const { GestionEntidadesFiscales } = await import('../../components/demo/razones-sociales/GestionEntidadesFiscales')
+      return pintar(
+        i,
+        createElement(GestionEntidadesFiscales, { entidades: ENTIDADES_PAPELES, catalogo: CATALOGO_PAPELES, puedeEditar: true, alCambiar: () => {} }),
+        [f('GestionEntidadesFiscales', 1, true), f('GestionEntidadesFiscales', 2, { razonSocial: 'Nueva SA', rfc: '', regimen: '', cpFiscal: '', serieFolios: '', roles: ['ACTIVOS'] })],
+      )
+    },
+    espanol: [
+      'Paga las rentas a los arrendadores', 'Compra los activos y el equipo', 'Tramites y licencias con gobierno',
+      'Operacion y nomina', 'Vende publicidad',
+    ],
+    ingles: [
+      'Pays rent to landlords', 'Buys assets and equipment', 'Government permits and licenses', 'Operations and payroll',
+      'Sells advertising',
+    ],
   },
 ]
 
