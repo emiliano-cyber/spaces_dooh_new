@@ -241,3 +241,95 @@ Si se quiere cerrar, hay dos opciones baratas, y ninguna bloquea:
 4. **Dictamen estructural → «Structural report».** Es correcto. «Structural assessment» es la alternativa más técnica.
 5. **«Spots» frente a «slots» en Creativos.** «Spots with no creative · of 4 booked spots» frente a «Booked slots (3)». Espeja el español del código («Spots sin creativo» / «Slots reservados»). Si en el negocio son lo mismo, convendría unificar en los dos idiomas, pero eso es del dueño.
 6. **«Power usage» (título del menú) frente a «electricity bill» y «electricity cost» en el cuerpo.** Es coherente con la decisión del orquestador; solo lo apunto por si se prefiere «Electricity» también en el menú.
+
+---
+
+## Segunda pasada (2026-11-02): `git diff 538ba751..HEAD`, commits `e3de0bc3` y `7ba146cc`
+
+### Veredicto: **VERDE**
+
+Lo verifiqué todo por mi cuenta, sin apoyarme en el commit ni en la nota de la bóveda:
+
+- los hallazgos de la tabla de §1 y las decisiones del orquestador están aplicados, y cada frase nueva tiene sentido en el HTML inglés rendido;
+- el español sigue idéntico en los 42 estados, comparado con los mismos datos y el mismo arnés en los dos lados;
+- la protección del Dashboard muerde: el mutante `lg:col-span-2` → `lg:col-span-3` ahora muere;
+- typecheck y unitarias están en verde.
+
+Queda una observación de severidad baja que no bloquea (al final).
+
+### 1 · Hallazgos y decisiones, vistos en el render inglés
+
+| hallazgo / decisión | estado | cómo se lee ahora |
+|---|---|---|
+| `energia.lectura.ok` («All 1 file were read») | resuelto | Partida en `.uno`/`.otros` por `r.total` (`recibos.ts:302`). Se lee «1 file was read and it produces 1 row.» El español de las dos formas es el literal de siempre. |
+| `desajuste.*` / `cubre.otros` («the 1 months», «all 2 cover») | resuelto | «2 don’t match the number of months you declared (1): the number of calendar months covered by those 2 is 3». Un poco pesado, pero correcto con cualquier cifra. |
+| `energia.lectura.alerta` («1 rows») | resuelto | «Files read: 2 of 3; rows: 2. Check before confirming: …». Ya no depende del plural. |
+| tipo de incidencia crudo («vandalismo», «otro») | resuelto | `CLAVE_INCIDENCIA` (`derive.ts:369`). El inglés se lee «Pantalla Reforma — vandalism», «Site — other», «legal issue», «operational suspension». **El español sigue siendo el dato en minúsculas:** la rama `idioma === 'es'` conserva `inc.tipo.toLowerCase()` (`derive.ts:1056`), y las claves españolas, que no se pintan, valen ese mismo texto; lo fija la prueba nueva de `textos/inicio.test.ts`. «vandalismo» y «otro» salieron de `COMUNES`. |
+| tipo de campaña crudo en Creativos | resuelto | `CLAVE_TIPO_CAMPANA` de Campañas solo cuando `idioma !== 'es'` (`creativos/page.tsx:322`). El inglés se lee «CA-c1 · Hybrid»; el español, «CA-c1 · HIBRIDA», el dato crudo de siempre. |
+| `inicio.sale` («no client leaves») | resuelto | «Ending Nov 2, 2026: Verano (Cliente Uno)» y «Ending Nov 20, 2026: Otoño (no client)». El enlace de la campaña sigue siendo el mismo nodo. |
+| bajas | resueltas | «Assign to» · «You have 1 campaign and it is on static media…» · «its campaign in DOOHmain is ended» · «Delete the bill for meter (no number)» · «2 months · 3 metering points» · «period charges MX$ 4,000.00» · «what becomes free in the next 30 days» · «Over 90 days» (también en el `title`) · «keeping the billing lock closed» · «holding back publishing» |
+| pausa legal → «Screen under legal restriction» | cumplido | Título de la alerta. |
+| cara libre → «available face» | cumplido | «Valla Norte · available face». |
+| tipos de alerta más amplios | cumplido | «Rent issues · 5», «Contract issues · 7», «Blocked or paused sites · 3» en los contadores y en el menú de configurar alertas, que usa la misma clave. Los títulos de cada alerta siguen siendo concretos («Rent due soon», «Contract expired»…). |
+| dictamen estructural → «Structural inspection report» | cumplido | «Location — Structural inspection report expires in 1 day». |
+| slot frente a spot en Creativos | cumplido | «Slots with no creative · of 4 booked slots», «1/3 slots with a creative», «Booked slots (3)». No queda ningún «spot» en el inglés de Creativos. El español sigue diciendo «Spots sin creativo», sin cambios, como debe ser. |
+| «Power usage» en el menú, «electricity» en el cuerpo | cumplido | Sin cambios respecto a la primera pasada: el título de `/energia` sale de `nav.energia` y el cuerpo dice «electricity bill» y «electricity cost». |
+
+### 2 · Español intacto: VERIFICADO otra vez, con los mismos datos en los dos lados
+
+**Los fixtures cambiaron, así que la comparación tenía que repetirse con el arnés nuevo en los dos lados.** Cambiaron tres cosas:
+
+- **Creativos.** `camp()` pasa de `'DIGITAL'` a `'HIBRIDA'`, y eso sí cambia el español de los estados `op2-17`, `op2-18` y `op2-19`: «CA-c1 · DIGITAL» pasa a ser «CA-c1 · HIBRIDA». Lo medí: si en el volcado nuevo se cambia `HIBRIDA` por `DIGITAL`, sale idéntico al de la primera pasada, así que esa es la única diferencia.
+- **Ficha de la OT.** `FICHA_CAMPANA` pasa de `'DIGITAL'` a `'DOOH'`. No cambia ningún volcado, porque la ficha no pinta el tipo.
+- **Dashboard.** El mock de `CardColapsable` pinta ahora `className` y `contentClassName`. Eso cambia el HTML de los 7 estados, pero solo en los `<section>` y `<div>` del mock: quitándolos, los 7 son idénticos a la primera pasada.
+
+**La comparación justa.** Volqué los 42 estados en español con las pruebas de HEAD (los fixtures y el mock nuevos) dos veces:
+
+1. con los componentes de HEAD;
+2. con los 16 archivos fuente de `34022673` (`git checkout 34022673 -- …`; comprobé la restauración: 0 → 66 `t('` en `inicio/page.tsx`).
+
+```
+0 distintos de 42 (cmp)
+```
+
+Con los componentes viejos, todas las pruebas españolas pasan, **incluida la instantánea nueva del HTML del Dashboard**: la instantánea congela el HTML de antes del lote. Fallaron solo las inglesas, las del dinero y los barridos, que es lo esperado.
+
+**Funciones de `lib/`.** Repetí la prueba diferencial de la primera pasada (87 casos, viejo contra nuevo, sin idioma y con `'es'`) contra HEAD: **87 de 87 en verde**. Incluye el objeto completo de `dashboardMetrics` sobre el estado de alertas, que tiene incidencias VANDALISMO y OTRO.
+
+### 3 · La protección del Dashboard
+
+- **El mock** (`pantallas-inicio.test.ts:77`) pinta `className` en el `<section>` y `contentClassName` en un `<div>` que envuelve el contenido.
+- **La instantánea nueva** (`DASHBOARD · el HTML espanol, congelado`, en `lib/i18n/__snapshots__/pantallas-inicio.test.ts.snap`) congela el HTML español entero de los 7 estados.
+- **El mutante de la primera pasada ahora muere.** M9 (`lg:col-span-2` → `lg:col-span-3` en la tarjeta «Ocupación»): **MUERE**, con las 7 instantáneas en rojo. M10 (la `h1` de `text-2xl` a `text-xl`): **MUERE**, también las 7.
+- **CI no la regenera.** Aparté el `.snap` y corrí `CI=1 npx vitest run lib/i18n/pantallas-inicio.test.ts`. Resultado: **«Snapshots 7 failed»**, y no se escribió ningún archivo. Con `CI` definido, Vitest no escribe instantáneas nuevas, y GitHub Actions define `CI=true`. Una instantánea que cambia falla siempre, salvo con `-u` explícito. Restauré el `.snap` y el árbol quedó limpio.
+
+### 4 · Pruebas (corridas por mí)
+
+```
+cd apps/web && npm run typecheck                      →  tsc --noEmit, sin errores
+cd apps/web && npx vitest run --testTimeout=60000     →  Test Files 344 passed (344) · Tests 5324 passed (5324)
+```
+
+Los mutantes van contra los mismos 71 archivos de la primera pasada (1761 pruebas). Restauré cada uno con `git checkout --` y comprobé el árbol con `git status` después de cada mutante.
+
+| # | mutante | resultado |
+|---|---|---|
+| M9 | clase CSS del Dashboard: «Ocupación» de `lg:col-span-2` a `lg:col-span-3` (sobrevivía en la primera pasada) | **MUERE** (7 instantáneas) |
+| M10 | clase CSS: la `h1` de `text-2xl` a `text-xl` (sobrevivía) | **MUERE** (7 instantáneas) |
+| M11 | Creativos vuelve a pintar `campana.tipoCampana` crudo | **MUERE** (pantalla inglesa) |
+| M12 | `en` de `inicio.incidencia.vandalismo` en español | **MUERE** (3 rojas) |
+| M13 | `resumenDeLectura` usa siempre `energia.lectura.ok.otros` | **MUERE** (pantalla inglesa) |
+| M14 | la alerta de incidencia vuelve a `inc.tipo.toLowerCase()` también en inglés | **MUERE** (pantalla inglesa y barrido) |
+
+El árbol quedó limpio salvo esta sección. Los volcados y los scripts quedaron en el scratchpad de la sesión.
+
+### 5 · Reglas
+
+- **Archivos prohibidos.** `git diff --name-only 538ba751..HEAD` no toca `middleware.ts`, `nav.ts`, `db/schema.sql`, migraciones, `app/api` ni `IDIOMA_INGLES`.
+- **Dinero.** No se añadió ninguna cifra ni símbolo de moneda al diccionario.
+- **`desktop.ini`.** Los commits nuevos no añaden ninguno.
+- **Claves.** Son 471: las 463, más 7 de `inicio.incidencia.*`, más 1 por partir `energia.lectura.ok`. Coincide con lo que dice la nota de la bóveda.
+
+### Observación (baja, no bloquea)
+
+1. **`energia.lectura.ok.uno`.** «1 file was read and it produces 1 row. **Check them** against the bill and confirm them…». Con un solo renglón, «them» no concuerda. El arreglo es «Check it against the bill and confirm it», o una frase neutra: «Check each row against the bill and confirm it».
