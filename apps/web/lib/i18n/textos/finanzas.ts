@@ -423,3 +423,12 @@ export const EN_FINANZAS: Record<ClaveFinanzas, string> = {
   'finanzas.comprobante.aviso':
     'Payment receipt. It is NOT a CFDI stamped with the SAT: the stamped invoice is issued separately and this document does not replace it.',
 }
+
+// ─── ITALIANO · ola 0 (2026-11-03) ──────────────────────────────────────────
+// PARCIAL a proposito: lo rellena el lote de traduccion de este ambito
+// (`vault/03-Frontend/italiano-olas.md`). Mientras falte una clave, la
+// pantalla la pinta en INGLES (`diccionario.ts`, `DICCIONARIOS.it`) y la
+// prueba de cobertura (`cobertura-italiano.test.ts`) la cuenta como pendiente.
+// Cuando el lote termine, el tipo pasa a `Record<ClaveFinanzas, string>` y `tsc`
+// vuelve a exigir cada clave, como en el ingles.
+export const IT_FINANZAS: Partial<Record<ClaveFinanzas, string>> = {}

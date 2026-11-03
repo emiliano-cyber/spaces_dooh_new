@@ -309,3 +309,12 @@ export const EN_ENERGIA: Record<ClaveEnergia, string> = {
   'energia.leido.alumbrado': 'street lighting {monto}',
   'energia.leido.total': 'Bill total {monto} (includes past-due balances and payments)',
 }
+
+// ─── ITALIANO · ola 0 (2026-11-03) ──────────────────────────────────────────
+// PARCIAL a proposito: lo rellena el lote de traduccion de este ambito
+// (`vault/03-Frontend/italiano-olas.md`). Mientras falte una clave, la
+// pantalla la pinta en INGLES (`diccionario.ts`, `DICCIONARIOS.it`) y la
+// prueba de cobertura (`cobertura-italiano.test.ts`) la cuenta como pendiente.
+// Cuando el lote termine, el tipo pasa a `Record<ClaveEnergia, string>` y `tsc`
+// vuelve a exigir cada clave, como en el ingles.
+export const IT_ENERGIA: Partial<Record<ClaveEnergia, string>> = {}

@@ -487,3 +487,12 @@ export const EN_OPERACIONES2: Record<ClaveOperaciones2, string> = {
   'operaciones2.creativos.estado.validada': 'Approved',
   'operaciones2.creativos.estado.rechazada': 'Rejected',
 }
+
+// ─── ITALIANO · ola 0 (2026-11-03) ──────────────────────────────────────────
+// PARCIAL a proposito: lo rellena el lote de traduccion de este ambito
+// (`vault/03-Frontend/italiano-olas.md`). Mientras falte una clave, la
+// pantalla la pinta en INGLES (`diccionario.ts`, `DICCIONARIOS.it`) y la
+// prueba de cobertura (`cobertura-italiano.test.ts`) la cuenta como pendiente.
+// Cuando el lote termine, el tipo pasa a `Record<ClaveOperaciones2, string>` y `tsc`
+// vuelve a exigir cada clave, como en el ingles.
+export const IT_OPERACIONES2: Partial<Record<ClaveOperaciones2, string>> = {}

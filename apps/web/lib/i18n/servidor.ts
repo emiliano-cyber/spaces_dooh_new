@@ -2,7 +2,7 @@ import 'server-only'
 import { cookies, headers } from 'next/headers'
 import {
   resolverIdioma,
-  inglesActivo,
+  idiomasActivos,
   COOKIE_IDIOMA,
   IDIOMA_POR_OMISION,
   type Idioma,
@@ -76,9 +76,15 @@ export function idiomaDeLaPeticion(): Idioma {
   // el único sitio que decide el idioma —lo usan el layout raíz y
   // `respuestaError()`—, así que con esta línea se apagan las dos fuentes de
   // la mezcla a la vez.
-  if (!inglesActivo()) return IDIOMA_POR_OMISION
+  //
+  // Ola 0 del italiano (2026-11-03): ya no es «ingles si o no» sino «los
+  // ENCENDIDOS» (`idiomasActivos`). Con todo apagado sigue sin mirarse nada; con
+  // alguno encendido, un idioma APAGADO se trata como uno que no hablamos.
+  const permitidos = idiomasActivos()
+  if (permitidos.length === 1) return IDIOMA_POR_OMISION
   return resolverIdioma({
     cookie: leerSeguro(() => cookies().get(COOKIE_IDIOMA)?.value ?? null),
     cabecera: leerSeguro(() => headers().get('accept-language')),
+    permitidos,
   })
 }

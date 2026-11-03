@@ -7,7 +7,7 @@ import type { NextPageContext } from 'next'
 import { traducir } from '@/lib/i18n/diccionario'
 import {
   resolverIdioma,
-  inglesActivo,
+  idiomasActivos,
   COOKIE_IDIOMA,
   IDIOMA_POR_OMISION,
   type Idioma,
@@ -19,7 +19,9 @@ import {
 // con el ingles apagado. Sin peticion (prerender, o en el navegador) sale en
 // espanol, que es lo que salia siempre.
 function idiomaDeReq(req: NextPageContext['req']): Idioma {
-  if (!req || !inglesActivo()) return IDIOMA_POR_OMISION
+  // Los idiomas ENCENDIDOS, como el layout (ola 0 del italiano, 2026-11-03).
+  const permitidos = idiomasActivos()
+  if (!req || permitidos.length === 1) return IDIOMA_POR_OMISION
   const cookie = String(req.headers?.cookie ?? '')
     .split(';')
     .map((c) => c.trim())
@@ -28,6 +30,7 @@ function idiomaDeReq(req: NextPageContext['req']): Idioma {
   return resolverIdioma({
     cookie: cookie ? cookie.slice(COOKIE_IDIOMA.length + 1) : null,
     cabecera: typeof accept === 'string' ? accept : null,
+    permitidos,
   })
 }
 

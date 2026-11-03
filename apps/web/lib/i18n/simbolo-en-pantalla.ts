@@ -1,5 +1,6 @@
 import type { Idioma } from './idiomas'
 import type { Moneda } from './dinero'
+import { FORMATO_IDIOMA } from './formato-idioma'
 
 // ============================================================================
 //  lib/i18n/simbolo-en-pantalla.ts — ¿ALGUN IMPORTE DE ESTA PANTALLA SE PUEDE
@@ -22,10 +23,10 @@ import type { Moneda } from './dinero'
 //  espacio): «$ 1,000.00», «MX$1,000», «(US$ 5.00)», «$ 4.9M».
 // ============================================================================
 
-const ESPERADO: Record<Idioma, Record<Moneda, '$' | 'MX$' | 'US$'>> = {
-  es: { MXN: '$', USD: 'US$' },
-  en: { MXN: 'MX$', USD: '$' },
-}
+// Desde la ola 0 del italiano (2026-11-03) la tabla es la de
+// `formato-idioma.ts`, la misma que usa `dinero.ts` para escribir: una sola
+// fuente, asi que la guardia no puede discrepar de lo que se pinta.
+const ESPERADO = (idioma: Idioma, moneda: Moneda) => FORMATO_IDIOMA[idioma].simbolo[moneda]
 
 // Un prefijo de letras pegado al `$` (MX, US, o cualquier otro) y una cifra
 // detras. `\s` cubre el espacio duro que algun componente pone.
@@ -40,7 +41,7 @@ export interface LecturaDinero {
 
 /** Lee el dinero de un HTML ya rendido y dice cuales importes no llevan el simbolo de la tabla. */
 export function leerDinero(html: string, idioma: Idioma, moneda: Moneda): LecturaDinero {
-  const esperado = ESPERADO[idioma][moneda]
+  const esperado = ESPERADO(idioma, moneda)
   const ajenos: string[] = []
   let importes = 0
   for (const m of html.matchAll(IMPORTE)) {

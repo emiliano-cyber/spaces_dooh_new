@@ -1058,3 +1058,12 @@ export const EN_ARRENDADORES: Record<ClaveArrendadores, string> = {
   'arrendadores.publica.nota':
     'When you sign, the date and time, your IP address and the browser you sign from will be recorded, together with a digital seal (SHA-256) of the exact text you are signing. That seal makes it possible to prove later that the document wasn’t modified.',
 }
+
+// ─── ITALIANO · ola 0 (2026-11-03) ──────────────────────────────────────────
+// PARCIAL a proposito: lo rellena el lote de traduccion de este ambito
+// (`vault/03-Frontend/italiano-olas.md`). Mientras falte una clave, la
+// pantalla la pinta en INGLES (`diccionario.ts`, `DICCIONARIOS.it`) y la
+// prueba de cobertura (`cobertura-italiano.test.ts`) la cuenta como pendiente.
+// Cuando el lote termine, el tipo pasa a `Record<ClaveArrendadores, string>` y `tsc`
+// vuelve a exigir cada clave, como en el ingles.
+export const IT_ARRENDADORES: Partial<Record<ClaveArrendadores, string>> = {}

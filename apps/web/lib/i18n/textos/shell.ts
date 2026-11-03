@@ -190,3 +190,12 @@ export const EN_SHELL: Record<ClaveShell, string> = {
   'shell.disponibilidad.sin-libres': 'No free slots',
   'shell.disponibilidad.libres': '{libres} of {total} free',
 }
+
+// ─── ITALIANO · ola 0 (2026-11-03) ──────────────────────────────────────────
+// PARCIAL a proposito: lo rellena el lote de traduccion de este ambito
+// (`vault/03-Frontend/italiano-olas.md`). Mientras falte una clave, la
+// pantalla la pinta en INGLES (`diccionario.ts`, `DICCIONARIOS.it`) y la
+// prueba de cobertura (`cobertura-italiano.test.ts`) la cuenta como pendiente.
+// Cuando el lote termine, el tipo pasa a `Record<ClaveShell, string>` y `tsc`
+// vuelve a exigir cada clave, como en el ingles.
+export const IT_SHELL: Partial<Record<ClaveShell, string>> = {}

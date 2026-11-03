@@ -518,3 +518,12 @@ export const EN_CATALOGOS: Record<ClaveCatalogos, string> = {
   'catalogos.motivo.tramo.menos-y-mas':
     'Buying more cannot discount less: the tier from {otroDesde} gives {otroPct}% and this one, from {n}, would give {pct}%.',
 }
+
+// ─── ITALIANO · ola 0 (2026-11-03) ──────────────────────────────────────────
+// PARCIAL a proposito: lo rellena el lote de traduccion de este ambito
+// (`vault/03-Frontend/italiano-olas.md`). Mientras falte una clave, la
+// pantalla la pinta en INGLES (`diccionario.ts`, `DICCIONARIOS.it`) y la
+// prueba de cobertura (`cobertura-italiano.test.ts`) la cuenta como pendiente.
+// Cuando el lote termine, el tipo pasa a `Record<ClaveCatalogos, string>` y `tsc`
+// vuelve a exigir cada clave, como en el ingles.
+export const IT_CATALOGOS: Partial<Record<ClaveCatalogos, string>> = {}

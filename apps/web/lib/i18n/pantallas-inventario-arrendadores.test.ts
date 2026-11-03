@@ -134,7 +134,7 @@ vi.mock('@/lib/predio-cercania', () => ({
 }))
 
 // ─── Servidor (las dos paginas que son Server Components) ───────────────────
-const servidor = vi.hoisted(() => ({ idioma: 'es' as 'es' | 'en', permiso: true, firma: null as unknown }))
+const servidor = vi.hoisted(() => ({ idioma: 'es' as 'es' | 'en' | 'it', permiso: true, firma: null as unknown }))
 vi.mock('@/lib/i18n/servidor', () => ({ idiomaDeLaPeticion: () => servidor.idioma }))
 vi.mock('@/lib/server/auth', () => ({
   exigir: async () => (servidor.permiso ? { ok: true, usuario: { rol: 'DUENO' } } : { ok: false }),
