@@ -81,7 +81,7 @@ traductor  ──►  validador  ──►  ¿VERDE?  ──sí──►  se jun
 | Moneda fija por instancia | `feat/moneda-por-instancia` | **VERDE** (2.ª) | ADR 0048: MXN o USD al crear la instancia, inmutable después |
 | `MX$` en las pantallas en inglés | `feat/moneda-simbolo-ingles` | **VERDE** | 20/20 mutantes; el español no cambia |
 
-### Ola 3 · El resto de la interfaz (en curso)
+### Ola 3 · El resto de la interfaz (cerrada: todo integrado)
 
 | Lote | Rama | Estado |
 |---|---|---|
@@ -90,18 +90,21 @@ traductor  ──►  validador  ──►  ¿VERDE?  ──sí──►  se jun
 | Inventario y arrendadores | `feat/ingles-inventario-arrendadores` | **VERDE** (2.ª). **Integrado** por la costura 2. `/razones-sociales` usa las claves de admin. El texto legal del contrato NO se traduce (hash de las firmas); la constancia de firmas va en el idioma configurado (dueño, 02/11) |
 | Administración, cuenta y shell | `feat/ingles-administracion` | **VERDE** (2.ª). Integrado (bb365fa3). 705 claves |
 | Clientes, comisiones, captación, disponibilidad, almacén, imprenta | `feat/ingles-operaciones-clientes` | **VERDE** (2.ª). **Integrado** por la costura 2. 397 claves |
-| Costura 2 (une los tres de arriba) | `feat/ingles-costura-2` | Hecha; espera a su validador. Un solo ayudante de huellas de formato español para todos los lotes (`lib/i18n/guardias-ingles.ts`). Detalle en `idiomas-es-en` §11, «Costura 2» |
-| Operaciones y OT, creativos, Dashboard, energía, reportes | `feat/ingles-operaciones-2` | Traduciendo. El Dashboard: solo textos, diseño intacto |
+| Costura 2 (une los tres de arriba) | `feat/ingles-costura-2` | **VERDE**. Integrada (a2fd2cfb). Un solo ayudante de huellas de formato español (`lib/i18n/guardias-ingles.ts`) para las pruebas de pantallas de todos los lotes |
+| OT, creativos, Dashboard y energía | `feat/ingles-operaciones-2` | **VERDE** (2.ª). Integrado (939efe93). 471 claves. El Dashboard: solo textos, y una instantánea con sus clases lo protege |
+| Reportes de rentabilidad | `feat/ingles-reportes` | **VERDE** (2.ª). Integrado (7059fdce). 148 claves; las notas del motor viajan en español y la pantalla las rearma en inglés |
 
-### Ola 4 · Lo que sale del servidor (en curso)
+### Ola 4 · Lo que sale del servidor (cerrada para el encendido en beta)
 
 | Lote | Rama | Estado |
 |---|---|---|
 | Plantillas de error con huecos y motivos compartidos con el servidor | `feat/ingles-servidor` | **VERDE**. Integrado. 45 plantillas por patrón, 31 claves `servidor.*`; la calculadora dice lo mismo en servidor y pantalla. Pendiente para otra ola: ~108 frases de dominio y 7 rutas que responden `e.message` (las más visibles: los `confirm` de aprobar en $0 y descuento sobre el tope) |
-| Las confirmaciones de aprobar una propuesta (en $0 y descuento sobre el tope) | `feat/ingles-confirmaciones` | Hecho (02/11). $0: la pantalla pinta `servidor.propuesta.aprobar-en-cero` por la bandera que ya existía (la ruta no cambia). Tope: la ruta pasa la frase por `traducirError` (3 patrones). Mismo 409 y mismas banderas; español idéntico (medido). Ver [[idiomas-es-en]] §11, «Lote servidor» |
-| «pesos» en redacción neutra (español **e** inglés) | `feat/pesos-neutral` | Hecho (02/11): cuatro claves de Paquetes, «cantidad entera / sin centavos / exacto». El resto del español, idéntico (medido). Y los tres menores del validador de catálogos. Ver [[idiomas-es-en]] §7 |
+| Las confirmaciones de aprobar una propuesta (en $0 y descuento sobre el tope) | `feat/ingles-confirmaciones` | **VERDE**. Integrado (15022a6a). Siguen en español, para otra ola: el tope al EDITAR el descuento y el 400 de la negociación con la agencia sin validar |
+| «pesos» en redacción neutra (español **e** inglés) | `feat/pesos-neutral` | **VERDE** (2.ª). Integrado (00815aa3). Hecho (02/11): cuatro claves de Paquetes, «cantidad entera / sin centavos / exacto». El resto del español, idéntico (medido). Y los tres menores del validador de catálogos. Ver [[idiomas-es-en]] §7 |
 
-### Ola 5 · Cierre (por lanzar)
+### Ola 5 · Cierre (siguiente)
+
+Al 2026-11-02 por la noche **toda la interfaz está traducida e integrada** en `integra/ingles` (7059fdce): `npm test` 6645 de 6645 en verde, typecheck limpio, y el inventario baja a **211** textos en 91 archivos (de unos 2200), casi todos tablas españolas que se quedan a propósito como la verdad, datos y falsos positivos de clases CSS. Quedan los menores preventivos de la guardia de formato y de estilo que dejaron los validadores.
 
 Recorrido completo de la aplicación con `IDIOMA_INGLES=1` en un navegador real,
 pantalla por pantalla. El inventario (`node scripts/i18n-inventario.mjs`) debe
