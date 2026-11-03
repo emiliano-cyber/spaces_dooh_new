@@ -168,6 +168,27 @@ const PIEZAS: Pieza[] = [
     espanol: ['La franja horaria es un compromiso comercial: se cotiza y se cobra.'],
     ingles: ['The daypart is a commercial commitment: it is quoted and billed.'],
   },
+  // Ola 5 (recorrido en navegador): el boton del galon de TODAS las tarjetas
+  // plegables decia «Minimizar Cobranza» en ingles. Es un `aria-label`, asi
+  // que no se ve, pero el lector de pantalla lo lee en cada tarjeta de la app.
+  {
+    nombre: 'tarjeta plegable abierta',
+    pintar: async (idioma) => {
+      const { CardColapsable } = await import('../../components/demo/ui/CardColapsable')
+      return pintar(idioma, createElement(CardColapsable, { titulo: 'Cobranza', children: 'x' }))
+    },
+    espanol: ['aria-label="Minimizar Cobranza"'],
+    ingles: ['aria-label="Collapse Cobranza"'],
+  },
+  {
+    nombre: 'tarjeta plegable cerrada',
+    pintar: async (idioma) => {
+      const { CardColapsable } = await import('../../components/demo/ui/CardColapsable')
+      return pintar(idioma, createElement(CardColapsable, { titulo: 'Cobranza', defaultAbierto: false, children: 'x' }))
+    },
+    espanol: ['aria-label="Expandir Cobranza"'],
+    ingles: ['aria-label="Expand Cobranza"'],
+  },
 ]
 
 describe('lote COMPARTIDOS · en ESPANOL sale el texto de siempre', () => {
