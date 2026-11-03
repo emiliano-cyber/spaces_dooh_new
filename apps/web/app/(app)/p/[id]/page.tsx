@@ -10,6 +10,8 @@ import { Button } from '@/components/demo/ui/Button'
 import { MapView, type MapPoint } from '@/components/demo/MapView'
 import { formatMonto, formatFecha, formatFechaHora } from '@/lib/data/client'
 import { ubicacion } from '@/lib/ubicacion'
+import { claveTipoMedio } from '@/components/demo/comercial/claves'
+import { etiquetaTipoMedio } from '@/lib/tipo-medio'
 
 const API = '/spaces-dooh/api'
 
@@ -103,6 +105,10 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
   // I18N (lote cuenta, 2026-11-02) · la liga la abre el CLIENTE, con el idioma
   // de su navegador; las cifras pasan el idioma a `formatMonto` (ADR 0048).
   const { t, idioma } = useIdioma()
+  const tipoMedioIngles = (tipo: string) => {
+    const clave = claveTipoMedio(tipo)
+    return clave ? t(clave) : etiquetaTipoMedio(tipo)
+  }
 
   useEffect(() => {
     let vivo = true
@@ -292,7 +298,9 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
                           {it.direccion ? <span className="text-ink">{it.direccion}</span> : null}
                           {it.direccion && zonaDe(it) ? <br /> : null}
                           {zonaDe(it) ?? (it.direccion ? null : t('cuenta.publica.sin-ubicacion'))}
-                          {it.tipoMedio ? ` · ${it.tipoMedio}` : ''}
+                          {/* Ola 5: en español el tipo va como siempre (el codigo); en ingles,
+                              su etiqueta, porque «ESPECTACULAR» es una palabra española. */}
+                          {it.tipoMedio ? ` · ${idioma === 'es' ? it.tipoMedio : tipoMedioIngles(it.tipoMedio)}` : ''}
                         </span>
                       </div>
                       {it.lat != null && it.lng != null && (

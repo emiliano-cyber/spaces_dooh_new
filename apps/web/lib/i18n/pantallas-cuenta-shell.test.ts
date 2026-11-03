@@ -865,6 +865,8 @@ const PANTALLAS: Pantalla[] = [
       'placeholder="Tu nombre y cargo"',
       'Aceptar propuesta',
       'Spaces · propuesta comercial',
+      // Ola 5: el tipo de medio va como codigo en español (asi era); en ingles salia «PANTALLA_DIGITAL».
+      ' · PANTALLA_DIGITAL',
     ],
     ingles: [
       'Sales proposal',
@@ -897,6 +899,7 @@ const PANTALLAS: Pantalla[] = [
       'placeholder="Your name and title"',
       'Accept proposal',
       'Spaces · sales proposal',
+      ' · Digital screen',
     ],
   },
   {
