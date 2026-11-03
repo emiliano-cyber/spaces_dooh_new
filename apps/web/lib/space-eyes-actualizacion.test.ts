@@ -67,3 +67,24 @@ describe('comoSeActualiza · los dos idiomas', () => {
     })
   }
 })
+
+describe('ola 7 · el texto que manda el servidor, al pintarlo', async () => {
+  const { textoDeActualizacion } = await import('./space-eyes-actualizacion')
+  const { readFileSync } = await import('node:fs')
+  const { join } = await import('node:path')
+  const { traducir } = await import('./i18n/diccionario')
+  const fuente = readFileSync(join(process.cwd(), 'lib/space-eyes-actualizacion.ts'), 'utf8')
+  const usadas = [...new Set([...fuente.matchAll(/r\((?:true|false), '(spaceeyes\.actualizacion\.[a-z-]+)'/g)].map((m) => m[1]))]
+
+  it('cada frase que arma `comoSeActualiza` se reconoce y sale en ingles', () => {
+    expect(usadas.length).toBeGreaterThanOrEqual(8)
+    for (const k of usadas) {
+      expect(textoDeActualizacion(traducir('es', k as never), 'en'), k).toBe(traducir('en', k as never))
+    }
+  })
+  it('en espanol, y con una frase ajena, sale tal cual', () => {
+    for (const k of usadas) expect(textoDeActualizacion(traducir('es', k as never), 'es')).toBe(traducir('es', k as never))
+    expect(textoDeActualizacion('Otra cosa', 'en')).toBe('Otra cosa')
+    expect(textoDeActualizacion('Se actualiza sola. ', 'en')).toBe('Se actualiza sola. ')
+  })
+})

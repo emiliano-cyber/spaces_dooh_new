@@ -20,6 +20,7 @@ import { listarEquiposApi, type EquipoResumen } from '@/lib/data/space-eyes-api'
 import { Bateria, FotoGirada, PildoraConexion, Senal, estaEnLinea, hace, haceSinPrefijo, tonoBateria } from './piezas'
 import { useIdioma } from '@/lib/i18n/contexto'
 import { formatNumero } from '@/lib/formato-numero'
+import { textoDeActualizacion } from '@/lib/space-eyes-actualizacion'
 
 // ============================================================================
 //  Space Eyes — el listado.
@@ -363,7 +364,7 @@ function TarjetaEquipo({ equipo: e, enLinea }: { equipo: EquipoResumen; enLinea:
               'mt-1.5 text-[11.5px]',
               e.actualizacion.tono === 'visita' ? 'text-error' : 'text-warning',
             )}
-            title={e.actualizacion.texto}
+            title={textoDeActualizacion(e.actualizacion.texto, idioma)}
           >
             {e.actualizacion.tono === 'visita' ? t('spaceeyes.lista.actualizar.visita') : t('spaceeyes.lista.actualizar.toque')}
           </div>
