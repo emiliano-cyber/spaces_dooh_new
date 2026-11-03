@@ -2,7 +2,10 @@
 
 import { toast } from 'sonner'
 import { simboloMoneda } from '@/lib/i18n/dinero'
-import { conteo } from '@/lib/plural'
+import { formatNumero } from '@/lib/formato-numero'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
+import { CLAVE_ESTADO_FILA } from './etiquetas'
 import { useMemo, useState } from 'react'
 import {
   Upload,
@@ -64,6 +67,7 @@ export function ImportarInventarioDialog({
   const sitios = useSitios()
   const arrendadores = useArrendadores()
   const predios = usePredios()
+  const { idioma, t } = useIdioma()
   const [arrendadorId, setArrendadorId] = useState('')
   // v0.12.3 · el lote son pantallas PROPIAS: sin arrendador ni contrato.
   const [propio, setPropio] = useState(false)
@@ -170,7 +174,7 @@ export function ImportarInventarioDialog({
     try {
       setFilas(await validarArchivo(f))
     } catch {
-      toast.error('No se pudo leer el archivo. Verifica que sea .xlsx o .csv válido.')
+      toast.error(t('inventario.carga.no-leer'))
     }
     setLeyendo(false)
     setSummary(null)
@@ -233,7 +237,7 @@ export function ImportarInventarioDialog({
       setSummary(res)
       onImportado?.(res)
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'No se pudo importar')
+      toast.error(e instanceof Error ? e.message : t('inventario.carga.no-importar'))
     } finally {
       setProcesando(false)
     }
@@ -245,17 +249,17 @@ export function ImportarInventarioDialog({
     <div className="flex items-center justify-between">
       <span className="text-[12px] text-muted">
         {filas && !propio && !arrendadorId
-          ? 'Falta elegir el arrendador'
+          ? t('inventario.carga.falta-arrendador')
           : filas
-            ? `${filas.length} filas leídas`
-            : 'Sin archivo'}
+            ? t(filas.length === 1 ? 'inventario.carga.filas.uno' : 'inventario.carga.filas.otros', { n: filas.length })
+            : t('inventario.carga.sin-archivo')}
       </span>
       <div className="flex gap-2">
         <Button variant="secondary" size="sm" onClick={() => { reset(); if (!inline) onOpenChange(false) }}>
-          {inline ? 'Limpiar' : 'Cerrar'}
+          {inline ? t('inventario.tabla.limpiar') : t('inventario.carga.cerrar')}
         </Button>
         <Button size="sm" disabled={precioM2Invalido || procesando || !!summary} onClick={procesar}>
-          {procesando ? 'Procesando…' : 'Procesar importación'}
+          {procesando ? t('inventario.carga.procesando') : t('inventario.carga.procesar')}
         </Button>
       </div>
     </div>
@@ -266,15 +270,15 @@ export function ImportarInventarioDialog({
         {/* ¿Primera vez? Descargar plantilla */}
         <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-surface px-3 py-2.5">
           <div>
-            <div className="text-[13px] font-medium text-ink">¿Primera vez cargando inventario?</div>
-            <div className="text-[12px] text-muted">Descarga la plantilla con el formato correcto</div>
+            <div className="text-[13px] font-medium text-ink">{t('inventario.carga.primera-vez')}</div>
+            <div className="text-[12px] text-muted">{t('inventario.carga.descarga-plantilla')}</div>
           </div>
           <a
             href={PLANTILLA_URL}
             download
             className="inline-flex h-8 items-center gap-2 rounded border border-border-strong bg-surface px-3 text-[13px] font-medium text-ink hover:bg-surface-2"
           >
-            <Download className="h-3.5 w-3.5" /> Descargar plantilla
+            <Download className="h-3.5 w-3.5" /> {t('inventario.carga.descargar-plantilla')}
           </a>
         </div>
 
@@ -282,10 +286,9 @@ export function ImportarInventarioDialog({
         <label className="flex items-start gap-2 rounded-md border border-border bg-surface px-3 py-2.5 text-[13px] text-ink">
           <input type="checkbox" className="mt-0.5" checked={propio} onChange={(e) => setPropio(e.target.checked)} />
           <span>
-            <span className="font-medium">Son pantallas propias</span>
+            <span className="font-medium">{t('inventario.carga.propias')}</span>
             <span className="block text-[12px] text-muted">
-              De la empresa: sin renta ni contrato. Se pueden vender y su costo es solo luz y operación. Si les
-              pones un predio, será un lugar propio.
+              {t('inventario.carga.propias-ayuda')}
             </span>
           </span>
         </label>
@@ -302,14 +305,14 @@ export function ImportarInventarioDialog({
         >
           <div>
             <div className={cn('text-[13px] font-medium', ob.falta('arrendadorId') ? 'text-error' : 'text-ink')}>
-              Arrendador de estas pantallas
+              {t('inventario.carga.arrendador')}
               <span aria-hidden="true" className="ml-0.5 text-error">*</span>
-              <span className="sr-only"> (obligatorio)</span>
+              <span className="sr-only">{t('comercial.comun.obligatorio')}</span>
             </div>
             <div className="text-[12px] text-muted">
               {predioNombre.trim()
-                ? 'El predio y su contrato se abrirán a nombre de este arrendador'
-                : 'A cada pantalla se le abrirá un contrato pendiente con este arrendador'}
+                ? t('inventario.carga.arrendador-predio')
+                : t('inventario.carga.arrendador-sueltas')}
             </div>
           </div>
           <select
@@ -317,7 +320,7 @@ export function ImportarInventarioDialog({
             onChange={(e) => setArrendadorId(e.target.value)}
             className={cn(inputCls, 'w-56', !arrendadorId && 'border-[#f59e0b]')}
           >
-            <option value="">Elige un arrendador…</option>
+            <option value="">{t('inventario.alta.elige-arrendador')}</option>
             {(arrendadores ?? []).map((a) => (
               <option key={a.id} value={a.id}>{a.nombre}</option>
             ))}
@@ -329,9 +332,7 @@ export function ImportarInventarioDialog({
           <div className="flex gap-2.5 rounded-md border border-[#f59e0b40] bg-warning-soft p-3 text-[12px] text-[#9a6700]">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
             <p>
-              <b>Se requiere el arrendador.</b> Elige el arrendador de estas pantallas
-              para poder importarlas: sin él no se puede abrir su contrato de
-              arrendamiento, y una pantalla sin contrato no se puede vender.
+              {interpolarNodos(t('inventario.carga.requiere'), { titulo: <b>{t('inventario.carga.requiere-titulo')}</b> })}
             </p>
           </div>
         )}
@@ -343,14 +344,14 @@ export function ImportarInventarioDialog({
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-[13px] font-medium text-ink">
-                Predio
+                {t('inventario.carga.predio')}
               </div>
               <div className="text-[12px] text-muted">
                 {predioNombre.trim()
                   ? predioExistente
-                    ? 'Se añadirán al predio que ya existe, bajo su contrato.'
-                    : 'Se creará el predio y todas compartirán UN solo contrato.'
-                  : 'Sin nombre entran como pantallas sueltas, cada una con su contrato.'}
+                    ? t('inventario.carga.predio-existente')
+                    : t('inventario.carga.predio-nuevo')
+                  : t('inventario.carga.predio-sin')}
               </div>
             </div>
             <input
@@ -358,7 +359,7 @@ export function ImportarInventarioDialog({
               onChange={(e) => setPredioNombre(e.target.value)}
               disabled={!arrendadorId}
               list="predios-del-arrendador"
-              placeholder="Nombre del predio"
+              placeholder={t('inventario.carga.predio-ph')}
               className={cn(inputCls, 'w-56')}
             />
             {/* Sugiere los que ya tiene este arrendador para no duplicarlos. */}
@@ -377,18 +378,16 @@ export function ImportarInventarioDialog({
                 <p>
                   <b>
                     {fueraDelGrupo.length === 1
-                      ? 'Una pantalla no parece estar en este predio.'
-                      : `${conteo(fueraDelGrupo.length, 'pantalla')} no parecen estar en este predio.`}
+                      ? t('inventario.carga.lejos-una')
+                      : t('inventario.carga.lejos-varias', { n: formatNumero(fueraDelGrupo.length) })}
                   </b>{' '}
-                  Un predio es un solo inmueble y su renta se reparte entre sus
-                  pantallas, así que una que está lejos abarataría a las demás.
-                  Puedes continuar si sabes que es correcto.
+                  {t('inventario.carga.lejos-explica')}
                 </p>
                 <ul className="mt-1 space-y-0.5">
                   {fueraDelGrupo.slice(0, 6).map((f) => (
                     <li key={f.clave}>· <b className="text-ink">{f.clave}</b>: {f.motivo}</li>
                   ))}
-                  {fueraDelGrupo.length > 6 && <li>· …y {fueraDelGrupo.length - 6} más</li>}
+                  {fueraDelGrupo.length > 6 && <li>{t('inventario.carga.lejos-mas', { n: fueraDelGrupo.length - 6 })}</li>}
                 </ul>
               </div>
             </div>
@@ -399,9 +398,9 @@ export function ImportarInventarioDialog({
           <div className="flex gap-2.5 rounded-md border border-[#9a670033] bg-[#9a67000a] p-3 text-[12px] text-muted">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[#9a6700]" />
             <p>
-              No hay arrendadores dados de alta. Crea al menos uno en{' '}
-              <b className="text-ink">Arrendadores</b> antes de importar inventario: sin
-              arrendador no se puede abrir el contrato de la pantalla.
+              {interpolarNodos(t('inventario.carga.sin-arrendadores'), {
+                arrendadores: <b className="text-ink">{t('inventario.carga.arrendadores')}</b>,
+              })}
             </p>
           </div>
         )}
@@ -414,11 +413,11 @@ export function ImportarInventarioDialog({
         {hayFijas && (
         <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-surface px-3 py-2.5">
           <div>
-            <div className="text-[13px] font-medium text-ink">Precio de impresión por m² (pantallas estáticas)</div>
-            <div className="text-[12px] text-muted">Este valor se aplicará a todas las pantallas estáticas</div>
+            <div className="text-[13px] font-medium text-ink">{t('inventario.carga.precio-m2')}</div>
+            <div className="text-[12px] text-muted">{t('inventario.carga.precio-m2-ayuda')}</div>
           </div>
           <div className="flex items-center gap-1">
-            <span className="text-[13px] text-muted">{simboloMoneda()}</span>
+            <span className="text-[13px] text-muted">{simboloMoneda(idioma)}</span>
             <CampoCifra
               valor={precioM2}
               onCambio={(crudo) => setPrecioM2(crudo)}
@@ -432,7 +431,7 @@ export function ImportarInventarioDialog({
         )}
         {precioM2Invalido && (
           <p className="text-[11px] text-error">
-            El precio por m² no se entiende: la coma separa miles y el punto, decimales (65.50).
+            {t('inventario.carga.precio-m2-ilegible')}
           </p>
         )}
 
@@ -440,10 +439,12 @@ export function ImportarInventarioDialog({
         <div className="flex gap-2.5 rounded-md border border-[#0a66ff33] bg-[#0a66ff0a] p-3 text-[12px] text-muted">
           <FileText className="mt-0.5 h-4 w-4 shrink-0 text-info" />
           <p>
-            Sube el archivo usando la hoja <b className="text-ink">Sitios</b> de la plantilla. El
-            sistema lee solo esa hoja, <b className="text-ink">limpia automáticamente los encabezados</b>{' '}
-            y <b className="text-ink">agrupa por código de proveedor</b>: una fila por modalidad de
-            venta → un sitio con varias modalidades. Requeridos: nombre, exhibición, unidad y tarifa.
+            {/* «Sitios» es el NOMBRE de la hoja de la plantilla: no se traduce. */}
+            {interpolarNodos(t('inventario.carga.hoja'), {
+              hoja: <b className="text-ink">Sitios</b>,
+              limpia: <b className="text-ink">{t('inventario.carga.hoja-limpia')}</b>,
+              agrupa: <b className="text-ink">{t('inventario.carga.hoja-agrupa')}</b>,
+            })}
           </p>
         </div>
 
@@ -453,30 +454,30 @@ export function ImportarInventarioDialog({
         <div className="flex gap-2.5 rounded-md border border-border bg-surface-2 p-3 text-[12px] text-muted">
           <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted" />
           <p>
-            El costo de una pantalla es <b className="text-ink">uno solo</b>: la columna{' '}
-            <b className="text-ink">renta_arrendador</b>, lo que se le paga al dueño del espacio. No
-            es la tarifa, que es lo que se le cobra al cliente. Si tu archivo trae la columna vieja{' '}
-            <b className="text-ink">costo_compra</b>, su importe se registra como la renta —es el
-            mismo dinero— y se te avisa fila por fila. Si no viene ninguna de las dos, el contrato
-            queda pendiente de completar en Arrendadores y la pantalla no se podrá reservar.
+            {/* Los nombres de las columnas son los de la plantilla: no se traducen. */}
+            {interpolarNodos(t('inventario.carga.costo'), {
+              uno: <b className="text-ink">{t('inventario.carga.costo-uno')}</b>,
+              renta: <b className="text-ink">renta_arrendador</b>,
+              costo: <b className="text-ink">costo_compra</b>,
+            })}
           </p>
         </div>
 
         {/* Codificación */}
-        <Campo label="Codificación del archivo">
+        <Campo label={t('inventario.carga.codificacion')}>
           <select className={inputCls} value={codificacion} onChange={(e) => setCodificacion(e.target.value)}>
             <option value="utf-8">UTF-8 (Universal)</option>
             <option value="latin1">Latin-1 / ISO-8859-1</option>
             <option value="windows-1252">Windows-1252</option>
           </select>
           <span className="mt-1 block text-[11px] text-muted">
-            El sistema intentará detectar automáticamente la codificación correcta si la seleccionada no funciona.
+            {t('inventario.carga.codificacion-ayuda')}
           </span>
         </Campo>
 
         {/* Zona drag-drop. El archivo es obligatorio; su <input> va oculto, así
             que el rojo de `[data-falta]` se pinta en el borde de la zona. */}
-        <Campo label="Archivo" obligatorio falta={ob.falta('filas')} como="div">
+        <Campo label={t('inventario.carga.archivo')} obligatorio falta={ob.falta('filas')} como="div">
         <label
           onDragOver={(e) => { e.preventDefault(); setArrastrando(true) }}
           onDragLeave={() => setArrastrando(false)}
@@ -497,10 +498,10 @@ export function ImportarInventarioDialog({
         >
           <Upload className="h-6 w-6 text-muted" />
           <span className="text-[13px] text-ink">
-            {leyendo ? 'Leyendo…' : archivoNombre || 'Arrastra un archivo o selecciónalo'}
+            {leyendo ? t('inventario.carga.leyendo') : archivoNombre || t('inventario.carga.arrastra')}
           </span>
           <span className="inline-flex items-center gap-1 text-[11px] text-muted">
-            <FileSpreadsheet className="h-3.5 w-3.5" /> .xlsx o .csv
+            <FileSpreadsheet className="h-3.5 w-3.5" /> {t('inventario.carga.formatos')}
           </span>
           <input type="file" accept=".xlsx,.xls,.csv" onChange={onArchivo} className="hidden" />
         </label>
@@ -508,15 +509,23 @@ export function ImportarInventarioDialog({
 
         {/* Imágenes en bulk */}
         <div>
-          <span className="mb-1 block text-[12px] font-medium text-ink">Imágenes (bulk)</span>
+          <span className="mb-1 block text-[12px] font-medium text-ink">{t('inventario.carga.imagenes')}</span>
           <label className="flex cursor-pointer items-center gap-2 rounded border border-dashed border-border-strong px-3 py-2 text-[13px] text-muted hover:bg-surface-2">
             <ImageIcon className="h-4 w-4" />
-            {totalImagenes > 0 ? `${totalImagenes} imágenes cargadas` : 'Subir imágenes (JPG/PNG ≤5MB)'}
+            {totalImagenes > 0
+              ? t(totalImagenes === 1 ? 'inventario.carga.imagenes-cargadas.uno' : 'inventario.carga.imagenes-cargadas.otros', {
+                  n: totalImagenes,
+                })
+              : t('inventario.carga.subir-imagenes')}
             <input type="file" accept="image/jpeg,image/png" multiple onChange={onImagenes} className="hidden" />
           </label>
           <p className="mt-1 text-[11px] text-muted">
-            Nombra cada archivo con el <b className="text-ink">código de proveedor</b>: <code>codigo.jpg</code> (principal)
-            o <code>codigo-1.jpg</code>, <code>codigo-2.jpg</code>… para varias por pantalla.
+            {interpolarNodos(t('inventario.carga.nombra'), {
+              codigo: <b className="text-ink">{t('inventario.carga.codigo-proveedor')}</b>,
+              a: <code>codigo.jpg</code>,
+              b: <code>codigo-1.jpg</code>,
+              c: <code>codigo-2.jpg</code>,
+            })}
           </p>
         </div>
 
@@ -525,17 +534,17 @@ export function ImportarInventarioDialog({
           <div className="rounded-md border border-[#f59e0b40] bg-[#f59e0b0a] p-3">
             <div className="mb-2 flex items-center gap-2 text-[13px] font-medium text-ink">
               <AlertTriangle className="h-4 w-4 text-warning" />
-              {duplicados.length} código(s) ya existen
+              {t(duplicados.length === 1 ? 'inventario.carga.duplicados.uno' : 'inventario.carga.duplicados.otros', { n: duplicados.length })}
             </div>
-            <p className="mb-2 text-[12px] text-muted">Elige cómo proceder antes de importar:</p>
+            <p className="mb-2 text-[12px] text-muted">{t('inventario.carga.como-proceder')}</p>
             <div className="space-y-1.5">
               <label className="flex items-start gap-2 text-[13px] text-ink">
                 <input type="radio" name="modo" checked={modo === 'ACTUALIZAR'} onChange={() => setModo('ACTUALIZAR')} className="mt-0.5 accent-[var(--accent)]" />
-                <span><b>Actualizar</b> campos modificados (conserva la imagen anterior si no se sube una nueva)</span>
+                <span>{interpolarNodos(t('inventario.carga.actualizar'), { accion: <b>{t('inventario.carga.actualizar-accion')}</b> })}</span>
               </label>
               <label className="flex items-start gap-2 text-[13px] text-ink">
                 <input type="radio" name="modo" checked={modo === 'NUEVA_VERSION'} onChange={() => setModo('NUEVA_VERSION')} className="mt-0.5 accent-[var(--accent)]" />
-                <span><b>Crear nueva</b> con sufijo -v2, -v3…</span>
+                <span>{interpolarNodos(t('inventario.carga.nueva'), { accion: <b>{t('inventario.carga.nueva-accion')}</b> })}</span>
               </label>
             </div>
           </div>
@@ -548,15 +557,15 @@ export function ImportarInventarioDialog({
         {summary && (
           <div className="space-y-3">
             <div className="grid grid-cols-5 gap-2 text-center">
-              <Resumen label="Total" n={summary.total_filas} />
-              <Resumen label="Creadas" n={summary.creadas} tono="verde" />
-              <Resumen label="Actualizadas" n={summary.actualizadas} tono="azul" />
-              <Resumen label="Advertencias" n={summary.con_advertencias} tono="ambar" />
-              <Resumen label="Errores" n={summary.errores} tono="rojo" />
+              <Resumen label={t('campanas.comun.total')} n={summary.total_filas} />
+              <Resumen label={t('inventario.carga.resumen.creadas')} n={summary.creadas} tono="verde" />
+              <Resumen label={t('inventario.carga.resumen.actualizadas')} n={summary.actualizadas} tono="azul" />
+              <Resumen label={t('inventario.carga.resumen.advertencias')} n={summary.con_advertencias} tono="ambar" />
+              <Resumen label={t('inventario.carga.resumen.errores')} n={summary.errores} tono="rojo" />
             </div>
             {sitiosAfectados.length > 0 && (
               <Button variant="secondary" size="sm" className="w-full" onClick={() => setVerInfo(true)}>
-                <Eye className="h-3.5 w-3.5" /> Ver información añadida ({sitiosAfectados.length})
+                <Eye className="h-3.5 w-3.5" /> {t('inventario.carga.ver-info', { n: sitiosAfectados.length })}
               </Button>
             )}
             <ResultadoTabla detalle={summary.detalle} />
@@ -572,8 +581,8 @@ export function ImportarInventarioDialog({
   if (inline) {
     return (
       <InlinePanel
-        title="Carga masiva de inventario"
-        subtitle="Sube tu inventario por archivo o agrega una sola pantalla"
+        title={t('inventario.carga.titulo')}
+        subtitle={t('inventario.carga.sub')}
         footer={footer}
       >
         {cuerpo}
@@ -588,8 +597,8 @@ export function ImportarInventarioDialog({
         onOpenChange(v)
       }}
       size="xl"
-      title="Carga masiva de inventario"
-      subtitle="Sube tu inventario por archivo o agrega una sola pantalla"
+      title={t('inventario.carga.titulo')}
+      subtitle={t('inventario.carga.sub')}
       footer={footer}
     >
       {cuerpo}
@@ -598,17 +607,18 @@ export function ImportarInventarioDialog({
 }
 
 function FilasTabla({ filas }: { filas: FilaValidada[] }) {
+  const { t } = useIdioma()
   return (
     <div className="overflow-hidden rounded-md border border-border">
       <div className="border-b border-border bg-surface-2 px-3 py-1.5 text-[11px] font-medium uppercase tracking-wide text-muted">
-        Vista previa
+        {t('inventario.carga.vista-previa')}
       </div>
       <ul className="max-h-40 overflow-y-auto">
         {filas.map((f, i) => (
           <li key={i} className="flex items-center justify-between gap-2 border-b border-border px-3 py-1.5 text-[12px] last:border-0">
             <span className="demo-num truncate text-ink">{f.codigo_proveedor}</span>
             <span className={cn('shrink-0 font-medium', STATUS_STYLE[f.status === 'ok' ? 'creado' : f.status])}>
-              {f.status === 'ok' ? 'válida' : f.status}
+              {t(CLAVE_ESTADO_FILA[f.status])}
             </span>
           </li>
         ))}
@@ -618,6 +628,7 @@ function FilasTabla({ filas }: { filas: FilaValidada[] }) {
 }
 
 function ResultadoTabla({ detalle }: { detalle: ImportSummary['detalle'] }) {
+  const { t } = useIdioma()
   return (
     <div className="overflow-hidden rounded-md border border-border">
       <ul className="max-h-48 overflow-y-auto">
@@ -625,7 +636,7 @@ function ResultadoTabla({ detalle }: { detalle: ImportSummary['detalle'] }) {
           <li key={i} className="border-b border-border px-3 py-1.5 text-[12px] last:border-0">
             <div className="flex items-center justify-between gap-2">
               <span className="demo-num truncate text-ink">{d.codigo_proveedor}</span>
-              <span className={cn('shrink-0 font-medium', STATUS_STYLE[d.status])}>{d.status}</span>
+              <span className={cn('shrink-0 font-medium', STATUS_STYLE[d.status])}>{t(CLAVE_ESTADO_FILA[d.status])}</span>
             </div>
             <div className="text-[11px] text-muted">{d.mensaje}</div>
           </li>

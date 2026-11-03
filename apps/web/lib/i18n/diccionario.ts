@@ -13,6 +13,8 @@ import { ES_SERVIDOR, EN_SERVIDOR } from './textos/servidor'
 import { ES_CLIENTES, EN_CLIENTES } from './textos/clientes'
 import { ES_OPERACIONES, EN_OPERACIONES } from './textos/operaciones'
 import { ES_SPACEEYES, EN_SPACEEYES } from './textos/spaceeyes'
+import { ES_INVENTARIO, EN_INVENTARIO } from './textos/inventario'
+import { ES_ARRENDADORES, EN_ARRENDADORES } from './textos/arrendadores'
 
 // ============================================================================
 //  lib/i18n/diccionario.ts — LOS TEXTOS, Y LA CONVENCION DE CLAVES.
@@ -244,6 +246,8 @@ const ES = {
   ...ES_CLIENTES,
   ...ES_OPERACIONES,
   ...ES_SPACEEYES,
+  ...ES_INVENTARIO,
+  ...ES_ARRENDADORES,
 } as const
 
 export type ClaveTexto = keyof typeof ES
@@ -403,6 +407,8 @@ const EN: Record<ClaveTexto, string> = {
   ...EN_CLIENTES,
   ...EN_OPERACIONES,
   ...EN_SPACEEYES,
+  ...EN_INVENTARIO,
+  ...EN_ARRENDADORES,
 }
 
 export const DICCIONARIOS: Record<Idioma, Record<ClaveTexto, string>> = {

@@ -8,6 +8,8 @@ import { ConstanciaFirmas, type FirmaConstancia } from '@/components/demo/arrend
 import { cn } from '@/lib/cn'
 import { firmasDeContrato, huellaDatosContrato } from '@/lib/server/firmas-repo'
 import { obtenerConfig } from '@/lib/server/config-repo'
+import { traducir } from '@/lib/i18n/diccionario'
+import { idiomaDeLaPeticion } from '@/lib/i18n/servidor'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -34,6 +36,9 @@ function fechaHora(iso: string | null): string {
 }
 
 // Resalta los huecos para que salten a la vista al revisar antes de firmar.
+//
+// I18N (2026-11-02) · el DOCUMENTO no se traduce (va ligado al hash de las
+// firmas): solo el `title` del hueco, que es ayuda de pantalla y no se imprime.
 function Texto({ children }: { children: string }) {
   if (!children.includes(FALTA)) return <>{children}</>
   return (
@@ -42,7 +47,7 @@ function Texto({ children }: { children: string }) {
         <span key={i}>
           {trozo}
           {i < arr.length - 1 && (
-            <span className="doc-falta" title="Dato pendiente de capturar">
+            <span className="doc-falta" title={traducir(idiomaDeLaPeticion(), 'arrendadores.documento.falta-title')}>
               {FALTA}
             </span>
           )}
@@ -57,7 +62,7 @@ export default async function ContratoDocumentoPage({ params }: { params: { id: 
   if (!g.ok) {
     return (
       <div className="mx-auto max-w-2xl p-10 text-[14px] text-ink">
-        No tienes permiso para ver este contrato.
+        {traducir(idiomaDeLaPeticion(), 'arrendadores.documento.sin-permiso')}
       </div>
     )
   }
@@ -166,7 +171,9 @@ export default async function ContratoDocumentoPage({ params }: { params: { id: 
 
         {/* Constancia: ESTO SÍ SE IMPRIME. Es lo que hace del PDF un documento
             probatorio y no solo una copia bonita del texto. */}
-        <ConstanciaFirmas estado={estadoFirmas} />
+        {/* Decision del dueño (2026-11-02): en el idioma configurado. No entra en
+            ningun hash; el documento de arriba sigue en espanol. */}
+        <ConstanciaFirmas estado={estadoFirmas} idioma={idiomaDeLaPeticion()} />
 
         <PanelFirmas
           contratoId={params.id}
