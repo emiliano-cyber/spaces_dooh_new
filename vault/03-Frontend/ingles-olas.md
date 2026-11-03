@@ -182,7 +182,7 @@ Detalle del lote:
   hallazgos corregidos: la vigencia del panel de firma con fecha ISO, el `title` de
   cómo se actualiza un equipo, el «dónde» de una falla en la ficha y el nombre de la
   falla (catálogo fijo del teléfono, atado a `Monitor.kt`). Portal, firma, campanita
-  con las 24 plantillas y el aviso emergente, y pipeline: en inglés.
+  con 25 notificaciones sembradas (una por plantilla del servidor y una más para el aviso emergente), y pipeline: en inglés.
 - **Queda para el dueño:** «Rent: $6,000.00 MXN» en la revisión del contrato (mismo
   caso que el comprobante) y el aviso legal al pie del contrato. Y un posible defecto
   ajeno al inglés: `equipoDetalle()` lee `data_mobile_month` y el backend manda

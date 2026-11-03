@@ -105,7 +105,7 @@
 
 **Campanita:**
 
-- 25 notificaciones sembradas, una por plantilla del servidor y con sus literales exactos, más una nueva para el aviso emergente.
+- 25 notificaciones sembradas: 24, una por plantilla del servidor y con sus literales exactos, más una nueva para el aviso emergente.
 - Todas en inglés, incluido «due today».
 - El aviso emergente salió con «Payment reminder · … due today · balance MX$5,000 · View».
 

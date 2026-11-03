@@ -250,6 +250,12 @@ describe('notificaciones · los recordatorios de contratos, armados por su funci
     expect(en('Contrato vence en 20 días: P').titulo).toBe('Contract expires in 20 days: P')
   })
 
+  it('una plantilla SIN variante .cero usa el plural con 0, no una clave inexistente', () => {
+    // Hoy el servidor no avisa de una cobranza vencida hace 0 dias; si llegara,
+    // esta plantilla no tiene .cero y debe caer al plural (mutante v07 de la ola 7).
+    expect(en('Cobranza vencida', 'F1 — vencida hace 0 día(s) · saldo $1').detalle).toBe('F1 — 0 days overdue · balance MX$1')
+  })
+
   it('«un espacio» solo se traduce cuando es el nombre que pone el servidor', () => {
     // Un predio que se llama «un espacio comercial» es dato.
     expect(en('Contrato vencido: un espacio comercial').titulo).toBe('Contract expired: un espacio comercial')

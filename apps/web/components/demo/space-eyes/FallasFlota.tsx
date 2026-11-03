@@ -471,7 +471,7 @@ function DialogoCierre({
   onCancelar: () => void
   onConfirmar: (nota: string) => Promise<void>
 }) {
-  const t = useIdioma().t
+  const { t, idioma } = useIdioma()
   const [nota, setNota] = useState('')
   const [enviando, setEnviando] = useState(false)
   useEffect(() => {
@@ -493,7 +493,7 @@ function DialogoCierre({
       open={!!cierre}
       onOpenChange={(v) => !v && !enviando && onCancelar()}
       title={descartar ? t('spaceeyes.fallas.cierre.no-es') : t('spaceeyes.fallas.cierre.arreglada')}
-      subtitle={cierre ? `${cierre.falla.nombre} · ${cierre.falla.equipo}` : undefined}
+      subtitle={cierre ? `${nombreDeFallaEnIdioma(cierre.falla.nombre, idioma)} · ${cierre.falla.equipo}` : undefined}
       footer={
         <div className="flex justify-end gap-2">
           <Button size="sm" variant="secondary" disabled={enviando} onClick={onCancelar}>
