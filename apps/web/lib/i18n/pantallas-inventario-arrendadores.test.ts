@@ -821,7 +821,7 @@ const PANTALLAS: Pantalla[] = [
       'To be defined', 'Sold in “Navidad”', 'in 29 d', '670 d ago', 'Complete', 'Rent payments', '1 overdue', 'to pay',
       '8 days ago', 'in 2 days', 'Scheduled', 'Paid', 'Record payment', 'Rent reconciliation by landlord', 'Profitability by screen',
       'Revenue/mo', 'Rent/mo', 'Margin/mo', 'no rent contract', 'Address', 'Contact', 'Properties', 'Missing', 'Deactivate',
-      'Legal entities', '1 without a legal name', 'By legal name', 'Overdue payments', 'No legal name',
+      'Legal entities', '1 without a legal name', 'By legal entity', 'Overdue payments', 'No legal name',
     ],
   },
   {

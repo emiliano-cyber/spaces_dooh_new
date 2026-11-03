@@ -1904,6 +1904,105 @@ compartida con Reportes), `FotoUploaderMock` y `ConfirmDialog`. **Reportes
 no se tocó**: `/reportes` y `components/demo/reportes/*` quedan para otra
 entrega.
 
+### Lote reportes
+
+**2026-11-02, rama `feat/ingles-reportes`** (sale de `integra/ingles` en
+`00815aa3`). Reportes de rentabilidad (`/reportes`): la página, los filtros, la
+tabla con su desglose, los avisos y las notas que redacta el motor. El inglés
+sigue APAGADO; en español no cambia ni una letra. **148 claves**
+(`lib/i18n/textos/reportes.ts`, prefijo `reportes.*`). Tabla de revisión en
+`docs/i18n/revision-reportes.md`.
+
+**Los catálogos siguen mandando en español.** `DIMENSIONES_UI`,
+`GRANULARIDADES_UI`, `COLUMNAS`, `PRIMERA_COLUMNA`, `COLUMNAS_DESGLOSE` y
+`SUSTANTIVO_FILA` no se tocaron; cada uno ganó su mapa de claves
+(`CLAVE_DIMENSION`, `CLAVE_COLUMNA`…) y `textos/reportes.test.ts` exige que el
+diccionario diga exactamente lo mismo, como el menú con `nav.ts`. Las funciones
+puras (`cuenta`, `motivoInvalido`, `estadoDeReporte`, `columnasDeDimension`,
+`formatoCelda`, `formatoPorcentaje`, `notaDeArrendador`, `subtituloDeConteo`,
+`resumenVisitasPorTipo`, `avisosDelReporte`) ganan `idioma` con `'es'` por
+omisión.
+
+> [!important] Las notas del motor: el servidor las manda en español, la pantalla las rearma
+> Las seis notas de `lib/data/reportes.ts` (`notaDeCostosOt`,
+> `notaDeExclusiones`, `notaDeAtribucion`, `notaDeTarifas`, `notaDeVendedores`,
+> `notaDeCobertura`) se arman ahora con el diccionario y se exportan con
+> `idioma` (`'es'` por omisión). La ruta no pasa idioma, así que **lo que viaja
+> en el JSON sigue en español**. En español la pantalla pinta la nota verbatim,
+> como siempre; en inglés `avisosDelReporte` la vuelve a armar con LA MISMA
+> función desde los números que viajan con ella (`r.cobertura.faltantes`, …):
+> no hay una segunda redacción que pueda divergir. Medido: las seis, en 5225
+> combinaciones de sus números, dicen lo mismo que el motor de `00815aa3`.
+> Tres notas tienen una variante `una-de-varias` además de `.uno/.otros`: el
+> inglés concuerda con dos contadores a la vez («1 of the 5 bookings … has»).
+
+**Lo que escribe el motor y se traduce en la pantalla:** las dos filas con la
+clave vacía («Sin asignar», «Sin vendedor», con su detalle) y la etiqueta de
+cada periodo («T1 2026» → «Q1 2026», «ene» → «Jan»), que `etiquetaDePeriodo`
+rearma desde la CLAVE estable del bucket (`2026-T1`, `2026-03`). Todo lo demás
+de una fila es DATO y no se traduce: el nombre de la pantalla, de la razón
+social o de la persona, su cargo, y los papeles de `catalogo_roles_entidad`
+(«Vende publicidad»).
+
+**El eje de la gráfica de ocupación.** `etiquetaBucket` gana `idioma`
+(`'es'` por omisión: la rama española es la de siempre). En inglés: `Q1 2026`,
+el mes con `en-US` («Jan») y la semana como «Jan 12» (un `12/01` lo lee un
+lector de EE. UU. como 1 de diciembre). `ocupacionSerie` y `useOcupacionSerie`
+pasan el idioma. **Falta una línea al juntar con el lote de operaciones
+(parte 2)**, que tradujo el Dashboard: en `app/(app)/(shell)/inicio/page.tsx`,
+`useOcupacionSerie(gran)` → `useOcupacionSerie(gran, idioma)`. No se hizo aquí
+porque en esta base la página no tiene `idioma` y ese lote la reescribió.
+
+**Dinero y números.** `formatMonto(n, idioma)` en la página y la tabla
+(`MX$ 600.00` en inglés en una instancia MXN); las notas, con
+`formatearDineroRedondo(v, idioma)`. Los porcentajes en inglés sin espacio
+(«55.0%»); el español conserva el «55.0 %». La columna «Margen bruto %» es
+«Gross margin (%)» para no dejar un espacio delante del `%`.
+
+**La red caída.** La página ya no guarda la frase en el estado (quedaría en el
+idioma del momento del fallo): deja `mensaje: null` con `status: 0` y la pone
+`estadoDeReporte` con `reportes.error.red`. En español, la misma frase.
+
+**Lo que NO se traduce, a propósito:** lo que manda el servidor (notas,
+etiquetas de periodo, filas del motor), el CSV y lo que se exporte, y los datos.
+El importe de los recibos sin destino va CRUDO en la nota española («por 350»,
+sin moneda), como siempre lo escribió el motor; en inglés sale formateado. Es un
+defecto viejo del español que no se corrigió aquí para no cambiarlo.
+
+**Cómo se midió que el español no cambió:** los 16 estados de
+`lib/i18n/pantallas-reportes.test.ts` volcados con `I18N_VOLCAR` con los
+componentes de `00815aa3` y con los de la rama: `diff -rq` vacío. La prueba
+importa la página PRIMERO y fuerza los `useState` después, justo antes de
+rendir.
+
+**Términos nuevos:** rentabilidad → *profitability*; ocupación → *occupancy*;
+ingreso → *revenue*; costo del espacio / de operación / de la luz → *space /
+operations / electricity cost*; margen bruto → *gross margin*; superficie →
+*area*; cara → *face*; razón social (columna) → *Legal name* (contada: *legal
+entity*); saldo atribuido → *attributed balance*; tarifa publicada / neto
+comparable / tarifa de lista → *published rate / comparable net / list rate*;
+comprobante con emisora → *invoice from an issuing entity*; horas en sitio →
+*hours on site*; trimestre (columna) → *Quarter* (declarado en
+`costura.test.ts` frente al «This quarter» del selector de periodo); en curso →
+*in progress*; con movimiento → *with activity*; desglose → *breakdown*;
+contrato de arrendamiento → *lease contract*; propia → *owned*; bitácora →
+*log*; de dos caras → *double-sided* (nunca «two-faced», que es «hipócrita»).
+
+> [!success] 2026-11-02, segunda vuelta · validación ÁMBAR atendida
+> (`docs/i18n/validacion-reportes.md`). «two-faced» → «double-sided» en los dos
+> avisos del m²; nueve retoques de redacción («has been recorded since»,
+> «hasn’t been recorded», «The period’s only visit», «is costed at the per-type
+> estimate», «all … bills», «missing its width or height», «overlaps», «% of
+> published rate») y el tooltip del desglose con `formatFecha` en inglés. El
+> idioma del eje de ocupación ya tiene prueba
+> (`lib/data/ocupacion-idioma.test.ts`): etiquetas inglesas y los mismos números
+> que en español; los dos mutantes que sobrevivían (quitar el idioma en
+> `ocupacionSerie` o en `useOcupacionSerie`) mueren. La clave
+> `reportes.nota.ot.reales.uno` escribe el «1» literal en español en vez del
+> hueco, porque el inglés no lleva cifra: mismo español. Español medido otra
+> vez: 16 estados idénticos y las seis notas iguales al motor de `00815aa3`. El
+> «por 350» y la línea de `inicio` siguen fuera, a propósito.
+
 ## Enlaces
 
 - [[ingles-olas]] — el tablero de la traducción: qué lote, en qué rama, qué validador y qué falta

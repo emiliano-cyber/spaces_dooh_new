@@ -1646,7 +1646,9 @@ function startOfToday(): Date {
 //
 // `diasOcupados`/`diasDisponibles` pasan a ser espacios·día (un slot vendido
 // durante un día es 1), no pantallas·día.
-export function ocupacionSerie(state: DemoState, gran: Granularidad): SerieOcupacion {
+// `idioma` ('es' por omision) solo cambia la ETIQUETA de cada punto del eje
+// (`etiquetaBucket`): los numeros son los mismos en los dos idiomas.
+export function ocupacionSerie(state: DemoState, gran: Granularidad, idioma: Idioma = 'es'): SerieOcupacion {
   const { buckets, dias } = CONFIG_GRAN[gran]
   const inicio = startOfToday()
 
@@ -1665,7 +1667,7 @@ export function ocupacionSerie(state: DemoState, gran: Granularidad): SerieOcupa
     diasOcupados += red.ocupados * dias
     diasDisponibles += red.capacidad * dias
 
-    puntos.push({ label: etiquetaBucket(bStart, gran), pct: red.pct, ocupados: red.ocupados })
+    puntos.push({ label: etiquetaBucket(bStart, gran, idioma), pct: red.pct, ocupados: red.ocupados })
   }
 
   return { puntos, diasOcupados, diasDisponibles }
@@ -1674,7 +1676,19 @@ export function ocupacionSerie(state: DemoState, gran: Granularidad): SerieOcupa
 // Exportada desde el 17/09: la usan la gráfica de ocupación y los reportes de
 // rentabilidad. Dos etiquetados del mismo bucket acabarían diciendo «T1» en una
 // pantalla y «1er trimestre» en la otra para el mismo periodo.
-export function etiquetaBucket(d: Date, gran: Granularidad): string {
+//
+// `idioma` va con 'es' por omision, y la rama espanola es LA DE SIEMPRE: el
+// motor del reporte la llama sin idioma desde el servidor y su etiqueta viaja
+// en el JSON. En ingles: `Q1 2026` (el trimestre en EE. UU. es «Q», no «T»),
+// el mes con `en-US` («Jan») y la semana como «Jan 12»: un `12/01` lo lee un
+// lector de EE. UU. como 1 de diciembre.
+export function etiquetaBucket(d: Date, gran: Granularidad, idioma: Idioma = 'es'): string {
+  if (idioma === 'en') {
+    if (gran === 'trimestre') return `Q${Math.floor(d.getMonth() / 3) + 1} ${d.getFullYear()}`
+    if (gran === 'mes') return d.toLocaleDateString('en-US', { month: 'short' })
+    if (gran === 'semana') return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    return String(d.getDate())
+  }
   if (gran === 'trimestre') {
     // `T1 2026`. Lleva el año porque un reporte cruza años con normalidad y
     // «T1» a secas no dice cuál — al contrario que los meses de la gráfica, que

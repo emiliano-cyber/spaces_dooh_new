@@ -322,9 +322,11 @@ export function useDashboard(idioma: Idioma = 'es'): DashboardMetrics | undefine
 }
 
 /** Serie de ocupación día/semana/mes, recalculada en vivo. */
-export function useOcupacionSerie(gran: Granularidad): SerieOcupacion | undefined {
+// `idioma` ('es' por omision) es el de los rotulos del eje; el Dashboard pasa
+// el de `useIdioma()`.
+export function useOcupacionSerie(gran: Granularidad, idioma: Idioma = 'es'): SerieOcupacion | undefined {
   const m = useMounted()
-  const v = useStoreMemo((s) => ocupacionSerie(s, gran), [gran])
+  const v = useStoreMemo((s) => ocupacionSerie(s, gran, idioma), [gran, idioma])
   return m ? v : undefined
 }
 

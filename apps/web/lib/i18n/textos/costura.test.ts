@@ -18,6 +18,7 @@ import { ES_ARRENDADORES, EN_ARRENDADORES } from './arrendadores'
 import { ES_OPERACIONES2, EN_OPERACIONES2 } from './operaciones2'
 import { ES_INICIO, EN_INICIO } from './inicio'
 import { ES_ENERGIA, EN_ENERGIA } from './energia'
+import { ES_REPORTES, EN_REPORTES } from './reportes'
 import { DICCIONARIOS } from '../diccionario'
 import { traducirError } from '../errores-servidor'
 
@@ -57,11 +58,12 @@ const LOTES: [string, Record<string, string>, Record<string, string>][] = [
   ['operaciones2', ES_OPERACIONES2, EN_OPERACIONES2],
   ['inicio', ES_INICIO, EN_INICIO],
   ['energia', ES_ENERGIA, EN_ENERGIA],
+  ['reportes', ES_REPORTES, EN_REPORTES],
 ]
 
 function baseDelDiccionario(): [Record<string, string>, Record<string, string>] {
   const deLotes = new Set(
-    [ES_PROPUESTAS, ES_COMPARTIDOS, ES_CAMPANAS, ES_FINANZAS, ES_COMERCIAL, ES_CODIGOS, ES_CATALOGOS, ES_ADMIN, ES_CUENTA, ES_SHELL, ES_SERVIDOR, ES_CLIENTES, ES_OPERACIONES, ES_SPACEEYES, ES_INVENTARIO, ES_ARRENDADORES, ES_OPERACIONES2, ES_INICIO, ES_ENERGIA].flatMap((o) => Object.keys(o)),
+    [ES_PROPUESTAS, ES_COMPARTIDOS, ES_CAMPANAS, ES_FINANZAS, ES_COMERCIAL, ES_CODIGOS, ES_CATALOGOS, ES_ADMIN, ES_CUENTA, ES_SHELL, ES_SERVIDOR, ES_CLIENTES, ES_OPERACIONES, ES_SPACEEYES, ES_INVENTARIO, ES_ARRENDADORES, ES_OPERACIONES2, ES_INICIO, ES_ENERGIA, ES_REPORTES].flatMap((o) => Object.keys(o)),
   )
   const es: Record<string, string> = {}
   const en: Record<string, string> = {}
@@ -102,6 +104,7 @@ const DISTINTOS_A_PROPOSITO: Record<string, string> = {
   Movimiento: 'un renglon del estado de cuenta («Transaction») frente al traslado fisico de un articulo del almacen («Movement»)',
   Plazo: 'el plazo de cobranza («Payment terms») frente al plazo de una oferta de renta («Term»)',
   'Por vencer': 'una cuota que vence pronto («Due soon») frente a un contrato que caduca («Expiring soon»)',
+  Trimestre: 'la opcion del selector de periodo, el trimestre en curso («This quarter»), frente al encabezado de la columna del reporte de rentabilidad cuyas filas son trimestres («Quarter»)',
   Vencido: 'un pago atrasado («Overdue») frente a un contrato o codigo caducado («Expired»)',
   Vista: 'hacia donde mira una cara del sitio («Facing») frente al selector de vista de la rejilla de Disponibilidad, catorcena o mes («View»)',
   Vigencia: 'glosario: la vigencia de una propuesta o codigo («Validity») frente al plazo de un contrato («Term»)',

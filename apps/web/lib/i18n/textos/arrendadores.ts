@@ -654,7 +654,7 @@ export const EN_ARRENDADORES: Record<ClaveArrendadores, string> = {
     'It’s who the rent is invoiced to. If you leave it blank, the landlord is added anyway and you can enter it later from their profile.',
   'arrendadores.alta.regimen-ayuda': 'It’s enabled once you enter the legal name: the regime belongs to it.',
 
-  'arrendadores.por-razon.titulo': 'By legal name',
+  'arrendadores.por-razon.titulo': 'By legal entity',
   'arrendadores.por-razon.vacio': '— No legal names added.',
   'arrendadores.por-razon.pagos-vencidos': 'Overdue payments',
   'arrendadores.rentabilidad.titulo': 'Profitability by screen',

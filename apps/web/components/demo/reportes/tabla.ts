@@ -1,7 +1,18 @@
-import { formatMonto } from '@/lib/data/derive'
-import { TIPO_OT_LABEL } from '@/lib/tipos-ot'
+import { formatMonto, etiquetaBucket } from '@/lib/data/derive'
+import { TIPO_OT_LABEL, etiquetaTipoOt } from '@/lib/tipos-ot'
+import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
+import type { Idioma } from '@/lib/i18n/idiomas'
+import {
+  notaDeAtribucion,
+  notaDeCobertura,
+  notaDeCostosOt,
+  notaDeExclusiones,
+  notaDeTarifas,
+  notaDeVendedores,
+} from '@/lib/data/reportes'
 import type {
   AtribucionEntidad,
+  Bucket,
   CoberturaEnergia,
   CoberturaTarifa,
   CoberturaVendedor,
@@ -224,6 +235,35 @@ export const COLUMNAS: DefinicionColumna[] = [
 
 const CATALOGO = new Map(COLUMNAS.map((c) => [c.clave, c]))
 
+// La clave del diccionario de cada columna (lote de ingles «reportes»). El
+// `label` de `COLUMNAS` sigue siendo la verdad en espanol y
+// `textos/reportes.test.ts` exige que el diccionario lo reproduzca letra por
+// letra, como el menu con `nav.ts`.
+export const CLAVE_COLUMNA: Record<ColumnaReporte, ClaveTexto> = {
+  etiqueta: 'reportes.col.pantalla',
+  ingreso: 'reportes.col.ingreso',
+  costoEspacio: 'reportes.col.costo-espacio',
+  costoOperacion: 'reportes.col.costo-operacion',
+  costoEnergia: 'reportes.col.costo-luz',
+  costoTotal: 'reportes.col.costo-total',
+  margenBruto: 'reportes.col.margen-bruto',
+  margenBrutoPct: 'reportes.col.margen-bruto-pct',
+  visitas: 'reportes.col.visitas',
+  costoOperacionPct: 'reportes.col.operacion-ingreso',
+  horasEnSitio: 'reportes.col.horas',
+  m2: 'reportes.col.superficie',
+  ingresoPorM2: 'reportes.col.ingreso-m2',
+  margenBrutoPorM2: 'reportes.col.margen-m2',
+  kwh: 'reportes.col.consumo',
+  costoPorKwh: 'reportes.col.costo-kwh',
+  saldoAtribuido: 'reportes.col.saldo-atribuido',
+  pctDelIngreso: 'reportes.col.pct-facturacion',
+  ingresoLista: 'reportes.col.tarifa-publicada',
+  ingresoComparable: 'reportes.col.neto-comparable',
+  descuentoYComision: 'reportes.col.descuento-comision',
+  descuentoYComisionPct: 'reportes.col.pct-publicada',
+}
+
 // Las siete de dinero, que toda dimensión comparte porque toda dimensión pivota
 // LA MISMA rejilla sitio × periodo (`matriz()`): si cada una sumara por su
 // cuenta, cuatro dimensiones darían cuatro cifras distintas del mismo mes.
@@ -357,12 +397,33 @@ const PRIMERA_COLUMNA: Record<DimensionUI, { label: string; campoOrden?: keyof F
   vendedor: { label: 'Vendedor' },
 }
 
-export function columnasDeDimension(d: DimensionUI): DefinicionColumna[] {
+// La clave de la primera columna por dimension. Misma regla que `CLAVE_COLUMNA`.
+export const CLAVE_PRIMERA_COLUMNA: Record<DimensionUI, ClaveTexto> = {
+  sitio: 'reportes.col.pantalla',
+  trimestre: 'reportes.col.trimestre',
+  operacion: 'reportes.col.pantalla',
+  m2: 'reportes.col.pantalla',
+  luz: 'reportes.col.pantalla',
+  entidad: 'reportes.col.razon-social',
+  tarifa: 'reportes.col.pantalla',
+  vendedor: 'reportes.col.vendedor',
+}
+
+/**
+ * Las columnas de la dimension. `idioma` ('es' por omision) solo cambia el
+ * `label`: en espanol es el del catalogo, tal cual.
+ */
+export function columnasDeDimension(d: DimensionUI, idioma: Idioma = 'es'): DefinicionColumna[] {
   const primera = PRIMERA_COLUMNA[d]
-  return COLUMNAS_POR_DIMENSION[d].map((clave) => {
+  const columnas = COLUMNAS_POR_DIMENSION[d].map((clave) => {
     const base = CATALOGO.get(clave)!
     return clave === 'etiqueta' ? { ...base, ...primera } : base
   })
+  if (idioma === 'es') return columnas
+  return columnas.map((c) => ({
+    ...c,
+    label: traducir(idioma, c.clave === 'etiqueta' ? CLAVE_PRIMERA_COLUMNA[d] : CLAVE_COLUMNA[c.clave]),
+  }))
 }
 
 // El orden de apertura de cada dimensión es EL MISMO que el de su motor
@@ -439,12 +500,14 @@ export function notaDeArrendador(
   tieneContrato: boolean,
   arrendador: string | null,
   propia = false,
+  idioma: Idioma = 'es',
 ): string | null {
   if (FILAS_QUE_NO_SON_PANTALLAS.has(dimension)) return null
   // v0.12.3 · una pantalla PROPIA no tiene contrato y no debe tenerlo: decir
   // «sin contrato» señalaría un pendiente que no existe.
-  if (propia) return 'propia'
-  return tieneContrato ? arrendador : 'sin contrato'
+  if (propia) return traducir(idioma, 'reportes.tabla.propia')
+  // El nombre del arrendador es un DATO y no se traduce.
+  return tieneContrato ? arrendador : traducir(idioma, 'reportes.tabla.sin-contrato')
 }
 
 /**
@@ -460,13 +523,14 @@ export function notaDeArrendador(
 export function subtituloDeConteo(
   dimension: DimensionUI,
   filas: readonly { clave: string }[],
+  idioma: Idioma = 'es',
 ): string {
   if (dimension === 'entidad') {
     // Sin «Sin asignar»: su clave es la vacía, y no es una sociedad del cliente.
     const n = filas.filter((f) => f.clave !== '').length
-    return cuenta(n, dimension)
+    return cuenta(n, dimension, idioma)
   }
-  return `${cuenta(filas.length, dimension)} con movimiento`
+  return traducir(idioma, 'reportes.con-movimiento', { cuenta: cuenta(filas.length, dimension, idioma) })
 }
 
 // `es-MX` explícito y no el locale del navegador: 'Á' vale 193 y 'B' 66, así
@@ -551,32 +615,37 @@ export function totalDeColumna(
 
 // Un decimal, con signo, y una RAYA cuando no hay porcentaje. Nunca «0 %»: ese
 // cero afirmaría que la pantalla quedó a la par.
-export function formatoPorcentaje(v: number | null): string {
+// En ingles, sin espacio antes del «%» («55.0%»), que es la regla del glosario;
+// el espanol conserva el «55.0 %» de siempre. Las cifras salen iguales en
+// `es-MX` y en `en-US` (coma de miles, punto decimal).
+export function formatoPorcentaje(v: number | null, idioma: Idioma = 'es'): string {
   if (v == null) return '—'
-  return `${v.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`
+  const cifra = v.toLocaleString(idioma === 'es' ? 'es-MX' : 'en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+  return idioma === 'es' ? `${cifra} %` : `${cifra}%`
 }
 
-export function formatoCelda(v: string | number | null, formato: FormatoColumna): string {
+export function formatoCelda(v: string | number | null, formato: FormatoColumna, idioma: Idioma = 'es'): string {
+  const locale = idioma === 'es' ? 'es-MX' : 'en-US'
   if (formato === 'texto') return v == null ? '' : String(v)
-  if (formato === 'porcentaje') return formatoPorcentaje(v as number | null)
+  if (formato === 'porcentaje') return formatoPorcentaje(v as number | null, idioma)
   // Solo aquí el `null` se pinta como raya en las tres restantes. En `entero` el
   // cero SÍ se pinta: cero visitas es un hecho medido, no un dato que falta.
   if (v == null) return '—'
   const n = Number(v)
-  if (formato === 'dinero') return formatMonto(n)
-  if (formato === 'entero') return n.toLocaleString('es-MX', { maximumFractionDigits: 0 })
+  if (formato === 'dinero') return formatMonto(n, idioma)
+  if (formato === 'entero') return n.toLocaleString(locale, { maximumFractionDigits: 0 })
   if (formato === 'horas') {
-    return `${n.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} h`
+    return `${n.toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} h`
   }
   // El consumo lleva su unidad: «1,500» a secas no dice kWh, y esta columna
   // convive con cinco de pesos. Sin decimales, porque un recibo se lee en kWh
   // enteros y los decimales aquí vienen del reparto entre caras, no del medidor.
   if (formato === 'kwh') {
-    return `${n.toLocaleString('es-MX', { maximumFractionDigits: 0 })} kWh`
+    return `${n.toLocaleString(locale, { maximumFractionDigits: 0 })} kWh`
   }
   // La superficie lleva su unidad: «18» a secas no dice metros, y esta columna
   // convive con cinco de pesos.
-  return `${n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m²`
+  return `${n.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m²`
 }
 
 // «Van a arreglarla» no es lo mismo que «van a inspeccionarla», y esa
@@ -588,12 +657,19 @@ export function formatoCelda(v: string | number | null, formato: FormatoColumna)
 // una OT histórica con un tipo retirado del catálogo sigue contando en
 // `visitas`, así que omitirla dejaría dos cifras que no cuadran sin decir por
 // qué. `MONTAJE_DIGITAL` ya es uno de esos (`lib/tipos-ot.ts`).
-export function resumenVisitasPorTipo(porTipo: Record<string, number> | undefined): string {
+export function resumenVisitasPorTipo(porTipo: Record<string, number> | undefined, idioma: Idioma = 'es'): string {
   if (!porTipo) return ''
+  // En ingles el tipo sale de `etiquetaTipoOt` (las claves `admin.tipo-ot.*`);
+  // en espanol es `TIPO_OT_LABEL`, como siempre. Un tipo que no esta en el
+  // catalogo se pinta con su clave en los dos idiomas.
+  const etiqueta = (tipo: string) =>
+    idioma === 'es' || !(tipo in TIPO_OT_LABEL)
+      ? TIPO_OT_LABEL[tipo as keyof typeof TIPO_OT_LABEL] ?? tipo
+      : etiquetaTipoOt(tipo as keyof typeof TIPO_OT_LABEL, idioma)
   return Object.entries(porTipo)
     .filter(([, n]) => n > 0)
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-    .map(([tipo, n]) => `${TIPO_OT_LABEL[tipo as keyof typeof TIPO_OT_LABEL] ?? tipo} ${n}`)
+    .map(([tipo, n]) => `${etiqueta(tipo)} ${n}`)
     .join(' · ')
 }
 
@@ -609,6 +685,73 @@ export const COLUMNAS_DESGLOSE: { clave: keyof PeriodoFila; label: string; forma
   { clave: 'margenBruto', label: 'Margen bruto', formato: 'dinero' },
   { clave: 'visitas', label: 'Visitas', formato: 'entero' },
 ]
+
+// La clave de cada columna del desglose. Misma regla que `CLAVE_COLUMNA`.
+export const CLAVE_DESGLOSE: Record<string, ClaveTexto> = {
+  etiqueta: 'reportes.desglose.periodo',
+  ingreso: 'reportes.col.ingreso',
+  costoEspacio: 'reportes.desglose.espacio',
+  costoOperacion: 'reportes.desglose.operacion',
+  costoEnergia: 'reportes.desglose.luz',
+  margenBruto: 'reportes.col.margen-bruto',
+  visitas: 'reportes.col.visitas',
+}
+
+/** `COLUMNAS_DESGLOSE` con el rotulo en el idioma; en espanol, tal cual. */
+export function columnasDesglose(idioma: Idioma = 'es'): typeof COLUMNAS_DESGLOSE {
+  if (idioma === 'es') return COLUMNAS_DESGLOSE
+  return COLUMNAS_DESGLOSE.map((c) => ({ ...c, label: traducir(idioma, CLAVE_DESGLOSE[String(c.clave)]) }))
+}
+
+/**
+ * La etiqueta de un periodo (`ene`, `T1 2026`) en el idioma de la pantalla.
+ *
+ * La manda el SERVIDOR ya escrita en espanol (`etiquetaBucket` en el motor),
+ * asi que en espanol se pinta tal cual. En ingles se rearma desde la CLAVE del
+ * bucket (`2026-03`, `2026-T1`), que es estable y no depende del idioma, con la
+ * misma `etiquetaBucket`. Una clave con otra forma se deja como vino.
+ */
+export function etiquetaDePeriodo(b: Pick<Bucket, 'clave' | 'etiqueta'>, idioma: Idioma = 'es'): string {
+  if (idioma === 'es') return b.etiqueta
+  const t = /^(\d{4})-T([1-4])$/.exec(b.clave)
+  if (t) return etiquetaBucket(new Date(Number(t[1]), (Number(t[2]) - 1) * 3, 1), 'trimestre', idioma)
+  const m = /^(\d{4})-(\d{2})$/.exec(b.clave)
+  if (m) return etiquetaBucket(new Date(Number(m[1]), Number(m[2]) - 1, 1), 'mes', idioma)
+  return b.etiqueta
+}
+
+/**
+ * La etiqueta y el detalle de una fila, en el idioma de la pantalla.
+ *
+ * Casi todo es DATO (el nombre de la pantalla, de la razon social o de la
+ * persona, su clave interna, los papeles del catalogo) y se pinta tal cual. Lo
+ * que escribe el MOTOR es lo unico que se traduce: las dos filas con la clave
+ * vacia («Sin asignar», «Sin vendedor») y la etiqueta del trimestre. En espanol
+ * sale lo que mando el servidor, letra por letra.
+ */
+export function textoDeFila(
+  dimension: DimensionUI,
+  f: { clave: string; etiqueta: string; detalle: string },
+  idioma: Idioma = 'es',
+): { etiqueta: string; detalle: string } {
+  if (idioma === 'es') return { etiqueta: f.etiqueta, detalle: f.detalle }
+  if (f.clave === '' && dimension === 'entidad') {
+    return {
+      etiqueta: traducir(idioma, 'reportes.fila.sin-asignar'),
+      detalle: traducir(idioma, 'reportes.fila.sin-asignar.detalle'),
+    }
+  }
+  if (f.clave === '' && dimension === 'vendedor') {
+    return {
+      etiqueta: traducir(idioma, 'reportes.fila.sin-vendedor'),
+      detalle: traducir(idioma, 'reportes.fila.sin-vendedor.detalle'),
+    }
+  }
+  if (dimension === 'trimestre') {
+    return { etiqueta: etiquetaDePeriodo(f, idioma), detalle: f.detalle }
+  }
+  return { etiqueta: f.etiqueta, detalle: f.detalle }
+}
 
 export function desgloseDeFila(f: { periodos?: readonly PeriodoFila[] }): PeriodoFila[] {
   // Copia, y sin ordenar: el orden es el del servidor. La copia es por lo mismo
@@ -693,7 +836,7 @@ export interface ReporteParaAvisos {
 // capturado. Si alguien pide «el neto» después de ver esta columna, la respuesta
 // no es renombrarla otra vez —es que faltan datos que nadie captura—, y esa
 // respuesta tiene que estar donde se hace la pregunta.
-const TEXTO_MARGEN_BRUTO =
+export const TEXTO_MARGEN_BRUTO =
   'El margen de este reporte es BRUTO: es el ingreso menos los costos DIRECTOS de la pantalla ' +
   '—el espacio, la operación y la luz—. NO es el margen neto, y no se llega a él restando nada ' +
   'de lo que hay en esta tabla: al neto le faltarían los costos indirectos (nómina, oficina, ' +
@@ -714,7 +857,14 @@ const TEXTO_MARGEN_BRUTO =
 // (`MULTIPLICAR_M2_POR_CARAS`) se conserva: si el dueño cambia de opinión, el
 // aviso vuelve a ser cierto sin escribir una línea. Y nombra la convención
 // vigente como la alternativa, para que quien lo lea sepa que la otra existe.
-const TEXTO_CONVENCION: Record<ConvencionM2, string> = {
+// Sus claves en el diccionario, para el ingles. `textos/reportes.test.ts` exige
+// que el espanol del diccionario sea el de estas dos constantes.
+const CLAVE_CONVENCION: Record<ConvencionM2, ClaveTexto> = {
+  'todas-las-caras': 'reportes.aviso.m2.todas-las-caras',
+  'una-cara': 'reportes.aviso.m2.una-cara',
+}
+
+export const TEXTO_CONVENCION: Record<ConvencionM2, string> = {
   'todas-las-caras':
     'La superficie suma TODAS las caras de cada pantalla: una de dos caras de 3 × 6 cuenta 36 m², no 18. Es la superficie que se vende, y cada pantalla aporta la de sus propias caras.',
   'una-cara':
@@ -730,8 +880,15 @@ const TEXTO_CONVENCION: Record<ConvencionM2, string> = {
 // significa «hubo renta en el trimestre» y la fila no es una pantalla
 // (`vault/02-Backend/reportes-dimensiones.md` §3), así que «2 pantallas no
 // tienen contrato» sobre dos trimestres sin renta afirma algo que no existe.
-export function avisosDelReporte(r: ReporteParaAvisos): AvisoReporte[] {
+//
+// `idioma` va con 'es' por omision. En espanol las notas del MOTOR se pintan
+// verbatim, como siempre (`r.atribucion.nota`, …). En ingles se vuelven a armar
+// con la MISMA funcion del motor (`notaDeAtribucion`, …) desde los numeros que
+// viajan con ellas: es la misma frase, en otro idioma, y no una segunda
+// redaccion que pueda divergir.
+export function avisosDelReporte(r: ReporteParaAvisos, idioma: Idioma = 'es'): AvisoReporte[] {
   const avisos: AvisoReporte[] = []
+  const es = idioma === 'es'
 
   // ─── LO QUE NO SE PUEDE PONER A NOMBRE DE NADIE ───────────────────────────
   // Va PRIMERO, incluso antes del periodo en curso, y por la razón más fuerte
@@ -751,7 +908,11 @@ export function avisosDelReporte(r: ReporteParaAvisos): AvisoReporte[] {
   // implementación de la misma frase, y divergir significaría decirle al usuario
   // que falta algo distinto de lo que falta.
   if (r.atribucion) {
-    avisos.push({ clave: 'entidad-atribucion', tono: 'alerta', texto: r.atribucion.nota })
+    avisos.push({
+      clave: 'entidad-atribucion',
+      tono: 'alerta',
+      texto: es ? r.atribucion.nota : notaDeAtribucion(r.atribucion, idioma),
+    })
   }
 
   // ─── EL PERIODO QUE NO HA CERRADO ─────────────────────────────────────────
@@ -777,11 +938,15 @@ export function avisosDelReporte(r: ReporteParaAvisos): AvisoReporte[] {
   // hay un solo nombre de campo ni una palabra de código, y hay una prueba que
   // lo vigila.
   if (solapaTrimestreEnCurso({ desde: r.desde, hasta: r.hasta }, r.hoy)) {
-    const { corridos, totales, etiqueta } = avanceDelTrimestreEnCurso(r.hoy)
+    const { corridos, totales, etiqueta } = avanceDelTrimestreEnCurso(r.hoy, idioma)
     avisos.push({
       clave: 'periodo-en-curso',
       tono: 'alerta',
-      texto: `El periodo que estás viendo toca ${etiqueta}, que está EN CURSO: llevan ${corridos} de sus ${totales} días. La renta de los espacios ya corrió esos ${corridos} días completos, pero lo que se vendió se cobra al cerrar, así que el ingreso todavía no está dentro y el margen sale peor de lo que va a quedar. No lo compares con un trimestre terminado.`,
+      texto: traducir(idioma, corridos === 1 ? 'reportes.aviso.en-curso.uno' : 'reportes.aviso.en-curso.otros', {
+        etiqueta,
+        corridos,
+        totales,
+      }),
     })
   }
 
@@ -812,7 +977,15 @@ export function avisosDelReporte(r: ReporteParaAvisos): AvisoReporte[] {
     avisos.push({
       clave: 'luz-sin-recibo',
       tono: r.cobertura.faltantes > 0 || r.cobertura.recibosSinDestino > 0 ? 'alerta' : 'info',
-      texto: r.cobertura.nota,
+      texto: es
+        ? r.cobertura.nota
+        : notaDeCobertura(
+            r.cobertura.faltantes,
+            r.cobertura.esperados,
+            r.cobertura.recibosSinDestino,
+            r.cobertura.importeSinDestino,
+            idioma,
+          ),
     })
   }
 
@@ -836,7 +1009,7 @@ export function avisosDelReporte(r: ReporteParaAvisos): AvisoReporte[] {
     avisos.push({
       clave: 'tarifa-sin-publicada',
       tono: r.tarifas.reservasSinTarifa > 0 ? 'alerta' : 'info',
-      texto: r.tarifas.nota,
+      texto: es ? r.tarifas.nota : notaDeTarifas(r.tarifas, idioma),
     })
   }
 
@@ -858,7 +1031,7 @@ export function avisosDelReporte(r: ReporteParaAvisos): AvisoReporte[] {
     avisos.push({
       clave: 'vendedor-sin-atribuir',
       tono: r.vendedores.reservasSinVendedor > 0 ? 'alerta' : 'info',
-      texto: r.vendedores.nota,
+      texto: es ? r.vendedores.nota : notaDeVendedores(r.vendedores, idioma),
     })
   }
 
@@ -882,7 +1055,7 @@ export function avisosDelReporte(r: ReporteParaAvisos): AvisoReporte[] {
     avisos.push({
       clave: 'ot-costo-real',
       tono: r.costosReales.visitasConEstimacion > 0 ? 'alerta' : 'info',
-      texto: r.costosReales.nota,
+      texto: es ? r.costosReales.nota : notaDeCostosOt(r.costosReales, idioma),
     })
   }
 
@@ -898,11 +1071,19 @@ export function avisosDelReporte(r: ReporteParaAvisos): AvisoReporte[] {
   // las tres pinta margen (`COLUMNAS_POR_DIMENSION`), así que el aviso hablaría
   // de una columna que no está. `entidad` ya dice lo suyo con `saldoAtribuido`.
   if (COLUMNAS_POR_DIMENSION[r.dimension].includes('margenBruto')) {
-    avisos.push({ clave: 'margen-bruto-no-neto', tono: 'info', texto: TEXTO_MARGEN_BRUTO })
+    avisos.push({
+      clave: 'margen-bruto-no-neto',
+      tono: 'info',
+      texto: es ? TEXTO_MARGEN_BRUTO : traducir(idioma, 'reportes.aviso.margen-bruto'),
+    })
   }
 
   if (r.convencionM2) {
-    avisos.push({ clave: 'm2-convencion', tono: 'info', texto: TEXTO_CONVENCION[r.convencionM2] })
+    avisos.push({
+      clave: 'm2-convencion',
+      tono: 'info',
+      texto: es ? TEXTO_CONVENCION[r.convencionM2] : traducir(idioma, CLAVE_CONVENCION[r.convencionM2]),
+    })
   }
 
   // La nota viene REDACTADA del servidor (`notaDeExclusiones`) y se pinta tal
@@ -915,7 +1096,11 @@ export function avisosDelReporte(r: ReporteParaAvisos): AvisoReporte[] {
   // «no te lo digo» se ven igual si no hay texto — el hallazgo C1 de la
   // auditoría QA otra vez, el silencio indistinguible de la ausencia.
   if (r.excluidas) {
-    avisos.push({ clave: 'm2-excluidas', tono: 'info', texto: r.excluidas.nota })
+    avisos.push({
+      clave: 'm2-excluidas',
+      tono: 'info',
+      texto: es ? r.excluidas.nota : notaDeExclusiones(r.excluidas.digitales, r.excluidas.sinMedidas, idioma),
+    })
   }
 
   // Solo donde la fila ES una pantalla. El sustantivo se declara una vez, en
@@ -930,7 +1115,9 @@ export function avisosDelReporte(r: ReporteParaAvisos): AvisoReporte[] {
       avisos.push({
         clave: 'sin-contrato',
         tono: 'info',
-        texto: `${cuenta(n, r.dimension)} ${n === 1 ? 'no tiene' : 'no tienen'} contrato de arrendamiento en el periodo: su costo del espacio sale en cero porque falta el dato, no porque sea gratis, y su margen se lee mejor de lo que es.`,
+        texto: traducir(idioma, n === 1 ? 'reportes.aviso.sin-contrato.uno' : 'reportes.aviso.sin-contrato.otros', {
+          cuenta: cuenta(n, r.dimension, idioma),
+        }),
       })
     }
   }
@@ -948,11 +1135,17 @@ export function avisosDelReporte(r: ReporteParaAvisos): AvisoReporte[] {
           ? // Un trimestre sin movimiento SÍ aparece, en cero y a propósito: un
             // hueco en una serie se lee como «faltan datos» y un cero se lee
             // como «no pasó nada», que es la verdad.
-            `${cuenta(n, r.dimension)} sin ingreso en el rango. ${n === 1 ? 'Aparece' : 'Aparecen'} en cero a propósito: en una serie de tiempo un hueco se lee como «faltan datos» y un cero se lee como «no pasó nada».`
+            traducir(
+              idioma,
+              n === 1 ? 'reportes.aviso.sin-ingreso.trimestre.uno' : 'reportes.aviso.sin-ingreso.trimestre.otros',
+              { cuenta: cuenta(n, r.dimension, idioma) },
+            )
           : // Son justo las que este reporte existe para encontrar, y su
             // `margenBrutoPct` es `null`, así que en la columna del porcentaje no se
             // ven.
-            `${cuenta(n, r.dimension)} ${n === 1 ? 'costó' : 'costaron'} sin vender nada en el periodo, así que no ${n === 1 ? 'tiene' : 'tienen'} margen porcentual (la columna sale con «—»).`,
+            traducir(idioma, n === 1 ? 'reportes.aviso.sin-ingreso.uno' : 'reportes.aviso.sin-ingreso.otros', {
+              cuenta: cuenta(n, r.dimension, idioma),
+            }),
     })
   }
 

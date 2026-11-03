@@ -817,7 +817,7 @@ exports[`diccionario de arrendadores · instantanea > el INGLES tampoco 1`] = `
   "arrendadores.parte.arrendador": "The landlord",
   "arrendadores.parte.arrendatario": "Us",
   "arrendadores.por-razon.pagos-vencidos": "Overdue payments",
-  "arrendadores.por-razon.titulo": "By legal name",
+  "arrendadores.por-razon.titulo": "By legal entity",
   "arrendadores.por-razon.vacio": "— No legal names added.",
   "arrendadores.publica.acepto": "I have read the whole contract and state my will to be bound by its terms. I accept that my electronic signature will have the same effects as a handwritten signature.",
   "arrendadores.publica.enviado-a": "This contract was sent to {nombre} for signature.",

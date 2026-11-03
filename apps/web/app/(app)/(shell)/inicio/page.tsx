@@ -141,7 +141,7 @@ export default function DashboardPage() {
   const m = useDashboard(idioma)
   const sitios = useSitios()
   const [gran, setGran] = useState<Granularidad>('semana')
-  const serie = useOcupacionSerie(gran)
+  const serie = useOcupacionSerie(gran, idioma)
   const campanas = useCampanas()
   const clientes = useClientes()
   const reservas = useReservas()
