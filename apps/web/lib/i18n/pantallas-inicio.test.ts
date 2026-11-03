@@ -9,7 +9,7 @@ import { MONEDAS, fijarMonedaInstancia } from './dinero'
 import { leerDinero } from './simbolo-en-pantalla'
 import { ESTADO_ALERTAS as ESTADO } from './estado-alertas.fixture'
 import { huellasEnItaliano } from './guardias-italiano'
-import { fugasItaliano, legible, copiasDeOtroIdioma, IGUALES_A_PROPOSITO_L4 } from '../test/barrido-italiano-l4'
+import { fugasItaliano, legible, copiasDeOtroIdioma, IGUALES_A_PROPOSITO_L4, reglasDelItaliano, palabrasEspanolas } from '../test/barrido-italiano-l4'
 
 // ============================================================================
 //  I18N · EL DASHBOARD (`/inicio`), RENDIDO EN LOS DOS IDIOMAS.
@@ -480,5 +480,54 @@ describe('DASHBOARD · el diccionario italiano no es una copia', () => {
     // Y la lista no caduca: cada excepcion de estos ambitos sigue siendo una copia.
     const propias = [...IGUALES_A_PROPOSITO_L4].filter((c) => /^(en|es) (inicio)\./.test(c))
     expect(propias.filter((c) => !copias.includes(c))).toEqual([])
+  })
+})
+
+// Validacion del L4 (03/11): las reglas de estilo y la guardia de palabras
+// espanolas sueltas (un italiano a medias que el barrido por trozos no ve).
+describe('DASHBOARD · reglas del italiano (validacion del L4)', () => {
+  it('fechas sin articulo, DOOHmain con «su», «blocco fatturazione», «anomalia», periodicidades en adjetivo', async () => {
+    const { ES_INICIO, EN_INICIO, IT_INICIO } = await import('./textos/inicio')
+    expect(reglasDelItaliano([[ES_INICIO, EN_INICIO, IT_INICIO]])).toEqual([])
+  })
+
+  it('ninguna palabra espanola suelta en el HTML italiano', async () => {
+    let todo = ''
+    for (const p of ESTADOS) {
+      forzado.cola = []
+      todo += legible(await p.pintar('it')) + '\n'
+    }
+    expect(palabrasEspanolas(todo, AJENOS_IT)).toEqual([])
+  })
+})
+
+// Datos de prueba (nombres en espanol) que la guardia de palabras no mira.
+const AJENOS_IT: string[] = ['Pantalla Reforma', 'Pantalla Sur']
+
+describe('DASHBOARD · cifras de mil o mas en italiano (validacion del L4)', () => {
+  // Los datos de siempre tienen menos de 1000 de todo: una cifra sin el idioma
+  // se veia igual en los dos formatos (mutante M7 del validador, `dCapacidad`).
+  // Aqui cada cifra del Dashboard pasa de mil.
+  it('cada cifra lleva el separador italiano', async () => {
+    const Pagina = await inicio()
+    conTodo()
+    datos.m = {
+      ...M, espaciosOcupados: 1500, capacidadRed: 12000,
+      ocupacionDigitales: { sitios: 2, ocupados: 1200, capacidad: 2000 },
+      ocupacionFijas: { sitios: 3, ocupados: 1100, capacidad: 1300 },
+    }
+    datos.propuestas = Array.from({ length: 1001 }, (_, i) => propuesta(`e${i}`, 'ENVIADA'))
+    forzar((v, pila) => v === false && pila.includes('DashboardPage') && !pila.includes('useAlertasVisibles'), true)
+    forzar(enesimo('useDelMotor', esFase, 1), PNL)
+    forzar(enesimo('useDelMotor', esFase, 1), { fase: 'datos', pct: 87, conTarifa: 1200, sinTarifa: 1500 })
+    const crudo = pintar('it', createElement(Pagina))
+    const html = texto(crudo)
+    const esperadas = [
+      '1.500 di 12.000 spazi · digitali 1.200/2.000 · statici 1.100/1.300',
+      '1.001 proposte · 1.001 inviate',
+      'su 1.200 vendite con tariffa pubblicata · 1.500 senza tariffa con cui confrontare',
+    ]
+    expect(esperadas.filter((f) => !html.includes(f))).toEqual([])
+    expect(huellasEnItaliano(crudo)).toEqual([])
   })
 })

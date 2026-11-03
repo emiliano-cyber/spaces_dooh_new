@@ -11,7 +11,7 @@ import { ES_CLIENTES, EN_CLIENTES } from './textos/clientes'
 import { MONEDAS, fijarMonedaInstancia } from './dinero'
 import { leerDinero } from './simbolo-en-pantalla'
 import { huellasEnItaliano } from './guardias-italiano'
-import { fugasItaliano, legible, copiasDeOtroIdioma, IGUALES_A_PROPOSITO_L4 } from '../test/barrido-italiano-l4'
+import { fugasItaliano, legible, copiasDeOtroIdioma, IGUALES_A_PROPOSITO_L4, reglasDelItaliano, palabrasEspanolas } from '../test/barrido-italiano-l4'
 
 // ============================================================================
 //  I18N · LOTE «CLIENTES, COMISIONES Y CAPTACION», RENDIDO EN LOS DOS IDIOMAS.
@@ -704,5 +704,48 @@ describe('lote CLIENTES · el diccionario italiano no es una copia', () => {
     // Y la lista no caduca: cada excepcion de estos ambitos sigue siendo una copia.
     const propias = [...IGUALES_A_PROPOSITO_L4].filter((c) => /^(en|es) (clientes)\./.test(c))
     expect(propias.filter((c) => !copias.includes(c))).toEqual([])
+  })
+})
+
+// Validacion del L4 (03/11): las reglas de estilo y la guardia de palabras
+// espanolas sueltas (un italiano a medias que el barrido por trozos no ve).
+describe('lote CLIENTES · reglas del italiano (validacion del L4)', () => {
+  it('fechas sin articulo, DOOHmain con «su», «blocco fatturazione», «anomalia», periodicidades en adjetivo', async () => {
+    const { IT_CLIENTES } = await import('./textos/clientes')
+    expect(reglasDelItaliano([[ES_CLIENTES, EN_CLIENTES, IT_CLIENTES]])).toEqual([])
+  })
+
+  it('ninguna palabra espanola suelta en el HTML italiano', async () => {
+    let todo = ''
+    for (const e of ESTADOS) {
+      forzado.cola = []
+      todo += legible(await e.pintar('it')) + '\n'
+    }
+    expect(palabrasEspanolas(todo, AJENOS_IT)).toEqual([])
+  })
+})
+
+// Datos de prueba (nombres en espanol) que la guardia de palabras no mira.
+const AJENOS_IT: string[] = [
+  // El catalogo SAT del alta de cliente: el texto ES el valor que se guarda (igual en ingles).
+  '601 · General de Ley Personas Morales', '612 · Personas Físicas con Actividad Empresarial',
+  '603 · Personas Morales sin fines de lucro', 'G03 · Gastos en general', 'G01 · Adquisición de mercancías', 'P01 · Por definir',
+]
+
+describe('lote CLIENTES · frases corregidas por la validacion del L4', () => {
+  it('H1: «Questo {tipo}» vale para los tres tipos (con «Il» salia «Il immobile»)', async () => {
+    const { traducir } = await import('./diccionario')
+    for (const tipo of ['cliente', 'locatore', 'immobile']) {
+      expect(traducir('it', 'clientes.captacion.ya-existe', { tipo })).toBe(`Questo ${tipo} esiste già nel sistema.`)
+    }
+  })
+  it('H5: sin busqueda, la frase del filtro no se queda colgando', async () => {
+    const { traducir } = await import('./diccionario')
+    const tipo = traducir('it', 'clientes.filtro.entre-agencias')
+    expect(traducir('it', 'clientes.filtro.ninguno', { busqueda: '', tipo, n: 5 }))
+      .toBe('Nessun cliente trovato tra le agenzie. Rimuovi il filtro per vedere tutti i 5.')
+    const busqueda = traducir('it', 'clientes.filtro.con', { texto: 'zzz' })
+    expect(traducir('it', 'clientes.filtro.ninguno', { busqueda, tipo: '', n: 5 }))
+      .toBe('Nessun cliente trovato per «zzz». Rimuovi il filtro per vedere tutti i 5.')
   })
 })

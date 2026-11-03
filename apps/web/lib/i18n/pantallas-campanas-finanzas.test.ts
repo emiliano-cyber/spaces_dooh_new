@@ -9,7 +9,7 @@ import type { Idioma } from './idiomas'
 import { MONEDAS, fijarMonedaInstancia } from './dinero'
 import { leerDinero } from './simbolo-en-pantalla'
 import { huellasEnItaliano } from './guardias-italiano'
-import { fugasItaliano, legible, copiasDeOtroIdioma, IGUALES_A_PROPOSITO_L4 } from '../test/barrido-italiano-l4'
+import { fugasItaliano, legible, copiasDeOtroIdioma, IGUALES_A_PROPOSITO_L4, reglasDelItaliano, palabrasEspanolas } from '../test/barrido-italiano-l4'
 
 // ============================================================================
 //  I18N · LOTE «CAMPANAS Y FINANZAS», RENDIDO DE VERDAD EN LOS DOS IDIOMAS.
@@ -1317,5 +1317,37 @@ describe('lote CAMPANAS y FINANZAS · el diccionario italiano no es una copia', 
     // Y la lista no caduca: cada excepcion de estos ambitos sigue siendo una copia.
     const propias = [...IGUALES_A_PROPOSITO_L4].filter((c) => /^(en|es) (campanas|finanzas)\./.test(c))
     expect(propias.filter((c) => !copias.includes(c))).toEqual([])
+  })
+})
+
+// Validacion del L4 (03/11): las reglas de estilo y la guardia de palabras
+// espanolas sueltas (un italiano a medias que el barrido por trozos no ve).
+describe('lote CAMPANAS y FINANZAS · reglas del italiano (validacion del L4)', () => {
+  it('fechas sin articulo, DOOHmain con «su», «blocco fatturazione», «anomalia», periodicidades en adjetivo', async () => {
+    const { ES_CAMPANAS, EN_CAMPANAS, IT_CAMPANAS } = await import('./textos/campanas')
+    const { ES_FINANZAS, EN_FINANZAS, IT_FINANZAS } = await import('./textos/finanzas')
+    expect(reglasDelItaliano([[ES_CAMPANAS, EN_CAMPANAS, IT_CAMPANAS], [ES_FINANZAS, EN_FINANZAS, IT_FINANZAS]])).toEqual([])
+  })
+
+  it('ninguna palabra espanola suelta en el HTML italiano', async () => {
+    let todo = ''
+    for (const p of PANTALLAS) {
+      reiniciar()
+      todo += legible(await p.pintar('it')) + '\n'
+    }
+    expect(palabrasEspanolas(todo, AJENOS_IT)).toEqual([])
+  })
+})
+
+// Datos de prueba (nombres en espanol) que la guardia de palabras no mira.
+const AJENOS_IT: string[] = ['Pantalla Reforma', 'Pantalla Sur', 'Pantalla Norte', 'Pantalla Oriente', 'Campaña Verano']
+
+describe('lote CAMPANAS y FINANZAS · frases corregidas por la validacion del L4', () => {
+  it('H6, H7 y el blocco fatturazione', async () => {
+    const { traducir } = await import('./diccionario')
+    expect(traducir('it', 'campanas.kpi.contratado')).toBe('Valore contrattato in corso')
+    expect(traducir('it', 'campanas.horario.se-transmite')).toBe('Fascia in onda')
+    expect(traducir('it', 'campanas.ficha.candado')).toBe('Blocco fatturazione')
+    expect(traducir('it', 'campanas.kpi.listas.sub')).toBe('fatturazione sbloccata')
   })
 })

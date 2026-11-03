@@ -9,7 +9,7 @@ import { ES_REPORTES, EN_REPORTES } from './textos/reportes'
 import { MONEDAS, fijarMonedaInstancia } from './dinero'
 import { leerDinero } from './simbolo-en-pantalla'
 import { huellasEnItaliano } from './guardias-italiano'
-import { fugasItaliano, legible, copiasDeOtroIdioma, IGUALES_A_PROPOSITO_L4 } from '../test/barrido-italiano-l4'
+import { fugasItaliano, legible, copiasDeOtroIdioma, IGUALES_A_PROPOSITO_L4, reglasDelItaliano, palabrasEspanolas } from '../test/barrido-italiano-l4'
 
 // ============================================================================
 //  I18N · LOTE «REPORTES» (`/reportes`), RENDIDO EN LOS DOS IDIOMAS.
@@ -504,3 +504,24 @@ describe('lote REPORTES · el diccionario italiano no es una copia', () => {
     expect(propias.filter((c) => !copias.includes(c))).toEqual([])
   })
 })
+
+// Validacion del L4 (03/11): las reglas de estilo y la guardia de palabras
+// espanolas sueltas (un italiano a medias que el barrido por trozos no ve).
+describe('lote REPORTES · reglas del italiano (validacion del L4)', () => {
+  it('fechas sin articulo, DOOHmain con «su», «blocco fatturazione», «anomalia», periodicidades en adjetivo', async () => {
+    const { IT_REPORTES } = await import('./textos/reportes')
+    expect(reglasDelItaliano([[ES_REPORTES, EN_REPORTES, IT_REPORTES]])).toEqual([])
+  })
+
+  it('ninguna palabra espanola suelta en el HTML italiano', async () => {
+    let todo = ''
+    for (const e of ESTADOS) {
+      forzado.cola = []
+      todo += legible(await e.pintar('it')) + '\n'
+    }
+    expect(palabrasEspanolas(todo, AJENOS_IT)).toEqual([])
+  })
+})
+
+// Datos de prueba (nombres en espanol) que la guardia de palabras no mira.
+const AJENOS_IT: string[] = []

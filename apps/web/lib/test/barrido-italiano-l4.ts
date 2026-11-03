@@ -124,3 +124,65 @@ export const IGUALES_A_PROPOSITO_L4 = new Set([
   // Anglicismos que el italiano usa tal cual.
   'en clientes.col.pipeline', 'en clientes.captacion.form.correo',
 ])
+
+/**
+ * Las reglas de estilo del italiano que la validacion del L4 (03/11) fijo y
+ * que se pueden comprobar en el diccionario. Devuelve `clave · regla`.
+ *
+ *  · NUNCA un articulo delante de una fecha (H2): la fecha llega formateada
+ *    («8 dic 2026», «11 nov 2026») y el articulo tendria que elidirse («l’8»,
+ *    «dall’11»), cosa que un hueco no puede hacer. Se escribe «in data
+ *    {fecha}», «fino al giorno {fin}» o «Etiqueta: {fecha}».
+ *  · DOOHmain va con «su» (H8): «su DOOHmain», no «in»/«a». La unica
+ *    excepcion es dirigirse a el («Chiedi a DOOHmain»).
+ *  · El candado de facturacion es «blocco fatturazione» (alineado con L3), no
+ *    «lucchetto».
+ *  · «incidente» es un accidente: solo para `*.incidencia.accidente`; la
+ *    incidencia es «anomalia» (H3).
+ *  · Las periodicidades de las cuotas van en adjetivo (H4): «rate
+ *    quindicinali / bimestrali / semestrali».
+ */
+const ARTICULO_ANTES_DE_FECHA =
+  /(?:^|[^\p{L}’])(?:il|lo|la|l’|al|allo|alla|dal|dallo|dalla|del|dello|della|nel|sul|tra il|fra il|entro il)\s*\{(?:fecha|desde|hasta|fin|inicio|corte|periodo)\}/iu
+
+export function reglasDelItaliano(dicc: Diccionarios[]): string[] {
+  const malas: string[] = []
+  for (const [es, , it] of dicc) {
+    for (const k of Object.keys(es)) {
+      const v = it[k] ?? ''
+      if (ARTICULO_ANTES_DE_FECHA.test(v)) malas.push(`${k} · articulo delante de una fecha`)
+      if (/\b(?:in|a) DOOHmain\b/.test(v.replace(/Chiedi(?: di nuovo)? a DOOHmain/g, ''))) malas.push(`${k} · DOOHmain sin «su»`)
+      if (/lucchett/i.test(v)) malas.push(`${k} · «lucchetto» (es «blocco fatturazione»)`)
+      if (/incident/i.test(v) && !k.endsWith('.incidencia.accidente')) malas.push(`${k} · «incidente» (es «anomalia»)`)
+      if (/rate (?:due volte al mese|ogni due mesi|ogni sei mesi)/.test(v)) malas.push(`${k} · periodicidad en letra`)
+    }
+  }
+  return malas
+}
+
+/**
+ * Palabras ESPANOLAS frecuentes que no existen en italiano. El barrido por
+ * trozos no ve un italiano a medias («Sin movimento in questo periodo»: ni el
+ * espanol ni el ingles enteros estan a la vista); esto si. Se busca palabra
+ * entera, sin distinguir mayusculas, en el texto italiano ya sin datos de
+ * prueba.
+ */
+export const PALABRAS_ESPANOLAS = [
+  'sin', 'los', 'las', 'el', 'y', 'pero', 'aquí', 'está', 'están', 'también', 'todavía', 'ningún', 'ninguna', 'hay',
+  'desde', 'hasta', 'cuando', 'según', 'fecha', 'pantalla', 'pantallas', 'campaña', 'campañas', 'factura', 'facturas',
+  'cobranza', 'renta', 'vencida', 'vencido', 'monto', 'pago', 'pagos', 'reporte', 'sitio', 'sitios', 'tarifa',
+  'movimiento', 'guardar', 'cancelar', 'buscar', 'nuevo', 'nueva', 'borrar', 'editar', 'ver', 'mes', 'meses', 'días',
+]
+export function palabrasEspanolas(texto: string, ajenos: string[] = []): string[] {
+  let todo = texto
+  for (const a of ajenos) todo = todo.split(a).join('\n')
+  const vistas = new Set<string>()
+  for (const p of PALABRAS_ESPANOLAS) {
+    const m = todo.match(new RegExp(`(?:^|[^\\p{L}])(${p})(?=$|[^\\p{L}])`, 'iu'))
+    if (m) {
+      const i = m.index ?? 0
+      vistas.add(`«${p}» en «${todo.slice(Math.max(0, i - 25), i + p.length + 25).replace(/\s+/g, ' ').trim()}»`)
+    }
+  }
+  return [...vistas]
+}
