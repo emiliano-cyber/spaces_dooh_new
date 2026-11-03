@@ -8,6 +8,7 @@ import { ES_CODIGOS, EN_CODIGOS } from './codigos'
 import { ES_CATALOGOS, EN_CATALOGOS } from './catalogos'
 import { ES_OPERACIONES2, EN_OPERACIONES2 } from './operaciones2'
 import { ES_INICIO, EN_INICIO } from './inicio'
+import { ES_ENERGIA, EN_ENERGIA } from './energia'
 import { DICCIONARIOS } from '../diccionario'
 
 // ============================================================================
@@ -31,12 +32,14 @@ const LOTES: [string, Record<string, string>, Record<string, string>][] = [
   ['catalogos', ES_CATALOGOS, EN_CATALOGOS],
   ['operaciones2', ES_OPERACIONES2, EN_OPERACIONES2],
   ['inicio', ES_INICIO, EN_INICIO],
+  ['energia', ES_ENERGIA, EN_ENERGIA],
 ]
 
 // El mismo espanol que en ingles se dice distinto A PROPOSITO, porque en cada
 // pantalla significa otra cosa. Cada entrada dice por que; una divergencia que
 // no este aqui es un descuido de un lote y la prueba la enseña.
 const DISTINTOS_A_PROPOSITO: Record<string, string> = {
+  '{n} meses': 'Comercial tiene un singular (`.uno`) cuyo espanol es el de siempre («1 meses») y su ingles «{n} month»; el plural dice «{n} months» en todos los lotes',
   Baja: 'el estado de un sitio o equipo dado de baja («Decommissioned») frente a la prioridad baja de una OT («Low»)',
   Comercial: 'en la ficha de campaña es la seccion de importes («Pricing», decision del orquestador); el modulo es «Sales», como el menu',
   Desde: 'un periodo de fechas («From») frente a la competencia del espacio, que esta ahi «desde» («Since»)',

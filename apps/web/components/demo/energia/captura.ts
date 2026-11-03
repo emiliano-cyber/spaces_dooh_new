@@ -2,6 +2,8 @@ import { esFechaValida, ordenInvertido } from '@/lib/server/fechas'
 import type { CeldaCaptura, TableroConsumos } from '@/lib/server/energia-controller'
 import type { ConsumoEnergia, PuntoDeMedicion } from '@/lib/server/energia-repo'
 import { formatearDinero } from '@/lib/i18n/dinero'
+import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
+import type { Idioma } from '@/lib/i18n/idiomas'
 
 // ============================================================================
 //  components/demo/energia/captura.ts — Lo que decide la pantalla de captura.
@@ -96,18 +98,18 @@ export function RANGO_DE_APERTURA(hoy: Date): RangoCaptura {
  * controller— y no una copia: dos reglas divergen, y aquí divergir significa
  * rechazar periodos correctos.
  */
-export function motivoInvalido(r: RangoCaptura): string | null {
+export function motivoInvalido(r: RangoCaptura, idioma: Idioma = 'es'): string | null {
   const desde = r.desde.trim()
   const hasta = r.hasta.trim()
-  if (!desde) return 'Falta el mes de inicio'
-  if (!hasta) return 'Falta el mes de fin'
-  if (!esFechaValida(desde) || !esFechaValida(hasta)) return 'Usa fechas con formato AAAA-MM-DD'
+  if (!desde) return msj(idioma, 'Falta el mes de inicio', 'energia.motivo.falta-inicio')
+  if (!hasta) return msj(idioma, 'Falta el mes de fin', 'energia.motivo.falta-fin')
+  if (!esFechaValida(desde) || !esFechaValida(hasta)) return msj(idioma, 'Usa fechas con formato AAAA-MM-DD', 'energia.motivo.formato')
   if (!/^\d{4}-\d{1,2}-\d{1,2}$/.test(desde) || !/^\d{4}-\d{1,2}-\d{1,2}$/.test(hasta)) {
-    return 'Usa fechas con formato AAAA-MM-DD'
+    return msj(idioma, 'Usa fechas con formato AAAA-MM-DD', 'energia.motivo.formato')
   }
   // Por CALENDARIO y no comparando texto: '2026-9-1' va DESPUÉS de '2026-10-01'
   // como cadena y antes en el calendario. Ese defecto ya se pagó dos veces.
-  if (ordenInvertido(desde, hasta)) return 'El mes de fin no puede ser anterior al de inicio'
+  if (ordenInvertido(desde, hasta)) return msj(idioma, 'El mes de fin no puede ser anterior al de inicio', 'energia.motivo.orden')
   return null
 }
 
@@ -179,8 +181,14 @@ export interface ResumenCobertura {
   huerfanos: string
 }
 
-const pesos = (n: number) =>
-  formatearDinero(n, 'es', { maximumFractionDigits: 2 })
+// I18N (lote operaciones parte 2, 2026-11-02) · las funciones de texto de
+// este archivo ganan `idioma` como ULTIMO parametro, con 'es' por omision: el
+// espanol es el literal de siempre y el ingles sale de `energia.*`
+// (`textos/energia.test.ts` ata los dos). Ni una cifra ni una regla cambian.
+const pesos = (n: number, idioma: Idioma = 'es') =>
+  formatearDinero(n, idioma, { maximumFractionDigits: 2 })
+const msj = (idioma: Idioma, literal: string, clave: ClaveTexto, valores?: Record<string, string | number>) =>
+  idioma === 'es' ? literal : traducir(idioma, clave, valores)
 
 /**
  * Lo que hay que decir encima de la rejilla, y en qué tono.
@@ -191,10 +199,16 @@ const pesos = (n: number) =>
  * leería nadie, que es la lección del ámbar que dejó de avisar por salir en
  * todo.
  */
-export function resumenDeCobertura(t: TableroUI): ResumenCobertura {
+export function resumenDeCobertura(t: TableroUI, idioma: Idioma = 'es'): ResumenCobertura {
+  const montoHuerfanos = pesos(t.huerfanos.reduce((a, r) => a + r.importe, 0), idioma)
   const huerfanos =
     t.huerfanos.length > 0
-      ? `${t.huerfanos.length} ${t.huerfanos.length === 1 ? 'recibo capturado' : 'recibos capturados'} por ${pesos(t.huerfanos.reduce((a, r) => a + r.importe, 0))} no ${t.huerfanos.length === 1 ? 'llega' : 'llegan'} a ninguna pantalla, porque su predio no tiene ninguna dada de alta. Ese dinero no aparece en el reporte de rentabilidad.`
+      ? msj(
+          idioma,
+          `${t.huerfanos.length} ${t.huerfanos.length === 1 ? 'recibo capturado' : 'recibos capturados'} por ${montoHuerfanos} no ${t.huerfanos.length === 1 ? 'llega' : 'llegan'} a ninguna pantalla, porque su predio no tiene ninguna dada de alta. Ese dinero no aparece en el reporte de rentabilidad.`,
+          t.huerfanos.length === 1 ? 'energia.cobertura.huerfanos.uno' : 'energia.cobertura.huerfanos.otros',
+          { n: t.huerfanos.length, monto: montoHuerfanos },
+        )
       : ''
 
   // Sin puntos de medición no se puede afirmar que la captura está al día: un
@@ -202,8 +216,11 @@ export function resumenDeCobertura(t: TableroUI): ResumenCobertura {
   if (t.esperados === 0) {
     return {
       tono: 'info',
-      texto:
+      texto: msj(
+        idioma,
         'Todavía no hay dónde capturar recibos: hace falta al menos un predio con pantallas, o una pantalla sin predio.',
+        'energia.cobertura.sin-puntos',
+      ),
       huerfanos,
     }
   }
@@ -211,14 +228,24 @@ export function resumenDeCobertura(t: TableroUI): ResumenCobertura {
   if (t.faltantes === 0) {
     return {
       tono: 'ok',
-      texto: `Captura completa: están los ${t.esperados} recibos del periodo. El costo de la luz del reporte de rentabilidad es el total de verdad.`,
+      texto: msj(
+        idioma,
+        `Captura completa: están los ${t.esperados} recibos del periodo. El costo de la luz del reporte de rentabilidad es el total de verdad.`,
+        t.esperados === 1 ? 'energia.cobertura.completa.uno' : 'energia.cobertura.completa.otros',
+        { n: t.esperados },
+      ),
       huerfanos,
     }
   }
 
   return {
     tono: 'alerta',
-    texto: `Faltan ${t.faltantes} de ${t.esperados} recibos del periodo. Mientras falten, el reporte de rentabilidad suma solo lo capturado y enseña un costo de luz MENOR del real, sin avisar de nada: un mes sin recibo no es un mes sin consumo.`,
+    texto: msj(
+      idioma,
+      `Faltan ${t.faltantes} de ${t.esperados} recibos del periodo. Mientras falten, el reporte de rentabilidad suma solo lo capturado y enseña un costo de luz MENOR del real, sin avisar de nada: un mes sin recibo no es un mes sin consumo.`,
+      'energia.cobertura.faltan',
+      { faltan: t.faltantes, esperados: t.esperados },
+    ),
     huerfanos,
   }
 }
@@ -231,9 +258,9 @@ export function resumenDeCobertura(t: TableroUI): ResumenCobertura {
  * eso cae en diciembre del año anterior. Es el mismo error de zona que este repo
  * ya pagó dos veces.
  */
-export function etiquetaDeMes(mes: string): string {
+export function etiquetaDeMes(mes: string, idioma: Idioma = 'es'): string {
   const [a, m] = mes.split('-').map(Number)
-  return new Date(a, m - 1, 1).toLocaleDateString('es-MX', { month: 'short', year: 'numeric' })
+  return new Date(a, m - 1, 1).toLocaleDateString(idioma === 'es' ? 'es-MX' : 'en-US', { month: 'short', year: 'numeric' })
 }
 
 // ─── El formulario de alta ──────────────────────────────────────────────────
@@ -249,13 +276,18 @@ export interface ReciboEnFormulario {
   notas?: string
 }
 
-const numeroInvalido = (v: string, etiqueta: string): string | null => {
+const numeroInvalido = (
+  v: string,
+  etiqueta: string,
+  idioma: Idioma = 'es',
+  campo: 'kwh' | 'importe' = 'kwh',
+): string | null => {
   const t = v.trim()
   // Obligatorio: la base los tiene NOT NULL porque un recibo trae siempre las
   // dos cifras impresas.
-  if (!t) return `Captura ${etiqueta} del recibo`
+  if (!t) return msj(idioma, `Captura ${etiqueta} del recibo`, `energia.motivo.${campo}.falta` as const)
   const n = Number(t)
-  if (!Number.isFinite(n)) return `${etiqueta} tiene que ser un número`
+  if (!Number.isFinite(n)) return msj(idioma, `${etiqueta} tiene que ser un número`, `energia.motivo.${campo}.numero` as const)
   // El CERO NO vale, y desde el 2026-09-29 tampoco en la pantalla. Hasta esa
   // fecha aquí ponía «el cero vale: un medidor que no giró es un hecho».
   // El dueño lo cambió, y el motivo es el que manda en todo este módulo: **un
@@ -270,19 +302,19 @@ const numeroInvalido = (v: string, etiqueta: string): string | null => {
   // Esto es comodidad, no la puerta: la puerta es `cifraDeRecibo` en el
   // servidor (`lib/server/recibos-cfe/cifras.ts`), porque a `POST
   // /api/energia/consumos` se le puede llamar sin pasar por aquí.
-  if (n <= 0) return `${etiqueta} tiene que ser mayor que cero`
+  if (n <= 0) return msj(idioma, `${etiqueta} tiene que ser mayor que cero`, `energia.motivo.${campo}.mayor` as const)
   return null
 }
 
 /** Por qué NO se puede guardar este recibo. `null` = se puede. */
-export function motivoInvalidoDelRecibo(r: ReciboEnFormulario, hoy: Date): string | null {
-  if (!r.punto.trim()) return 'Elige a qué predio o pantalla corresponde el recibo'
+export function motivoInvalidoDelRecibo(r: ReciboEnFormulario, hoy: Date, idioma: Idioma = 'es'): string | null {
+  if (!r.punto.trim()) return msj(idioma, 'Elige a qué predio o pantalla corresponde el recibo', 'energia.motivo.punto')
   const periodo = r.periodo.trim()
-  if (!/^\d{4}-\d{1,2}$/.test(periodo)) return 'Elige el mes del recibo'
+  if (!/^\d{4}-\d{1,2}$/.test(periodo)) return msj(idioma, 'Elige el mes del recibo', 'energia.motivo.mes')
 
-  const kwh = numeroInvalido(r.kwh, 'los kWh')
+  const kwh = numeroInvalido(r.kwh, 'los kWh', idioma, 'kwh')
   if (kwh) return kwh
-  const importe = numeroInvalido(r.importe, 'el importe')
+  const importe = numeroInvalido(r.importe, 'el importe', idioma, 'importe')
   if (importe) return importe
 
   // Un recibo de un mes que no ha empezado es casi siempre un año mal tecleado,
@@ -296,7 +328,7 @@ export function motivoInvalidoDelRecibo(r: ReciboEnFormulario, hoy: Date): strin
   // `<input type="month">` da ceros a la izquierda, pero `motivoInvalido` acepta
   // formas sin ellos y un `>` de cadenas diría que '2026-9' va después de
   // '2026-10'. Es el mismo defecto que este repo ya pagó dos veces con fechas.
-  if (mesDelRecibo > mesDeHoy) return 'Ese mes todavía no ha terminado: no puede haber recibo'
+  if (mesDelRecibo > mesDeHoy) return msj(idioma, 'Ese mes todavía no ha terminado: no puede haber recibo', 'energia.motivo.futuro')
 
   return null
 }
@@ -359,9 +391,14 @@ export function vistaDeCaptura(e: EstadoCaptura): VistaCaptura {
  * y enseña un costo de luz menor del real sin avisar de nada. Un «¿seguro?» no
  * deja decidir; esto sí.
  */
-export function textoDeConfirmacionDeBorrado(r: ConsumoEnergia): string {
+export function textoDeConfirmacionDeBorrado(r: ConsumoEnergia, idioma: Idioma = 'es'): string {
   // `sin número` y no «null»: un recibo sin medidor es normal —no todos los
   // predios lo traen— y en la rejilla ya se nombra así.
-  const medidor = r.medidor?.trim() || 'sin número'
-  return `Se borra el recibo del medidor ${medidor}, de ${etiquetaDeMes(r.periodo.slice(0, 7))}, por ${pesos(r.importe)}. No se puede deshacer: ese mes vuelve a contar como un hueco, y hasta que lo captures otra vez el reporte de rentabilidad enseñará un costo de luz menor del real.`
+  const medidor = r.medidor?.trim() || msj(idioma, 'sin número', 'energia.sin-numero')
+  return msj(
+    idioma,
+    `Se borra el recibo del medidor ${medidor}, de ${etiquetaDeMes(r.periodo.slice(0, 7))}, por ${pesos(r.importe)}. No se puede deshacer: ese mes vuelve a contar como un hueco, y hasta que lo captures otra vez el reporte de rentabilidad enseñará un costo de luz menor del real.`,
+    'energia.borrado.confirmacion',
+    { medidor, mes: etiquetaDeMes(r.periodo.slice(0, 7), idioma), monto: pesos(r.importe, idioma) },
+  )
 }

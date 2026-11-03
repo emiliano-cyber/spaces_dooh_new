@@ -12,6 +12,7 @@ import {
   textoDeConfirmacionDeBorrado,
   type TableroUI,
 } from './captura'
+import { useIdioma } from '@/lib/i18n/contexto'
 
 // ============================================================================
 //  La rejilla: un punto de medición por fila, un mes por columna.
@@ -46,19 +47,20 @@ export function RejillaCaptura({
   // texto tiene que caber y decir QUE se va, no solo preguntar.
   const [porBorrar, setPorBorrar] = useState<ConsumoEnergia | null>(null)
   const [borrando, setBorrando] = useState(false)
+  const { t, idioma } = useIdioma()
 
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-[13px]">
         <thead>
           <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
-            <th className="px-2 py-2 text-left font-normal">Predio o pantalla</th>
+            <th className="px-2 py-2 text-left font-normal">{t('energia.predio-o-pantalla')}</th>
             {tablero.meses.map((m) => (
               <th key={m} className="px-2 py-2 text-right font-normal">
-                {etiquetaDeMes(m.slice(0, 7))}
+                {etiquetaDeMes(m.slice(0, 7), idioma)}
               </th>
             ))}
-            <th className="px-2 py-2 text-right font-normal">Faltan</th>
+            <th className="px-2 py-2 text-right font-normal">{t('energia.rejilla.faltan')}</th>
           </tr>
         </thead>
         <tbody>
@@ -68,8 +70,8 @@ export function RejillaCaptura({
                 <div className="text-ink">{f.punto.nombre}</div>
                 <div className="text-[11px] text-muted">
                   {f.punto.tipo === 'predio'
-                    ? `${f.punto.pantallas} ${f.punto.pantallas === 1 ? 'pantalla' : 'pantallas'}`
-                    : 'Pantalla suelta'}
+                    ? t(f.punto.pantallas === 1 ? 'energia.rejilla.pantallas.uno' : 'energia.rejilla.pantallas.otros', { n: f.punto.pantallas })
+                    : t('energia.rejilla.suelta')}
                 </div>
               </td>
 
@@ -85,10 +87,10 @@ export function RejillaCaptura({
                   )}
                 >
                   {c.hueco ? (
-                    <span title="Sin recibo capturado: no es un consumo de cero, es un dato que falta">—</span>
+                    <span title={t('energia.rejilla.hueco')}>—</span>
                   ) : (
                     <div className="space-y-0.5">
-                      <div className="text-ink">{formatMonto(c.importe ?? 0)}</div>
+                      <div className="text-ink">{formatMonto(c.importe ?? 0, idioma)}</div>
                       <div className="text-[11px] text-muted">
                         {(c.kwh ?? 0).toLocaleString('es-MX', { maximumFractionDigits: 0 })} kWh
                       </div>
@@ -106,11 +108,11 @@ export function RejillaCaptura({
                           type="button"
                           onClick={() => setPorBorrar(r)}
                           className="group flex w-full items-center justify-end gap-1 bg-transparent text-[11px] normal-case text-muted hover:text-error focus-visible:text-error"
-                          title="Borrar este recibo"
-                          aria-label={`Borrar el recibo del medidor ${r.medidor ?? 'sin número'}`}
+                          title={t('energia.rejilla.borrar-este')}
+                          aria-label={t('energia.rejilla.borrar-aria', { medidor: r.medidor ?? t('energia.sin-numero') })}
                         >
                           <Trash2 className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
-                          {r.medidor ?? 'sin número'}
+                          {r.medidor ?? t('energia.sin-numero')}
                         </button>
                       ))}
                     </div>
@@ -134,8 +136,8 @@ export function RejillaCaptura({
       <ConfirmDialog
         open={porBorrar !== null}
         onOpenChange={(v) => !v && setPorBorrar(null)}
-        title="Borrar este recibo"
-        confirmLabel="Borrar el recibo"
+        title={t('energia.rejilla.borrar-este')}
+        confirmLabel={t('energia.rejilla.borrar')}
         busy={borrando}
         onConfirm={() => {
           if (!porBorrar) return
@@ -150,7 +152,7 @@ export function RejillaCaptura({
           })
         }}
       >
-        {porBorrar ? textoDeConfirmacionDeBorrado(porBorrar) : null}
+        {porBorrar ? textoDeConfirmacionDeBorrado(porBorrar, idioma) : null}
       </ConfirmDialog>
     </div>
   )

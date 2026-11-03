@@ -3,7 +3,7 @@
 import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
 import { formatMonto } from '@/lib/data/derive'
 import { formatNumero } from '@/lib/formato-numero'
-import { conteo } from '@/lib/plural'
+import { useIdioma } from '@/lib/i18n/contexto'
 import type { TableroUI } from './captura'
 
 // ============================================================================
@@ -28,13 +28,14 @@ export function IndicadoresEnergia({
   cargando: boolean
   errorCarga: string | null
 }) {
+  const { t, idioma } = useIdioma()
   if (errorCarga) {
     return (
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <KPICard label="Recibos capturados" value="—" sub="no se pudo cargar" />
-        <KPICard label="Faltan" value="—" sub="no se pudo cargar" />
-        <KPICard label="Importe del periodo" value="—" sub="no se pudo cargar" />
-        <KPICard label="kWh del periodo" value="—" sub="no se pudo cargar" />
+        <KPICard label={t('energia.kpi.capturados')} value="—" sub={t('energia.kpi.no-cargar')} />
+        <KPICard label={t('energia.kpi.faltan')} value="—" sub={t('energia.kpi.no-cargar')} />
+        <KPICard label={t('energia.kpi.importe')} value="—" sub={t('energia.kpi.no-cargar')} />
+        <KPICard label={t('energia.kpi.kwh')} value="—" sub={t('energia.kpi.no-cargar')} />
       </div>
     )
   }
@@ -58,29 +59,29 @@ export function IndicadoresEnergia({
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <KPICard
-        label="Recibos capturados"
-        value={`${formatNumero(capturados)} de ${formatNumero(tablero.esperados)}`}
-        sub="del periodo"
+        label={t('energia.kpi.capturados')}
+        value={t('energia.kpi.de', { a: formatNumero(capturados), b: formatNumero(tablero.esperados) })}
+        sub={t('energia.kpi.del-periodo')}
       />
       <KPICard
-        label="Faltan"
+        label={t('energia.kpi.faltan')}
         value={formatNumero(tablero.faltantes)}
-        sub={tablero.faltantes > 0 ? 'el reporte enseña menos luz de la real' : 'captura completa'}
+        sub={tablero.faltantes > 0 ? t('energia.kpi.menos-luz') : t('energia.kpi.completa')}
         tono={tablero.esperados === 0 ? 'neutro' : tablero.faltantes > 0 ? 'ambar' : 'verde'}
       />
       <KPICard
-        label="Importe del periodo"
-        value={recibos.length === 0 ? '—' : formatMonto(importe)}
+        label={t('energia.kpi.importe')}
+        value={recibos.length === 0 ? '—' : formatMonto(importe, idioma)}
         sub={
           huerfanos > 0
-            ? `solo lo capturado · ${conteo(huerfanos, 'recibo', 'recibos')} sin pantalla`
-            : 'solo lo capturado'
+            ? t(huerfanos === 1 ? 'energia.kpi.sin-pantalla.uno' : 'energia.kpi.sin-pantalla.otros', { n: formatNumero(huerfanos) })
+            : t('energia.kpi.solo-capturado')
         }
       />
       <KPICard
-        label="kWh del periodo"
+        label={t('energia.kpi.kwh')}
         value={recibos.length === 0 ? '—' : formatNumero(kwh)}
-        sub="solo lo capturado"
+        sub={t('energia.kpi.solo-capturado')}
       />
     </div>
   )

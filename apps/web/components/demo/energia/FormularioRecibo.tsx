@@ -7,6 +7,7 @@ import { CampoCifra } from '@/components/demo/ui/CampoCifra'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import type { PuntoDeMedicion } from '@/lib/server/energia-repo'
 import { motivoInvalidoDelRecibo, type ReciboEnFormulario } from './captura'
+import { useIdioma } from '@/lib/i18n/contexto'
 
 // ============================================================================
 //  El alta de un recibo. RÁPIDA DE TECLEAR, que es el requisito de verdad.
@@ -50,6 +51,7 @@ export function FormularioRecibo({
     importe: '',
   })
   const [error, setError] = useState<string | null>(null)
+  const { t, idioma } = useIdioma()
   // OBLIG-01 · lo que el servidor exige (`energia-controller.ts:170-188`): a qué
   // predio o pantalla corresponde, el mes, los kWh y el importe. El medidor no.
   const ob = useObligatorios({ ...recibo }, ['punto', 'periodo', 'kwh', 'importe'])
@@ -64,7 +66,7 @@ export function FormularioRecibo({
     // pura: es lo que permite probar el rechazo del recibo del futuro sin
     // falsear el reloj del proceso.
     const completos = ob.validar()
-    const motivo = motivoInvalidoDelRecibo(recibo, new Date())
+    const motivo = motivoInvalidoDelRecibo(recibo, new Date(), idioma)
     if (!completos || motivo) {
       setError(motivo)
       return
@@ -78,7 +80,7 @@ export function FormularioRecibo({
       // el siguiente recibo, no porque falten.
       ob.reiniciar()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo guardar el recibo')
+      setError(e instanceof Error ? e.message : t('energia.error.guardar-recibo'))
     }
   }
 
@@ -94,7 +96,7 @@ export function FormularioRecibo({
       }}
     >
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-12">
-        <Campo label="Predio o pantalla" obligatorio falta={ob.falta('punto')} className="col-span-2 lg:col-span-4">
+        <Campo label={t('energia.predio-o-pantalla')} obligatorio falta={ob.falta('punto')} className="col-span-2 lg:col-span-4">
           <select
             id="recibo-punto"
             className={entrada}
@@ -106,20 +108,22 @@ export function FormularioRecibo({
             {puntos.map((p) => (
               <option key={p.clave} value={p.clave}>
                 {p.nombre}
-                {p.tipo === 'predio' ? ` · ${p.pantallas} ${p.pantallas === 1 ? 'pantalla' : 'pantallas'}` : ' · pantalla suelta'}
+                {p.tipo === 'predio'
+                  ? t(p.pantallas === 1 ? 'energia.opcion.pantallas.uno' : 'energia.opcion.pantallas.otros', { n: p.pantallas })
+                  : t('energia.opcion.suelta')}
               </option>
             ))}
           </select>
         </Campo>
 
-        <Campo label="Mes del recibo" obligatorio falta={ob.falta('periodo')} className="lg:col-span-2">
+        <Campo label={t('energia.mes-recibo')} obligatorio falta={ob.falta('periodo')} className="lg:col-span-2">
           {/* `type="month"` da `AAAA-MM`, que es exactamente lo que el
               controller normaliza al día 1. Un selector de día pediría elegir
               una fecha que la base no admite. */}
           <input id="recibo-mes" type="month" className={entrada} value={recibo.periodo} onChange={campo('periodo')} />
         </Campo>
 
-        <Campo label="Medidor" className="lg:col-span-2">
+        <Campo label={t('energia.medidor')} className="lg:col-span-2">
           {/* Opcional: un predio con un solo medidor puede no tener el número
               anotado, y bloquear la captura por eso es fricción pura. Su razón
               de ser es poder capturar el SEGUNDO medidor del mismo mes. */}
@@ -140,7 +144,7 @@ export function FormularioRecibo({
           />
         </Campo>
 
-        <Campo label="Importe" obligatorio falta={ob.falta('importe')} className="lg:col-span-2">
+        <Campo label={t('energia.importe')} obligatorio falta={ob.falta('importe')} className="lg:col-span-2">
           {/* Con coma de miles al teclear. Lo que no se entiende llega como
               'NaN' y `motivoInvalidoDelRecibo` lo para («tiene que ser un
               número»), igual que paraba cualquier texto antes. */}
@@ -156,7 +160,7 @@ export function FormularioRecibo({
       <div className="flex items-center gap-3">
         <Button type="submit" size="sm">
           <Zap className="mr-1.5 h-3.5 w-3.5" />
-          Guardar recibo
+          {t('energia.guardar-recibo')}
         </Button>
         {/* El error se pinta AL LADO del botón y no arriba del formulario:
             quien captura está mirando el botón cuando lo pulsa. */}
