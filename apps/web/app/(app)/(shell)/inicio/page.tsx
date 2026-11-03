@@ -263,7 +263,7 @@ export default function DashboardPage() {
                   value={formatMonto(pipeline.abierto.valor, idioma)}
                   sub={t('inicio.pipeline-sub', {
                     propuestas: t(pipeline.abierto.n === 1 ? 'inicio.propuestas.uno' : 'inicio.propuestas.otros', { n: formatNumero(pipeline.abierto.n, 0, idioma) }),
-                    enviadas: t(pipeline.abierto.enviadas === 1 ? 'inicio.enviadas.uno' : 'inicio.enviadas.otros', { n: pipeline.abierto.enviadas }),
+                    enviadas: t(pipeline.abierto.enviadas === 1 ? 'inicio.enviadas.uno' : 'inicio.enviadas.otros', { n: formatNumero(pipeline.abierto.enviadas, 0, idioma) }),
                   })}
                   tono="ambar"
                   icon={<Briefcase className="h-4 w-4" />}
@@ -335,7 +335,7 @@ export default function DashboardPage() {
             />
             <span className="text-muted">
               {precio.fase === 'datos'
-                ? `${t(precio.conTarifa === 1 ? 'inicio.de-ventas.uno' : 'inicio.de-ventas.otros', { n: formatNumero(precio.conTarifa, 0, idioma) })}${precio.sinTarifa ? t('inicio.sin-tarifa', { n: precio.sinTarifa }) : ''}`
+                ? `${t(precio.conTarifa === 1 ? 'inicio.de-ventas.uno' : 'inicio.de-ventas.otros', { n: formatNumero(precio.conTarifa, 0, idioma) })}${precio.sinTarifa ? t('inicio.sin-tarifa', { n: formatNumero(precio.sinTarifa, 0, idioma) }) : ''}`
                 : precio.fase === 'sin-datos'
                   ? t('inicio.sin-ventas')
                   : precio.fase === 'cargando'

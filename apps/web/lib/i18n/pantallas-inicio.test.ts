@@ -524,10 +524,15 @@ describe('DASHBOARD · cifras de mil o mas en italiano (validacion del L4)', () 
     const html = texto(crudo)
     const esperadas = [
       '1.500 di 12.000 spazi · digitali 1.200/2.000 · statici 1.100/1.300',
-      '1.001 proposte · 1.001 inviate',
       'su 1.200 vendite con tariffa pubblicata · 1.500 senza tariffa con cui confrontare',
     ]
     expect(esperadas.filter((f) => !html.includes(f))).toEqual([])
     expect(huellasEnItaliano(crudo)).toEqual([])
+    // El pipeline abierto solo lo ve un rol sin Finanzas.
+    forzado.cola = []
+    datos.finanzas = false
+    const ventas = pintar('it', createElement(Pagina))
+    expect(texto(ventas)).toContain('1.001 proposte · 1.001 inviate')
+    expect(huellasEnItaliano(ventas)).toEqual([])
   })
 })

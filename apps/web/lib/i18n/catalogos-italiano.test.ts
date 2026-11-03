@@ -69,9 +69,9 @@ describe('el CSV del estado de cuenta en italiano · textos y formatos italianos
 
   it('fechas «10 set 2026», periodo «settembre 2026», MX$ en el encabezado, importes como numero', () => {
     const csv = csvEstadoCuenta(datos, 'Acme', () => 'Acme', false, 'it')
-    expect(csv).toContain('Periodo,settembre 2026,1 set 2026,30 set 2026')
-    expect(csv).toContain('Saldo iniziale (MX$),11600')
-    expect(csv).toContain('\n10 set 2026,Fattura,F2,23200,,34800')
+    expect(csv).toContain('Periodo;settembre 2026;1 set 2026;30 set 2026')
+    expect(csv).toContain('Saldo iniziale (MX$);11600')
+    expect(csv).toContain('\n10 set 2026;Fattura;F2;23200;;34800')
     expect(nombreArchivoEstadoCuenta('2026-09-01', false, 'it')).toBe('estratto-conto-2026-09.csv')
   })
 })

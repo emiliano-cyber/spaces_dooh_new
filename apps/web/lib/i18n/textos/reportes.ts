@@ -503,7 +503,7 @@ export const IT_REPORTES: Record<ClaveReportes, string> = {
   'reportes.kpi.costo-sub': 'Spazio {espacio} · Operazioni {operacion} · Luce {luz}',
   'reportes.kpi.margen': 'Margine sui ricavi',
   'reportes.kpi.margen-sub': 'Margine {monto}',
-  'reportes.rango': 'Dal {desde} al {hasta}',
+  'reportes.rango': '{desde} – {hasta}',
   'reportes.resultado': 'Risultato',
   'reportes.periodos': '{n} {periodos}',
   'reportes.periodos.palabra.uno': 'periodo',
@@ -514,7 +514,7 @@ export const IT_REPORTES: Record<ClaveReportes, string> = {
   'reportes.invalido.titulo': 'Controlla il periodo',
   'reportes.vacio.titulo': 'Nessun movimento in questo periodo',
   'reportes.vacio.detalle':
-    'Tra il {desde} e il {hasta} nessun impianto ha registrato ricavi, affitti né ordini di lavoro. Un impianto senza nulla di tutto ciò non compare nel report; prova con un intervallo più ampio.',
+    'Tra {desde} e {hasta} nessun impianto ha registrato ricavi, affitti né ordini di lavoro. Un impianto senza nulla di tutto ciò non compare nel report; prova con un intervallo più ampio.',
   'reportes.notas': 'Note su queste cifre ({n})',
   'reportes.inicial.titulo': 'Scegli un periodo',
   'reportes.inicial.detalle': 'Il report si calcola quando scegli le date.',
@@ -679,7 +679,7 @@ export const IT_REPORTES: Record<ClaveReportes, string> = {
     '{sin} delle {total} prenotazioni del periodo escono in «Nessun commerciale» ({ingreso} di ricavi): {causas}.',
   'reportes.nota.vendedor.raya':
     'Quelle righe escono con un trattino e non con uno zero: uno zero in «Sconto e commissione» affermerebbe che non ne è stato concesso nessuno.',
-  'reportes.nota.luz.sin-esperados': 'Non ci sono bollette della luce da attendersi in questo periodo.',
+  'reportes.nota.luz.sin-esperados': 'Non sono previste bollette della luce in questo periodo.',
   'reportes.nota.luz.completa.uno':
     'Non manca nessuna bolletta: risulta registrata {esperados} bolletta attesa nel periodo, quindi il costo della luce è completo.',
   'reportes.nota.luz.completa.otros':
