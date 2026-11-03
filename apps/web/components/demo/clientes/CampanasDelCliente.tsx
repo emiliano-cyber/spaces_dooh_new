@@ -2,8 +2,10 @@
 
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
-import { StatusBadge, CAMPANA_TONO, CAMPANA_LABEL } from '@/components/demo/StatusBadge'
-import { ETAPA_LABEL, formatFecha, formatMonto, type CampanaResumen } from '@/lib/data/client'
+import { StatusBadge, CAMPANA_TONO } from '@/components/demo/StatusBadge'
+import { formatFecha, formatMonto, type CampanaResumen } from '@/lib/data/client'
+import { CLAVE_ESTADO_CAMPANA, CLAVE_ETAPA } from '@/components/demo/campanas/etiquetas'
+import { useIdioma } from '@/lib/i18n/contexto'
 import type { Propuesta } from '@/lib/data/types'
 import { campanasDelCliente } from '@/lib/cliente-pipeline'
 
@@ -24,17 +26,18 @@ export function CampanasDelCliente({
   // la pantalla de la campaña.
   onNavegar?: () => void
 }) {
+  const { t, idioma } = useIdioma()
   const suyas = campanasDelCliente(resumen.map((r) => r.campana), clienteId, propuestas)
   const porId = new Map(resumen.map((r) => [r.campana.id, r]))
 
   return (
     <section>
       <h3 className="mb-2 text-[13px] font-semibold text-ink">
-        Campañas <span className="demo-num font-normal text-muted">({suyas.length})</span>
+        {t('clientes.campanas.titulo')} <span className="demo-num font-normal text-muted">({suyas.length})</span>
       </h3>
       {suyas.length === 0 ? (
         <p className="rounded-md border border-dashed border-border px-3 py-4 text-center text-[12px] text-muted">
-          Este cliente aún no tiene campañas.
+          {t('clientes.campanas.vacia')}
         </p>
       ) : (
         <ul className="m-0 list-none divide-y divide-border rounded-md border border-border p-0">
@@ -50,16 +53,16 @@ export function CampanasDelCliente({
                   <div className="min-w-0">
                     <div className="truncate text-[13px] font-medium text-ink">{c.nombre}</div>
                     <div className="demo-num text-[11px] text-muted">
-                      {c.folio ? <>{c.folio} · </> : null}{formatFecha(c.fechaInicio)}–{formatFecha(c.fechaFin)}
-                      {r ? <> · {ETAPA_LABEL[r.etapa]}</> : null}
+                      {c.folio ? <>{c.folio} · </> : null}{formatFecha(c.fechaInicio, idioma)}–{formatFecha(c.fechaFin, idioma)}
+                      {r ? <> · {t(CLAVE_ETAPA[r.etapa])}</> : null}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="demo-num text-[12px] text-ink">
-                      {c.presupuestoBruto ? formatMonto(c.presupuestoBruto) : 'Sin presupuesto'}
+                      {c.presupuestoBruto ? formatMonto(c.presupuestoBruto, idioma) : t('clientes.campanas.sin-presupuesto')}
                     </span>
                     <StatusBadge tono={CAMPANA_TONO[c.estadoComercial]}>
-                      {CAMPANA_LABEL[c.estadoComercial]}
+                      {t(CLAVE_ESTADO_CAMPANA[c.estadoComercial])}
                     </StatusBadge>
                     <ArrowRight className="h-3.5 w-3.5 text-muted" aria-hidden />
                   </div>

@@ -14,6 +14,7 @@ import {
   editarRazonSocialApi,
   borrarRazonSocialApi,
 } from '@/lib/data/estado-api'
+import { useTexto } from '@/lib/i18n/contexto'
 
 // ============================================================================
 //  Alta, edición y baja de las razones sociales de cada propietario.
@@ -73,6 +74,7 @@ export function GestionRazonesSociales({
   const [creandoEn, setCreandoEn] = useState<string | null>(null)
   const [borrador, setBorrador] = useState<Borrador>(VACIO)
   const [ocupado, setOcupado] = useState(false)
+  const t = useTexto()
 
   // OBLIG-01: la razón social es obligatoria en el alta y en la edición
   // (`razonSocial` min(1), lib/server/arrendadores-controller.ts:400 y :414).
@@ -120,16 +122,18 @@ export function GestionRazonesSociales({
         // enterarse por casualidad al abrir Finanzas sería peor.
         toast.success(
           contratosAdoptados > 0
-            ? `Razón social agregada · se asignó a ${contratosAdoptados} contrato${contratosAdoptados === 1 ? '' : 's'} que no tenía${contratosAdoptados === 1 ? '' : 'n'} ninguna`
-            : 'Razón social agregada',
+            ? t(contratosAdoptados === 1 ? 'arrendadores.razones.agregada.uno' : 'arrendadores.razones.agregada.otros', {
+                n: contratosAdoptados,
+              })
+            : t('arrendadores.razones.agregada'),
         )
       } else if (editando) {
         await editarRazonSocialApi(editando, datos)
-        toast.success('Razón social actualizada')
+        toast.success(t('arrendadores.razones.actualizada'))
       }
       cerrar()
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'No se pudo guardar')
+      toast.error(e instanceof Error ? e.message : t('comercial.comun.no-se-pudo-guardar'))
     } finally {
       setOcupado(false)
     }
@@ -139,9 +143,9 @@ export function GestionRazonesSociales({
     setOcupado(true)
     try {
       await borrarRazonSocialApi(rs.id)
-      toast.success('Razón social eliminada')
+      toast.success(t('arrendadores.razones.eliminada'))
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'No se pudo eliminar')
+      toast.error(e instanceof Error ? e.message : t('arrendadores.razones.no-eliminar'))
     } finally {
       setOcupado(false)
     }
@@ -150,16 +154,16 @@ export function GestionRazonesSociales({
   const formulario = (
     <div className="space-y-2 rounded border border-accent/40 bg-accent-soft p-2.5">
       <div className="grid gap-2 sm:grid-cols-3">
-        <Campo label="Razón social" obligatorio falta={ob.falta('razonSocial')}>
+        <Campo label={t('arrendadores.comun.razon-social')} obligatorio falta={ob.falta('razonSocial')}>
           <input
             className={inputCls}
             value={borrador.razonSocial}
             onChange={(e) => setBorrador({ ...borrador, razonSocial: e.target.value })}
-            placeholder="Nombre o denominación fiscal"
+            placeholder={t('arrendadores.razones.nombre-ph')}
             autoFocus
           />
         </Campo>
-        <Campo label="RFC">
+        <Campo label={t('inventario.wizard.rfc')}>
           <input
             className={cn(inputCls, 'demo-num uppercase', rfcInvalido && 'border-error')}
             value={borrador.rfc}
@@ -168,7 +172,7 @@ export function GestionRazonesSociales({
             maxLength={13}
           />
         </Campo>
-        <Campo label="Régimen fiscal">
+        <Campo label={t('arrendadores.comun.regimen')}>
           <input
             className={inputCls}
             value={borrador.regimen}
@@ -180,15 +184,15 @@ export function GestionRazonesSociales({
       </div>
       {rfcInvalido && (
         <p className="text-[11.5px] text-error">
-          El RFC no tiene un formato válido (3–4 letras, 6 dígitos de fecha y 3 caracteres).
+          {t('arrendadores.razones.rfc-malo')}
         </p>
       )}
       <div className="flex gap-2">
         <Button size="sm" disabled={!puedeGuardar} onClick={guardar}>
-          <Check className="h-3.5 w-3.5" /> {ocupado ? 'Guardando…' : 'Guardar'}
+          <Check className="h-3.5 w-3.5" /> {ocupado ? t('comercial.comun.guardando') : t('comun.guardar')}
         </Button>
         <Button size="sm" variant="secondary" onClick={cerrar}>
-          <X className="h-3.5 w-3.5" /> Cancelar
+          <X className="h-3.5 w-3.5" /> {t('comun.cancelar')}
         </Button>
       </div>
     </div>
@@ -206,12 +210,12 @@ export function GestionRazonesSociales({
   return (
     <CardColapsable
       id="arrendadores.razones-sociales"
-      titulo="Razones sociales"
-      subtitulo="A nombre de quién factura cada arrendador. Un mismo arrendador puede tener varias; el contrato elige cuál usa."
+      titulo={t('arrendadores.comun.razones-sociales')}
+      subtitulo={t('arrendadores.razones.sub')}
       resumen={
         sinRazon.length > 0 ? (
           <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-[#9a6700]">
-            {sinRazon.length} sin razón social
+            {t('arrendadores.razones.sin-n', { n: sinRazon.length })}
           </span>
         ) : undefined
       }
@@ -219,7 +223,7 @@ export function GestionRazonesSociales({
     >
         {arrendadores.length === 0 ? (
           <p className="text-[13px] text-muted">
-            Aún no hay arrendadores dados de alta.
+            {t('arrendadores.razones.sin-arrendadores')}
           </p>
         ) : (
           <>
@@ -227,19 +231,18 @@ export function GestionRazonesSociales({
             <div className="rounded border border-border">
               <p className="flex items-start gap-2 border-b border-border bg-surface-2 px-3 py-2 text-[12.5px] text-[#9a6700]">
                 <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                Sin razón social, los contratos de estos arrendadores no podrán anclar
-                a quién se factura.
+                {t('arrendadores.razones.aviso-varios')}
               </p>
               <ul className="divide-y divide-border">
                 {sinRazon.map((a) => (
                   <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
                     <span className="flex min-w-0 items-center gap-2">
                       <span className="truncate text-[13px] font-medium text-ink">{a.nombre}</span>
-                      <StatusBadge tono="ambar">Sin razón social</StatusBadge>
+                      <StatusBadge tono="ambar">{t('arrendadores.comun.sin-razon')}</StatusBadge>
                     </span>
                     {puedeEditar && (
                       <Button size="sm" variant="secondary" onClick={() => abrirAlta(a.id)}>
-                        Agregar →
+                        {t('arrendadores.razones.agregar-flecha')}
                       </Button>
                     )}
                   </li>
@@ -255,7 +258,7 @@ export function GestionRazonesSociales({
                   <span className="text-[13px] font-medium text-ink">{a.nombre}</span>
                   {puedeEditar && creandoEn !== a.id && (
                     <Button size="sm" variant="success" onClick={() => abrirAlta(a.id)}>
-                      <Plus className="h-3.5 w-3.5" /> Agregar
+                      <Plus className="h-3.5 w-3.5" /> {t('arrendadores.comun.agregar')}
                     </Button>
                   )}
                 </div>
@@ -266,8 +269,7 @@ export function GestionRazonesSociales({
                   {suyas.length === 0 && creandoEn !== a.id ? (
                     <p className="flex items-start gap-2 text-[12.5px] text-[#9a6700]">
                       <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                      Sin razón social. Los contratos de este arrendador no podrán anclar
-                      a quién se factura.
+                      {t('arrendadores.razones.aviso-uno')}
                     </p>
                   ) : (
                     suyas.map((rs) =>
@@ -281,15 +283,18 @@ export function GestionRazonesSociales({
                           <div className="min-w-0">
                             <div className="text-[13px] text-ink">{rs.razonSocial}</div>
                             <div className="demo-num mt-0.5 text-[11.5px] text-muted">
-                              RFC: {rs.rfc || <span className="text-[#9a6700]">falta</span>}
+                              RFC: {rs.rfc || <span className="text-[#9a6700]">{t('arrendadores.razones.falta')}</span>}
                               {' · '}
-                              Régimen: {rs.regimen || <span className="text-[#9a6700]">falta</span>}
+                              {t('arrendadores.razones.regimen')} {rs.regimen || <span className="text-[#9a6700]">{t('arrendadores.razones.falta')}</span>}
                             </div>
                             {(contratosPorRazon.get(rs.id) ?? 0) > 0 && (
                               <div className="mt-0.5 text-[11.5px] text-muted">
-                                {contratosPorRazon.get(rs.id)} contrato
-                                {contratosPorRazon.get(rs.id) === 1 ? '' : 's'} factura
-                                {contratosPorRazon.get(rs.id) === 1 ? '' : 'n'} aquí
+                                {t(
+                                  contratosPorRazon.get(rs.id) === 1
+                                    ? 'arrendadores.razones.facturan.uno'
+                                    : 'arrendadores.razones.facturan.otros',
+                                  { n: contratosPorRazon.get(rs.id) ?? 0 },
+                                )}
                               </div>
                             )}
                           </div>
@@ -300,7 +305,7 @@ export function GestionRazonesSociales({
                                 onClick={() => abrirEdicion(rs)}
                                 className="inline-flex items-center gap-1 rounded border border-border px-2 py-1 text-[11.5px] text-info hover:bg-surface-2"
                               >
-                                <Pencil className="h-3 w-3" /> Editar
+                                <Pencil className="h-3 w-3" /> {t('comercial.comun.editar')}
                               </button>
                               <button
                                 type="button"
@@ -308,8 +313,8 @@ export function GestionRazonesSociales({
                                 disabled={ocupado || (contratosPorRazon.get(rs.id) ?? 0) > 0}
                                 title={
                                   (contratosPorRazon.get(rs.id) ?? 0) > 0
-                                    ? 'Hay contratos que facturan a esta razón social'
-                                    : 'Eliminar'
+                                    ? t('arrendadores.razones.no-borrar')
+                                    : t('comercial.comun.eliminar')
                                 }
                                 className="inline-flex items-center gap-1 rounded border border-border px-2 py-1 text-[11.5px] text-error hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40"
                               >

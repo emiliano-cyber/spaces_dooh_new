@@ -174,8 +174,9 @@ describe('traducirError · los mensajes de validacion, por partes', () => {
         'en',
       ),
     ).toBe(
-      'The package "Pack Centro" on this proposal is a final price and does not accept promo codes. ' +
-        'Remove the package, or swap it for one that does, before applying the code.',
+      // Glosario (costura 2): «negotiation code» y «bundle», con comillas tipograficas.
+      'The bundle “Pack Centro” on this proposal is a final price and does not accept negotiation codes. ' +
+        'Remove the bundle, or swap it for one that does, before applying the code.',
     )
     expect(
       traducirError(
@@ -184,8 +185,21 @@ describe('traducirError · los mensajes de validacion, por partes', () => {
         'en',
       ),
     ).toBe(
-      'The package "Pack Centro" is a final price and does not accept promo codes. ' +
-        'Remove the code "VERANO20" before applying it, or use a package that does.',
+      'The bundle “Pack Centro” is a final price and does not accept negotiation codes. ' +
+        'Remove the code “VERANO20” before applying it, or use a bundle that does.',
+    )
+    expect(traducirError('Esa propuesta no tiene ningun codigo aplicado', 'en')).toBe('That proposal has no negotiation code applied')
+  })
+
+  it('los dos mensajes de la tanda de archivos, cada uno con su ingles EXACTO', () => {
+    // Costura 2 (validacion del lote servidor): el corto se declara antes que
+    // el largo, y sin su ancla `$` se tragaba el largo y perdia la segunda frase
+    // («There are 7 files and the maximum per batch is 7.»). Ninguna prueba lo veia.
+    expect(traducirError('Son 7 archivos y el maximo por tanda es 7.', 'en')).toBe(
+      'There are 7 files and the maximum per batch is 7.',
+    )
+    expect(traducirError('Son 12 archivos y el maximo por tanda es 7. Subelos en varias veces.', 'en')).toBe(
+      'There are 12 files and the maximum per batch is 7. Upload them in several batches.',
     )
   })
 

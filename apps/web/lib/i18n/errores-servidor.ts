@@ -242,7 +242,7 @@ export const CATALOGO_ERRORES: Record<string, string> = {
     'That proposal does not exist in this organization',
   // 1 sitio · lib/server/codigos-controller.ts:138
   'Esa propuesta no tiene ningun codigo aplicado':
-    'That proposal has no promo code applied',
+    'That proposal has no negotiation code applied',
   // 1 sitio · lib/server/paquetes-controller.ts:126
   'Esa propuesta no tiene paquete aplicado':
     'That proposal has no bundle applied',
@@ -842,11 +842,11 @@ export const PATRONES_ERROR: ReadonlyArray<PatronError> = [
   // literales no las ve: van por patrón, como las del ADR 0042.
   {
     re: /^El paquete "(.+)" de esta propuesta es precio final y no admite codigos promocionales\. Quita el paquete, o cambialo por uno que si los admita, antes de aplicar el codigo\.$/,
-    en: 'The package "$1" on this proposal is a final price and does not accept promo codes. Remove the package, or swap it for one that does, before applying the code.',
+    en: 'The bundle “$1” on this proposal is a final price and does not accept negotiation codes. Remove the bundle, or swap it for one that does, before applying the code.',
   },
   {
     re: /^El paquete "(.+)" es precio final y no admite codigos promocionales\. Quita el codigo "(.+)" antes de aplicarlo, o usa un paquete que si los admita\.$/,
-    en: 'The package "$1" is a final price and does not accept promo codes. Remove the code "$2" before applying it, or use a package that does.',
+    en: 'The bundle “$1” is a final price and does not accept negotiation codes. Remove the code “$2” before applying it, or use a bundle that does.',
   },
 
   // ── LOTE SERVIDOR (ola 4, 2026-11-02) · las `new AppError(`…${x}…`)` ──────

@@ -18,6 +18,7 @@ archivos:
   - apps/web/components/demo/ui/SelectorIdioma.tsx
   - apps/web/lib/password.ts
   - scripts/i18n-inventario.mjs
+  - apps/web/lib/i18n/guardias-ingles.ts
   - apps/web/lib/i18n/errores-servidor.ts
   - apps/web/components/demo/inventario/ContratoWizard.tsx
   - apps/web/lib/i18n/textos/propuestas.ts
@@ -1394,6 +1395,411 @@ para cada una armada con valores de ejemplo y para cada clave del catálogo.
   `motivo*` (§8). Es la ola siguiente.
 - El nombre del punto que devuelve `geo-buscar` («Punto del enlace de Google
   Maps», «Coordenadas …»), que es dato de respuesta y no error.
+### Lote operaciones y clientes
+
+**2026-11-02, rama `feat/ingles-operaciones-clientes`** (sale de `integra/ingles`
+en `2e622add`, que ya trae el `MX$` en inglés). El inglés sigue APAGADO; en
+español no cambia ni una letra. **El lote quedó A MEDIAS a propósito:** se
+cerraron completos (prueba de pantallas, español medido, suites en verde y su
+commit) los submódulos de abajo, y el resto no se tocó.
+
+**Hechos, uno por commit:**
+
+- **Clientes** (`/clientes` con su ficha: pipeline y campañas del cliente),
+  **Comisiones** y **Captación** → `lib/i18n/textos/clientes.ts`, **220 claves**
+  `clientes.*`.
+- **Disponibilidad** y las tres piezas que pinta también Comercial
+  (`SlotsBadge`, `ClientesBadge`, `CalendarioDisponibilidad`), **Almacén** e
+  **Imprenta** → `lib/i18n/textos/operaciones.ts`, **177 claves**
+  `operaciones.*`.
+
+**Sin tocar (siguen en español, y hay borradores sin revisar en el scratchpad
+de la sesión):** `/operaciones` y la ficha de la OT (`OTVista`), `/creativos`,
+el **Dashboard** (`/inicio`, `charts.tsx` y los avisos de `lib/data/derive.ts`),
+**Consumo de luz** (`/energia` y `components/demo/energia/*`) y **Reportes**
+(`/reportes` y `components/demo/reportes/*`).
+
+- **Espejos.** `ETAPA_CLIENTE_LABEL` (`lib/cliente-pipeline.ts`),
+  `ETIQUETA_TIPO` (`lib/captacion.ts`), `ETIQUETA_TIPO_ACTIVO` y
+  `ETIQUETA_CAMPO` (`lib/almacen-tipos.ts`) y los mensajes `CP_INVALIDO`,
+  `TELEFONO_INVALIDO` y `EMAIL_INVALIDO` (`lib/validacion.ts`) NO se tocaron:
+  siguen siendo la verdad en español (el servidor los usa). Las pantallas
+  pintan una clave por valor, y `textos/clientes.test.ts` y
+  `textos/operaciones.test.ts` exigen que su español sea IDÉNTICO. Los de
+  almacén no se exportan (un `page.tsx` de Next no admite exportaciones
+  propias): la prueba comprueba la regla de nombres de la clave.
+- **Se reusan claves de otros lotes:** las etapas de captación son las de
+  Comercial negociación (`CLAVE_ETAPA`, mismas `ETIQUETA_ETAPA`); los estatus y
+  etapas de campaña, y las etapas de impresión, las de Campañas
+  (`CLAVE_ESTADO_CAMPANA`, `CLAVE_ETAPA`, `CLAVE_IMPRESION`); la contraseña, la
+  de compartidos.
+- **`faltantesParaRevision` (`lib/captacion.ts`) recibe `idioma`** con `'es'`
+  por omisión: `captacion-repo.ts` la sigue llamando sin él y contesta en
+  español. Es la única función de `lib/` que cambió de firma.
+- **Fechas y dinero.** Las fechas pasan por `formatFecha(…, idioma)`; la
+  bitácora de captación usa `en-US` en inglés. Los importes (pipeline del
+  cliente, campañas) pasan el idioma: `MX$` en inglés para una instancia MXN.
+  La etiqueta de cada periodo de Disponibilidad la arma `lib/data/derive.ts` en
+  español («1/3–14/3», «mar 26»); en inglés la página la rehace con las mismas
+  fechas («3/1–3/14», «Mar 26»). El calendario toma el mes de `Intl`.
+- **Se quedan en español, a propósito:** los regímenes fiscales y usos de CFDI
+  del SAT del alta de cliente (son el valor que se guarda), los ejemplos de
+  marca/modelo/placas del almacén (solo se traduce el «Ej.»), y los nombres que
+  vienen de datos.
+- **Un español raro que se conserva:** la imprenta pinta «2 ordenes» SIN tilde
+  (`orden{n === 1 ? '' : 'es'}`). La clave `operaciones.imprenta.orden.otros`
+  lo copia tal cual, con un comentario; corregirlo es otro cambio. Lo cazó el
+  `diff` del HTML español, no la lectura.
+
+**Cómo se demostró el español idéntico:** `pantallas-clientes.test.ts` (25
+estados) y `pantallas-operaciones.test.ts` (12 estados) rinden el componente
+REAL con `useState` forzado por valor inicial y por el nombre del componente
+que lo llama (se lee de la pila). Con `I18N_VOLCAR=<carpeta>` escriben el HTML
+español de cada estado; se volcó con las fuentes viejas (`git show HEAD:…`) y
+con las nuevas, y `diff -rq` salió vacío en cada submódulo. Con las fuentes
+viejas, las dos pruebas fallan (rojo demostrado: 39 en clientes; 6, 6 y 3 en
+los tres commits de operaciones).
+
+**Glosario añadido** (además del de arriba): captación → **Prospecting** (como
+el menú) · prospecto → *prospect* · bitácora → *log* · comisión → *commission*
+· comisión aplicada → *applied commission* · negociación validada →
+*negotiation validated* (validar → *Validate*) · razón social → *legal name* ·
+C.P. fiscal → *tax ZIP code* · uso de CFDI → *CFDI use* · tasa de cierre →
+*close rate* · embudo → *funnel* · disponibilidad → **availability** ·
+catorcena → *two-week period* · solo con hueco libre → *Only with
+availability* · almacén → **warehouse** · bodega → *depot* · dar de baja (un
+artículo) → **Decommission** (el KPI «{n} decommissioned», el estado
+*Decommissioned*), como el sitio de Comercial. **No** es la baja lógica de
+catálogos («Deactivate»): en el almacén la baja es definitiva
+(`MOVS.BAJA = []`), y así lo declara la costura · traslado → *transit* · imprenta
+→ **Printing** (el módulo; el proveedor que imprime → *print shop*) · prueba de
+color → *color proof* · montaje → *installation*. Pendientes de decidir para los
+submódulos que faltan: recibo de luz → *electricity bill*, consumo →
+*consumption* (el menú ya dice «Power usage»), rentabilidad → *profitability*.
+La ruta de la ayuda del IVA se escribe «Settings → Business settings», como el
+lote de administración. El mes de Disponibilidad va con el año entero, «Mar
+2026» («Mar 26» se lee como «26 de marzo»).
+
+**Segunda vuelta** (validación ÁMBAR,
+`docs/i18n/validacion-clientes-operaciones.md`): se aplicaron los 4 hallazgos
+medios (la baja, un solo nombre para ella, la prueba de clave de los avisos de
+almacén e imprenta —M4a y M4c ahora mueren— y «Mar 2026») y los 10 bajos.
+Español otra vez medido: 37/37 estados idénticos a `2e622add`.
+
+**Costura.** Siete españoles nuevos que se dicen distinto a propósito, cada uno
+con su motivo en `DISTINTOS_A_PROPOSITO`: «Aprobada» (estatus frente a la
+columna con fecha «Approved on»), «RFC» (cabecera corta frente a «RFC (tax
+ID)»), «Validada» y «Validar» (un creativo revisado frente a una negociación
+validada), «Vista» (hacia dónde mira una cara frente al selector de la
+rejilla), «Movimiento» (renglón del estado de cuenta frente a traslado del
+almacén) y «Dar de baja» (la baja lógica de catálogos, «Deactivate», frente a la
+definitiva de un artículo del almacén, «Decommission»).
+### Lote Space Eyes
+
+**2026-11-02, rama `feat/ingles-space-eyes`** (sale de `integra/ingles`,
+`ec427a66`). El inglés sigue APAGADO; en español no cambia ni una letra. Tabla
+de revisión en `docs/i18n/revision-spaceeyes.md`.
+
+**Pantallas cubiertas:** todo `/space-eyes/*` — la lista de equipos, la ficha
+de un equipo con sus cuatro pestañas (fotos con el veredicto de la IA, pantalla
+y fallas, creativos, equipo: datos del sitio, programa, ajustes de imagen y
+registros), el histórico, la vista en vivo, la galería y su visor, las fallas
+de la flota, las campañas de verificación, la programación de fotos, la
+verificación, las gráficas, ajustar texto, el alta de un dispositivo, la
+demostración para quien no tiene el módulo, el aviso «sin respuesta» y las
+solicitudes de activación del padre; y la página `/space-eyes/[id]` con un id
+inválido.
+
+- **992 claves** `spaceeyes.*` en `lib/i18n/textos/spaceeyes.ts`, esparcidas en
+  `diccionario.ts`, con su instantánea y sus guardias en
+  `textos/spaceeyes.test.ts` (ningún inglés igual al español salvo 10
+  declaradas —11 desde la segunda vuelta, con «Vincular»—, sin acentos, mismos huecos, sin espacio antes de «%», apóstrofo y
+  comillas tipográficos, nunca «tap»/«press», frecuencias en letra y plurales
+  `.uno/.otros` siempre en pareja). El lote entra en `costura.test.ts`.
+- **Funciones con texto ganaron `idioma` con `'es'` por omisión:** en
+  `piezas.tsx` `hace`, `calidadSenal` y `fechaHora` (en inglés,
+  `formatFechaHora(…, 'en')`), más `haceSinPrefijo` (sustituye a
+  `hace(x).replace('hace ', '')`, que en inglés no quitaba nada); y
+  `comoSeActualiza` (`lib/space-eyes-actualizacion.ts`). El servidor
+  (`lib/server/space-eye.ts`) la sigue llamando sin idioma: español de siempre,
+  y `space-eyes-actualizacion.test.ts` lo fija letra por letra.
+- **El veredicto de la foto** usa las claves `comercial.eye.*` («Correct ad ·
+  confidence 93%», «Does not match the creative»): la misma foto dice lo mismo
+  en la ficha comercial y en la de Space Eyes.
+- **Los avisos que no se rinden** (toasts de Programación y de la vista en
+  vivo, avisos de la galería, de ajustar texto, de las fallas y del equipo, el
+  `window.confirm` de descartar la marca) se fijan leyendo el fuente en
+  `textos/spaceeyes.test.ts`, rama por rama, como la gemela de Finanzas.
+
+**Cómo se midió el español:** `lib/i18n/pantallas-spaceeyes.test.ts` rinde
+**95 estados** (con `useState` forzado y el reloj fijo). Como `Button` lleva su
+propio `useState(false)`, el envoltorio lo reconoce en la pila y no le da
+valores de la cola. Con `I18N_VOLCAR=<carpeta>` vuelca el HTML español: se
+volcó con las fuentes de `ec427a66` y con las del lote, con la misma prueba, y
+`diff -rq` salió vacío (95/95). La prueba barre además el diccionario del lote,
+el de compartidos y `comun.*` contra el HTML inglés de todas las pantallas.
+
+**Glosario del lote** (decisiones del traductor; el dueño puede cambiarlas):
+equipo / dispositivo → **device** (como el menú, «Devices»); falla → **fault**
+(menú «Faults»); vista en vivo → **live view**; verificación →
+**verification**; solicitud de activación → **activation request**; flota →
+**fleet**; gabinete → *cabinet*; creativo / creatividad → *creative*; encuadre
+→ *framing*; vigilancia → *monitoring*; código de vinculación → *pairing code*;
+la marca de la foto → *label* (menú «Photo label»); programación de fotos →
+*scheduling*; franja → *daypart* (glosario); zona → *area*; sin comunicación →
+*not reporting*. «Pide un toque en el teléfono» → *someone has to confirm on
+the phone* (nunca «tap»). Las frecuencias en letra: *every half hour, every
+two hours, every twelve hours*. Tres divergencias declaradas en la costura:
+«Actualizar» (*Refresh* una lista / *Update* el programa del equipo),
+«Estado» (*Status* / *State* en la dirección) y «Ganancia» (*Profit* / *Gain*
+de la cámara).
+
+**Lo que NO se traduce, a propósito:** el ticket que abre «Solicitar
+activación» (es un dato que lee soporte), la marca que se graba EN la foto
+(`lib/space-eyes-marca*`: es la evidencia), el nombre del `.zip` del álbum y
+del archivo de la microSD, el CSV de telemetría, el comando de instalación, y
+lo que manda el servidor o Space Eye: el nombre, la zona y la nota de una falla,
+las alertas de telemetría, el `mensaje` de pedir una foto, el
+`actualizacion.texto` de la lista (solo sale en un `title`) y los errores de
+los errores de `lib/space-eyes-marca.ts` (la descarga de la foto con su marca).
+
+#### Segunda vuelta (validador ÁMBAR, `docs/i18n/validacion-spaceeyes.md`)
+
+- **«Vincular» en los dos idiomas** (decisión del dueño, 02/11: la app Android
+  de Space Eye solo está en español). El paso dice «On the phone, open the app,
+  confirm with **Vincular** and scan the QR»; la clave está declarada igual.
+- **«Space Eye respondió N» ya no sale en español en la pantalla inglesa.**
+  `ErrorSE` marca cuándo su mensaje es el genérico (Space Eye no mandó motivo)
+  y `textoDeError(e, idioma)` / `textoRespondio(status, idioma)`
+  (`lib/data/space-eyes-se.ts`, `'es'` por omisión) lo dicen en el idioma de
+  quien lo lee; lo que manda Space Eye sigue siendo un dato. Lo usan todos los
+  manejadores de error del módulo y la exportación del CSV de `Graficas`.
+- **Los motivos de la vista en vivo son interfaz** (decisión del orquestador):
+  `VisorWhep` recibe `idioma` (`'es'` por omisión) y sus cuatro motivos salen
+  de `spaceeyes.whep.*`. La marca de la foto sigue SIN traducirse.
+- **Guardias nuevas en el barrido inglés:** `(?<!MX)\$ ?\d` y
+  `\d{2}/\d{2}/\d{4}` (las mismas expresiones que prepara el lote de
+  inventario para su ayudante común, que aún no está en esta base; aquí van
+  locales), más el mes abreviado y el «a. m.» de es-MX. Se quita antes la marca
+  de la foto, y otra prueba exige que en inglés esa marca SIGA en es-MX. La
+  nueva `lib/space-eyes-marca-idioma.test.ts` fija `lineasMarca` y
+  `renglonesMarca` en es-MX y que ninguno de los dos módulos sepa de idiomas.
+  Mutantes: quitar el idioma de un `fechaHora` (M3), traducir la marca (M6,
+  M7), quitar el idioma de `textoDeError` y de `VisorWhep` — **mueren los
+  cinco**.
+- **Glosario (orquestador):** Administración › Configuración › Soporte →
+  *Settings › Business settings › Support*; folio de un ticket → *ticket*;
+  el padre → *parent server*. Además: «Updates: …» → *Update mode: …*; el lote
+  de códigos en inglés natural; *manually* en vez de *by hand*; *On demand* en
+  los dos sitios; *checksum*; posesivos; plurales `.uno/.otros` en «of {n}
+  devices», «Applies to the {n} devices» y «Cabinets {lista}»; la próxima foto
+  y el pie del visor de la galería con el formato inglés de la aplicación.
+- **Español, otra vez medido:** 95/95 estados idénticos frente a `ec427a66`.
+### Lote inventario y arrendadores
+
+**2026-11-02, rama `feat/ingles-inventario-arrendadores`** (sale de
+`integra/ingles`, ec427a66). El inglés sigue APAGADO; en español no cambia ni una
+letra. Tablas de revisión en `docs/i18n/revision-inventario.md` y
+`docs/i18n/revision-arrendadores.md`.
+
+**Pantallas cubiertas:** `/inventario` (la tabla con indicadores y chips, el
+cambio masivo de tarifa y de renta, las celdas editables y sus cuadros de
+contraseña, el asistente «Contrato + pantalla», el alta manual y la carga
+masiva con su resumen y la «Información añadida»); `/arrendadores` (filtros,
+indicadores, contratos, pagos de renta, cuadre, rentabilidad, la lista con su
+alta y su baja, las razones sociales del arrendador y el consolidado), la ficha
+del contrato con sus cuadros (completar, quién paga, registrar pago y adjuntos,
+reportar incidencia, renovar), los cambios al contrato y las versiones firmadas,
+licencias y permisos; lo que RODEA al documento del contrato (`/contrato/[id]`:
+la barra y el panel de firmas), la firma pública (`/firmar/[token]`) y la página
+`/razones-sociales`. `CompromisoRentaCard` y `PagosRentaCard` también salen en
+Finanzas.
+
+- **807 claves** en dos archivos: `lib/i18n/textos/inventario.ts` (360,
+  `inventario.*`) y `textos/arrendadores.ts` (447, `arrendadores.*`),
+  esparcidos en `diccionario.ts`, cada uno con su instantánea y las guardias
+  de siempre (inglés ≠ español salvo las declaradas, sin acentos, huecos
+  iguales, sin espacio antes de «%», sin comillas ni apóstrofos rectos, sin
+  «tap»/«press»). `costura.test.ts` mira ahora ocho lotes.
+- **Espejos con prueba de paridad.** `medioLabel`, `disponibilidadInventario`,
+  `textoVencimiento`, `faltaEnContratos`, `LICENCIA_LABEL` y el «Sin arrendador
+  asignado» de `conciliacionRenta` NO se tocaron: `components/demo/inventario/
+  etiquetas.ts` y `components/demo/arrendadores/etiquetas.ts` repiten su
+  decisión con claves, y `textos/inventario.test.ts` / `textos/arrendadores.test.ts`
+  exigen que en español digan exactamente lo mismo, caso por caso. Los estatus
+  del contrato, del pago y del sitio y los tipos de medio reutilizan las claves
+  de Comercial (`comercial/claves.ts`).
+- **Qué clave usa cada aviso** (la cuarta y quinta gemelas): las dos pruebas de
+  textos leen el fuente y fijan la rama de cada toast que no se rinde (tarifa ↔
+  renta en el cambio masivo, predio / asignada / creados en el asistente,
+  adjuntos ↔ pago, firmado / enviado / historial al editar términos…).
+- **El `id` de `PagosRentaCard` no cambia con el idioma**: es la clave donde se
+  guarda si está plegada; con el título por omisión se queda en español y solo
+  se traduce lo que se pinta.
+
+> [!danger] EL CONTRATO NO SE TRADUCE
+> Ni su texto (`lib/contrato-documento.ts`, fijado byte a byte por una huella
+> sha256 en `textos/arrendadores.test.ts`), ni la cantidad con letra, ni lo que
+> entra en el hash de las firmas, ni lo que forma parte del documento impreso:
+> los encabezados DECLARACIONES / CLÁUSULAS, el bloque de firmas con sus sellos
+> «FIRMADO ELECTRÓNICAMENTE» / «FIRMA INVALIDADA» y el aviso de borrador. Se
+> traduce lo que lo rodea: la barra y el panel de firmas (`doc-no-print`), la
+> firma pública (con `idiomaDeLaPeticion()` y el contexto; el texto congelado
+> que se firma se pinta tal cual) y, **desde la segunda vuelta, la constancia**.
+> Las pruebas de firmas (`contrato-documento`, `firmas-repo.*`) siguen en verde
+> sin tocarlas.
+
+> [!important] 2026-11-02, decisión del dueño · la constancia va en el idioma configurado
+> Revierte la primera vuelta, que la dejaba en español. Antes de traducirla se
+> comprobó que **no entra en ningún hash ni se guarda como texto**: lo que se
+> sella es `documentoATexto(generarContrato(…))` (`lib/server/firmas-repo.ts`),
+> y `ConstanciaFirmas` solo la monta la página `/contrato/[id]`, que le pasa
+> `idioma={idiomaDeLaPeticion()}` (prop, `'es'` por omisión: es un Server
+> Component). La guardia de `textos/arrendadores.test.ts` pasó de prohibir el
+> diccionario en la constancia a exigirlo, y además fija que el hash de las
+> firmas no la mira. Mismo criterio para la casilla de consentimiento de la
+> firma pública: en el idioma configurado, como ya estaba.
+
+**Cómo se demostró el español idéntico:** `lib/i18n/pantallas-inventario-arrendadores.test.ts`
+rinde **81 estados**. Fuerza `useState` por **componente y ordinal** (el nombre
+de la función que llama, leído de la pila, y el número de llamada): aquí hay
+demasiados `useState(false)` seguidos para acertar por orden de render. Con
+`I18N_VOLCAR=<carpeta>` vuelca el HTML español: se volcó con la prueba final y
+los componentes de ec427a66 (`git checkout` de los 22 archivos, sin tocar el
+resto) y con los del lote, y `diff -rq` salió **vacío (81/81)**.
+`I18N_VOLCAR_EN` vuelca el inglés para revisarlo a ojo.
+
+**Segunda vuelta (validador ÁMBAR, `docs/i18n/validacion-inventario-arrendadores.md`).**
+Los tres medios: (1) `lib/i18n/guardias-ingles.ts` (`huellasDeFormatoEspanol`,
+para cualquier lote) busca en el HTML inglés dinero sin `MX$` y fechas
+`dd/mm/aaaa` fuera de los `value=`; la prueba de pantallas la corre sobre los
+81 estados y el mutante de `PagosRentaCard` sin idioma **muere** (dinero y
+fecha, cada uno por separado). (2) La frase del lote a medias se arma con claves
+en `InventarioTabla` (`fraseDeLote`) y una prueba exige que en español sea
+`crearLote().frase()`. (3) `valorParaMostrar` (`lib/contrato-cambios.ts`) ganó
+`idioma = 'es'`, y el historial de cambios lo pasa (`MX$` en inglés). Además, la
+etiqueta de cada campo del historial y los faltantes / «dónde» de la barra del
+documento se pintan por clave en inglés (mapas en `arrendadores/etiquetas.ts`
+atados por prueba a `CAMPOS` y a `contrato-documento.ts`); en español, el dato.
+Español otra vez medido: 81/81 idénticos contra los componentes de ec427a66.
+
+**Glosario añadido** (decisiones del traductor y, en la segunda vuelta, del
+orquestador; el dueño puede cambiarlas):
+contrato → **contract** (y **lease agreement** cuando dice «contrato de
+arrendamiento», en títulos) · renta → *rent* · depósito (en garantía) →
+**security deposit** · conciliación / cuadre de renta → **Rent reconciliation**
+· licencia / permiso → **Permit** como genérico (*license* solo en «Municipal
+license» y en el título) · un permiso vigente → **Valid** (un contrato o código
+vigente sigue siendo *Active*) · firma → *signature* (firmar → *sign*) ·
+constancia → **certificate** («Electronic signature certificate») ·
+arrendataria (nosotros) → **lessee** (se queda) · predio → *property* ·
+emplazamiento → **Placement** (no *location*, que es *ubicación*) · RFC / RUC →
+**RFC (tax ID)** / **RUC (tax ID)** · fija → **Static** · medio (filtro) →
+**Medium** · pantalla suelta → *individual screen* · razón social (del
+arrendador) → **Legal name**; las razones sociales propias → **Legal entities** · régimen fiscal → *tax regime* · domicilio → *address* · domicilio
+fiscal → *tax address* · alta manual → **manual entry** · carga masiva → **bulk
+upload** · dar de baja → **deactivate** · congelar (el documento) → *freeze* ·
+sello SHA-256 → *SHA-256 seal* · vence (un contrato) → *Expires* frente a vence
+(un pago) → *Due* · próximo (pago) → *Next* · actualizar (en la carga) → *Update*.
+Esas tres y «Vigente» (*Valid* / *Active*) entran en `DISTINTOS_A_PROPOSITO` de
+la costura.
+
+**Sigue en español dentro de estas pantallas, a propósito o de otro módulo:** el
+documento del contrato (arriba); el motivo de `pantallasFueraDelGrupo`
+(`lib/predio-cercania.ts`); un faltante o un «dónde» de la barra que no esté en
+el mapa (se pinta tal cual); la etiqueta guardada de un campo del historial que
+no esté en `CAMPOS`; el error de formato de `CampoCifra`
+(`lib/captura-cifra.ts`); `Paginacion` («de»); los nombres de columna de la
+plantilla (`renta_arrendador`, `costo_compra`, la hoja «Sitios»); la unidad de
+cada modalidad en «Información añadida» (un dato); el importe que recita el
+paso de revisión de firmas (`$10,000.00 MXN`, es el dato que se congela);
+`GestionEntidadesFiscales` (la gestión dentro de `/razones-sociales`, que no
+estaba en la lista del lote) y los mensajes del servidor (I18N-05).
+
+### Costura 2
+
+**2026-11-02, rama `feat/ingles-costura-2`** (sale de `integra/ingles`,
+00815aa3). Junta los tres lotes de la tercera ola que faltaban, en este orden y
+con `git merge --no-ff`: clientes y operaciones, Space Eyes, e inventario y
+arrendadores. El inglés sigue APAGADO; en español no cambia ni una letra
+(medido, abajo).
+
+**1 · Los choques de las uniones.** `diccionario.ts`, `costura.test.ts` y esta
+nota son la unión de los lados. En `costura.test.ts`, `baseDelDiccionario`
+descuenta ahora los cinco ámbitos nuevos (clientes, operaciones, spaceeyes,
+inventario, arrendadores). «Actualizar» estaba declarado tres veces (admin,
+Space Eyes, inventario): queda **una** entrada que junta los tres motivos.
+
+**2 · `/razones-sociales`, traducida dos veces.** Administración (ya integrado)
+y arrendadores tradujeron la MISMA página con claves distintas. Manda
+`admin.razones.*`. Las tres claves de arrendadores que quedaron sin uso
+(`arrendadores.entidades.sin-acceso`, `.no-cargar`, `.sub`) se retiran; su
+español lo sigue pintando la clave de admin. Los avisos de
+`GestionRazonesSociales` («Razón social agregada / actualizada / eliminada»)
+dicen ahora **Legal entity added / updated / deleted**, como admin: el registro
+es una *legal entity* (la tarjeta se titula «Legal entities»), su nombre sigue
+siendo *legal name*. La prueba del estado «razones sociales · cargando» espera
+el subtítulo que de verdad se pinta.
+
+**3 · Divergencias que ningún lote podía ver** (cada uno salía de una base sin
+los demás). Unificadas, solo en inglés:
+
+| Español | Antes | Ahora | Por qué |
+|---|---|---|---|
+| Código postal inválido (5 dígitos) · C.P. fiscal | *ZIP code* (clientes) | *postal code* | como el servidor, admin y campañas; «ZIP» es de EE. UU. |
+| Para enviarlo a revisión falta: … | *it still needs* (clientes) | *this is missing* | como el servidor |
+| Calle, número, colonia, CP, … (ejemplo) | *ZIP code* (arrendadores) | *postal code* | como admin |
+| No puede ser negativo | *Can’t be negative* (arrendadores) | *It cannot be negative* | como compartidos |
+| La licencia no puede vencer antes de expedirse. | *can’t* | *cannot* | como el servidor |
+| Razón social agregada / actualizada | *Legal name* (arrendadores) | *Legal entity* | como admin (§2) |
+
+Y declaradas en `DISTINTOS_A_PROPOSITO`, porque significan otra cosa: «Dada de
+baja» (*Deactivated* / *Decommissioned*), «Equipo» (*Team* / *Device*),
+«Operador» (*Operator* / *Carrier*), «Volver» (*Back* / *Revert*) y «Registrar»
+(*Register* un artículo / *Record* un pago).
+
+**4 · Un solo ayudante de huellas de formato español**
+(`lib/i18n/guardias-ingles.ts`, `huellasDeFormatoEspanol`). Inventario lo creó
+con dos huellas y Space Eyes tenía en su prueba una copia local con dos más.
+Queda uno con las seis: dinero sin `MX$`, `dd/mm/aaaa`, la fecha larga («20 de
+octubre de 2026»), el mes corto («02 nov»), el corto con guion («02-nov») y el
+«a. m.». Mira también los `title`, `aria-label`, `placeholder` y `alt`, y
+`permitidos` se prueba contra el **trozo** encontrado (el importe se lleva el
+código de moneda que lo sigue), no contra 60 caracteres de contexto. Lo usan
+las pruebas de pantallas de **los once ámbitos con pantallas** (propuestas,
+compartidos, campañas y finanzas, comercial, catálogos, admin, cuenta y shell,
+clientes, operaciones, Space Eyes, inventario y arrendadores). **Cero huellas**
+en los lotes ya integrados; un mutante de control (la fecha del tablero de
+Propuestas sin idioma) cae con «02/11/2026». Mueren el **E** de inventario
+(`PanelFirmas` con la fecha larga en español) y el **M10** de Space Eyes (la
+fecha de Programación siempre en es-MX).
+
+**5 · Los menores de los validadores.**
+
+- Space Eyes: `alta.tel.3` dice «choose {vincular}» (no «confirm with»); el
+  respaldo «No se pudo hablar con Space Eyes» de `lib/data/space-eyes-api.ts`
+  va con idioma (`spaceeyes.comun.sin-hablar`, *Could not reach Space Eyes*),
+  con `'es'` por omisión como `textoDeError`.
+- Inventario: `fraseDeLote` y `avisoDeLote` se exportan y la prueba de paridad
+  las **llama**; una guardia de fuente fija la unidad del subtítulo. Mueren D1 y
+  D2. Constancia: «kept as circumstantial evidence».
+- Servidor: el inglés exacto de «…Subelos en varias veces.» (muere el mutante
+  del ancla `$` del mensaje corto); «promo codes» → **negotiation codes**, y en
+  esos dos mensajes «package» → **bundle**, con comillas tipográficas.
+- Administración: el singular de Network se exige con su cierre
+  (`'>of 1 space<'`); muere N4.
+- Captación: «2 ordenes» en la imprenta se queda así; es un dato del español.
+
+**El español, medido.** Se volcó el HTML español de **todas** las pruebas de
+pantallas (`I18N_VOLCAR` / `VOLCAR_HTML`) con `integra/ingles` más cada lote
+por separado (la línea base de cada uno; para inventario, con SU versión de
+`/razones-sociales`) y con el resultado final: **397 estados**, `diff -rq`
+vacío (184 de los siete lotes ya integrados, 25 + 12 de clientes y
+operaciones, 95 de Space Eyes, 81 de inventario y arrendadores). Y
+`DICCIONARIOS.es` frente a la unión de las líneas base: 1 clave nueva, 3
+retiradas (su texto lo sigue pintando otra clave), **0 valores cambiados**.
+Inventario de lo que falta: `node scripts/i18n-inventario.mjs` baja de 1270
+textos en 112 archivos (`integra/ingles`) a 357 en 95.
 
 > [!success] 2026-11-02 · las confirmaciones de APROBAR, ya en inglés (`feat/ingles-confirmaciones`)
 > Lo que el validador dejó como «la mezcla más llamativa»: los dos 409 que

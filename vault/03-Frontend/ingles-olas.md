@@ -86,10 +86,11 @@ traductor  ──►  validador  ──►  ¿VERDE?  ──sí──►  se jun
 | Lote | Rama | Estado |
 |---|---|---|
 | Catálogos de precio (paquetes, franjas y temporadas, volumen) | `feat/ingles-operaciones` | **VERDE** (2.ª). Integrado en `integra/ingles` (85a8ee67). Incluye el aviso de `CampoCifra` en inglés para toda la app |
-| Space Eyes | `feat/ingles-space-eyes` | Traducido (984 claves). Validador: **ÁMBAR** (5 medios); en 2.ª vuelta. «Vincular» se queda igual en los dos idiomas: la app Android solo está en español (dueño, 02/11) |
-| Inventario y arrendadores | `feat/ingles-inventario-arrendadores` | Traducido (761 claves). Validador: **ÁMBAR** (3 medios, nada en contratos); en 2.ª vuelta. El texto legal del contrato NO se traduce (hash de las firmas); la constancia de firmas va en el idioma configurado (dueño, 02/11) |
+| Space Eyes | `feat/ingles-space-eyes` | **VERDE** (2.ª). **Integrado** por la costura 2 (`feat/ingles-costura-2`), que le añadió `spaceeyes.comun.sin-hablar`. «Vincular» se queda igual en los dos idiomas: la app Android solo está en español (dueño, 02/11) |
+| Inventario y arrendadores | `feat/ingles-inventario-arrendadores` | **VERDE** (2.ª). **Integrado** por la costura 2. `/razones-sociales` usa las claves de admin. El texto legal del contrato NO se traduce (hash de las firmas); la constancia de firmas va en el idioma configurado (dueño, 02/11) |
 | Administración, cuenta y shell | `feat/ingles-administracion` | **VERDE** (2.ª). Integrado (bb365fa3). 705 claves |
-| Clientes, comisiones, captación, disponibilidad, almacén, imprenta | `feat/ingles-operaciones-clientes` | Traducido (397 claves). En validación |
+| Clientes, comisiones, captación, disponibilidad, almacén, imprenta | `feat/ingles-operaciones-clientes` | **VERDE** (2.ª). **Integrado** por la costura 2. 397 claves |
+| Costura 2 (une los tres de arriba) | `feat/ingles-costura-2` | Hecha; espera a su validador. Un solo ayudante de huellas de formato español para todos los lotes (`lib/i18n/guardias-ingles.ts`). Detalle en `idiomas-es-en` §11, «Costura 2» |
 | Operaciones y OT, creativos, Dashboard, energía, reportes | `feat/ingles-operaciones-2` | Traduciendo. El Dashboard: solo textos, diseño intacto |
 
 ### Ola 4 · Lo que sale del servidor (en curso)
@@ -143,6 +144,12 @@ Al 2026-11-02 (`2e622add`):
   solo `grants-rol-app`, porque en la máquina de desarrollo no hay Docker.
 - Inventario: unos **1634** textos por traducir al cerrar la ola 2. La ola 3 los
   está bajando.
+
+En `feat/ingles-costura-2` (2026-11-02, los tres lotes de la ola 3 juntos):
+
+- `npm run typecheck`: limpio.
+- `npx vitest run --testTimeout=60000`: **6376 en verde** en 355 archivos.
+- Inventario: **357** textos en 95 archivos (1270 en 112 en `integra/ingles`).
 
 Son cifras con fecha: se vuelven a medir al juntar cada lote.
 

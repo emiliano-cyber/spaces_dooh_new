@@ -7,6 +7,7 @@ import { Button } from '@/components/demo/ui/Button'
 import { ImportarInventarioDialog } from './ImportarInventarioDialog'
 import { NuevaPantallaForm } from './NuevaPantallaForm'
 import { usePuede } from '@/components/demo/shell/SesionContext'
+import { useTexto } from '@/lib/i18n/contexto'
 
 // Sección "Agregar inventario" (debajo del dashboard). Un botón abre el modal de
 // carga masiva (Modal 1), que a su vez ofrece descargar plantilla, subir archivo
@@ -16,6 +17,7 @@ export function AgregarInventario() {
   const [nuevaOpen, setNuevaOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const puedeCrear = usePuede('comercial', 'crear')
+  const t = useTexto()
 
   if (!puedeCrear) return null
 
@@ -32,9 +34,9 @@ export function AgregarInventario() {
             <PackagePlus className="h-5 w-5" strokeWidth={1.75} />
           </span>
           <div>
-            <div className="text-[15px] font-semibold text-ink">Agregar inventario</div>
+            <div className="text-[15px] font-semibold text-ink">{t('inventario.agregar.titulo')}</div>
             <div className="text-[13px] text-muted">
-              Carga masiva por Excel/CSV con plantilla, o alta manual de una pantalla.
+              {t('inventario.agregar.sub')}
             </div>
           </div>
         </div>
@@ -43,10 +45,10 @@ export function AgregarInventario() {
             para descubrir que también se podía dar de alta una sola. */}
         <div className="flex gap-2">
           <Button variant="success" onClick={() => setNuevaOpen(true)}>
-            <PackagePlus className="h-4 w-4" /> Alta manual
+            <PackagePlus className="h-4 w-4" /> {t('inventario.via.manual')}
           </Button>
           <Button variant="success" onClick={() => setImportOpen(true)}>
-            <PackagePlus className="h-4 w-4" /> Carga masiva
+            <PackagePlus className="h-4 w-4" /> {t('inventario.via.masiva')}
           </Button>
         </div>
       </CardContent>
@@ -58,7 +60,7 @@ export function AgregarInventario() {
       <NuevaPantallaForm
         open={nuevaOpen}
         onOpenChange={setNuevaOpen}
-        onCreado={(s) => notify(`Pantalla "${s.nombre}" agregada al inventario`)}
+        onCreado={(s) => notify(t('inventario.toast.pantalla-agregada', { nombre: s.nombre }))}
       />
 
       {toast && (

@@ -8,6 +8,7 @@ import { NuevaPantallaForm } from '@/components/demo/inventario/NuevaPantallaFor
 import { InventarioTabla } from '@/components/demo/inventario/InventarioTabla'
 import { ContratoWizard } from '@/components/demo/inventario/ContratoWizard'
 import { useSesionCtx } from '@/components/demo/shell/SesionContext'
+import { useTexto } from '@/lib/i18n/contexto'
 
 // Clases de un botón del selector de vía, en UN solo sitio a propósito: son
 // cuatro botones con la misma pinta, y cuatro copias de la misma cadena de
@@ -48,6 +49,7 @@ function claseVia(activa: boolean): string {
 // — contrato+pantalla, carga masiva y alta manual — viven aquí, en la página.
 export default function AgregarInventarioPage() {
   const { sesion } = useSesionCtx()
+  const t = useTexto()
   const [modo, setModo] = useState<'lista' | 'contrato' | 'masiva' | 'manual'>('lista')
   const [resetKey, setResetKey] = useState(0)
   const [toast, setToast] = useState<string | null>(null)
@@ -64,9 +66,9 @@ export default function AgregarInventarioPage() {
   if (sesion && rol !== 'DUENO' && rol !== 'ADMINISTRADOR') {
     return (
       <div className="w-full">
-        <h1 className="text-2xl text-ink">Inventario</h1>
+        <h1 className="text-2xl text-ink">{t('inventario.titulo')}</h1>
         <p className="mt-2 text-[13px] text-muted">
-          Esta sección es exclusiva del Dueño y del administrador.
+          {t('inventario.sin-permiso')}
         </p>
       </div>
     )
@@ -96,15 +98,15 @@ export default function AgregarInventarioPage() {
           grupo, porque mezclaba navegar con agregar. */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl text-ink">Inventario</h1>
+          <h1 className="text-2xl text-ink">{t('inventario.titulo')}</h1>
           <p className="mt-1 text-[13px] text-muted">
             {modo === 'lista'
-              ? 'Consulta el inventario completo, o agrega pantallas por carga masiva o alta manual.'
+              ? t('inventario.sub.lista')
               : modo === 'contrato'
-                ? 'Alta de una pantalla junto con su contrato de arrendamiento.'
+                ? t('inventario.sub.contrato')
                 : modo === 'masiva'
-                  ? 'Carga masiva de pantallas desde la plantilla de Excel.'
-                  : 'Alta manual de una pantalla.'}
+                  ? t('inventario.sub.masiva')
+                  : t('inventario.sub.manual')}
           </p>
         </div>
 
@@ -117,13 +119,13 @@ export default function AgregarInventarioPage() {
             cada botón se partía en tres renglones («Contrato / + / pantalla»). */}
         <div className="flex flex-wrap gap-3 rounded-md border border-border bg-surface-2 p-1.5 text-[13px]">
           <button type="button" onClick={() => setModo('contrato')} className={claseVia(modo === 'contrato')}>
-            <FileSignature className="h-3.5 w-3.5" /> Contrato + pantalla
+            <FileSignature className="h-3.5 w-3.5" /> {t('inventario.via.contrato')}
           </button>
           <button type="button" onClick={() => setModo('masiva')} className={claseVia(modo === 'masiva')}>
-            <Upload className="h-3.5 w-3.5" /> Carga masiva
+            <Upload className="h-3.5 w-3.5" /> {t('inventario.via.masiva')}
           </button>
           <button type="button" onClick={() => setModo('manual')} className={claseVia(modo === 'manual')}>
-            <FilePlus2 className="h-3.5 w-3.5" /> Alta manual
+            <FilePlus2 className="h-3.5 w-3.5" /> {t('inventario.via.manual')}
           </button>
         </div>
       </div>
@@ -136,7 +138,7 @@ export default function AgregarInventarioPage() {
           onClick={() => setModo('lista')}
           className="inline-flex items-center gap-1.5 rounded bg-transparent px-1.5 py-1 text-[13px] text-muted hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
-          <ArrowLeft className="h-3.5 w-3.5" /> Inventario
+          <ArrowLeft className="h-3.5 w-3.5" /> {t('inventario.titulo')}
         </button>
       )}
 
@@ -145,7 +147,7 @@ export default function AgregarInventarioPage() {
       ) : modo === 'contrato' ? (
         <ContratoWizard
           key={`contrato-${resetKey}`}
-          onCreado={(s) => alInventario(`Contrato y pantalla "${s.nombre}" creados`)}
+          onCreado={(s) => alInventario(t('inventario.toast.contrato-creado', { nombre: s.nombre }))}
         />
       ) : modo === 'masiva' ? (
         <ImportarInventarioDialog
@@ -160,11 +162,13 @@ export default function AgregarInventarioPage() {
             // dejan pasar: esas filas SÍ entraron, y el aviso cabe en el toast.
             if (r.errores > 0) return
             const partes = [
-              r.creadas ? `${r.creadas} nueva${r.creadas === 1 ? '' : 's'}` : '',
-              r.actualizadas ? `${r.actualizadas} actualizada${r.actualizadas === 1 ? '' : 's'}` : '',
-              r.con_advertencias ? `${r.con_advertencias} con advertencias` : '',
+              r.creadas ? t(r.creadas === 1 ? 'inventario.toast.nuevas.uno' : 'inventario.toast.nuevas.otros', { n: r.creadas }) : '',
+              r.actualizadas
+                ? t(r.actualizadas === 1 ? 'inventario.toast.actualizadas.uno' : 'inventario.toast.actualizadas.otros', { n: r.actualizadas })
+                : '',
+              r.con_advertencias ? t('inventario.toast.con-advertencias', { n: r.con_advertencias }) : '',
             ].filter(Boolean)
-            alInventario(`Inventario importado: ${partes.join(' · ') || 'sin cambios'}`)
+            alInventario(t('inventario.toast.importado', { partes: partes.join(' · ') || t('inventario.toast.sin-cambios') }))
           }}
         />
       ) : (
@@ -173,7 +177,7 @@ export default function AgregarInventarioPage() {
           inline
           open
           onOpenChange={() => setResetKey((k) => k + 1)}
-          onCreado={(s) => alInventario(`Pantalla "${s.nombre}" agregada al inventario`)}
+          onCreado={(s) => alInventario(t('inventario.toast.pantalla-agregada', { nombre: s.nombre }))}
         />
       )}
 

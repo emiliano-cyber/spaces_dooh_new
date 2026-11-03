@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { huellasDeFormatoEspanol } from './guardias-ingles'
 import { createElement, type ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { ProveedorIdioma } from './contexto'
@@ -191,6 +192,19 @@ describe('lote COMPARTIDOS · en INGLES no queda ninguna frase espanola', () => 
       const html = texto(await p.pintar('en'))
       expect(p.espanol.filter((f) => html.includes(f))).toEqual([])
       expect(p.ingles.filter((f) => !html.includes(f))).toEqual([])
+    })
+  }
+})
+
+// Costura 2 (2026-11-02): un `formatFecha` o un `formatMonto` sin idioma no
+// deja ninguna FRASE espanola, solo su formato (dd/mm/aaaa, «20 de octubre
+// de 2026», «02-nov», «a. m.», «$ 1,000.00» sin MX$). El barrido de frases
+// no lo ve; el ayudante comun (`lib/i18n/guardias-ingles.ts`) si, tambien en
+// los `title`, `aria-label`, `placeholder` y `alt`.
+describe('lote COMPARTIDOS · en ingles, ninguna fecha, hora ni importe con formato espanol', () => {
+  for (const p of PIEZAS) {
+    it(p.nombre, async () => {
+      expect(huellasDeFormatoEspanol(await p.pintar('en'))).toEqual([])
     })
   }
 })

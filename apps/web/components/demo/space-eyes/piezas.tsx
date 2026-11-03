@@ -3,6 +3,10 @@
 import { Battery, BatteryLow, SignalHigh, SignalLow, SignalMedium, Wifi } from 'lucide-react'
 import { useState } from 'react'
 import { cn } from '@/lib/cn'
+import { useTexto } from '@/lib/i18n/contexto'
+import { traducir } from '@/lib/i18n/diccionario'
+import type { Idioma } from '@/lib/i18n/idiomas'
+import { formatFechaHora } from '@/lib/data/derive'
 
 // ============================================================================
 //  Piezas compartidas del módulo Space Eyes: las mismas reglas de color y las
@@ -16,18 +20,28 @@ import { cn } from '@/lib/cn'
 // ─── Cuánto hace ────────────────────────────────────────────────────────────
 // "hace 4 min", "hace 3 h", "hace 8 d". Aproximado a propósito: para decidir si
 // hay que ir al sitio, el minuto exacto no cambia nada.
-export function hace(iso: string | null): string {
-  if (!iso) return 'nunca'
+// `idioma` va al final con 'es' por omision (lote del ingles, 2026-11-02): el
+// español sale de las mismas claves y es letra por letra el de siempre.
+export function hace(iso: string | null, idioma: Idioma = 'es'): string {
+  if (!iso) return traducir(idioma, 'spaceeyes.hace.nunca')
   const ms = Date.now() - new Date(iso).getTime()
   if (!Number.isFinite(ms) || ms < 0) return '—'
   const min = Math.floor(ms / 60_000)
-  if (min < 1) return 'hace segundos'
-  if (min < 60) return `hace ${min} min`
+  if (min < 1) return traducir(idioma, 'spaceeyes.hace.segundos')
+  if (min < 60) return traducir(idioma, 'spaceeyes.hace.min', { n: min })
   const h = Math.floor(min / 60)
-  if (h < 24) return `hace ${h} h`
+  if (h < 24) return traducir(idioma, 'spaceeyes.hace.h', { n: h })
   const d = Math.floor(h / 24)
-  if (d < 14) return `hace ${d} d`
-  return `hace ${Math.floor(d / 7)} semanas`
+  if (d < 14) return traducir(idioma, 'spaceeyes.hace.d', { n: d })
+  return traducir(idioma, 'spaceeyes.hace.semanas', { n: Math.floor(d / 7) })
+}
+
+// Lo mismo sin el «hace» / «ago»: para un indicador que ya dice qué mide
+// («Última captura · 30 min»). Antes era `hace(x).replace('hace ', '')`, que en
+// ingles no quitaba nada.
+export function haceSinPrefijo(iso: string | null, idioma: Idioma = 'es'): string {
+  const t = hace(iso, idioma)
+  return idioma === 'en' ? t.replace(/ ago$/, '') : t.replace('hace ', '')
 }
 
 // Un equipo se da por caído a los 10 minutos sin reportar: es el mismo umbral
@@ -56,12 +70,13 @@ const TINTA = {
 } as const
 
 export function Bateria({ pct, className }: { pct: number | null; className?: string }) {
+  const t = useTexto()
   const tono = tonoBateria(pct)
   const Icono = tono === 'rojo' ? BatteryLow : Battery
   return (
     <span className={cn('inline-flex items-center gap-1.5 text-[12px] text-ink', className)}>
       <Icono className={cn('h-4 w-4', TINTA[tono])} strokeWidth={1.8} />
-      {pct == null ? <span className="text-muted">sin dato</span> : `${pct}%`}
+      {pct == null ? <span className="text-muted">{t('spaceeyes.comun.sin-dato')}</span> : `${pct}%`}
     </span>
   )
 }
@@ -69,11 +84,14 @@ export function Bateria({ pct, className }: { pct: number | null; className?: st
 // ─── Señal ──────────────────────────────────────────────────────────────────
 // dBm: más negativo es peor. −85 es el punto donde una foto de 2 MB empieza a
 // tardar de verdad, y −100 donde ya no sube.
-export function calidadSenal(dbm: number | null): { texto: string; tono: 'verde' | 'ambar' | 'rojo' | 'neutro' } {
-  if (dbm == null) return { texto: 'sin dato', tono: 'neutro' }
-  if (dbm >= -75) return { texto: 'buena', tono: 'verde' }
-  if (dbm >= -90) return { texto: 'regular', tono: 'ambar' }
-  return { texto: 'débil', tono: 'rojo' }
+export function calidadSenal(
+  dbm: number | null,
+  idioma: Idioma = 'es',
+): { texto: string; tono: 'verde' | 'ambar' | 'rojo' | 'neutro' } {
+  if (dbm == null) return { texto: traducir(idioma, 'spaceeyes.comun.sin-dato'), tono: 'neutro' }
+  if (dbm >= -75) return { texto: traducir(idioma, 'spaceeyes.senal.buena'), tono: 'verde' }
+  if (dbm >= -90) return { texto: traducir(idioma, 'spaceeyes.senal.regular'), tono: 'ambar' }
+  return { texto: traducir(idioma, 'spaceeyes.senal.debil'), tono: 'rojo' }
 }
 
 export function Senal({
@@ -87,10 +105,15 @@ export function Senal({
   operador?: string | null
   className?: string
 }) {
+  const t = useTexto()
   const { tono } = calidadSenal(dbm)
   const esWifi = (tipo ?? '').toUpperCase().includes('WIFI')
   const Icono = esWifi ? Wifi : tono === 'rojo' ? SignalLow : tono === 'ambar' ? SignalMedium : SignalHigh
-  const etiqueta = esWifi ? 'WiFi' : (tipo ?? '').toUpperCase() === 'CELLULAR' ? 'Móvil' : (tipo ?? 'sin dato')
+  const etiqueta = esWifi
+    ? 'WiFi'
+    : (tipo ?? '').toUpperCase() === 'CELLULAR'
+      ? t('spaceeyes.senal.movil')
+      : (tipo ?? t('spaceeyes.comun.sin-dato'))
   return (
     <span className={cn('inline-flex items-center gap-1.5 text-[12px] text-ink', className)}>
       <Icono className={cn('h-4 w-4', TINTA[tono])} strokeWidth={1.8} />
@@ -117,8 +140,11 @@ export function PildoraConexion({
 }) {
   // Tres estados que un usuario sin conocimientos técnicos entiende. Un equipo
   // registrado no se da por funcionando: lo dice su última comunicación.
+  const t = useTexto()
   const estado = online ? 'linea' : pendiente ? 'pendiente' : 'sin'
-  const texto = { linea: 'En línea', pendiente: 'Pendiente de vincular', sin: 'Sin comunicación' }[estado]
+  const texto = t(
+    ({ linea: 'spaceeyes.conexion.en-linea', pendiente: 'spaceeyes.conexion.pendiente', sin: 'spaceeyes.conexion.sin' } as const)[estado],
+  )
   if (sobreFoto) {
     return (
       <span
@@ -158,10 +184,13 @@ export function PildoraConexion({
 }
 
 // ─── Fecha y hora larga, para los pies de foto ──────────────────────────────
-export function fechaHora(iso: string | null): string {
+// En ingles, el formato del resto de la aplicacion («Dec 1, 2026, 3:45 PM»);
+// el español es el de siempre («02 nov 2026, 18:00»).
+export function fechaHora(iso: string | null, idioma: Idioma = 'es'): string {
   if (!iso) return '—'
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return '—'
+  if (idioma === 'en') return formatFechaHora(iso, 'en')
   return d.toLocaleString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
@@ -265,6 +294,7 @@ export function FotoGirada({
 // cabiendo en la pantalla: en un teléfono una vertical de 3264 px de alto ya
 // no obliga a desplazarse para verla. Para el detalle, el tamaño completo.
 export function VisorFoto({ src, alt }: { src: string; alt: string }) {
+  const t = useTexto()
   return (
     <div className="space-y-2">
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -275,7 +305,7 @@ export function VisorFoto({ src, alt }: { src: string; alt: string }) {
       />
       <div className="text-center text-[12px]">
         <a href={src} target="_blank" rel="noreferrer" className="text-accent hover:underline">
-          Abrir en tamaño completo
+          {t('spaceeyes.visor.completo')}
         </a>
       </div>
     </div>

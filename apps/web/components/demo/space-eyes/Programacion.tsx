@@ -7,8 +7,13 @@ import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
 import { ConfirmDialog } from '@/components/demo/ui/ConfirmDialog'
 import { InlinePanel } from '@/components/demo/ui/InlinePanel'
-import { ErrorSE, seApi } from '@/lib/data/space-eyes-se'
+import { ErrorSE, seApi, textoDeError } from '@/lib/data/space-eyes-se'
 import { formatNumero } from '@/lib/formato-numero'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
+import type { Idioma } from '@/lib/i18n/idiomas'
+import { interpolarNodos } from '@/lib/i18n/nodos'
+import { formatFecha } from '@/lib/data/derive'
 
 // ============================================================================
 //  Space Eyes — programación de fotos.
@@ -106,43 +111,45 @@ function soloFechaInput(v: string | null): string {
   return v ? String(v).slice(0, 10) : ''
 }
 
-const TEXTOS_ERROR: Record<string, string> = {
-  faltan_franjas: 'Revisa las franjas: alguna tiene una hora inválida',
-  faltan_horas: 'Agrega al menos una hora',
-  falta_intervalo: 'Falta el intervalo en minutos',
-  falta_cron: 'Falta la expresión de programación',
-  invalid_input: 'Hay un dato inválido en el formulario',
+const TEXTOS_ERROR: Record<string, ClaveTexto> = {
+  faltan_franjas: 'spaceeyes.prog.error.franjas',
+  faltan_horas: 'spaceeyes.prog.error.horas',
+  falta_intervalo: 'spaceeyes.prog.error.intervalo',
+  falta_cron: 'spaceeyes.prog.error.cron',
+  invalid_input: 'spaceeyes.comun.dato-invalido',
 }
 
-function mensajeDeError(e: unknown, porDefecto: string): string {
+function mensajeDeError(e: unknown, porDefecto: string, idioma: Idioma): string {
   if (e instanceof ErrorSE) {
     const clave = (e.cuerpo as { error?: string } | null)?.error
     if (clave === 'espejo_solo_lectura') return e.message
-    if (clave && TEXTOS_ERROR[clave]) return TEXTOS_ERROR[clave]
-    return e.message || porDefecto
+    if (clave && TEXTOS_ERROR[clave]) return traducir(idioma, TEXTOS_ERROR[clave])
+    return textoDeError(e, idioma) || porDefecto
   }
   return e instanceof Error ? e.message : porDefecto
 }
 
 // ─── Textos de la tabla ─────────────────────────────────────────────────────
 
-function destinoTexto(s: Programa): string {
+function destinoTexto(s: Programa, idioma: Idioma): string {
   if (s.device_name) return s.device_name
-  if (s.campaign_name) return `Campaña: ${s.campaign_name}`
-  if (s.group_name) return `Grupo: ${s.group_name}`
-  return 'Todos los equipos'
+  if (s.campaign_name) return traducir(idioma, 'spaceeyes.prog.destino.campana', { nombre: s.campaign_name })
+  if (s.group_name) return traducir(idioma, 'spaceeyes.prog.destino.grupo', { nombre: s.group_name })
+  return traducir(idioma, 'spaceeyes.comun.todos-equipos')
 }
 
-function cuandoTexto(s: Programa): string {
+function cuandoTexto(s: Programa, idioma: Idioma): string {
   if (s.frequency_type === 'random_windows') {
     const v = comoLista<Ventana>(s.windows, [])
-    if (!v.length) return 'Sin franjas'
-    return v.map((x) => `${x.ini}-${x.fin}`).join(', ') + ' (al azar)'
+    if (!v.length) return traducir(idioma, 'spaceeyes.prog.sin-franjas')
+    return traducir(idioma, 'spaceeyes.prog.al-azar', { lista: v.map((x) => `${x.ini}-${x.fin}`).join(', ') })
   }
   if (s.frequency_type === 'specific_times') return comoLista<string>(s.specific_times, []).join(', ')
   if (s.frequency_type === 'interval') {
     const m = s.interval_minutes ?? 0
-    return m >= 60 && m % 60 === 0 ? `Cada ${m / 60} h` : `Cada ${m} min`
+    return m >= 60 && m % 60 === 0
+      ? traducir(idioma, 'spaceeyes.prog.cada-h', { n: m / 60 })
+      : traducir(idioma, 'spaceeyes.frecuencia.otra', { n: m })
   }
   return s.cron_expression || s.frequency_type
 }
@@ -163,7 +170,9 @@ function fechaIso(v: string | null): string | null {
 }
 
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
-function fechaCorta(iso: string): string {
+function fechaCorta(iso: string, idioma: Idioma): string {
+  // En ingles, el formato del resto de la aplicacion («Dec 1, 2026»).
+  if (idioma === 'en') return formatFecha(iso, 'en')
   const [a, m, d] = iso.split('-')
   return `${Number(d)} ${MESES[Number(m) - 1] || m} ${a}`
 }
@@ -178,34 +187,45 @@ function fueraDeVigencia(s: Programa): { tipo: 'espera' | 'vencida'; fecha: stri
   return null
 }
 
-function estado(s: Programa): { texto: string; clase: string } {
-  if (!s.active) return { texto: 'Pausada', clase: 'border-border bg-surface-2 text-muted' }
+function estado(s: Programa, idioma: Idioma): { texto: string; clase: string } {
+  if (!s.active) return { texto: traducir(idioma, 'spaceeyes.prog.estado.pausada'), clase: 'border-border bg-surface-2 text-muted' }
   const f = fueraDeVigencia(s)
   if (f?.tipo === 'espera') {
-    return { texto: `Empieza el ${fechaCorta(f.fecha)}`, clase: 'border-warning bg-warning-soft text-ink' }
+    return {
+      texto: traducir(idioma, 'spaceeyes.prog.estado.empieza', { fecha: fechaCorta(f.fecha, idioma) }),
+      clase: 'border-warning bg-warning-soft text-ink',
+    }
   }
   if (f?.tipo === 'vencida') {
-    return { texto: `Venció el ${fechaCorta(f.fecha)}`, clase: 'border-[#dc262640] bg-error-soft text-[#b91c1c]' }
+    return {
+      texto: traducir(idioma, 'spaceeyes.prog.estado.vencio', { fecha: fechaCorta(f.fecha, idioma) }),
+      clase: 'border-[#dc262640] bg-error-soft text-[#b91c1c]',
+    }
   }
-  return { texto: 'Activa', clase: 'border-[#1da85040] bg-success-soft text-[#146c39]' }
+  return { texto: traducir(idioma, 'spaceeyes.comun.activa'), clase: 'border-[#1da85040] bg-success-soft text-[#146c39]' }
 }
 
-function proximaTexto(s: Programa): string {
+function proximaTexto(s: Programa, idioma: Idioma): string {
   if (!s.active) return '—'
   // Fuera de vigencia el worker no la mira, así que next_fire_at se queda
   // clavado en el pasado. Decir "en cola" ahí se leería como "está por
   // dispararse".
   const f = fueraDeVigencia(s)
-  if (f?.tipo === 'espera') return `No dispara hasta el ${fechaCorta(f.fecha)}`
-  if (f?.tipo === 'vencida') return 'No dispara: vencida'
-  if (!s.next_fire_at) return 'Sin calcular'
+  if (f?.tipo === 'espera') return traducir(idioma, 'spaceeyes.prog.proxima.espera', { fecha: fechaCorta(f.fecha, idioma) })
+  if (f?.tipo === 'vencida') return traducir(idioma, 'spaceeyes.prog.proxima.vencida')
+  if (!s.next_fire_at) return traducir(idioma, 'spaceeyes.prog.proxima.sin-calcular')
   const d = new Date(s.next_fire_at)
   const faltan = d.getTime() - Date.now()
-  const fecha = d.toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false })
-  if (faltan < 0) return `${fecha} (en cola)`
+  // En ingles, como el resto de la aplicacion: «Nov 2, 11:30 AM» (dia sin
+  // cero y reloj de 12 h). El español es el de siempre.
+  const fecha =
+    idioma === 'en'
+      ? new Intl.DateTimeFormat('en-US', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }).format(d)
+      : d.toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false })
+  if (faltan < 0) return traducir(idioma, 'spaceeyes.prog.proxima.cola', { fecha })
   const horas = Math.floor(faltan / 3_600_000)
-  if (horas < 1) return `${fecha} (en ${Math.max(1, Math.round(faltan / 60_000))} min)`
-  if (horas < 24) return `${fecha} (en ${horas} h)`
+  if (horas < 1) return traducir(idioma, 'spaceeyes.prog.proxima.min', { fecha, n: Math.max(1, Math.round(faltan / 60_000)) })
+  if (horas < 24) return traducir(idioma, 'spaceeyes.prog.proxima.h', { fecha, n: horas })
   return fecha
 }
 
@@ -220,17 +240,19 @@ function fotosPorDia(f: Formulario): number {
   return 0
 }
 
-function fotosPorDiaTexto(f: Formulario): string {
+function fotosPorDiaTexto(f: Formulario, idioma: Idioma): string {
   const n = fotosPorDia(f)
-  if (!n) return 'sin fotos'
+  if (!n) return traducir(idioma, 'spaceeyes.prog.sin-fotos')
   const r = Math.round(n * 10) / 10
-  return `${r} ${r === 1 ? 'foto' : 'fotos'} al día`
+  return traducir(idioma, r === 1 ? 'spaceeyes.prog.fotos-dia.uno' : 'spaceeyes.prog.fotos-dia.otros', { n: r })
 }
 
-function consumoMesTexto(f: Formulario): string {
+function consumoMesTexto(f: Formulario, idioma: Idioma): string {
   const mb = fotosPorDia(f) * 30 * MB_POR_FOTO
   if (!mb) return '—'
-  return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB al mes` : `${Math.round(mb)} MB al mes`
+  return mb >= 1024
+    ? traducir(idioma, 'spaceeyes.prog.gb-mes', { n: (mb / 1024).toFixed(1) })
+    : traducir(idioma, 'spaceeyes.prog.mb-mes', { n: Math.round(mb) })
 }
 
 // ─── Estilos compartidos de los campos ──────────────────────────────────────
@@ -241,6 +263,7 @@ const CAMPO_HORA =
 const ETIQUETA = 'mb-1 block text-[12px] font-medium text-ink'
 
 export function Programacion() {
+  const { t, idioma } = useIdioma()
   const [programas, setProgramas] = useState<Programa[] | null>(null)
   const [equipos, setEquipos] = useState<Equipo[]>([])
   const [campanas, setCampanas] = useState<Campana[]>([])
@@ -258,10 +281,10 @@ export function Programacion() {
       const d = await seApi<{ schedules: Programa[] }>('schedules')
       setProgramas(d.schedules ?? [])
     } catch (e) {
-      setError(mensajeDeError(e, 'No se pudieron cargar las programaciones'))
+      setError(mensajeDeError(e, t('spaceeyes.prog.error.cargar'), idioma))
     }
     setCargando(false)
-  }, [])
+  }, [t, idioma])
 
   // Si falla un catálogo, el formulario sigue sirviendo para el resto.
   const cargarCatalogos = useCallback(async () => {
@@ -304,20 +327,20 @@ export function Programacion() {
   const guardar = async () => {
     if (!form) return
     const f = form
-    if (!f.name.trim()) return void toast.error('Ponle un nombre a la programación')
-    if (f.destino === 'device' && !f.device_id) return void toast.error('Elige el equipo')
-    if (f.destino === 'campaign' && !f.campaign_id) return void toast.error('Elige la campaña')
+    if (!f.name.trim()) return void toast.error(t('spaceeyes.prog.toast.nombre'))
+    if (f.destino === 'device' && !f.device_id) return void toast.error(t('spaceeyes.prog.toast.equipo'))
+    if (f.destino === 'campaign' && !f.campaign_id) return void toast.error(t('spaceeyes.prog.toast.campana'))
     if (f.frequency_type === 'random_windows') {
-      if (!f.windows.length) return void toast.error('Agrega al menos una franja de horario')
+      if (!f.windows.length) return void toast.error(t('spaceeyes.prog.toast.franja'))
       if (f.windows.some((v) => !v.ini || !v.fin || v.ini === v.fin)) {
-        return void toast.error('Hay una franja sin horas o con la misma hora de inicio y fin')
+        return void toast.error(t('spaceeyes.prog.toast.franja-mal'))
       }
     }
     if (f.frequency_type === 'specific_times' && !f.specific_times.filter(Boolean).length) {
-      return void toast.error('Agrega al menos una hora')
+      return void toast.error(t('spaceeyes.prog.error.horas'))
     }
     if (f.frequency_type === 'interval' && (!f.interval_minutes || f.interval_minutes < 5)) {
-      return void toast.error('El intervalo mínimo es de 5 minutos')
+      return void toast.error(t('spaceeyes.prog.toast.intervalo'))
     }
 
     const cuerpo: Record<string, unknown> = {
@@ -337,15 +360,15 @@ export function Programacion() {
     try {
       if (f.id) {
         await seApi(`schedules/${f.id}`, { method: 'PUT', body: cuerpo })
-        toast.success('Programación actualizada')
+        toast.success(t('spaceeyes.prog.toast.actualizada'))
       } else {
         await seApi('schedules', { method: 'POST', body: cuerpo })
-        toast.success('Programación creada')
+        toast.success(t('spaceeyes.prog.toast.creada'))
       }
       setForm(null)
       await cargar()
     } catch (e) {
-      toast.error(mensajeDeError(e, 'No se pudo guardar la programación'))
+      toast.error(mensajeDeError(e, t('spaceeyes.prog.toast.no-guardar'), idioma))
     } finally {
       setGuardando(false)
     }
@@ -354,10 +377,10 @@ export function Programacion() {
   const alternar = async (s: Programa) => {
     try {
       await seApi(`schedules/${s.id}`, { method: 'PUT', body: { active: !s.active } })
-      toast.success(s.active ? 'Programación pausada' : 'Programación activada')
+      toast.success(s.active ? t('spaceeyes.prog.toast.pausada') : t('spaceeyes.prog.toast.activada'))
       await cargar()
     } catch (e) {
-      toast.error(mensajeDeError(e, 'No se pudo cambiar el estado'))
+      toast.error(mensajeDeError(e, t('spaceeyes.prog.toast.no-estado'), idioma))
     }
   }
 
@@ -366,11 +389,11 @@ export function Programacion() {
     setBorrando(true)
     try {
       await seApi(`schedules/${aBorrar.id}`, { method: 'DELETE' })
-      toast.success('Programación eliminada')
+      toast.success(t('spaceeyes.prog.toast.eliminada'))
       setABorrar(null)
       await cargar()
     } catch (e) {
-      toast.error(mensajeDeError(e, 'No se pudo eliminar'))
+      toast.error(mensajeDeError(e, t('spaceeyes.prog.toast.no-eliminar'), idioma))
     } finally {
       setBorrando(false)
     }
@@ -385,19 +408,17 @@ export function Programacion() {
           <CalendarClock className="h-5 w-5" strokeWidth={1.75} />
         </span>
         <div className="min-w-[12rem] flex-1">
-          <h1 className="text-lg font-semibold text-ink">Programación de fotos</h1>
-          <p className="text-[13px] text-muted">
-            Las fotos se toman solas, a una hora impredecible dentro de las franjas que definas.
-          </p>
+          <h1 className="text-lg font-semibold text-ink">{t('spaceeyes.prog.titulo')}</h1>
+          <p className="text-[13px] text-muted">{t('spaceeyes.prog.descripcion')}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="secondary" size="sm" onClick={() => void cargar()} disabled={cargando}>
             {cargando ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-1.5 h-3.5 w-3.5" />}
-            Actualizar
+            {t('spaceeyes.comun.actualizar')}
           </Button>
           <Button variant="success" size="sm" onClick={() => setForm(formVacio())}>
             <Plus className="mr-1.5 h-3.5 w-3.5" />
-            Nueva programación
+            {t('spaceeyes.prog.nueva')}
           </Button>
         </div>
       </div>
@@ -418,7 +439,7 @@ export function Programacion() {
         <div className="flex items-start gap-2 rounded-md border border-[#dc262640] bg-error-soft p-3 text-[12px]">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-error" />
           <div>
-            <div className="font-medium text-ink">No se pudieron cargar las programaciones</div>
+            <div className="font-medium text-ink">{t('spaceeyes.prog.error.cargar')}</div>
             <div className="text-muted">{error}</div>
           </div>
         </div>
@@ -426,15 +447,15 @@ export function Programacion() {
         <div className="h-40 animate-pulse rounded-md bg-surface-2" />
       ) : lista.length === 0 ? (
         <div className="rounded-md border border-border bg-surface px-6 py-12 text-center">
-          <p className="text-[13px] text-ink">Todavía no hay ninguna programación.</p>
-          <p className="mt-1 text-[13px] text-muted">Hoy las fotos solo se toman cuando alguien las pide a mano.</p>
+          <p className="text-[13px] text-ink">{t('spaceeyes.prog.vacio')}</p>
+          <p className="mt-1 text-[13px] text-muted">{t('spaceeyes.prog.vacio.texto')}</p>
         </div>
       ) : (
         <>
         {/* Hasta 1280 px, tarjetas: la tabla mide 820 y quedaba cortada. */}
         <ul className="divide-y divide-border rounded-md border border-border bg-surface xl:hidden">
           {lista.map((s) => {
-            const est = estado(s)
+            const est = estado(s, idioma)
             const sinFotosSemana = !!s.active && !fueraDeVigencia(s) && !(Number(s.fotos_semana) > 0)
             return (
               <li key={s.id} className={cn('space-y-1.5 p-3 text-[13px]', !s.active && 'opacity-60')}>
@@ -445,24 +466,28 @@ export function Programacion() {
                   </span>
                 </div>
                 <div className="text-[12px] text-muted">
-                  {destinoTexto(s)} · {cuandoTexto(s)}
+                  {destinoTexto(s, idioma)} · {cuandoTexto(s, idioma)}
                 </div>
                 <div className="text-[12px] text-ink">
-                  Próxima: {proximaTexto(s)} ·{' '}
-                  <span className="demo-num">{s.fotos || 0}</span> fotos{' '}
-                  <span className={cn('whitespace-nowrap', sinFotosSemana ? 'font-medium text-error' : 'text-muted')}>
-                    ({s.fotos_semana || 0} esta semana)
-                  </span>
+                  {interpolarNodos(t((s.fotos || 0) === 1 ? 'spaceeyes.prog.linea.uno' : 'spaceeyes.prog.linea.otros'), {
+                    proxima: proximaTexto(s, idioma),
+                    n: <span className="demo-num">{s.fotos || 0}</span>,
+                    semana: (
+                      <span className={cn('whitespace-nowrap', sinFotosSemana ? 'font-medium text-error' : 'text-muted')}>
+                        {t('spaceeyes.prog.semana', { n: s.fotos_semana || 0 })}
+                      </span>
+                    ),
+                  })}
                 </div>
                 <div className="flex flex-wrap gap-1 pt-1">
                   <Button size="sm" variant="ghost" onClick={() => editar(s)}>
-                    Editar
+                    {t('spaceeyes.comun.editar')}
                   </Button>
                   <Button size="sm" variant="tertiary" onClick={() => alternar(s)}>
-                    {s.active ? 'Pausar' : 'Activar'}
+                    {s.active ? t('spaceeyes.prog.pausar') : t('spaceeyes.prog.activar')}
                   </Button>
                   <Button size="sm" variant="danger" onClick={() => setABorrar(s)}>
-                    Eliminar
+                    {t('spaceeyes.comun.eliminar')}
                   </Button>
                 </div>
               </li>
@@ -473,18 +498,18 @@ export function Programacion() {
           <table className="w-full min-w-[820px] text-[13px]">
             <thead className="border-b border-border bg-surface-2 text-left text-[12px] text-muted">
               <tr>
-                <th className="px-4 py-2.5 font-medium">Nombre</th>
-                <th className="px-4 py-2.5 font-medium">Aplica a</th>
-                <th className="px-4 py-2.5 font-medium">Cuándo</th>
-                <th className="px-4 py-2.5 font-medium">Próxima foto</th>
-                <th className="px-4 py-2.5 font-medium">Fotos</th>
-                <th className="px-4 py-2.5 font-medium">Estado</th>
-                <th className="px-4 py-2.5 text-right font-medium">Acciones</th>
+                <th className="px-4 py-2.5 font-medium">{t('spaceeyes.comun.nombre')}</th>
+                <th className="px-4 py-2.5 font-medium">{t('spaceeyes.prog.aplica-a')}</th>
+                <th className="px-4 py-2.5 font-medium">{t('spaceeyes.prog.cuando')}</th>
+                <th className="px-4 py-2.5 font-medium">{t('spaceeyes.prog.proxima-foto')}</th>
+                <th className="px-4 py-2.5 font-medium">{t('spaceeyes.ficha.tab.fotos')}</th>
+                <th className="px-4 py-2.5 font-medium">{t('spaceeyes.comun.estado')}</th>
+                <th className="px-4 py-2.5 text-right font-medium">{t('spaceeyes.prog.acciones')}</th>
               </tr>
             </thead>
             <tbody>
               {lista.map((s) => {
-                const est = estado(s)
+                const est = estado(s, idioma)
                 // Se muestra SIEMPRE, también en cero: el número que delata el
                 // problema no puede desaparecer justo cuando hay problema. En
                 // rojo cuando debería estar disparando y no tomó ninguna en 7 días.
@@ -492,13 +517,13 @@ export function Programacion() {
                 return (
                   <tr key={s.id} className={cn('border-b border-border last:border-0', !s.active && 'opacity-60')}>
                     <td className="px-4 py-3 font-medium text-ink">{s.name}</td>
-                    <td className="px-4 py-3 text-muted">{destinoTexto(s)}</td>
-                    <td className="px-4 py-3 text-muted">{cuandoTexto(s)}</td>
-                    <td className="px-4 py-3 text-ink">{proximaTexto(s)}</td>
+                    <td className="px-4 py-3 text-muted">{destinoTexto(s, idioma)}</td>
+                    <td className="px-4 py-3 text-muted">{cuandoTexto(s, idioma)}</td>
+                    <td className="px-4 py-3 text-ink">{proximaTexto(s, idioma)}</td>
                     <td className="px-4 py-3 text-ink">
                       <span className="demo-num">{s.fotos || 0}</span>{' '}
                       <span className={cn('whitespace-nowrap text-[12px]', sinFotosSemana ? 'font-medium text-error' : 'text-muted')}>
-                        ({s.fotos_semana || 0} esta semana)
+                        {t('spaceeyes.prog.semana', { n: s.fotos_semana || 0 })}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -509,13 +534,13 @@ export function Programacion() {
                     <td className="whitespace-nowrap px-4 py-3 text-right">
                       <div className="inline-flex gap-1">
                         <Button size="sm" variant="ghost" onClick={() => editar(s)}>
-                          Editar
+                          {t('spaceeyes.comun.editar')}
                         </Button>
                         <Button size="sm" variant="tertiary" onClick={() => alternar(s)}>
-                          {s.active ? 'Pausar' : 'Activar'}
+                          {s.active ? t('spaceeyes.prog.pausar') : t('spaceeyes.prog.activar')}
                         </Button>
                         <Button size="sm" variant="danger" onClick={() => setABorrar(s)}>
-                          Eliminar
+                          {t('spaceeyes.comun.eliminar')}
                         </Button>
                       </div>
                     </td>
@@ -531,14 +556,14 @@ export function Programacion() {
       <ConfirmDialog
         open={!!aBorrar}
         onOpenChange={(v) => !v && setABorrar(null)}
-        title="Eliminar programación"
-        confirmLabel="Eliminar"
+        title={t('spaceeyes.prog.eliminar')}
+        confirmLabel={t('spaceeyes.comun.eliminar')}
         busy={borrando}
-        confirmarEscribiendo="ELIMINAR"
+        confirmarEscribiendo={t('spaceeyes.prog.eliminar.palabra')}
         onConfirm={() => void eliminar()}
       >
-        <p className="text-ink">Se eliminará «{aBorrar?.name}».</p>
-        <p className="mt-1">Las fotos que ya se tomaron se conservan; lo que se pierde es la programación futura.</p>
+        <p className="text-ink">{t('spaceeyes.prog.eliminar.pregunta', { nombre: aBorrar?.name ?? '' })}</p>
+        <p className="mt-1">{t('spaceeyes.prog.eliminar.texto')}</p>
       </ConfirmDialog>
     </div>
   )
@@ -563,22 +588,27 @@ function FormularioProgramacion({
   onGuardar: () => Promise<void>
   onCancelar: () => void
 }) {
-  const destinos: [Destino, string][] = [
-    ['todos', 'Todos los equipos'],
-    ['device', 'Un equipo'],
-    ['campaign', 'Una campaña'],
+  const { t, idioma } = useIdioma()
+  const destinos: [Destino, ClaveTexto][] = [
+    ['todos', 'spaceeyes.comun.todos-equipos'],
+    ['device', 'spaceeyes.prog.destino.un-equipo'],
+    ['campaign', 'spaceeyes.prog.destino.una-campana'],
   ]
 
   return (
     <InlinePanel
-      title={f.id ? 'Editar programación' : 'Nueva programación'}
+      title={f.id ? t('spaceeyes.prog.editar') : t('spaceeyes.prog.nueva')}
       footer={
         <div className="flex justify-end gap-2">
           <Button size="sm" variant="secondary" onClick={onCancelar} disabled={guardando}>
-            Cancelar
+            {t('comun.cancelar')}
           </Button>
           <Button size="sm" variant="primary" onClick={onGuardar} disabled={guardando}>
-            {guardando ? 'Guardando…' : f.id ? 'Guardar cambios' : 'Crear programación'}
+            {guardando
+              ? t('spaceeyes.comun.guardando')
+              : f.id
+                ? t('spaceeyes.comun.guardar-cambios')
+                : t('spaceeyes.prog.crear')}
           </Button>
         </div>
       }
@@ -588,19 +618,19 @@ function FormularioProgramacion({
         <div className="space-y-4">
           <div>
             <label className={ETIQUETA} htmlFor="prog-nombre">
-              Nombre
+              {t('spaceeyes.comun.nombre')}
             </label>
             <input
               id="prog-nombre"
               value={f.name}
               onChange={(e) => cambiar({ name: e.target.value })}
-              placeholder="Ej. Evidencia diaria de la ruta norte"
+              placeholder={t('spaceeyes.prog.nombre-ej')}
               className={CAMPO}
             />
           </div>
 
           <div>
-            <span className={ETIQUETA}>Aplicar a</span>
+            <span className={ETIQUETA}>{t('spaceeyes.prog.aplicar-a')}</span>
             <div className="mb-2 inline-flex flex-wrap rounded-md border border-border bg-surface p-0.5 text-[13px]">
               {destinos.map(([clave, texto]) => (
                 <button
@@ -612,24 +642,26 @@ function FormularioProgramacion({
                     f.destino === clave ? 'bg-surface-2 font-medium text-ink' : 'text-muted hover:text-ink',
                   )}
                 >
-                  {texto}
+                  {t(texto)}
                 </button>
               ))}
             </div>
 
             {f.destino === 'todos' && (
               <p className="text-[12px] text-muted">
-                Aplica a los {formatNumero(equipos.length)} equipos de la flota, incluyendo los que se den de alta después.
+                {t(equipos.length === 1 ? 'spaceeyes.prog.todos.texto.uno' : 'spaceeyes.prog.todos.texto.otros', {
+                  n: formatNumero(equipos.length),
+                })}
               </p>
             )}
             {f.destino === 'device' && (
               <select
-                aria-label="Equipo"
+                aria-label={t('spaceeyes.comun.equipo')}
                 value={f.device_id ?? ''}
                 onChange={(e) => cambiar({ device_id: e.target.value ? Number(e.target.value) : null })}
                 className={CAMPO}
               >
-                <option value="">— Elegir equipo —</option>
+                <option value="">{t('spaceeyes.prog.elegir-equipo')}</option>
                 {equipos.map((d) => (
                   <option key={d.id} value={d.id}>
                     {d.name + (d.billboard_code ? ` (${d.billboard_code})` : '')}
@@ -639,15 +671,18 @@ function FormularioProgramacion({
             )}
             {f.destino === 'campaign' && (
               <select
-                aria-label="Campaña"
+                aria-label={t('spaceeyes.prog.campana')}
                 value={f.campaign_id ?? ''}
                 onChange={(e) => cambiar({ campaign_id: e.target.value ? Number(e.target.value) : null })}
                 className={CAMPO}
               >
-                <option value="">— Elegir campaña —</option>
+                <option value="">{t('spaceeyes.prog.elegir-campana')}</option>
                 {campanas.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {`${c.name} · ${c.device_count || 0} equipos`}
+                    {t((c.device_count || 0) === 1 ? 'spaceeyes.prog.campana-equipos.uno' : 'spaceeyes.prog.campana-equipos.otros', {
+                      nombre: c.name,
+                      n: c.device_count || 0,
+                    })}
                   </option>
                 ))}
               </select>
@@ -657,7 +692,7 @@ function FormularioProgramacion({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={ETIQUETA} htmlFor="prog-desde">
-                Desde <span className="font-normal text-muted">(opcional)</span>
+                {t('spaceeyes.comun.desde')} <span className="font-normal text-muted">{t('spaceeyes.comun.opcional')}</span>
               </label>
               <input
                 id="prog-desde"
@@ -669,7 +704,7 @@ function FormularioProgramacion({
             </div>
             <div>
               <label className={ETIQUETA} htmlFor="prog-hasta">
-                Hasta <span className="font-normal text-muted">(opcional)</span>
+                {t('spaceeyes.comun.hasta')} <span className="font-normal text-muted">{t('spaceeyes.comun.opcional')}</span>
               </label>
               <input
                 id="prog-hasta"
@@ -686,7 +721,7 @@ function FormularioProgramacion({
         <div className="space-y-4">
           <div>
             <label className={ETIQUETA} htmlFor="prog-cuando">
-              Cuándo
+              {t('spaceeyes.prog.cuando')}
             </label>
             <select
               id="prog-cuando"
@@ -694,35 +729,34 @@ function FormularioProgramacion({
               onChange={(e) => cambiar({ frequency_type: e.target.value as Frecuencia })}
               className={CAMPO}
             >
-              <option value="random_windows">Hora al azar dentro de franjas (recomendado)</option>
-              <option value="specific_times">Horas exactas</option>
-              <option value="interval">Cada cierto tiempo</option>
-              {f.frequency_type === 'cron' && <option value="cron">Expresión cron (no editable aquí)</option>}
+              <option value="random_windows">{t('spaceeyes.prog.tipo.franjas')}</option>
+              <option value="specific_times">{t('spaceeyes.prog.tipo.horas')}</option>
+              <option value="interval">{t('spaceeyes.prog.tipo.intervalo')}</option>
+              {f.frequency_type === 'cron' && <option value="cron">{t('spaceeyes.prog.tipo.cron')}</option>}
             </select>
           </div>
 
           {f.frequency_type === 'random_windows' && (
             <div className="space-y-3">
               <div className="rounded-md border border-accent bg-accent-soft p-3 text-[12px] text-ink">
-                Una foto por franja, en un minuto sorteado cada día. La hora no se repite, así que la evidencia no se
-                puede acomodar de antemano.
+                {t('spaceeyes.prog.franjas.texto')}
               </div>
               {f.windows.map((v, i) => (
                 <div key={i} className="flex flex-wrap items-center gap-2">
-                  <span className="w-16 shrink-0 text-[12px] text-muted">Franja {i + 1}</span>
+                  <span className="w-16 shrink-0 text-[12px] text-muted">{t('spaceeyes.prog.franja', { n: i + 1 })}</span>
                   <input
                     type="time"
-                    aria-label={`Inicio de la franja ${i + 1}`}
+                    aria-label={t('spaceeyes.prog.franja.inicio', { n: i + 1 })}
                     value={v.ini}
                     onChange={(e) =>
                       cambiar({ windows: f.windows.map((w, j) => (j === i ? { ...w, ini: e.target.value } : w)) })
                     }
                     className={CAMPO_HORA}
                   />
-                  <span className="text-[13px] text-muted">a</span>
+                  <span className="text-[13px] text-muted">{t('spaceeyes.pconfig.editor.a')}</span>
                   <input
                     type="time"
-                    aria-label={`Fin de la franja ${i + 1}`}
+                    aria-label={t('spaceeyes.prog.franja.fin', { n: i + 1 })}
                     value={v.fin}
                     onChange={(e) =>
                       cambiar({ windows: f.windows.map((w, j) => (j === i ? { ...w, fin: e.target.value } : w)) })
@@ -732,8 +766,8 @@ function FormularioProgramacion({
                   <Button
                     size="sm"
                     variant="icon"
-                    aria-label={`Quitar la franja ${i + 1}`}
-                    title="Quitar"
+                    aria-label={t('spaceeyes.prog.franja.quitar', { n: i + 1 })}
+                    title={t('spaceeyes.prog.quitar')}
                     onClick={() => cambiar({ windows: f.windows.filter((_, j) => j !== i) })}
                     className="text-error hover:bg-error-soft hover:text-error"
                   >
@@ -747,10 +781,10 @@ function FormularioProgramacion({
                 onClick={() => cambiar({ windows: [...f.windows, { ini: '12:00', fin: '14:00' }] })}
               >
                 <Plus className="mr-1 h-3.5 w-3.5" />
-                Agregar franja
+                {t('spaceeyes.prog.franja.agregar')}
               </Button>
               <div className="flex flex-wrap items-center gap-2 pt-1">
-                <span className="text-[12px] text-muted">Rápido:</span>
+                <span className="text-[12px] text-muted">{t('spaceeyes.prog.rapido')}</span>
                 <Button
                   size="sm"
                   variant="secondary"
@@ -764,10 +798,10 @@ function FormularioProgramacion({
                     })
                   }
                 >
-                  Mañana, tarde y noche
+                  {t('spaceeyes.prog.rapido.tres')}
                 </Button>
                 <Button size="sm" variant="secondary" onClick={() => cambiar({ windows: [{ ini: '07:00', fin: '21:00' }] })}>
-                  Una al día
+                  {t('spaceeyes.prog.rapido.una')}
                 </Button>
               </div>
             </div>
@@ -776,14 +810,13 @@ function FormularioProgramacion({
           {f.frequency_type === 'specific_times' && (
             <div className="space-y-3">
               <div className="rounded-md border border-warning bg-warning-soft p-3 text-[12px] text-ink">
-                Siempre al mismo minuto. Sirve para un reporte fijo, pero como evidencia es débil: una hora predecible se
-                puede preparar.
+                {t('spaceeyes.prog.horas.texto')}
               </div>
               {f.specific_times.map((h, i) => (
                 <div key={i} className="flex items-center gap-2">
                   <input
                     type="time"
-                    aria-label={`Hora ${i + 1}`}
+                    aria-label={t('spaceeyes.prog.hora', { n: i + 1 })}
                     value={h}
                     onChange={(e) =>
                       cambiar({ specific_times: f.specific_times.map((x, j) => (j === i ? e.target.value : x)) })
@@ -793,8 +826,8 @@ function FormularioProgramacion({
                   <Button
                     size="sm"
                     variant="icon"
-                    aria-label={`Quitar la hora ${i + 1}`}
-                    title="Quitar"
+                    aria-label={t('spaceeyes.prog.hora.quitar', { n: i + 1 })}
+                    title={t('spaceeyes.prog.quitar')}
                     onClick={() => cambiar({ specific_times: f.specific_times.filter((_, j) => j !== i) })}
                     className="text-error hover:bg-error-soft hover:text-error"
                   >
@@ -804,7 +837,7 @@ function FormularioProgramacion({
               ))}
               <Button size="sm" variant="tertiary" onClick={() => cambiar({ specific_times: [...f.specific_times, '12:00'] })}>
                 <Plus className="mr-1 h-3.5 w-3.5" />
-                Agregar hora
+                {t('spaceeyes.prog.hora.agregar')}
               </Button>
             </div>
           )}
@@ -813,7 +846,7 @@ function FormularioProgramacion({
             <div className="space-y-3">
               <div>
                 <label className={ETIQUETA} htmlFor="prog-intervalo">
-                  Cada cuántos minutos
+                  {t('spaceeyes.prog.intervalo')}
                 </label>
                 <input
                   id="prog-intervalo"
@@ -825,22 +858,20 @@ function FormularioProgramacion({
                 />
               </div>
               <div className="rounded-md border border-[#dc262640] bg-error-soft p-3 text-[12px] text-ink">
-                Ojo con los datos móviles: a este ritmo son <strong>{fotosPorDiaTexto(f)}</strong>.
+                {interpolarNodos(t('spaceeyes.prog.intervalo.ojo'), { fotos: <strong>{fotosPorDiaTexto(f, idioma)}</strong> })}
               </div>
             </div>
           )}
 
           {/* Costo estimado */}
           <div className="rounded-md border border-border bg-surface-2 p-3">
-            <div className="mb-1 text-[12px] text-muted">Consumo estimado por equipo</div>
+            <div className="mb-1 text-[12px] text-muted">{t('spaceeyes.prog.consumo')}</div>
             <div className="text-[13px] text-ink">
-              {fotosPorDiaTexto(f)}
+              {fotosPorDiaTexto(f, idioma)}
               <span className="text-muted"> · </span>
-              <span className="font-medium">{consumoMesTexto(f)}</span>
+              <span className="font-medium">{consumoMesTexto(f, idioma)}</span>
             </div>
-            <div className="mt-1 text-[11px] text-muted">
-              A 1.5 MB por foto, que es lo que pesan hoy. Cada equipo gasta ~20 MB al mes sin fotos programadas.
-            </div>
+            <div className="mt-1 text-[11px] text-muted">{t('spaceeyes.prog.consumo.texto')}</div>
           </div>
         </div>
       </div>

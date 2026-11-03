@@ -10,6 +10,11 @@ import { ES_ADMIN, EN_ADMIN } from './admin'
 import { ES_CUENTA, EN_CUENTA } from './cuenta'
 import { ES_SHELL, EN_SHELL } from './shell'
 import { ES_SERVIDOR, EN_SERVIDOR } from './servidor'
+import { ES_CLIENTES, EN_CLIENTES } from './clientes'
+import { ES_OPERACIONES, EN_OPERACIONES } from './operaciones'
+import { ES_SPACEEYES, EN_SPACEEYES } from './spaceeyes'
+import { ES_INVENTARIO, EN_INVENTARIO } from './inventario'
+import { ES_ARRENDADORES, EN_ARRENDADORES } from './arrendadores'
 import { DICCIONARIOS } from '../diccionario'
 import { traducirError } from '../errores-servidor'
 
@@ -41,11 +46,16 @@ const LOTES: [string, Record<string, string>, Record<string, string>][] = [
   // (validacion del lote de administracion, 2026-11-02).
   ['base', ...baseDelDiccionario()],
   ['servidor', ES_SERVIDOR, EN_SERVIDOR],
+  ['clientes', ES_CLIENTES, EN_CLIENTES],
+  ['operaciones', ES_OPERACIONES, EN_OPERACIONES],
+  ['spaceeyes', ES_SPACEEYES, EN_SPACEEYES],
+  ['inventario', ES_INVENTARIO, EN_INVENTARIO],
+  ['arrendadores', ES_ARRENDADORES, EN_ARRENDADORES],
 ]
 
 function baseDelDiccionario(): [Record<string, string>, Record<string, string>] {
   const deLotes = new Set(
-    [ES_PROPUESTAS, ES_COMPARTIDOS, ES_CAMPANAS, ES_FINANZAS, ES_COMERCIAL, ES_CODIGOS, ES_CATALOGOS, ES_ADMIN, ES_CUENTA, ES_SHELL, ES_SERVIDOR].flatMap((o) => Object.keys(o)),
+    [ES_PROPUESTAS, ES_COMPARTIDOS, ES_CAMPANAS, ES_FINANZAS, ES_COMERCIAL, ES_CODIGOS, ES_CATALOGOS, ES_ADMIN, ES_CUENTA, ES_SHELL, ES_SERVIDOR, ES_CLIENTES, ES_OPERACIONES, ES_SPACEEYES, ES_INVENTARIO, ES_ARRENDADORES].flatMap((o) => Object.keys(o)),
   )
   const es: Record<string, string> = {}
   const en: Record<string, string> = {}
@@ -63,20 +73,39 @@ function baseDelDiccionario(): [Record<string, string>, Record<string, string>] 
 const DISTINTOS_A_PROPOSITO: Record<string, string> = {
   '{n} pantalla': 'en el loop de Administracion la frase cuenta solo las pantallas digitales y el adjetivo vive dentro de la clave en ingles («{n} digital screen»); en paquetes son pantallas a secas (aparecio al juntar admin con catalogos, 2026-11-02)',
   '{n} pantallas': 'lo mismo que «{n} pantalla», en plural',
-  Actualizar: 'refrescar una lista («Refresh») frente a guardar un correo ya escrito («Update»), en Administracion',
+  Actualizar: 'refrescar o recargar una lista o lo que dice DOOHmain («Refresh») frente a guardar un correo ya escrito, en Administracion, instalar la version nueva del programa de un equipo, en Space Eyes, o actualizar las pantallas que ya existen en una carga masiva de Inventario («Update»)',
   Baja: 'el estatus de un sitio dado de baja («Decommissioned») frente a la prioridad de un ticket de soporte («Low»)',
   Cargo: 'un cargo contable del estado de cuenta («Charge») frente al puesto de un usuario («Job title»)',
   Configuración: 'la pestaña de configuracion del negocio en Administracion («Business settings») frente a la de la cuenta del usuario («Account settings»), decision del orquestador',
   Imprenta: 'el modulo y la seccion de la ficha («Printing») frente al rol de una persona («Print shop»), decision del orquestador',
+  Aprobada: 'el estatus de una propuesta o la columna del pipeline del cliente («Approved») frente a la columna del tablero de Propuestas que lleva la FECHA de aprobacion («Approved on»)',
+  RFC: 'la cabecera de tabla o el rotulo del campo («RFC», el glosario no lo traduce) frente a la ficha de facturacion, que lo explica («RFC (tax ID)»)',
+  Validada: 'un creativo revisado y aceptado («Approved») frente a la negociacion con una agencia, que se valida («Validated»)',
+  Validar: 'el boton de Campañas que abre la revision de creativos («Review») frente al que valida la negociacion de una agencia («Validate»)',
+  Próximo: 'un codigo que aun no entra en vigor («Upcoming») frente al siguiente pago de renta del cuadre («Next»)',
+  Vigente: 'un permiso o licencia vigente («Valid», decision del orquestador) frente a un contrato o codigo vigente («Active»)',
+  Vence: 'una cuota o un pago («Due») frente a un contrato que caduca («Expires»)',
   Comercial: 'en la ficha de campaña es la seccion de importes («Pricing», decision del orquestador); el modulo es «Sales», como el menu',
+  'Dar de baja': 'la baja logica de una franja, temporada o paquete en catalogos, que se puede revertir («Deactivate»), frente a la baja definitiva de un articulo fisico del almacen, sin movimiento posible despues («Decommission», como el sitio de Comercial)',
   Desde: 'un periodo de fechas («From») frente a la competencia del espacio, que esta ahi «desde» («Since»)',
   Entrar: 'iniciar sesion («Sign in», login) frente a cambiar a otra organizacion («Switch to», Administracion)',
   Folio: 'glosario: «Internal ref.» en propuestas y campañas, «Invoice no.» en una factura',
   Horario: 'el horario que se manda a DOOHmain («Schedule») frente al horario de operacion del sitio («Operating hours»)',
+  Movimiento: 'un renglon del estado de cuenta («Transaction») frente al traslado fisico de un articulo del almacen («Movement»)',
   Plazo: 'el plazo de cobranza («Payment terms») frente al plazo de una oferta de renta («Term»)',
   'Por vencer': 'una cuota que vence pronto («Due soon») frente a un contrato que caduca («Expiring soon»)',
   Vencido: 'un pago atrasado («Overdue») frente a un contrato o codigo caducado («Expired»)',
+  Vista: 'hacia donde mira una cara del sitio («Facing») frente al selector de vista de la rejilla de Disponibilidad, catorcena o mes («View»)',
   Vigencia: 'glosario: la vigencia de una propuesta o codigo («Validity») frente al plazo de un contrato («Term»)',
+  // Lote Space Eyes (2026-11-02):
+  Estado: 'el estatus de algo («Status») frente al estado de la republica en la direccion de un equipo («State»)',
+  Ganancia: 'la ganancia de una propuesta («Profit») frente a la ganancia del sensor de la camara («Gain»)',
+  // Costura 2 (2026-11-02): aparecieron al juntar Space Eyes con catalogos, admin y cuenta.
+  'Dada de baja': 'la baja logica de un registro que se reactiva, franja, temporada, paquete o razon social («Deactivated») frente a la pantalla que sale de la flota de Space Eyes, como el sitio dado de baja («Decommissioned»)',
+  Equipo: 'el equipo de personas de una organizacion, en Administracion («Team») frente al aparato de Space Eyes («Device»)',
+  Operador: 'la empresa duena de una pantalla de la Network («Operator») frente a la compania de telefonia de la SIM de un equipo de Space Eyes («Carrier»)',
+  Volver: 'regresar a la pantalla anterior («Back») frente a devolver la camara a la orientacion guardada, en la vista en vivo de Space Eyes («Revert»)',
+  Registrar: 'dar de alta un articulo en el almacen («Register») frente a anotar un pago de renta en la ficha del contrato («Record»)',
 }
 
 describe('costura · los lotes dicen lo mismo de la misma manera', () => {
