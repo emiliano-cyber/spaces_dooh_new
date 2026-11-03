@@ -1477,7 +1477,22 @@ comprobante con emisora → *invoice from an issuing entity*; horas en sitio →
 `costura.test.ts` frente al «This quarter» del selector de periodo); en curso →
 *in progress*; con movimiento → *with activity*; desglose → *breakdown*;
 contrato de arrendamiento → *lease contract*; propia → *owned*; bitácora →
-*log*.
+*log*; de dos caras → *double-sided* (nunca «two-faced», que es «hipócrita»).
+
+> [!success] 2026-11-02, segunda vuelta · validación ÁMBAR atendida
+> (`docs/i18n/validacion-reportes.md`). «two-faced» → «double-sided» en los dos
+> avisos del m²; nueve retoques de redacción («has been recorded since»,
+> «hasn’t been recorded», «The period’s only visit», «is costed at the per-type
+> estimate», «all … bills», «missing its width or height», «overlaps», «% of
+> published rate») y el tooltip del desglose con `formatFecha` en inglés. El
+> idioma del eje de ocupación ya tiene prueba
+> (`lib/data/ocupacion-idioma.test.ts`): etiquetas inglesas y los mismos números
+> que en español; los dos mutantes que sobrevivían (quitar el idioma en
+> `ocupacionSerie` o en `useOcupacionSerie`) mueren. La clave
+> `reportes.nota.ot.reales.uno` escribe el «1» literal en español en vez del
+> hueco, porque el inglés no lleva cifra: mismo español. Español medido otra
+> vez: 16 estados idénticos y las seis notas iguales al motor de `00815aa3`. El
+> «por 350» y la línea de `inicio` siguen fuera, a propósito.
 
 ## Enlaces
 
