@@ -9,6 +9,7 @@ import { interpolarNodos } from '@/lib/i18n/nodos'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
 import type { Idioma } from '@/lib/i18n/idiomas'
 import { periodicidadLabel } from '@/lib/renta-periodicidad'
+import { formatearFecha } from '@/lib/i18n/dinero'
 
 // Lo que el contrato va a recitar, tal como está HOY en la base, y su huella
 // (`huellaDatosContrato`). Se enseña antes de congelar: es el «revisa y valida»
@@ -46,6 +47,14 @@ const ETIQUETA: Record<Firma['parte'], ClaveTexto> = {
   ARRENDADOR: 'arrendadores.firmas.parte.arrendador',
   ARRENDATARIO: 'arrendadores.firmas.parte.arrendatario',
 }
+
+// Ola 7 · la vigencia que se revisa antes de congelar. En espanol, la fecha ISO
+// del dato, como siempre; en ingles, «Jan 1, 2026» (glosario). Es solo como se
+// ENSENA: lo que se congela es el documento, que la recita en espanol.
+const diaDeVigencia = (iso: string, idioma: Idioma) =>
+  idioma === 'es' || !/^\d{4}-\d{2}-\d{2}$/.test(iso)
+    ? iso
+    : formatearFecha(iso, idioma, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
 
 const fecha = (iso: string | null, idioma: Idioma = 'es') =>
   iso ? new Date(iso).toLocaleString(idioma === 'es' ? 'es-MX' : 'en-US', { dateStyle: 'long', timeStyle: 'short' }) : '—'
@@ -336,7 +345,9 @@ function RevisionDatos({
         ],
         [
           t('arrendadores.comun.vigencia'),
-          term.fechaInicio && term.fechaFin ? t('arrendadores.revision.rango', { desde: term.fechaInicio, hasta: term.fechaFin }) : null,
+          term.fechaInicio && term.fechaFin
+            ? t('arrendadores.revision.rango', { desde: diaDeVigencia(term.fechaInicio, idioma), hasta: diaDeVigencia(term.fechaFin, idioma) })
+            : null,
         ],
         [t('arrendadores.comun.deposito'), importe(term.deposito)],
       ],
