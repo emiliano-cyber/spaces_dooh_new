@@ -10,6 +10,8 @@ import { DICCIONARIOS } from './diccionario'
 import { ES_CLIENTES, EN_CLIENTES } from './textos/clientes'
 import { MONEDAS, fijarMonedaInstancia } from './dinero'
 import { leerDinero } from './simbolo-en-pantalla'
+import { huellasEnItaliano } from './guardias-italiano'
+import { fugasItaliano, legible, copiasDeOtroIdioma, IGUALES_A_PROPOSITO_L4 } from '../test/barrido-italiano-l4'
 
 // ============================================================================
 //  I18N · LOTE «CLIENTES, COMISIONES Y CAPTACION», RENDIDO EN LOS DOS IDIOMAS.
@@ -635,4 +637,72 @@ describe('lote CLIENTES · en ingles, ninguna fecha, hora ni importe con formato
       expect(huellasDeFormatoEspanol(await p.pintar('en'))).toEqual([])
     })
   }
+})
+
+// ─── ITALIANO · lote L4 (2026-11-03) ────────────────────────────────────────
+//
+// Los mismos estados en italiano: ni un trozo ingles de la caida
+// (`conCaidaAlIngles`) ni uno espanol sin `t()` —del diccionario de Clientes
+// y de las etiquetas de Campañas que la ficha reusa—; ni una fecha, cifra o
+// importe con formato espanol o ingles; y el dinero con el simbolo italiano.
+describe('lote CLIENTES · en ITALIANO', () => {
+  it('ninguna frase del lote cae al ingles ni se queda en espanol', async () => {
+    const { IT_CLIENTES } = await import('./textos/clientes')
+    const { ES_CAMPANAS, EN_CAMPANAS, IT_CAMPANAS } = await import('./textos/campanas')
+    let todo = ''
+    for (const e of ESTADOS) {
+      forzado.cola = []
+      todo += legible(await e.pintar('it')) + '\n'
+    }
+    // Sin los `value="…"` de los `<option>`: son el valor de CODIGO.
+    todo = todo.replace(/ value="[^"]*"/g, '')
+    expect(fugasItaliano(todo, [
+      [ES_CLIENTES, EN_CLIENTES, IT_CLIENTES],
+      [ES_CAMPANAS, EN_CAMPANAS, IT_CAMPANAS],
+    ], {
+      min: 5,
+      // El catalogo del SAT del alta de cliente (`USOS_CFDI` de
+      // `app/(app)/(shell)/clientes/page.tsx`): el texto de cada opcion ES el
+      // valor que se guarda en el cliente, y sale igual en ingles. Es dato.
+      ajenos: ['G03 · Gastos en general', 'G01 · Adquisición de mercancías', 'P01 · Por definir'],
+    })).toEqual([])
+  })
+
+  for (const e of ESTADOS) {
+    it(`sin formatos espanoles ni ingleses · ${e.nombre}`, async () => {
+      expect(huellasEnItaliano(await e.pintar('it'))).toEqual([])
+    })
+  }
+
+  it('frases italianas a la vista', async () => {
+    const html = texto(await ESTADOS[0].pintar('it'))
+    expect(['Clienti', 'Nuovo cliente', 'Elenco clienti', 'Ragione sociale'].filter((f) => !html.includes(f))).toEqual([])
+  })
+
+  afterEach(() => fijarMonedaInstancia('MXN'))
+  const vistos: Record<string, number> = {}
+  for (const moneda of MONEDAS) {
+    ESTADOS.forEach((e) => {
+      it(`${moneda} · it · ${e.nombre}`, async () => {
+        fijarMonedaInstancia(moneda)
+        const { importes, ajenos } = leerDinero(texto(await e.pintar('it')), 'it', moneda)
+        vistos[moneda] = (vistos[moneda] ?? 0) + importes
+        expect(ajenos).toEqual([])
+      })
+    })
+    it(`${moneda} · it · el arnes encontro importes que mirar`, () => {
+      expect(vistos[moneda] ?? 0).toBeGreaterThan(0)
+    })
+  }
+})
+
+describe('lote CLIENTES · el diccionario italiano no es una copia', () => {
+  it('ningun italiano es el ingles o el espanol pegado (salvo los cognados declarados)', async () => {
+    const { IT_CLIENTES } = await import('./textos/clientes')
+    const copias = copiasDeOtroIdioma([[ES_CLIENTES, EN_CLIENTES, IT_CLIENTES]])
+    expect(copias.filter((c) => !IGUALES_A_PROPOSITO_L4.has(c))).toEqual([])
+    // Y la lista no caduca: cada excepcion de estos ambitos sigue siendo una copia.
+    const propias = [...IGUALES_A_PROPOSITO_L4].filter((c) => /^(en|es) (clientes)\./.test(c))
+    expect(propias.filter((c) => !copias.includes(c))).toEqual([])
+  })
 })

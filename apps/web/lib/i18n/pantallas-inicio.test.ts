@@ -8,6 +8,8 @@ import type { Idioma } from './idiomas'
 import { MONEDAS, fijarMonedaInstancia } from './dinero'
 import { leerDinero } from './simbolo-en-pantalla'
 import { ESTADO_ALERTAS as ESTADO } from './estado-alertas.fixture'
+import { huellasEnItaliano } from './guardias-italiano'
+import { fugasItaliano, legible, copiasDeOtroIdioma, IGUALES_A_PROPOSITO_L4 } from '../test/barrido-italiano-l4'
 
 // ============================================================================
 //  I18N · EL DASHBOARD (`/inicio`), RENDIDO EN LOS DOS IDIOMAS.
@@ -415,5 +417,68 @@ describe('DASHBOARD · barrido con el diccionario entero', () => {
       }
     }
     expect(culpables).toEqual([])
+  })
+})
+
+// ─── ITALIANO · lote L4 (2026-11-03) ────────────────────────────────────────
+//
+// Los mismos estados, rendidos en italiano. El diseño sigue intocable (el
+// HTML espanol congelado de arriba lo vigila); aqui se mira que el texto del
+// Dashboard salga ENTERO en italiano —ni un trozo ingles de la caida, ni uno
+// espanol sin `t()`— y que cifras, fechas e importes lleven el formato
+// italiano («1.234», «2 nov 2026», «MX$ 54.000,00»).
+describe('DASHBOARD · en ITALIANO', () => {
+  // Datos de prueba que se quedan como estan.
+  const AJENOS = ['Pantalla Reforma', 'Pantalla Sur', 'Valla Norte', 'Valla Centro', 'Cliente Uno', 'Medios SA de CV', 'Medios',
+    'clausura-municipal', 'Ana Ventas', 'Verano', 'Otoño']
+
+  it('ninguna frase del diccionario de inicio cae al ingles ni se queda en espanol', async () => {
+    const { ES_INICIO, EN_INICIO, IT_INICIO } = await import('./textos/inicio')
+    let todo = ''
+    for (const p of ESTADOS) {
+      forzado.cola = []
+      todo += legible(await p.pintar('it')) + '\n'
+    }
+    expect(fugasItaliano(todo, [[ES_INICIO, EN_INICIO, IT_INICIO]], { min: 5, ajenos: AJENOS })).toEqual([])
+  })
+
+  for (const p of ESTADOS) {
+    it(`sin formatos espanoles ni ingleses · ${p.nombre}`, async () => {
+      expect(huellasEnItaliano(await p.pintar('it'))).toEqual([])
+    })
+  }
+
+  it('frases italianas a la vista, con sus cifras e importes', async () => {
+    const html = texto(await ESTADOS[1].pintar('it'))
+    const esperadas = [
+      'Ragione sociale: Medios SA de CV · Nome commerciale: Medios', 'Ricavi di novembre', 'Margine di novembre',
+      'MX$ 54.000,00 · costo MX$ 26.000,00', '3 proposte approvate', '1.234 spazi·giorno occupati su 5.678 disponibili',
+      'Avvisi', 'Mostra meno', 'Valla Centro — scade tra 1 giorno (MX$ 1.000,00)', 'Pantalla Sur — scaduto da 13 giorni',
+      'OT-1 · Pantalla Reforma — scaduto da 1 giorno · non assegnato',
+    ]
+    expect(esperadas.filter((f) => !html.includes(f))).toEqual([])
+  })
+
+  afterEach(() => fijarMonedaInstancia('MXN'))
+  for (const moneda of MONEDAS) {
+    for (const p of ESTADOS.filter((e) => e.dinero)) {
+      it(`el dinero lleva el simbolo italiano de la instancia · ${p.nombre} · ${moneda}`, async () => {
+        fijarMonedaInstancia(moneda)
+        const { importes, ajenos } = leerDinero(texto(await p.pintar('it')), 'it', moneda)
+        expect(importes).toBeGreaterThan(0)
+        expect(ajenos).toEqual([])
+      })
+    }
+  }
+})
+
+describe('DASHBOARD · el diccionario italiano no es una copia', () => {
+  it('ningun italiano es el ingles o el espanol pegado (salvo los cognados declarados)', async () => {
+    const { ES_INICIO, EN_INICIO, IT_INICIO } = await import('./textos/inicio')
+    const copias = copiasDeOtroIdioma([[ES_INICIO, EN_INICIO, IT_INICIO]])
+    expect(copias.filter((c) => !IGUALES_A_PROPOSITO_L4.has(c))).toEqual([])
+    // Y la lista no caduca: cada excepcion de estos ambitos sigue siendo una copia.
+    const propias = [...IGUALES_A_PROPOSITO_L4].filter((c) => /^(en|es) (inicio)\./.test(c))
+    expect(propias.filter((c) => !copias.includes(c))).toEqual([])
   })
 })

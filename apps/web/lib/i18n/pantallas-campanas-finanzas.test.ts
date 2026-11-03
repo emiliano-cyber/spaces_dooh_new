@@ -8,6 +8,8 @@ import { ProveedorIdioma } from './contexto'
 import type { Idioma } from './idiomas'
 import { MONEDAS, fijarMonedaInstancia } from './dinero'
 import { leerDinero } from './simbolo-en-pantalla'
+import { huellasEnItaliano } from './guardias-italiano'
+import { fugasItaliano, legible, copiasDeOtroIdioma, IGUALES_A_PROPOSITO_L4 } from '../test/barrido-italiano-l4'
 
 // ============================================================================
 //  I18N · LOTE «CAMPANAS Y FINANZAS», RENDIDO DE VERDAD EN LOS DOS IDIOMAS.
@@ -1231,4 +1233,89 @@ describe('lote CAMPANAS y FINANZAS · en ingles, ninguna fecha, hora ni importe 
       expect(huellasDeFormatoEspanol(await p.pintar('en'))).toEqual([])
     })
   }
+})
+
+// ─── ITALIANO · lote L4 (2026-11-03) ────────────────────────────────────────
+//
+// Las mismas pantallas en italiano: ni un trozo ingles de la caida
+// (`conCaidaAlIngles`) ni uno espanol sin `t()`, en los DOS diccionarios del
+// lote; ni una fecha, cifra o importe con formato espanol o ingles; y el
+// dinero con el simbolo italiano de la moneda de la instancia.
+describe('lote CAMPANAS y FINANZAS · en ITALIANO', () => {
+  // Datos de prueba (nombres de campanas, pantallas, clientes y archivos).
+  const AJENOS = ['Pantalla Reforma', 'Pantalla Sur', 'Pantalla Norte', 'Pantalla Oriente', 'Campaña Verano', 'Telco Andina',
+    'Refrescos del Norte', 'Refrescos SA', 'Arte 1', 'Arte 2', 'Mañana', 'Tarde', 'Lanzamiento', 'Otoño', 'Cuauhtémoc']
+  // El ejemplo del formato que se TECLEA: `lib/captura-cifra.ts` lee el
+  // estilo es-MX en todos los idiomas, y el aviso lo dice con su ejemplo.
+  // Es el formato del campo, no uno que se le escape a la pantalla.
+  const PERMITIDOS: Record<string, RegExp[]> = {
+    'candado con el monto ilegible': [/^212,500\.50$/],
+    // «CA-0001.1»: el folio del tramo de la extension (un dato), no una cifra.
+    'extensiones con contrato': [/^0001\.1$/],
+  }
+
+  it('ninguna frase de los dos diccionarios cae al ingles ni se queda en espanol', async () => {
+    const { ES_CAMPANAS, EN_CAMPANAS, IT_CAMPANAS } = await import('./textos/campanas')
+    const { ES_FINANZAS, EN_FINANZAS, IT_FINANZAS } = await import('./textos/finanzas')
+    // El ingles de otros lotes que aun cae (el aviso de la franja de
+    // `compartidos`, «another CMS») lo descarta `fugasItaliano` por si solo.
+    let todo = ''
+    for (const p of PANTALLAS) {
+      reiniciar()
+      todo += legible(await p.pintar('it')) + '\n'
+    }
+    expect(fugasItaliano(todo, [[ES_CAMPANAS, EN_CAMPANAS, IT_CAMPANAS], [ES_FINANZAS, EN_FINANZAS, IT_FINANZAS]], {
+      ajenos: AJENOS,
+    })).toEqual([])
+  })
+
+  for (const p of PANTALLAS) {
+    it(`sin formatos espanoles ni ingleses · ${p.nombre}`, async () => {
+      expect(huellasEnItaliano(await p.pintar('it'), { permitidos: PERMITIDOS[p.nombre] })).toEqual([])
+    })
+  }
+
+  it('frases italianas a la vista', async () => {
+    const vistas: [string, string[]][] = [
+      ['lista de campanas', ['Campagne', 'Pronte da fatturare']],
+      ['candado con el monto ilegible', ['L’importo non si capisce: la virgola separa le migliaia e il punto i decimali (212,500.50).']],
+      ['generar factura en parcialidades', ['Incassa a rate']],
+      ['estado de cuenta sin movimientos, con un rango a mano', ['Nessuna fattura né pagamento dal 5 gen 2026 al 9 mar 2026.']],
+    ]
+    const faltan: string[] = []
+    for (const [nombre, frases] of vistas) {
+      reiniciar()
+      const html = texto(await PANTALLAS.find((p) => p.nombre === nombre)!.pintar('it'))
+      faltan.push(...frases.filter((f) => !html.includes(f)).map((f) => `${nombre} · ${f}`))
+    }
+    expect(faltan).toEqual([])
+  })
+
+  afterEach(() => fijarMonedaInstancia('MXN'))
+  const vistos: Record<string, number> = {}
+  for (const moneda of MONEDAS) {
+    PANTALLAS.forEach((p) => {
+      it(`${moneda} · it · ${p.nombre}`, async () => {
+        fijarMonedaInstancia(moneda)
+        const { importes, ajenos } = leerDinero(texto(await p.pintar('it')), 'it', moneda)
+        vistos[moneda] = (vistos[moneda] ?? 0) + importes
+        expect(ajenos).toEqual([])
+      })
+    })
+    it(`${moneda} · it · el arnes encontro importes que mirar`, () => {
+      expect(vistos[moneda] ?? 0).toBeGreaterThan(0)
+    })
+  }
+})
+
+describe('lote CAMPANAS y FINANZAS · el diccionario italiano no es una copia', () => {
+  it('ningun italiano es el ingles o el espanol pegado (salvo los cognados declarados)', async () => {
+    const { ES_CAMPANAS, EN_CAMPANAS, IT_CAMPANAS } = await import('./textos/campanas')
+    const { ES_FINANZAS, EN_FINANZAS, IT_FINANZAS } = await import('./textos/finanzas')
+    const copias = copiasDeOtroIdioma([[ES_CAMPANAS, EN_CAMPANAS, IT_CAMPANAS], [ES_FINANZAS, EN_FINANZAS, IT_FINANZAS]])
+    expect(copias.filter((c) => !IGUALES_A_PROPOSITO_L4.has(c))).toEqual([])
+    // Y la lista no caduca: cada excepcion de estos ambitos sigue siendo una copia.
+    const propias = [...IGUALES_A_PROPOSITO_L4].filter((c) => /^(en|es) (campanas|finanzas)\./.test(c))
+    expect(propias.filter((c) => !copias.includes(c))).toEqual([])
+  })
 })
