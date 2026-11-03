@@ -294,7 +294,7 @@ export const EN_ENERGIA: Record<ClaveEnergia, string> = {
   'energia.lectura.alerta': 'Files read: {leidos} of {total}; rows: {filas}. Check before confirming: {pegas}.',
   'energia.lectura.ninguno': 'These files produced no rows.',
   'energia.lectura.ok.uno':
-    '{total} {archivos} was read and it produces {filas} {renglones}. Check them against the bill and confirm them: nothing is saved until you click save.',
+    '{total} {archivos} was read and it produces {filas} {renglones}. Check each row against the bill and confirm it: nothing is saved until you click save.',
   'energia.lectura.ok.otros':
     '{total} {archivos} were read and they produce {filas} {renglones}. Check them against the bill and confirm them: nothing is saved until you click save.',
   'energia.lectura.archivo.uno': 'file',
