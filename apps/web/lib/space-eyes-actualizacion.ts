@@ -61,3 +61,25 @@ export function comoSeActualiza(e: EquipoParaActualizar, idioma: Idioma = 'es'):
   if (codigo > 0 && codigo < CODIGO_CON_ACTUALIZADOR) return r(false, 'spaceeyes.actualizacion.visita', 'visita')
   return r(false, 'spaceeyes.actualizacion.proxima', 'aviso')
 }
+
+// Ola 7 · el `texto` que llega en la lista de equipos lo arma el SERVIDOR, en
+// espanol (`lib/server/space-eye.ts` llama a `comoSeActualiza` sin idioma).
+// Al pintarlo se reconoce la frase del catalogo y se dice en el idioma de quien
+// mira; una frase que no sea de las de `comoSeActualiza` se pinta como llega.
+// En espanol devuelve el texto tal cual.
+const CLAVES_ACTUALIZACION: ClaveTexto[] = [
+  'spaceeyes.actualizacion.sola',
+  'spaceeyes.actualizacion.kiosco',
+  'spaceeyes.actualizacion.sin-tocar',
+  'spaceeyes.actualizacion.android-viejo',
+  'spaceeyes.actualizacion.sin-instalar-apps',
+  'spaceeyes.actualizacion.otro-dueno',
+  'spaceeyes.actualizacion.proxima',
+  'spaceeyes.actualizacion.visita',
+]
+
+export function textoDeActualizacion(texto: string, idioma: Idioma): string {
+  if (idioma === 'es') return texto
+  const clave = CLAVES_ACTUALIZACION.find((k) => traducir('es', k) === texto)
+  return clave ? traducir(idioma, clave) : texto
+}

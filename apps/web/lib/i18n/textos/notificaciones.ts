@@ -16,6 +16,11 @@
 //  el mismo («día(s)»), porque es lo que guarda el servidor; el ingles elige
 //  por la cifra. En `contrato.*` el servidor ya escribe «día» o «días».
 //
+//  `.cero` (ola 7): el dia del vencimiento el servidor escribe «vence en 0
+//  día(s)». Su espanol es la misma plantilla que `.otros`, porque es lo que
+//  se guarda; el ingles dice «today» en vez de «in 0 days». Solo se usa con
+//  la cifra 0 (`armar()` en `lib/i18n/notificaciones.ts`).
+//
 //  Ni dinero ni moneda: `{saldo}` lo rearma la pantalla con el formato del
 //  idioma (`MX$` en ingles).
 //
@@ -56,6 +61,7 @@ export const ES_NOTIFICACIONES = {
   'notificaciones.cobranza.vencida.detalle.otros': '{cobranza} — vencida hace {n} día(s) · saldo {saldo}',
   'notificaciones.cobranza.vence.detalle.uno': '{cobranza} — vence en {n} día(s) · saldo {saldo}',
   'notificaciones.cobranza.vence.detalle.otros': '{cobranza} — vence en {n} día(s) · saldo {saldo}',
+  'notificaciones.cobranza.vence.detalle.cero': '{cobranza} — vence en {n} día(s) · saldo {saldo}',
 
   // ── Operaciones (`lib/server/ot-repo.ts`) ──
   'notificaciones.ot.vencida': 'OT vencida',
@@ -75,6 +81,7 @@ export const ES_NOTIFICACIONES = {
   'notificaciones.contrato.vence-hoy': 'Contrato vence HOY: {contrato}',
   'notificaciones.contrato.vence-en.uno': 'Contrato vence en {n} día: {contrato}',
   'notificaciones.contrato.vence-en.otros': 'Contrato vence en {n} días: {contrato}',
+  'notificaciones.contrato.vence-en.cero': 'Contrato vence en {n} días: {contrato}',
   'notificaciones.contrato.por-vencer.detalle': 'Si se va a renovar, conviene moverlo antes de que caduque.',
   'notificaciones.contrato.un-espacio': 'un espacio',
 
@@ -109,6 +116,7 @@ export const EN_NOTIFICACIONES: Record<keyof typeof ES_NOTIFICACIONES, string> =
   'notificaciones.cobranza.vencida.detalle.otros': '{cobranza} — {n} days overdue · balance {saldo}',
   'notificaciones.cobranza.vence.detalle.uno': '{cobranza} — due in {n} day · balance {saldo}',
   'notificaciones.cobranza.vence.detalle.otros': '{cobranza} — due in {n} days · balance {saldo}',
+  'notificaciones.cobranza.vence.detalle.cero': '{cobranza} — due today · balance {saldo}',
 
   'notificaciones.ot.vencida': 'Overdue work order',
   'notificaciones.ot.vencida.detalle': '{ot} was not closed on time',
@@ -126,6 +134,7 @@ export const EN_NOTIFICACIONES: Record<keyof typeof ES_NOTIFICACIONES, string> =
   'notificaciones.contrato.vence-hoy': 'Contract expires TODAY: {contrato}',
   'notificaciones.contrato.vence-en.uno': 'Contract expires in {n} day: {contrato}',
   'notificaciones.contrato.vence-en.otros': 'Contract expires in {n} days: {contrato}',
+  'notificaciones.contrato.vence-en.cero': 'Contract expires TODAY: {contrato}',
   'notificaciones.contrato.por-vencer.detalle': 'If it is going to be renewed, it’s best to act before it expires.',
   'notificaciones.contrato.un-espacio': 'a space',
 

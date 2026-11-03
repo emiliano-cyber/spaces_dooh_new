@@ -43,6 +43,8 @@ import type { Idioma } from './idiomas'
 //  Los textos que manda el SERVIDOR (el nombre y la zona de una falla de
 //  `fallasApi`, el `mensaje` de pedir una foto, las alertas de telemetria, el
 //  `actualizacion.texto` de la lista) son datos y siguen en espanol (I18N-05).
+//  (Ola 7: `actualizacion.texto` ya no: es una frase del catalogo y se
+//  traduce al pintarla con `textoDeActualizacion`.)
 //  Los avisos emergentes (`toast`) no salen en el HTML: los vigila
 //  `textos/spaceeyes.test.ts`, que lee del fuente QUE clave usa cada uno.
 // ============================================================================
@@ -387,6 +389,33 @@ pantalla({
     'PENDING PAIRING',
     'no screen assigned',
     'Mobile',
+  ],
+})
+// Ola 7 · el recorrido con el modulo activo encontro el `title` de «Para
+// actualizar pide un toque» en espanol: es `actualizacion.texto`, que el
+// servidor arma en espanol (`lib/server/space-eye.ts`). Se traduce al pintarlo.
+pantalla({
+  nombre: 'lista · motivo de actualizacion que manda el servidor (ola 7)',
+  pintar: async (idioma) => {
+    const C = await comp('ListaEquipos', 'ListaEquipos')
+    const { traducir } = await import('./diccionario')
+    forzar(esNull, [
+      { ...EQUIPOS[1], actualizacion: { sola: false, texto: traducir('es', 'spaceeyes.actualizacion.visita'), tono: 'visita' } },
+      { ...EQUIPOS[2], actualizacion: { sola: false, texto: traducir('es', 'spaceeyes.actualizacion.proxima'), tono: 'aviso' } },
+      { ...EQUIPOS[3], actualizacion: { sola: false, texto: 'Un texto que no es del catalogo', tono: 'aviso' } },
+    ])
+    forzar(esTrue, false)
+    return pintar(idioma, el(C))
+  },
+  espanol: [
+    'title="Necesita una visita: esta versión no se puede actualizar a distancia."',
+    'title="La próxima actualización pide un toque en el teléfono; después se actualiza sola."',
+    'title="Un texto que no es del catalogo"',
+  ],
+  ingles: [
+    'title="Needs a site visit: this version cannot be updated remotely."',
+    'title="The next update needs a confirmation on the phone; after that it updates on its own."',
+    'title="Un texto que no es del catalogo"',
   ],
 })
 pantalla({
@@ -767,6 +796,30 @@ pantalla({
     'Seen ',
     ' times · last ',
   ],
+})
+// Ola 7 · el recorrido con el modulo activo encontro «Gabinete 8 (fila 2,
+// columna 3)» y «Toda la pantalla» en ingles: el `donde` lo arma el SERVIDOR en
+// espanol (`dondeDeFalla`, `lib/server/space-eye.ts`). Se traduce al pintarlo,
+// como ya lo calculaba la pantalla de la flota. El nombre de la falla lo
+// escribe el telefono (la app solo esta en espanol) y es dato.
+pantalla({
+  nombre: 'pantalla y creativos · donde de cada falla, como lo manda el servidor (ola 7)',
+  pintar: async (idioma) => {
+    const C = await pyc()
+    forzar(esNull, {
+      ...PANTALLA_EQUIPO,
+      fallas: [
+        FALLA_API(1, 'abierta', { donde: 'Gabinete 8 (fila 2, columna 3)', nombre: 'Posible gabinete apagado' }),
+        FALLA_API(2, 'recuperada', { nombre: 'Varios gabinetes congelados o tapados', donde: 'Gabinetes 2, 5, 8 (3 de 15)', recuperadaEn: hace(30), cerradaPor: 'equipo' }),
+        FALLA_API(3, 'descartada', { donde: 'Toda la pantalla', evidencia: null, evidenciaMini: null }),
+        FALLA_API(4, 'descartada', { donde: 'Gabinetes 4', evidencia: null, evidenciaMini: null }),
+      ],
+    })
+    forzar(esNull, CREATIVOS_EQUIPO)
+    return pintar(idioma, el(C, { id: 7, onAmpliar: () => {} }))
+  },
+  espanol: ['Gabinete 8 (fila 2, columna 3)', 'Gabinetes 2, 5, 8 (3 de 15)', 'Toda la pantalla', 'Gabinetes 4', 'Posible gabinete apagado', 'Varios gabinetes congelados o tapados'],
+  ingles: ['Cabinet 8 (row 2, column 3)', 'Cabinets 2, 5, 8 (3 of 15)', 'The whole screen', 'Cabinet 4', 'Possible cabinet off', 'Several cabinets frozen or covered'],
 })
 pantalla({
   nombre: 'pantalla y creativos · sin vigilancia',
@@ -3201,6 +3254,7 @@ const COMUNES = new Set<string>([
   '— – —', // un periodo sin fechas
   'Activa', // esta dentro de «Activate»
   'OCR No', // «No» tambien es ingles
+  'title="Un texto que no es del catalogo"', // ola 7: un motivo del servidor fuera del catalogo es dato
   'Vincular', // el boton de la app Android, que solo esta en español (dueño, 02/11)
 ])
 

@@ -36,7 +36,18 @@ describe('diccionario de NOTIFICACIONES · el ingles no esta en espanol', () => 
   })
   it('los huecos son los mismos en los dos idiomas', () => {
     const huecos = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort().join(',')
-    expect(Object.keys(ES).filter((k) => huecos(ES[k]) !== huecos(EN[k]))).toEqual([])
+    // `.cero` (ola 7) dice «today» en ingles: la cifra 0 no se escribe, y es
+    // el unico hueco que puede faltar.
+    const sinN = (s: string) => s.split(',').filter((h) => h !== 'n').join(',')
+    expect(
+      Object.keys(ES).filter((k) => (k.endsWith('.cero') ? sinN(huecos(ES[k])) !== huecos(EN[k]) : huecos(ES[k]) !== huecos(EN[k]))),
+    ).toEqual([])
+  })
+  it('toda variante `.cero` es de un plural que existe, y su espanol es el de `.otros` (lo que guarda el servidor)', () => {
+    const ceros = Object.keys(ES).filter((k) => k.endsWith('.cero'))
+    expect(ceros.length).toBeGreaterThan(0)
+    for (const k of ceros) expect(ES[k], k).toBe(ES[k.replace(/\.cero$/, '.otros')])
+    for (const k of ceros) expect(EN[k], k).not.toMatch(/\{n\}|\b0\b/)
   })
   it('todo plural lleva sus dos formas, y su hueco {n}', () => {
     const sueltas = Object.keys(ES).filter(

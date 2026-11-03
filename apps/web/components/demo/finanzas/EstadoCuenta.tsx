@@ -8,7 +8,7 @@ import { cn } from '@/lib/cn'
 import { useCobranzas, useFacturas, usePagosRenta, formatMonto, formatFecha, useClientes } from '@/lib/data/client'
 import { resumenFinanzasApi, type RespuestaResumen } from '@/lib/data/finanzas-periodo-api'
 import { esEtiquetaRango, etiquetaPeriodo } from '@/lib/finanzas-periodo'
-import { csvEstadoCuenta } from './estado-cuenta-csv'
+import { csvEstadoCuenta, nombreArchivoEstadoCuenta } from './estado-cuenta-csv'
 import { useIdioma } from '@/lib/i18n/contexto'
 import { CLAVE_PERIODO } from './etiquetas'
 
@@ -56,12 +56,12 @@ export function EstadoCuenta() {
 
   function descargar() {
     if (!datos) return
-    const csv = csvEstadoCuenta(datos, titular, nombreCliente, !cliente)
+    const csv = csvEstadoCuenta(datos, titular, nombreCliente, !cliente, idioma)
     // BOM para que Excel lea los acentos como UTF-8.
     const url = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }))
     const a = document.createElement('a')
     a.href = url
-    a.download = `estado-de-cuenta-${datos.periodo.desde.slice(0, 7)}${cliente ? '-cliente' : ''}.csv`
+    a.download = nombreArchivoEstadoCuenta(datos.periodo.desde, !!cliente, idioma)
     a.click()
     URL.revokeObjectURL(url)
   }

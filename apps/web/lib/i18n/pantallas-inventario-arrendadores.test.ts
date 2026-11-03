@@ -1234,7 +1234,9 @@ const PANTALLAS: Pantalla[] = [
       'Representante legal', 'sin capturar', 'El arrendador', 'El espacio', 'Términos', '2026-01-01 a 2026-12-01', 'mensual',
       'Los datos son correctos, enviar a firma', 'Corregir antes',
     ],
-    ingles: ['Contract signature', 'Review the data the contract will include', 'Your company (lessee)', 'Tax address', 'Legal representative', 'not entered', 'The space', 'Terms', 'The data is correct, send for signature', 'Fix it first'],
+    ingles: ['Contract signature', 'Review the data the contract will include', 'Your company (lessee)', 'Tax address', 'Legal representative', 'not entered', 'The space', 'Terms', 'The data is correct, send for signature', 'Fix it first',
+      // Ola 7: la vigencia con la fecha inglesa, no la ISO del dato.
+      'Jan 1, 2026 to Dec 1, 2026'],
   },
   {
     nombre: 'panel de firmas · sin enviar',
