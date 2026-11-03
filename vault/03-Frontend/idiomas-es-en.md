@@ -11,6 +11,10 @@ archivos:
   - apps/web/lib/i18n/moneda-cliente.tsx
   - apps/web/lib/server/moneda-instancia.ts
   - apps/web/lib/server/moneda-alta.ts
+  - apps/web/lib/server/idioma-instancia.ts
+  - apps/web/lib/server/idioma-alta.ts
+  - apps/web/lib/contrato-documento.ts
+  - apps/web/components/demo/arrendadores/ConstanciaFirmas.tsx
   - apps/web/lib/i18n/servidor.ts
   - apps/web/lib/i18n/contexto.tsx
   - apps/web/app/layout.tsx
@@ -2103,6 +2107,47 @@ assets and equipment* (ASSETS), *Government permits and licenses* (PERMITS),
 *Operations and payroll* (OPERATIONS), *Sells advertising* (SALES). Checklist:
 *Structure and hardware inspection*, *Installation / execution*, *Proof photo
 with geolocation*. Cuerpo inválido → *Invalid request*.
+
+## 12 · Los DOCUMENTOS van en el idioma de la INSTANCIA (ADR 0049, 03/11)
+
+Decisión del dueño (03/11): «el idioma de papeles y contratos es fijo al
+crearse la app en cada server, pero el idioma de lo demás se debe poder
+configurar por usuario y navegador». **Sustituye** a la regla de las olas del
+inglés de que «el texto legal del contrato no se traduce»: ahora se redacta en
+el idioma de los documentos de la instancia. Rama `feat/idioma-instancia`,
+[ADR 0049](../../docs/adr/0049-el-idioma-de-los-documentos-es-de-la-instancia.md).
+
+- **Dónde vive:** `tenants.idioma_documentos` (`es` | `en` | `it`, DEFAULT
+  `es`), al lado de la moneda y con sus mismas reglas: se elige en el bootstrap
+  (`idiomaDocumentos`, `provision-instancia.sh --idioma`), lo heredan las demás
+  organizaciones y la base impide cambiarlo
+  (`20261103_idioma_documentos_por_instancia.sql`). Todas las instancias que ya
+  existían quedan en `es`.
+- **Lectura:** `idiomaDeLaInstancia()` (`lib/server/idioma-instancia.ts`),
+  cacheada en `globalThis` y **fail-closed** (si la base no contesta, lanza; no
+  cae al español). La pide **solo** `datosContrato()` y la mete en los datos,
+  así que la página, la huella de revisión, el congelado y el cotejo de firmas
+  redactan en el mismo idioma.
+- **Qué sigue la instancia:** el contrato (texto, cantidad con letra
+  —`numeroALetras(n, moneda, idioma)`—, cifras, fechas), lo que la página
+  `/contrato/[id]` **imprime** alrededor (encabezados, sellos de firma, aviso del
+  pie, de la tabla `encabezadosDocumento`) y la **constancia de firmas**, que
+  del 02/11 al 03/11 seguía a la petición. Lo que no se imprime (barra de
+  faltantes, panel de firmas) sigue a la persona.
+- **Lo que cambió en el HTML de las pruebas** (volcado completo
+  `I18N_VOLCAR_TODO` antes/después, `diff -rq`): **solo** la constancia del
+  contrato renderizado en inglés, que ahora sale en español porque la instancia
+  de la prueba es española. Dos casos nuevos (instancia `en` e `it`). La
+  etiqueta inglesa de la parte arrendadora en la constancia pasa de «THE
+  LANDLORD» a «THE LESSOR», la del contrato inglés.
+- **El español, byte a byte:** el camino `es` de `generarContrato` no se tocó;
+  `contrato-documento-idioma.test.ts` fija 14 hashes medidos sobre el código de
+  antes (`6779321d`).
+- ⚠ **La traducción del contrato al inglés y al italiano necesita revisión de
+  un abogado** antes de usarse con un cliente: es el contrato de derecho
+  mexicano en otro idioma, no uno adaptado a otra ley.
+- Los demás papeles (propuesta imprimible, liga `/p`, portal, comprobante,
+  correos) quedan como **decisión del dueño**, con propuesta en el ADR.
 
 ## Enlaces
 

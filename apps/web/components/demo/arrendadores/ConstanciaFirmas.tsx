@@ -25,13 +25,16 @@ export interface FirmaConstancia {
   invalidada: boolean
 }
 
-// ─── I18N (decision del dueño, 2026-11-02) ─────────────────────────────────
-// La constancia se pinta en el idioma configurado. Se puede porque NO entra en
-// ningun hash ni se guarda como texto: lo que se sella es
-// `documentoATexto(generarContrato(…))` (`lib/server/firmas-repo.ts`), y esta
-// pieza solo la monta la pagina `/contrato/[id]`. El contrato que recita sigue
-// en espanol, intacto. El idioma llega como prop (`'es'` por omision) porque
-// esto es un Server Component sin contexto de cliente.
+// ─── I18N · el idioma de los DOCUMENTOS de la instancia (ADR 0049, 03/11) ───
+// Del 02/11 al 03/11 se pintaba en el idioma de la PETICION. La regla del dueño
+// del 03/11 —«el idioma de papeles y contratos es fijo al crearse la app en
+// cada server»— la vuelve un papel más: va en el idioma de la instancia, el
+// mismo que el contrato que acompaña. La página `/contrato/[id]` le pasa
+// `doc.idioma`. Consecuencia buscada: en una instancia en español, quien mira
+// la aplicación en inglés imprime la constancia EN ESPAÑOL, igual que el
+// contrato. NO entra en ningún hash ni se guarda como texto (lo que se sella es
+// `documentoATexto(generarContrato(…))`), así que el cambio no toca firmas.
+// El idioma llega como prop (`'es'` por omisión): es un Server Component.
 const ETIQUETA: Record<FirmaConstancia['parte'], ClaveTexto> = {
   ARRENDADOR: 'arrendadores.constancia.parte.arrendador',
   ARRENDATARIO: 'arrendadores.constancia.parte.arrendatario',

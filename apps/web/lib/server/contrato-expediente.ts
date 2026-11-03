@@ -2,6 +2,7 @@ import 'server-only'
 import { q1 } from './db'
 import { tenantActual } from './tenant'
 import { JOIN_PRINCIPAL } from './config-repo'
+import { idiomaDeLaInstancia } from './idioma-instancia'
 import { generarContrato, fechaISO, type DocumentoContrato } from '@/lib/contrato-documento'
 
 // ============================================================================
@@ -107,5 +108,12 @@ export async function datosContrato(contratoId: string): Promise<DatosContrato |
       autoRenovable: !!r.auto_renovable,
       ciudadFirma: r.ciudad_firma ?? null,
     },
+    // ADR 0049 · el idioma de los DOCUMENTOS de la instancia, nunca el de la
+    // peticion. Va con los datos, y no en cada llamador, porque por aqui pasan
+    // los CUATRO que redactan: la pagina, la huella de revision, el congelado
+    // y el cotejo de firmas. Si uno lo olvidara, redactaria en espanol y su
+    // hash no coincidiria con el de los demas. Fail-closed si la base no
+    // contesta (`idioma-instancia.ts`).
+    idioma: await idiomaDeLaInstancia(),
   }
 }

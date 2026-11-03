@@ -40,9 +40,10 @@ import type { Idioma } from './idiomas'
 //  El documento del contrato (`lib/contrato-documento.ts`), su cantidad con
 //  letra, lo que entra en el hash de las firmas y lo que forma parte del texto
 //  impreso (encabezados, bloque de firmas con sus sellos, aviso de borrador):
-//  es un documento legal en espanol. Lo que lo rodea si se traduce: la barra,
-//  el panel de firmas, la firma publica y —decision del dueño, 2026-11-02— la
-//  constancia de firma electronica, que no entra en ningun hash.
+//  va en el idioma de los DOCUMENTOS de la instancia (ADR 0049, 03/11), no en
+//  el de quien mira. Y desde el 03/11 la constancia de firma tambien: es papel.
+//  Lo que lo rodea y no se imprime si se traduce: la barra, el panel de firmas
+//  y la firma publica.
 // ============================================================================
 
 const forzado = vi.hoisted(() => ({
@@ -134,7 +135,14 @@ vi.mock('@/lib/predio-cercania', () => ({
 }))
 
 // ─── Servidor (las dos paginas que son Server Components) ───────────────────
-const servidor = vi.hoisted(() => ({ idioma: 'es' as 'es' | 'en' | 'it', permiso: true, firma: null as unknown }))
+// `docIdioma` (ADR 0049): el idioma de los DOCUMENTOS de la instancia, que
+// trae el propio documento. `idioma` es el de la persona (la peticion).
+const servidor = vi.hoisted(() => ({
+  idioma: 'es' as 'es' | 'en' | 'it',
+  docIdioma: 'es' as 'es' | 'en' | 'it',
+  permiso: true,
+  firma: null as unknown,
+}))
 vi.mock('@/lib/i18n/servidor', () => ({ idiomaDeLaPeticion: () => servidor.idioma }))
 vi.mock('@/lib/server/auth', () => ({
   exigir: async () => (servidor.permiso ? { ok: true, usuario: { rol: 'DUENO' } } : { ok: false }),
@@ -149,8 +157,16 @@ vi.mock('@/lib/server/contrato-expediente', () => ({
     declaraciones: [{ encabezado: 'I. Declara EL ARRENDADOR', incisos: ['a) Ser mayor de edad.'] }],
     clausulas: [{ ordinal: 'PRIMERA', titulo: 'Objeto', parrafos: ['EL ARRENDADOR da en arrendamiento EL ESPACIO.'] }],
     lugarYFecha: 'Ciudad de México, a 2 de noviembre de 2026.',
-    firmas: [{ rol: 'EL ARRENDADOR', nombre: 'Don Pepe' }, { rol: 'EL ARRENDATARIO', nombre: 'Medios SA' }],
+    // En/it, con los roles en SU idioma y la `parte` explicita (ADR 0049): la
+    // pagina empareja el sello por `parte`, no leyendo «ARRENDATARIO» en el rol.
+    firmas:
+      servidor.docIdioma === 'en'
+        ? [{ rol: 'THE LESSOR', nombre: 'Don Pepe', parte: 'ARRENDADOR' }, { rol: 'THE LESSEE', nombre: 'Medios SA', parte: 'ARRENDATARIO' }]
+        : servidor.docIdioma === 'it'
+          ? [{ rol: 'IL LOCATORE', nombre: 'Don Pepe', parte: 'ARRENDADOR' }, { rol: 'IL CONDUTTORE', nombre: 'Medios SA', parte: 'ARRENDATARIO' }]
+          : [{ rol: 'EL ARRENDADOR', nombre: 'Don Pepe' }, { rol: 'EL ARRENDATARIO', nombre: 'Medios SA' }],
     faltantes: [{ etiqueta: 'RFC del arrendador', donde: 'Arrendadores › ficha del arrendador' }],
+    idioma: servidor.docIdioma,
   }),
 }))
 vi.mock('@/lib/server/firmas-repo', () => ({
@@ -1309,6 +1325,7 @@ const PANTALLAS: Pantalla[] = [
     nombre: 'documento del contrato (Server Component)',
     pintar: async (idioma) => {
       servidor.idioma = idioma
+      servidor.docIdioma = 'es'
       const { default: Doc } = await import('../../app/(app)/contrato/[id]/page')
       return pintar(idioma, await Doc({ params: { id: 'c1' } }))
     },
@@ -1320,13 +1337,57 @@ const PANTALLAS: Pantalla[] = [
       ' — FIRMA INVALIDADA', 'Fecha y hora: ', 'Dirección IP: 10.0.0.1', 'Navegador: Mozilla/5.0',
       'Sello del documento firmado: h-viejo', 'Firma electrónica simple.', 'Este documento fue sellado el ',
     ],
-    // El documento se queda en espanol; lo que lo rodea —la barra, el panel y
-    // la constancia— cambia.
+    // ADR 0049 (03/11): la instancia es ESPANOLA, asi que todo lo que se
+    // imprime —el documento y, desde hoy, tambien la constancia— va en
+    // espanol aunque la persona mire en ingles. Lo que NO se imprime (la barra,
+    // el panel de firmas) sigue a la persona.
     ingles: [
       'CONTRATO DE ARRENDAMIENTO', 'DECLARACIONES', 'CLÁUSULAS', 'FIRMA INVALIDADA', 'Print or save as PDF', 'Contract signature',
-      'Electronic signature certificate', 'WARNING: the contract was modified after it was signed.', 'THE LESSEE',
-      ' — SIGNATURE INVALIDATED', 'Date and time: October 20, 2026', 'IP address: 10.0.0.1', 'Browser: Mozilla/5.0',
-      'Seal of the signed document: h-viejo', 'Simple electronic signature.', 'This document was sealed on October 19, 2026',
+      'Constancia de firma electrónica', 'ATENCIÓN: el contrato fue modificado después de firmarse.', 'EL ARRENDATARIO',
+      ' — FIRMA INVALIDADA', 'Fecha y hora: 20 de octubre de 2026', 'Sello del documento firmado: h-viejo', 'Firma electrónica simple.',
+    ],
+  },
+  {
+    nombre: 'documento del contrato · instancia con documentos en INGLES (ADR 0049)',
+    pintar: async (idioma) => {
+      servidor.idioma = idioma
+      servidor.docIdioma = 'en'
+      const { default: Doc } = await import('../../app/(app)/contrato/[id]/page')
+      return pintar(idioma, await Doc({ params: { id: 'c1' } }))
+    },
+    // Lo impreso, en ingles para las dos personas; la barra, en la suya.
+    espanol: [
+      'Imprimir o guardar como PDF', 'Firma del contrato',
+      'RECITALS', 'CLAUSES', 'SIGNATURE INVALIDATED', 'Electronic signature certificate', 'THE LESSEE',
+      ' — SIGNATURE INVALIDATED', 'Date and time: October 20, 2026', 'IP address: 10.0.0.1', 'Seal of the signed document: h-viejo',
+      'This document was sealed on October 19, 2026', 'Document automatically generated by SPACE OS',
+    ],
+    ingles: [
+      'Print or save as PDF', 'Contract signature',
+      'RECITALS', 'CLAUSES', 'SIGNATURE INVALIDATED', 'Electronic signature certificate', 'THE LESSEE',
+      ' — SIGNATURE INVALIDATED', 'Date and time: October 20, 2026', 'Document automatically generated by SPACE OS',
+      // El sello va sobre la firma del ARRENDATARIO («THE LESSEE»), emparejado por `parte`.
+      '<p class="doc-sello-titulo">SIGNATURE INVALIDATED</p>',
+    ],
+  },
+  {
+    nombre: 'documento del contrato · instancia con documentos en ITALIANO (ADR 0049)',
+    pintar: async (idioma) => {
+      servidor.idioma = idioma
+      servidor.docIdioma = 'it'
+      const { default: Doc } = await import('../../app/(app)/contrato/[id]/page')
+      return pintar(idioma, await Doc({ params: { id: 'c1' } }))
+    },
+    espanol: [
+      'Imprimir o guardar como PDF',
+      'PREMESSE', 'CLAUSOLE', 'FIRMA INVALIDATA', 'Attestazione di firma elettronica', 'IL CONDUTTORE',
+      ' — FIRMA INVALIDATA', 'Data e ora: 20 ottobre 2026', 'Indirizzo IP: 10.0.0.1', 'Sigillo del documento firmato: h-viejo',
+      'Documento generato automaticamente da SPACE OS',
+    ],
+    ingles: [
+      'Print or save as PDF',
+      'PREMESSE', 'CLAUSOLE', 'Attestazione di firma elettronica', 'IL CONDUTTORE', 'Data e ora: 20 ottobre 2026',
+      '<p class="doc-sello-titulo">FIRMA INVALIDATA</p>',
     ],
   },
   {
@@ -1454,10 +1515,20 @@ const COMUNES = new Set<string>([
   'contacto@arrendador.com', // ejemplo de correo
   '601 — General de Ley Personas Morales', // regimen del SAT: un dato
   '601 - General de Ley Personas Morales',
-  // El documento del contrato y lo que se imprime con el: espanol en los dos idiomas.
-  // (la constancia de firma ya no: se traduce, decision del dueño del 2026-11-02)
+  // El documento del contrato y lo que se imprime con el: en el idioma de los
+  // DOCUMENTOS de la instancia, el mismo para las dos personas (ADR 0049). Y
+  // desde el 03/11 la constancia tambien: es papel, no pantalla.
   'CONTRATO DE ARRENDAMIENTO', 'DECLARACIONES', 'CLÁUSULAS', 'FIRMA INVALIDADA', 'EL ARRENDADOR',
   'Documento generado automáticamente por SPACE OS',
+  'Constancia de firma electrónica', 'ATENCIÓN: el contrato fue modificado después de firmarse.',
+  ' — FIRMA INVALIDADA', 'Fecha y hora: ', 'Dirección IP: 10.0.0.1', 'Navegador: Mozilla/5.0',
+  'Sello del documento firmado: h-viejo', 'Firma electrónica simple.', 'Este documento fue sellado el ',
+  'RECITALS', 'CLAUSES', 'SIGNATURE INVALIDATED', 'Electronic signature certificate', 'THE LESSEE',
+  ' — SIGNATURE INVALIDATED', 'Date and time: October 20, 2026', 'IP address: 10.0.0.1', 'Seal of the signed document: h-viejo',
+  'This document was sealed on October 19, 2026', 'Document automatically generated by SPACE OS',
+  'PREMESSE', 'CLAUSOLE', 'FIRMA INVALIDATA', 'Attestazione di firma elettronica', 'IL CONDUTTORE',
+  ' — FIRMA INVALIDATA', 'Data e ora: 20 ottobre 2026', 'Indirizzo IP: 10.0.0.1', 'Sigillo del documento firmato: h-viejo',
+  'Documento generato automaticamente da SPACE OS',
   'Sello SHA-256: hhh',
 ])
 
@@ -1489,6 +1560,9 @@ function sinLoQueEsEspanolPorDiseno(crudo: string): string {
       .replace(/<article class="doc-hoja">[\s\S]*?(?=<section class="doc-(?:constancia|panel-firma))/g, '')
       // el aviso de borrador, que se imprime con el documento
       .replace(/<p class="doc-aviso">[\s\S]*?<\/p>/g, '')
+      // la constancia de firmas: desde el ADR 0049 (03/11) es papel del
+      // contrato y va en el idioma de los documentos de la instancia
+      .replace(/<section class="doc-constancia">[\s\S]*?<\/section>/g, '')
       // el error de formato de `CampoCifra` (`lib/captura-cifra.ts`, otro lote)
       .replace(/Escribe solo cifras: la coma separa miles y el punto, decimales\. Ejemplo: [\d,.]+/g, '')
   )

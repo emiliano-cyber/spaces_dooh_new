@@ -110,7 +110,7 @@ compara el italiano entre lotes, y el **recorrido en el navegador**.
 | P1 | **Dólar de una instancia USD en italiano** — provisional «US$ 1.160,00» | **Pendiente del dueño** |
 | P2 | Letra del trimestre en reportes — provisional «T1 2026» | Pendiente; lo confirma L4 |
 | P3 | Comillas italianas: « » o “ ” | Pendiente; lo fija L5 en el glosario. El apóstrofo es el tipográfico (’), ya vigilado |
-| P4 | **Idioma de la instancia para los contratos** (texto legal, cantidad con letra, constancia) en el idioma elegido al crear la instancia, como la moneda del ADR 0048 | **Decidido** (03/11) · **tarea ROJA aparte** (migración, firmas y hash, aprovisionamiento). Puntos de enganche en `docs/i18n/revision-italiano-base.md` §6 |
+| P4 | **Idioma de la instancia para los contratos** (texto legal, cantidad con letra, constancia) en el idioma elegido al crear la instancia, como la moneda del ADR 0048 | **Hecho** en `feat/idioma-instancia` ([ADR 0049](../../docs/adr/0049-el-idioma-de-los-documentos-es-de-la-instancia.md)): `tenants.idioma_documentos`, `--idioma es\|en\|it`, contrato y constancia en italiano («IL LOCATORE / IL CONDUTTORE», «MILLEDUECENTOTRENTAQUATTRO PESOS 50/100 MXN»). **Revisión legal pendiente.** Ver [[idiomas-es-en]] §12 |
 
 > [!note] El idioma de la interfaz NO se guarda en la base
 > Es por dispositivo, en la cookie `spaces_idioma` (decisión del 30/09). No hay
