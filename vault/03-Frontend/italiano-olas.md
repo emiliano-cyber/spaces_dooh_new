@@ -133,3 +133,34 @@ de la maquinaria: **textos de ejemplo del diccionario** (que caen al inglés, «
 12.9») y **Server Components** cuyo idioma lo fija el simulacro de la prueba
 (`servidor.idioma`), que el espejo no puede cambiar. La lista por archivo está en
 `docs/i18n/revision-italiano-base.md` §5: es el punto de partida de cada lote.
+
+### Lote L2 · Comercial y propuestas
+
+Rama `feat/italiano-l2-comercial` (sobre `integra/idiomas`, `6fea374a`) ·
+**traducido, sin validar** · detalle en `docs/i18n/revision-italiano-l2-comercial.md`.
+`comercial` 502, `codigos` 59, `propuestas` 439, `catalogos` 194: **0 pendientes**,
+los cuatro `IT_*` ya son `Record`. Español e inglés: 0 HTML distintos, 0 valores
+cambiados (3 claves nuevas, literales de «spots/slots» que el italiano no
+pluraliza). Espejo del lote: de 215 huellas a 24, todas intencionadas.
+
+Glosario que este lote fija (los demás lotes, si dicen lo mismo, igual):
+pantalla de inventario → **impianto** (la digital, **schermo**) · predio →
+**terreno** · renta → **canone** · OC → **OdA** · se compone → **si applica a
+cascata** · el medio → **la concessionaria** · prima → **maggiorazione** ·
+contratación → **acquisto** · gerente → **manager** · horario de transmisión →
+**palinsesto** · rejilla → **griglia tariffaria** · tramo / escalón →
+**scaglione / gradino** · precio cerrado → **prezzo fisso** · liga → **link** ·
+correo → **Email** · Programático → **Programmatic** · vigente → **Attivo** ·
+vencido → **Scaduto** (pago: **In ritardo**) · Próximo (código) → **In arrivo** ·
+Vista (orientación) → **Orientamento** · Lista (vista) → **Elenco** (precio de
+lista: **Listino**) · Eliminar → **Elimina**, Quitar → **Rimuovi**, Añadir /
+Agregar → **Aggiungi**, Guardar → **Salva**, «No se pudo …» → **Impossibile …**.
+
+> [!warning] P-L2-1 · La captura de cifras no es italiana (para el dueño)
+> `CampoCifra` (`lib/captura-cifra.ts`) lee la coma como miles y el punto como
+> decimal en todos los idiomas, y el alta de pantalla usa `Number()`. Un
+> italiano que teclee «1.500,50» obtiene otra cifra. Los ejemplos del lote
+> describen el formato que el campo ENTIENDE («Es. 12.9»). Decidirlo antes de
+> encender el italiano. P-L2-2: el documento imprimible y `/p/[token]` se
+> tradujeron sin cambiar su regla de idioma (la de la petición); si van en el
+> idioma de la instancia, como el contrato, es P4.
