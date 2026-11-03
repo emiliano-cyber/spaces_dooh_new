@@ -64,9 +64,39 @@ describe('huellasDeFormatoEspanol', () => {
     expect(huellasDeFormatoEspanol('<td>$10,000.00</td><td>02/10/2026</td>', { moneda: 'USD' })).toHaveLength(1)
   })
 
-  it('las seis huellas estan declaradas (si se quita una, esta prueba lo dice)', () => {
+  // Ola 5: los tres menores de la validacion de la costura 2 (M1, M2, M3).
+  it.each([
+    ['2/11/2026', 'fecha dd/mm/aaaa'],
+    ['12/1/2026', 'fecha dd/mm/aaaa'],
+    ['02/11/26', 'fecha dd/mm/aaaa'],
+  ])('M1 · caza la fecha numerica sin relleno o con año corto «%s»', (fecha, tipo) => {
+    const h = huellasDeFormatoEspanol(`<td>Paid on ${fecha}</td>`)
+    expect(h).toHaveLength(1)
+    expect(h[0].startsWith(`${tipo} «${fecha}»`)).toBe(true)
+  })
+
+  it('M2 · caza el importe partido entre elementos', () => {
+    const h = huellasDeFormatoEspanol('<span>$</span><span>10,000.00</span>')
+    expect(h).toHaveLength(1)
+    expect(h[0]).toMatch(/^dinero sin MX\$/)
+    // y el MX$ partido igual sigue limpio
+    expect(huellasDeFormatoEspanol('<span>MX$</span><span>10,000.00</span>')).toEqual([])
+  })
+
+  it('M3 · en modo MXN, un importe en US$ no es huella (antes daba «$ 5.00»)', () => {
+    expect(huellasDeFormatoEspanol('<td>US$ 5.00</td><td>MX$ 10.00</td>')).toEqual([])
+  })
+
+  it('M3 · en modo USD, un «US$» en el ingles es el simbolo del ESPANOL: huella', () => {
+    const h = huellasDeFormatoEspanol('<td>US$ 5.00</td><td>$7.00</td>', { moneda: 'USD' })
+    expect(h).toHaveLength(1)
+    expect(h[0]).toMatch(/^dinero con US\$ en una instancia USD «US\$ 5\.00»/)
+  })
+
+  it('las siete huellas estan declaradas (si se quita una, esta prueba lo dice)', () => {
     expect(HUELLAS.map(([n]) => n)).toEqual([
       'dinero sin MX$',
+      'dinero con US$ en una instancia USD',
       'fecha dd/mm/aaaa',
       'fecha larga en español',
       'mes corto en español',

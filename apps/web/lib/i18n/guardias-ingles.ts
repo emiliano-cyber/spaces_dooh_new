@@ -26,7 +26,8 @@
 //
 //  Lo usan las pruebas de pantallas de TODOS los lotes. Supone una instancia
 //  MXN (la de las pruebas): en una USD, `$1,234.50` SI es lo correcto en
-//  ingles, y por eso la guardia del dinero se apaga.
+//  ingles, y por eso la guardia del `$` se apaga y se enciende la del `US$`
+//  (el simbolo del espanol de esa instancia).
 // ============================================================================
 
 export interface OpcionesGuardia {
@@ -50,8 +51,25 @@ const MESES_LARGOS =
 export const HUELLAS: readonly [string, RegExp][] = [
   // El importe se lleva el codigo de moneda que lo sigue, para que un
   // permitido («$10,000.00 MXN») se pruebe contra el trozo y no contra el contexto.
-  ['dinero sin MX$', /(?<!MX)\$ ?\d[\d,]*(?:\.\d+)?(?: [A-Z]{3}\b)?/g],
-  ['fecha dd/mm/aaaa', /\b\d{2}\/\d{2}\/\d{4}\b/g],
+  //
+  // Ola 5 (validacion costura 2, M2 y M3):
+  //  - `\s*` entre el «$» y la cifra: las etiquetas se cambian por saltos de
+  //    linea, asi que `<span>$</span><span>10,000.00</span>` llega como
+  //    «$\n\n10,000.00» y con `\s?` se escapaba.
+  //  - `(?<![A-Z]{2})` y no `(?<!MX)`: un «US$ 5.00» (un importe en dolares
+  //    pintado en ingles) es correcto y daba un falso positivo, porque el
+  //    lookbehind solo perdonaba a «MX».
+  ['dinero sin MX$', /(?<![A-Z]{2})\$\s*\d[\d,]*(?:\.\d+)?(?: [A-Z]{3}\b)?/g],
+  // En una instancia USD el ingles pinta `$` a secas y el ESPANOL `US$`
+  // (`dinero.ts`, tabla SIMBOLO): un «US$» en el HTML ingles es un
+  // `formatMonto` al que se le olvido el idioma. Antes, en modo USD la guardia
+  // del dinero se apagaba entera y esto no se vigilaba (M3).
+  ['dinero con US$ en una instancia USD', /US\$\s*\d[\d,]*(?:\.\d+)?/g],
+  // `\d{1,2}` y no `\d{2}` (M1): `toLocaleDateString('es-MX')` da «2/11/2026»
+  // sin relleno, que es la forma mas comun de olvidar el idioma. Y el año de dos
+  // cifras («02/11/26») tambien. El ingles de la app nunca escribe fechas en
+  // cifras («Nov 2, 2026»), asi que cualquier d/m/a es una huella.
+  ['fecha dd/mm/aaaa', /\b\d{1,2}\/\d{1,2}\/(?:\d{4}|\d{2})\b/g],
   ['fecha larga en español', new RegExp(`\\b\\d{1,2} de ${MESES_LARGOS}\\b(?: de \\d{4})?`, 'gi')],
   ['mes corto en español', new RegExp(`\\b\\d{1,2} ${MESES_CORTOS}\\b\\.?`, 'g')],
   ['fecha corta con guion', new RegExp(`\\b\\d{1,2}-${MESES_CORTOS}\\b`, 'g')],
@@ -96,6 +114,7 @@ export function huellasDeFormatoEspanol(html: string, opciones: OpcionesGuardia 
   const huellas: string[] = []
   for (const [tipo, re] of HUELLAS) {
     if (tipo === 'dinero sin MX$' && moneda !== 'MXN') continue
+    if (tipo === 'dinero con US$ en una instancia USD' && moneda !== 'USD') continue
     for (const m of texto.matchAll(re)) {
       const trozo = m[0]
       if (permitidos.some((p) => new RegExp(p.source, p.flags.replace('g', '')).test(trozo))) continue
