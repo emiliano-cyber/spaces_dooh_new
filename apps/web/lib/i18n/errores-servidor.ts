@@ -1,5 +1,5 @@
 import { IDIOMA_POR_OMISION, type Idioma } from './idiomas'
-import { ES_SERVIDOR, EN_SERVIDOR, type ClaveServidor } from './textos/servidor'
+import { ES_SERVIDOR, EN_SERVIDOR, IT_SERVIDOR, type ClaveServidor } from './textos/servidor'
 
 // ============================================================================
 //  lib/i18n/errores-servidor.ts — LOS ERRORES DEL SERVIDOR, EN DOS IDIOMAS.
@@ -749,6 +749,29 @@ export const FALTA_FIRMA_EN: Record<string, string> = {
   'Periodicidad del pago': 'Payment frequency',
 }
 
+// ─── ITALIANO · ola 0 (2026-11-03) ──────────────────────────────────────────
+//
+// Los mismos catalogos, del espanol canonico al italiano. Nacen VACIOS y los
+// rellena el lote del servidor (`vault/03-Frontend/italiano-olas.md`). La
+// regla de la caida es la de la interfaz (`diccionario.ts`): lo que no tiene
+// italiano sale en INGLES. Y un mensaje no sale nunca a medias: un «Campo:
+// motivo» o un patron con un hueco traducido solo va en italiano si TODAS sus
+// piezas lo tienen; si no, entero en ingles.
+export const CATALOGO_ERRORES_IT: Partial<Record<string, string>> = {}
+
+/** El de `lib/` sale del diccionario, como `CATALOGO_LIB`: se escribe una vez, en `textos/servidor.ts`. */
+export const CATALOGO_LIB_IT: Partial<Record<string, string>> = Object.fromEntries(
+  (Object.keys(IT_SERVIDOR) as ClaveServidor[])
+    .filter((k) => !ES_SERVIDOR[k].includes('{') && typeof IT_SERVIDOR[k] === 'string' && IT_SERVIDOR[k] !== '')
+    .map((k) => [ES_SERVIDOR[k], IT_SERVIDOR[k] as string]),
+)
+
+/** El espejo de `CAMPO_EN`. */
+export const CAMPO_IT: Partial<Record<string, string>> = {}
+
+/** El espejo de `FALTA_FIRMA_EN` (para los `huecosIt` de los patrones de la firma). */
+export const FALTA_FIRMA_IT: Partial<Record<string, string>> = {}
+
 const deTabla = (tabla: Record<string, string>) => (v: string) => tabla[v] ?? v
 const lista = (tabla: Record<string, string>) => (v: string) =>
   v.split(', ').map(deTabla(tabla)).join(', ')
@@ -796,6 +819,18 @@ export type PatronError = {
   re: RegExp
   en: string
   huecos?: Record<number, (valor: string) => string>
+  /**
+   * Ola 0 del italiano (2026-11-03): la plantilla italiana, con la misma
+   * sintaxis que `en`. La rellena el lote del servidor. Sin ella, el mensaje
+   * sale en ingles.
+   */
+  it?: string
+  /**
+   * Los huecos que en ingles pasan por una funcion (`huecos`) necesitan la
+   * suya en italiano: sin ella el hueco quedaria en espanol o en ingles dentro
+   * de una frase italiana, y en ese caso el mensaje entero sale en ingles.
+   */
+  huecosIt?: Record<number, (valor: string) => string>
 }
 
 // ─── Los motivos de zod que llevan un NUMERO dentro ─────────────────────────
@@ -1090,15 +1125,52 @@ export const PATRONES_ERROR: ReadonlyArray<PatronError> = [
 // cadena `en` como antes porque `$n` solo sabe copiar: ni traduce un hueco ni
 // elige un plural.
 function armar(p: PatronError, grupos: string[]): string {
-  return p.en
+  return armarCon(p.en, p.huecos, grupos)
+}
+
+function armarCon(
+  plantilla: string,
+  huecos: Record<number, (valor: string) => string> | undefined,
+  grupos: string[],
+): string {
+  return plantilla
     .replace(/\{(\d)\|([^|}]*)\|([^}]*)\}/g, (_, n: string, uno: string, otros: string) =>
       grupos[Number(n) - 1] === '1' ? uno : otros,
     )
     .replace(/\$(\d)/g, (_, n: string) => {
       const v = grupos[Number(n) - 1] ?? ''
-      const f = p.huecos?.[Number(n)]
+      const f = huecos?.[Number(n)]
       return f ? f(v) : v
     })
+}
+
+// El italiano de un motivo suelto, o `null` si no lo hay ENTERO.
+function motivoEnItaliano(motivo: string): string | null {
+  const exacto = CATALOGO_ERRORES_IT[motivo] ?? CATALOGO_LIB_IT[motivo]
+  if (exacto !== undefined) return exacto
+  for (const p of PATRONES_ERROR) {
+    const m = p.re.exec(motivo)
+    if (!m) continue
+    // El primer patron que casa es el que manda, igual que en ingles: si no
+    // tiene italiano, no se sigue buscando otro.
+    if (p.it === undefined) return null
+    const sinItaliano = Object.keys(p.huecos ?? {}).some((n) => !p.huecosIt?.[Number(n)])
+    return sinItaliano ? null : armarCon(p.it, p.huecosIt, m.slice(1))
+  }
+  return null
+}
+
+// El italiano de un mensaje entero, o `null` si alguna pieza no lo tiene.
+function errorEnItaliano(mensaje: string): string | null {
+  const exacto = CATALOGO_ERRORES_IT[mensaje] ?? CATALOGO_LIB_IT[mensaje]
+  if (exacto !== undefined) return exacto
+  const corte = mensaje.indexOf(': ')
+  if (corte > 0 && CAMPO_EN[mensaje.slice(0, corte)] !== undefined) {
+    const campo = CAMPO_IT[mensaje.slice(0, corte)]
+    const motivo = motivoEnItaliano(mensaje.slice(corte + 2))
+    return campo !== undefined && motivo !== null ? `${campo}: ${motivo}` : null
+  }
+  return motivoEnItaliano(mensaje)
 }
 
 // Una pieza suelta: el motivo, sin la etiqueta de campo delante.
@@ -1122,6 +1194,11 @@ function traducirMotivo(motivo: string): string {
 export function traducirError(mensaje: string, idioma: Idioma): string {
   if (typeof mensaje !== 'string') return SIN_MENSAJE
   if (idioma === IDIOMA_POR_OMISION) return mensaje
+  if (idioma === 'it') {
+    const italiano = errorEnItaliano(mensaje)
+    if (italiano !== null) return italiano
+    // Sin italiano completo, sigue abajo: el ingles.
+  }
 
   const exacto = CATALOGO_ERRORES[mensaje] ?? CATALOGO_LIB[mensaje]
   if (exacto !== undefined) return exacto
