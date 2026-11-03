@@ -133,3 +133,42 @@ de la maquinaria: **textos de ejemplo del diccionario** (que caen al inglés, «
 12.9») y **Server Components** cuyo idioma lo fija el simulacro de la prueba
 (`servidor.idioma`), que el espejo no puede cambiar. La lista por archivo está en
 `docs/i18n/revision-italiano-base.md` §5: es el punto de partida de cada lote.
+
+## 6 · Glosario por lote
+
+### Lote L5 · Armazón, cuenta, administración, compartidos y servidor
+
+Rama `feat/italiano-l5-armazon` (sobre `integra/idiomas`, `6fea374a`). **Hecho,
+sin validar.** Revisión: `docs/i18n/revision-italiano-l5.md`.
+
+- **1309 claves nuevas, 0 pendientes:** base 113 (5 ya estaban), `compartidos` 109, `shell` 58,
+  `cuenta` 115, `admin` 542, `notificaciones` 40, `servidor` 32, errores del
+  servidor 305 (catálogo 201, campos 30, firma 12, patrones 62). Los `IT_*` de
+  `textos/` del lote, ya `Record`.
+- **El glosario común (`compartidos`) que copian los demás lotes:** unidades
+  *Mensile · Ogni due settimane · Settimanale · Giornaliera · CPS · costo per
+  passaggio · All’ora · CPM · costo per migliaio di impression*; contadores
+  *mese/mesi · periodo/periodi di due settimane · settimana/e · giorno/i ·
+  passaggio/i · ora/e · migliaio/migliaia*; periodicidades en letra
+  *Giornaliera · Settimanale · Ogni due settimane · Due volte al mese · Mensile ·
+  Ogni due mesi · Trimestrale · Ogni sei mesi · Annuale*; periodo *Questo mese ·
+  Mese scorso · Questo trimestre · Trimestre scorso · Quest’anno · Intervallo
+  personalizzato*, trimestre *T1 2026*, rango *{desde} – {hasta}*, *Dal / Al*;
+  días *dom lun mar mer gio ven sab*; *slot del loop* (invariable),
+  *maggiorazione* (prima del Roadblock), *Non assegnata*, *disattivata*.
+- **Términos nuevos:** *immobile* (predio) · *impianto* para la pantalla de
+  inventario genérico (mapa, propuesta pública, Network, cupo) y *schermo* para
+  la digital (calculadora, loop, DOOHmain, franja) · *password*, *email* ·
+  *Impostazioni dell’account* / *Impostazioni dell’attività* (las dos
+  «Configuración») · *Tipografia* (rol) frente a *Stampa* (módulo) · *Team* ·
+  *Passa a* (entrar a otra organización) · *Responsabile vendite*, *Direttore
+  commerciale* · *Acquisizione siti* (Captación) · *Consumo elettrico* ·
+  *Provvigioni* · *tetto di sconto* · *Assistenza* · *Vedi* · *Salvataggio…* ·
+  papeles *AFFITTI · BENI · LICENZE · OPERATIVITÀ · VENDITE*.
+- **P3 cerrada por este lote:** comillas *caporali* « ».
+- **Infraestructura:** cerrados V5, V6 y V9 del validador de la ola 0, y la
+  omisión de `permitidos` ya no deja pasar un italiano apagado
+  (`idiomasPorOmision()`, el único cambio en `idiomas.ts`). Barrido común para
+  las pantallas italianas: `lib/test/barrido-italiano.ts`.
+- **Para el dueño:** `CampoCifra` lee las cifras a la mexicana también en
+  italiano (sus mensajes lo dicen); teclear a la italiana sería otra tarea.
