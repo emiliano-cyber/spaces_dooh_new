@@ -8,7 +8,10 @@ import {
   columnasDeLaSiembra,
   vencimiento,
   USUARIOS,
+  mesesDeDesplazamiento,
 } from './semilla-catalogo-demo.mjs'
+import { pngDeArte, imagenAHtml as imagenAHtmlSemilla } from './semilla-arte-demo.mjs'
+import { imagenAHtml, imagenDeHtml } from '@/lib/creativo-html'
 
 // ============================================================================
 //  El CATÁLOGO de la demo, probado sin Postgres.
@@ -45,7 +48,26 @@ describe('semilla-catalogo-demo', () => {
   })
 
   it('y se niega a sembrar con un «hoy» que deja la demo contradiciéndose', () => {
-    expect(comprobarCoherencia(plan('2026-11-25')).length).toBeGreaterThan(0)
+    // Con el calendario QUIETO (meses: 0), que es lo que pasa cuando la base
+    // ya se sembró con él y `main` lo reutiliza.
+    expect(comprobarCoherencia(planCatalogo({ ancla: '2026-11-25', meses: 0 })).length).toBeGreaterThan(0)
+  })
+
+  it('el calendario se mueve con el ancla y la demo es coherente CUALQUIER día hasta 2028', () => {
+    // Nació el 2026-11-03: «CAT-CMP-020 COTIZACION ya empezada» a media hora de
+    // una demo en vivo.
+    expect(mesesDeDesplazamiento('2026-10-06')).toBe(0)
+    expect(mesesDeDesplazamiento('2026-11-03')).toBe(1)
+    expect(mesesDeDesplazamiento('2028-01-20')).toBe(15)
+    const malos: string[] = []
+    for (let t = Date.UTC(2026, 9, 1); t <= Date.UTC(2028, 11, 31); t += 86_400_000) {
+      const d = new Date(t).toISOString().slice(0, 10)
+      if (comprobarCoherencia(plan(d)).length) malos.push(d)
+    }
+    expect(malos).toEqual([])
+    const nov = plan('2026-11-03')
+    expect(nov.campanas.find((c) => c.folio === 'CAT-CMP-020')!.desde).toBe('2026-12-01')
+    expect(nov.contratos.find((k) => k.clave === 'REF-1')!.inicio).toBe('2024-02-01')
   })
 
   it('hay historia desde 2024 y contratos y campañas hasta 2028', () => {
@@ -165,5 +187,49 @@ describe('semilla-catalogo-demo', () => {
     )
     const borradas = new Set(sentenciasDeshacer(plan(), TENANT).map((s) => /delete from (\w+)/.exec(s.sql)![1]))
     expect([...sembradas].filter((t) => !borradas.has(t))).toEqual([])
+  })
+
+  // ─── Creativos (lo pidió el dueño: creativos de fijas Y de digitales) ─────
+  it('hay creativos digitales en los tres estados y arte de fijas en los cinco de imprenta', () => {
+    const p = plan()
+    expect(new Set(p.creativos.map((c) => c.estatus))).toEqual(new Set(['VALIDADA', 'PENDIENTE', 'RECHAZADA']))
+    expect(new Set(p.impresiones.map((o) => o.estatus))).toEqual(
+      new Set(['ARTE_RECIBIDO', 'VALIDADO', 'EN_PRODUCCION', 'IMPRESO', 'LISTO_MONTAJE']),
+    )
+    expect(p.creativos.some((c) => c.resolucion === '1080x1920')).toBe(true)
+    expect(p.creativos.find((c) => c.estatus === 'RECHAZADA')!.motivo).toBeTruthy()
+  })
+
+  it('ningún creativo digital cae en una campaña toda fija (el servidor lo rechaza)', () => {
+    const p = plan()
+    for (const cr of p.creativos) expect(p.campanas.find((c) => c.folio === cr.campanaFolio)!.tipo).not.toBe('OOH')
+    for (const oi of p.impresiones) expect(p.sitios.find((s) => s.clave === oi.sitio)!.digital).toBe(false)
+  })
+
+  it('las campañas al aire tienen TODOS sus spots digitales con creativo aprobado', () => {
+    const p = plan()
+    for (const c of p.campanas.filter((x) => x.estado === 'ACTIVA')) {
+      for (const r of p.reservas.filter((x) => x.campanaFolio === c.folio && x.digital)) {
+        const a = p.asignaciones.find((x) => x.campanaFolio === c.folio && x.sitio === r.sitio)
+        expect(a, `${c.folio} ${r.sitio}`).toBeDefined()
+        for (const k of a!.creativos)
+          expect(p.creativos.find((cr) => cr.nombre === k.nombre)!.estatus).toBe('VALIDADA')
+      }
+    }
+  })
+
+  it('el arte es un PNG de verdad y se guarda envuelto como lo hace la pantalla de Creativos', () => {
+    const png = pngDeArte({ ancho: 64, alto: 36, fondo: '#000000', acento: '#FFFFFF', texto: '#FFFFFF', lineas: ['DEMO'] })
+    expect([...png.subarray(0, 8)]).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    const url = `data:image/png;base64,${png.toString('base64')}`
+    // Copia literal de la función de la app: si una cambia, esto lo dice.
+    expect(imagenAHtmlSemilla(url, 'x.png')).toBe(imagenAHtml(url, 'x.png'))
+    expect(imagenDeHtml(imagenAHtmlSemilla(url, 'x.png'))).toBe(url)
+  })
+
+  it('el reparto en los spots no pisa lo que ya se cambió en la demo', () => {
+    const spots = sentenciasDelCatalogo(plan(), TENANT, 'x'.repeat(12)).filter((s) => /^update reservas/.test(s.sql))
+    expect(spots.length).toBeGreaterThan(0)
+    for (const s of spots) expect(s.sql).toContain("and r.creativos = '[]'::jsonb")
   })
 })

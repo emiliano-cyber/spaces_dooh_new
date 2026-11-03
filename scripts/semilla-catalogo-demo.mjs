@@ -594,6 +594,33 @@ function precioDe(corto, desde, hasta, descuento) {
   return Math.round(sitio(corto).tarifa * mesesDe(desde, hasta) * (1 - descuento / 100))
 }
 
+// ─── El calendario se mueve con el ancla ────────────────────────────────────
+//
+// Las fechas de arriba se escribieron para octubre de 2026, y el catálogo se
+// negaba a sembrar desde el 1 de noviembre («CAT-CMP-020 COTIZACION ya
+// empezada»): una cotización que empezaba el 01/11 ya no era futura. Pasó la
+// mañana de una demo en vivo, el 2026-11-03.
+//
+// Ahora todo el calendario —campañas, propuestas, contratos y recibos— se
+// corre MESES ENTEROS: los que haya entre el mes del ancla y octubre de 2026.
+// Meses y no días, para que las campañas sigan empezando el día 1 y los
+// contratos en su día de pago. Con un ancla de octubre de 2026 no se mueve
+// nada, y las pruebas fijan ese caso.
+//
+// OJO, y es lo que hace falta entender antes de tocar esto: los contratos, las
+// rentas y los recibos se reconocen por FECHA. Sembrar sobre una base que ya
+// tiene el catálogo con otro desplazamiento los DUPLICARÍA. Por eso `main`
+// lee de la base el desplazamiento con el que se sembró y lo reutiliza; para
+// moverlo hay que `--deshacer` primero.
+export const MES_DEL_CALENDARIO = '2026-10'
+export const PRIMERA_CAMPANA = { folio: 'CAT-CMP-001', desde: '2024-01-08' }
+
+export function mesesDeDesplazamiento(ancla) {
+  const [a, m] = ancla.slice(0, 7).split('-').map(Number)
+  const [a0, m0] = MES_DEL_CALENDARIO.split('-').map(Number)
+  return (a - a0) * 12 + (m - m0)
+}
+
 /**
  * El plan entero como DATO puro: sin conexión y sin azar. La segunda corrida
  * produce las mismas claves naturales que la primera, que es lo que permite
@@ -604,8 +631,18 @@ export function planCatalogo(opciones = {}) {
   const slug = opciones.slug ?? 'demo-rentabilidad'
   const nombreOrg = opciones.nombreOrg ?? 'Organizacion DEMO Rentabilidad'
 
+  // El calendario entero se corre los meses que haya entre el ancla y el mes
+  // para el que se escribió (ver `mesesDeDesplazamiento`). Con eso una base
+  // sembrada en enero tiene campañas al aire en enero, y no las de octubre.
+  const meses = opciones.meses ?? mesesDeDesplazamiento(hoy)
+  const mv = (iso) => (iso && meses ? vencimiento(iso, meses, 'MENSUAL') : iso)
+  const contratosBase = CONTRATOS.map((k) => ({ ...k, inicio: mv(k.inicio), fin: mv(k.fin), canceladoEn: mv(k.canceladoEn) }))
+  const campanasBase = CAMPANAS.map((c) => ({ ...c, desde: mv(c.desde), hasta: mv(c.hasta) }))
+  const propuestasBase = PROPUESTAS.map((p) => ({ ...p, fecha: mv(p.fecha), desde: mv(p.desde), hasta: mv(p.hasta) }))
+  const luzDesde = mv(LUZ_DESDE)
+
   const reservas = []
-  for (const c of CAMPANAS) {
+  for (const c of campanasBase) {
     const estatus = ESTATUS_RESERVA[c.estado]
     if (!estatus) continue
     for (const p of c.pantallas) {
@@ -630,12 +667,12 @@ export function planCatalogo(opciones = {}) {
     }
   }
 
-  const campanas = CAMPANAS.map((c) => {
+  const campanas = campanasBase.map((c) => {
     const digitales = c.pantallas.filter((p) => sitio(p).digital).length
     const bruto = c.pantallas.reduce((a, p) => a + precioDe(p, c.desde, c.hasta, 0), 0)
     const neto = c.pantallas.reduce((a, p) => a + precioDe(p, c.desde, c.hasta, c.descuento), 0)
     const cliente = CLIENTES.find((x) => x.clave === c.cliente)
-    const propuesta = PROPUESTAS.find((p) => p.campanaFolio === c.folio)
+    const propuesta = propuestasBase.find((p) => p.campanaFolio === c.folio)
     return {
       ...c,
       nombre: `${cliente.nombre.replace(' DEMO', '')} · ${c.desde.slice(0, 7)}`,
@@ -651,7 +688,7 @@ export function planCatalogo(opciones = {}) {
     }
   })
 
-  const propuestas = PROPUESTAS.map((p) => {
+  const propuestas = propuestasBase.map((p) => {
     const cliente = CLIENTES.find((x) => x.clave === p.cliente)
     return {
       ...p,
@@ -730,7 +767,7 @@ export function planCatalogo(opciones = {}) {
 
   // ─── Calendario de rentas ─────────────────────────────────────────────────
   const pagos = []
-  for (const k of CONTRATOS) {
+  for (const k of contratosBase) {
     if (!k.fin || !k.renta) continue
     const fin = k.canceladoEn ?? k.fin
     const periodos = []
@@ -771,9 +808,9 @@ export function planCatalogo(opciones = {}) {
   const consumos = []
   for (const p of PREDIOS) {
     const luz = LUZ[p.clave]
-    const suyos = CONTRATOS.filter((k) => k.predio === p.clave && k.fin)
+    const suyos = contratosBase.filter((k) => k.predio === p.clave && k.fin)
     let i = 0
-    for (let mes = LUZ_DESDE; nDia(mes) <= nDia(ultimoMes); mes = vencimiento(mes, 1, 'MENSUAL'), i++) {
+    for (let mes = luzDesde; nDia(mes) <= nDia(ultimoMes); mes = vencimiento(mes, 1, 'MENSUAL'), i++) {
       const cubierto = suyos.some((k) => solapan(k.inicio, k.canceladoEn ?? k.fin, mes, masDias(vencimiento(mes, 1, 'MENSUAL'), -1)))
       if (!cubierto || luz.huecos.includes(i)) continue
       const kwh = luz.kwh + (((i * 7) % 9) - 4) * luz.paso
@@ -852,13 +889,16 @@ export function planCatalogo(opciones = {}) {
   return {
     organizacion: { slug, nombre: nombreOrg },
     hoy,
+    meses,
     creativos,
     asignaciones,
     impresiones,
     arrendadores: ARRENDADORES,
     predios: PREDIOS,
-    sitios: SITIOS,
-    contratos: CONTRATOS,
+    // Copias: una prueba que retoca una pantalla del plan no debe ensuciar el
+    // plan siguiente (las de SITIOS son del módulo).
+    sitios: SITIOS.map((s) => ({ ...s })),
+    contratos: contratosBase,
     clientes: CLIENTES,
     propuestas,
     campanas,
@@ -1453,7 +1493,9 @@ const USO = `uso:
   --crear-org             permite crearla si no existe
   --org-nombre=<texto>    su nombre visible si hay que crearla
   --comprobar             solo LEE la base: organizacion, columnas y claves ajenas
-  --ancla=AAAA-MM-DD      el «hoy» de la semilla (por omision hoy)
+  --ancla=AAAA-MM-DD      el «hoy» de la semilla (por omision hoy). El calendario se
+                          corre los meses que haya entre ese mes y octubre de 2026
+  --meses=N               fuerza ese desplazamiento en meses (por omision, el del ancla)
   --resumen               imprime lo que sembraria y NO toca ninguna base
   --deshacer              borra lo sembrado por este script (lo CAT-) de esa organizacion`
 
@@ -1472,6 +1514,7 @@ function opcionesDeArgv(args) {
     if (k === 'org') o.slug = v
     else if (k === 'org-nombre') o.nombreOrg = v
     else if (k === 'ancla') o.ancla = v
+    else if (k === 'meses') o.meses = Number(v)
     else throw new Error(`opcion desconocida: --${k}\n\n${USO}`)
   }
   return o
@@ -1480,7 +1523,7 @@ function opcionesDeArgv(args) {
 function imprimirResumen(plan) {
   const cuenta = (lista, f) => Object.entries(lista.reduce((m, x) => ((m[f(x)] = (m[f(x)] ?? 0) + 1), m), {}))
     .map(([k, n]) => `${k} ${n}`).join(' · ')
-  console.log(`\nCATALOGO DE LA DEMO — organizacion '${plan.organizacion.slug}', hoy = ${plan.hoy}`)
+  console.log(`\nCATALOGO DE LA DEMO — organizacion '${plan.organizacion.slug}', hoy = ${plan.hoy}, calendario movido ${plan.meses} meses`)
   console.log(`  pantallas    ${plan.sitios.length}: ${cuenta(plan.sitios, (s) => (s.digital ? 'digital' : 'fija'))}`)
   console.log(`    fijas      ${cuenta(plan.sitios.filter((s) => !s.digital), (s) => s.comercial)}`)
   console.log(`    digitales  ${cuenta(plan.sitios.filter((s) => s.digital), (s) => s.comercial)}`)
@@ -1567,6 +1610,31 @@ export async function main(argv = process.argv) {
       console.error('ERROR semilla-catalogo-demo: no se escribe nada:')
       for (const m of base.problemas) console.error(`  - ${m}`)
       return 1
+    }
+    // El calendario con el que YA se sembró manda (ver `mesesDeDesplazamiento`):
+    // sembrar con otro duplicaría contratos, rentas y recibos, que se
+    // reconocen por fecha.
+    if (base.tenantId) {
+      const previa = await cli.query(
+        `select to_char(fecha_inicio, 'YYYY-MM-DD') as d from campanas where tenant_id = $1::uuid and folio = $2::text`,
+        [base.tenantId, PRIMERA_CAMPANA.folio],
+      )
+      if (previa.rows.length) {
+        const ya = mesesDeDesplazamiento(previa.rows[0].d) - mesesDeDesplazamiento(PRIMERA_CAMPANA.desde)
+        if (ya !== plan.meses) {
+          plan = planCatalogo({ ...o, meses: ya })
+          const malos2 = comprobarCoherencia(plan)
+          console.log(`el catalogo ya estaba sembrado con el calendario movido ${ya} meses: se reutiliza.`)
+          if (malos2.length) {
+            console.error(
+              'ERROR semilla-catalogo-demo: con ese calendario la demo ya no es coherente hoy. ' +
+                'Para moverlo: --deshacer y volver a sembrar.',
+            )
+            for (const m of malos2) console.error(`  - ${m}`)
+            return 1
+          }
+        }
+      }
     }
     if (o.comprobar) {
       console.log('--comprobar: la base admite el catalogo. No se escribio nada.')
