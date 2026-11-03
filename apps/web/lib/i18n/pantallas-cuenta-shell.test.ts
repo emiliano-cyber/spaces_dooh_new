@@ -945,6 +945,19 @@ const PANTALLAS: Pantalla[] = [
     espanol: ['Enlace no válido', 'Esta liga no corresponde a ninguna propuesta.'],
     ingles: ['Invalid link', 'This link doesn’t match any proposal.'],
   },
+  {
+    // Ola 5 (recorrido en navegador): el boton que cierra el menu lateral en el
+    // movil tenia el aria-label «Cerrar menú» escrito a mano, aunque la clave
+    // `shell.topbar.cerrar-menu` ya existia para la barra superior.
+    nombre: 'shell · menu lateral (el panel del movil)',
+    pintar: async (idioma) => {
+      const { Sidebar } = await import('../../components/demo/shell/Sidebar')
+      const { MenuMovilProvider } = await import('../../components/demo/shell/MenuMovilContext')
+      return pintar(idioma, createElement(MenuMovilProvider, null, createElement(Sidebar)))
+    },
+    espanol: ['aria-label="Cerrar menú"'],
+    ingles: ['aria-label="Close menu"'],
+  },
 ]
 
 function volcar(i: number, html: string) {

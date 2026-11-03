@@ -244,6 +244,7 @@ function SidebarContent({
 
 export function Sidebar() {
   const { abierto, cerrar, colapsado, montado, alternarColapso } = useMenuMovil()
+  const { t } = useIdioma()
 
   return (
     <>
@@ -280,7 +281,7 @@ export function Sidebar() {
           <button
             type="button"
             onClick={cerrar}
-            aria-label="Cerrar menú"
+            aria-label={t('shell.topbar.cerrar-menu')}
             className="absolute right-2 top-2.5 z-10 flex h-8 w-8 items-center justify-center rounded text-muted hover:bg-surface-2"
           >
             <X className="h-4 w-4" />
