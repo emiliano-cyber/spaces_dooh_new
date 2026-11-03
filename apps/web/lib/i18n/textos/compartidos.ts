@@ -310,6 +310,6 @@ export const EN_COMPARTIDOS: Record<ClaveCompartidos, string> = {
   'compartidos.cifra.max-decimales.otros': 'At most {n} decimal places',
   'compartidos.cifra.grande': 'That number is too large',
   'compartidos.cifra.negativo': 'It cannot be negative',
-  'compartidos.cifra.menor': 'It cannot be less than {n}',
+  'compartidos.cifra.menor': 'Must not be less than {n}',
   'compartidos.cifra.mayor': 'Must not be greater than {n}',
 }

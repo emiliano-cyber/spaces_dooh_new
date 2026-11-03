@@ -11,6 +11,7 @@ import { ES_CUENTA, EN_CUENTA } from './cuenta'
 import { ES_SHELL, EN_SHELL } from './shell'
 import { ES_SERVIDOR, EN_SERVIDOR } from './servidor'
 import { DICCIONARIOS } from '../diccionario'
+import { traducirError } from '../errores-servidor'
 
 // ============================================================================
 //  LA COSTURA DE LOS LOTES DEL INGLES (2026-11-02).
@@ -135,5 +136,78 @@ describe('costura · los lotes dicen lo mismo de la misma manera', () => {
     // two weeks» y la costura habia dejado «every 2 months» / «every 6 months».
     const malas = TODO_EN.filter(([, v]) => /\bevery \d|\b\d+-(week|month|day)\b/i.test(v))
     expect(malas.map(([k]) => k)).toEqual([])
+  })
+
+  // «peso» que NO es dinero: el grosor de una letra o la importancia de algo.
+  // Cada excepcion es una frase entera, con su motivo; un «peso» suelto sigue
+  // cayendo. (Space Eyes aun no esta traducido: cuando lo este, «Peso de la
+  // fuente» llegara a un diccionario y no debe hacer caer la guardia.)
+  const PESO_QUE_NO_ES_DINERO: Record<string, string> = {
+    'peso de la fuente': 'el grosor de la letra en el editor de Space Eyes (AjustarTexto.tsx)',
+    'peso visual': 'la importancia de un boton en la ficha del sitio (SiteFicha.tsx)',
+  }
+
+  it('ningun texto da por hecho la moneda: es de la instancia (ADR 0048)', () => {
+    // «Precio del conjunto (pesos enteros)», «cuadra al peso», «whole number of
+    // pesos»… eran falsos en una instancia en dolares. Se dice neutro:
+    // «cantidad entera», «sin centavos», «exacto». El nombre de la moneda sale
+    // de `nombreMoneda()` y su simbolo de `simboloMoneda()`, nunca de un
+    // diccionario: ni la palabra (pesos, dolares, M.N.) ni el codigo (MXN, USD).
+    // Los huecos no cuentan: `{peso}` es el nombre de una pieza, no texto.
+    const sinExcepciones = (v: string) => {
+      let t = v.replace(/\{\w+\}/g, '')
+      for (const frase of Object.keys(PESO_QUE_NO_ES_DINERO)) t = t.replace(new RegExp(frase, 'gi'), '')
+      return t
+    }
+    const malas = (['es', 'en'] as const).flatMap((idioma) =>
+      Object.entries(DICCIONARIOS[idioma] as Record<string, string>)
+        .filter(([, v]) => {
+          const t = sinExcepciones(v)
+          return /\bpesos?\b|\bM\.N\.|\bd[oó]lar(es)?\b|\bdollars?\b/i.test(t) || /\b(MXN|USD)\b/.test(t)
+        })
+        .map(([k]) => `${idioma}:${k}`),
+    )
+    expect(malas).toEqual([])
+  })
+
+  it('las excepciones de «peso» son frases que no hablan de dinero (y no tapan un «pesos» de verdad)', () => {
+    for (const frase of Object.keys(PESO_QUE_NO_ES_DINERO)) expect(frase).not.toMatch(/\bpesos\b|centav|precio|monto|importe/i)
+  })
+
+  // El mismo espanol que manda el servidor tiene que leerse igual en ingles en
+  // la pantalla y en el error. Medido el 02/11 recorriendo el diccionario: el
+  // servidor (`traducirError`) conoce 19 textos espanoles del diccionario
+  // —7 con hueco, que van por `PATRONES_ERROR`, y 12 frases fijas—. Coinciden
+  // 10. Los 9 que divergen son todos de la calculadora y estan aqui, uno por
+  // uno: unificarlos es del lote del servidor (ola 4), no de esta prueba. Cuando
+  // se unifique uno, la segunda prueba obliga a quitarlo de la lista.
+  // Al juntar con el lote del servidor (ola 4, 2026-11-02) los ocho se
+  // unificaron: el servidor dice ya el ingles de la pantalla. Queda solo el
+  // singular de «pocos libres», y no por divergir: `rellenar` pone 1000 en
+  // el hueco, asi que el servidor elige con razon la forma plural.
+  const CALCULADORA_DIVERGE_OLA_4 = [
+    'compartidos.calc.motivo.pocos-libres.uno',
+  ]
+  const ES_D = DICCIONARIOS.es as Record<string, string>
+  const EN_D = DICCIONARIOS.en as Record<string, string>
+  const rellenar = (t: string) => t.replace(/\{\w+\}/g, '1000')
+  const conocidasPorElServidor = Object.keys(ES_D).filter((k) => traducirError(rellenar(ES_D[k]), 'en') !== rellenar(ES_D[k]))
+  const igualQueElServidor = (k: string) => rellenar(EN_D[k]) === traducirError(rellenar(ES_D[k]), 'en')
+
+  it('un texto que tambien manda el servidor se dice igual en el campo y en el error', () => {
+    // «No puede ser mayor que {n}» lo pinta CampoCifra y lo manda zod: el campo
+    // decia «It cannot be greater than» y el servidor «Must not be greater
+    // than» (validador de catalogos). Se rellenan los huecos con una cifra.
+    const distintos = conocidasPorElServidor
+      .filter((k) => !CALCULADORA_DIVERGE_OLA_4.includes(k) && !igualQueElServidor(k))
+      .map((k) => `${k}: «${rellenar(EN_D[k])}» / servidor «${traducirError(rellenar(ES_D[k]), 'en')}»`)
+    expect(distintos).toEqual([])
+    // Y que la prueba mire algo: si el diccionario o el catalogo cambian y esto
+    // se queda en cero, no protege nada.
+    expect(conocidasPorElServidor.filter((k) => !CALCULADORA_DIVERGE_OLA_4.includes(k)).length).toBeGreaterThanOrEqual(10)
+  })
+
+  it('las excepciones de la calculadora siguen divergiendo (si una se unifica, se quita de la lista)', () => {
+    expect(CALCULADORA_DIVERGE_OLA_4.filter((k) => !conocidasPorElServidor.includes(k) || igualQueElServidor(k))).toEqual([])
   })
 })

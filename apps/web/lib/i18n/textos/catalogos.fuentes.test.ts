@@ -200,5 +200,13 @@ describe('captura-cifra · los motivos, rama por rama', () => {
     )
     expect(e('2.55', { decimales: 1 })).toBe(traducir('es', 'compartidos.cifra.max-decimales.uno', { n: 1 }))
     expect(e('5', { decimales: 2, minimo: 1000 })).toBe(traducir('es', 'compartidos.cifra.menor', { n: '1,000' }))
+    // Las seis que faltaban (validador de catalogos): sin ellas, retocar el
+    // literal del modulo —o la clave— no lo cazaba ninguna prueba.
+    expect(e('', { decimales: 2, permiteVacio: false })).toBe(traducir('es', 'compartidos.cifra.vacia'))
+    expect(e('2.5', { decimales: 0 })).toBe(traducir('es', 'compartidos.cifra.enteras'))
+    expect(e('2.5555', { decimales: 2 })).toBe(traducir('es', 'compartidos.cifra.max-decimales.otros', { n: 2 }))
+    expect(e('9'.repeat(30), { decimales: 2 })).toBe(traducir('es', 'compartidos.cifra.grande'))
+    expect(e('-5', { decimales: 2, minimo: 0 })).toBe(traducir('es', 'compartidos.cifra.negativo'))
+    expect(e('5000', { decimales: 2, maximo: 1000 })).toBe(traducir('es', 'compartidos.cifra.mayor', { n: '1,000' }))
   })
 })
