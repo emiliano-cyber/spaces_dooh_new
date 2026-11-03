@@ -1072,6 +1072,19 @@ const PANTALLAS: Pantalla[] = [
     espanol: ['ninguna: al publicar, esta pantalla no recibiría nada'],
     ingles: ['none: when publishing, this screen would receive nothing'],
   },
+  {
+    // Ola 5 (recorrido en navegador): el dato real de una pantalla fija es
+    // `fijo` (migracion g500_estaticas, el importador), no `fija`. El mapa solo
+    // conocia `fija`, asi que la ficha inglesa decia «Display: fijo».
+    nombre: 'ficha de una pantalla fija con el dato real «fijo»',
+    pintar: async (idioma) => {
+      const Ficha = await ficha()
+      const sitio = { ...SITIO_FIJO, id: 's8', exhibicion: 'fijo' }
+      return pintar(idioma, createElement(Ficha, { sitio: sitio as never, open: true, onOpenChange: () => {} }))
+    },
+    espanol: ['>fijo<'],
+    ingles: ['>static<'],
+  },
 ]
 
 // Con `VOLCAR_HTML=<carpeta>`, el HTML espanol de cada estado a disco: es lo

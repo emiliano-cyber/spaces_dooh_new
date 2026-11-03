@@ -370,6 +370,8 @@ export interface PasoPipeline {
   key: EtapaPipeline
   label: string
   fecha?: string
+  /** La fecha cruda (ISO) del paso, para que la pantalla la formatee en otro idioma (ola 5). */
+  iso?: string
 }
 export interface PipelineVista {
   etapa: EtapaPipeline
@@ -390,6 +392,7 @@ export function usePipeline(campanaId: string): PipelineVista | undefined {
       key: k,
       label: ETAPA_LABEL[k],
       fecha: fechas[k] ? formatFechaLocal(fechas[k]!) : undefined,
+      iso: fechas[k] ?? undefined,
     }))
     return { etapa, index: etapaIndex(etapa, etapas), pasos }
   }, [campanaId])

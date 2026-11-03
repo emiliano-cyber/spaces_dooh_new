@@ -444,7 +444,7 @@ const ESTADOS: Estado[] = [
     ],
     ingles: [
       'Stage', 'Sales rep', 'Contact', ' · by Feb 1, 2026', 'Edit details', 'Log progress', 'What happened',
-      'Next step date', 'To send it for review, this is missing: the address, the owner: an existing landlord or the contact’s name and phone.',
+      'Next step date', 'To send it for review, it still needs: the address, the owner: an existing landlord or the contact’s name and phone.',
       'Save progress', 'Log', 'Deleted user', 'Visit (note only)', 'Tiene vista',
     ],
   },

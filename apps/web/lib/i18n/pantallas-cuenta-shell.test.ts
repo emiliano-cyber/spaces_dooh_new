@@ -174,8 +174,8 @@ const PIPELINE = {
   etapa: 'confirmada',
   index: 1,
   pasos: [
-    { key: 'reservada', label: 'Reservada', fecha: '01/11' },
-    { key: 'confirmada', label: 'Confirmada', fecha: '02/11' },
+    { key: 'reservada', label: 'Reservada', fecha: '01/11', iso: '2026-11-01T12:00:00' },
+    { key: 'confirmada', label: 'Confirmada', fecha: '02/11', iso: '2026-11-02T12:00:00' },
     { key: 'publicada', label: 'Publicada' },
   ],
 }
@@ -460,8 +460,10 @@ const PANTALLAS: Pantalla[] = [
       const { PipelineView } = await import('../../components/demo/campanas/PipelineView')
       return pintar(idioma, createElement(PipelineView, { campanaId: 'c1' }))
     },
-    espanol: ['>Reservada<', '>Confirmada<', '>Publicada<'],
-    ingles: ['>Booked<', '>Confirmed<'],
+    // Ola 5: la fecha de cada paso salia «03/11» (dd/mm) tambien en ingles,
+    // donde se lee 11 de marzo. En ingles va «Nov 1»; en español, la de siempre.
+    espanol: ['>Reservada<', '>Confirmada<', '>Publicada<', '>01/11<', '>02/11<'],
+    ingles: ['>Booked<', '>Confirmed<', '>Nov 1<', '>Nov 2<'],
   },
 
   // ─── CUENTA ───────────────────────────────────────────────────────────────
@@ -863,6 +865,8 @@ const PANTALLAS: Pantalla[] = [
       'placeholder="Tu nombre y cargo"',
       'Aceptar propuesta',
       'Spaces · propuesta comercial',
+      // Ola 5: el tipo de medio va como codigo en español (asi era); en ingles salia «PANTALLA_DIGITAL».
+      ' · PANTALLA_DIGITAL',
     ],
     ingles: [
       'Sales proposal',
@@ -895,6 +899,7 @@ const PANTALLAS: Pantalla[] = [
       'placeholder="Your name and title"',
       'Accept proposal',
       'Spaces · sales proposal',
+      ' · Digital screen',
     ],
   },
   {
@@ -944,6 +949,19 @@ const PANTALLAS: Pantalla[] = [
     },
     espanol: ['Enlace no válido', 'Esta liga no corresponde a ninguna propuesta.'],
     ingles: ['Invalid link', 'This link doesn’t match any proposal.'],
+  },
+  {
+    // Ola 5 (recorrido en navegador): el boton que cierra el menu lateral en el
+    // movil tenia el aria-label «Cerrar menú» escrito a mano, aunque la clave
+    // `shell.topbar.cerrar-menu` ya existia para la barra superior.
+    nombre: 'shell · menu lateral (el panel del movil)',
+    pintar: async (idioma) => {
+      const { Sidebar } = await import('../../components/demo/shell/Sidebar')
+      const { MenuMovilProvider } = await import('../../components/demo/shell/MenuMovilContext')
+      return pintar(idioma, createElement(MenuMovilProvider, null, createElement(Sidebar)))
+    },
+    espanol: ['aria-label="Cerrar menú"'],
+    ingles: ['aria-label="Close menu"'],
   },
 ]
 

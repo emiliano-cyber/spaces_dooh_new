@@ -126,6 +126,9 @@ const LEGAL_LABEL: Record<string, ClaveTexto> = {
 const EXHIBICION: Record<string, ClaveTexto> = {
   digital: 'comercial.ficha.exhibicion.digital',
   fija: 'comercial.ficha.exhibicion.fija',
+  // Ola 5: el dato real de las fijas es `fijo` (migracion g500_estaticas y el
+  // importador). Su clave dice «fijo» en español, asi que el español no cambia.
+  fijo: 'comercial.ficha.exhibicion.fijo',
   rotativo: 'comercial.ficha.exhibicion.rotativo',
 }
 

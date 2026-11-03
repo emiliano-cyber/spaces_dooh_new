@@ -1,7 +1,7 @@
 ---
 tipo: tablero
 estado: en-curso
-actualizado: 2026-11-02
+actualizado: 2026-11-03
 tags: [frontend, i18n, ingles, olas, agentes, dinero]
 archivos:
   - apps/web/lib/i18n/diccionario.ts
@@ -109,6 +109,25 @@ Al 2026-11-02 por la noche **toda la interfaz está traducida e integrada** en `
 Recorrido completo de la aplicación con `IDIOMA_INGLES=1` en un navegador real,
 pantalla por pantalla. El inventario (`node scripts/i18n-inventario.mjs`) debe
 quedar solo con falsos positivos. Con eso, el dueño decide si se enciende.
+
+| Lote | Rama | Estado |
+|---|---|---|
+| Recorrido en navegador y menores de los validadores | `feat/ingles-ola5` | **Hecho, falta el validador** (2026-11-03) |
+
+Detalle del lote:
+
+- **Recorrido.** Todas las pantallas del menú, las fichas, los diálogos de alta y
+  las páginas públicas, en el 3420 con la base propia `spaces_ola5`.
+- **Siete hallazgos corregidos:** el galón de las tarjetas plegables, los fallos
+  de `/login`, el menú móvil, la periodicidad de la renta, las fechas del
+  pipeline, «fijo» y el tipo de medio en la liga pública.
+- **Los ocho menores de los validadores, cerrados:** la guardia M1, M2 y M3,
+  *legal entity*, las contracciones, «this is missing», el mutante `total<=2` y
+  «Check them».
+- **Cifras.** 6697 unitarias en verde y typecheck limpio. Español idéntico: 550
+  estados, 0 valores de `DICCIONARIOS.es` cambiados.
+- **Pendiente.** Tres decisiones nuevas para el dueño: notificaciones, papeles y
+  la lista de comprobación de una OT. Ver `docs/i18n/revision-ola5.md` §7.
 
 ## 3 · Decisiones del dueño (2026-11-02)
 

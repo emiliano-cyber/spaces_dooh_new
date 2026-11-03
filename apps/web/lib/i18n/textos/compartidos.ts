@@ -154,6 +154,9 @@ export const ES_COMPARTIDOS = {
   'compartidos.candado.pide': 'Tu organización pide la contraseña para confirmar los cambios sensibles.',
   'compartidos.candado.falta': 'Escribe tu contraseña para confirmar.',
   'compartidos.candado.confirmar': 'Confirmar',
+  // El galon de `CardColapsable` (ola 5): el aria-label del boton, con el titulo por hueco.
+  'compartidos.plegar.minimizar': 'Minimizar {titulo}',
+  'compartidos.plegar.expandir': 'Expandir {titulo}',
 
   // ── lib/captura-cifra.ts · los motivos de CampoCifra (lote catalogos) ──
   // El espanol es el literal del modulo; las cifras de ejemplo van por hueco.
@@ -297,6 +300,8 @@ export const EN_COMPARTIDOS: Record<ClaveCompartidos, string> = {
   'compartidos.candado.pide': 'Your organization requires your password to confirm sensitive changes.',
   'compartidos.candado.falta': 'Enter your password to confirm.',
   'compartidos.candado.confirmar': 'Confirm',
+  'compartidos.plegar.minimizar': 'Collapse {titulo}',
+  'compartidos.plegar.expandir': 'Expand {titulo}',
 
   // ── lib/captura-cifra.ts · los motivos de CampoCifra (lote catalogos) ──
   'compartidos.cifra.forma': 'Enter digits only: the comma separates thousands and the period, decimals. Example: {ejemplo}',

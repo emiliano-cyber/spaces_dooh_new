@@ -15,13 +15,24 @@ export function PipelineView({
   orientation?: 'horizontal' | 'vertical'
 }) {
   const p = usePipeline(campanaId)
-  const { t, idioma } = useIdioma()
+  const { t, idioma, fecha } = useIdioma()
   if (!p) {
     return <div className="h-16 w-full animate-pulse rounded bg-surface-2" />
   }
   // I18N (lote shell, 2026-11-02) · la etiqueta de cada paso la arma
   // `usePipeline` con `ETAPA_LABEL` (espanol); en otro idioma, `CLAVE_ETAPA`
   // del lote de campanas, cuyo espanol ya esta atado a esa tabla.
-  const pasos = idioma === 'es' ? p.pasos : p.pasos.map((x) => ({ ...x, label: t(CLAVE_ETAPA[x.key]) }))
+  //
+  // Ola 5 · la fecha de cada paso viene armada como «dd/mm» (`formatFechaLocal`
+  // en `lib/data/client.ts`). En ingles «03/11» se lee 11 de marzo, asi que se
+  // rehace desde la fecha cruda con el formato ingles («Nov 3»).
+  const pasos =
+    idioma === 'es'
+      ? p.pasos
+      : p.pasos.map((x) => ({
+          ...x,
+          label: t(CLAVE_ETAPA[x.key]),
+          fecha: x.iso ? fecha(x.iso, { month: 'short', day: 'numeric' }) : x.fecha,
+        }))
   return <Stepper pasos={pasos} actualIndex={p.index} orientation={orientation} />
 }

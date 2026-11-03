@@ -824,7 +824,7 @@ const PANTALLAS: Pantalla[] = [
       'To be defined', 'Sold in “Navidad”', 'in 29 d', '670 d ago', 'Complete', 'Rent payments', '1 overdue', 'to pay',
       '8 days ago', 'in 2 days', 'Scheduled', 'Paid', 'Record payment', 'Rent reconciliation by landlord', 'Profitability by screen',
       'Revenue/mo', 'Rent/mo', 'Margin/mo', 'no rent contract', 'Address', 'Contact', 'Properties', 'Missing', 'Deactivate',
-      'Legal entities', '1 without a legal name', 'By legal entity', 'Overdue payments', 'No legal name',
+      'Legal entities', '1 without a legal entity', 'By legal entity', 'Overdue payments', 'No legal entity',
     ],
   },
   {
@@ -1162,7 +1162,7 @@ const PANTALLAS: Pantalla[] = [
       return pintar(idioma, createElement(LicenciasCard, { predioId: null, sitioId: 's9', onToast: () => {} }))
     },
     espanol: ['No puede ser anterior a la expedición', 'La licencia no puede vencer antes de expedirse.'],
-    ingles: ['Can’t be earlier than the issue date', 'The permit cannot expire before it is issued.'],
+    ingles: ['Cannot be earlier than the issue date', 'The permit cannot expire before it is issued.'],
   },
   {
     nombre: 'cuadre de renta · desplegado',

@@ -286,7 +286,8 @@ export const ESTADOS: Estado[] = [
       return pintar(idioma, createElement(SubirRecibos, { puntos: PUNTOS as never, onGuardado: () => {} }))
     },
     espanol: ['Se leyeron los 1 archivo y salen 1 renglón. Míralos contra el recibo y confírmalos: nada se guarda hasta que le des a guardar.', ' Guardado</span>'],
-    ingles: ['1 file was read and it produces 1 row.', ' Saved</span>'],
+    // Ola 5: con un renglon «Check them» no concordaba (validacion operaciones-2).
+    ingles: ['1 file was read and it produces 1 row. Check each row against the bill and confirm it: nothing is saved until you click save.', ' Saved</span>'],
   },
   {
     nombre: 'energia · leyendo, sin renglones, un error y un renglon guardando',
