@@ -293,6 +293,11 @@ function divergenciasItaliano(lotes: LoteIt[], excepciones: Record<string, strin
 // italiano necesite aparte lo declara aqui su lote, con el porque.
 const DISTINTOS_A_PROPOSITO_IT: Record<string, string> = {
   ...DISTINTOS_A_PROPOSITO,
+  // Lote L4 (2026-11-03).
+  Vencida:
+    'concuerda con lo que nombra: la cobranza es femenina («Scaduta») y la orden de trabajo de la ficha de campaña, en italiano «ordine», masculina («Scaduto»)',
+  Pantalla:
+    'glosario del italiano: «Schermo» para la pantalla DIGITAL (la columna de lo que se manda a DOOHmain) e «Impianto» para la del inventario en general (reportes, captacion)',
 }
 
 function lotesItaliano(): LoteIt[] {

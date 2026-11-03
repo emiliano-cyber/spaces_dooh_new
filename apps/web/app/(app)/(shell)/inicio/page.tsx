@@ -262,7 +262,7 @@ export default function DashboardPage() {
                   label={t('inicio.pipeline-abierto')}
                   value={formatMonto(pipeline.abierto.valor, idioma)}
                   sub={t('inicio.pipeline-sub', {
-                    propuestas: t(pipeline.abierto.n === 1 ? 'inicio.propuestas.uno' : 'inicio.propuestas.otros', { n: formatNumero(pipeline.abierto.n) }),
+                    propuestas: t(pipeline.abierto.n === 1 ? 'inicio.propuestas.uno' : 'inicio.propuestas.otros', { n: formatNumero(pipeline.abierto.n, 0, idioma) }),
                     enviadas: t(pipeline.abierto.enviadas === 1 ? 'inicio.enviadas.uno' : 'inicio.enviadas.otros', { n: pipeline.abierto.enviadas }),
                   })}
                   tono="ambar"
@@ -279,7 +279,7 @@ export default function DashboardPage() {
             <KPICard
               label={t('inicio.ganado-en', { mes: mesActual })}
               value={formatMonto(pipeline.ganadoMes.valor, idioma)}
-              sub={t(pipeline.ganadoMes.n === 1 ? 'inicio.aprobadas-propuestas.uno' : 'inicio.aprobadas-propuestas.otros', { n: formatNumero(pipeline.ganadoMes.n) })}
+              sub={t(pipeline.ganadoMes.n === 1 ? 'inicio.aprobadas-propuestas.uno' : 'inicio.aprobadas-propuestas.otros', { n: formatNumero(pipeline.ganadoMes.n, 0, idioma) })}
               tono="verde"
               icon={<Trophy className="h-4 w-4" />}
             />
@@ -291,12 +291,12 @@ export default function DashboardPage() {
               label={t('inicio.ocupacion-red')}
               value={`${m.ocupacionPct.toFixed(0)}%`}
               sub={t('inicio.ocupacion-red-sub', {
-                ocupados: formatNumero(m.espaciosOcupados),
-                capacidad: formatNumero(m.capacidadRed),
-                dOcupados: formatNumero(m.ocupacionDigitales.ocupados),
-                dCapacidad: formatNumero(m.ocupacionDigitales.capacidad),
-                fOcupados: formatNumero(m.ocupacionFijas.ocupados),
-                fCapacidad: formatNumero(m.ocupacionFijas.capacidad),
+                ocupados: formatNumero(m.espaciosOcupados, 0, idioma),
+                capacidad: formatNumero(m.capacidadRed, 0, idioma),
+                dOcupados: formatNumero(m.ocupacionDigitales.ocupados, 0, idioma),
+                dCapacidad: formatNumero(m.ocupacionDigitales.capacidad, 0, idioma),
+                fOcupados: formatNumero(m.ocupacionFijas.ocupados, 0, idioma),
+                fCapacidad: formatNumero(m.ocupacionFijas.capacidad, 0, idioma),
               })}
               tono="azul"
               icon={<Gauge className="h-4 w-4" />}
@@ -335,7 +335,7 @@ export default function DashboardPage() {
             />
             <span className="text-muted">
               {precio.fase === 'datos'
-                ? `${t(precio.conTarifa === 1 ? 'inicio.de-ventas.uno' : 'inicio.de-ventas.otros', { n: formatNumero(precio.conTarifa) })}${precio.sinTarifa ? t('inicio.sin-tarifa', { n: precio.sinTarifa }) : ''}`
+                ? `${t(precio.conTarifa === 1 ? 'inicio.de-ventas.uno' : 'inicio.de-ventas.otros', { n: formatNumero(precio.conTarifa, 0, idioma) })}${precio.sinTarifa ? t('inicio.sin-tarifa', { n: precio.sinTarifa }) : ''}`
                 : precio.fase === 'sin-datos'
                   ? t('inicio.sin-ventas')
                   : precio.fase === 'cargando'
@@ -356,7 +356,7 @@ export default function DashboardPage() {
           subtitulo={
             serie ? (
               <>
-                {t('inicio.ocupacion-sub', { ocupados: formatNumero(serie.diasOcupados), disponibles: formatNumero(serie.diasDisponibles) })}
+                {t('inicio.ocupacion-sub', { ocupados: formatNumero(serie.diasOcupados, 0, idioma), disponibles: formatNumero(serie.diasDisponibles, 0, idioma) })}
               </>
             ) : undefined
           }
@@ -385,8 +385,8 @@ export default function DashboardPage() {
           ) : (
             <div className="space-y-3 text-[12px]">
               <div className="grid grid-cols-2 gap-3">
-                <Dato label={t('inicio.abierto')} valor={formatMonto(pipeline.abierto.valor, idioma)} sub={t(pipeline.abierto.n === 1 ? 'inicio.propuestas.uno' : 'inicio.propuestas.otros', { n: formatNumero(pipeline.abierto.n) })} />
-                <Dato label={t('inicio.ganado-en', { mes: mesActual })} valor={formatMonto(pipeline.ganadoMes.valor, idioma)} sub={t(pipeline.ganadoMes.n === 1 ? 'inicio.aprobadas.uno' : 'inicio.aprobadas.otros', { n: formatNumero(pipeline.ganadoMes.n) })} />
+                <Dato label={t('inicio.abierto')} valor={formatMonto(pipeline.abierto.valor, idioma)} sub={t(pipeline.abierto.n === 1 ? 'inicio.propuestas.uno' : 'inicio.propuestas.otros', { n: formatNumero(pipeline.abierto.n, 0, idioma) })} />
+                <Dato label={t('inicio.ganado-en', { mes: mesActual })} valor={formatMonto(pipeline.ganadoMes.valor, idioma)} sub={t(pipeline.ganadoMes.n === 1 ? 'inicio.aprobadas.uno' : 'inicio.aprobadas.otros', { n: formatNumero(pipeline.ganadoMes.n, 0, idioma) })} />
                 <Dato label={t('inicio.tasa')} valor={tasa} sub={t('inicio.ultimos', { n: VENTANA_TASA_DIAS })} />
               </div>
               <div>
@@ -438,7 +438,7 @@ export default function DashboardPage() {
                 <div className="flex flex-wrap gap-1.5 text-[11px]">
                   {rojas > 0 && (
                     <span className="rounded-full border border-[#ef444440] px-2 py-0.5 font-medium text-error">
-                      {t(rojas === 1 ? 'inicio.urgentes.uno' : 'inicio.urgentes.otros', { n: formatNumero(rojas) })}
+                      {t(rojas === 1 ? 'inicio.urgentes.uno' : 'inicio.urgentes.otros', { n: formatNumero(rojas, 0, idioma) })}
                     </span>
                   )}
                   {porTipo.map((ta) => (
@@ -582,7 +582,7 @@ export default function DashboardPage() {
                       title={t(tr.n === 1 ? 'inicio.tramo-titulo.uno' : 'inicio.tramo-titulo.otros', {
                         tramo: t(CLAVE_TRAMO[tr.clave]),
                         monto: formatMonto(tr.monto, idioma),
-                        n: formatNumero(tr.n),
+                        n: formatNumero(tr.n, 0, idioma),
                       })}
                     >
                       <div className="flex items-center justify-between gap-2">

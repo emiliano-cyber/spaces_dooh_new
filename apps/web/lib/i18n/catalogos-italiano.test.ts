@@ -53,7 +53,10 @@ describe('catalogos fuera de textos/ · italiano = ingles mientras falte', () =>
   })
 })
 
-describe('el CSV del estado de cuenta en italiano · textos en ingles, formatos italianos', () => {
+// Lote L4 (2026-11-03): `finanzas` ya tiene italiano, asi que los textos del
+// CSV dejan de caer al ingles. La prueba completa, byte a byte, vive con las
+// del espanol y el ingles en `estado-cuenta-csv-idioma.test.ts`.
+describe('el CSV del estado de cuenta en italiano · textos y formatos italianos', () => {
   const datos = {
     periodo: { desde: '2026-09-01', hasta: '2026-09-30', etiqueta: 'Septiembre 2026' },
     hoy: '2026-10-06',
@@ -66,9 +69,9 @@ describe('el CSV del estado de cuenta en italiano · textos en ingles, formatos 
 
   it('fechas «10 set 2026», periodo «settembre 2026», MX$ en el encabezado, importes como numero', () => {
     const csv = csvEstadoCuenta(datos, 'Acme', () => 'Acme', false, 'it')
-    expect(csv).toContain('Period,settembre 2026,1 set 2026,30 set 2026')
-    expect(csv).toContain('Opening balance (MX$),11600')
-    expect(csv).toContain('\n10 set 2026,Invoice,F2,23200,,34800')
-    expect(nombreArchivoEstadoCuenta('2026-09-01', false, 'it')).toBe(nombreArchivoEstadoCuenta('2026-09-01', false, 'en'))
+    expect(csv).toContain('Periodo,settembre 2026,1 set 2026,30 set 2026')
+    expect(csv).toContain('Saldo iniziale (MX$),11600')
+    expect(csv).toContain('\n10 set 2026,Fattura,F2,23200,,34800')
+    expect(nombreArchivoEstadoCuenta('2026-09-01', false, 'it')).toBe('estratto-conto-2026-09.csv')
   })
 })
