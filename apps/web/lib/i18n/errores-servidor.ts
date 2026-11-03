@@ -1000,6 +1000,38 @@ export const PATRONES_ERROR: ReadonlyArray<PatronError> = [
     re: /^(.*?)El SVG contiene código ejecutable \(scripts o manejadores de eventos\) y no se puede aceptar$/,
     en: '$1The SVG contains executable code (scripts or event handlers) and cannot be accepted',
   },
+
+  // ── CONFIRMACIONES DE APROBAR (2026-11-02, `feat/ingles-confirmaciones`) ──
+  //
+  // TOPE-03 · `mensajeTopeVigente` (`lib/descuento.ts`): aprobar con un
+  // descuento que ya no cabe en el tope VIGENTE. La ruta
+  // `PATCH /api/propuestas/[id]` lo responde a mano (409 con
+  // `descuentoSobreTope`) y lo pasa por `traducirError`: las cuatro cifras
+  // solo las tiene el servidor, asi que la pantalla no puede pintar su clave.
+  // Tres formas alcanzables: sin volumen, con volumen, y con el volumen solo
+  // por encima del tope (que implica volumen > 0, asi que siempre nombra el
+  // total). Las cifras salen de `pct()`: enteros o hasta dos decimales.
+  {
+    re: /^El descuento de esta propuesta, (\d+(?:\.\d+)?) %, supera el tope vigente de tu organización, (\d+(?:\.\d+)?) %: el tope se bajó después de guardarlo\. Ajusta el descuento antes de aprobarla \(cabe hasta (\d+(?:\.\d+)?) % comercial\), o pídele a Administración que suba el tope\.$/,
+    en:
+      'The discount on this proposal, $1%, is over your organization’s current discount cap, $2%: the cap was lowered ' +
+      'after it was saved. Adjust the discount before approving it (the commercial discount can go up to $3%), ' +
+      'or ask an admin to raise the cap in Settings.',
+  },
+  {
+    re: /^El descuento de esta propuesta, (\d+(?:\.\d+)?) % \((\d+(?:\.\d+)?) % en total con el (\d+(?:\.\d+)?) % por volumen\), supera el tope vigente de tu organización, (\d+(?:\.\d+)?) %: el tope se bajó después de guardarlo\. Ajusta el descuento antes de aprobarla \(cabe hasta (\d+(?:\.\d+)?) % comercial\), o pídele a Administración que suba el tope\.$/,
+    en:
+      'The discount on this proposal, $1% ($2% in total with the $3% volume discount), is over your organization’s ' +
+      'current discount cap, $4%: the cap was lowered after it was saved. Adjust the discount before approving it ' +
+      '(the commercial discount can go up to $5%), or ask an admin to raise the cap in Settings.',
+  },
+  {
+    re: /^El descuento de esta propuesta, (\d+(?:\.\d+)?) % \((\d+(?:\.\d+)?) % en total con el (\d+(?:\.\d+)?) % por volumen\), supera el tope vigente de tu organización, (\d+(?:\.\d+)?) %: el tope se bajó después de guardarlo\. El descuento por volumen \((\d+(?:\.\d+)?) %\) ya supera el tope \((\d+(?:\.\d+)?) %\): deja el descuento comercial en 0 % o pide a Administración que suba el tope\.$/,
+    en:
+      'The discount on this proposal, $1% ($2% in total with the $3% volume discount), is over your organization’s ' +
+      'current discount cap, $4%: the cap was lowered after it was saved. The volume discount ($5%) is already ' +
+      'over the cap ($6%): leave the commercial discount at 0% or ask an admin to raise the cap in Settings.',
+  },
 ]
 
 // Rearma un patron con los huecos del mensaje: `$n` (pasado por su funcion de

@@ -69,6 +69,14 @@ export const ES_SERVIDOR = {
   'servidor.codigo.aprobar-con-pendiente':
     'Primero aprueba o rechaza el código promocional: está pendiente de aprobación y el cliente todavía no lo ve.',
 
+  // ── Aprobar en $0 (`PropuestaCeroError`, `lib/server/propuestas-repo.ts`) ──
+  // La ruta lo responde a mano con `requiereConfirmacionCero` y la pantalla lo
+  // pregunta en un `window.confirm`: pinta ESTA clave, no el `error` del
+  // servidor. `{total}` es `formatearDineroRedondo(0, idioma)` —«$0» en
+  // español, como el literal del servidor—: ninguna cifra en el diccionario.
+  'servidor.propuesta.aprobar-en-cero':
+    'Estás por aprobar una propuesta con Total {total}. Confirma explícitamente para continuar.',
+
   // ── El periodo de los tableros (`periodoDe` y los esquemas que lo leen) ──
   // Viajan por variable (`AppError(e.message)`) o como motivo de zod: la
   // guardia de literales no los ve.
@@ -118,6 +126,8 @@ export const EN_SERVIDOR: Record<ClaveServidor, string> = {
 
   'servidor.codigo.aprobar-con-pendiente':
     'First approve or reject the negotiation code: it is pending approval and the client cannot see it yet.',
+  'servidor.propuesta.aprobar-en-cero':
+    'You are about to approve a proposal with a total of {total}. Confirm explicitly to continue.',
 
   'servidor.periodo.invalido': 'Invalid period',
   'servidor.periodo.rango': 'The range needs a start date and an end date (YYYY-MM-DD)',

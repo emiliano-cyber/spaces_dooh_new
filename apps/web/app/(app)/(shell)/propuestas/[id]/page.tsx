@@ -5,6 +5,7 @@ import { pctConDosDecimales } from '@/lib/descuento-comercial'
 import { conteo } from '@/lib/plural'
 import { useIdioma, useTexto } from '@/lib/i18n/contexto'
 import { interpolarNodos } from '@/lib/i18n/nodos'
+import { formatearDineroRedondo } from '@/lib/i18n/dinero'
 import { resumenContratacion, etiquetaFrecuencia } from '@/lib/periodos'
 import { periodicidadLabel } from '@/lib/renta-periodicidad'
 import { etiquetaCalculadora } from '@/lib/calculadora-spots'
@@ -316,7 +317,11 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
       await cambiarEstatusPropuestaApi(id, estatus, confirmarCero)
     } catch (e) {
       if (e instanceof ConfirmacionCeroError) {
-        if (window.confirm(`${e.message}\n\n${t('propuestas.comun.aprobar-igual')}`)) return cambiar(estatus, true)
+        // I18N (2026-11-02) · la pregunta la pinta la pantalla con su clave, como
+        // el cupon pendiente: el `error` de la ruta llega siempre en español (no
+        // pasa por `respuestaError()`). Se reconoce por la bandera
+        // `requiereConfirmacionCero`, y confirmar reintenta igual que antes.
+        if (window.confirm(`${t('servidor.propuesta.aprobar-en-cero', { total: formatearDineroRedondo(0, idioma) })}\n\n${t('propuestas.comun.aprobar-igual')}`)) return cambiar(estatus, true)
         return
       }
       if (e instanceof CodigoPendienteApiError) return void toast.error(t('servidor.codigo.aprobar-con-pendiente'))

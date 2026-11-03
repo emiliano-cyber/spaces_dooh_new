@@ -15,6 +15,8 @@ import { generarCampanaDesdePropuesta, PropuestaCampanaError } from '@/lib/serve
 import { registrarAccion } from '@/lib/server/acciones-repo'
 import { monedaDeLaInstancia } from '@/lib/server/moneda-instancia'
 import { simboloMoneda } from '@/lib/i18n/dinero'
+import { traducirError } from '@/lib/i18n/errores-servidor'
+import { idiomaDeLaPeticion } from '@/lib/i18n/servidor'
 import { notificar } from '@/lib/server/notificaciones-repo'
 import { textoBitacoraPropuesta } from '@/lib/descuento'
 
@@ -170,8 +172,15 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     // TOPE-03 · el descuento guardado ya no cabe en el tope VIGENTE: 409 con la
     // frase que dice los dos números y qué hacer. Conflicto de estado, como el
     // de arriba: la petición está bien formada, lo que cambió fue el tope.
+    //
+    // I18N (2026-11-02) · esta respuesta no pasa por `respuestaError()`, así que
+    // la frase se traduce aquí, con el mismo `traducirError` del embudo. En
+    // español devuelve el mensaje tal cual; el status y la bandera no cambian.
     if (e instanceof TopeVigenteError) {
-      return NextResponse.json({ error: e.message, descuentoSobreTope: true }, { status: 409 })
+      return NextResponse.json(
+        { error: traducirError(e.message, idiomaDeLaPeticion()), descuentoSobreTope: true },
+        { status: 409 },
+      )
     }
     return NextResponse.json(
       { error: e instanceof Error ? e.message : 'No se pudo actualizar' },

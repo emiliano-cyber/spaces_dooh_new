@@ -79,6 +79,7 @@ import {
 } from '@/lib/periodos'
 import { PERIODICIDADES, factorMensual, periodicidadLabel } from '@/lib/renta-periodicidad'
 import { formatNumero } from '@/lib/formato-numero'
+import { formatearDineroRedondo } from '@/lib/i18n/dinero'
 
 // Periodicidades de la renta al propietario (enum `periodicidad_pago` en la BD)
 // y su equivalencia a mensual: ambas vienen de lib/renta-periodicidad.ts, la
@@ -408,7 +409,11 @@ function PropuestaCard({
       await cambiarEstatusPropuestaApi(p.id, estatus, confirmarCero)
     } catch (e) {
       if (e instanceof ConfirmacionCeroError) {
-        if (window.confirm(`${e.message}\n\n${t('propuestas.comun.aprobar-igual')}`)) return cambiar(estatus, true)
+        // I18N (2026-11-02) · la pregunta la pinta la pantalla con su clave, como
+        // el cupon pendiente: el `error` de la ruta llega siempre en español (no
+        // pasa por `respuestaError()`). Se reconoce por la bandera
+        // `requiereConfirmacionCero`, y confirmar reintenta igual que antes.
+        if (window.confirm(`${t('servidor.propuesta.aprobar-en-cero', { total: formatearDineroRedondo(0, idioma) })}\n\n${t('propuestas.comun.aprobar-igual')}`)) return cambiar(estatus, true)
         return
       }
       if (e instanceof CodigoPendienteApiError) return void toast.error(t('servidor.codigo.aprobar-con-pendiente'))

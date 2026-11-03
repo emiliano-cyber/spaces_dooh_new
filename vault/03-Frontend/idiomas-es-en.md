@@ -1395,6 +1395,41 @@ para cada una armada con valores de ejemplo y para cada clave del catálogo.
 - El nombre del punto que devuelve `geo-buscar` («Punto del enlace de Google
   Maps», «Coordenadas …»), que es dato de respuesta y no error.
 
+> [!success] 2026-11-02 · las confirmaciones de APROBAR, ya en inglés (`feat/ingles-confirmaciones`)
+> Lo que el validador dejó como «la mezcla más llamativa»: los dos 409 que
+> `PATCH /api/propuestas/[id]` responde a mano en el flujo de aprobar. **Una vía
+> por respuesta**, la que menos toca en cada caso:
+>
+> - **Aprobar en $0** (`requiereConfirmacionCero`, el `window.confirm`): la
+>   bandera y `ConfirmacionCeroError` ya existían, así que **la ruta no se
+>   tocó**. Las dos pantallas (`propuestas/page.tsx` y `propuestas/[id]/page.tsx`)
+>   pintan `servidor.propuesta.aprobar-en-cero` con
+>   `{total}` = `formatearDineroRedondo(0, idioma)`: «$0» en español —el literal
+>   del servidor— y «MX$0» en inglés. **No `formatMonto`**: daría «$ 0.00» y el
+>   español dejaría de ser idéntico. Confirmar sigue reintentando con
+>   `confirmarCero: true`.
+> - **Descuento sobre el tope vigente** (`descuentoSobreTope`, un toast): la
+>   frase de `mensajeTopeVigente` lleva cuatro cifras que solo tiene el
+>   servidor, y pintar una clave en la pantalla obligaba a mandarlas y a
+>   rehacer la cuenta en el cliente. La ruta pasa el `error` por
+>   `traducirError(e.message, idiomaDeLaPeticion())` —lo mismo que hace el
+>   embudo— y `PATRONES_ERROR` gana **tres patrones** (las tres formas
+>   alcanzables de la frase). En español `traducirError` devuelve el mensaje tal
+>   cual; el 409 y la bandera no cambian. `lib/server/errores.ts` no se tocó.
+>
+> Prueba: `lib/i18n/confirmaciones-aprobar.test.ts` (12, primero en rojo: 8).
+> Afirma el confirm español entero contra el literal de `propuestas-repo.ts`,
+> el inglés exacto, y la ruta con mocks: mismo status, misma bandera y
+> `confirmarCero` llegando al repo. Las pruebas que afirman el español
+> (`tope-descuento.e2e`, `propuestas-repo-tope-vigente`, `descuento.tope`)
+> pasan sin tocarse; solo se regeneró la instantánea de `textos/servidor`
+> (una clave más, sin cambiar ninguna).
+>
+> **Sigue en español en ese flujo, y no es una confirmación:** «La negociación
+> con la agencia … no está validada» (el 400 genérico de la misma ruta) y la
+> frase del tope en la **edición** del descuento (la otra rama del `PATCH`).
+> La liga pública dice `MSJ_TOPE_VIGENTE_PUBLICO`, otra ruta.
+
 ## Enlaces
 
 - [[ingles-olas]] — el tablero de la traducción: qué lote, en qué rama, qué validador y qué falta
