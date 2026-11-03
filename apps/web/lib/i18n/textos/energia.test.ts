@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { ES_ENERGIA, EN_ENERGIA } from './energia'
+import { ES_ENERGIA, EN_ENERGIA, IT_ENERGIA } from './energia'
+import { huellasEnItaliano } from '../guardias-italiano'
 import {
   motivoInvalido,
   motivoInvalidoDelRecibo,
@@ -104,6 +105,18 @@ describe('energia · `captura.ts` y `recibos.ts`: el espanol no cambia con `idio
     ['lo leido', (i) => textoDeLoLeido(lectura, i)],
   ]
 
+  // Lote L1 del italiano (2026-11-03): el italiano es OTRO texto que el
+  // ingles (no la caida) y no lleva ningun formato espanol ni ingles.
+  for (const [nombre, f] of casos) {
+    it(`${nombre}: en italiano, otro texto que en ingles y sin formatos ajenos`, () => {
+      const g = f as (i?: string) => unknown
+      expect(g('it')).not.toEqual(g('en'))
+      const texto = JSON.stringify(g('it'))
+      expect(texto).not.toMatch(/[¿¡ñ]/)
+      expect(huellasEnItaliano(texto)).toEqual([])
+    })
+  }
+
   for (const [nombre, f] of casos) {
     it(`${nombre}: igual con y sin 'es', y otro texto en ingles`, () => {
       expect(f('es')).toEqual(f())
@@ -138,5 +151,41 @@ describe('energia · los avisos que no se rinden usan su clave', () => {
     expect(s).toMatch(/setError\(t\('energia\.error\.contactar'\)\)/)
     expect(s).toMatch(/cuerpo\?\.error \?\? t\('energia\.subir\.no-guardar'\)/)
     expect(s).toMatch(/\[f\.clave\]: t\('energia\.subir\.no-contactar'\)/)
+  })
+})
+
+// ============================================================================
+//  EL ITALIANO DEL LOTE L1 (2026-11-03): completo, congelado y con la forma
+//  de la casa italiana (`vault/03-Frontend/italiano-olas.md`).
+// ============================================================================
+describe('diccionario de ENERGIA · italiano', () => {
+  const IT = IT_ENERGIA as Partial<Record<string, string>>
+  const it_ = Object.entries(IT) as [string, string][]
+  // Solo huecos, o palabras que en italiano se dicen como en ingles («file»,
+  // anglicismo de uso comun en la interfaz italiana).
+  const IGUALES_IT = new Set<string>(['energia.resumen', 'energia.lectura.archivo.uno', 'energia.lectura.archivo.otros'])
+
+  it('esta COMPLETO: cada clave del espanol tiene su italiano, y ninguna sobra', () => {
+    expect(Object.keys(ES).filter((k) => !IT[k])).toEqual([])
+    expect(Object.keys(IT).filter((k) => !(k in ES))).toEqual([])
+  })
+  it('no cambia sin que se vea', () => {
+    expect(IT_ENERGIA).toMatchSnapshot()
+  })
+  it('ninguna entrada italiana es igual a la espanola ni a la inglesa, salvo las declaradas', () => {
+    expect(it_.filter(([k, v]) => (v === ES[k] || v === EN[k]) && !IGUALES_IT.has(k)).map(([k]) => k)).toEqual([])
+  })
+  it('los huecos son los mismos que en espanol', () => {
+    const huecos = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort().join(',')
+    expect(it_.filter(([k, v]) => huecos(v) !== huecos(ES[k])).map(([k]) => k)).toEqual([])
+  })
+  it('sin espacio antes del «%», apostrofo tipografico, sin signos espanoles', () => {
+    expect(it_.filter(([, v]) => /\s%|[A-Za-zÀ-ú]'[A-Za-zÀ-ú]|"|[¿¡ñ]/.test(v)).map(([k]) => k)).toEqual([])
+  })
+  it('las periodicidades en letra: «ogni due mesi», nunca «bimestrale» (ambiguo) ni «ogni 2»', () => {
+    expect(it_.filter(([, v]) => /bimestral|\bogni \d/i.test(v)).map(([k]) => k)).toEqual([])
+  })
+  it('ninguna cifra de dinero ni simbolo de moneda', () => {
+    expect(it_.filter(([, v]) => /\$|MXN|USD|\beuro\b|\bpesos?\b|\d\.\d{3}/.test(v)).map(([k]) => k)).toEqual([])
   })
 })

@@ -7,6 +7,7 @@ import { ProveedorIdioma } from './contexto'
 import type { Idioma } from './idiomas'
 import { MONEDAS, fijarMonedaInstancia } from './dinero'
 import { leerDinero } from './simbolo-en-pantalla'
+import { huellasEnItaliano } from './guardias-italiano'
 
 // ============================================================================
 //  I18N · CONSUMO DE LUZ (`/energia`), RENDIDO EN LOS DOS IDIOMAS.
@@ -129,7 +130,15 @@ const subir = async () => (await import('../../components/demo/energia/SubirReci
 const filasDe = async (r: { propuestas: unknown[] }) =>
   (await import('../../components/demo/energia/recibos')).filasDeConfirmacion(r.propuestas as never)
 
-type Estado = { nombre: string; pintar: (idioma: Idioma) => Promise<string>; espanol: string[]; ingles: string[]; dinero?: boolean }
+type Estado = {
+  nombre: string
+  pintar: (idioma: Idioma) => Promise<string>
+  espanol: string[]
+  ingles: string[]
+  /** Lote L1 del italiano (2026-11-03): lo que TIENE que salir en `it`. */
+  italiano: string[]
+  dinero?: boolean
+}
 
 export const ESTADOS: Estado[] = [
   {
@@ -170,6 +179,24 @@ export const ESTADOS: Estado[] = [
       'Jan 2026', 'Feb 2026', 'Standalone screen', '>2 screens<', 'aria-label="Delete the bill for meter (no number)"',
       'title="Delete this bill"', '(no number)</button>',
     ],
+    italiano: [
+      'Una bolletta per proprietà e per mese. Si ripartisce tra i suoi impianti come l’affitto.',
+      'Bollette registrate', '3 di 6', 'del periodo', '>Mancanti<', 'il report mostra meno elettricità di quella reale',
+      'Importo del periodo', 'solo il registrato · 1 bolletta senza impianto', 'kWh del periodo', 'Registra una bolletta',
+      'Proprietà o impianto', 'Predio Reforma · 2 impianti', 'Predio Sur · 1 impianto', 'Pantalla Aeropuerto · impianto isolato',
+      'Mese della bolletta', 'Contatore', '>Importo<', 'Salva bolletta', '1 · Quanti mesi di calendario copre ogni bolletta di questo lotto?',
+      '— scegli prima di caricare —', '1 mese di calendario — un periodo breve, dentro un solo mese',
+      '2 mesi di calendario — il normale per una bolletta MENSILE', '3 mesi di calendario — il normale per una bolletta emessa OGNI DUE MESI',
+      '4 mesi di calendario — un periodo lungo o arretrato',
+      'Si contano i mesi di calendario che il periodo <strong>tocca</strong>, non quanto dura. Una bolletta mensile inizia a metà mese, quindi quasi sempre ne tocca <strong>due</strong>; una emessa ogni due mesi, <strong>tre</strong>.',
+      '2 · Carica il PDF della bolletta', 'Vengono letti sul server e non si salva nulla: controlla ogni riga con la bolletta e confermala.',
+      'Cosa è registrato e cosa manca', '2 mesi · 3 punti di misura',
+      'Bollette mancanti nel periodo: 3 su 6. Finché mancano, il report di redditività somma solo il registrato e mostra un costo della luce MINORE di quello reale, senza nessun avviso: un mese senza bolletta non è un mese senza consumo.',
+      '1 bolletta registrata per MX$ 50,00 non arriva a nessun impianto, perché la sua proprietà non ne ha nessuno registrato. Quel denaro non compare nel report di redditività.',
+      'gen 2026', 'feb 2026', 'Impianto isolato', '>2 impianti<',
+      'title="Nessuna bolletta registrata: non è un consumo pari a zero, è un dato mancante"',
+      'aria-label="Elimina la bolletta del contatore (senza numero)"', 'title="Elimina questa bolletta"', '(senza numero)</button>',
+    ],
   },
   {
     nombre: 'energia · captura completa',
@@ -181,6 +208,7 @@ export const ESTADOS: Estado[] = [
     },
     espanol: ['captura completa', 'Captura completa: están los 6 recibos del periodo.', 'Elige arriba cuántos meses esperas antes de subir los archivos.'],
     ingles: ['all entered', 'All entered: all 6 bills for the period are in.', 'Choose above how many months you expect before uploading the files.'],
+    italiano: ['registrazione completa', 'Registrazione completa: ci sono tutte le 6 bollette del periodo.', 'Scegli qui sopra quanti mesi ti aspetti prima di caricare i file.'],
   },
   {
     nombre: 'energia · sin puntos de medicion',
@@ -196,6 +224,11 @@ export const ESTADOS: Estado[] = [
     ],
     ingles: ['There is nowhere to enter bills yet: the reason is below.', 'Nowhere to enter bills yet',
       'There is nowhere to enter bills yet: you need at least one property with screens', 'An electricity bill belongs to a property with screens'],
+    italiano: [
+      'Non c’è ancora dove registrare bollette: il motivo è qui sotto.', 'Non c’è ancora dove registrare bollette',
+      'Non c’è ancora dove registrare bollette: serve almeno una proprietà con impianti, o un impianto senza proprietà.',
+      'Una bolletta della luce appartiene a una proprietà con impianti, o a un impianto senza proprietà. Registra l’inventario e questa pagina si riempie da sola.',
+    ],
   },
   {
     nombre: 'energia · cargando',
@@ -205,6 +238,7 @@ export const ESTADOS: Estado[] = [
     },
     espanol: ['Cargando los puntos de medición…'],
     ingles: ['Loading the metering points…'],
+    italiano: ['Caricamento dei punti di misura…'],
   },
   {
     nombre: 'energia · error de carga y de borrado',
@@ -216,6 +250,7 @@ export const ESTADOS: Estado[] = [
     },
     espanol: ['No se pudo cargar la captura', '>no se pudo cargar<', 'error-al-borrar'],
     ingles: ['Could not load the entries', '>could not be loaded<'],
+    italiano: ['Impossibile caricare le registrazioni', '>impossibile caricare<'],
   },
   {
     nombre: 'energia · periodo invertido',
@@ -226,6 +261,7 @@ export const ESTADOS: Estado[] = [
     },
     espanol: ['Revisa el periodo', 'El mes de fin no puede ser anterior al de inicio'],
     ingles: ['Check the period', 'The end month cannot be before the start month'],
+    italiano: ['Controlla il periodo', 'Il mese di fine non può essere precedente a quello di inizio'],
   },
   {
     nombre: 'energia · periodo sin inicio',
@@ -236,6 +272,7 @@ export const ESTADOS: Estado[] = [
     },
     espanol: ['Falta el mes de inicio'],
     ingles: ['The start month is missing'],
+    italiano: ['Manca il mese di inizio'],
   },
   {
     nombre: 'energia · confirmar el borrado de un recibo',
@@ -247,6 +284,7 @@ export const ESTADOS: Estado[] = [
     },
     espanol: ['Borrar el recibo', 'Se borra el recibo del medidor M-1, de ene 2026, por $3,400.50. No se puede deshacer: ese mes vuelve a contar como un hueco, y hasta que lo captures otra vez el reporte de rentabilidad enseñará un costo de luz menor del real.'],
     ingles: ['Delete the bill', 'This deletes the bill for meter M-1, for Jan 2026, for MX$3,400.50. It cannot be undone'],
+    italiano: ['Elimina la bolletta', 'Si elimina la bolletta del contatore M-1, di gen 2026, per MX$ 3.400,50. Non si può annullare: quel mese torna a contare come un buco, e finché non la registri di nuovo il report di redditività mostrerà un costo della luce minore di quello reale.'],
   },
   {
     nombre: 'energia · recibos leidos con pegas',
@@ -274,6 +312,14 @@ export const ESTADOS: Estado[] = [
       'One is already entered for 2026-01: 1,200 kWh for MX$ 3,400.50. Saving again DOUBLES that month’s cost.',
       'Choose which property or screen this bill belongs to',
     ],
+    italiano: [
+      'File letti: 2 su 3; righe: 2. Controlla prima di confermare: 1 file non è una bolletta CFE; 2 non corrispondono al numero di mesi che hai dichiarato (1): i mesi di calendario coperti da quei 2 sono 3; 1 senza proprietà: sceglila tu; 1 con una cifra che non è stato possibile leggere; 1 con il mese già registrato: salvare di nuovo RADDOPPIA il costo.',
+      '>Mese<', '>Giorni<', '— scegli —', 'placeholder="scrivilo"',
+      'servizio 123456789012 · contatore AB12 · PDBT · periodo 2025-11-10 → 2026-01-09 · il PDF indica 1.500 kWh · fatturazione MX$ 4.000,00 · illuminazione pubblica MX$ 200,00 · Totale della bolletta MX$ 9.000,00 (include arretrati e pagamenti)',
+      'Hai dichiarato 1 mese e questa bolletta ne copre 3. È stata ripartita secondo il PDF.',
+      'Ce n’è già una registrata per 2026-01: 1.200 kWh per MX$ 3.400,50. Salvarla di nuovo RADDOPPIA il costo di quel mese.',
+      'Scegli a quale proprietà o impianto corrisponde questa bolletta',
+    ],
   },
   {
     nombre: 'energia · recibos leidos sin pegas, uno guardado',
@@ -288,6 +334,7 @@ export const ESTADOS: Estado[] = [
     espanol: ['Se leyeron los 1 archivo y salen 1 renglón. Míralos contra el recibo y confírmalos: nada se guarda hasta que le des a guardar.', ' Guardado</span>'],
     // Ola 5: con un renglon «Check them» no concordaba (validacion operaciones-2).
     ingles: ['1 file was read and it produces 1 row. Check each row against the bill and confirm it: nothing is saved until you click save.', ' Saved</span>'],
+    italiano: ['È stato letto 1 file e contiene 1 riga. Controlla ogni riga con la bolletta e confermala: non si salva nulla finché non clicchi salva.', ' Salvato</span>'],
   },
   {
     nombre: 'energia · leyendo, sin renglones, un error y un renglon guardando',
@@ -303,6 +350,7 @@ export const ESTADOS: Estado[] = [
     },
     espanol: ['Leyendo…', 'No salió ningún renglón de estos archivos.', 'Guardando…', 'error-del-servidor'],
     ingles: ['Reading…', 'These files produced no rows.', 'Saving…'],
+    italiano: ['Lettura…', 'Da questi file non è uscita nessuna riga.', 'Salvataggio…'],
   },
 ]
 
@@ -367,6 +415,81 @@ describe('ENERGIA · barrido con el diccionario entero', () => {
         const t = trozo.trim()
         if (t.length < 6 || EN_ENERGIA[clave as keyof typeof EN_ENERGIA].includes(t)) continue
         if (html.includes(t)) culpables.push(`${clave} · «${t}»`)
+      }
+    }
+    expect(culpables).toEqual([])
+  })
+})
+
+// ─── ITALIANO · lote L1 (2026-11-03) ────────────────────────────────────────
+// Las mismas pantallas, rendidas en `it`. Tres comprobaciones:
+//   (a) sale el italiano esperado (`italiano`), y ninguna frase espanola;
+//   (b) ninguna frase del diccionario de energia sale en ESPANOL ni cae al
+//       INGLES (`DICCIONARIOS.it` cae al ingles mientras falte una clave: es
+//       comodo y no da error, por eso se barre);
+//   (c) ningun formato espanol ni ingles (fecha, cifra, dinero): la guardia de
+//       la ola 0 (`guardias-italiano.ts`).
+// Lo que no es de este ambito (`compartidos`, `comun.*`: el selector de
+// periodo, «Desde/Hasta») es del lote L5 y aqui no se exige.
+const COMUNES_IT = new Set<string>([
+  ...COMUNES,
+  'kWh del periodo', // se dice igual en italiano
+  'del periodo',
+])
+
+describe('ENERGIA · en ITALIANO sale el italiano y nada en espanol', () => {
+  for (const p of ESTADOS) {
+    it(p.nombre, async () => {
+      const html = texto(await p.pintar('it'))
+      expect(p.espanol.filter((f) => html.includes(f) && !COMUNES_IT.has(f))).toEqual([])
+      expect(p.italiano.filter((f) => !html.includes(f))).toEqual([])
+    })
+  }
+})
+
+describe('ENERGIA · en ITALIANO ningun formato espanol ni ingles', () => {
+  for (const p of ESTADOS) {
+    it(p.nombre, async () => {
+      expect(huellasEnItaliano(await p.pintar('it'))).toEqual([])
+    })
+  }
+})
+
+describe('ENERGIA · el dinero lleva el simbolo de la instancia, tambien en italiano', () => {
+  afterEach(() => fijarMonedaInstancia('MXN'))
+  for (const moneda of MONEDAS) {
+    for (const p of ESTADOS.filter((e) => e.dinero)) {
+      it(`${p.nombre} · ${moneda} · it`, async () => {
+        fijarMonedaInstancia(moneda)
+        const { importes, ajenos } = leerDinero(texto(await p.pintar('it')), 'it', moneda)
+        expect(importes).toBeGreaterThan(0)
+        expect(ajenos).toEqual([])
+      })
+    }
+  }
+})
+
+describe('ENERGIA · barrido italiano con el diccionario entero', () => {
+  it('ninguna frase del diccionario de energia sale en espanol ni en ingles en las pantallas italianas', async () => {
+    const { ES_ENERGIA, EN_ENERGIA, IT_ENERGIA } = await import('./textos/energia')
+    let html = ''
+    for (const p of ESTADOS) {
+      forzado.cola = []
+      const crudo = await p.pintar('it')
+      const visibles = [...crudo.matchAll(/(?:title|aria-label|placeholder|alt)="([^"]*)"/g)].map((m) => m[1])
+      html += texto(crudo.replace(/<[^>]*>/g, '\n') + '\n' + visibles.join('\n'))
+    }
+    for (const a of ['Predio Reforma', 'Predio Sur', 'Pantalla Aeropuerto', 'error-al-borrar', 'error-del-servidor']) html = html.split(a).join('\n')
+    const it = IT_ENERGIA as Partial<Record<string, string>>
+    const culpables: string[] = []
+    for (const [clave, es] of Object.entries(ES_ENERGIA)) {
+      const italiano = it[clave] ?? ''
+      for (const [idioma, frase] of [['es', es], ['en', EN_ENERGIA[clave as keyof typeof EN_ENERGIA]]] as const) {
+        for (const trozo of frase.split(/\{\w+\}/)) {
+          const t = trozo.trim()
+          if (t.length < 6 || italiano.includes(t)) continue
+          if (html.includes(t)) culpables.push(`${idioma} · ${clave} · «${t}»`)
+        }
       }
     }
     expect(culpables).toEqual([])
