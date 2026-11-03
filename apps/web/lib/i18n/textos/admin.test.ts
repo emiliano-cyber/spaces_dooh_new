@@ -166,6 +166,11 @@ describe('diccionario de administracion · el espanol reproduce EXACTAMENTE su m
     expect(loQueFaltaEnElBorrador(b({ razonSocial: 'Dos', roles: ['sales'] }), ctx as never, 'en')).toBe(
       'The role “SALES” doesn’t exist. The available ones are: RENT, ASSETS, PERMITS, OPERATIONS, SALES, OTRO.',
     )
+    // Y aunque lo tecleado sea un codigo de partida que esta instancia no tiene,
+    // se repite como se tecleo: es lo que la persona tiene que corregir.
+    expect(loQueFaltaEnElBorrador(b({ razonSocial: 'Dos', roles: ['ventas'] }), { ...ctx, catalogo: ['ACTIVOS'] } as never, 'en')).toBe(
+      'The role “VENTAS” doesn’t exist. The available ones are: ASSETS.',
+    )
   })
 })
 
