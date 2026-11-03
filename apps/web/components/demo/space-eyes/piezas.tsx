@@ -7,6 +7,7 @@ import { useTexto } from '@/lib/i18n/contexto'
 import { traducir } from '@/lib/i18n/diccionario'
 import type { Idioma } from '@/lib/i18n/idiomas'
 import { formatFechaHora } from '@/lib/data/derive'
+import { numeroEnIdioma } from '@/lib/i18n/formato-idioma'
 
 // ============================================================================
 //  Piezas compartidas del módulo Space Eyes: las mismas reglas de color y las
@@ -203,13 +204,30 @@ export function fechaHora(iso: string | null, idioma: Idioma = 'es'): string {
   return d.toLocaleString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
+// ─── Cifras con decimales, en el idioma de quien lee ────────────────────────
+// Lote L1 del italiano (2026-11-03). En es y en es `toFixed` / `String` tal
+// cual —lo de siempre, letra por letra: sin agrupar y con punto—; el italiano
+// escribe coma decimal y punto de millar («63,3 GB», «1.440»). Sin esto, cada
+// `toFixed` del modulo pintaba «1.2» o «3.10 GB» en la pantalla italiana, que
+// es justo lo que la guardia (`guardias-italiano.ts`) caza como huella.
+export function fijo(n: number, decimales: number, idioma: Idioma = 'es'): string {
+  if (idioma === 'es' || idioma === 'en') return n.toFixed(decimales)
+  return numeroEnIdioma(n, idioma, { minimumFractionDigits: decimales, maximumFractionDigits: decimales })
+}
+
+/** Una cifra tal cual (`String(n)` en es y en), con los separadores del italiano. */
+export function cifra(n: number, idioma: Idioma = 'es'): string {
+  if (idioma === 'es' || idioma === 'en') return String(n)
+  return numeroEnIdioma(n, idioma, { maximumFractionDigits: 10 })
+}
+
 // Bytes a algo legible. El consumo llega en bytes y "1521483776" no le dice
 // nada a nadie.
-export function gigas(bytes: number | null): string {
+export function gigas(bytes: number | null, idioma: Idioma = 'es'): string {
   if (bytes == null) return '—'
   const gb = bytes / 1024 ** 3
-  if (gb >= 1) return `${gb.toFixed(2)} GB`
-  return `${(bytes / 1024 ** 2).toFixed(0)} MB`
+  if (gb >= 1) return `${fijo(gb, 2, idioma)} GB`
+  return `${fijo(bytes / 1024 ** 2, 0, idioma)} MB`
 }
 
 // ─── Una foto dentro de su marco, derecha y pareja ─────────────────────────

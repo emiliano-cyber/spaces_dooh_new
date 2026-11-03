@@ -370,7 +370,7 @@ export function SubirRecibos({
                         <p className="mt-1 max-w-[16rem] text-[11px] leading-snug text-warning">
                           {t('energia.subir.ya-capturado', {
                             mes: f.yaCapturado.periodo.slice(0, 7),
-                            kwh: formatNumero(f.yaCapturado.kwh),
+                            kwh: formatNumero(f.yaCapturado.kwh, 0, idioma),
                             monto: formatMonto(f.yaCapturado.importe, idioma),
                           })}
                         </p>

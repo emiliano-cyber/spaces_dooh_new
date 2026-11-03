@@ -186,8 +186,13 @@ export interface ResumenCobertura {
 // este archivo ganan `idioma` como ULTIMO parametro, con 'es' por omision: el
 // espanol es el literal de siempre y el ingles sale de `energia.*`
 // (`textos/energia.test.ts` ata los dos). Ni una cifra ni una regla cambian.
+// Los DOS limites de decimales (lote L1 del italiano, 2026-11-03): con solo el
+// maximo, es y en salian bien de casualidad —el estilo `currency` de `Intl`
+// pone el minimo de la moneda, 2—, pero el italiano escribe la cifra sin ese
+// estilo (`dineroSimboloDelante`) y daba «MX$ 3.400,5» y «MX$ 50». Con el
+// minimo explicito, es y en no cambian ni un caracter.
 const pesos = (n: number, idioma: Idioma = 'es') =>
-  formatearDinero(n, idioma, { maximumFractionDigits: 2 })
+  formatearDinero(n, idioma, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const msj = (idioma: Idioma, literal: string, clave: ClaveTexto, valores?: Record<string, string | number>) =>
   idioma === 'es' ? literal : traducir(idioma, clave, valores)
 

@@ -357,8 +357,11 @@ export function textoDeLoLeido(l: LecturaRecibo, idioma: Idioma = 'es'): string 
   if (l.desde && l.hasta) partes.push(msj(idioma, `periodo ${l.desde} → ${l.hasta}`, 'energia.leido.periodo', { desde: l.desde, hasta: l.hasta }))
   // El cero LEIDO se enseña aunque no se acepte como dato: es la unica forma de
   // que quien captura entienda por que el campo salio vacio.
-  if (l.kwh == null && l.kwhLeido != null) partes.push(msj(idioma, `el PDF dice ${formatNumero(l.kwhLeido)} kWh`, 'energia.leido.pdf-dice', { kwh: formatNumero(l.kwhLeido) }))
-  else if (l.kwhLeido != null) partes.push(`${formatNumero(l.kwhLeido)} kWh`)
+  // La cifra en el idioma de quien lee (lote L1 del italiano): es-MX y en-US
+  // escriben igual, asi que el espanol y el ingles no cambian; el italiano
+  // sale «1.500 kWh» y no «1,500».
+  if (l.kwh == null && l.kwhLeido != null) partes.push(msj(idioma, `el PDF dice ${formatNumero(l.kwhLeido)} kWh`, 'energia.leido.pdf-dice', { kwh: formatNumero(l.kwhLeido, 0, idioma) }))
+  else if (l.kwhLeido != null) partes.push(`${formatNumero(l.kwhLeido, 0, idioma)} kWh`)
   if (l.facturacionPeriodo != null) partes.push(msj(idioma, `facturación ${formatMonto(l.facturacionPeriodo)}`, 'energia.leido.facturacion', { monto: formatMonto(l.facturacionPeriodo, idioma) }))
   if (l.alumbradoPublico != null) partes.push(msj(idioma, `alumbrado ${formatMonto(l.alumbradoPublico)}`, 'energia.leido.alumbrado', { monto: formatMonto(l.alumbradoPublico, idioma) }))
   // El Total se enseña SIEMPRE y marcado como lo que es: es el numero grande

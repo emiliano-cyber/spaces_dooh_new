@@ -60,12 +60,12 @@ export function IndicadoresEnergia({
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <KPICard
         label={t('energia.kpi.capturados')}
-        value={t('energia.kpi.de', { a: formatNumero(capturados), b: formatNumero(tablero.esperados) })}
+        value={t('energia.kpi.de', { a: formatNumero(capturados, 0, idioma), b: formatNumero(tablero.esperados, 0, idioma) })}
         sub={t('energia.kpi.del-periodo')}
       />
       <KPICard
         label={t('energia.kpi.faltan')}
-        value={formatNumero(tablero.faltantes)}
+        value={formatNumero(tablero.faltantes, 0, idioma)}
         sub={tablero.faltantes > 0 ? t('energia.kpi.menos-luz') : t('energia.kpi.completa')}
         tono={tablero.esperados === 0 ? 'neutro' : tablero.faltantes > 0 ? 'ambar' : 'verde'}
       />
@@ -74,13 +74,13 @@ export function IndicadoresEnergia({
         value={recibos.length === 0 ? '—' : formatMonto(importe, idioma)}
         sub={
           huerfanos > 0
-            ? t(huerfanos === 1 ? 'energia.kpi.sin-pantalla.uno' : 'energia.kpi.sin-pantalla.otros', { n: formatNumero(huerfanos) })
+            ? t(huerfanos === 1 ? 'energia.kpi.sin-pantalla.uno' : 'energia.kpi.sin-pantalla.otros', { n: formatNumero(huerfanos, 0, idioma) })
             : t('energia.kpi.solo-capturado')
         }
       />
       <KPICard
         label={t('energia.kpi.kwh')}
-        value={recibos.length === 0 ? '—' : formatNumero(kwh)}
+        value={recibos.length === 0 ? '—' : formatNumero(kwh, 0, idioma)}
         sub={t('energia.kpi.solo-capturado')}
       />
     </div>

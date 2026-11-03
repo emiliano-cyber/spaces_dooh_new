@@ -163,7 +163,14 @@ describe('diccionario de ENERGIA · italiano', () => {
   const it_ = Object.entries(IT) as [string, string][]
   // Solo huecos, o palabras que en italiano se dicen como en ingles («file»,
   // anglicismo de uso comun en la interfaz italiana).
-  const IGUALES_IT = new Set<string>(['energia.resumen', 'energia.lectura.archivo.uno', 'energia.lectura.archivo.otros'])
+  const IGUALES_IT = new Set<string>([
+    'energia.resumen', // solo huecos
+    'energia.lectura.archivo.uno', // «file»
+    'energia.lectura.archivo.otros', // «file», invariable
+    'energia.kpi.kwh', // «kWh del periodo», igual que el espanol
+    'energia.kpi.del-periodo', // «del periodo», igual que el espanol
+    'energia.leido.periodo', // «periodo {desde} → {hasta}», igual que el espanol
+  ])
 
   it('esta COMPLETO: cada clave del espanol tiene su italiano, y ninguna sobra', () => {
     expect(Object.keys(ES).filter((k) => !IT[k])).toEqual([])

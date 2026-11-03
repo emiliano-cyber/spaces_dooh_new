@@ -3389,7 +3389,18 @@ const COMUNES_IT = new Set<string>([
   'Dispositivo', // la etiqueta de Graficas: igual en italiano
   'Usado', // igual en italiano
   'PC',
+  'Foto', // igual en italiano
+  'Foto del cliente', // igual en italiano
+  'FOTO DEL CLIENTE',
+  'Temperatura CPU', // igual en italiano
+  'n/d', // igual en italiano
 ])
+
+// Un trozo espanol «aparece» solo si no esta pegado a otra letra: «Mes» esta
+// dentro de «Mese», «Nitidez» dentro de «Nitidezza» y «Eliminar» dentro de
+// «Eliminare», y eso es italiano, no un resto del espanol.
+const escaparRe = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const aparece = (html: string, t: string) => new RegExp(`(^|[^\\p{L}])${escaparRe(t)}($|[^\\p{L}])`, 'u').test(html)
 
 const ITALIANO: Record<string, string[]> = {
   'lista · con equipos': [
@@ -3440,7 +3451,7 @@ describe('lote SPACE EYES · en ITALIANO no queda ninguna frase espanola y sale 
   for (const p of PANTALLAS) {
     it(p.nombre, async () => {
       const html = texto(await p.pintar('it'))
-      const quedan = p.espanol.filter((f) => html.includes(f) && !COMUNES_IT.has(f))
+      const quedan = p.espanol.filter((f) => aparece(html, f) && !COMUNES_IT.has(f))
       expect(quedan).toEqual([])
       const faltan = (ITALIANO[p.nombre] ?? []).filter((f) => !html.includes(f))
       expect(faltan).toEqual([])
@@ -3457,7 +3468,9 @@ describe('lote SPACE EYES · en ITALIANO ningun formato espanol ni ingles', () =
   for (const p of PANTALLAS) {
     it(p.nombre, async () => {
       const crudo = (await p.pintar('it')).replace(MARCA, '')
-      expect(huellasEnItaliano(crudo)).toEqual([])
+      // «0,812» (el SSIM) es una cifra italiana con tres decimales; la guardia
+      // la toma por un millar ingles, que nunca empieza por «0,».
+      expect(huellasEnItaliano(crudo, { permitidos: [/^0,\d{3}$/] })).toEqual([])
     })
   }
 
@@ -3486,7 +3499,18 @@ async function htmlItaliano(): Promise<string> {
 describe('lote SPACE EYES · barrido italiano con el diccionario entero', () => {
   it('ningun trozo espanol ni ingles del diccionario del lote aparece en las pantallas en italiano', async () => {
     const { ES_SPACEEYES, EN_SPACEEYES, IT_SPACEEYES } = await import('./textos/spaceeyes')
-    const html = await htmlItaliano()
+    const { EN_COMERCIAL } = await import('./textos/comercial')
+    let html = await htmlItaliano()
+    // El veredicto de la foto usa `comercial.eye.*` (lote L2): mientras ese
+    // lote no lo traduzca, cae al ingles («Correct ad · confidence 93%») y no
+    // es de este ambito. Se quita antes de barrer.
+    for (const [clave, en] of Object.entries(EN_COMERCIAL)) {
+      if (!clave.startsWith('comercial.eye.')) continue
+      for (const trozo of en.split(/\{\w+\}/)) if (trozo.trim().length >= 5) html = html.split(trozo.trim()).join('\n')
+    }
+    // Palabras inglesas que tambien son italiano: «compare» (aparece) y
+    // «report», que el italiano usa tal cual.
+    const TAMBIEN_ITALIANO = new Set(['Compare', 'report'])
     const escapar = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     const it = IT_SPACEEYES as Partial<Record<string, string>>
     const culpables: string[] = []
@@ -3497,7 +3521,7 @@ describe('lote SPACE EYES · barrido italiano con el diccionario entero', () => 
         for (const trozo of frase.split(/\{\w+\}/)) {
           const t = trozo.trim()
           // Trozos cortos («de», «a») chocan con texto italiano o con datos.
-          if (t.length < 5 || italiano.includes(t)) continue
+          if (t.length < 5 || italiano.includes(t) || TAMBIEN_ITALIANO.has(t)) continue
           if (new RegExp(`(^|[^\\p{L}])${escapar(t)}($|[^\\p{L}])`, 'u').test(html)) culpables.push(`${idioma} · ${clave} · «${t}»`)
         }
       }

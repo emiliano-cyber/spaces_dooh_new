@@ -609,12 +609,12 @@ export function FichaEquipo({ id }: { id: number }) {
                 <div className="flex items-baseline justify-between text-[11px]">
                   <span className="text-muted">{t('spaceeyes.ficha.datos-mes')}</span>
                   <span className="tabular-nums text-ink">
-                    {gigas((equipo.datos.movilMes ?? 0) + (equipo.datos.wifiMes ?? 0))}
+                    {gigas((equipo.datos.movilMes ?? 0) + (equipo.datos.wifiMes ?? 0), idioma)}
                   </span>
                 </div>
                 <div className="mt-2 flex gap-4 text-[11px] text-muted">
-                  <span>{t('spaceeyes.senal.movil')} {gigas(equipo.datos.movilMes)}</span>
-                  <span>WiFi {gigas(equipo.datos.wifiMes)}</span>
+                  <span>{t('spaceeyes.senal.movil')} {gigas(equipo.datos.movilMes, idioma)}</span>
+                  <span>WiFi {gigas(equipo.datos.wifiMes, idioma)}</span>
                 </div>
               </div>
             )}
@@ -655,9 +655,9 @@ export function FichaEquipo({ id }: { id: number }) {
               <Fila etiqueta={t('spaceeyes.ficha.version-agente')} valor={equipo.versionApp} />
               <Fila
                 etiqueta={t('spaceeyes.comun.almacenamiento')}
-                valor={equipo.almacenamientoLibreMb != null ? `${formatNumero(equipo.almacenamientoLibreMb)} MB` : null}
+                valor={equipo.almacenamientoLibreMb != null ? `${formatNumero(equipo.almacenamientoLibreMb, 0, idioma)} MB` : null}
               />
-              <Fila etiqueta={t('spaceeyes.ficha.capturas')} valor={formatNumero(fotos.length)} />
+              <Fila etiqueta={t('spaceeyes.ficha.capturas')} valor={formatNumero(fotos.length, 0, idioma)} />
             </dl>
           </Tarjeta>
         </div>

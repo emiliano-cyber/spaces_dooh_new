@@ -390,7 +390,7 @@ export function Galeria() {
               <span className="text-[12px] text-muted">
                 {totalExacto
                   ? interpolarNodos(t(total === 1 ? 'spaceeyes.galeria.total.uno' : 'spaceeyes.galeria.total.otros'), {
-                      n: <span className="demo-num text-ink">{formatNumero(total)}</span>,
+                      n: <span className="demo-num text-ink">{formatNumero(total, 0, idioma)}</span>,
                     })
                   : t('spaceeyes.galeria.filtradas')}
               </span>

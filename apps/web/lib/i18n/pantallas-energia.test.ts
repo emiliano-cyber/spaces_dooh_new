@@ -435,6 +435,7 @@ const COMUNES_IT = new Set<string>([
   ...COMUNES,
   'kWh del periodo', // se dice igual en italiano
   'del periodo',
+  'feb 2026', // el mes corto se escribe igual en italiano
 ])
 
 describe('ENERGIA · en ITALIANO sale el italiano y nada en espanol', () => {

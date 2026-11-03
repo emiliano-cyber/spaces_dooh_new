@@ -27,7 +27,7 @@ import {
 import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
 import { seApi, textoDeError, textoRespondio, urlSE } from '@/lib/data/space-eyes-se'
-import { estaEnLinea, PildoraConexion } from './piezas'
+import { estaEnLinea, fijo, PildoraConexion } from './piezas'
 import { formatNumero } from '@/lib/formato-numero'
 import { useIdioma } from '@/lib/i18n/contexto'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
@@ -157,13 +157,13 @@ const num = (v: unknown): number | null => {
 }
 
 // `null` sin dato: quien la pinta pone el «n/d» de su idioma.
-function fmtBytes(n: unknown): string | null {
+function fmtBytes(n: unknown, idioma: Idioma = 'es'): string | null {
   const b = num(n)
   if (b == null) return null
   if (b < 1024) return `${b} B`
-  if (b < 1048576) return `${(b / 1024).toFixed(1)} KB`
-  if (b < 1073741824) return `${(b / 1048576).toFixed(1)} MB`
-  return `${(b / 1073741824).toFixed(2)} GB`
+  if (b < 1048576) return `${fijo(b / 1024, 1, idioma)} KB`
+  if (b < 1073741824) return `${fijo(b / 1048576, 1, idioma)} MB`
+  return `${fijo(b / 1073741824, 2, idioma)} GB`
 }
 
 function etiquetaTiempo(p: Punto, granularidad: 'raw' | 'hour', idioma: Idioma): string {
@@ -459,7 +459,7 @@ export function Graficas() {
                 </div>
                 <Indicador
                   titulo={t('spaceeyes.graficas.cpu-max')}
-                  valor={cpuMax != null ? `${cpuMax.toFixed(1)} °C` : t('spaceeyes.graficas.nd')}
+                  valor={cpuMax != null ? `${fijo(cpuMax, 1, idioma)} °C` : t('spaceeyes.graficas.nd')}
                   alerta={cpuMax != null && u != null && cpuMax > u.cpu_temp_max}
                 />
                 <Indicador
@@ -467,7 +467,7 @@ export function Graficas() {
                   valor={batMin != null ? t('spaceeyes.graficas.pct', { n: batMin }) : t('spaceeyes.graficas.nd')}
                   alerta={batMin != null && u != null && batMin < u.battery_pct_min}
                 />
-                <Indicador titulo={t('spaceeyes.graficas.muestras')} valor={formatNumero(muestras)} />
+                <Indicador titulo={t('spaceeyes.graficas.muestras')} valor={formatNumero(muestras, 0, idioma)} />
               </div>
 
               {/* Alertas: icono + texto, nunca solo color */}
@@ -503,7 +503,7 @@ export function Graficas() {
                       <BarChart data={consumoBarras} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
                         <CartesianGrid stroke={C.borde} vertical={false} />
                         <XAxis dataKey="etiqueta" tick={ejeTick} tickLine={false} axisLine={{ stroke: C.borde }} />
-                        <YAxis tick={ejeTick} tickLine={false} axisLine={false} tickFormatter={(v) => formatNumero(v)} />
+                        <YAxis tick={ejeTick} tickLine={false} axisLine={false} tickFormatter={(v) => formatNumero(v, 0, idioma)} />
                         <Tooltip content={<CajaTooltip unidad="MB" idioma={idioma} />} cursor={{ fill: 'var(--surface-2)' }} />
                         <Legend wrapperStyle={{ fontSize: 11 }} iconSize={10} />
                         <Bar dataKey="movil" name={t('spaceeyes.graficas.movil-mb')} fill={C.acento} radius={[3, 3, 0, 0]} />
@@ -526,10 +526,10 @@ export function Graficas() {
                           <tr key={k} className="border-t border-border">
                             <th scope="row" className="py-1.5 text-left font-normal text-muted">{t(etiqueta)}</th>
                             <td className="py-1.5 text-right font-medium text-ink">
-                              {fmtBytes(datos.consumo?.[`mobile_${k}`]) ?? t('spaceeyes.graficas.nd')}
+                              {fmtBytes(datos.consumo?.[`mobile_${k}`], idioma) ?? t('spaceeyes.graficas.nd')}
                             </td>
                             <td className="py-1.5 text-right text-ink">
-                              {fmtBytes(datos.consumo?.[`wifi_${k}`]) ?? t('spaceeyes.graficas.nd')}
+                              {fmtBytes(datos.consumo?.[`wifi_${k}`], idioma) ?? t('spaceeyes.graficas.nd')}
                             </td>
                           </tr>
                         ))}

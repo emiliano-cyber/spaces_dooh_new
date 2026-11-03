@@ -310,11 +310,164 @@ export const EN_ENERGIA: Record<ClaveEnergia, string> = {
   'energia.leido.total': 'Bill total {monto} (includes past-due balances and payments)',
 }
 
-// ─── ITALIANO · ola 0 (2026-11-03) ──────────────────────────────────────────
-// PARCIAL a proposito: lo rellena el lote de traduccion de este ambito
-// (`vault/03-Frontend/italiano-olas.md`). Mientras falte una clave, la
-// pantalla la pinta en INGLES (`diccionario.ts`, `DICCIONARIOS.it`) y la
-// prueba de cobertura (`cobertura-italiano.test.ts`) la cuenta como pendiente.
-// Cuando el lote termine, el tipo pasa a `Record<ClaveEnergia, string>` y `tsc`
-// vuelve a exigir cada clave, como en el ingles.
-export const IT_ENERGIA: Partial<Record<ClaveEnergia, string>> = {}
+// ─── ITALIANO · lote L1 «Space Eyes y luz» (2026-11-03) ─────────────────────
+// COMPLETO: el tipo es `Record<ClaveEnergia, string>` y `tsc` exige cada clave,
+// como en el ingles. Se traduce desde el ESPANOL (el original), con el ingles
+// solo de apoyo. Registro de tu, mayuscula solo al inicio, apostrofo
+// tipografico (’), comillas « » y sin espacio antes de «%». Las cifras con
+// decimales del texto van con coma («0,5x», «1,5 MB»); el dinero, las fechas y
+// las cifras de datos las pone el formato por idioma (`formato-idioma.ts`).
+//
+// GLOSARIO DEL LOTE (decision del traductor; el dueño puede cambiarla):
+// recibo de luz → bolletta (della luce) · predio → proprietà · pantalla →
+// impianto (inventario) · pantalla suelta → impianto isolato · medidor →
+// contatore · punto de medicion → punto di misura · capturar → registrare /
+// inserire · hueco → buco / dato mancante · tanda → lotto · renglon → riga ·
+// alumbrado publico → illuminazione pubblica · adeudos → arretrati · recibo
+// BIMESTRAL → bolletta emessa OGNI DUE MESI (periodicidad en letra) · reporte
+// de rentabilidad → report di redditività · archivo → file.
+export const IT_ENERGIA: Record<ClaveEnergia, string> = {
+  // ── La pagina ──
+  'energia.descripcion': 'Una bolletta per proprietà e per mese. Si ripartisce tra i suoi impianti come l’affitto.',
+  'energia.error.cargar': 'Impossibile caricare i consumi registrati',
+  'energia.error.contactar': 'Impossibile contattare il server. Controlla la connessione e riprova.',
+  'energia.error.guardar-recibo': 'Impossibile salvare la bolletta',
+  'energia.error.borrar-recibo': 'Impossibile eliminare la bolletta',
+  'energia.capturar': 'Registra una bolletta',
+  'energia.cargando-puntos': 'Caricamento dei punti di misura…',
+  'energia.sin-donde-abajo': 'Non c’è ancora dove registrare bollette: il motivo è qui sotto.',
+  'energia.cobertura.titulo': 'Cosa è registrato e cosa manca',
+  'energia.meses.uno': '{n} mese',
+  'energia.meses.otros': '{n} mesi',
+  'energia.puntos.uno': '{n} punto di misura',
+  'energia.puntos.otros': '{n} punti di misura',
+  'energia.resumen': '{meses} · {puntos}',
+  'energia.vacio.error': 'Impossibile caricare le registrazioni',
+  'energia.vacio.periodo': 'Controlla il periodo',
+  'energia.vacio.sin-puntos': 'Non c’è ancora dove registrare bollette',
+  'energia.vacio.sin-puntos-detalle':
+    'Una bolletta della luce appartiene a una proprietà con impianti, o a un impianto senza proprietà. Registra l’inventario e questa pagina si riempie da sola.',
+
+  // ── Indicadores ──
+  'energia.kpi.capturados': 'Bollette registrate',
+  'energia.kpi.no-cargar': 'impossibile caricare',
+  'energia.kpi.faltan': 'Mancanti',
+  'energia.kpi.importe': 'Importo del periodo',
+  'energia.kpi.kwh': 'kWh del periodo',
+  'energia.kpi.de': '{a} di {b}',
+  'energia.kpi.del-periodo': 'del periodo',
+  'energia.kpi.menos-luz': 'il report mostra meno elettricità di quella reale',
+  'energia.kpi.completa': 'registrazione completa',
+  'energia.kpi.solo-capturado': 'solo il registrato',
+  'energia.kpi.sin-pantalla.uno': 'solo il registrato · {n} bolletta senza impianto',
+  'energia.kpi.sin-pantalla.otros': 'solo il registrato · {n} bollette senza impianto',
+
+  // ── Formulario y rejilla ──
+  'energia.predio-o-pantalla': 'Proprietà o impianto',
+  'energia.opcion.pantallas.uno': ' · {n} impianto',
+  'energia.opcion.pantallas.otros': ' · {n} impianti',
+  'energia.opcion.suelta': ' · impianto isolato',
+  'energia.mes-recibo': 'Mese della bolletta',
+  'energia.medidor': 'Contatore',
+  'energia.importe': 'Importo',
+  'energia.guardar-recibo': 'Salva bolletta',
+  'energia.rejilla.faltan': 'Mancanti',
+  'energia.rejilla.pantallas.uno': '{n} impianto',
+  'energia.rejilla.pantallas.otros': '{n} impianti',
+  'energia.rejilla.suelta': 'Impianto isolato',
+  'energia.rejilla.hueco': 'Nessuna bolletta registrata: non è un consumo pari a zero, è un dato mancante',
+  'energia.rejilla.borrar-este': 'Elimina questa bolletta',
+  'energia.rejilla.borrar-aria': 'Elimina la bolletta del contatore {medidor}',
+  'energia.rejilla.borrar': 'Elimina la bolletta',
+  'energia.sin-numero': '(senza numero)',
+
+  // ── Subir PDF ──
+  'energia.subir.error-leer': 'Impossibile leggere i file',
+  'energia.subir.no-guardar': 'Impossibile salvare',
+  'energia.subir.no-contactar': 'Impossibile contattare il server',
+  'energia.subir.pregunta': '1 · Quanti mesi di calendario copre ogni bolletta di questo lotto?',
+  'energia.subir.elige-antes': '— scegli prima di caricare —',
+  'energia.subir.opcion.1': '1 mese di calendario — un periodo breve, dentro un solo mese',
+  'energia.subir.opcion.2': '2 mesi di calendario — il normale per una bolletta MENSILE',
+  'energia.subir.opcion.3': '3 mesi di calendario — il normale per una bolletta emessa OGNI DUE MESI',
+  'energia.subir.opcion.4': '4 mesi di calendario — un periodo lungo o arretrato',
+  'energia.subir.explica':
+    'Si contano i mesi di calendario che il periodo {toca}, non quanto dura. Una bolletta mensile inizia a metà mese, quindi quasi sempre ne tocca {dos}; una emessa ogni due mesi, {tres}. Se mescoli bollette mensili e bollette emesse ogni due mesi nello stesso lotto, molte risulteranno segnalate: caricale separatamente.',
+  'energia.subir.toca': 'tocca',
+  'energia.subir.dos': 'due',
+  'energia.subir.tres': 'tre',
+  'energia.subir.leyendo': 'Lettura…',
+  'energia.subir.subir': '2 · Carica il PDF della bolletta',
+  'energia.subir.elige-arriba': 'Scegli qui sopra quanti mesi ti aspetti prima di caricare i file.',
+  'energia.subir.se-leen': 'Vengono letti sul server e non si salva nulla: controlla ogni riga con la bolletta e confermala.',
+  'energia.subir.col.mes': 'Mese',
+  'energia.subir.col.dias': 'Giorni',
+  'energia.subir.elige': '— scegli —',
+  'energia.subir.escribelo': 'scrivilo',
+  'energia.subir.guardado': 'Salvato',
+  'energia.subir.guardando': 'Salvataggio…',
+  'energia.subir.guardar': 'Salva',
+  'energia.subir.declaraste.uno': 'Hai dichiarato {n} mese e questa bolletta ne copre {pdf}. È stata ripartita secondo il PDF.',
+  'energia.subir.declaraste.otros': 'Hai dichiarato {n} mesi e questa bolletta ne copre {pdf}. È stata ripartita secondo il PDF.',
+  'energia.subir.ya-capturado': 'Ce n’è già una registrata per {mes}: {kwh} kWh per {monto}. Salvarla di nuovo RADDOPPIA il costo di quel mese.',
+
+  // ── components/demo/energia/captura.ts ──
+  'energia.motivo.falta-inicio': 'Manca il mese di inizio',
+  'energia.motivo.falta-fin': 'Manca il mese di fine',
+  'energia.motivo.formato': 'Usa date nel formato AAAA-MM-GG',
+  'energia.motivo.orden': 'Il mese di fine non può essere precedente a quello di inizio',
+  'energia.motivo.punto': 'Scegli a quale proprietà o impianto corrisponde la bolletta',
+  'energia.motivo.mes': 'Scegli il mese della bolletta',
+  'energia.motivo.kwh.falta': 'Inserisci i kWh della bolletta',
+  'energia.motivo.importe.falta': 'Inserisci l’importo della bolletta',
+  'energia.motivo.kwh.numero': 'i kWh devono essere un numero',
+  'energia.motivo.importe.numero': 'l’importo deve essere un numero',
+  'energia.motivo.kwh.mayor': 'i kWh devono essere maggiori di zero',
+  'energia.motivo.importe.mayor': 'l’importo deve essere maggiore di zero',
+  'energia.motivo.futuro': 'Quel mese non è ancora finito: non può esserci una bolletta',
+  'energia.cobertura.huerfanos.uno':
+    '{n} bolletta registrata per {monto} non arriva a nessun impianto, perché la sua proprietà non ne ha nessuno registrato. Quel denaro non compare nel report di redditività.',
+  'energia.cobertura.huerfanos.otros':
+    '{n} bollette registrate per {monto} non arrivano a nessun impianto, perché la loro proprietà non ne ha nessuno registrato. Quel denaro non compare nel report di redditività.',
+  'energia.cobertura.sin-puntos':
+    'Non c’è ancora dove registrare bollette: serve almeno una proprietà con impianti, o un impianto senza proprietà.',
+  'energia.cobertura.completa.uno':
+    'Registrazione completa: è presente la bolletta del periodo ({n}). Il costo della luce nel report di redditività è il totale reale.',
+  'energia.cobertura.completa.otros':
+    'Registrazione completa: ci sono tutte le {n} bollette del periodo. Il costo della luce nel report di redditività è il totale reale.',
+  'energia.cobertura.faltan':
+    'Bollette mancanti nel periodo: {faltan} su {esperados}. Finché mancano, il report di redditività somma solo il registrato e mostra un costo della luce MINORE di quello reale, senza nessun avviso: un mese senza bolletta non è un mese senza consumo.',
+  'energia.borrado.confirmacion':
+    'Si elimina la bolletta del contatore {medidor}, di {mes}, per {monto}. Non si può annullare: quel mese torna a contare come un buco, e finché non la registri di nuovo il report di redditività mostrerà un costo della luce minore di quello reale.',
+
+  // ── components/demo/energia/recibos.ts ──
+  'energia.lectura.punto': 'Scegli a quale proprietà o impianto corrisponde questa bolletta',
+  'energia.lectura.kwh.falta': 'Scrivi i kWh: non è stato possibile leggerli dal PDF',
+  'energia.lectura.importe.falta': 'Scrivi l’importo: non è stato possibile leggerlo dal PDF',
+  'energia.lectura.no-recibo.uno': '{n} file non è una bolletta CFE',
+  'energia.lectura.no-recibo.otros': '{n} file non sono bollette CFE',
+  'energia.lectura.desajuste.uno': '{n} non corrisponde al numero di mesi che hai dichiarato ({esperados})',
+  'energia.lectura.desajuste.otros': '{n} non corrispondono al numero di mesi che hai dichiarato ({esperados})',
+  'energia.lectura.cubre.uno': '{base}: i mesi di calendario che copre sono {unico}',
+  'energia.lectura.cubre.otros': '{base}: i mesi di calendario coperti da quei {n} sono {unico}',
+  'energia.lectura.sin-predio': '{n} senza proprietà: sceglila tu',
+  'energia.lectura.sin-cifra': '{n} con una cifra che non è stato possibile leggere',
+  'energia.lectura.repetidos': '{n} con il mese già registrato: salvare di nuovo RADDOPPIA il costo',
+  'energia.lectura.alerta': 'File letti: {leidos} su {total}; righe: {filas}. Controlla prima di confermare: {pegas}.',
+  'energia.lectura.ninguno': 'Da questi file non è uscita nessuna riga.',
+  'energia.lectura.ok.uno':
+    'È stato letto {total} {archivos} e contiene {filas} {renglones}. Controlla ogni riga con la bolletta e confermala: non si salva nulla finché non clicchi salva.',
+  'energia.lectura.ok.otros':
+    'Sono stati letti {total} {archivos} e contengono {filas} {renglones}. Controlla ogni riga con la bolletta e confermala: non si salva nulla finché non clicchi salva.',
+  'energia.lectura.archivo.uno': 'file',
+  'energia.lectura.archivo.otros': 'file',
+  'energia.lectura.renglon.uno': 'riga',
+  'energia.lectura.renglon.otros': 'righe',
+  'energia.leido.servicio': 'servizio {n}',
+  'energia.leido.medidor': 'contatore {n}',
+  'energia.leido.periodo': 'periodo {desde} → {hasta}',
+  'energia.leido.pdf-dice': 'il PDF indica {kwh} kWh',
+  'energia.leido.facturacion': 'fatturazione {monto}',
+  'energia.leido.alumbrado': 'illuminazione pubblica {monto}',
+  'energia.leido.total': 'Totale della bolletta {monto} (include arretrati e pagamenti)',
+}

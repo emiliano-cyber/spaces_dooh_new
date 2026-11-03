@@ -275,6 +275,25 @@ describe('diccionario de Space Eyes · italiano', () => {
     'spaceeyes.alta.pi.1.no', // el boton «No» del Raspberry Pi Imager
     'spaceeyes.alta.tel.vincular', // «Vincular»: la app Android solo esta en español (dueño, 02/11)
     'spaceeyes.verif.no', // «No»
+    // Igual que el INGLES: palabras que el italiano toma del ingles.
+    'spaceeyes.conexion.en-linea', // «Online»
+    'spaceeyes.lista.filtro.linea', // «Online · {n}»
+    'spaceeyes.solicitudes.folio', // « · ticket {folio}»
+    'spaceeyes.demo.aviso.demo', // «demo»
+    'spaceeyes.fallas.donde.gabinetes.uno', // «Cabinet {lista}»: «cabinet» es invariable
+    'spaceeyes.graficas.pct', // «{n}%»
+    'spaceeyes.alta.pi.clave', // «Password»
+    // Igual que el ESPANOL: la misma palabra en los dos idiomas.
+    'spaceeyes.demo.estado.temperatura', // «Temperatura»
+    'spaceeyes.ficha.cliente', // «Foto del cliente»
+    'spaceeyes.balance.fluorescent', // «Fluorescente»
+    'spaceeyes.admin.temp-cpu', // «Temperatura CPU»
+    'spaceeyes.vivo.foto', // «Foto»
+    'spaceeyes.fallas.zona', // «Zona»
+    'spaceeyes.comun.periodo', // «Periodo»
+    'spaceeyes.graficas.dispositivo', // «Dispositivo»
+    'spaceeyes.graficas.nd', // «n/d»
+    'spaceeyes.texto.centro', // «Centro»
   ])
 
   it('esta COMPLETO: cada clave del espanol tiene su italiano, y ninguna sobra', () => {
@@ -304,7 +323,9 @@ describe('diccionario de Space Eyes · italiano', () => {
   })
 
   it('ni cifras con punto decimal ni signos de apertura espanoles', () => {
-    expect(it_.filter(([, v]) => /\d\.\d/.test(v.replace(/\d+\.\d+\.\d+/g, '')) || /[¿¡ñ]/.test(v)).map(([k]) => k)).toEqual([])
+    // Las versiones («app 0.15», «v1.0», «0.15.0») no son cifras: llevan punto.
+    const sinVersiones = (v: string) => v.replace(/\d+\.\d+\.\d+/g, '').replace(/(?:\bapp |\bv)\d+\.\d+/g, '')
+    expect(it_.filter(([, v]) => /\d\.\d/.test(sinVersiones(v)) || /[¿¡ñ]/.test(v)).map(([k]) => k)).toEqual([])
   })
 
   it('las frecuencias fijas van en letra: «ogni due ore», nunca «ogni 2»', () => {

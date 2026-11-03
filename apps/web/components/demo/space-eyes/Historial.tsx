@@ -104,7 +104,7 @@ export function Historial({ id }: { id: number }) {
             {datos?.muestras != null && (
               <span className="ml-auto text-[11px] text-muted">
                 {t(datos.muestras === 1 ? 'spaceeyes.historial.reportes.uno' : 'spaceeyes.historial.reportes.otros', {
-                  n: formatNumero(datos.muestras),
+                  n: formatNumero(datos.muestras, 0, idioma),
                 })}
               </span>
             )}
