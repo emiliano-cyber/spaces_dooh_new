@@ -14,7 +14,7 @@ import { fechaHora, hace } from './piezas'
 import { useIdioma } from '@/lib/i18n/contexto'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
 import { interpolarNodos } from '@/lib/i18n/nodos'
-import { dondeDeFallaEnIdioma } from '@/lib/i18n/donde-falla'
+import { dondeDeFallaEnIdioma, nombreDeFallaEnIdioma } from '@/lib/i18n/donde-falla'
 
 // ============================================================================
 //  Lo que el equipo descubre mirando SU pantalla, en la ficha del equipo.
@@ -157,7 +157,7 @@ export function PantallaYCreativos({
                   )}
                   <div className="min-w-0 text-[12px]">
                     <div className="flex items-center gap-1.5 font-semibold text-error">
-                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> {f.nombre}
+                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> {nombreDeFallaEnIdioma(f.nombre, idioma)}
                     </div>
                     <div className="mt-0.5 break-words text-ink">{dondeDeFallaEnIdioma(f.donde, idioma)}</div>
                     <div className="mt-0.5 text-muted">
@@ -196,7 +196,7 @@ export function PantallaYCreativos({
                   {fallas.map((f) => (
                     <tr key={f.id}>
                       <td className="whitespace-nowrap py-1.5 pr-3 tabular-nums">{fechaHora(f.detectadaEn, idioma)}</td>
-                      <td className="pr-3 text-ink">{f.nombre}</td>
+                      <td className="pr-3 text-ink">{nombreDeFallaEnIdioma(f.nombre, idioma)}</td>
                       <td className="pr-3 text-muted">{dondeDeFallaEnIdioma(f.donde, idioma)}</td>
                       <td className="pr-3">
                         <span className={cn('rounded-full px-2 py-0.5 text-[11px]', ESTADO[f.estado]?.clase)}>

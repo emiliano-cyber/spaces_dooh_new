@@ -37,3 +37,34 @@ describe('donde de una falla · en ingles', () => {
     expect(c.split('dondeDeFallaEnIdioma(f.donde, idioma)').length - 1).toBe(2)
   })
 })
+
+describe('nombre de una falla · el que escribe el telefono', async () => {
+  const { nombreDeFallaEnIdioma } = await import('./donde-falla')
+  const { DICCIONARIOS } = await import('./diccionario')
+  const ES = DICCIONARIOS.es as Record<string, string>
+  const EN = DICCIONARIOS.en as Record<string, string>
+  const claves = Object.keys(ES).filter((k) => k.startsWith('spaceeyes.fallas.nombre.'))
+
+  it('cada nombre del catalogo del telefono sale en ingles; en espanol, igual', () => {
+    expect(claves.length).toBe(8)
+    for (const k of claves) {
+      expect(nombreDeFallaEnIdioma(ES[k], 'en'), k).toBe(EN[k])
+      expect(nombreDeFallaEnIdioma(ES[k], 'es')).toBe(ES[k])
+    }
+  })
+  it('un nombre que no es del catalogo (o con otra forma) se pinta como llega', () => {
+    for (const x of ['F-APAGADO', 'Pantalla congelada', 'zona_apagada', 'Posible gabinete apagado ', 'posible gabinete apagado'])
+      expect(nombreDeFallaEnIdioma(x, 'en')).toBe(x)
+  })
+  it('el espanol de cada clave es el literal de la app (`Monitor.kt`)', () => {
+    const kt = readFileSync(join(process.cwd(), '../../space-eye/android/app/src/main/java/com/spaceeye/agent/pantalla/Monitor.kt'), 'utf8')
+    for (const k of claves) expect(kt, k).toContain(`"${ES[k]}"`)
+  })
+  it('las dos pantallas pasan el nombre por la traduccion en todos sus sitios', () => {
+    for (const [archivo, n] of [['PantallaYCreativos', 2], ['FallasFlota', 3]] as const) {
+      const c = readFileSync(join(process.cwd(), `components/demo/space-eyes/${archivo}.tsx`), 'utf8')
+      expect(c, archivo).not.toMatch(/\{f\.nombre\}/)
+      expect(c.split('nombreDeFallaEnIdioma(f.nombre, idioma)').length - 1, archivo).toBe(n)
+    }
+  })
+})

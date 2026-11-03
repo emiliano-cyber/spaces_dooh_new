@@ -10,6 +10,7 @@ import { seApi, fotoSE, ErrorSE, textoDeError } from '@/lib/data/space-eyes-se'
 import { VisorFoto, fechaHora } from './piezas'
 import { formatNumero } from '@/lib/formato-numero'
 import { useIdioma } from '@/lib/i18n/contexto'
+import { nombreDeFallaEnIdioma } from '@/lib/i18n/donde-falla'
 import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
 import type { Idioma } from '@/lib/i18n/idiomas'
 import { interpolarNodos } from '@/lib/i18n/nodos'
@@ -281,7 +282,7 @@ export function FallasFlota() {
                     <span className="inline-flex items-center gap-1 rounded-full bg-error-soft px-2 py-0.5 text-[11px] font-medium text-error">
                       <AlertTriangle className="h-3 w-3" /> {t('spaceeyes.fallas.detectada')}
                     </span>
-                    <p className="mt-1.5 text-[13px] font-semibold text-ink">{f.nombre}</p>
+                    <p className="mt-1.5 text-[13px] font-semibold text-ink">{nombreDeFallaEnIdioma(f.nombre, idioma)}</p>
                     <dl className="mt-1 space-y-0.5">
                       <Dato titulo={t('spaceeyes.comun.equipo')}>
                         <Link href={`/space-eyes/${f.device_id}`} className="text-accent hover:underline">
@@ -349,7 +350,7 @@ export function FallasFlota() {
             {lista.map((f) => (
               <li key={f.id} className="space-y-1.5 p-3 text-[12px]">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="font-medium text-ink">{f.nombre}</span>
+                  <span className="font-medium text-ink">{nombreDeFallaEnIdioma(f.nombre, idioma)}</span>
                   <span className={cn('rounded-full px-2 py-0.5 text-[11px]', ESTADO[f.estado]?.clase)}>
                     {ESTADO[f.estado] ? t(ESTADO[f.estado].texto) : f.estado}
                   </span>
@@ -411,7 +412,7 @@ export function FallasFlota() {
                         {f.equipo}
                       </Link>
                     </td>
-                    <td className="px-3 py-2 text-ink">{f.nombre}</td>
+                    <td className="px-3 py-2 text-ink">{nombreDeFallaEnIdioma(f.nombre, idioma)}</td>
                     <td className="px-3 py-2 text-muted">{donde(f, idioma)}</td>
                     <td className="px-3 py-2">
                       <span className={cn('rounded-full px-2 py-0.5 text-[11px]', ESTADO[f.estado]?.clase)}>

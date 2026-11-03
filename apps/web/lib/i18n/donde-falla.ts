@@ -33,3 +33,24 @@ export function dondeDeFallaEnIdioma(donde: string, idioma: Idioma): string {
   if (donde === traducir('es', 'spaceeyes.fallas.donde.toda')) return traducir(idioma, 'spaceeyes.fallas.donde.toda')
   return donde
 }
+
+// El NOMBRE de una falla lo escribe el telefono (`Monitor.kt`: NOMBRES y los
+// dos de grupo), en espanol, porque la app solo esta en espanol. Se reconoce el
+// texto EXACTO del catalogo (`spaceeyes.fallas.nombre.*`); cualquier otro se
+// pinta como llega. En espanol, tal cual.
+const CLAVES_NOMBRE = [
+  'spaceeyes.fallas.nombre.zona-apagada',
+  'spaceeyes.fallas.nombre.zona-congelada',
+  'spaceeyes.fallas.nombre.pantalla-apagada',
+  'spaceeyes.fallas.nombre.pantalla-congelada',
+  'spaceeyes.fallas.nombre.camara-movida',
+  'spaceeyes.fallas.nombre.sin-imagen',
+  'spaceeyes.fallas.nombre.varios-apagados',
+  'spaceeyes.fallas.nombre.varios-congelados',
+] as const
+
+export function nombreDeFallaEnIdioma(nombre: string, idioma: Idioma): string {
+  if (idioma === 'es') return nombre
+  const clave = CLAVES_NOMBRE.find((k) => traducir('es', k) === nombre)
+  return clave ? traducir(idioma, clave) : nombre
+}
