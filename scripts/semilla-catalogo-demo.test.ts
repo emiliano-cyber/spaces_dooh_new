@@ -157,7 +157,11 @@ describe('semilla-catalogo-demo', () => {
 
   it('deshacer cubre cada tabla en la que siembra', () => {
     const sembradas = new Set(
-      sentenciasDelCatalogo(plan(), TENANT, 'x'.repeat(12)).map((s) => /insert into (\w+)/.exec(s.sql)![1]),
+      // Solo los insert: el reparto de spots es un `update` de reservas, que
+      // ya se borran enteras.
+      sentenciasDelCatalogo(plan(), TENANT, 'x'.repeat(12))
+        .map((s) => /insert into (\w+)/.exec(s.sql)?.[1])
+        .filter((t): t is string => !!t),
     )
     const borradas = new Set(sentenciasDeshacer(plan(), TENANT).map((s) => /delete from (\w+)/.exec(s.sql)![1]))
     expect([...sembradas].filter((t) => !borradas.has(t))).toEqual([])

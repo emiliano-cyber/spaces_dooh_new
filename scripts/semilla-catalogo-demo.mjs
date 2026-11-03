@@ -70,6 +70,7 @@
 //  que el mapa pinte algo con sentido.
 // ============================================================================
 import pg from 'pg'
+import { dataUrlDeArte, imagenAHtml } from './semilla-arte-demo.mjs'
 
 // ─── Fechas de CALENDARIO, sin zona horaria ────────────────────────────────
 // La misma técnica que `semilla-demo.mjs`: `new Date('2026-07-01')` es
@@ -451,6 +452,138 @@ export const USUARIOS = [
   { rol: 'FINANZAS', nombre: 'Finanzas DEMO', cargo: 'Cuentas por cobrar', email: 'finanzas@catalogo.invalid' },
 ]
 
+// ─── Los creativos ─────────────────────────────────────────────────────────
+//
+// Dos caminos, como en la aplicación (`creativos-repo.ts:42-49`):
+//
+//  · DIGITALES → `creatividades`. Una campaña toda fija (OOH) NO recibe
+//    creatividad: el servidor lo rechaza. El arte se guarda como lo guarda la
+//    pantalla de Creativos al subir una imagen: el PNG en data URL ENVUELTO en
+//    HTML (`imagenAHtml`) en `codigo`, con `formato = 'text/html'`. Los
+//    aprobados se reparten en los spots digitales de la campaña
+//    (`reservas.creativos`), que es lo que la pantalla enseña como «asignado».
+//  · FIJAS → `ordenes_impresion`: el arte de una lona es su prueba de color
+//    (`prueba_color_url`), y la orden recorre los cinco estados de la imprenta.
+//
+// Ni una llamada a DOOHmain: un creativo aprobado aquí está aprobado EN LA
+// BASE, no publicado en ningún player.
+const COLORES = {
+  C1: ['#B71C1C', '#FFD54F'], C2: ['#0D47A1', '#90CAF9'], C3: ['#4A148C', '#E1BEE7'],
+  C4: ['#263238', '#FF7043'], C5: ['#1B5E20', '#A5D6A7'], C6: ['#311B92', '#FFEB3B'],
+  C7: ['#004D40', '#80CBC4'], C8: ['#3E2723', '#FFCC80'],
+}
+
+// Por campaña, qué creativos digitales lleva y en qué estado. Las que no salen
+// aquí siguen la regla general: un spot APROBADO si ya está al aire o terminó,
+// uno PENDIENTE si está confirmada, y nada en cotización o borrador.
+const CREATIVOS_EXTRA = {
+  // Dos aprobados rotando y uno RECHAZADO con su motivo.
+  '013': [
+    { v: 'B', estatus: 'VALIDADA', lema: 'SABOR QUE REFRESCA' },
+    { v: 'C', estatus: 'RECHAZADA', lema: 'VERSION PRELIMINAR', motivo: 'El logotipo invade el area segura y el texto legal no se lee a 50 m.' },
+  ],
+  // Al aire con su aprobado, y la versión de temporada esperando validación.
+  '014': [{ v: 'B', estatus: 'PENDIENTE', lema: 'TEMPORADA DECEMBRINA' }],
+}
+
+const IMPRESION_CONFIRMADAS = { '017': 'EN_PRODUCCION', '018': 'VALIDADO', '019': 'ARTE_RECIBIDO' }
+
+function materialDe(tipoMedio) {
+  if (tipoMedio === 'ESPECTACULAR') return 'Lona front 13 oz'
+  if (tipoMedio === 'PUENTE_PEATONAL') return 'Lona mesh microperforada'
+  if (tipoMedio === 'MOBILIARIO_URBANO') return 'Backlight translucido'
+  return 'Vinil autoadherible'
+}
+
+function planCreativos(campanas, reservas) {
+  const creativos = []
+  const asignaciones = []
+  const impresiones = []
+  for (const c of campanas) {
+    const cliente = CLIENTES.find((x) => x.clave === c.cliente)
+    const marca = cliente.nombre.replace(' DEMO', '').toUpperCase()
+    const [fondo, acento] = COLORES[c.cliente]
+    const suyas = reservas.filter((r) => r.campanaFolio === c.folio && r.estatus !== 'CANCELADA')
+
+    // ── Digitales ──
+    const digitales = suyas.filter((r) => r.digital)
+    const enFirme = ['COMPLETADA', 'LISTA_FACTURAR', 'ACTIVA'].includes(c.estado)
+    if (c.tipo !== 'OOH' && digitales.length && (enFirme || c.estado === 'CONFIRMADA')) {
+      const verticales = digitales.filter((r) => sitio(r.corto).ancho < 2)
+      const horizontales = digitales.filter((r) => sitio(r.corto).ancho >= 2)
+      const base = enFirme ? 'VALIDADA' : 'PENDIENTE'
+      const variantes = [{ v: 'A', estatus: base, lema: c.nombre.split(' · ')[1] }, ...(CREATIVOS_EXTRA[c.n] ?? [])]
+      for (const [orient, lista] of [['horizontal', horizontales], ['vertical', verticales]]) {
+        if (!lista.length) continue
+        const vertical = orient === 'vertical'
+        const resolucion = vertical ? '1080x1920' : '1920x1080'
+        const nombres = []
+        for (const va of variantes) {
+          const nombre = `${c.folio} spot ${va.v} ${resolucion}.png`
+          creativos.push({
+            campanaFolio: c.folio,
+            nombre,
+            resolucion,
+            estatus: va.estatus,
+            motivo: va.motivo ?? null,
+            arte: {
+              ancho: vertical ? 270 : 480,
+              alto: vertical ? 480 : 270,
+              fondo,
+              acento,
+              texto: '#FFFFFF',
+              lineas: [marca, va.lema, c.folio],
+            },
+          })
+          if (va.estatus === 'VALIDADA') nombres.push(nombre)
+        }
+        // Los aprobados se reparten los spots de cada pantalla; el primero se
+        // lleva el resto cuando no dividen exacto, como `repartirCreativosEnCampana`.
+        if (nombres.length)
+          for (const r of lista) {
+            const spots = r.spots ?? 1
+            asignaciones.push({
+              campanaFolio: c.folio,
+              sitio: r.sitio,
+              creativos: nombres.map((n, i) => ({
+                nombre: n,
+                veces: Math.max(1, Math.floor(spots / nombres.length) + (i < spots % nombres.length ? 1 : 0)),
+              })),
+            })
+          }
+      }
+    }
+
+    // ── Fijas: la orden de imprenta con su prueba de color ──
+    let estatusImpresion = null
+    if (enFirme) estatusImpresion = 'LISTO_MONTAJE'
+    else if (c.estado === 'CONFIRMADA') estatusImpresion = IMPRESION_CONFIRMADAS[c.n] ?? 'ARTE_RECIBIDO'
+    if (!estatusImpresion) continue
+    for (const r of suyas.filter((x) => !x.digital)) {
+      const s = sitio(r.corto)
+      const ancho = 480
+      const alto = Math.max(120, Math.round((ancho * s.alto) / s.ancho))
+      const orden = (sufijo, estatus, lema) => ({
+        folio: `CAT-OI-${c.n}-${r.corto}${sufijo}`,
+        campanaFolio: c.folio,
+        sitio: r.sitio,
+        material: materialDe(s.tipoMedio),
+        ancho: s.ancho,
+        alto: s.alto,
+        estatus,
+        proveedor: 'Impresos DEMO Gran Formato',
+        aprobada: estatus !== 'ARTE_RECIBIDO',
+        arte: { ancho, alto, fondo, acento, texto: '#FFFFFF', lineas: [marca, lema, `${s.nombre.toUpperCase()}`] },
+      })
+      impresiones.push(orden('', estatusImpresion, c.nombre.split(' · ')[1]))
+      // Una reposición de lona impresa y esperando montaje: el quinto estado de
+      // la imprenta, y un caso real (el viento rompe lonas a mitad de campaña).
+      if (c.n === '014') impresiones.push(orden('-R', 'IMPRESO', 'REPOSICION DE LONA'))
+    }
+  }
+  return { creativos, asignaciones, impresiones }
+}
+
 // ─── El plan ───────────────────────────────────────────────────────────────
 
 const sitio = (corto) => SITIOS.find((s) => s.corto === corto)
@@ -714,9 +847,14 @@ export function planCatalogo(opciones = {}) {
     })
   })
 
+  const { creativos, asignaciones, impresiones } = planCreativos(campanas, reservas)
+
   return {
     organizacion: { slug, nombre: nombreOrg },
     hoy,
+    creativos,
+    asignaciones,
+    impresiones,
     arrendadores: ARRENDADORES,
     predios: PREDIOS,
     sitios: SITIOS,
@@ -1115,6 +1253,61 @@ export function sentenciasDelCatalogo(plan, T, clave, opciones = {}) {
     )
   }
 
+  // ─── Creativos digitales ──────────────────────────────────────────────────
+  // Guard por (campaña, nombre): `creatividades` no tiene clave natural única,
+  // y el nombre lleva el folio de la campaña dentro.
+  for (const cr of plan.creativos) {
+    add(
+      `creativo ${cr.nombre} (${cr.estatus})`,
+      `insert into creatividades (tenant_id, campana_id, nombre, codigo, formato, resolucion,
+                                  estatus_validacion, rechazado_motivo)
+       select $1::uuid, c.id, $2::text, $3::text, 'text/html', $4::text,
+              $5::est_validacion_crea, $6::text
+         from campanas c
+        where c.tenant_id = $1::uuid and c.folio = $7::text
+          and not exists (select 1 from creatividades x
+                           where x.tenant_id = $1::uuid and x.campana_id = c.id and x.nombre = $2::text)`,
+      [T, cr.nombre, imagenAHtml(dataUrlDeArte(cr.arte), cr.nombre), cr.resolucion, cr.estatus, cr.motivo, cr.campanaFolio],
+    )
+  }
+
+  // El reparto en los spots: SOLO si la reserva no tiene ninguno. Si alguien ya
+  // los cambió en la demo, la segunda corrida no se lo pisa.
+  for (const a of plan.asignaciones) {
+    add(
+      `spots ${a.campanaFolio} · ${a.sitio}`,
+      `update reservas r
+          set creativos = (
+            select jsonb_agg(jsonb_build_object('creatividadId', cr.id::text, 'veces', (e.el ->> 'veces')::int)
+                             order by e.orden)
+              from jsonb_array_elements($2::jsonb) with ordinality as e(el, orden)
+              join creatividades cr on cr.tenant_id = $1::uuid and cr.campana_id = r.campana_id
+                                   and cr.nombre = e.el ->> 'nombre' and cr.estatus_validacion = 'VALIDADA')
+         from campanas c, sitios s
+        where r.tenant_id = $1::uuid and c.tenant_id = $1::uuid and s.tenant_id = $1::uuid
+          and r.campana_id = c.id and r.sitio_id = s.id
+          and c.folio = $3::text and s.clave_interna = $4::text
+          and r.creativos = '[]'::jsonb`,
+      [T, JSON.stringify(a.creativos), a.campanaFolio, a.sitio],
+    )
+  }
+
+  // ─── Órdenes de imprenta (el arte de las fijas) ──────────────────────────
+  for (const oi of plan.impresiones) {
+    add(
+      `imprenta ${oi.folio} (${oi.estatus})`,
+      `insert into ordenes_impresion (tenant_id, folio, campana_id, sitio_id, material, alto, ancho,
+                                     estatus, proveedor, prueba_color_url, prueba_color_aprobada)
+       select $1::uuid, $2::text, c.id, s.id, $3::text, $4::numeric, $5::numeric,
+              $6::est_orden_impresion, $7::text, $8::text, $9::boolean
+         from campanas c
+         join sitios s on s.tenant_id = $1::uuid and s.clave_interna = $10::text
+        where c.tenant_id = $1::uuid and c.folio = $11::text
+       on conflict (folio) do nothing`,
+      [T, oi.folio, oi.material, oi.alto, oi.ancho, oi.estatus, oi.proveedor, dataUrlDeArte(oi.arte), oi.aprobada, oi.sitio, oi.campanaFolio],
+    )
+  }
+
   return out
 }
 
@@ -1137,6 +1330,12 @@ export function sentenciasDeshacer(plan, T) {
   const correos = plan.usuarios.map((u) => u.email.toLowerCase())
   const q = (etiqueta, sql, valores = [T]) => ({ etiqueta, sql, valores })
   return [
+    q('ordenes_impresion', `delete from ordenes_impresion where tenant_id = $1::uuid and folio like 'CAT-OI-%'`),
+    // Solo los creativos sembrados (su nombre empieza por el folio CAT-): uno
+    // que alguien suba en la demo no se borra aquí, y entonces el borrado de la
+    // campaña lo arrastraría por su `on delete cascade` del esquema.
+    q('creatividades', `delete from creatividades where tenant_id = $1::uuid and nombre like 'CAT-CMP-%'
+        and campana_id in (select id from campanas where tenant_id = $1::uuid and folio like 'CAT-CMP-%')`),
     q('cobranzas', `delete from cobranzas where tenant_id = $1::uuid and factura_id in
         (select id from facturas where tenant_id = $1::uuid and folio like 'CAT-FAC-%')`),
     q('facturas', `delete from facturas where tenant_id = $1::uuid and folio like 'CAT-FAC-%'`),
@@ -1221,6 +1420,7 @@ export async function comprobarBase(cli, plan, opciones = {}) {
     ['campanas', 'campanas', 'folio', plan.campanas.map((c) => c.folio)],
     ['comprobantes', 'facturas', 'folio', plan.comprobantes.map((f) => f.folio)],
     ['ordenes', 'ordenes_trabajo', 'folio', plan.ordenes.map((o) => o.folio)],
+    ['ordenes de imprenta', 'ordenes_impresion', 'folio', plan.impresiones.map((o) => o.folio)],
   ]
   for (const [que, tabla, col, claves] of consultas) {
     const x = await cli.query(
@@ -1296,6 +1496,8 @@ function imprimirResumen(plan) {
   console.log(`  reservas     ${plan.reservas.length}: ${cuenta(plan.reservas, (r) => r.estatus)}`)
   console.log(`  comprobantes ${plan.comprobantes.length}: ${cuenta(plan.comprobantes, (f) => `${f.estatus}/${f.cobranza}`)}`)
   console.log(`  ordenes      ${plan.ordenes.length}: ${cuenta(plan.ordenes, (o) => o.estatus)}`)
+  console.log(`  creativos    ${plan.creativos.length} digitales: ${cuenta(plan.creativos, (c) => c.estatus)} · ${plan.asignaciones.length} spots con creativo asignado`)
+  console.log(`  imprenta     ${plan.impresiones.length} ordenes con prueba de color: ${cuenta(plan.impresiones, (o) => o.estatus)}`)
   console.log(`  usuarios     ${plan.usuarios.map((u) => `${u.rol} <${u.email}>`).join('\n               ')}`)
   console.log('')
 }
