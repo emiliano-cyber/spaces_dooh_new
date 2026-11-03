@@ -1002,6 +1002,34 @@ const PANTALLAS: Pantalla[] = [
     espanol: ['— ACTIVOS, VENTAS'],
     ingles: ['— ASSETS, SALES'],
   },
+  {
+    // Ola 6 · los avisos de la campanita son DATO guardado en espanol por el
+    // servidor; se traducen al pintarlos (`lib/i18n/notificaciones.ts`).
+    nombre: 'shell · campanita con avisos del servidor (ola 6)',
+    pintar: async (idioma) => {
+      datos.notificaciones = [
+        { id: 'n1', titulo: 'Cobranza vencida', detalle: 'F001-0007 · Cliente Uno — vencida hace 4 día(s) · saldo $247,080', nivel: 'warn', link: '/finanzas', leida: false },
+        { id: 'n2', titulo: 'Campaña generada desde propuesta', detalle: 'CA-0012 · Verano 2026', nivel: 'ok', link: null, leida: true },
+        { id: 'n3', titulo: 'Contrato vence en 2 días: Predio Norte · Juan Ruiz', detalle: 'Si se va a renovar, conviene moverlo antes de que caduque.', nivel: 'warn', link: null, leida: false },
+      ]
+      const { Topbar } = await import('../../components/demo/shell/Topbar')
+      const { MenuMovilProvider } = await import('../../components/demo/shell/MenuMovilContext')
+      return pintar(idioma, createElement(MenuMovilProvider, null, createElement(Topbar)))
+    },
+    espanol: [
+      '>Cobranza vencida<', 'F001-0007 · Cliente Uno — vencida hace 4 día(s) · saldo $247,080',
+      'aria-label="Borrar la notificación Cobranza vencida"',
+      'Campaña generada desde propuesta', 'Contrato vence en 2 días: Predio Norte · Juan Ruiz',
+      'Si se va a renovar, conviene moverlo antes de que caduque.',
+    ],
+    ingles: [
+      '>Overdue collection<', 'F001-0007 · Cliente Uno — 4 days overdue · balance MX$247,080',
+      'title="F001-0007 · Cliente Uno — 4 days overdue · balance MX$247,080"',
+      'aria-label="Delete the notification Overdue collection"',
+      'Campaign generated from proposal', 'CA-0012 · Verano 2026', 'Contract expires in 2 days: Predio Norte · Juan Ruiz',
+      'If it is going to be renewed, it’s best to act before it expires.',
+    ],
+  },
 ]
 
 // Ola 6 · el catalogo de partida de `catalogo_roles_entidad`, tal cual.
