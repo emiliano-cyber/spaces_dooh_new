@@ -18,6 +18,7 @@ archivos:
   - apps/web/components/demo/ui/SelectorIdioma.tsx
   - apps/web/lib/password.ts
   - scripts/i18n-inventario.mjs
+  - apps/web/lib/i18n/guardias-ingles.ts
   - apps/web/lib/i18n/errores-servidor.ts
   - apps/web/components/demo/inventario/ContratoWizard.tsx
   - apps/web/lib/i18n/textos/propuestas.ts
@@ -1714,6 +1715,91 @@ cada modalidad en «Información añadida» (un dato); el importe que recita el
 paso de revisión de firmas (`$10,000.00 MXN`, es el dato que se congela);
 `GestionEntidadesFiscales` (la gestión dentro de `/razones-sociales`, que no
 estaba en la lista del lote) y los mensajes del servidor (I18N-05).
+
+### Costura 2
+
+**2026-11-02, rama `feat/ingles-costura-2`** (sale de `integra/ingles`,
+00815aa3). Junta los tres lotes de la tercera ola que faltaban, en este orden y
+con `git merge --no-ff`: clientes y operaciones, Space Eyes, e inventario y
+arrendadores. El inglés sigue APAGADO; en español no cambia ni una letra
+(medido, abajo).
+
+**1 · Los choques de las uniones.** `diccionario.ts`, `costura.test.ts` y esta
+nota son la unión de los lados. En `costura.test.ts`, `baseDelDiccionario`
+descuenta ahora los cinco ámbitos nuevos (clientes, operaciones, spaceeyes,
+inventario, arrendadores). «Actualizar» estaba declarado tres veces (admin,
+Space Eyes, inventario): queda **una** entrada que junta los tres motivos.
+
+**2 · `/razones-sociales`, traducida dos veces.** Administración (ya integrado)
+y arrendadores tradujeron la MISMA página con claves distintas. Manda
+`admin.razones.*`. Las tres claves de arrendadores que quedaron sin uso
+(`arrendadores.entidades.sin-acceso`, `.no-cargar`, `.sub`) se retiran; su
+español lo sigue pintando la clave de admin. Los avisos de
+`GestionRazonesSociales` («Razón social agregada / actualizada / eliminada»)
+dicen ahora **Legal entity added / updated / deleted**, como admin: el registro
+es una *legal entity* (la tarjeta se titula «Legal entities»), su nombre sigue
+siendo *legal name*. La prueba del estado «razones sociales · cargando» espera
+el subtítulo que de verdad se pinta.
+
+**3 · Divergencias que ningún lote podía ver** (cada uno salía de una base sin
+los demás). Unificadas, solo en inglés:
+
+| Español | Antes | Ahora | Por qué |
+|---|---|---|---|
+| Código postal inválido (5 dígitos) · C.P. fiscal | *ZIP code* (clientes) | *postal code* | como el servidor, admin y campañas; «ZIP» es de EE. UU. |
+| Para enviarlo a revisión falta: … | *it still needs* (clientes) | *this is missing* | como el servidor |
+| Calle, número, colonia, CP, … (ejemplo) | *ZIP code* (arrendadores) | *postal code* | como admin |
+| No puede ser negativo | *Can’t be negative* (arrendadores) | *It cannot be negative* | como compartidos |
+| La licencia no puede vencer antes de expedirse. | *can’t* | *cannot* | como el servidor |
+| Razón social agregada / actualizada | *Legal name* (arrendadores) | *Legal entity* | como admin (§2) |
+
+Y declaradas en `DISTINTOS_A_PROPOSITO`, porque significan otra cosa: «Dada de
+baja» (*Deactivated* / *Decommissioned*), «Equipo» (*Team* / *Device*),
+«Operador» (*Operator* / *Carrier*), «Volver» (*Back* / *Revert*) y «Registrar»
+(*Register* un artículo / *Record* un pago).
+
+**4 · Un solo ayudante de huellas de formato español**
+(`lib/i18n/guardias-ingles.ts`, `huellasDeFormatoEspanol`). Inventario lo creó
+con dos huellas y Space Eyes tenía en su prueba una copia local con dos más.
+Queda uno con las seis: dinero sin `MX$`, `dd/mm/aaaa`, la fecha larga («20 de
+octubre de 2026»), el mes corto («02 nov»), el corto con guion («02-nov») y el
+«a. m.». Mira también los `title`, `aria-label`, `placeholder` y `alt`, y
+`permitidos` se prueba contra el **trozo** encontrado (el importe se lleva el
+código de moneda que lo sigue), no contra 60 caracteres de contexto. Lo usan
+las pruebas de pantallas de **los once ámbitos con pantallas** (propuestas,
+compartidos, campañas y finanzas, comercial, catálogos, admin, cuenta y shell,
+clientes, operaciones, Space Eyes, inventario y arrendadores). **Cero huellas**
+en los lotes ya integrados; un mutante de control (la fecha del tablero de
+Propuestas sin idioma) cae con «02/11/2026». Mueren el **E** de inventario
+(`PanelFirmas` con la fecha larga en español) y el **M10** de Space Eyes (la
+fecha de Programación siempre en es-MX).
+
+**5 · Los menores de los validadores.**
+
+- Space Eyes: `alta.tel.3` dice «choose {vincular}» (no «confirm with»); el
+  respaldo «No se pudo hablar con Space Eyes» de `lib/data/space-eyes-api.ts`
+  va con idioma (`spaceeyes.comun.sin-hablar`, *Could not reach Space Eyes*),
+  con `'es'` por omisión como `textoDeError`.
+- Inventario: `fraseDeLote` y `avisoDeLote` se exportan y la prueba de paridad
+  las **llama**; una guardia de fuente fija la unidad del subtítulo. Mueren D1 y
+  D2. Constancia: «kept as circumstantial evidence».
+- Servidor: el inglés exacto de «…Subelos en varias veces.» (muere el mutante
+  del ancla `$` del mensaje corto); «promo codes» → **negotiation codes**, y en
+  esos dos mensajes «package» → **bundle**, con comillas tipográficas.
+- Administración: el singular de Network se exige con su cierre
+  (`'>of 1 space<'`); muere N4.
+- Captación: «2 ordenes» en la imprenta se queda así; es un dato del español.
+
+**El español, medido.** Se volcó el HTML español de **todas** las pruebas de
+pantallas (`I18N_VOLCAR` / `VOLCAR_HTML`) con `integra/ingles` más cada lote
+por separado (la línea base de cada uno; para inventario, con SU versión de
+`/razones-sociales`) y con el resultado final: **397 estados**, `diff -rq`
+vacío (184 de los siete lotes ya integrados, 25 + 12 de clientes y
+operaciones, 95 de Space Eyes, 81 de inventario y arrendadores). Y
+`DICCIONARIOS.es` frente a la unión de las líneas base: 1 clave nueva, 3
+retiradas (su texto lo sigue pintando otra clave), **0 valores cambiados**.
+Inventario de lo que falta: `node scripts/i18n-inventario.mjs` baja de 1270
+textos en 112 archivos (`integra/ingles`) a 357 en 95.
 
 ## Enlaces
 
