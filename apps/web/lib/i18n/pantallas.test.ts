@@ -338,3 +338,53 @@ describe('con el ingles APAGADO (omision desde el 2026-09-30)', () => {
     expect(html).toMatch(/English/)
   })
 })
+
+// ─── 2026-11-03 · el italiano, detras de IDIOMA_ITALIANO ─────────────────────
+//
+// Ola 0 del italiano. El selector ofrece SOLO los idiomas encendidos, y el
+// layout raiz decide con la misma regla que el ingles.
+describe('el italiano en el layout y el selector (ola 0, 2026-11-03)', () => {
+  async function pintarConLayout(): Promise<string> {
+    const { default: RootLayout } = await import('../../app/layout')
+    const { default: LoginPage } = await import('../../app/(app)/login/page')
+    return renderToStaticMarkup(await RootLayout({ children: createElement(LoginPage) }))
+  }
+  const opciones = (html: string) =>
+    [...(html.match(/<select[^>]*>([\s\S]*?)<\/select>/)?.[1] ?? '').matchAll(/<option[^>]*>([^<]*)</g)].map(
+      (m) => m[1],
+    )
+
+  beforeEach(() => {
+    delete process.env.IDIOMA_ITALIANO
+    cabeceras.cookie = null
+    cabeceras.accept = null
+  })
+
+  it('APAGADO (omision): el selector no ofrece «Italiano» y una cookie it no lo consigue', async () => {
+    cabeceras.cookie = 'it'
+    const html = await pintarConLayout()
+    expect(html).toMatch(/<html[^>]*lang="es"/)
+    expect(opciones(html)).toEqual(['Español', 'English'])
+  })
+
+  it('encendido junto al ingles: los tres, en el orden del catalogo', async () => {
+    process.env.IDIOMA_ITALIANO = '1'
+    expect(opciones(await pintarConLayout())).toEqual(['Español', 'English', 'Italiano'])
+  })
+
+  it('encendido SOLO el italiano: espanol e italiano, sin ingles', async () => {
+    delete process.env.IDIOMA_INGLES
+    process.env.IDIOMA_ITALIANO = '1'
+    cabeceras.cookie = 'it'
+    const html = await pintarConLayout()
+    expect(html).toMatch(/<html[^>]*lang="it"/)
+    expect(opciones(html)).toEqual(['Español', 'Italiano'])
+    // El rotulo del selector ya esta en italiano (lo minimo de la shell).
+    expect(html).toMatch(/<select[^>]*aria-label="Cambia lingua"/)
+  })
+
+  it('sin la lista de disponibles (las pruebas de siempre), el selector es el de antes', async () => {
+    const html = await pintarLogin('es')
+    expect(opciones(html)).toEqual(['Español', 'English'])
+  })
+})
