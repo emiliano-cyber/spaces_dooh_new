@@ -202,3 +202,107 @@ Al terminar, `git status --short` salió vacío, salvo este informe.
    - sin comunicación → not reporting;
    - recuperada → cleared;
    - «Pide un toque» → «Someone has to confirm on the phone».
+
+---
+
+## Segunda pasada (2026-11-02)
+
+- **Diff revisado:** `git diff 144fefbf..HEAD`, con dos commits: `010cba53` (este informe) y `b537b4f7` (las correcciones), 24 archivos.
+
+### Veredicto: **VERDE**
+
+Los 5 hallazgos medios están resueltos y comprobados. Las cuatro decisiones del dueño y del orquestador se cumplen. Quedan 3 observaciones de severidad baja que no bloquean la integración.
+
+### 1 · Hallazgos de la primera pasada
+
+**Los cinco medios:**
+
+| hallazgo | estado | comprobación |
+|---|---|---|
+| «Space Eye respondió N» en inglés | **resuelto** | Ver la nota sobre `seApi` debajo de la tabla. |
+| «Updates: Updates on its own.» | **resuelto** | `Update mode: {como}`. En el render: «Update mode: Updates on its own.» |
+| «One code for all 2 … Device number 3 is not let in» | **resuelto** | Ahora sale «One code for 2 devices: each one joins on its own. From device no. 3 on, nobody else gets in, and you can cancel the code at any time.». Se entiende y es correcto. |
+| M3 (fechas sin vigilar) | **resuelto** | Hay una guardia nueva en el inglés de los 95 estados: dinero sin `MX`, `dd/mm/aaaa`, «2 nov» y «a. m.». La marca y los `value=` se quitan antes de buscar. |
+| M6/M7 (marca sin proteger) | **resuelto** | `lib/space-eyes-marca-idioma.test.ts` fija `lineasMarca` y `renglonesMarca` en es-MX, y comprueba que ninguno de los dos módulos sabe de idiomas. La prueba de pantallas exige además que el inglés de «ajustar texto» conserve `dd/mm/aaaa` y «a. m.». |
+
+**Cómo queda `seApi`:**
+
+- Al construir el error, `ErrorSE` marca `generico` solo cuando Space Eye no mandó ni `mensaje` ni `error`.
+- En ese caso, `textoDeError(e, idioma)` lo dice en el idioma de quien lee («Space Eye returned 500»).
+- **Lo que manda Space Eye pasa tal cual**: lo prueba `textos/spaceeyes.test.ts` con un 409 `{mensaje}`, y lo confirma el mutante M8.
+- `e.message` sigue siendo el español de siempre.
+- `Graficas.tsx:271` usa `textoRespondio(r.status, idioma)`.
+
+**Los de severidad baja, todos aplicados y vistos en el HTML inglés:**
+
+- Plurales: «of 1 device», «Applies to the 1 device…» y «Cabinet 2».
+- «On demand» en los dos sitios, y «manually».
+- Posesivos: «device’s data», «site’s mobile data».
+- «not a device issue», «“In operation” and “Active” currently behave the same», «Reduces screen lines…», «checksum» y «last seen».
+- La fecha de Programación ahora sale «Nov 2, 12:30 PM».
+- El pie del visor ahora sale «Nov 2, 2026, 11:59 AM» con `fechaHora(…, 'en')`, y su rama española no cambia.
+- La gráfica sin dato ahora dice «Worst value in the range: no data.», sin la unidad.
+
+**Decisiones:**
+
+- **«Vincular» en los dos idiomas.** `spaceeyes.alta.tel.vincular` = `Vincular`, declarado en `IGUALES` y en el `COMUNES` de la prueba de pantallas.
+- **«Settings › Business settings › Support»** en las 3 claves.
+- **Los motivos de `VisorWhep` se traducen** (`spaceeyes.whep.*`):
+  - `VisorWhep` recibe `idioma` como cuarto parámetro, con `'es'` por omisión, y `VistaEnVivo.tsx:315` se lo pasa.
+  - `motivoDe` pasa por `textoDeError`.
+  - Lo único que queda sin traducir es el `HTTP ${status}` interno, que es un dato técnico dentro de «Could not connect the video (…)».
+- **La marca de la foto no se traduce.** `space-eyes-marca*.ts` no tiene diff.
+
+**Revisé uno por uno todos los `e.message` que quedan en `components/demo/space-eyes/`:**
+
+- Los que leen errores de `seApi` ya pasan por `textoDeError`. Hay 31 usos en 14 archivos.
+- Los que leen errores de `lib/data/space-eyes-api.ts` (lista, ficha, histórico, pantalla y creativos) llevan el `error` de la ruta de SPACE OS, que es un dato del servidor.
+
+### 2 · Español intacto: VERIFICADO otra vez (mecánicamente)
+
+Monté de nuevo el espejo en `lib/__valviejo/`:
+
+- Los 20 componentes, la `page.tsx` y `space-eyes-actualizacion.ts` de `ec427a66`.
+- La prueba de pantallas **de HEAD**, con los mismos datos en los dos lados.
+
+```
+nuevo: Tests 288 passed · 95 archivos ES
+viejo: -t ESPANOL → Tests 95 passed · 95 archivos ES
+diff -rq viejo-es nuevo-es → IDENTICOS (95/95)
+```
+
+Comprobé que el espejo se usaba: con `'En lineaX'` en el `piezas.tsx` viejo, 7 archivos pasaron a diferir. Después lo borré.
+
+`piezas.tsx` y `space-eyes-actualizacion.ts` no cambian en esta vuelta, así que las 5869 comparaciones de la primera pasada siguen valiendo.
+
+### 3 · El arnés importa primero y fuerza después
+
+En `pantallas-spaceeyes.test.ts` hay un `beforeAll` (120 s) que carga los veinte módulos y la página antes de la primera prueba. Así, la cola de `useState` que se arma en cada `it` ya no compite con una importación lenta, y una prueba que se pase de tiempo no ensucia la siguiente. Las dos pruebas de barrido llevan 60 s de margen. Con la máquina cargada, las 288 pasaron dos veces seguidas.
+
+### 4 · Pruebas y mutantes
+
+```
+cd apps/web && npm run typecheck                       → tsc --noEmit, limpio
+cd apps/web && npx vitest run --testTimeout=60000     → Test Files 337 passed (337) · Tests 4931 passed (4931)
+```
+
+Usé `--testTimeout=60000` porque hay otros agentes en paralelo.
+
+**Mutantes.** Cada uno se aplicó con `sed`, se corrieron las 349 pruebas del lote y se restauró desde una copia. Sin `git stash`.
+
+| # | mutante | resultado |
+|---|---|---|
+| M3 | `fechaHora(f.detectada_en)` sin idioma en `FallasFlota` | **muere** (guardia de fechas: 2 estados) |
+| M6 | `space-eyes-marca.ts` en `en-US` | **muere** (2 rojas en `marca-idioma`) |
+| M7 | `space-eyes-marca-editor.ts` en `en-US` | **muere** (3 rojas: `marca-idioma` y la marca en el inglés de «ajustar texto») |
+| M8 | `seApi` marca todo error como genérico, lo que tapa el mensaje de Space Eye | **muere** («pasa tal cual») |
+| M9 | `new VisorWhep(…)` sin `idioma` en `VistaEnVivo` | **muere** |
+| M10 | la fecha de Programación siempre en es-MX («02-nov, 12:30») | **sobrevive**, ver la observación 2 |
+
+Al terminar, `git status --short` salió vacío, salvo este informe.
+
+### Observaciones de severidad baja (no bloquean)
+
+1. **`spaceeyes.alta.tel.3`:** «On the phone, open the app, confirm with **Vincular** and scan the QR». «confirm with» da a entender que «Vincular» es un botón de confirmación. Propuesta: `On the phone, open the app, choose {vincular} and scan the QR.`
+2. **La guardia de fechas no ve el formato corto es-MX con guion** («02-nov»), que es el de `Programacion.tsx:219`. Por eso sobrevive M10. Propuesta: añadir `/\b\d{1,2}-(ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)\b/` a `GUARDIAS`.
+3. **`lib/data/space-eyes-api.ts:74`** tiene un literal español del cliente, «No se pudo hablar con Space Eyes». Sale cuando una ruta de SPACE OS falla sin JSON (un 502 del proxy, por ejemplo) en la lista, la ficha, el histórico, la pantalla o los creativos. Es de la misma familia que el hallazgo n.º 1 y se me pasó en la primera pasada. Propuesta: la clave `spaceeyes.comun.no-hablar`, con `idioma` en `leer()` y `'es'` por omisión.
