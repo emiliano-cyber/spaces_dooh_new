@@ -388,18 +388,27 @@ export function usePipeline(campanaId: string): PipelineVista | undefined {
     const etapa = pipelineStage(c, s)
     const fechas = fechasPipeline(c, s)
     const etapas = etapasPipeline(c)
-    const pasos: PasoPipeline[] = etapas.map((k) => ({
-      key: k,
-      label: ETAPA_LABEL[k],
-      fecha: fechas[k] ? formatFechaLocal(fechas[k]!) : undefined,
-      iso: fechas[k] ?? undefined,
-    }))
+    const pasos: PasoPipeline[] = etapas.map((k) => {
+      const iso = fechas[k] ? isoDePaso(fechas[k]!) : undefined
+      return { key: k, label: ETAPA_LABEL[k], fecha: iso ? formatFechaLocal(iso) : undefined, iso }
+    })
     return { etapa, index: etapaIndex(etapa, etapas), pasos }
   }, [campanaId])
   return m ? (v ?? undefined) : undefined
 }
 
-function formatFechaLocal(iso: string): string {
+/**
+ * Ola 6 (menor C de la ola 5) · una fecha SIN hora («2026-11-03», la
+ * `fechaInicio` de la campaña) es un día del calendario. `new Date()` la lee
+ * como medianoche UTC, que en México todavía es el día anterior: el paso
+ * «Confirmada» salía un día antes, en los dos idiomas. Se le pone la
+ * medianoche LOCAL. Lo que ya trae hora (las marcas de tiempo) no se toca.
+ */
+export function isoDePaso(iso: string): string {
+  return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? `${iso}T00:00:00` : iso
+}
+
+export function formatFechaLocal(iso: string): string {
   const d = new Date(iso)
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`
 }
