@@ -166,7 +166,7 @@ cuenta y el recorrido en navegador de lo que la ola 5 no pudo ver.
 
 | Lote | Rama | Estado |
 |---|---|---|
-| Menores, CSV en el idioma de la pantalla y recorrido con Space Eyes activo, portal y firma con token válido, campanita y pipeline | `feat/ingles-ola7` | Pendiente del validador. Revisión en `docs/i18n/revision-ola7.md`: español idéntico en los 559 estados (0 diferencias, 4 archivos nuevos), 0 valores de `DICCIONARIOS.es` cambiados (15 claves nuevas), 24 de 24 mutantes, 6900 unitarias en verde. e2e de la rama: 1186 en verde y 21 saltadas; solo cae `grants-rol-app`, por Docker |
+| Menores, CSV en el idioma de la pantalla y recorrido con Space Eyes activo, portal y firma con token válido, campanita y pipeline | `feat/ingles-ola7` | **ÁMBAR leve → corregido e integrado** (4c738fee). Validación en `docs/i18n/validacion-ola7.md`; sus tres menores (subtítulo del cierre de falla, prueba del `.cero`, recuento de notificaciones) se corrigieron antes de integrar. Tras integrar: 6901 unitarias en verde. Revisión en `docs/i18n/revision-ola7.md`: español idéntico en los 559 estados (0 diferencias, 4 archivos nuevos), 0 valores de `DICCIONARIOS.es` cambiados (15 claves nuevas), 24 de 24 mutantes, 6900 unitarias en verde. e2e de la rama: 1186 en verde y 21 saltadas; solo cae `grants-rol-app`, por Docker |
 
 Detalle del lote:
 
