@@ -1,9 +1,10 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-10-09
+actualizado: 2026-11-03
 tags: [despliegue, entorno, ci, env, instancias]
 archivos:
+  - apps/web/lib/test/db-e2e.ts
   - infra/scripts/pruebas-update.sh
   - infra/scripts/pruebas-vuelta-atras-real.sh
   - .env.example
@@ -582,6 +583,15 @@ no entran.
 Las e2e necesitan una base aparte cuyo nombre **debe** terminar en `_e2e` o
 `_test` (`apps/web/lib/test/db-e2e.ts`, `exigirBaseDePrueba()`). Ver
 [[convenciones]].
+
+> [!warning] La base de las e2e habla en UTC, la fije quien la fije (2026-11-03)
+> El arnés la pone en UTC él mismo (`HUSO_E2E` en `apps/web/lib/test/db-e2e.ts`:
+> `options` en sus pools y `alter database` en `recrearEsquema()`). Las
+> semillas calculan fechas en UTC y el Postgres de docker-compose y del CI ya
+> corría en UTC; un Postgres en la hora local (el portátil de Windows, en
+> America/Mexico_City) hacía caer **diez e2e cada tarde a partir de las 18:00**,
+> cuando el día UTC ya es mañana. Reproducido con la base en
+> Pacific/Kiritimati: sin el arreglo, `estado-campanas` cae en rojo.
 
 ### Hay DOS formas de arrancar, y las dos son válidas (13/08, F2.1)
 
