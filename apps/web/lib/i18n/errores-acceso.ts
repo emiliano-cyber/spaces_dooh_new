@@ -50,3 +50,16 @@ export function mensajeDeAcceso(mensaje: string, idioma: Idioma): string {
   }
   return traducirError(mensaje, idioma)
 }
+
+/**
+ * El aviso tras pedir el enlace de recuperar la contrasena. Lo escribe
+ * `app/api/auth/forgot` en espanol (zona roja: no se toca) y la pantalla lo
+ * pintaba tal cual. En el recorrido del italiano (04/11) salia «Si el correo
+ * está registrado…» con la pantalla en italiano: en italiano se pinta el del
+ * diccionario, que dice lo mismo; en ingles, igual (salia en espanol). En
+ * espanol, el del servidor de siempre.
+ */
+export function avisoDeEnlaceEnviado(mensajeDelServidor: string | undefined, idioma: Idioma): string {
+  if (idioma !== 'es') return traducir(idioma, 'login.aviso-generico')
+  return mensajeDelServidor ?? traducir(idioma, 'login.aviso-generico')
+}

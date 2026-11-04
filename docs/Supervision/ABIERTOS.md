@@ -146,7 +146,18 @@ archivo dentro de la pregunta.
   redacción vieja, o todas sus firmas anteriores aparecerían «alteradas». La traducción es el mismo
   contrato de ley mexicana en otro idioma, no un contrato adaptado a otro país. En italiano, desde la
   integración con `integra/idiomas` (04/11, B67 cerrada), todos los papeles salen en italiano; el
-  texto legal sigue sin revisión de abogado.
+  texto legal sigue sin revisión de abogado. **04/11, recorrido del italiano
+  (`feat/italiano-recorrido`):** se corrigió solo la lengua del contrato italiano, sin tocar su
+  contenido:
+  - el apóstrofo tipográfico en todo el texto;
+  - «esclusivamente all’installazione…» (antes «a l’installazione»), y un uso escrito por una
+    persona va tras «al seguente uso:»;
+  - ninguna fecha con preposición articulada delante: «a decorrere dal giorno … e fino al giorno …»
+    e «in data …».
+
+  Cambia el hash del contrato italiano, pero no había ninguno firmado. El español y el inglés no
+  cambian: los 14 hashes españoles siguen en verde. **La revisión del abogado sigue pendiente: esto
+  no la sustituye.**
 - **Opciones:**
   - **(a) Bloquearlo en el sistema hasta que el abogado firme**, con una confirmación expresa en el
     alta. Medio día.
@@ -2512,6 +2523,38 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
   correcta; el ofrecimiento de traducir del navegador sigue mirando el `<html>`. **Cómo se cierra
   del todo:** que `middleware.ts` pase la ruta en una cabecera y el layout raíz la use, en una tarea
   que reclame ese archivo. Menor.
+- **B69 · ⚪ ABIERTA (2026-11-04) · El aviso «Idioma guardado» sale en el idioma ANTERIOR al
+  cambio.** Visto en el recorrido del italiano (`docs/i18n/revision-italiano-recorrido.md` §6): al
+  pasar a italiano dice «Language saved». **Por qué:** el *toast* se lanza con el `t` del idioma de
+  antes, y el nuevo llega con la recarga. Se arregla traduciendo ese aviso con el idioma elegido,
+  pero eso cambia lo que ve quien pasa a español o a inglés. No se tocó. Menor.
+- **B70 · ⚪ ABIERTA (2026-11-04) · Los controles del mapa y del *toaster* salen en inglés en todos
+  los idiomas.** MapLibre pone «Zoom in», «Zoom out», «Find my location», «Map marker» y «Toggle
+  attribution»; sonner pone «Notifications alt+T». **Por qué:** son los valores por omisión de las
+  librerías. Darles el idioma (`locale` de MapLibre, `containerAriaLabel` de sonner) cambia el
+  español. No se tocó. Menor (sobre todo para lector de pantalla).
+- **B71 · ⚪ ABIERTA (2026-11-04) · El botón de cerrar de los diálogos no tiene nombre
+  accesible.** Pasa en todos los idiomas: el lector de pantalla anuncia solo «botón». **Por qué:**
+  la X del `Modal` no lleva `aria-label`. Ponérselo cambia el HTML español e inglés de las pruebas
+  de pantallas. No se tocó. Menor.
+- **B72 · ⚪ ABIERTA (2026-11-04) · La propuesta imprimible, el contrato y el comprobante no llevan
+  su propio `lang` cuando el idioma de la instancia no es el de la persona.** `/p` y el portal sí
+  lo llevan (B68). **Por qué no se hizo:** envolver esos papeles en `lang` cambia el HTML inglés de
+  las pruebas que usan una instancia española con la persona en inglés. Se arregla como B68, con
+  `<div lang style="display:contents">` solo cuando difieren, aceptando ese cambio. Menor.
+- **B73 · ⚪ ABIERTA (2026-11-04) · El 404 de las rutas fuera del armazón sale sin estilos.**
+  Visto en `/propuesta/[id]` con una propuesta sin `token_publico`: el icono ocupa la pantalla
+  entera y los enlaces salen en crudo. **Por qué:** esa página no hereda la hoja de estilos del
+  armazón. Ajeno al idioma. No se tocó. Menor.
+- **B74 · ⚪ ABIERTA (2026-11-04) · Las semillas no pueden sembrar una instancia en italiano o en
+  inglés.** `semilla-demo.mjs`, `semilla-catalogo-demo.mjs` y `bootstrap-auth.mjs` insertan la
+  organización sin `idioma_documentos` (o sea `es`). **Por qué falla:** el trigger
+  `trg_tenants_idioma_documentos_unico` salta ANTES que el `on conflict do nothing`, así que la
+  rechaza aunque ya exista. Para el recorrido se apagó ese trigger solo mientras corrían las
+  semillas en `spaces_demo_it`. El ADR 0049 ya lo daba por sabido («son para instancias españolas
+  de prueba»). Si se quiere una demo italiana reproducible, las semillas deben aceptar `--idioma` o
+  comprobar la organización antes del `insert`. Además, `semilla-catalogo-demo` deja las propuestas
+  sin `token_publico` y «Genera PDF» da 404 sobre ella. Menor.
 
 - **B57 · 🟠 ABIERTA (2026-10-29) · Un usuario que ya usó el sistema NO se puede
   borrar: la bitácora lo impide.** Encontrada escribiendo la prueba de P19.

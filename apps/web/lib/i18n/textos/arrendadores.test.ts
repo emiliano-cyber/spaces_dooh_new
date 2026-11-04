@@ -194,7 +194,10 @@ describe('arrendadores · el documento del contrato va en el idioma de la INSTAN
     // no cambio ni un byte lo demuestran los hashes de
     // `lib/contrato-documento-idioma.test.ts`, medidos antes del cambio.
     const huella = createHash('sha256').update(leer('lib/contrato-documento.ts')).digest('hex')
-    expect(huella).toBe('dcea4862a7945a00a95171b2e665b094dc362a24780ed49fd49cde60654c880d')
+    // 04/11 (recorrido del italiano): cambio a proposito, SOLO el italiano
+    // (apostrofo tipografico, «all’installazione», fechas sin preposicion
+    // articulada). Los 14 hashes espanoles siguen en verde.
+    expect(huella).toBe('6c5b8e86194e8e575787a160e737e7a2e6f4493a9245c7d6af58b4094d68ee8c')
   })
 
   it('el hash de las firmas es el del documento, no el de la constancia', () => {

@@ -1049,8 +1049,10 @@ const PANTALLAS: Pantalla[] = [
     },
     espanol: [
       'Los importes de este comprobante no cuadran: el subtotal más el IVA no da el total.', 'Revísalo antes de entregarlo.',
-      // El emisor sin asignar y la fecha tal cual la guarda la factura.
-      'Sin asignar', '2026-10-01',
+      // El emisor sin asignar y la fecha. Hasta el 04/11 salia tal cual la
+      // guarda la factura («2026-10-01»; con la API real, un instante ISO
+      // entero): ahora dd/mm/aaaa como la lista de facturas (decision del orquestador).
+      'Sin asignar', '01/10/2026',
     ],
     // Costura: el emisor de `armarComprobante` y la fecha, en ingles.
     ingles: ['The amounts on this payment receipt do not add up', 'Unassigned', 'Oct 1, 2026'],

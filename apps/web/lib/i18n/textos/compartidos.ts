@@ -173,6 +173,12 @@ export const ES_COMPARTIDOS = {
   'compartidos.cifra.negativo': 'No puede ser negativo',
   'compartidos.cifra.menor': 'No puede ser menor que {n}',
   'compartidos.cifra.mayor': 'No puede ser mayor que {n}',
+  // Paginacion de listas largas (recorrido del italiano, 04/11). El control
+  // llevaba el espanol escrito a mano; ver `components/demo/ui/Paginacion.tsx`.
+  'compartidos.paginacion.de': 'de',
+  'compartidos.paginacion.anterior': 'Anterior',
+  'compartidos.paginacion.siguiente': 'Siguiente',
+  'compartidos.paginacion.pagos': 'pagos',
 } as const
 
 export type ClaveCompartidos = keyof typeof ES_COMPARTIDOS
@@ -317,6 +323,10 @@ export const EN_COMPARTIDOS: Record<ClaveCompartidos, string> = {
   'compartidos.cifra.negativo': 'It cannot be negative',
   'compartidos.cifra.menor': 'Must not be less than {n}',
   'compartidos.cifra.mayor': 'Must not be greater than {n}',
+  'compartidos.paginacion.de': 'of',
+  'compartidos.paginacion.anterior': 'Previous',
+  'compartidos.paginacion.siguiente': 'Next',
+  'compartidos.paginacion.pagos': 'payments',
 }
 
 // ─── ITALIANO · lote L5 (2026-11-03) ────────────────────────────────────────
@@ -468,4 +478,8 @@ export const IT_COMPARTIDOS: Record<ClaveCompartidos, string> = {
   'compartidos.cifra.negativo': 'Non può essere negativo',
   'compartidos.cifra.menor': 'Non può essere minore di {n}',
   'compartidos.cifra.mayor': 'Non può essere maggiore di {n}',
+  'compartidos.paginacion.de': 'di',
+  'compartidos.paginacion.anterior': 'Precedente',
+  'compartidos.paginacion.siguiente': 'Avanti',
+  'compartidos.paginacion.pagos': 'pagamenti',
 }

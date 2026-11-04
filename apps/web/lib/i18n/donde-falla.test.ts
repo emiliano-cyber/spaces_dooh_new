@@ -79,7 +79,9 @@ describe('nombre de una falla · el que escribe el telefono', async () => {
     }
   })
   it('un nombre que no es del catalogo (o con otra forma) se pinta como llega', () => {
-    for (const x of ['F-APAGADO', 'Pantalla congelada', 'zona_apagada', 'Posible gabinete apagado ', 'posible gabinete apagado'])
+    // «Pantalla congelada» salio de esta lista el 04/11: es el nombre corto que
+    // manda el backend de Space Eye y ahora se reconoce (recorrido-italiano.test.ts).
+    for (const x of ['F-APAGADO', 'Pantalla congelada (otra)', 'zona_apagada', 'Posible gabinete apagado ', 'posible gabinete apagado'])
       expect(nombreDeFallaEnIdioma(x, 'en')).toBe(x)
   })
   it('el espanol de cada clave es el literal de la app (`Monitor.kt`)', () => {

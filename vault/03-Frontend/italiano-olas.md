@@ -132,7 +132,8 @@ compara el italiano entre lotes, y el **recorrido en el navegador**.
 - [ ] `coberturaItaliano()` con **0 pendientes** en todas las filas
 - [ ] El espejo (`I18N_VOLCAR_IT`) sin hallazgos de formato (hoy 358, §5)
 - [ ] La costura del italiano en verde
-- [ ] El recorrido en el navegador, pantalla por pantalla
+- [ ] El recorrido en el navegador, pantalla por pantalla — **hecho el 04/11
+  (§10), pendiente de su validador**
 
 ## 5 · Lo que la ola 0 deja medido para los lotes
 
@@ -485,3 +486,62 @@ español`, filtrada por los idiomas encendidos (`idiomasPorOmision()` de L5).
   **1220 en verde, 1 en rojo, 21 omitidas** — el rojo es `grants-rol-app`
   (entorno). `aislamiento.e2e` e `idioma-por-usuario.e2e` (14) en verde, y el
   mutante «guardar con `qRaw`» muere con build delante.
+
+## 10 · Recorrido en el navegador (2026-11-04)
+
+Rama `feat/italiano-recorrido` (sale de `integra/idiomas`, `caef69f8`), **sin
+validar**. Detalle pantalla por pantalla en
+`docs/i18n/revision-italiano-recorrido.md`.
+
+- **Cómo:** dos instancias propias en el 5433 —`spaces_demo_it` (documentos
+  `it`) y `spaces_demo_es`— con las semillas de la demo y la del catálogo
+  (`--ancla=2026-10-31`). Las semillas insertan la organización en `es` y el
+  trigger de unicidad del idioma las rechaza aunque lleven `on conflict`: en la
+  base `it` se apagó ese trigger solo mientras corrían. Se recorrieron
+  `next start` con los dos idiomas encendidos, las 40 rutas del menú, 22
+  diálogos (vacíos, con sus errores), las fichas, la campanita, «Mi cuenta →
+  Idioma» (B64 comprobado) y Space Eyes con el doble del *scratchpad*. Cada
+  pantalla se cotejó por script con 8514 trozos del español y del inglés que
+  ningún texto italiano contiene.
+- **Los papeles siguen a la instancia:** en la instancia `it`, la propuesta
+  imprimible, `/p`, el portal, el contrato, la firma pública, la constancia
+  (firmada de verdad) y el comprobante salen en italiano aunque la interfaz esté
+  en español. En la instancia `es` salen en español aunque esté en italiano.
+- **Ocho arreglos** (commit `b2de0501`, prueba `lib/i18n/recorrido-italiano.test.ts`,
+  15/15 mutantes):
+  - la paginación («Anterior / Siguiente / de / pagos»);
+  - «Cargando…» y «Procesando…», que iban escritos a mano;
+  - los papeles de razón social con acento (la base los guarda con acentos
+    desde `20260921_corrige_acentos…` y el diccionario no);
+  - los tres nombres cortos de falla que manda el backend de Space Eye;
+  - el aviso de recuperar contraseña que manda el servidor;
+  - el importe de la revisión previa a firma, «6.000,00 MXN» como el contrato
+    italiano;
+  - «acconto» → «pagamento parziale».
+- **Español e inglés idénticos**: todo va por `idioma === 'it'`. El volcado
+  completo da 10 estados distintos, todos italianos, y `DICCIONARIOS.es/.en`
+  tienen 0 valores cambiados (4 claves nuevas, `compartidos.paginacion.*`).
+- **El inglés tiene los seis primeros defectos** y se dejaron así por la regla.
+  Arreglarlo es quitar la condición: las claves ya están. **Decisión del dueño.**
+- **Para el abogado:** el contrato italiano dice «a l’installazione» (debe ser
+  «all’installazione»), usa el apóstrofo recto y escribiría «dal 1 / dal 8 /
+  dal 11» sin elidir. No hay ningún contrato italiano firmado.
+- **Sin desbordes** a 390 px en las 30 pantallas del menú.
+- **Versión local para el dueño:** `http://localhost:3600/spaces-dooh` (instancia
+  `it`) y `:3601` (instancia `es`), con los tres idiomas. Usuarios y contraseña,
+  en la revisión (§9).
+
+- **Segunda vuelta, decisiones del orquestador (04/11):**
+  - **el inglés** usa también sus claves en los seis primeros arreglos
+    (`e2f79aa2`). El español sigue igual;
+  - **el contrato italiano** lleva el apóstrofo tipográfico, «all’installazione»
+    y fechas sin preposición articulada («a decorrere dal giorno … e fino al
+    giorno …», «in data …»; `aedef548`). Los 14 hashes españoles siguen en
+    verde y **D13 (abogado) sigue abierta**;
+  - **la fecha del comprobante en español** sale como dd/mm/aaaa: es el único
+    cambio del español, en 7 estados de una línea cada uno;
+  - **lo demás**, en `docs/Supervision/ABIERTOS.md` como **B69–B74**.
+
+  Revisión §11.
+
+Con esto, la última casilla de §4 está hecha, **pendiente de su validador**.

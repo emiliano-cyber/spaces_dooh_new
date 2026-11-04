@@ -10,7 +10,7 @@ import { landingDeRol } from '@/lib/data/client'
 import { esEmailValido } from '@/lib/validacion'
 import { motivoPassword } from '@/lib/password'
 import { useIdioma } from '@/lib/i18n/contexto'
-import { mensajeDeAcceso } from '@/lib/i18n/errores-acceso'
+import { avisoDeEnlaceEnviado, mensajeDeAcceso } from '@/lib/i18n/errores-acceso'
 import { SelectorIdioma } from '@/components/demo/ui/SelectorIdioma'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
 import { cambiaIdiomaAlEntrar } from '@/lib/i18n/idiomas'
@@ -189,7 +189,8 @@ export default function LoginPage() {
         // OJO: `d.mensaje` lo escribe el SERVIDOR y llega en español. El texto
         // traducido es solo el respaldo de cuando no manda ninguno. Ver el
         // apartado de mensajes de servidor en el informe I18N-01.
-        setAviso((d as { mensaje?: string }).mensaje ?? t('login.aviso-generico'))
+        // En italiano, el del diccionario: ver `avisoDeEnlaceEnviado`.
+        setAviso(avisoDeEnlaceEnviado((d as { mensaje?: string }).mensaje, idioma))
         setEnlaceDev((d as { enlaceDev?: string }).enlaceDev ?? null)
       } catch (e) {
         setError(e instanceof Error ? mensajeDeAcceso(e.message, idioma) : t('login.error.enviar-enlace'))
