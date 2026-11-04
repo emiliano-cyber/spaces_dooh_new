@@ -15,7 +15,7 @@ import {
 } from '@/components/demo/inventario/ResumenInventario'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
-import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
+import { CRUDO_INVALIDO, ejemploCifra } from '@/lib/captura-cifra'
 import { SiteFicha } from '@/components/demo/comercial/SiteFicha'
 import { StatusBadge, SITIO_TONO, SITIO_LABEL, disponibilidadInventario } from '@/components/demo/StatusBadge'
 import { usePuede } from '@/components/demo/shell/SesionContext'
@@ -236,7 +236,7 @@ export function InventarioTabla() {
     // `replace` de abajo, que lo dejaría en '' → Number('') = 0 → «fijar la
     // tarifa en $0» a todo el lote.
     if (valorTarifa === CRUDO_INVALIDO) {
-      notify(t('inventario.tabla.cifra-ilegible', { ejemplo: '15,000.50' }))
+      notify(t('inventario.tabla.cifra-ilegible', { ejemplo: ejemploCifra('15,000.50', idioma) }))
       return
     }
     const num = Number(valorTarifa.replace(/[^\d.-]/g, ''))

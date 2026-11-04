@@ -890,7 +890,7 @@ export const IT_INVENTARIO: Record<ClaveInventario, string> = {
   'inventario.lote.unidad.contrato': 'contratto',
   'inventario.lote.unidad.contratos': 'contratti',
   'inventario.tabla.no-archivo': 'Impossibile generare il file. Prova a filtrare per scaricare meno impianti.',
-  'inventario.tabla.cifra-ilegible': 'La cifra non si capisce: la virgola separa le migliaia e il punto i decimali ({ejemplo})',
+  'inventario.tabla.cifra-ilegible': 'La cifra non si capisce: il punto separa le migliaia e la virgola i decimali ({ejemplo})',
   'inventario.tabla.numero-valido': 'Scrivi un numero valido',
   'inventario.tabla.renta-negativa': 'Il canone non può essere negativo',
   'inventario.tabla.tarifa-negativa': 'La tariffa non può essere negativa',
@@ -951,7 +951,7 @@ export const IT_INVENTARIO: Record<ClaveInventario, string> = {
   'inventario.tabla.doohmain-servidor': ' · server',
   'inventario.tabla.confirma': 'Conferma con la tua password',
   'inventario.tabla.confirmar-aplicar': 'Conferma e applica',
-  'inventario.renta.ilegible': 'Il canone non si capisce: non è stato salvato. La virgola separa le migliaia e il punto i decimali.',
+  'inventario.renta.ilegible': 'Il canone non si capisce: non è stato salvato. Il punto separa le migliaia e la virgola i decimali.',
   'inventario.renta.compartida-confirm':
     'Questo canone è del contratto dell’immobile ed è condiviso da {n} impianti. Cambiarlo a {monto} vale per tutti. Continuare?',
   'inventario.renta.predio-actualizada': 'Canone dell’immobile aggiornato ({n} impianti)',
@@ -961,7 +961,7 @@ export const IT_INVENTARIO: Record<ClaveInventario, string> = {
     'Cambiare il canone di «{nombre}» è una modifica sensibile: la tua organizzazione chiede di identificarti di nuovo.',
   'inventario.renta.title-compartida': 'Canone del contratto dell’immobile — condiviso da {n} impianti',
   'inventario.renta.title': 'Modifica il canone pagato al locatore',
-  'inventario.tarifa.ilegible': 'La tariffa non si capisce: non è stata salvata. La virgola separa le migliaia e il punto i decimali.',
+  'inventario.tarifa.ilegible': 'La tariffa non si capisce: non è stata salvata. Il punto separa le migliaia e la virgola i decimali.',
   'inventario.tarifa.actualizada': 'Tariffa di «{nombre}» aggiornata',
   'inventario.tarifa.no-actualizar': 'Impossibile aggiornare la tariffa',
   'inventario.tarifa.sensible':
@@ -988,7 +988,7 @@ export const IT_INVENTARIO: Record<ClaveInventario, string> = {
   'inventario.tipo.mobiliario-detalle': 'Arredo urbano (pensiline/mupi/espositori nei negozi)',
   'inventario.tipo.puente': 'Ponte',
   'inventario.tipo.otro': 'Altro',
-  'inventario.wizard.renta-ilegible': 'Il canone non si capisce: la virgola separa le migliaia e il punto i decimali ({ejemplo}).',
+  'inventario.wizard.renta-ilegible': 'Il canone non si capisce: il punto separa le migliaia e la virgola i decimali ({ejemplo}).',
   'inventario.wizard.fin-antes': 'La data di fine non può essere precedente a quella di inizio.',
   'inventario.wizard.arrendado-hasta':
     'Quello spazio è stato in locazione fino al giorno {fin}. Il nuovo contratto deve iniziare in data {desde} o successiva.',
@@ -1167,7 +1167,7 @@ export const IT_INVENTARIO: Record<ClaveInventario, string> = {
   'inventario.carga.arrendadores': 'Locatori',
   'inventario.carga.precio-m2': 'Prezzo di stampa per m² (impianti statici)',
   'inventario.carga.precio-m2-ayuda': 'Questo valore si applicherà a tutti gli impianti statici',
-  'inventario.carga.precio-m2-ilegible': 'Il prezzo per m² non si capisce: la virgola separa le migliaia e il punto i decimali (65.50).',
+  'inventario.carga.precio-m2-ilegible': 'Il prezzo per m² non si capisce: il punto separa le migliaia e la virgola i decimali (65,50).',
   'inventario.carga.hoja':
     'Carica il file usando il foglio {hoja} del modello. Il sistema legge solo quel foglio, {limpia} e {agrupa}: una riga per modalità di vendita → un sito con più modalità. Obbligatori: nome, esposizione, unità e tariffa.',
   'inventario.carga.hoja-limpia': 'ripulisce automaticamente le intestazioni',

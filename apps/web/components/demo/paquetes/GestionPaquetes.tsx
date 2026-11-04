@@ -16,6 +16,7 @@ import { CampoCifra } from '@/components/demo/ui/CampoCifra'
 import { useObligatorios } from '@/components/demo/ui/Campo'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { useIdioma } from '@/lib/i18n/contexto'
+import { ejemploCifra } from '@/lib/captura-cifra'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 import type { Idioma } from '@/lib/i18n/idiomas'
 import { formatearDineroRedondo } from '@/lib/i18n/dinero'
@@ -333,7 +334,7 @@ export function GestionPaquetes() {
               decimales={0}
               idioma={idioma}
               className={`${CAMPO} demo-num w-36 text-right`}
-              placeholder={t('catalogos.paquetes.precio.placeholder', { ejemplo: '180,000' })}
+              placeholder={t('catalogos.paquetes.precio.placeholder', { ejemplo: ejemploCifra('180,000', idioma) })}
               valor={nuevo.precioCerrado}
               onCambio={(crudo) => setNuevo({ ...nuevo, precioCerrado: crudo })}
             />

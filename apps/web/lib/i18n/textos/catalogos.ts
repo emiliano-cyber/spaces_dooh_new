@@ -534,9 +534,8 @@ export const EN_CATALOGOS: Record<ClaveCatalogos, string> = {
 // cascata». Porcentajes sin espacio («10%»).
 // Los motivos (`catalogos.motivo.*`) los manda tambien el servidor: el
 // catalogo de errores italiano (lote L5) tiene que decirlos IGUAL.
-// El «({ejemplo})» de la tarifa ilegible es «15,000.50» A PROPOSITO: describe
-// como se TECLEA la cifra (`lib/captura-cifra.ts`, coma de miles), no como se
-// pinta en italiano.
+// El «({ejemplo})» de la tarifa ilegible llega en italiano («15.000,50»): desde
+// el 04/11 (P-L2-1) la cifra se TECLEA a la italiana (`lib/captura-cifra.ts`).
 export const IT_CATALOGOS: Record<ClaveCatalogos, string> = {
   // ── Comunes del lote ──
   'catalogos.comun.nombre': 'Nome',
@@ -694,7 +693,7 @@ export const IT_CATALOGOS: Record<ClaveCatalogos, string> = {
   'catalogos.tarifas.guardando': 'Salvataggio…',
   'catalogos.tarifas.guardar': 'Salva tariffe',
   'catalogos.tarifas.invalida':
-    'C’è una tariffa in rosso che non si capisce: la virgola separa le migliaia e il punto i decimali ({ejemplo}).',
+    'C’è una tariffa in rosso che non si capisce: il punto separa le migliaia e la virgola i decimali ({ejemplo}).',
   'catalogos.tarifas.sin-catalogo':
     'Questa organizzazione non ha ancora fasce orarie né stagioni. Si definiscono una sola volta in {pantalla} e valgono per tutto l’inventario.',
   'catalogos.tarifas.dispersa':

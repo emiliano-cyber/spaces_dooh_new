@@ -79,44 +79,41 @@ describe('barrido italiano · las reglas', () => {
   })
 })
 
-// ─── Validacion del pulido (04/11) · la excepcion de P-L2-1, anclada ─────────
-// Iba sin anclar contra el contexto de la huella y tapaba el fallo de formato
-// mas probable: un importe con locale ingles en italiano. Ahora solo cubre los
-// ejemplos de captura de cifras: el `placeholder` de un campo («0.00»,
-// «Es. 12.9», «es. 180,000») y la explicacion «la virgola separa le migliaia
-// e il punto i decimali» con su ejemplo.
-describe('barrido italiano · la excepcion de la captura de cifras (P-L2-1), anclada', () => {
+// ─── P-L2-1 cerrada (04/11) · la captura de cifras ya es italiana ───────────
+// Hasta el 04/11 los ejemplos de captura («0.00», «Es. 12.9», «212,500.50»)
+// llevaban una excepcion declarada: el campo leia a la mexicana en todos los
+// idiomas. Desde que `lib/captura-cifra.ts` lee el italiano a la italiana, esa
+// excepcion se quito, y un ejemplo a la mexicana en italiano vuelve a ser un
+// hallazgo SIN declarar. Los italianos, en cambio, no lo son.
+describe('barrido italiano · la captura de cifras ya no tiene excepcion (P-L2-1 cerrada)', () => {
   const sinDeclarar = (html: string) => barrerHtml('x', html, []).filter((h) => !h.aProposito)
-  const declarados = (html: string) => barrerHtml('x', html, []).filter((h) => h.aProposito?.startsWith('P-L2-1'))
 
-  it('un importe ingles en italiano NO se declara', () => {
-    expect(sinDeclarar('<p>Totale</p><p>MX$ 5,000.00</p>')).not.toHaveLength(0)
-    expect(sinDeclarar('<p>Nov 30, 2026</p><p>MX$ 1,000.00</p>')).not.toHaveLength(0)
-    expect(sinDeclarar('<p>Totale 0.00</p>')).not.toHaveLength(0)
-    expect(sinDeclarar('<p>Importo 212,500.50</p>')).not.toHaveLength(0)
-    expect(sinDeclarar('<p>Sconto (65.50)</p>')).not.toHaveLength(0)
-    expect(sinDeclarar('<p>Prezzo es. 180,000 al mese</p>')).not.toHaveLength(0)
-    // Un placeholder de captura en la pantalla no tapa otro importe de la misma.
-    expect(sinDeclarar('<input placeholder="0.00"/><p>Totale MX$ 5,000.00</p>')).not.toHaveLength(0)
-    // El placeholder tiene que ser SOLO el ejemplo numerico, y ser placeholder.
-    expect(sinDeclarar('<input placeholder="Totale MX$ 5,000.00"/>')).not.toHaveLength(0)
-    expect(sinDeclarar('<input placeholder="5,000.00 al mese"/>')).not.toHaveLength(0)
-    expect(sinDeclarar('<span title="0.00"></span>')).not.toHaveLength(0)
-    // La explicacion, con el ejemplo justo detras.
-    expect(sinDeclarar('<p>il punto i decimali, totale 212,500.50</p>')).not.toHaveLength(0)
+  it('ningun A_PROPOSITO_IT menciona P-L2-1', () => {
+    expect(A_PROPOSITO_IT.filter((a) => /P-L2-1/.test(a.motivo))).toEqual([])
   })
 
-  it('los ejemplos de captura SI: el placeholder y la explicacion', () => {
+  it('un ejemplo de captura a la mexicana en italiano SE declara fallo', () => {
     for (const html of [
       '<input placeholder="0.00"/>',
       '<input placeholder="Es. 12.9"/>',
       '<input placeholder="es. 180,000"/>',
-      '<p>la virgola separa le migliaia e il punto i decimali. Esempio: 212,500.50</p>',
-      '<p>la virgola separa le migliaia e il punto i decimali (15,000.50).</p>',
-      '<p>la virgola separa le migliaia e il punto i decimali (65.50).</p>',
+      '<p>il punto separa le migliaia e la virgola i decimali. Esempio: 212,500.50</p>',
+      '<p>il punto separa le migliaia e la virgola i decimali (15,000.50).</p>',
+      '<p>Importo 212,500.50</p>',
+    ]) {
+      expect(sinDeclarar(html), html).not.toHaveLength(0)
+    }
+  })
+
+  it('el mismo ejemplo a la italiana no es ningun hallazgo', () => {
+    for (const html of [
+      '<input placeholder="0,00"/>',
+      '<input placeholder="Es. 12,9"/>',
+      '<input placeholder="es. 180.000"/>',
+      '<p>il punto separa le migliaia e la virgola i decimali. Esempio: 212.500,50</p>',
+      '<p>il punto separa le migliaia e la virgola i decimali (15.000,50).</p>',
     ]) {
       expect(sinDeclarar(html), html).toEqual([])
-      expect(declarados(html).length, html).toBeGreaterThan(0)
     }
   })
 })

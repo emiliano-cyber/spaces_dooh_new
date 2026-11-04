@@ -6,7 +6,7 @@ import { Trash2, Plus } from 'lucide-react'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
-import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
+import { CRUDO_INVALIDO, ejemploCifra } from '@/lib/captura-cifra'
 import { useCandado, PasoContrasena } from '@/components/demo/ui/candado'
 import { AvisoFranjaCMS } from './AvisoFranjaCMS'
 import {
@@ -205,7 +205,7 @@ export function RejillaDialog({
         <AvisoFranjaCMS />
         {hayInvalida && (
           <p className="text-[11px] text-error">
-            {t('catalogos.tarifas.invalida', { ejemplo: '15,000.50' })}
+            {t('catalogos.tarifas.invalida', { ejemplo: ejemploCifra('15,000.50', idioma) })}
           </p>
         )}
 

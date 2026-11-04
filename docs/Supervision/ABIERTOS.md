@@ -2564,6 +2564,18 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
   de prueba»). Si se quiere una demo italiana reproducible, las semillas deben aceptar `--idioma` o
   comprobar la organización antes del `insert`. Además, `semilla-catalogo-demo` deja las propuestas
   sin `token_publico` y «Genera PDF» da 404 sobre ella. Menor.
+- ~~**P-L2-1 · La captura de cifras no es italiana: «12,9» en el ancho de una pantalla se
+  guardaba como 0 y «1.500,50» como otra cifra.**~~ ✅ **CERRADA el 2026-11-04 en
+  `feat/cifras-por-idioma`** (ZONA ROJA, dinero; autorizada por el dueño el 04/11). En italiano
+  se teclea con punto de millar y coma decimal (`lib/captura-cifra.ts`, espejo exacto de la
+  regla mexicana; lo ambiguo se rechaza con su motivo) y los campos que hacían `Number(texto)`
+  o eran `type="number"` pasan por `EntradaCifra`, que en español e inglés es el `<input>` de
+  siempre. **Medido:** huella de la captura es/en contra `cb116dde`; volcado `I18N_VOLCAR_TODO`
+  contra `cb116dde` con 187 estados distintos, todos italianos; `DICCIONARIOS` es/en 0 valores
+  cambiados (1 clave nueva); barrido italiano 0 sin declarar sin la excepción P-L2-1; siete
+  formularios montados que mandan 12.9 y 1500.5 a la API; 21/21 mutantes. Pendiente de su
+  validador. Fuera, a propósito: coordenadas, Space Eyes y los enteros sin control de
+  Administración (ver `vault/06-Operacion/convenciones.md`).
 
 - **B57 · 🟠 ABIERTA (2026-10-29) · Un usuario que ya usó el sistema NO se puede
   borrar: la bitácora lo impide.** Encontrada escribiendo la prueba de P19.

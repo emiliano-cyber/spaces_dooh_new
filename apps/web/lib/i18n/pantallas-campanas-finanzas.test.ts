@@ -1280,7 +1280,7 @@ describe('lote CAMPANAS y FINANZAS · en ITALIANO', () => {
   it('frases italianas a la vista', async () => {
     const vistas: [string, string[]][] = [
       ['lista de campanas', ['Campagne', 'Pronte da fatturare']],
-      ['candado con el monto ilegible', ['L’importo non si capisce: la virgola separa le migliaia e il punto i decimali (212,500.50).']],
+      ['candado con el monto ilegible', ['L’importo non si capisce: il punto separa le migliaia e la virgola i decimali (212.500,50).']],
       ['generar factura en parcialidades', ['Incassa a rate']],
       ['estado de cuenta sin movimientos, con un rango a mano', ['Nessuna fattura né pagamento tra 5 gen 2026 e 9 mar 2026.']],
     ]

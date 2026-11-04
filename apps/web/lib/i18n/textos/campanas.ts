@@ -965,8 +965,8 @@ export const EN_CAMPANAS: Record<ClaveCampanas, string> = {
 //  · Los estados concuerdan con lo que nombran: la campaña y la reserva en
 //    femenino, la OT y la orden de impresion en masculino («ordine»).
 //  · `campanas.candado.monto-ilegible` dice el formato que el campo LEE
-//    (`lib/captura-cifra.ts`, es-MX en todos los idiomas): coma de miles y
-//    punto decimal, con su ejemplo «212,500.50». Es verdad en italiano tambien.
+//    (`lib/captura-cifra.ts`): en italiano, desde el 04/11 (P-L2-1), punto de
+//    millar y coma decimal, con su ejemplo «212.500,50».
 //  · Las comillas del nombre de un creativo son las caporali: «{nombre}».
 export const IT_CAMPANAS: Record<ClaveCampanas, string> = {
   // ── Comun ──
@@ -1179,7 +1179,7 @@ export const IT_CAMPANAS: Record<ClaveCampanas, string> = {
   'campanas.candado.numero': 'Numero OdA del cliente',
   'campanas.candado.registrando': 'Registrazione…',
   'campanas.candado.registrar': 'Registra OdA',
-  'campanas.candado.monto-ilegible': 'L’importo non si capisce: la virgola separa le migliaia e il punto i decimali ({ejemplo}).',
+  'campanas.candado.monto-ilegible': 'L’importo non si capisce: il punto separa le migliaia e la virgola i decimali ({ejemplo}).',
   'campanas.candado.precargados':
     'Numero, importo e data sono precompilati dalla campagna; modificali se il cliente ne ha indicati altri. Il documento dell’OdA è il contratto (si allega in «Dati di fatturazione»).',
   'campanas.candado.se-abre': 'La fatturazione si sblocca quando queste condizioni sono soddisfatte.',

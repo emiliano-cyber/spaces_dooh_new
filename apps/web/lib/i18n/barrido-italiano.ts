@@ -147,8 +147,6 @@ export interface Excepcion {
 
 const ESPEJO_SC =
   'espejo de un Server Component: el texto se resolvio con la persona en ingles ANTES de que el espejo cambiara el idioma, asi que en italiano repite el ingles. El italiano de esas claves lo fijan las pruebas italianas del lote'
-const CIFRAS =
-  'P-L2-1: captura de cifras a la mexicana (`lib/captura-cifra.ts`), decision ROJA pendiente del dueno; no se toca en el pulido'
 
 export const A_PROPOSITO_IT: readonly Excepcion[] = [
   // ── Datos de las pruebas (lo que escribio una persona o trae la base) ──
@@ -165,14 +163,11 @@ export const A_PROPOSITO_IT: readonly Excepcion[] = [
   { en: 'trozo', tipo: 'frase', patron: /^(g01 · adquisición de mercancías|g03 · gastos en general|p01 · por definir|por definir)$/, motivo: 'catalogo del SAT (uso del CFDI): va en español en todos los idiomas, como los regimenes fiscales' },
   // ── La marca de la foto de Space Eyes ──
   { en: 'archivo', tipo: 'formato', patron: /pantallas-spaceeyes\.test\.ts.*(texto_con_foto_capturando|la_marca_de_la_foto|barrido_italiano_con_el_diccionario_entero.*086)/, motivo: 'la marca de agua de la foto va en es-MX en todos los idiomas: es la evidencia, se graba en la imagen (lote SPACE EYES)' },
-  // ── Captura de cifras (P-L2-1) ──
-  // ANCLADA (validacion del pulido, 04/11): sin anclar tapaba un importe
-  // ingles cualquiera («MX$ 5,000.00»). Solo los ejemplos de captura: el
-  // `placeholder` numerico de un campo («0.00», «Es. 12.9», «es. 180,000») y
-  // la explicacion de `captura-cifra` con su ejemplo («… il punto i decimali.
-  // Esempio: 212,500.50», «… i decimali (15,000.50)»).
-  { en: 'placeholder', tipo: 'formato', patron: /^(?:es\. )?-?\d[\d.,]*$/i, motivo: CIFRAS },
-  { en: 'contexto', tipo: 'formato', patron: /«([\d.,]+)» en «.*il punto i decimali(?:\. esempio: | \()\1(?:\)|»| )/, motivo: CIFRAS },
+  // ── Captura de cifras: YA NO HAY EXCEPCION (P-L2-1 cerrada el 04/11) ──
+  // Hasta el 04/11 los ejemplos de captura («0.00», «Es. 12.9», «212,500.50»)
+  // salian a la mexicana a proposito, porque el campo leia asi en todos los
+  // idiomas. Desde que `lib/captura-cifra.ts` lee el italiano a la italiana,
+  // un ejemplo con coma de millar o punto decimal en italiano es un FALLO.
   // ── Espejos de Server Components ──
   { en: 'archivo', patron: /pantallas-inventario-arrendadores\.test\.ts.*(documento_del_contrato|firma_p_blica|B72_el_documento_del_contrato|barrido_con_el_diccionario_entero.*[\\/]07[2-7]\.html|ningun_estado_ingles_las_llev[\\/]07[2-7]\.html)/, motivo: `${ESPEJO_SC} (el documento del contrato, sin permiso y la firma publica; el cuerpo del contrato simulado va en español)` },
   { en: 'archivo', patron: /pantallas-propuestas\.test\.ts.*B72_la_propuesta_imprimible/, motivo: `${ESPEJO_SC} (la propuesta imprimible)` },
