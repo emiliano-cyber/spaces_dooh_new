@@ -10,7 +10,7 @@ import type { ClaveTexto } from '@/lib/i18n/diccionario'
 import type { Idioma } from '@/lib/i18n/idiomas'
 import { periodicidadLabel } from '@/lib/renta-periodicidad'
 import { formatearFecha } from '@/lib/i18n/dinero'
-import { localeDe } from '@/lib/i18n/formato-idioma'
+import { localeDe, numeroEnIdioma } from '@/lib/i18n/formato-idioma'
 
 // Lo que el contrato va a recitar, tal como está HOY en la base, y su huella
 // (`huellaDatosContrato`). Se enseña antes de congelar: es el «revisa y valida»
@@ -304,8 +304,7 @@ function RevisionDatos({
   const { idioma, t } = useIdioma()
   // El importe se arma como lo recita el contrato (cifra y codigo de moneda): es
   // el dato que se va a congelar, no una etiqueta de la interfaz. No cambia.
-  const importe = (n: number | null) =>
-    n == null ? null : `$${n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${term.moneda}`
+  const importe = (n: number | null) => importeDeRevision(n, term.moneda, idioma)
   const bloques: { titulo: string; filas: [string, string | null][] }[] = [
     {
       titulo: t('arrendadores.firmas.parte.arrendatario'),
@@ -398,4 +397,18 @@ function RevisionDatos({
       </div>
     </div>
   )
+}
+
+/**
+ * El importe de la revision previa a enviar a firma, «como lo recita el
+ * contrato». En espanol y en ingles el contrato dice «$6,000.00 MXN» y aqui
+ * sale igual que siempre. El contrato ITALIANO dice «6.000,00 MXN» (ADR 0049):
+ * con la interfaz en italiano se mostraba el formato mexicano (recorrido del
+ * 04/11), que en Italia se lee al reves.
+ */
+export function importeDeRevision(n: number | null, moneda: string, idioma: Idioma): string | null {
+  if (n == null) return null
+  const opciones = { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+  if (idioma === 'it') return `${numeroEnIdioma(n, 'it', opciones)} ${moneda}`
+  return `$${n.toLocaleString('es-MX', opciones)} ${moneda}`
 }

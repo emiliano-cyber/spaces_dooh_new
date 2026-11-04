@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { instalarContadorDeCarga, suscribirCarga } from '@/lib/carga-global'
+import { useIdioma } from '@/lib/i18n/contexto'
 
 // ============================================================================
 //  Barra de carga global. Se enciende mientras haya alguna petición a la API en
@@ -79,9 +80,20 @@ export function IndicadorCarga() {
       {visible && (
         <>
           <div className="carga-barra h-full bg-accent" />
-          <span className="sr-only">Cargando…</span>
+          <EtiquetaCarga />
         </>
       )}
     </div>
   )
+}
+
+/**
+ * Lo que oye un lector de pantalla mientras hay algo cargando. Iba escrito a
+ * mano en espanol y lo oia igual quien usa la aplicacion en italiano
+ * (recorrido del 04/11). Solo el italiano pasa por el diccionario; el ingles
+ * se deja como estaba, por la regla de esta pasada (ver Paginacion.tsx).
+ */
+export function EtiquetaCarga() {
+  const { idioma, t } = useIdioma()
+  return <span className="sr-only">{idioma === 'it' ? t('comun.cargando') : 'Cargando…'}</span>
 }

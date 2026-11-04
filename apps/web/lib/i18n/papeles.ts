@@ -26,10 +26,20 @@ const ES = DICCIONARIOS.es as Record<string, string>
 const claveEtiqueta = (rol: string) => `admin.papel.${rol.toLowerCase()}` as ClaveTexto
 const claveCodigo = (rol: string) => `admin.papel.codigo.${rol.toLowerCase()}` as ClaveTexto
 
+// La base guarda las etiquetas CON acentos desde
+// `20260921_corrige_acentos_catalogo_roles_entidad.sql` («Trámites…»,
+// «Operación y nómina»), y el diccionario espanol las tiene sin ellos: la
+// comparacion exacta fallaba con LICENCIAS y OPERACION, que salian en espanol
+// (recorrido del italiano, 04/11). Para el italiano se compara sin acentos; el
+// ingles se deja como estaba, por la regla de esta pasada (anotado en
+// docs/i18n/revision-italiano-recorrido.md).
+const sinAcentos = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '')
+
 /** La etiqueta de un papel en el idioma de quien lee. */
 export function etiquetaDePapel(etiqueta: string, idioma: Idioma = IDIOMA_POR_OMISION): string {
   if (idioma === IDIOMA_POR_OMISION) return etiqueta
-  const rol = PAPELES_FIJOS.find((r) => ES[claveEtiqueta(r)] === etiqueta)
+  const igual = (a: string, b: string) => (idioma === 'it' ? sinAcentos(a) === sinAcentos(b) : a === b)
+  const rol = PAPELES_FIJOS.find((r) => igual(ES[claveEtiqueta(r)], etiqueta))
   return rol ? traducir(idioma, claveEtiqueta(rol)) : etiqueta
 }
 
