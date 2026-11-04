@@ -280,6 +280,18 @@ export function formatearMientrasEscribe(
   // signos intercambiados. El intercambio no cambia ninguna longitud, así que
   // el cursor que sale vale tal cual.
   if (comaDecimal(idioma)) {
+    // B77 (supervisión, 04/11): un PUNTO tecleado no se recoloca. En el camino
+    // de abajo pasaría a ser una «coma de millar» mal puesta, y al recolocar
+    // las comas se QUITARÍA: «12.9» tecleado acababa en 129 y «2.5» en 25, sin
+    // ningún aviso, mientras pegado se rechazaba. Se deja donde se tecleó y
+    // `leerCifra` lo acepta si está bien puesto («1.500») o lo rechaza con su
+    // motivo. La tecla siguiente tampoco recoloca: el texto ya no es canónico.
+    const insertoUnPunto =
+      e.nuevo.length === e.anterior.length + 1 &&
+      e.cursor >= 1 &&
+      e.nuevo[e.cursor - 1] === '.' &&
+      e.nuevo.slice(0, e.cursor - 1) + e.nuevo.slice(e.cursor) === e.anterior
+    if (insertoUnPunto) return { texto: e.nuevo, cursor: e.cursor }
     const r = formatearMientrasEscribe({ ...e, anterior: intercambiar(e.anterior), nuevo: intercambiar(e.nuevo) })
     return { texto: intercambiar(r.texto), cursor: r.cursor }
   }

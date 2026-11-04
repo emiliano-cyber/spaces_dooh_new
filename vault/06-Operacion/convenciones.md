@@ -568,6 +568,15 @@ metros** (`Number('12,9') || 0`), o «1.500» caras se guardaban como 1,5.
   porqué, en vez de adivinar si quería mil veces menos. El signo decimal de
   cada idioma vive en `FORMATO_IDIOMA[idioma].separadorDecimal`
   (`lib/i18n/formato-idioma.ts`).
+- **Un punto TECLEADO en italiano no se recoloca** (B77, 04/11). Al
+  recolocar separadores tecla a tecla, un punto fuera de posición de millar
+  se perdía: «12.9» tecleado acababa en 129 y «2.5» en 25, mientras pegado se
+  rechazaba. Ahora se deja donde se tecleó y `leerCifra` decide: «1.500» vale
+  mil quinientos, «12.9» se rechaza con su motivo. Las pruebas teclean tecla
+  a tecla (`teclear()` en `captura-cifra.italiano.test.ts`,
+  `teclearTeclaATecla` en `lib/test/formulario-sin-dom.ts`), no solo pegan.
+  El caso español simétrico («2,5» tecleado → 25) es anterior y no se toca:
+  es la decisión D18 del dueño.
 - **Lo que viaja no cambia.** `crudoDeLectura` entrega la MISMA cifra en los
   tres idiomas: punto decimal, sin separadores. Ni una API ni la base se
   enteran del idioma.
