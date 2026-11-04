@@ -280,7 +280,8 @@ function Pasos({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; pued
 }
 
 // ─── La ficha ───────────────────────────────────────────────────────────────
-function Ficha({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; puede: boolean }) {
+// Exportada para `lib/i18n/cifras-formularios.test.ts` (B79): se monta sola.
+export function Ficha({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; puede: boolean }) {
   const { t, idioma } = useIdioma()
   const inicial = () => ({
     tipoEspacio: p.tipoEspacio ?? '',

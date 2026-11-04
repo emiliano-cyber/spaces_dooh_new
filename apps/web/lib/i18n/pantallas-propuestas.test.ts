@@ -1345,3 +1345,47 @@ describe('B72 · la propuesta imprimible lleva su propio lang cuando difiere', (
     expect(await html(mismo, mismo)).not.toContain('lang=')
   })
 })
+
+// ─── B79 (supervision de cifras por idioma, 04/11) · la guardia de la calculadora ─
+// En italiano la prima, las horas y los espacios van por `EntradaCifra`: lo
+// ilegible llega como 'NaN'. Las horas y los espacios ilegibles ya los
+// rechaza la propia calculadora; la PRIMA no: `primaDe` la dejaba en 0 en
+// silencio y el Roadblock salia sin su maggiorazione. Solo la guardia de
+// `errCifras` la para. Para que el Roadblock sea valido, la pantalla tiene
+// aqui los 8 slots libres.
+describe('B79 · la prima ilegible de la calculadora para el alta en italiano', () => {
+  const linea = (prima: string) => ({
+    s1: {
+      unidad: 'spot', cantidadManual: 1, spotsPorDia: '', rentaMonto: '', rentaPeriodicidad: 'MENSUAL',
+      rentaArrendadorId: '', franjaId: '', tarifaManual: '', manual: false, espacios: '8', horasDia: '',
+      roadblock: true, prima,
+    },
+  })
+  async function alta(idioma: Idioma, prima: string) {
+    const { default: Pagina } = await import('../../app/(app)/(shell)/propuestas/page')
+    const libres = SITIO_DIGITAL.spotsDisponibles
+    SITIO_DIGITAL.spotsDisponibles = SITIO_DIGITAL.totalSpots
+    try {
+      forzar(esNull, { tipo: 'duplicar', propuesta: PROPUESTA })
+      forzar((v) => !!v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v as object).length === 0, linea(prima))
+      return pintar(idioma, createElement(Pagina))
+    } finally {
+      SITIO_DIGITAL.spotsDisponibles = libres
+    }
+  }
+  const aviso = (idioma: Idioma) =>
+    traducir(idioma, 'propuestas.alta.error.calculadora', { sitio: SITIO_DIGITAL.nombre })
+
+  it('ITALIANO · una prima ilegible («NaN» del campo) se dice y no deja crear', async () => {
+    const html = await alta('it', 'NaN')
+    expect(html).toContain(aviso('it'))
+    expect(html).toMatch(/<button disabled=""[^>]*>Crea proposta<\/button>/)
+  })
+  it('ITALIANO · la prima que se entiende no da el aviso', async () => {
+    expect(await alta('it', '12.5')).not.toContain(aviso('it'))
+  })
+  it('ESPAÑOL e INGLÉS · nunca: lo de siempre', async () => {
+    expect(await alta('es', 'NaN')).not.toContain(aviso('es'))
+    expect(await alta('en', 'NaN')).not.toContain(aviso('en'))
+  })
+})

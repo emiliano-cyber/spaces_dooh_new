@@ -1206,7 +1206,8 @@ function ModalidadesDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
   )
 }
 
-function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boolean; onClose: () => void }) {
+// Exportado para `lib/i18n/cifras-formularios.test.ts` (B79): se monta sin la ficha.
+export function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boolean; onClose: () => void }) {
   const { t, idioma } = useIdioma()
   // Una pantalla digital tiene inventario de slots editable.
   const digital =

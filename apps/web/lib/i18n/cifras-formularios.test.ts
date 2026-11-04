@@ -73,6 +73,15 @@ vi.mock('@/components/demo/ui/CardColapsable', async () => {
   }
 })
 vi.mock('@/components/demo/shell/SesionContext', () => ({ usePuede: () => true }))
+vi.mock('@/components/demo/ui/Sheet', async () => {
+  const { createElement: ce } = await import('react')
+  return {
+    Sheet: (p: { open: boolean; children: unknown; footer?: unknown }) =>
+      p.open ? ce('aside', null, p.children as never, p.footer as never) : null,
+  }
+})
+vi.mock('@/components/demo/comercial-opex/SelectorUbicacion', () => ({ SelectorUbicacion: () => null }))
+vi.mock('@/components/demo/MapView', () => ({ MapView: () => null }))
 vi.mock('sonner', () => ({ toast: Object.assign(vi.fn(), { error: vi.fn(), success: vi.fn() }) }))
 
 const { api, apunta, AGENCIA } = vi.hoisted(() => {
@@ -90,12 +99,25 @@ const { api, apunta, AGENCIA } = vi.hoisted(() => {
 vi.mock('@/lib/data/sitios-api', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   altaSitioApi: vi.fn(apunta('altaSitio')),
+  actualizarSitioApi: vi.fn(apunta('actualizarSitio')),
+}))
+vi.mock('@/lib/data/captacion-api', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  fichaApi: vi.fn(apunta('ficha')),
+  // Se apunta y se rechaza: la ficha del prospecto creado (con su historia)
+  // no es lo que se mide aquí.
+  crearProspectoApi: vi.fn(async (cuerpo: unknown) => {
+    await apunta('crearProspecto')(cuerpo)
+    throw new Error('prueba: no se abre la ficha')
+  }),
+  prospectosApi: vi.fn(async () => ({ prospectos: [], total: 0, porEtapa: {} })),
 }))
 vi.mock('@/lib/data/estado-api', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   crearOrdenImpresionApi: vi.fn(apunta('crearOrdenImpresion')),
   crearClienteApi: vi.fn(apunta('crearCliente')),
   actualizarClienteApi: vi.fn(apunta('actualizarCliente')),
+  agregarPantallaAPredioApi: vi.fn(apunta('agregarPantallaAPredio')),
 }))
 vi.mock('@/lib/data/codigos-api', async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -115,6 +137,12 @@ vi.mock('@/lib/data/client', async (importOriginal) => ({
   useOrdenesImpresion: () => [],
   useClientes: () => [AGENCIA],
   usePropuestas: () => [],
+  useCampanasResumen: () => [],
+  usePredios: () => [{ id: 'p1', nombre: 'Predio Uno', arrendadorId: 'a1', direccion: null }],
+  useContratos: () => [
+    { id: 'k1', predioId: 'p1', arrendadorId: 'a1', estatus: 'VIGENTE', fechaInicio: '2026-01-01', fechaFin: '2027-12-31', montoRenta: 1000 },
+  ],
+  useConfigNegocio: () => ({ ivaTasas: [16], maxClientesPantalla: null, topeDescuentoPct: 100 }),
 }))
 // `FileReader` no existe en node: la imagen promocional del alta manual.
 class LectorFalso {
@@ -134,6 +162,11 @@ import ImprentaPage from '@/app/(app)/(shell)/imprenta/page'
 import ComisionesPage from '@/app/(app)/(shell)/comisiones/page'
 import { GestionCodigos } from '@/components/demo/codigos/GestionCodigos'
 import { GestionVolumen } from '@/components/demo/volumen/GestionVolumen'
+import { EditarSitioDialog } from '@/components/demo/comercial/SiteFicha'
+import { ContratoWizard } from '@/components/demo/inventario/ContratoWizard'
+import { Captacion, CLAVE_TIPO_PROSPECTO } from '@/components/demo/captacion/Captacion'
+import { Ficha } from '@/components/demo/comercial-opex/ComercialOpex'
+import ClientesPage from '@/app/(app)/(shell)/clientes/page'
 
 function en(idioma: Idioma, hijo: ReactElement) {
   return createElement(ProveedorIdioma, { idioma, puedeElegir: true, disponibles: ['es', 'en', 'it'] }, hijo)
@@ -401,4 +434,135 @@ describe('Códigos y descuento por volumen · el porcentaje', () => {
       expect(await tramo(idioma, '1,500', '12.5')).toMatchObject({ desdeCantidad: 1500, descuentoPct: 12.5 })
     })
   }
+})
+
+// ─── B79 (supervisión, 04/11) · las guardias que ninguna prueba defendía ─────
+// En italiano, una cifra que no se entiende llega como 'NaN'. Cada formulario
+// tiene que NO mandarla —tampoco como `null` en JSON, que BORRARÍA el dato
+// guardado—, aunque se pulse el botón apagado. Y lo que sí se entiende se
+// manda con su valor. Se pega «12.9» (ilegible en italiano) y «12,9».
+const pulsarAunqueApagado = async (f: ReturnType<typeof montar>, e: { props: Record<string, unknown> } | undefined) => {
+  if (!e) throw new Error('no hay botón')
+  await (e.props.onClick as (ev: unknown) => unknown)?.({ preventDefault() {} })
+  f.rendir()
+}
+const cifrasDe = (f: ReturnType<typeof montar>, idioma: Idioma) =>
+  f.elementos('input').filter((e) => (idioma === 'it' ? e.props.inputMode === 'decimal' || e.props.inputMode === 'numeric' : e.props.type === 'number'))
+
+describe('B79 · Editar sitio (ancho)', () => {
+  const SITIO = {
+    id: 's1', nombre: 'Pantalla Uno', tipoMedio: 'ESPECTACULAR', exhibicion: 'fijo', esRotativo: false,
+    estatusComercial: 'DISPONIBLE', ancho: 6, alto: 3, caras: 1, tarifaPublicada: 1000, iluminado: true,
+    arrendadorId: 'a1', maxClientes: null, propio: false,
+  }
+  async function editar(idioma: Idioma, ancho: string) {
+    const f = montar(() => en(idioma, createElement(EditarSitioDialog, { sitio: SITIO as never, open: true, onClose: () => {} })))
+    f.teclearEn(cifrasDe(f, idioma)[0], ancho)
+    const guardar = f.elementos('button').find((b) => textoDe(b.props.children).includes(t(idioma, 'comercial.editar.guardar')))
+    await pulsarAunqueApagado(f, guardar)
+    return api.llamadas.find((l) => l.que === 'actualizarSitio')?.cuerpo as unknown[] | undefined
+  }
+  it('ITALIANO · «12,9» se manda como 12.9', async () => {
+    expect((await editar('it', '12,9'))?.[1]).toMatchObject({ ancho: 12.9 })
+  })
+  it('ITALIANO · NEGATIVO: «12.9» no se manda (ni como null que borre el ancho)', async () => {
+    expect(await editar('it', '12.9')).toBeUndefined()
+  })
+  it('ESPAÑOL · «12.9» se manda como 12.9, como siempre', async () => {
+    expect((await editar('es', '12.9'))?.[1]).toMatchObject({ ancho: 12.9 })
+  })
+})
+
+describe('B79 · Asistente de contrato (caras de una pantalla nueva en un predio con contrato)', () => {
+  async function asistente(idioma: Idioma, caras: string) {
+    const f = montar(() => en(idioma, createElement(ContratoWizard, { bare: true })))
+    f.teclearEn(f.elementos('select')[0], 'a1')
+    await f.pulsar(t(idioma, 'inventario.wizard.predio-existente'))
+    f.teclearEn(f.elementos('select')[1], 'p1')
+    await f.pulsar(t(idioma, 'inventario.wizard.siguiente'))
+    await f.pulsar(t(idioma, 'inventario.wizard.pantalla-nueva'))
+    f.teclearEn(f.elementos('input').find((e) => String(e.props.placeholder ?? '').startsWith(t(idioma, 'comercial.comun.ej', { valor: 'Patr' }).slice(0, 3)) && e.props.value === '')!, 'Pantalla Nueva')
+    f.teclearEn(f.elementos('input').find((e) => e.props.placeholder === '1')!, caras)
+    await pulsarAunqueApagado(f, f.elementos('button').filter((b) => b.props.variant === 'success').pop())
+    return api.llamadas.find((l) => l.que === 'agregarPantallaAPredio')?.cuerpo as unknown[] | undefined
+  }
+  it('ITALIANO · «1.500» caras se mandan como 1500', async () => {
+    expect((await asistente('it', '1.500'))?.[1]).toMatchObject({ caras: 1500 })
+  })
+  it('ITALIANO · NEGATIVO: «12,9» caras no se manda (antes caía a 1 en silencio)', async () => {
+    expect(await asistente('it', '12,9')).toBeUndefined()
+  })
+  it('ESPAÑOL · «3» caras como siempre', async () => {
+    expect((await asistente('es', '3'))?.[1]).toMatchObject({ caras: 3 })
+  })
+})
+
+describe('B79 · Captación (ancho de una pantalla prospecto)', () => {
+  async function prospecto(idioma: Idioma, ancho: string) {
+    const f = montar(() => en(idioma, createElement(Captacion)))
+    await pulsarAunqueApagado(f, f.elementos('button').find((b) => b.props.variant === 'success'))
+    await f.pulsar(t(idioma, CLAVE_TIPO_PROSPECTO.PANTALLA))
+    f.teclearEn(f.elementos('input').find((e) => e.props.maxLength === 200)!, 'Azotea Norte')
+    f.teclearEn(cifrasDe(f, idioma)[0], ancho)
+    const guardar = f.elementos('button').filter((b) => textoDe(b.props.children) === t(idioma, 'comun.guardar')).pop()
+    await pulsarAunqueApagado(f, guardar)
+    return api.llamadas.find((l) => l.que === 'crearProspecto')?.cuerpo as Record<string, unknown> | undefined
+  }
+  it('ITALIANO · «12,9» se manda como 12.9', async () => {
+    expect((await prospecto('it', '12,9'))?.datos).toMatchObject({ anchoM: 12.9 })
+  })
+  it('ITALIANO · NEGATIVO: «12.9» no se manda (ni como null)', async () => {
+    expect(await prospecto('it', '12.9')).toBeUndefined()
+  })
+  it('ESPAÑOL · «12.9» como siempre', async () => {
+    expect((await prospecto('es', '12.9'))?.datos).toMatchObject({ anchoM: 12.9 })
+  })
+})
+
+describe('B79 · Negociación (la ficha del espacio)', () => {
+  const P = { id: 'pr1', tipoEspacio: '', visibilidad: '', anchoM: 6, altoM: 3, superficieM2: null, presupuestoMin: null, presupuestoMax: null, presupuestoAutoriza: '' }
+  async function ficha(idioma: Idioma, ancho: string) {
+    const accion = async (fn: () => Promise<unknown>) => {
+      await fn()
+      return true
+    }
+    const f = montar(() => en(idioma, createElement(Ficha, { p: P as never, accion: accion as never, puede: true })))
+    f.teclearEn(cifrasDe(f, idioma)[0], ancho)
+    await f.pulsar(t(idioma, 'comercial.negociacion.ficha.guardar'))
+    return api.llamadas.find((l) => l.que === 'ficha')?.cuerpo as unknown[] | undefined
+  }
+  it('ITALIANO · «12,9» se manda como 12.9', async () => {
+    expect((await ficha('it', '12,9'))?.[1]).toMatchObject({ anchoM: 12.9, altoM: 3 })
+  })
+  it('ITALIANO · NEGATIVO: «12.9» no se manda (antes viajaba como null y borraba el ancho)', async () => {
+    expect(await ficha('it', '12.9')).toBeUndefined()
+  })
+  it('ESPAÑOL · «12.9» como siempre', async () => {
+    expect((await ficha('es', '12.9'))?.[1]).toMatchObject({ anchoM: 12.9 })
+  })
+})
+
+describe('B79 · Clientes (alta de una agencia con su comisión)', () => {
+  async function cliente(idioma: Idioma, comision: string) {
+    const f = montar(() => en(idioma, createElement(ClientesPage)))
+    await pulsarAunqueApagado(f, f.elementos('button').find((b) => b.props.variant === 'success'))
+    f.teclearEn(f.elementos('input').find((e) => e.props.autoFocus)!, 'Agencia Tres')
+    f.teclearEn(f.elementos('select').find((e) => e.props.value === 'DIRECTO')!, 'AGENCIA')
+    f.teclearEn(f.elementos('input').filter((e) => e.props.placeholder === '0').pop()!, comision)
+    const guardar = f.elementos('button').filter((b) => textoDe(b.props.children) === t(idioma, 'comun.guardar')).pop()
+    await pulsarAunqueApagado(f, guardar)
+    return api.llamadas.find((l) => l.que === 'crearCliente')?.cuerpo as Record<string, unknown> | undefined
+  }
+  it('ITALIANO · «12,5» % se manda como 12.5', async () => {
+    expect(await cliente('it', '12,5')).toMatchObject({ comisionAgenciaPct: 12.5 })
+  })
+  it('ITALIANO · NEGATIVO: «12.5» no se manda (antes se guardaba 0)', async () => {
+    expect(await cliente('it', '12.5')).toBeUndefined()
+  })
+  it('ESPAÑOL · «12.5» como siempre, y «12,5» es 0 como siempre', async () => {
+    expect(await cliente('es', '12.5')).toMatchObject({ comisionAgenciaPct: 12.5 })
+    reiniciarTienda()
+    api.llamadas.length = 0
+    expect(await cliente('es', '12,5')).toMatchObject({ comisionAgenciaPct: 0 })
+  })
 })
