@@ -148,7 +148,7 @@ beforeEach(() => {
 
 // ─── Alta de pantalla desde Comercial: el ancho y el alto ────────────────────
 describe('AltaSitioDialog · el ancho y el alto en el idioma de la persona', () => {
-  async function alta(idioma: Idioma, ancho: string, alto: string) {
+  async function alta(idioma: Idioma, ancho: string, alto: string, modo: 'pegar' | 'teclear' = 'pegar') {
     const f = montar(() => en(idioma, createElement(AltaSitioDialog, { open: true, onOpenChange: () => {}, onCreado: () => {} })))
     // Pantalla propia: sin arrendador que elegir.
     f.teclearEn(f.elementos('input').find((e) => e.props.type === 'checkbox')!, 'true')
@@ -157,8 +157,9 @@ describe('AltaSitioDialog · el ancho y el alto en el idioma de la persona', () 
     f.teclear('Miraflores', 'Centro')
     f.teclear(t(idioma, 'comercial.alta.direccion-mostrada'), 'Av. Siempre Viva 1')
     const decimal = idioma === 'it' ? ',' : '.'
-    f.teclear(`12${decimal}9`, ancho)
-    f.teclear(`7${decimal}2`, alto)
+    const escribir = modo === 'pegar' ? f.teclear.bind(f) : f.teclearTeclaATecla.bind(f)
+    escribir(`12${decimal}9`, ancho)
+    escribir(`7${decimal}2`, alto)
     const deshabilitado = f.botonDeshabilitado(t(idioma, 'comercial.alta.crear'))
     // Se pulsa AUNQUE esté apagado: la guardia de `submit` tiene que parar sola.
     await f.pulsar(t(idioma, 'comercial.alta.crear'), { aunqueApagado: true })
@@ -181,6 +182,27 @@ describe('AltaSitioDialog · el ancho y el alto en el idioma de la persona', () 
     expect(r.deshabilitado).toBe(true)
     expect(api.llamadas).toHaveLength(0)
     expect(r.f.html).toContain('role="alert"')
+  })
+
+  // B77 · tecleado tecla a tecla, que es como escribe una persona: el punto
+  // a la inglesa no puede tragarse y convertir 12.9 m en 129 m.
+  it('ITALIANO · TECLEADO tecla a tecla: «12,9» y «1.500,50» se guardan como 12.9 y 1500.5', async () => {
+    const r = await alta('it', '12,9', '1.500,50', 'teclear')
+    expect(r.cuerpo).toMatchObject({ ancho: 12.9, alto: 1500.5 })
+  })
+
+  it('ITALIANO · TECLEADO · NEGATIVO: «12.9» y «2.5» no se mandan (antes salían 129 y 25)', async () => {
+    const r = await alta('it', '12.9', '2.5', 'teclear')
+    expect(r.deshabilitado).toBe(true)
+    expect(api.llamadas).toHaveLength(0)
+    expect(r.f.html).toContain('value="12.9"')
+    expect(r.f.html).toContain('value="2.5"')
+  })
+
+  it('ITALIANO · TECLEADO · «15000,50» se pinta 15.000,50 y se guarda 15000.5', async () => {
+    const r = await alta('it', '15000,50', '7,2', 'teclear')
+    expect(r.f.html).toContain('value="15.000,50"')
+    expect(r.cuerpo).toMatchObject({ ancho: 15000.5, alto: 7.2 })
   })
 
   it('ITALIANO · NEGATIVO: «1,500» (¿mil quinientos a la inglesa?) no se manda', async () => {

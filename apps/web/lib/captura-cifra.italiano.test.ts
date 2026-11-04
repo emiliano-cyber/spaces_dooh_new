@@ -213,3 +213,65 @@ describe('formatearMientrasEscribe en italiano · puntos de millar al teclear', 
     expect(formatearMientrasEscribe({ anterior: '150', nuevo: '1500', cursor: 4 })).toEqual({ texto: '1,500', cursor: 5 })
   })
 })
+
+// ─── B77 (supervision 04/11) · TECLEADO tecla a tecla, como lo hace CampoCifra ─
+// Pegar «12.9» se rechazaba, pero teclearlo tecla a tecla lo convertia en 129:
+// el punto a la inglesa caia fuera de posicion de millar y se perdia al
+// recolocar los separadores. Lo tecleado tiene que acabar igual que lo pegado.
+function teclear(texto: string, op: OpcionesCifra = IT_DINERO, desde = '', cursorInicial?: number) {
+  let actual = desde
+  let cur = cursorInicial ?? desde.length
+  const pasos: string[] = []
+  for (const ch of texto) {
+    const nuevo = actual.slice(0, cur) + ch + actual.slice(cur)
+    const r = formatearMientrasEscribe({ anterior: actual, nuevo, cursor: cur + 1, tipoEntrada: 'insertText' }, op.idioma)
+    actual = r.texto
+    cur = r.cursor
+    pasos.push(actual)
+  }
+  return { texto: actual, pasos, lectura: leerCifra(actual, op), crudo: crudoDeLectura(leerCifra(actual, op)) }
+}
+
+describe('B77 · en italiano, lo TECLEADO acaba igual que lo pegado', () => {
+  it('NEGATIVO · «2.5», «12.9» y «15000.50» (punto a la inglesa) se rechazan, no se vuelven 25, 129 ni 1.500.050', () => {
+    for (const t of ['2.5', '12.9', '15000.50']) {
+      const r = teclear(t)
+      expect(r.lectura.ok, `${t} → ${JSON.stringify(r.pasos)}`).toBe(false)
+      expect(r.crudo, t).toBe('NaN')
+      expect(r.texto, t).toBe(t.replace(/^15000/, '15.000'))
+    }
+  })
+
+  it('el punto tecleado se queda donde se tecleo', () => {
+    expect(formatearMientrasEscribe({ anterior: '2', nuevo: '2.', cursor: 2, tipoEntrada: 'insertText' }, 'it')).toEqual({ texto: '2.', cursor: 2 })
+  })
+
+  it('«1.500,50», «12,9» y «1500,50» tecleados se leen bien', () => {
+    expect(teclear('1.500,50').crudo).toBe('1500.5')
+    expect(teclear('12,9').crudo).toBe('12.9')
+    const r = teclear('1500,50')
+    expect(r.texto).toBe('1.500,50')
+    expect(r.crudo).toBe('1500.5')
+  })
+
+  it('NEGATIVO · un punto tecleado con el cursor en medio no se traga', () => {
+    // «1.500» y el cursor tras el 5: se teclea «.» → «1.5.00», que se rechaza.
+    const r = teclear('.', IT_DINERO, '1.500', 3)
+    expect(r.texto).toBe('1.5.00')
+    expect(r.lectura.ok).toBe(false)
+  })
+
+  it('una cifra tecleada en medio sigue recolocando los puntos', () => {
+    // «1.500» y el cursor tras el 1: se teclea «2» → 12.500.
+    const r = teclear('2', IT_DINERO, '1.500', 1)
+    expect(r.texto).toBe('12.500')
+    expect(r.crudo).toBe('12500')
+  })
+
+  it('en español e inglés, tecleado, lo de siempre (D18 no se toca aquí)', () => {
+    for (const idioma of ['es', 'en'] as const) {
+      expect(teclear('12.9', { decimales: 2, minimo: 0, idioma }).crudo).toBe('12.9')
+      expect(teclear('2,5', { decimales: 2, minimo: 0, idioma }).crudo).toBe('25')
+    }
+  })
+})

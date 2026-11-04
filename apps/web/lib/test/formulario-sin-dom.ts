@@ -166,6 +166,25 @@ export function montar(elemento: () => ReactElement, opciones: { efectos?: boole
       })
       rendir()
     },
+    /**
+     * Teclea `valor` TECLA A TECLA al final del campo, como un navegador:
+     * cada carácter es un `onChange` con `inputType: 'insertText'` sobre el
+     * valor que pintó el render anterior, y se vuelve a rendir. Es el camino
+     * en el que `CampoCifra` recoloca los separadores (B77): pegar no lo
+     * ejerce.
+     */
+    teclearTeclaATecla(texto: string, valor: string, exacto = false) {
+      for (const ch of valor) {
+        const e = this.campo(texto, exacto)
+        const actual = String(e.props.value ?? '')
+        const nuevo = actual + ch
+        ;(e.props.onChange as (ev: unknown) => void)({
+          target: { value: nuevo, selectionStart: nuevo.length, checked: false },
+          nativeEvent: { inputType: 'insertText' },
+        })
+        rendir()
+      }
+    },
     /** Teclea en el n-ésimo `<input>` sin placeholder ni etiqueta que lo distinga. */
     teclearEn(e: Elemento, valor: string) {
       ;(e.props.onChange as (ev: unknown) => void)({
