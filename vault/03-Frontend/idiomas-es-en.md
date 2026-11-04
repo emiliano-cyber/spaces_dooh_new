@@ -2215,8 +2215,8 @@ el idioma de los documentos de la instancia. Rama `feat/idioma-instancia`,
   portal `/portal/[token]` (cada uno con un `layout.tsx` que re-provee el
   idioma), el comprobante de cobranza y los correos de propuesta, invitación y
   recordatorios de contratos. **Excepción:** el CSV del estado de cuenta sigue
-  la pantalla. **Pendiente:** el correo de restablecer contraseña (sale de una
-  ruta de auth que esta tarea no podía tocar).
+  la pantalla. El correo de restablecer contraseña, pendiente entonces por ser
+  ruta de auth, se hizo el 04/11 con aprobación del dueño (`feat/idiomas-cierre`).
 - **Mecanismo en el navegador:** `lib/i18n/idioma-documentos-cliente.tsx` — el
   layout raíz deja el idioma de la instancia en `ProveedorIdiomaDocumentos` y
   `EnIdiomaDeLosDocumentos` re-provee `ProveedorIdioma` para el papel. Sin

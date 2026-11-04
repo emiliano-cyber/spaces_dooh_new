@@ -88,7 +88,7 @@ estado de cuenta sigue el idioma de la pantalla (decisión anterior y explícita
 | Correo de la propuesta | `asuntoCorreoPropuesta` / `htmlCorreoPropuesta(d, idioma)`, desde `propuestas-envio.ts`; la fecha de vigencia también en ese idioma |
 | Correo de invitación | `asuntoCorreoInvitacion` / `htmlCorreoInvitacion(…, idioma)`, desde `usuarios-controller.ts` |
 | Correo diario de contratos | `lib/server/correo-recordatorios.ts` (sacado tal cual de su `route.ts`): asunto, resumen, encabezado y pie; cada aviso con `traducirNotificacion` |
-| **Correo de restablecer contraseña** | **Pendiente.** Lo arma `app/api/auth/forgot/route.ts`, una ruta de auth que esta tarea tiene prohibido tocar. Basta pasar `await idiomaDeLaInstancia()` a una `htmlCorreoReset(…, idioma)` como la de la invitación; hace falta aprobación para tocar esa ruta |
+| Correo de restablecer contraseña | `asuntoCorreoReset` / `htmlCorreoReset(…, idioma)`, desde `app/api/auth/forgot/route.ts`. **Hecho el 04/11** (`feat/idiomas-cierre`, con aprobación del dueño para tocar esa ruta de auth): solo cambian asunto y cuerpo; ni tokens, ni límites, ni la respuesta. Si leer el idioma falla, el correo no sale (fail-closed) y la respuesta es la misma |
 | Estado de cuenta (CSV) | **No cambia**: sigue la pantalla (excepción del dueño) |
 
 **Mecanismo en el navegador:** `lib/i18n/idioma-documentos-cliente.tsx`. El layout raíz lee
@@ -176,7 +176,8 @@ Decisiones de redacción (todas revisables por el abogado):
 ## Lo que NO decide
 
 - La preferencia de idioma de la interfaz por usuario (otra tarea).
-- El correo de restablecer contraseña: necesita tocar una ruta de auth (aprobación aparte).
+- ~~El correo de restablecer contraseña: necesita tocar una ruta de auth (aprobación aparte).~~
+  Aprobado por el dueño y hecho el 2026-11-04 (`feat/idiomas-cierre`): ver la tabla de papeles.
 - Adaptar el contrato a la ley de otro país.
 
 ## Revisión independiente
