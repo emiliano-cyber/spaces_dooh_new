@@ -17,6 +17,7 @@ import {
 import { CLAVE_CONTRATO_ESTATUS, CLAVE_PAGO_ESTATUS, CLAVE_SITIO_ESTATUS } from '@/components/demo/comercial/claves'
 import { CLAVE_INCIDENCIA, CLAVE_METODO_PAGO } from '@/components/demo/arrendadores/etiquetas'
 import { useIdioma } from '@/lib/i18n/contexto'
+import { ejemploCifra } from '@/lib/captura-cifra'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 import {
   useArrendadores,
@@ -790,7 +791,7 @@ function CompletarContratoModal({
               className={inputCls}
               valor={monto}
               onCambio={(crudo) => setMonto(crudo)}
-              placeholder="0.00"
+              placeholder={ejemploCifra('0.00', idioma)}
             />
           </Campo>
           <Campo label={t('arrendadores.completar.cada-cuando')} obligatorio>

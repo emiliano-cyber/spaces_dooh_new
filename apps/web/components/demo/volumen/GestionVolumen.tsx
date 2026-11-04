@@ -15,6 +15,7 @@ import { useIdioma } from '@/lib/i18n/contexto'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { EntradaCifra } from '@/components/demo/ui/EntradaCifra'
 import { useObligatorios } from '@/components/demo/ui/Campo'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { formatNumero } from '@/lib/formato-numero'
@@ -265,7 +266,9 @@ export function GestionVolumen() {
                 />
               </td>
               <td className="px-3 py-2.5 text-right" data-falta={ob.falta('descuentoPct') || undefined}>
-                <input
+                {/* P-L2-1 · en italiano «12,5»; lo ilegible llega como 'NaN'
+                    y lo para `motivoTramoInvalido`. */}
+                <EntradaCifra
                   aria-label={t('catalogos.volumen.pct.aria')}
                   type="number"
                   min={0}
@@ -273,8 +276,11 @@ export function GestionVolumen() {
                   step={0.5}
                   className={`${CAMPO} demo-num w-28 text-right`}
                   placeholder={t('catalogos.volumen.pct.placeholder')}
-                  value={nuevo.descuentoPct}
-                  onChange={(e) => setNuevo({ ...nuevo, descuentoPct: e.target.value })}
+                  valor={nuevo.descuentoPct}
+                  onCambio={(crudo) => setNuevo({ ...nuevo, descuentoPct: crudo })}
+                  decimales={2}
+                  minimo={0}
+                  maximo={100}
                 />
               </td>
               <td className="px-3 py-2.5 text-right">

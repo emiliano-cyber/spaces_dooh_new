@@ -6,6 +6,8 @@ import { Button } from '@/components/demo/ui/Button'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Sheet } from '@/components/demo/ui/Sheet'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
+import { EntradaCifra } from '@/components/demo/ui/EntradaCifra'
+import { cifraIlegible } from '@/lib/captura-cifra'
 import { formatNumero } from '@/lib/formato-numero'
 import { formatFecha } from '@/lib/data/client'
 import { monedaInstancia } from '@/lib/i18n/dinero'
@@ -255,8 +257,14 @@ function FormularioProspecto({
                   <option key={o} value={o}>{o === 'ESTATICA' ? t('clientes.captacion.estatica') : t('clientes.captacion.digital')}</option>
                 ))}
               </select>
+            ) : c.tipo === 'numero' ? (
+              // P-L2-1 · en italiano, `CampoCifra` con punto de millar y coma
+              // decimal; en español e inglés, el `type="number"` de siempre.
+              <EntradaCifra className={inputCls} type="number" min={0}
+                valor={String(valor.datos[c.clave] ?? '')} onCambio={(crudo) => setDato(c.clave, crudo)}
+                decimales={c.clave === 'caras' ? 0 : 2} minimo={0} />
             ) : (
-              <input className={inputCls} type={c.tipo === 'numero' ? 'number' : 'text'} min={0}
+              <input className={inputCls} type="text" min={0}
                 value={String(valor.datos[c.clave] ?? '')} onChange={(e) => setDato(c.clave, e.target.value)} />
             )}
           </Campo>
@@ -553,6 +561,11 @@ export function Captacion() {
     if (!form) return
     setErrorForm(null)
     if (!ob.validar()) return
+    // P-L2-1 · una cifra que no se entiende en italiano llega como 'NaN' y el
+    // campo ya lo dice en rojo; `limpiar` la mandaría como NaN → null en JSON,
+    // borrando el dato. En español e inglés `cifraIlegible` es `false`.
+    const v = form.valor
+    if (CAMPOS[v.tipo].some((c) => c.tipo === 'numero' && cifraIlegible(String(v.datos[c.clave] ?? ''), idioma))) return
     try {
       const limpio = limpiar(form.valor)
       const p = form.id ? await editarProspectoApi(form.id, limpio) : await crearProspectoApi(limpio)

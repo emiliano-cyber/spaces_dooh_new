@@ -463,14 +463,16 @@ export const IT_COMPARTIDOS: Record<ClaveCompartidos, string> = {
   'compartidos.plegar.minimizar': 'Riduci {titulo}',
   'compartidos.plegar.expandir': 'Espandi {titulo}',
 
-  // `CampoCifra` lee la cifra a la mexicana (coma de miles, punto decimal) en
-  // TODOS los idiomas: el italiano lo dice tal cual, sin prometer otra cosa.
-  'compartidos.cifra.forma': 'Scrivi solo cifre: la virgola separa le migliaia e il punto i decimali. Esempio: {ejemplo}',
-  'compartidos.cifra.comas': 'Le virgole vanno ogni tre cifre, come in {ejemplo}. Se volevi i decimali, usa il punto: {decimal}',
-  'compartidos.cifra.europeo': 'Qui il punto separa i decimali e la virgola le migliaia: scrivi {ejemplo}',
-  'compartidos.cifra.puntos': 'Può esserci un solo punto, quello dei decimali. Per le migliaia usa la virgola: {ejemplo}',
+  // Desde el 04/11 (P-L2-1, decision del dueno) `CampoCifra` lee el italiano
+  // a la italiana: PUNTO de millar y COMA decimal (`lib/captura-cifra.ts`).
+  // Las claves conservan el nombre del caso espanol del que son espejo
+  // («comas» = el signo de millar mal puesto, «puntos» = mas de un decimal).
+  'compartidos.cifra.forma': 'Scrivi solo cifre: il punto separa le migliaia e la virgola i decimali. Esempio: {ejemplo}',
+  'compartidos.cifra.comas': 'I punti vanno ogni tre cifre, come in {ejemplo}. Se volevi i decimali, usa la virgola: {decimal}',
+  'compartidos.cifra.europeo': 'Qui la virgola separa i decimali e il punto le migliaia: scrivi {ejemplo}',
+  'compartidos.cifra.puntos': 'Può esserci una sola virgola, quella dei decimali. Per le migliaia usa il punto: {ejemplo}',
   'compartidos.cifra.vacia': 'Inserisci una cifra',
-  'compartidos.cifra.punto-decimal': 'Qui il punto separa i decimali: «{texto}» sarebbe {decimal}. Per {miles} scrivi {sinComas} o {miles}',
+  'compartidos.cifra.punto-decimal': 'In italiano la virgola separa i decimali: «{texto}» sarebbe {decimal}. Per {miles} scrivi {sinComas} o {miles}',
   'compartidos.cifra.enteras': 'Solo cifre intere, senza decimali',
   'compartidos.cifra.max-decimales.uno': 'Massimo {n} decimale',
   'compartidos.cifra.max-decimales.otros': 'Massimo {n} decimali',

@@ -4,11 +4,12 @@ import { useState } from 'react'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { EntradaCifra } from '@/components/demo/ui/EntradaCifra'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
-import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
+import { CRUDO_INVALIDO, cifraIlegible, ejemploCifra } from '@/lib/captura-cifra'
 import { cn } from '@/lib/cn'
 import { altaSitioApi } from '@/lib/data/sitios-api'
-import { useTexto } from '@/lib/i18n/contexto'
+import { useIdioma, useTexto } from '@/lib/i18n/contexto'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
 import { CLAVE_TIPO_MEDIO } from '@/components/demo/comercial/claves'
 import {
@@ -56,6 +57,7 @@ export function AltaSitioDialog({
   onCreado: (s: Sitio) => void
 }) {
   const t = useTexto()
+  const { idioma } = useIdioma()
   const arrendadores = useArrendadores()
   const [arrendadorId, setArrendadorId] = useState('')
   // v0.12.3 · pantalla PROPIA: sin arrendador ni renta, igual que en el alta de
@@ -86,6 +88,11 @@ export function AltaSitioDialog({
   // condición, `Number(tarifa) || 0` daría de alta la pantalla con tarifa CERO
   // — que es lo que pasaba antes con «15,000» tecleado en este campo de texto.
   const tarifaInvalida = tarifa === CRUDO_INVALIDO
+  // P-L2-1 · en italiano el ancho y el alto pasan por `EntradaCifra`: «12,9»
+  // llega como 12.9, y lo que no se entiende como 'NaN', que aquí se para (si
+  // no, `Number(ancho) || 0` daría de alta una pantalla de cero metros). En
+  // español e inglés es siempre `false`: el campo hace lo de siempre.
+  const medidaIlegible = cifraIlegible(ancho, idioma) || cifraIlegible(alto, idioma)
   // OBLIG-01: el nombre lo exige el servidor (`app/api/sitios/route.ts`, «Falta
   // nombre») y el arrendador `crearSitio` (ADR 0002); el distrito y la
   // dirección comercial los exigía ya esta pantalla para habilitar «Crear».
@@ -98,7 +105,7 @@ export function AltaSitioDialog({
   ])
 
   async function submit() {
-    if (!ob.validar() || tarifaInvalida) return
+    if (!ob.validar() || tarifaInvalida || medidaIlegible) return
     setEnviando(true)
     const s = await altaSitioApi({
       nombre: nombre.trim(),
@@ -142,7 +149,7 @@ export function AltaSitioDialog({
           <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)}>
             {t('comun.cancelar')}
           </Button>
-          <Button variant="success" size="sm" disabled={tarifaInvalida || enviando} onClick={submit}>
+          <Button variant="success" size="sm" disabled={tarifaInvalida || medidaIlegible || enviando} onClick={submit}>
             {enviando ? t('comercial.alta.creando') : t('comercial.alta.crear')}
           </Button>
         </div>
@@ -197,8 +204,8 @@ export function AltaSitioDialog({
 
         <Seccion titulo={t('comercial.alta.caracteristicas')}>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Campo label={t('comercial.comun.ancho')}><input className={inputCls} inputMode="decimal" value={ancho} onChange={(e) => setAncho(e.target.value)} placeholder={t('comercial.comun.ej', { valor: '12.9' })} /></Campo>
-            <Campo label={t('comercial.comun.alto')}><input className={inputCls} inputMode="decimal" value={alto} onChange={(e) => setAlto(e.target.value)} placeholder={t('comercial.comun.ej', { valor: '7.2' })} /></Campo>
+            <Campo label={t('comercial.comun.ancho')}><EntradaCifra className={inputCls} inputMode="decimal" valor={ancho} onCambio={setAncho} decimales={2} minimo={0} placeholder={t('comercial.comun.ej', { valor: ejemploCifra('12.9', idioma) })} /></Campo>
+            <Campo label={t('comercial.comun.alto')}><EntradaCifra className={inputCls} inputMode="decimal" valor={alto} onCambio={setAlto} decimales={2} minimo={0} placeholder={t('comercial.comun.ej', { valor: ejemploCifra('7.2', idioma) })} /></Campo>
           </div>
           {digital && (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

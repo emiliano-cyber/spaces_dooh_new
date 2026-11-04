@@ -1148,10 +1148,10 @@ export const EN_COMERCIAL: Record<ClaveComercial, string> = {
 // «manager». Spot, slot, loop, DOOH, Network, DOOHmain y Space Eye no se
 // traducen (y no llevan plural: «8 slot»). Registro de «tu» («Scegli»,
 // «Aggiungi»). Comillas « » y apostrofo tipografico (’).
-// Los ejemplos de los campos de cifras («Es. 12.9», el «15,000.50» de la
-// tarifa ilegible, las coordenadas de la ayuda) van con PUNTO decimal a
-// proposito: describen como se TECLEA la cifra, que el campo lee con
-// `Number()` o con `lib/captura-cifra.ts`, no como se pinta en italiano.
+// Los ejemplos de los campos de cifras («Es. 12,9», el «15.000,50» de la
+// tarifa ilegible) van a la italiana desde el 04/11 (P-L2-1): el campo lee lo
+// tecleado con `lib/captura-cifra.ts` en el idioma de la persona. Las
+// COORDENADAS siguen con punto decimal: se pegan de un mapa, que las da asi.
 export const IT_COMERCIAL: Record<ClaveComercial, string> = {
   'comercial.unidad.sitio': 'sito',
   'comercial.unidad.sitios': 'siti',
@@ -1401,7 +1401,7 @@ export const IT_COMERCIAL: Record<ClaveComercial, string> = {
   'comercial.tarifas.quitar': 'Rimuovi',
   'comercial.tarifas.falta': 'Manca la tariffa dell’unità in rosso. Inseriscila o togli l’unità.',
   'comercial.tarifas.no-se-entiende':
-    'C’è una tariffa in rosso che non si capisce: la virgola separa le migliaia e il punto i decimali ({ejemplo}).',
+    'C’è una tariffa in rosso che non si capisce: il punto separa le migliaia e la virgola i decimali ({ejemplo}).',
   'comercial.tarifas.anadir-unidad': 'Aggiungi unità…',
   'comercial.tarifas.anadir': 'Aggiungi',
 

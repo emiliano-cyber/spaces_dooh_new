@@ -18,6 +18,7 @@ import {
 } from '@/lib/codigo-promocional'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { EntradaCifra } from '@/components/demo/ui/EntradaCifra'
 import { useObligatorios } from '@/components/demo/ui/Campo'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { propuestasParaAsignar, vigentesParaSelector } from '@/lib/codigo-aprobacion'
@@ -454,7 +455,9 @@ export function GestionCodigos() {
           </label>
           <label className="text-xs" data-falta={ob.falta('descuentoPct') || undefined}>
             <EtiquetaCompacta texto={t('codigos.nuevo.descuento')} obligatorio falta={ob.falta('descuentoPct')} />
-            <input
+            {/* P-L2-1 · en italiano «12,5»; lo ilegible llega como 'NaN' y lo
+                para `motivoCodigoInvalido` («tiene que ser un numero»). */}
+            <EntradaCifra
               aria-label={t('codigos.nuevo.descuento-etiqueta')}
               type="number"
               min={0}
@@ -462,8 +465,11 @@ export function GestionCodigos() {
               step={0.5}
               className={`${campo} w-24`}
               placeholder="20"
-              value={nuevo.descuentoPct}
-              onChange={(e) => setNuevo({ ...nuevo, descuentoPct: e.target.value })}
+              valor={nuevo.descuentoPct}
+              onCambio={(crudo) => setNuevo({ ...nuevo, descuentoPct: crudo })}
+              decimales={2}
+              minimo={0}
+              maximo={100}
             />
           </label>
           <label className="text-xs" data-falta={ob.falta('vigenteDesde') || undefined}>

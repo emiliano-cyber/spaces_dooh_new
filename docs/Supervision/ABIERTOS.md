@@ -279,6 +279,38 @@ archivo dentro de la pregunta.
 - **Caduca:** el día que el primer cliente con servidor en inglés o italiano pida cambiar una
   cláusula.
 
+> **2026-11-04 · supervisión de `feat/cifras-por-idioma` (P-L2-1)**, ÁMBAR — informe en
+> `docs/Supervision/cifras-por-idioma.md`. Una decisión nueva, **D18**, y advertencias **B77 a
+> B82**. La que importa es **B77**, que se arregla sin preguntar nada porque solo toca el italiano.
+> D18 es la misma trampa en español, que el dueño pidió no tocar. (Numeradas tras D17 y B76, que
+> ya existen en `integra/idiomas`.)
+
+### D18 · En un campo de dinero, si alguien escribe «2,5» en español, hoy se queda en 25 sin ningún aviso. ¿Se cambia para que avise, aunque eso cambie el comportamiento en español?
+
+- **Bloquea:** nada de lo construido ni de la rama italiana. El arreglo del italiano (B77) se
+  puede hacer ya sin esta respuesta. **Lo que SÍ se puede mientras:** todo.
+- **Por qué importa:** en español la coma separa miles. Quien teclea «2,5» pensando en «dos y
+  medio» —costumbre de Europa o de una calculadora— ve que la coma no aparece y la cifra queda en
+  **25**; «15000,50» queda en **1,500,050**, cien veces más. La pantalla enseña la cifra, pero no
+  avisa. Si la misma persona **pega** «2,5», en cambio, el campo la rechaza y explica por qué.
+  Medido en el código de hoy; no lo introdujo el italiano (el camino español de esta rama es
+  idéntico al de antes, comprobado con su huella).
+- **Opciones:**
+  - **(a) Dejarlo como está.** Cero días. El español no cambia, que es lo que se pidió el 04/11. El
+    riesgo queda en quien teclee con costumbre europea.
+  - **(b) Que la coma mal puesta se quede a la vista y el campo diga «las comas van cada tres
+    cifras».** Medio día con sus pruebas. Mismo trato al teclear que al pegar. Cambia el español:
+    alguien que hoy teclea «1,500» de corrido no nota nada (la coma bien puesta sigue igual); solo
+    cambia el caso mal puesto, que hoy se corrige solo.
+  - **(c) Lo de (b) solo en los campos de dinero**, no en cantidades enteras. Medio día. Menos
+    superficie, pero dos comportamientos que explicar.
+- **Recomendación:** **(b)**. Es el mismo principio que el dueño ya fijó («lo ambiguo se rechaza»)
+  y que el campo ya cumple cuando se pega; hoy lo incumple solo cuando se teclea. El único
+  comportamiento español que cambia es el que guarda una cifra que nadie escribió.
+- **Si nadie contesta:** queda la (a). Aceptable a corto plazo: es lo de siempre y la cifra se ve en
+  pantalla. Deja de serlo si entra un cliente que teclee con costumbre europea en español.
+- **Caduca:** no caduca por fecha; pierde valor cada factura o propuesta que se capture así.
+
 ---
 
 ### ~~D11 · La rejilla de precios deja que el precio se decida en el navegador del vendedor. Antes de meter descuentos por volumen y códigos promocionales, ¿se pasa el cálculo al servidor?~~
@@ -2643,6 +2675,90 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
   `:51`) y `:2255` cita `:18` (`NEXT_PUBLIC_RECUPERAR_PASSWORD`, hoy `:19`): la ruta creció un
   import. Y `CLAUDE.md:42` dice 1656 enlaces; `node scripts/recuentos.mjs` en la rama da **1657**.
   **Cómo se cierra:** corregir las dos citas y el recuento en la misma rama. Menor.
+
+- ~~**P-L2-1 · La captura de cifras no es italiana: «12,9» en el ancho de una pantalla se
+  guardaba como 0 y «1.500,50» como otra cifra.**~~ ✅ **CERRADA el 2026-11-04 en
+  `feat/cifras-por-idioma`** (ZONA ROJA, dinero; autorizada por el dueño el 04/11). En italiano
+  se teclea con punto de millar y coma decimal (`lib/captura-cifra.ts`, espejo exacto de la
+  regla mexicana; lo ambiguo se rechaza con su motivo) y los campos que hacían `Number(texto)`
+  o eran `type="number"` pasan por `EntradaCifra`, que en español e inglés es el `<input>` de
+  siempre. **Medido:** huella de la captura es/en contra `cb116dde`; volcado `I18N_VOLCAR_TODO`
+  contra `cb116dde` con 187 estados distintos, todos italianos; `DICCIONARIOS` es/en 0 valores
+  cambiados (1 clave nueva); barrido italiano 0 sin declarar sin la excepción P-L2-1; siete
+  formularios montados que mandan 12.9 y 1500.5 a la API; 21/21 mutantes. Pendiente de su
+  validador. Fuera, a propósito: coordenadas, Space Eyes y los enteros sin control de
+  Administración (ver `vault/06-Operacion/convenciones.md`).
+  > **Supervisión 2026-11-04: ÁMBAR** — `docs/Supervision/cifras-por-idioma.md`. Confirmado
+  > midiendo: la huella es/en recalculada con la función de `cb116dde` cuadra (`e5240e24…`); el
+  > volcado de toda la suite da 187 distintos, 0 fuera de `_italiano.txt`; el árbol fusionado con
+  > `integra/idiomas` `f92b9b26` da 8527 + 1 en verde. **Pero el cierre es solo para lo PEGADO:**
+  > tecleado tecla a tecla, un punto a la inglesa se traga y «2.5» queda en 25 (**B77**). P-L2-1
+  > sigue cerrada en lo que decía; la deuda nueva es B77–B82 y la decisión D18.
+
+- ~~**B77 · En italiano, un punto tecleado tecla a tecla desaparece y la cifra sale 10 o 100
+  veces mayor, sin aviso.**~~ ✅ **CERRADA el 2026-11-04** (`468ee616` rojo a la vista, 4 rojas;
+  `0281f9a8` arreglo). En italiano, un PUNTO tecleado no se recoloca: se queda donde se tecleó y
+  `leerCifra` lo acepta («1.500») o lo rechaza con su motivo. **Medido tecla a tecla**
+  (`insertText`): «2.5», «12.9», «15000.50» → rechazados (crudo `NaN`, el texto como se tecleó);
+  «1.500,50» → 1500.5; «12,9» → 12.9; «1500,50» → «1.500,50» → 1500.5; cursor en medio: «.» tras
+  el 5 de «1.500» → «1.5.00» rechazado, «2» tras el 1 → 12.500. Alta de Comercial tecleada: «12.9»
+  y «2.5» ya no se mandan. Huella es/en `e5240e24…` intacta; dos mutantes de la guardia, muertos.
+  Lo que decía la advertencia: **Qué es:** «2.5» tecleado
+  en italiano queda en **25**, «12.9» en **129** y «15000.50» en **1.500.050**; pegado, el mismo
+  texto se rechaza con su motivo. **Evidencia:** `formatearMientrasEscribe` llamada tecla a tecla
+  como la llama `CampoCifra` (`insertText`): pasos `["2","2","25"]`, crudo `"25"`; mecanismo en
+  `lib/captura-cifra.ts:282` (rama italiana que intercambia) y `:311` (quita los separadores al
+  recolocar). Ninguna prueba lo ve: el arnés teclea como pegar (`lib/test/formulario-sin-dom.ts:165`).
+  **Es una regresión** en los 37 usos de `EntradaCifra` (antes `Number('2.5')` = 2.5): p. ej. el
+  descuento de la ficha de una propuesta, «2.5» → **25 %**, que solo para el tope si es menor.
+  **Cómo se cierra:** solo en italiano, no recolocar cuando la tecla es un punto fuera de posición
+  de millar (dejarlo, que `leerCifra` lo rechace); prueba roja primero con la secuencia «2», «.»,
+  «5». La huella es/en no cambia porque el camino español no se toca. **Quién:** el ejecutor de la
+  rama (ZONA ROJA ya autorizada para la captura italiana); verificador aparte. **Si no se cierra antes
+  del 14/10:** la fecha ya pasó; lo que importa es **antes de encender el italiano en cualquier
+  servidor con clientes** — si se enciende así, un importe o un porcentaje puede guardarse 10 o 100
+  veces mayor con la cifra a la vista pero sin un solo aviso.
+- ~~**B78 · `feat/cifras-por-idioma` no fusiona limpia con `integra/idiomas` de hoy.**~~ ✅
+  **CERRADA el 2026-11-04** (`5c771163`): los cuatro conflictos a mano; el snapshot con las dos
+  cosas y sin `vitest -u` (contra la rama, solo «commissione» → «provvigione»); 8552 + 1 en verde. **Evidencia:** `git merge-tree` contra `f92b9b26`: conflictos en
+  `italiano-l2.test.ts.snap`, `ABIERTOS.md`, `italiano-olas.md` y el diario del 04/11. El snapshot
+  se resuelve con las dos cosas (la clave `propuestas.alta.error.calculadora` + las tres de
+  «provvigione»); así el árbol fusionado da `tsc` limpio y 8527 + 1 unitarias. **Cómo se cierra:**
+  resolverlo a mano, **nunca con `vitest -u`**, y volver a correr la suite. **Quién:** quien
+  integre. **Si no:** no se puede fusionar; no es silencioso.
+- ~~**B79 · Seis guardias nuevas de cifra ilegible sin prueba que las defienda.**~~ ✅
+  **CERRADA el 2026-11-04** (`03db5ea4`): las seis montadas en `cifras-formularios.test.ts` y
+  `pantallas-propuestas.test.ts` (la prima de un Roadblock, que la calculadora no rechaza). M8–M13,
+  contra la suite entera: los seis MUEREN. **Evidencia:** mutantes que las apagan **sobreviven** a la suite entera: editar sitio
+  (`SiteFicha.tsx:1309`), asistente de contrato (`ContratoWizard.tsx:189`), captación
+  (`Captacion.tsx:568`), negociación (`ComercialOpex.tsx:315`), clientes (`clientes/page.tsx:483`),
+  calculadora de propuestas (`propuestas/page.tsx:1139`). Leídas a mano: las seis están bien hoy.
+  **Por qué importa:** sin ellas, en italiano, `NaN` viaja como `null` y **borra** el dato guardado
+  (editar sitio, negociación) o lo cambia por el valor por omisión (asistente). **Cómo se cierra:**
+  añadirlas a `cifras-formularios.test.ts` con el mismo arnés. **Quién:** el ejecutor. **Si no:** una
+  regresión futura en cualquiera de las seis pasa en verde.
+- ~~**B80 · `crudoTecleado` es código muerto con prueba propia.**~~ ✅ **CERRADA el 2026-11-04**
+  (`c5ffe82d`): borrado con su prueba.
+  `lib/captura-cifra.ts:338`; solo la usa `EntradaCifra.test.ts`. `EntradaCifra` no la llama. Da una
+  cobertura que no es la del camino real. **Cómo se cierra:** borrarla (y su prueba) o que
+  `EntradaCifra` la use. Menor.
+- ~~**B81 · La rama no tiene entrada en la bitácora y deja el recuento de enlaces viejo.**~~ ✅
+  **CERRADA el 2026-11-04**: recuentos medidos tras fusionar y puestos en `CLAUDE.md`. La entrada en
+  `docs/Registro_Cambios.md` no se hace mientras el italiano esté apagado (indicación del
+  coordinador, anotada en el diario del 04/11). `docs/Registro_Cambios.md` no está en el diff y el cambio se nota en italiano.
+  `node scripts/recuentos.mjs`: 1656 en `cb116dde`, **1659** en la rama; `CLAUDE.md:42` dice 1656.
+  **Cómo se cierra:** entrada en lenguaje llano y medir de nuevo **tras fusionar**. **Quién:** quien
+  integre. Documental.
+  > **Supervisión, 2.ª pasada (2026-11-04): B77, B78, B79 y B80 confirmadas como cerradas MIDIENDO**
+  > (detalle en `docs/Supervision/cifras-por-idioma.md`, «2.ª pasada»). **B81 queda a medias:** el
+  > recuento sí (1660 medido = `CLAUDE.md:42`); la entrada de la bitácora **no está hecha, está
+  > aplazada** por indicación del coordinador hasta encender el italiano. Al encenderlo, esa entrada
+  > es obligatoria: que nadie lea «B81 cerrada» como «bitácora escrita».
+- **B82 · ⚪ ABIERTA (2026-11-04) · Cambiar de idioma con un diálogo de cifras abierto.** En es/en
+  `EntradaCifra` guarda lo tecleado; si se cambia a italiano con «1,500» escrito, el campo pinta
+  «1.500» (medido: `textoDesdeCrudo('1,500','it')`) y el formulario manda `Number('1,500') || 0` = 0,
+  igual que habría mandado en español. No empeora nada, pero el campo enseña otra cifra. No
+  verificado si la interfaz deja cambiar de idioma con un diálogo abierto. Menor.
 
 - **B57 · 🟠 ABIERTA (2026-10-29) · Un usuario que ya usó el sistema NO se puede
   borrar: la bitácora lo impide.** Encontrada escribiendo la prueba de P19.

@@ -16,6 +16,8 @@ archivos:
   - apps/web/lib/test/espejo-italiano.ts
   - apps/web/lib/i18n/barrido-italiano.ts
   - apps/web/lib/i18n/parte-en-idioma.tsx
+  - apps/web/lib/captura-cifra.ts
+  - apps/web/components/demo/ui/EntradaCifra.tsx
   - scripts/i18n-barrido-italiano.mjs
   - docs/i18n/revision-italiano-base.md
   - docs/i18n/revision-italiano-pulido.md
@@ -335,12 +337,11 @@ Vista (orientación) → **Orientamento** · Lista (vista) → **Elenco** (preci
 lista: **Listino**) · Eliminar → **Elimina**, Quitar → **Rimuovi**, Añadir /
 Agregar → **Aggiungi**, Guardar → **Salva**, «No se pudo …» → **Impossibile …**.
 
-> [!warning] P-L2-1 · La captura de cifras no es italiana (para el dueño)
-> `CampoCifra` (`lib/captura-cifra.ts`) lee la coma como miles y el punto como
-> decimal en todos los idiomas, y el alta de pantalla usa `Number()`. Un
-> italiano que teclee «1.500,50» obtiene otra cifra. Los ejemplos del lote
-> describen el formato que el campo ENTIENDE («Es. 12.9»). Decidirlo antes de
-> encender el italiano. P-L2-2: el documento imprimible y `/p/[token]` se
+> [!success] ~~P-L2-1 · La captura de cifras no es italiana~~ — CERRADA el 2026-11-04
+> Hasta ese día `CampoCifra` (`lib/captura-cifra.ts`) leía la coma como miles
+> y el punto como decimal en todos los idiomas, y el alta de pantalla usaba
+> `Number()`: un italiano que tecleaba «1.500,50» obtenía otra cifra. El dueño
+> decidió el 04/11 que se teclee en el formato del idioma; ver §12. P-L2-2: el documento imprimible y `/p/[token]` se
 > tradujeron sin cambiar su regla de idioma (la de la petición); si van en el
 > idioma de la instancia, como el contrato, es P4.
 
@@ -618,3 +619,45 @@ validar**. Tres cambios autorizados por el dueño el 04/11.
   0049, `ABIERTOS.md` y el runbook del alta; en el código solo cambian
   comentarios (`contrato-documento.ts`). Texto legal, aviso impreso y hashes,
   intactos.
+
+## 13 · La captura de cifras en italiano (P-L2-1, 2026-11-04)
+
+Rama `feat/cifras-por-idioma` (sale de `integra/idiomas`, `cb116dde`), **ZONA
+ROJA (dinero), autorizada por el dueño el 04/11**, sin validar. La regla está en
+[[convenciones]] («La cifra se teclea en el idioma de la persona»).
+
+- **P-L2-1 cerrada.** `lib/captura-cifra.ts` lee el italiano con punto de
+  millar y coma decimal («1.500,50» → 1500.5, «12,9» → 12.9, «212.500,50» →
+  212500.5), como espejo exacto de la regla mexicana: «1,500» en dinero y
+  «12.9» se rechazan con el motivo italiano en vez de adivinar. Lo que viaja
+  al formulario y al servidor no cambia (punto decimal, sin separadores).
+- **`EntradaCifra`** para los campos que hacían `Number(texto)` o eran
+  `type="number"`: alta de pantalla de Comercial (ancho, alto), alta manual de
+  Inventario (caras, segundos del slot), editar sitio (ancho, alto, caras,
+  cupo, slots, segundos), asistente de contrato (caras, slots, segundos),
+  captación (cifras del prospecto), negociación (medidas, superficie,
+  presupuestos, renta y plazo de la oferta), códigos y volumen (porcentaje),
+  Administración (IVA, plazos, tope de descuento), clientes y comisiones (la
+  comisión de la agencia), imprenta (ancho, alto), propuestas (duración,
+  comisión, espacios, horas y prima de la calculadora) y la ficha de la
+  propuesta (descuento). Cada uno bloquea el envío con `cifraIlegible`.
+- **Ejemplos y avisos** italianos a la italiana («Es. 12,9», «0,00»,
+  «(15.000,50)», «es. 180.000», «il punto separa le migliaia e la virgola i
+  decimali»). La excepción P-L2-1 del barrido se quitó: **ningún
+  `A_PROPOSITO_IT` la menciona**, y el barrido global da **3714 estados, 549
+  hallazgos, 549 declarados, 0 sin declarar** (eran 646 con 97 de P-L2-1).
+- **Español e inglés:** `DICCIONARIOS` 0 valores cambiados (1 clave nueva,
+  `propuestas.alta.error.calculadora`); volcado de TODA la suite con
+  `I18N_VOLCAR_TODO` contra `cb116dde`: **187 archivos distintos, los 187
+  italianos, 0 de español o inglés**. La captura es/en la fija una huella de
+  la función de antes (`captura-cifra.es-en.test.ts`).
+- **Pruebas:** `captura-cifra.italiano.test.ts`, `captura-cifra.es-en.test.ts`,
+  `EntradaCifra.test.ts` y `cifras-formularios.test.ts`, que monta siete
+  formularios de verdad (alta de Comercial, alta manual, imprenta, comisiones
+  —alta y fila—, códigos y volumen), teclea y mira lo que llega a la API.
+  **21/21 mutantes muertos.** Unitarias 8488 + 1 omitida (406 archivos),
+  typecheck y build en verde. Sin e2e: el comportamiento es/en no cambia y no
+  se tocó el servidor.
+- **No se tocaron**, a propósito: las coordenadas (se pegan de un mapa, con
+  punto), Space Eyes (configuración técnica entera) y los enteros sin control
+  de Administración y el orden de la rejilla.

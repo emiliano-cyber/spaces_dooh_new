@@ -10,7 +10,8 @@ import { CheckCircle2, Users, ShieldCheck, UserPlus, Building2, X, Plus, Check, 
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
-import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
+import { EntradaCifra } from '@/components/demo/ui/EntradaCifra'
+import { CRUDO_INVALIDO, cifraIlegible } from '@/lib/captura-cifra'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { Tabs, TabPanel } from '@/components/demo/ui/Tabs'
@@ -1103,9 +1104,13 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
                 </span>
               ))}
               <div className="inline-flex items-center gap-1">
-                <input type="number" value={nuevoIva} onChange={(e) => setNuevoIva(e.target.value)} placeholder="%"
-                  className="h-8 w-20 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent" />
+                {/* P-L2-1 · en italiano «10,5»; lo que no se entiende se queda
+                    en rojo en el campo y no se agrega ni se borra. */}
+                <EntradaCifra type="number" valor={nuevoIva} onCambio={setNuevoIva} placeholder="%"
+                  className="h-8 w-20 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  decimales={2} minimo={0} maximo={100} />
                 <Button size="sm" variant="success" onClick={() => {
+                  if (cifraIlegible(nuevoIva, idioma)) return
                   const nx = Number(nuevoIva)
                   if (nx >= 0 && !config.ivaTasas.includes(nx)) guardar({ ivaTasas: [...config.ivaTasas, nx].sort((a, b) => a - b) }, t('admin.iva.agregado', { n: nx }))
                   setNuevoIva('')
@@ -1124,9 +1129,11 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
                 </span>
               ))}
               <div className="inline-flex items-center gap-1">
-                <input type="number" value={nuevoPlazo} onChange={(e) => setNuevoPlazo(e.target.value)} placeholder={t('admin.plazos.dias')}
-                  className="h-8 w-20 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent" />
+                <EntradaCifra type="number" valor={nuevoPlazo} onCambio={setNuevoPlazo} placeholder={t('admin.plazos.dias')}
+                  className="h-8 w-20 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  decimales={0} minimo={1} />
                 <Button size="sm" variant="success" onClick={() => {
+                  if (cifraIlegible(nuevoPlazo, idioma)) return
                   const nx = Number(nuevoPlazo)
                   if (nx > 0 && !config.plazosCobranza.includes(nx)) guardar({ plazosCobranza: [...config.plazosCobranza, nx].sort((a, b) => a - b) }, t('admin.plazos.agregado', { n: nx }))
                   setNuevoPlazo('')
@@ -1146,14 +1153,19 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
         >
             <div className="flex flex-wrap items-end gap-3">
               <Campo label={t('admin.tope.maximo')}>
-                <input
+                {/* P-L2-1 · en italiano «12,5». Lo ilegible llega como 'NaN' y
+                    `guardarTope` lo rechaza como cualquier tope fuera de rango. */}
+                <EntradaCifra
                   type="number"
                   min={0}
                   max={100}
                   className={`demo-num ${inputCls}`}
-                  value={topeInput}
-                  onChange={(e) => setTopeInput(e.target.value)}
+                  valor={topeInput}
+                  onCambio={setTopeInput}
                   onKeyDown={(e) => { if (e.key === 'Enter') guardarTope() }}
+                  decimales={2}
+                  minimo={0}
+                  maximo={100}
                 />
               </Campo>
               <Button

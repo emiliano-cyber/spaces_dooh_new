@@ -8,6 +8,8 @@ import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
+import { EntradaCifra } from '@/components/demo/ui/EntradaCifra'
+import { cifraIlegible } from '@/lib/captura-cifra'
 import { EmptyState } from '@/components/demo/EmptyState'
 import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
 import { formatNumero } from '@/lib/formato-numero'
@@ -16,7 +18,7 @@ import {
   IMPRESION_TONO,
 } from '@/components/demo/StatusBadge'
 import { CLAVE_IMPRESION } from '@/components/demo/campanas/etiquetas'
-import { useTexto } from '@/lib/i18n/contexto'
+import { useIdioma, useTexto } from '@/lib/i18n/contexto'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { crearOrdenImpresionApi, avanzarOrdenImpresionApi, aprobarPruebaColorApi } from '@/lib/data/estado-api'
 import {
@@ -272,6 +274,7 @@ export default function ImprentaPage() {
 
 function NuevaOrdenDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const t = useTexto()
+  const { idioma } = useIdioma()
   const campanas = useCampanas()
   const sitios = useSitios()
   const [campanaId, setCampanaId] = useState('')
@@ -288,6 +291,10 @@ function NuevaOrdenDialog({ open, onClose }: { open: boolean; onClose: () => voi
 
   async function guardar() {
     if (!ob.validar()) return
+    // P-L2-1 · en italiano las medidas van por `EntradaCifra` («12,9»); lo
+    // ilegible llega como 'NaN' (en rojo en el campo) y no se manda. En
+    // español e inglés `cifraIlegible` es `false`.
+    if (cifraIlegible(ancho, idioma) || cifraIlegible(alto, idioma)) return
     setEnviando(true)
     try {
       await crearOrdenImpresionApi({
@@ -358,16 +365,16 @@ function NuevaOrdenDialog({ open, onClose }: { open: boolean; onClose: () => voi
         </Campo>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Campo label={t('operaciones.imprenta.campo.ancho')}>
-            <input
-              type="number" inputMode="decimal" value={ancho}
-              onChange={(e) => setAncho(e.target.value)} placeholder="0"
+            <EntradaCifra
+              type="number" inputMode="decimal" valor={ancho}
+              onCambio={setAncho} placeholder="0" decimales={2} minimo={0}
               className="demo-num w-full rounded border border-border-strong bg-surface px-2.5 py-2 text-[13px] text-ink"
             />
           </Campo>
           <Campo label={t('operaciones.imprenta.campo.alto')}>
-            <input
-              type="number" inputMode="decimal" value={alto}
-              onChange={(e) => setAlto(e.target.value)} placeholder="0"
+            <EntradaCifra
+              type="number" inputMode="decimal" valor={alto}
+              onCambio={setAlto} placeholder="0" decimales={2} minimo={0}
               className="demo-num w-full rounded border border-border-strong bg-surface px-2.5 py-2 text-[13px] text-ink"
             />
           </Campo>

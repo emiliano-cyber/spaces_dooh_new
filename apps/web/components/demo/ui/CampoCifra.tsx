@@ -30,6 +30,9 @@ import {
 //  el padre recibe 'NaN' (que `Number()` nunca acepta) y el error, y debe
 //  bloquear el envío con él.
 //
+//  EN ITALIANO los signos van al revés —se teclea y se ve «1.500,50»— y el
+//  padre recibe lo mismo que en español: «1500.5». Ver `lib/captura-cifra.ts`.
+//
 //  `type="text"` y no `number`: un `<input type="number">` no admite comas (el
 //  navegador lo da por vacío), y además cambia el valor con la rueda del ratón.
 //  `inputMode` saca el teclado numérico en el teléfono igualmente.
@@ -56,9 +59,10 @@ export interface CampoCifraProps extends AtributosInput {
   /** Pinta el motivo del rechazo debajo del campo. Por defecto sí. */
   mostrarError?: boolean
   /**
-   * I18N · idioma del motivo de rechazo (`title` y aviso). Sin él, el de la
-   * pantalla (`useIdioma`, que fuera del proveedor es 'es'): en español sale
-   * el literal de siempre en todos los formularios que usan este campo.
+   * I18N · idioma del motivo de rechazo (`title` y aviso) y, desde el 04/11
+   * (P-L2-1), de los SIGNOS: en italiano se teclea y se pinta «1.500,50». Sin
+   * él, el de la pantalla (`useIdioma`, que fuera del proveedor es 'es'): en
+   * español e inglés sale lo de siempre en todos los formularios.
    */
   idioma?: Idioma
 }
@@ -90,7 +94,7 @@ export function CampoCifra({
     idioma,
   }
   const crudoProp = aCrudo(valor)
-  const [texto, setTexto] = React.useState(() => textoDesdeCrudo(crudoProp))
+  const [texto, setTexto] = React.useState(() => textoDesdeCrudo(crudoProp, idioma))
   const ultimoEmitido = React.useRef(crudoProp)
   const cursorPendiente = React.useRef<number | null>(null)
   const ref = React.useRef<HTMLInputElement>(null)
@@ -104,10 +108,14 @@ export function CampoCifra({
   // valor guardado puede no cambiar (acotar 125 a 12 cuando ya había 12) y aun
   // así lo tecleado hay que corregirlo. Lo que este campo emitió no cuenta como
   // cambio: si no, cada tecla borraría el punto final de «212,500.».
+  // Y si cambia el idioma con el campo montado, se repinta con sus signos: el
+  // valor es el mismo, pero «1,500.5» leído en italiano sería otra cifra.
+  const idiomaPintado = React.useRef(idioma)
   React.useEffect(() => {
-    if (crudoProp !== ultimoEmitido.current) {
+    if (crudoProp !== ultimoEmitido.current || idioma !== idiomaPintado.current) {
       ultimoEmitido.current = crudoProp
-      setTexto(textoDesdeCrudo(crudoProp))
+      idiomaPintado.current = idioma
+      setTexto(textoDesdeCrudo(crudoProp, idioma))
     }
   })
 
@@ -145,12 +153,15 @@ export function CampoCifra({
         title={error ?? resto.title}
         onChange={(e) => {
           const el = e.target
-          const r = formatearMientrasEscribe({
-            anterior: texto,
-            nuevo: el.value,
-            cursor: el.selectionStart ?? el.value.length,
-            tipoEntrada: (e.nativeEvent as InputEvent).inputType,
-          })
+          const r = formatearMientrasEscribe(
+            {
+              anterior: texto,
+              nuevo: el.value,
+              cursor: el.selectionStart ?? el.value.length,
+              tipoEntrada: (e.nativeEvent as InputEvent).inputType,
+            },
+            idioma,
+          )
           cursorPendiente.current = r.cursor
           setTexto(r.texto)
           emitir(r.texto)

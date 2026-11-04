@@ -35,7 +35,8 @@ import { Modal } from '@/components/demo/ui/Modal'
 import { ElegirClienteDialog } from '@/components/demo/propuestas/ElegirClienteDialog'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
-import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
+import { CRUDO_INVALIDO, cifraIlegible } from '@/lib/captura-cifra'
+import { EntradaCifra } from '@/components/demo/ui/EntradaCifra'
 import { MapView } from '@/components/demo/MapView'
 import { pinTono } from '@/components/demo/StatusBadge'
 import { usePuede } from '@/components/demo/shell/SesionContext'
@@ -1132,6 +1133,12 @@ function NuevaPropuestaDialog({
       if (c.tarifaManual === CRUDO_INVALIDO) return t('propuestas.alta.error.tarifa', { sitio: s.nombre })
       if (c.rentaMonto === CRUDO_INVALIDO) return t('propuestas.alta.error.renta', { sitio: s.nombre })
       if (c.spotsPorDia === CRUDO_INVALIDO && !usaCalcDe(s)) return t('propuestas.alta.error.spots', { sitio: s.nombre })
+      // P-L2-1 · en italiano los espacios, las horas y la prima van por
+      // `EntradaCifra`; lo ilegible llega como 'NaN' y caería en silencio a 1
+      // espacio o a prima 0. En español e inglés `cifraIlegible` es `false`.
+      if (usaCalcDe(s) && [c.espacios, c.horasDia, c.prima].some((x) => cifraIlegible(x, idioma))) {
+        return t('propuestas.alta.error.calculadora', { sitio: s.nombre })
+      }
     }
     return null
   })()
@@ -1355,12 +1362,16 @@ function NuevaPropuestaDialog({
             <Campo label={t('propuestas.comun.desde')} obligatorio falta={ob.falta('fechaInicio')}><input type="date" className={inputCls} value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} /></Campo>
             <Campo label={t('propuestas.alta.duracion')}>
               <div className="flex gap-2">
-                <input
+                {/* P-L2-1 · en italiano, `CampoCifra`; lo ilegible ('NaN') lo
+                    para `errDuracion`. */}
+                <EntradaCifra
                   type="number"
                   min={1}
                   className={`${inputCls} w-20`}
-                  value={duracionN}
-                  onChange={(e) => setDuracionN(e.target.value)}
+                  valor={duracionN}
+                  onCambio={setDuracionN}
+                  decimales={0}
+                  minimo={1}
                 />
                 <select className={inputCls} value={duracionUnidad} onChange={(e) => setDuracionUnidad(e.target.value as Unidad)}>
                   {UNIDADES.filter((u) => !esCantidadManual(u.unidad)).map((u) => {
@@ -1398,7 +1409,7 @@ function NuevaPropuestaDialog({
                 }}
               />
             </Campo>
-            <Campo label={t('propuestas.alta.comision')}><input className={inputCls} value={comision} onChange={(e) => setComision(e.target.value)} /></Campo>
+            <Campo label={t('propuestas.alta.comision')}><EntradaCifra className={inputCls} valor={comision} onCambio={setComision} decimales={2} minimo={0} /></Campo>
           </div>
 
           </>
@@ -1895,16 +1906,18 @@ function CalculadoraSpotsLinea({
           <div className="mt-1 flex flex-wrap items-center gap-3">
             <label className="inline-flex items-center gap-1" title={t('propuestas.calc.espacios.titulo')}>
               {t('propuestas.calc.espacios')}
-              <input
+              <EntradaCifra
                 type="number"
                 min={1}
                 max={total || undefined}
                 step={1}
                 aria-label={t('propuestas.calc.espacios.aria', { sitio: sitio.nombre })}
                 className={inputCls}
-                value={cfg.roadblock ? String(total) : cfg.espacios}
+                valor={cfg.roadblock ? String(total) : cfg.espacios}
                 disabled={cfg.roadblock}
-                onChange={(e) => cambiar({ espacios: e.target.value })}
+                onCambio={(crudo) => cambiar({ espacios: crudo })}
+                decimales={0}
+                minimo={1}
               />
               <span className="demo-num">
                 {t('propuestas.calc.de-total', {
@@ -1922,7 +1935,7 @@ function CalculadoraSpotsLinea({
               }
             >
               {t('propuestas.calc.horas')}
-              <input
+              <EntradaCifra
                 type="number"
                 min={0.25}
                 max={horasMax}
@@ -1930,8 +1943,10 @@ function CalculadoraSpotsLinea({
                 aria-label={t('propuestas.calc.horas.aria', { sitio: sitio.nombre })}
                 placeholder={fmtNum(horasMax, 2, idioma)}
                 className={inputCls}
-                value={cfg.horasDia}
-                onChange={(e) => cambiar({ horasDia: e.target.value })}
+                valor={cfg.horasDia}
+                onCambio={(crudo) => cambiar({ horasDia: crudo })}
+                decimales={2}
+                minimo={0}
               />
             </label>
             <label
@@ -1954,7 +1969,7 @@ function CalculadoraSpotsLinea({
               }
             >
               {t('propuestas.calc.prima')}
-              <input
+              <EntradaCifra
                 type="number"
                 min={0}
                 max={100}
@@ -1962,9 +1977,12 @@ function CalculadoraSpotsLinea({
                 aria-label={t('propuestas.calc.prima.aria', { sitio: sitio.nombre })}
                 placeholder="0"
                 className={inputCls}
-                value={puedePrima ? cfg.prima : ''}
+                valor={puedePrima ? cfg.prima : ''}
                 disabled={!cfg.roadblock || !puedePrima}
-                onChange={(e) => cambiar({ prima: e.target.value })}
+                onCambio={(crudo) => cambiar({ prima: crudo })}
+                decimales={2}
+                minimo={0}
+                maximo={100}
               />
             </label>
           </div>

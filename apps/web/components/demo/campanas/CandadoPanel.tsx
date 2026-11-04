@@ -9,8 +9,8 @@ import { usePuede } from '@/components/demo/shell/SesionContext'
 import { crearOrdenCompraApi } from '@/lib/data/estado-api'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
-import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
-import { useTexto } from '@/lib/i18n/contexto'
+import { CRUDO_INVALIDO, ejemploCifra } from '@/lib/captura-cifra'
+import { useIdioma, useTexto } from '@/lib/i18n/contexto'
 
 const hoyISO = () => new Date().toISOString().slice(0, 10)
 
@@ -23,6 +23,7 @@ export function CandadoPanel({ campanaId }: { campanaId: string }) {
   const camp = useCampana(campanaId)
   const puedeOC = usePuede('comercial', 'crear')
   const t = useTexto()
+  const { idioma } = useIdioma()
   const [enviando, setEnviando] = useState(false)
   const [numeroOc, setNumeroOc] = useState('')
   const [monto, setMonto] = useState('')
@@ -132,7 +133,7 @@ export function CandadoPanel({ campanaId }: { campanaId: string }) {
           </button>
           {monto === CRUDO_INVALIDO && (
             <p className="text-[11px] text-error">
-              {t('campanas.candado.monto-ilegible', { ejemplo: '212,500.50' })}
+              {t('campanas.candado.monto-ilegible', { ejemplo: ejemploCifra('212,500.50', idioma) })}
             </p>
           )}
           <p className="text-[10px] text-muted">

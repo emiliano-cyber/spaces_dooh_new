@@ -19,6 +19,8 @@ import {
   Wallet,
 } from 'lucide-react'
 import { Button } from '@/components/demo/ui/Button'
+import { EntradaCifra } from '@/components/demo/ui/EntradaCifra'
+import { cifraIlegible } from '@/lib/captura-cifra'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
 import { formatFecha, formatMonto } from '@/lib/data/client'
@@ -278,7 +280,8 @@ function Pasos({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; pued
 }
 
 // ─── La ficha ───────────────────────────────────────────────────────────────
-function Ficha({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; puede: boolean }) {
+// Exportada para `lib/i18n/cifras-formularios.test.ts` (B79): se monta sola.
+export function Ficha({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; puede: boolean }) {
   const { t, idioma } = useIdioma()
   const inicial = () => ({
     tipoEspacio: p.tipoEspacio ?? '',
@@ -298,8 +301,24 @@ function Ficha({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; pued
     disabled: !puede,
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value }),
   })
+  // P-L2-1 · las cifras de la ficha van por `EntradaCifra`: el mismo
+  // `type="number"` en español e inglés y, en italiano, punto de millar y coma
+  // decimal. Mismo orden de atributos que `campo` (el HTML no cambia).
+  type Cifra = 'anchoM' | 'altoM' | 'superficieM2' | 'presupuestoMin' | 'presupuestoMax'
+  const cifra = (k: Cifra) => ({
+    valor: f[k],
+    disabled: !puede,
+    onCambio: (crudo: string) => setF({ ...f, [k]: crudo }),
+  })
+  // En italiano, lo que no se entiende llega como 'NaN' y `numeroO` lo
+  // mandaría como NaN → null en JSON, BORRANDO el dato guardado. El campo ya
+  // lo dice en rojo; aquí solo no se guarda. En español e inglés, `false`.
+  const cifraMal = (['anchoM', 'altoM', 'superficieM2', 'presupuestoMin', 'presupuestoMax'] as const).some((k) =>
+    cifraIlegible(f[k], idioma),
+  )
 
   async function guardar() {
+    if (cifraMal) return
     const cuerpo: FichaForm = {
       tipoEspacio: f.tipoEspacio.trim() || null,
       visibilidad: f.visibilidad || null,
@@ -333,11 +352,11 @@ function Ficha({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; pued
         </label>
         <label>
           <span className={labelCls}>{t('comercial.comun.ancho')}</span>
-          <input className={inputCls} type="number" min={0} step="0.01" {...campo('anchoM')} />
+          <EntradaCifra className={inputCls} type="number" min={0} step="0.01" {...cifra('anchoM')} decimales={2} minimo={0} />
         </label>
         <label>
           <span className={labelCls}>{t('comercial.comun.alto')}</span>
-          <input className={inputCls} type="number" min={0} step="0.01" {...campo('altoM')} />
+          <EntradaCifra className={inputCls} type="number" min={0} step="0.01" {...cifra('altoM')} decimales={2} minimo={0} />
         </label>
         <div>
           <span className={labelCls}>{t('comercial.negociacion.ficha.area')}</span>
@@ -345,15 +364,15 @@ function Ficha({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; pued
         </div>
         <label>
           <span className={labelCls}>{t('comercial.negociacion.ficha.superficie')}</span>
-          <input className={inputCls} type="number" min={0} step="0.01" {...campo('superficieM2')} />
+          <EntradaCifra className={inputCls} type="number" min={0} step="0.01" {...cifra('superficieM2')} decimales={2} minimo={0} />
         </label>
         <label>
           <span className={labelCls}>{t('comercial.negociacion.ficha.renta-min')}</span>
-          <input className={inputCls} type="number" min={0} {...campo('presupuestoMin')} />
+          <EntradaCifra className={inputCls} type="number" min={0} {...cifra('presupuestoMin')} decimales={2} minimo={0} />
         </label>
         <label>
           <span className={labelCls}>{t('comercial.negociacion.ficha.renta-max')}</span>
-          <input className={inputCls} type="number" min={0} {...campo('presupuestoMax')} />
+          <EntradaCifra className={inputCls} type="number" min={0} {...cifra('presupuestoMax')} decimales={2} minimo={0} />
         </label>
         <label className="col-span-2">
           <span className={labelCls}>{t('comercial.negociacion.ficha.autoriza')}</span>
@@ -684,8 +703,11 @@ function Ofertas({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; pu
             if (ok) setN({ importe: '', plazo: n.plazo, notas: '' })
           }}
         >
-          <input aria-label={t('comercial.negociacion.ofertas.renta-mensual')} type="number" min={1} className={inputCls} placeholder={t('comercial.negociacion.ofertas.renta-mensual')} value={n.importe} onChange={(e) => setN({ ...n, importe: e.target.value })} />
-          <input aria-label={t('comercial.negociacion.ofertas.plazo-meses')} type="number" min={1} max={240} className={inputCls} placeholder={t('comercial.negociacion.ofertas.meses-ph')} value={n.plazo} onChange={(e) => setN({ ...n, plazo: e.target.value })} />
+          {/* P-L2-1 · en italiano, punto de millar y coma decimal. Lo que no se
+              entiende llega como 'NaN', y `Number('NaN') > 0` deja el botón
+              apagado: no hace falta otra guardia. */}
+          <EntradaCifra aria-label={t('comercial.negociacion.ofertas.renta-mensual')} type="number" min={1} className={inputCls} placeholder={t('comercial.negociacion.ofertas.renta-mensual')} valor={n.importe} onCambio={(crudo) => setN({ ...n, importe: crudo })} decimales={2} minimo={1} />
+          <EntradaCifra aria-label={t('comercial.negociacion.ofertas.plazo-meses')} type="number" min={1} max={240} className={inputCls} placeholder={t('comercial.negociacion.ofertas.meses-ph')} valor={n.plazo} onCambio={(crudo) => setN({ ...n, plazo: crudo })} decimales={0} minimo={1} maximo={240} />
           <input aria-label={t('comercial.negociacion.ofertas.notas')} className={inputCls} placeholder={t('comercial.comun.notas')} maxLength={2000} value={n.notas} onChange={(e) => setN({ ...n, notas: e.target.value })} />
           <Button size="sm" type="submit" disabled={!(Number(n.importe) > 0 && Number(n.plazo) >= 1)}>
             <Plus className="mr-1 h-3.5 w-3.5" /> {t('comercial.negociacion.ofertas.nueva')}
