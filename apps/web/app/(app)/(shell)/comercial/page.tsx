@@ -270,7 +270,7 @@ export default function ComercialPage() {
           <>
             <KPICard
               label={t('comercial.pagina.kpi.libres')}
-              value={formatNumero(cifras.libres)}
+              value={formatNumero(cifras.libres, 0, idioma)}
               sub={t(filtrosActivos ? 'comercial.pagina.kpi.libres.sub-filtradas' : 'comercial.pagina.kpi.libres.sub', {
                 pantallas: nPantallas(filtrados.length),
               })}
@@ -279,7 +279,7 @@ export default function ComercialPage() {
             />
             <KPICard
               label={t('comercial.pagina.kpi.slots')}
-              value={cifras.slots == null ? '—' : formatNumero(cifras.slots)}
+              value={cifras.slots == null ? '—' : formatNumero(cifras.slots, 0, idioma)}
               sub={
                 !cifras.hayDigitales
                   ? t('comercial.pagina.kpi.slots.sin-digitales')
@@ -292,7 +292,7 @@ export default function ComercialPage() {
             />
             <KPICard
               label={t('comercial.pagina.en-propuesta')}
-              value={formatNumero(enVeremos.pantallas)}
+              value={formatNumero(enVeremos.pantallas, 0, idioma)}
               sub={
                 enVeremos.props.length
                   ? t('comercial.pagina.kpi.propuesta.sub', {
@@ -309,7 +309,7 @@ export default function ComercialPage() {
             />
             <KPICard
               label={t('comercial.pagina.kpi.bloqueadas')}
-              value={formatNumero(cifras.bloqueadas)}
+              value={formatNumero(cifras.bloqueadas, 0, idioma)}
               sub={cifras.bloqueadas ? t('comercial.pagina.kpi.bloqueadas.sub') : t('comercial.pagina.kpi.bloqueadas.ninguna')}
               tono={cifras.bloqueadas ? 'ambar' : 'neutro'}
               icon={<Lock className="h-4 w-4" />}
@@ -541,7 +541,7 @@ export default function ComercialPage() {
                         <span className="demo-num shrink-0">{s.codigoProveedor}</span>
                         {s.alcaldia && <span className="shrink-0">· {s.alcaldia}</span>}
                         {esDigital && s.totalSpots == null && s.spotsPorHora != null && (
-                          <span className="demo-num shrink-0">· {formatNumero(s.spotsPorHora)} slots/h</span>
+                          <span className="demo-num shrink-0">· {formatNumero(s.spotsPorHora, 0, idioma)}{t('comercial.pagina.slots-hora')}</span>
                         )}
                         <span className="shrink-0">·</span>
                         <UserRound className="h-3.5 w-3.5 shrink-0" />

@@ -30,6 +30,7 @@ describe('diccionario de comercial · el ingles no esta en espanol', () => {
   // nombres propios de ejemplo o plantillas sin texto que traducir.
   const IGUALES = new Set([
     'comercial.comun.no', // «No»
+    'comercial.pagina.slots-hora', // « slots/h», extraido en el lote L2 del italiano
     'comercial.comun.video', // «Video»
     'comercial.pagina.leyenda.digital', // «Digital»
     'comercial.reserva.tipo.dooh', // «Digital»

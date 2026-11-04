@@ -5,7 +5,8 @@ import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import type { Cliente } from '@/lib/data/types'
-import { useTexto } from '@/lib/i18n/contexto'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { cifraEnEtiqueta } from '@/lib/i18n/cifra-en-etiqueta'
 
 // Una propuesta se puede aprobar sin cliente, pero sin él no se genera la
 // campaña (no habría a quién facturar), y aprobada ya no se edita. Este diálogo
@@ -23,7 +24,7 @@ export function ElegirClienteDialog({
   clientes: Cliente[] | undefined
   onElegir: (clienteId: string) => Promise<void>
 }) {
-  const t = useTexto()
+  const { t, idioma } = useIdioma()
   const [clienteId, setClienteId] = useState('')
   const [enviando, setEnviando] = useState(false)
   // OBLIG-01 · el cliente es lo único que pide el diálogo: sin él no hay a quién
@@ -81,7 +82,7 @@ export function ElegirClienteDialog({
             <option value="">{t('propuestas.elegir-cliente.elige')}</option>
             {anunciantes.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.nombre}{c.ivaPct !== 16 ? t('propuestas.elegir-cliente.iva', { pct: c.ivaPct }) : ''}
+                {c.nombre}{c.ivaPct !== 16 ? t('propuestas.elegir-cliente.iva', { pct: cifraEnEtiqueta(c.ivaPct, idioma) }) : ''}
               </option>
             ))}
           </select>

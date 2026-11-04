@@ -38,6 +38,10 @@ describe('diccionario de propuestas · el ingles no esta en espanol', () => {
     'propuestas.alta.divisor',
     'propuestas.ficha.aprobado.total',
     'propuestas.lista.resumen',
+    // Lote L2 del italiano (2026-11-03): literales extraidos para que el
+    // italiano diga «spot» sin plural; «spots» es igual en es y en.
+    'propuestas.calc.spots-hora',
+    'propuestas.calc.spots-sufijo',
   ])
 
   it('ninguna entrada inglesa es igual a la espanola, salvo las declaradas', () => {

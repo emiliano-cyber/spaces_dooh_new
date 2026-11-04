@@ -29,6 +29,7 @@ import { useIdioma, useTexto } from '@/lib/i18n/contexto'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
 import type { Idioma } from '@/lib/i18n/idiomas'
+import { cifraEnEtiqueta } from '@/lib/i18n/cifra-en-etiqueta'
 import { CLAVE_ESTATUS } from '@/components/demo/propuestas/estatus'
 
 // ============================================================================
@@ -312,7 +313,7 @@ export function GestionCodigos() {
                       {t(ETIQUETA[estado].texto)}
                     </StatusBadge>
                   </td>
-                  <td className="demo-num whitespace-nowrap px-3 py-2.5 text-right font-medium text-ink">{t('codigos.pct', { pct: c.descuentoPct })}</td>
+                  <td className="demo-num whitespace-nowrap px-3 py-2.5 text-right font-medium text-ink">{t('codigos.pct', { pct: cifraEnEtiqueta(c.descuentoPct, idioma) })}</td>
                   <td className={`demo-num whitespace-nowrap px-3 py-2.5 ${estado === 'VENCIDO' ? 'text-muted' : 'text-ink'}`}>
                     {fecha(c.vigenteDesde, idioma)} → {fecha(c.vigenteHasta, idioma)}
                   </td>
@@ -324,8 +325,8 @@ export function GestionCodigos() {
                       {/* Sin tope, en ingles «3 (no cap)» y no «3 of no cap»; el
                           español sigue diciendo «3 de sin tope», como siempre. */}
                       {tope == null
-                        ? t('codigos.usos.sin-tope', { usos: c.usos })
-                        : t('codigos.usos', { usos: c.usos, tope })}
+                        ? t('codigos.usos.sin-tope', { usos: cifraEnEtiqueta(c.usos, idioma) })
+                        : t('codigos.usos', { usos: cifraEnEtiqueta(c.usos, idioma), tope: cifraEnEtiqueta(tope, idioma) })}
                     </div>
                     {tope != null && tope > 0 && (
                       <div className="mt-1 h-1.5 w-20 overflow-hidden rounded-full bg-surface-2" aria-hidden>

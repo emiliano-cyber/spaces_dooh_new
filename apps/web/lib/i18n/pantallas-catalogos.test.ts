@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { huellasDeFormatoEspanol } from './guardias-ingles'
+import { huellasEnItaliano } from './guardias-italiano'
 import { createElement, type ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -146,6 +147,8 @@ type Pantalla = {
   pintar: (idioma: Idioma) => Promise<string>
   espanol: string[]
   ingles: string[]
+  /** Texto italiano que tiene que salir en `it` (lote L2, 2026-11-03). */
+  italiano?: string[]
 }
 
 const PANTALLAS: Pantalla[] = [
@@ -692,4 +695,112 @@ describe('lote CATALOGOS · en ingles, ninguna fecha, hora ni importe con format
       expect(huellasDeFormatoEspanol(await p.pintar('en'))).toEqual([])
     })
   }
+})
+
+// ─── ITALIANO · lote L2 «Comercial y propuestas» (2026-11-03) ───────────────
+//
+// Las mismas pantallas, rendidas en ITALIANO, en tres sentidos (el mismo
+// patron que `pantallas-comercial.test.ts`): (a) ninguna frase de las listas a
+// mano queda en el HTML italiano, salvo las que el italiano dice igual o las
+// de OTRO ambito; (b) barrido con el diccionario: ningun trozo espanol NI
+// INGLES de `catalogos.*` aparece; (c) ninguna huella de formato espanol o
+// ingles (`guardias-italiano.ts`).
+
+// Frases de las listas que en italiano se dicen IGUAL a proposito.
+const COMUNES_IT = new Set<string>([
+  ...COMUNES,
+  '64%', // igual en ingles y en italiano
+  '→ 10%', // igual en ingles y en italiano
+])
+
+// Frases inglesas de las listas que en esta pantalla NO son de este lote.
+const AJENAS_IT = new Set<string>([
+  'Bundles', 'Dayparts and seasons', 'Volume discounts', // titulos: el menu (`nav.*`, base)
+  ' (required)', // el « (obligatorio)» de `Campo`: compartidos
+  'Cancel', 'Loading…', // comun (base)
+  'Monthly', 'CPS · cost per play', '>Programmatic</option>', // unidades: compartidos
+  'title="Enter digits only: the comma separates thousands and the period, decimals. Example: 212,500.50"', // `CampoCifra`: compartidos
+])
+
+// Los ejemplos de las cifras que se TECLEAN van en el formato del campo
+// (`lib/captura-cifra.ts`: coma de miles, punto decimal), no en el italiano de
+// la pantalla: el «180,000» del precio del paquete, el «15,000.50» de la tarifa
+// ilegible y el «212,500.50» del aviso de `CampoCifra` (compartidos).
+const PERMITIDOS_IT = [/^180,000$/, /^15,000\.50$/, /^212,500\.50$/]
+
+function legible(crudo: string): string {
+  const visibles = [...crudo.matchAll(/(?:title|aria-label|placeholder|alt)="([^"]*)"/g)].map((m) => m[1])
+  return texto(crudo.replace(/<[^>]*>/g, '\n') + '\n' + visibles.join('\n'))
+}
+
+const ITALIANO: Record<string, string[]> = {
+  'paquetes · con paquetes, error y reparto previsto por debajo de la lista': ['2 impianti', '1 impianto', 'MX$ 90.000', ' scelti', 'Listino <span class="demo-num text-ink">MX$ 100.000<', 'MX$ 10.000'],
+  'paquetes · una pantalla elegida y precio por encima de la lista': [' scelto', 'MX$ 60.000 di listino', 'IN PIÙ rispetto al listino'],
+  'horario de transmision · con campanas, marcadas y un error': ['1 campagna', '0 campagne', 'Programma campagne in Prime (1 selezionata)', ' (2 selezionate)', 'Programma 2 in Mañana'],
+  'volumen · con tramos, una unidad desconocida y un error': [' · 1 scaglione', ' · 2 scaglioni', 'Gradino 2', '→ 15%'],
+  'franjas y temporadas · con datos y un error': ['13 nov 2026', 'Disattivata', 'Fine esclusa · senza sovrapposizioni'],
+}
+for (const p of PANTALLAS) p.italiano = ITALIANO[p.nombre]
+
+describe('lote CATALOGOS · en ITALIANO', () => {
+  // El italiano que TIENE que salir en algunas pantallas (`ITALIANO`, arriba):
+  // concordancias de genero y numero con el hueco, plurales y formatos. Una
+  // pantalla que no este alli solo se mira con el barrido y la guardia.
+  it('las frases italianas declaradas son de pantallas que existen', () => {
+    const nombres = new Set(PANTALLAS.map((p) => p.nombre))
+    expect(Object.keys(ITALIANO).filter((n) => !nombres.has(n))).toEqual([])
+  })
+
+  beforeEach(() => {
+    process.env.IDIOMA_ITALIANO = '1'
+  })
+  afterEach(() => {
+    delete process.env.IDIOMA_ITALIANO
+  })
+
+  for (const p of PANTALLAS) {
+    it(`${p.nombre} · sin frases espanolas ni inglesas de las listas`, async () => {
+      const html = texto(await p.pintar('it'))
+      expect(p.espanol.filter((f) => html.includes(f) && !COMUNES_IT.has(f))).toEqual([])
+      expect(p.ingles.filter((f) => html.includes(f) && !COMUNES_IT.has(f) && !AJENAS_IT.has(f))).toEqual([])
+      expect((p.italiano ?? []).filter((f) => !html.includes(f))).toEqual([])
+    })
+    it(`${p.nombre} · sin formatos espanoles ni ingleses`, async () => {
+      expect(huellasEnItaliano(await p.pintar('it'), { permitidos: PERMITIDOS_IT })).toEqual([])
+    })
+  }
+
+  it('barrido: ningun trozo espanol ni ingles de `catalogos.*` en el HTML italiano', async () => {
+    const { ES_CATALOGOS, EN_CATALOGOS, IT_CATALOGOS } = await import('./textos/catalogos')
+    const IT = IT_CATALOGOS as Record<string, string | undefined>
+    let html = ''
+    for (const p of PANTALLAS) {
+      forzado.cola = []
+      datos.sitios = []
+      html += legible(await p.pintar('it'))
+    }
+    // Los nombres de los datos de prueba no son texto de la interfaz.
+    // Ni lo que pinta OTRO ambito y aun cae al ingles («Dayparts and seasons»
+    // contiene el «Dayparts» de este lote).
+    const ajenas = [...AJENAS_IT].map((x) => x.replace(/^title="|"$|^>|<\/option>$/g, ''))
+    for (const a of ['Pantalla Reforma', 'Pantalla Sur', 'Pantalla Norte', 'Paquete Centro', 'Paquete Viejo', 'Buen Fin 2026', 'Navidad 2025', 'Madrugada', 'Mañana', 'Tarde', 'Verano', 'Otoño', 'Invierno', 'aviso-del-servidor', 'error-de-prueba', ...ajenas]) {
+      html = html.split(a).join('\n')
+    }
+    const culpables: string[] = []
+    let vistos = 0
+    for (const [clave, es] of Object.entries(ES_CATALOGOS)) {
+      const it = IT[clave] ?? ''
+      const en = EN_CATALOGOS[clave as keyof typeof EN_CATALOGOS]
+      for (const [lado, frase] of [['es', es], ['en', en]] as const) {
+        for (const trozo of frase.split(/\{\w+\}/)) {
+          const t = trozo.trim()
+          if (t.length < 8 || it.includes(t)) continue
+          if (html.includes(t)) culpables.push(`${clave} · ${lado} «${t}»`)
+        }
+      }
+      if (it && it.split(/\{\w+\}/).some((t) => t.trim().length >= 8 && html.includes(t.trim()))) vistos++
+    }
+    expect(culpables).toEqual([])
+    expect(vistos).toBeGreaterThan(100)
+  })
 })

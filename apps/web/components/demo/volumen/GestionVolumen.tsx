@@ -1,4 +1,5 @@
 'use client'
+import { cifraEnEtiqueta } from '@/lib/i18n/cifra-en-etiqueta'
 
 import { Fragment, useCallback, useEffect, useState } from 'react'
 import { Trash2, Plus } from 'lucide-react'
@@ -210,11 +211,11 @@ export function GestionVolumen() {
                     <td className="px-3 py-2 pl-6 text-[12px] text-muted">{tx('catalogos.volumen.escalon', { n: i + 1 })}</td>
                     <td className="demo-num whitespace-nowrap px-3 py-2 text-right text-ink">
                       {tx('catalogos.volumen.desde', {
-                        cantidad: formatNumero(t.desdeCantidad),
+                        cantidad: formatNumero(t.desdeCantidad, 0, idioma),
                         unidad: unidadCorta(t.unidad, t.desdeCantidad, idioma),
                       })}
                     </td>
-                    <td className="demo-num whitespace-nowrap px-3 py-2 text-right font-medium text-ink">{tx('catalogos.volumen.pct', { pct: t.descuentoPct })}</td>
+                    <td className="demo-num whitespace-nowrap px-3 py-2 text-right font-medium text-ink">{tx('catalogos.volumen.pct', { pct: cifraEnEtiqueta(t.descuentoPct, idioma) })}</td>
                     <td className="px-3 py-2 text-right">
                       <Button
                         type="button"

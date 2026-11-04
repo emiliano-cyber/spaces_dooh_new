@@ -81,6 +81,8 @@ import { PERIODICIDADES, factorMensual, periodicidadLabel } from '@/lib/renta-pe
 import { formatNumero } from '@/lib/formato-numero'
 import { formatearDineroRedondo } from '@/lib/i18n/dinero'
 import { numeroEnIdioma } from '@/lib/i18n/formato-idioma'
+import { cifraEnEtiqueta } from '@/lib/i18n/cifra-en-etiqueta'
+import type { Idioma } from '@/lib/i18n/idiomas'
 
 // Periodicidades de la renta al propietario (enum `periodicidad_pago` en la BD)
 // y su equivalencia a mensual: ambas vienen de lib/renta-periodicidad.ts, la
@@ -203,7 +205,7 @@ export default function PropuestasPage() {
             />
             <KPICard
               label={t('propuestas.lista.kpi.enviadas')}
-              value={formatNumero(funnel.enviadas)}
+              value={formatNumero(funnel.enviadas, 0, idioma)}
               sub={t('propuestas.lista.kpi.enviadas.sub')}
               tono={funnel.enviadas > 0 ? 'azul' : 'neutro'}
               icon={<Send className="h-4 w-4" />}
@@ -468,7 +470,7 @@ function PropuestaCard({
                   <span className="rounded-full border border-border px-1.5 py-0.5 text-[10px] font-medium text-muted">v{p.version}</span>
                 )}
                 {p.descuentoPct > 0 && (
-                  <span className="rounded-full border border-[#f59e0b40] px-1.5 py-0.5 text-[10px] font-medium text-[#9a6700]">−{p.descuentoPct}%</span>
+                  <span className="rounded-full border border-[#f59e0b40] px-1.5 py-0.5 text-[10px] font-medium text-[#9a6700]">−{cifraEnEtiqueta(p.descuentoPct, idioma)}%</span>
                 )}
                 {/* COD-03 · la marca de la lista: hay un cupón esperando a que
                     alguien con `comercial.aprobar` lo decida. Sin ella, el
@@ -519,8 +521,8 @@ function PropuestaCard({
               <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
                 <Dato label={t('propuestas.fila.bruto-lista')} valor={formatMonto(p.bruto, idioma)} />
                 <Dato
-                  label={t('propuestas.fila.comision', { pct: (100 - p.divisor * 100).toFixed(0), divisor: p.divisor.toFixed(2) })}
-                  valor={`× ${p.divisor.toFixed(2)}`}
+                  label={t('propuestas.fila.comision', { pct: (100 - p.divisor * 100).toFixed(0), divisor: cifraEnEtiqueta(p.divisor, idioma, 2) })}
+                  valor={`× ${cifraEnEtiqueta(p.divisor, idioma, 2)}`}
                 />
                 <Dato label={t('propuestas.fila.neto-propuesto')} valor={formatMonto(p.neto, idioma)} />
                 <Dato label={t('propuestas.comun.iva', { pct: p.bruto ? Math.round((p.iva / p.bruto) * 100) : 16 })} valor={formatMonto(p.iva, idioma)} />
@@ -1796,7 +1798,7 @@ function NuevaPropuestaDialog({
         {/* Resumen del divisor en vivo */}
         <div className="grid grid-cols-2 gap-x-6 gap-y-1 rounded-md border border-border bg-surface-2 p-3 text-[12px] sm:grid-cols-4">
           <Dato label={t('propuestas.comun.bruto')} valor={formatMonto(bruto, idioma)} />
-          <Dato label={t('propuestas.alta.divisor', { pct: comision || 0 })} valor={`× ${divisor.toFixed(2)}`} />
+          <Dato label={t('propuestas.alta.divisor', { pct: comision || 0 })} valor={`× ${cifraEnEtiqueta(divisor, idioma, 2)}`} />
           <Dato label={t('propuestas.comun.neto')} valor={formatMonto(neto, idioma)} />
           <Dato label={t('propuestas.comun.iva', { pct: ivaPctSel })} valor={formatMonto(iva, idioma)} />
         </div>
@@ -1824,7 +1826,13 @@ function puntoEnPoligono(p: [number, number], poly: [number, number][]): boolean
 // `lib/calculadora-spots.ts`, que es donde lo vigila su prueba.
 const CALC_POR_OMISION = { ...CALCULADORA_POR_OMISION }
 
-const fmtNum = (n: number, dec = 2) => n.toLocaleString('es-MX', { maximumFractionDigits: dec })
+// Italiano (lote L2, 2026-11-03): con el idioma. En es y en sigue siendo el
+// `es-MX` de siempre (escribe las cifras igual que `en-US`); en italiano, la
+// tabla de `formato-idioma.ts` («3.240», «1,5»).
+const fmtNum = (n: number, dec = 2, idioma: Idioma = 'es') =>
+  idioma === 'es' || idioma === 'en'
+    ? n.toLocaleString('es-MX', { maximumFractionDigits: dec })
+    : numeroEnIdioma(n, idioma, { maximumFractionDigits: dec })
 
 type CfgCalculadora = { manual: boolean; espacios: string; horasDia: string; roadblock: boolean; prima: string }
 
@@ -1920,7 +1928,7 @@ function CalculadoraSpotsLinea({
                 max={horasMax}
                 step={0.25}
                 aria-label={t('propuestas.calc.horas.aria', { sitio: sitio.nombre })}
-                placeholder={fmtNum(horasMax)}
+                placeholder={fmtNum(horasMax, 2, idioma)}
                 className={inputCls}
                 value={cfg.horasDia}
                 onChange={(e) => cambiar({ horasDia: e.target.value })}
@@ -1976,14 +1984,14 @@ function CalculadoraSpotsLinea({
               </div>
               <div className="demo-num text-ink">
                 {resultado.roadblock
-                  ? `${numeroEnIdioma(spotsHoraRB, idioma)} spots/h`
-                  : t('propuestas.calc.rotaciones', { n: fmtNum(resultado.rotacionesHora) })}{' '}
+                  ? t('propuestas.calc.spots-hora', { n: numeroEnIdioma(spotsHoraRB, idioma) })
+                  : t('propuestas.calc.rotaciones', { n: fmtNum(resultado.rotacionesHora, 2, idioma) })}{' '}
                 {t('propuestas.calc.spots-dia', {
-                  spots: fmtNum(resultado.spotsDiaExactos),
+                  spots: fmtNum(resultado.spotsDiaExactos, 2, idioma),
                   dias,
                   unidad: plural(dias, t('propuestas.calc.dia'), t('propuestas.calc.dias')),
                 })}{' '}
-                <b>{numeroEnIdioma(resultado.cantidad, idioma)} spots</b>
+                <b>{numeroEnIdioma(resultado.cantidad, idioma)}{t('propuestas.calc.spots-sufijo')}</b>
               </div>
               {tarifaSpot.calculable && (
                 <div className="demo-num">
@@ -1992,16 +2000,16 @@ function CalculadoraSpotsLinea({
                       {interpolarNodos(t('propuestas.calc.rb.hora'), {
                         tarifa: formatMonto(tarifaMensual, idioma),
                         loop: resultado.loop,
-                        horas: fmtNum(horasMes),
+                        horas: fmtNum(horasMes, 2, idioma),
                         ingreso: formatMonto(ingresoHora, idioma),
                         prima:
                           prima > 0
                             ? t('propuestas.calc.rb.prima', {
-                                pct: fmtNum(prima),
+                                pct: fmtNum(prima, 2, idioma),
                                 monto: formatMonto(ingresoHora * (1 + prima / 100), idioma),
                               })
                             : '',
-                        spots: formatNumero(spotsHoraRB),
+                        spots: formatNumero(spotsHoraRB, 0, idioma),
                         precio: (
                           <b className="text-ink">
                             {t('propuestas.calc.por-spot', {
@@ -2015,7 +2023,7 @@ function CalculadoraSpotsLinea({
                     <>
                       {interpolarNodos(t('propuestas.calc.mensual'), {
                         tarifa: formatMonto(tarifaMensual, idioma),
-                        spots: fmtNum(rotacionesPorHora(resultado.loop, duracionSeg) * horario.horas * DIAS_DEL_MES, 0),
+                        spots: fmtNum(rotacionesPorHora(resultado.loop, duracionSeg) * horario.horas * DIAS_DEL_MES, 0, idioma),
                         precio: (
                           <b className="text-ink">{t('propuestas.calc.por-spot', { monto: formatMonto(tarifaSpot.tarifa, idioma) })}</b>
                         ),

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { formatNumero } from '@/lib/formato-numero'
 import { useIdioma } from '@/lib/i18n/contexto'
+import { cifraEnEtiqueta } from '@/lib/i18n/cifra-en-etiqueta'
 import { Radio, CalendarDays, Wallet, Coins, Receipt, Building2, MapPin, CircleHelp, CheckCircle2, ExternalLink } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { AvisoFranjaCMS } from '@/components/demo/rejilla/AvisoFranjaCMS'
@@ -394,12 +395,12 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
                   volumen no figura, la cuenta de la cotización no da. */}
               {(p.descuentoVolumenMonto ?? 0) > 0 && (
                 <Fila
-                  label={t('propuestas.comun.descuento-volumen', { pct: Math.round((p.descuentoVolumenPct ?? 0) * 10) / 10 })}
+                  label={t('propuestas.comun.descuento-volumen', { pct: cifraEnEtiqueta(Math.round((p.descuentoVolumenPct ?? 0) * 10) / 10, idioma) })}
                   valor={`− ${formatMonto(p.descuentoVolumenMonto ?? 0, idioma)}`}
                 />
               )}
               {p.descuentoMonto > 0 && (
-                <Fila label={t('propuestas.documento.descuento', { pct: p.descuentoPct })} valor={`− ${formatMonto(p.descuentoMonto, idioma)}`} />
+                <Fila label={t('propuestas.documento.descuento', { pct: cifraEnEtiqueta(p.descuentoPct, idioma) })} valor={`− ${formatMonto(p.descuentoMonto, idioma)}`} />
               )}
               {/* COD-01 · y el código, CON SU NOMBRE. Es la superficie que ve el
                   cliente y el documento que acepta: si el cupón que se le
@@ -411,7 +412,7 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
                   sitio revisando el diff, no corriendo pruebas. */}
               {(p.codigoDescuentoMonto ?? 0) > 0 && (
                 <Fila
-                  label={t('propuestas.comun.codigo-pct', { codigo: p.codigoTexto ?? '', pct: p.codigoDescuentoPct ?? 0 })}
+                  label={t('propuestas.comun.codigo-pct', { codigo: p.codigoTexto ?? '', pct: cifraEnEtiqueta(p.codigoDescuentoPct ?? 0, idioma) })}
                   valor={`− ${formatMonto(p.codigoDescuentoMonto ?? 0, idioma)}`}
                 />
               )}

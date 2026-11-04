@@ -186,7 +186,7 @@ export function ReservaDialog({
             {totalSpotsReservados > 0 && (
               <>
                 {interpolarNodos(t('comercial.reserva.slots'), {
-                  n: <span className="demo-num font-semibold text-ink">{formatNumero(totalSpotsReservados)}</span>,
+                  n: <span className="demo-num font-semibold text-ink">{formatNumero(totalSpotsReservados, 0, idioma)}</span>,
                 })}
                 {config &&
                   interpolarNodos(t('comercial.reserva.cada-uno'), {

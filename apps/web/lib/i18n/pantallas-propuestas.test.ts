@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { huellasDeFormatoEspanol } from './guardias-ingles'
+import { huellasEnItaliano } from './guardias-italiano'
 import { createElement, type ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { ProveedorIdioma } from './contexto'
@@ -227,6 +228,11 @@ function texto(html: string): string {
 }
 
 const forzar = (si: (v: unknown) => boolean, valor: unknown) => forzado.cola.push({ si, valor })
+
+// Pinta el arbol del idioma que recibe (ver el documento imprimible abajo).
+function SegunIdioma(p: { idioma: Idioma; en: ReactElement; it: ReactElement }): ReactElement {
+  return p.idioma === 'it' ? p.it : p.en
+}
 const esNull = (v: unknown) => v === null
 const esFalse = (v: unknown) => v === false
 
@@ -238,6 +244,8 @@ type Pantalla = {
   espanol: string[]
   /** Texto ingles que tiene que salir en `en`. */
   ingles: string[]
+  /** Texto italiano que tiene que salir en `it` (lote L2, 2026-11-03). */
+  italiano?: string[]
 }
 
 const PANTALLAS: Pantalla[] = [
@@ -642,7 +650,30 @@ const PANTALLAS: Pantalla[] = [
       // como en el layout raiz: aqui entra por la cookie.
       cabeceras.cookie = idioma
       const { default: Documento } = await import('../../app/(app)/propuesta/[id]/page')
+      // En italiano, el italiano encendido: si no, la cookie 'it' se trata
+      // como un idioma que no hablamos y el documento sale en espanol.
+      const previo = process.env.IDIOMA_ITALIANO
+      if (idioma === 'it') process.env.IDIOMA_ITALIANO = '1'
       const el = await Documento({ params: { id: 'p1' } })
+      if (previo === undefined) delete process.env.IDIOMA_ITALIANO
+      else process.env.IDIOMA_ITALIANO = previo
+      // Italiano, lote L2 (2026-11-03): el espejo (`I18N_VOLCAR_IT`) rinde en
+      // italiano el arbol que la prueba construyo en ingles, pero el texto de
+      // un Server Component ya esta escrito en ese arbol —lo decidio la cookie—
+      // y el espejo no puede cambiarlo. Solo cuando se pide el espejo, se
+      // construye TAMBIEN el arbol italiano y se envuelve en `SegunIdioma`,
+      // que pinta el del idioma que recibe: el ingles sale identico y el
+      // espejo, al cambiar `idioma` a 'it', pinta el italiano de verdad.
+      if (idioma === 'en' && process.env.I18N_VOLCAR_IT) {
+        const antes = process.env.IDIOMA_ITALIANO
+        process.env.IDIOMA_ITALIANO = '1'
+        cabeceras.cookie = 'it'
+        const elIt = await Documento({ params: { id: 'p1' } })
+        cabeceras.cookie = idioma
+        if (antes === undefined) delete process.env.IDIOMA_ITALIANO
+        else process.env.IDIOMA_ITALIANO = antes
+        return pintar(idioma, createElement(SegunIdioma, { idioma, en: el, it: elIt }))
+      }
       // Las piezas de cliente del documento (la barra, el QR) leen el idioma
       // del proveedor que pone el layout raiz; aqui se pone igual.
       return pintar(idioma, el)
@@ -1013,7 +1044,7 @@ describe('lote PROPUESTAS · cada importe lleva el simbolo de la moneda de la in
   afterEach(() => fijarMonedaInstancia('MXN'))
   const vistos: Record<string, number> = {}
   for (const moneda of MONEDAS) {
-    for (const idioma of ['es', 'en'] as const) {
+    for (const idioma of ['es', 'en', 'it'] as const) {
       PANTALLAS.forEach((p) => {
         it(`${moneda} · ${idioma} · ${p.nombre}`, async () => {
           fijarMonedaInstancia(moneda)
@@ -1040,4 +1071,169 @@ describe('lote PROPUESTAS · en ingles, ninguna fecha, hora ni importe con forma
       expect(huellasDeFormatoEspanol(await p.pintar('en'))).toEqual([])
     })
   }
+})
+
+// ─── ITALIANO · lote L2 «Comercial y propuestas» (2026-11-03) ───────────────
+//
+// Las mismas pantallas, rendidas en ITALIANO, en tres sentidos (el mismo
+// patron que `pantallas-comercial.test.ts`):
+//
+//   (a) ninguna frase de las listas a mano (`espanol` / `ingles`) queda en el
+//       HTML italiano, salvo las que el italiano dice igual o las de OTRO
+//       ambito (otro lote: `compartidos`, `servidor`…);
+//   (b) barrido con el diccionario: ningun trozo espanol NI INGLES de
+//       `propuestas.*` aparece en el HTML italiano;
+//   (c) ninguna huella de formato espanol o ingles (`guardias-italiano.ts`).
+//
+// El documento imprimible es un Server Component: su idioma lo decide la
+// cookie (`idiomaDeLaPeticion()`), que aqui entra como 'it' con el italiano
+// encendido.
+
+// Frases de las listas que en italiano se dicen IGUAL a proposito.
+const COMUNES_IT = new Set<string>([
+  ...COMUNES,
+  'Periodo', // igual en italiano
+])
+
+// Frases inglesas de las listas que en esta pantalla NO son de este lote.
+const AJENAS_IT = new Set<string>([
+  'CPS · cost per play', 'Every two weeks', '>week<', // unidades: compartidos
+  'Pending approval', // el chip del codigo: compartidos
+  'This month', 'Last month', 'This quarter', 'Last quarter', 'This year', 'Custom range', // selector de periodo: compartidos
+  'Loop slots go from 1 to 8.', // motivo de la calculadora: compartidos
+  'The daypart is a commercial commitment: it is quoted and billed.', // `avisoFranja` (`lib/rejilla.ts`): compartidos
+  '1 thousand', 'Roadblock · 8 loop slots · 18 h per day · premium 25%', '1 loop slot', '12 plays per day', '1 play per day', // `lib/periodos.ts`: compartidos
+])
+
+function legible(crudo: string): string {
+  const visibles = [...crudo.matchAll(/(?:title|aria-label|placeholder|alt)="([^"]*)"/g)].map((m) => m[1])
+  return texto(crudo.replace(/<[^>]*>/g, '\n') + '\n' + visibles.join('\n'))
+}
+
+const ITALIANO: Record<string, string[]> = {
+  'lista de propuestas (con una fila desplegada)': [
+    '2 proposte in bozza o inviate · totale IVA incl.', '1 approvata · perso ', ' su 1 rifiutata',
+    'Commissione 15% · divisore 0,85', '× 0,85', 'Approvato · 1/2 siti', '−5%',
+  ],
+  'ficha de la propuesta': [
+    'Sconto per volume (2,5%)', 'Sconto commerciale (5,00%)', 'divisore ×0,85', 'Valida fino al giorno 1 dic 2026',
+    'Codice VERANO20 (20%) · in attesa di approvazione',
+  ],
+  'documento imprimible (Server Component)': [
+    'PROPOSTA COMMERCIALE', 'Valida fino al giorno 1 dic 2026', 'Sconto per volume (2,5%)', 'MX$ 6.612,00', 'IMPIANTI',
+    'Impianti senza coordinate: 1; il loro indirizzo è nella tabella.', 'ACCETTAZIONE DEL CLIENTE',
+  ],
+  'calculadora de spots encendida': ['3.240 spot/giorno × 30 giorni =', '97.200 spot', 'su 8 · 6 liberi', 'Loop di 4 inserzionisti (2 oggi + questa riga)'],
+  'tablero de propuestas por periodo': ['1 nov 2026 – 30 nov 2026', '50%', '2 approvate hanno qualche impianto'],
+  'lista filtrada sin resultados': ['Nessuna proposta approvata di Refrescos del Norte che corrisponda a «xyz». Togli il filtro per vedere tutte le proposte (1).'],
+  'ficha de un borrador vencido, con catalogo de paquetes': ['Scaduta in data 1 dic 2026', 'Combo — MX$ 5.000,00 · 2 impianti', 'nessun sito approvato su 2', 'divisore ×1,00'],
+}
+for (const p of PANTALLAS) p.italiano = ITALIANO[p.nombre]
+
+describe('lote PROPUESTAS · en ITALIANO', () => {
+  // El italiano que TIENE que salir en algunas pantallas (`ITALIANO`, arriba):
+  // concordancias de genero y numero con el hueco, plurales y formatos. Una
+  // pantalla que no este alli solo se mira con el barrido y la guardia.
+  it('las frases italianas declaradas son de pantallas que existen', () => {
+    const nombres = new Set(PANTALLAS.map((p) => p.nombre))
+    expect(Object.keys(ITALIANO).filter((n) => !nombres.has(n))).toEqual([])
+  })
+
+  beforeEach(() => {
+    process.env.IDIOMA_ITALIANO = '1'
+  })
+  afterEach(() => {
+    delete process.env.IDIOMA_ITALIANO
+  })
+
+  for (const p of PANTALLAS) {
+    it(`${p.nombre} · sin frases espanolas ni inglesas de las listas`, async () => {
+      const html = texto(await p.pintar('it'))
+      expect(p.espanol.filter((f) => html.includes(f) && !COMUNES_IT.has(f))).toEqual([])
+      expect(p.ingles.filter((f) => html.includes(f) && !COMUNES_IT.has(f) && !AJENAS_IT.has(f))).toEqual([])
+      expect((p.italiano ?? []).filter((f) => !html.includes(f))).toEqual([])
+    })
+    it(`${p.nombre} · sin formatos espanoles ni ingleses`, async () => {
+      expect(huellasEnItaliano(await p.pintar('it'))).toEqual([])
+    })
+  }
+
+  // Validacion del lote (V2, V15): un porcentaje con decimales y conteos de
+  // cuatro cifras en el tablero. Estado SOLO italiano.
+  it('tablero · porcentaje con decimales y conteos con miles, en italiano', async () => {
+    const { TableroPropuestas } = await import('../../components/demo/propuestas/TableroPropuestas')
+    forzar(esNull, {
+      periodo: { etiqueta: 'Noviembre 2026', desde: '2026-11-01', hasta: '2026-11-30' },
+      conGanancia: true,
+      resumen: {
+        generadas: 1234, rechazadas: 1001, tasaCierre: 0.125,
+        aprobadas: { n: 1500, venta: 3000, ganancia: 1000, margenPct: 33.33, gananciaPromedio: 10, sinCosto: 0 },
+        porVendedor: [{ vendedor: 'Ana', generadas: 1234, aprobadas: 1500, rechazadas: 1001, venta: 3000, ganancia: 1000 }],
+        lista: [],
+      },
+    })
+    const html = texto(pintar('it', createElement(TableroPropuestas)))
+    for (const f of ['12,5%', 'margine 33,3%', '>1.234<', '>1.500<', '>1.001<']) expect(html).toContain(f)
+    expect(html).not.toContain('12,5 %')
+    expect(huellasEnItaliano(html)).toEqual([])
+  })
+
+  // Validacion del lote (H2): la liga publica que el cliente acepta, con
+  // descuentos de volumen, comercial y de codigo con decimales.
+  it('liga publica `/p/[id]` · descuentos con decimales, en italiano', async () => {
+    const PUB = {
+      orgNombre: 'Medios SA', orgLogoUrl: null, folio: 'P-0042', nombre: 'Propuesta Verano', estatus: 'ENVIADA',
+      aceptadoEn: null, aceptadoPor: null, version: 1, clienteNombre: null, agenciaNombre: null,
+      comisionPct: 15, descuentoPct: 7.5, descuentoMonto: 100, descuentoVolumenMonto: 50, descuentoVolumenPct: 2.5,
+      codigoTexto: 'VERANO20', codigoDescuentoMonto: 40, codigoDescuentoPct: 12.5, paquete: null,
+      divisor: 0.85, bruto: 6000, base: 5000, neto: 4250, iva: 800, total: 5800, itemsAprobados: 1,
+      vigenteHasta: '2026-12-01', vencida: false, condiciones: null,
+      items: [
+        { sitioNombre: 'Pantalla Reforma', alcaldia: 'Cuauhtémoc', ciudad: 'CDMX', estado: null, tipoMedio: 'PANTALLA_DIGITAL',
+          lat: 19.4, lng: -99.1, direccion: 'Reforma 1', fechaInicio: '2026-11-01', fechaFin: '2026-11-30', precio: 1000, aprobado: true },
+      ],
+    }
+    forzar((v) => v === undefined, PUB)
+    const { default: Pagina } = await import('../../app/(app)/p/[id]/page')
+    const html = texto(pintar('it', createElement(Pagina, { params: { id: 'p1' } })))
+    for (const f of ['Sconto per volume (2,5%)', 'Sconto (7,5%)', 'Codice VERANO20 (12,5%)']) expect(html).toContain(f)
+    expect(html).not.toMatch(/\(\d+\.\d%\)/)
+  })
+
+  it('barrido: ningun trozo espanol ni ingles de `propuestas.*` en el HTML italiano', async () => {
+    const { ES_PROPUESTAS, EN_PROPUESTAS, IT_PROPUESTAS } = await import('./textos/propuestas')
+    const IT = IT_PROPUESTAS as Record<string, string | undefined>
+    let html = ''
+    for (const p of PANTALLAS) {
+      forzado.cola = []
+      datos.propuestas = [PROPUESTA]
+      datos.contratos = []
+      html += legible(await p.pintar('it'))
+    }
+    // Las condiciones del dato de prueba y los nombres son DATO, no interfaz.
+    // Ni lo que pinta OTRO ambito y aun cae al ingles («Loop slots go from…»
+    // contiene el «Loop slots» de este lote).
+    const ajenas = [...AJENAS_IT].map((x) => x.replace(/^>|<$/g, ''))
+    for (const d of ['Pago a 30 días.', 'Campaña Navidad', 'Refrescos del Norte', 'Agencia Uno', 'Pantalla Reforma', ...ajenas]) {
+      html = html.split(d).join('\n')
+    }
+    const culpables: string[] = []
+    let vistos = 0
+    for (const [clave, es] of Object.entries(ES_PROPUESTAS)) {
+      // El codigo de ejemplo coincide con el del dato de prueba.
+      if (clave === 'propuestas.codigo.ejemplo') continue
+      const it = IT[clave] ?? ''
+      const en = EN_PROPUESTAS[clave as keyof typeof EN_PROPUESTAS]
+      for (const [lado, frase] of [['es', es], ['en', en]] as const) {
+        for (const trozo of frase.split(/\{\w+\}/)) {
+          const t = trozo.trim()
+          if (t.length < 8 || it.includes(t)) continue
+          if (html.includes(t)) culpables.push(`${clave} · ${lado} «${t}»`)
+        }
+      }
+      if (it && it.split(/\{\w+\}/).some((t) => t.trim().length >= 8 && html.includes(t.trim()))) vistos++
+    }
+    expect(culpables).toEqual([])
+    expect(vistos).toBeGreaterThan(200)
+  })
 })

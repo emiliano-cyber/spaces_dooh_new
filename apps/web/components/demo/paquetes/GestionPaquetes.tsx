@@ -18,6 +18,7 @@ import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { useIdioma } from '@/lib/i18n/contexto'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 import type { Idioma } from '@/lib/i18n/idiomas'
+import { formatearDineroRedondo } from '@/lib/i18n/dinero'
 
 // ============================================================================
 //  El CATÁLOGO DE PAQUETES CERRADOS de la organización. ADR 0039, Fase 4.
@@ -61,7 +62,15 @@ const vacio = { nombre: '', precioCerrado: '', admiteCodigo: false, sitios: [] a
 // admite centavos sería ruido. NO toca `repartirPaquete`.
 // I18N (lote catalogos) · el idioma solo cambia el simbolo («MX$» en ingles en
 // una instancia MXN); el redondeo y el formato son los de siempre.
-const montoEntero = (n: number, idioma: Idioma = 'es') => formatMonto(Math.round(n), idioma).replace('.00', '')
+//
+// Italiano (lote L2, 2026-11-03): el `.replace('.00', '')` es de la cifra
+// inglesa. En «MX$ 1.000,00» se comia el punto de los MILES y dejaba
+// «MX$ 1000,00». En es y en sigue siendo la expresion de siempre; en los demas
+// idiomas, el importe ya redondeado de `dinero.ts` («MX$ 1.000»).
+const montoEntero = (n: number, idioma: Idioma = 'es') =>
+  idioma === 'es' || idioma === 'en'
+    ? formatMonto(Math.round(n), idioma).replace('.00', '')
+    : formatearDineroRedondo(Math.round(n), idioma)
 
 export function GestionPaquetes() {
   const { idioma, t } = useIdioma()

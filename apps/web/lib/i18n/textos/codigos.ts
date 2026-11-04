@@ -177,11 +177,88 @@ export const EN_CODIGOS: Record<ClaveCodigos, string> = {
   'codigos.obligatorio': ' (required)',
 }
 
-// ─── ITALIANO · ola 0 (2026-11-03) ──────────────────────────────────────────
-// PARCIAL a proposito: lo rellena el lote de traduccion de este ambito
-// (`vault/03-Frontend/italiano-olas.md`). Mientras falte una clave, la
-// pantalla la pinta en INGLES (`diccionario.ts`, `DICCIONARIOS.it`) y la
-// prueba de cobertura (`cobertura-italiano.test.ts`) la cuenta como pendiente.
-// Cuando el lote termine, el tipo pasa a `Record<ClaveCodigos, string>` y `tsc`
-// vuelve a exigir cada clave, como en el ingles.
-export const IT_CODIGOS: Partial<Record<ClaveCodigos, string>> = {}
+// ─── ITALIANO · lote L2 «Comercial y propuestas» (2026-11-03) ──────────────
+// Completo: desde este lote el tipo es `Record` y `tsc` exige cada clave, como
+// en el ingles. Traducido desde el ESPANOL (el ingles solo como apoyo).
+// Glosario (`vault/03-Frontend/italiano-olas.md`): codigo promocional / cupon /
+// codigo de negociacion → «codice di negoziazione» (donde la frase ya lo dejo
+// claro, basta «codice»); vigente → «attivo»; agotado → «Limite raggiunto»;
+// vendedor → «commerciale»; cotizacion → «preventivo». Registro de «tu»
+// («Scegli», «Aggiungi»). Porcentajes sin espacio («20%»), como el ingles.
+// «Se compone» → «si applica a cascata»: los descuentos se encadenan, no se
+// suman, y «a cascata» es como se dice en italiano.
+export const IT_CODIGOS: Record<ClaveCodigos, string> = {
+  'codigos.pagina.titulo': 'Codici di negoziazione',
+  'codigos.pagina.descripcion':
+    'Codici con scadenza e limite di utilizzi che un commerciale applica a un preventivo. Li stabilisce questa azienda e non sono condivisi con nessun altro.',
+
+  'codigos.estado.vigente': 'Attivo',
+  'codigos.estado.proximo': 'In arrivo',
+  'codigos.estado.vencido': 'Scaduto',
+  'codigos.estado.agotado': 'Limite raggiunto',
+  'codigos.estados.vigentes': 'Attivi',
+  'codigos.estados.proximos': 'In arrivo',
+  'codigos.estados.agotados': 'Limite raggiunto',
+  'codigos.estados.vencidos': 'Scaduti',
+
+  'codigos.error.leer': 'Impossibile leggere i codici di negoziazione',
+  'codigos.error.guardar': 'Impossibile salvare',
+  'codigos.error.eliminar': 'Impossibile eliminare',
+  'codigos.error.elige-propuesta': 'Scegli la proposta a cui assegnare il codice',
+  'codigos.error.asignar': 'Impossibile assegnare',
+  'codigos.asignado': 'Codice di negoziazione {codigo} assegnato a {folio}: in attesa di approvazione',
+  'codigos.asignado.reactivada':
+    'Codice di negoziazione {codigo} assegnato a {folio}: in attesa di approvazione. La proposta torna in bozza.',
+  'codigos.cargando': 'Caricamento dei codici di negoziazione',
+
+  'codigos.aviso.uso': 'Un utilizzo viene conteggiato quando qualcuno applica il codice a un preventivo, non quando si chiude la vendita.',
+  'codigos.aviso.por-que':
+    'È ciò che permette di dire al cliente «sì, il tuo codice è valido» nel momento in cui lo digita, invece di scoprire alla firma che era già esaurito. In cambio, un preventivo abbandonato con il codice applicato trattiene un utilizzo: togliere il codice, o eliminare il preventivo, lo restituisce.',
+  'codigos.aviso.compone':
+    'E si applica {compone} sugli altri livelli: un 20% per volume, un 20% commerciale e un 20% di codice lasciano al cliente da pagare il {resultado}, non il 40%.',
+  'codigos.aviso.compone.palabra': 'a cascata',
+  'codigos.aviso.compone.resultado': '51,2%',
+
+  'codigos.lista.titulo': 'Codici di negoziazione di questa azienda',
+  'codigos.lista.subtitulo': 'Solo di questa azienda · validità con estremi inclusi',
+  'codigos.lista.ayuda':
+    'Ogni azienda stabilisce le proprie promozioni: questi codici non sono condivisi con nessun altro. Entrambi gli estremi della validità sono {inclusivos} — «fino al 30» include il 30. Lasciare vuoto il limite di utilizzi significa {sinTope}; allora l’unico freno è la data.',
+  'codigos.lista.inclusivos': 'inclusi',
+  'codigos.col.codigo': 'Codice',
+  'codigos.col.estado': 'Stato',
+  'codigos.col.descuento': 'Sconto',
+  'codigos.col.vigencia': 'Validità',
+  'codigos.col.usos': 'Utilizzi',
+  'codigos.lista.vacia': 'Non ce n’è ancora nessuno. Senza codici di negoziazione, tutto si vende come oggi.',
+  'codigos.pct': '{pct}%',
+  'codigos.usos': '{usos} di {tope}',
+  'codigos.usos.sin-tope': '{usos} (senza limite)',
+  'codigos.sin-tope': 'senza limite',
+  'codigos.asignar-a-propuesta': 'Assegna a una proposta',
+  'codigos.eliminar.ayuda':
+    'Elimina: non si può più applicare. Ciò che è già stato quotato o approvato non cambia, ma il conteggio degli utilizzi si perde: se lo ricrei con lo stesso codice, riparte da zero.',
+  'codigos.eliminar': 'Elimina',
+
+  'codigos.asignar.sin-propuestas':
+    'Non ci sono proposte a cui assegnarlo: si può solo su una proposta in bozza, inviata o rifiutata, che non abbia già un altro codice.',
+  'codigos.asignar.propuesta-para': 'Proposta per {codigo}',
+  'codigos.asignar.elige': 'Scegli una proposta…',
+  'codigos.asignar.sin-cliente': 'senza cliente',
+  'codigos.asignar.asignando': 'Assegnazione…',
+  'codigos.asignar.asignar': 'Assegna',
+  'codigos.asignar.ayuda':
+    'Consuma un utilizzo del codice e resta {pendiente}: il cliente non lo vede finché un amministratore o un manager non lo approva dalla proposta.',
+  'codigos.asignar.pendiente': 'in attesa di approvazione',
+  'codigos.asignar.rechazada': ' Questa proposta è rifiutata: assegnarle il codice la riporta in bozza.',
+
+  'codigos.nuevo.titulo': 'Nuovo codice di negoziazione',
+  'codigos.nuevo.codigo': 'Codice',
+  'codigos.nuevo.descuento': 'Sconto (%)',
+  'codigos.nuevo.descuento-etiqueta': 'Sconto percentuale',
+  'codigos.nuevo.desde': 'Valido dal',
+  'codigos.nuevo.hasta': 'Valido fino al',
+  'codigos.nuevo.tope': 'Limite di utilizzi',
+  'codigos.nuevo.tope-etiqueta': 'Limite di utilizzi (vuoto = senza limite)',
+  'codigos.nuevo.anadir': 'Aggiungi codice di negoziazione',
+  'codigos.obligatorio': ' (obbligatorio)',
+}

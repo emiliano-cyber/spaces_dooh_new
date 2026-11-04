@@ -1,4 +1,5 @@
 'use client'
+import { cifraEnEtiqueta } from '@/lib/i18n/cifra-en-etiqueta'
 
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
@@ -129,7 +130,7 @@ export function BloqueCodigoPropuesta({
       toast.success(
         t('propuestas.codigo.aplicado', {
           codigo: r.codigo,
-          pct: r.descuentoPct,
+          pct: cifraEnEtiqueta(r.descuentoPct, idioma),
           reactivada: r.reactivada ? t('propuestas.codigo.aplicado.reactivada') : '',
         }),
       )
@@ -214,7 +215,7 @@ export function BloqueCodigoPropuesta({
           <p className="mt-0.5 text-[11px] text-muted">
             {interpolarNodos(t('propuestas.codigo.lleva'), {
               codigo: <b className="font-mono">{codigoTexto}</b>,
-              pct: <b>{t('propuestas.comun.pct', { pct: codigoDescuentoPct })}</b>,
+              pct: <b>{t('propuestas.comun.pct', { pct: cifraEnEtiqueta(codigoDescuentoPct, idioma) })}</b>,
             })}
           </p>
           {estado === 'PENDIENTE' && (
@@ -299,7 +300,7 @@ export function BloqueCodigoPropuesta({
                     <option key={c.id} value={c.codigo}>
                       {t('propuestas.codigo.opcion', {
                         codigo: c.codigo,
-                        pct: c.descuentoPct,
+                        pct: cifraEnEtiqueta(c.descuentoPct, idioma),
                         usos:
                           c.usosMaximos == null
                             ? t('propuestas.codigo.sin-tope')

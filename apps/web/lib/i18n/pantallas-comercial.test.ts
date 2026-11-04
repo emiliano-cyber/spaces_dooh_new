@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { huellasDeFormatoEspanol } from './guardias-ingles'
+import { huellasEnItaliano } from './guardias-italiano'
 import { createElement, type ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -296,6 +297,8 @@ type Pantalla = {
   espanol: string[]
   /** Texto ingles que tiene que salir en `en`. */
   ingles: string[]
+  /** Texto italiano que tiene que salir en `it` (lote L2, 2026-11-03). */
+  italiano?: string[]
 }
 
 const comercial = async () => (await import('../../app/(app)/(shell)/comercial/page')).default
@@ -1267,7 +1270,7 @@ describe('lote COMERCIAL · cada importe lleva el simbolo de la moneda de la ins
   afterEach(() => fijarMonedaInstancia('MXN'))
   const vistos: Record<string, number> = {}
   for (const moneda of MONEDAS) {
-    for (const idioma of ['es', 'en'] as const) {
+    for (const idioma of ['es', 'en', 'it'] as const) {
       PANTALLAS.forEach((p) => {
         it(`${moneda} · ${idioma} · ${p.nombre}`, async () => {
           fijarMonedaInstancia(moneda)
@@ -1294,4 +1297,188 @@ describe('lote COMERCIAL · en ingles, ninguna fecha, hora ni importe con format
       expect(huellasDeFormatoEspanol(await p.pintar('en'))).toEqual([])
     })
   }
+})
+
+// ─── ITALIANO · lote L2 «Comercial y propuestas» (2026-11-03) ───────────────
+//
+// Las mismas pantallas, rendidas en ITALIANO. Mientras falte una clave, el
+// italiano cae al INGLES sin dar ningun error (`conCaidaAlIngles`), asi que
+// aqui se mira lo pintado en tres sentidos:
+//
+//   (a) ninguna frase de las listas a mano (`espanol` / `ingles`) queda en el
+//       HTML italiano, salvo las que el italiano dice igual a proposito o las
+//       que son de OTRO ambito (otro lote: `compartidos`, `servidor`…);
+//   (b) barrido con el diccionario: ningun trozo espanol NI INGLES de
+//       `comercial.*` y `codigos.*` aparece en el HTML italiano (un `t()` que
+//       cae al ingles deja su frase inglesa a la vista y cae aqui);
+//   (c) ninguna huella de formato espanol o ingles (`guardias-italiano.ts`).
+//
+// Los ejemplos de los campos de cifras con decimales («Es. 12.9» en el ancho)
+// llevan PUNTO a proposito: el campo se lee con `Number()`, y un «12,9» que
+// el usuario copiara del ejemplo se guardaria como 0. Ver
+// `docs/i18n/revision-italiano-l2-comercial.md`.
+const PERMITIDOS_IT = [/^12\.9$/, /^7\.2$/, /^15,000\.50$/, /^212,500\.50$/]
+
+// Frases de las listas que en italiano se dicen IGUAL a proposito.
+const COMUNES_IT = new Set<string>([
+  ...COMUNES,
+  'Digital', // «Digitale» la contiene
+  'Inventario', // igual en italiano
+  '1 sel. · ', // igual en italiano
+  '/mes', // «/mese» lo contiene
+  'Operativo', 'Motivo', 'Tipo / formato', 'foto', 'firma', 'Firma', // iguales en italiano
+  'Fin', // «Fine» lo contiene
+  'Superficie del terreno (m²)', // igual en italiano
+  'con Sra. Carmen', // «con» y el dato
+  'Online', 'Offline', // iguales en italiano
+  '20%', // igual en ingles y en italiano
+])
+
+// Frases inglesas de las listas que en esta pantalla NO son de este lote: las
+// pinta un modulo de otro ambito (`compartidos`, `servidor`), que traduce otro
+// lote. Se quedan en ingles hasta que ese lote cierre.
+const AJENAS_IT = new Set<string>([
+  'scr_9 · from the server map (not entered on the profile)', // compartidos (origen DOOHmain)
+  ', from the server map (not entered on the profile). Enter it here to pin it on the profile.', // id: compartidos
+  'CPS · cost per play', // compartidos (unidades)
+  'Monthly', // compartidos (periodicidades)
+  'Per hour', // compartidos (unidades)
+  'none: when publishing, this screen would receive nothing', // compartidos
+  'The space is lost: it only accepts notes now', // servidor
+  'Published rate (monthly)', // la unidad «monthly» la pone compartidos
+  ' (required)', // el « (obligatorio)» de `Campo`: compartidos
+  'from the server map (not entered on the profile)', // `compartidos.doohmain.origen.mapa`, en el «Al publicar…» de la ficha
+])
+
+function legible(crudo: string): string {
+  const visibles = [...crudo.matchAll(/(?:title|aria-label|placeholder|alt)="([^"]*)"/g)].map((m) => m[1])
+  return texto(crudo.replace(/<[^>]*>/g, '\n') + '\n' + visibles.join('\n'))
+}
+
+const ITALIANO: Record<string, string[]> = {
+  'comercial · la lista con una propuesta abierta': [
+    'La tua rete sulla mappa · 3 siti', 'Nuovo impianto', 'su 3 impianti', 'impianti in 1 proposta aperta · non bloccano',
+    'Prenotato · senza OdA', '3 risultati', 'Occupato o bloccato',
+  ],
+  'comercial · filtros sin resultados': ['Azzera (3)', 'Nessun impianto corrisponde: «zzz» · tipo «Murale» · non disponibile. Togli un filtro o clicca Azzera.', '0 risultati'],
+  'comercial · sin propuestas abiertas ni digitales con slots': ['nessuna proposta aperta', ' slot/h'],
+  'comercial · con una pantalla seleccionada': ['1 sel. · ', '/mese', 'Togli dalla selezione'],
+  'ficha de una pantalla propia en pausa legal, con incidencia': ['Non prenotabile (stato: Occupato)', 'Sospeso per motivi legali', ' · dal giorno 1 ott 2026'],
+  'ficha con sus cuadros abiertos (editar, tarifas, pausa, reubicar, eliminar)': [' Al momento ha ', ' cliente.', 'Vuoto = usa il valore globale (3), che si imposta in Impostazioni.'],
+  'reservar dos pantallas digitales sin cupo': [
+    '2 siti selezionati', '2 impianti hanno già raggiunto il loro limite di clienti',
+    ' — limite di 1 cliente in quelle date, occupato da Bebidas Sur', ' slot per loop',
+  ],
+  'reservar una pantalla con slots propios': [
+    '1 sito selezionato', 'Pantalla Reforma ha 8 slot propri, che prevalgono su questo numero.',
+    'Un impianto ha già raggiunto il suo limite di clienti',
+  ],
+  'space eye · foto correcta, en grande': ['Ultimo segnale 2 h fa', '5 min fa', 'Annuncio corretto · affidabilità 93%'],
+  'space eye · foto que no coincide, y sin foto': ['Ultimo segnale 3 gg fa', 'pochi secondi fa', 'Non corrisponde alla creatività · 40%'],
+  'comercial negociacion · un espacio con todo': [
+    '36 mesi', 'MX$ 9.000,00/mese', 'dal giorno 15 set 2026', 'si mostrano i 2 con attività più recente su 5',
+    'Salvata da Ana in data 1 ott 2026 · dalla ricerca · GPS del telefono: in sospeso', 'Passa a «In contatto con il proprietario»',
+  ],
+  'comercial negociacion · filtro vacio y un espacio perdido sin nada': ['0 di 2', 'Nessuno spazio corrisponde. Togli il filtro per vedere tutti gli spazi (2).'],
+  'codigos · la lista, con el selector de propuesta abierto': [
+    '51,2%', '40 di 100', '0 (senza limite)', '1 gen 2020 → 31 dic 2099', 'PR-0003 — Verano · Refrescos del Norte · rifiutata',
+    'a cascata',
+  ],
+}
+for (const p of PANTALLAS) p.italiano = ITALIANO[p.nombre]
+
+describe('lote COMERCIAL · en ITALIANO', () => {
+  // El italiano que TIENE que salir en algunas pantallas (`ITALIANO`, arriba):
+  // concordancias de genero y numero con el hueco, plurales y formatos. Una
+  // pantalla que no este alli solo se mira con el barrido y la guardia.
+  it('las frases italianas declaradas son de pantallas que existen', () => {
+    const nombres = new Set(PANTALLAS.map((p) => p.nombre))
+    expect(Object.keys(ITALIANO).filter((n) => !nombres.has(n))).toEqual([])
+  })
+
+  beforeEach(() => {
+    process.env.IDIOMA_ITALIANO = '1'
+  })
+  afterEach(() => {
+    delete process.env.IDIOMA_ITALIANO
+  })
+
+  for (const p of PANTALLAS) {
+    it(`${p.nombre} · sin frases espanolas ni inglesas de las listas`, async () => {
+      const html = texto(await p.pintar('it'))
+      expect(p.espanol.filter((f) => html.includes(f) && !COMUNES_IT.has(f))).toEqual([])
+      expect(p.ingles.filter((f) => html.includes(f) && !COMUNES_IT.has(f) && !AJENAS_IT.has(f))).toEqual([])
+      expect((p.italiano ?? []).filter((f) => !html.includes(f))).toEqual([])
+    })
+    it(`${p.nombre} · sin formatos espanoles ni ingleses`, async () => {
+      expect(huellasEnItaliano(await p.pintar('it'), { permitidos: PERMITIDOS_IT })).toEqual([])
+    })
+  }
+
+  // Validacion del lote (V5, V6): los datos de arriba no tienen un porcentaje
+  // con decimales ni una cifra de cuatro digitos, asi que una cifra sin el
+  // idioma pasaba sin que nada la viera. Estados SOLO italianos: el HTML
+  // espanol e ingles de las pruebas de arriba no cambia.
+  it('codigos · un descuento con decimales y usos de cuatro cifras, en italiano', async () => {
+    const G = await codigos()
+    forzar(esArregloVacio, [
+      { id: 'cd9', codigo: 'MEDIO', descuentoPct: 12.5, vigenteDesde: '2020-01-01', vigenteHasta: '2099-12-31', usosMaximos: 5000, usos: 1200 },
+    ])
+    forzar(esNull, null)
+    forzar((v) => v === true, false)
+    const html = texto(await pintar('it', createElement(G)))
+    expect(html).toContain('12,5%')
+    expect(html).toContain('1.200 di 5.000')
+    expect(huellasEnItaliano(html)).toEqual([])
+  })
+
+  it('reserva · el total de slots con miles, en italiano', async () => {
+    const { ReservaDialog } = await import('../../components/demo/comercial/ReservaDialog')
+    forzar(esVacio, 'Seguros Andinos')
+    const sitios = [
+      { ...SITIO_DIGITAL, totalSpots: 1200, spotsDisponibles: 1200 },
+      { ...SITIO_DIGITAL, id: 's2', nombre: 'Pantalla Sur', totalSpots: 1200, spotsDisponibles: 1200 },
+    ]
+    const html = texto(pintar('it', createElement(ReservaDialog, { open: true, onOpenChange: () => {}, sitios: sitios as never, onReserved: () => {} })))
+    expect(html).toContain('>2.400<')
+    expect(html).not.toContain('2,400')
+  })
+
+  it('barrido: ningun trozo espanol ni ingles de `comercial.*` ni `codigos.*` en el HTML italiano', async () => {
+    const { ES_COMERCIAL, EN_COMERCIAL, IT_COMERCIAL } = await import('./textos/comercial')
+    const { ES_CODIGOS, EN_CODIGOS, IT_CODIGOS } = await import('./textos/codigos')
+    const ES: Record<string, string> = { ...ES_COMERCIAL, ...ES_CODIGOS }
+    const EN: Record<string, string> = { ...EN_COMERCIAL, ...EN_CODIGOS }
+    const IT: Record<string, string | undefined> = { ...IT_COMERCIAL, ...IT_CODIGOS }
+    let html = ''
+    for (const p of PANTALLAS) {
+      forzado.cola = []
+      datos.sitios = [SITIO_DIGITAL, SITIO_FIJO, SITIO_PROPIO]
+      datos.propuestas = PROPUESTAS
+      datos.margenes = [{ sitioId: 's1', tieneContrato: true, rentaMensual: 10000 }]
+      html += legible(await p.pintar('it'))
+    }
+    // Los datos de prueba no son interfaz.
+    // Ni lo que pinta OTRO ambito y aun cae al ingles (sus trozos chocan con
+    // los de este lote: «(required)», «server map»).
+    for (const d of ['Pantalla Reforma', 'Azotea Insurgentes 1420', 'Seguros Andinos', 'Campaña Navidad', ...AJENAS_IT]) {
+      html = html.split(d).join('\n')
+    }
+    const culpables: string[] = []
+    let vistos = 0
+    for (const [clave, es] of Object.entries(ES)) {
+      const it = IT[clave] ?? ''
+      for (const [lado, frase] of [['es', es], ['en', EN[clave]]] as const) {
+        for (const trozo of frase.split(/\{\w+\}/)) {
+          const t = trozo.trim()
+          if (t.length < 8 || it.includes(t)) continue
+          if (html.includes(t)) culpables.push(`${clave} · ${lado} «${t}»`)
+        }
+      }
+      // Y lo contrario: el italiano SI esta (un arnes que no ve nada no prueba nada).
+      if (it && it.split(/\{\w+\}/).some((t) => t.trim().length >= 8 && html.includes(t.trim()))) vistos++
+    }
+    expect(culpables).toEqual([])
+    expect(vistos).toBeGreaterThan(250)
+  })
 })

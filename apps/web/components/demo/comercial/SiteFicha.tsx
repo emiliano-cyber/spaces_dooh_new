@@ -517,9 +517,9 @@ export function SiteFicha({
                 label={t('comercial.ficha.contenido')}
                 valor={sitio.tipoContenido === 'VIDEO' ? t('comercial.comun.video') : sitio.tipoContenido === 'IMAGEN' ? t('comercial.comun.imagen') : '—'}
               />
-              <Caracteristica icon={<Monitor className="h-4 w-4" />} label={t('comercial.ficha.total-slots')} valor={formatNumero(sitio.totalSpots)} mono />
-              <Caracteristica icon={<Monitor className="h-4 w-4" />} label={t('comercial.ficha.slots-disponibles')} valor={formatNumero(sitio.spotsDisponibles)} mono />
-              <Caracteristica icon={<Monitor className="h-4 w-4" />} label={t('comercial.ficha.slots-hora')} valor={formatNumero(sitio.spotsPorHora)} mono />
+              <Caracteristica icon={<Monitor className="h-4 w-4" />} label={t('comercial.ficha.total-slots')} valor={formatNumero(sitio.totalSpots, 0, idioma)} mono />
+              <Caracteristica icon={<Monitor className="h-4 w-4" />} label={t('comercial.ficha.slots-disponibles')} valor={formatNumero(sitio.spotsDisponibles, 0, idioma)} mono />
+              <Caracteristica icon={<Monitor className="h-4 w-4" />} label={t('comercial.ficha.slots-hora')} valor={formatNumero(sitio.spotsPorHora, 0, idioma)} mono />
               <Caracteristica icon={<Clock className="h-4 w-4" />} label={t('comercial.ficha.duracion-slot')} valor={sitio.duracionSpotSeg != null ? `${sitio.duracionSpotSeg} s` : '—'} mono />
               <Caracteristica icon={<Clock className="h-4 w-4" />} label={t('comercial.ficha.horario')} valor={sitio.horario ?? '—'} mono />
               <Caracteristica icon={<Monitor className="h-4 w-4" />} label="CMS" valor={sitio.cms ? cmsEtiqueta(t, sitio.cms) : '—'} />
