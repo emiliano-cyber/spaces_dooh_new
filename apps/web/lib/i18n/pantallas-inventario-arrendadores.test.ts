@@ -1868,3 +1868,24 @@ describe('B72 · el documento del contrato lleva su propio lang cuando difiere',
     expect(await html(mismo, mismo)).not.toContain('lang=')
   })
 })
+
+// ─── Barrido global del italiano (pulido, 04/11) ────────────────────────────
+// La vista previa de la imagen promocional del alta manual llevaba
+// `alt="preview"` escrito a mano, en ingles para todos. En italiano pasa por
+// el diccionario («Anteprima»); el espanol y el ingles, el literal de siempre.
+describe('pulido italiano · el alt de la imagen promocional del alta manual', () => {
+  async function alt(idioma: Idioma) {
+    process.env.IDIOMA_ITALIANO = '1'
+    forzar('NuevaPantallaForm', 22, 'data:image/png;base64,AA') // imagen
+    const A = await alta()
+    const html = pintar(idioma, createElement(A, { open: true, inline: true, onOpenChange: () => {}, onCreado: () => {} }))
+    return /<img src="data:image\/png;base64,AA" alt="([^"]*)"/.exec(html)?.[1]
+  }
+  it('en italiano, «Anteprima»', async () => {
+    expect(await alt('it')).toBe('Anteprima')
+  })
+  it('en espanol y en ingles, el literal de siempre', async () => {
+    expect(await alt('es')).toBe('preview')
+    expect(await alt('en')).toBe('preview')
+  })
+})
