@@ -61,6 +61,9 @@ describe('Paginacion: «Anterior / Siguiente» y «de» salian en espanol', () =
     expect(texto(en('it', createElement(Paginacion, conMillar)))).toBe('21–40 di 1.260 pagos Precedente 2 / 13 Avanti')
     expect(texto(en('es', createElement(Paginacion, conMillar)))).toBe('21–40 de 1,260 pagos Anterior 2 / 13 Siguiente')
     expect(texto(en('en', createElement(Paginacion, conMillar)))).toBe('21–40 of 1,260 pagos Previous 2 / 13 Next')
+    // Y el «desde–hasta», que tambien lleva millar en las ultimas paginas.
+    const alFinal = { ...conMillar, pagina: 51, paginas: 63, desde: 1001, hasta: 1020 }
+    expect(texto(en('it', createElement(Paginacion, alFinal)))).toBe('1.001–1.020 di 1.260 pagos Precedente 51 / 63 Avanti')
   })
 
   // Pulido (04/11, O5 de la validacion): al pasar «de», «Anterior» y

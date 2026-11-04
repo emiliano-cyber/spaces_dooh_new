@@ -189,7 +189,8 @@ export default function LoginPage() {
         // OJO: `d.mensaje` lo escribe el SERVIDOR y llega en español. El texto
         // traducido es solo el respaldo de cuando no manda ninguno. Ver el
         // apartado de mensajes de servidor en el informe I18N-01.
-        // En italiano, el del diccionario: ver `avisoDeEnlaceEnviado`.
+        // Fuera del espanol (italiano e ingles), el del diccionario: ver
+        // `avisoDeEnlaceEnviado`.
         setAviso(avisoDeEnlaceEnviado((d as { mensaje?: string }).mensaje, idioma))
         setEnlaceDev((d as { enlaceDev?: string }).enlaceDev ?? null)
       } catch (e) {
