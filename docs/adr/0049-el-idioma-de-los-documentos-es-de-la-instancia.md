@@ -191,3 +191,13 @@ Decisiones de redacción (todas revisables por quien adapte la plantilla):
 ## Revisión independiente
 
 El supervisor dio ÁMBAR a la primera vuelta (`docs/Supervision/idioma-instancia.md`): B58 (e2e completas), B59 (`bootstrap-auth.mjs` queda como ruta de desarrollo solo-es, documentada) y B60 (`uso()` vuelve a `2,58p`) están atendidas en la segunda; D15 la resolvió el dueño (la constancia en el idioma de la instancia, «THE LESSOR» incluido). ~~Sigue pendiente la revisión legal de las traducciones.~~ D13 contestada el 04/11: las traducciones son plantillas de ejemplo que cada owner adapta.
+
+## Nota 2026-11-04 · D17, el contrato en inglés o italiano lo sube el cliente
+
+> [!success] D17 CONTESTADA por el dueño el 2026-11-04: opción (c)
+> «El cliente arma su contrato fuera del sistema y lo sube como documento. Pierde la
+> firma electrónica del texto generado.» En servidores en inglés o italiano el texto que
+> genera el programa queda como EJEMPLO; el contrato que vale es el documento que el
+> cliente sube (el PDF del contrato, `GET /api/contratos/[id]/documento`, que ya existe).
+> No se construye plantilla editable por servidor ni se cambia la plantilla compartida por
+> un cliente, así que no hay riesgo de firmas «alteradas» por cambios de cláusulas.

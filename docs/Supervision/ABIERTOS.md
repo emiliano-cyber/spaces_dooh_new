@@ -240,7 +240,16 @@ archivo dentro de la pregunta.
 > `docs/Supervision/idiomas-cierre.md`. D13 se contestó (arriba). La respuesta abre **D17**, y queda
 > una advertencia preexistente, **B75**.
 
-### D17 · Cada cliente irá armando su contrato en inglés o italiano: ¿quién lo cambia, y dónde?
+### ~~D17 · Cada cliente irá armando su contrato en inglés o italiano: ¿quién lo cambia, y dónde?~~ — CERRADA (c)
+
+> [!success] D17 CONTESTADA por el dueño el 2026-11-04: opción (c)
+> «El cliente arma su contrato fuera del sistema y lo sube como documento. Pierde la
+> firma electrónica del texto generado.» En servidores en inglés o italiano el texto que
+> genera el programa queda como EJEMPLO; el contrato que vale es el documento que el
+> cliente sube (el PDF del contrato, `GET /api/contratos/[id]/documento`, que ya existe).
+> No se construye plantilla editable por servidor ni se cambia la plantilla compartida por
+> un cliente, así que no hay riesgo de firmas «alteradas» por cambios de cláusulas.
+
 
 - **Bloquea:** nada de lo construido; la rama puede aterrizar. Bloquea **el primer cambio de texto**
   que pida un cliente con servidor en inglés o italiano. **Lo que SÍ se puede mientras:** dar de alta

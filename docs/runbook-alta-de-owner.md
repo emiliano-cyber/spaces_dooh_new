@@ -264,3 +264,13 @@ droplet. Nada de lo hecho hasta el paso 6 le ha llegado a nadie.
   datos que mover.
 - **Dar de baja** una instancia.
 - **El panel de flota** (F6.2), que es lo que dirá qué versión corre cada quien.
+
+## Contratos en servidores en inglés o italiano (D17, 2026-11-04)
+
+> [!success] D17 CONTESTADA por el dueño el 2026-11-04: opción (c)
+> «El cliente arma su contrato fuera del sistema y lo sube como documento. Pierde la
+> firma electrónica del texto generado.» En servidores en inglés o italiano el texto que
+> genera el programa queda como EJEMPLO; el contrato que vale es el documento que el
+> cliente sube (el PDF del contrato, `GET /api/contratos/[id]/documento`, que ya existe).
+> No se construye plantilla editable por servidor ni se cambia la plantilla compartida por
+> un cliente, así que no hay riesgo de firmas «alteradas» por cambios de cláusulas.
