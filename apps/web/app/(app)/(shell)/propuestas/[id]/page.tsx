@@ -41,6 +41,7 @@ import {
 import { Card } from '@/components/demo/ui/Card'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
+import { EntradaCifra } from '@/components/demo/ui/EntradaCifra'
 import { Breadcrumbs, type Crumb } from '@/components/demo/ui/Breadcrumbs'
 import { MapView, type MapPoint } from '@/components/demo/MapView'
 import { pinTono } from '@/components/demo/StatusBadge'
@@ -674,10 +675,14 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                 {editable ? (
                   <div className="mt-2 flex items-center gap-2">
                     <div className="relative">
-                      <input
+                      {/* P-L2-1 · en italiano «12,5»; lo ilegible llega como 'NaN'
+                          y `aplicarDescuento` lo rechaza («descuento invalido»). */}
+                      <EntradaCifra
                         type="number" min={0} max={topeDescuento} step={0.01}
-                        value={descInput}
-                        onChange={(e) => setDescInput(e.target.value)}
+                        valor={descInput}
+                        onCambio={setDescInput}
+                        decimales={2}
+                        minimo={0}
                         onBlur={() => { if (descInput.trim() === '') setDescInput('0.00') }}
                         className="h-9 w-24 rounded border border-border-strong bg-surface pl-3 pr-6 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
                       />

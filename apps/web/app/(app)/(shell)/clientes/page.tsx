@@ -9,6 +9,8 @@ import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
+import { EntradaCifra } from '@/components/demo/ui/EntradaCifra'
+import { cifraIlegible } from '@/lib/captura-cifra'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { useClientes, useConfigNegocio, type Cliente } from '@/lib/data/client'
 import {
@@ -417,7 +419,7 @@ function BorrarClienteDialog({ cliente, onClose }: { cliente: Cliente; onClose: 
 // ─── Alta / edición de cliente ───────────────────────────────────────────────
 function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () => void }) {
   const editando = !!cliente
-  const { t } = useIdioma()
+  const { t, idioma } = useIdioma()
   const config = useConfigNegocio()
   const [nombre, setNombre] = useState(cliente?.nombre ?? '')
   const [rfc, setRfc] = useState(cliente?.rfc ?? '')
@@ -475,7 +477,10 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
     email: !email.trim() || esEmailValido(email) ? null : t('validacion.email'),
     telefono: esTelefonoValido(telefono) ? null : t('clientes.form.telefono-invalido'),
   }
-  const hayErrores = Object.values(errores).some(Boolean)
+  // P-L2-1 · la comisión de la agencia en italiano («12,5») pasa por
+  // `EntradaCifra`; lo ilegible llega como 'NaN' y `Number(x) || 0` lo
+  // guardaría como CERO. En español e inglés `cifraIlegible` es `false`.
+  const hayErrores = Object.values(errores).some(Boolean) || (tipo === 'AGENCIA' && cifraIlegible(comisionAgencia, idioma))
 
   async function guardar() {
     setIntento(true)
@@ -559,7 +564,7 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
           {/* La comisión es por AGENCIA; no aplica al cliente directo. */}
           {tipo === 'AGENCIA' && (
             <Campo label={t('clientes.form.comision')}>
-              <input className={inputCls} value={comisionAgencia} onChange={(e) => setComisionAgencia(e.target.value)} placeholder="0" />
+              <EntradaCifra className={inputCls} valor={comisionAgencia} onCambio={setComisionAgencia} placeholder="0" decimales={2} minimo={0} maximo={100} />
             </Campo>
           )}
         </div>

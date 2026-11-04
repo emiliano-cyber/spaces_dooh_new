@@ -6,8 +6,9 @@ import { toast } from 'sonner'
 import { UserRound, FileText, Monitor, Check, ChevronLeft, ChevronRight, Loader2, Paperclip, X } from 'lucide-react'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { EntradaCifra } from '@/components/demo/ui/EntradaCifra'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
-import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
+import { CRUDO_INVALIDO, cifraIlegible, ejemploCifra } from '@/lib/captura-cifra'
 import { useCandado, PasoContrasena } from '@/components/demo/ui/candado'
 import { cn } from '@/lib/cn'
 import { crearContratoConSitioApi, agregarPantallaAPredioApi } from '@/lib/data/estado-api'
@@ -182,7 +183,12 @@ export function ContratoWizard({
     (!!fechaInicio && !!fechaFin && fechaFin >= fechaInicio && renta.trim() !== '' && Number(renta) >= 0)
   // Una tarifa que no se entiende llega como 'NaN' (CampoCifra); sin esta
   // condición `Number(tarifa) || 0` la daría de alta en CERO.
-  const paso3Ok = modoPantalla === 'inventario' ? !!sitioSelId : !!nombre.trim() && tarifa !== CRUDO_INVALIDO
+  // P-L2-1 · las caras y los slots son `EntradaCifra`: en italiano lo que no
+  // se entiende llega como 'NaN' y `Number(x) || 1` lo cambiaría por el valor
+  // por omisión sin decirlo. En español e inglés es siempre `false`.
+  const cantidadIlegible = [caras, totalSpots, duracionSpot].some((x) => cifraIlegible(x, idioma))
+  const paso3Ok =
+    modoPantalla === 'inventario' ? !!sitioSelId : !!nombre.trim() && tarifa !== CRUDO_INVALIDO && !cantidadIlegible
   const tarifaInvalida = modoPantalla === 'nueva' && tarifa === CRUDO_INVALIDO
   const fechasInvertidas = !!fechaInicio && !!fechaFin && fechaFin < fechaInicio
 
@@ -214,7 +220,7 @@ export function ContratoWizard({
     if (paso === 2) {
       // La renta que no se entiende llega como 'NaN', que para los obligatorios
       // cuenta como vacío: se dice ANTES su motivo real, el formato.
-      if (renta === CRUDO_INVALIDO) return setError(t('inventario.wizard.renta-ilegible', { ejemplo: '8,000.50' }))
+      if (renta === CRUDO_INVALIDO) return setError(t('inventario.wizard.renta-ilegible', { ejemplo: ejemploCifra('8,000.50', idioma) }))
       if (!ob2.validar()) return
       if (fechaFin < fechaInicio) return setError(t('inventario.wizard.fin-antes'))
       // El `min` del input no basta: se puede teclear la fecha a mano y algunos
@@ -694,7 +700,7 @@ export function ContratoWizard({
               <Campo label={t('inventario.wizard.direccion')}><input value={direccion} onChange={(e) => setDireccion(e.target.value)} className={inputCls} /></Campo>
               <Campo label={t('inventario.wizard.distrito')}><input value={alcaldia} onChange={(e) => setAlcaldia(e.target.value)} className={inputCls} /></Campo>
               <Campo label={t('inventario.wizard.ciudad')}><input value={ciudad} onChange={(e) => setCiudad(e.target.value)} className={inputCls} /></Campo>
-              <Campo label={t('inventario.wizard.caras')}><input type="number" inputMode="numeric" min={1} value={caras} onChange={(e) => setCaras(e.target.value)} className={`demo-num ${inputCls}`} placeholder="1" /></Campo>
+              <Campo label={t('inventario.wizard.caras')}><EntradaCifra type="number" inputMode="numeric" min={1} valor={caras} onCambio={setCaras} decimales={0} minimo={1} className={`demo-num ${inputCls}`} placeholder="1" /></Campo>
               <Campo label={t('inventario.wizard.tarifa-publicada')} error={tarifaInvalida ? t('inventario.wizard.cifra') : null}><CampoCifra valor={tarifa} onCambio={(crudo) => setTarifa(crudo)} className={`demo-num ${inputCls}`} placeholder={t('comercial.comun.ej', { valor: '15000' })} /></Campo>
               {/* No hay "costo de compra" (ADR 0006): el costo de la pantalla es
                   la renta del contrato, que ya se capturó en el paso del predio.
@@ -704,8 +710,8 @@ export function ContratoWizard({
               <Campo label="Lng"><input value={lng} onChange={(e) => setLng(e.target.value)} className={`demo-num ${inputCls}`} placeholder="-99.1332" /></Campo>
               {digital && (
                 <>
-                  <Campo label={t('inventario.wizard.slots')}><input type="number" inputMode="numeric" min={0} value={totalSpots} onChange={(e) => setTotalSpots(e.target.value)} className={`demo-num ${inputCls}`} placeholder="12" /></Campo>
-                  <Campo label={t('inventario.wizard.duracion-slot')}><input type="number" inputMode="numeric" min={0} value={duracionSpot} onChange={(e) => setDuracionSpot(e.target.value)} className={`demo-num ${inputCls}`} placeholder="20" /></Campo>
+                  <Campo label={t('inventario.wizard.slots')}><EntradaCifra type="number" inputMode="numeric" min={0} valor={totalSpots} onCambio={setTotalSpots} decimales={0} minimo={0} className={`demo-num ${inputCls}`} placeholder="12" /></Campo>
+                  <Campo label={t('inventario.wizard.duracion-slot')}><EntradaCifra type="number" inputMode="numeric" min={0} valor={duracionSpot} onCambio={setDuracionSpot} decimales={0} minimo={0} className={`demo-num ${inputCls}`} placeholder="20" /></Campo>
                 </>
               )}
             </div>
@@ -779,6 +785,7 @@ export function ContratoWizard({
                 enviando ||
                 candado.enviando ||
                 tarifaInvalida ||
+                (modoPantalla === 'nueva' && cantidadIlegible) ||
                 (candado.reautenticando && !candado.pass)
               }
             >

@@ -31,8 +31,9 @@ import { Modal } from '@/components/demo/ui/Modal'
 import { ConfirmDialog } from '@/components/demo/ui/ConfirmDialog'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { EntradaCifra } from '@/components/demo/ui/EntradaCifra'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
-import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
+import { CRUDO_INVALIDO, cifraIlegible, ejemploCifra } from '@/lib/captura-cifra'
 import { textoOrigenDoohmain } from '@/lib/doohmain-programacion'
 import { FotoUploaderMock } from '@/components/demo/FotoUploaderMock'
 import { CalendarioDisponibilidad } from '@/components/demo/CalendarioDisponibilidad'
@@ -1179,7 +1180,7 @@ function ModalidadesDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
         )}
         {(previaInvalida || nuevas.some((n) => n.tarifa === CRUDO_INVALIDO)) && (
           <p className="text-[11px] text-error">
-            {t('comercial.tarifas.no-se-entiende', { ejemplo: '15,000.50' })}
+            {t('comercial.tarifas.no-se-entiende', { ejemplo: ejemploCifra('15,000.50', idioma) })}
           </p>
         )}
 
@@ -1301,10 +1302,17 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
   // OBLIG-01 · el nombre es el único obligatorio de la edición: el resto de
   // campos admite quedarse vacío (se manda como null o no se manda).
   const ob = useObligatorios({ nombre }, ['nombre'])
+  // P-L2-1 · las medidas, las caras, el cupo y los slots son `EntradaCifra`:
+  // en italiano llegan canónicos («12,9» → '12.9') o como 'NaN', y el 'NaN'
+  // para aquí. Sin esto, `Number('NaN')` viajaría en el diff como NaN → null
+  // en JSON y BORRARÍA el ancho guardado. En español e inglés es `false`.
+  const medidaIlegible = [ancho, alto, caras, cupoClientes, ...(digital ? [slots, duracionSlot] : [])].some((x) =>
+    cifraIlegible(x, idioma),
+  )
 
   async function guardar() {
     if (!ob.validar()) return
-    if (tarifa === CRUDO_INVALIDO || (digital && spotsPorHora === CRUDO_INVALIDO)) return
+    if (tarifa === CRUDO_INVALIDO || (digital && spotsPorHora === CRUDO_INVALIDO) || medidaIlegible) return
     setEnviando(true)
     // Bloque sin `try`: era uno, y el `catch` se retiró porque `candado.ejecutar`
     // DEVUELVE el fallo en vez de lanzarlo (lo enseña `alFallar`). Se conserva
@@ -1432,6 +1440,7 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
               tarifa === CRUDO_INVALIDO ||
               // Lo mismo con los slots por hora: `Number(x) || 0` los pondría en 0.
               (digital && spotsPorHora === CRUDO_INVALIDO) ||
+              medidaIlegible ||
               (candado.reautenticando && !candado.pass)
             }
             onClick={candado.reautenticando ? () => void candado.reintentar() : guardar}
@@ -1496,13 +1505,13 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
           <div className="mb-2 text-[12px] font-medium text-ink">{t('comercial.comun.caracteristicas')}</div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <Campo label={t('comercial.comun.ancho')}>
-              <input type="number" inputMode="decimal" min={0} value={ancho} onChange={(e) => setAncho(e.target.value)} className={`demo-num ${inputCls}`} />
+              <EntradaCifra type="number" inputMode="decimal" min={0} valor={ancho} onCambio={setAncho} decimales={2} minimo={0} className={`demo-num ${inputCls}`} />
             </Campo>
             <Campo label={t('comercial.comun.alto')}>
-              <input type="number" inputMode="decimal" min={0} value={alto} onChange={(e) => setAlto(e.target.value)} className={`demo-num ${inputCls}`} />
+              <EntradaCifra type="number" inputMode="decimal" min={0} valor={alto} onCambio={setAlto} decimales={2} minimo={0} className={`demo-num ${inputCls}`} />
             </Campo>
             <Campo label={t('comercial.ficha.caras')}>
-              <input type="number" inputMode="numeric" min={0} value={caras} onChange={(e) => setCaras(e.target.value)} className={`demo-num ${inputCls}`} />
+              <EntradaCifra type="number" inputMode="numeric" min={0} valor={caras} onCambio={setCaras} decimales={0} minimo={0} className={`demo-num ${inputCls}`} />
             </Campo>
             <Campo label={t('comercial.ficha.estructura')}>
               <input value={tipoEstructura} onChange={(e) => setTipoEstructura(e.target.value)} placeholder={t('comercial.editar.estructura-ej')} className={inputCls} />
@@ -1549,12 +1558,14 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
         <div className="rounded-md border border-border bg-surface-2 p-3">
           <div className="mb-2 text-[12px] font-medium text-ink">{t('comercial.editar.cupo')}</div>
           <Campo label={t('comercial.editar.cupo.maximo')}>
-            <input
+            <EntradaCifra
               type="number"
               inputMode="numeric"
               min={1}
-              value={cupoClientes}
-              onChange={(e) => setCupoClientes(e.target.value)}
+              valor={cupoClientes}
+              onCambio={setCupoClientes}
+              decimales={0}
+              minimo={1}
               placeholder={cupoGlobal != null ? t('comercial.editar.cupo.global-ph', { n: cupoGlobal }) : t('comercial.editar.cupo.sin-limite')}
               className={`demo-num ${inputCls}`}
             />
@@ -1578,10 +1589,10 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
             <div className="mb-2 text-[12px] font-medium text-ink">{t('comercial.editar.dooh')}</div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Campo label={t('comercial.editar.cantidad-slots')}>
-                <input type="number" inputMode="numeric" min={0} value={slots} onChange={(e) => setSlots(e.target.value)} placeholder={t('comercial.comun.ej', { valor: '12' })} className={`demo-num ${inputCls}`} />
+                <EntradaCifra type="number" inputMode="numeric" min={0} valor={slots} onCambio={setSlots} decimales={0} minimo={0} placeholder={t('comercial.comun.ej', { valor: '12' })} className={`demo-num ${inputCls}`} />
               </Campo>
               <Campo label={t('comercial.editar.duracion-slot')}>
-                <input type="number" inputMode="numeric" min={0} value={duracionSlot} onChange={(e) => setDuracionSlot(e.target.value)} placeholder={t('comercial.comun.ej', { valor: '20' })} className={`demo-num ${inputCls}`} />
+                <EntradaCifra type="number" inputMode="numeric" min={0} valor={duracionSlot} onCambio={setDuracionSlot} decimales={0} minimo={0} placeholder={t('comercial.comun.ej', { valor: '20' })} className={`demo-num ${inputCls}`} />
               </Campo>
               <Campo label={t('comercial.ficha.slots-hora')}>
                 <CampoCifra decimales={0} valor={spotsPorHora} onCambio={(crudo) => setSpotsPorHora(crudo)} placeholder={t('comercial.comun.ej', { valor: '180' })} className={`demo-num ${inputCls}`} />

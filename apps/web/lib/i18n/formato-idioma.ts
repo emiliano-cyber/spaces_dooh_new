@@ -59,6 +59,14 @@ export interface FormatoIdioma {
   espacioAntesDePorcentaje: boolean
   /** La letra del trimestre en las etiquetas de periodo: «T1 2026» (es), «Q1 2026» (en). */
   letraTrimestre: string
+  /**
+   * El signo DECIMAL de lo que se TECLEA en un campo de cifra
+   * (`lib/captura-cifra.ts`); el de millar es el otro. Espanol e ingles: punto
+   * decimal y coma de millar («212,500.50»), la regla de siempre. Italiano:
+   * coma decimal y punto de millar («212.500,50»), decision del dueno del
+   * 2026-11-04 (P-L2-1).
+   */
+  separadorDecimal: '.' | ','
 }
 
 export const FORMATO_IDIOMA: Record<Idioma, FormatoIdioma> = {
@@ -71,6 +79,7 @@ export const FORMATO_IDIOMA: Record<Idioma, FormatoIdioma> = {
     nombreMoneda: { MXN: 'Peso mexicano (MXN)', USD: 'Dólar estadounidense (USD)' },
     espacioAntesDePorcentaje: true,
     letraTrimestre: 'T',
+    separadorDecimal: '.',
   },
   en: {
     locale: 'en-US',
@@ -81,6 +90,7 @@ export const FORMATO_IDIOMA: Record<Idioma, FormatoIdioma> = {
     nombreMoneda: { MXN: 'Mexican peso (MXN)', USD: 'US dollar (USD)' },
     espacioAntesDePorcentaje: false,
     letraTrimestre: 'Q',
+    separadorDecimal: '.',
   },
   it: {
     locale: 'it-IT',
@@ -93,6 +103,7 @@ export const FORMATO_IDIOMA: Record<Idioma, FormatoIdioma> = {
     espacioAntesDePorcentaje: false,
     // «T1 2026» (trimestre). PROVISIONAL: lo confirma el lote de reportes.
     letraTrimestre: 'T',
+    separadorDecimal: ',',
   },
 }
 

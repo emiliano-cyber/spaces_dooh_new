@@ -11,10 +11,12 @@ import { ChipConteo } from '@/components/demo/finanzas/ChipConteo'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
+import { EntradaCifra } from '@/components/demo/ui/EntradaCifra'
+import { cifraIlegible } from '@/lib/captura-cifra'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { useClientes, type Cliente } from '@/lib/data/client'
 import { actualizarClienteApi, crearClienteApi } from '@/lib/data/estado-api'
-import { useTexto } from '@/lib/i18n/contexto'
+import { useIdioma, useTexto } from '@/lib/i18n/contexto'
 
 const inputCls =
   'h-8 w-20 rounded border border-border-strong bg-surface px-2 text-right text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
@@ -176,6 +178,7 @@ const CABECERA = 'border-b border-border text-[11px] uppercase tracking-wide tex
 // ─── Alta de agencia (cliente tipo AGENCIA) ──────────────────────────────────
 function NuevaAgenciaDialog({ onClose }: { onClose: () => void }) {
   const t = useTexto()
+  const { idioma } = useIdioma()
   const [nombre, setNombre] = useState('')
   const [comision, setComision] = useState('0')
   const [tieneNeg, setTieneNeg] = useState(false)
@@ -191,6 +194,9 @@ function NuevaAgenciaDialog({ onClose }: { onClose: () => void }) {
 
   async function guardar() {
     if (!ob.validar()) return
+    // P-L2-1 · en italiano lo ilegible llega como 'NaN' (el campo lo dice en
+    // rojo) y `Number(x) || 0` lo guardaría como CERO. En es/en, `false`.
+    if (cifraIlegible(comision, idioma)) return
     setGuardando(true)
     setError(null)
     try {
@@ -232,7 +238,7 @@ function NuevaAgenciaDialog({ onClose }: { onClose: () => void }) {
           <input className={fieldCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus placeholder={t('clientes.comisiones.nombre.ejemplo')} />
         </Campo>
         <Campo label={t('clientes.form.comision')}>
-          <input className={`demo-num ${fieldCls}`} value={comision} onChange={(e) => setComision(e.target.value)} placeholder="0" />
+          <EntradaCifra className={`demo-num ${fieldCls}`} valor={comision} onCambio={setComision} placeholder="0" decimales={2} minimo={0} maximo={100} />
         </Campo>
 
         <div className="rounded-md border border-border bg-surface-2 p-3">
@@ -279,12 +285,15 @@ function AgenciaRow({
   puede: boolean
 }) {
   const t = useTexto()
+  const { idioma } = useIdioma()
   const [comision, setComision] = useState(String(agencia.comisionAgenciaPct ?? 0))
   const [busy, setBusy] = useState(false)
   // Sincroniza el input si el dato cambia tras guardar/refrescar.
   useEffect(() => setComision(String(agencia.comisionAgenciaPct ?? 0)), [agencia.comisionAgenciaPct])
 
-  const cambiado = Number(comision) !== Number(agencia.comisionAgenciaPct ?? 0)
+  // P-L2-1 · en italiano lo ilegible llega como 'NaN': no cuenta como cambio
+  // (si no, «Guardar» mandaría `Number('NaN') || 0` = una comisión de CERO).
+  const cambiado = !cifraIlegible(comision, idioma) && Number(comision) !== Number(agencia.comisionAgenciaPct ?? 0)
 
   async function guardar(input: Parameters<typeof actualizarClienteApi>[1]) {
     setBusy(true)
@@ -305,12 +314,15 @@ function AgenciaRow({
               estaba. Es texto al lado, no parte del valor: lo que se manda
               sigue siendo `Number(comision) || 0`. */}
           <span className="inline-flex items-center gap-1">
-            <input
+            <EntradaCifra
               className={`demo-num ${inputCls}`}
-              value={comision}
+              valor={comision}
               aria-label={t('clientes.comisiones.comision-de', { nombre: agencia.nombre })}
               disabled={!puede || busy}
-              onChange={(e) => setComision(e.target.value)}
+              onCambio={setComision}
+              decimales={2}
+              minimo={0}
+              maximo={100}
               onKeyDown={(e) => { if (e.key === 'Enter' && cambiado) guardar({ comisionAgenciaPct: Number(comision) || 0 }) }}
             />
             <span className="text-[12px] text-muted">%</span>

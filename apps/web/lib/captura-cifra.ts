@@ -27,10 +27,27 @@
 //     en blanco no puede afirmar que algo costó cero.
 //   · Se tolera un `$` delante y espacios alrededor; nada más: ni letras, ni
 //     `1e5`, ni `0x10`, ni `Infinity`, ni espacios dentro.
+//
+//  EN ITALIANO (decisión del dueño del 2026-11-04, P-L2-1) la regla es el
+//  ESPEJO exacto: el PUNTO separa miles y la COMA es decimal («212.500,50»).
+//  Hasta ese día el italiano se leía a la mexicana, y «12,9» tecleado en el
+//  ancho de una pantalla se guardaba como 0. No hay una segunda regla escrita:
+//  se intercambian los dos signos de lo tecleado (`intercambiar`), se lee con
+//  la de arriba, y los ejemplos del motivo vuelven a intercambiarse para salir
+//  en italiano. Así lo ambiguo se rechaza en los dos sentidos por la misma
+//  razón: «1,500» en un campo de dinero es 1,5 por la regla, pero quien lo
+//  teclea casi siempre quería mil quinientos a la inglesa.
+//
+//  Español e inglés NO pasan por el intercambio: su camino es el de antes,
+//  carácter por carácter, y lo fija `captura-cifra.es-en.test.ts` contra lo
+//  que daba la función de antes. Lo que se entrega al formulario
+//  (`crudoDeLectura`) es la MISMA cifra en los tres idiomas: sin separadores y
+//  con punto decimal.
 // ============================================================================
 
 import { traducir, type ClaveTexto } from './i18n/diccionario'
 import type { Idioma } from './i18n/idiomas'
+import { FORMATO_IDIOMA } from './i18n/formato-idioma'
 
 export type LecturaCifra = { ok: true; valor: number | null } | { ok: false; error: string }
 
@@ -57,14 +74,30 @@ const MSJ_COMAS = 'Las comas van cada tres cifras, como en 212,500. Si querías 
 const MSJ_EUROPEO = 'Aquí el punto es decimal y la coma separa miles: escribe 2,500.50'
 const MSJ_PUNTOS = 'Solo puede haber un punto, y es el decimal. Para miles usa coma: 1,234,567'
 
+/** ¿Este idioma teclea coma decimal y punto de millar? Hoy, solo el italiano. */
+export function comaDecimal(idioma: Idioma): boolean {
+  return FORMATO_IDIOMA[idioma].separadorDecimal === ','
+}
+
+/** Cambia cada punto por coma y cada coma por punto; lo demás, intacto. */
+export function intercambiar(texto: string): string {
+  return texto.replace(/[.,]/g, (c) => (c === '.' ? ',' : '.'))
+}
+
 /** Del texto tecleado a la cifra. Ver las reglas en la cabecera. */
 export function leerCifra(texto: string, opciones: OpcionesCifra): LecturaCifra {
   const { decimales, minimo, maximo, permiteVacio = true, idioma = 'es' } = opciones
   const m = (literal: string, clave: ClaveTexto, valores?: Record<string, string | number>) =>
     idioma === 'es' ? literal : traducir(idioma, clave, valores)
-  const forma = () => m(MSJ_FORMA, 'compartidos.cifra.forma', { ejemplo: '212,500.50' })
+  // Las cifras que salen en un motivo, con los signos del idioma. En español e
+  // inglés es la identidad: sus motivos no cambian ni un carácter.
+  const coma = comaDecimal(idioma)
+  const fx = (cifra: string) => (coma ? intercambiar(cifra) : cifra)
+  const forma = () => m(MSJ_FORMA, 'compartidos.cifra.forma', { ejemplo: fx('212,500.50') })
   let t = texto.trim()
   if (t.startsWith('$')) t = t.slice(1).trim()
+  // Italiano: se lee con la regla mexicana sobre los signos intercambiados.
+  if (coma) t = intercambiar(t)
 
   if (t === '') {
     return permiteVacio ? { ok: true, valor: null } : { ok: false, error: m('Escribe una cifra', 'compartidos.cifra.vacia') }
@@ -83,8 +116,8 @@ export function leerCifra(texto: string, opciones: OpcionesCifra): LecturaCifra 
   if (/[^\d,.]/.test(t)) return { ok: false, error: forma() }
 
   const punto = t.indexOf('.')
-  if (punto !== -1 && t.lastIndexOf(',') > punto) return { ok: false, error: m(MSJ_EUROPEO, 'compartidos.cifra.europeo', { ejemplo: '2,500.50' }) }
-  if (punto !== -1 && t.indexOf('.', punto + 1) !== -1) return { ok: false, error: m(MSJ_PUNTOS, 'compartidos.cifra.puntos', { ejemplo: '1,234,567' }) }
+  if (punto !== -1 && t.lastIndexOf(',') > punto) return { ok: false, error: m(MSJ_EUROPEO, 'compartidos.cifra.europeo', { ejemplo: fx('2,500.50') }) }
+  if (punto !== -1 && t.indexOf('.', punto + 1) !== -1) return { ok: false, error: m(MSJ_PUNTOS, 'compartidos.cifra.puntos', { ejemplo: fx('1,234,567') }) }
 
   const ent = punto === -1 ? t : t.slice(0, punto)
   const frac = punto === -1 ? '' : t.slice(punto + 1)
@@ -92,7 +125,7 @@ export function leerCifra(texto: string, opciones: OpcionesCifra): LecturaCifra 
   // La primera cifra de un grupo con comas no puede ser 0: «0,500» es 0.5 en
   // Europa, y aceptarlo como 500 sería adivinar.
   if (ent.includes(',') && !/^[1-9]\d{0,2}(,\d{3})+$/.test(ent)) {
-    return { ok: false, error: m(MSJ_COMAS, 'compartidos.cifra.comas', { ejemplo: '212,500', decimal: '2.50' }) }
+    return { ok: false, error: m(MSJ_COMAS, 'compartidos.cifra.comas', { ejemplo: fx('212,500'), decimal: fx('2.50') }) }
   }
   const digitos = ent.replace(/,/g, '')
   if (digitos === '' && frac === '') return { ok: false, error: forma() }
@@ -105,7 +138,12 @@ export function leerCifra(texto: string, opciones: OpcionesCifra): LecturaCifra 
         error: m(
           `En México el punto es decimal: «${t}» sería ${digitos}.${frac.replace(/0+$/, '') || '0'}. Para ${ponerComas(miles)} escribe ${miles} o ${ponerComas(miles)}`,
           'compartidos.cifra.punto-decimal',
-          { texto: t, decimal: `${digitos}.${frac.replace(/0+$/, '') || '0'}`, miles: ponerComas(miles), sinComas: miles },
+          {
+            texto: fx(t),
+            decimal: fx(`${digitos}.${frac.replace(/0+$/, '') || '0'}`),
+            miles: fx(ponerComas(miles)),
+            sinComas: miles,
+          },
         ),
       }
     }
@@ -137,11 +175,11 @@ export function leerCifra(texto: string, opciones: OpcionesCifra): LecturaCifra 
       error:
         minimo === 0
           ? m('No puede ser negativo', 'compartidos.cifra.negativo')
-          : m(`No puede ser menor que ${ponerComas(String(minimo))}`, 'compartidos.cifra.menor', { n: ponerComas(String(minimo)) }),
+          : m(`No puede ser menor que ${ponerComas(String(minimo))}`, 'compartidos.cifra.menor', { n: fx(ponerComas(String(minimo))) }),
     }
   }
   if (maximo != null && v > maximo) {
-    return { ok: false, error: m(`No puede ser mayor que ${ponerComas(String(maximo))}`, 'compartidos.cifra.mayor', { n: ponerComas(String(maximo)) }) }
+    return { ok: false, error: m(`No puede ser mayor que ${ponerComas(String(maximo))}`, 'compartidos.cifra.mayor', { n: fx(ponerComas(String(maximo))) }) }
   }
   return { ok: true, valor: v }
 }
@@ -179,9 +217,14 @@ export function crudoDeLectura(lectura: LecturaCifra): string {
   return lectura.valor == null ? '' : String(lectura.valor)
 }
 
-/** Lo que se pinta a partir del valor que guarda el formulario («212500» → «212,500»). */
-export function textoDesdeCrudo(crudo: string): string {
-  return ponerComas(crudo.trim())
+/**
+ * Lo que se pinta a partir del valor que guarda el formulario («212500» →
+ * «212,500»; en italiano «1500.5» → «1.500,5»). El crudo SIEMPRE lleva punto
+ * decimal y ningún separador, sea cual sea el idioma.
+ */
+export function textoDesdeCrudo(crudo: string, idioma: Idioma = 'es'): string {
+  const texto = ponerComas(crudo.trim())
+  return comaDecimal(idioma) ? intercambiar(texto) : texto
 }
 
 /**
@@ -194,10 +237,12 @@ export function textoAlSalir(texto: string, opciones: OpcionesCifra): string {
   const r = leerCifra(texto, opciones)
   if (!r.ok) return texto
   if (r.valor === null) return ''
-  let limpio = texto.trim().replace(/^\$/, '').trim().replace(/,/g, '')
+  // Italiano: se canoniza en los signos mexicanos y se devuelve intercambiado.
+  const coma = comaDecimal(opciones.idioma ?? 'es')
+  let limpio = (coma ? intercambiar(texto) : texto).trim().replace(/^\$/, '').trim().replace(/,/g, '')
   if (limpio.endsWith('.')) limpio = limpio.slice(0, -1)
   limpio = limpio.replace(/^(-?)\./, '$10.')
-  return ponerComas(limpio)
+  return coma ? intercambiar(ponerComas(limpio)) : ponerComas(limpio)
 }
 
 const CIFRA_CON_COMAS = /^-?[\d,]*(\.\d*)?$/
@@ -222,12 +267,22 @@ function esCanonico(texto: string): boolean {
  * `cursor` es `selectionStart` después del cambio; `tipoEntrada` es el
  * `inputType` del evento nativo, si lo hay.
  */
-export function formatearMientrasEscribe(e: {
-  anterior: string
-  nuevo: string
-  cursor: number
-  tipoEntrada?: string
-}): { texto: string; cursor: number } {
+export function formatearMientrasEscribe(
+  e: {
+    anterior: string
+    nuevo: string
+    cursor: number
+    tipoEntrada?: string
+  },
+  idioma: Idioma = 'es',
+): { texto: string; cursor: number } {
+  // Italiano: los puntos de millar se recolocan igual que las comas, sobre los
+  // signos intercambiados. El intercambio no cambia ninguna longitud, así que
+  // el cursor que sale vale tal cual.
+  if (comaDecimal(idioma)) {
+    const r = formatearMientrasEscribe({ ...e, anterior: intercambiar(e.anterior), nuevo: intercambiar(e.nuevo) })
+    return { texto: intercambiar(r.texto), cursor: r.cursor }
+  }
   const { anterior, nuevo, cursor, tipoEntrada } = e
   const intacto = { texto: nuevo, cursor }
   if (tipoEntrada === 'insertFromPaste' || tipoEntrada === 'insertFromDrop') return intacto
@@ -268,4 +323,36 @@ export function formatearMientrasEscribe(e: {
   }
   while (pos > 0 && formateado[pos - 1] === ',') pos--
   return { texto: formateado, cursor: pos }
+}
+
+// ─── Los campos que no eran `CampoCifra` (P-L2-1, 04/11) ─────────────────────
+// `EntradaCifra` (`components/demo/ui/EntradaCifra.tsx`) es el `<input>` de
+// siempre en español e inglés y un `CampoCifra` en italiano. Estas dos son su
+// parte pura.
+
+/**
+ * Lo que recibe el formulario cuando en un `EntradaCifra` se teclea `texto`:
+ * en español e inglés lo tecleado tal cual (el `<input>` de siempre); en
+ * italiano la cifra canónica de `CampoCifra` («12,9» → «12.9»), o 'NaN'.
+ */
+export function crudoTecleado(texto: string, opciones: OpcionesCifra & { idioma: Idioma }): string {
+  return comaDecimal(opciones.idioma) ? crudoDeLectura(leerCifra(texto, opciones)) : texto
+}
+
+/**
+ * ¿Hay que bloquear el envío? Solo en italiano, y solo con el 'NaN' de
+ * `CampoCifra`: en español e inglés el formulario hace lo de siempre con lo
+ * tecleado, también si alguien escribe «NaN» a mano.
+ */
+export function cifraIlegible(crudo: string, idioma: Idioma): boolean {
+  return comaDecimal(idioma) && crudo === CRUDO_INVALIDO
+}
+
+/**
+ * Una cifra de EJEMPLO de un texto de ayuda o un `placeholder`, escrita con
+ * los signos de quien lee: «15,000.50» y «12.9» en español e inglés (sin
+ * tocar: es la identidad), «15.000,50» y «12,9» en italiano.
+ */
+export function ejemploCifra(texto: string, idioma: Idioma): string {
+  return comaDecimal(idioma) ? intercambiar(texto) : texto
 }

@@ -8,8 +8,9 @@ import { InlinePanel } from '@/components/demo/ui/InlinePanel'
 import { Tabs, TabPanel } from '@/components/demo/ui/Tabs'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { EntradaCifra } from '@/components/demo/ui/EntradaCifra'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
-import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
+import { CRUDO_INVALIDO, cifraIlegible } from '@/lib/captura-cifra'
 import { cn } from '@/lib/cn'
 import { altaSitioApi } from '@/lib/data/sitios-api'
 import { useArrendadores, type Sitio, type TipoMedio } from '@/lib/data/client'
@@ -121,7 +122,15 @@ export function NuevaPantallaForm({
   // y el precio por m² se quedarían en «sin capturar» sin que nadie lo pidiera.
   // Los slots también: `Number(x) || 12` pondría el valor por omisión en vez
   // del tecleado.
-  const cifraInvalida = [renta, tarifa, precioM2, totalSpots, spotsDisp].includes(CRUDO_INVALIDO)
+  //
+  // P-L2-1 · las caras y los segundos del slot son `EntradaCifra`: en italiano
+  // llegan canónicos o como 'NaN', y el 'NaN' también para aquí (si no,
+  // `Number(caras) || 1` lo cambiaría por el valor por omisión sin decirlo).
+  // En español e inglés `cifraIlegible` es siempre `false`.
+  const cifraInvalida =
+    [renta, tarifa, precioM2, totalSpots, spotsDisp].includes(CRUDO_INVALIDO) ||
+    cifraIlegible(caras, idioma) ||
+    cifraIlegible(duracionSpot, idioma)
   // OBLIG-01: lo que falta se pinta en rojo al pulsar Guardar, en vez de dejar
   // el botón muerto sin decir qué campo lo bloquea. El nombre lo exige el
   // servidor (`app/api/sitios/route.ts`, «Falta nombre») y el arrendador
@@ -337,7 +346,7 @@ export function NuevaPantallaForm({
               <Campo label={t('inventario.alta.res-ancho')}><input className={inputCls} inputMode="numeric" value={resAncho} onChange={(e) => setResAncho(e.target.value)} placeholder={t('comercial.comun.ej', { valor: '1920' })} /></Campo>
               <Campo label={t('inventario.alta.res-alto')}><input className={inputCls} inputMode="numeric" value={resAlto} onChange={(e) => setResAlto(e.target.value)} placeholder={t('comercial.comun.ej', { valor: '1080' })} /></Campo>
             </div>
-            <Campo label={t('inventario.wizard.caras')}><input className={inputCls} inputMode="numeric" value={caras} onChange={(e) => setCaras(e.target.value)} placeholder={t('comercial.comun.ej', { valor: '1' })} /></Campo>
+            <Campo label={t('inventario.wizard.caras')}><EntradaCifra className={inputCls} inputMode="numeric" valor={caras} onCambio={setCaras} decimales={0} minimo={0} placeholder={t('comercial.comun.ej', { valor: '1' })} /></Campo>
             <div>
               <span className="mb-1 block text-[12px] font-medium text-ink">{t('inventario.alta.modalidades')}</span>
               <div className="grid grid-cols-2 gap-1.5">
@@ -352,7 +361,7 @@ export function NuevaPantallaForm({
             <div className="rounded-md border border-border bg-surface-2 p-3">
               <div className="mb-2 text-[12px] font-medium text-ink">{t('inventario.alta.config-slots')}</div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <Campo label={t('inventario.wizard.duracion-slot')}><input className={inputCls} inputMode="numeric" value={duracionSpot} onChange={(e) => setDuracionSpot(e.target.value)} placeholder={t('comercial.comun.ej', { valor: '20' })} /></Campo>
+                <Campo label={t('inventario.wizard.duracion-slot')}><EntradaCifra className={inputCls} inputMode="numeric" valor={duracionSpot} onCambio={setDuracionSpot} decimales={0} minimo={0} placeholder={t('comercial.comun.ej', { valor: '20' })} /></Campo>
                 <Campo label={t('inventario.alta.total-slots')}><CampoCifra decimales={0} className={inputCls} valor={totalSpots} onCambio={(crudo) => setTotalSpots(crudo)} placeholder={t('comercial.comun.ej', { valor: '12' })} /></Campo>
                 <Campo label={t('inventario.alta.slots-disponibles')}><CampoCifra decimales={0} className={inputCls} valor={spotsDisp} onCambio={(crudo) => setSpotsDisp(crudo)} placeholder={t('comercial.comun.ej', { valor: '12' })} /></Campo>
               </div>

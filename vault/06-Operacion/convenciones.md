@@ -1,7 +1,7 @@
 ---
 tipo: operacion
 estado: verificado
-actualizado: 2026-10-23
+actualizado: 2026-11-04
 tags: [convenciones, estilo, pruebas]
 archivos:
   - apps/web/components/demo/ui/Button.tsx
@@ -13,6 +13,8 @@ archivos:
   - apps/web/lib/formato-numero.guardia.test.ts
   - apps/web/lib/captura-cifra.ts
   - apps/web/components/demo/ui/CampoCifra.tsx
+  - apps/web/components/demo/ui/EntradaCifra.tsx
+  - apps/web/lib/i18n/formato-idioma.ts
   - apps/web/lib/server/errores.ts
   - apps/web/lib/test/README.md
   - docs/DEPENDENCIAS.md
@@ -485,7 +487,10 @@ Un campo de importe o de cantidad que puede pasar de 999 es un `CampoCifra`,
 **no** un `<input type="number">` (que no admite comas: con una, el navegador
 da el campo por vacío). `type="text"` con `inputMode` `decimal` (dinero,
 `decimales={2}`, por omisión) o `numeric` (cantidades, `decimales={0}`).
-Porcentajes, caras, segundos, días, metros y coordenadas **no** lo usan.
+Porcentajes, caras, segundos, días, metros y coordenadas **no** lo usan: desde
+el 04/11 van por `EntradaCifra`, que en español e inglés es su `<input>` de
+siempre y en italiano un `CampoCifra` (ver «La cifra se teclea en el idioma de
+la persona», abajo).
 
 **El contrato con el formulario no cambia.** El padre guarda lo mismo que
 guardaba con el `type="number"`: la cifra **sin comas** como texto
@@ -542,6 +547,63 @@ cambiar el valor.
 > pantalla no las producía. Desde la fase 2 es `leerCifra` (2 decimales, sin
 > negativos): la regla tiene que entender lo que la propia pantalla enseña.
 > Lo ambiguo (`1,5`) sigue fuera, y el vacío sigue siendo BORRAR.
+
+### La cifra se teclea en el idioma de la persona (P-L2-1, 2026-11-04)
+
+Decisión del dueño del 04/11, autorizada como **ZONA ROJA (dinero)**. Hasta ese
+día `CampoCifra` leía a la mexicana en **todos** los idiomas, y un italiano que
+tecleaba «12,9» en el ancho de una pantalla la daba de alta con **cero
+metros** (`Number('12,9') || 0`), o «1.500» caras se guardaban como 1,5.
+
+| Idioma | Millar | Decimal | Se teclea | Se guarda |
+|---|---|---|---|---|
+| `es`, `en` | coma | punto | `212,500.50` | `212500.5` |
+| `it` | punto | coma | `212.500,50` | `212500.5` |
+
+- **Una sola regla escrita.** El italiano es el ESPEJO exacto de la mexicana:
+  `leerCifra` intercambia los dos signos de lo tecleado (`intercambiar`), lee
+  con la regla de siempre y vuelve a intercambiar las cifras de los ejemplos
+  del motivo. Lo ambiguo se rechaza en los dos sentidos por la misma razón:
+  en dinero, «2.500» en español y «2,500» en italiano se **rechazan** con el
+  porqué, en vez de adivinar si quería mil veces menos. El signo decimal de
+  cada idioma vive en `FORMATO_IDIOMA[idioma].separadorDecimal`
+  (`lib/i18n/formato-idioma.ts`).
+- **Lo que viaja no cambia.** `crudoDeLectura` entrega la MISMA cifra en los
+  tres idiomas: punto decimal, sin separadores. Ni una API ni la base se
+  enteran del idioma.
+- **Español e inglés no pasan por el intercambio**: su camino es el de antes
+  carácter por carácter. Lo fija `lib/captura-cifra.es-en.test.ts` con la
+  huella sha256 de una batería de 2000 entradas (116 000 resultados) calculada
+  con la función de ANTES (`cb116dde`). Si un solo motivo o un solo valor
+  cambia en es/en, la huella no cuadra. Al escribirlo se corrió además un
+  barrido aleatorio de 2,88 millones de lecturas contra una copia congelada de
+  la función vieja (no versionada).
+- **Los campos que no eran `CampoCifra`** (medidas, caras, segundos, cupos,
+  porcentajes, plazos, comisiones: hacían `Number(texto)` o eran
+  `type="number"`) usan **`EntradaCifra`** (`components/demo/ui/EntradaCifra.tsx`):
+  en español e inglés pinta **el mismo `<input>` de antes, con los atributos en
+  el mismo orden** (el HTML sale idéntico byte a byte) y entrega lo tecleado tal
+  cual; en italiano es un `CampoCifra` y entrega la cifra canónica o `'NaN'`.
+  El formulario solo añade **bloquear el envío con `cifraIlegible(x, idioma)`**,
+  que en español e inglés es siempre `false`.
+- **Los ejemplos** de un `placeholder` o de un aviso («Ej. 12.9», «(15,000.50)»)
+  pasan por `ejemploCifra(texto, idioma)`: la identidad en es/en, los signos
+  intercambiados en italiano.
+- **Las coordenadas NO** cambian: se pegan de un mapa, que las da con punto en
+  todos los idiomas. Tampoco los campos de Space Eyes (configuración técnica,
+  enteros con `type="number"`), ni los enteros sin control (`defaultValue`) de
+  Administración (cupo global, loop, segundos del spot, vigencia de la
+  propuesta) ni el orden de la rejilla: enteros que el navegador normaliza.
+
+> [!important] Cómo se comprueba que español e inglés no cambian
+> 1. La huella de `captura-cifra.es-en.test.ts` (corre en cada `vitest`).
+> 2. El volcado de TODA la suite con `I18N_VOLCAR_TODO` contra la base y
+>    `diff -rq`: los únicos estados que cambian están en `_italiano.txt`.
+> 3. `lib/i18n/cifras-formularios.test.ts` monta los formularios de verdad
+>    (`lib/test/formulario-sin-dom.ts`: estado entre renders y manejadores sin
+>    DOM), teclea y pulsa: en italiano «12,9» llega a la API como 12.9 y
+>    «1.500,50» como 1500.5; en español e inglés llega lo de siempre, también
+>    lo malo de siempre (`Number('12,9') || 0` = 0 en el alta de Comercial).
 
 ## Nombres
 
