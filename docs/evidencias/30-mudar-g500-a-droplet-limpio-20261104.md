@@ -419,7 +419,7 @@ echo ok; cat > /root/conteos-pg.sql <<'FIN'
 \pset tuples_only on
 \pset format unaligned
 select 'tabla '||table_name||' '||(xpath('/row/c/text()', query_to_xml(format('select count(*) as c from public.%I', table_name), false, true, '')))[1]::text from information_schema.tables where table_schema='public' and table_type='BASE TABLE' order by table_name;
-select 'dueno '||pg_get_userbyid(c.relowner)||' '||c.relkind||' '||count(*) from pg_class c join pg_namespace s on s.oid=c.relnamespace where s.nspname='public' group by c.relowner, c.relkind order by 1;
+select 'dueno '||pg_get_userbyid(c.relowner)||' '||c.relkind::text||' '||count(*) from pg_class c join pg_namespace s on s.oid=c.relnamespace where s.nspname='public' group by c.relowner, c.relkind order by 1;
 select 'tipo '||pg_get_userbyid(t.typowner)||' '||count(*) from pg_type t join pg_namespace s on s.oid=t.typnamespace where s.nspname='public' and t.typtype in ('e','d') group by t.typowner order by 1;
 select 'permisos '||grantee||' '||count(*) from information_schema.role_table_grants where table_schema='public' group by grantee order by 1;
 select 'politicas '||count(*) from pg_policies where schemaname='public';
