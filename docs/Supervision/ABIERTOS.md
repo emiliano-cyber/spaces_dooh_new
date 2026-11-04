@@ -2500,6 +2500,10 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
   *(04/11, al integrar en `integra/idiomas`: los cinco textos italianos se revisaron con las reglas de
   L5 —registro «tu», ’, «Impossibile …»— sin cambiar nada; sigue faltando la pasada de un
   validador independiente y la entrada en la bitácora.)*
+  *(04/11, pulido del italiano, `feat/italiano-pulido`: las cinco claves y sus valores italianos
+  están listados en `docs/i18n/revision-italiano-pulido.md` §5 para que las valide el validador
+  de ese pulido. Sin cambios. Con B69 cerrada, «Lingua salvata» es lo que ve quien PASA a
+  italiano. Sigue faltando la entrada en la bitácora.)*
 - **B66 · ⚪ ABIERTA (2026-11-04) · El rojo del TDD de IDIOMA-USUARIO no está en el historial.**
   Pruebas e implementación en el mismo commit (4b6134f3, dd547287) y la e2e después de la
   implementación (af03b410); los cinco commits entre 15:13:19 y 15:13:45. Compensado por mutación:
@@ -2523,11 +2527,12 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
   correcta; el ofrecimiento de traducir del navegador sigue mirando el `<html>`. **Cómo se cierra
   del todo:** que `middleware.ts` pase la ruta en una cabecera y el layout raíz la use, en una tarea
   que reclame ese archivo. Menor.
-- **B69 · ⚪ ABIERTA (2026-11-04) · El aviso «Idioma guardado» sale en el idioma ANTERIOR al
-  cambio.** Visto en el recorrido del italiano (`docs/i18n/revision-italiano-recorrido.md` §6): al
-  pasar a italiano dice «Language saved». **Por qué:** el *toast* se lanza con el `t` del idioma de
-  antes, y el nuevo llega con la recarga. Se arregla traduciendo ese aviso con el idioma elegido,
-  pero eso cambia lo que ve quien pasa a español o a inglés. No se tocó. Menor.
+- ~~**B69 · El aviso «Idioma guardado» sale en el idioma ANTERIOR al cambio.**~~ ✅ **CERRADA el
+  2026-11-04 en `feat/italiano-pulido`** (`bae90b5f` rojo, `8451b1d3` arreglo). El aviso se
+  traduce con el idioma de DESTINO, que el cliente ya conoce: el elegido o, con «Usar el idioma
+  del navegador», la regla de `resolverIdioma` (cookie > `navigator.languages` > español, entre
+  los encendidos). Sin cambio de idioma sale el texto de siempre; el diccionario no cambia. 8/8
+  mutantes. Pendiente de su validador.
 - **B70 · ⚪ ABIERTA (2026-11-04) · Los controles del mapa y del *toaster* salen en inglés en todos
   los idiomas.** MapLibre pone «Zoom in», «Zoom out», «Find my location», «Map marker» y «Toggle
   attribution»; sonner pone «Notifications alt+T». **Por qué:** son los valores por omisión de las
@@ -2537,11 +2542,15 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
   accesible.** Pasa en todos los idiomas: el lector de pantalla anuncia solo «botón». **Por qué:**
   la X del `Modal` no lleva `aria-label`. Ponérselo cambia el HTML español e inglés de las pruebas
   de pantallas. No se tocó. Menor.
-- **B72 · ⚪ ABIERTA (2026-11-04) · La propuesta imprimible, el contrato y el comprobante no llevan
-  su propio `lang` cuando el idioma de la instancia no es el de la persona.** `/p` y el portal sí
-  lo llevan (B68). **Por qué no se hizo:** envolver esos papeles en `lang` cambia el HTML inglés de
-  las pruebas que usan una instancia española con la persona en inglés. Se arregla como B68, con
-  `<div lang style="display:contents">` solo cuando difieren, aceptando ese cambio. Menor.
+- ~~**B72 · La propuesta imprimible, el contrato y el comprobante no llevan su propio `lang`
+  cuando el idioma de la instancia no es el de la persona.**~~ ✅ **CERRADA el 2026-11-04 en
+  `feat/italiano-pulido`** (`edea7c08` rojo, `df44ec0c` arreglo). `lib/i18n/parte-en-idioma.tsx`
+  pone `<div lang style="display:contents">` SOLO cuando difieren: la propuesta envuelve el
+  artículo, el contrato lo que se imprime en dos partes (el panel de firmas queda fuera) y el
+  comprobante va por `EnIdiomaDeLosDocumentos`. **Medido** con `I18N_VOLCAR_TODO` contra
+  `49eaf1e4`: 23 estados cambian, todos de idiomas distintos y solo por el envoltorio; los de
+  idiomas iguales (el caso de hoy en todas las instancias) no cambian ni un byte. 7/7 mutantes.
+  Pendiente de su validador.
 - **B73 · ⚪ ABIERTA (2026-11-04) · El 404 de las rutas fuera del armazón sale sin estilos.**
   Visto en `/propuesta/[id]` con una propuesta sin `token_publico`: el icono ocupa la pantalla
   entera y los enlaces salen en crudo. **Por qué:** esa página no hereda la hoja de estilos del

@@ -14,7 +14,11 @@ archivos:
   - apps/web/lib/i18n/textos/costura.test.ts
   - apps/web/lib/test/volcado-html.ts
   - apps/web/lib/test/espejo-italiano.ts
+  - apps/web/lib/i18n/barrido-italiano.ts
+  - apps/web/lib/i18n/parte-en-idioma.tsx
+  - scripts/i18n-barrido-italiano.mjs
   - docs/i18n/revision-italiano-base.md
+  - docs/i18n/revision-italiano-pulido.md
 ---
 
 # La versión en italiano, ola por ola
@@ -545,3 +549,39 @@ validar**. Detalle pantalla por pantalla en
   Revisión §11.
 
 Con esto, la última casilla de §4 está hecha, **pendiente de su validador**.
+
+## 11 · Pulido final (2026-11-04)
+
+Rama `feat/italiano-pulido` (sale de `integra/idiomas`, `49eaf1e4`), **sin
+validar**. Detalle en `docs/i18n/revision-italiano-pulido.md`. Cada arreglo
+lleva su rojo en un commit propio y sus mutantes; ninguno toca lo que espera al
+dueño (B68, B70, B71, B73, B74, P-L2-1, D13).
+
+- **B69 cerrado:** el aviso «Idioma guardado» sale en el idioma AL QUE se pasa
+  (`idiomaTrasGuardar` en `IdiomaCuenta.tsx`, con la regla de `resolverIdioma`
+  para «Usar el idioma del navegador»). Sin cambio de idioma, el de siempre.
+  8/8 mutantes.
+- **B72 cerrado:** `ParteEnIdioma` (`lib/i18n/parte-en-idioma.tsx`) pone
+  `<div lang style="display:contents">` en la propuesta imprimible, el contrato
+  (dos partes: el panel de firmas queda fuera) y el comprobante, **solo** cuando
+  el idioma del papel no es el de la persona. Volcado contra `49eaf1e4`: 23
+  estados cambian, todos de idiomas distintos y solo por el envoltorio; los de
+  idiomas iguales, ni un byte. 7/7 mutantes.
+- **O2, O3, O5 de la validación del recorrido:** la paginación con millar
+  («1.260», «1.001–1.020») mata los mutantes que pasan `'es'`; los espacios van
+  en la misma cadena que la palabra y `renderToString` vuelve a dar el HTML
+  español de `caef69f8` byte a byte (eran tres `<!-- -->` de más, no uno); los
+  dos comentarios, al día.
+- **Barrido global:** `node scripts/i18n-barrido-italiano.mjs <carpeta>` vuelca
+  el HTML de todas las unitarias y lo barre con `barrido-italiano.test.ts`
+  (7414 trozos ajenos del diccionario + huellas de formato; no barre los papeles
+  con `lang` de otro idioma ni junta nodos). **3710 estados italianos, 646
+  hallazgos, 646 declarados en `A_PROPOSITO_IT` con su motivo, 0 sin
+  declarar.** Una pasada exploratoria de una palabra encontró un fallo real: el
+  `alt="preview"` del alta manual, ahora «Anteprima» en italiano.
+- **B65:** las cinco `idioma.cuenta.*` listadas en la revisión §5 para el
+  validador; sin cambios.
+- **Español e inglés:** `DICCIONARIOS` 0 valores cambiados (5621 claves); el
+  HTML solo cambia en los 23 estados de B72. Cobertura 0 pendientes, costura en
+  verde. Unitarias **8407 + 1 omitida** (402 archivos), typecheck y build en
+  verde.
