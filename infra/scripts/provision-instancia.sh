@@ -183,7 +183,7 @@ LOGS_BUCKET="${LOGS_BUCKET:-}"
 # No hay valor por defecto que lo permita: tiene que teclearlo una persona.
 SIN_RESPALDO_REMOTO=0
 
-uso() { sed -n '2,59p' "$0"; }
+uso() { sed -n '2,58p' "$0"; }
 
 # Space Eyes dentro de la instancia (ADR 0045). Va en las DOS corridas: la del
 # aprovisionamiento y la de --emitir-certificado (el certificado lleva eyes.<dominio>).

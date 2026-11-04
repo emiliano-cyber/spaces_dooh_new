@@ -400,6 +400,10 @@ cd apps/web && DATABASE_URL=postgresql://spaces:spaces@localhost:5433/spaces \
   ORG_SLUG=rgb ORG_NOMBRE='RGB Catorce' \
   ADMIN_EMAIL=jose@pixeled.com.mx ADMIN_NOMBRE='Cliente_ RGB Catorce' \
   node scripts/bootstrap-auth.mjs
+#    OJO (B59, ADR 0048/0049): esta organizacion nace SIEMPRE en MXN y con los
+#    documentos en ESPANOL. Es una ruta de desarrollo, solo-es. Una instancia en
+#    USD o con contratos en/it nace por POST /api/bootstrap
+#    (provision-instancia.sh --moneda --idioma)
 
 # 4. La app
 cd apps/web && npm run dev     # http://localhost:3000/spaces-dooh/

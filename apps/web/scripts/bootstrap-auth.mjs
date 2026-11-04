@@ -178,6 +178,15 @@ async function main() {
   // esta consulta puede afectar 0 filas legítimamente, así que NO se usa su
   // `rowCount` para concluir nada — quien comprueba que la organización existe
   // de verdad es el insert del Dueño, unas líneas más abajo.
+  //
+  // ADR 0048 y 0049 (B59, supervision del 03/11): este INSERT no nombra
+  // `moneda` ni `idioma_documentos`, asi que la organizacion nace en MXN y con
+  // los documentos en ESPANOL (los DEFAULT). Es a proposito: este script es el
+  // arranque de DESARROLLO (`entorno-y-despliegue.md`, «Levantar en local»), no
+  // el alta de un owner. Una instancia en dolares o con documentos en ingles o
+  // italiano nace por `POST /api/bootstrap` (`provision-instancia.sh --moneda
+  // --idioma`), la unica puerta que los elige. Sobre una base que ya este en
+  // otro idioma, este INSERT lo rechaza el trigger de unicidad: no lo mezcla.
   await pool.query(
     `insert into tenants (nombre, slug) values ($1, $2) on conflict (slug) do nothing`,
     [ORG_NOMBRE, TENANT_SLUG],
