@@ -10,6 +10,7 @@ import { idiomaDeLaPeticion } from '@/lib/i18n/servidor'
 import { cifraEnEtiqueta } from '@/lib/i18n/cifra-en-etiqueta'
 import { idiomaDeLaInstancia } from '@/lib/server/idioma-instancia'
 import { ProveedorIdioma } from '@/lib/i18n/contexto'
+import { ParteEnIdioma } from '@/lib/i18n/parte-en-idioma'
 import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
 import { monedaDeLaInstancia } from '@/lib/server/moneda-instancia'
 import {
@@ -89,8 +90,10 @@ export default async function DocumentoPropuestaPage({ params }: { params: { id:
       <BarraDocumentoPropuesta volverA={`/propuestas/${params.id}`} />
 
       {/* El papel, con su propio proveedor: lo que lleva de cliente (la liga
-          con su QR) lee `useIdioma()` y tiene que salir en el mismo idioma. */}
+          con su QR) lee `useIdioma()` y tiene que salir en el mismo idioma.
+          B72: y con su propio `lang` cuando no es el de la persona. */}
       <ProveedorIdioma idioma={idioma} puedeElegir={false}>
+      <ParteEnIdioma idioma={idioma} de={idiomaPersona}>
       <article className="doc-hoja doc-comercial">
         <header className="doc-cabecera">
           <div className="doc-cabecera-org">
@@ -239,6 +242,7 @@ export default async function DocumentoPropuestaPage({ params }: { params: { id:
           </div>
         </div>
       </article>
+      </ParteEnIdioma>
       </ProveedorIdioma>
     </div>
   )

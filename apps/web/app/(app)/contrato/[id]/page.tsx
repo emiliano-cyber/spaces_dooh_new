@@ -11,6 +11,7 @@ import { obtenerConfig } from '@/lib/server/config-repo'
 import { traducir } from '@/lib/i18n/diccionario'
 import { idiomaDeLaPeticion } from '@/lib/i18n/servidor'
 import { localeDe } from '@/lib/i18n/formato-idioma'
+import { ParteEnIdioma } from '@/lib/i18n/parte-en-idioma'
 import type { Idioma } from '@/lib/i18n/idiomas'
 
 export const runtime = 'nodejs'
@@ -104,12 +105,17 @@ export default async function ContratoDocumentoPage({ params }: { params: { id: 
   // los huecos) sigue el idioma de la persona.
   const idiomaDoc: Idioma = doc.idioma ?? 'es'
   const e = encabezadosDocumento(idiomaDoc)
+  // B72 · lo que se imprime declara el idioma de la instancia cuando no es el
+  // de la persona (dos partes: el panel de firmas, en medio, no se imprime y
+  // habla en el de la persona). Si coinciden, el HTML de siempre.
+  const idiomaPersona = idiomaDeLaPeticion()
 
   return (
     <div className="doc-wrap">
       <BarraDocumento faltantes={doc.faltantes} />
 
       <article className="doc-hoja">
+        <ParteEnIdioma idioma={idiomaDoc} de={idiomaPersona}>
         {logoUrl && (
           <div className="doc-membrete">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -191,6 +197,7 @@ export default async function ContratoDocumentoPage({ params }: { params: { id: 
             (decisión del 02/11); la regla nueva del dueño es que los papeles
             van fijos en el idioma de la instancia. No entra en ningún hash. */}
         <ConstanciaFirmas estado={estadoFirmas} idioma={idiomaDoc} />
+        </ParteEnIdioma>
 
         <PanelFirmas
           contratoId={params.id}
@@ -199,7 +206,9 @@ export default async function ContratoDocumentoPage({ params }: { params: { id: 
           revision={revision}
         />
 
-        <p className="doc-aviso">{e.aviso}</p>
+        <ParteEnIdioma idioma={idiomaDoc} de={idiomaPersona}>
+          <p className="doc-aviso">{e.aviso}</p>
+        </ParteEnIdioma>
       </article>
     </div>
   )
