@@ -1279,7 +1279,7 @@ export const IT_CAMPANAS: Record<ClaveCampanas, string> = {
     'Tutto ciò che DOOHmain ha registrato sugli schermi dove è stata pubblicata questa campagna, giorno per giorno. Include altre campagne di quegli schermi: serve a vedere che erano in riproduzione, ma {noCuenta} né sblocca la fatturazione.',
   'campanas.playlogs.pantallas.no-cuenta': 'non vale come prova di questa campagna',
   'campanas.playlogs.desde': 'Da',
-  'campanas.playlogs.hasta': 'A',
+  'campanas.playlogs.hasta': 'Fino a',
   'campanas.playlogs.consultar': 'Chiedi a DOOHmain',
   'campanas.playlogs.sin-consulta': 'Non ancora consultato. Scegli un intervallo e chiedi.',
   'campanas.playlogs.rango': '{desde} – {hasta}',
@@ -1378,7 +1378,7 @@ export const IT_CAMPANAS: Record<ClaveCampanas, string> = {
   'campanas.validacion.bajar.si': 'Sì, rimuovi',
   'campanas.validacion.bajar.texto':
     'Vuoi davvero rimuovere {nombre}? Se era pubblicata, la sua campagna termina, ma {arte} (la sua API non lo consente): resterà segnata come «in sospeso su DOOHmain».',
-  'campanas.validacion.bajar.arte': 'la grafica non si può togliere da DOOHmain',
+  'campanas.validacion.bajar.arte': 'la grafica non si può rimuovere da DOOHmain',
   'campanas.validacion.aprobar.titulo': 'Approva e pubblica su DOOHmain',
   'campanas.validacion.aprobar.si': 'Sì, pubblica',
   'campanas.validacion.aprobar.texto':

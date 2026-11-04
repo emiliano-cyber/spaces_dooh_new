@@ -299,6 +299,14 @@ const DISTINTOS_A_PROPOSITO_IT: Record<string, string> = {
   'Guardar pantalla': 'Space Eyes guarda la pantalla digital (Salva schermo); inventario guarda el impianto (Salva impianto), glosario del italiano',
   // Lote L3 (2026-11-03):
   Pantalla: 'la pantalla como punto de inventario, que puede ser un espectacular o una valla («Impianto», glosario del italiano) frente al articulo del almacen de tipo pantalla, un aparato electronico («Schermo»). En ingles las dos son «Screen». Lote L4: tambien «Schermo» en la columna de lo que se manda a DOOHmain e «Impianto» en reportes y captacion',
+  // Costura del italiano tras juntar L4 (2026-11-04): el adjetivo concuerda
+  // con el sustantivo que el espanol calla, y dos «comprobantes» que en
+  // italiano son cosas distintas.
+  'Ver todas ({n})': 'concordancia: campañas y cobranzas son femeninas («Mostra tutte»); las ordenes de trabajo, «ordini», masculinas («Mostra tutti»)',
+  Activa: 'concordancia: la campaña es femenina («Attiva»); el estado de un dispositivo de Space Eyes, masculino («Attivo»)',
+  Vencidas: 'cobranzas vencidas son «Scadute»; ordenes de trabajo vencidas, «In ritardo» (glosario del lote L3)',
+  'Comprobante de pago': 'finanzas: la prueba de pago que sube el cliente («Prova di pagamento», glosario); arrendadores: el recibo del pago que hicimos («Ricevuta di pagamento»)',
+  Comprobante: 'el mismo caso que «Comprobante de pago»: prova del cliente frente a ricevuta del pago al locatore',
   // Lote L4 (2026-11-03).
   Vencida:
     'concuerda con lo que nombra: la cobranza es femenina («Scaduta») y la orden de trabajo de la ficha de campaña, en italiano «ordine», masculina («Scaduto»)',

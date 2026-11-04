@@ -520,7 +520,7 @@ export const IT_REPORTES: Record<ClaveReportes, string> = {
   'reportes.inicial.detalle': 'Il report si calcola quando scegli le date.',
   'reportes.filtro.agrupar': 'Raggruppa',
   'reportes.filtro.desde': 'Da',
-  'reportes.filtro.hasta': 'A',
+  'reportes.filtro.hasta': 'Fino a',
   'reportes.filtro.periodos': 'Periodi',
   'reportes.dim.sitio': 'Per impianto',
   'reportes.dim.sitio.ayuda':

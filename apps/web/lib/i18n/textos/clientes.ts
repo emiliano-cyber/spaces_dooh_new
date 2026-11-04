@@ -736,7 +736,7 @@ export const IT_CLIENTES: Record<ClaveClientes, string> = {
   'clientes.captacion.vencido': 'scaduto',
   'clientes.captacion.anterior': 'Precedente',
   'clientes.captacion.pagina': 'Pagina {n} di {paginas} · {total} prospect',
-  'clientes.captacion.siguiente': 'Successiva',
+  'clientes.captacion.siguiente': 'Avanti',
   'clientes.captacion.editar': 'Modifica prospect',
   'clientes.captacion.form.subtitulo':
     'Inserisci quello che hai; il minimo per inviarlo in revisione viene richiesto al momento dell’invio.',
