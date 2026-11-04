@@ -211,3 +211,35 @@ Periodo*), un caso del predio «el predio "X"» en italiano, y una de
 - El recorrido en el navegador.
 - El resultado de mezclar de verdad con `feat/idioma-por-usuario` y los otros
   lotes: solo `git merge-tree`, sin correr las suites sobre la mezcla.
+
+## 7 · 2.ª pasada (2026-11-04, sobre `bfe4f9d7` + `11504c89`)
+
+**Veredicto: VERDE, con una salvedad de integración (el «Hasta»).**
+
+| Qué | Resultado |
+|---|---|
+| Las tres frases | corregidas: «Disattivate: {n}», «Modalità cambiata: con approvazione / automatica», «…e al primo accesso il sistema chiederà di cambiarla» |
+| Retoques | todos aplicados: «costo per mille impression», «Quanti ne stanno», «foto di verifica», «aziende del settore media», «Ti diamo il benvenuto», «nel loro endpoint» |
+| `shell.404.codigo` | `app/not-found.tsx` lee la clave; es y en «Error 404» (el volcado es/en no cambia ni un byte), it «Errore 404»; declarado igual a propósito en `cuenta.test.ts` |
+| Fechas sin artículo | «in data {fecha}», «fino al giorno {fecha}», licencia y patrones; la prueba recorre diccionario, catálogo y patrones del lote |
+| «manager» | «Manager vendite» y «un manager o superiore» en los tres mensajes del catálogo; la prueba vigila «gerente» y «responsabile o superiore» |
+| Predio lejano | la preposición entra en el hueco: «Lo schermo è a 2,5 km dall’immobile «Norte»», ««P1» è a 800 m da «P2», che è già nell’immobile «Sur»». Correcto (evita «da l’immobile»); el respaldo desconocido sale «da «X»». Solo afecta al italiano |
+| Tablas de huecos | prueba clave por clave de `PERIODICIDAD`, `ETAPA`, `FALTA_REVISION`, `CAMPO` y `FALTA_FIRMA` contra el inglés y distintas del español salvo cognados; exportar las tablas no cambia su valor |
+| V1 | `IDIOMA_ITALIANO` '0', 'true', 'si', ' 1' y '' dejan el italiano apagado por omisión |
+
+**Mutantes (los míos, repetidos): 9 de 9 mueren.** V1 («"0"», «"true"»…),
+V3 (fila «etapa»), V6 («el predio lejano…»), V8 (fila «campos»), y V2, V4,
+V5, V7, V9 como en la 1.ª pasada. Restaurados; `git status` limpio.
+
+**es/en idénticos, volcado de hoy (04/11) para base y rama, con el mismo
+reloj:** base `6fea374a` 3027 HTML, rama 3121; `diff -rq` = **1 distinto**
+(el estado `lang="it"` de `pantallas.test.ts`, por diseño), **0
+desaparecidos**, 94 nuevos. `npm run typecheck` limpio; vitest **385
+archivos, 7120 pruebas** en verde (base 383 / 6988).
+
+**Salvedad — «Desde/Hasta» del selector:** L5 dejó `compartidos.periodo.desde`
+= «Da», `.hasta` = **«A»** y `.a` = «–», y la prueba nueva de
+`cobertura-italiano.test.ts` lo fija así (`['Da', 'A', '–']`). En la
+integración se acordó **«Da / Fino a»** en todos los lotes: al integrar,
+`.hasta` debe pasar a «Fino a» y esa prueba con él. «A» suelto como rótulo
+es además ambiguo en italiano.
