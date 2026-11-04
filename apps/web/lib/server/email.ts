@@ -105,8 +105,31 @@ export function escaparHtml(s: string): string {
     .replace(/"/g, '&quot;')
 }
 
+// Asunto del correo de restablecimiento. Cierre de idiomas (04/11): en el
+// idioma de la instancia (ADR 0049), como la invitacion; en espanol, el literal.
+export function asuntoCorreoReset(idioma: Idioma = 'es'): string {
+  if (idioma === 'es') return 'Restablece tu contraseña · Space OS'
+  return traducir(idioma, 'cuenta.correo.reset.asunto')
+}
+
 // Plantilla del correo de restablecimiento de contraseña.
-export function htmlCorreoReset(nombre: string, link: string): string {
+//
+// Cierre de idiomas (04/11): en ingles e italiano se arma con las piezas del
+// diccionario, como la invitacion. En ESPANOL sale el literal de abajo byte a
+// byte (lo ata `correos-idioma.test.ts`), incluido el enlace sin escapar en el
+// `href`, que es como estaba: el token es hexadecimal y la base, `APP_URL`.
+export function htmlCorreoReset(nombre: string, link: string, idioma: Idioma = 'es'): string {
+  if (idioma !== 'es') {
+    const t = (c: Parameters<typeof traducir>[1], v?: Record<string, string>) => escaparHtml(traducir(idioma, c, v))
+    return htmlCorreoConBoton({
+      titulo: t('cuenta.correo.reset.titulo'),
+      // El nombre va escapado UNA vez: se escapa el texto ya armado.
+      cuerpo: t('cuenta.correo.reset.cuerpo', { nombre }),
+      boton: t('cuenta.correo.reset.boton'),
+      pie: t('cuenta.correo.reset.pie'),
+      href: escaparHtml(link),
+    })
+  }
   return `
   <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;color:#18181b">
     <h2 style="font-size:18px;margin:0 0 12px">Restablecer tu contraseña</h2>

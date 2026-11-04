@@ -1122,7 +1122,7 @@ function legible(crudo: string): string {
 const ITALIANO: Record<string, string[]> = {
   'lista de propuestas (con una fila desplegada)': [
     '2 proposte in bozza o inviate · totale IVA incl.', '1 approvata · perso ', ' su 1 rifiutata',
-    'Commissione 15% · divisore 0,85', '× 0,85', 'Approvato · 1/2 siti', '−5%',
+    'Provvigione 15% · divisore 0,85', '× 0,85', 'Approvato · 1/2 siti', '−5%',
   ],
   'ficha de la propuesta': [
     'Sconto per volume (2,5%)', 'Sconto commerciale (5,00%)', 'divisore ×0,85', 'Valida fino al giorno 1 dic 2026',

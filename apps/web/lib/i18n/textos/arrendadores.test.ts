@@ -197,7 +197,10 @@ describe('arrendadores · el documento del contrato va en el idioma de la INSTAN
     // 04/11 (recorrido del italiano): cambio a proposito, SOLO el italiano
     // (apostrofo tipografico, «all’installazione», fechas sin preposicion
     // articulada). Los 14 hashes espanoles siguen en verde.
-    expect(huella).toBe('6c5b8e86194e8e575787a160e737e7a2e6f4493a9245c7d6af58b4094d68ee8c')
+    // 04/11 (cierre de idiomas, D13): SOLO comentarios —el contrato en/it es una
+    // plantilla de ejemplo, ya no «requiere revision de un abogado»—. Ni una
+    // linea de codigo; los hashes de `contrato-documento-idioma.test.ts`, en verde.
+    expect(huella).toBe('94b4ce172078b4af1c05294a2270c79c244cb05ec17a2ebdb110e868773e908f')
   })
 
   it('el hash de las firmas es el del documento, no el de la constancia', () => {

@@ -399,7 +399,7 @@ italianas y 4 mensajes del catálogo italiano del servidor cambian.
 |---|---|---|
 | Enviando… / Generando… / Verificando… | «Invio in corso…» (login), «Generazione / Verifica in corso…» (cuenta) frente a la forma corta | **Unificado**: «Invio…», «Generazione…», «Verifica…» (como «Salvataggio…» de L5) |
 | Captación | Acquisizione (título de la página) | **Acquisizione siti**, como el menú |
-| Comisiones | Commissioni (título de la página) | **Provvigioni**, como el menú. El cuerpo sigue diciendo «commissione d’agenzia», término de propuestas y reportes |
+| Comisiones | Commissioni (título de la página) | **Provvigioni**, como el menú. ~~El cuerpo sigue diciendo «commissione d’agenzia», término de propuestas y reportes~~ — **sustituido el 04/11 (§12): «provvigione» en todo** |
 | Hasta | «A» en el selector de periodo | **Fino a** (par «Da / Fino a»; sustituye el «Dal / Al» del glosario de L5) |
 | {desde} a {hasta} | «{desde}–{hasta}» en el horario de DOOHmain | **{desde} – {hasta}**, con espacios, como el resto |
 | a | «–» entre fechas / «alle» entre horas | **Distinto a propósito**: «al» sería artículo ante fecha; entre horas, «dalle … alle» |
@@ -595,7 +595,32 @@ dueño (B68, B70, B71, B73, B74, P-L2-1, D13).
   **El barrido sobre disco no corre en CI**: es una herramienta a demanda
   (`I18N_BARRIDO_IT`); en CI corren sus reglas y la comprobación estática.
 
-## 12 · La captura de cifras en italiano (P-L2-1, 2026-11-04)
+## 12 · Cierre de idiomas (2026-11-04)
+
+Rama `feat/idiomas-cierre` (sale de `integra/idiomas`, `cb116dde`), **sin
+validar**. Tres cambios autorizados por el dueño el 04/11.
+
+- **Correo de restablecer contraseña en el idioma de la instancia** (ADR 0049):
+  claves `cuenta.correo.reset.*`. En italiano, «Reimposta la tua password»
+  (asunto y título) y «Reimposta la password» (botón, como en `/recuperar`),
+  tuteo como la invitación, «email» y «password» del glosario de L5.
+- **Glosario: «comisión» = «provvigione / provvigioni» en TODO el italiano**,
+  femenino, con artículo: «la provvigione dell’agenzia» (nunca «d’agenzia»).
+  Sustituye a «commissione» en las 25 claves de comisiones, propuestas y
+  reportes que lo decían (el menú, el título de Comisiones y el campo
+  «Comisión» del servidor ya decían «Provvigioni/Provvigione»). Lo ata
+  `lib/i18n/textos/provvigioni.test.ts`: toda clave cuyo español diga
+  «comisión» dice «provvigione» en italiano, y ninguna clave ni catálogo
+  italiano del servidor dice «commissione». «Sconto e provvigione» y «i due»
+  (sconto + provvigione, masculino por mezcla) se quedan.
+- **D13 contestada por el dueño:** «Los contratos en inglés e italiano son
+  EJEMPLOS: cada cliente los irá armando según contrate la app». El contrato
+  italiano no espera abogado: es una plantilla de ejemplo. Anotado en el ADR
+  0049, `ABIERTOS.md` y el runbook del alta; en el código solo cambian
+  comentarios (`contrato-documento.ts`). Texto legal, aviso impreso y hashes,
+  intactos.
+
+## 13 · La captura de cifras en italiano (P-L2-1, 2026-11-04)
 
 Rama `feat/cifras-por-idioma` (sale de `integra/idiomas`, `cb116dde`), **ZONA
 ROJA (dinero), autorizada por el dueño el 04/11**, sin validar. La regla está en

@@ -132,10 +132,27 @@ archivo dentro de la pregunta.
 > **2026-11-03/04 · ADR 0049 (idioma de los documentos por instancia).** Informe en
 > `docs/Supervision/idioma-instancia.md`. La primera pasada abrió D13, D14 y D15. El 03/11 el dueño
 > contestó D14 y D15 de una vez: **todos los papeles en el idioma de la instancia, salvo el CSV del
-> estado de cuenta**. **Sigue viva D13.** (La primera versión de estas tarjetas quedó sin
-> commitear en el worktree `integra-ingles`; esta es la que vale.)
+> estado de cuenta**. ~~**Sigue viva D13.**~~ **D13 contestada el 04/11** (abajo). (La primera
+> versión de estas tarjetas quedó sin commitear en el worktree `integra-ingles`; esta es la que vale.)
 
-### D13 · ¿Se puede dar de alta un servidor con los contratos en inglés o en italiano antes de que un abogado revise esa traducción?
+### ~~D13 · ¿Se puede dar de alta un servidor con los contratos en inglés o en italiano antes de que un abogado revise esa traducción?~~
+
+> ✅ **CONTESTADA el 2026-11-04 por el dueño:** «Los contratos en inglés e italiano son
+> EJEMPLOS: cada cliente los irá armando según contrate la app». O sea: **no hay revisión de
+> abogado que esperar** y no bloquea dar de alta un servidor en inglés o italiano. El contrato
+> en/it es una **plantilla de ejemplo** que cada owner adapta a su caso. Ninguna de las opciones
+> (a)–(c) tal cual: el sistema no bloquea nada (como la (b)), y el texto no se «da por bueno»
+> como contrato definitivo (no es la (c)), es un punto de partida.
+>
+> **Aplicado en `feat/idiomas-cierre`:** nota fechada en el ADR 0049, el runbook del alta
+> (`docs/runbook-alta-de-owner.md`) sin la prohibición, y los comentarios de
+> `lib/contrato-documento.ts` que decían «requiere revisión de un abogado». **Sin tocar el texto
+> legal ni ningún hash**: el aviso impreso del pie («BORRADOR … revisado por un abogado antes de
+> su firma») es el mismo en los tres idiomas y vale igual para una plantilla de ejemplo, así que
+> se queda. **Lo que sigue en pie:** si un owner ya firmó contratos en/it y la plantilla cambia,
+> hay que conservar la redacción anterior para cotejar (`hashParaCotejar`, como el ADR 0048).
+>
+> La tarjeta original se conserva debajo como historia.
 
 - **Bloquea:** dar de alta para un cliente real cualquier servidor en inglés o italiano. **Lo que
   SÍ se puede mientras:** fusionar el trabajo (los servidores que ya existen siguen en español, sin
@@ -218,6 +235,49 @@ archivo dentro de la pregunta.
 - **Si nadie contesta:** queda la (a). Aceptable: es lo que hay hoy en la rama y es reversible.
 - **Caduca:** el día que un servidor con clientes encienda un segundo idioma de interfaz; desde ese
   día la gente ya se acostumbró a una regla.
+
+> **2026-11-04 · Cierre de idiomas (`feat/idiomas-cierre`).** Informe en
+> `docs/Supervision/idiomas-cierre.md`. D13 se contestó (arriba). La respuesta abre **D17**, y queda
+> una advertencia preexistente, **B75**.
+
+### ~~D17 · Cada cliente irá armando su contrato en inglés o italiano: ¿quién lo cambia, y dónde?~~ — CERRADA (c)
+
+> [!success] D17 CONTESTADA por el dueño el 2026-11-04: opción (c)
+> «El cliente arma su contrato fuera del sistema y lo sube como documento. Pierde la
+> firma electrónica del texto generado.» En servidores en inglés o italiano el texto que
+> genera el programa queda como EJEMPLO; el contrato que vale es el documento que el
+> cliente sube (el PDF del contrato, `GET /api/contratos/[id]/documento`, que ya existe).
+> No se construye plantilla editable por servidor ni se cambia la plantilla compartida por
+> un cliente, así que no hay riesgo de firmas «alteradas» por cambios de cláusulas.
+
+
+- **Bloquea:** nada de lo construido; la rama puede aterrizar. Bloquea **el primer cambio de texto**
+  que pida un cliente con servidor en inglés o italiano. **Lo que SÍ se puede mientras:** dar de alta
+  servidores en/it con la plantilla de ejemplo tal cual, y firmar con ella.
+- **Por qué importa:** el dueño dijo que los contratos en inglés e italiano son ejemplos que cada
+  cliente irá armando. Pero hoy la plantilla no es de cada cliente: es **una sola, dentro del
+  programa, igual para todos los servidores**. Si se cambia una cláusula para el cliente A, cambia
+  también para todos los demás servidores en ese idioma en la siguiente actualización. Y como las
+  firmas se comprueban volviendo a redactar el contrato, **los contratos que ya firmó cualquiera de
+  ellos aparecerían como «alterados»** si no se guarda antes la redacción anterior (lo mismo que se
+  hizo con la cantidad con letra en la decisión de la moneda).
+- **Opciones:**
+  - **(a) Cada cambio lo hace el equipo en el programa, igual para todos, con la redacción anterior
+    guardada para las firmas viejas.** Cero días hoy; cada cambio cuesta medio día a un día y lo
+    reciben todos los clientes de ese idioma, lo pidan o no.
+  - **(b) Que cada servidor tenga su propia plantilla editable** (el dueño de la instancia escribe o
+    pega sus cláusulas y el sistema las sella al firmar). Es trabajo nuevo de varios días y toca lo
+    que se firma; es la que coincide con «cada cliente lo irá armando».
+  - **(c) Que el cliente arme su contrato fuera del sistema y lo suba como documento**, y la
+    plantilla quede solo como ejemplo. Cero días en el programa; el cliente pierde la firma
+    electrónica del texto generado.
+- **Recomendación:** **(a) mientras no haya un segundo cliente en/it**, y decidir (b) el día que dos
+  clientes de un mismo idioma pidan textos distintos. Hoy no hay ningún servidor en/it con clientes,
+  y (b) es caro para un problema que aún no ha aparecido.
+- **Si nadie contesta:** queda la (a) de hecho, pero **sin la parte de guardar la redacción
+  anterior**, y eso no es aceptable: el primer cambio rompería las firmas ya hechas sin avisar.
+- **Caduca:** el día que el primer cliente con servidor en inglés o italiano pida cambiar una
+  cláusula.
 
 > **2026-11-04 · supervisión de `feat/cifras-por-idioma` (P-L2-1)**, ÁMBAR — informe en
 > `docs/Supervision/cifras-por-idioma.md`. Una decisión nueva, **D18**, y advertencias **B77 a
@@ -2549,7 +2609,8 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
   excluir la constancia y es `Record` completo. **Medido:** cobertura italiana 5920/5920, 0
   pendientes; prueba nueva del documento imprimible con instancia `it` y persona en español
   (`pantallas-propuestas.test.ts`) y de los tres correos en italiano (`correos-idioma.test.ts`).
-  Sigue en pie D13: el texto legal italiano no lo ha revisado un abogado.
+  ~~Sigue en pie D13: el texto legal italiano no lo ha revisado un abogado.~~ D13 contestada el
+  04/11: los contratos en/it son ejemplos que cada cliente adapta.
 - **B68 · ⚪ MITIGADA (2026-11-04) · `<html lang>` de `/p` y `/portal` va en el idioma de la
   petición y el contenido en el de la instancia.** El `<html>` lo pone el layout raíz, que no conoce
   la ruta sin tocar `middleware.ts` (alto contacto), así que **sigue igual**. Lo que sí se hizo:
@@ -2596,6 +2657,25 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
   de prueba»). Si se quiere una demo italiana reproducible, las semillas deben aceptar `--idioma` o
   comprobar la organización antes del `insert`. Además, `semilla-catalogo-demo` deja las propuestas
   sin `token_publico` y «Genera PDF» da 404 sobre ella. Menor.
+- **B75 · 🟡 ABIERTA (2026-11-04, preexistente) · `/api/auth/forgot` delata por TIEMPO si un correo
+  está registrado.** La respuesta es la misma (anti-enumeración por contenido, bien), pero con el
+  correo registrado la ruta hace `insert into password_resets` (`password-reset-repo.ts:76-80`) y
+  **espera** la llamada HTTP a Resend (`email.ts:52`, `await enviarEmail` en `forgot/route.ts:60`);
+  sin correo, solo un `select` (`password-reset-repo.ts:65-69`). **Ya estaba en `cb116dde`**; el
+  cierre de idiomas añade una consulta del idioma solo en la rama «existe», pero cacheada en
+  `globalThis` (una por proceso), así que no la agranda en régimen. **Evidencia:** lectura de
+  código; **no cronometrado**. **Cómo se cierra:** mandar el correo sin esperarlo (encolarlo o
+  `void` con su `catch`) o igualar el tiempo de las dos ramas. Es R1: necesita aprobación.
+  **Quién:** el ejecutor con aprobación del dueño. **Si no se cierra antes del 14/10 (ya pasado):**
+  según `vault/02-Backend/autenticacion-y-sesion.md:565` la recuperación está apagada en producción
+  (`NEXT_PUBLIC_RECUPERAR_PASSWORD`; no verificado en el servidor) y hay límite de 5 peticiones por
+  IP cada 15 min (`forgot/route.ts:31`); el riesgo vive el día que se encienda el correo saliente.
+- **B76 · ⚪ ABIERTA (2026-11-04) · Dos citas y un recuento que deja caducos `feat/idiomas-cierre`.**
+  `vault/01-Arquitectura/entorno-y-despliegue.md:2250` cita `forgot/route.ts:50` (`APP_URL`, hoy
+  `:51`) y `:2255` cita `:18` (`NEXT_PUBLIC_RECUPERAR_PASSWORD`, hoy `:19`): la ruta creció un
+  import. Y `CLAUDE.md:42` dice 1656 enlaces; `node scripts/recuentos.mjs` en la rama da **1657**.
+  **Cómo se cierra:** corregir las dos citas y el recuento en la misma rama. Menor.
+
 - ~~**P-L2-1 · La captura de cifras no es italiana: «12,9» en el ancho de una pantalla se
   guardaba como 0 y «1.500,50» como otra cifra.**~~ ✅ **CERRADA el 2026-11-04 en
   `feat/cifras-por-idioma`** (ZONA ROJA, dinero; autorizada por el dueño el 04/11). En italiano

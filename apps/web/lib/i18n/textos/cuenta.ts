@@ -32,6 +32,16 @@ export const ES_CUENTA = {
   'cuenta.correo.invitacion.boton': 'Elegir mi contraseña',
   'cuenta.correo.invitacion.pie':
     'Si el enlace venció, pide a quien te dio de alta que te envíe otro. Si el botón no funciona, copia y pega este enlace:',
+  // Cierre de idiomas (04/11): el de RESTABLECER la contrasena
+  // (`/api/auth/forgot`, `htmlCorreoReset`). Igual: el espanol es la plantilla
+  // literal, que sigue saliendo tal cual.
+  'cuenta.correo.reset.asunto': 'Restablece tu contraseña · Space OS',
+  'cuenta.correo.reset.titulo': 'Restablecer tu contraseña',
+  'cuenta.correo.reset.cuerpo':
+    'Hola {nombre}, recibimos una solicitud para restablecer la contraseña de tu cuenta en Space OS. Haz clic en el botón para elegir una nueva. Este enlace vence en 1 hora y solo se puede usar una vez.',
+  'cuenta.correo.reset.boton': 'Restablecer contraseña',
+  'cuenta.correo.reset.pie':
+    'Si no solicitaste esto, puedes ignorar este correo; tu contraseña no cambiará. Si el botón no funciona, copia y pega este enlace:',
   // ── Comunes de este ambito ──
   'cuenta.comun.enlace-invalido': 'Enlace no válido',
   'cuenta.comun.ir-inicio': 'Ir al inicio',
@@ -189,6 +199,13 @@ export const EN_CUENTA: Record<ClaveCuenta, string> = {
   'cuenta.correo.invitacion.boton': 'Choose my password',
   'cuenta.correo.invitacion.pie':
     'If the link expired, ask whoever added you to send you another one. If the button doesn’t work, copy and paste this link:',
+  'cuenta.correo.reset.asunto': 'Reset your password · Space OS',
+  'cuenta.correo.reset.titulo': 'Reset your password',
+  'cuenta.correo.reset.cuerpo':
+    'Hi {nombre}, we received a request to reset the password for your Space OS account. Click the button to choose a new one. This link expires in 1 hour and can only be used once.',
+  'cuenta.correo.reset.boton': 'Reset password',
+  'cuenta.correo.reset.pie':
+    'If you didn’t request this, you can ignore this email; your password won’t change. If the button doesn’t work, copy and paste this link:',
   'cuenta.comun.enlace-invalido': 'Invalid link',
   'cuenta.comun.ir-inicio': 'Go to the home page',
   'cuenta.comun.nueva-contrasena': 'New password',
@@ -340,6 +357,15 @@ export const IT_CUENTA: Record<ClaveCuenta, string> = {
   'cuenta.correo.invitacion.boton': 'Scegli la mia password',
   'cuenta.correo.invitacion.pie':
     'Se il link è scaduto, chiedi a chi ti ha registrato di inviartene un altro. Se il pulsante non funziona, copia e incolla questo link:',
+  // Cierre de idiomas (04/11): el de restablecer la contrasena. «Reimposta la
+  // password», como el boton de `/recuperar` (`cuenta.comun.restablecer-contrasena`).
+  'cuenta.correo.reset.asunto': 'Reimposta la tua password · Space OS',
+  'cuenta.correo.reset.titulo': 'Reimposta la tua password',
+  'cuenta.correo.reset.cuerpo':
+    'Ciao {nombre}, abbiamo ricevuto una richiesta di reimpostare la password del tuo account su Space OS. Fai clic sul pulsante per sceglierne una nuova. Questo link scade tra 1 ora e si può usare una sola volta.',
+  'cuenta.correo.reset.boton': 'Reimposta la password',
+  'cuenta.correo.reset.pie':
+    'Se non hai fatto tu questa richiesta, puoi ignorare questa email; la tua password non cambierà. Se il pulsante non funziona, copia e incolla questo link:',
 
   'cuenta.comun.enlace-invalido': 'Link non valido',
   'cuenta.comun.ir-inicio': 'Vai alla home',

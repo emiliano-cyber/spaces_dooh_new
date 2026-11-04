@@ -25,10 +25,10 @@
 //    `generarContrato` no se tocó, y `contrato-documento-idioma.test.ts` fija
 //    los hashes medidos ANTES de este cambio.
 //  · El INGLES y el ITALIANO (`redactarEnOtroIdioma`, al final) son una
-//    traducción fiel del español, cláusula por cláusula. **REQUIEREN REVISIÓN
-//    DE UN ABOGADO antes de usarse con clientes**: son el mismo contrato de
+//    traducción fiel del español, cláusula por cláusula: el mismo contrato de
 //    derecho mexicano (RFC, CFDI, Código Civil) puesto en otro idioma, no un
-//    contrato adaptado a otra jurisdicción.
+//    contrato adaptado a otra jurisdicción. Son PLANTILLAS DE EJEMPLO (D13,
+//    el dueño, 04/11: «cada cliente los irá armando según contrate la app»).
 // ============================================================================
 
 import type { Idioma } from '@/lib/i18n/idiomas'
@@ -573,11 +573,13 @@ export function hashParaCotejar(
 //  Traducción fiel del español de arriba, cláusula por cláusula y párrafo por
 //  párrafo (la prueba compara el número de cláusulas, incisos y párrafos).
 //
-//  ⚠ REQUIERE REVISIÓN DE UN ABOGADO ANTES DE USARSE CON CLIENTES. Es el MISMO
-//  contrato de derecho mexicano —RFC, CURP, CFDI, Código Civil, tribunales de
-//  la ciudad— escrito en otro idioma; no es un contrato adaptado a la ley de
-//  otro país. Lo que diga el abogado se cambia AQUÍ, y como el idioma de una
-//  instancia no cambia nunca, solo afecta a lo que se congele después. PERO lo
+//  PLANTILLA DE EJEMPLO (D13, contestada por el dueño el 04/11: «Los contratos
+//  en inglés e italiano son EJEMPLOS: cada cliente los irá armando según
+//  contrate la app»). Es el MISMO contrato de derecho mexicano —RFC, CURP,
+//  CFDI, Código Civil, tribunales de la ciudad— escrito en otro idioma; no es
+//  un contrato adaptado a la ley de otro país. Lo que se adapte se cambia
+//  AQUÍ, y como el idioma de una instancia no cambia nunca, solo afecta a lo
+//  que se congele después. PERO lo
 //  ya congelado se coteja regenerando ESTE texto: en una instancia que ya
 //  firmó contratos en/it, cambiarlo los haría aparecer «alterados». Antes de
 //  tocarlo ahí hay que hacer lo mismo que el ADR 0048 hizo con la letra:

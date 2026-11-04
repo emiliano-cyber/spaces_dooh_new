@@ -186,17 +186,20 @@ infra/scripts/provision-instancia.sh \
 > [!danger] `--idioma es|en|it` tambien se decide AQUÍ y es para siempre (ADR 0049, 03/11)
 > Es el idioma de **todos los papeles** de la instancia —contrato y constancia
 > de firmas, propuesta impresa, liga y portal del cliente, comprobante de
-> cobranza y los correos (salvo el de restablecer contraseña, pendiente)—, no
+> cobranza y los correos (el de restablecer contraseña también, desde el
+> 04/11)—, no
 > el de la interfaz (ese lo elige cada persona). Solo el CSV del estado de
 > cuenta sigue la pantalla. La
 > base no deja cambiarlo (`20261103_idioma_documentos_por_instancia.sql`),
 > porque las firmas se cotejan regenerando el texto: en otro idioma, todas
 > aparecerían alteradas. Sin la bandera, **es**. Acepta `--idioma en` y
 > `--idioma=en`; `EN`, `es-MX` o `fr` paran el guion antes de tocar el
-> servidor, y fuera de `--bootstrap` sale con 64. **Ojo:** el texto en inglés e
-> italiano es una traducción que **todavía no revisó un abogado**; no elijas
-> `en`/`it` para un cliente real hasta que el dueño diga que esa revisión está
-> hecha.
+> servidor, y fuera de `--bootstrap` sale con 64. **Sobre el contrato en inglés
+> e italiano (D13, contestada por el dueño el 04/11):** «Los contratos en inglés
+> e italiano son EJEMPLOS: cada cliente los irá armando según contrate la app».
+> Se puede elegir `en`/`it` para un cliente real: el contrato en esos idiomas
+> es una **plantilla de ejemplo** que se irá adaptando a cada cliente (hoy es
+> el contrato mexicano traducido, no uno de su país). Que el owner lo sepa.
 
 Llama a `POST /api/bootstrap` **desde el propio servidor, por loopback**: el
 token no cruza internet y funciona aunque el DNS aún no haya propagado del todo.
@@ -261,3 +264,13 @@ droplet. Nada de lo hecho hasta el paso 6 le ha llegado a nadie.
   datos que mover.
 - **Dar de baja** una instancia.
 - **El panel de flota** (F6.2), que es lo que dirá qué versión corre cada quien.
+
+## Contratos en servidores en inglés o italiano (D17, 2026-11-04)
+
+> [!success] D17 CONTESTADA por el dueño el 2026-11-04: opción (c)
+> «El cliente arma su contrato fuera del sistema y lo sube como documento. Pierde la
+> firma electrónica del texto generado.» En servidores en inglés o italiano el texto que
+> genera el programa queda como EJEMPLO; el contrato que vale es el documento que el
+> cliente sube (el PDF del contrato, `GET /api/contratos/[id]/documento`, que ya existe).
+> No se construye plantilla editable por servidor ni se cambia la plantilla compartida por
+> un cliente, así que no hay riesgo de firmas «alteradas» por cambios de cláusulas.

@@ -280,8 +280,9 @@ describe('ADR 0049 · el contrato en ITALIANO', () => {
   })
 })
 
-// Recorrido del italiano (04/11), decision del orquestador. El texto legal
-// italiano sigue pendiente de abogado (D13); esto corrige solo la lengua.
+// Recorrido del italiano (04/11), decision del orquestador. Esto corrige solo
+// la lengua, no el contenido: el contrato italiano es una plantilla de ejemplo
+// que cada cliente ira adaptando (D13, contestada por el dueno el 04/11).
 describe('ADR 0049 · el contrato en ITALIANO, corregido en el recorrido', () => {
   const texto = documentoATexto(generarContrato({ ...completo, idioma: 'it' }))
   it('apostrofo tipografico en todo el texto (nunca el recto)', () => {
