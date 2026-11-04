@@ -293,6 +293,10 @@ function divergenciasItaliano(lotes: LoteIt[], excepciones: Record<string, strin
 // italiano necesite aparte lo declara aqui su lote, con el porque.
 const DISTINTOS_A_PROPOSITO_IT: Record<string, string> = {
   ...DISTINTOS_A_PROPOSITO,
+  // Costura del italiano (2026-11-04): Space Eyes configura la pantalla DIGITAL
+  // que vigila un dispositivo («Schermo»); el alta de inventario guarda el
+  // punto de venta («Impianto»). Mismo criterio que «Pantalla» abajo.
+  'Guardar pantalla': 'Space Eyes guarda la pantalla digital (Salva schermo); inventario guarda el impianto (Salva impianto), glosario del italiano',
   // Lote L3 (2026-11-03):
   Pantalla: 'la pantalla como punto de inventario, que puede ser un espectacular o una valla («Impianto», glosario del italiano) frente al articulo del almacen de tipo pantalla, un aparato electronico («Schermo»). En ingles las dos son «Screen»',
 }

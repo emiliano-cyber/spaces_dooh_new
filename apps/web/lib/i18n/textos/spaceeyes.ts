@@ -2972,12 +2972,12 @@ export const IT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.whep.perdida': 'Si è persa la connessione video con il server.',
 
   // ── La galeria de fotos (`Galeria`). La marca y el nombre del .zip NO se traducen ──
-  'spaceeyes.comun.desde': 'Dal',
-  'spaceeyes.comun.hasta': 'Al',
+  'spaceeyes.comun.desde': 'Da',
+  'spaceeyes.comun.hasta': 'Fino a',
   'spaceeyes.comun.todos-equipos': 'Tutti i dispositivi',
   'spaceeyes.comun.equipo-n': 'Dispositivo {id}',
   'spaceeyes.comun.anterior': 'Precedente',
-  'spaceeyes.comun.siguiente': 'Successiva',
+  'spaceeyes.comun.siguiente': 'Avanti',
   'spaceeyes.comun.pagina': 'Pagina {pagina}',
   'spaceeyes.comun.pagina-de': 'Pagina {pagina} di {paginas}',
   'spaceeyes.comun.eliminar': 'Elimina',

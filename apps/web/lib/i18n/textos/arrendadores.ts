@@ -1417,7 +1417,7 @@ export const IT_ARRENDADORES: Record<Exclude<ClaveArrendadores, `arrendadores.co
   'arrendadores.cuadre.emplazamientos.uno': '{n} postazione',
   'arrendadores.cuadre.emplazamientos.otros': '{n} postazioni',
   'arrendadores.cuadre.predio': 'Immobile',
-  'arrendadores.cuadre.suelta': 'Impianto singolo',
+  'arrendadores.cuadre.suelta': 'Impianto isolato',
   'arrendadores.cuadre.contratos.uno': '{n} contratto',
   'arrendadores.cuadre.contratos.otros': '{n} contratti',
   'arrendadores.cuadre.sin-arrendador': 'Nessun locatore assegnato',
