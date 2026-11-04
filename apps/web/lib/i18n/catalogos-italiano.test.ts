@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { DICCIONARIOS } from './diccionario'
 import { mensajeDeAcceso } from './errores-acceso'
+import { traducirError } from './errores-servidor'
 import { traducirNotificacion } from './notificaciones'
 import { etiquetaDePapel, codigoDePapel, PAPELES_FIJOS } from './papeles'
 import { etiquetaDePuntoOT, CHECKLIST_OT_POR_OMISION } from './checklist-ot'
@@ -24,18 +25,25 @@ import type { RespuestaResumen } from '../data/finanzas-periodo-api'
 const ES = DICCIONARIOS.es as Record<string, string>
 
 describe('catalogos fuera de textos/ · italiano = ingles mientras falte', () => {
-  it('errores de acceso', () => {
-    for (const m of ['Correo o contraseña inválidos', 'Demasiados intentos. Espera 30s.', 'No encontrado', 'raro']) {
-      expect(mensajeDeAcceso(m, 'it')).toBe(mensajeDeAcceso(m, 'en'))
-    }
+  // Lote L5 (2026-11-03): los de acceso ya tienen italiano (base de
+  // `diccionario.ts`); lo que no conocen sigue por `traducirError`.
+  it('errores de acceso, en italiano', () => {
+    expect(mensajeDeAcceso('Correo o contraseña inválidos', 'it')).toBe('Email o password non validi')
+    expect(mensajeDeAcceso('Demasiados intentos. Espera 30s.', 'it')).toBe('Troppi tentativi. Attendi 30s.')
+    expect(mensajeDeAcceso('Demasiados intentos. Espera 30s e intenta de nuevo.', 'it')).toBe(
+      'Troppi tentativi. Attendi 30s e riprova.',
+    )
+    expect(mensajeDeAcceso('No encontrado', 'it')).toBe(traducirError('No encontrado', 'it'))
+    expect(mensajeDeAcceso('raro', 'it')).toBe('raro')
   })
 
-  it('papeles', () => {
-    for (const r of PAPELES_FIJOS) {
-      const etiqueta = ES[`admin.papel.${r.toLowerCase()}`]
-      expect(etiquetaDePapel(etiqueta, 'it')).toBe(etiquetaDePapel(etiqueta, 'en'))
-      expect(codigoDePapel(r, 'it')).toBe(codigoDePapel(r, 'en'))
-    }
+  // Lote L5 (2026-11-03): los papeles ya tienen italiano (`admin.papel.*`).
+  it('papeles, en italiano', () => {
+    expect(PAPELES_FIJOS.map((r) => codigoDePapel(r, 'it'))).toEqual(['AFFITTI', 'BENI', 'LICENZE', 'OPERATIVITÀ', 'VENDITE'])
+    expect(etiquetaDePapel(ES['admin.papel.ventas'], 'it')).toBe('Vende pubblicità')
+    // Una etiqueta renombrada por la instancia es dato: sale tal cual.
+    expect(etiquetaDePapel('Vende espectaculares', 'it')).toBe('Vende espectaculares')
+    expect(codigoDePapel('OTRO', 'it')).toBe('OTRO')
   })
 
   // Lote L3 (2026-11-03): la lista por omision de una OT ya tiene italiano. Lo
@@ -62,9 +70,24 @@ describe('catalogos fuera de textos/ · italiano = ingles mientras falte', () =>
     expect(nombreDeFallaEnIdioma(nombre, 'it')).toBe('Possibile cabinet spento')
   })
 
-  it('la campanita', () => {
-    const n = { titulo: 'Factura emitida', detalle: 'F-1 · 1,000' }
-    expect(traducirNotificacion(n, 'it')).toEqual(traducirNotificacion(n, 'en'))
+  // Lote L5 (2026-11-03): la campanita ya tiene italiano; el saldo sale con
+  // el formato italiano y, con 0 dias, «scade oggi».
+  it('la campanita, en italiano', () => {
+    expect(traducirNotificacion({ titulo: 'Factura emitida', detalle: 'F-1 · 1,000' }, 'it')).toEqual({
+      titulo: 'Fattura emessa',
+      detalle: 'F-1 · 1,000',
+    })
+    const vencida = { titulo: 'Cobranza vencida', detalle: 'F-7 — vencida hace 3 día(s) · saldo $1,234' }
+    expect(traducirNotificacion(vencida, 'it')).toEqual({
+      titulo: 'Incasso scaduto',
+      detalle: 'F-7 — scaduto da 3 giorni · saldo MX$ 1.234',
+    })
+    const una = { titulo: 'Recordatorio de cobro', detalle: 'F-7 — vence en 1 día(s) · saldo $10' }
+    expect(traducirNotificacion(una, 'it').detalle).toBe('F-7 — scade tra 1 giorno · saldo MX$ 10')
+    const hoy = { titulo: 'Recordatorio de cobro', detalle: 'F-7 — vence en 0 día(s) · saldo $10' }
+    expect(traducirNotificacion(hoy, 'it').detalle).toBe('F-7 — scade oggi · saldo MX$ 10')
+    const contrato = { titulo: 'Contrato vence en 0 días: un espacio', detalle: null }
+    expect(traducirNotificacion(contrato, 'it').titulo).toBe('Il contratto scade OGGI: uno spazio')
   })
 })
 

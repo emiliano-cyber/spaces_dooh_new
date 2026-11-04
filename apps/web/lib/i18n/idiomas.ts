@@ -113,6 +113,26 @@ export function idiomasActivos(
   return IDIOMAS.filter((i) => encendido[i])
 }
 
+/**
+ * Lo que se acepta cuando quien llama NO pasa `permitidos` (lote L5 del
+ * italiano, 2026-11-03, a propuesta del validador de la ola 0).
+ *
+ * Hasta hoy la omision era TODO `IDIOMAS`, y un llamador nuevo que olvidara
+ * la lista dejaba pasar el italiano apagado sin ningun error. Ahora el
+ * italiano solo entra si su interruptor esta encendido. El espanol y el
+ * ingles se aceptan siempre, COMO ANTES: el ingles apagado lo filtra quien
+ * decide (el layout, `servidor.ts`, `_error`), que siempre pasa la lista, y
+ * cambiarlo aqui moveria la conducta de hoy.
+ *
+ * En el navegador no hay `IDIOMA_ITALIANO` (no es `NEXT_PUBLIC_`): quien lea
+ * ahi un idioma ya decidido por el servidor —`global-error.tsx`— pasa
+ * `IDIOMAS` a mano.
+ */
+export function idiomasPorOmision(): Idioma[] {
+  const entorno = typeof process === 'undefined' ? {} : process.env
+  return IDIOMAS.filter((i) => i !== 'it' || italianoActivo(entorno))
+}
+
 // Mismo prefijo que `spaces_sesion` y `spaces_csrf`. NO es `httpOnly`: es una
 // preferencia de presentacion, no una credencial, y el selector de idioma la
 // escribe desde el navegador.
@@ -131,10 +151,11 @@ function esIdioma(v: string): v is Idioma {
  */
 export function normalizarIdioma(
   valor: string | null | undefined,
-  // Los idiomas que se aceptan. Por omision todos los del catalogo; quien
-  // decide de verdad (`resolverIdioma`) pasa solo los ENCENDIDOS, y asi un
-  // idioma apagado se comporta exactamente como uno que no hablamos.
-  permitidos: readonly Idioma[] = IDIOMAS,
+  // Los idiomas que se aceptan. Por omision `idiomasPorOmision()` (el
+  // italiano solo encendido); quien decide de verdad (`resolverIdioma`) pasa
+  // solo los ENCENDIDOS, y asi un idioma apagado se comporta exactamente
+  // como uno que no hablamos.
+  permitidos: readonly Idioma[] = idiomasPorOmision(),
 ): Idioma | null {
   if (typeof valor !== 'string') return null
   const primaria = valor.trim().toLowerCase().split('-')[0]
@@ -151,7 +172,7 @@ export function normalizarIdioma(
  */
 export function idiomaDeCabecera(
   cabecera: string | null | undefined,
-  permitidos: readonly Idioma[] = IDIOMAS,
+  permitidos: readonly Idioma[] = idiomasPorOmision(),
 ): Idioma | null {
   if (typeof cabecera !== 'string' || cabecera.trim() === '') return null
 
@@ -203,7 +224,7 @@ export function resolverIdioma(entrada: {
    */
   permitidos?: readonly Idioma[]
 }): Idioma {
-  const permitidos = entrada.permitidos ?? IDIOMAS
+  const permitidos = entrada.permitidos ?? idiomasPorOmision()
   return (
     normalizarIdioma(entrada.cookie, permitidos) ??
     idiomaDeCabecera(entrada.cabecera, permitidos) ??

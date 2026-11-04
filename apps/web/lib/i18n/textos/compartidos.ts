@@ -319,11 +319,152 @@ export const EN_COMPARTIDOS: Record<ClaveCompartidos, string> = {
   'compartidos.cifra.mayor': 'Must not be greater than {n}',
 }
 
-// ─── ITALIANO · ola 0 (2026-11-03) ──────────────────────────────────────────
-// PARCIAL a proposito: lo rellena el lote de traduccion de este ambito
-// (`vault/03-Frontend/italiano-olas.md`). Mientras falte una clave, la
-// pantalla la pinta en INGLES (`diccionario.ts`, `DICCIONARIOS.it`) y la
-// prueba de cobertura (`cobertura-italiano.test.ts`) la cuenta como pendiente.
-// Cuando el lote termine, el tipo pasa a `Record<ClaveCompartidos, string>` y `tsc`
-// vuelve a exigir cada clave, como en el ingles.
-export const IT_COMPARTIDOS: Partial<Record<ClaveCompartidos, string>> = {}
+// ─── ITALIANO · lote L5 (2026-11-03) ────────────────────────────────────────
+// COMPLETO: `Record`, asi que una clave nueva sin italiano no compila, como
+// en el ingles. Traducido desde el ESPANOL (el ingles, solo de apoyo), con
+// el glosario de `vault/03-Frontend/italiano-olas.md`.
+export const IT_COMPARTIDOS: Record<ClaveCompartidos, string> = {
+  // Es el glosario comun de TODAS las pantallas (unidades, periodicidades,
+  // periodos): los demas lotes lo copian tal cual.
+  // Las unidades son femeninas («la tariffa mensile / giornaliera»).
+  'compartidos.unidad.mensual': 'Mensile',
+  'compartidos.unidad.mensual.uno': 'mese',
+  'compartidos.unidad.mensual.otros': 'mesi',
+  // «periodo di due settimane» y no «quindicina»: «quindicinale» se confunde
+  // con la quincena (dos veces al mes), y aqui son 14 dias exactos.
+  'compartidos.unidad.catorcenal': 'Ogni due settimane',
+  'compartidos.unidad.catorcenal.uno': 'periodo di due settimane',
+  'compartidos.unidad.catorcenal.otros': 'periodi di due settimane',
+  'compartidos.unidad.semanal': 'Settimanale',
+  'compartidos.unidad.semanal.uno': 'settimana',
+  'compartidos.unidad.semanal.otros': 'settimane',
+  'compartidos.unidad.diaria': 'Giornaliera',
+  'compartidos.unidad.diaria.uno': 'giorno',
+  'compartidos.unidad.diaria.otros': 'giorni',
+  'compartidos.unidad.spot': 'CPS · costo per passaggio',
+  'compartidos.unidad.spot.uno': 'passaggio',
+  'compartidos.unidad.spot.otros': 'passaggi',
+  'compartidos.unidad.hora': 'All’ora',
+  'compartidos.unidad.hora.uno': 'ora',
+  'compartidos.unidad.hora.otros': 'ore',
+  'compartidos.unidad.cpm': 'CPM · costo per mille impression',
+  'compartidos.unidad.cpm.uno': 'migliaio',
+  'compartidos.unidad.cpm.otros': 'migliaia',
+
+  'compartidos.frecuencia.uno': '{n} passaggio al giorno',
+  'compartidos.frecuencia.otros': '{n} passaggi al giorno',
+
+  // «slot», invariable en italiano, como lo dice el sector (y el espanol de la
+  // app en «Sin slots capturados»).
+  'compartidos.calc.espacios.uno': '{n} slot del loop',
+  'compartidos.calc.espacios.otros': '{n} slot del loop',
+  'compartidos.calc.horas': '{h} h al giorno',
+  'compartidos.calc.prima': 'maggiorazione {pct}%',
+
+  'compartidos.calc.motivo.solo-digital': 'Il calcolatore di spot si applica solo agli schermi digitali venduti a spot.',
+  'compartidos.calc.motivo.sin-loop':
+    'Per questo schermo non è stato inserito il numero di slot del loop: inseriscilo nella sua scheda prima di usare il calcolatore.',
+  'compartidos.calc.motivo.roadblock-todos': 'Un Roadblock acquista tutti gli slot del loop ({total}), non {espacios}.',
+  'compartidos.calc.motivo.rango-espacios': 'Gli slot del loop vanno da 1 a {total}.',
+  'compartidos.calc.motivo.rango-prima': 'La maggiorazione Roadblock va da 0 a 100%.',
+  'compartidos.calc.motivo.prima-sin-roadblock': 'La maggiorazione Roadblock si applica solo a una riga contrassegnata come Roadblock.',
+  'compartidos.calc.motivo.horas':
+    'Le ore al giorno devono essere più di 0 e al massimo {max}: le ore oltre quelle che lo schermo trasmette sarebbero spot che non vanno mai in onda.',
+  'compartidos.calc.motivo.sin-dias': 'La riga non ha giorni: controlla le date.',
+  'compartidos.calc.motivo.cero-spots': 'Con questi slot e queste ore non va in onda nemmeno uno spot al giorno.',
+  // «ne ha liberi … {libres}»: se lee bien con 1 y con 30, sin plural que elegir.
+  'compartidos.calc.motivo.roadblock-libres': 'Un Roadblock richiede liberi tutti gli slot del loop ({total}); lo schermo ne ha liberi {libres}.',
+  'compartidos.calc.motivo.pocos-libres.uno': 'Chiedi {espacios} slot del loop e lo schermo ne ha liberi solo {libres}.',
+  'compartidos.calc.motivo.pocos-libres.otros': 'Chiedi {espacios} slot del loop e lo schermo ne ha liberi solo {libres}.',
+
+  // En letra, como el glosario: nunca «bimestrale» (ambiguo) ni «ogni 2 mesi».
+  'compartidos.periodicidad.diaria': 'Giornaliera',
+  'compartidos.periodicidad.semanal': 'Settimanale',
+  'compartidos.periodicidad.catorcenal': 'Ogni due settimane',
+  'compartidos.periodicidad.quincenal': 'Due volte al mese',
+  'compartidos.periodicidad.mensual': 'Mensile',
+  'compartidos.periodicidad.bimestral': 'Ogni due mesi',
+  'compartidos.periodicidad.trimestral': 'Trimestrale',
+  'compartidos.periodicidad.semestral': 'Ogni sei mesi',
+  'compartidos.periodicidad.anual': 'Annuale',
+
+  'compartidos.codigo.pendiente': 'In attesa di approvazione',
+  'compartidos.codigo.aprobado-por': 'Approvato da {nombre}',
+  'compartidos.codigo.aprobado': 'Approvato',
+
+  'compartidos.franja.aviso':
+    'La fascia oraria è un impegno commerciale: si quota e si fattura. Pubblicando su DOOHmain si invia il suo orario ' +
+    'a ogni schermo; sugli schermi gestiti da un altro CMS, o se l’annuncio era già pubblicato, chi gestisce lo ' +
+    'schermo deve programmarla manualmente.',
+
+  'compartidos.periodo.mes': 'Questo mese',
+  'compartidos.periodo.mes-anterior': 'Mese scorso',
+  'compartidos.periodo.trimestre': 'Questo trimestre',
+  'compartidos.periodo.trimestre-anterior': 'Trimestre scorso',
+  'compartidos.periodo.anio': 'Quest’anno',
+  'compartidos.periodo.rango': 'Intervallo personalizzato',
+  // La letra del trimestre de `FORMATO_IDIOMA.it` (T), provisional (P2).
+  'compartidos.periodo.etiqueta.trimestre': 'T{n} {anio}',
+  // Sin articulo delante de una fecha (regla comun del italiano): raya en
+  // el rango, «Da» / «A» como rotulos y raya entre los dos campos.
+  'compartidos.periodo.etiqueta.rango': '{desde} – {hasta}',
+  'compartidos.periodo.aria': 'Periodo',
+  'compartidos.periodo.elige': 'Scegli la data di inizio e quella di fine.',
+  'compartidos.periodo.desde': 'Da',
+  'compartidos.periodo.hasta': 'A',
+  'compartidos.periodo.a': '–',
+
+  // Lo que se le asigna en DOOHmain es un SCHERMO (masculino).
+  'compartidos.doohmain.todo-el-dia': 'Tutto il giorno (senza fascia oraria)',
+  'compartidos.doohmain.horario': '{desde}–{hasta}',
+  'compartidos.doohmain.las-que-quepan': 'Quanti ne stanno',
+  'compartidos.doohmain.origen.ficha': 'inserito in questa scheda',
+  'compartidos.doohmain.origen.mapa': 'dalla mappa del server (non inserito nella scheda)',
+  'compartidos.doohmain.origen.servidor': 'lo schermo predefinito del server (non inserito nella scheda)',
+  'compartidos.doohmain.origen.ninguna': 'nessuno: pubblicando, questo schermo non riceverebbe nulla',
+  'compartidos.dia.0': 'dom',
+  'compartidos.dia.1': 'lun',
+  'compartidos.dia.2': 'mar',
+  'compartidos.dia.3': 'mer',
+  'compartidos.dia.4': 'gio',
+  'compartidos.dia.5': 'ven',
+  'compartidos.dia.6': 'sab',
+
+  // La ragione sociale es femenina.
+  'compartidos.asignacion.sin-asignar': 'Non assegnata',
+  'compartidos.asignacion.baja': '{nombre} (disattivata)',
+  'compartidos.asignacion.no-disponible': 'Ragione sociale non disponibile',
+
+  // «impianto»: el mapa es de inventario, no solo de pantallas digitales.
+  'compartidos.mapa.cerrar-zona': 'Chiudi zona ({n})',
+  'compartidos.mapa.limpiar-zona': 'Cancella zona',
+  'compartidos.mapa.indicacion': 'Clicca sulla mappa per segnare la zona (min. 3 punti)',
+  'compartidos.mapa.sin-ubicacion.uno': '1 impianto senza posizione inserita',
+  'compartidos.mapa.sin-ubicacion.otros': '{n} impianti senza posizione inserita',
+
+  'compartidos.campo.obligatorio': ' (obbligatorio)',
+  'compartidos.campo.falta': 'Manca questo dato',
+  'compartidos.contrasena.etiqueta': 'La tua password',
+  'compartidos.migas.aria': 'Percorso di navigazione',
+  'compartidos.candado.pide': 'La tua organizzazione richiede la password per confermare le modifiche sensibili.',
+  'compartidos.candado.falta': 'Inserisci la password per confermare.',
+  'compartidos.candado.confirmar': 'Conferma',
+  'compartidos.plegar.minimizar': 'Riduci {titulo}',
+  'compartidos.plegar.expandir': 'Espandi {titulo}',
+
+  // `CampoCifra` lee la cifra a la mexicana (coma de miles, punto decimal) en
+  // TODOS los idiomas: el italiano lo dice tal cual, sin prometer otra cosa.
+  'compartidos.cifra.forma': 'Scrivi solo cifre: la virgola separa le migliaia e il punto i decimali. Esempio: {ejemplo}',
+  'compartidos.cifra.comas': 'Le virgole vanno ogni tre cifre, come in {ejemplo}. Se volevi i decimali, usa il punto: {decimal}',
+  'compartidos.cifra.europeo': 'Qui il punto separa i decimali e la virgola le migliaia: scrivi {ejemplo}',
+  'compartidos.cifra.puntos': 'Può esserci un solo punto, quello dei decimali. Per le migliaia usa la virgola: {ejemplo}',
+  'compartidos.cifra.vacia': 'Inserisci una cifra',
+  'compartidos.cifra.punto-decimal': 'Qui il punto separa i decimali: «{texto}» sarebbe {decimal}. Per {miles} scrivi {sinComas} o {miles}',
+  'compartidos.cifra.enteras': 'Solo cifre intere, senza decimali',
+  'compartidos.cifra.max-decimales.uno': 'Massimo {n} decimale',
+  'compartidos.cifra.max-decimales.otros': 'Massimo {n} decimali',
+  'compartidos.cifra.grande': 'Questa cifra è troppo grande',
+  'compartidos.cifra.negativo': 'Non può essere negativo',
+  'compartidos.cifra.menor': 'Non può essere minore di {n}',
+  'compartidos.cifra.mayor': 'Non può essere maggiore di {n}',
+}

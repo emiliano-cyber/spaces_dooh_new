@@ -141,11 +141,60 @@ export const EN_NOTIFICACIONES: Record<keyof typeof ES_NOTIFICACIONES, string> =
   'notificaciones.ver': 'View',
 }
 
-// ─── ITALIANO · ola 0 (2026-11-03) ──────────────────────────────────────────
-// PARCIAL a proposito: lo rellena el lote de traduccion de este ambito
-// (`vault/03-Frontend/italiano-olas.md`). Mientras falte una clave, la
-// pantalla la pinta en INGLES (`diccionario.ts`, `DICCIONARIOS.it`) y la
-// prueba de cobertura (`cobertura-italiano.test.ts`) la cuenta como pendiente.
-// Cuando el lote termine, el tipo pasa a `Record<keyof typeof ES_NOTIFICACIONES, string>` y `tsc`
-// vuelve a exigir cada clave, como en el ingles.
-export const IT_NOTIFICACIONES: Partial<Record<keyof typeof ES_NOTIFICACIONES, string>> = {}
+// ─── ITALIANO · lote L5 (2026-11-03) ────────────────────────────────────────
+// COMPLETO: `Record`, asi que una clave nueva sin italiano no compila, como
+// en el ingles. Traducido desde el ESPANOL (el ingles, solo de apoyo), con
+// el glosario de `vault/03-Frontend/italiano-olas.md`.
+export const IT_NOTIFICACIONES: Record<keyof typeof ES_NOTIFICACIONES, string> = {
+  'notificaciones.propuesta.aprobada': 'Proposta approvata',
+  'notificaciones.propuesta.rechazada': 'Proposta rifiutata',
+  'notificaciones.propuesta.aceptada': 'Proposta accettata dal cliente',
+  'notificaciones.propuesta.aceptada.detalle': '{propuesta} — accettata da {nombre}',
+
+  'notificaciones.campana.generada': 'Campagna generata dalla proposta',
+  'notificaciones.campana.no-generada': 'Non è stato possibile generare la campagna',
+  'notificaciones.campana.por-validar': 'Campagna in attesa di verifica della pubblicazione',
+  'notificaciones.campana.por-validar.detalle':
+    '{campana} è stata inviata per la pubblicazione ed è in attesa di verifica',
+  'notificaciones.publicacion.aprobada': 'Pubblicazione approvata',
+  'notificaciones.publicacion.aprobada.detalle': '{campana} è stata approvata ed è in onda',
+  'notificaciones.publicacion.rechazada': 'Pubblicazione rifiutata',
+  'notificaciones.publicacion.rechazada.detalle': '{campana} è stata rifiutata',
+  'notificaciones.publicacion.rechazada.motivo': '{campana} è stata rifiutata: {motivo}',
+
+  'notificaciones.factura.emitida': 'Fattura emessa',
+  'notificaciones.odc.registrada': 'Ordine d’acquisto registrato',
+  'notificaciones.pago.liquidada': 'Incasso saldato',
+  'notificaciones.pago.abono': 'Pagamento parziale registrato',
+  'notificaciones.pago.sin-folio': 'incasso',
+  'notificaciones.cobranza.vencida': 'Incasso scaduto',
+  'notificaciones.cobranza.recordatorio': 'Promemoria di pagamento',
+  'notificaciones.cobranza.vencida.detalle.uno': '{cobranza} — scaduto da {n} giorno · saldo {saldo}',
+  'notificaciones.cobranza.vencida.detalle.otros': '{cobranza} — scaduto da {n} giorni · saldo {saldo}',
+  'notificaciones.cobranza.vence.detalle.uno': '{cobranza} — scade tra {n} giorno · saldo {saldo}',
+  'notificaciones.cobranza.vence.detalle.otros': '{cobranza} — scade tra {n} giorni · saldo {saldo}',
+  // Con 0 dias, «scade oggi», como el ingles: el {n} se queda solo para los huecos.
+  'notificaciones.cobranza.vence.detalle.cero': '{cobranza} — scade oggi · saldo {saldo}',
+
+  'notificaciones.ot.vencida': 'Ordine di lavoro scaduto',
+  'notificaciones.ot.vencida.detalle': '{ot} non è stato chiuso in tempo',
+  'notificaciones.ot.vencida.sin-asignar': '{ot} non è stato chiuso in tempo (non assegnato)',
+
+  'notificaciones.contrato.sin-capturar': 'Contratto non inserito: {contrato}',
+  'notificaciones.contrato.sin-capturar.detalle':
+    'Mancano il locatore, l’importo dell’affitto, la periodicità o la data di fine. ' +
+    'Finché resta così non conta come costo, non genera il calendario dei pagamenti e l’impianto non si può prenotare.',
+  'notificaciones.contrato.vencido': 'Contratto scaduto: {contrato}',
+  'notificaciones.contrato.vencido.detalle.uno':
+    'È scaduto da {n} giorno e nessuno l’ha rinnovato. Lo spazio continua a essere occupato senza un accordo in vigore.',
+  'notificaciones.contrato.vencido.detalle.otros':
+    'È scaduto da {n} giorni e nessuno l’ha rinnovato. Lo spazio continua a essere occupato senza un accordo in vigore.',
+  'notificaciones.contrato.vence-hoy': 'Il contratto scade OGGI: {contrato}',
+  'notificaciones.contrato.vence-en.uno': 'Il contratto scade tra {n} giorno: {contrato}',
+  'notificaciones.contrato.vence-en.otros': 'Il contratto scade tra {n} giorni: {contrato}',
+  'notificaciones.contrato.vence-en.cero': 'Il contratto scade OGGI: {contrato}',
+  'notificaciones.contrato.por-vencer.detalle': 'Se va rinnovato, conviene muoversi prima che scada.',
+  'notificaciones.contrato.un-espacio': 'uno spazio',
+
+  'notificaciones.ver': 'Vedi',
+}

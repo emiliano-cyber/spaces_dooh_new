@@ -307,11 +307,148 @@ export const EN_CUENTA: Record<ClaveCuenta, string> = {
   'cuenta.publica.error.aceptar': 'Could not accept. Please try again.',
 }
 
-// ─── ITALIANO · ola 0 (2026-11-03) ──────────────────────────────────────────
-// PARCIAL a proposito: lo rellena el lote de traduccion de este ambito
-// (`vault/03-Frontend/italiano-olas.md`). Mientras falte una clave, la
-// pantalla la pinta en INGLES (`diccionario.ts`, `DICCIONARIOS.it`) y la
-// prueba de cobertura (`cobertura-italiano.test.ts`) la cuenta como pendiente.
-// Cuando el lote termine, el tipo pasa a `Record<ClaveCuenta, string>` y `tsc`
-// vuelve a exigir cada clave, como en el ingles.
-export const IT_CUENTA: Partial<Record<ClaveCuenta, string>> = {}
+// ─── ITALIANO · lote L5 (2026-11-03) ────────────────────────────────────────
+// COMPLETO: `Record`, asi que una clave nueva sin italiano no compila, como
+// en el ingles. Traducido desde el ESPANOL (el ingles, solo de apoyo), con
+// el glosario de `vault/03-Frontend/italiano-olas.md`.
+export const IT_CUENTA: Record<ClaveCuenta, string> = {
+  'cuenta.comun.enlace-invalido': 'Link non valido',
+  'cuenta.comun.ir-inicio': 'Vai alla home',
+  'cuenta.comun.nueva-contrasena': 'Nuova password',
+  'cuenta.comun.confirmar-contrasena': 'Conferma la password',
+  'cuenta.comun.no-coinciden': 'Le password non coincidono.',
+  'cuenta.comun.guardar-contrasena': 'Salva la password',
+  'cuenta.comun.restablecer-contrasena': 'Reimposta la password',
+
+  'cuenta.codigos.titulo': 'Codici di recupero',
+  'cuenta.codigos.titulo.guardar': 'Salva i tuoi codici di recupero',
+  'cuenta.codigos.subtitulo': 'Il modo per rientrare se un giorno perdi l’accesso al tuo account.',
+  'cuenta.codigos.ya-tienes':
+    'Hai già salvato i tuoi codici. Se li hai persi, puoi generarne altri: i precedenti smetteranno di funzionare.',
+  'cuenta.codigos.generar-nuevos': 'Genera nuovi codici',
+  'cuenta.codigos.volver': 'Indietro',
+  'cuenta.codigos.teclea':
+    'Inserisci la tua password per confermare. I codici che hai salvato{dejaran} appena verranno generati quelli nuovi.',
+  'cuenta.codigos.teclea.dejaran': ' smetteranno di funzionare',
+  'cuenta.codigos.tu-contrasena': 'La tua password',
+  'cuenta.codigos.verificando': 'Verifica in corso…',
+  'cuenta.codigos.confirmar-generar': 'Conferma e genera',
+  'cuenta.codigos.google':
+    'Accedi con Google, quindi {sin} per rientrare. Questi codici sono l’unico modo per accedere se un giorno perdi l’accesso a quell’account.',
+  'cuenta.codigos.google.sin': 'non hai una password',
+  'cuenta.codigos.una-vez': 'Ognuno vale {vez}. Conservali dove non si perdano.',
+  'cuenta.codigos.una-vez.vez': 'una sola volta',
+  'cuenta.codigos.generando': 'Generazione in corso…',
+  'cuenta.codigos.mostrar': 'Mostra i miei codici',
+  'cuenta.codigos.aviso':
+    '{una} Copiali o stampali prima di continuare: appena esci da questa schermata non verranno più mostrati.',
+  'cuenta.codigos.aviso.una': 'Vengono mostrati una sola volta.',
+  'cuenta.codigos.tus.uno': 'I tuoi codici ({n})',
+  'cuenta.codigos.tus.otros': 'I tuoi codici ({n})',
+  'cuenta.codigos.copiar': 'Copia',
+  'cuenta.codigos.ya-guarde': 'Li ho salvati in un posto sicuro',
+  'cuenta.codigos.guardando': 'Salvataggio…',
+  'cuenta.codigos.continuar': 'Continua',
+  'cuenta.codigos.copiados': 'Copiati',
+  'cuenta.codigos.no-copiados': 'Non è stato possibile copiarli; copiali a mano',
+  'cuenta.codigos.error.generar': 'Non è stato possibile generarli',
+  'cuenta.codigos.error.verificar': 'Non è stato possibile verificare la password',
+  'cuenta.codigos.error.confirmar': 'Non è stato possibile confermare',
+
+  'cuenta.recuperar.bienvenida': 'Ti diamo il benvenuto',
+  'cuenta.recuperar.verificando': 'Verifica del link…',
+  'cuenta.recuperar.invalido': 'Link non valido o scaduto',
+  'cuenta.recuperar.invalido.bienvenida':
+    'L’invito è già stato usato o è scaduto. Chiedi a chi ti ha registrato di inviartene un altro.',
+  'cuenta.recuperar.invalido.restablecer':
+    'Il link è già stato usato o è scaduto. Richiedine uno nuovo dalla pagina di accesso.',
+  'cuenta.recuperar.ir-login': 'Vai all’accesso',
+  'cuenta.recuperar.creada': 'Password creata',
+  'cuenta.recuperar.actualizada': 'Password aggiornata',
+  'cuenta.recuperar.listo.bienvenida': 'Ora puoi accedere con la tua password.',
+  'cuenta.recuperar.listo.restablecer': 'Ora puoi accedere con la tua nuova password.',
+  'cuenta.recuperar.elige.bienvenida': 'Scegli la tua password',
+  'cuenta.recuperar.elige.restablecer': 'Scegli una nuova password',
+  'cuenta.recuperar.regla': 'Almeno 8 caratteri, con almeno una lettera e un numero.',
+  'cuenta.recuperar.guardando': 'Salvataggio…',
+  'cuenta.recuperar.error': 'Non è stato possibile reimpostare la password',
+
+  'cuenta.bienvenida.titulo': 'Prima di iniziare',
+  'cuenta.bienvenida.intro':
+    'Tre domande sulle ragioni sociali della tua azienda. Con queste il sistema sa a nome di chi si paga un affitto e chi emette una fattura.',
+  'cuenta.bienvenida.error.cargar': 'Non è stato possibile caricare il questionario',
+  'cuenta.bienvenida.ya.uno':
+    'La tua azienda ha già una ragione sociale registrata, quindi questo questionario ha già una risposta.',
+  'cuenta.bienvenida.ya.otros':
+    'La tua azienda ha già {n} ragioni sociali registrate, quindi questo questionario ha già una risposta.',
+  'cuenta.bienvenida.sin-roles': 'senza ruoli',
+  'cuenta.bienvenida.de-baja': ' (disattivata)',
+  'cuenta.bienvenida.cambiar': 'Per modificarle, aggiungerne un’altra o disattivarne una, vai a {enlace}.',
+  'cuenta.bienvenida.ir-razones': 'Vai a Ragioni sociali',
+  'cuenta.cuestionario.p1': 'La tua azienda ha più ragioni sociali?',
+  'cuenta.cuestionario.p1.ayuda':
+    'Quasi tutte le aziende del settore media distribuiscono la loro attività tra più ragioni sociali. Se ne hai una sola, così ti risparmi il resto.',
+  'cuenta.cuestionario.p2': 'L’operatività è nella stessa ragione sociale che vende o fattura?',
+  'cuenta.cuestionario.p2.ayuda':
+    'Di solito coincidono, ed è per questo che lo chiediamo: se è il tuo caso, il passo successivo ti chiede un dato in meno.',
+  'cuenta.cuestionario.p3.una': 'Indica la tua ragione sociale',
+  'cuenta.cuestionario.p3.varias': 'Indica le ragioni sociali per ogni ruolo all’interno della tua azienda',
+  'cuenta.cuestionario.p3.una.ayuda': 'Le verranno assegnati tutti i ruoli. Potrai separarli in seguito in Ragioni sociali.',
+  'cuenta.cuestionario.p3.varias.ayuda':
+    'Una stessa ragione sociale può avere più ruoli: scrivi lo stesso nome e verranno raggruppati in una sola. Quello che ancora non sai, lascialo vuoto.',
+  'cuenta.cuestionario.razon-social': 'Ragione sociale',
+  'cuenta.cuestionario.se-crearan.uno': 'Verrà creata 1 ragione sociale:',
+  'cuenta.cuestionario.se-crearan.otros': 'Verranno create {n} ragioni sociali:',
+  'cuenta.cuestionario.guardando': 'Salvataggio…',
+  'cuenta.cuestionario.guardar': 'Salva e continua',
+  'cuenta.cuestionario.mas-tarde': 'Lo faccio più tardi',
+  'cuenta.cuestionario.si': 'Sì',
+  'cuenta.cuestionario.no': 'No',
+  'cuenta.cuestionario.contesta': 'Rispondi alle domande prima di continuare.',
+  'cuenta.cuestionario.error.guardar': 'Non è stato possibile salvare il questionario',
+  'cuenta.cuestionario.listo': 'Fatto: {resumen}',
+
+  'cuenta.portal.no-corresponde': 'Questo link del portale non corrisponde a nessuna campagna attiva.',
+  'cuenta.portal.subtitulo': 'Portale del cliente',
+  'cuenta.portal.seguimiento': 'Monitoraggio della campagna',
+  'cuenta.portal.avance': 'Avanzamento della tua campagna',
+  'cuenta.portal.ubicaciones': 'Posizioni',
+  'cuenta.portal.evidencias': 'Prove di installazione',
+  'cuenta.portal.pie': '{org} · portale di monitoraggio',
+
+  // La propuesta publica lleva cualquier medio: «impianti», no solo schermi.
+  'cuenta.publica.no-corresponde': 'Questo link non corrisponde a nessuna proposta.',
+  'cuenta.publica.subtitulo': 'Proposta commerciale',
+  'cuenta.publica.aceptada': 'Accettata',
+  'cuenta.publica.pendiente': 'In attesa della tua approvazione',
+  'cuenta.publica.vencida': 'Proposta scaduta',
+  'cuenta.publica.solo-lectura': 'Sola lettura',
+  'cuenta.publica.vencio-el': 'scaduta in data {fecha}',
+  'cuenta.publica.valida-hasta': 'valida fino al giorno {fecha}',
+  'cuenta.publica.kpi.sitios': 'Siti',
+  'cuenta.publica.sitios': 'Siti della proposta',
+  'cuenta.publica.sin-ubicacion': 'Posizione non inserita',
+  'cuenta.publica.mapa.parcial.uno':
+    'Impianti senza coordinate: {faltan} su {n}. Il loro indirizzo è nell’elenco dei siti.',
+  'cuenta.publica.mapa.parcial.otros':
+    'Impianti senza coordinate: {faltan} su {n}. Il loro indirizzo è nell’elenco dei siti.',
+  'cuenta.publica.mapa.ninguna':
+    'Gli impianti di questa proposta non hanno ancora coordinate registrate. Controlla l’indirizzo di ognuno nell’elenco dei siti.',
+  'cuenta.publica.aceptada.titulo': 'Proposta accettata',
+  'cuenta.publica.aceptada.detalle': 'Accettata in data {fecha}. Il team commerciale è stato avvisato.',
+  'cuenta.publica.aceptada.detalle-por': 'Accettata da {quien} in data {fecha}. Il team commerciale è stato avvisato.',
+  'cuenta.publica.aceptas': 'Accetti questa proposta?',
+  'cuenta.publica.al-aceptar.uno':
+    'Accettando confermi {n} impianto e il totale di {total}. La tua accettazione viene registrata con data e ora.',
+  'cuenta.publica.al-aceptar.otros':
+    'Accettando confermi i {n} impianti e il totale di {total}. La tua accettazione viene registrata con data e ora.',
+  'cuenta.publica.tu-nombre': 'Il tuo nome e ruolo',
+  'cuenta.publica.aceptando': 'Accettazione…',
+  'cuenta.publica.aceptar': 'Accetta la proposta',
+  'cuenta.publica.vencida.detalle':
+    'Questa proposta è scaduta in data {fecha} e non può più essere accettata da qui. Chiedine una aggiornata a chi te l’ha inviata.',
+  'cuenta.publica.pie': 'Spaces · proposta commerciale',
+  'cuenta.publica.pie.solo-lectura': ' · questo link è in sola lettura',
+  'cuenta.publica.error.nombre': 'Scrivi il tuo nome per accettare',
+  'cuenta.publica.error.aceptar': 'Non è stato possibile accettare. Riprova.',
+}

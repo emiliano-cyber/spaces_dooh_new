@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { traducir } from '@/lib/i18n/diccionario'
-import { normalizarIdioma, IDIOMA_POR_OMISION, type Idioma } from '@/lib/i18n/idiomas'
+import { normalizarIdioma, IDIOMAS, IDIOMA_POR_OMISION, type Idioma } from '@/lib/i18n/idiomas'
 
 // ============================================================================
 //  app/global-error.tsx — la pagina cuando falla el LAYOUT RAIZ.
@@ -31,7 +31,10 @@ import { normalizarIdioma, IDIOMA_POR_OMISION, type Idioma } from '@/lib/i18n/id
 
 function idiomaDelDocumento(): Idioma {
   if (typeof document === 'undefined') return IDIOMA_POR_OMISION
-  return normalizarIdioma(document.documentElement?.lang) ?? IDIOMA_POR_OMISION
+  // `IDIOMAS` a mano (lote L5 del italiano): el `lang` ya lo decidio el
+  // servidor con sus interruptores, y en el navegador `IDIOMA_ITALIANO` no
+  // existe, asi que la omision (`idiomasPorOmision`) rechazaria el italiano.
+  return normalizarIdioma(document.documentElement?.lang, IDIOMAS) ?? IDIOMA_POR_OMISION
 }
 
 export default function ErrorGlobal({ reset }: { error: Error & { digest?: string }; reset: () => void }) {

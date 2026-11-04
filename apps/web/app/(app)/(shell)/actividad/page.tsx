@@ -83,7 +83,7 @@ export default function ActividadPage() {
         contentClassName="px-0 pb-0"
         resumen={acciones ? (
           <Chip tono={hayFiltro ? 'acento' : 'neutro'}>
-            <span className="demo-num">{t('admin.comun.n-de', { n: formatNumero(lista.length), total: formatNumero(acciones.length) })}</span>
+            <span className="demo-num">{t('admin.comun.n-de', { n: formatNumero(lista.length, 0, idioma), total: formatNumero(acciones.length, 0, idioma) })}</span>
           </Chip>
         ) : undefined}
       >

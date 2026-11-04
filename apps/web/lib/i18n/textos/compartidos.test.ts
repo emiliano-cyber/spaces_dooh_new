@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { ES_COMPARTIDOS, EN_COMPARTIDOS } from './compartidos'
+import { ES_COMPARTIDOS, EN_COMPARTIDOS, IT_COMPARTIDOS } from './compartidos'
 import { UNIDADES } from '../../periodos'
 import { PERIODICIDAD_RENTA_LABEL, PERIODICIDAD_VALUES } from '../../renta-periodicidad'
 import { AVISO_FRANJA_NO_VIAJA_AL_CMS } from '../../rejilla'
@@ -101,5 +101,44 @@ describe('diccionario compartidos · el espanol reproduce las tablas de su modul
     )
     const origenes = { ficha: 'ficha', mapa: 'mapa', servidor: 'servidor', ninguna: null } as const
     for (const [k, o] of Object.entries(origenes)) expect(es[`compartidos.doohmain.origen.${k}`]).toBe(textoOrigenDoohmain(o))
+  })
+})
+
+// Lote L5 del italiano (2026-11-03): el glosario comun de TODAS las pantallas.
+describe('diccionario compartidos · el italiano', () => {
+  const IT = IT_COMPARTIDOS as Record<string, string>
+
+  it('instantanea', () => {
+    expect(IT).toMatchSnapshot()
+  })
+
+  it('completo: cada clave espanola tiene su italiano', () => {
+    expect(Object.keys(ES_COMPARTIDOS).filter((k) => !IT[k])).toEqual([])
+  })
+
+  it('sin espacio antes de %, con el apostrofo tipografico', () => {
+    expect(Object.entries(IT).filter(([, v]) => / %/.test(v) || /\w'\w/.test(v)).map(([k]) => k)).toEqual([])
+  })
+
+  it('las periodicidades van en letra (ogni due mesi, due volte al mese), nunca con cifra', () => {
+    const per = Object.entries(IT).filter(([k]) => k.startsWith('compartidos.periodicidad.'))
+    expect(per.filter(([, v]) => /\d/.test(v)).map(([k]) => k)).toEqual([])
+    expect(IT['compartidos.periodicidad.bimestral']).toBe('Ogni due mesi')
+    expect(IT['compartidos.periodicidad.semestral']).toBe('Ogni sei mesi')
+    expect(IT['compartidos.periodicidad.quincenal']).toBe('Due volte al mese')
+  })
+
+  it('el selector de periodo dice lo del glosario', () => {
+    expect(
+      ['mes', 'mes-anterior', 'trimestre', 'trimestre-anterior', 'anio', 'rango'].map((k) => IT[`compartidos.periodo.${k}`]),
+    ).toEqual(['Questo mese', 'Mese scorso', 'Questo trimestre', 'Trimestre scorso', 'Quest’anno', 'Intervallo personalizzato'])
+  })
+
+  it('los dias de `NOMBRE_DIA` en italiano, de domingo a sabado', () => {
+    expect([0, 1, 2, 3, 4, 5, 6].map((i) => IT[`compartidos.dia.${i}`])).toEqual(['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'])
+  })
+
+  it('la etiqueta del trimestre usa la letra del formato italiano (T1 2026)', () => {
+    expect(traducir('it', 'compartidos.periodo.etiqueta.trimestre', { n: 1, anio: 2026 })).toBe('T1 2026')
   })
 })

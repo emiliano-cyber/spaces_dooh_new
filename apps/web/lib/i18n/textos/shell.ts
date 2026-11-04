@@ -23,6 +23,8 @@ export const ES_SHELL = {
   'shell.meta.descripcion': 'Gestión de espacios publicitarios DOOH',
 
   // ── 404 (`app/not-found.tsx`) ──
+  // El rotulo de encima del titulo: era un literal en `app/not-found.tsx`.
+  'shell.404.codigo': 'Error 404',
   'shell.404.titulo': 'Esta página no existe',
   'shell.404.detalle': 'La dirección es incorrecta o el registro que buscas ya no está disponible.',
   'shell.404.otra-seccion': 'Ir a otra sección',
@@ -116,6 +118,7 @@ export type ClaveShell = keyof typeof ES_SHELL
 export const EN_SHELL: Record<ClaveShell, string> = {
   'shell.meta.descripcion': 'DOOH advertising space management',
 
+  'shell.404.codigo': 'Error 404',
   'shell.404.titulo': 'This page doesn’t exist',
   'shell.404.detalle': 'The address is wrong or the record you’re looking for is no longer available.',
   'shell.404.otra-seccion': 'Go to another section',
@@ -191,11 +194,86 @@ export const EN_SHELL: Record<ClaveShell, string> = {
   'shell.disponibilidad.libres': '{libres} of {total} free',
 }
 
-// ─── ITALIANO · ola 0 (2026-11-03) ──────────────────────────────────────────
-// PARCIAL a proposito: lo rellena el lote de traduccion de este ambito
-// (`vault/03-Frontend/italiano-olas.md`). Mientras falte una clave, la
-// pantalla la pinta en INGLES (`diccionario.ts`, `DICCIONARIOS.it`) y la
-// prueba de cobertura (`cobertura-italiano.test.ts`) la cuenta como pendiente.
-// Cuando el lote termine, el tipo pasa a `Record<ClaveShell, string>` y `tsc`
-// vuelve a exigir cada clave, como en el ingles.
-export const IT_SHELL: Partial<Record<ClaveShell, string>> = {}
+// ─── ITALIANO · lote L5 (2026-11-03) ────────────────────────────────────────
+// COMPLETO: `Record`, asi que una clave nueva sin italiano no compila, como
+// en el ingles. Traducido desde el ESPANOL (el ingles, solo de apoyo), con
+// el glosario de `vault/03-Frontend/italiano-olas.md`.
+export const IT_SHELL: Record<ClaveShell, string> = {
+  'shell.meta.descripcion': 'Gestione degli spazi pubblicitari DOOH',
+
+  'shell.404.codigo': 'Errore 404',
+  'shell.404.titulo': 'Questa pagina non esiste',
+  'shell.404.detalle': 'L’indirizzo è sbagliato o il record che cerchi non è più disponibile.',
+  'shell.404.otra-seccion': 'Vai a un’altra sezione',
+  'shell.404.volver': 'Torna alla home',
+
+  'shell.error-global.titulo': 'Il sistema non è disponibile in questo momento',
+  'shell.error-global.detalle':
+    'Non siamo riusciti a connetterci al database. I tuoi dati non sono andati persi: riprova tra qualche minuto. Se continua così, avvisa chi amministra il sistema.',
+  'shell.error-global.reintentar': 'Riprova',
+
+  'shell.error.no-encontrada': 'Pagina non trovata',
+  'shell.error.servidor': 'Errore del server',
+  'shell.error.volver': '← Torna alla home',
+
+  'shell.topbar.abrir-menu': 'Apri il menu',
+  'shell.topbar.cerrar-menu': 'Chiudi il menu',
+  'shell.topbar.vista-de': 'Vista come {rol}',
+  'shell.topbar.notificaciones': 'Notifiche',
+  'shell.topbar.borrar-todas': 'Cancella tutte',
+  'shell.topbar.sin-notificaciones': 'Nessuna notifica',
+  'shell.topbar.cuenta': 'Account',
+  'shell.topbar.configuracion': 'Impostazioni dell’account',
+  'shell.topbar.codigos': 'Codici di recupero',
+  'shell.topbar.cerrar-sesion': 'Esci',
+
+  'shell.notificacion.borrar-aria': 'Elimina la notifica {titulo}',
+  'shell.notificacion.borrar-title': 'Elimina questa notifica',
+
+  'shell.candado.title.abierto': 'Modifiche sbloccate per altri {min} min · clicca per bloccare',
+  'shell.candado.title.cerrado': 'Le modifiche a denaro e catalogo richiedono una password',
+  'shell.candado.abierto': 'Sbloccato per {min} min',
+  'shell.candado.cerrado': 'Modifiche bloccate',
+  'shell.candado.titulo': 'Sblocca le modifiche',
+  'shell.candado.subtitulo': 'La tua password, o quella del controllo modifiche',
+  'shell.candado.explicacion':
+    'Le modifiche che toccano denaro o catalogo (tariffe, affitti, contratti, pagamenti, fatturazione ed eliminazioni) richiedono una password. Va bene {propia}, oppure la password del controllo modifiche assegnata dal Titolare. Inserendo una delle due resti sbloccato per un po’ e non ti verrà richiesta di nuovo.',
+  'shell.candado.explicacion.propia': 'la tua password di accesso',
+  'shell.candado.contrasena': 'Password',
+  'shell.candado.desbloquear': 'Sblocca',
+  'shell.candado.error': 'Non è stato possibile sbloccare',
+
+  'shell.licencia.gracia':
+    'La tua licenza di SPACE OS è scaduta in data {vence}. Il sistema smetterà di funzionare in data {finGracia}.',
+  'shell.licencia.aviso': 'La tua licenza di SPACE OS scade in data {vence}.',
+  'shell.licencia.renovar': 'Per rinnovarla, contatta il tuo fornitore.',
+
+  'shell.novedades.titulo': 'Novità della versione {version}',
+  'shell.novedades.subtitulo': 'Questa istanza è stata aggiornata. Ecco cosa è cambiato ({fecha}).',
+  'shell.novedades.ver-todas': 'Vedi tutte le novità',
+  'shell.novedades.entendido': 'Ho capito',
+
+  'shell.carga.titulo': 'Non è stato possibile caricare i dati',
+  'shell.carga.detalle':
+    'Le informazioni non sono arrivate dal server. Non è che non ci siano dati: non è stato possibile leggerli.',
+  'shell.carga.reintentar': 'Riprova',
+  'shell.carga.reintentando': 'Nuovo tentativo…',
+
+  'shell.placeholder.titulo': 'Modulo in costruzione ({fase})',
+  'shell.placeholder.detalle':
+    'Le fondamenta e il livello dei dati sono pronti; questa schermata viene costruita nella fase indicata.',
+
+  'shell.confirmar.confirmar': 'Conferma',
+  'shell.confirmar.procesando': 'Elaborazione…',
+  'shell.confirmar.escribe': 'Scrivi {texto} per confermare',
+
+  'shell.fotos.agregar': 'Aggiungi foto',
+  'shell.fotos.alt': 'foto di verifica',
+  'shell.fotos.quitar': 'Rimuovi foto',
+  'shell.fotos.cargando.uno': 'Caricamento della foto…',
+  'shell.fotos.cargando.otros': 'Caricamento di {n} foto…',
+
+  'shell.disponibilidad.sin-capturar': 'Nessuno slot inserito',
+  'shell.disponibilidad.sin-libres': 'Nessuno slot libero',
+  'shell.disponibilidad.libres': 'Liberi: {libres} su {total}',
+}
