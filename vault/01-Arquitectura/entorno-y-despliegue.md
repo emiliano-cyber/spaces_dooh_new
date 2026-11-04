@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-11-03
+actualizado: 2026-11-04
 tags: [despliegue, entorno, ci, env, instancias]
 archivos:
   - apps/web/lib/test/db-e2e.ts
@@ -165,6 +165,18 @@ archivos:
 
 ---
 # Entorno y despliegue
+
+> [!important] 2026-11-04 · Mudar g500 a un droplet NUEVO instalado desde cero, con todos sus datos
+> Guía para una persona: `docs/evidencias/30-mudar-g500-a-droplet-limpio-20261104.md`.
+> Ubuntu 24.04 (PostgreSQL 16 como g500), base del sistema con `setup-droplet.sh`
+> de `v0.12.5`, y encima la base `spaces` restaurada en una base VACÍA (roles con
+> el mismo hash por `pg_dumpall --roles-only`, sin esquema ni bootstrap), `/etc/space-os`
+> copiado tal cual (solo cambia `IP_PUBLICA`), Space Eyes por volúmenes (`rsync` en
+> caliente y en el corte) con su imagen local por `docker save`, y el certificado
+> copiado y reemitido tras el DNS. Dos trampas que deja escritas: `update.sh` **no
+> levanta el contenedor** sobre una base que ya dice instalada (`sin-cambios`), y
+> `git archive` sin `-c core.autocrlf=false` entrega `update.sh` en CRLF (medido:
+> `6add877f…`). Alternativa por instantánea: guía 29. Sin correr todavía.
 
 > [!danger] 2026-10-02 · El registro de imágenes se LLENA: limpiar antes de publicar
 > `release.yml` de `v0.9.2` falló con `denied: quota exceeded`: 471.52 de 500 MiB
