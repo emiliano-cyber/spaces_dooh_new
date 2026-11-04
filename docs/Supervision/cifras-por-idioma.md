@@ -216,3 +216,90 @@ Una: **D18** (en `ABIERTOS.md`, apartado A). No bloquea esta rama.
   al final del texto.
 - **Envío implícito con Enter** en las ofertas de negociación con el botón apagado: deducido de la
   norma HTML, no comprobado.
+
+---
+
+## 2.ª pasada (2026-11-04) · `efaf62d4` · Veredicto: VERDE
+
+Commits revisados: `468ee616` (rojo B77), `0281f9a8` (arreglo B77), `c5ffe82d` (B80), `03db5ea4`
+(B79), `5c771163` (merge de `integra/idiomas` `f92b9b26`, B78) y `efaf62d4` (docs). Medido en el
+worktree, en `efaf62d4`, con `git status` limpio antes y después de cada cambio temporal.
+
+### Lo que medí
+
+| Comprobación | Resultado |
+|---|---|
+| `npx tsc --noEmit` | `TSC=0` |
+| `npx vitest run` | `Test Files 408 passed (408)` · `Tests 8552 passed \| 1 skipped (8553)` |
+| Rojo de B77 en `468ee616` (italiano + formularios) | `Tests 4 failed \| 57 passed (61)`, por aserción: `2.5 → ["2","2","25"]: expected true to be false`, `expected { texto: '2', cursor: 1 } to deeply equal { texto: '2.', cursor: 2 }` |
+| Huella es contra la función de `cb116dde` | vieja y nueva `e5240e24…fda3` (sin idioma y forzada a `es`) |
+| Batería forzada a inglés en las 6 funciones | vieja y nueva `2bcafc85…f31a5` |
+| Volcado `I18N_VOLCAR_TODO` contra `f92b9b26`, `diff -rq` | 187 distintos, **0** fuera de `_italiano.txt`, 0 «solo en antes»; «solo en después» = las pruebas nuevas (incl. 3 de B79 en `pantallas-propuestas`) |
+| Servidor tocado respecto a `f92b9b26` | filtro de rutas de servidor sobre `git diff --name-only f92b9b26 HEAD` → vacío |
+| Mutantes M8–M13 (las seis guardias) y M17 (apagar el arreglo de B77) | **7/7 mueren**: M8, M9, M10, M12, M13 → `cifras-formularios`; M11 → `pantallas-propuestas`; M17 → 4 rojas |
+| `recuentos.mjs` | 116 notas · **1660** enlaces · 3 rotos (ADR) · 0 huérfanas = `CLAUDE.md:42` |
+| Marcadores de conflicto | `git grep -l "^<<<<<<< \|^>>>>>>> "` → nada |
+
+### B77, tecla a tecla (`formatearMientrasEscribe`, `insertText`)
+
+Al final del texto, en italiano:
+
+```
+"2.5"       pasos ["2","2.","2.5"]                       crudo NaN   (rechazado, se ve lo tecleado)
+"12.9"      pasos ["1","12","12.","12.9"]                crudo NaN
+"15000.50"  pasos [... "15.000","15.000.","15.000.5","15.000.50"]  crudo NaN
+"10.5", "2.50"                                           crudo NaN
+"1.500,50"  -> "1.500,50"   crudo 1500.5
+"12,9"      -> "12,9"       crudo 12.9
+"1500,50"   -> "1.500,50"   crudo 1500.5
+"1.500" y "1500" -> "1.500" crudo 1500 · "0,5" -> 0.5 · "1234567,89" -> "1.234.567,89" -> 1234567.89
+```
+
+Con el cursor en medio (cada posición de «1.500», «12,9», «1.500,50», «125», insertando «.», «,» o
+una cifra) y borrando en cada posición de «1.500», «12.500,5», «1.500.000» con retroceso y suprimir:
+el punto insertado se queda siempre donde se tecleó (y se rechaza si no cae en un millar); una cifra
+insertada se reagrupa («1.500» + 7 tras el 1 → «17.500»), que es la cifra que se tecleó; borrar un
+punto de millar borra la cifra vecina («1.500» → «500» o «100» según el lado), lo mismo que hace la
+coma en español desde siempre.
+
+**Barrido aleatorio** (30 000 secuencias × 12 teclas = 360 000 pasos por idioma; inserciones de
+cifra, «.» o «,» en posición aleatoria y borrados): cuento los pasos en que el campo cambia lo
+tecleado por algo con **otras cifras**, descontando los ceros a la izquierda y el borrado de un
+separador de millar.
+
+```
+FUZZ it  separador-tecleado-tragado 0   cambios-de-cifras-no-explicados 0
+FUZZ es  separador-tecleado-tragado 23846                (D18, anterior, sin tocar a propósito)
+```
+
+**No aparece ninguna forma nueva de que lo tecleado acabe en una cifra distinta de la que se ve**:
+el campo emite siempre la lectura del texto pintado (`CampoCifra`, `emitir(r.texto)`), y en
+italiano el texto pintado ya no pierde ningún separador tecleado. El español sigue tragando la coma
+(23 846 casos en el barrido): es exactamente lo de antes, y es D18.
+
+### Lo que no perdió el merge
+
+Para cada archivo que `integra/idiomas` cambió desde `cb116dde`, `git diff f92b9b26 HEAD`: solo
+difieren `CLAUDE.md` (recuento), `pantallas-propuestas.test.ts` (+44, B79), `italiano-l2.test.ts.snap`,
+`propuestas.ts` (+3, la clave nueva), `ABIERTOS.md` (+111), `italiano-olas.md` y el diario. Todas las
+líneas que desaparecen respecto a integra son las que esta rama reescribe a propósito (el recuento de
+enlaces, los dos avisos de tarifa italianos, el aviso P-L2-1 y la fila del diario, que conserva «D13
+contestada»). El snapshot tiene las 11 menciones de «provvigione» de integra **y** la clave de la
+calculadora. D17, B75 y B76 siguen en `ABIERTOS.md`. El tablero es idéntico al de integra (ninguna
+de las dos ramas lo toca).
+
+### Lo que queda
+
+- **B81, a medias.** El recuento sí; la entrada de la bitácora **está aplazada**, no hecha, por
+  indicación del coordinador hasta que se encienda el italiano. Es una decisión registrada, no un
+  defecto, pero la tarjeta dice «CERRADA» y además conserva pegado el cuerpo viejo («`CLAUDE.md:42`
+  dice 1656»), que ya es falso. Lo anoté en `ABIERTOS.md` junto a B82.
+- **B82** sigue abierta (menor). **D18** sigue para el dueño.
+
+### Lo que no verifiqué
+
+- La interfaz en un navegador (sin servidores, como se pidió). Todo lo de B77 está medido en la
+  función que llama el campo y, para el alta de Comercial, en el formulario montado con el arnés.
+- Qué produce la tecla decimal del teclado numérico en Windows italiano. Con el arreglo ya no
+  importa: si produce «.», el campo lo rechaza en vez de tragarlo.
+- E2e: sin cambio de servidor.

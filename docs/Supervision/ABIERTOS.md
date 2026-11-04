@@ -2749,6 +2749,11 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
   `node scripts/recuentos.mjs`: 1656 en `cb116dde`, **1659** en la rama; `CLAUDE.md:42` dice 1656.
   **Cómo se cierra:** entrada en lenguaje llano y medir de nuevo **tras fusionar**. **Quién:** quien
   integre. Documental.
+  > **Supervisión, 2.ª pasada (2026-11-04): B77, B78, B79 y B80 confirmadas como cerradas MIDIENDO**
+  > (detalle en `docs/Supervision/cifras-por-idioma.md`, «2.ª pasada»). **B81 queda a medias:** el
+  > recuento sí (1660 medido = `CLAUDE.md:42`); la entrada de la bitácora **no está hecha, está
+  > aplazada** por indicación del coordinador hasta encender el italiano. Al encenderlo, esa entrada
+  > es obligatoria: que nadie lea «B81 cerrada» como «bitácora escrita».
 - **B82 · ⚪ ABIERTA (2026-11-04) · Cambiar de idioma con un diálogo de cifras abierto.** En es/en
   `EntradaCifra` guarda lo tecleado; si se cambia a italiano con «1,500» escrito, el campo pinta
   «1.500» (medido: `textoDesdeCrudo('1,500','it')`) y el formulario manda `Number('1,500') || 0` = 0,
