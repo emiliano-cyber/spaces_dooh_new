@@ -96,6 +96,14 @@ describe('barrido italiano · la excepcion de la captura de cifras (P-L2-1), anc
     expect(sinDeclarar('<p>Importo 212,500.50</p>')).not.toHaveLength(0)
     expect(sinDeclarar('<p>Sconto (65.50)</p>')).not.toHaveLength(0)
     expect(sinDeclarar('<p>Prezzo es. 180,000 al mese</p>')).not.toHaveLength(0)
+    // Un placeholder de captura en la pantalla no tapa otro importe de la misma.
+    expect(sinDeclarar('<input placeholder="0.00"/><p>Totale MX$ 5,000.00</p>')).not.toHaveLength(0)
+    // El placeholder tiene que ser SOLO el ejemplo numerico, y ser placeholder.
+    expect(sinDeclarar('<input placeholder="Totale MX$ 5,000.00"/>')).not.toHaveLength(0)
+    expect(sinDeclarar('<input placeholder="5,000.00 al mese"/>')).not.toHaveLength(0)
+    expect(sinDeclarar('<span title="0.00"></span>')).not.toHaveLength(0)
+    // La explicacion, con el ejemplo justo detras.
+    expect(sinDeclarar('<p>il punto i decimali, totale 212,500.50</p>')).not.toHaveLength(0)
   })
 
   it('los ejemplos de captura SI: el placeholder y la explicacion', () => {

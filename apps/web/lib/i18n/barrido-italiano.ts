@@ -1,4 +1,4 @@
-import { DICCIONARIOS } from './diccionario'
+import { DICCIONARIOS, IT_PARCIAL } from './diccionario'
 import { textoLegible } from './guardias-ingles'
 import { huellasEnItaliano } from './guardias-italiano'
 
@@ -133,11 +133,13 @@ export function frasesAjenas(html: string, trozos: readonly TrozoAjeno[]): { tro
 /**
  * Lo que sale y es A PROPOSITO, con su porque. Se prueba contra el trozo
  * (normalizado), contra el contexto donde aparece (normalizado) o contra el
- * nombre del estado (`archivo`: `<prueba>/<estado>/<n>.html`).
+ * nombre del estado (`archivo`: `<prueba>/<estado>/<n>.html`). Con
+ * `placeholder`, solo una huella de formato cuyo trozo esta dentro de un
+ * `placeholder="…"` del HTML que encaja con el patron.
  */
 export interface Excepcion {
   patron: RegExp
-  en: 'trozo' | 'contexto' | 'archivo'
+  en: 'trozo' | 'contexto' | 'archivo' | 'placeholder'
   /** Solo frases o solo huellas de formato; sin decir, las dos. */
   tipo?: 'frase' | 'formato'
   motivo: string
@@ -164,7 +166,13 @@ export const A_PROPOSITO_IT: readonly Excepcion[] = [
   // ── La marca de la foto de Space Eyes ──
   { en: 'archivo', tipo: 'formato', patron: /pantallas-spaceeyes\.test\.ts.*(texto_con_foto_capturando|la_marca_de_la_foto|barrido_italiano_con_el_diccionario_entero.*086)/, motivo: 'la marca de agua de la foto va en es-MX en todos los idiomas: es la evidencia, se graba en la imagen (lote SPACE EYES)' },
   // ── Captura de cifras (P-L2-1) ──
-  { en: 'contexto', tipo: 'formato', patron: /212,500\.50|15,000\.50|65\.50|180,000|es\. 12\.9|es\. 7\.2|0\.00/, motivo: CIFRAS },
+  // ANCLADA (validacion del pulido, 04/11): sin anclar tapaba un importe
+  // ingles cualquiera («MX$ 5,000.00»). Solo los ejemplos de captura: el
+  // `placeholder` numerico de un campo («0.00», «Es. 12.9», «es. 180,000») y
+  // la explicacion de `captura-cifra` con su ejemplo («… il punto i decimali.
+  // Esempio: 212,500.50», «… i decimali (15,000.50)»).
+  { en: 'placeholder', tipo: 'formato', patron: /^(?:es\. )?-?\d[\d.,]*$/i, motivo: CIFRAS },
+  { en: 'contexto', tipo: 'formato', patron: /«([\d.,]+)» en «.*il punto i decimali(?:\. esempio: | \()\1(?:\)|»| )/, motivo: CIFRAS },
   // ── Espejos de Server Components ──
   { en: 'archivo', patron: /pantallas-inventario-arrendadores\.test\.ts.*(documento_del_contrato|firma_p_blica|B72_el_documento_del_contrato|barrido_con_el_diccionario_entero.*[\\/]07[2-7]\.html|ningun_estado_ingles_las_llev[\\/]07[2-7]\.html)/, motivo: `${ESPEJO_SC} (el documento del contrato, sin permiso y la firma publica; el cuerpo del contrato simulado va en español)` },
   { en: 'archivo', patron: /pantallas-propuestas\.test\.ts.*B72_la_propuesta_imprimible/, motivo: `${ESPEJO_SC} (la propuesta imprimible)` },
@@ -179,18 +187,81 @@ export interface Hallazgo {
   aProposito?: string
 }
 
-function excepcion(tipo: 'frase' | 'formato', archivo: string, trozo: string, contexto: string): string | undefined {
-  return A_PROPOSITO_IT.find(
-    (a) =>
-      (!a.tipo || a.tipo === tipo) &&
-      a.patron.test(a.en === 'archivo' ? archivo : a.en === 'trozo' ? normalizar(trozo) : contexto),
-  )?.motivo
+function placeholders(html: string): string[] {
+  return [...html.matchAll(/\splaceholder="([^"]*)"/g)].map((m) => m[1])
+}
+
+function excepcion(
+  tipo: 'frase' | 'formato',
+  archivo: string,
+  trozo: string,
+  contexto: string,
+  html: string,
+): string | undefined {
+  return A_PROPOSITO_IT.find((a) => {
+    if (a.tipo && a.tipo !== tipo) return false
+    if (a.en === 'placeholder') return placeholders(html).some((p) => a.patron.test(p) && p.includes(trozo))
+    return a.patron.test(a.en === 'archivo' ? archivo : a.en === 'trozo' ? normalizar(trozo) : contexto)
+  })?.motivo
+}
+
+// ─── Estatica: el italiano no lleva frases de OTRA clave ──────────────────────
+// Validacion del pulido (04/11). `trozosAjenos` da por no ajeno cualquier trozo
+// que aparezca en un texto italiano, asi que un `IT_*` con el espanol (o el
+// ingles) de otra clave era invisible para el barrido, la cobertura y la
+// costura. Esto lo mira sobre el diccionario y corre siempre. Doce letras y
+// dos palabras como minimo: con menos, «del periodo», «al momento» o «in
+// pipeline» son tambien italiano. Lo que es igual en los tres idiomas va en
+// `COGNADOS_IT`.
+export const COGNADOS_IT: readonly string[] = [
+  'foto del cliente', // spaceeyes: «foto del cliente», igual en italiano
+  'raspberry pi', // marca
+  'id del dispositivo', // «ID del dispositivo AdMobilize»
+]
+
+export interface FraseDeOtraClave {
+  clave: string
+  idioma: 'es' | 'en'
+  trozo: string
+  de: string
+}
+
+export function italianoConFrasesDeOtraClave(
+  dic: { es: Record<string, string>; en: Record<string, string>; it: Partial<Record<string, string>> } = {
+    es: DICCIONARIOS.es,
+    en: DICCIONARIOS.en,
+    it: IT_PARCIAL,
+  },
+): FraseDeOtraClave[] {
+  const cognados = new Set(COGNADOS_IT.map(normalizar))
+  const trozos: { trozo: string; idioma: 'es' | 'en'; de: string }[] = []
+  for (const idioma of ['es', 'en'] as const) {
+    for (const [de, valor] of Object.entries(dic[idioma])) {
+      for (const crudo of valor.split(/\{\w+\}/)) {
+        const t = normalizar(crudo.replace(/^[\s\p{P}]+|[\s\p{P}]+$/gu, ''))
+        if (t.length < 12 || (t.match(PALABRA) ?? []).length < 2 || cognados.has(t)) continue
+        trozos.push({ trozo: t, idioma, de })
+      }
+    }
+  }
+  const borde = (c: string | undefined) => c === undefined || !/[\p{L}\p{N}]/u.test(c)
+  const out: FraseDeOtraClave[] = []
+  for (const [clave, valor] of Object.entries(dic.it)) {
+    if (typeof valor !== 'string') continue
+    const n = normalizar(valor)
+    for (const t of trozos) {
+      if (t.de === clave) continue
+      const i = n.indexOf(t.trozo)
+      if (i !== -1 && borde(n[i - 1]) && borde(n[i + t.trozo.length])) out.push({ clave, idioma: t.idioma, trozo: t.trozo, de: t.de })
+    }
+  }
+  return out
 }
 
 export function barrerHtml(archivo: string, html: string, trozos: readonly TrozoAjeno[]): Hallazgo[] {
   const out: Hallazgo[] = []
   for (const { trozo, contexto } of frasesAjenas(html, trozos)) {
-    const motivo = excepcion('frase', archivo, trozo.trozo, contexto)
+    const motivo = excepcion('frase', archivo, trozo.trozo, contexto, html)
     out.push({
       archivo,
       tipo: 'frase',
@@ -203,7 +274,9 @@ export function barrerHtml(archivo: string, html: string, trozos: readonly Trozo
   // La moneda de la instancia con la que se rindio: hay pruebas USD.
   const moneda = /\bMX\$/.test(limpio) ? 'MXN' : /\bUS\$/.test(limpio) ? 'USD' : 'MXN'
   for (const h of huellasEnItaliano(limpio, { moneda })) {
-    out.push({ archivo, tipo: 'formato', detalle: h, aProposito: excepcion('formato', archivo, h, normalizar(h)) })
+    // El trozo de la huella es lo que va entre los primeros « ».
+    const trozo = /«([^»]*)»/.exec(h)?.[1] ?? h
+    out.push({ archivo, tipo: 'formato', detalle: h, aProposito: excepcion('formato', archivo, trozo, normalizar(h), limpio) })
   }
   return out
 }
