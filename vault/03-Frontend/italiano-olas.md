@@ -531,4 +531,17 @@ validar**. Detalle pantalla por pantalla en
   `it`) y `:3601` (instancia `es`), con los tres idiomas. Usuarios y contraseña,
   en la revisión (§9).
 
+- **Segunda vuelta, decisiones del orquestador (04/11):**
+  - **el inglés** usa también sus claves en los seis primeros arreglos
+    (`e2f79aa2`). El español sigue igual;
+  - **el contrato italiano** lleva el apóstrofo tipográfico, «all’installazione»
+    y fechas sin preposición articulada («a decorrere dal giorno … e fino al
+    giorno …», «in data …»; `aedef548`). Los 14 hashes españoles siguen en
+    verde y **D13 (abogado) sigue abierta**;
+  - **la fecha del comprobante en español** sale como dd/mm/aaaa: es el único
+    cambio del español, en 7 estados de una línea cada uno;
+  - **lo demás**, en `docs/Supervision/ABIERTOS.md` como **B69–B74**.
+
+  Revisión §11.
+
 Con esto, la última casilla de §4 está hecha, **pendiente de su validador**.

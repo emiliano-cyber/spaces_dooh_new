@@ -117,9 +117,11 @@ Lo único que ninguna prueba cubre es que `PagosRentaCard` pase «pagamenti» co
 
 Los defectos 1 a 6 también se ven en inglés: «Anterior / Siguiente», «Cargando…», «Procesando…», los dos papeles con acento, las tres fallas cortas y el aviso de recuperar contraseña. No se tocaron, por la regla de esta pasada. **Arreglarlos es quitar la condición `idioma === 'it'`**: las claves inglesas ya están. Cada sitio lo dice en su comentario, y hay un mutante que muere si se hace sin querer. Basta con que el dueño diga que sí.
 
+> **Hecho en la segunda vuelta (§11):** el orquestador decidió arreglar también el inglés.
+
 ## 6 · Lo que no se tocó (observaciones)
 
-**Para el abogado: el contrato italiano** (`lib/contrato-documento.ts`, sellado con hash; no se toca sin él).
+**Para el abogado: el contrato italiano** (`lib/contrato-documento.ts`, sellado con hash). *Los tres puntos de abajo se corrigieron en la segunda vuelta (§11); la revisión del abogado sigue pendiente (D13).*
 - «destinerà LO SPAZIO esclusivamente **a l’installazione**…» debería ser «**all’installazione**». El texto del uso permitido entra en una plantilla pensada para el español «a la instalación».
 - Usa el apóstrofo recto (') en todo el texto; el resto del italiano usa el tipográfico (’).
 - «dal {día} {mes}» está bien con el 31, pero con el 1, el 8 o el 11 pediría «dall’» o «dal 1°». No hay ningún contrato italiano firmado; si se cambia ahora, no se rompe ninguna firma.
@@ -134,6 +136,8 @@ Los defectos 1 a 6 también se ven en inglés: «Anterior / Siguiente», «Carga
 - En una instancia **española**, el comprobante pinta la fecha de emisión como llega de la API: «2026-09-01T06:00:00.000Z». El código espera `AAAA-MM-DD`.
 - `semilla-catalogo-demo.mjs` crea las propuestas sin `token_publico`, así que «Genera PDF» da 404 sobre la semilla.
 - El 404 de `/propuesta/[id]` (fuera del armazón) sale sin estilos, con un icono enorme.
+
+*Lo de esta sección que no se arregló en §11 está en `docs/Supervision/ABIERTOS.md` como B69 a B74.*
 - En `/contrato/[id]`, la constancia la arma el servidor al cargar la página. La firma de la conductora, hecha desde el panel de esa misma página, aparece en la constancia al recargar.
 
 **Ya conocidos y pendientes de decisión:** la captura de cifras a la mexicana en italiano (P-L2-1): «0.00» en el descuento, «382,800» en el abono, «es. 180,000». Los catálogos del SAT y los nombres de la semilla en español.
@@ -182,3 +186,45 @@ No se tocó nada de lo prohibido:
 - `aislamiento.e2e.test.ts` ni `servidor-e2e.ts`.
 
 Tampoco se usaron `git stash` ni `git push`. El 3500, `spaces_e2e`, `spaces_demo_nueva` y `spaces_idiomas_e2e` no se tocaron.
+
+## 11 · Segunda vuelta: decisiones del orquestador (2026-11-04)
+
+Tres commits sobre los de arriba, cada arreglo con su rojo primero y sus mutantes.
+
+**1 · El inglés también (`e2f79aa2`).** Los defectos 1 a 6 eran de traducción también en inglés. Fuera del español pasan ahora por el diccionario:
+- «1–20 of 260 payments · Previous · Next»;
+- «Loading…» y la pastilla con `shell.confirmar.procesando`;
+- los papeles con acento, traducidos;
+- las tres fallas cortas del backend;
+- el aviso de recuperar contraseña, el del diccionario.
+
+El español sale igual por construcción. **Estados ingleses que cambian:** ninguno de los volcados que ya existían, porque ninguna prueba de pantallas pintaba esos casos en inglés. Los cubren los casos nuevos de `recorrido-italiano.test.ts` («en ingles, of, Previous y Next», «Loading…», el papel y la falla en inglés, el aviso). `donde-falla.test.ts` dejó de usar «Pantalla congelada» como ejemplo de nombre desconocido, porque ahora se reconoce.
+
+**2 · El contrato italiano (`aedef548`).**
+- Apóstrofo tipográfico en todo el texto.
+- «esclusivamente all’installazione, alla gestione e allo sfruttamento commerciale…». Un uso escrito por una persona va tras «al seguente uso:», que no se contrae con nada.
+- Las fechas: «avrà validità a decorrere dal giorno 1 agosto 2026 e fino al giorno 31 luglio 2028» y «in data 29 luglio 2026».
+- Cambia el hash italiano, pero no hay ningún contrato italiano firmado. **Los 14 hashes españoles siguen en verde**, el inglés no se toca, y la huella del redactor (`textos/arrendadores.test.ts`) se actualiza a propósito.
+- **La revisión del abogado sigue pendiente (D13)**: esto corrige la lengua, no el contenido.
+
+**3 · La fecha del comprobante en español (`e2f79aa2`).** Es el **único cambio del español**, y es solo ese campo.
+- **Antes:** el dato tal cual: «2026-10-01» en las pruebas, «2026-09-01T06:00:00.000Z» con la API real.
+- **Después:** «01/10/2026», el mismo `formatFecha` que la lista de facturas.
+- **Volcado** contra el de la primera vuelta: **7 estados distintos, una línea cada uno**, todos ese `<span>`. Seis son de `pantallas-campanas-finanzas` (español MXN y USD, comprobante y finanzas desplegadas) y uno de `papeles-idioma-instancia` (instancia española, persona en inglés: el papel va en español).
+- Inglés e italiano, sin cambios.
+
+**Mutantes** (`scratchpad/mutantes2.mjs`): **13 de 15 mueren**. Los dos que sobreviven pasan el español por el diccionario en vez del literal. Son equivalentes: la clave española dice lo mismo que el literal.
+
+**4 · Anotado sin tocar.** En `docs/Supervision/ABIERTOS.md`:
+- **B69:** el aviso de idioma guardado sale en el idioma anterior.
+- **B70:** los controles del mapa y del *toaster* salen en inglés.
+- **B71:** el cierre de los diálogos no tiene nombre accesible.
+- **B72:** el `lang` de los papeles.
+- **B73:** el 404 sin estilos.
+- **B74:** las semillas no siembran una instancia `it`, y faltan los `token_publico`.
+
+**Cifras:**
+- typecheck limpio;
+- **8374 de 8374** unitarias en 401 archivos;
+- build en verde;
+- `DICCIONARIOS` sin cambios en esta vuelta.
