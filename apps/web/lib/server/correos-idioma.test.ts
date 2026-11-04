@@ -77,7 +77,7 @@ const ESPANOL = [
 
 describe.each(['en', 'it'] as const)('en %s no queda nada de la plantilla espanola', (idioma) => {
   const salidas = () => ({
-    invitacion: htmlCorreoInvitacion('Ana', 'https://x/b', idioma),
+    invitacion: htmlCorreoInvitacion('Ana <b>', 'https://x/b?t=1&u=2', idioma),
     asuntoInvitacion: asuntoCorreoInvitacion(idioma),
     propuesta: htmlCorreoPropuesta(D, idioma),
     asunto: asuntoCorreoPropuesta(D, idioma),
@@ -97,6 +97,10 @@ describe.each(['en', 'it'] as const)('en %s no queda nada de la plantilla espano
     const s = salidas()
     expect(s.propuesta).toContain('Medios &lt;SA&gt;')
     expect(s.propuesta).toContain('https://x/p/tok?a=1&amp;b=2')
+    // Ni en el boton ni en la direccion en claro: ningun `&` crudo.
+    expect(s.propuesta).not.toContain('a=1&b=2')
+    expect(s.invitacion).not.toContain('t=1&u=2')
+    expect(s.invitacion).toContain('Ana &lt;b&gt;')
     expect(s.propuesta).toContain('Hola\nqué tal'.replace('Hola', 'Hola')) // el mensaje del vendedor es DATO
     expect(s.recordatorios).toContain('Reforma &lt;222&gt;')
     expect(s.invitacion).not.toContain('<b>')

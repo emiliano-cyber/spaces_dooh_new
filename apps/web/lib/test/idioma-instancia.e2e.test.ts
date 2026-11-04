@@ -212,6 +212,29 @@ describe('una instancia con documentos en INGLES: redacta, congela, firma y cote
     expect(html).not.toContain('Constancia de firma electrónica')
   })
 
+  // Segunda vuelta del ADR 0049 (03/11): «todo debe salir en el idioma que se
+  // configuro el programa». La propuesta impresa es el otro papel que el
+  // servidor pinta entero; la liga /p y el portal se pintan en el navegador y
+  // los cubren las unitarias (`papeles-idioma-instancia.test.ts`).
+  it('la propuesta imprimible tambien sale en ingles; su barra, en el idioma de la persona', async () => {
+    const p = await poolTest().query(
+      `insert into propuestas (folio, nombre, tenant_id, token_publico)
+       values ('P-EN-E2E', 'Proposal in English', $1, 'token-propuesta-en-e2e-0049') returning id`,
+      [alfa.id],
+    )
+    try {
+      const r = await ca.pedir(`/propuesta/${p.rows[0].id}/`)
+      expect(r.status).toBe(200)
+      const html = String(r.datos)
+      expect(html).toContain('COMMERCIAL PROPOSAL')
+      expect(html).toContain('CLIENT ACCEPTANCE')
+      expect(html).not.toContain('PROPUESTA COMERCIAL')
+      expect(html).toContain('Volver a la propuesta')
+    } finally {
+      await poolTest().query('delete from propuestas where id = $1', [p.rows[0].id])
+    }
+  })
+
   it('NEGATIVO · si un dato cambia, la firma SI aparece alterada', async () => {
     await poolTest().query('update contratos_arrendamiento set monto_renta = 22000 where id = $1', [contratoId])
     const r = await ca.pedir(`/api/contratos/${contratoId}/firma/`)
