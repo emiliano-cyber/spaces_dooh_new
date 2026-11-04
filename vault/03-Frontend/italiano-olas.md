@@ -110,7 +110,7 @@ compara el italiano entre lotes, y el **recorrido en el navegador**.
 | P1 | **Dólar de una instancia USD en italiano** — provisional «US$ 1.160,00» | **Pendiente del dueño** |
 | P2 | Letra del trimestre en reportes — provisional «T1 2026» | Pendiente; lo confirma L4 |
 | P3 | Comillas italianas: « » o “ ” | Pendiente; lo fija L5 en el glosario. El apóstrofo es el tipográfico (’), ya vigilado |
-| P4 | **Idioma de la instancia para los contratos** (texto legal, cantidad con letra, constancia) en el idioma elegido al crear la instancia, como la moneda del ADR 0048 | **Decidido** (03/11) · **tarea ROJA aparte** (migración, firmas y hash, aprovisionamiento). Puntos de enganche en `docs/i18n/revision-italiano-base.md` §6 |
+| P4 | **Idioma de la instancia para los contratos** (texto legal, cantidad con letra, constancia) en el idioma elegido al crear la instancia, como la moneda del ADR 0048 | **Hecho** en `feat/idioma-instancia` ([ADR 0049](../../docs/adr/0049-el-idioma-de-los-documentos-es-de-la-instancia.md)): `tenants.idioma_documentos`, `--idioma es\|en\|it`, contrato y constancia en italiano («IL LOCATORE / IL CONDUTTORE», «MILLEDUECENTOTRENTAQUATTRO PESOS 50/100 MXN»). **Revisión legal pendiente.** Ver [[idiomas-es-en]] §12. **Segunda vuelta (03/11):** también la propuesta impresa, `/p`, el portal, el comprobante y los correos (no el CSV del estado de cuenta). Sus claves italianas (L2 y siguientes) caían al inglés hasta integrarse: **cerrado al integrar (04/11, B67)**, ver §8 |
 
 > [!note] El idioma de la interfaz NO se guarda en la base
 > Es por dispositivo, en la cookie `spaces_idioma` (decisión del 30/09). No hay
@@ -143,9 +143,10 @@ de la maquinaria: **textos de ejemplo del diccionario** (que caen al inglés, «
 - **Cobertura:** `operaciones` 177/177, `operaciones2` 205/205, `inventario`
   360/360, `arrendadores` 431/444. Los **13 que faltan son la constancia de
   firmas** (`arrendadores.constancia.*`): van en el idioma de la instancia, tarea
-  roja aparte (P4). El tipo lo dice:
+  roja aparte (P4). El tipo lo decía:
   `Record<Exclude<ClaveArrendadores, 'arrendadores.constancia.…'>, string>`; los
-  otros tres pasan a `Record` completo. La lista por omisión de una OT
+  otros tres pasan a `Record` completo. **Desde el 04/11 (B67, §8) `arrendadores`
+  también es `Record` completo, 444/444.** La lista por omisión de una OT
   (`checklist-ot.ts`) sale de `operaciones2` y ya pinta italiano.
 - **Glosario propio** (además del común):
 
@@ -412,3 +413,38 @@ italianas y 4 mensajes del catálogo italiano del servidor cambian.
 **Guardia nueva:** `costura.test.ts` prohíbe un artículo delante de una fecha
 (`il|al|dal|del|nel|sul|l’|all’|dall’|dell’` + `{fecha|fin|desde|inicio|hasta|vence}`)
 sobre **todo** `IT_PARCIAL`, con su prueba de que muerde. El barrido dio 0.
+
+## 8 · Integración con el idioma de la instancia · B67 cerrado (2026-11-04)
+
+`feat/idioma-instancia` (ADR 0049) fusionada en `integra/idiomas`. La rama traía
+los papeles en el idioma de la instancia, pero el italiano de sus claves nuevas
+caía al inglés: una instancia `it` mandaba el contrato en italiano y la
+propuesta, `/p`, el portal, el comprobante y los correos en inglés (B67).
+
+- **Claves italianas añadidas:** 6 `propuestas.correo.*`, 5
+  `cuenta.correo.invitacion.*`, 7 `notificaciones.correo.*` y 3 mensajes del
+  catálogo de errores del servidor (el idioma de los documentos al dar de alta).
+  Registro «tu», sin artículo ante fecha («fino al giorno {fecha}»), «Rif.
+  interno {folio}», «impianti», «link».
+- **La constancia de firmas** (13 claves) ya venía traducida en la rama («IL
+  LOCATORE / IL CONDUTTORE», como el contrato). Entra al final de
+  `IT_ARRENDADORES`, que deja de excluirla y pasa a `Record<ClaveArrendadores,
+  string>`. Una corrección: «sigillato il {fecha}» → «sigillato **in data**
+  {fecha}» (la guardia de `costura.test.ts` la habría tumbado). «Browser:
+  {navegador}» queda declarado cognado en `italiano-l3.test.ts`.
+- **Cobertura:** 5920/5920, 0 pendientes en los 26 ámbitos.
+- **Español e inglés:** `DICCIONARIOS.es/.en` son exactamente la unión de los
+  dos padres (5612 claves cada uno, comparadas por script); la única clave
+  distinta entre padres es `arrendadores.constancia.parte.arrendador` en
+  inglés, y gana «THE LESSOR» de la rama (D15).
+- **Pruebas nuevas:** el documento imprimible con instancia italiana y persona
+  en español (papel en italiano, barra en español) y el texto italiano de los
+  tres correos (`correos-idioma.test.ts`).
+- **Una e2e que lo daba por pendiente:** `bootstrap.e2e.test.ts` esperaba la
+  propuesta de una instancia `it` en INGLÉS («hasta que el lote L2 llegue») y
+  cayó en rojo al integrar; ahora exige «PROPOSTA COMMERCIALE» y que no salga
+  ni español ni inglés.
+- **Medido sobre el árbol fusionado:** typecheck limpio; unitarias **8306/8306**
+  (395 archivos); build; e2e con `spaces_idiomas_e2e` y puertos 3351/3352:
+  **1206 en verde, 1 en rojo, 21 omitidas** — el rojo es `grants-rol-app`
+  (`ECONNREFUSED :55471`, el Postgres efímero que esta máquina no levanta).

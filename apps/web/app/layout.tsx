@@ -7,6 +7,8 @@ import { idiomasActivos } from '@/lib/i18n/idiomas'
 import { ProveedorIdioma } from '@/lib/i18n/contexto'
 import { ProveedorMoneda } from '@/lib/i18n/moneda-cliente'
 import { monedaDeLaInstancia } from '@/lib/server/moneda-instancia'
+import { idiomaDeLaInstancia } from '@/lib/server/idioma-instancia'
+import { ProveedorIdiomaDocumentos } from '@/lib/i18n/idioma-documentos-cliente'
 import { traducir } from '@/lib/i18n/diccionario'
 
 // `generateMetadata` y no un `metadata` fijo: la descripcion sale en el idioma
@@ -88,6 +90,10 @@ const inter = Inter({
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const idioma = idiomaDeLaPeticion()
   const moneda = await monedaDeLaInstancia()
+  // ADR 0049 · el idioma de los DOCUMENTOS de la instancia, para los papeles
+  // que se pintan en el navegador (el comprobante). Fail-closed como la
+  // moneda: si la base no contesta, la pagina falla en vez de suponer espanol.
+  const idiomaDocumentos = await idiomaDeLaInstancia()
   // Los idiomas ENCENDIDOS (ola 0 del italiano, 2026-11-03). Con uno solo —el
   // espanol— no hay nada que elegir y el selector no se pinta.
   const disponibles = idiomasActivos()
@@ -96,7 +102,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body>
         <ProveedorMoneda moneda={moneda}>
           <ProveedorIdioma idioma={idioma} puedeElegir={disponibles.length > 1} disponibles={disponibles}>
-            <Providers>{children}</Providers>
+            <ProveedorIdiomaDocumentos idioma={idiomaDocumentos}>
+              <Providers>{children}</Providers>
+            </ProveedorIdiomaDocumentos>
           </ProveedorIdioma>
         </ProveedorMoneda>
       </body>

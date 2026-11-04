@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { traducir } from './diccionario'
 import { huellasDeFormatoEspanol } from './guardias-ingles'
 import { huellasEnItaliano } from './guardias-italiano'
 import { createElement, type ReactElement } from 'react'
@@ -191,6 +192,14 @@ vi.mock('@/lib/server/db', () => ({ q1: async () => ({ token_publico: 'tok' }) }
 vi.mock('@/lib/server/tenant', () => ({ tenantActual: async () => 't1' }))
 // ADR 0048 · el documento imprimible pide la moneda de la instancia a la base.
 vi.mock('@/lib/server/moneda-instancia', () => ({ monedaDeLaInstancia: async () => 'MXN' }))
+// ADR 0049 · el documento imprimible va en el idioma de los DOCUMENTOS de la
+// instancia. Por omision aqui es el MISMO que el de la peticion, para que los
+// casos de siempre sigan midiendo la traduccion de cada idioma; el caso
+// «instancia espanola, persona en ingles» lo fija aparte.
+const instancia = vi.hoisted(() => ({ idioma: null as null | 'es' | 'en' | 'it' }))
+vi.mock('@/lib/server/idioma-instancia', () => ({
+  idiomaDeLaInstancia: async () => instancia.idioma ?? cabeceras.cookie ?? 'es',
+}))
 vi.mock('@/lib/server/propuestas-repo', () => ({
   obtenerPropuestaPublica: async () => ({
     ...PROPUESTA, orgNombre: 'Medios SA', orgLogoUrl: null, clienteNombre: 'Refrescos del Norte',
@@ -1085,9 +1094,9 @@ describe('lote PROPUESTAS · en ingles, ninguna fecha, hora ni importe con forma
 //       `propuestas.*` aparece en el HTML italiano;
 //   (c) ninguna huella de formato espanol o ingles (`guardias-italiano.ts`).
 //
-// El documento imprimible es un Server Component: su idioma lo decide la
-// cookie (`idiomaDeLaPeticion()`), que aqui entra como 'it' con el italiano
-// encendido.
+// El documento imprimible es un Server Component: su papel va en el idioma
+// de la INSTANCIA (ADR 0049), que en este archivo sigue a la cookie salvo que
+// se fije aparte; aqui entra como 'it' con el italiano encendido.
 
 // Frases de las listas que en italiano se dicen IGUAL a proposito.
 const COMUNES_IT = new Set<string>([
@@ -1235,5 +1244,67 @@ describe('lote PROPUESTAS · en ITALIANO', () => {
     }
     expect(culpables).toEqual([])
     expect(vistos).toBeGreaterThan(200)
+  })
+})
+
+// ─── ADR 0049 · el documento imprimible va en el idioma de la INSTANCIA ─────
+// Decision del dueno (03/11): «todo debe salir en el idioma que se configuro
+// el programa». Fuera de PANTALLAS a proposito: aqui el ingles de la persona
+// convive con un papel en espanol, y los barridos de esa lista lo tomarian
+// por una traduccion olvidada.
+describe('ADR 0049 · el documento imprimible de la propuesta, en el idioma de la instancia', () => {
+  async function documento(persona: 'es' | 'en', deLaInstancia: 'es' | 'en' | 'it') {
+    cabeceras.cookie = persona
+    instancia.idioma = deLaInstancia
+    try {
+      const { default: Documento } = await import('../../app/(app)/propuesta/[id]/page')
+      const el = await Documento({ params: { id: 'p1' } })
+      forzar((v) => v === '', 'https://ejemplo.mx/spaces-dooh/p/tok/') // la liga del QR
+      return texto(pintar(persona, el))
+    } finally {
+      instancia.idioma = null
+      cabeceras.cookie = null
+    }
+  }
+
+  it('instancia ESPANOLA, persona en ingles: el papel en espanol, la barra en ingles', async () => {
+    const html = await documento('en', 'es')
+    for (const f of ['PROPUESTA COMERCIAL', 'ACEPTA EL CLIENTE', 'Válida hasta el 01/12/2026']) {
+      expect(html, f).toContain(f)
+    }
+    expect(html).not.toContain('COMMERCIAL PROPOSAL')
+    // La liga con su QR es de CLIENTE y va dentro del papel: tambien en espanol.
+    expect(html).toContain(traducir('es', 'propuestas.documento.qr.acepta'))
+    expect(html).toContain('Back to the proposal')
+  })
+
+  it('instancia INGLESA, persona en espanol: el papel en ingles, la barra en espanol', async () => {
+    const html = await documento('es', 'en')
+    for (const f of ['COMMERCIAL PROPOSAL', 'CLIENT ACCEPTANCE', 'Valid until Dec 1, 2026']) {
+      expect(html, f).toContain(f)
+    }
+    expect(html).not.toContain('PROPUESTA COMERCIAL')
+    expect(html).toContain(traducir('en', 'propuestas.documento.qr.acepta'))
+    expect(html).toContain('Volver a la propuesta')
+  })
+
+  // B67 · con el italiano integrado, una instancia `it` pinta el papel en
+  // italiano aunque la persona trabaje en espanol.
+  it('instancia ITALIANA, persona en espanol: el papel en italiano, la barra en espanol', async () => {
+    const antes = process.env.IDIOMA_ITALIANO
+    process.env.IDIOMA_ITALIANO = '1'
+    try {
+      const html = await documento('es', 'it')
+      for (const f of ['PROPOSTA COMMERCIALE', 'ACCETTAZIONE DEL CLIENTE', 'Valida fino al giorno 1 dic 2026']) {
+        expect(html, f).toContain(f)
+      }
+      expect(html).not.toContain('PROPUESTA COMERCIAL')
+      expect(html).not.toContain('COMMERCIAL PROPOSAL')
+      expect(html).toContain(traducir('it', 'propuestas.documento.qr.acepta'))
+      expect(html).toContain('Volver a la propuesta')
+    } finally {
+      if (antes === undefined) delete process.env.IDIOMA_ITALIANO
+      else process.env.IDIOMA_ITALIANO = antes
+    }
   })
 })

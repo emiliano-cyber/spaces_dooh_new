@@ -985,7 +985,10 @@ export const EN_ARRENDADORES: Record<ClaveArrendadores, string> = {
     'WARNING: the contract was modified after it was signed. The signatures marked below don’t match the text of this document and must not be considered valid.',
   'arrendadores.constancia.intro':
     'This document was sealed on {fecha} and electronically signed by the parties listed. The SHA-256 seal makes it possible to verify that the text hasn’t been altered since it was signed.',
-  'arrendadores.constancia.parte.arrendador': 'THE LANDLORD',
+  // ADR 0049 · LESSOR y no LANDLORD: desde el 03/11 la constancia es PAPEL del
+  // contrato (va en el idioma de los documentos), y el contrato en ingles dice
+  // «THE LESSOR». La interfaz sigue diciendo «landlord» en todas partes.
+  'arrendadores.constancia.parte.arrendador': 'THE LESSOR',
   'arrendadores.constancia.parte.arrendatario': 'THE LESSEE',
   'arrendadores.constancia.invalidada': ' — SIGNATURE INVALIDATED',
   'arrendadores.constancia.fecha': 'Date and time: {fecha}',
@@ -1067,12 +1070,12 @@ export const EN_ARRENDADORES: Record<ClaveArrendadores, string> = {
 // Cuando el lote termine, el tipo pasa a `Record<ClaveArrendadores, string>` y `tsc`
 // vuelve a exigir cada clave, como en el ingles.
 //
-// Lote L3 del italiano (2026-11-03): COMPLETO salvo la CONSTANCIA de firmas
-// (`arrendadores.constancia.*`, 13 claves). Por decision del dueño del 03/11
-// los contratos —el documento y la constancia que se imprime con el— van en el
-// IDIOMA DE LA INSTANCIA, y eso es una tarea roja aparte (firmas, hash,
-// aprovisionamiento). Mientras tanto la constancia en `it` cae al ingles, como
-// cualquier clave sin italiano. El tipo lo dice: `tsc` exige todas las demas.
+// Lote L3 del italiano (2026-11-03): COMPLETO. L3 dejo fuera la CONSTANCIA de
+// firmas (`arrendadores.constancia.*`, 13 claves) porque, por decision del
+// dueño del 03/11, los contratos —el documento y la constancia que se imprime
+// con el— van en el IDIOMA DE LA INSTANCIA, y eso era otra tarea (ADR 0049).
+// Al integrar las dos ramas (B67, 2026-11-04) la constancia entra al final de
+// este diccionario y el tipo vuelve a ser `Record` completo: `tsc` exige todo.
 //
 // GLOSARIO de este archivo (ademas del comun): arrendador / propietario →
 // locatore · arrendataria (nuestra empresa) → conduttrice · predio → immobile
@@ -1084,7 +1087,7 @@ export const EN_ARRENDADORES: Record<ClaveArrendadores, string> = {
 // conto economico · dar de baja (a un arrendador, se puede revertir en la
 // base) → disattivare · congelar (el texto que se firma) → congelare · sello
 // SHA-256 → sigillo SHA-256 · enlace → link.
-export const IT_ARRENDADORES: Record<Exclude<ClaveArrendadores, `arrendadores.constancia.${string}`>, string> = {
+export const IT_ARRENDADORES: Record<ClaveArrendadores, string> = {
   'arrendadores.titulo': 'Locatori',
   'arrendadores.comun.arrendador': 'Locatore',
   'arrendadores.comun.pantalla': 'Impianto',
@@ -1571,4 +1574,27 @@ export const IT_ARRENDADORES: Record<Exclude<ClaveArrendadores, `arrendadores.co
   'arrendadores.publica.firmar': 'Firma contratto',
   'arrendadores.publica.nota':
     'Al momento della firma verranno registrati la data e l’ora, il tuo indirizzo IP e il browser da cui firmi, insieme a un sigillo digitale (SHA-256) del testo esatto che stai firmando. Quel sigillo permette di dimostrare in seguito che il documento non è stato modificato.',
+  // ── ADR 0049 (03/11): la constancia de firmas, en italiano. No
+  // es pantalla sino PAPEL: se imprime pegada al contrato y va en el idioma de
+  // los documentos de la instancia. En una instancia italiana el contrato sale
+  // en italiano (`contrato-documento.ts`), y una constancia en ingles debajo
+  // seria un documento en dos idiomas. Las partes con los mismos nombres que el
+  // contrato: IL LOCATORE / IL CONDUTTORE. Revision legal pendiente, como el
+  // contrato.
+  'arrendadores.constancia.titulo': 'Attestazione di firma elettronica',
+  'arrendadores.constancia.alerta':
+    'ATTENZIONE: il contratto è stato modificato dopo la firma. Le firme indicate di seguito non corrispondono al testo di questo documento e non devono essere considerate valide.',
+  'arrendadores.constancia.intro':
+    'Questo documento è stato sigillato in data {fecha} e firmato elettronicamente dalle parti indicate. Il sigillo SHA-256 consente di verificare che il testo non sia stato alterato dopo la firma.',
+  'arrendadores.constancia.parte.arrendador': 'IL LOCATORE',
+  'arrendadores.constancia.parte.arrendatario': 'IL CONDUTTORE',
+  'arrendadores.constancia.invalidada': ' — FIRMA INVALIDATA',
+  'arrendadores.constancia.fecha': 'Data e ora: {fecha}',
+  'arrendadores.constancia.ip': 'Indirizzo IP: {ip}',
+  'arrendadores.constancia.ip-no': 'non registrato',
+  'arrendadores.constancia.navegador': 'Browser: {navegador}',
+  'arrendadores.constancia.navegador-no': 'non registrato',
+  'arrendadores.constancia.sello': 'Sigillo del documento firmato: {hash}',
+  'arrendadores.constancia.nota':
+    'Firma elettronica semplice. L’indirizzo IP e il browser sono dati forniti dal dispositivo del firmatario e sono conservati come indizi; da soli non costituiscono prova dell’identità. Questa attestazione non include il certificato e.firma del SAT né l’attestazione di conservazione NOM-151.',
 }

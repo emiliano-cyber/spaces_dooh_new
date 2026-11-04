@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-11-02
+actualizado: 2026-11-03
 tags: [datos, migraciones, despliegue, rojo]
 archivos:
   - db/migrations/
@@ -62,7 +62,7 @@ archivos:
 > [!important] 2026-10-05 · puesta al día — ninguna de las de abajo está ya «sin fusionar»
 > Medido hoy con `node scripts/recuentos.mjs` sobre el árbol de
 > `integra/riesgos-presentacion-14-oct` (salida de `main` en `09c65ca2`):
-> **123 migraciones y 66 tablas** (02/11, con `20261102_moneda_inmutable_por_instancia.sql`, ninguna tabla) (29/10, 122, con `20261029_propuestas_condiciones_vigencia_vendedor.sql`, cinco columnas y ninguna tabla) (29/10, 121, con `20261029_campana_extensiones.sql`, que crea `campana_extensiones`) (22/10, 117 y 64, con `20261022_campana_horario_doohmain.sql`, tres columnas en `campanas`) (22/10, 116 y 64, con `20261022_comercial_negociacion.sql`, que crea las cuatro tablas de Comercial negociación) (21/10, 115 y 60, con `20261021_notificaciones_por_usuario.sql`, que crea `notificaciones_usuario`: esta vez el 60 es una tabla de verdad) (19/10, 114 y 59, con `20261019_cobranza_abono_comprobante.sql`; antes 113) —el «60» que decía aquí el 13/10 era falso:
+> **124 migraciones y 66 tablas** (03/11, con `20261103_idioma_documentos_por_instancia.sql`, una columna y ninguna tabla) (02/11, 123, con `20261102_moneda_inmutable_por_instancia.sql`, ninguna tabla) (29/10, 122, con `20261029_propuestas_condiciones_vigencia_vendedor.sql`, cinco columnas y ninguna tabla) (29/10, 121, con `20261029_campana_extensiones.sql`, que crea `campana_extensiones`) (22/10, 117 y 64, con `20261022_campana_horario_doohmain.sql`, tres columnas en `campanas`) (22/10, 116 y 64, con `20261022_comercial_negociacion.sql`, que crea las cuatro tablas de Comercial negociación) (21/10, 115 y 60, con `20261021_notificaciones_por_usuario.sql`, que crea `notificaciones_usuario`: esta vez el 60 es una tabla de verdad) (19/10, 114 y 59, con `20261019_cobranza_abono_comprobante.sql`; antes 113) —el «60» que decía aquí el 13/10 era falso:
 > `recuentos.mjs` contaba como tabla la palabra `if` de un comentario de
 > `20261013_doohmain_seguimiento_unicas.sql`; corregido el 14/10 quitando los
 > comentarios antes de medir— (13/10, con `20261013_sitios_pantalla_doohmain.sql`; antes 112) (13/10, con `20261013_doohmain_seguimiento_unicas.sql`; antes 111) (12/10, con `20261012_razon_social_principal.sql`; antes 110) (07/10, con `20261011_contrato_cambios_solo_insercion.sql`; antes 109) (07/10, con `20261010_contrato_cambios.sql`; antes 108 y 58) (06/10, con `20261009_propuestas_fechas_estatus.sql`; antes 107) (06/10, con `20261008_cobranza_abonos.sql`). Es el recuento vigente; los de los recuadros
@@ -73,6 +73,7 @@ archivos:
 >
 > | Migración | Decía | Entró en `main` |
 > |---|---|---|
+> | `20261103_idioma_documentos_por_instancia.sql` | rama `feat/idioma-instancia` (ADR 0049), **aprobada por el dueño el 03/11** (ROJO R3, y firmas) | **Sin publicar.** Una columna, `tenants.idioma_documentos text not null default 'es'` —todas las organizaciones que ya existen quedan en español—, `check in ('es','en','it')` y dos triggers: no se cambia, y uno solo por instancia. No toca contratos ni firmas. Ver [[04-Datos/esquema]] (Triggers) y [[03-Frontend/idiomas-es-en]] §12 |
 > | `20261102_moneda_inmutable_por_instancia.sql` | rama `feat/moneda-por-instancia` (ADR 0048), **aprobada por el dueño el 02/11** (ROJO R3 y R4) | **Sin publicar.** Ninguna tabla ni columna. Comprueba ANTES de restringir (para con un mensaje si hay organizaciones fuera de MXN/USD o dos monedas en la base; no corrige a ciegas), alinea `config_negocio.moneda` con su organización, pone `check (moneda in ('MXN','USD'))` en `tenants` y `config_negocio` y cuatro triggers: la moneda no se cambia, una sola por instancia, y `config_negocio` la copia de su organización al nacer. Ver [[04-Datos/esquema]] (Triggers) y [[03-Frontend/idiomas-es-en]] §7 |
 > | `20261029_propuestas_condiciones_vigencia_vendedor.sql` | rama `feat/propuestas-completas` (PROP-COMPLETA + P19), **aprobada por el dueño el 29/10** (ROJO R3) | **Sin publicar.** Cinco columnas, ninguna tabla: `config_negocio.condiciones_propuesta` y `vigencia_propuesta_dias` (30, check 1–365); `propuestas.condiciones`, `vigente_hasta` y `vendedor_nombre`. Rellena `vendedor_nombre` de las propuestas que ya tenían vendedor; no toca importes ni estatus. Ver [[02-Backend/comercial-propuestas-campanas]] y [[02-Backend/vendedor-en-propuesta]] |
 > | `20261029_campana_extensiones.sql` | rama `feat/extender-con-contrato` (EXT-CONTRATO), **aprobada por el dueño el 29/10** (ROJO R3, forma restrict; y R4) | **Sin publicar.** Crea `campana_extensiones` (solo select e insert para la aplicación, RLS forzada, `campana_id` on delete restrict): el contrato firmado de cada extensión de campaña, sin sobrescribir `campanas.contrato_url`. No toca filas existentes. Ver [[02-Backend/comercial-propuestas-campanas]] |
@@ -1442,6 +1443,23 @@ de entidades añadía en paralelo. Si la necesitas, cuéntala, no la copies.
 >
 > Runner ×2 contra base desechable: **94 aplicadas** en la primera pasada, **0**
 > en la segunda, sin divergencia de checksum. Ver [[02-Backend/costo-real-de-ot]].
+
+## `20261103_idioma_documentos_por_instancia.sql` — el idioma de los documentos de la instancia no se cambia (03/11, ADR 0049)
+
+Decisión del dueño (03/11): el idioma de los **papeles y contratos** (es, en o
+it) se elige al crear la instancia y no se cambia; el de la interfaz es de cada
+persona. Añade `tenants.idioma_documentos` con DEFAULT `'es'`, así que **toda
+instancia que ya existe queda en español** y sus contratos se redactan y cotejan
+como ayer. No hay paso de comprobación previa como en la moneda: no hay ningún
+valor viejo que validar.
+
+Lectura antes de aplicarla (no cambia nada): ninguna. Después, para
+confirmarla, la propia migración imprime tres filas (fuera de es/en/it = 0;
+idiomas distintos = 1; triggers = 2).
+
+Medido el 03/11 sobre la base de integración (`recrearEsquema()`): todas en
+`es`, dos triggers, y aplicarla dos veces no cambia nada
+(`apps/web/lib/test/idioma-instancia.e2e.test.ts`).
 
 ## `20261102_moneda_inmutable_por_instancia.sql` — la moneda de la instancia no se cambia (02/11, ADR 0048)
 

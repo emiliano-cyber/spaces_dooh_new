@@ -77,6 +77,7 @@ vi.mock('next/font/google', () => ({
   Source_Serif_4: () => ({ variable: 'f-serif' }),
 }))
 vi.mock('@/lib/server/moneda-instancia', () => ({ monedaDeLaInstancia: async () => 'MXN' }))
+vi.mock('@/lib/server/idioma-instancia', () => ({ idiomaDeLaInstancia: async () => 'es' }))
 
 // Los cuadros reales van por portales de Radix, que en el servidor no pintan.
 vi.mock('@/components/demo/ui/Modal', () => ({

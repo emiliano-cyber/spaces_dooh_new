@@ -70,6 +70,13 @@ export const SIN_TRADUCIR: readonly string[] = []
 // 115 mensajes de `new AppError('...')` + 27 del embudo, del mapa de
 // Postgres, de zod y de las constantes compartidas.
 export const CATALOGO_ERRORES: Record<string, string> = {
+  // ADR 0049 (03/11) · el idioma de los DOCUMENTOS se elige al crear la instancia y no se cambia.
+  'El idioma de los documentos debe ser es, en o it':
+    'The document language must be es, en or it',
+  'El idioma de los documentos de la instancia ya está fijado: una organización nueva nace en el mismo que las demás':
+    'The instance document language is already set: a new organization is created with the same one as the others',
+  'El idioma de los documentos de la instancia solo se elige al darla de alta':
+    'The instance document language can only be chosen when the instance is created',
   // ADR 0048 (02/11) · la moneda de la instancia se elige al crearla y no se cambia.
   'La moneda debe ser MXN o USD':
     'The currency must be MXN or USD',
@@ -762,6 +769,13 @@ export const FALTA_FIRMA_EN: Record<string, string> = {
 // tambien dice la interfaz (validacion, calculadora, ubicacion) se dice igual
 // que su clave del diccionario: lo vigila `textos/costura.test.ts`.
 export const CATALOGO_ERRORES_IT: Partial<Record<string, string>> = {
+  // ADR 0049 · B67, al integrar con el italiano (2026-11-04).
+  'El idioma de los documentos debe ser es, en o it':
+    'La lingua dei documenti deve essere es, en o it',
+  'El idioma de los documentos de la instancia ya está fijado: una organización nueva nace en el mismo que las demás':
+    'La lingua dei documenti dell’istanza è già fissata: una nuova organizzazione nasce nella stessa lingua delle altre',
+  'El idioma de los documentos de la instancia solo se elige al darla de alta':
+    'La lingua dei documenti dell’istanza si sceglie solo alla sua creazione',
   'La moneda debe ser MXN o USD':
     'La valuta deve essere MXN o USD',
   'La moneda de la instancia ya está fijada: una organización nueva nace en la misma que las demás':

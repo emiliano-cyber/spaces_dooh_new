@@ -8,6 +8,7 @@ import { qRaw as q, qRaw1 as q1 } from './db'
 import { usuarioActual } from './auth'
 import { MONEDA_POR_OMISION, type Moneda } from '@/lib/i18n/dinero'
 import { monedaDeLaInstancia } from './moneda-instancia'
+import { IDIOMA_POR_OMISION, type Idioma } from '@/lib/i18n/idiomas'
 
 // ============================================================================
 //  lib/server/tenant.ts — Multi-tenant a nivel aplicación.
@@ -97,11 +98,14 @@ export async function listarTenants(): Promise<TenantRow[]> {
 // ADR 0048: `moneda` es la de la INSTANCIA y se escribe AQUI, al nacer, porque
 // despues la base no deja cambiarla. La decide `crearOrgConDueno` (la primera
 // organizacion la elige; las demas heredan la de la instancia).
+//
+// ADR 0049: lo mismo con el idioma de los DOCUMENTOS (contrato y constancia).
 export async function crearTenant(
   nombre: string,
   slug: string,
   client?: PoolClient,
   moneda: Moneda = MONEDA_POR_OMISION,
+  idiomaDocumentos: Idioma = IDIOMA_POR_OMISION,
 ): Promise<TenantRow> {
   const base = slug.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'crm'
   const uno = async (texto: string, params: unknown[]) =>
@@ -112,8 +116,8 @@ export async function crearTenant(
     s = `${base}-${i}`
   }
   const row = await uno(
-    'insert into tenants (nombre, slug, moneda) values ($1,$2,$3) returning id, nombre, slug, creado_en',
-    [nombre.trim(), s, moneda],
+    'insert into tenants (nombre, slug, moneda, idioma_documentos) values ($1,$2,$3,$4) returning id, nombre, slug, creado_en',
+    [nombre.trim(), s, moneda, idiomaDocumentos],
   )
   return { id: row.id, nombre: row.nombre, slug: row.slug, creadoEn: row.creado_en }
 }

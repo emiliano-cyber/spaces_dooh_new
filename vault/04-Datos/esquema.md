@@ -582,7 +582,7 @@ erDiagram
 ### Plataforma y acceso
 | Tabla | RLS | Nota |
 |---|---|---|
-| `tenants` | **Exenta** | Una fila por organización. **El esquema no siembra ninguna** (ver el aviso de arriba). Desde el 21/09 lleva `cambios_password_hash` — la contraseña compartida del candado de cambios (ADR 0036), `null` = sin asignar — ver [[02-Backend/autenticacion-y-sesion]]. Desde el 12/10 lleva `entidad_principal_id`: la razón social de la empresa es una de `entidades_fiscales` y se lee de ahí (FK compuesta con `id`); `razon_social` y `rfc` quedan de respaldo — ver [[02-Backend/entidades-fiscales]]  **Desde el 02/11 (ADR 0048), `moneda` es la de la INSTANCIA:** `check (moneda in ('MXN','USD'))`, no se puede cambiar (trigger `trg_tenants_moneda_inmutable`) y todas las organizaciones de la instancia comparten la misma (`trg_tenants_moneda_unica`) |
+| `tenants` | **Exenta** | Una fila por organización. **El esquema no siembra ninguna** (ver el aviso de arriba). Desde el 21/09 lleva `cambios_password_hash` — la contraseña compartida del candado de cambios (ADR 0036), `null` = sin asignar — ver [[02-Backend/autenticacion-y-sesion]]. Desde el 12/10 lleva `entidad_principal_id`: la razón social de la empresa es una de `entidades_fiscales` y se lee de ahí (FK compuesta con `id`); `razon_social` y `rfc` quedan de respaldo — ver [[02-Backend/entidades-fiscales]]  **Desde el 02/11 (ADR 0048), `moneda` es la de la INSTANCIA:** `check (moneda in ('MXN','USD'))`, no se puede cambiar (trigger `trg_tenants_moneda_inmutable`) y todas las organizaciones de la instancia comparten la misma (`trg_tenants_moneda_unica`). **Desde el 03/11 (ADR 0049), `idioma_documentos`** (`es`/`en`/`it`, DEFAULT `es`): el idioma del contrato y de la constancia de firmas de la INSTANCIA, con las mismas dos reglas (`trg_tenants_idioma_documentos_inmutable`, `trg_tenants_idioma_documentos_unico`) |
 | `usuarios` | fail-closed + FORCE | Correo UNIQUE **global** `lower(email)` |
 | `sesiones` | **Exenta** | + `desbloqueo_expira_en` + `desbloqueo_es_propio` (ADR 0036: si el desbloqueo vigente fue con la contraseña propia o la compartida) |
 | `identidades_externas` | fail-closed + FORCE | ADR 0012 |
@@ -772,6 +772,18 @@ todos los roles, superusuario incluido:
 Cambiar la moneda de una instancia que ya existe **no es un ajuste**: es una
 corrección de datos con tipo de cambio en `docs/datos/`, deshabilitando estos
 triggers a propósito. Ver [[03-Frontend/idiomas-es-en]] §7.
+
+**El idioma de los documentos de la instancia (03/11, ADR 0049,
+`20261103_idioma_documentos_por_instancia.sql`).** Dos triggers más, con la
+misma forma y para todos los roles:
+
+| Trigger | Tabla | Qué impide |
+|---|---|---|
+| `trg_tenants_idioma_documentos_inmutable` | `tenants` (before update of idioma_documentos) | Cambiar el idioma de los documentos. Reescribir el mismo pasa |
+| `trg_tenants_idioma_documentos_unico` | `tenants` (before insert) | Una organización en otro idioma de documentos que las existentes; serializa con `pg_advisory_xact_lock` |
+
+Cambiarlo no es un ajuste: los contratos firmados se cotejan regenerando su
+texto, y en otro idioma aparecerían alterados. Ver [[03-Frontend/idiomas-es-en]] §12.
 
 ## Relacionadas
 [[migraciones]] · [[multi-tenancy-y-rls]] · [[glosario]] ·

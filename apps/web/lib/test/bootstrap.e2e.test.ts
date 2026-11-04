@@ -372,6 +372,76 @@ describe('F5.2 · con token configurado', () => {
     expect(await cuantosTenants()).toBe(0)
   })
 
+  // ─── ADR 0049 · el idioma de los DOCUMENTOS se elige AQUI, y solo aqui ────
+  async function idiomas(): Promise<string[]> {
+    return (await poolTest().query('select idioma_documentos from tenants')).rows.map((r) => r.idioma_documentos)
+  }
+
+  it('ADR 0049 · sin `idiomaDocumentos` la instancia nace en es', async () => {
+    await vaciarTenants()
+    expect((await llamarBootstrap({ token: TOKEN })).status).toBe(201)
+    expect(await idiomas()).toEqual(['es'])
+  })
+
+  it('ADR 0049 · con `idiomaDocumentos: it` nace en italiano (y la moneda va aparte)', async () => {
+    await vaciarTenants()
+    const r = await llamarBootstrap({
+      token: TOKEN,
+      cuerpoPropio: { ...cuerpo(), idiomaDocumentos: 'it', moneda: 'USD' },
+    })
+    expect(r.datos?.error).toBeUndefined()
+    expect(r.status).toBe(201)
+    expect(await idiomas()).toEqual(['it'])
+    expect((await poolTest().query('select moneda from tenants')).rows[0].moneda).toBe('USD')
+  })
+
+  it('ADR 0049 · y la app pinta los papeles en italiano: la propuesta imprimible', async () => {
+    // Misma tecnica que la de la moneda: un Dueno con contrasena sembrado en la
+    // organizacion que acaba de nacer (en italiano y en USD), y el documento
+    // que se le entrega al cliente pintado por el SERVIDOR.
+    const t = (await poolTest().query('select id from tenants limit 1')).rows[0].id
+    await poolTest().query(
+      `insert into usuarios (nombre, email, rol, password_hash, activo, tenant_id)
+       values ('Gerente IT', 'gerente-it@ejemplo.com', 'DUENO', $1, true, $2)`,
+      [await bcrypt.hash(PASSWORD, 4), t],
+    )
+    const p = await poolTest().query(
+      `insert into propuestas (folio, nombre, tenant_id, token_publico)
+       values ('P-IT-E2E', 'Proposta', $1, 'token-propuesta-it-e2e-0049') returning id`,
+      [t],
+    )
+    const c = new Cliente()
+    await c.entrar('gerente-it@ejemplo.com', PASSWORD)
+    const r = await c.pedir(`/propuesta/${p.rows[0].id}/`)
+    expect(r.status).toBe(200)
+    const html = String(r.datos)
+    // Ni en espanol (el idioma de la persona) ni en ingles (la caida de una
+    // clave sin italiano): desde la integracion con el italiano (B67,
+    // 2026-11-04) el papel sale en italiano. El importe, con el formato italiano.
+    expect(html).not.toContain('PROPUESTA COMERCIAL')
+    expect(html).not.toContain('COMMERCIAL PROPOSAL')
+    expect(html).toContain('PROPOSTA COMMERCIALE')
+    expect(html).toContain('ACCETTAZIONE DEL CLIENTE')
+    expect(html).toContain('US$ 0,00')
+    await poolTest().query('delete from propuestas where id = $1', [p.rows[0].id])
+  })
+
+  it('NEGATIVO ADR 0049 · con `idiomaDocumentos: fr` es un 400 y NO nace nada', async () => {
+    await vaciarTenants()
+    const r = await llamarBootstrap({ token: TOKEN, cuerpoPropio: { ...cuerpo(), idiomaDocumentos: 'fr' } })
+    expect(r.status).toBe(400)
+    expect(JSON.stringify(r.datos)).toContain('es, en o it')
+    expect(await cuantosTenants()).toBe(0)
+    expect(await cuantosUsuarios()).toBe(0)
+  })
+
+  it('NEGATIVO ADR 0049 · `EN` en mayusculas tampoco: no se adivina', async () => {
+    await vaciarTenants()
+    const r = await llamarBootstrap({ token: TOKEN, cuerpoPropio: { ...cuerpo(), idiomaDocumentos: 'EN' } })
+    expect(r.status).toBe(400)
+    expect(await cuantosTenants()).toBe(0)
+  })
+
   it('(se deja la base como la dejaba el caso anterior: una organizacion en MXN)', async () => {
     await vaciarTenants()
     expect((await llamarBootstrap({ token: TOKEN })).status).toBe(201)

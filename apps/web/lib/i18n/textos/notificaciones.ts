@@ -32,6 +32,16 @@
 // ============================================================================
 
 export const ES_NOTIFICACIONES = {
+  // ── ADR 0049 · los correos van en el idioma de los DOCUMENTOS de la instancia ──
+  // (`lib/server/correo-recordatorios.ts`). Mismo texto que la plantilla
+  // literal espanola (lo ata `correos-idioma.test.ts`).
+  'notificaciones.correo.contratos.asunto': 'Contratos que necesitan atención: {resumen}',
+  'notificaciones.correo.contratos.titulo': 'Contratos que necesitan atención',
+  'notificaciones.correo.contratos.pie': '{org} · este aviso se envía una vez al día y solo cuando hay algo nuevo.',
+  'notificaciones.correo.resumen.vencido.uno': '{n} vencido',
+  'notificaciones.correo.resumen.vencido.otros': '{n} vencidos',
+  'notificaciones.correo.resumen.por-vencer': '{n} por vencer',
+  'notificaciones.correo.resumen.sin-capturar': '{n} sin capturar',
   // ── Propuestas (`app/api/propuestas/[id]/route.ts`, `propuestas-repo.ts`) ──
   'notificaciones.propuesta.aprobada': 'Propuesta aprobada',
   'notificaciones.propuesta.rechazada': 'Propuesta rechazada',
@@ -90,6 +100,14 @@ export const ES_NOTIFICACIONES = {
 } as const
 
 export const EN_NOTIFICACIONES: Record<keyof typeof ES_NOTIFICACIONES, string> = {
+  // ── ADR 0049 · los correos van en el idioma de los DOCUMENTOS de la instancia ──
+  'notificaciones.correo.contratos.asunto': 'Contracts that need attention: {resumen}',
+  'notificaciones.correo.contratos.titulo': 'Contracts that need attention',
+  'notificaciones.correo.contratos.pie': '{org} · this notice is sent once a day and only when there is something new.',
+  'notificaciones.correo.resumen.vencido.uno': '{n} expired',
+  'notificaciones.correo.resumen.vencido.otros': '{n} expired',
+  'notificaciones.correo.resumen.por-vencer': '{n} due soon',
+  'notificaciones.correo.resumen.sin-capturar': '{n} not entered',
   'notificaciones.propuesta.aprobada': 'Proposal approved',
   'notificaciones.propuesta.rechazada': 'Proposal rejected',
   'notificaciones.propuesta.aceptada': 'Proposal accepted by the client',
@@ -146,6 +164,18 @@ export const EN_NOTIFICACIONES: Record<keyof typeof ES_NOTIFICACIONES, string> =
 // en el ingles. Traducido desde el ESPANOL (el ingles, solo de apoyo), con
 // el glosario de `vault/03-Frontend/italiano-olas.md`.
 export const IT_NOTIFICACIONES: Record<keyof typeof ES_NOTIFICACIONES, string> = {
+  // ── ADR 0049 · el correo de recordatorios de contratos, en el idioma de los
+  // DOCUMENTOS de la instancia (`lib/server/correo-recordatorios.ts`). B67, al
+  // integrar con el italiano (2026-11-04). El resumen habla de contratos
+  // (masculino); «in scadenza» y «da inserire» no cambian con el numero.
+  'notificaciones.correo.contratos.asunto': 'Contratti che richiedono attenzione: {resumen}',
+  'notificaciones.correo.contratos.titulo': 'Contratti che richiedono attenzione',
+  'notificaciones.correo.contratos.pie': '{org} · questo avviso viene inviato una volta al giorno e solo quando c’è qualcosa di nuovo.',
+  'notificaciones.correo.resumen.vencido.uno': '{n} scaduto',
+  'notificaciones.correo.resumen.vencido.otros': '{n} scaduti',
+  'notificaciones.correo.resumen.por-vencer': '{n} in scadenza',
+  'notificaciones.correo.resumen.sin-capturar': '{n} da inserire',
+
   'notificaciones.propuesta.aprobada': 'Proposta approvata',
   'notificaciones.propuesta.rechazada': 'Proposta rifiutata',
   'notificaciones.propuesta.aceptada': 'Proposta accettata dal cliente',

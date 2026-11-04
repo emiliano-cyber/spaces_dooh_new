@@ -28,6 +28,20 @@ archivos:
 
 # Modelo de instancias soberanas — avance de la corrección
 
+> [!danger] 2026-11-03 · el IDIOMA DE LOS DOCUMENTOS también se elige al dar de alta, y es para siempre
+> [ADR 0049](../../docs/adr/0049-el-idioma-de-los-documentos-es-de-la-instancia.md).
+> Igual que la moneda: `provision-instancia.sh … --bootstrap --idioma en
+> --confirmar` (o `--idioma=en`; `es`, `en` o `it`, sin la bandera `es`). Es el
+> idioma del **contrato** y de la **constancia de firmas**, no el de la
+> interfaz. Viaja como `idiomaDocumentos` en `POST /api/bootstrap`, se escribe en
+> `tenants.idioma_documentos` y la base impide cambiarlo
+> (`20261103_idioma_documentos_por_instancia.sql`). Las instancias que ya
+> existían quedan en `es`. **La traducción del contrato al inglés y al
+> italiano todavía no la revisó un abogado**: no se aprovisiona un cliente
+> real en `en`/`it` hasta que el dueño lo diga. Lo prueban
+> `infra/scripts/pruebas-provision.sh` (escenarios «ADR 0049») y
+> `apps/web/lib/test/bootstrap.e2e.test.ts`.
+
 > [!danger] 2026-11-02 · la MONEDA se elige al dar de alta la instancia, y es para siempre
 > [ADR 0048](../../docs/adr/0048-la-moneda-es-de-la-instancia-y-no-se-cambia.md).
 > Cada instancia trabaja en **MXN o USD**. Se elige en el paso del bootstrap:

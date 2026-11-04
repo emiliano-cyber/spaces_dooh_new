@@ -34,6 +34,7 @@ const COGNADOS = new Set<string>([
   'operaciones.almacen.col.tipo', // Tipo
   'operaciones.almacen.alta.tipo', // Tipo
   'operaciones.almacen.mover.motivo', // Motivo / nota
+  'arrendadores.constancia.navegador', // Browser: {navegador} (B67, igual al ingles)
   'inventario.titulo', // Inventario
   'inventario.tabla.col.tipo', // Tipo
   'inventario.tabla.doohmain-servidor', //  · server
@@ -77,7 +78,9 @@ describe('italiano L3 · el diccionario entero, sin depender de lo que se rinde'
     const IT = itDic as Partial<Record<string, string>>
     const ES = es as Record<string, string>
     const EN = en as Record<string, string>
-    const claves = Object.keys(ES).filter((k) => !k.startsWith('arrendadores.constancia.'))
+    // Desde la integracion con el ADR 0049 (B67, 2026-11-04) la constancia
+    // tambien tiene italiano: ya no se excluye.
+    const claves = Object.keys(ES)
 
     it(`${ambito} · ninguna clave igual al ingles ni al espanol (salvo cognados declarados)`, () => {
       const copias = claves.filter((k) => !COGNADOS.has(k) && (IT[k] === EN[k] || IT[k] === ES[k]))

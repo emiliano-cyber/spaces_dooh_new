@@ -134,6 +134,8 @@ export async function POST(req: Request) {
       entraConGoogle: true,
       // ADR 0048 · esta es la UNICA puerta que elige la moneda de la instancia.
       eligeMoneda: true,
+      // ADR 0049 · y el idioma de los documentos (contrato y constancia).
+      eligeIdiomaDocumentos: true,
     })
     return NextResponse.json(res, { status: 201, headers: { 'cache-control': 'no-store' } })
   } catch (e) {

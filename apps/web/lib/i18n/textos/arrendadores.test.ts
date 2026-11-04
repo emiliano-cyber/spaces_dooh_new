@@ -176,18 +176,25 @@ describe('arrendadores · los avisos que no se rinden usan su clave', () => {
 // ============================================================================
 //  EL CONTRATO NO SE TRADUCE. Ni su redactor ni lo que se imprime con el.
 // ============================================================================
-describe('arrendadores · el documento del contrato sigue en espanol', () => {
-  it('el redactor (`lib/contrato-documento.ts`) no usa el diccionario', () => {
+describe('arrendadores · el documento del contrato va en el idioma de la INSTANCIA (ADR 0049)', () => {
+  it('el redactor (`lib/contrato-documento.ts`) no usa el diccionario de la interfaz', () => {
+    // Solo importa el TIPO `Idioma`. Sus textos no son claves del diccionario:
+    // son el texto que se sella, y no puede cambiar porque alguien retoque una
+    // traduccion de pantalla.
     const doc = leer('lib/contrato-documento.ts')
-    expect(doc).not.toMatch(/i18n/)
+    expect(doc).not.toMatch(/diccionario|traducir|servidor'/)
+    expect(doc).toMatch(/^import type \{ Idioma \} from '@\/lib\/i18n\/idiomas'$/m)
   })
 
-  it('el redactor sigue INTACTO: el mismo contenido que en ec427a66, byte a byte', () => {
+  it('el redactor: su huella se actualiza A PROPOSITO en el commit que lo cambia', () => {
     // Su texto, la cantidad con letra y lo que entra en el hash de las firmas
     // viven aqui. Cambiar este archivo es cambiar lo que se firma: si alguien lo
     // edita a proposito, esta huella se actualiza en el mismo commit y se ve.
+    // ADR 0049 (03/11): cambio a proposito (ingles e italiano). Que el ESPANOL
+    // no cambio ni un byte lo demuestran los hashes de
+    // `lib/contrato-documento-idioma.test.ts`, medidos antes del cambio.
     const huella = createHash('sha256').update(leer('lib/contrato-documento.ts')).digest('hex')
-    expect(huella).toBe('662e1799f5af778c73462ef6d858fce09adc8b7270339e99cde5595c4a3cbcc4')
+    expect(huella).toBe('dcea4862a7945a00a95171b2e665b094dc362a24780ed49fd49cde60654c880d')
   })
 
   it('el hash de las firmas es el del documento, no el de la constancia', () => {
@@ -196,21 +203,28 @@ describe('arrendadores · el documento del contrato sigue en espanol', () => {
     expect(repo).not.toMatch(/ConstanciaFirmas|constancia/i)
   })
 
-  it('la constancia (decision del dueño, 2026-11-02) se pinta en el idioma configurado', () => {
+  it('la constancia va en el idioma de los DOCUMENTOS, no en el de la peticion (ADR 0049)', () => {
     const constancia = leer('components/demo/arrendadores/ConstanciaFirmas.tsx')
     // Por clave, con el idioma que llega como prop desde la pagina…
     expect(constancia).toMatch(/traducir\(idioma, clave, valores\)/)
     expect(constancia).not.toMatch(/>\s*Constancia de firma electrónica\s*</)
-    expect(leer('app/(app)/contrato/[id]/page.tsx')).toMatch(/<ConstanciaFirmas estado=\{estadoFirmas\} idioma=\{idiomaDeLaPeticion\(\)\} \/>/)
+    const pagina = leer('app/(app)/contrato/[id]/page.tsx')
+    expect(pagina).toMatch(/<ConstanciaFirmas estado=\{estadoFirmas\} idioma=\{idiomaDoc\} \/>/)
+    expect(pagina).toMatch(/const idiomaDoc: Idioma = doc\.idioma \?\? 'es'/)
+    // NEGATIVO: ya no la decide la peticion.
+    expect(pagina).not.toMatch(/<ConstanciaFirmas[^>]*idiomaDeLaPeticion/)
     // …y en espanol dice lo de siempre.
     expect(traducir('es', 'arrendadores.constancia.titulo')).toBe('Constancia de firma electrónica')
   })
 
-  it('el documento y su bloque de firmas siguen en espanol', () => {
+  it('lo impreso alrededor del texto sale de la tabla del redactor; en espanol, lo de siempre', () => {
     const pagina = leer('app/(app)/contrato/[id]/page.tsx')
-    expect(pagina).toContain(`'FIRMADO ELECTRÓNICAMENTE'`)
-    expect(pagina).toContain('<h2 className="doc-h2">DECLARACIONES</h2>')
-    expect(pagina).toContain('Es un BORRADOR basado en cláusulas de uso común')
+    expect(pagina).toContain('<h2 className="doc-h2">{e.declaraciones}</h2>')
+    expect(pagina).toContain('<p className="doc-aviso">{e.aviso}</p>')
+    const doc = leer('lib/contrato-documento.ts')
+    expect(doc).toContain(`selloFirmado: 'FIRMADO ELECTRÓNICAMENTE'`)
+    expect(doc).toContain(`declaraciones: 'DECLARACIONES'`)
+    expect(doc).toContain('Es un BORRADOR basado en cláusulas de uso común')
   })
 
   it('la firma publica pinta el documento congelado tal cual', () => {

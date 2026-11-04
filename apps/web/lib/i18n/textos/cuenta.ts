@@ -22,6 +22,16 @@
 // ============================================================================
 
 export const ES_CUENTA = {
+  // ── ADR 0049 · los correos van en el idioma de los DOCUMENTOS de la instancia ──
+  // (`lib/server/email.ts`, `htmlCorreoInvitacion`). Mismo texto que la
+  // plantilla literal espanola (lo ata `correos-idioma.test.ts`).
+  'cuenta.correo.invitacion.asunto': 'Te dieron acceso a Space OS · elige tu contraseña',
+  'cuenta.correo.invitacion.titulo': 'Te dieron acceso a Space OS',
+  'cuenta.correo.invitacion.cuerpo':
+    'Hola {nombre}, se creó una cuenta para ti en Space OS. Haz clic en el botón para elegir tu contraseña. Este enlace vence en 72 horas y solo se puede usar una vez.',
+  'cuenta.correo.invitacion.boton': 'Elegir mi contraseña',
+  'cuenta.correo.invitacion.pie':
+    'Si el enlace venció, pide a quien te dio de alta que te envíe otro. Si el botón no funciona, copia y pega este enlace:',
   // ── Comunes de este ambito ──
   'cuenta.comun.enlace-invalido': 'Enlace no válido',
   'cuenta.comun.ir-inicio': 'Ir al inicio',
@@ -171,6 +181,14 @@ export const ES_CUENTA = {
 export type ClaveCuenta = keyof typeof ES_CUENTA
 
 export const EN_CUENTA: Record<ClaveCuenta, string> = {
+  // ── ADR 0049 · los correos van en el idioma de los DOCUMENTOS de la instancia ──
+  'cuenta.correo.invitacion.asunto': 'You’ve been given access to Space OS · choose your password',
+  'cuenta.correo.invitacion.titulo': 'You’ve been given access to Space OS',
+  'cuenta.correo.invitacion.cuerpo':
+    'Hi {nombre}, an account was created for you in Space OS. Click the button to choose your password. This link expires in 72 hours and can only be used once.',
+  'cuenta.correo.invitacion.boton': 'Choose my password',
+  'cuenta.correo.invitacion.pie':
+    'If the link expired, ask whoever added you to send you another one. If the button doesn’t work, copy and paste this link:',
   'cuenta.comun.enlace-invalido': 'Invalid link',
   'cuenta.comun.ir-inicio': 'Go to the home page',
   'cuenta.comun.nueva-contrasena': 'New password',
@@ -312,6 +330,17 @@ export const EN_CUENTA: Record<ClaveCuenta, string> = {
 // en el ingles. Traducido desde el ESPANOL (el ingles, solo de apoyo), con
 // el glosario de `vault/03-Frontend/italiano-olas.md`.
 export const IT_CUENTA: Record<ClaveCuenta, string> = {
+  // ── ADR 0049 · el correo de invitacion, en el idioma de los DOCUMENTOS de la
+  // instancia (`lib/server/email.ts`). B67, al integrar con el italiano
+  // (2026-11-04): sin estas claves una instancia `it` lo mandaba en ingles.
+  'cuenta.correo.invitacion.asunto': 'Ti è stato dato accesso a Space OS · scegli la tua password',
+  'cuenta.correo.invitacion.titulo': 'Ti è stato dato accesso a Space OS',
+  'cuenta.correo.invitacion.cuerpo':
+    'Ciao {nombre}, è stato creato un account per te su Space OS. Fai clic sul pulsante per scegliere la tua password. Questo link scade tra 72 ore e si può usare una sola volta.',
+  'cuenta.correo.invitacion.boton': 'Scegli la mia password',
+  'cuenta.correo.invitacion.pie':
+    'Se il link è scaduto, chiedi a chi ti ha registrato di inviartene un altro. Se il pulsante non funziona, copia e incolla questo link:',
+
   'cuenta.comun.enlace-invalido': 'Link non valido',
   'cuenta.comun.ir-inicio': 'Vai alla home',
   'cuenta.comun.nueva-contrasena': 'Nuova password',

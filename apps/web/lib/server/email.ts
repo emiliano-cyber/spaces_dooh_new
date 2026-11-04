@@ -1,4 +1,6 @@
 import 'server-only'
+import { traducir } from '@/lib/i18n/diccionario'
+import type { Idioma } from '@/lib/i18n/idiomas'
 
 // ============================================================================
 //  lib/server/email.ts — Envío de correo transaccional vía Resend (API REST).
@@ -125,11 +127,54 @@ export function htmlCorreoReset(nombre: string, link: string): string {
   </div>`
 }
 
+// ─── ADR 0049 · los correos van en el idioma de los DOCUMENTOS de la instancia ─
+//
+// Decision del dueno (03/11): «todo debe salir en el idioma que se configuro el
+// programa». Quien llama pasa `idiomaDeLaInstancia()`. En ESPANOL cada plantilla
+// es la literal de siempre, byte a byte (la ata `correos-idioma.test.ts`); en
+// ingles e italiano se arma con las MISMAS piezas desde el diccionario, y el
+// italiano cae al ingles mientras su lote no las traduzca.
+//
+// Esta forma es la de los correos con boton (invitacion): titulo, parrafo,
+// boton y pie con el enlace en claro.
+export function htmlCorreoConBoton(o: { titulo: string; cuerpo: string; boton: string; pie: string; href: string }): string {
+  return `
+  <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;color:#18181b">
+    <h2 style="font-size:18px;margin:0 0 12px">${o.titulo}</h2>
+    <p style="font-size:14px;line-height:1.5;color:#3f3f46">${o.cuerpo}</p>
+    <p style="margin:20px 0">
+      <a href="${o.href}" style="display:inline-block;background:#0a66ff;color:#fff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 18px;border-radius:8px">
+        ${o.boton}
+      </a>
+    </p>
+    <p style="font-size:12px;color:#71717a;line-height:1.5">
+      ${o.pie}<br>
+      <span style="word-break:break-all;color:#0a66ff">${o.href}</span>
+    </p>
+  </div>`
+}
+
+export function asuntoCorreoInvitacion(idioma: Idioma = 'es'): string {
+  if (idioma === 'es') return 'Te dieron acceso a Space OS · elige tu contraseña'
+  return traducir(idioma, 'cuenta.correo.invitacion.asunto')
+}
+
 // Plantilla de la invitación a un usuario recién dado de alta (ADR 0044). Canal
 // de SISTEMA. El nombre se escapa: lo escribe el administrador en el alta, y
 // sin escapar una etiqueta en él entraría como HTML en el correo de otro.
-export function htmlCorreoInvitacion(nombre: string, link: string): string {
+export function htmlCorreoInvitacion(nombre: string, link: string, idioma: Idioma = 'es'): string {
   const href = escaparHtml(link)
+  if (idioma !== 'es') {
+    const t = (c: Parameters<typeof traducir>[1], v?: Record<string, string>) => escaparHtml(traducir(idioma, c, v))
+    return htmlCorreoConBoton({
+      titulo: t('cuenta.correo.invitacion.titulo'),
+      // El nombre va escapado UNA vez: se escapa el texto ya armado.
+      cuerpo: t('cuenta.correo.invitacion.cuerpo', { nombre }),
+      boton: t('cuenta.correo.invitacion.boton'),
+      pie: t('cuenta.correo.invitacion.pie'),
+      href,
+    })
+  }
   return `
   <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;color:#18181b">
     <h2 style="font-size:18px;margin:0 0 12px">Te dieron acceso a Space OS</h2>
