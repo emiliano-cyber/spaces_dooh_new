@@ -208,6 +208,37 @@ archivo dentro de la pregunta.
 - **Caduca:** al publicar la siguiente versión en los servidores. Después, quien imprimió una
   constancia ya la tiene en un idioma.
 
+> **2026-11-04 · IDIOMA-USUARIO (el idioma de la interfaz por persona).** Supervisión de
+> `feat/idioma-por-usuario` en ÁMBAR — informe en `docs/Supervision/idioma-por-usuario.md`.
+> Una decisión nueva, **D16**, y advertencias **B61 a B66**. La que importa es **B61** (las e2e de
+> una rama ROJA medidas solo por su autor).
+
+### D16 · Si alguien eligió un idioma en «Mi cuenta» y entra desde un navegador que está en otro idioma, ¿cuál manda?
+
+- **Bloquea:** nada de lo construido; se puede fusionar con cualquiera de las respuestas. Bloquea
+  solo dar por cerrada la regla antes de encender un segundo idioma en un servidor con clientes.
+  **Lo que SÍ se puede mientras:** todo. Con un solo idioma encendido la opción ni siquiera aparece.
+- **Por qué importa:** la decisión del 3 de noviembre dice «por usuario **y** navegador», y hay dos
+  maneras de leerla. Lo construido hace que **mande la cuenta**: la persona ve su idioma en cualquier
+  equipo, y lo elegido en el navegador solo cuenta si la cuenta no tiene preferencia. Consecuencias que
+  el dueño debe conocer: (1) dentro de la aplicación no hay un botón rápido de idioma; para cambiarlo
+  hay que ir a «Mi cuenta»; (2) si la persona lo cambia en el teléfono, la computadora no se entera
+  hasta que vuelva a iniciar sesión allí.
+- **Opciones:**
+  - **(a) Manda la cuenta (lo construido).** Cero días. La persona ve siempre su idioma; nadie le
+    cambia la pantalla por usar un equipo ajeno.
+  - **(b) Manda el navegador si alguien lo eligió a mano en ese equipo; si no, la cuenta.** Medio día.
+    Sirve a quien comparte un equipo con alguien que habla otro idioma, pero una misma persona puede
+    ver dos idiomas según el equipo.
+  - **(c) La (a) más un botón de idioma dentro de la aplicación que guarda en la cuenta.** Un día. Lo
+    más cómodo, y es pantalla nueva que mantener en tres idiomas.
+- **Recomendación:** **(a)**. Es la lectura más simple de «por usuario», no deja que un equipo ajeno
+  le cambie el idioma a nadie, y si la gente pide el botón rápido, (c) se añade encima sin deshacer
+  nada.
+- **Si nadie contesta:** queda la (a). Aceptable: es lo que hay hoy en la rama y es reversible.
+- **Caduca:** el día que un servidor con clientes encienda un segundo idioma de interfaz; desde ese
+  día la gente ya se acostumbró a una regla.
+
 ---
 
 ### ~~D11 · La rejilla de precios deja que el precio se decida en el navegador del vendedor. Antes de meter descuentos por volumen y códigos promocionales, ¿se pasa el cálculo al servidor?~~
@@ -2455,7 +2486,71 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
 - **Si no se cierra:** el 14/10 ya pasó; el corte real es la fusión a `main`. Fusionar sin ella
   es aterrizar una migración inmutable con la mitad de su verificación de oídas.
 
+#### B61 · 🟠 ABIERTA (2026-11-04) · IDIOMA-USUARIO: las e2e de `feat/idioma-por-usuario` no las midió nadie más que el autor · **la que importa de esta rama**
+
+- **Qué es:** rama ROJA (columna nueva en `usuarios`, que es fail-closed + FORCE; cookie atada al
+  token de sesión; login, código y Google tocados). Lo decisivo —que el rol `spaces_app` lea y escriba
+  la columna con la RLS puesta, que otra empresa no toque la fila, que el login ponga la cookie y el
+  logout la borre— está en `apps/web/lib/test/idioma-por-usuario.e2e.test.ts` (14 pruebas) y en
+  `aislamiento.e2e.test.ts`, y **solo se ve contra Postgres real**.
+- **Evidencia:** el supervisor no las corrió el 03-04/11 (3311 y 3312 con procesos huérfanos, orden
+  del orquestador). Hay un log del autor, `scratchpad/idioma-usuario/e2e3.log` (03/11 15:44):
+  `Tests 1 failed | 1200 passed | 21 skipped (1222)`, la roja `grants-rol-app` por
+  `ECONNREFUSED 127.0.0.1:55471` (entorno). Sus 4 mutantes e2e (login sin cookie, guardar con
+  `qRaw`, PUT sin cookie, logout sin borrarla) tienen guion (`mutar-e2e.py`, con build por mutante)
+  pero **ninguna salida en disco**.
+- **Cómo se cierra:** con un puerto libre, en el árbol FUSIONADO con `integra/idiomas`:
+  `cd apps/web && npm run build && npm run test:e2e`, pegar la salida; y repetir al menos el mutante
+  «guardar con `qRaw`» con `npm run build` antes, pegando que muere.
+- **Quién:** cualquier agente con el 3311 (o `PUERTO_E2E`) libre, antes de fusionar a `main`.
+- **Si no se cierra:** una migración en zona ROJA aterriza con su verificación de oídas. Severidad
+  baja si falla (la preferencia se perdería en silencio, el idioma volvería al del navegador), pero
+  es exactamente el modo de fallo de R2: cero filas sin error.
+
+#### B62 · 🟠 ABIERTA (2026-11-04) · `npm test` sale ROJO por carga de la máquina, sin que el código cambie
+
+- **Qué es:** las suites de pantallas (`lib/i18n/pantallas*.test.ts`, `textos/*.test.ts`) pintan
+  React entero por prueba y rozan el límite de 5000 ms de Vitest. Con otros agentes trabajando en la
+  misma máquina, fallan por tiempo, y de rebote fallan aserciones de texto en las mismas pantallas.
+- **Evidencia (rama `feat/idioma-por-usuario`, 85d838fc, sin cambiar nada entre corridas):**
+  1.ª corrida `1 failed | 7030 passed`; 2.ª `19 failed | 7012 passed` (10 «Test timed out in 5000ms»
+  y 9 aserciones), con 24 `node.exe` vivos; los 10 archivos que fallaron, corridos solos,
+  `1323 passed (1323)`. En la medición del HTML antes/después dos suites dieron exit 1 y, repetidas,
+  247/247 y 123/123.
+- **Cómo se cierra:** subir `testTimeout` solo para esas suites (o para todo `lib/i18n/`), o
+  correrlas en un proyecto de Vitest aparte con menos hilos. Medir con dos corridas seguidas en verde
+  con carga.
+- **Quién:** el dueño de la zona de pruebas / i18n.
+- **Si no se cierra:** un rojo que no dice nada del código. El daño real es el contrario: quien se
+  acostumbra a «es la carga» deja de mirar el día que el rojo sí es suyo.
+
 ### B · iii — Menores, para que no se pierdan
+
+- **B63 · 🟡 ABIERTA (2026-11-04) · `feat/idioma-por-usuario` choca al fusionar con L5 del italiano
+  y con `feat/idioma-instancia`.** Medido con `git merge-tree`. **Con `feat/italiano-l5-armazon`:**
+  `lib/i18n/diccionario.ts` (quedarse con las dos partes: las 5 claves `idioma.cuenta.*` y las de
+  `marca`/`login`/`nav` de L5) y `lib/i18n/cobertura-italiano.test.ts` (quedarse con la versión de
+  L5, que no fija el número de traducidas). `idiomas.ts` se fusiona solo y queda coherente; efecto
+  inocuo: con el italiano apagado, una cuenta con preferencia `it` ya no recibe cookie al entrar
+  (antes la recibía y se ignoraba). **Con `feat/idioma-instancia`:** `CLAUDE.md`, el MOC,
+  `esquema.md` y el diario; las dos dicen 124 migraciones y juntas son 125 — se resuelve corriendo
+  `node scripts/recuentos.mjs`. **Quién:** quien fusione la segunda de cada pareja, con unitarias
+  después.
+- **B64 · ⚪ ABIERTA (2026-11-04) · Al cerrar sesión, la pantalla de entrar puede quedarse en el
+  idioma de la cuenta que salió hasta recargar.** Deducido, **no visto**: `Topbar.tsx:27-31` sale con
+  `router.push('/login')`, y el propio autor escribe que esa navegación no vuelve a pintar el layout
+  que lleva el idioma (`app/(app)/login/page.tsx:162-166`). La e2e lo comprueba con una petición
+  nueva, no con el navegador. **Cómo se cierra:** mirarlo en un navegador y, si se confirma, una
+  carga completa al salir. Solo importa en equipos compartidos con dos idiomas encendidos.
+- **B65 · ⚪ ABIERTA (2026-11-04) · IDIOMA-USUARIO sin entrada en `docs/Registro_Cambios.md`, y los
+  textos italianos de la tarjeta sin validar** (`lib/i18n/diccionario.ts:508` lo dice). Invisible
+  mientras haya un solo idioma encendido.
+- **B66 · ⚪ ABIERTA (2026-11-04) · El rojo del TDD de IDIOMA-USUARIO no está en el historial.**
+  Pruebas e implementación en el mismo commit (4b6134f3, dd547287) y la e2e después de la
+  implementación (af03b410); los cinco commits entre 15:13:19 y 15:13:45. Compensado por mutación:
+  el supervisor mató 5 de 5 mutantes unitarios (huella ignorada, cuenta sin filtrar, guardar un
+  idioma apagado, cookie sin `httpOnly`, navegador antes que cuenta). Se apunta para que la próxima
+  tarea ROJA deje el rojo en un commit propio.
 
 - **B59 · 🟡 ABIERTA (2026-11-03) · `bootstrap-auth.mjs` crea la instancia sin poder elegir
   idioma de documentos (ni moneda).** `apps/web/scripts/bootstrap-auth.mjs:182` inserta
