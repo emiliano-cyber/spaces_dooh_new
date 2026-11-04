@@ -355,6 +355,25 @@ describe('costura del italiano · los lotes dicen lo mismo de la misma manera', 
     expect(malas.map(([k]) => k)).toEqual([])
   })
 
+  // Regla de TODO el italiano (orquestador, validaciones de L1 y L3): la fecha
+  // llega formateada («8 dic 2026», «11 nov») y un articulo delante tendria
+  // que elidirse («l’8», «dall’11»), cosa que un hueco no sabe hacer. Cada
+  // lote lo vigilaba en su propio diccionario; esta es la guardia de TODOS
+  // juntos (costura final, 2026-11-04).
+  const ARTICULO_ANTE_FECHA = /\b(il|al|dal|del|nel|sul|l’|all’|dall’|dell’) ?\{(fecha|fin|desde|inicio|hasta|vence)\}/
+
+  it('nunca un articulo delante de una fecha, en NINGUN diccionario italiano', () => {
+    const malas = Object.entries(IT_PARCIAL as Record<string, string>)
+      .filter(([, v]) => escrita(v) && ARTICULO_ANTE_FECHA.test(v))
+      .map(([k, v]) => `${k}: «${v}»`)
+    expect(malas).toEqual([])
+  })
+
+  it('y la guardia de las fechas muerde: «dal {desde}» y «l’{fecha}» caen, «Da: {desde}» no', () => {
+    expect(['Valido dal {desde}', 'Scade il {vence}', 'Inviata l’{fecha}', 'fino al {fin}'].filter((v) => !ARTICULO_ANTE_FECHA.test(v))).toEqual([])
+    expect(['Da: {desde}', 'in data {fecha}', 'fino al giorno {fin}', '{desde} – {hasta}', 'il {nombre}'].filter((v) => ARTICULO_ANTE_FECHA.test(v))).toEqual([])
+  })
+
   it('ningun texto italiano da por hecha la moneda (ADR 0048)', () => {
     const malas = Object.entries(IT_PARCIAL as Record<string, string>)
       .filter(([, v]) => {
