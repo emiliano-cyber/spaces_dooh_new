@@ -7,6 +7,7 @@ import {
   frasesAjenas,
   sinPartesEnOtroIdioma,
   trozosAjenos,
+  italianoConFrasesDeOtraClave,
   type Hallazgo,
 } from './barrido-italiano'
 
@@ -75,6 +76,74 @@ describe('barrido italiano · las reglas', () => {
 
   it('cada excepcion dice por que', () => {
     for (const a of A_PROPOSITO_IT) expect(a.motivo.length, String(a.patron)).toBeGreaterThan(10)
+  })
+})
+
+// ─── Validacion del pulido (04/11) · la excepcion de P-L2-1, anclada ─────────
+// Iba sin anclar contra el contexto de la huella y tapaba el fallo de formato
+// mas probable: un importe con locale ingles en italiano. Ahora solo cubre los
+// ejemplos de captura de cifras: el `placeholder` de un campo («0.00»,
+// «Es. 12.9», «es. 180,000») y la explicacion «la virgola separa le migliaia
+// e il punto i decimali» con su ejemplo.
+describe('barrido italiano · la excepcion de la captura de cifras (P-L2-1), anclada', () => {
+  const sinDeclarar = (html: string) => barrerHtml('x', html, []).filter((h) => !h.aProposito)
+  const declarados = (html: string) => barrerHtml('x', html, []).filter((h) => h.aProposito?.startsWith('P-L2-1'))
+
+  it('un importe ingles en italiano NO se declara', () => {
+    expect(sinDeclarar('<p>Totale</p><p>MX$ 5,000.00</p>')).not.toHaveLength(0)
+    expect(sinDeclarar('<p>Nov 30, 2026</p><p>MX$ 1,000.00</p>')).not.toHaveLength(0)
+    expect(sinDeclarar('<p>Totale 0.00</p>')).not.toHaveLength(0)
+    expect(sinDeclarar('<p>Importo 212,500.50</p>')).not.toHaveLength(0)
+    expect(sinDeclarar('<p>Sconto (65.50)</p>')).not.toHaveLength(0)
+    expect(sinDeclarar('<p>Prezzo es. 180,000 al mese</p>')).not.toHaveLength(0)
+  })
+
+  it('los ejemplos de captura SI: el placeholder y la explicacion', () => {
+    for (const html of [
+      '<input placeholder="0.00"/>',
+      '<input placeholder="Es. 12.9"/>',
+      '<input placeholder="es. 180,000"/>',
+      '<p>la virgola separa le migliaia e il punto i decimali. Esempio: 212,500.50</p>',
+      '<p>la virgola separa le migliaia e il punto i decimali (15,000.50).</p>',
+      '<p>la virgola separa le migliaia e il punto i decimali (65.50).</p>',
+    ]) {
+      expect(sinDeclarar(html), html).toEqual([])
+      expect(declarados(html).length, html).toBeGreaterThan(0)
+    }
+  })
+})
+
+// ─── Validacion del pulido (04/11) · ESTATICA: siempre corre ────────────────
+// El barrido da por no ajena cualquier frase que aparezca en un texto
+// italiano: un `IT_*` con el espanol (o el ingles) de OTRA clave quedaba
+// invisible para el barrido, la cobertura y la costura. Esto lo mira sobre el
+// diccionario, sin volcado.
+describe('el italiano no lleva frases espanolas o inglesas de otra clave', () => {
+  it('muerde: el espanol de otra clave metido en un valor italiano', () => {
+    const dic = {
+      es: { a: 'No se pudo guardar el idioma', b: 'Usar el idioma del navegador' },
+      en: { a: 'Could not save the language', b: 'Use the browser language' },
+      it: { a: 'Impossibile salvare la lingua', b: 'No se pudo guardar el idioma' },
+    }
+    expect(italianoConFrasesDeOtraClave(dic).map((h) => `${h.clave}<-${h.de}`)).toEqual(['b<-a'])
+  })
+
+  it('el propio espanol de la clave no cuenta aqui (lo mira la cobertura)', () => {
+    const dic = { es: { a: 'Guardar los cambios' }, en: { a: 'Save the changes' }, it: { a: 'Guardar los cambios' } }
+    expect(italianoConFrasesDeOtraClave(dic)).toEqual([])
+  })
+
+  it('un cognado declarado no cuenta', () => {
+    const dic = {
+      es: { a: 'Raspberry Pi', b: 'Instalar' },
+      en: { a: 'Raspberry Pi', b: 'Install' },
+      it: { a: 'Raspberry Pi', b: 'Installa il Raspberry Pi' },
+    }
+    expect(italianoConFrasesDeOtraClave(dic)).toEqual([])
+  })
+
+  it('en el diccionario real, ninguna', () => {
+    expect(italianoConFrasesDeOtraClave().map((h) => `${h.clave}: ${h.idioma} «${h.trozo}» (de ${h.de})`)).toEqual([])
   })
 })
 
