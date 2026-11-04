@@ -186,3 +186,45 @@ No se mutó contra las e2e (no se corrieron: ver §8).
   pantalla).
 - Cobertura (`cobertura-italiano.test.ts`): las 11 filas del lote, **0
   pendientes**.
+
+## 10 · Correcciones de la validación (2026-11-04, `bfe4f9d7`)
+
+Respuesta a `docs/i18n/validacion-italiano-l5.md` (ÁMBAR leve).
+
+- **Las tres frases:** `admin.razones.de-baja` «Disattivate: {n}»;
+  `admin.act.modo.*` «Modalità cambiata: con approvazione / automatica»;
+  `admin.password.no-se-ve` «…e al primo accesso il sistema chiederà di cambiarla».
+- **Retoques:** «CPM · costo per mille impression», «Quanti ne stanno», «foto
+  di verifica», «aziende del settore media», «Ti diamo il benvenuto»,
+  «…nel loro endpoint». «Error 404» de `app/not-found.tsx` pasa al
+  diccionario como `shell.404.codigo` (es y en «Error 404», el mismo texto;
+  it «Errore 404»), declarado como igual a propósito en `cuenta.test.ts`.
+- **Reglas comunes del italiano** (las de L1–L4), con prueba sobre todo el
+  italiano del lote (diccionario, catálogo y patrones):
+  - nunca artículo delante de una fecha: «scaduta in data {fecha}», «valida
+    fino al giorno {fecha}», «Accettata in data…», la licencia «in data
+    {vence}», y en los patrones «in data $1», «fino al giorno $1»; el
+    selector de fechas pasa a «Da / A / –»;
+  - «gerente» → manager: «Manager vendite», «un manager o superiore»;
+  - «predio» → immobile (ya lo era); el predio lejano lleva ahora la
+    preposición dentro del hueco («è a 2,5 km dall’immobile «Norte»»);
+  - incidencia, candado de facturación y «gg»: el lote no tiene ninguno;
+  - las periodicidades del lote son etiquetas sueltas («Ogni due settimane…»
+    en el selector y «(periodicità: ogni due mesi)» en el error): se quedan.
+- **Las tablas de huecos del servidor** (`deTabla` cae al español): prueba
+  clave por clave de `PERIODICIDAD`, `ETAPA`, `FALTA_REVISION`, `CAMPO` y
+  `FALTA_FIRMA` contra su tabla inglesa y distintas del español salvo
+  cognados (RFC, Cliente, Documento, Logo, Periodo). Las tres primeras se
+  exportan para la prueba, sin cambiar su valor.
+- **V1:** `IDIOMA_ITALIANO` = '0', 'true', 'si', ' 1' o '' deja el italiano
+  apagado también por omisión.
+- **Mutantes:** V1, V3, V6 y V8 del validador, más uno de la regla de fechas y
+  otro de «gerente»: **los 6 mueren**.
+- **es/en idénticos, medido de nuevo** con el reloj de hoy (las pruebas de
+  clientes y finanzas dependen del día): volcado de la base `6fea374a` y de
+  `bfe4f9d7` el mismo día, `diff -rq` = 0 distintos de es/en (el único es el
+  estado con `lang="it"`). `DICCIONARIOS.es` y `.en`: 0 valores cambiados, 1
+  clave nueva (`shell.404.codigo`).
+- **Suites:** typecheck limpio; vitest **385 archivos, 7120 pruebas** en verde.
+- **Choques con otros lotes (§3 de la validación):** predio en L1/L2,
+  catorcena en L3 y el menú citado por L1 se corrigen en esos lotes; L5 no cambia.
