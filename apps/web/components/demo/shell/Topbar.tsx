@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { ChevronDown, UserCircle2, LogOut, Bell, Trash2, Menu, Settings, KeyRound } from 'lucide-react'
-import { apiLogout } from '@/lib/auth-real'
+import { cerrarSesionYSalir } from './salir'
 import { rolLabel } from './nav'
 import { useSesionCtx } from './SesionContext'
 import { useMenuMovil } from './MenuMovilContext'
@@ -19,15 +19,15 @@ export function Topbar() {
   const router = useRouter()
   const { t, idioma } = useIdioma()
   const { abierto, alternar } = useMenuMovil()
-  const { sesion, refrescar } = useSesionCtx()
+  const { sesion } = useSesionCtx()
   const usuario = sesion?.usuario
   const notificaciones = useNotificaciones() ?? []
   const noLeidas = notificaciones.filter((n) => !n.leida).length
 
+  // Carga completa y no `router.push`: la pantalla de entrar tiene que volver a
+  // resolver el idioma sin la cuenta que acaba de salir (B64, ver `salir.ts`).
   async function cerrar() {
-    await apiLogout()
-    await refrescar()
-    router.push('/login')
+    await cerrarSesionYSalir()
   }
 
   async function abrirNotif(id: string, link: string | null) {
