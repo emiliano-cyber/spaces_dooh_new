@@ -1,7 +1,8 @@
 'use client'
 
 import { createContext, useContext } from 'react'
-import { ProveedorIdioma } from './contexto'
+import { ProveedorIdioma, useIdioma } from './contexto'
+import { ParteEnIdioma } from './parte-en-idioma'
 import type { Idioma } from './idiomas'
 
 // ============================================================================
@@ -39,13 +40,19 @@ export function useIdiomaDocumentos(): Idioma | null {
 /**
  * Lo que envuelve se pinta en el idioma de los documentos. Dentro no se ofrece
  * elegir idioma (`puedeElegir: false`): el papel no es de quien lo mira.
+ *
+ * B72 (04/11): y declara ese idioma con `lang` cuando no es el de la persona
+ * (`ParteEnIdioma`). Si coinciden, el HTML de siempre.
  */
 export function EnIdiomaDeLosDocumentos({ children }: { children?: React.ReactNode }) {
   const idioma = useIdiomaDocumentos()
+  const { idioma: idiomaPersona } = useIdioma()
   if (!idioma) return <>{children}</>
   return (
     <ProveedorIdioma idioma={idioma} puedeElegir={false}>
-      {children}
+      <ParteEnIdioma idioma={idioma} de={idiomaPersona}>
+        {children}
+      </ParteEnIdioma>
     </ProveedorIdioma>
   )
 }

@@ -1,5 +1,6 @@
 import { vi, expect } from 'vitest'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { isValidElement } from 'react'
+import { appendFileSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
 // ============================================================================
@@ -37,6 +38,14 @@ import { join, relative } from 'node:path'
 //  italiano sin escribir un solo dato de prueba nuevo. Lo que la guardia
 //  encuentra va a `_guardias.jsonl` y NO tumba la prueba: hasta que los lotes
 //  terminen, el italiano cae al ingles y es un informe, no un veredicto.
+//
+//  ─── LOS ESTADOS ITALIANOS DEL VOLCADO COMPLETO ────────────────────────────
+//
+//  Pulido del italiano (04/11): con `I18N_VOLCAR_TODO`, cada arbol que la
+//  prueba rinde con `idioma: 'it'` en la raiz (un `ProveedorIdioma` italiano o
+//  un componente con esa propiedad) se apunta en `<carpeta>/_italiano.txt`.
+//  Es la lista que barre `barrido-italiano.test.ts`, junto al espejo. No
+//  cambia ningun `.html` del volcado.
 //
 //  El espejo se rinde DESPUES del original, a proposito: algunas pruebas
 //  fuerzan estados que se consumen durante el render (`pantallas-admin`), y si
@@ -81,7 +90,12 @@ vi.mock('react-dom/server', async (importOriginal) => {
   function envuelto(el: Parameters<typeof original>[0], opciones?: Parameters<typeof original>[1]): string {
     const html = original(el, opciones)
     const rel = rutaRelativa()
-    if (dirTodo) escribir(dirTodo, rel, html)
+    if (dirTodo) {
+      escribir(dirTodo, rel, html)
+      if (isValidElement(el) && (el.props as { idioma?: unknown }).idioma === 'it') {
+        appendFileSync(join(dirTodo, '_italiano.txt'), `${rel}\n`)
+      }
+    }
     if (dirIt && espejoItaliano) {
       const espejo = espejoItaliano(el, (e) => original(e, opciones))
       if (espejo) {

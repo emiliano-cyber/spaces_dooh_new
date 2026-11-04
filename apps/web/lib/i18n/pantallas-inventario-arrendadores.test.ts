@@ -1833,3 +1833,59 @@ describe('lote INVENTARIO Y ARRENDADORES · barrido del diccionario contra el HT
     ], { datos: DATOS_DE_PRUEBA })).toEqual([])
   })
 })
+
+// ─── B72 (pulido del italiano, 04/11) · el contrato declara su `lang` ──────
+// Lo que se imprime (el texto, los sellos, la constancia y el aviso del pie)
+// va en un envoltorio con el `lang` de la instancia SOLO cuando difiere del de
+// la persona. El panel de firmas, que no se imprime y habla en el idioma de la
+// persona, queda fuera. Si coinciden, el HTML de siempre.
+describe('B72 · el documento del contrato lleva su propio lang cuando difiere', () => {
+  async function html(persona: 'es' | 'en' | 'it', deLaInstancia: 'es' | 'en' | 'it') {
+    servidor.idioma = persona
+    servidor.docIdioma = deLaInstancia
+    try {
+      const { default: Doc } = await import('../../app/(app)/contrato/[id]/page')
+      return pintar(persona, await Doc({ params: { id: 'c1' } }))
+    } finally {
+      servidor.idioma = 'es'
+      servidor.docIdioma = 'es'
+    }
+  }
+  it.each([
+    ['es', 'it'],
+    ['en', 'es'],
+    ['es', 'en'],
+  ] as const)('persona en %s, instancia en %s: el papel con lang de la instancia', async (persona, deLaInstancia) => {
+    process.env.IDIOMA_ITALIANO = '1'
+    const h = await html(persona, deLaInstancia)
+    const envoltorio = `<div lang="${deLaInstancia}" style="display:contents">`
+    expect(h).toContain(`<article class="doc-hoja">${envoltorio}`)
+    expect(h).toContain(`${envoltorio}<p class="doc-aviso">`)
+    expect(h.split('lang=').length - 1).toBe(2)
+  })
+  it.each(['es', 'en', 'it'] as const)('persona e instancia en %s: sin envoltorio', async (mismo) => {
+    process.env.IDIOMA_ITALIANO = '1'
+    expect(await html(mismo, mismo)).not.toContain('lang=')
+  })
+})
+
+// ─── Barrido global del italiano (pulido, 04/11) ────────────────────────────
+// La vista previa de la imagen promocional del alta manual llevaba
+// `alt="preview"` escrito a mano, en ingles para todos. En italiano pasa por
+// el diccionario («Anteprima»); el espanol y el ingles, el literal de siempre.
+describe('pulido italiano · el alt de la imagen promocional del alta manual', () => {
+  async function alt(idioma: Idioma) {
+    process.env.IDIOMA_ITALIANO = '1'
+    forzar('NuevaPantallaForm', 22, 'data:image/png;base64,AA') // imagen
+    const A = await alta()
+    const html = pintar(idioma, createElement(A, { open: true, inline: true, onOpenChange: () => {}, onCreado: () => {} }))
+    return /<img src="data:image\/png;base64,AA" alt="([^"]*)"/.exec(html)?.[1]
+  }
+  it('en italiano, «Anteprima»', async () => {
+    expect(await alt('it')).toBe('Anteprima')
+  })
+  it('en espanol y en ingles, el literal de siempre', async () => {
+    expect(await alt('es')).toBe('preview')
+    expect(await alt('en')).toBe('preview')
+  })
+})

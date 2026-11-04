@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createElement, type ReactElement } from 'react'
-import { renderToStaticMarkup } from 'react-dom/server'
+import { renderToStaticMarkup, renderToString } from 'react-dom/server'
 import { ProveedorIdioma } from './contexto'
 import type { Idioma } from './idiomas'
 import { DICCIONARIOS } from './diccionario'
@@ -17,11 +17,12 @@ import { fechaDeComprobante } from '@/components/demo/finanzas/ComprobanteDialog
 //  Recorrido del italiano en el navegador (2026-11-04).
 // ----------------------------------------------------------------------------
 //  Cada caso es un texto que el recorrido vio salir en espanol o en ingles con
-//  la interfaz en italiano, o una cifra con formato ajeno. La regla de esta
-//  pasada: el ESPANOL y el INGLES salen identicos a como salian (por eso cada
-//  caso fija tambien los dos), y solo cambia el italiano. Donde el ingles
-//  tiene el mismo defecto se dice en `docs/i18n/revision-italiano-recorrido.md`
-//  y queda para que lo decida el dueno.
+//  la interfaz en italiano, o una cifra con formato ajeno. La regla de la
+//  primera vuelta: el ESPANOL y el INGLES salen identicos a como salian (por
+//  eso cada caso fija tambien los dos), y solo cambia el italiano. En la
+//  segunda vuelta (04/11) el orquestador decidio arreglar tambien el INGLES de
+//  los seis primeros defectos (`revision-italiano-recorrido.md` §11): esos
+//  casos fijan ahora el ingles traducido. El espanol sigue identico.
 // ============================================================================
 
 vi.mock('@/lib/loading-fetch', () => ({ useCargando: () => true, instalarIndicadorCarga: () => {} }))
@@ -51,6 +52,38 @@ describe('Paginacion: «Anterior / Siguiente» y «de» salian en espanol', () =
   // Decision del orquestador (04/11): el ingles tenia el mismo defecto y se arregla.
   it('en ingles, «of», «Previous» y «Next»', () => {
     expect(texto(en('en', createElement(Paginacion, props)))).toBe('1–20 of 260 pagos Previous 1 / 13 Next')
+  })
+
+  // Pulido (04/11, O3 de la validacion): con 260 no hay millar, y pasar 'es'
+  // en vez del idioma a `formatNumero` no se veia. Con 1260 si.
+  const conMillar = { ...props, pagina: 2, desde: 21, hasta: 40, total: 1260 }
+  it('el millar sigue al idioma: «1.260» en italiano, «1,260» en espanol y en ingles', () => {
+    expect(texto(en('it', createElement(Paginacion, conMillar)))).toBe('21–40 di 1.260 pagos Precedente 2 / 13 Avanti')
+    expect(texto(en('es', createElement(Paginacion, conMillar)))).toBe('21–40 de 1,260 pagos Anterior 2 / 13 Siguiente')
+    expect(texto(en('en', createElement(Paginacion, conMillar)))).toBe('21–40 of 1,260 pagos Previous 2 / 13 Next')
+    // Y el «desde–hasta», que tambien lleva millar en las ultimas paginas.
+    const alFinal = { ...conMillar, pagina: 51, paginas: 63, desde: 1001, hasta: 1020 }
+    expect(texto(en('it', createElement(Paginacion, alFinal)))).toBe('1.001–1.020 di 1.260 pagos Precedente 51 / 63 Avanti')
+  })
+
+  // Pulido (04/11, O5 de la validacion): al pasar «de», «Anterior» y
+  // «Siguiente» al diccionario, cada palabra quedo como un nodo de texto
+  // aparte, y `renderToString` (el de la hidratacion, no el
+  // `renderToStaticMarkup` del volcado) metia tres `<!-- -->` que antes no
+  // estaban. Este es el HTML del espanol de antes del recorrido (`caef69f8`),
+  // byte a byte.
+  const ANTES_ES =
+    '<div class="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-2.5"><span class="text-[12px] text-muted"><span class="demo-num text-ink">21<!-- -->–<!-- -->40</span> de<!-- --> <span class="demo-num text-ink">1,260</span> <!-- -->pagos</span><div class="flex items-center gap-1.5"><button type="button" class="inline-flex h-8 items-center gap-1 rounded border border-border-strong bg-surface px-2.5 text-[12px] text-ink hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-left h-3.5 w-3.5"><path d="m15 18-6-6 6-6"></path></svg> Anterior</button><span class="demo-num px-1 text-[12px] text-muted">2<!-- --> / <!-- -->13</span><button type="button" class="inline-flex h-8 items-center gap-1 rounded border border-border-strong bg-surface px-2.5 text-[12px] text-ink hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-40">Siguiente <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-right h-3.5 w-3.5"><path d="m9 18 6-6-6-6"></path></svg></button></div></div>'
+  const hidratado = (idioma: Idioma) =>
+    renderToString(createElement(ProveedorIdioma, { idioma }, createElement(Paginacion, conMillar)))
+  it('renderToString: el espanol, identico al de antes del recorrido', () => {
+    expect(hidratado('es')).toBe(ANTES_ES)
+  })
+  it('renderToString: el ingles y el italiano, con los mismos nodos que el espanol', () => {
+    const cambiar = (html: string, de: string, ant: string, sig: string, total = '1,260') =>
+      html.replace('> de<', `> ${de}<`).replace(' Anterior<', ` ${ant}<`).replace('>Siguiente ', `>${sig} `).replace('1,260', total)
+    expect(hidratado('en')).toBe(cambiar(ANTES_ES, 'of', 'Previous', 'Next'))
+    expect(hidratado('it')).toBe(cambiar(ANTES_ES, 'di', 'Precedente', 'Avanti', '1.260'))
   })
 })
 

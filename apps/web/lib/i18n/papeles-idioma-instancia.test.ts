@@ -89,4 +89,18 @@ describe('el comprobante de cobranza', () => {
     expect(html).not.toContain(traducir('es', 'finanzas.comprobante.la-recibe'))
     expect(html).toContain(traducir('es', 'finanzas.comprobante.imprimir'))
   })
+
+  // B72 (pulido del italiano, 04/11): el papel declara el idioma de la
+  // instancia cuando no es el de la persona, como `/p` y el portal (B68). Si
+  // coinciden —hoy, en toda la flota— no hay envoltorio y el HTML no cambia.
+  it('B72 · si la instancia difiere de la persona, el papel lleva su lang', async () => {
+    expect(await pintar('en', 'es')).toContain('<div lang="es" style="display:contents"><div class="doc-wrap">')
+    expect(await pintar('es', 'en')).toContain('<div lang="en" style="display:contents"><div class="doc-wrap">')
+    expect(await pintar('es', 'it')).toContain('<div lang="it" style="display:contents"><div class="doc-wrap">')
+  })
+  it('B72 · si coinciden, o no hay instancia, sin envoltorio', async () => {
+    expect(await pintar('es', 'es')).not.toContain('lang=')
+    expect(await pintar('en', 'en')).not.toContain('lang=')
+    expect(await pintar('es', null)).not.toContain('lang=')
+  })
 })

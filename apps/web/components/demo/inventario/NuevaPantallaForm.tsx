@@ -419,8 +419,11 @@ export function NuevaPantallaForm({
             <Campo label={t('inventario.alta.imagen')} obligatorio falta={ob.falta('imagen')} como="div" className="space-y-3">
               <p className="text-[11px] text-muted">{t('inventario.alta.imagen-formato')}</p>
               {imagen && (
+                // Pulido del italiano (04/11): el `alt` iba escrito a mano en
+                // ingles. En italiano, del diccionario; en espanol y en ingles,
+                // el literal de siempre (cambiarlo es decision aparte).
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={imagen} alt="preview" className="max-h-48 w-full rounded border border-border object-contain" />
+                <img src={imagen} alt={idioma === 'it' ? t('inventario.carga.vista-previa') : 'preview'} className="max-h-48 w-full rounded border border-border object-contain" />
               )}
               {imagenNombre && <p className="demo-num text-[11px] text-muted">{imagenNombre}</p>}
               {/* El <input> va oculto, así que el borde rojo de `[data-falta]` no
