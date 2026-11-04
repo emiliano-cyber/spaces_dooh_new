@@ -612,3 +612,9 @@ validar**. Tres cambios autorizados por el dueño el 04/11.
   «comisión» dice «provvigione» en italiano, y ninguna clave ni catálogo
   italiano del servidor dice «commissione». «Sconto e provvigione» y «i due»
   (sconto + provvigione, masculino por mezcla) se quedan.
+- **D13 contestada por el dueño:** «Los contratos en inglés e italiano son
+  EJEMPLOS: cada cliente los irá armando según contrate la app». El contrato
+  italiano no espera abogado: es una plantilla de ejemplo. Anotado en el ADR
+  0049, `ABIERTOS.md` y el runbook del alta; en el código solo cambian
+  comentarios (`contrato-documento.ts`). Texto legal, aviso impreso y hashes,
+  intactos.

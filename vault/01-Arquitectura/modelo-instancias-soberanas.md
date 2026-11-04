@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: en-curso
-actualizado: 2026-11-02
+actualizado: 2026-11-04
 tags: [instancias, despliegue, padre, demo, flota, costos, plan, licencia]
 archivos:
   - docs/Plan_Instancias_Soberanas_v2.md
@@ -36,9 +36,10 @@ archivos:
 > interfaz. Viaja como `idiomaDocumentos` en `POST /api/bootstrap`, se escribe en
 > `tenants.idioma_documentos` y la base impide cambiarlo
 > (`20261103_idioma_documentos_por_instancia.sql`). Las instancias que ya
-> existían quedan en `es`. **La traducción del contrato al inglés y al
-> italiano todavía no la revisó un abogado**: no se aprovisiona un cliente
-> real en `en`/`it` hasta que el dueño lo diga. Lo prueban
+> existían quedan en `es`. **El contrato en inglés e italiano es una plantilla
+> de ejemplo** (D13, contestada por el dueño el 04/11: «cada cliente los irá
+> armando según contrate la app»): se puede aprovisionar un cliente real en
+> `en`/`it` sin esperar a un abogado. Lo prueban
 > `infra/scripts/pruebas-provision.sh` (escenarios «ADR 0049») y
 > `apps/web/lib/test/bootstrap.e2e.test.ts`.
 

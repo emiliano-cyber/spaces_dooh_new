@@ -115,14 +115,22 @@ siendo el de la petición (lo pone el layout raíz); desde el 04/11 (B68) el con
 español, cláusula por cláusula y párrafo por párrafo: la prueba compara cuántas cláusulas,
 incisos y párrafos tiene cada idioma.
 
-> [!danger] REQUIERE REVISIÓN DE UN ABOGADO ANTES DE USARSE CON CLIENTES
+> [!note] 2026-11-04 · D13 contestada por el dueño: son PLANTILLAS DE EJEMPLO
+> «Los contratos en inglés e italiano son EJEMPLOS: cada cliente los irá armando según contrate
+> la app». Ya **no se espera una revisión de abogado** para dar de alta un servidor `en`/`it`: el
+> contrato en esos idiomas es una plantilla de ejemplo que cada owner adapta. El texto legal y los
+> hashes no cambian con esta nota. Sigue valiendo lo de las firmas: si un owner ya firmó contratos
+> y la plantilla cambia, se conserva la redacción anterior para cotejar (`hashParaCotejar`).
+> El recuadro de abajo queda como historia.
+
+> [!danger] ~~REQUIERE REVISIÓN DE UN ABOGADO ANTES DE USARSE CON CLIENTES~~ (sustituido el 04/11, arriba)
 > Es el **mismo contrato de derecho mexicano** —RFC, CURP, CFDI, Código Civil, tribunales de la
 > ciudad, «Estados Unidos Mexicanos»— escrito en otro idioma. **No** es un contrato adaptado a la
 > ley de otro país. Está marcado así en el código, en este ADR y en el runbook del alta: no se
 > debería aprovisionar una instancia `en`/`it` para un cliente real hasta que el dueño diga que la
 > revisión está hecha.
 
-Decisiones de redacción (todas revisables por el abogado):
+Decisiones de redacción (todas revisables por quien adapte la plantilla):
 
 - **Partes**: «THE LESSOR / THE LESSEE»; «IL LOCATORE / IL CONDUTTORE». En italiano las partes no
   se interpolan: se escriben con su preposición articulada («al CONDUTTORE», «dello SPAZIO»).
@@ -182,4 +190,4 @@ Decisiones de redacción (todas revisables por el abogado):
 
 ## Revisión independiente
 
-El supervisor dio ÁMBAR a la primera vuelta (`docs/Supervision/idioma-instancia.md`): B58 (e2e completas), B59 (`bootstrap-auth.mjs` queda como ruta de desarrollo solo-es, documentada) y B60 (`uso()` vuelve a `2,58p`) están atendidas en la segunda; D15 la resolvió el dueño (la constancia en el idioma de la instancia, «THE LESSOR» incluido). Sigue pendiente la revisión legal de las traducciones.
+El supervisor dio ÁMBAR a la primera vuelta (`docs/Supervision/idioma-instancia.md`): B58 (e2e completas), B59 (`bootstrap-auth.mjs` queda como ruta de desarrollo solo-es, documentada) y B60 (`uso()` vuelve a `2,58p`) están atendidas en la segunda; D15 la resolvió el dueño (la constancia en el idioma de la instancia, «THE LESSOR» incluido). ~~Sigue pendiente la revisión legal de las traducciones.~~ D13 contestada el 04/11: las traducciones son plantillas de ejemplo que cada owner adapta.

@@ -132,10 +132,27 @@ archivo dentro de la pregunta.
 > **2026-11-03/04 · ADR 0049 (idioma de los documentos por instancia).** Informe en
 > `docs/Supervision/idioma-instancia.md`. La primera pasada abrió D13, D14 y D15. El 03/11 el dueño
 > contestó D14 y D15 de una vez: **todos los papeles en el idioma de la instancia, salvo el CSV del
-> estado de cuenta**. **Sigue viva D13.** (La primera versión de estas tarjetas quedó sin
-> commitear en el worktree `integra-ingles`; esta es la que vale.)
+> estado de cuenta**. ~~**Sigue viva D13.**~~ **D13 contestada el 04/11** (abajo). (La primera
+> versión de estas tarjetas quedó sin commitear en el worktree `integra-ingles`; esta es la que vale.)
 
-### D13 · ¿Se puede dar de alta un servidor con los contratos en inglés o en italiano antes de que un abogado revise esa traducción?
+### ~~D13 · ¿Se puede dar de alta un servidor con los contratos en inglés o en italiano antes de que un abogado revise esa traducción?~~
+
+> ✅ **CONTESTADA el 2026-11-04 por el dueño:** «Los contratos en inglés e italiano son
+> EJEMPLOS: cada cliente los irá armando según contrate la app». O sea: **no hay revisión de
+> abogado que esperar** y no bloquea dar de alta un servidor en inglés o italiano. El contrato
+> en/it es una **plantilla de ejemplo** que cada owner adapta a su caso. Ninguna de las opciones
+> (a)–(c) tal cual: el sistema no bloquea nada (como la (b)), y el texto no se «da por bueno»
+> como contrato definitivo (no es la (c)), es un punto de partida.
+>
+> **Aplicado en `feat/idiomas-cierre`:** nota fechada en el ADR 0049, el runbook del alta
+> (`docs/runbook-alta-de-owner.md`) sin la prohibición, y los comentarios de
+> `lib/contrato-documento.ts` que decían «requiere revisión de un abogado». **Sin tocar el texto
+> legal ni ningún hash**: el aviso impreso del pie («BORRADOR … revisado por un abogado antes de
+> su firma») es el mismo en los tres idiomas y vale igual para una plantilla de ejemplo, así que
+> se queda. **Lo que sigue en pie:** si un owner ya firmó contratos en/it y la plantilla cambia,
+> hay que conservar la redacción anterior para cotejar (`hashParaCotejar`, como el ADR 0048).
+>
+> La tarjeta original se conserva debajo como historia.
 
 - **Bloquea:** dar de alta para un cliente real cualquier servidor en inglés o italiano. **Lo que
   SÍ se puede mientras:** fusionar el trabajo (los servidores que ya existen siguen en español, sin
@@ -2517,7 +2534,8 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
   excluir la constancia y es `Record` completo. **Medido:** cobertura italiana 5920/5920, 0
   pendientes; prueba nueva del documento imprimible con instancia `it` y persona en español
   (`pantallas-propuestas.test.ts`) y de los tres correos en italiano (`correos-idioma.test.ts`).
-  Sigue en pie D13: el texto legal italiano no lo ha revisado un abogado.
+  ~~Sigue en pie D13: el texto legal italiano no lo ha revisado un abogado.~~ D13 contestada el
+  04/11: los contratos en/it son ejemplos que cada cliente adapta.
 - **B68 · ⚪ MITIGADA (2026-11-04) · `<html lang>` de `/p` y `/portal` va en el idioma de la
   petición y el contenido en el de la instancia.** El `<html>` lo pone el layout raíz, que no conoce
   la ruta sin tocar `middleware.ts` (alto contacto), así que **sigue igual**. Lo que sí se hizo:
