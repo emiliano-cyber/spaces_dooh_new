@@ -268,12 +268,12 @@ export const IT_SHELL: Record<ClaveShell, string> = {
   'shell.confirmar.escribe': 'Scrivi {texto} per confermare',
 
   'shell.fotos.agregar': 'Aggiungi foto',
-  'shell.fotos.alt': 'foto di verifica',
+  'shell.fotos.alt': 'prova',
   'shell.fotos.quitar': 'Rimuovi foto',
   'shell.fotos.cargando.uno': 'Caricamento della foto…',
   'shell.fotos.cargando.otros': 'Caricamento di {n} foto…',
 
   'shell.disponibilidad.sin-capturar': 'Nessuno slot inserito',
   'shell.disponibilidad.sin-libres': 'Nessuno slot libero',
-  'shell.disponibilidad.libres': 'Liberi: {libres} su {total}',
+  'shell.disponibilidad.libres': '{libres} di {total} liberi',
 }

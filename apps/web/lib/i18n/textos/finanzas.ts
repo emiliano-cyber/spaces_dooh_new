@@ -534,7 +534,7 @@ export const IT_FINANZAS: Record<ClaveFinanzas, string> = {
   'finanzas.factura.plazo': 'Termini di pagamento',
   'finanzas.factura.plazo.informativo': 'Termini di pagamento (indicativi con le rate)',
   'finanzas.pago.liquidada': 'Incasso saldato',
-  'finanzas.pago.abono-registrado': 'Acconto registrato',
+  'finanzas.pago.abono-registrado': 'Pagamento parziale registrato',
   'finanzas.pago.no-registrar': 'Impossibile registrare il pagamento',
   'finanzas.pago.titulo': 'Registra pagamento',
   'finanzas.pago.subtitulo': '{folio} · saldo {saldo}',

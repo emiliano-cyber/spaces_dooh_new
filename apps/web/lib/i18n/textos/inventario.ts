@@ -934,7 +934,7 @@ export const IT_INVENTARIO: Record<ClaveInventario, string> = {
   'inventario.tabla.ph-tarifa': 'Nuova tariffa',
   'inventario.tabla.aplicando': 'Applicazione…',
   'inventario.tabla.aplicar': 'Applica',
-  'inventario.tabla.limpiar': 'Deseleziona',
+  'inventario.tabla.limpiar': 'Azzera',
   'inventario.tabla.seleccionar-todo': 'Seleziona tutto',
   'inventario.tabla.col.pantalla': 'Impianto',
   'inventario.tabla.col.tipo': 'Tipo',

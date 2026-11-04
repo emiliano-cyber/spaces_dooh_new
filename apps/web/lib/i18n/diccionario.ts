@@ -525,7 +525,7 @@ const IT_BASE: Partial<Record<ClaveTexto, string>> = {
   'login.boton.enviar-enlace': 'Invia link',
   'login.boton.entrando': 'Accesso in corso…',
   'login.boton.creando': 'Creazione dell’account…',
-  'login.boton.enviando': 'Invio in corso…',
+  'login.boton.enviando': 'Invio…',
 
   'login.olvidaste': 'Hai dimenticato la password?',
   'login.ya-tienes-cuenta': 'Hai già un account? ',

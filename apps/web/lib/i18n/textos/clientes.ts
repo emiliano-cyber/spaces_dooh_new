@@ -605,7 +605,7 @@ export const IT_CLIENTES: Record<ClaveClientes, string> = {
   'clientes.campanas.titulo': 'Campagne',
   'clientes.campanas.vacia': 'Questo cliente non ha ancora campagne.',
   'clientes.campanas.sin-presupuesto': 'Senza budget',
-  'clientes.comisiones.titulo': 'Commissioni',
+  'clientes.comisiones.titulo': 'Provvigioni',
   'clientes.comisiones.subtitulo': 'Regola la commissione di ogni agenzia e l’agenzia assegnata a ogni cliente.',
   'clientes.comisiones.chip.agencias': 'Agenzie',
   'clientes.comisiones.chip.sin-validar': 'Negoziazione non convalidata',
@@ -641,7 +641,7 @@ export const IT_CLIENTES: Record<ClaveClientes, string> = {
   'clientes.comisiones.selecciona-agencia': '— Seleziona agenzia —',
   'clientes.comisiones.sin-agencia': 'Cliente senza agenzia assegnata',
   'clientes.comisiones.directo-sin-comision': 'Diretto · senza commissione',
-  'clientes.captacion.titulo': 'Acquisizione',
+  'clientes.captacion.titulo': 'Acquisizione siti',
   'clientes.captacion.subtitulo':
     'Clienti, locatori, immobili e impianti in lavorazione, ciascuno con il proprio registro. Quando uno è pronto si invia in revisione e, una volta approvato, viene registrato.',
   'clientes.captacion.vista.curso': 'In corso',

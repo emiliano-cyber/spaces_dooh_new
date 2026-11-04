@@ -331,14 +331,14 @@ export const IT_CUENTA: Record<ClaveCuenta, string> = {
     'Inserisci la tua password per confermare. I codici che hai salvato{dejaran} appena verranno generati quelli nuovi.',
   'cuenta.codigos.teclea.dejaran': ' smetteranno di funzionare',
   'cuenta.codigos.tu-contrasena': 'La tua password',
-  'cuenta.codigos.verificando': 'Verifica in corso…',
+  'cuenta.codigos.verificando': 'Verifica…',
   'cuenta.codigos.confirmar-generar': 'Conferma e genera',
   'cuenta.codigos.google':
     'Accedi con Google, quindi {sin} per rientrare. Questi codici sono l’unico modo per accedere se un giorno perdi l’accesso a quell’account.',
   'cuenta.codigos.google.sin': 'non hai una password',
   'cuenta.codigos.una-vez': 'Ognuno vale {vez}. Conservali dove non si perdano.',
   'cuenta.codigos.una-vez.vez': 'una sola volta',
-  'cuenta.codigos.generando': 'Generazione in corso…',
+  'cuenta.codigos.generando': 'Generazione…',
   'cuenta.codigos.mostrar': 'Mostra i miei codici',
   'cuenta.codigos.aviso':
     '{una} Copiali o stampali prima di continuare: appena esci da questa schermata non verranno più mostrati.',

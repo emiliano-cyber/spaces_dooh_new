@@ -1174,7 +1174,7 @@ export const IT_ARRENDADORES: Record<Exclude<ClaveArrendadores, `arrendadores.co
   'arrendadores.alta.repetido': 'Se hai sbagliato, chiudi e cercalo nell’elenco; se è davvero un altro locatore, premi di nuovo.',
   'arrendadores.alta.rfc-malo':
     'Formato non valido. Sono 3 lettere (azienda) o 4 (persona), la data AAMMGG e 3 caratteri di homoclave.',
-  'arrendadores.alta.domicilio-ph': 'Via, numero, quartiere, CAP, città, stato',
+  'arrendadores.alta.domicilio-ph': 'Via, numero civico, quartiere, CAP, città, provincia',
   'arrendadores.alta.domicilio-ayuda':
     'Il contratto di locazione ne ha bisogno per le notifiche. Senza, il documento esce con quello spazio in bianco.',
   'arrendadores.alta.fiscales': 'Dati fiscali',

@@ -316,6 +316,13 @@ const DISTINTOS_A_PROPOSITO_IT: Record<string, string> = {
     'concuerda con lo que nombra: la cobranza es femenina («Scaduta») y la orden de trabajo de la ficha de campaña, en italiano «ordine», masculina («Scaduto»)',
   // Lote L2 (2026-11-03):
   Lista: 'la vista en lista del alta de propuestas, la alternativa al mapa («Elenco»), frente a la columna del precio de lista en el reparto de un paquete («Listino»); en ingles las dos son «List»',
+  // Costura final (2026-11-04), tras juntar los cinco lotes:
+  a: 'entre los dos campos de FECHA del selector de periodo va una raya («–»): «al» seria un articulo delante de una fecha, prohibido en todo el italiano; entre dos HORAS (DOOHmain, Space Eyes) va «alle», como en «dalle 6 alle 22»',
+  'Sin asignar': 'concordancia: la razon social sin asignar, en el selector compartido y en la fila del reporte por razon social, es femenina («Non assegnata», «ragione sociale»); el responsable de una OT o de un creativo, masculino («Non assegnato», «responsabile»)',
+  Automática: 'concordancia: la renovacion de un contrato de Comercial es «rinnovo», masculino («Automatico»); el modo de actualizacion de Administracion es «modalità», femenino («Automatica»)',
+  Nuevo: 'el tipo de una entrada de las notas de version, una funcion nueva («Novità», como el rotulo del sector), frente a la opcion del asistente de contrato de Inventario que da de alta un locatore nuevo, masculino («Nuovo»)',
+  '{n} nueva': 'las novedades de las notas de version («{n} novità», invariable) frente a las pantallas creadas por una carga de Inventario, que son impianti, masculino («{n} nuovo»)',
+  '{n} nuevas': 'lo mismo que «{n} nueva», en plural («{n} novità» / «{n} nuovi»)',
 }
 
 function lotesItaliano(): LoteIt[] {

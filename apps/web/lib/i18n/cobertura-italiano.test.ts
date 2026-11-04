@@ -126,6 +126,8 @@ describe('lote L5 · el italiano que coincide con otro idioma, solo el declarado
     'cuenta.cuestionario.no', 'admin.modulo.dashboard', 'admin.modulo.network', 'admin.usuarios.equipo',
     'admin.usuarios.col.contrasena', 'admin.alta.correo', 'admin.alta.contrasena', 'admin.logo.campo',
     'admin.cuenta.correo', 'admin.network.no',
+    // «Programmatic»: anglicismo del sector, como en Comercial (costura final, 2026-11-04).
+    'admin.network.programatico',
   ]
   const IGUAL_AL_ESPANOL = [
     'comun.o', 'nav.grupo.patrimonio', 'nav.grupo.sistema', 'nav.inventario', 'compartidos.periodo.aria',
@@ -167,7 +169,7 @@ describe('lote L5 · frases corregidas en la validacion', () => {
   it('los retoques', () => {
     expect(it_()['compartidos.unidad.cpm']).toBe('CPM · costo per mille impression')
     expect(it_()['compartidos.doohmain.las-que-quepan']).toBe('Quanti ne stanno')
-    expect(it_()['shell.fotos.alt']).toBe('foto di verifica')
+    expect(it_()['shell.fotos.alt']).toBe('prova')
     expect(it_()['cuenta.cuestionario.p1.ayuda']).toContain('aziende del settore media')
     expect(it_()['cuenta.recuperar.bienvenida']).toBe('Ti diamo il benvenuto')
     expect(it_()['shell.404.codigo']).toBe('Errore 404')
@@ -196,6 +198,6 @@ describe('lote L5 · reglas comunes del italiano', () => {
   })
   it('el selector de fechas no pone articulo delante de la fecha', () => {
     const it_ = IT_PARCIAL as Record<string, string>
-    expect([it_['compartidos.periodo.desde'], it_['compartidos.periodo.hasta'], it_['compartidos.periodo.a']]).toEqual(['Da', 'A', '–'])
+    expect([it_['compartidos.periodo.desde'], it_['compartidos.periodo.hasta'], it_['compartidos.periodo.a']]).toEqual(['Da', 'Fino a', '–'])
   })
 })

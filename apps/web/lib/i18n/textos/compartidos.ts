@@ -406,17 +406,18 @@ export const IT_COMPARTIDOS: Record<ClaveCompartidos, string> = {
   // La letra del trimestre de `FORMATO_IDIOMA.it` (T), provisional (P2).
   'compartidos.periodo.etiqueta.trimestre': 'T{n} {anio}',
   // Sin articulo delante de una fecha (regla comun del italiano): raya en
-  // el rango, «Da» / «A» como rotulos y raya entre los dos campos.
+  // el rango, «Da» / «Fino a» como rotulos (el par de todo el italiano) y
+  // raya entre los dos campos.
   'compartidos.periodo.etiqueta.rango': '{desde} – {hasta}',
   'compartidos.periodo.aria': 'Periodo',
   'compartidos.periodo.elige': 'Scegli la data di inizio e quella di fine.',
   'compartidos.periodo.desde': 'Da',
-  'compartidos.periodo.hasta': 'A',
+  'compartidos.periodo.hasta': 'Fino a',
   'compartidos.periodo.a': '–',
 
   // Lo que se le asigna en DOOHmain es un SCHERMO (masculino).
   'compartidos.doohmain.todo-el-dia': 'Tutto il giorno (senza fascia oraria)',
-  'compartidos.doohmain.horario': '{desde}–{hasta}',
+  'compartidos.doohmain.horario': '{desde} – {hasta}',
   'compartidos.doohmain.las-que-quepan': 'Quanti ne stanno',
   'compartidos.doohmain.origen.ficha': 'inserito in questa scheda',
   'compartidos.doohmain.origen.mapa': 'dalla mappa del server (non inserito nella scheda)',

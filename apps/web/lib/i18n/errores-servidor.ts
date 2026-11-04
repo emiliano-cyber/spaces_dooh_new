@@ -941,13 +941,13 @@ export const CATALOGO_ERRORES_IT: Partial<Record<string, string>> = {
   'Ítem no encontrado':
     'Voce non trovata',
   'Solo un gerente o superior puede cambiar la tarifa de una pantalla.':
-    'Solo un manager o superiore può cambiare la tariffa di un impianto.',
+    'Solo un manager o un ruolo superiore può cambiare la tariffa di un impianto.',
   'Esta pantalla no tiene una tarifa calculada para esa unidad. Pide a un gerente o superior que le ponga precio.':
-    'Questo impianto non ha una tariffa calcolata per quell’unità. Chiedi a un manager o superiore di assegnargli un prezzo.',
+    'Questo impianto non ha una tariffa calcolata per quell’unità. Chiedi a un manager o a un ruolo superiore di assegnargli un prezzo.',
   'La calculadora de spots necesita la tarifa por spot de la línea.':
     'Il calcolatore di spot ha bisogno della tariffa per spot della riga.',
   'Solo un gerente o superior puede poner prima a un Roadblock.':
-    'Solo un manager o superiore può applicare una maggiorazione a un Roadblock.',
+    'Solo un manager o un ruolo superiore può applicare una maggiorazione a un Roadblock.',
   'La calculadora de spots solo aplica a pantallas digitales vendidas por spot.':
     'Il calcolatore di spot si applica solo agli schermi digitali venduti a spot.',
   'La pantalla no tiene capturado cuántos espacios tiene su loop; captúralo en su ficha antes de usar la calculadora.':
@@ -1153,7 +1153,7 @@ export const CATALOGO_ERRORES_IT: Partial<Record<string, string>> = {
   'Código postal inválido (5 dígitos)':
     'CAP non valido (5 cifre)',
   'Teléfono inválido. Escribe 10 dígitos (p. ej. 55 1234 5678)':
-    'Telefono non valido. Scrivi 10 cifre (es. 55 1234 5678)',
+    'Telefono non valido. Inserisci 10 cifre (es. 55 1234 5678)',
   'Correo inválido. Usa el formato ejemplo@correo.com':
     'Email non valida. Usa il formato esempio@email.com',
   'La contraseña debe tener al menos 8 caracteres':
