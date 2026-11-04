@@ -58,13 +58,11 @@ export function Paginacion({
   etiqueta?: string
 }) {
   // Recorrido del italiano (04/11): estas tres palabras iban escritas a mano en
-  // espanol y salian asi en TODOS los idiomas. Solo el italiano pasa por el
-  // diccionario: el espanol sale igual por construccion, y el ingles se deja
-  // como estaba porque la regla de esta pasada es no cambiar su HTML. Para
-  // arreglar el ingles basta con quitar la condicion (las claves ya lo tienen):
-  // queda anotado en docs/i18n/revision-italiano-recorrido.md.
+  // espanol y salian asi en TODOS los idiomas. Ahora pasan por el diccionario
+  // en italiano y en ingles (el ingles, por decision del orquestador del mismo
+  // dia: era el mismo defecto). En espanol, el literal de siempre, byte a byte.
   const { idioma, t } = useIdioma()
-  const tr = (clave: ClaveTexto, espanol: string) => (idioma === 'it' ? t(clave) : espanol)
+  const tr = (clave: ClaveTexto, espanol: string) => (idioma !== 'es' ? t(clave) : espanol)
   // Con una sola página no se pinta nada: un control de paginación que no
   // pagina es ruido, y encima sugiere que hay más datos de los que hay.
   if (paginas <= 1) return null

@@ -114,13 +114,8 @@ function CuerpoComprobante({
             <Linea etiqueta={t('finanzas.comun.folio')} valor={c.folio} />
             <Linea etiqueta={t('finanzas.comprobante.serie')} valor={c.serie} />
             <Linea etiqueta={t('finanzas.comun.folio-fiscal')} valor={c.folioFiscal} />
-            {/* La fecha va como la guarda la factura (AAAA-MM-DD); en espanol se
-                pinta asi, como siempre. En ingles con `formatFecha` (costura): el
-                lector de EE. UU. no lee fechas ISO en un recibo. */}
-            <Linea
-              etiqueta={t('finanzas.comprobante.fecha')}
-              valor={idioma === 'es' ? c.fechaEmision : formatFecha(c.fechaEmision, idioma)}
-            />
+            {/* La fecha, como en la lista de facturas: ver `fechaDeComprobante`. */}
+            <Linea etiqueta={t('finanzas.comprobante.fecha')} valor={fechaDeComprobante(c.fechaEmision, idioma)} />
             <Linea etiqueta={t('finanzas.comun.campana')} valor={c.campana} />
           </div>
 
@@ -155,4 +150,15 @@ function CuerpoComprobante({
         </article>
       </div>
   )
+}
+
+/**
+ * La fecha de emision del comprobante, como la pinta la lista de facturas.
+ * Hasta el 04/11 la rama espanola pintaba el dato tal cual, suponiendo
+ * AAAA-MM-DD; la API lo manda como instante ISO y en una instancia espanola
+ * salia «2026-09-01T06:00:00.000Z» (recorrido del italiano, decision del
+ * orquestador). Ingles e italiano, sin cambios.
+ */
+export function fechaDeComprobante(fecha: string, idioma: Idioma): string {
+  return formatFecha(fecha, idioma)
 }

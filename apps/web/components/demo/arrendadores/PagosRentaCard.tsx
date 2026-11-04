@@ -317,8 +317,8 @@ export function PagosRentaCard({
       {/* Dentro del contenido, no fuera: al plegar la sección tiene que irse
           con la tabla. Suelto en la tarjeta, quedaba un paginador huérfano
           bajo un encabezado cerrado. */}
-      {/* «pagos» en espanol e ingles como siempre (ver Paginacion.tsx). */}
-      <Paginacion {...pag} etiqueta={idioma === 'it' ? t('compartidos.paginacion.pagos') : 'pagos'} />
+      {/* «pagos» en espanol como siempre; los demas, del diccionario (ver Paginacion.tsx). */}
+      <Paginacion {...pag} etiqueta={idioma !== 'es' ? t('compartidos.paginacion.pagos') : 'pagos'} />
     </CardColapsable>
     {/* FUERA de la tarjeta, no dentro: `CardColapsable` desmonta su contenido al
         plegarse, y el cuadro se iría con él dejando el pago a medias y sin

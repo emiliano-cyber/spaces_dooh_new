@@ -11,6 +11,7 @@ import { Paginacion } from '@/components/demo/ui/Paginacion'
 import { EtiquetaCarga } from '@/components/demo/ui/IndicadorCarga'
 import { IndicadorCarga as IndicadorProcesando } from '@/components/IndicadorCarga'
 import { importeDeRevision } from '@/components/demo/arrendadores/PanelFirmas'
+import { fechaDeComprobante } from '@/components/demo/finanzas/ComprobanteDialog'
 
 // ============================================================================
 //  Recorrido del italiano en el navegador (2026-11-04).
@@ -44,10 +45,12 @@ describe('Paginacion: «Anterior / Siguiente» y «de» salian en espanol', () =
     const t = texto(en('it', createElement(Paginacion, props)))
     expect(t).toBe('1–20 di 260 pagos Precedente 1 / 13 Avanti')
   })
-  it('en espanol y en ingles, el texto de siempre', () => {
-    for (const idioma of ['es', 'en'] as const) {
-      expect(texto(en(idioma, createElement(Paginacion, props)))).toBe('1–20 de 260 pagos Anterior 1 / 13 Siguiente')
-    }
+  it('en espanol, el texto de siempre', () => {
+    expect(texto(en('es', createElement(Paginacion, props)))).toBe('1–20 de 260 pagos Anterior 1 / 13 Siguiente')
+  })
+  // Decision del orquestador (04/11): el ingles tenia el mismo defecto y se arregla.
+  it('en ingles, «of», «Previous» y «Next»', () => {
+    expect(texto(en('en', createElement(Paginacion, props)))).toBe('1–20 of 260 pagos Previous 1 / 13 Next')
   })
 })
 
@@ -55,12 +58,12 @@ describe('Indicadores de carga: «Cargando…» y «Procesando…» escritos a m
   it('el aviso para lector de pantalla de la barra de carga', () => {
     expect(texto(en('it', createElement(EtiquetaCarga)))).toBe('Caricamento…')
     expect(texto(en('es', createElement(EtiquetaCarga)))).toBe('Cargando…')
-    expect(texto(en('en', createElement(EtiquetaCarga)))).toBe('Cargando…')
+    expect(texto(en('en', createElement(EtiquetaCarga)))).toBe('Loading…')
   })
   it('la pastilla de «Procesando…» de las peticiones que escriben', () => {
     expect(texto(en('it', createElement(IndicadorProcesando)))).toBe('Elaborazione…')
     expect(texto(en('es', createElement(IndicadorProcesando)))).toBe('Procesando…')
-    expect(texto(en('en', createElement(IndicadorProcesando)))).toBe('Procesando…')
+    expect(texto(en('en', createElement(IndicadorProcesando)))).toBe(DICCIONARIOS.en['shell.confirmar.procesando'])
   })
 })
 
@@ -75,9 +78,10 @@ describe('Papeles de las razones sociales: la base los guarda CON acentos', () =
     expect(etiquetaDePapel('Operación y nómina', 'it')).toBe(DICCIONARIOS.it['admin.papel.operacion'])
     expect(etiquetaDePapel('Operacion y nomina', 'it')).toBe(DICCIONARIOS.it['admin.papel.operacion'])
   })
-  it('en espanol, el dato tal cual; en ingles, lo de siempre', () => {
+  it('en espanol, el dato tal cual; en ingles, tambien con acento', () => {
     expect(etiquetaDePapel('Operación y nómina', 'es')).toBe('Operación y nómina')
-    expect(etiquetaDePapel('Operación y nómina', 'en')).toBe('Operación y nómina')
+    expect(etiquetaDePapel('Operación y nómina', 'en')).toBe(DICCIONARIOS.en['admin.papel.operacion'])
+    expect(etiquetaDePapel('Trámites y licencias con gobierno', 'en')).toBe(DICCIONARIOS.en['admin.papel.licencias'])
     expect(etiquetaDePapel('Operacion y nomina', 'en')).toBe(DICCIONARIOS.en['admin.papel.operacion'])
   })
   it('una etiqueta que no es de los cinco no se toca', () => {
@@ -96,9 +100,10 @@ describe('Fallas de Space Eyes: el backend manda nombres cortos', () => {
     expect(nombreDeFallaEnIdioma('Cámara movida', 'it')).toBe(DICCIONARIOS.it['spaceeyes.fallas.nombre.camara-movida'])
     expect(nombreDeFallaEnIdioma('Sin imagen', 'it')).toBe(DICCIONARIOS.it['spaceeyes.fallas.nombre.sin-imagen'])
   })
-  it('en espanol y en ingles, como antes', () => {
+  it('en espanol, tal cual; en ingles, traducidos tambien', () => {
     expect(nombreDeFallaEnIdioma('Pantalla congelada', 'es')).toBe('Pantalla congelada')
-    expect(nombreDeFallaEnIdioma('Pantalla congelada', 'en')).toBe('Pantalla congelada')
+    expect(nombreDeFallaEnIdioma('Pantalla congelada', 'en')).toBe(DICCIONARIOS.en['spaceeyes.fallas.nombre.pantalla-congelada'])
+    expect(nombreDeFallaEnIdioma('Sin imagen', 'en')).toBe(DICCIONARIOS.en['spaceeyes.fallas.nombre.sin-imagen'])
   })
 })
 
@@ -107,9 +112,9 @@ describe('Recuperar contrasena: el aviso del servidor llega en espanol', () => {
   it('en italiano se pinta el aviso del diccionario', () => {
     expect(avisoDeEnlaceEnviado(servidor, 'it')).toBe(DICCIONARIOS.it['login.aviso-generico'])
   })
-  it('en espanol y en ingles, el del servidor (como siempre); sin el, el del diccionario', () => {
+  it('en espanol, el del servidor (como siempre); en ingles, el del diccionario', () => {
     expect(avisoDeEnlaceEnviado(servidor, 'es')).toBe(servidor)
-    expect(avisoDeEnlaceEnviado(servidor, 'en')).toBe(servidor)
+    expect(avisoDeEnlaceEnviado(servidor, 'en')).toBe(DICCIONARIOS.en['login.aviso-generico'])
     expect(avisoDeEnlaceEnviado(undefined, 'en')).toBe(DICCIONARIOS.en['login.aviso-generico'])
   })
 })
@@ -132,5 +137,19 @@ describe('Registrar un abono: «acconto» es un anticipo, no un pago parcial', (
   it('ninguna clave de finanzas dice «acconto»', () => {
     const conAcconto = Object.entries(DICCIONARIOS.it).filter(([, v]) => /(^|[\s’'])accont/i.test(v))
     expect(conAcconto).toEqual([])
+  })
+})
+
+describe('Comprobante: la fecha de emision llegaba cruda en espanol', () => {
+  // Visto en la instancia `es` (04/11): «Fecha de emisión 2026-09-01T06:00:00.000Z».
+  // La API manda la fecha como instante ISO; la rama espanola la pintaba tal
+  // cual. Decision del orquestador: formatearla como la lista de facturas.
+  it('en espanol, dd/mm/aaaa como la lista de facturas, venga como venga', () => {
+    expect(fechaDeComprobante('2026-09-01', 'es')).toBe('01/09/2026')
+    expect(fechaDeComprobante(new Date(2026, 8, 1).toISOString(), 'es')).toBe('01/09/2026')
+  })
+  it('en ingles e italiano, lo de siempre', () => {
+    expect(fechaDeComprobante('2026-09-01', 'en')).toBe('Sep 1, 2026')
+    expect(fechaDeComprobante('2026-09-01', 'it')).toBe('1 set 2026')
   })
 })

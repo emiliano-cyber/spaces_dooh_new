@@ -56,11 +56,10 @@ export function mensajeDeAcceso(mensaje: string, idioma: Idioma): string {
  * `app/api/auth/forgot` en espanol (zona roja: no se toca) y la pantalla lo
  * pintaba tal cual. En el recorrido del italiano (04/11) salia «Si el correo
  * está registrado…» con la pantalla en italiano: en italiano se pinta el del
- * diccionario, que dice lo mismo. En espanol, el del servidor de siempre; en
- * ingles tambien, por la regla de esta pasada (no cambiar su HTML) — anotado
- * en docs/i18n/revision-italiano-recorrido.md.
+ * diccionario, que dice lo mismo; en ingles, igual (salia en espanol). En
+ * espanol, el del servidor de siempre.
  */
 export function avisoDeEnlaceEnviado(mensajeDelServidor: string | undefined, idioma: Idioma): string {
-  if (idioma === 'it') return traducir(idioma, 'login.aviso-generico')
+  if (idioma !== 'es') return traducir(idioma, 'login.aviso-generico')
   return mensajeDelServidor ?? traducir(idioma, 'login.aviso-generico')
 }

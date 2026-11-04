@@ -53,8 +53,7 @@ const CLAVES_NOMBRE = [
 // NOMBRES) escribe tres de ellos mas cortos que el telefono, y son los que
 // llegan cuando la falla la detecta el servidor. Visto en el recorrido del
 // italiano (04/11): «Pantalla congelada» salia en espanol con la interfaz en
-// italiano. Solo el italiano los reconoce; el ingles se deja como estaba, por
-// la regla de esta pasada (anotado en docs/i18n/revision-italiano-recorrido.md).
+// italiano (y en ingles, igual). Se reconocen tambien los cortos.
 const NOMBRES_CORTOS_DEL_BACKEND: Record<string, (typeof CLAVES_NOMBRE)[number]> = {
   'Pantalla congelada': 'spaceeyes.fallas.nombre.pantalla-congelada',
   'Cámara movida': 'spaceeyes.fallas.nombre.camara-movida',
@@ -63,7 +62,7 @@ const NOMBRES_CORTOS_DEL_BACKEND: Record<string, (typeof CLAVES_NOMBRE)[number]>
 
 export function nombreDeFallaEnIdioma(nombre: string, idioma: Idioma): string {
   if (idioma === 'es') return nombre
-  if (idioma === 'it' && NOMBRES_CORTOS_DEL_BACKEND[nombre]) return traducir(idioma, NOMBRES_CORTOS_DEL_BACKEND[nombre])
+  if (NOMBRES_CORTOS_DEL_BACKEND[nombre]) return traducir(idioma, NOMBRES_CORTOS_DEL_BACKEND[nombre])
   const clave = CLAVES_NOMBRE.find((k) => traducir('es', k) === nombre)
   return clave ? traducir(idioma, clave) : nombre
 }

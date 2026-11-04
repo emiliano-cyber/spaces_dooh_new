@@ -90,10 +90,10 @@ export function IndicadorCarga() {
 /**
  * Lo que oye un lector de pantalla mientras hay algo cargando. Iba escrito a
  * mano en espanol y lo oia igual quien usa la aplicacion en italiano
- * (recorrido del 04/11). Solo el italiano pasa por el diccionario; el ingles
- * se deja como estaba, por la regla de esta pasada (ver Paginacion.tsx).
+ * (recorrido del 04/11), y en ingles igual. Fuera del espanol pasa por el
+ * diccionario; en espanol, el literal de siempre.
  */
 export function EtiquetaCarga() {
   const { idioma, t } = useIdioma()
-  return <span className="sr-only">{idioma === 'it' ? t('comun.cargando') : 'Cargando…'}</span>
+  return <span className="sr-only">{idioma !== 'es' ? t('comun.cargando') : 'Cargando…'}</span>
 }
