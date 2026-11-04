@@ -1,7 +1,7 @@
 ---
 tipo: tablero
 estado: en-curso
-actualizado: 2026-11-03
+actualizado: 2026-11-04
 tags: [frontend, i18n, italiano, olas, agentes, dinero]
 archivos:
   - apps/web/lib/i18n/idiomas.ts
@@ -367,3 +367,48 @@ sin validar.** Revisión: `docs/i18n/revision-italiano-l5.md`.
   las pantallas italianas: `lib/test/barrido-italiano.ts`.
 - **Para el dueño:** `CampoCifra` lee las cifras a la mexicana también en
   italiano (sus mensajes lo dicen); teclear a la italiana sería otra tarea.
+
+## 7 · Costura final (2026-11-04)
+
+Con los cinco lotes juntos en `integra/idiomas` (`9c593b82`), `costura.test.ts`
+encontró **30 textos españoles con dos italianos** según el lote y **4 frases
+que también manda el servidor** dichas distinto en el campo y en el error; y
+`pantallas-energia` veía «>Periodo<» como español (es la misma palabra en
+italiano: va a `COMUNES_IT`). Se **unifican 24** y se **declaran distintos a
+propósito 6**, con el porqué en `DISTINTOS_A_PROPOSITO_IT`. Español e inglés,
+idénticos a `9c593b82` (5594 claves cada uno, comparadas por script); 34 claves
+italianas y 4 mensajes del catálogo italiano del servidor cambian.
+
+| Español | Antes | Decidido |
+|---|---|---|
+| Enviando… / Generando… / Verificando… | «Invio in corso…» (login), «Generazione / Verifica in corso…» (cuenta) frente a la forma corta | **Unificado**: «Invio…», «Generazione…», «Verifica…» (como «Salvataggio…» de L5) |
+| Captación | Acquisizione (título de la página) | **Acquisizione siti**, como el menú |
+| Comisiones | Commissioni (título de la página) | **Provvigioni**, como el menú. El cuerpo sigue diciendo «commissione d’agenzia», término de propuestas y reportes |
+| Hasta | «A» en el selector de periodo | **Fino a** (par «Da / Fino a»; sustituye el «Dal / Al» del glosario de L5) |
+| {desde} a {hasta} | «{desde}–{hasta}» en el horario de DOOHmain | **{desde} – {hasta}**, con espacios, como el resto |
+| a | «–» entre fechas / «alle» entre horas | **Distinto a propósito**: «al» sería artículo ante fecha; entre horas, «dalle … alle» |
+| Sin asignar | Non assegnata / Non assegnato | **Distinto a propósito** (concordancia): razón social, fem. (y la fila del reporte por razón social pasa a «Non assegnata»); responsable de OT o creativo, masc. |
+| No se pudo leer el archivo · No se pudo guardar · No se pudo dar de baja | «Non è stato possibile …» en admin | **Impossibile leggere il file / salvare / disattivare** (glosario de L2) |
+| En proceso | In lavorazione (tickets) | **In corso** |
+| Limpiar filtros | Azzera i filtri (admin) | **Cancella i filtri** |
+| Limpiar | Azzera (actividad) / Deseleziona (inventario) | **Azzera** en los dos: Arrendadores reusa la clave del inventario para quitar filtros, donde «Deseleziona» mentía; «Cancella» suelto, en la barra de acciones masivas, se leería «borrar» |
+| evidencia (alt de una foto) | foto di verifica (shell) | **prova** (glosario de L3) |
+| otra franja | altra fascia oraria (campañas) / un’altra fascia oraria (servidor) | **un’altra fascia oraria** en los dos |
+| Abono registrado | Acconto registrato (finanzas) | **Pagamento parziale registrato**, como la notificación: un abono es un pago parcial, no un anticipo |
+| Programático | Programmatico (admin) | **Programmatic** (anglicismo del sector) |
+| En Network | Nella Network | **Nel Network**, y «il Network» en las 8 claves de la Network de Administración |
+| Automática | Automatico / Automatica | **Distinto a propósito**: «rinnovo» masc. / «modalità» fem. |
+| Guardar cambios | Salva le modifiche (admin) | **Salva modifiche** |
+| Sin límite | Nessun limite (admin) | **Senza limite** |
+| {n} de {total} | {n} su {total} (admin) | **{n} di {total}** |
+| Operación | Operatività (familia de configuración) | **Operazioni** |
+| Calle, número, colonia, CP, ciudad, estado | dos ejemplos de domicilio | **Via, numero civico, quartiere, CAP, città, provincia** en los dos |
+| Nuevo · {n} nueva · {n} nuevas | Novità / Nuovo, novità / nuovo(i) | **Distinto a propósito**: tipo de las notas de versión («Novità», invariable) frente a un locatore o unos impianti nuevos |
+| {libres} de {total} libres | Liberi: {libres} su {total} (shell) | **{libres} di {total} liberi** |
+| Solo un gerente o superior… (servidor y campo) | «manager o superiore» en el servidor | **manager o un ruolo superiore** en los tres mensajes del servidor |
+| Teléfono inválido… | Scrivi (servidor) / Inserisci (campo) | **Inserisci** |
+| El reporte abarca como máximo 24 meses… | Accorcia (campo) / Riduci (servidor) | **Riduci l’intervallo di date** |
+
+**Guardia nueva:** `costura.test.ts` prohíbe un artículo delante de una fecha
+(`il|al|dal|del|nel|sul|l’|all’|dall’|dell’` + `{fecha|fin|desde|inicio|hasta|vence}`)
+sobre **todo** `IT_PARCIAL`, con su prueba de que muerde. El barrido dio 0.
