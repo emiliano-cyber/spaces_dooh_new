@@ -6,6 +6,10 @@ import path from 'node:path'
 import { ProveedorIdioma } from './contexto'
 import type { Idioma } from './idiomas'
 import { ES_REPORTES, EN_REPORTES } from './textos/reportes'
+import { MONEDAS, fijarMonedaInstancia } from './dinero'
+import { leerDinero } from './simbolo-en-pantalla'
+import { huellasEnItaliano } from './guardias-italiano'
+import { fugasItaliano, legible, copiasDeOtroIdioma, IGUALES_A_PROPOSITO_L4, reglasDelItaliano, palabrasEspanolas } from '../test/barrido-italiano-l4'
 
 // ============================================================================
 //  I18N · LOTE «REPORTES» (`/reportes`), RENDIDO EN LOS DOS IDIOMAS.
@@ -444,3 +448,80 @@ describe('lote REPORTES · barrido del diccionario contra el HTML ingles', () =>
     expect(fugas).toEqual([])
   })
 })
+
+// ─── ITALIANO · lote L4 (2026-11-03) ────────────────────────────────────────
+//
+// Los mismos estados en italiano. Las NOTAS del motor se vuelven a armar en
+// el idioma de la pantalla desde sus numeros (como en ingles), asi que el
+// barrido las cubre: ni un trozo ingles de la caida ni uno espanol, ni una
+// fecha, cifra o importe con formato espanol o ingles.
+describe('lote REPORTES · en ITALIANO', () => {
+  it('ninguna frase del lote cae al ingles ni se queda en espanol', async () => {
+    const { IT_REPORTES } = await import('./textos/reportes')
+    let todo = ''
+    for (const e of ESTADOS) {
+      forzado.cola = []
+      todo += legible((await e.pintar('it')).replace(/ value="[^"]*"/g, '')) + '\n'
+    }
+    expect(fugasItaliano(todo, [[ES_REPORTES, EN_REPORTES, IT_REPORTES]], { min: 5 })).toEqual([])
+  })
+
+  for (const e of ESTADOS) {
+    it(`sin formatos espanoles ni ingleses · ${e.nombre}`, async () => {
+      expect(huellasEnItaliano(await e.pintar('it'))).toEqual([])
+    })
+  }
+
+  it('frases italianas a la vista', async () => {
+    const html = texto(await ESTADOS[0].pintar('it'))
+    expect(['Report di redditività', 'Indicatori del periodo', 'Per impianto'].filter((f) => !html.includes(f))).toEqual([])
+  })
+
+  afterEach(() => fijarMonedaInstancia('MXN'))
+  const vistos: Record<string, number> = {}
+  for (const moneda of MONEDAS) {
+    ESTADOS.forEach((e) => {
+      it(`${moneda} · it · ${e.nombre}`, async () => {
+        fijarMonedaInstancia(moneda)
+        const { importes, ajenos } = leerDinero(texto(await e.pintar('it')), 'it', moneda)
+        vistos[moneda] = (vistos[moneda] ?? 0) + importes
+        expect(ajenos).toEqual([])
+      })
+    })
+    it(`${moneda} · it · el arnes encontro importes que mirar`, () => {
+      expect(vistos[moneda] ?? 0).toBeGreaterThan(0)
+    })
+  }
+})
+
+describe('lote REPORTES · el diccionario italiano no es una copia', () => {
+  it('ningun italiano es el ingles o el espanol pegado (salvo los cognados declarados)', async () => {
+    const { IT_REPORTES } = await import('./textos/reportes')
+    const copias = copiasDeOtroIdioma([[ES_REPORTES, EN_REPORTES, IT_REPORTES]])
+    expect(copias.filter((c) => !IGUALES_A_PROPOSITO_L4.has(c))).toEqual([])
+    // Y la lista no caduca: cada excepcion de estos ambitos sigue siendo una copia.
+    const propias = [...IGUALES_A_PROPOSITO_L4].filter((c) => /^(en|es) (reportes)\./.test(c))
+    expect(propias.filter((c) => !copias.includes(c))).toEqual([])
+  })
+})
+
+// Validacion del L4 (03/11): las reglas de estilo y la guardia de palabras
+// espanolas sueltas (un italiano a medias que el barrido por trozos no ve).
+describe('lote REPORTES · reglas del italiano (validacion del L4)', () => {
+  it('fechas sin articulo, DOOHmain con «su», «blocco fatturazione», «anomalia», periodicidades en adjetivo', async () => {
+    const { IT_REPORTES } = await import('./textos/reportes')
+    expect(reglasDelItaliano([[ES_REPORTES, EN_REPORTES, IT_REPORTES]])).toEqual([])
+  })
+
+  it('ninguna palabra espanola suelta en el HTML italiano', async () => {
+    let todo = ''
+    for (const e of ESTADOS) {
+      forzado.cola = []
+      todo += legible(await e.pintar('it')) + '\n'
+    }
+    expect(palabrasEspanolas(todo, AJENOS_IT)).toEqual([])
+  })
+})
+
+// Datos de prueba (nombres en espanol) que la guardia de palabras no mira.
+const AJENOS_IT: string[] = []

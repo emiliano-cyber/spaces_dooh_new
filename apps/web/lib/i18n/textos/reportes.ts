@@ -479,11 +479,217 @@ export const EN_REPORTES: Record<ClaveReportes, string> = {
     'Also, {n} bills for {importe} do not appear in any row, because their property has no screens set up yet.',
 }
 
-// ─── ITALIANO · ola 0 (2026-11-03) ──────────────────────────────────────────
-// PARCIAL a proposito: lo rellena el lote de traduccion de este ambito
-// (`vault/03-Frontend/italiano-olas.md`). Mientras falte una clave, la
-// pantalla la pinta en INGLES (`diccionario.ts`, `DICCIONARIOS.it`) y la
-// prueba de cobertura (`cobertura-italiano.test.ts`) la cuenta como pendiente.
-// Cuando el lote termine, el tipo pasa a `Record<ClaveReportes, string>` y `tsc`
-// vuelve a exigir cada clave, como en el ingles.
-export const IT_REPORTES: Partial<Record<ClaveReportes, string>> = {}
+// ─── ITALIANO · lote L4 (2026-11-03) ────────────────────────────────────────
+// Completo: el tipo es `Record<ClaveReportes, string>` y `tsc` exige cada
+// clave, como en el ingles. Traducido del ESPANOL (el ingles solo como apoyo),
+// con el glosario de `vault/03-Frontend/italiano-olas.md`.
+//
+//  · «Pantalla» en los reportes es la del inventario —digital o fija—, asi que
+//    es «impianto» (glosario: «schermo» solo para la digital). La pantalla de
+//    la APLICACION («escondido en otra pantalla») es «schermata».
+//  · Luz = «luce» (la bolleta della luce); recibo = «bolletta».
+//  · Las variantes `.una-de-varias` existen porque el sujeto es UNO de varios
+//    («1 delle 3 prenotazioni … non ha»): el verbo concuerda con el uno.
+//  · `reportes.nota.ot.reales.uno` no lleva cifra en el espanol («Las 1
+//    visita…»): en italiano «L’unica visita…».
+//  · Las fechas fijas («2026-09-28») se quedan en ISO como en espanol e ingles.
+//  · `reportes.nota.luz.faltan.*` va con dos puntos, como el ingles («Mancanti:
+//    1 su 3»): el plural depende de las esperadas, no de las que faltan.
+export const IT_REPORTES: Record<ClaveReportes, string> = {
+  'reportes.titulo': 'Report di redditività',
+  'reportes.subtitulo': 'Quanto incassa e quanto costa ogni impianto nel periodo che scegli.',
+  'reportes.indicadores': 'Indicatori del periodo',
+  'reportes.kpi.ingreso': 'Ricavi del periodo',
+  'reportes.kpi.costo-sub': 'Spazio {espacio} · Operazioni {operacion} · Luce {luz}',
+  'reportes.kpi.margen': 'Margine sui ricavi',
+  'reportes.kpi.margen-sub': 'Margine {monto}',
+  'reportes.rango': '{desde} – {hasta}',
+  'reportes.resultado': 'Risultato',
+  'reportes.periodos': '{n} {periodos}',
+  'reportes.periodos.palabra.uno': 'periodo',
+  'reportes.periodos.palabra.otros': 'periodi',
+  'reportes.error.titulo': 'Impossibile calcolare il report',
+  'reportes.error.sin-mensaje': 'Impossibile calcolare il report. La richiesta non è andata a buon fine.',
+  'reportes.error.red': 'Impossibile contattare il server. Controlla la connessione e riprova.',
+  'reportes.invalido.titulo': 'Controlla il periodo',
+  'reportes.vacio.titulo': 'Nessun movimento in questo periodo',
+  'reportes.vacio.detalle':
+    'Tra {desde} e {hasta} nessun impianto ha registrato ricavi, affitti né ordini di lavoro. Un impianto senza nulla di tutto ciò non compare nel report; prova con un intervallo più ampio.',
+  'reportes.notas': 'Note su queste cifre ({n})',
+  'reportes.inicial.titulo': 'Scegli un periodo',
+  'reportes.inicial.detalle': 'Il report si calcola quando scegli le date.',
+  'reportes.filtro.agrupar': 'Raggruppa',
+  'reportes.filtro.desde': 'Da',
+  'reportes.filtro.hasta': 'A',
+  'reportes.filtro.periodos': 'Periodi',
+  'reportes.dim.sitio': 'Per impianto',
+  'reportes.dim.sitio.ayuda':
+    'I ricavi e le tre fonti di costo di ogni impianto —spazio, operazioni e luce—. Prima il margine peggiore.',
+  'reportes.dim.trimestre': 'Per trimestre',
+  'reportes.dim.trimestre.ayuda': 'Come evolve l’attività: una riga per trimestre solare, in ordine cronologico.',
+  'reportes.dim.operacion': 'Per operazioni',
+  'reportes.dim.operacion.ayuda': 'Dove vanno i soldi nelle visite: ordini di lavoro, il loro costo e le ore sul posto.',
+  'reportes.dim.m2': 'Per metro quadrato',
+  'reportes.dim.m2.ayuda': 'Quale superficie statica rende. Gli impianti digitali non entrano: il loro denominatore sono gli spot.',
+  'reportes.dim.luz': 'Per consumo di luce',
+  'reportes.dim.luz.ayuda': 'Quali impianti divorano l’energia. La bolletta dell’immobile si ripartisce tra i suoi impianti.',
+  'reportes.dim.entidad': 'Per ragione sociale',
+  'reportes.dim.entidad.ayuda':
+    'Quanto fattura e quanto affitto paga ciascuna delle tue ragioni sociali. Le operazioni e la luce non si ripartiscono: nessun dato dice a chi appartengono.',
+  'reportes.dim.tarifa': 'Pubblicata vs netta',
+  'reportes.dim.tarifa.ayuda':
+    'Quale tariffa è stata pubblicata e quanto ne è entrato. Ciò che è stato venduto da Vendite non ha una tariffa pubblicata congelata ed esce con un trattino, non con uno zero.',
+  'reportes.dim.vendedor': 'Per commerciale',
+  'reportes.dim.vendedor.ayuda':
+    'Quanto ha venduto ogni persona e quanto sconto ha concesso. Il commerciale è chi crea la proposta, e si registra dal 2026-09-28: ciò che è precedente esce in «Nessun commerciale» e non si può recuperare.',
+  'reportes.gran.mes': 'Mensile',
+  'reportes.gran.trimestre': 'Trimestrale',
+  'reportes.motivo.sin-inicio': 'Manca la data di inizio del report',
+  'reportes.motivo.sin-fin': 'Manca la data di fine del report',
+  'reportes.motivo.formato': 'Usa date nel formato AAAA-MM-GG',
+  'reportes.motivo.invertido': 'La data di fine non può essere precedente a quella di inizio',
+  'reportes.motivo.tope': 'Il report copre al massimo 24 mesi per richiesta. Accorcia l’intervallo di date.',
+  'reportes.col.pantalla': 'Impianto',
+  'reportes.col.trimestre': 'Trimestre',
+  'reportes.col.razon-social': 'Ragione sociale',
+  'reportes.col.vendedor': 'Commerciale',
+  'reportes.col.ingreso': 'Ricavi',
+  'reportes.col.costo-espacio': 'Costo dello spazio',
+  'reportes.col.costo-operacion': 'Costo operativo',
+  'reportes.col.costo-luz': 'Costo della luce',
+  'reportes.col.costo-total': 'Costo totale',
+  'reportes.col.margen-bruto': 'Margine lordo',
+  'reportes.col.margen-bruto-pct': 'Margine lordo %',
+  'reportes.col.visitas': 'Visite',
+  'reportes.col.operacion-ingreso': 'Operazioni / ricavi',
+  'reportes.col.horas': 'Ore sul posto',
+  'reportes.col.superficie': 'Superficie',
+  'reportes.col.ingreso-m2': 'Ricavi / m²',
+  'reportes.col.margen-m2': 'Margine lordo / m²',
+  'reportes.col.consumo': 'Consumo',
+  'reportes.col.costo-kwh': 'Costo / kWh',
+  'reportes.col.saldo-atribuido': 'Saldo attribuito',
+  'reportes.col.pct-facturacion': '% del fatturato',
+  'reportes.col.tarifa-publicada': 'Tariffa pubblicata',
+  'reportes.col.neto-comparable': 'Netto confrontabile',
+  'reportes.col.descuento-comision': 'Sconto e commissione',
+  'reportes.col.pct-publicada': '% sulla pubblicata',
+  'reportes.desglose.periodo': 'Periodo',
+  'reportes.desglose.espacio': 'Spazio',
+  'reportes.desglose.operacion': 'Operazioni',
+  'reportes.desglose.luz': 'Luce',
+  'reportes.tabla.total': 'Totale ({n})',
+  'reportes.tabla.desglose.ocultar': 'Nascondi il dettaglio per periodo',
+  'reportes.tabla.desglose.ver': 'Mostra il dettaglio per periodo',
+  'reportes.tabla.raya.margen-pct': 'Nessun ricavo nell’intervallo: non c’è una percentuale da calcolare',
+  'reportes.tabla.raya.operacion-pct': 'Nessun ricavo nell’intervallo: non c’è una proporzione da calcolare',
+  'reportes.tabla.raya.horas': 'Nessuna visita dell’intervallo ha registrati entrambi i suoi orari',
+  'reportes.tabla.horas-de': 'su {n} {visitas}',
+  'reportes.tabla.visitas.uno': 'visita',
+  'reportes.tabla.visitas.otros': 'visite',
+  'reportes.tabla.propia': 'di proprietà',
+  'reportes.tabla.sin-contrato': 'senza contratto',
+  'reportes.fila.sin-asignar': 'Non assegnato',
+  'reportes.fila.sin-asignar.detalle': 'Nessuna ragione sociale nel dato di origine',
+  'reportes.fila.sin-vendedor': 'Nessun commerciale',
+  'reportes.fila.sin-vendedor.detalle': 'Campagne da Vendite e proposte precedenti al 2026-09-28',
+  'reportes.cuenta.pantalla.uno': '{n} impianto',
+  'reportes.cuenta.pantalla.otros': '{n} impianti',
+  'reportes.cuenta.trimestre.uno': '{n} trimestre',
+  'reportes.cuenta.trimestre.otros': '{n} trimestri',
+  'reportes.cuenta.razon-social.uno': '{n} ragione sociale',
+  'reportes.cuenta.razon-social.otros': '{n} ragioni sociali',
+  'reportes.cuenta.vendedor.uno': '{n} commerciale',
+  'reportes.cuenta.vendedor.otros': '{n} commerciali',
+  'reportes.con-movimiento': '{cuenta} con movimenti',
+  'reportes.aviso.en-curso.uno':
+    'Il periodo che stai guardando comprende {etiqueta}, che è IN CORSO: è trascorso {corridos} dei suoi {totales} giorni. L’affitto degli spazi ha già maturato quel {corridos} giorno intero, ma ciò che è stato venduto si fattura alla chiusura, quindi i ricavi non sono ancora dentro e il margine risulta peggiore di quanto sarà. Non confrontarlo con un trimestre concluso.',
+  'reportes.aviso.en-curso.otros':
+    'Il periodo che stai guardando comprende {etiqueta}, che è IN CORSO: sono trascorsi {corridos} dei suoi {totales} giorni. L’affitto degli spazi ha già maturato quei {corridos} giorni interi, ma ciò che è stato venduto si fattura alla chiusura, quindi i ricavi non sono ancora dentro e il margine risulta peggiore di quanto sarà. Non confrontarlo con un trimestre concluso.',
+  'reportes.aviso.margen-bruto':
+    'Il margine di questo report è LORDO: sono i ricavi meno i costi DIRETTI dell’impianto —spazio, operazioni e luce—. NON è il margine netto, e non ci si arriva sottraendo nulla di ciò che c’è in questa tabella: al netto mancherebbero i costi indiretti (personale, ufficio, struttura) e questo sistema non ne registra nessuno. Finché non verranno registrati, il margine netto dell’attività non si può calcolare qui, e non è nascosto in un’altra schermata.',
+  'reportes.aviso.m2.todas-las-caras':
+    'La superficie somma TUTTE le facce di ogni impianto: uno bifacciale da 3 × 6 conta 36 m², non 18. È la superficie che si vende, e ogni impianto apporta quella delle sue facce.',
+  'reportes.aviso.m2.una-cara':
+    'La superficie è quella di UNA faccia: un impianto bifacciale da 3 × 6 conta 18 m², non 36. Misura la superficie del supporto e non quella che si vende, quindi gli impianti con più facce risultano meglio posizionati che se si contassero tutte.',
+  'reportes.aviso.sin-contrato.uno':
+    '{cuenta} non ha un contratto di locazione nel periodo: il suo costo dello spazio risulta zero perché manca il dato, non perché sia gratis, e il suo margine sembra migliore di quanto sia.',
+  'reportes.aviso.sin-contrato.otros':
+    '{cuenta} non hanno un contratto di locazione nel periodo: il loro costo dello spazio risulta zero perché manca il dato, non perché sia gratis, e il loro margine sembra migliore di quanto sia.',
+  'reportes.aviso.sin-ingreso.trimestre.uno':
+    '{cuenta} senza ricavi nell’intervallo. Compare a zero di proposito: in una serie temporale un vuoto si legge come «mancano dati» e uno zero come «non è successo nulla».',
+  'reportes.aviso.sin-ingreso.trimestre.otros':
+    '{cuenta} senza ricavi nell’intervallo. Compaiono a zero di proposito: in una serie temporale un vuoto si legge come «mancano dati» e uno zero come «non è successo nulla».',
+  'reportes.aviso.sin-ingreso.uno':
+    '{cuenta} ha avuto costi senza vendere nulla nel periodo, quindi non ha un margine percentuale (la colonna mostra «—»).',
+  'reportes.aviso.sin-ingreso.otros':
+    '{cuenta} hanno avuto costi senza vendere nulla nel periodo, quindi non hanno un margine percentuale (la colonna mostra «—»).',
+  'reportes.nota.ot.sin-visitas':
+    'Non c’è stata nessuna visita in questo periodo, quindi il costo operativo è zero perché non si è andati a nessun impianto, non perché manchi da registrarlo.',
+  'reportes.nota.ot.intro':
+    'Il costo operativo si compone di due fonti e NON sono la stessa cosa: quanto è costata davvero ogni visita, quando qualcuno l’ha registrato nel suo ordine di lavoro, e una STIMA per tipo di ordine —quella di Configurazione— quando no. La stima addebita allo stesso modo un lavoro di carpenteria metallica da {caro} e uno da {barato}.',
+  'reportes.nota.ot.estimacion.uno':
+    '{estimadas} su {total} visita del periodo entra con la stima per tipo ({estimado}) e {reales} con il suo costo reale ({capturado}). Quella parte del costo —e il margine che ne deriva— è una stima, non una misura: registrare il costo nell’ordine di lavoro la sostituisce.',
+  'reportes.nota.ot.estimacion.una-de-varias':
+    '{estimadas} delle {total} visite del periodo entra con la stima per tipo ({estimado}) e {reales} con il loro costo reale ({capturado}). Quella parte del costo —e il margine che ne deriva— è una stima, non una misura: registrare il costo nell’ordine di lavoro la sostituisce.',
+  'reportes.nota.ot.estimacion.otros':
+    '{estimadas} delle {total} visite del periodo entrano con la stima per tipo ({estimado}) e {reales} con il loro costo reale ({capturado}). Quella parte del costo —e il margine che ne deriva— è una stima, non una misura: registrare il costo nell’ordine di lavoro la sostituisce.',
+  'reportes.nota.ot.reales.uno':
+    'L’unica visita del periodo è al suo costo REALE registrato ({capturado}): qui non c’è nessuna stima, il costo operativo che vedi è quello che è stato pagato.',
+  'reportes.nota.ot.reales.otros':
+    'Tutte le {total} visite del periodo sono al loro costo REALE registrato ({capturado}): qui non c’è nessuna stima, il costo operativo che vedi è quello che è stato pagato.',
+  'reportes.nota.m2.ninguna':
+    'Non è stato escluso nessun impianto: tutti quelli con movimenti sono statici e hanno le misure registrate.',
+  'reportes.nota.m2.fuera': 'Sono rimasti fuori dalla classifica: {partes}.',
+  'reportes.nota.m2.digitales.uno':
+    '{n} impianto digitale o rotativo, perché il suo denominatore corretto sono gli spot e non i metri',
+  'reportes.nota.m2.digitales.otros':
+    '{n} impianti digitali o rotativi, perché il loro denominatore corretto sono gli spot e non i metri',
+  'reportes.nota.m2.sin-medidas.uno': '{n} statico senza larghezza o altezza registrate',
+  'reportes.nota.m2.sin-medidas.otros': '{n} statici senza larghezza o altezza registrate',
+  'reportes.nota.entidad.intro':
+    'Le operazioni ({operacion}) e la luce ({luz}) NON si ripartiscono tra ragioni sociali: nessun dato dice a nome di chi si pagano. Per questo questa vista non mostra il margine — risulterebbe migliore di quello reale.',
+  'reportes.nota.entidad.sin-emisora.uno':
+    '{n} prenotazione del periodo senza ricevuta con emittente: i suoi ricavi escono in «Non assegnato».',
+  'reportes.nota.entidad.sin-emisora.otros':
+    '{n} prenotazioni del periodo senza ricevuta con emittente: i loro ricavi escono in «Non assegnato».',
+  'reportes.nota.entidad.sin-entidad.uno':
+    '{n} contratto senza ragione sociale assegnata: il suo affitto esce in «Non assegnato».',
+  'reportes.nota.entidad.sin-entidad.otros':
+    '{n} contratti senza ragione sociale assegnata: il loro affitto esce in «Non assegnato».',
+  'reportes.nota.tarifa.intro':
+    'La differenza tra la tariffa pubblicata e il netto è lo sconto commerciale PIÙ la commissione d’agenzia: i due si congelano insieme nella proposta e il dato non li separa per impianto.',
+  'reportes.nota.tarifa.sin-tarifa.uno':
+    '{sin} su {total} prenotazione del periodo non ha una tariffa pubblicata con cui confrontarla ({ingreso} di ricavi): o è nata in Vendite —dove il prezzo salvato È GIÀ la tariffa di listino— o il suo prezzo non coincide con il netto congelato dalla sua proposta. Quelle righe escono con un trattino e non con uno zero: uno zero direbbe che è stata regalata l’intera tariffa.',
+  'reportes.nota.tarifa.sin-tarifa.una-de-varias':
+    '{sin} delle {total} prenotazioni del periodo non ha una tariffa pubblicata con cui confrontarla ({ingreso} di ricavi): o è nata in Vendite —dove il prezzo salvato È GIÀ la tariffa di listino— o il suo prezzo non coincide con il netto congelato dalla sua proposta. Quelle righe escono con un trattino e non con uno zero: uno zero direbbe che è stata regalata l’intera tariffa.',
+  'reportes.nota.tarifa.sin-tarifa.otros':
+    '{sin} delle {total} prenotazioni del periodo non hanno una tariffa pubblicata con cui confrontarle ({ingreso} di ricavi): o sono nate in Vendite —dove il prezzo salvato È GIÀ la tariffa di listino— o il loro prezzo non coincide con il netto congelato dalla loro proposta. Quelle righe escono con un trattino e non con uno zero: uno zero direbbe che è stata regalata l’intera tariffa.',
+  'reportes.nota.vendedor.intro':
+    'La differenza tra la tariffa pubblicata e il netto è lo sconto commerciale PIÙ la commissione d’agenzia: i due si congelano insieme nella proposta e il dato non li separa. Non è tutto uno sconto concesso dal commerciale.',
+  'reportes.nota.vendedor.sin-propuesta':
+    '{n} da campagne create direttamente in Vendite, che non hanno mai avuto una proposta e quindi non hanno nessuno a cui essere attribuite',
+  'reportes.nota.vendedor.historicas':
+    '{n} da proposte precedenti al 2026-09-28, quando non si registrava ancora chi le creava: quel dato NON SI PUÒ RECUPERARE —il registro salva il nome della proposta, non il suo identificativo— quindi quelle vendite restano senza commerciale per sempre',
+  'reportes.nota.vendedor.sin-vendedor.uno':
+    '{sin} su {total} prenotazione del periodo esce in «Nessun commerciale» ({ingreso} di ricavi): {causas}.',
+  'reportes.nota.vendedor.sin-vendedor.una-de-varias':
+    '{sin} delle {total} prenotazioni del periodo esce in «Nessun commerciale» ({ingreso} di ricavi): {causas}.',
+  'reportes.nota.vendedor.sin-vendedor.otros':
+    '{sin} delle {total} prenotazioni del periodo escono in «Nessun commerciale» ({ingreso} di ricavi): {causas}.',
+  'reportes.nota.vendedor.raya':
+    'Quelle righe escono con un trattino e non con uno zero: uno zero in «Sconto e commissione» affermerebbe che non ne è stato concesso nessuno.',
+  'reportes.nota.luz.sin-esperados': 'Non sono previste bollette della luce in questo periodo.',
+  'reportes.nota.luz.completa.uno':
+    'Non manca nessuna bolletta: risulta registrata {esperados} bolletta attesa nel periodo, quindi il costo della luce è completo.',
+  'reportes.nota.luz.completa.otros':
+    'Non manca nessuna bolletta: risultano registrate tutte le {esperados} bollette attese nel periodo, quindi il costo della luce è completo.',
+  'reportes.nota.luz.faltan.uno':
+    'Mancanti: {faltantes} su {esperados} bolletta del periodo, quindi il costo della luce che vedi è INCOMPLETO e il margine risulta migliore di quanto sarà. Un mese senza bolletta non è un mese senza consumo: è un dato che nessuno ha ancora registrato.',
+  'reportes.nota.luz.faltan.otros':
+    'Mancanti: {faltantes} su {esperados} bollette del periodo, quindi il costo della luce che vedi è INCOMPLETO e il margine risulta migliore di quanto sarà. Un mese senza bolletta non è un mese senza consumo: è un dato che nessuno ha ancora registrato.',
+  'reportes.nota.luz.sin-destino.uno':
+    'Inoltre, {n} bolletta da {importe} non compare in nessuna riga, perché il suo immobile non ha ancora impianti registrati.',
+  'reportes.nota.luz.sin-destino.otros':
+    'Inoltre, {n} bollette da {importe} non compaiono in nessuna riga, perché i loro immobili non hanno ancora impianti registrati.',
+}

@@ -14,16 +14,19 @@ import type { Idioma } from '@/lib/i18n/idiomas'
 //      un apóstrofo (como `lib/contratos-export.ts` y `lib/inventario-export.ts`).
 //      Los importes son números y no pasan por aquí: un saldo negativo tiene que
 //      llegar como número negativo, no como texto.
-//    · comas, comillas y saltos de línea van entre comillas dobles.
+//    · el separador (la coma, o el «;» del italiano), las comillas y los saltos
+//      de línea van entre comillas dobles.
 // ============================================================================
 
 const PELIGROSO = /^[=+\-@\t\r]/
 
-function texto(v: string): string {
+// `sep` es el separador de campos: la coma de siempre o el punto y coma del
+// italiano (abajo). Un texto que lo contenga va entre comillas.
+function texto(v: string, sep: ',' | ';' = ','): string {
   const seguro = PELIGROSO.test(v) ? `'${v}` : v
-  return /[",\n\r]/.test(seguro) ? `"${seguro.replace(/"/g, '""')}"` : seguro
+  const especial = sep === ',' ? /[",\n\r]/ : /[";\n\r]/
+  return especial.test(seguro) ? `"${seguro.replace(/"/g, '""')}"` : seguro
 }
-const num = (v: number) => String(v)
 
 export function csvEstadoCuenta(
   d: RespuestaResumen,
@@ -41,10 +44,20 @@ export function csvEstadoCuenta(
   //    un numero: con «MX$23,200.00» Excel no sumaria la columna, y un saldo
   //    negativo («-MX$100.00») lo abriria como formula.
   //  · Los datos (titular, folios, nombres) no cambian.
+  //  · En ITALIANO (validacion del lote L4, 2026-11-03), ademas, el formato de
+  //    una Excel con configuracion italiana: separador «;» y coma decimal
+  //    («5000,5»). Con la coma de siempre, el doble clic lo mete todo en una
+  //    columna y lee «5000.5» como texto. El importe sigue siendo un NUMERO
+  //    (sin miles ni simbolo) y la defensa contra formulas no cambia. Espanol
+  //    e ingles, byte a byte los de antes.
   const t = (k: ClaveTexto, v?: Record<string, string>) => traducir(idioma, k, v)
   const es = idioma === 'es'
+  const italiano = idioma === 'it'
+  const sep = italiano ? ';' : ','
+  const tx = (v: string) => texto(v, sep)
+  const num = (v: number) => (italiano ? String(v).replace('.', ',') : String(v))
   const fecha = (iso: string) =>
-    es ? iso : texto(formatearFecha(iso, idioma, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }))
+    es ? iso : tx(formatearFecha(iso, idioma, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }))
   // En espanol nunca lleva moneda: es el encabezado de siempre.
   const importe = (rotulo: string) => (es ? rotulo : `${rotulo} (${simboloMoneda(idioma)})`)
   const r = d.resumen
@@ -61,16 +74,16 @@ export function csvEstadoCuenta(
     importe(t('finanzas.estado-cuenta.col.saldo')),
   ]
   const lineas: string[] = [
-    `${t('finanzas.estado-cuenta.titulo')},${texto(titular)}`,
-    `${t('finanzas.csv.periodo')},${texto(etiquetaPeriodo(d.periodo, idioma))},${fecha(d.periodo.desde)},${fecha(d.periodo.hasta)}`,
+    `${t('finanzas.estado-cuenta.titulo')}${sep}${tx(titular)}`,
+    `${t('finanzas.csv.periodo')}${sep}${tx(etiquetaPeriodo(d.periodo, idioma))}${sep}${fecha(d.periodo.desde)}${sep}${fecha(d.periodo.hasta)}`,
     '',
-    `${importe(t('finanzas.estado-cuenta.saldo-inicio'))},${num(r.saldoInicial)}`,
-    `${importe(t('finanzas.periodo.facturado'))},${num(r.facturado.monto)}`,
-    `${importe(t('finanzas.periodo.cobrado'))},${num(r.cobrado)}`,
-    `${importe(t('finanzas.csv.saldo-cierre'))},${num(r.saldoFinal)}`,
-    `${texto(importe(vencidoAl))},${num(r.vencido.monto)}`,
+    `${importe(t('finanzas.estado-cuenta.saldo-inicio'))}${sep}${num(r.saldoInicial)}`,
+    `${importe(t('finanzas.periodo.facturado'))}${sep}${num(r.facturado.monto)}`,
+    `${importe(t('finanzas.periodo.cobrado'))}${sep}${num(r.cobrado)}`,
+    `${importe(t('finanzas.csv.saldo-cierre'))}${sep}${num(r.saldoFinal)}`,
+    `${tx(importe(vencidoAl))}${sep}${num(r.vencido.monto)}`,
     '',
-    columnas.join(','),
+    columnas.join(sep),
     ...d.movimientos.map((m) =>
       [
         fecha(m.fecha),
@@ -79,12 +92,12 @@ export function csvEstadoCuenta(
           : m.aproximado
             ? t('finanzas.csv.pago-aproximado')
             : t('finanzas.estado-cuenta.pago'),
-        texto(m.folio),
-        ...(conCliente ? [texto(nombreCliente(m.clienteId))] : []),
+        tx(m.folio),
+        ...(conCliente ? [tx(nombreCliente(m.clienteId))] : []),
         m.cargo ? num(m.cargo) : '',
         m.abono ? num(m.abono) : '',
         num(m.saldo),
-      ].join(','),
+      ].join(sep),
     ),
   ]
   return lineas.join('\n')

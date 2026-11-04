@@ -98,3 +98,55 @@ describe('estado de cuenta en CSV · en ingles, en el idioma de la pantalla', ()
     expect(fuente).toContain('nombreArchivoEstadoCuenta(datos.periodo.desde, !!cliente, idioma)')
   })
 })
+
+// Lote L4 del italiano (2026-11-03): la misma decision que en ingles —el CSV
+// en el idioma de la pantalla—, con fechas y periodo italianos («10 set 2026»,
+// «settembre 2026») y la moneda en el ENCABEZADO. Validacion del L4: SOLO en
+// italiano, separador «;» e importes con coma decimal, que es lo que una Excel
+// con configuracion italiana abre con doble clic (con «,» lo metia todo en una
+// columna y leia «5000.5» como texto). El importe sigue siendo un NUMERO, y un
+// texto que empieza por = + - @ sigue neutralizado. Espanol e ingles, byte a
+// byte los de arriba.
+describe('estado de cuenta en CSV · en italiano, para una Excel italiana', () => {
+  it('con la columna del cliente', () => {
+    expect(csvEstadoCuenta(datos, 'Acme, S.A.', nombre, true, 'it')).toBe(
+      [
+        'Estratto conto;Acme, S.A.',
+        'Periodo;settembre 2026;1 set 2026;30 set 2026',
+        '',
+        'Saldo iniziale (MX$);11600',
+        'Fatturato (MX$);23200',
+        'Incassato (MX$);5000,5',
+        'Saldo finale (MX$);29800',
+        'Scaduto al giorno 30 set 2026 (MX$);6600',
+        '',
+        'Data;Movimento;N. fattura;Cliente;Addebito (MX$);Accredito (MX$);Saldo (MX$)',
+        '10 set 2026;Fattura;F2;Acme;23200;;34800',
+        '20 set 2026;Pagamento ricevuto;F1;Acme;;5000,5;29799,5',
+        '30 set 2026;Pagamento ricevuto (data approssimativa);"F3, ""x""";\'=Beta;;100;-100',
+      ].join('\n'),
+    )
+  })
+  it('un texto con «;» va entre comillas, y uno que empieza por = sigue neutralizado', () => {
+    const csv = csvEstadoCuenta(datos, '=Acme; S.A.', () => 'Acme', false, 'it')
+    expect(csv.split('\n')[0]).toBe('Estratto conto;"\'=Acme; S.A."')
+  })
+  it('de un cliente: sin la columna', () => {
+    const csv = csvEstadoCuenta(datos, 'Acme', () => 'Acme', false, 'it')
+    expect(csv).toContain('\nData;Movimento;N. fattura;Addebito (MX$);Accredito (MX$);Saldo (MX$)\n')
+    expect(csv).toContain('\n10 set 2026;Fattura;F2;23200;;34800\n')
+  })
+  it('una instancia en dolares: «US$» en italiano', () => {
+    fijarMonedaInstancia('USD')
+    expect(csvEstadoCuenta(datos, 'Acme', () => 'Acme', false, 'it')).toContain('Saldo iniziale (US$);11600')
+  })
+  it('sin una palabra de espanol ni de ingles fuera de los datos', () => {
+    const csv = csvEstadoCuenta(datos, 'Acme', () => 'Acme', false, 'it')
+    expect(csv).not.toMatch(/Estado|Facturado|Cobrado|Vencido|Fecha|Movimiento,Folio|Cargo|Abono|Pago |Factura,|Septiembre|\d{4}-\d{2}-\d{2}/)
+    expect(csv).not.toMatch(/Account|Period,|Opening|Invoiced|Collected|Closing|Overdue|Date|Transaction|Invoice|Charge|Payment|Balance|September|Sep \d/)
+  })
+  it('el nombre del archivo', () => {
+    expect(nombreArchivoEstadoCuenta('2026-09-01', false, 'it')).toBe('estratto-conto-2026-09.csv')
+    expect(nombreArchivoEstadoCuenta('2026-09-01', true, 'it')).toBe('estratto-conto-2026-09-cliente.csv')
+  })
+})

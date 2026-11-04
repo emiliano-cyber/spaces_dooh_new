@@ -298,7 +298,10 @@ const DISTINTOS_A_PROPOSITO_IT: Record<string, string> = {
   // punto de venta («Impianto»). Mismo criterio que «Pantalla» abajo.
   'Guardar pantalla': 'Space Eyes guarda la pantalla digital (Salva schermo); inventario guarda el impianto (Salva impianto), glosario del italiano',
   // Lote L3 (2026-11-03):
-  Pantalla: 'la pantalla como punto de inventario, que puede ser un espectacular o una valla («Impianto», glosario del italiano) frente al articulo del almacen de tipo pantalla, un aparato electronico («Schermo»). En ingles las dos son «Screen»',
+  Pantalla: 'la pantalla como punto de inventario, que puede ser un espectacular o una valla («Impianto», glosario del italiano) frente al articulo del almacen de tipo pantalla, un aparato electronico («Schermo»). En ingles las dos son «Screen». Lote L4: tambien «Schermo» en la columna de lo que se manda a DOOHmain e «Impianto» en reportes y captacion',
+  // Lote L4 (2026-11-03).
+  Vencida:
+    'concuerda con lo que nombra: la cobranza es femenina («Scaduta») y la orden de trabajo de la ficha de campaña, en italiano «ordine», masculina («Scaduto»)',
 }
 
 function lotesItaliano(): LoteIt[] {
