@@ -1308,3 +1308,40 @@ describe('ADR 0049 · el documento imprimible de la propuesta, en el idioma de l
     }
   })
 })
+
+// ─── B72 (pulido del italiano, 04/11) · el papel declara su `lang` ──────────
+// Como `/p` y el portal (B68), pero SOLO cuando el idioma de la instancia no es
+// el de la persona: el lector de pantalla lee el papel con su voz, y el HTML
+// de hoy (instancia y persona en espanol) no cambia ni un byte.
+describe('B72 · la propuesta imprimible lleva su propio lang cuando difiere', () => {
+  async function html(persona: 'es' | 'en' | 'it', deLaInstancia: 'es' | 'en' | 'it') {
+    const antes = process.env.IDIOMA_ITALIANO
+    process.env.IDIOMA_ITALIANO = '1'
+    cabeceras.cookie = persona
+    instancia.idioma = deLaInstancia
+    try {
+      const { default: Documento } = await import('../../app/(app)/propuesta/[id]/page')
+      const el = await Documento({ params: { id: 'p1' } })
+      forzar((v) => v === '', 'https://ejemplo.mx/spaces-dooh/p/tok/')
+      return pintar(persona, el)
+    } finally {
+      instancia.idioma = null
+      cabeceras.cookie = null
+      if (antes === undefined) delete process.env.IDIOMA_ITALIANO
+      else process.env.IDIOMA_ITALIANO = antes
+    }
+  }
+  it.each([
+    ['es', 'it'],
+    ['en', 'es'],
+    ['es', 'en'],
+  ] as const)('persona en %s, instancia en %s: el papel con lang de la instancia', async (persona, deLaInstancia) => {
+    const h = await html(persona, deLaInstancia)
+    expect(h).toContain(`<div lang="${deLaInstancia}" style="display:contents"><article class="doc-hoja doc-comercial">`)
+    // La barra (no se imprime) queda fuera del envoltorio.
+    expect(h.indexOf('lang=')).toBeGreaterThan(h.indexOf(traducir(persona, 'propuestas.documento.volver')))
+  })
+  it.each(['es', 'en', 'it'] as const)('persona e instancia en %s: sin envoltorio', async (mismo) => {
+    expect(await html(mismo, mismo)).not.toContain('lang=')
+  })
+})
