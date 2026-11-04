@@ -129,6 +129,52 @@ archivo dentro de la pregunta.
 > la nueva **D7**. Las contestadas se conservan tachadas, con la elección y con qué
 > se comprobó que está aplicada y no solo escrita.
 
+> **2026-11-03/04 · ADR 0049 (idioma de los documentos por instancia).** Informe en
+> `docs/Supervision/idioma-instancia.md`. La primera pasada abrió D13, D14 y D15. El 03/11 el dueño
+> contestó D14 y D15 de una vez: **todos los papeles en el idioma de la instancia, salvo el CSV del
+> estado de cuenta**. **Sigue viva D13.** (La primera versión de estas tarjetas quedó sin
+> commitear en el worktree `integra-ingles`; esta es la que vale.)
+
+### D13 · ¿Se puede dar de alta un servidor con los contratos en inglés o en italiano antes de que un abogado revise esa traducción?
+
+- **Bloquea:** dar de alta para un cliente real cualquier servidor en inglés o italiano. **Lo que
+  SÍ se puede mientras:** fusionar el trabajo (los servidores que ya existen siguen en español, sin
+  cambios) y probar en servidores de prueba.
+- **Por qué importa:** el idioma del servidor se elige al crearlo y **no se puede cambiar nunca**.
+  Hoy la única barrera es una nota en la guía del alta: el sistema acepta inglés o italiano sin
+  preguntar. En cuanto un cliente firme en esa traducción, corregirla obliga a guardar también la
+  redacción vieja, o todas sus firmas anteriores aparecerían «alteradas». La traducción es el mismo
+  contrato de ley mexicana en otro idioma, no un contrato adaptado a otro país. **Y en italiano hoy
+  sale mezclado**: el contrato va en italiano, pero la propuesta, su enlace, el portal, el recibo y
+  los correos salen en inglés hasta que se termine de traducir el italiano.
+- **Opciones:**
+  - **(a) Bloquearlo en el sistema hasta que el abogado firme**, con una confirmación expresa en el
+    alta. Medio día.
+  - **(b) Dejarlo con el aviso escrito.** Cero días. Depende de que quien da de alta lea la guía.
+  - **(c) Dar la traducción por buena ya.** Cero días ahora; trabajo extra por cada servidor que ya
+    firmó si el abogado pide cambios.
+- **Recomendación:** **(a)** si hay un cliente extranjero en la mira antes de la revisión; **(b)** si
+  no lo hay. Para el italiano, además, esperar a que su traducción esté completa.
+- **Si nadie contesta:** queda la (b). Es aceptable mientras no se dé de alta ningún servidor en
+  inglés o italiano para un cliente real.
+- **Caduca:** el día que se dé de alta el primer servidor en inglés o italiano para un cliente.
+
+### ~~D14 · Además del contrato, ¿qué otros papeles deben salir siempre en el idioma del servidor y cuáles en el de quien los abre?~~
+
+> ✅ **CONTESTADA el 2026-11-03 y CONSTRUIDA (e82bbdd6).** El dueño eligió **todos en el idioma de
+> la instancia** (propuesta impresa y su QR, enlace `/p`, portal, recibo de cobro, correos de
+> propuesta, invitación y recordatorios), **salvo el CSV del estado de cuenta**, que sigue la
+> pantalla. Fue más lejos que la recomendación, que dejaba el enlace y el portal al navegador.
+> Medido: los 6 hashes de correos en español, idénticos a los del código de antes; el volcado HTML
+> de 9d404205 contra el de HEAD no cambia ningún archivo existente. Queda fuera el correo de
+> restablecer contraseña (`app/api/auth/forgot`), que sigue en español y necesita aprobación
+> aparte.
+
+### ~~D15 · La constancia de firmas, ¿en el idioma del servidor o en el de quien la imprime?~~
+
+> ✅ **CONTESTADA el 2026-11-03**, dentro de la misma decisión: todos los papeles en el idioma de la
+> instancia. La constancia va con el contrato (5f23aeda), y «THE LANDLORD» pasa a «THE LESSOR».
+
 ---
 
 ### ~~D11 · La rejilla de precios deja que el precio se decida en el navegador del vendedor. Antes de meter descuentos por volumen y códigos promocionales, ¿se pasa el cálculo al servidor?~~
@@ -2361,7 +2407,27 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
 - **Si no se cierra antes del 14/10:** la dimensión «por operación» enseña costos
   que el dueño no puede ajustar, y el reporte usa los de respaldo sin que se vea.
 
+#### ~~B58 · ADR 0049: las e2e de `feat/idioma-instancia` no las había medido nadie más que el autor~~
+
+> ✅ **CERRADA el 2026-11-04 por el supervisor.** Build hecho antes (BUILD_ID SVonTAZJZofIvInrFjfV2) y corrida
+> `npm run test:e2e` con `PUERTO_E2E=3341`, `PUERTO_DOBLE_GOOGLE=3342` y la base `spaces_instancia_e2e` sobre
+> HEAD 873ac6dc: **1206 en verde, 1 en rojo, 21 omitidas (86 archivos)**. El rojo es `grants-rol-app.e2e`, con
+> `connect ECONNREFUSED 127.0.0.1:55471`: es el Postgres efímero que esta máquina no levanta, o sea entorno y no código.
+> Coincide con lo que afirmaba el autor (1206 y la misma roja).
+
 ### B · iii — Menores, para que no se pierdan
+
+- **B61 · 🟠 ABIERTA (2026-11-04) · Una instancia en italiano manda los papeles en dos idiomas.**
+  El contrato y la constancia salen en italiano. La propuesta, `/p`, el portal, el comprobante y
+  los correos caen al inglés, porque `IT_PROPUESTAS`, `IT_CUENTA` e `IT_NOTIFICACIONES` no tienen
+  ninguna clave `correo.` (contado en `lib/i18n/textos/*.ts` el 04/11). El commit a354eee0 lo
+  declara. **Cómo se cierra:** con los lotes del italiano que traducen esas claves (L2 y
+  siguientes). **Quién:** el par traductor y validador del italiano. Mientras tanto, no dar de alta
+  `it` para un cliente (D13).
+- **B62 · ⚪ ABIERTA (2026-11-04) · `<html lang>` de `/p` y `/portal` va en el idioma de la
+  petición y el contenido en el de la instancia.** Lo declaran los propios layouts
+  (`app/(app)/p/[id]/layout.tsx`, `app/(app)/portal/[token]/layout.tsx`). Afecta a lectores de
+  pantalla y traductores automáticos. Menor.
 
 - **B57 · 🟠 ABIERTA (2026-10-29) · Un usuario que ya usó el sistema NO se puede
   borrar: la bitácora lo impide.** Encontrada escribiendo la prueba de P19.
@@ -2609,6 +2675,20 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
 ---
 
 ## C · Cerradas
+
+#### ✅ B59 · `bootstrap-auth.mjs` no podía elegir idioma ni moneda — **CERRADA el 2026-11-04, documentada**
+
+Abierta el 03/11. Se cerró en 49d7af51 declarándolo, no cambiando el script: es la ruta de
+**desarrollo**, solo español y MXN. Lo dicen el comentario de `apps/web/scripts/bootstrap-auth.mjs`
+y `vault/01-Arquitectura/entorno-y-despliegue.md`. Una instancia en USD, en/it nace por
+`POST /api/bootstrap`. Sobre una base en otro idioma, el trigger de unicidad rechaza su INSERT.
+**Medido:** el diff de 49d7af51.
+
+#### ✅ B60 · `provision-instancia.sh --ayuda` imprimía una línea de más — **CERRADA el 2026-11-04**
+
+Abierta el 03/11. Rojo en 94189547 y arreglo en 49d7af51 (`uso()` en `2,58p`). **Medido:**
+`bash infra/scripts/pruebas-provision.sh` → `47 escenarios · 164 comprobaciones · 0 fallos`, y
+`--ayuda` termina en la línea de `SPACES_REGION`.
 
 #### ✅ C12 · «La migración de la rejilla en PostgreSQL 14 está razonada, no ejecutada» — **CERRADA el 2026-09-28, y ejecutada**
 
