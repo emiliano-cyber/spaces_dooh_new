@@ -36,10 +36,28 @@ export function avisoIdiomaGuardado(destino: Idioma): string {
   return traducir(destino, 'idioma.cuenta.toast')
 }
 
-function cookieIdiomaNavegador(): string | null {
-  if (typeof document === 'undefined') return null
-  const m = document.cookie.match(new RegExp('(?:^|; )' + COOKIE_IDIOMA + '=([^;]*)'))
-  return m ? decodeURIComponent(m[1]) : null
+// El contexto, armado de las CADENAS que da el navegador (validacion del
+// pulido, 04/11: armado en linea, tres mutantes sobrevivian). Pura: se prueba
+// con cadenas, y la tarjeta solo le pasa lo que leen las dos de abajo.
+export function contextoDelNavegador(
+  actual: Idioma,
+  disponibles: readonly Idioma[],
+  cadenaCookie: string,
+  idiomasNavegador: readonly string[],
+): { actual: Idioma; disponibles: readonly Idioma[]; cookie: string | null; navegador: readonly string[] } {
+  const m = cadenaCookie.match(new RegExp('(?:^|; )' + COOKIE_IDIOMA + '=([^;]*)'))
+  return { actual, disponibles, cookie: m ? decodeURIComponent(m[1]) : null, navegador: idiomasNavegador }
+}
+
+/** `document.cookie`, o '' en el servidor. */
+export function cadenaCookieDelDocumento(): string {
+  return typeof document === 'undefined' ? '' : document.cookie
+}
+
+/** `navigator.languages` (de donde sale el `Accept-Language`), o [] en el servidor. */
+export function idiomasDelNavegador(): readonly string[] {
+  if (typeof navigator === 'undefined') return []
+  return navigator.languages ?? [navigator.language]
 }
 
 // ─── «Mi cuenta → Idioma» (IDIOMA-USUARIO, 03/11) ───────────────────────────
@@ -90,12 +108,14 @@ export function IdiomaCuenta() {
       })
       const d = await r.json().catch(() => ({}))
       if (!r.ok) throw new Error((d as { error?: string }).error ?? t('idioma.cuenta.error'))
-      toast.success(avisoIdiomaGuardado(idiomaTrasGuardar(valor, {
-        actual: idioma,
-        disponibles,
-        cookie: cookieIdiomaNavegador(),
-        navegador: typeof navigator === 'undefined' ? [] : navigator.languages ?? [navigator.language],
-      })))
+      toast.success(
+        avisoIdiomaGuardado(
+          idiomaTrasGuardar(
+            valor,
+            contextoDelNavegador(idioma, disponibles, cadenaCookieDelDocumento(), idiomasDelNavegador()),
+          ),
+        ),
+      )
       router.refresh()
     } catch (e) {
       setPreferido(anterior)

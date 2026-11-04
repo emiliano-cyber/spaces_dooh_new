@@ -138,6 +138,8 @@ describe('B69 · el aviso de idioma guardado, en el idioma NUEVO', () => {
 describe('B69 · lo que se lee del navegador', () => {
   afterEach(() => vi.unstubAllGlobals())
   it('sin navegador (servidor), cadena vacia y lista vacia', () => {
+    // Node 21+ trae un `navigator` global: se quita para simular el servidor.
+    vi.stubGlobal('navigator', undefined)
     expect(cadenaCookieDelDocumento()).toBe('')
     expect(idiomasDelNavegador()).toEqual([])
   })
