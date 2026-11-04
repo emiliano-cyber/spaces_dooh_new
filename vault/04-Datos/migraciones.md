@@ -1493,3 +1493,25 @@ Medido el 02/11 sobre la base de integración (`recrearEsquema()`, que aplica
 las migraciones sobre una base con organización, como el droplet): todas en
 `MXN`, cuatro triggers creados, y aplicarla dos veces no cambia nada
 (`apps/web/lib/test/moneda-instancia.e2e.test.ts`).
+
+## `20261103_usuarios_idioma_preferido.sql` — el idioma de la interfaz, por persona (03/11)
+
+Decisión del dueño (03/11): «el idioma de papeles y contratos es fijo al crearse
+la app en cada server, pero el idioma de lo demás se debe poder configurar por
+usuario y navegador». Añade `usuarios.idioma_preferido` (`text`, **nullable,
+sin default**) y el CHECK `usuarios_idioma_preferido_valido` (`es`/`en`/`it`).
+
+- **`null` en todas las filas al aplicarla**: sin que nadie toque «Mi cuenta»
+  el comportamiento es el de antes. Sin assert de «todas en null» a propósito:
+  la reaplicación de la cadena (`deploy.yml`) la corre sobre bases donde la
+  gente ya eligió.
+- CHECK y no enum: un cuarto idioma es soltar y volver a crear el CHECK en una
+  transacción; `alter type … add value` no siempre corre dentro de una.
+- No toca la RLS (la columna hereda las políticas fail-closed de `usuarios`) ni
+  `auth_usuario_por_sesion()`/`auth_usuario_por_email()` (cambiar su
+  `returns table` rompe la reaplicación, ver `20260907_solo_google.sql`).
+- Idempotente (`add column if not exists` + el CHECK guardado por
+  `pg_constraint`) y transaccional. `@tipo: esquema`.
+
+Lo prueba `lib/test/idioma-por-usuario.e2e.test.ts` (la columna nace vacía,
+guardar/leer con la RLS de verdad, otra persona y otra empresa no la ven).

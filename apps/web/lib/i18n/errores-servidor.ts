@@ -456,6 +456,9 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 1 sitio · lib/server/ot-repo.ts (una OT cerrada ya no admite costo, 08/10)
   'Esta orden de trabajo ya está cerrada: su costo ya no se puede registrar ni cambiar.':
     'This work order is already closed: its cost can no longer be recorded or changed.',
+  // 1 sitio · lib/server/idioma-controller.ts (IDIOMA-USUARIO, 03/11)
+  'Ese idioma no está disponible en este servidor.':
+    'That language is not available on this server.',
   // 2 sitios · lib/server/perfil-controller.ts:78
   'No hay cambios que guardar':
     'There are no changes to save',
@@ -776,6 +779,9 @@ export const CATALOGO_ERRORES_IT: Partial<Record<string, string>> = {
     'La lingua dei documenti dell’istanza è già fissata: una nuova organizzazione nasce nella stessa lingua delle altre',
   'El idioma de los documentos de la instancia solo se elige al darla de alta':
     'La lingua dei documenti dell’istanza si sceglie solo alla sua creazione',
+  // IDIOMA-USUARIO, al integrar con el italiano (2026-11-04): «Mi cuenta → Idioma».
+  'Ese idioma no está disponible en este servidor.':
+    'Questa lingua non è disponibile su questo server.',
   'La moneda debe ser MXN o USD':
     'La valuta deve essere MXN o USD',
   'La moneda de la instancia ya está fijada: una organización nueva nace en la misma que las demás':

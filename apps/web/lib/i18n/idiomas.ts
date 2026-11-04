@@ -203,7 +203,15 @@ export function idiomaDeCabecera(
  * LA REGLA DE PRECEDENCIA, que es lo unico que hay que recordar de este
  * archivo:
  *
- *     cookie  >  Accept-Language  >  espanol
+ *     cuenta  >  cookie  >  Accept-Language  >  espanol
+ *
+ * La CUENTA entra el 2026-11-03 (IDIOMA-USUARIO). Decision del dueno: «el
+ * idioma de lo demas se debe poder configurar por usuario y navegador». Es lo
+ * que la persona eligio en «Mi cuenta» y la sigue a cualquier dispositivo; solo
+ * llega aqui si hay sesion (`servidor.ts` la descarta si la cookie que la lleva
+ * no es de la sesion de ESTA peticion). Sin preferencia —`null`, el valor de
+ * todas las cuentas que no la tocan— la regla es exactamente la de antes, y
+ * `idioma-cuenta.test.ts` lo recorre combinacion por combinacion.
  *
  * La cookie gana SIEMPRE porque es una persona que eligio a mano en esta
  * pantalla. La cabecera es una preferencia del sistema operativo que esa
@@ -215,6 +223,13 @@ export function idiomaDeCabecera(
  * del navegador apagaria la deteccion para todo el mundo que la tuviera asi.
  */
 export function resolverIdioma(entrada: {
+  /**
+   * La preferencia guardada en la cuenta (`usuarios.idioma_preferido`), ya
+   * desatada de su cookie. Un idioma apagado o un valor ilegible se ignoran
+   * SIN error y se pasa a la cookie: si el idioma se vuelve a encender, la
+   * persona lo recupera sin tocar nada.
+   */
+  cuenta?: string | null
   cookie?: string | null
   cabecera?: string | null
   /**
@@ -226,6 +241,7 @@ export function resolverIdioma(entrada: {
 }): Idioma {
   const permitidos = entrada.permitidos ?? idiomasPorOmision()
   return (
+    normalizarIdioma(entrada.cuenta, permitidos) ??
     normalizarIdioma(entrada.cookie, permitidos) ??
     idiomaDeCabecera(entrada.cabecera, permitidos) ??
     IDIOMA_POR_OMISION
@@ -260,4 +276,89 @@ export function cadenaCookieIdioma(idioma: Idioma, seguro: boolean): string {
     `${COOKIE_IDIOMA}=${idioma}; path=/; max-age=${COOKIE_IDIOMA_MAX_AGE}; SameSite=Lax` +
     (seguro ? '; Secure' : '')
   )
+}
+
+// ─── LA PREFERENCIA DE LA CUENTA (IDIOMA-USUARIO, 2026-11-03) ───────────────
+//
+//  La preferencia vive en `usuarios.idioma_preferido`, pero leerla de la base
+//  en CADA peticion costaria una consulta en el layout raiz y —peor— no llegaria
+//  a quien decide el idioma sin poder esperar: `idiomaDeLaPeticion()` es
+//  SINCRONA y la llaman `respuestaError()` (el `catch` de cada ruta) y media
+//  docena de Server Components. Volverla asincrona tocaba cientos de llamadas.
+//
+//  Asi que la preferencia VIAJA CON LA SESION en una cookie aparte, que pone el
+//  SERVIDOR al abrir sesion (login, Google, codigo de recuperacion) y al
+//  guardarla en «Mi cuenta», y que borra el logout:
+//
+//      spaces_idioma_cuenta = <idioma>.<huella de la sesion>
+//
+//  La huella (`lib/server/idioma-cuenta.ts`) es un resumen del token de
+//  `spaces_sesion`. Atarla a la sesion es lo que impide que, en un navegador
+//  compartido, la preferencia de una persona se le aplique a la siguiente: al
+//  cambiar la sesion la huella deja de casar y la cookie se ignora, aunque nadie
+//  la haya borrado. Sin sesion (login, paginas publicas) tampoco casa con nada,
+//  y manda el navegador.
+//
+//  No es una credencial: falsificarla solo cambia el idioma de quien la
+//  falsifica. Va `httpOnly` porque nadie en el navegador necesita leerla.
+//
+//  Lo que cuesta, y se acepta: si la persona cambia su preferencia desde OTRO
+//  dispositivo, este no se entera hasta su siguiente inicio de sesion (o hasta
+//  que la vuelva a guardar aqui). Ver `vault/03-Frontend/idiomas-es-en.md`.
+
+export const COOKIE_IDIOMA_CUENTA = 'spaces_idioma_cuenta'
+
+/** El valor de la cookie de la cuenta: `<idioma>.<huella>`. */
+export function valorCookieIdiomaCuenta(idioma: Idioma, huella: string): string {
+  return `${idioma}.${huella}`
+}
+
+/**
+ * El idioma que lleva la cookie de la cuenta, SOLO si es de la sesion de esta
+ * peticion. Cualquier otra cosa —sin sesion, otra sesion, mal formada, un
+ * idioma que no existe— da `null`, y entonces manda el navegador.
+ */
+export function idiomaDeCookieCuenta(
+  valor: string | null | undefined,
+  huella: string | null | undefined,
+): Idioma | null {
+  if (typeof valor !== 'string' || typeof huella !== 'string' || huella === '') return null
+  const punto = valor.indexOf('.')
+  if (punto < 0) return null
+  const idioma = valor.slice(0, punto)
+  if (valor.slice(punto + 1) !== huella) return null
+  return esIdioma(idioma) ? idioma : null
+}
+
+/**
+ * Lo que «Mi cuenta» acepta guardar. `null` o `'navegador'` = no elegir (seguir
+ * al navegador). Un idioma solo si esta ENCENDIDO: la pantalla no ofrece los
+ * apagados, y guardar algo que no se va a aplicar seria mentirle a quien lo
+ * elige. Sin normalizar a proposito —ni regiones ni mayusculas—: quien llama es
+ * nuestra pantalla, y un valor raro es un error, no una preferencia.
+ */
+export function preferenciaDeIdioma(
+  valor: unknown,
+  permitidos: readonly Idioma[],
+): { ok: true; idioma: Idioma | null } | { ok: false } {
+  if (valor === null || valor === 'navegador') return { ok: true, idioma: null }
+  if (typeof valor === 'string' && esIdioma(valor) && permitidos.includes(valor)) {
+    return { ok: true, idioma: valor }
+  }
+  return { ok: false }
+}
+
+/**
+ * ¿La pantalla de entrar tiene que hacer una carga COMPLETA tras el login?
+ * Solo si la cuenta trae un idioma encendido distinto del que se está viendo:
+ * `router.push` no vuelve a pintar el layout raíz, que es quien lleva el
+ * idioma. Sin preferencia, la navegación suave de siempre.
+ */
+export function cambiaIdiomaAlEntrar(
+  idiomaCuenta: string | null | undefined,
+  actual: Idioma,
+  disponibles: readonly Idioma[],
+): boolean {
+  const deCuenta = normalizarIdioma(idiomaCuenta, disponibles)
+  return deCuenta !== null && deCuenta !== actual
 }

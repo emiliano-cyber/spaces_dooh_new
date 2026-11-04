@@ -13,6 +13,7 @@ import { useIdioma } from '@/lib/i18n/contexto'
 import { mensajeDeAcceso } from '@/lib/i18n/errores-acceso'
 import { SelectorIdioma } from '@/components/demo/ui/SelectorIdioma'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
+import { cambiaIdiomaAlEntrar } from '@/lib/i18n/idiomas'
 
 const inputCls =
   'h-10 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
@@ -62,7 +63,7 @@ export default function LoginPage() {
   // I18N-01. El idioma ya viene resuelto desde el servidor (layout raíz), así
   // que el primer render de esta página sale en el idioma correcto: no hay un
   // segundo pase que cambie el texto delante de quien mira.
-  const { t, idioma } = useIdioma()
+  const { t, idioma, disponibles } = useIdioma()
   const [modo, setModo] = useState<Modo>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -158,7 +159,15 @@ export default function LoginPage() {
   }
 
   async function entrar(mail: string, pass: string) {
-    const { usuario } = await apiLogin(mail.trim(), pass)
+    const { usuario, idioma: idiomaCuenta } = await apiLogin(mail.trim(), pass)
+    // La cuenta pide OTRO idioma (IDIOMA-USUARIO, 03/11): carga completa, porque
+    // `router.push` no vuelve a pintar el layout raíz, que es quien lo lleva, y
+    // la aplicación seguiría en el idioma de esta pantalla hasta recargar. Sin
+    // preferencia —o con la misma—, la navegación suave de siempre.
+    if (cambiaIdiomaAlEntrar(idiomaCuenta, idioma, disponibles)) {
+      window.location.assign(`/spaces-dooh${landingDeRol(usuario.rol)}/`)
+      return
+    }
     router.push(landingDeRol(usuario.rol))
   }
 

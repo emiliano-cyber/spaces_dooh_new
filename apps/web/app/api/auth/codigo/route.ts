@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { crearSesion, cookieSesion, cookieCsrf, nuevoCsrfToken, permisosDeRol } from '@/lib/server/auth'
+import { cookieIdiomaCuenta } from '@/lib/server/idioma-cuenta'
+import { idiomasActivos, normalizarIdioma } from '@/lib/i18n/idiomas'
 import { qConTenant } from '@/lib/server/db'
 import { usarCodigo } from '@/lib/server/codigos-recuperacion-repo'
 import { limitar, ipDe } from '@/lib/server/rate-limit'
@@ -81,9 +83,11 @@ async function entrarConCodigo(codigo: string): Promise<NextResponse> {
   // `qConTenant`, con la RLS puesta, que es lo correcto en cuanto hay contexto.
   const [u] = await qConTenant<{
     id: string; nombre: string; email: string; cargo: string | null; rol: string; activo: boolean
+    idioma_preferido: string | null
   }>(
     r.tenantId,
-    `select id, nombre, email, cargo, rol, activo
+    // `idioma_preferido` en la misma consulta (IDIOMA-USUARIO, 03/11).
+    `select id, nombre, email, cargo, rol, activo, idioma_preferido
        from usuarios where id = $1 and tenant_id = $2`,
     [r.usuarioId, r.tenantId],
   )
@@ -102,8 +106,11 @@ async function entrarConCodigo(codigo: string): Promise<NextResponse> {
     // Cuántos le quedan. Se le dice a propósito: si no, gastaría el último sin
     // enterarse y descubriría que se quedó sin puerta el día que la necesitara.
     codigosRestantes: r.quedan,
+    // Igual que el login con contraseña: para que la pantalla sepa si recargar.
+    idioma: normalizarIdioma(u.idioma_preferido, idiomasActivos()),
   })
   res.cookies.set(cookieSesion(token))
   res.cookies.set(cookieCsrf(nuevoCsrfToken()))
+  res.cookies.set(cookieIdiomaCuenta(token, normalizarIdioma(u.idioma_preferido)))
   return res
 }

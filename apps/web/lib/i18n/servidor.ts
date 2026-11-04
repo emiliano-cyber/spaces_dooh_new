@@ -4,9 +4,12 @@ import {
   resolverIdioma,
   idiomasActivos,
   COOKIE_IDIOMA,
+  COOKIE_IDIOMA_CUENTA,
   IDIOMA_POR_OMISION,
+  idiomaDeCookieCuenta,
   type Idioma,
 } from './idiomas'
+import { COOKIE_SESION, huellaDeSesion } from '../server/huella-sesion'
 
 // ============================================================================
 //  lib/i18n/servidor.ts — LEER LAS DOS SENALES, Y NADA MAS.
@@ -82,7 +85,19 @@ export function idiomaDeLaPeticion(): Idioma {
   // alguno encendido, un idioma APAGADO se trata como uno que no hablamos.
   const permitidos = idiomasActivos()
   if (permitidos.length === 1) return IDIOMA_POR_OMISION
+  // La preferencia de la CUENTA (IDIOMA-USUARIO, 2026-11-03): viaja en su
+  // propia cookie, atada a la sesion por la huella del token. Si la sesion de
+  // esta peticion no es la que la puso —otra persona en el mismo navegador, o
+  // ninguna sesion—, `idiomaDeCookieCuenta` da null y manda el navegador. Sin
+  // consulta a la base: ver la cabecera de «LA PREFERENCIA DE LA CUENTA» en
+  // `idiomas.ts`.
+  const token = leerSeguro(() => cookies().get(COOKIE_SESION)?.value ?? null)
+  const cuenta = idiomaDeCookieCuenta(
+    leerSeguro(() => cookies().get(COOKIE_IDIOMA_CUENTA)?.value ?? null),
+    token ? huellaDeSesion(token) : null,
+  )
   return resolverIdioma({
+    cuenta,
     cookie: leerSeguro(() => cookies().get(COOKIE_IDIOMA)?.value ?? null),
     cabecera: leerSeguro(() => headers().get('accept-language')),
     permitidos,

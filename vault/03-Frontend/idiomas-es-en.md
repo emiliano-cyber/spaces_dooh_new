@@ -20,6 +20,12 @@ archivos:
   - apps/web/lib/server/propuesta-correo.ts
   - apps/web/lib/i18n/servidor.ts
   - apps/web/lib/i18n/contexto.tsx
+  - apps/web/lib/server/idioma-cuenta.ts
+  - apps/web/lib/server/huella-sesion.ts
+  - apps/web/lib/server/idioma-controller.ts
+  - apps/web/app/api/perfil/idioma/route.ts
+  - apps/web/components/demo/admin/IdiomaCuenta.tsx
+  - db/migrations/20261103_usuarios_idioma_preferido.sql
   - apps/web/app/layout.tsx
   - apps/web/app/(app)/login/page.tsx
   - apps/web/components/demo/shell/Sidebar.tsx
@@ -103,6 +109,49 @@ archivos:
 >   **inglés**. Español e inglés quedaron idénticos byte a byte (medido sobre
 >   todo el HTML de las pruebas: `docs/i18n/revision-italiano-base.md` §4).
 
+> [!important] 2026-11-03 · el idioma de la interfaz, también POR PERSONA (IDIOMA-USUARIO)
+> Decisión del dueño: *«el idioma de papeles y contratos es fijo al crearse la
+> app en cada server, pero el idioma de lo demás se debe poder configurar por
+> usuario y navegador»*. Rama `feat/idioma-por-usuario`. Los documentos (el
+> idioma de la instancia) son **otra tarea**; esto es solo la interfaz.
+>
+> - **Precedencia** (`resolverIdioma`, pura): `cuenta > cookie > Accept-Language
+>   > español`, siempre filtrada por los idiomas ENCENDIDOS. Una preferencia de
+>   un idioma apagado se ignora sin error (y no se borra). Sin sesión, cookie >
+>   navegador. **Sin preferencia, exactamente lo de antes** —
+>   `idioma-cuenta.test.ts` lo recorre combinación por combinación.
+> - **Dónde vive**: `usuarios.idioma_preferido` (`null` = sigue al navegador),
+>   migración `20261103_usuarios_idioma_preferido.sql`.
+> - **Cómo llega a cada petición SIN consultar la base**: en la cookie
+>   `spaces_idioma_cuenta` = `<idioma>.<huella del token de sesión>`
+>   (httpOnly). La ponen el login, Google, el código de recuperación y
+>   `PUT /api/perfil/idioma`; la borra el logout. `idiomaDeLaPeticion()` (que
+>   sigue siendo **síncrona**: la usan `respuestaError()` y media docena de
+>   Server Components) solo la cree si la huella casa con la sesión de ESA
+>   petición: otra persona en el mismo navegador, o ninguna sesión, y se
+>   ignora. Así también los **errores del servidor** salen en el idioma de la
+>   cuenta. `middleware.ts` y `lib/server/auth.ts` **no cambiaron**.
+> - **Dónde se elige**: «Mi cuenta → Idioma» (`components/demo/admin/IdiomaCuenta.tsx`
+>   en `/configuracion`): «Usar el idioma del navegador» + cada idioma
+>   encendido. **Con un solo idioma encendido no se pinta** (hoy, toda la flota):
+>   la página queda idéntica. Al guardar, `router.refresh()` y la página vuelve
+>   en el idioma nuevo sin recargar.
+> - **El selector rápido** (`SelectorIdioma`, pie del login) **sigue escribiendo
+>   solo la cookie del navegador**: vive en la pantalla de entrar, donde no hay
+>   sesión ni cuenta que guardar. No hay otro selector con sesión.
+> - **Tras el login**: si la cuenta trae un idioma encendido distinto del de la
+>   pantalla, el login hace una carga completa (`cambiaIdiomaAlEntrar`), porque
+>   `router.push` no vuelve a pintar el layout raíz.
+> - **Lo que cuesta, y se acepta**: si la persona cambia su preferencia desde
+>   OTRO dispositivo, éste no se entera hasta su siguiente inicio de sesión (o
+>   hasta guardarla ahí). Y `pages/_error.tsx` (la página de error del Pages
+>   Router) sigue con `cookie > navegador`: no puede importar `node:crypto`.
+> - **Medido**: 14 mutantes unitarios y 4 e2e (con build por mutante), todos
+>   muertos; el HTML de las 15 pruebas de pantallas antes/después difiere
+>   **solo** en los 10 estados de `/configuracion` que traen la tarjeta nueva
+>   (las pruebas los pintan con `puedeElegir`); e2e
+>   `lib/test/idioma-por-usuario.e2e.test.ts`.
+
 > [!important] Traducir la interfaz NO es traducir el código
 > El repositorio **sigue escribiéndose en español** — archivos, funciones,
 > variables, columnas, comentarios ([[convenciones]]). El inglés es una **capa
@@ -116,8 +165,10 @@ inventario contado de lo que falta.
 ## 1 · Cómo se elige el idioma
 
 ```
-cookie spaces_idioma  >  cabecera Accept-Language  >  español
+cuenta (con sesión)  >  cookie spaces_idioma  >  cabecera Accept-Language  >  español
 ```
+
+(La cuenta entra el 2026-11-03; ver el recuadro de IDIOMA-USUARIO arriba.)
 
 Esa es la regla entera, y vive en **una función pura**:
 `resolverIdioma()` (`lib/i18n/idiomas.ts`). No sabe de HTTP ni de React, así
@@ -191,6 +242,11 @@ detección que no acertó.
 - Cada idioma se nombra **en sí mismo** («Español», «English»). Quien no
   entiende la pantalla en la que está tiene que poder reconocer el suyo.
 - **Sin bandera.** Una bandera nombra un país, no un idioma.
+
+> [!note] 2026-11-03 · YA NO SOLO POR NAVEGADOR — el recuadro de abajo es historia
+> El dueño pidió la preferencia por persona: ver IDIOMA-USUARIO arriba. La
+> cookie sigue siendo la elección del NAVEGADOR y manda cuando la cuenta no
+> tiene preferencia.
 
 > [!warning] La preferencia es POR NAVEGADOR, no por persona
 > Una cookie vive en un dispositivo. Quien elija inglés en su portátil seguirá

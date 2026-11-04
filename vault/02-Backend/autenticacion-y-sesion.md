@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-21
+actualizado: 2026-11-03
 tags: [backend, auth, seguridad, rojo]
 archivos:
   - apps/web/lib/server/auth.ts
@@ -77,6 +77,7 @@ No hay NextAuth, ni `jose`, ni iron-session.
 | Hash de contraseña | bcrypt costo 10 | `lib/server/auth.ts:91-93` |
 | Contraseña generada (alta con Google) | `passwordAleatoria()`, cumple la política por construcción | `lib/server/auth.ts:63-66` |
 | Cookie CSRF | `spaces_csrf`, **httpOnly:false a propósito** | `lib/server/auth.ts:268-291` |
+| Cookie del idioma de la cuenta | `spaces_idioma_cuenta` = `<idioma>.<huella del token>`, httpOnly, un año. **(03/11, IDIOMA-USUARIO)** La ponen los tres sitios donde nace una sesión (login, Google, código de recuperación) y `PUT /api/perfil/idioma`; la borra el logout. Atada a la sesión por `huellaDeSesion()` (sha256 del token, 32 hex): con otra sesión no casa y se ignora. **No es una credencial** — falsificarla solo cambia el idioma propio. `auth.ts` y `middleware.ts` no cambiaron | `lib/server/idioma-cuenta.ts`, `lib/server/huella-sesion.ts` |
 | `Secure` | ON en producción salvo `COOKIE_SECURE=0` | `lib/server/auth.ts:245-253` |
 
 > [!warning] Las seis citas de arriba habían derivado hasta 21 líneas — recalculadas el 27/08

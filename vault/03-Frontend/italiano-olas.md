@@ -112,10 +112,20 @@ compara el italiano entre lotes, y el **recorrido en el navegador**.
 | P3 | Comillas italianas: « » o “ ” | Pendiente; lo fija L5 en el glosario. El apóstrofo es el tipográfico (’), ya vigilado |
 | P4 | **Idioma de la instancia para los contratos** (texto legal, cantidad con letra, constancia) en el idioma elegido al crear la instancia, como la moneda del ADR 0048 | **Hecho** en `feat/idioma-instancia` ([ADR 0049](../../docs/adr/0049-el-idioma-de-los-documentos-es-de-la-instancia.md)): `tenants.idioma_documentos`, `--idioma es\|en\|it`, contrato y constancia en italiano («IL LOCATORE / IL CONDUTTORE», «MILLEDUECENTOTRENTAQUATTRO PESOS 50/100 MXN»). **Revisión legal pendiente.** Ver [[idiomas-es-en]] §12. **Segunda vuelta (03/11):** también la propuesta impresa, `/p`, el portal, el comprobante y los correos (no el CSV del estado de cuenta). Sus claves italianas (L2 y siguientes) caían al inglés hasta integrarse: **cerrado al integrar (04/11, B67)**, ver §8 |
 
-> [!note] El idioma de la interfaz NO se guarda en la base
-> Es por dispositivo, en la cookie `spaces_idioma` (decisión del 30/09). No hay
-> columna con un CHECK `es`/`en` que el italiano tuviera que ampliar: la ola 0
-> no necesitó ninguna migración.
+> [!note] El idioma de la interfaz NO se guardaba en la base — desde el 03/11, SÍ (por persona)
+> Hasta la ola 0 era solo por dispositivo, en la cookie `spaces_idioma`
+> (decisión del 30/09), y la ola 0 no necesitó migración. **El 03/11 el dueño
+> lo amplió**: «el idioma de lo demás se debe poder configurar por usuario y
+> navegador». Rama `feat/idioma-por-usuario` (IDIOMA-USUARIO): columna
+> `usuarios.idioma_preferido` con CHECK `es`/`en`/`it` (ya incluye el italiano),
+> «Mi cuenta → Idioma» y la precedencia `cuenta > cookie > navegador > español`.
+> Ver [[03-Frontend/idiomas-es-en]] §1 y §4.
+>
+> **Cobertura:** las cinco claves nuevas (`idioma.cuenta.*`) llevan italiano
+> **sin validar** por el validador del italiano (van en `IT_BASE`, cuentan
+> como traducidas en `coberturaItaliano()`; la prueba de que la comprobación
+> muerde pasó de 6 a 11 por eso). Que las revise el lote que toque «cuenta y
+> shell».
 
 ## 4 · Antes de encender `IDIOMA_ITALIANO`
 
