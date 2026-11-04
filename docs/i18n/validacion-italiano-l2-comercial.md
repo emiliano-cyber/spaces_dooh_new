@@ -237,3 +237,44 @@ decidido, el de «predio»).
   (`interpolar` hace `String(n)`), no lo rendí.
 - El italiano de las claves que ninguna prueba pinta (toasts, errores, motivos
   del servidor, ~235): leídas en la tabla del diccionario, no en contexto.
+
+## 2.ª pasada (2026-11-04) · `31e6322d` (rojo) y `d9e5d711` (arreglo)
+
+### Veredicto: VERDE
+
+Los seis puntos de la primera pasada están cerrados y lo comprobé. El español y
+el inglés siguen idénticos frente a `6fea374a`.
+
+| Punto | Comprobación |
+|---|---|
+| 1 · «predio» → «immobile» | Las nueve claves cambiadas tal como se propuso; `negociacion.ficha.superficie` sigue en «terreno». La prueba de glosario ya lo exige: el mutante V19, que pone «Proprietà di destinazione», MUERE |
+| 2 · Cifras con decimales | `cifraEnEtiqueta` en `p/[id]/page.tsx:398/403/415`, en el aviso del tope (`propuestas/[id]/page.tsx:158`) y en `ElegirClienteDialog.tsx:85`. En es/en es `String(n)`, igual que lo que hacía `interpolar`. `useTexto()` es `useIdioma().t` (`contexto.tsx:175`): mismo `t` |
+| 3 · V2, V5, V6, V15 | Repetidos: **MUEREN los cuatro**, por los estados italianos nuevos (tablero con 12,5% y miles, reserva con 2400 slots, códigos con 12,5% y 1200 de 5000 usos) |
+| 4 · V10, V11 | Repetidos con `-t glosario`: **MUEREN los dos** por la prueba de glosario, ya no solo por la instantánea |
+| 5 · Frases | «Nel Network», «Condividi nel Network», «Data di approvazione», «Disponibili alla vendita», «{n} impianti scaricati», «fino al {tope}», «manager delle vendite». Bien |
+| 6 · `AltaSitioDialog` `'$'` | Sin tocar a propósito (defecto previo, del lote de moneda). De acuerdo |
+
+**Reglas comunes:** «Scaduta in data …», «Valida fino al giorno …», «dal giorno …»,
+«{n} gg fa», «30+ gg», «Anomalia aperta», «({desde} – {hasta})»: sin artículo
+delante de la fecha y coherentes. Leí las 34 entradas italianas que cambiaron.
+
+**Fuera de la lista · `GestionCodigos.tsx:328-329`:** ahora pasa `usos` y `tope`
+por `cifraEnEtiqueta`. En es/en sigue siendo `String(n)` (los dos son `number`,
+`codigos-api.ts:26-28`), así que no cambia nada; en italiano sale «1.200 di 5.000».
+El mutante V17 (el tope sin idioma) MUERE.
+
+| Medición | Resultado |
+|---|---|
+| `I18N_VOLCAR_TODO` de toda la suite: la base `6fea374a` y `d9e5d711`, las dos volcadas **el mismo día** | 3027 en la base y 3341 en la rama: **0 distintos, 0 desaparecidos**, y los nuevos son todos de pruebas italianas. Un primer cruce contra el volcado de ayer dio 110 «distintos» en campañas/finanzas y clientes: era el `max` de los `<input type="date">`, que lleva la fecha de hoy. Volcando la base hoy, desaparecen |
+| `DICCIONARIOS.es`/`.en` y `traducirError` frente a la base | 0 cambiados; las mismas 3 claves nuevas |
+| `npm run typecheck` | Limpio |
+| `npx vitest run --testTimeout=60000` (worktree) | **384 archivos, 7249 pruebas en verde** |
+
+**Mutantes de esta pasada (10, restaurados):** V2, V5, V6, V15, V10, V11, V16 (la
+liga pública sin `cifraEnEtiqueta` en el volumen), V17 y V19 **MUEREN**. Solo
+**V18 SOBREVIVE**: el IVA de `ElegirClienteDialog` sin `cifraEnEtiqueta`. Ninguna
+prueba pinta en italiano un cliente con IVA decimal. Es un hueco menor y no
+bloquea: el IVA de un cliente casi nunca lleva decimales.
+
+No volví a correr `npm run build`. Los cambios de código de esta pasada son
+cinco líneas que `tsc` ya valida.
