@@ -299,7 +299,7 @@ describe('ADR 0049 · el contrato en ITALIANO, corregido en el recorrido', () =>
   it('ninguna fecha con preposicion articulada delante (1, 8 y 11 pedirian elision)', () => {
     for (const [ini, fin, firma] of [['2026-08-01', '2027-08-08', '2026-07-11'], ['2026-11-11', '2027-01-08', '2026-10-01']]) {
       const t = documentoATexto(generarContrato({ ...completo, idioma: 'it', terminos: { ...completo.terminos, fechaInicio: ini, fechaFin: fin }, fechaFirma: firma }))
-      expect(t).not.toMatch(/(il|al|dal|del|nel|sul|all’|dall’|dell’|l’)s?d{1,2} (gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)/)
+      expect(t).not.toMatch(/(il|al|dal|del|nel|sul|all’|dall’|dell’|l’)\s?\d{1,2} (gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)/)
       expect(t).toContain('in data ')
     }
   })
