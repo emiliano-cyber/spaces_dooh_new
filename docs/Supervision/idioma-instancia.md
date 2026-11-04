@@ -12,7 +12,7 @@
 
 B58 queda cerrada: medí yo las e2e y salen 1206 en verde. El único rojo es el entorno (grants-rol-app no tiene Postgres efímero en esta máquina). En una instancia es+es, los correos son byte a byte los de antes (6 hashes recalculados por mí) y el HTML existente no cambia (volcado completo, diff vacío). B59 y B60 quedan cerradas.
 
-Sigue en ámbar por dos cosas. La primera: no miré la liga, el portal ni el comprobante en un navegador. La segunda, que es la que importa: hoy una instancia en italiano manda el contrato en italiano y la propuesta y los correos en inglés (B61). Eso cae dentro de D13 y es una decisión de alta, no un defecto que impida fusionar.
+Sigue en ámbar por dos cosas. La primera: no miré la liga, el portal ni el comprobante en un navegador. La segunda, que es la que importa: hoy una instancia en italiano manda el contrato en italiano y la propuesta y los correos en inglés (B67). Eso cae dentro de D13 y es una decisión de alta, no un defecto que impida fusionar.
 
 ### Lo que medí
 
@@ -94,13 +94,13 @@ y `pantallas` es `Cannot find module`, que es un rojo débil. B60 tiene su rojo 
 
 ### Hallazgos nuevos
 
-1. **(MEDIA, producto) Hoy, una instancia en italiano sale en dos idiomas.** El contrato y la
+1. **(MEDIA, producto · B67) Hoy, una instancia en italiano sale en dos idiomas.** El contrato y la
    constancia salen en italiano. La propuesta, su liga, el portal, el comprobante y los tres
    correos caen al **inglés**: `IT_PROPUESTAS`, `IT_CUENTA` e `IT_NOTIFICACIONES` no tienen
    ninguna clave `correo.` (contadas con `awk`), y el commit a354eee0 lo dice («cae al ingles
    hasta el lote L2»). No es un fallo silencioso de datos, pero es un cliente italiano recibiendo
    correos en inglés. Se suma a D13 (no dar de alta `it` todavía).
-2. **(BAJA) El `<html lang>` de `/p` y `/portal` sigue el idioma de la petición**, mientras el
+2. **(BAJA · B68) El `<html lang>` de `/p` y `/portal` sigue el idioma de la petición**, mientras el
    contenido va en el de la instancia. Lo declaran los propios layouts. Afecta a lectores de
    pantalla y traductores automáticos, no a lo que se ve.
 

@@ -2417,14 +2417,14 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
 
 ### B · iii — Menores, para que no se pierdan
 
-- **B61 · 🟠 ABIERTA (2026-11-04) · Una instancia en italiano manda los papeles en dos idiomas.**
+- **B67 · 🟠 ABIERTA (2026-11-04) · Una instancia en italiano manda los papeles en dos idiomas.**
   El contrato y la constancia salen en italiano. La propuesta, `/p`, el portal, el comprobante y
   los correos caen al inglés, porque `IT_PROPUESTAS`, `IT_CUENTA` e `IT_NOTIFICACIONES` no tienen
   ninguna clave `correo.` (contado en `lib/i18n/textos/*.ts` el 04/11). El commit a354eee0 lo
   declara. **Cómo se cierra:** con los lotes del italiano que traducen esas claves (L2 y
   siguientes). **Quién:** el par traductor y validador del italiano. Mientras tanto, no dar de alta
   `it` para un cliente (D13).
-- **B62 · ⚪ ABIERTA (2026-11-04) · `<html lang>` de `/p` y `/portal` va en el idioma de la
+- **B68 · ⚪ ABIERTA (2026-11-04) · `<html lang>` de `/p` y `/portal` va en el idioma de la
   petición y el contenido en el de la instancia.** Lo declaran los propios layouts
   (`app/(app)/p/[id]/layout.tsx`, `app/(app)/portal/[token]/layout.tsx`). Afecta a lectores de
   pantalla y traductores automáticos. Menor.
