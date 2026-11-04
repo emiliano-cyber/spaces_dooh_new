@@ -572,7 +572,7 @@ export const IT_REPORTES: Record<ClaveReportes, string> = {
   'reportes.col.pct-facturacion': '% del fatturato',
   'reportes.col.tarifa-publicada': 'Tariffa pubblicata',
   'reportes.col.neto-comparable': 'Netto confrontabile',
-  'reportes.col.descuento-comision': 'Sconto e commissione',
+  'reportes.col.descuento-comision': 'Sconto e provvigione',
   'reportes.col.pct-publicada': '% sulla pubblicata',
   'reportes.desglose.periodo': 'Periodo',
   'reportes.desglose.espacio': 'Spazio',
@@ -658,7 +658,7 @@ export const IT_REPORTES: Record<ClaveReportes, string> = {
   'reportes.nota.entidad.sin-entidad.otros':
     '{n} contratti senza ragione sociale assegnata: il loro affitto esce in «Non assegnato».',
   'reportes.nota.tarifa.intro':
-    'La differenza tra la tariffa pubblicata e il netto è lo sconto commerciale PIÙ la commissione d’agenzia: i due si congelano insieme nella proposta e il dato non li separa per impianto.',
+    'La differenza tra la tariffa pubblicata e il netto è lo sconto commerciale PIÙ la provvigione dell’agenzia: i due si congelano insieme nella proposta e il dato non li separa per impianto.',
   'reportes.nota.tarifa.sin-tarifa.uno':
     '{sin} su {total} prenotazione del periodo non ha una tariffa pubblicata con cui confrontarla ({ingreso} di ricavi): o è nata in Vendite —dove il prezzo salvato È GIÀ la tariffa di listino— o il suo prezzo non coincide con il netto congelato dalla sua proposta. Quelle righe escono con un trattino e non con uno zero: uno zero direbbe che è stata regalata l’intera tariffa.',
   'reportes.nota.tarifa.sin-tarifa.una-de-varias':
@@ -666,7 +666,7 @@ export const IT_REPORTES: Record<ClaveReportes, string> = {
   'reportes.nota.tarifa.sin-tarifa.otros':
     '{sin} delle {total} prenotazioni del periodo non hanno una tariffa pubblicata con cui confrontarle ({ingreso} di ricavi): o sono nate in Vendite —dove il prezzo salvato È GIÀ la tariffa di listino— o il loro prezzo non coincide con il netto congelato dalla loro proposta. Quelle righe escono con un trattino e non con uno zero: uno zero direbbe che è stata regalata l’intera tariffa.',
   'reportes.nota.vendedor.intro':
-    'La differenza tra la tariffa pubblicata e il netto è lo sconto commerciale PIÙ la commissione d’agenzia: i due si congelano insieme nella proposta e il dato non li separa. Non è tutto uno sconto concesso dal commerciale.',
+    'La differenza tra la tariffa pubblicata e il netto è lo sconto commerciale PIÙ la provvigione dell’agenzia: i due si congelano insieme nella proposta e il dato non li separa. Non è tutto uno sconto concesso dal commerciale.',
   'reportes.nota.vendedor.sin-propuesta':
     '{n} da campagne create direttamente in Vendite, che non hanno mai avuto una proposta e quindi non hanno nessuno a cui essere attribuite',
   'reportes.nota.vendedor.historicas':
@@ -678,7 +678,7 @@ export const IT_REPORTES: Record<ClaveReportes, string> = {
   'reportes.nota.vendedor.sin-vendedor.otros':
     '{sin} delle {total} prenotazioni del periodo escono in «Nessun commerciale» ({ingreso} di ricavi): {causas}.',
   'reportes.nota.vendedor.raya':
-    'Quelle righe escono con un trattino e non con uno zero: uno zero in «Sconto e commissione» affermerebbe che non ne è stato concesso nessuno.',
+    'Quelle righe escono con un trattino e non con uno zero: uno zero in «Sconto e provvigione» affermerebbe che non ne è stato concesso nessuno.',
   'reportes.nota.luz.sin-esperados': 'Non sono previste bollette della luce in questo periodo.',
   'reportes.nota.luz.completa.uno':
     'Non manca nessuna bolletta: risulta registrata {esperados} bolletta attesa nel periodo, quindi il costo della luce è completo.',
