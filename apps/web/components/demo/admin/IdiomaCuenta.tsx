@@ -7,11 +7,40 @@ import { Languages } from 'lucide-react'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Campo } from '@/components/demo/ui/Campo'
 import { useIdioma } from '@/lib/i18n/contexto'
-import type { Idioma } from '@/lib/i18n/idiomas'
+import { traducir } from '@/lib/i18n/diccionario'
+import { COOKIE_IDIOMA, resolverIdioma, type Idioma } from '@/lib/i18n/idiomas'
 
 const API = '/spaces-dooh/api'
 const inputCls =
   'h-10 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
+
+// ─── B69 · el aviso, en el idioma al que se pasa ────────────────────────────
+//
+// El `t` de la pantalla es el del idioma de ANTES: el nuevo llega con el
+// `router.refresh()`, cuando el aviso ya se pinto. Al pasar a italiano decia
+// «Language saved». El aviso se dice en el idioma de destino, que el cliente
+// conoce sin esperar al servidor: el elegido, o con «Usar el idioma del
+// navegador» la misma regla que `resolverIdioma` aplica en el servidor
+// (cookie > navegador > español, entre los encendidos). La lista
+// `navigator.languages` es de donde el navegador saca su `Accept-Language`.
+// Sin cambio de idioma, el destino es el de ahora y el aviso, el de siempre.
+export function idiomaTrasGuardar(
+  valor: Idioma | 'navegador',
+  ctx: { actual: Idioma; disponibles: readonly Idioma[]; cookie: string | null; navegador: readonly string[] },
+): Idioma {
+  if (valor !== 'navegador') return ctx.disponibles.includes(valor) ? valor : ctx.actual
+  return resolverIdioma({ cookie: ctx.cookie, cabecera: ctx.navegador.join(','), permitidos: ctx.disponibles })
+}
+
+export function avisoIdiomaGuardado(destino: Idioma): string {
+  return traducir(destino, 'idioma.cuenta.toast')
+}
+
+function cookieIdiomaNavegador(): string | null {
+  if (typeof document === 'undefined') return null
+  const m = document.cookie.match(new RegExp('(?:^|; )' + COOKIE_IDIOMA + '=([^;]*)'))
+  return m ? decodeURIComponent(m[1]) : null
+}
 
 // ─── «Mi cuenta → Idioma» (IDIOMA-USUARIO, 03/11) ───────────────────────────
 //
@@ -28,7 +57,7 @@ const inputCls =
 // la respuesta, así que el layout raíz vuelve con el idioma nuevo y
 // `ProveedorIdioma` se alinea sin recargar ni parpadear.
 export function IdiomaCuenta() {
-  const { t, puedeElegir, disponibles } = useIdioma()
+  const { t, idioma, puedeElegir, disponibles } = useIdioma()
   const router = useRouter()
   const [preferido, setPreferido] = useState<Idioma | 'navegador' | null>(null)
   const [busy, setBusy] = useState(false)
@@ -61,7 +90,12 @@ export function IdiomaCuenta() {
       })
       const d = await r.json().catch(() => ({}))
       if (!r.ok) throw new Error((d as { error?: string }).error ?? t('idioma.cuenta.error'))
-      toast.success(t('idioma.cuenta.toast'))
+      toast.success(avisoIdiomaGuardado(idiomaTrasGuardar(valor, {
+        actual: idioma,
+        disponibles,
+        cookie: cookieIdiomaNavegador(),
+        navegador: typeof navigator === 'undefined' ? [] : navigator.languages ?? [navigator.language],
+      })))
       router.refresh()
     } catch (e) {
       setPreferido(anterior)
