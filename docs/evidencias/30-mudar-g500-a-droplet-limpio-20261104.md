@@ -18,9 +18,9 @@
 > en la consola **no uses `exit` ni `set -e`**: cerrarían la sesión.
 >
 > Valores con marcador (no van en un archivo versionado, regla de `CLAUDE.md`):
-> `<IP_VIEJA>` (la de hoy, la del censo del dueño), `<IP_NUEVA>`, `<REPO>`
+> `142.93.113.106` (la de hoy, la del censo del dueño), `<IP_NUEVA>`, `<REPO>`
 > (tu checkout, p. ej. `C:\Users\Server\spaces_doohmain_nueva`) y los que salen
-> del censo de §0.3 (`<DIGEST_APP>`, `<COLLATE>`, `<CTYPE>`, `<ZONA>`). Ningún
+> del censo de §0.3 (`registry.digitalocean.com/registryspaces/space-os@sha256:e6608ac9f02f3ca4d4917dfa8255d6b6ef6769a4d78623e449542982a1b8e15d`, `C.UTF-8`, `C.UTF-8`, `Etc/UTC`). Ningún
 > bloque imprime una contraseña.
 
 ## Qué es y qué no es esta guía
@@ -67,7 +67,7 @@ como vuelta atrás, hasta que se reutilice como DEMO en otra guía.
 ## 0 · La víspera (sin cortar nada)
 
 ### 0.1 · [Cloudflare]
-- Registro **A** de `g500`: anota la IP (`<IP_VIEJA>`) y baja el **TTL a 1 min**.
+- Registro **A** de `g500`: anota la IP (`142.93.113.106`) y baja el **TTL a 1 min**.
 - Debe estar en **«DNS only» (nube gris)**: RTSP 8554, WebRTC 8189/udp y TURN 3478
   no pasan por el proxy. Si está en naranja, **para y avisa**.
 - **¿Hay un registro AAAA de `g500`?** Si lo hay, anótalo: el droplet nuevo tendrá
@@ -95,9 +95,9 @@ certbot certificates 2>/dev/null | grep -E 'Certificate Name|Domains|Expiry'
 grep -hE '^(authenticator|webroot_path|installer|renew_hook|deploy_hook)' /etc/letsencrypt/renewal/*.conf
 ```
 
-**Bloque B · configuración** (no imprime secretos). Sustituye `<IP_VIEJA>`:
+**Bloque B · configuración** (no imprime secretos). Sustituye `142.93.113.106`:
 ```bash
-echo ok; IPV=<IP_VIEJA>; ls -la /etc/space-os /etc/space-os/licencia 2>/dev/null
+echo ok; IPV=142.93.113.106; ls -la /etc/space-os /etc/space-os/licencia 2>/dev/null
 grep -E '^(INSTANCIA|CANAL|IMAGEN_NOMBRE|CONTENEDOR|ENV_APP|DOCKER_OPCIONES_APP|RED_MIGRACION|SALUD_URL|LICENCIA_[A-Z_]*|SPACES_BUCKET|SPACES_REGION|LOGS_BUCKET|FLOTA_REPORTE_URL)=' /etc/space-os/instancia.env
 grep -E '^(EYES_IMAGEN|EYES_DOMINIO|IP_PUBLICA|INSTANCIA_OWNER|MIGRACIONES_BASE)=' /etc/space-os/eyes.env
 grep -E '^(APP_URL|TZ|DOOHMAIN_PUBLISH_ENABLED|SPACE_EYE_BASE_URL)=' /etc/space-os/app.env; grep -q '^GOOGLE_MAPS_SERVIDOR_KEY=.' /etc/space-os/app.env && echo "MAPS: con clave" || echo "MAPS: sin clave"
@@ -112,10 +112,10 @@ grep -rIlF "$IPV" /etc /opt/space-os 2>/dev/null
 echo ok; pg_lsclusters; pg_dump --version
 sudo -u postgres psql -d spaces -Atc "select (select count(*) from tenants)||'/'||(select count(*) from usuarios)||'/'||(select count(*) from sitios)||'/'||(select count(*) from propuestas)||'/'||(select count(*) from campanas)||'/'||(select count(*) from arrendadores)"
 sudo -u postgres psql -d spaces -Atc "select version_instalada, digest_instalado, modo, aprobado_digest is not null as aprobada_pendiente from actualizaciones_instancia"
-sudo -u postgres psql -Atc "select rolname, rolsuper, rolinherit, rolcreaterole, rolcreatedb, rolcanlogin, rolbypassrls from pg_roles where rolname !~ '^pg_' order by 1"
+sudo -u postgres psql -Atc "select rolname, rolsuper, rolinherit, rolcreaterole, rolcreatedb, rolcanlogin, rolbypassrls from pg_roles where not (rolname ~ '^pg_') order by 1"
 sudo -u postgres psql -Atc "select pg_encoding_to_char(encoding), datcollate, datctype, pg_get_userbyid(datdba), coalesce(datacl::text,'(sin acl)') from pg_database where datname='spaces'"
 sudo -u postgres psql -Atc "select coalesce(r.rolname,'*')||' '||coalesce(d.datname,'*')||' '||s.setconfig::text from pg_db_role_setting s left join pg_roles r on r.oid=s.setrole left join pg_database d on d.oid=s.setdatabase"
-sudo -u postgres psql -Atc "select m.rolname||' en '||r.rolname from pg_auth_members a join pg_roles r on r.oid=a.roleid join pg_roles m on m.oid=a.member where m.rolname !~ '^pg_'"
+sudo -u postgres psql -Atc "select m.rolname||' en '||r.rolname from pg_auth_members a join pg_roles r on r.oid=a.roleid join pg_roles m on m.oid=a.member where m.not (rolname ~ '^pg_')"
 docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$(docker inspect -f '{{.Image}}' space-os)"
 ```
 
@@ -127,22 +127,41 @@ que hace cada cosa en esta guía:
 | Volúmenes | `space-eyes_base`, `space-eyes_redis`, `space-eyes_fotos`, `space-eyes_descargas`; raíz de Docker `/var/lib/docker` | Los bloques usan esos nombres: **para** y se ajustan |
 | `du -sh` de los volúmenes | Anótalo: es lo que viaja (las fotos son lo grande) | — |
 | `INSTANCIA=` | `g500` (no vacía) | Vacía: la licencia y el prefijo del bucket caen al `hostname` (`respaldo.sh:106-112`, `update.sh:1004`). **Para** |
-| `EYES_IMAGEN` / `EYES_DOMINIO` / `IP_PUBLICA` | `space-eye:0.16.24-local` / `g500.space-os.io` / `<IP_VIEJA>` | — |
+| `EYES_IMAGEN` / `EYES_DOMINIO` / `IP_PUBLICA` | `space-eye:0.16.24-local` / `g500.space-os.io` / `142.93.113.106` | — |
 | sha256 en `/opt/space-os` | `eyes/docker-compose.yml` = `5d77716f…` (variante de g500, D9) · `eyes/mediamtx.yml` = `55c10b1f…` · `update-eyes.sh` = `c10b9802…` · `update.sh` = `8672d6b7…` · `space-os.pub` (si existe) = `7a2f4e81…` | Otro compose: se copia igual (es el que corre) pero **avisa**. Otra `space-os.pub`: **para** (la licencia no verificaría) |
 | `nginx -T` | `nginx.conf`, `sites-enabled/g500.space-os.io`, `snippets/space-eyes*.conf` y los de serie de Ubuntu | Otro archivo propio: se añade a §1.6 |
 | `grep` de la IP vieja | solo `/etc/space-os/eyes.env` (y su respaldo `eyes.env.antes-0.16.24-…`); la red del droplet (`netplan`, `network/interfaces`) **no** viaja | Otro archivo: se añade a §1.6 |
 | Conteos | `1/5/13/11/11/6` (guárdalo: se compara en §3) | — |
 | `actualizaciones_instancia` | `v0.12.5`, `aprobada_pendiente = f` | `t`: espera a que instale o retira la aprobación |
 | Roles | `postgres`, `spaces_app` (`f\|f\|f\|f\|t\|f`), `spaces_migrador` (`…\|t` en `rolbypassrls`) y nada más | Otro rol (p. ej. `spaces_user`): **para**, hay que crearlo antes de restaurar |
-| Base `spaces` | `UTF8`, `<COLLATE>`, `<CTYPE>`, dueño `spaces_migrador`, `(sin acl)` | Otro dueño o una ACL: **para** |
+| Base `spaces` | `UTF8`, `C.UTF-8`, `C.UTF-8`, dueño `spaces_migrador`, `(sin acl)` | Otro dueño o una ACL: **para** |
 | `pg_db_role_setting` y `pg_auth_members` | vacíos | Algo: **para** |
-| RepoDigest | `…/space-os@sha256:…` → es `<DIGEST_APP>` | — |
-| Zona horaria | `<ZONA>` (se replica en §1.3) | — |
+| RepoDigest | `…/space-os@sha256:…` → es `registry.digitalocean.com/registryspaces/space-os@sha256:e6608ac9f02f3ca4d4917dfa8255d6b6ef6769a4d78623e449542982a1b8e15d` | — |
+| Zona horaria | `Etc/UTC` (se replica en §1.3) | — |
 | `MAPS: con clave` | la clave de Google Maps de servidor **se restringe por IP** (`infra/env/app.env.example:127-128`) | Si hay clave: **antes del corte**, añade `<IP_NUEVA>` en Google Cloud (§1.1) |
+
+### 0.3 bis · Resultado del censo del 2026-11-04 (lo pegó el dueño)
+
+Ya sustituido en los bloques de esta guía: IP vieja `142.93.113.106`, digest de la app `…space-os@sha256:e6608ac9…`, base `UTF8` / `C.UTF-8` / `C.UTF-8`, zona del sistema `Etc/UTC` (la app lleva `TZ=America/Mexico_City` en `app.env`, que viaja tal cual).
+
+| Qué | Censo | Veredicto |
+|---|---|---|
+| Volúmenes | `space-eyes_base` 811 MB · `_descargas` 236 MB · `_fotos` 1,2 GB · `_redis` 4,4 MB | ~2,3 GB a mover: la precopia en caliente (§1.8) es la que ahorra tiempo de corte |
+| `INSTANCIA` / bucket | `g500` / `space-os-respaldos` en `sfo3` | OK |
+| `FLOTA_REPORTE_URL` | vacío | g500 no reporta al panel de flota; se copia igual |
+| sha256 de `/opt/space-os` | compose `5d77716f`, mediamtx `55c10b1f`, update-eyes `c10b9802`, update `8672d6b7`; sin `space-os.pub` ni `licencia/` | Todo lo esperado |
+| `respaldo.sh` | existe en `/opt/space-os` pero **no hay cron** que lo llame | Confirma que g500 no tenía respaldo diario: se instala en el nuevo (§4.4) |
+| nginx | `sites-enabled/g500.space-os.io` + `snippets/space-eyes.conf` (+ módulos de serie) | Lo esperado |
+| IP vieja | `eyes.env`, su respaldo, `netplan` y `network/interfaces` (red del droplet) | Lo esperado |
+| Google Maps | **sin clave** | No hay que tocar Google Cloud |
+| `actualizaciones_instancia` | `v0.12.5`, modo `aprobacion`, sin pendiente | OK |
+| Contenedores sobrantes | `flamboyant_mclaren` (Dead) y `space-os-antes-doohmain` (parado) | No viajan |
+| ufw IPv6 | solo 22 y 80 con regla v6 | Si el nuevo lleva IPv6, sus reglas las pone `ufw` igual para v4/v6 |
+| Roles y `pg_auth_members` | **no salieron**: el `!~` de esas dos consultas lo interpretó bash (event not found) | Ya corregido en el Bloque C; hay que **volver a correr esas dos líneas** |
 
 ### 0.4 · [PADRE] ¿alguien guarda la IP de g500?
 ```bash
-echo ok; grep -rIlF '<IP_VIEJA>' /etc/space-os /var/lib/space-os /var/www/Spaces/apps/flota 2>/dev/null || echo "el PADRE no la guarda"
+echo ok; grep -rIlF '142.93.113.106' /etc/space-os /var/lib/space-os /var/www/Spaces/apps/flota 2>/dev/null || echo "el PADRE no la guarda"
 ```
 
 ### 0.5 · [PC] El paquete de guiones de `v0.12.5`, sin CRLF
@@ -224,7 +243,7 @@ puertos de video (los mismos que abre `provision-instancia.sh:711`):
 ```bash
 echo ok; fallocate -l 2G /swapfile; chmod 600 /swapfile; mkswap /swapfile; swapon /swapfile
 grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
-timedatectl set-timezone <ZONA>
+timedatectl set-timezone Etc/UTC
 for r in 8554/tcp 8189/udp 3478/tcp 3478/udp 49160:49200/udp; do ufw allow $r; done
 swapon --show; free -m | head -3; timedatectl | grep 'Time zone'; ufw status | head -14
 ```
@@ -323,14 +342,14 @@ En cada línea, **`viejo` = `nuevo`**. (Deben salir `space-eye:0.16.24-local`,
 ```bash
 echo ok; set -a; . /etc/space-os/instancia.env; set +a
 printf '%s' "$REGISTRY_TOKEN" | docker login "${REGISTRY%%/*}" -u "$REGISTRY_TOKEN" --password-stdin
-docker pull '<DIGEST_APP>'
-docker image inspect -f '{{.Id}}' '<DIGEST_APP>'
+docker pull 'registry.digitalocean.com/registryspaces/space-os@sha256:e6608ac9f02f3ca4d4917dfa8255d6b6ef6769a4d78623e449542982a1b8e15d'
+docker image inspect -f '{{.Id}}' 'registry.digitalocean.com/registryspaces/space-os@sha256:e6608ac9f02f3ca4d4917dfa8255d6b6ef6769a4d78623e449542982a1b8e15d'
 ```
 Compara ese `Id` con el de [VIEJO] `docker inspect -f '{{.Image}}' space-os`:
 **iguales**. Si el `pull` falla (la etiqueta se borró del registro al limpiar
 cuota), llévala como las de Space Eyes: en [VIEJO]
 `docker save "$(docker inspect -f '{{.Config.Image}}' space-os)" | gzip -1 | ssh -i $K root@$N 'gunzip | docker load'`,
-y en §3.3 usa ese nombre en lugar de `<DIGEST_APP>`.
+y en §3.3 usa ese nombre en lugar de `registry.digitalocean.com/registryspaces/space-os@sha256:e6608ac9f02f3ca4d4917dfa8255d6b6ef6769a4d78623e449542982a1b8e15d`.
 
 ### 1.8 · Los volúmenes: crearlos y la PRECOPIA en caliente
 [NUEVO] — `create` hace los volúmenes con las etiquetas de compose sin arrancar nada:
@@ -435,13 +454,13 @@ locale -a | grep -iE '^(c\.utf-?8|en_us\.utf-?8)$'
 ```
 `roles=0`, y las dos filas **idénticas** a las de §0.3 (`spaces_app` con
 `rolbypassrls=f`, `spaces_migrador` con `t`: las recetas de `base-instancia.sh:96-132`).
-Si el `<COLLATE>` del censo no aparece en `locale -a`:
-`locale-gen <COLLATE> && systemctl restart postgresql`.
+Si el `C.UTF-8` del censo no aparece en `locale -a`:
+`locale-gen C.UTF-8 && systemctl restart postgresql`.
 
 La base **vacía**, con la misma codificación y orden que la de g500 (y dueño
 `spaces_migrador`, `base-instancia.sh:138-140`); luego la restauración:
 ```bash
-echo ok; sudo -u postgres psql -v ON_ERROR_STOP=1 -c "create database spaces owner spaces_migrador encoding 'UTF8' lc_collate '<COLLATE>' lc_ctype '<CTYPE>' template template0"
+echo ok; sudo -u postgres psql -v ON_ERROR_STOP=1 -c "create database spaces owner spaces_migrador encoding 'UTF8' lc_collate 'C.UTF-8' lc_ctype 'C.UTF-8' template template0"
 sudo -u postgres pg_restore -d spaces --exit-on-error --single-transaction < /root/g500-viejo/spaces.dump; echo "restore=$?"
 sudo -u postgres vacuumdb -q --analyze-only -d spaces; echo "analyze=$?"
 ```
@@ -461,7 +480,7 @@ Que no queda migración pendiente, con el runner **de la imagen** (el mismo que
 usa `update.sh`; la URL sale del entorno, no se imprime):
 ```bash
 echo ok; set -a; . /etc/space-os/instancia.env; set +a
-docker run --rm --network host -e DATABASE_URL '<DIGEST_APP>' node scripts/migrar.mjs --pendientes; echo "codigo=$?"
+docker run --rm --network host -e DATABASE_URL 'registry.digitalocean.com/registryspaces/space-os@sha256:e6608ac9f02f3ca4d4917dfa8255d6b6ef6769a4d78623e449542982a1b8e15d' node scripts/migrar.mjs --pendientes; echo "codigo=$?"
 ```
 `codigo=0` y `… (0 de esquema, N de datos)`. Las de datos (p. ej.
 `20260731_calendario_meses_cortos.sql`) son a propósito: `update.sh` no pasa
@@ -497,7 +516,7 @@ D=/var/lib/docker/volumes; for v in fotos descargas; do echo "$v: $(find $D/spac
 ```bash
 echo ok; set -a; . /etc/space-os/instancia.env; set +a
 read -r -a OPC <<<"$DOCKER_OPCIONES_APP"
-docker run --detach --name "${CONTENEDOR:-space-os}" --restart unless-stopped --env-file "${ENV_APP:-/etc/space-os/app.env}" "${OPC[@]}" '<DIGEST_APP>'
+docker run --detach --name "${CONTENEDOR:-space-os}" --restart unless-stopped --env-file "${ENV_APP:-/etc/space-os/app.env}" "${OPC[@]}" 'registry.digitalocean.com/registryspaces/space-os@sha256:e6608ac9f02f3ca4d4917dfa8255d6b6ef6769a4d78623e449542982a1b8e15d'
 sleep 20; curl -s -o /dev/null -w 'version %{http_code}\n' "${SALUD_URL:-http://127.0.0.1:3000/spaces-dooh/api/version/}"
 curl -s -o /dev/null -w 'metodos %{http_code}\n' http://127.0.0.1:3000/spaces-dooh/api/auth/metodos/
 docker exec space-os node -e "fetch('http://127.0.0.1:4200/api/app/version').then(r=>console.log('app->eyes',r.status)).catch(e=>console.log('NO LLEGA',e.message))"
@@ -607,7 +626,7 @@ docker start space-eyes-mysql-1 space-eyes-redis-1 space-eyes-mediamtx-1 space-e
 sleep 20; curl -s -o /dev/null -w 'app %{http_code}\n' http://127.0.0.1:3000/spaces-dooh/api/auth/metodos/; curl -s -o /dev/null -w 'eyes %{http_code}\n' http://127.0.0.1:4200/api/app/version
 ```
 **Después de mover el DNS**: primero **[Cloudflare]** el A de `g500` de vuelta a
-`<IP_VIEJA>`; si el viejo ya está apagado, **[Panel DO] enciéndelo** (arranca
+`142.93.113.106`; si el viejo ya está apagado, **[Panel DO] enciéndelo** (arranca
 sin contenedores ni cron, D13); y luego los dos bloques de arriba.
 
 > [!danger] Lo capturado en el nuevo después del DNS NO vuelve solo
@@ -630,7 +649,7 @@ sin contenedores ni cron, D13); y luego los dos bloques de arriba.
 - **En el nuevo, a la semana** (con g500 en uso sin problemas): borra el material
   de la mudanza, que lleva secretos y la base en claro:
   `rm -rf /root/g500-viejo /root/g500-config.tgz /root/eyes-conteos.txt /root/pg-conteos.txt /root/conteos-pg.sql`.
-  Y en Google Cloud, quita `<IP_VIEJA>` de la clave de Maps.
+  Y en Google Cloud, quita `142.93.113.106` de la clave de Maps.
 - **[Panel DO]**: renombra los droplets para que no se confundan
   (`g500-nuevo` → `g500`, el viejo → `g500-viejo-futura-demo`).
 - **La bóveda**: la IP vieja sigue en `space-eye/docs/ARQUITECTURA_SPACE_EYES.md`
