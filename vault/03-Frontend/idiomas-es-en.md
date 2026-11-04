@@ -1,9 +1,10 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-11-03
+actualizado: 2026-11-04
 tags: [frontend, i18n, idiomas, ingles, dinero]
 archivos:
+  - apps/web/components/demo/shell/salir.ts
   - apps/web/lib/i18n/idiomas.ts
   - apps/web/lib/i18n/formato-idioma.ts
   - apps/web/lib/i18n/diccionario.ts
@@ -125,7 +126,10 @@ archivos:
 > - **Cómo llega a cada petición SIN consultar la base**: en la cookie
 >   `spaces_idioma_cuenta` = `<idioma>.<huella del token de sesión>`
 >   (httpOnly). La ponen el login, Google, el código de recuperación y
->   `PUT /api/perfil/idioma`; la borra el logout. `idiomaDeLaPeticion()` (que
+>   `PUT /api/perfil/idioma`; la borra el logout, y el Topbar sale con una
+>   **carga completa** (`components/demo/shell/salir.ts`, B64, 04/11): con
+>   `router.push` la pantalla de entrar se quedaba en el idioma de la cuenta
+>   que acababa de salir. `idiomaDeLaPeticion()` (que
 >   sigue siendo **síncrona**: la usan `respuestaError()` y media docena de
 >   Server Components) solo la cree si la huella casa con la sesión de ESA
 >   petición: otra persona en el mismo navegador, o ninguna sesión, y se

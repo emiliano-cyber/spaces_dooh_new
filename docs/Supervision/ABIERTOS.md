@@ -179,6 +179,8 @@ archivo dentro de la pregunta.
 > `feat/idioma-por-usuario` en ÁMBAR — informe en `docs/Supervision/idioma-por-usuario.md`.
 > Una decisión nueva, **D16**, y advertencias **B61 a B66**. La que importa es **B61** (las e2e de
 > una rama ROJA medidas solo por su autor).
+> *(04/11, al integrar en `integra/idiomas`: **B61, B63 y B64 cerradas**; B62, B65 y B66 siguen
+> abiertas.)*
 
 ### D16 · Si alguien eligió un idioma en «Mi cuenta» y entra desde un navegador que está en otro idioma, ¿cuál manda?
 
@@ -2446,26 +2448,19 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
 > `connect ECONNREFUSED 127.0.0.1:55471`: es el Postgres efímero que esta máquina no levanta, o sea entorno y no código.
 > Coincide con lo que afirmaba el autor (1206 y la misma roja).
 
-#### B61 · 🟠 ABIERTA (2026-11-04) · IDIOMA-USUARIO: las e2e de `feat/idioma-por-usuario` no las midió nadie más que el autor · **la que importa de esta rama**
+#### ~~B61 · IDIOMA-USUARIO: las e2e de `feat/idioma-por-usuario` no las midió nadie más que el autor~~
 
-- **Qué es:** rama ROJA (columna nueva en `usuarios`, que es fail-closed + FORCE; cookie atada al
-  token de sesión; login, código y Google tocados). Lo decisivo —que el rol `spaces_app` lea y escriba
-  la columna con la RLS puesta, que otra empresa no toque la fila, que el login ponga la cookie y el
-  logout la borre— está en `apps/web/lib/test/idioma-por-usuario.e2e.test.ts` (14 pruebas) y en
-  `aislamiento.e2e.test.ts`, y **solo se ve contra Postgres real**.
-- **Evidencia:** el supervisor no las corrió el 03-04/11 (3311 y 3312 con procesos huérfanos, orden
-  del orquestador). Hay un log del autor, `scratchpad/idioma-usuario/e2e3.log` (03/11 15:44):
-  `Tests 1 failed | 1200 passed | 21 skipped (1222)`, la roja `grants-rol-app` por
-  `ECONNREFUSED 127.0.0.1:55471` (entorno). Sus 4 mutantes e2e (login sin cookie, guardar con
-  `qRaw`, PUT sin cookie, logout sin borrarla) tienen guion (`mutar-e2e.py`, con build por mutante)
-  pero **ninguna salida en disco**.
-- **Cómo se cierra:** con un puerto libre, en el árbol FUSIONADO con `integra/idiomas`:
-  `cd apps/web && npm run build && npm run test:e2e`, pegar la salida; y repetir al menos el mutante
-  «guardar con `qRaw`» con `npm run build` antes, pegando que muere.
-- **Quién:** cualquier agente con el 3311 (o `PUERTO_E2E`) libre, antes de fusionar a `main`.
-- **Si no se cierra:** una migración en zona ROJA aterriza con su verificación de oídas. Severidad
-  baja si falla (la preferencia se perdería en silencio, el idioma volvería al del navegador), pero
-  es exactamente el modo de fallo de R2: cero filas sin error.
+> ✅ **CERRADA el 2026-11-04 al integrar en `integra/idiomas`** (merge `afa2e490`, más el arreglo de
+> B64 en `1fb57e39`). Build hecho antes y corrida `npm run test:e2e` con `PUERTO_E2E=3351`,
+> `PUERTO_DOBLE_GOOGLE=3352` y la base `spaces_idiomas_e2e` sobre el árbol fusionado:
+> **`Test Files 1 failed | 85 passed | 1 skipped (87)` · `Tests 1 failed | 1220 passed | 21 skipped
+> (1242)`**. El rojo es `grants-rol-app.e2e` con `connect ECONNREFUSED 127.0.0.1:55471` (el Postgres
+> efímero que esta máquina no levanta: entorno). Repetidas aparte con `--reporter=verbose`:
+> `aislamiento.e2e.test.ts` **7 en verde** (+1 omitida de siempre, el autoregistro A6) e
+> `idioma-por-usuario.e2e.test.ts` **14 en verde**. **Mutante «guardar con `qRaw`»**
+> (`guardarIdiomaPreferido`), con `npm run build` antes: **muere**, 5 de 14 en rojo (guardar, seguir a
+> otra sesión, la otra empresa, «Usar el idioma del navegador» y el logout); restaurado y
+> reconstruido. Unitarias en el mismo árbol: **8353/8353** (400 archivos), typecheck limpio.
 
 #### B62 · 🟠 ABIERTA (2026-11-04) · `npm test` sale ROJO por carga de la máquina, sin que el código cambie
 
@@ -2486,25 +2481,14 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
 
 ### B · iii — Menores, para que no se pierdan
 
-- **B63 · 🟡 ABIERTA (2026-11-04) · `feat/idioma-por-usuario` choca al fusionar con L5 del italiano
-  y con `feat/idioma-instancia`.** Medido con `git merge-tree`. **Con `feat/italiano-l5-armazon`:**
-  `lib/i18n/diccionario.ts` (quedarse con las dos partes: las 5 claves `idioma.cuenta.*` y las de
-  `marca`/`login`/`nav` de L5) y `lib/i18n/cobertura-italiano.test.ts` (quedarse con la versión de
-  L5, que no fija el número de traducidas). `idiomas.ts` se fusiona solo y queda coherente; efecto
-  inocuo: con el italiano apagado, una cuenta con preferencia `it` ya no recibe cookie al entrar
-  (antes la recibía y se ignoraba). **Con `feat/idioma-instancia`:** `CLAUDE.md`, el MOC,
-  `esquema.md` y el diario; las dos dicen 124 migraciones y juntas son 125 — se resuelve corriendo
-  `node scripts/recuentos.mjs`. **Quién:** quien fusione la segunda de cada pareja, con unitarias
-  después.
-- **B64 · ⚪ ABIERTA (2026-11-04) · Al cerrar sesión, la pantalla de entrar puede quedarse en el
-  idioma de la cuenta que salió hasta recargar.** Deducido, **no visto**: `Topbar.tsx:27-31` sale con
-  `router.push('/login')`, y el propio autor escribe que esa navegación no vuelve a pintar el layout
-  que lleva el idioma (`app/(app)/login/page.tsx:162-166`). La e2e lo comprueba con una petición
-  nueva, no con el navegador. **Cómo se cierra:** mirarlo en un navegador y, si se confirma, una
-  carga completa al salir. Solo importa en equipos compartidos con dos idiomas encendidos.
+- ~~**B63 · `feat/idioma-por-usuario` choca al fusionar con L5 del italiano y con `feat/idioma-instancia`.**~~ ✅ **CERRADA el 2026-11-04 al fusionar en `integra/idiomas` (merge `afa2e490`).** Seis conflictos, todos aditivos: `diccionario.ts` (las dos partes), `cobertura-italiano.test.ts` (la de L5, sin recuento fijo), `CLAUDE.md`, MOC, `esquema.md` (la fila `tenants` de ADR 0049 y la de `usuarios` de esta rama) y el diario (§7.4). `idiomas.ts` se fusionó solo: `resolverIdioma` sigue usando `idiomasPorOmision()` por omisión y la cuenta entra delante. `errores-servidor.ts` ganó el italiano de «Ese idioma no está disponible en este servidor.» («Questa lingua non è disponibile su questo server.»; el inglés ya venía). Recuentos medidos con `node scripts/recuentos.mjs`: **125 migraciones**, 160 endpoints, 66 tablas.
+- ~~**B64 · Al cerrar sesión, la pantalla de entrar puede quedarse en el idioma de la cuenta que salió hasta recargar.**~~ ✅ **CERRADA el 2026-11-04 por código, no por navegador.** Se confirmó por lectura que aplicaba (`Topbar.tsx` salía con `router.push('/login')`) y se cambió a una carga completa: `components/demo/shell/salir.ts` (`cerrarSesionYSalir`: logout y `window.location.assign('/spaces-dooh/login/')`, sale aunque el logout falle). Rojo en su propio commit (`78a42ec4`) y arreglo en `1fb57e39`; `salir.test.ts` exige el orden logout → carga completa y que el Topbar no vuelva a `router.push`. **No se miró en un navegador**: queda para el recorrido del italiano (§4 de `italiano-olas`).
 - **B65 · ⚪ ABIERTA (2026-11-04) · IDIOMA-USUARIO sin entrada en `docs/Registro_Cambios.md`, y los
   textos italianos de la tarjeta sin validar** (`lib/i18n/diccionario.ts:508` lo dice). Invisible
   mientras haya un solo idioma encendido.
+  *(04/11, al integrar en `integra/idiomas`: los cinco textos italianos se revisaron con las reglas de
+  L5 —registro «tu», ’, «Impossibile …»— sin cambiar nada; sigue faltando la pasada de un
+  validador independiente y la entrada en la bitácora.)*
 - **B66 · ⚪ ABIERTA (2026-11-04) · El rojo del TDD de IDIOMA-USUARIO no está en el historial.**
   Pruebas e implementación en el mismo commit (4b6134f3, dd547287) y la e2e después de la
   implementación (af03b410); los cinco commits entre 15:13:19 y 15:13:45. Compensado por mutación:

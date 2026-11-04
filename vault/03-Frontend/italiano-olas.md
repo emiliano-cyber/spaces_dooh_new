@@ -121,11 +121,10 @@ compara el italiano entre lotes, y el **recorrido en el navegador**.
 > «Mi cuenta → Idioma» y la precedencia `cuenta > cookie > navegador > español`.
 > Ver [[03-Frontend/idiomas-es-en]] §1 y §4.
 >
-> **Cobertura:** las cinco claves nuevas (`idioma.cuenta.*`) llevan italiano
-> **sin validar** por el validador del italiano (van en `IT_BASE`, cuentan
-> como traducidas en `coberturaItaliano()`; la prueba de que la comprobación
-> muerde pasó de 6 a 11 por eso). Que las revise el lote que toque «cuenta y
-> shell».
+> **Cobertura:** las cinco claves nuevas (`idioma.cuenta.*`) van en `IT_BASE`
+> y cuentan como traducidas en `coberturaItaliano()`. **Revisadas al integrar
+> (04/11, §9)** con las reglas de L5, sin cambios de texto; les falta la pasada de
+> un validador independiente, como la que tuvo cada lote (B65).
 
 ## 4 · Antes de encender `IDIOMA_ITALIANO`
 
@@ -458,3 +457,31 @@ propuesta, `/p`, el portal, el comprobante y los correos en inglés (B67).
   (395 archivos); build; e2e con `spaces_idiomas_e2e` y puertos 3351/3352:
   **1206 en verde, 1 en rojo, 21 omitidas** — el rojo es `grants-rol-app`
   (`ECONNREFUSED :55471`, el Postgres efímero que esta máquina no levanta).
+
+## 9 · Integración con el idioma por persona · B61, B63 y B64 cerrados (2026-11-04)
+
+`feat/idioma-por-usuario` (IDIOMA-USUARIO, supervisor ÁMBAR) fusionada en
+`integra/idiomas` (merge `afa2e490`): la preferencia de idioma de la interfaz en
+la cuenta, «Mi cuenta → Idioma» y la precedencia `cuenta > cookie > navegador >
+español`, filtrada por los idiomas encendidos (`idiomasPorOmision()` de L5).
+
+- **Conflictos:** `diccionario.ts` (las claves de L5 y las 5 `idioma.cuenta.*`,
+  juntas en `IT_BASE`) y `cobertura-italiano.test.ts` (la de L5, que no fija el
+  número de traducidas); el resto, notas. `idiomas.ts` se fusionó solo.
+- **Italiano:** las 5 `idioma.cuenta.*` revisadas con las reglas de L5 —registro
+  «tu» («vedi», «accedi»), ’ tipográfico, «No se pudo …» = **Impossibile …**,
+  «Lingua salvata» como «Configurazione salvata»— sin cambios. Error nuevo
+  traducido: «Questa lingua non è disponibile su questo server.».
+  **Cobertura: 5926/5926, 0 pendientes**; costura en verde. Falta la pasada de
+  un validador independiente (B65).
+- **B64:** al cerrar sesión, carga completa de la pantalla de entrar
+  (`components/demo/shell/salir.ts`); ver [[idiomas-es-en]].
+- **Español e inglés:** `DICCIONARIOS.es/.en` = unión exacta de los dos padres
+  (5617 claves cada uno, 0 valores cambiados). Volcado completo
+  (`I18N_VOLCAR_TODO`) contra `1d6c92ed`: difieren solo los 12 estados de
+  `/configuracion` (2 es, 8 en, 2 it), por la tarjeta añadida y nada más.
+- **Medido sobre el árbol fusionado:** typecheck limpio; unitarias **8353/8353**
+  (400 archivos); build; e2e con `spaces_idiomas_e2e` y puertos 3351/3352:
+  **1220 en verde, 1 en rojo, 21 omitidas** — el rojo es `grants-rol-app`
+  (entorno). `aislamiento.e2e` e `idioma-por-usuario.e2e` (14) en verde, y el
+  mutante «guardar con `qRaw`» muere con build delante.
