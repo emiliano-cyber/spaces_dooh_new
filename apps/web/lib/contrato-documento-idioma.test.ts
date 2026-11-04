@@ -274,9 +274,34 @@ describe('ADR 0049 · el contrato en ITALIANO', () => {
     expect(texto).toContain('\nCLAUSOLE\n')
     expect(texto).toContain('PRIMA. OGGETTO.')
     expect(texto).toContain('1.234.567,89 MXN (UN MILIONE DUECENTOTRENTAQUATTROMILACINQUECENTOSESSANTASETTE PESOS 89/100 MXN)')
-    expect(texto).toContain('dal 1 agosto 2026 al 31 luglio 2028')
+    expect(texto).toContain('a decorrere dal giorno 1 agosto 2026 e fino al giorno 31 luglio 2028')
     expect(texto).toContain('12,5 m di larghezza per 6 m di altezza (75,00 m²)')
     expect(texto).toContain('29 luglio 2026')
+  })
+})
+
+// Recorrido del italiano (04/11), decision del orquestador. El texto legal
+// italiano sigue pendiente de abogado (D13); esto corrige solo la lengua.
+describe('ADR 0049 · el contrato en ITALIANO, corregido en el recorrido', () => {
+  const texto = documentoATexto(generarContrato({ ...completo, idioma: 'it' }))
+  it('apostrofo tipografico en todo el texto (nunca el recto)', () => {
+    expect(texto).not.toContain("'")
+    expect(texto).toContain('l’autorizzazione preventiva')
+  })
+  it('«all’installazione», no «a l’installazione»', () => {
+    expect(texto).toContain('esclusivamente all’installazione, alla gestione e allo sfruttamento commerciale')
+    expect(texto).not.toMatch(/a l[’']/)
+  })
+  it('un uso escrito por una persona no se contrae con la preposicion', () => {
+    const conUso = documentoATexto(generarContrato({ ...completo, idioma: 'it', terminos: { ...completo.terminos, usoPermitido: 'l’esposizione di insegne luminose' } }))
+    expect(conUso).toContain('esclusivamente al seguente uso: l’esposizione di insegne luminose')
+  })
+  it('ninguna fecha con preposicion articulada delante (1, 8 y 11 pedirian elision)', () => {
+    for (const [ini, fin, firma] of [['2026-08-01', '2027-08-08', '2026-07-11'], ['2026-11-11', '2027-01-08', '2026-10-01']]) {
+      const t = documentoATexto(generarContrato({ ...completo, idioma: 'it', terminos: { ...completo.terminos, fechaInicio: ini, fechaFin: fin }, fechaFirma: firma }))
+      expect(t).not.toMatch(/(il|al|dal|del|nel|sul|all’|dall’|dell’|l’)s?d{1,2} (gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)/)
+      expect(t).toContain('in data ')
+    }
   })
 })
 

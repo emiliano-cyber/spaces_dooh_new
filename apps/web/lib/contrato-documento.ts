@@ -805,7 +805,7 @@ function redactarEnOtroIdioma(
     terminos.usoPermitido ??
       (en
         ? 'the installation, operation and commercial exploitation of an advertising structure'
-        : "l'installazione, la gestione e lo sfruttamento commerciale di una struttura pubblicitaria"),
+        : 'l’installazione, la gestione e lo sfruttamento commerciale di una struttura pubblicitaria'),
   )
   const moral = Boolean(arrendador.razonSocial)
   const nombreArr = v(arrendador.razonSocial ?? arrendador.nombre)
@@ -985,27 +985,32 @@ function redactarEnOtroIdioma(
   // sería un error en un contrato. Por eso cada frase las escribe en su forma.
   const descripcion =
     `${v(espacio.nombre)}${espacio.codigo ? ` (codice ${espacio.codigo})` : ''}, ` +
-    `situato in ${v(espacio.direccion)}${espacio.predio ? `, all'interno del fondo denominato «${espacio.predio}»` : ''}`
+    `situato in ${v(espacio.direccion)}${espacio.predio ? `, all’interno del fondo denominato «${espacio.predio}»` : ''}`
 
   add('OGGETTO', [
     `IL LOCATORE concede in locazione al CONDUTTORE, che lo riceve di sua piena soddisfazione, ` +
       `lo spazio identificato come ${descripcion}, con una superficie utile di ${medidas} ` +
       `(di seguito, «LO SPAZIO»).`,
-    `IL CONDUTTORE destinerà LO SPAZIO esclusivamente a ${uso}. Qualsiasi uso diverso richiede ` +
-      `l'autorizzazione preventiva e scritta del LOCATORE.`,
+    // «a» + «l’installazione» pide «all’»: el uso por omision va escrito ya contraido y
+    // uno escrito por una persona (dato) se presenta con dos puntos, que no contrae.
+    `IL CONDUTTORE destinerà LO SPAZIO esclusivamente ${terminos.usoPermitido?.trim() ? `al seguente uso: ${uso}` : 'all’installazione, alla gestione e allo sfruttamento commerciale di una struttura pubblicitaria'}. ` +
+      `Qualsiasi uso diverso richiede ` +
+      `l’autorizzazione preventiva e scritta del LOCATORE.`,
   ])
   add('DURATA', [
-    `Il presente contratto avrà validità dal ${fecha(terminos.fechaInicio)} al ${fecha(terminos.fechaFin)}, ` +
+    // Sin preposicion articulada delante de la fecha («dal 1», «dal 8» pedirian
+    // «dal 1°», «dall’8»): «dal giorno … fino al giorno …», como el resto del italiano.
+    `Il presente contratto avrà validità a decorrere dal giorno ${fecha(terminos.fechaInicio)} e fino al giorno ${fecha(terminos.fechaFin)}, ` +
       `termine che entrambe le parti riconoscono come vincolante.`,
     terminos.autoRenovable
       ? `Alla scadenza, il contratto si rinnoverà automaticamente per periodi di uguale durata, salvo che una ` +
-        `delle parti comunichi all'altra la propria volontà di non rinnovarlo, per iscritto e con almeno trenta ` +
+        `delle parti comunichi all’altra la propria volontà di non rinnovarlo, per iscritto e con almeno trenta ` +
         `(30) giorni di calendario di preavviso rispetto alla scadenza.`
       : `Il contratto NON si rinnova automaticamente. La sua prosecuzione richiede un nuovo accordo scritto ` +
         `tra le parti.`,
   ])
   const canone = [
-    `IL CONDUTTORE pagherà al LOCATORE l'importo di ${importe(terminos.montoRenta)} ${cada}, a titolo di ` +
+    `IL CONDUTTORE pagherà al LOCATORE l’importo di ${importe(terminos.montoRenta)} ${cada}, a titolo di ` +
       `canone di locazione dello SPAZIO.`,
     `Il pagamento sarà effettuato ${terminos.diaPago ? `entro i primi ${terminos.diaPago} giorni di calendario di ciascun periodo` : 'entro i primi cinque (5) giorni di calendario di ciascun periodo'}, ` +
       `mediante bonifico elettronico sul conto che IL LOCATORE indicherà per iscritto. IL LOCATORE si obbliga ` +
@@ -1014,13 +1019,13 @@ function redactarEnOtroIdioma(
   ]
   if (pct != null) {
     canone.push(
-      `Il canone sarà aumentato annualmente di una percentuale pari a ${cifra(pct, null, 'it')}% sull'importo vigente al momento ` +
-        `dell'adeguamento, alla data di anniversario dell'inizio della validità.`,
+      `Il canone sarà aumentato annualmente di una percentuale pari a ${cifra(pct, null, 'it')}% sull’importo vigente al momento ` +
+        `dell’adeguamento, alla data di anniversario dell’inizio della validità.`,
     )
   }
   if (terminos.deposito != null && terminos.deposito > 0) {
     canone.push(
-      `Alla firma del presente contratto, IL CONDUTTORE consegna al LOCATORE l'importo di ` +
+      `Alla firma del presente contratto, IL CONDUTTORE consegna al LOCATORE l’importo di ` +
         `${importe(terminos.deposito)} a titolo di deposito cauzionale, che sarà restituito entro i trenta (30) ` +
         `giorni di calendario successivi alla cessazione del contratto, previa verifica dello stato dello SPAZIO.`,
     )
@@ -1029,7 +1034,7 @@ function redactarEnOtroIdioma(
   add('OBBLIGHI DEL CONDUTTORE', [
     `a) Pagare il canone nei termini pattuiti.`,
     `b) Ottenere e mantenere in vigore, a proprie spese, le licenze, i permessi e le autorizzazioni richiesti ` +
-      `dall'autorità competente per l'installazione e la gestione della struttura pubblicitaria.`,
+      `dall’autorità competente per l’installazione e la gestione della struttura pubblicitaria.`,
     `c) Mantenere la struttura in condizioni adeguate di sicurezza e conservazione, e rispondere dei danni che ` +
       `la sua installazione, gestione o rimozione causino allo SPAZIO o a terzi.`,
     `d) Stipulare e mantenere in vigore una polizza assicurativa di responsabilità civile che copra i danni a ` +
@@ -1037,44 +1042,44 @@ function redactarEnOtroIdioma(
     `e) Sostenere il consumo di energia elettrica richiesto dalla struttura, mediante contatore indipendente ` +
       `quando ciò sia tecnicamente possibile.`,
     `f) Rimuovere la struttura e restituire LO SPAZIO nelle condizioni in cui lo ha ricevuto, salvo il normale ` +
-      `deterioramento d'uso, entro i quindici (15) giorni di calendario successivi alla cessazione.`,
+      `deterioramento d’uso, entro i quindici (15) giorni di calendario successivi alla cessazione.`,
   ])
   add('OBBLIGHI DEL LOCATORE', [
     `a) Garantire al CONDUTTORE il pacifico godimento dello SPAZIO per tutta la durata.`,
-    `b) Consentire l'accesso al personale del CONDUTTORE per l'installazione, il cambio di immagine, la ` +
+    `b) Consentire l’accesso al personale del CONDUTTORE per l’installazione, il cambio di immagine, la ` +
       `manutenzione e la rimozione della struttura, in orari ragionevoli e previo avviso.`,
-    `c) Astenersi dall'installare o dall'autorizzare terzi a installare pubblicità che ostruisca la visibilità ` +
+    `c) Astenersi dall’installare o dall’autorizzare terzi a installare pubblicità che ostruisca la visibilità ` +
       `della struttura del CONDUTTORE.`,
     `d) Consegnare il CFDI corrispondente a ciascun pagamento del canone.`,
-    `e) Mantenere in regola le imposte e i contributi che gravano sull'immobile.`,
+    `e) Mantenere in regola le imposte e i contributi che gravano sull’immobile.`,
   ])
   add('PROPRIETÀ DELLA STRUTTURA', [
     `La struttura pubblicitaria, i suoi ancoraggi, i sistemi di illuminazione, le apparecchiature elettroniche ` +
       `e qualsiasi elemento installato dal CONDUTTORE sono di sua esclusiva proprietà, non sono considerati ` +
-      `accessori dell'immobile e potranno essere rimossi liberamente alla cessazione del contratto.`,
+      `accessori dell’immobile e potranno essere rimossi liberamente alla cessazione del contratto.`,
   ])
   add('PERMESSI E AUTORIZZAZIONI', [
-    `L'ottenimento dei permessi è responsabilità del CONDUTTORE. Se l'autorità competente nega, revoca o non ` +
+    `L’ottenimento dei permessi è responsabilità del CONDUTTORE. Se l’autorità competente nega, revoca o non ` +
       `rinnova il permesso necessario per gestire la struttura per causa non imputabile al CONDUTTORE, ciascuna ` +
       `delle parti potrà risolvere il contratto senza alcuna responsabilità, mediante comunicazione scritta, ` +
       `restando IL CONDUTTORE obbligato unicamente al pagamento del canone maturato fino a tale data.`,
   ])
   add('CESSIONE', [
     `Nessuna delle parti potrà cedere i diritti e gli obblighi derivanti dal presente contratto senza il previo ` +
-      `consenso scritto dell'altra. È eccettuata la cessione che IL CONDUTTORE effettui a favore di società del ` +
+      `consenso scritto dell’altra. È eccettuata la cessione che IL CONDUTTORE effettui a favore di società del ` +
       `suo stesso gruppo, essendo sufficiente una comunicazione scritta.`,
   ])
   add('RISOLUZIONE', [
     `Costituiscono causa di risoluzione, senza necessità di previa dichiarazione giudiziale:`,
     `a) Il mancato pagamento di due (2) periodi consecutivi di canone.`,
-    `b) L'uso dello SPAZIO per un fine diverso da quello pattuito.`,
-    `c) L'inadempimento di uno qualsiasi degli obblighi pattuiti, se non sanato entro i quindici (15) giorni ` +
+    `b) L’uso dello SPAZIO per un fine diverso da quello pattuito.`,
+    `c) L’inadempimento di uno qualsiasi degli obblighi pattuiti, se non sanato entro i quindici (15) giorni ` +
       `di calendario successivi alla diffida scritta.`,
     `La parte che risolve il contratto dovrà notificarlo per iscritto, con effetto dal momento della ricezione.`,
   ])
   add('CASO FORTUITO O FORZA MAGGIORE', [
-    `Nessuna delle parti sarà responsabile dell'inadempimento derivante da caso fortuito o forza maggiore. Se ` +
-      `l'evento impedisce l'uso dello SPAZIO per più di sessanta (60) giorni di calendario, ciascuna delle parti ` +
+    `Nessuna delle parti sarà responsabile dell’inadempimento derivante da caso fortuito o forza maggiore. Se ` +
+      `l’evento impedisce l’uso dello SPAZIO per più di sessanta (60) giorni di calendario, ciascuna delle parti ` +
       `potrà risolvere il contratto senza responsabilità.`,
   ])
   add('DOMICILI E COMUNICAZIONI', [
@@ -1083,11 +1088,11 @@ function redactarEnOtroIdioma(
     `IL CONDUTTORE: ${v(arrendatario.domicilioFiscal)}.`,
     `Ogni comunicazione dovrà essere effettuata per iscritto e consegnata con ricevuta di ritorno ai domicili ` +
       `indicati. Qualsiasi variazione dovrà essere notificata con dieci (10) giorni di calendario di anticipo; ` +
-      `in caso contrario, le comunicazioni avranno effetto all'ultimo domicilio conosciuto.`,
+      `in caso contrario, le comunicazioni avranno effetto all’ultimo domicilio conosciuto.`,
   ])
   add('LEGGE APPLICABILE E FORO COMPETENTE', [
     `Il presente contratto è regolato dal Codice Civile applicabile in ${ciudad} e dalle altre disposizioni ` +
-      `pertinenti. Per l'interpretazione e l'esecuzione dello stesso, le parti si sottomettono espressamente ` +
+      `pertinenti. Per l’interpretazione e l’esecuzione dello stesso, le parti si sottomettono espressamente ` +
       `alla giurisdizione dei tribunali competenti di ${ciudad}, rinunciando a qualsiasi altro foro che potesse ` +
       `loro spettare in ragione dei loro domicili presenti o futuri.`,
   ])
@@ -1097,7 +1102,7 @@ function redactarEnOtroIdioma(
     preambulo:
       `Contratto di locazione di spazio pubblicitario stipulato tra ${nombreArr}, di seguito denominato ` +
       `«IL LOCATORE», da una parte; e ${v(arrendatario.razonSocial)}, rappresentata in questo atto da ` +
-      `${v(arrendatario.representanteLegal)}, di seguito denominata «IL CONDUTTORE», dall'altra parte; ` +
+      `${v(arrendatario.representanteLegal)}, di seguito denominata «IL CONDUTTORE», dall’altra parte; ` +
       `secondo le seguenti premesse e clausole:`,
     declaraciones: [
       {
@@ -1105,7 +1110,7 @@ function redactarEnOtroIdioma(
         incisos: [
           `a) Di essere persona ${moral ? 'giuridica regolarmente costituita' : 'fisica'} di nazionalità ${v(arrendador.nacionalidad ?? 'messicana')}, con piena capacità giuridica di obbligarsi ai sensi del presente contratto.`,
           `b) Di essere iscritto al Registro Federale dei Contribuenti (RFC) con il codice ${v(arrendador.rfc)}${arrendador.curp ? `, e di essere titolare del Codice Unico di Registrazione della Popolazione (CURP) ${arrendador.curp}` : ''}.`,
-          `c) Di essere legittimo proprietario o possessore, con sufficienti facoltà di disposizione, dell'immobile in cui si trova LO SPAZIO oggetto del presente contratto, e che detto immobile è libero da gravami che ne impediscano la locazione.`,
+          `c) Di essere legittimo proprietario o possessore, con sufficienti facoltà di disposizione, dell’immobile in cui si trova LO SPAZIO oggetto del presente contratto, e che detto immobile è libero da gravami che ne impediscano la locazione.`,
           `d) Di eleggere il proprio domicilio in ${v(arrendador.direccion)}.`,
           `e) Che è sua volontà stipulare il presente contratto alle condizioni qui pattuite.`,
         ],
@@ -1132,7 +1137,7 @@ function redactarEnOtroIdioma(
     clausulas,
     lugarYFecha:
       `Letto il presente contratto e rese edotte le parti del suo contenuto e della sua portata legale, lo ` +
-      `sottoscrivono in duplice copia a ${ciudad}, il ${fecha(fechaFirma)}.`,
+      `sottoscrivono in duplice copia a ${ciudad}, in data ${fecha(fechaFirma)}.`,
     firmas: [
       { rol: 'IL LOCATORE', nombre: nombreArr, parte: 'ARRENDADOR' },
       {
