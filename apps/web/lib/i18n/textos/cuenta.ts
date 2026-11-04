@@ -355,7 +355,7 @@ export const IT_CUENTA: Record<ClaveCuenta, string> = {
   'cuenta.codigos.error.verificar': 'Non è stato possibile verificare la password',
   'cuenta.codigos.error.confirmar': 'Non è stato possibile confermare',
 
-  'cuenta.recuperar.bienvenida': 'Benvenuto',
+  'cuenta.recuperar.bienvenida': 'Ti diamo il benvenuto',
   'cuenta.recuperar.verificando': 'Verifica del link…',
   'cuenta.recuperar.invalido': 'Link non valido o scaduto',
   'cuenta.recuperar.invalido.bienvenida':
@@ -387,7 +387,7 @@ export const IT_CUENTA: Record<ClaveCuenta, string> = {
   'cuenta.bienvenida.ir-razones': 'Vai a Ragioni sociali',
   'cuenta.cuestionario.p1': 'La tua azienda ha più ragioni sociali?',
   'cuenta.cuestionario.p1.ayuda':
-    'Quasi tutte le aziende media distribuiscono la loro attività tra più ragioni sociali. Se ne hai una sola, così ti risparmi il resto.',
+    'Quasi tutte le aziende del settore media distribuiscono la loro attività tra più ragioni sociali. Se ne hai una sola, così ti risparmi il resto.',
   'cuenta.cuestionario.p2': 'L’operatività è nella stessa ragione sociale che vende o fattura?',
   'cuenta.cuestionario.p2.ayuda':
     'Di solito coincidono, ed è per questo che lo chiediamo: se è il tuo caso, il passo successivo ti chiede un dato in meno.',
@@ -423,8 +423,8 @@ export const IT_CUENTA: Record<ClaveCuenta, string> = {
   'cuenta.publica.pendiente': 'In attesa della tua approvazione',
   'cuenta.publica.vencida': 'Proposta scaduta',
   'cuenta.publica.solo-lectura': 'Sola lettura',
-  'cuenta.publica.vencio-el': 'scaduta il {fecha}',
-  'cuenta.publica.valida-hasta': 'valida fino al {fecha}',
+  'cuenta.publica.vencio-el': 'scaduta in data {fecha}',
+  'cuenta.publica.valida-hasta': 'valida fino al giorno {fecha}',
   'cuenta.publica.kpi.sitios': 'Siti',
   'cuenta.publica.sitios': 'Siti della proposta',
   'cuenta.publica.sin-ubicacion': 'Posizione non inserita',
@@ -435,8 +435,8 @@ export const IT_CUENTA: Record<ClaveCuenta, string> = {
   'cuenta.publica.mapa.ninguna':
     'Gli impianti di questa proposta non hanno ancora coordinate registrate. Controlla l’indirizzo di ognuno nell’elenco dei siti.',
   'cuenta.publica.aceptada.titulo': 'Proposta accettata',
-  'cuenta.publica.aceptada.detalle': 'Accettata il {fecha}. Il team commerciale è stato avvisato.',
-  'cuenta.publica.aceptada.detalle-por': 'Accettata da {quien} il {fecha}. Il team commerciale è stato avvisato.',
+  'cuenta.publica.aceptada.detalle': 'Accettata in data {fecha}. Il team commerciale è stato avvisato.',
+  'cuenta.publica.aceptada.detalle-por': 'Accettata da {quien} in data {fecha}. Il team commerciale è stato avvisato.',
   'cuenta.publica.aceptas': 'Accetti questa proposta?',
   'cuenta.publica.al-aceptar.uno':
     'Accettando confermi {n} impianto e il totale di {total}. La tua accettazione viene registrata con data e ora.',
@@ -446,7 +446,7 @@ export const IT_CUENTA: Record<ClaveCuenta, string> = {
   'cuenta.publica.aceptando': 'Accettazione…',
   'cuenta.publica.aceptar': 'Accetta la proposta',
   'cuenta.publica.vencida.detalle':
-    'Questa proposta è scaduta il {fecha} e non può più essere accettata da qui. Chiedine una aggiornata a chi te l’ha inviata.',
+    'Questa proposta è scaduta in data {fecha} e non può più essere accettata da qui. Chiedine una aggiornata a chi te l’ha inviata.',
   'cuenta.publica.pie': 'Spaces · proposta commerciale',
   'cuenta.publica.pie.solo-lectura': ' · questo link è in sola lettura',
   'cuenta.publica.error.nombre': 'Scrivi il tuo nome per accettare',

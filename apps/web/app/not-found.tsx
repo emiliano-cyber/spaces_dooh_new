@@ -44,7 +44,7 @@ export default function NotFound() {
     <div className="demo-root flex min-h-screen flex-col items-center justify-center px-6 py-12 text-center">
       <SpaceOsMark className="h-10 w-10" />
       <p className="demo-num mt-6 text-[12px] font-medium uppercase tracking-widest text-muted">
-        Error 404
+        {t('shell.404.codigo')}
       </p>
       <h1 className="mt-2 text-2xl text-ink">{t('shell.404.titulo')}</h1>
       <p className="mt-2 max-w-sm text-[13px] text-muted">

@@ -1344,7 +1344,7 @@ export const IT_ADMIN: Record<ClaveAdmin, string> = {
   'admin.rol.dueno': 'Titolare',
   'admin.rol.administrador': 'Amministratore',
   'admin.rol.director_comercial': 'Direttore commerciale',
-  'admin.rol.gerente_ventas': 'Responsabile vendite',
+  'admin.rol.gerente_ventas': 'Manager vendite',
   'admin.rol.vendedor': 'Commerciale',
   'admin.rol.operaciones': 'Operazioni',
   'admin.rol.imprenta': 'Tipografia',
@@ -1436,7 +1436,7 @@ export const IT_ADMIN: Record<ClaveAdmin, string> = {
   'admin.password.restablecer': 'Reimposta la password',
   'admin.password.temporal-de': 'Password temporanea di {nombre}. Consegnagliela con un mezzo sicuro:',
   'admin.password.no-se-ve':
-    'Non si potrà più vedere: nel database ne resta solo l’impronta. Le sessioni aperte di {nombre} sono state chiuse e il sistema le chiederà di cambiarla appena accede.',
+    'Non si potrà più vedere: nel database ne resta solo l’impronta. Le sessioni aperte di {nombre} sono state chiuse e al primo accesso il sistema chiederà di cambiarla.',
   'admin.password.confirma-tu':
     'Conferma con la {tu} password. Stai per cambiare l’accesso di {nombre}, e il registro deve poter dimostrare che sei stato tu.',
   'admin.password.tu': 'tua',
@@ -1690,8 +1690,8 @@ export const IT_ADMIN: Record<ClaveAdmin, string> = {
   'admin.orgs.crear': 'Crea l’organizzazione',
 
   'admin.act.nunca': 'mai',
-  'admin.act.modo.automatica': 'Modalità cambiata in automatica',
-  'admin.act.modo.aprobacion': 'Modalità cambiata in con approvazione',
+  'admin.act.modo.automatica': 'Modalità cambiata: automatica',
+  'admin.act.modo.aprobacion': 'Modalità cambiata: con approvazione',
   'admin.act.error.modo': 'Non è stato possibile cambiare la modalità',
   'admin.act.aprobada': 'Installazione approvata: verrà installata nei prossimi minuti',
   'admin.act.error.aprobar': 'Non è stato possibile approvare l’installazione',
@@ -1933,7 +1933,7 @@ export const IT_ADMIN: Record<ClaveAdmin, string> = {
     'Lo hanno due o più ragioni sociali: {papeles}. Quando più ragioni sociali hanno lo stesso ruolo il sistema non ne propone nessuna, quindi andrà scelta a mano in ogni contratto o ricevuta.',
   'admin.razones.n-activas.uno': '{n} attiva',
   'admin.razones.n-activas.otros': '{n} attive',
-  'admin.razones.de-baja': '{n} disattivate',
+  'admin.razones.de-baja': 'Disattivate: {n}',
   'admin.razones.n-avisos.uno': '{n} avviso',
   'admin.razones.n-avisos.otros': '{n} avvisi',
   'admin.razones.nueva': 'Nuova ragione sociale',

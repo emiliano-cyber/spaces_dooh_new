@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { CLAVES, DICCIONARIOS, AMBITOS_ITALIANO, IT_PARCIAL, conCaidaAlIngles } from './diccionario'
-import { CATALOGO_ERRORES_IT } from './errores-servidor'
+import { CATALOGO_ERRORES_IT, PATRONES_ERROR } from './errores-servidor'
 import { coberturaItaliano, problemasItaliano, tablaCobertura, clavesBase } from './cobertura-italiano'
 
 // ============================================================================
@@ -147,5 +147,55 @@ describe('lote L5 · el italiano que coincide con otro idioma, solo el declarado
     const es = DICCIONARIOS.es as Record<string, string>
     const en = DICCIONARIOS.en as Record<string, string>
     expect(delLote().filter((k) => it_[k] === es[k] && es[k] !== en[k]).sort()).toEqual([...IGUAL_AL_ESPANOL].sort())
+  })
+})
+
+// ============================================================================
+//  Validacion del lote L5 · las frases corregidas y las reglas comunes de
+//  todo el italiano (acordadas con L1–L4).
+// ============================================================================
+describe('lote L5 · frases corregidas en la validacion', () => {
+  const it_ = () => IT_PARCIAL as Record<string, string>
+  it('las tres que se leian mal', () => {
+    expect(it_()['admin.razones.de-baja']).toBe('Disattivate: {n}')
+    expect(it_()['admin.act.modo.aprobacion']).toBe('Modalità cambiata: con approvazione')
+    expect(it_()['admin.act.modo.automatica']).toBe('Modalità cambiata: automatica')
+    expect(it_()['admin.password.no-se-ve']).toContain('e al primo accesso il sistema chiederà di cambiarla.')
+    // Regla comun: «gerente» → manager.
+    expect(it_()['admin.rol.gerente_ventas']).toBe('Manager vendite')
+  })
+  it('los retoques', () => {
+    expect(it_()['compartidos.unidad.cpm']).toBe('CPM · costo per mille impression')
+    expect(it_()['compartidos.doohmain.las-que-quepan']).toBe('Quanti ne stanno')
+    expect(it_()['shell.fotos.alt']).toBe('foto di verifica')
+    expect(it_()['cuenta.cuestionario.p1.ayuda']).toContain('aziende del settore media')
+    expect(it_()['cuenta.recuperar.bienvenida']).toBe('Ti diamo il benvenuto')
+    expect(it_()['shell.404.codigo']).toBe('Errore 404')
+  })
+})
+
+describe('lote L5 · reglas comunes del italiano', () => {
+  const textosDelLote = () => {
+    const ambitos = new Set(['compartidos', 'shell', 'cuenta', 'admin', 'notificaciones', 'servidor'])
+    const claves = [...clavesBase(), ...AMBITOS_ITALIANO.filter((a) => ambitos.has(a.ambito)).flatMap((a) => Object.keys(a.es))]
+    const it_ = IT_PARCIAL as Record<string, string>
+    return [
+      ...claves.map((k) => [k, it_[k] ?? ''] as const),
+      ...Object.entries(CATALOGO_ERRORES_IT).map(([k, v]) => [k, v ?? ''] as const),
+      ...PATRONES_ERROR.map((p) => [p.en, p.it ?? ''] as const),
+    ]
+  }
+  it('nunca un articulo delante de una fecha («in data {fecha}», «fino al giorno {fin}»)', () => {
+    // Un hueco de fecha del diccionario, o un `$n` de un patron que no sea un porcentaje.
+    const re = /\b(?:il|al|dal|del|nel|sul)\s+(?:\{(?:fecha|vence|finGracia|desde|hasta|fin|inicio)\}|\$\d(?!\d*%))/i
+    expect(textosDelLote().filter(([, v]) => re.test(v)).map(([k]) => k)).toEqual([])
+  })
+  it('ni anomalia por incidencia mal dicha, ni gerente, ni predio en espanol', () => {
+    const malas = /\b(?:responsabile o superiore|incidenza|predio|gerente)\b/i
+    expect(textosDelLote().filter(([, v]) => malas.test(v)).map(([k]) => k)).toEqual([])
+  })
+  it('el selector de fechas no pone articulo delante de la fecha', () => {
+    const it_ = IT_PARCIAL as Record<string, string>
+    expect([it_['compartidos.periodo.desde'], it_['compartidos.periodo.hasta'], it_['compartidos.periodo.a']]).toEqual(['Da', 'A', '–'])
   })
 })

@@ -23,6 +23,8 @@ export const ES_SHELL = {
   'shell.meta.descripcion': 'Gestión de espacios publicitarios DOOH',
 
   // ── 404 (`app/not-found.tsx`) ──
+  // El rotulo de encima del titulo: era un literal en `app/not-found.tsx`.
+  'shell.404.codigo': 'Error 404',
   'shell.404.titulo': 'Esta página no existe',
   'shell.404.detalle': 'La dirección es incorrecta o el registro que buscas ya no está disponible.',
   'shell.404.otra-seccion': 'Ir a otra sección',
@@ -116,6 +118,7 @@ export type ClaveShell = keyof typeof ES_SHELL
 export const EN_SHELL: Record<ClaveShell, string> = {
   'shell.meta.descripcion': 'DOOH advertising space management',
 
+  'shell.404.codigo': 'Error 404',
   'shell.404.titulo': 'This page doesn’t exist',
   'shell.404.detalle': 'The address is wrong or the record you’re looking for is no longer available.',
   'shell.404.otra-seccion': 'Go to another section',
@@ -198,6 +201,7 @@ export const EN_SHELL: Record<ClaveShell, string> = {
 export const IT_SHELL: Record<ClaveShell, string> = {
   'shell.meta.descripcion': 'Gestione degli spazi pubblicitari DOOH',
 
+  'shell.404.codigo': 'Errore 404',
   'shell.404.titulo': 'Questa pagina non esiste',
   'shell.404.detalle': 'L’indirizzo è sbagliato o il record che cerchi non è più disponibile.',
   'shell.404.otra-seccion': 'Vai a un’altra sezione',
@@ -240,8 +244,8 @@ export const IT_SHELL: Record<ClaveShell, string> = {
   'shell.candado.error': 'Non è stato possibile sbloccare',
 
   'shell.licencia.gracia':
-    'La tua licenza di SPACE OS è scaduta il {vence}. Il sistema smetterà di funzionare il {finGracia}.',
-  'shell.licencia.aviso': 'La tua licenza di SPACE OS scade il {vence}.',
+    'La tua licenza di SPACE OS è scaduta in data {vence}. Il sistema smetterà di funzionare in data {finGracia}.',
+  'shell.licencia.aviso': 'La tua licenza di SPACE OS scade in data {vence}.',
   'shell.licencia.renovar': 'Per rinnovarla, contatta il tuo fornitore.',
 
   'shell.novedades.titulo': 'Novità della versione {version}',
@@ -264,7 +268,7 @@ export const IT_SHELL: Record<ClaveShell, string> = {
   'shell.confirmar.escribe': 'Scrivi {texto} per confermare',
 
   'shell.fotos.agregar': 'Aggiungi foto',
-  'shell.fotos.alt': 'prova',
+  'shell.fotos.alt': 'foto di verifica',
   'shell.fotos.quitar': 'Rimuovi foto',
   'shell.fotos.cargando.uno': 'Caricamento della foto…',
   'shell.fotos.cargando.otros': 'Caricamento di {n} foto…',

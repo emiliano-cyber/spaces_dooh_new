@@ -242,6 +242,7 @@ exports[`diccionarios de cuenta y shell · instantanea > cuenta: el ESPANOL y el
 
 exports[`diccionarios de cuenta y shell · instantanea > shell: el ESPANOL y el INGLES no cambian sin que se vea 1`] = `
 {
+  "shell.404.codigo": "Error 404",
   "shell.404.detalle": "La dirección es incorrecta o el registro que buscas ya no está disponible.",
   "shell.404.otra-seccion": "Ir a otra sección",
   "shell.404.titulo": "Esta página no existe",
@@ -305,6 +306,7 @@ exports[`diccionarios de cuenta y shell · instantanea > shell: el ESPANOL y el 
 
 exports[`diccionarios de cuenta y shell · instantanea > shell: el ESPANOL y el INGLES no cambian sin que se vea 2`] = `
 {
+  "shell.404.codigo": "Error 404",
   "shell.404.detalle": "The address is wrong or the record you’re looking for is no longer available.",
   "shell.404.otra-seccion": "Go to another section",
   "shell.404.titulo": "This page doesn’t exist",

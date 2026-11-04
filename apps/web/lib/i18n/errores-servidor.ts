@@ -699,7 +699,7 @@ const curvas = (v: string) => v.replace(/"([^"]*)"/g, '“$1”')
 
 // `c.periodicidad.toLowerCase()` (`arrendadores-repo.ts`). En letra, como
 // manda el glosario: «billed every two weeks», nunca «billed biweekly».
-const PERIODICIDAD_EN: Record<string, string> = {
+export const PERIODICIDAD_EN: Record<string, string> = {
   diaria: 'daily',
   semanal: 'weekly',
   catorcenal: 'every two weeks',
@@ -713,7 +713,7 @@ const PERIODICIDAD_EN: Record<string, string> = {
 
 // `ETIQUETA_ETAPA[...].toLowerCase()` (`lib/captacion.ts`); el ingles es el de
 // `comercial.negociacion.etapa.*`, en minuscula.
-const ETAPA_EN: Record<string, string> = {
+export const ETAPA_EN: Record<string, string> = {
   prospecto: 'a prospect',
   contactado: 'contacted',
   visita: 'at the visit stage',
@@ -725,7 +725,7 @@ const ETAPA_EN: Record<string, string> = {
 }
 
 // `faltantesParaRevision()` (`lib/captacion.ts`).
-const FALTA_REVISION_EN: Record<string, string> = {
+export const FALTA_REVISION_EN: Record<string, string> = {
   'un teléfono o un correo de contacto': 'a contact phone number or email',
   'la dirección': 'the address',
   'el dueño: un arrendador existente o el nombre y teléfono del contacto':
@@ -941,13 +941,13 @@ export const CATALOGO_ERRORES_IT: Partial<Record<string, string>> = {
   'Ítem no encontrado':
     'Voce non trovata',
   'Solo un gerente o superior puede cambiar la tarifa de una pantalla.':
-    'Solo un responsabile o superiore può cambiare la tariffa di un impianto.',
+    'Solo un manager o superiore può cambiare la tariffa di un impianto.',
   'Esta pantalla no tiene una tarifa calculada para esa unidad. Pide a un gerente o superior que le ponga precio.':
-    'Questo impianto non ha una tariffa calcolata per quell’unità. Chiedi a un responsabile o superiore di assegnargli un prezzo.',
+    'Questo impianto non ha una tariffa calcolata per quell’unità. Chiedi a un manager o superiore di assegnargli un prezzo.',
   'La calculadora de spots necesita la tarifa por spot de la línea.':
     'Il calcolatore di spot ha bisogno della tariffa per spot della riga.',
   'Solo un gerente o superior puede poner prima a un Roadblock.':
-    'Solo un responsabile o superiore può applicare una maggiorazione a un Roadblock.',
+    'Solo un manager o superiore può applicare una maggiorazione a un Roadblock.',
   'La calculadora de spots solo aplica a pantallas digitales vendidas por spot.':
     'Il calcolatore di spot si applica solo agli schermi digitali venduti a spot.',
   'La pantalla no tiene capturado cuántos espacios tiene su loop; captúralo en su ficha antes de usar la calculadora.':
@@ -1149,7 +1149,7 @@ export const CATALOGO_ERRORES_IT: Partial<Record<string, string>> = {
   'Tu organizacion ya tiene razones sociales registradas, asi que el cuestionario ya se contesto. Para cambiarlas, usa la pantalla de Administracion.':
     'La tua organizzazione ha già ragioni sociali registrate, quindi il questionario ha già una risposta. Per modificarle, usa la schermata Impostazioni.',
   'Las tarifas por unidad se guardan en su propia ruta (PATCH /api/sitios/:id/modalidades), que siempre pide la contraseña.':
-    'Le tariffe per unità si salvano nella loro rotta (PATCH /api/sitios/:id/modalidades), che chiede sempre la password.',
+    'Le tariffe per unità si salvano nel loro endpoint (PATCH /api/sitios/:id/modalidades), che chiede sempre la password.',
   'Código postal inválido (5 dígitos)':
     'CAP non valido (5 cifre)',
   'Teléfono inválido. Escribe 10 dígitos (p. ej. 55 1234 5678)':
@@ -1595,7 +1595,7 @@ const distanciaIt = (v: string) => v.replace(/^(\d[\d,]*(?:\.\d+)?)/, (c) => cif
 const SIN_ITALIANO = '\u0000sin-italiano\u0000'
 const caporali = (v: string) => v.replace(/"([^"]*)"/g, '«$1»')
 
-const PERIODICIDAD_IT: Record<string, string> = {
+export const PERIODICIDAD_IT: Record<string, string> = {
   diaria: 'giornaliera',
   semanal: 'settimanale',
   catorcenal: 'ogni due settimane',
@@ -1607,7 +1607,7 @@ const PERIODICIDAD_IT: Record<string, string> = {
   anual: 'annuale',
 }
 
-const ETAPA_IT: Record<string, string> = {
+export const ETAPA_IT: Record<string, string> = {
   prospecto: 'un prospect',
   contactado: 'contattato',
   visita: 'in fase di visita',
@@ -1618,7 +1618,7 @@ const ETAPA_IT: Record<string, string> = {
   perdido: 'perso',
 }
 
-const FALTA_REVISION_IT: Record<string, string> = {
+export const FALTA_REVISION_IT: Record<string, string> = {
   'un teléfono o un correo de contacto': 'un telefono o un’email di contatto',
   'la dirección': 'l’indirizzo',
   'el dueño: un arrendador existente o el nombre y teléfono del contacto':
@@ -1649,10 +1649,10 @@ function pantallaLejosIt(v: string): string {
 }
 function referenciaPredioIt(v: string): string {
   const yaEsta = /^"(.*)", que ya está en el predio "(.*)"$/.exec(v)
-  if (yaEsta) return `«${yaEsta[1]}», che è già nell’immobile «${yaEsta[2]}»`
+  if (yaEsta) return `da «${yaEsta[1]}», che è già nell’immobile «${yaEsta[2]}»`
   const predio = /^el predio "(.*)"$/.exec(v)
-  if (predio) return `l’immobile «${predio[1]}»`
-  return caporali(v)
+  if (predio) return `dall’immobile «${predio[1]}»`
+  return `da ${caporali(v)}`
 }
 
 const PCT2 = { 1: cifraIt, 2: cifraIt }
@@ -1662,7 +1662,7 @@ const PCT6 = { ...PCT5, 6: cifraIt }
 
 const PATRONES_IT: Record<string, { it: string; huecosIt?: Record<number, (valor: string) => string> }> = {
   'This proposal expired on $1. Ask whoever sent it for an updated one.': {
-    it: 'Questa proposta è scaduta il $1. Chiedine una aggiornata a chi te l’ha inviata.',
+    it: 'Questa proposta è scaduta in data $1. Chiedine una aggiornata a chi te l’ha inviata.',
   },
   'Must be at least $1 characters': { it: 'Deve avere almeno $1 caratteri' },
   'Must not have more than $1 characters': { it: 'Non può avere più di $1 caratteri' },
@@ -1733,10 +1733,10 @@ const PATRONES_IT: Record<string, { it: string; huecosIt?: Record<number, (valor
     },
   'That space was already leased until $1. The new contract must start on $2 or later, so it does not overlap the previous term.':
     {
-      it: 'Quello spazio era già affittato fino al $1. Il nuovo contratto deve iniziare il $2 o dopo, per non sovrapporsi alla durata precedente.',
+      it: 'Quello spazio era già affittato fino al giorno $1. Il nuovo contratto deve iniziare in data $2 o dopo, per non sovrapporsi alla durata precedente.',
     },
   'This campaign runs until $1. Extending can only make it longer: choose a later date.': {
-    it: 'Questa campagna dura fino al $1. Estenderla può solo allungarla: scegli una data successiva.',
+    it: 'Questa campagna dura fino al giorno $1. Estenderla può solo allungarla: scegli una data successiva.',
   },
   'This prospect cannot be edited: it is $1': {
     it: 'Non si può modificare questo prospect: è $1',
@@ -1752,7 +1752,7 @@ const PATRONES_IT: Record<string, { it: string; huecosIt?: Record<number, (valor
   },
   '$1 is $2 from $3. A property is a single premises and its rent is split among the screens attached to it, so one that is far away would lower the cost for the others. Check the address or the coordinates, or give it its own property. (The limit is $4 m.)':
     {
-      it: '$1 è a $2 da $3. Un immobile è un unico bene e il suo affitto si divide tra gli schermi che ne dipendono, quindi uno lontano abbasserebbe il costo degli altri. Controlla l’indirizzo o le coordinate, oppure assegnagli un immobile proprio. (Il limite è $4 m.)',
+      it: '$1 è a $2 $3. Un immobile è un unico bene e il suo affitto si divide tra gli schermi che ne dipendono, quindi uno lontano abbasserebbe il costo degli altri. Controlla l’indirizzo o le coordinate, oppure assegnagli un immobile proprio. (Il limite è $4 m.)',
       huecosIt: { 1: pantallaLejosIt, 2: distanciaIt, 3: referenciaPredioIt, 4: cifraIt },
     },
   '“$1” cannot be sold yet: its lease is incomplete. Complete it in Landlords (landlord, term, amount and frequency) before booking it.':

@@ -3,6 +3,12 @@ import {
   CATALOGO_ERRORES,
   CATALOGO_ERRORES_IT,
   CAMPO_EN,
+  ETAPA_EN,
+  ETAPA_IT,
+  FALTA_REVISION_EN,
+  FALTA_REVISION_IT,
+  PERIODICIDAD_EN,
+  PERIODICIDAD_IT,
   CAMPO_IT,
   FALTA_FIRMA_EN,
   FALTA_FIRMA_IT,
@@ -158,5 +164,40 @@ describe('las tablas italianas estan completas y casan', () => {
   it('ningun italiano con espacio antes de %, comillas rectas o apostrofo recto', () => {
     const textos = [...Object.values(CATALOGO_ERRORES_IT), ...PATRONES_ERROR.map((p) => p.it ?? '')] as string[]
     expect(textos.filter((t) => / %|"|\w'\w/.test(t))).toEqual([])
+  })
+})
+
+// ============================================================================
+//  Validacion del lote L5 (V3, V6, V8): las tablas de los huecos que el
+//  servidor arma en espanol caen AL ESPANOL si les falta una entrada
+//  (`deTabla`: `tabla[v] ?? v`). Clave por clave, contra su tabla inglesa.
+// ============================================================================
+describe('las tablas de huecos del servidor, completas y traducidas', () => {
+  // Se dicen igual en espanol e italiano a proposito.
+  const COGNADOS = new Set(['RFC', 'Cliente', 'Documento', 'Logo', 'Periodo'])
+  const pares: Array<[string, Record<string, string>, Partial<Record<string, string>>]> = [
+    ['periodicidad', PERIODICIDAD_EN, PERIODICIDAD_IT],
+    ['etapa', ETAPA_EN, ETAPA_IT],
+    ['revision', FALTA_REVISION_EN, FALTA_REVISION_IT],
+    ['campos', CAMPO_EN, CAMPO_IT],
+    ['firma', FALTA_FIRMA_EN, FALTA_FIRMA_IT],
+  ]
+  for (const [nombre, en, it_] of pares) {
+    it(nombre, () => {
+      expect(Object.keys(it_ ?? {}).sort()).toEqual(Object.keys(en).sort())
+      expect(Object.entries(it_ ?? {}).filter(([es, v]) => v === es && !COGNADOS.has(es)).map(([es]) => es)).toEqual([])
+    })
+  }
+
+  it('el predio lejano: los dos armados del servidor, en italiano', () => {
+    const cola =
+      '. Un predio es un solo inmueble y su renta se reparte entre las pantallas que cuelgan de él, así que una que está lejos ' +
+      'abarataría a las demás. Revisa la dirección o las coordenadas, o dale su propio predio. (El límite son 500 m.)'
+    expect(traducirError(`La pantalla está a 2.5 km de el predio "Norte"${cola}`, 'it')).toMatch(
+      /^Lo schermo è a 2,5 km dall’immobile «Norte»\. Un immobile/,
+    )
+    expect(traducirError(`"P1" está a 800 m de "P2", que ya está en el predio "Sur"${cola}`, 'it')).toMatch(
+      /^«P1» è a 800 m da «P2», che è già nell’immobile «Sur»\./,
+    )
   })
 })

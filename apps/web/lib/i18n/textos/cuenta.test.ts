@@ -19,7 +19,9 @@ const leer = (f: string) => readFileSync(path.join(raiz, f), 'utf8')
 const LOTES: [string, Record<string, string>, Record<string, string>, Set<string>][] = [
   // Iguales a proposito: «No» es ingles tambien.
   ['cuenta', ES_CUENTA, EN_CUENTA, new Set(['cuenta.cuestionario.no'])],
-  ['shell', ES_SHELL, EN_SHELL, new Set<string>()],
+  // «Error 404» (lote L5 del italiano): el literal de `app/not-found.tsx`, que
+  // en ingles se dice igual y en italiano no («Errore 404»).
+  ['shell', ES_SHELL, EN_SHELL, new Set<string>(['shell.404.codigo'])],
 ]
 
 describe('diccionarios de cuenta y shell · instantanea', () => {

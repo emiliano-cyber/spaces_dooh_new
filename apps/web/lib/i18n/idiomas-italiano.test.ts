@@ -126,3 +126,23 @@ describe('por omision, un italiano apagado no se acepta', () => {
     }
   })
 })
+
+// Validacion del lote L5 (V1): solo el valor exacto '1' enciende el italiano
+// tambien en la omision de `permitidos`.
+describe('por omision, cualquier IDIOMA_ITALIANO distinto de 1 lo deja apagado', () => {
+  let antes: string | undefined
+  beforeEach(() => {
+    antes = process.env.IDIOMA_ITALIANO
+  })
+  afterEach(() => {
+    if (antes === undefined) delete process.env.IDIOMA_ITALIANO
+    else process.env.IDIOMA_ITALIANO = antes
+  })
+  for (const v of ['0', 'true', 'si', ' 1', '']) {
+    it(JSON.stringify(v), () => {
+      process.env.IDIOMA_ITALIANO = v
+      expect(normalizarIdioma('it')).toBeNull()
+      expect(resolverIdioma({ cookie: 'it', cabecera: 'it-IT' })).toBe('es')
+    })
+  }
+})
