@@ -340,16 +340,8 @@ export function formatearMientrasEscribe(
 // ─── Los campos que no eran `CampoCifra` (P-L2-1, 04/11) ─────────────────────
 // `EntradaCifra` (`components/demo/ui/EntradaCifra.tsx`) es el `<input>` de
 // siempre en español e inglés y un `CampoCifra` en italiano. Estas dos son su
-// parte pura.
-
-/**
- * Lo que recibe el formulario cuando en un `EntradaCifra` se teclea `texto`:
- * en español e inglés lo tecleado tal cual (el `<input>` de siempre); en
- * italiano la cifra canónica de `CampoCifra` («12,9» → «12.9»), o 'NaN'.
- */
-export function crudoTecleado(texto: string, opciones: OpcionesCifra & { idioma: Idioma }): string {
-  return comaDecimal(opciones.idioma) ? crudoDeLectura(leerCifra(texto, opciones)) : texto
-}
+// parte pura. (`crudoTecleado`, un modelo del campo que nadie llamaba, se quitó
+// el 04/11 —B80—: lo tecleado de verdad lo prueba `cifras-formularios.test.ts`.)
 
 /**
  * ¿Hay que bloquear el envío? Solo en italiano, y solo con el 'NaN' de

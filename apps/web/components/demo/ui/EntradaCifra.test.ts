@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import * as React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { EntradaCifra, type EntradaCifraProps } from './EntradaCifra'
-import { crudoTecleado, cifraIlegible, ejemploCifra, CRUDO_INVALIDO } from '@/lib/captura-cifra'
+import { cifraIlegible, ejemploCifra, CRUDO_INVALIDO } from '@/lib/captura-cifra'
 
 // ============================================================================
 //  EntradaCifra (P-L2-1, 04/11) · en español e inglés, el `<input>` de antes
@@ -53,21 +53,6 @@ describe('EntradaCifra · italiano: CampoCifra con los signos italianos', () => 
 
   it('respeta los decimales: un entero no admite coma', () => {
     expect(rendir({ idioma: 'it', valor: '3', decimales: 0 })).toContain('inputMode="numeric"')
-  })
-})
-
-describe('crudoTecleado · lo que recibe el formulario', () => {
-  const op = { decimales: 2, minimo: 0 }
-  it('italiano: la cifra canónica, o NaN', () => {
-    expect(crudoTecleado('12,9', { ...op, idioma: 'it' })).toBe('12.9')
-    expect(crudoTecleado('1.500,50', { ...op, idioma: 'it' })).toBe('1500.5')
-    expect(crudoTecleado('12.9', { ...op, idioma: 'it' })).toBe(CRUDO_INVALIDO)
-    expect(crudoTecleado('', { ...op, idioma: 'it' })).toBe('')
-  })
-  it('español e inglés: lo tecleado, tal cual', () => {
-    for (const idioma of ['es', 'en'] as const) {
-      for (const t of ['12,9', '1.500,50', '12.9', 'abc', '', 'NaN']) expect(crudoTecleado(t, { ...op, idioma })).toBe(t)
-    }
   })
 })
 
