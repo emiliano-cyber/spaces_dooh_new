@@ -34,6 +34,9 @@ vi.mock('./propuestas-repo', () => ({
   cambiarEstatusPropuesta: (id: string, e: string) => h.cambiar(id, e),
   PropuestaError: class PropuestaError extends Error {},
 }))
+// ADR 0049 · el correo sale en el idioma de los documentos de la instancia; aqui, espanol.
+const instancia = vi.hoisted(() => ({ idioma: 'es' as 'es' | 'en' | 'it' }))
+vi.mock('./idioma-instancia', () => ({ idiomaDeLaInstancia: async () => instancia.idioma }))
 vi.mock('./email', async () => {
   const real = await vi.importActual<typeof import('./email')>('./email')
   return {
@@ -55,6 +58,25 @@ beforeEach(() => {
   h.enviar.mockImplementation(async () => {})
   h.cambiar.mockClear()
   h.fila.estatus = 'BORRADOR'
+  instancia.idioma = 'es'
+})
+
+describe('ADR 0049 · el correo sale en el idioma de los DOCUMENTOS de la instancia', () => {
+  it('instancia inglesa: asunto, cuerpo y fecha de vigencia en ingles', async () => {
+    instancia.idioma = 'en'
+    await enviarPropuestaCtrl('P1', { para: 'cliente@x.com' }, CTX)
+    const o = h.enviar.mock.calls[0][0]
+    expect(o.subject).toMatch(/^Commercial proposal: /)
+    expect(o.html).toContain('View the proposal')
+    expect(o.html).not.toContain('Ver la propuesta')
+  })
+
+  it('instancia espanola: lo de siempre', async () => {
+    await enviarPropuestaCtrl('P1', { para: 'cliente@x.com' }, CTX)
+    const o = h.enviar.mock.calls[0][0]
+    expect(o.subject).toMatch(/^Propuesta comercial: /)
+    expect(o.html).toContain('Ver la propuesta')
+  })
 })
 
 describe('el envío', () => {

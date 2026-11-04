@@ -7,6 +7,7 @@ import { emailHabilitado, enviarEmail, remitenteDeOrganizacion } from './email'
 import { cambiarEstatusPropuesta, PropuestaError } from './propuestas-repo'
 import { vigenciaPropuestaDelTenant } from './config-repo'
 import { asuntoCorreoPropuesta, htmlCorreoPropuesta } from './propuesta-correo'
+import { idiomaDeLaInstancia } from './idioma-instancia'
 import { urlLogo } from '@/lib/medios-url'
 import { esEmailValido, EMAIL_INVALIDO } from '@/lib/validacion'
 import { fechaLocalISO } from '@/lib/fecha-local'
@@ -84,6 +85,9 @@ export async function enviarPropuestaCtrl(
     const vigente = p.vigente_hasta && p.vencida !== true
       ? p.vigente_hasta
       : vigenciaDesde(fechaLocalISO(), await vigenciaPropuestaDelTenant())
+    // ADR 0049 · el correo sale en el idioma de los DOCUMENTOS de la instancia,
+    // como la liga a la que lleva. Fail-closed: sin base no se envia nada.
+    const idioma = await idiomaDeLaInstancia()
     const datos = {
       orgNombre,
       logoUrl: urlLogo(ctx.baseUrl, org?.logo_token ?? null),
@@ -91,7 +95,7 @@ export async function enviarPropuestaCtrl(
       folio: p.folio,
       // Con barra final: la app corre con `trailingSlash` (ver `lib/medios-url.ts`).
       liga: `${ctx.baseUrl.replace(/\/+$/, '')}/spaces-dooh/p/${p.token_publico}/`,
-      vigenteHasta: formatFecha(vigente),
+      vigenteHasta: formatFecha(vigente, idioma),
       mensaje: d.mensaje ?? null,
       remitenteNombre: ctx.remitente.nombre,
     }
@@ -101,8 +105,8 @@ export async function enviarPropuestaCtrl(
         cc: ctx.remitente.email !== d.para ? ctx.remitente.email : null,
         from: remitenteDeOrganizacion(orgNombre),
         replyTo: org?.email_remitente ?? null,
-        subject: asuntoCorreoPropuesta(datos),
-        html: htmlCorreoPropuesta(datos),
+        subject: asuntoCorreoPropuesta(datos, idioma),
+        html: htmlCorreoPropuesta(datos, idioma),
       })
     } catch (e) {
       console.error('[propuestas] no salió el correo de envío:', e)

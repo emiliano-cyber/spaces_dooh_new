@@ -36,6 +36,16 @@
 // ============================================================================
 
 export const ES_PROPUESTAS = {
+  // ── ADR 0049 · los correos van en el idioma de los DOCUMENTOS de la instancia ──
+  // (`lib/server/propuesta-correo.ts`). En espanol la plantilla es la literal de
+  // siempre; estas claves son su mismo texto (lo ata `correos-idioma.test.ts`).
+  'propuestas.correo.asunto': 'Propuesta comercial: {nombre} · {org}',
+  'propuestas.correo.folio': 'Folio {folio}',
+  'propuestas.correo.cuerpo':
+    'Te compartimos nuestra propuesta comercial. En la liga puedes revisar las pantallas, las fechas, los importes y los términos, y aceptarla si estás de acuerdo.',
+  'propuestas.correo.boton': 'Ver la propuesta',
+  'propuestas.correo.vigencia': 'Puedes aceptarla en línea hasta el {fecha}.',
+  'propuestas.correo.copiar': 'Si el botón no abre, copia esta dirección en tu navegador:',
   // ── Estatus (los chips; mismo texto que `EST` en `components/demo/propuestas/estatus.ts`) ──
   'propuestas.estatus.borrador': 'Borrador',
   'propuestas.estatus.enviada': 'Enviada',
@@ -545,6 +555,14 @@ export type ClavePropuestas = keyof typeof ES_PROPUESTAS
 // en mayusculas las cabeceras que ya lo estaban en espanol (el documento
 // imprimible: «SCREENS», «AMOUNT»).
 export const EN_PROPUESTAS: Record<ClavePropuestas, string> = {
+  // ── ADR 0049 · los correos van en el idioma de los DOCUMENTOS de la instancia ──
+  'propuestas.correo.asunto': 'Commercial proposal: {nombre} · {org}',
+  'propuestas.correo.folio': 'Ref. {folio}',
+  'propuestas.correo.cuerpo':
+    'Here is our commercial proposal. At the link you can review the screens, dates, amounts and terms, and accept it if you agree.',
+  'propuestas.correo.boton': 'View the proposal',
+  'propuestas.correo.vigencia': 'You can accept it online until {fecha}.',
+  'propuestas.correo.copiar': 'If the button doesn’t open, copy this address into your browser:',
   'propuestas.estatus.borrador': 'Draft',
   'propuestas.estatus.enviada': 'Sent',
   'propuestas.estatus.aprobada': 'Approved',

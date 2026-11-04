@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { traducir } from './diccionario'
 import { huellasDeFormatoEspanol } from './guardias-ingles'
 import { createElement, type ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
@@ -1061,7 +1062,9 @@ describe('ADR 0049 · el documento imprimible de la propuesta, en el idioma de l
     instancia.idioma = deLaInstancia
     try {
       const { default: Documento } = await import('../../app/(app)/propuesta/[id]/page')
-      return texto(pintar(persona, await Documento({ params: { id: 'p1' } })))
+      const el = await Documento({ params: { id: 'p1' } })
+      forzar((v) => v === '', 'https://ejemplo.mx/spaces-dooh/p/tok/') // la liga del QR
+      return texto(pintar(persona, el))
     } finally {
       instancia.idioma = null
       cabeceras.cookie = null
@@ -1070,19 +1073,22 @@ describe('ADR 0049 · el documento imprimible de la propuesta, en el idioma de l
 
   it('instancia ESPANOLA, persona en ingles: el papel en espanol, la barra en ingles', async () => {
     const html = await documento('en', 'es')
-    for (const f of ['PROPUESTA COMERCIAL', 'ACEPTA EL CLIENTE', 'Válida hasta el 01/12/2026', 'Acéptala en línea']) {
+    for (const f of ['PROPUESTA COMERCIAL', 'ACEPTA EL CLIENTE', 'Válida hasta el 01/12/2026']) {
       expect(html, f).toContain(f)
     }
     expect(html).not.toContain('COMMERCIAL PROPOSAL')
+    // La liga con su QR es de CLIENTE y va dentro del papel: tambien en espanol.
+    expect(html).toContain(traducir('es', 'propuestas.documento.qr.acepta'))
     expect(html).toContain('Back to the proposal')
   })
 
   it('instancia INGLESA, persona en espanol: el papel en ingles, la barra en espanol', async () => {
     const html = await documento('es', 'en')
-    for (const f of ['COMMERCIAL PROPOSAL', 'CLIENT ACCEPTANCE', 'Valid until Dec 1, 2026', 'Accept it online']) {
+    for (const f of ['COMMERCIAL PROPOSAL', 'CLIENT ACCEPTANCE', 'Valid until Dec 1, 2026']) {
       expect(html, f).toContain(f)
     }
     expect(html).not.toContain('PROPUESTA COMERCIAL')
+    expect(html).toContain(traducir('en', 'propuestas.documento.qr.acepta'))
     expect(html).toContain('Volver a la propuesta')
   })
 })

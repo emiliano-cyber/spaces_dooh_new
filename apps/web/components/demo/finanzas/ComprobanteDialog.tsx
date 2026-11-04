@@ -8,6 +8,8 @@ import type { Factura } from '@/lib/data/types'
 import { useIdioma } from '@/lib/i18n/contexto'
 import { formatFecha } from '@/lib/data/derive'
 import type { Idioma } from '@/lib/i18n/idiomas'
+import { traducir } from '@/lib/i18n/diccionario'
+import { EnIdiomaDeLosDocumentos, useIdiomaDocumentos } from '@/lib/i18n/idioma-documentos-cliente'
 
 // ============================================================================
 //  El comprobante de una factura, en pantalla y listo para imprimir.
@@ -41,15 +43,20 @@ export function ComprobanteDialog({
   onOpenChange: (v: boolean) => void
   formatMonto: (n: number, idioma?: Idioma) => string
 }) {
-  const { t, idioma } = useIdioma()
+  const { t, idioma: idiomaPersona } = useIdioma()
+  // ADR 0049 (03/11) · el comprobante es PAPEL: va en el idioma de los
+  // documentos de la instancia. Los botones del cuadro (no se imprimen), en el
+  // de la persona. Sin proveedor de la instancia (una prueba suelta), el de la
+  // persona, como antes.
+  const idiomaDoc = useIdiomaDocumentos() ?? idiomaPersona
   if (!factura) return null
-  const c = armarComprobante(factura, campanas, entidades, idioma)
+  const c = armarComprobante(factura, campanas, entidades, idiomaDoc)
 
   return (
     <Modal
       open={!!factura}
       onOpenChange={onOpenChange}
-      title={t('finanzas.comprobante.titulo', { folio: c.folio })}
+      title={traducir(idiomaDoc, 'finanzas.comprobante.titulo', { folio: c.folio })}
       subtitle={c.campana}
       size="lg"
       footer={
@@ -63,6 +70,24 @@ export function ComprobanteDialog({
         </div>
       }
     >
+      <EnIdiomaDeLosDocumentos>
+        <CuerpoComprobante c={c} formatMonto={formatMonto} />
+      </EnIdiomaDeLosDocumentos>
+    </Modal>
+  )
+}
+
+// El papel. Lee `useIdioma()`, que dentro de `EnIdiomaDeLosDocumentos` es el
+// de la instancia.
+function CuerpoComprobante({
+  c,
+  formatMonto,
+}: {
+  c: ReturnType<typeof armarComprobante>
+  formatMonto: (n: number, idioma?: Idioma) => string
+}) {
+  const { t, idioma } = useIdioma()
+  return (
       <div className="doc-wrap">
         <article className="doc-hoja space-y-4 text-[13px]">
           {/* Quién emite y quién recibe, separados. Son dos razones sociales
@@ -129,6 +154,5 @@ export function ComprobanteDialog({
           </p>
         </article>
       </div>
-    </Modal>
   )
 }

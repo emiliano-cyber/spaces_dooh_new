@@ -87,7 +87,9 @@ describe.each(['en', 'it'] as const)('en %s no queda nada de la plantilla espano
 
   it('ninguna frase espanola', () => {
     for (const [k, v] of Object.entries(salidas())) {
-      for (const p of ESPANOL) expect(v, `${k}: «${p}»`).not.toContain(p)
+      // El mensaje del vendedor es DATO («Hola, qué tal»): se quita antes de mirar.
+      const plantilla = v.replace('Hola' + String.fromCharCode(10) + 'qué tal', '')
+      for (const p of ESPANOL) expect(plantilla, `${k}: «${p}»`).not.toContain(p)
     }
   })
 
@@ -113,14 +115,14 @@ describe('en ingles, el texto que se espera', () => {
     expect(asuntoCorreoPropuesta(D, 'en')).toBe('Commercial proposal: Campaña "Navidad" · Medios <SA>')
     expect(htmlCorreoPropuesta(D, 'en')).toContain('View the proposal')
     expect(asuntoCorreoInvitacion('en')).toBe('You’ve been given access to Space OS · choose your password')
-    expect(asuntoRecordatorios(AVISOS, 'en')).toBe('Contracts that need attention: 1 expired · 2 expiring soon · 1 not entered')
+    expect(asuntoRecordatorios(AVISOS, 'en')).toBe('Contracts that need attention: 1 expired · 2 due soon · 1 not entered')
     // Los avisos, con la traduccion de las notificaciones (ola 6 del ingles).
     expect(htmlRecordatorios(AVISOS, ORG, 'en')).toContain('Contract expired: Reforma &lt;222&gt; · Don Pepe')
   })
 })
 
 describe('las claves espanolas son el mismo texto que la plantilla literal', () => {
-  const plano = (s: string) => s.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')
+  const plano = (s: string) => s.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').replace(/ ([.,:])/g, '$1')
   it('propuesta', () => {
     const es = plano(htmlCorreoPropuesta(D))
     for (const k of ['propuestas.correo.cuerpo', 'propuestas.correo.boton', 'propuestas.correo.copiar'] as const) {

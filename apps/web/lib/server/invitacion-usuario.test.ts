@@ -31,6 +31,9 @@ vi.mock('./password-reset-repo', () => ({
 
 let correoConfigurado = false
 const enviarEmail = vi.fn()
+// ADR 0049 · el correo sale en el idioma de los documentos de la instancia; aqui, espanol.
+const instancia = vi.hoisted(() => ({ idioma: 'es' as 'es' | 'en' | 'it' }))
+vi.mock('./idioma-instancia', () => ({ idiomaDeLaInstancia: async () => instancia.idioma }))
 vi.mock('./email', async (original) => {
   const real = await original<typeof import('./email')>()
   return {
@@ -95,6 +98,20 @@ describe('3 · con correo configurado, el enlace se manda y NO vuelve', () => {
     expect(correo.html).toContain(`${BASE}/spaces-dooh/recuperar/tok123?bienvenida=1`)
     // El administrador no recibe el enlace: solo la persona puede elegir.
     expect(r.invitacion).toEqual({ enviada: true })
+  })
+
+  it('ADR 0049 · en una instancia inglesa la invitacion sale en ingles', async () => {
+    correoConfigurado = true
+    instancia.idioma = 'en'
+    try {
+      await crearUsuarioCtrl({ ...ALTA, invitar: true }, DUENO, { baseUrl: BASE })
+      const correo = enviarEmail.mock.calls.at(-1)![0]
+      expect(correo.subject).toBe('You’ve been given access to Space OS · choose your password')
+      expect(correo.html).toContain('Choose my password')
+      expect(correo.html).toContain(`${BASE}/spaces-dooh/recuperar/tok123?bienvenida=1`)
+    } finally {
+      instancia.idioma = 'es'
+    }
   })
 
   it('si el envío falla, el usuario existe igual y el enlace vuelve con el aviso', async () => {

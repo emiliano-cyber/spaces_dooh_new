@@ -6,6 +6,7 @@ import {
   remitenteDeOrganizacion,
 } from '@/lib/server/email'
 import { htmlRecordatorios, asuntoRecordatorios, type IdentidadOrg } from '@/lib/server/correo-recordatorios'
+import { idiomaDeLaInstancia } from '@/lib/server/idioma-instancia'
 import { urlLogo } from '@/lib/medios-url'
 import {
   recordatoriosDeContratos,
@@ -164,8 +165,10 @@ async function avisarPorCorreo(
   if (!emailHabilitado()) return 'correo no configurado (solo notificación en la app)'
   if (!dest.length) return 'sin destinatarios'
 
-  const html = htmlRecordatorios(avisos, org)
-  const asunto = asuntoRecordatorios(avisos)
+  // ADR 0049 · en el idioma de los DOCUMENTOS de la instancia.
+  const idioma = await idiomaDeLaInstancia()
+  const html = htmlRecordatorios(avisos, org, idioma)
+  const asunto = asuntoRecordatorios(avisos, idioma)
   // Canal de OPERACIÓN: sale del buzón verificado de la plataforma pero a
   // nombre de la organización, y quien responda le contesta a ELLA. Si el Dueño
   // todavía no configuró su correo, `replyTo` va nulo y el aviso sale igual —

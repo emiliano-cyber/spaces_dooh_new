@@ -32,6 +32,16 @@
 // ============================================================================
 
 export const ES_NOTIFICACIONES = {
+  // ── ADR 0049 · los correos van en el idioma de los DOCUMENTOS de la instancia ──
+  // (`lib/server/correo-recordatorios.ts`). Mismo texto que la plantilla
+  // literal espanola (lo ata `correos-idioma.test.ts`).
+  'notificaciones.correo.contratos.asunto': 'Contratos que necesitan atención: {resumen}',
+  'notificaciones.correo.contratos.titulo': 'Contratos que necesitan atención',
+  'notificaciones.correo.contratos.pie': '{org} · este aviso se envía una vez al día y solo cuando hay algo nuevo.',
+  'notificaciones.correo.resumen.vencido.uno': '{n} vencido',
+  'notificaciones.correo.resumen.vencido.otros': '{n} vencidos',
+  'notificaciones.correo.resumen.por-vencer': '{n} por vencer',
+  'notificaciones.correo.resumen.sin-capturar': '{n} sin capturar',
   // ── Propuestas (`app/api/propuestas/[id]/route.ts`, `propuestas-repo.ts`) ──
   'notificaciones.propuesta.aprobada': 'Propuesta aprobada',
   'notificaciones.propuesta.rechazada': 'Propuesta rechazada',
@@ -90,6 +100,14 @@ export const ES_NOTIFICACIONES = {
 } as const
 
 export const EN_NOTIFICACIONES: Record<keyof typeof ES_NOTIFICACIONES, string> = {
+  // ── ADR 0049 · los correos van en el idioma de los DOCUMENTOS de la instancia ──
+  'notificaciones.correo.contratos.asunto': 'Contracts that need attention: {resumen}',
+  'notificaciones.correo.contratos.titulo': 'Contracts that need attention',
+  'notificaciones.correo.contratos.pie': '{org} · this notice is sent once a day and only when there is something new.',
+  'notificaciones.correo.resumen.vencido.uno': '{n} expired',
+  'notificaciones.correo.resumen.vencido.otros': '{n} expired',
+  'notificaciones.correo.resumen.por-vencer': '{n} due soon',
+  'notificaciones.correo.resumen.sin-capturar': '{n} not entered',
   'notificaciones.propuesta.aprobada': 'Proposal approved',
   'notificaciones.propuesta.rechazada': 'Proposal rejected',
   'notificaciones.propuesta.aceptada': 'Proposal accepted by the client',
