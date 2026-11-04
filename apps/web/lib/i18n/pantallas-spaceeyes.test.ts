@@ -3420,7 +3420,7 @@ const ITALIANO: Record<string, string[]> = {
     'Programmazione delle foto',
     'Le foto si scattano da sole, a un’ora imprevedibile all’interno delle fasce orarie che definisci.',
     'Nuova programmazione', 'Tutti i dispositivi', 'Campagna: Verano', 'Gruppo: Norte', '08:00-10:00 (casuale)',
-    'Nessuna fascia oraria', 'Ogni 2 h', 'Ogni 45 min', 'In pausa', 'Inizio: 1 dic 2026', 'Scaduta: 1 ott 2026',
+    'Nessuna fascia oraria', 'Ogni 2 h', 'Ogni 45 min', 'In pausa', 'Inizio: 1 dic 2026', 'Scaduta in data 1 ott 2026',
     'Non scatta prima di: 1 dic 2026', 'Non scatta: scaduta', 'Non calcolata', ' (tra 30 min)', ' (tra 5 h)', ' (in coda)',
     'Prossima: ', '(3 questa settimana)', 'Metti in pausa', 'Si applica a', 'Quando', 'Prossima foto', 'Azioni',
   ],

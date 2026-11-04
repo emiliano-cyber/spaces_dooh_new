@@ -2588,7 +2588,7 @@ export const IT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   // ── La vigilancia de creativos (`CreativosConfig`). Frecuencias en letra: «ogni due ore», nunca «ogni 2» ──
   'spaceeyes.comun.sin-permiso-cambiar': 'Non hai il permesso di modificare questa impostazione.',
   'spaceeyes.comun.no-guardar': 'Impossibile salvare: {motivo}',
-  'spaceeyes.comun.apagado': 'Disattivato',
+  'spaceeyes.comun.apagado': 'Spento',
   'spaceeyes.comun.frecuencia': 'Frequenza',
   'spaceeyes.comun.ver-grande': 'Vedi in grande',
   'spaceeyes.frecuencia.30': 'Ogni mezz’ora',
@@ -3165,7 +3165,7 @@ export const IT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.prog.cada-h': 'Ogni {n} h',
   'spaceeyes.prog.estado.pausada': 'In pausa',
   'spaceeyes.prog.estado.empieza': 'Inizio: {fecha}',
-  'spaceeyes.prog.estado.vencio': 'Scaduta: {fecha}',
+  'spaceeyes.prog.estado.vencio': 'Scaduta in data {fecha}',
   'spaceeyes.prog.proxima.espera': 'Non scatta prima di: {fecha}',
   'spaceeyes.prog.proxima.vencida': 'Non scatta: scaduta',
   'spaceeyes.prog.proxima.sin-calcular': 'Non calcolata',

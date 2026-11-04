@@ -304,6 +304,10 @@ const DISTINTOS_A_PROPOSITO_IT: Record<string, string> = {
   // italiano son cosas distintas.
   'Ver todas ({n})': 'concordancia: campañas y cobranzas son femeninas («Mostra tutte»); las ordenes de trabajo, «ordini», masculinas («Mostra tutti»)',
   Activa: 'concordancia: la campaña es femenina («Attiva»); el estado de un dispositivo de Space Eyes, masculino («Attivo»)',
+  Rechazada: 'concordancia: propuesta, creatividad y oferta son femeninas («Rifiutata»); la orden de trabajo, «ordine», masculina («Rifiutato»)',
+  Rechazado: 'concordancia: la etapa de negociacion es masculina («Rifiutato»); la creatividad, femenina («Rifiutata»)',
+  Aprobado: 'concordancia: importe y etapa masculinos («Approvato»); la creatividad, femenina («Approvata»)',
+  Todas: 'concordancia: propuestas, femeninas («Tutte»); fallas («guasti») y ordenes de trabajo («ordini»), masculinas («Tutti»)',
   Vencidas: 'cobranzas vencidas son «Scadute»; ordenes de trabajo vencidas, «In ritardo» (glosario del lote L3)',
   'Comprobante de pago': 'finanzas: la prueba de pago que sube el cliente («Prova di pagamento», glosario); arrendadores: el recibo del pago que hicimos («Ricevuta di pagamento»)',
   Comprobante: 'el mismo caso que «Comprobante de pago»: prova del cliente frente a ricevuta del pago al locatore',

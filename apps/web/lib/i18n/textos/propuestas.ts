@@ -1102,8 +1102,8 @@ export const IT_PROPUESTAS: Record<ClavePropuestas, string> = {
   'propuestas.comun.agregar-sitios': 'Aggiungi siti',
   'propuestas.comun.digital': 'Digitale',
   'propuestas.comun.fija': 'Fisso',
-  'propuestas.comun.desde': 'Dal',
-  'propuestas.comun.hasta': 'Al',
+  'propuestas.comun.desde': 'Da',
+  'propuestas.comun.hasta': 'Fino a',
 
   'propuestas.lista.titulo': 'Proposte',
   'propuestas.lista.subtitulo': 'Preventivi con il metodo del divisore (lordo / netto)',

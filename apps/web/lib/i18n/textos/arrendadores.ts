@@ -1292,7 +1292,7 @@ export const IT_ARRENDADORES: Record<Exclude<ClaveArrendadores, `arrendadores.co
     'Gli manca: {lista}. Puoi salvare il contratto comunque, ma senza questi dati non gli si potrà fatturare il canone quando toccherà pagarlo.',
   'arrendadores.completar.importe': 'Importo del canone',
   'arrendadores.completar.importe-cero': 'Inserisci un importo maggiore di zero',
-  'arrendadores.completar.cada-cuando': 'Ogni quanto si paga',
+  'arrendadores.completar.cada-cuando': 'Frequenza di pagamento',
   'arrendadores.completar.desde': 'Da',
   'arrendadores.completar.hasta': 'Fino a',
   'arrendadores.completar.antes-inicio': 'Non può essere precedente all’inizio ({fecha})',

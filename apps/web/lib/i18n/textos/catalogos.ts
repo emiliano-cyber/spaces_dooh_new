@@ -540,8 +540,8 @@ export const EN_CATALOGOS: Record<ClaveCatalogos, string> = {
 export const IT_CATALOGOS: Record<ClaveCatalogos, string> = {
   // ── Comunes del lote ──
   'catalogos.comun.nombre': 'Nome',
-  'catalogos.comun.desde': 'Dal',
-  'catalogos.comun.hasta': 'Al',
+  'catalogos.comun.desde': 'Da',
+  'catalogos.comun.hasta': 'Fino a',
   'catalogos.comun.estado': 'Stato',
   'catalogos.comun.anadir': 'Aggiungi',
   'catalogos.comun.eliminar': 'Elimina',

@@ -1254,7 +1254,7 @@ export const IT_CAMPANAS: Record<ClaveCampanas, string> = {
   'campanas.horario.no-programar': 'Impossibile programmare',
   'campanas.horario.otra-franja': 'altra fascia oraria',
   'campanas.horario.todo-el-dia': 'Tutto il giorno',
-  'campanas.horario.titulo': 'Orario di trasmissione',
+  'campanas.horario.titulo': 'Palinsesto',
   'campanas.horario.vendida': 'Venduta (non cambia qui)',
   'campanas.horario.se-transmite': 'Fascia in onda',
   'campanas.horario.dada-de-baja': ' (disattivata)',

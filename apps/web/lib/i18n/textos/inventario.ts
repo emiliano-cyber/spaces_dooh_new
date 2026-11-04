@@ -1049,7 +1049,7 @@ export const IT_INVENTARIO: Record<ClaveInventario, string> = {
   'inventario.wizard.se-ligara': 'Verrà collegato all’immobile del contratto. Per cambiare questi dati, modifica l’impianto in Inventario.',
   'inventario.wizard.nombre-pantalla': 'Nome dell’impianto',
   'inventario.wizard.tipo-medio': 'Tipo di mezzo',
-  'inventario.wizard.distrito': 'Distretto / municipio',
+  'inventario.wizard.distrito': 'Quartiere / municipio',
   'inventario.wizard.ciudad': 'Città',
   'inventario.wizard.slots': 'Slot (digitale)',
   'inventario.wizard.duracion-slot': 'Durata per slot (s)',
