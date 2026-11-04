@@ -15,6 +15,9 @@ archivos:
   - apps/web/lib/server/idioma-alta.ts
   - apps/web/lib/contrato-documento.ts
   - apps/web/components/demo/arrendadores/ConstanciaFirmas.tsx
+  - apps/web/lib/i18n/idioma-documentos-cliente.tsx
+  - apps/web/lib/server/correo-recordatorios.ts
+  - apps/web/lib/server/propuesta-correo.ts
   - apps/web/lib/i18n/servidor.ts
   - apps/web/lib/i18n/contexto.tsx
   - apps/web/app/layout.tsx
@@ -2146,8 +2149,24 @@ el idioma de los documentos de la instancia. Rama `feat/idioma-instancia`,
 - ⚠ **La traducción del contrato al inglés y al italiano necesita revisión de
   un abogado** antes de usarse con un cliente: es el contrato de derecho
   mexicano en otro idioma, no uno adaptado a otra ley.
-- Los demás papeles (propuesta imprimible, liga `/p`, portal, comprobante,
-  correos) quedan como **decisión del dueño**, con propuesta en el ADR.
+- **Segunda vuelta (03/11), decisión del dueño: «todo debe salir en el idioma
+  que se configuró el programa».** También siguen la instancia la propuesta
+  imprimible (`/propuesta/[id]`, el papel con su QR), la liga `/p/[id]` y el
+  portal `/portal/[token]` (cada uno con un `layout.tsx` que re-provee el
+  idioma), el comprobante de cobranza y los correos de propuesta, invitación y
+  recordatorios de contratos. **Excepción:** el CSV del estado de cuenta sigue
+  la pantalla. **Pendiente:** el correo de restablecer contraseña (sale de una
+  ruta de auth que esta tarea no podía tocar).
+- **Mecanismo en el navegador:** `lib/i18n/idioma-documentos-cliente.tsx` — el
+  layout raíz deja el idioma de la instancia en `ProveedorIdiomaDocumentos` y
+  `EnIdiomaDeLosDocumentos` re-provee `ProveedorIdioma` para el papel. Sin
+  proveedor no impone nada (por eso los volcados de las pruebas de siempre no
+  cambian).
+- **Correos:** en español la plantilla literal de siempre, byte a byte
+  (`correos-idioma.test.ts`); en inglés e italiano, claves nuevas
+  `cuenta.correo.*`, `propuestas.correo.*` y `notificaciones.correo.*`, atadas a
+  la plantilla española por la misma prueba. El italiano cae al inglés hasta que
+  lleguen sus lotes.
 
 ## Enlaces
 

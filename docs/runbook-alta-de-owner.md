@@ -184,8 +184,11 @@ infra/scripts/provision-instancia.sh \
 > en otra corrida el guion para con salida 64.
 
 > [!danger] `--idioma es|en|it` tambien se decide AQUÍ y es para siempre (ADR 0049, 03/11)
-> Es el idioma en que se redactan el **contrato** y la **constancia de firmas**
-> de toda la instancia, no el de la interfaz (ese lo elige cada persona). La
+> Es el idioma de **todos los papeles** de la instancia —contrato y constancia
+> de firmas, propuesta impresa, liga y portal del cliente, comprobante de
+> cobranza y los correos (salvo el de restablecer contraseña, pendiente)—, no
+> el de la interfaz (ese lo elige cada persona). Solo el CSV del estado de
+> cuenta sigue la pantalla. La
 > base no deja cambiarlo (`20261103_idioma_documentos_por_instancia.sql`),
 > porque las firmas se cotejan regenerando el texto: en otro idioma, todas
 > aparecerían alteradas. Sin la bandera, **es**. Acepta `--idioma en` y

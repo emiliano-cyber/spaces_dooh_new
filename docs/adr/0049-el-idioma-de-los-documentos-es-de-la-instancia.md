@@ -73,17 +73,40 @@ Lo que **no** se imprime en la página del contrato —la barra con los datos fa
 firmas, el `title` de los huecos— sigue siendo interfaz y sigue a la persona. Los `faltantes`
 del redactor son iguales en todos los idiomas (los traduce la barra).
 
-### Inventario de los demás papeles — DECISIÓN DEL DUEÑO, no implementado
+### Segunda vuelta: TODOS los papeles (decisión del dueño, 03/11)
 
-| Papel que sale hacia terceros | Hoy | Propuesta |
-|---|---|---|
-| Documento imprimible de la propuesta (`/propuesta/[id]`) | Idioma de la petición (quien lo imprime) | **Instancia.** Es lo que se entrega al cliente; que salga en el idioma de quien lo imprime hace que dos vendedores entreguen dos documentos distintos. No lleva hash, así que no hay riesgo de firmas: es solo coherencia |
-| Liga pública de la propuesta (`/p/[token]`) | Idioma del navegador del cliente | **Visitante** (como hoy). La lee el cliente en su pantalla; su navegador sabe mejor que nadie en qué idioma lee. Alternativa: instancia, si se quiere que coincida con el PDF |
-| Portal del cliente (`/portal/[token]`) | Idioma del navegador del visitante | **Visitante** (como hoy), por lo mismo |
-| Comprobante de cobranza / recibo (`components/demo/finanzas/comprobante.ts`) | Idioma de la petición | **Instancia.** Es papel con valor contable que se manda a un tercero |
-| Estado de cuenta (CSV) | Idioma de la petición | **Usuario** (como hoy): es una exportación para trabajar, no un papel formal. Si se manda al cliente, **instancia** |
-| Correo con la liga de la propuesta (`lib/server/propuesta-correo.ts`) | Solo español | **Instancia**, o el idioma del cliente si algún día se guarda. Hoy el asunto y el cuerpo están fijos en español |
-| Correos del sistema (invitación, recuperación) | Español | **Usuario** del destinatario cuando exista la preferencia (la otra tarea) |
+Al ver el inventario, el dueño decidió: **«todo debe salir en el idioma que se configuró el
+programa»**. Todos los papeles siguen el idioma de la instancia. **Única excepción:** el CSV del
+estado de cuenta sigue el idioma de la pantalla (decisión anterior y explícita del dueño).
+
+| Papel | Cómo se implementó |
+|---|---|
+| Documento imprimible de la propuesta (`/propuesta/[id]`) | El `<article>` (con la liga y su QR) dentro de un `ProveedorIdioma` con `idiomaDeLaInstancia()`; la barra (no se imprime) y el aviso sin permiso, en el de la persona |
+| Liga pública de la propuesta (`/p/[id]`) | `app/(app)/p/[id]/layout.tsx`, nuevo: re-provee el idioma con el de la instancia; la página no cambia |
+| Portal del cliente (`/portal/[token]`) | `app/(app)/portal/[token]/layout.tsx`, igual |
+| Comprobante de cobranza | `ComprobanteDialog`: título y papel en `EnIdiomaDeLosDocumentos`; los botones del cuadro, en el de la persona |
+| Correo de la propuesta | `asuntoCorreoPropuesta` / `htmlCorreoPropuesta(d, idioma)`, desde `propuestas-envio.ts`; la fecha de vigencia también en ese idioma |
+| Correo de invitación | `asuntoCorreoInvitacion` / `htmlCorreoInvitacion(…, idioma)`, desde `usuarios-controller.ts` |
+| Correo diario de contratos | `lib/server/correo-recordatorios.ts` (sacado tal cual de su `route.ts`): asunto, resumen, encabezado y pie; cada aviso con `traducirNotificacion` |
+| **Correo de restablecer contraseña** | **Pendiente.** Lo arma `app/api/auth/forgot/route.ts`, una ruta de auth que esta tarea tiene prohibido tocar. Basta pasar `await idiomaDeLaInstancia()` a una `htmlCorreoReset(…, idioma)` como la de la invitación; hace falta aprobación para tocar esa ruta |
+| Estado de cuenta (CSV) | **No cambia**: sigue la pantalla (excepción del dueño) |
+
+**Mecanismo en el navegador:** `lib/i18n/idioma-documentos-cliente.tsx`. El layout raíz lee
+`idiomaDeLaInstancia()` (fail-closed, como la moneda) y lo deja en `ProveedorIdiomaDocumentos`;
+`EnIdiomaDeLosDocumentos` re-provee `ProveedorIdioma` para lo que envuelve, así que un papel se
+traduce sin cambiar una línea por dentro. Sin proveedor (una prueba suelta) no impone nada.
+
+**Correos:** en español, cada plantilla es la literal de siempre, **byte a byte** (hashes medidos
+antes en `correos-idioma.test.ts`). En inglés e italiano se arman con las mismas piezas desde el
+diccionario (`cuenta.correo.*`, `propuestas.correo.*`, `notificaciones.correo.*`); la prueba ata
+las claves españolas a la plantilla literal para que no diverjan. **El italiano cae al inglés**
+mientras su lote (L2 y siguientes) no traduzca esas claves y las de los papeles: al integrar, sale
+solo.
+
+**Lo que se ve distinto:** en una instancia española, quien mira la aplicación en inglés
+imprime la propuesta, el comprobante y la constancia **en español**, y el cliente que abre la liga
+o el portal los ve en español aunque su navegador esté en inglés. El `lang` del `<html>` sigue
+siendo el de la petición (lo pone el layout raíz).
 
 ## Traducción del contrato al inglés y al italiano
 
@@ -152,9 +175,9 @@ Decisiones de redacción (todas revisables por el abogado):
 ## Lo que NO decide
 
 - La preferencia de idioma de la interfaz por usuario (otra tarea).
-- Los papeles del inventario de arriba: queda para el dueño.
+- El correo de restablecer contraseña: necesita tocar una ruta de auth (aprobación aparte).
 - Adaptar el contrato a la ley de otro país.
 
 ## Revisión independiente
 
-Pendiente: el validador y la revisión legal de las traducciones.
+El supervisor dio ÁMBAR a la primera vuelta (`docs/Supervision/idioma-instancia.md`): B58 (e2e completas), B59 (`bootstrap-auth.mjs` queda como ruta de desarrollo solo-es, documentada) y B60 (`uso()` vuelve a `2,58p`) están atendidas en la segunda; D15 la resolvió el dueño (la constancia en el idioma de la instancia, «THE LESSOR» incluido). Sigue pendiente la revisión legal de las traducciones.
