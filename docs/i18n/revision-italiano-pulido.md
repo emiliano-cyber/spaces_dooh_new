@@ -37,7 +37,7 @@ Cada arreglo con su rojo en un commit propio y sus mutantes contra las unitarias
 - `avisoIdiomaGuardado(destino)` traduce el aviso con ese idioma.
 - **Sin cambio de idioma**, el destino es el de ahora y el aviso sale igual que hoy. El diccionario no cambia. La tarjeta pinta el mismo HTML, y con un solo idioma encendido sigue sin pintarse.
 - **Lo que no cubre una unitaria:** que el desplegable llame a la función. No hay DOM para pulsarlo, así que una prueba lee la fuente, como `salir.test.ts`.
-- **Mutantes:** 8 de 8 mueren.
+- **Mutantes:** 8 de 8 mueren. *(Tras la validación: el contexto sale de una función pura, §10.)*
 - **Límite conocido:** con «navegador», la cabecera real la arma el navegador desde `navigator.languages`. Si alguien la cambia por otro medio (un proxy, una extensión), el aviso podría salir en un idioma y la página en otro. Es solo el aviso.
 
 ## 4 · B72 · los papeles imprimibles declaran su `lang`
@@ -90,8 +90,8 @@ Y el error del servidor, que ya venía: «Questa lingua non è disponibile su qu
 | Hallazgos | Motivo |
 |---|---|
 | 300 | falso positivo de la guardia: «0,812» es el decimal italiano del SSIM, no un millar |
-| 108 | P-L2-1: captura de cifras a la mexicana («Esempio: 212,500.50», «es. 180,000», «0.00»…), decisión ROJA pendiente |
-| 91 | espejo de un Server Component: el contrato, la propuesta imprimible, la firma pública, «sin permiso» y el 404 se resuelven con la persona en inglés **antes** de que el espejo cambie el idioma; sus claves italianas las fijan las pruebas italianas de cada lote |
+| 97 | P-L2-1: captura de cifras a la mexicana, decisión ROJA pendiente. Solo el `placeholder` numérico de un campo («0.00», «Es. 12.9», «es. 180,000») y la explicación «… il punto i decimali» con su ejemplo detrás (§10) |
+| 102 | espejo de un Server Component: el contrato, la propuesta imprimible, la firma pública, «sin permiso» y el 404 se resuelven con la persona en inglés **antes** de que el espejo cambie el idioma; sus claves italianas las fijan las pruebas italianas de cada lote |
 | 54 | dato: el cuerpo del contrato simulado de la prueba va en español sea cual sea el idioma |
 | 39 | dato: navegador e IP de una firma («Mozilla/5.0», «10.0.0.1») |
 | 20 | catálogo del SAT (uso del CFDI) |
@@ -122,7 +122,7 @@ Y el error del servidor, que ya venía: «Questa lingua non è disponibile su qu
 ## 8 · Cifras
 
 - `npm run typecheck`: limpio.
-- `npx vitest run --testTimeout=60000`: **8407 en verde y 1 omitida, en 402 archivos**. La omitida es el barrido sobre disco, que solo corre con `I18N_BARRIDO_IT`. La base tenía 8374 en 401.
+- `npx vitest run --testTimeout=60000`: **8418 en verde y 1 omitida, en 402 archivos** (8407 antes de las correcciones de §10). La omitida es el barrido sobre disco, que solo corre con `I18N_BARRIDO_IT`. La base tenía 8374 en 401.
 - `npm run build`: en verde.
 - `node scripts/recuentos.mjs`: en el diario.
 
@@ -145,3 +145,32 @@ Y el error del servidor, que ya venía: «Questa lingua non è disponibile su qu
   - sin `git stash` ni `git push`;
   - el Postgres del 5433 no se tocó, y no se levantó ningún servidor;
   - los `desktop.ini` no se commitean.
+
+## 10 · Correcciones tras la validación (ÁMBAR, `docs/i18n/validacion-italiano-pulido.md`)
+
+Cada una con su rojo en un commit propio.
+
+| Commit | Qué |
+|---|---|
+| `5190eff4` | rojo · B69, el contexto del aviso como función pura |
+| `eb738963` | arreglo · B69 |
+| `80f9459b` | rojo · la excepción de cifras anclada y la comprobación estática |
+| `e22a49cd` | arreglo · las dos |
+
+- **La excepción de P-L2-1, anclada** (`lib/i18n/barrido-italiano.ts`). Antes, `0\.00`, `65\.50` y `180,000` iban sin anclar contra el contexto y declaraban un importe inglés cualquiera. Ahora solo cubre dos cosas:
+  - un `placeholder` que es solo el ejemplo numérico (`/^(?:es\. )?-?\d[\d.,]*$/i`, y la huella tiene que estar dentro);
+  - la explicación de `captura-cifra` con el ejemplo justo detrás («il punto i decimali. Esempio: X», «il punto i decimali (X)»).
+  - **Probado:** `<p>Totale</p><p>MX$ 5,000.00</p>`, «Nov 30, 2026» con un importe al lado, «Totale 0.00», un `title="0.00"` y un placeholder con texto salen **sin declarar**.
+  - **Recuento** sobre el mismo volcado: 646 hallazgos y 0 sin declarar; el reparto queda en **97 de P-L2-1 y 102 del espejo de Server Components**, como medía el validador. Los 11 de la propuesta imprimible del espejo ya caen en su motivo.
+  - **Mutantes:** 5 de 5 mueren (sin ancla, cualquier placeholder, placeholder sin fin, `title` como placeholder, la huella fuera del placeholder).
+- **Comprobación estática** `italianoConFrasesDeOtraClave()`, que corre en cada `vitest` sin volcado. Ningún valor italiano (`IT_PARCIAL`) lleva un trozo español o inglés de **otra** clave, de 12 letras y dos palabras como mínimo.
+  - El propio español de la clave lo sigue mirando la cobertura.
+  - Con 8 letras salían 66 coincidencias: «del periodo», «al momento», «in pipeline» y otras, que también son italiano. Con 12 quedan tres cognados, declarados en `COGNADOS_IT`: «foto del cliente», «Raspberry Pi» e «ID del dispositivo».
+  - **Mutantes:** mueren los del validador (`idioma.cuenta.navegador` = «No se pudo guardar el idioma», y una variante con el inglés de otra clave), el que compara la clave consigo misma, el umbral a 99 y quitar un cognado.
+- **B69:** `contextoDelNavegador(actual, encendidos, cadenaCookie, idiomasNavegador)` es pura. `cadenaCookieDelDocumento()` e `idiomasDelNavegador()` leen `document.cookie` y `navigator.languages`, y dan cadena y lista vacías en el servidor.
+  - La tarjeta solo las cablea, y la prueba de cableado exige la llamada entera.
+  - Las pruebas usan cadenas («spaces_csrf=x; spaces_idioma=it; otra=1») y `vi.stubGlobal`. Node 24 trae un `navigator` global, y para el caso «servidor» se quita.
+  - **Mutantes:** 10 de 10 mueren, entre ellos los tres que sobrevivían: `navegador: []`, `actual: 'es'` y `cookie: null`.
+- **Sin cambios** en el español, el inglés ni los diccionarios: solo se tocaron `barrido-italiano.*` e `IdiomaCuenta.*`.
+- **El barrido sobre disco sigue sin correr en CI:** es una herramienta a demanda (`I18N_BARRIDO_IT`). Lo que sí corre siempre son sus reglas y la comprobación estática.
+- **Queda (deuda menor, observación 4 del validador):** las excepciones por `archivo` sin `tipo` declaran cualquier frase de esos estados. Hoy todo lo que tapan es inglés del espejo.

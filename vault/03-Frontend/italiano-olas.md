@@ -585,3 +585,11 @@ dueño (B68, B70, B71, B73, B74, P-L2-1, D13).
   HTML solo cambia en los 23 estados de B72. Cobertura 0 pendientes, costura en
   verde. Unitarias **8407 + 1 omitida** (402 archivos), typecheck y build en
   verde.
+- **Tras la validación (ÁMBAR):** la excepción de cifras (P-L2-1) del barrido
+  queda anclada al `placeholder` y a la explicación de captura (97 P-L2-1 y 102
+  del espejo); un importe inglés en italiano ya sale sin declarar.
+  `italianoConFrasesDeOtraClave()` comprueba en cada `vitest` que ningún
+  `IT_*` lleva una frase española o inglesa de otra clave. El contexto del
+  aviso de B69 es una función pura (mueren los tres mutantes que vivían).
+  **El barrido sobre disco no corre en CI**: es una herramienta a demanda
+  (`I18N_BARRIDO_IT`); en CI corren sus reglas y la comprobación estática.
