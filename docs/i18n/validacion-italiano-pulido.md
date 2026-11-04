@@ -8,7 +8,7 @@
   union) para el volcado base; el volcado de la rama, con el propio `scripts/i18n-barrido-italiano.mjs`.
   Sin servidores, sin e2e, sin `git stash` ni `git push`; el Postgres del 5433 no se toco.
 
-## Veredicto: AMBAR
+## Veredicto (1.ª pasada): AMBAR · (2.ª pasada, abajo): VERDE
 
 Lo que se arreglo esta bien arreglado y medido: B69, B72, O2/O3/O5 y el `alt` cumplen, el espanol
 y el ingles no cambian salvo el envoltorio de B72 en estados de idiomas distintos, y todas las
@@ -169,3 +169,53 @@ ciego B3 (§5.2).
 3. Sacar el contexto de B69 a una funcion pura y probarla (mata M12-M14).
 
 Ninguno toca espanol ni ingles, ni el diccionario.
+
+---
+
+## 2.ª pasada · VERDE
+
+Sobre los 5 commits del autor `5190eff4..5a297633` (revision §10), con HEAD `5a297633`.
+
+1. **La excepcion de P-L2-1, anclada** (`lib/i18n/barrido-italiano.ts:173-175` y `:203`). Ahora va
+   por dos vias: o el trozo esta dentro de un `placeholder` que es SOLO un numero (`Es. 12.9`,
+   `0.00`), o va justo detras de «il punto i decimali» como ejemplo.
+   - Mis casos («Totale MX$ 5,000.00», la fecha «Nov 30, 2026» junto a «MX$ 1,000.00») salen ya
+     **SIN DECLARAR**, y estan fijados en `barrido-italiano.test.ts` junto con otras variantes.
+   - Mutantes: quitar el `p.includes(trozo)` muere, y desanclar el patron del placeholder (`/\d/`)
+     tambien muere.
+   - El barrido completo, vuelto a correr: 3710 estados y 646 hallazgos, los 646 declarados.
+     Reparto **97 P-L2-1 / 102 espejo**, como pedia la 1.ª pasada.
+   - Resto menor: un `0.00` visible en un italiano, en una pantalla que ademas tenga un
+     placeholder `0.00`, quedaria declarado. Es un caso muy estrecho.
+2. **`italianoConFrasesDeOtraClave()`** (`barrido-italiano.ts:229`) corre en cada vitest, con el
+   `IT_PARCIAL` completo, y **mata el mutante B3** (el espanol de otra clave en un `IT_*`), que
+   antes sobrevivia a toda la suite.
+   - **Umbral de 12 letras.** Medi lo que deja fuera: **637 trozos** espanoles o ingleses de 8 a 11
+     letras con dos palabras o mas. Por ejemplo «sin asignar», «ver campaña», «generar pdf»,
+     «copiar liga», «en proceso», «por aprobar», «mes pasado».
+   - Solo **9** de esos 637 aparecen hoy en algun italiano de otra clave, y casi todos son
+     cognados o datos: «del periodo», «al momento», «uno solo», «space eyes», «in pipeline»,
+     «per spot», «uso cfdi», «ia/vision», «xlsx o .csv».
+   - O sea, bajar el umbral a 8 costaria nueve entradas mas en `COGNADOS_IT` y cubriria las
+     etiquetas cortas de boton, que son justo las que mas se copian. **Recomendado, no
+     bloqueante**: el barrido sobre el HTML si ve esas frases cuando una pantalla las pinta.
+3. **`contextoDelNavegador`** (`components/demo/admin/IdiomaCuenta.tsx:42`) es pura, y
+   `cadenaCookieDelDocumento` e `idiomasDelNavegador` van aparte, probadas con `vi.stubGlobal`.
+   - Los tres mutantes que sobrevivian ahora **mueren**: cookie `null`, navegador `[]` y
+     `actual: 'es'`.
+   - Tambien mueren los nuevos: `idiomasDelNavegador` devuelve `[]`, `cadenaCookieDelDocumento`
+     devuelve `''`, la llamada pasa `''` como cookie, y la cookie sin anclar (`mi_spaces_idioma`).
+   - La prueba que lee la fuente ahora fija la llamada ENTERA.
+
+**Repetido:**
+
+| Comprobacion | Resultado |
+|---|---|
+| M1 a M11 | todos mueren |
+| N1 a N10 (los de esta pasada) | todos mueren |
+| Mutantes, en total | 21 de 21 mueren, todos restaurados, `git status` limpio |
+| Diccionarios (`diccionario.ts`, `textos/`) y `errores.ts` frente a `49eaf1e4` | sin diff |
+| Volcado completo frente a `49eaf1e4` | los **mismos 27** estados distintos que en la 1.ª pasada (23 envoltorio, 4 `alt`), y las mismas entradas nuevas |
+| typecheck | limpio |
+| `npx vitest run --testTimeout=60000` | **402 archivos, 8418 en verde y 1 omitida** |
+| Build | no repetido: esta pasada solo cambia pruebas, el barrido y una funcion de `IdiomaCuenta.tsx` ya cubierta por el typecheck |
