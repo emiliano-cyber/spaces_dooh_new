@@ -88,7 +88,7 @@ estado de cuenta sigue el idioma de la pantalla (decisión anterior y explícita
 | Correo de la propuesta | `asuntoCorreoPropuesta` / `htmlCorreoPropuesta(d, idioma)`, desde `propuestas-envio.ts`; la fecha de vigencia también en ese idioma |
 | Correo de invitación | `asuntoCorreoInvitacion` / `htmlCorreoInvitacion(…, idioma)`, desde `usuarios-controller.ts` |
 | Correo diario de contratos | `lib/server/correo-recordatorios.ts` (sacado tal cual de su `route.ts`): asunto, resumen, encabezado y pie; cada aviso con `traducirNotificacion` |
-| **Correo de restablecer contraseña** | **Pendiente.** Lo arma `app/api/auth/forgot/route.ts`, una ruta de auth que esta tarea tiene prohibido tocar. Basta pasar `await idiomaDeLaInstancia()` a una `htmlCorreoReset(…, idioma)` como la de la invitación; hace falta aprobación para tocar esa ruta |
+| Correo de restablecer contraseña | `asuntoCorreoReset` / `htmlCorreoReset(…, idioma)`, desde `app/api/auth/forgot/route.ts`. **Hecho el 04/11** (`feat/idiomas-cierre`, con aprobación del dueño para tocar esa ruta de auth): solo cambian asunto y cuerpo; ni tokens, ni límites, ni la respuesta. Si leer el idioma falla, el correo no sale (fail-closed) y la respuesta es la misma |
 | Estado de cuenta (CSV) | **No cambia**: sigue la pantalla (excepción del dueño) |
 
 **Mecanismo en el navegador:** `lib/i18n/idioma-documentos-cliente.tsx`. El layout raíz lee
@@ -115,14 +115,22 @@ siendo el de la petición (lo pone el layout raíz); desde el 04/11 (B68) el con
 español, cláusula por cláusula y párrafo por párrafo: la prueba compara cuántas cláusulas,
 incisos y párrafos tiene cada idioma.
 
-> [!danger] REQUIERE REVISIÓN DE UN ABOGADO ANTES DE USARSE CON CLIENTES
+> [!note] 2026-11-04 · D13 contestada por el dueño: son PLANTILLAS DE EJEMPLO
+> «Los contratos en inglés e italiano son EJEMPLOS: cada cliente los irá armando según contrate
+> la app». Ya **no se espera una revisión de abogado** para dar de alta un servidor `en`/`it`: el
+> contrato en esos idiomas es una plantilla de ejemplo que cada owner adapta. El texto legal y los
+> hashes no cambian con esta nota. Sigue valiendo lo de las firmas: si un owner ya firmó contratos
+> y la plantilla cambia, se conserva la redacción anterior para cotejar (`hashParaCotejar`).
+> El recuadro de abajo queda como historia.
+
+> [!danger] ~~REQUIERE REVISIÓN DE UN ABOGADO ANTES DE USARSE CON CLIENTES~~ (sustituido el 04/11, arriba)
 > Es el **mismo contrato de derecho mexicano** —RFC, CURP, CFDI, Código Civil, tribunales de la
 > ciudad, «Estados Unidos Mexicanos»— escrito en otro idioma. **No** es un contrato adaptado a la
 > ley de otro país. Está marcado así en el código, en este ADR y en el runbook del alta: no se
 > debería aprovisionar una instancia `en`/`it` para un cliente real hasta que el dueño diga que la
 > revisión está hecha.
 
-Decisiones de redacción (todas revisables por el abogado):
+Decisiones de redacción (todas revisables por quien adapte la plantilla):
 
 - **Partes**: «THE LESSOR / THE LESSEE»; «IL LOCATORE / IL CONDUTTORE». En italiano las partes no
   se interpolan: se escriben con su preposición articulada («al CONDUTTORE», «dello SPAZIO»).
@@ -176,9 +184,10 @@ Decisiones de redacción (todas revisables por el abogado):
 ## Lo que NO decide
 
 - La preferencia de idioma de la interfaz por usuario (otra tarea).
-- El correo de restablecer contraseña: necesita tocar una ruta de auth (aprobación aparte).
+- ~~El correo de restablecer contraseña: necesita tocar una ruta de auth (aprobación aparte).~~
+  Aprobado por el dueño y hecho el 2026-11-04 (`feat/idiomas-cierre`): ver la tabla de papeles.
 - Adaptar el contrato a la ley de otro país.
 
 ## Revisión independiente
 
-El supervisor dio ÁMBAR a la primera vuelta (`docs/Supervision/idioma-instancia.md`): B58 (e2e completas), B59 (`bootstrap-auth.mjs` queda como ruta de desarrollo solo-es, documentada) y B60 (`uso()` vuelve a `2,58p`) están atendidas en la segunda; D15 la resolvió el dueño (la constancia en el idioma de la instancia, «THE LESSOR» incluido). Sigue pendiente la revisión legal de las traducciones.
+El supervisor dio ÁMBAR a la primera vuelta (`docs/Supervision/idioma-instancia.md`): B58 (e2e completas), B59 (`bootstrap-auth.mjs` queda como ruta de desarrollo solo-es, documentada) y B60 (`uso()` vuelve a `2,58p`) están atendidas en la segunda; D15 la resolvió el dueño (la constancia en el idioma de la instancia, «THE LESSOR» incluido). ~~Sigue pendiente la revisión legal de las traducciones.~~ D13 contestada el 04/11: las traducciones son plantillas de ejemplo que cada owner adapta.

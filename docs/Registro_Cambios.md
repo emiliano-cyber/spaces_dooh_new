@@ -5,6 +5,23 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-04 · Idiomas: el correo de «olvidé mi contraseña», «provvigione» y los contratos de ejemplo (sin publicar)
+
+Tres cambios que el dueño autorizó el 04/11. En un servidor en español no cambia nada.
+
+- **El correo para restablecer la contraseña** llega en el idioma del servidor, como ya
+  pasaba con la invitación: en inglés o en italiano si el servidor se creó así. En español
+  sale exactamente igual que antes. Lo demás de «olvidé mi contraseña» no cambia: el enlace
+  vence igual, los límites de intentos son los mismos y la respuesta sigue sin decir si el
+  correo está registrado.
+- **En italiano, «comisión» se dice siempre «provvigione»**, como en el menú. Antes las
+  pantallas de Comisiones, Propuestas y Reportes decían «commissione».
+- **Los contratos en inglés e italiano son plantillas de ejemplo** que cada cliente irá
+  adaptando. Ya no hace falta esperar la revisión de un abogado para crear un servidor en
+  esos idiomas. El texto del contrato no cambió.
+
+---
+
 ## 2026-11-02 · Paquetes: los textos ya no dan por hecho que se cobra en pesos (sin publicar)
 
 Ahora que una instancia puede trabajar en dólares, cuatro textos de la pantalla

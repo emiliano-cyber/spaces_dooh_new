@@ -17,7 +17,7 @@ import { createHash } from 'node:crypto'
 
 vi.mock('server-only', () => ({}))
 
-const { htmlCorreoInvitacion, asuntoCorreoInvitacion } = await import('./email')
+const { htmlCorreoInvitacion, asuntoCorreoInvitacion, htmlCorreoReset, asuntoCorreoReset } = await import('./email')
 const { asuntoCorreoPropuesta, htmlCorreoPropuesta } = await import('./propuesta-correo')
 const { htmlRecordatorios, asuntoRecordatorios } = await import('./correo-recordatorios')
 const { recordatoriosDeContratos } = await import('@/lib/recordatorios-contratos')
@@ -55,6 +55,9 @@ const HASH_ES = {
   asunto: '5d6b7478f2928e0229b5cb4eaf5c313371f27666cb8ae3096a3daaa45e10a7fb',
   recordatorios: '031208fece4b8fcd2fab8e457ab8229d3cc13bb476958f86c74735cea884341b',
   asuntoRecordatorios: 'c6565c5b9ccab49de2b3cbdb780d05bd9ac77c82bffcf115b946fc61accd4878',
+  // Cierre de idiomas (04/11): medido sobre `cb116dde`, ANTES de que el correo
+  // de restablecer la contrasena aprendiera el idioma de la instancia.
+  reset: 'c4fc89ba71a8aaf114cefb478dd67b4639ab689928c565cfc0b1a0e45a0cf13a',
 }
 
 describe('en ESPANOL cada correo sale byte a byte como antes', () => {
@@ -66,6 +69,8 @@ describe('en ESPANOL cada correo sale byte a byte como antes', () => {
     expect(h(htmlRecordatorios(AVISOS, ORG, idioma))).toBe(HASH_ES.recordatorios)
     expect(h(asuntoRecordatorios(AVISOS, idioma))).toBe(HASH_ES.asuntoRecordatorios)
     expect(asuntoCorreoInvitacion(idioma)).toBe('Te dieron acceso a Space OS · elige tu contraseña')
+    expect(h(htmlCorreoReset('Ana <b>', 'https://x/b?t=1&u=2', idioma))).toBe(HASH_ES.reset)
+    expect(asuntoCorreoReset(idioma)).toBe('Restablece tu contraseña · Space OS')
   })
 })
 
@@ -79,6 +84,8 @@ describe.each(['en', 'it'] as const)('en %s no queda nada de la plantilla espano
   const salidas = () => ({
     invitacion: htmlCorreoInvitacion('Ana <b>', 'https://x/b?t=1&u=2', idioma),
     asuntoInvitacion: asuntoCorreoInvitacion(idioma),
+    reset: htmlCorreoReset('Ana <b>', 'https://x/b?t=1&u=2', idioma),
+    asuntoReset: asuntoCorreoReset(idioma),
     propuesta: htmlCorreoPropuesta(D, idioma),
     asunto: asuntoCorreoPropuesta(D, idioma),
     recordatorios: htmlRecordatorios(AVISOS, ORG, idioma),
@@ -108,12 +115,17 @@ describe.each(['en', 'it'] as const)('en %s no queda nada de la plantilla espano
     expect(s.propuesta).toContain('Hola\nqué tal'.replace('Hola', 'Hola')) // el mensaje del vendedor es DATO
     expect(s.recordatorios).toContain('Reforma &lt;222&gt;')
     expect(s.invitacion).not.toContain('<b>')
+    expect(s.reset).toContain('Ana &lt;b&gt;')
+    expect(s.reset).not.toContain('<b>')
+    expect(s.reset).not.toContain('t=1&u=2')
   })
 
   it('el texto sale de las claves del diccionario', () => {
     const s = salidas()
     expect(s.propuesta).toContain(traducir(idioma, 'propuestas.correo.boton'))
     expect(s.invitacion).toContain(traducir(idioma, 'cuenta.correo.invitacion.boton'))
+    expect(s.reset).toContain(traducir(idioma, 'cuenta.correo.reset.boton'))
+    expect(s.asuntoReset).toBe(traducir(idioma, 'cuenta.correo.reset.asunto'))
     expect(s.recordatorios).toContain(traducir(idioma, 'notificaciones.correo.contratos.titulo'))
   })
 })
@@ -123,6 +135,8 @@ describe('en ingles, el texto que se espera', () => {
     expect(asuntoCorreoPropuesta(D, 'en')).toBe('Commercial proposal: Campaña "Navidad" · Medios <SA>')
     expect(htmlCorreoPropuesta(D, 'en')).toContain('View the proposal')
     expect(asuntoCorreoInvitacion('en')).toBe('You’ve been given access to Space OS · choose your password')
+    expect(asuntoCorreoReset('en')).toBe('Reset your password · Space OS')
+    expect(htmlCorreoReset('Ana', 'https://x/b', 'en')).toContain('expires in 1 hour')
     expect(asuntoRecordatorios(AVISOS, 'en')).toBe('Contracts that need attention: 1 expired · 2 due soon · 1 not entered')
     // Los avisos, con la traduccion de las notificaciones (ola 6 del ingles).
     expect(htmlRecordatorios(AVISOS, ORG, 'en')).toContain('Contract expired: Reforma &lt;222&gt; · Don Pepe')
@@ -137,8 +151,11 @@ describe('en italiano, el texto que se espera', () => {
     expect(htmlCorreoPropuesta(D, 'it')).toContain('Vedi la proposta')
     expect(asuntoCorreoInvitacion('it')).toBe('Ti è stato dato accesso a Space OS · scegli la tua password')
     expect(asuntoRecordatorios(AVISOS, 'it')).toBe('Contratti che richiedono attenzione: 1 scaduto · 2 in scadenza · 1 da inserire')
-    for (const v of [htmlCorreoPropuesta(D, 'it'), htmlCorreoInvitacion('Ana', 'https://x/b', 'it'), htmlRecordatorios(AVISOS, ORG, 'it')]) {
-      for (const en of ['View the proposal', 'Choose my password', 'Contracts that need attention', 'If the button']) {
+    expect(asuntoCorreoReset('it')).toBe('Reimposta la tua password · Space OS')
+    expect(htmlCorreoReset('Ana', 'https://x/b', 'it')).toContain('scade tra 1 ora')
+    const reset = htmlCorreoReset('Ana', 'https://x/b', 'it')
+    for (const v of [htmlCorreoPropuesta(D, 'it'), htmlCorreoInvitacion('Ana', 'https://x/b', 'it'), htmlRecordatorios(AVISOS, ORG, 'it'), reset]) {
+      for (const en of ['View the proposal', 'Choose my password', 'Contracts that need attention', 'If the button', 'Reset your password', 'If you didn']) {
         expect(v).not.toContain(en)
       }
     }
@@ -162,6 +179,14 @@ describe('las claves espanolas son el mismo texto que la plantilla literal', () 
     }
     expect(es).toContain(traducir('es', 'cuenta.correo.invitacion.cuerpo', { nombre: 'Ana' }))
     expect(asuntoCorreoInvitacion()).toBe(traducir('es', 'cuenta.correo.invitacion.asunto'))
+  })
+  it('restablecer la contrasena', () => {
+    const es = plano(htmlCorreoReset('Ana', 'https://x/b'))
+    for (const k of ['cuenta.correo.reset.titulo', 'cuenta.correo.reset.boton', 'cuenta.correo.reset.pie'] as const) {
+      expect(es).toContain(traducir('es', k))
+    }
+    expect(es).toContain(traducir('es', 'cuenta.correo.reset.cuerpo', { nombre: 'Ana' }))
+    expect(asuntoCorreoReset()).toBe(traducir('es', 'cuenta.correo.reset.asunto'))
   })
   it('recordatorios', () => {
     const es = plano(htmlRecordatorios(AVISOS, { ...ORG, nombreOrg: 'Medios' }))

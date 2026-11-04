@@ -2206,17 +2206,19 @@ el idioma de los documentos de la instancia. Rama `feat/idioma-instancia`,
 - **El español, byte a byte:** el camino `es` de `generarContrato` no se tocó;
   `contrato-documento-idioma.test.ts` fija 14 hashes medidos sobre el código de
   antes (`6779321d`).
-- ⚠ **La traducción del contrato al inglés y al italiano necesita revisión de
-  un abogado** antes de usarse con un cliente: es el contrato de derecho
-  mexicano en otro idioma, no uno adaptado a otra ley.
+- **La traducción del contrato al inglés y al italiano es una PLANTILLA DE
+  EJEMPLO** (D13, contestada por el dueño el 04/11: «cada cliente los irá
+  armando según contrate la app»): el contrato de derecho mexicano en otro
+  idioma, no uno adaptado a otra ley. Ya no se espera revisión de abogado para
+  dar de alta en `en`/`it`.
 - **Segunda vuelta (03/11), decisión del dueño: «todo debe salir en el idioma
   que se configuró el programa».** También siguen la instancia la propuesta
   imprimible (`/propuesta/[id]`, el papel con su QR), la liga `/p/[id]` y el
   portal `/portal/[token]` (cada uno con un `layout.tsx` que re-provee el
   idioma), el comprobante de cobranza y los correos de propuesta, invitación y
   recordatorios de contratos. **Excepción:** el CSV del estado de cuenta sigue
-  la pantalla. **Pendiente:** el correo de restablecer contraseña (sale de una
-  ruta de auth que esta tarea no podía tocar).
+  la pantalla. El correo de restablecer contraseña, pendiente entonces por ser
+  ruta de auth, se hizo el 04/11 con aprobación del dueño (`feat/idiomas-cierre`).
 - **Mecanismo en el navegador:** `lib/i18n/idioma-documentos-cliente.tsx` — el
   layout raíz deja el idioma de la instancia en `ProveedorIdiomaDocumentos` y
   `EnIdiomaDeLosDocumentos` re-provee `ProveedorIdioma` para el papel. Sin
