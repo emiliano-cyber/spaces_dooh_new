@@ -2695,8 +2695,15 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
   > tecleado tecla a tecla, un punto a la inglesa se traga y «2.5» queda en 25 (**B77**). P-L2-1
   > sigue cerrada en lo que decía; la deuda nueva es B77–B82 y la decisión D18.
 
-- **B77 · 🔴 ABIERTA (2026-11-04) · CRÍTICA POR SEVERIDAD · En italiano, un punto tecleado tecla
-  a tecla desaparece y la cifra sale 10 o 100 veces mayor, sin aviso.** **Qué es:** «2.5» tecleado
+- ~~**B77 · En italiano, un punto tecleado tecla a tecla desaparece y la cifra sale 10 o 100
+  veces mayor, sin aviso.**~~ ✅ **CERRADA el 2026-11-04** (`468ee616` rojo a la vista, 4 rojas;
+  `0281f9a8` arreglo). En italiano, un PUNTO tecleado no se recoloca: se queda donde se tecleó y
+  `leerCifra` lo acepta («1.500») o lo rechaza con su motivo. **Medido tecla a tecla**
+  (`insertText`): «2.5», «12.9», «15000.50» → rechazados (crudo `NaN`, el texto como se tecleó);
+  «1.500,50» → 1500.5; «12,9» → 12.9; «1500,50» → «1.500,50» → 1500.5; cursor en medio: «.» tras
+  el 5 de «1.500» → «1.5.00» rechazado, «2» tras el 1 → 12.500. Alta de Comercial tecleada: «12.9»
+  y «2.5» ya no se mandan. Huella es/en `e5240e24…` intacta; dos mutantes de la guardia, muertos.
+  Lo que decía la advertencia: **Qué es:** «2.5» tecleado
   en italiano queda en **25**, «12.9» en **129** y «15000.50» en **1.500.050**; pegado, el mismo
   texto se rechaza con su motivo. **Evidencia:** `formatearMientrasEscribe` llamada tecla a tecla
   como la llama `CampoCifra` (`insertText`): pasos `["2","2","25"]`, crudo `"25"`; mecanismo en
@@ -2711,15 +2718,18 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
   del 14/10:** la fecha ya pasó; lo que importa es **antes de encender el italiano en cualquier
   servidor con clientes** — si se enciende así, un importe o un porcentaje puede guardarse 10 o 100
   veces mayor con la cifra a la vista pero sin un solo aviso.
-- **B78 · 🟡 ABIERTA (2026-11-04) · `feat/cifras-por-idioma` no fusiona limpia con
-  `integra/idiomas` de hoy.** **Evidencia:** `git merge-tree` contra `f92b9b26`: conflictos en
+- ~~**B78 · `feat/cifras-por-idioma` no fusiona limpia con `integra/idiomas` de hoy.**~~ ✅
+  **CERRADA el 2026-11-04** (`5c771163`): los cuatro conflictos a mano; el snapshot con las dos
+  cosas y sin `vitest -u` (contra la rama, solo «commissione» → «provvigione»); 8552 + 1 en verde. **Evidencia:** `git merge-tree` contra `f92b9b26`: conflictos en
   `italiano-l2.test.ts.snap`, `ABIERTOS.md`, `italiano-olas.md` y el diario del 04/11. El snapshot
   se resuelve con las dos cosas (la clave `propuestas.alta.error.calculadora` + las tres de
   «provvigione»); así el árbol fusionado da `tsc` limpio y 8527 + 1 unitarias. **Cómo se cierra:**
   resolverlo a mano, **nunca con `vitest -u`**, y volver a correr la suite. **Quién:** quien
   integre. **Si no:** no se puede fusionar; no es silencioso.
-- **B79 · 🟠 ABIERTA (2026-11-04) · Seis guardias nuevas de cifra ilegible sin prueba que las
-  defienda.** **Evidencia:** mutantes que las apagan **sobreviven** a la suite entera: editar sitio
+- ~~**B79 · Seis guardias nuevas de cifra ilegible sin prueba que las defienda.**~~ ✅
+  **CERRADA el 2026-11-04** (`03db5ea4`): las seis montadas en `cifras-formularios.test.ts` y
+  `pantallas-propuestas.test.ts` (la prima de un Roadblock, que la calculadora no rechaza). M8–M13,
+  contra la suite entera: los seis MUEREN. **Evidencia:** mutantes que las apagan **sobreviven** a la suite entera: editar sitio
   (`SiteFicha.tsx:1309`), asistente de contrato (`ContratoWizard.tsx:189`), captación
   (`Captacion.tsx:568`), negociación (`ComercialOpex.tsx:315`), clientes (`clientes/page.tsx:483`),
   calculadora de propuestas (`propuestas/page.tsx:1139`). Leídas a mano: las seis están bien hoy.
@@ -2727,12 +2737,15 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
   (editar sitio, negociación) o lo cambia por el valor por omisión (asistente). **Cómo se cierra:**
   añadirlas a `cifras-formularios.test.ts` con el mismo arnés. **Quién:** el ejecutor. **Si no:** una
   regresión futura en cualquiera de las seis pasa en verde.
-- **B80 · ⚪ ABIERTA (2026-11-04) · `crudoTecleado` es código muerto con prueba propia.**
+- ~~**B80 · `crudoTecleado` es código muerto con prueba propia.**~~ ✅ **CERRADA el 2026-11-04**
+  (`c5ffe82d`): borrado con su prueba.
   `lib/captura-cifra.ts:338`; solo la usa `EntradaCifra.test.ts`. `EntradaCifra` no la llama. Da una
   cobertura que no es la del camino real. **Cómo se cierra:** borrarla (y su prueba) o que
   `EntradaCifra` la use. Menor.
-- **B81 · 🟡 ABIERTA (2026-11-04) · La rama no tiene entrada en la bitácora y deja el recuento de
-  enlaces viejo.** `docs/Registro_Cambios.md` no está en el diff y el cambio se nota en italiano.
+- ~~**B81 · La rama no tiene entrada en la bitácora y deja el recuento de enlaces viejo.**~~ ✅
+  **CERRADA el 2026-11-04**: recuentos medidos tras fusionar y puestos en `CLAUDE.md`. La entrada en
+  `docs/Registro_Cambios.md` no se hace mientras el italiano esté apagado (indicación del
+  coordinador, anotada en el diario del 04/11). `docs/Registro_Cambios.md` no está en el diff y el cambio se nota en italiano.
   `node scripts/recuentos.mjs`: 1656 en `cb116dde`, **1659** en la rama; `CLAUDE.md:42` dice 1656.
   **Cómo se cierra:** entrada en lenguaje llano y medir de nuevo **tras fusionar**. **Quién:** quien
   integre. Documental.
