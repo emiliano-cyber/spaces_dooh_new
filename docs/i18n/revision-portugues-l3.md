@@ -2,7 +2,7 @@
 
 **Fecha:** 2026-11-05 · **Rama:** `feat/portugues-l3-inventario`, sobre
 `integra/portugues` (`72b33050`) · **Tablero:** `vault/03-Frontend/portugues-olas.md`
-(subsección «Lote L3») · **Encargo:** traductor del lote L3 del portugués (pt-BR);
+(subsección «Lote L3») · **Estado:** validación ÁMBAR (`docs/i18n/validacion-portugues-l3.md`) corregida (§11), pendiente de revalidar · **Encargo:** traductor del lote L3 del portugués (pt-BR);
 lo revisa un validador independiente. Equivalente del L3 italiano
 (`docs/i18n/revision-italiano-l3.md` y su validación), con sus lecciones aplicadas
 desde el principio: prueba estática del diccionario entero (H7), ninguna
@@ -60,7 +60,7 @@ está en §2 bis. Lo esencial:
 | montaje (de lona, de la orden de impresión) | **instalação** | en mídia OOH brasileña se *instala* la lona |
 | OT | **OS** (fem.: «Nova OS», «OS atrasada», «OS encerrada») | §2 bis |
 | cerrar una OT | **encerrar** | «fechar» queda para la ventana |
-| candado de facturación | **bloqueio de faturamento** («mantêm o faturamento bloqueado», «Bloqueio de faturamento ativado») | la lección H6 del italiano: no calcar «candado» |
+| candado de facturación | **bloqueio de faturamento** (cerrado: «mantêm o faturamento bloqueado»; **abierto**, al cerrar la OS: «Faturamento liberado») | la lección H6 del italiano: no calcar «candado». Validación H1: la versión anterior decía «Bloqueio de faturamento ativado» para el candado ABIERTO, lo contrario |
 | fecha compromiso | **prazo** | |
 | fotografía comprobatoria · evidencia · sello de ubicación | **foto de comprovação · comprovação · carimbo de localização** | §2 bis (*checking*) |
 | costo real · estimación · rentabilidad | **custo real · estimativa · rentabilidade** | |
@@ -249,3 +249,36 @@ papel de la instancia, P3) y del navegador del firmante («Mozilla/5.0», un dat
 4. **Licencias: «alvará municipal», «laudo estrutural»**: los nombres brasileños
    de esos papeles; la autoridad sigue siendo mexicana.
 5. **La intro de la constancia** (ver §3): la de este lote o la de P3.
+
+## 11 · Correcciones de la validación (ÁMBAR, 05/11)
+
+Expediente: `docs/i18n/validacion-portugues-l3.md` (`885815b0`). Pruebas primero,
+en rojo (7 de 145 en `portugues-l3.test.ts` + `pantallas-operaciones2.test.ts`),
+luego la corrección. Ninguna toca es/en/it.
+
+| # | Clave | Antes | Ahora | Prueba |
+|---|---|---|---|---|
+| H1 (ALTA) | `operaciones2.ficha.candado-encendido` | «Bloqueio de faturamento ativado» | **«Faturamento liberado»** (sale al cerrar la OS, tarjeta verde con `LockOpen`: «Billing lock open», «Fatturazione sbloccata») | estática (exige el texto, prohíbe «bloque/ativad» y fija que `kpi.frenan` y `banner.explica` —candado CERRADO— sigan diciendo «bloqueado») + la frase en el estado «escritorio cerrada con costo» |
+| H2 | `arrendadores.alta.fiscales-ayuda` | «É quem fatura o aluguel.» | «**É o nome que aparece na fatura do aluguel.** …» (neutra: vale para «a quien se le factura» y para quien la emite). El español no se toca; si está mal, lo decide el dueño | estática |
+| H3 | `arrendadores.pagos.vencidas.uno/.otros` | «{n} atrasada(s)» | «{n} parcela atrasada / parcelas atrasadas ({monto}) · » | estática |
+| H4 | `operaciones.disponibilidad.kpi.en-periodo`, `.kpi.no-llenas` | «em {periodo}» | «no período {periodo}», «não lotados no período {periodo}» | `periodo` entra en `NOMBRE_DE_FECHA` de la prueba del lote (con su caso en «y la comprobación MUERDE») |
+| H5 | `arrendadores.alta.domicilio-ph`, `.lista.domicilio-ph` | «código postal» | «CEP» | estática |
+| H6 | — | V4 y V7 sobrevivían | el sentido del candado (H1) y el orden de los días («S,T,Q,Q,S,S,D», de lunes a domingo como «L,M,M,J,V,S,D») fijados | estática |
+
+**Las demás claves del candado, revisadas:** `ot.kpi.frenan` y `ot.banner.explica`
+hablan del candado CERRADO por una OS atrasada («mantêm/mantém o faturamento
+bloqueado»): correctas. Las `ficha.candado.*` son el candado de la CONTRASEÑA
+(reidentificarse), no el de facturación. No hay otra.
+
+**Duda 5 (intro de la constancia):** resuelta: `papeles-portugues.ts` en
+`integra/portugues` ya tiene el mismo texto (validación, §3.5).
+
+**Mutantes nuevos (5/5 mueren):** M13 = V4 al revés (vuelve «bloqueio ativado»),
+M14 = V7 (días desde el domingo), M15 «em {periodo}», M16 «É quem fatura»,
+M17 «1 atrasada». Total del lote: 17/17.
+
+**Medido:** typecheck limpio; `npx vitest run --testTimeout=60000`: **420
+archivos, 9018 en verde + 1 omitida, 0 rojas**; `DICCIONARIOS.es/.en/.it` +
+`traducirError` es/en/it: `cmp` idénticos a `72b33050`; volcado
+`I18N_VOLCAR_TODO` de toda la suite: 0 HTML distintos frente a la base, ninguno
+desaparecido, `_italiano.txt` ordenado idéntico.

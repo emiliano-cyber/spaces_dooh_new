@@ -88,7 +88,7 @@ toca **solo sus archivos** de `textos/` (y el L5, además, la base de
 | Lote | Rama | Estado | Cobertura de sus filas |
 |---|---|---|---|
 | **L5** | `feat/portugues-l5-armazon` | **Validación ÁMBAR, corregida; pendiente de revalidar** (05/11) | **1346/1346, 0 pendientes** (base 119 · compartidos 113 · shell 59 · cuenta 125 · admin 542 · notificaciones 47 · servidor 32 · errores 205 + 30 + 12 + 62) |
-| **L3** | `feat/portugues-l3-inventario` | **Hecho, sin validar** (05/11) | **1186/1186, 0 pendientes** (inventario 360 · arrendadores 444 · operaciones 177 · operaciones2 205) |
+| **L3** | `feat/portugues-l3-inventario` | **Validación ÁMBAR, corregida; pendiente de revalidar** (05/11) | **1186/1186, 0 pendientes** (inventario 360 · arrendadores 444 · operaciones 177 · operaciones2 205) |
 
 ### Lote L5 · Armazón, cuenta, administración, compartidos y servidor
 
@@ -128,7 +128,9 @@ pendiente de revalidar** (revisión §11). Revisión clave por clave en
 ### Lote L3 · Inventario, arrendadores y operaciones
 
 Rama `feat/portugues-l3-inventario` (sale de `integra/portugues`, `72b33050`).
-**Hecho, sin validar** (05/11). Revisión clave por clave en
+**Validación ÁMBAR (`docs/i18n/validacion-portugues-l3.md`), corregida el 05/11,
+pendiente de revalidar** (revisión §11: H1 el candado ABIERTO al cerrar la OS es
+«Faturamento liberado», no «bloqueio ativado»; H2–H6). Revisión clave por clave en
 `docs/i18n/revision-portugues-l3.md`.
 
 - **1186 claves**: `operaciones` 177, `operaciones2` 205, `inventario` 360 y
@@ -161,7 +163,7 @@ Rama `feat/portugues-l3-inventario` (sale de `integra/portugues`, `72b33050`).
   | etiqueta del almacén · baja | **plaqueta / número de patrimônio · baixado** | |
   | montaje | **instalação** | |
   | cerrar una OS | **encerrar** | «fechar» es la ventana |
-  | candado de facturación | **bloqueio de faturamento** («mantêm o faturamento bloqueado») | H6 del italiano: no calcar «candado» |
+  | candado de facturación | **bloqueio de faturamento** (cerrado: «mantêm o faturamento bloqueado»; abierto al cerrar la OS: «Faturamento liberado») | H6 del italiano: no calcar «candado»; validación H1 |
   | sello de ubicación · fotografía comprobatoria | **carimbo de localização · foto de comprovação** | |
   | creativo | **criativo** (masc.) | |
   | arrendataria (nuestra) | **locatária** (en la constancia, **O LOCATÁRIO**, como P3) | |
