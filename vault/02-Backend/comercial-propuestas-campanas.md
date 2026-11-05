@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-29
+actualizado: 2026-11-05
 tags: [backend, comercial, propuestas, campanas, amarillo, precio, extension, contrato]
 archivos:
   - apps/web/lib/server/propuestas-repo.ts
@@ -46,6 +46,7 @@ archivos:
   - apps/web/lib/server/paquetes-repo.ts
   - db/migrations/20261029_propuestas_condiciones_vigencia_vendedor.sql
   - apps/web/lib/propuesta-vigencia.ts
+  - apps/web/lib/server/propuestas-envio.ts
   - apps/web/components/demo/propuestas/BloqueCondicionesVigencia.tsx
   - apps/web/app/(app)/p/[id]/page.tsx
   - apps/web/app/(app)/propuesta/[id]/page.tsx
@@ -704,17 +705,29 @@ Decisiones del dueño del 29/10. Migración
 `20261029_propuestas_condiciones_vigencia_vendedor.sql`.
 
 - **Vigencia.** `propuestas.vigente_hasta` la pone `cambiarEstatusPropuesta`
-  al pasar a **ENVIADA**: `current_date + config_negocio.vigencia_propuesta_dias`
+  al pasar a **ENVIADA**: el día del negocio + `config_negocio.vigencia_propuesta_dias`
   (30 por omisión, 1–365, en Administración → «Propuestas: vigencia y
   condiciones»). Una fecha vigente se respeta; **reenviar una vencida la
   renueva**. Se edita por dentro con `PATCH /api/propuestas/[id]`
   `{ vigenteHasta }` (fecha validada; no sube versión).
-- **Vencida, la liga no acepta.** `aceptarPropuestaPublica` lo decide en la
-  base (`vigente_hasta < current_date`), después del idempotente (una ya
+- **Vencida, la liga no acepta.** `aceptarPropuestaPublica` lo decide en el
+  servidor (`vigente_hasta < $2::date` con `hoyDeVigencia()`), después del idempotente (una ya
   aceptada sigue diciendo que se aceptó) → `PropuestaVencidaError`, 409. **El
   último día todavía vale.** `null` = sin vigencia: todo lo enviado antes del
   29/10 se sigue aceptando como siempre. La liga y la ficha lo avisan con
   `lib/propuesta-vigencia.ts`, la misma regla.
+- **Qué es «hoy» (05/11): el día de la ZONA DEL NEGOCIO**, la `TZ` del
+  proceso (`app.env`, `America/Mexico_City`), con `hoyDeVigencia()`
+  (`lib/propuesta-vigencia.ts`). Es la única fuente: la ficha, la liga, aceptar,
+  el correo de «Enviar» y la vigencia al enviar la usan, y la base la recibe como
+  parámetro — **ninguna consulta de vigencia usa `current_date`**. Antes había
+  dos relojes: la base de g500 va en `Etc/UTC`, y desde las 18:00 de México una
+  propuesta «válida hasta hoy» salía vigente en la liga y aceptarla daba 409
+  «venció»; la enviada a las 19:00 se guardaba con un día más del que decía su
+  correo. Lo fijan `lib/server/propuesta-vigencia-hora.test.ts` (base simulada
+  en UTC, reloj a las 19:00 de México, y una guardia contra `current_date` en
+  `propuestas-repo.ts` y `propuestas-envio.ts`) y la e2e, que ya no depende de
+  la hora.
 - **Condiciones.** `config_negocio.condiciones_propuesta` es una PLANTILLA que
   `crearPropuesta` **copia** a `propuestas.condiciones`: cambiarla no toca las ya
   creadas. Se editan por propuesta en la ficha («Condiciones y vigencia») y

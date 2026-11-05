@@ -2277,6 +2277,13 @@ textos que antes salían en inglés o no existían. Rama `feat/verificacion-ajus
   (`components/demo/ui/cerrar-accesible.test.ts`) que recorre `components/` y
   `app/` buscando `<button>`, `<Button>` o `<Dialog.Close>` cuyo único hijo sea
   un icono sin `aria-label`, `aria-labelledby` ni `title`.
+- **Medido** (volcado `I18N_VOLCAR_TODO` de toda la suite contra `a91580bb`,
+  `diff -rq`): cambian 30 estados, todos de `pantallas-admin.test.ts` (5 en
+  español, 20 en inglés, 5 en italiano), y solo por el `aria-label`/`title` de
+  las X de IVA y plazos. MapLibre, sonner y el `Modal`/`Sheet` reales no salen
+  en el volcado (los pinta el navegador, o las pruebas los simulan): los fijan
+  `librerias.test.ts` y `cerrar-accesible.test.ts`. `DICCIONARIOS`: 24 claves
+  nuevas por idioma, 0 valores cambiados.
 
 ## Enlaces
 

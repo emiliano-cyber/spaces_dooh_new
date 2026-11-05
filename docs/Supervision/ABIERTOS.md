@@ -2792,6 +2792,21 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
   **Cómo se cierra:** dejar de quitarlos cuando ninguna instancia corra una versión anterior a la
   que entiende `en`/`it` (la prueba «notas_disponibles» de `lib/novedades-idiomas.test.ts` se
   invierte entonces). **Quién:** quien publique, tras comprobar la versión de la flota. Menor.
+- ~~**B84 · `propuesta-vigencia.e2e` («la liga dice «vencida»…») cae en rojo entre las 18:00 y las
+  24:00 de México.**~~ ✅ **CERRADA el 2026-11-05 en `feat/verificacion-ajustes`. Era un defecto de
+  PRODUCCIÓN, no del arnés.** En g500 la base va en `Etc/UTC` y la aplicación con
+  `TZ=America/Mexico_City`: la ficha y la liga decían «vencida» con el día local de la aplicación,
+  y aceptar, el correo de «Enviar» y la vigencia al enviar usaban el `current_date` de la base.
+  Desde las 18:00 de México, una propuesta «válida hasta hoy» salía vigente en la liga con su botón
+  y aceptarla daba 409 «venció»; y la enviada a esa hora se guardaba con un día más del que decía
+  su correo. **Regla única:** el día de la vigencia es el de la zona del negocio (`hoyDeVigencia()`,
+  `lib/propuesta-vigencia.ts`), y la base lo recibe como parámetro (`propuestas-repo.ts`,
+  `propuestas-envio.ts`, sin un solo `current_date`). Prueba unitaria con la base simulada en UTC y
+  el reloj a las 19:00 de México (`lib/server/propuesta-vigencia-hora.test.ts`, 4/6 en rojo antes,
+  5/5 mutantes); la e2e pasa a usar el día del negocio en vez de `current_date`. Detalle en
+  [[comercial-propuestas-campanas]]. **Queda:** otras 30 consultas de `lib/server` usan
+  `current_date`/`now()` de la base para otras fechas (campañas, cobranza, OT…); no se revisaron
+  aquí. Pendiente de su validador.
 
 - **B57 · 🟠 ABIERTA (2026-10-29) · Un usuario que ya usó el sistema NO se puede
   borrar: la bitácora lo impide.** Encontrada escribiendo la prueba de P19.

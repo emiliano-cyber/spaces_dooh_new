@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { recrearEsquema, cerrarPool, poolTest } from './db-e2e'
 import { sembrarTenant, asegurarPermisos, PASSWORD_DEMO, enDias } from './semillas-e2e'
 import { arrancarServidor, pararServidor, Cliente } from './servidor-e2e'
+import { hoyDeVigencia, vigenciaDesde } from '@/lib/propuesta-vigencia'
 
 // ============================================================================
 //  PROP-COMPLETA · VIGENCIA Y CONDICIONES de la propuesta, contra Postgres y por
@@ -13,6 +14,13 @@ import { arrancarServidor, pararServidor, Cliente } from './servidor-e2e'
 //   · Las condiciones se COPIAN de la plantilla al crear: cambiar la plantilla
 //     después no toca las ya creadas.
 //   · R2: la plantilla y los días de una organización no se cuelan en otra.
+//
+//  05/11 · «hoy» es el día del NEGOCIO (`hoyDeVigencia()`, la `TZ` del proceso;
+//  el Next de pruebas la hereda de este), NO el `current_date` de la base, que
+//  aquí va en UTC (`db-e2e.ts`) igual que en g500. Antes estas pruebas usaban
+//  `current_date` y la «vencida» caía en rojo entre las 18:00 y las 24:00 de
+//  México: el arnés estaba enseñando el defecto de producción que arregló esa
+//  tarea (`lib/server/propuesta-vigencia-hora.test.ts`).
 // ============================================================================
 
 let alfa: Awaited<ReturnType<typeof sembrarTenant>>
@@ -50,11 +58,16 @@ async function fila(id: string) {
   return (
     await poolTest().query(
       `select to_char(vigente_hasta, 'YYYY-MM-DD') as vigente_hasta,
-              (vigente_hasta - current_date) as dias, condiciones, estatus
+              (vigente_hasta - $2::date) as dias, condiciones, estatus
          from propuestas where id = $1`,
-      [id],
+      [id, hoyDeVigencia()],
     )
   ).rows[0]
+}
+
+/** La vigencia a `dias` del día del negocio (negativo: en el pasado). */
+async function ponerVigencia(id: string, dias: number) {
+  await poolTest().query(`update propuestas set vigente_hasta = $2::date where id = $1`, [id, vigenciaDesde(hoyDeVigencia(), dias)])
 }
 
 describe('la vigencia se pone al ENVIAR, con los días de la organización', () => {
@@ -91,8 +104,8 @@ describe('vencida, la liga pública NO deja aceptar', () => {
   it('la liga dice «vencida» y aceptar da 409 sin tocar la propuesta', async () => {
     const p = await crear(ca, alfa.sitioId)
     await ca.pedir(`/api/propuestas/${p.id}/`, { metodo: 'PATCH', cuerpo: { estatus: 'ENVIADA' } })
-    // Ayer: la decide la BASE (`vigente_hasta < current_date`).
-    await poolTest().query(`update propuestas set vigente_hasta = current_date - 1 where id = $1`, [p.id])
+    // Ayer, en el día del negocio: lo decide el servidor con `hoyDeVigencia()`.
+    await ponerVigencia(p.id, -1)
 
     const leida = await anonimo().pedir(`/api/propuestas/publica/${p.tokenPublico}/`)
     expect(leida.status).toBe(200)
@@ -107,7 +120,7 @@ describe('vencida, la liga pública NO deja aceptar', () => {
   it('el ÚLTIMO día todavía vale: con vigencia de hoy se acepta', async () => {
     const p = await crear(ca, alfa.sitioId)
     await ca.pedir(`/api/propuestas/${p.id}/`, { metodo: 'PATCH', cuerpo: { estatus: 'ENVIADA' } })
-    await poolTest().query(`update propuestas set vigente_hasta = current_date where id = $1`, [p.id])
+    await ponerVigencia(p.id, 0)
     const acep = await anonimo().pedir(`/api/propuestas/publica/${p.tokenPublico}/`, { cuerpo: { nombre: 'Cliente' } })
     expect(acep.status, JSON.stringify(acep.datos)).toBe(200)
     expect((await fila(p.id)).estatus).toBe('APROBADA')
@@ -116,7 +129,7 @@ describe('vencida, la liga pública NO deja aceptar', () => {
   it('poner otra fecha por dentro la reabre; reenviarla vencida también', async () => {
     const p = await crear(ca, alfa.sitioId)
     await ca.pedir(`/api/propuestas/${p.id}/`, { metodo: 'PATCH', cuerpo: { estatus: 'ENVIADA' } })
-    await poolTest().query(`update propuestas set vigente_hasta = current_date - 3 where id = $1`, [p.id])
+    await ponerVigencia(p.id, -3)
 
     const nueva = enDias(7)
     const r = await ca.pedir(`/api/propuestas/${p.id}/`, { metodo: 'PATCH', cuerpo: { vigenteHasta: nueva } })
@@ -124,7 +137,7 @@ describe('vencida, la liga pública NO deja aceptar', () => {
     expect(r.datos.vencida).toBe(false)
     expect((await fila(p.id)).vigente_hasta).toBe(nueva)
 
-    await poolTest().query(`update propuestas set vigente_hasta = current_date - 3 where id = $1`, [p.id])
+    await ponerVigencia(p.id, -3)
     await ca.pedir(`/api/propuestas/${p.id}/`, { metodo: 'PATCH', cuerpo: { estatus: 'ENVIADA' } })
     expect(Number((await fila(p.id)).dias)).toBeGreaterThan(0)
   })

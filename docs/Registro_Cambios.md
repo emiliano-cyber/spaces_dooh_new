@@ -5,9 +5,9 @@ La entrada más reciente va arriba.
 
 ---
 
-## 2026-11-05 · Mapas, avisos y botones de cerrar en el idioma de cada persona (sin publicar)
+## 2026-11-05 · Mapas, avisos y botones de cerrar en el idioma de cada persona, y la vigencia de las propuestas sin depender de la hora (sin publicar)
 
-Cambios que el dueño autorizó el 05/11. Se notan sobre todo con un lector de pantalla o al
+Cambios que el dueño autorizó el 05/11. Los tres primeros se notan sobre todo con un lector de pantalla o al
 dejar el ratón encima de un botón.
 
 - **Los botones de los mapas** (acercar, alejar, buscar mi ubicación, créditos del mapa) y
@@ -22,6 +22,11 @@ dejar el ratón encima de un botón.
   pantalla decía solo «botón». Ahora dice «Cerrar» («Close», «Chiudi»), y al dejar el ratón
   encima aparece el mismo texto. Igual con las X para quitar una tasa de IVA o un plazo de
   cobranza en Administración («Quitar IVA 16%», «Quitar plazo 30 días»).
+- **La vigencia de las propuestas ya no depende de la hora.** Entre las 6 de la tarde y la
+  medianoche, una propuesta válida «hasta hoy» enseñaba al cliente el botón de aceptar y, al
+  pulsarlo, le decía que ya había vencido. Y una propuesta enviada a esas horas quedaba con un
+  día más de vigencia que el que decía su correo. Ahora todo cuenta con el mismo día, el de la
+  zona horaria de la empresa: el último día de vigencia vale completo, hasta la medianoche.
 
 ---
 

@@ -33,8 +33,26 @@ export function fechaDia(v: unknown): string | null {
   return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null
 }
 
+/**
+ * EL DÍA DE LA VIGENCIA: el de la zona del NEGOCIO, que es la `TZ` del proceso
+ * (`app.env`: `TZ=America/Mexico_City`, «la del owner, no la del servidor»).
+ *
+ * Es la ÚNICA fuente de «hoy» para la vigencia de una propuesta, y la base lo
+ * recibe como PARÁMETRO (`vigente_hasta < $n::date`), nunca con su
+ * `current_date`. Hasta el 05/11 convivían dos relojes: la ficha y la liga
+ * usaban éste, y aceptar, el correo de «Enviar» y la vigencia al enviar usaban
+ * el de la base. En g500 la base va en `Etc/UTC`, así que desde las 18:00 de
+ * México una propuesta «válida hasta hoy» salía vigente en la liga, con su
+ * botón, y aceptarla daba 409 «venció»; y la enviada a las 19:00 se guardaba
+ * con un día más del que decía su correo
+ * (`lib/server/propuesta-vigencia-hora.test.ts`).
+ */
+export function hoyDeVigencia(ahora: Date = new Date()): string {
+  return fechaLocalISO(ahora)
+}
+
 /** ¿Ya venció? `null` (sin vigencia, lo de antes del 29/10) nunca vence. */
-export function propuestaVencida(vigenteHasta: string | null, hoy: string = fechaLocalISO()): boolean {
+export function propuestaVencida(vigenteHasta: string | null, hoy: string = hoyDeVigencia()): boolean {
   if (!vigenteHasta) return false
   return vigenteHasta < hoy
 }
