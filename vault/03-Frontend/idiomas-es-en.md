@@ -1,11 +1,12 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-11-04
+actualizado: 2026-11-05
 tags: [frontend, i18n, idiomas, ingles, dinero]
 archivos:
   - apps/web/components/demo/shell/salir.ts
   - apps/web/lib/i18n/idiomas.ts
+  - apps/web/lib/i18n/cobertura-portugues.ts
   - apps/web/lib/i18n/formato-idioma.ts
   - apps/web/lib/i18n/diccionario.ts
   - apps/web/lib/i18n/dinero.ts
@@ -109,6 +110,22 @@ archivos:
 > - `DICCIONARIOS.it` es el inglés con el italiano encima: lo que falta cae al
 >   **inglés**. Español e inglés quedaron idénticos byte a byte (medido sobre
 >   todo el HTML de las pruebas: `docs/i18n/revision-italiano-base.md` §4).
+
+> [!note] 2026-11-05 · Hay un CUARTO idioma: el portugués (Brasil), también apagado
+> Ola 0 del portugués ([[portugues-olas]]), rama `feat/portugues-base`.
+>
+> - `IDIOMAS = ['es','en','it','pt']`; su interruptor es `IDIOMA_PORTUGUES=1`
+>   (`portuguesActivo()`), propio. `pt-BR`, `pt-PT` y `pt` se leen como `pt`.
+> - `FORMATO_IDIOMA.pt`: locale `pt-BR`, «MX$ 1.160,00» (decisión del dueño),
+>   «1 de dez. de 2026» y «55,0%» (propuesta). Las cifras se **teclean** a la
+>   mexicana hasta que el dueño decida (P2 del tablero).
+> - **Lo que falta cae al ESPAÑOL**, no al inglés: `DICCIONARIOS.pt =
+>   conCaidaAlEspanol(ES, PT)`, y `traducirError(m, 'pt')` devuelve el mensaje
+>   español entero si falta una pieza portuguesa.
+> - **La base todavía no acepta `pt`** (CHECK es/en/it de
+>   `usuarios.idioma_preferido` y `tenants.idioma_documentos`): «Mi cuenta» no
+>   lo ofrece ni lo guarda (`idiomasDeCuenta()`), el alta lo rechaza, y el tipo
+>   de un papel es `IdiomaEnLaBase`. Abrirlo es una tarea ROJA aparte.
 
 > [!important] 2026-11-03 · el idioma de la interfaz, también POR PERSONA (IDIOMA-USUARIO)
 > Decisión del dueño: *«el idioma de papeles y contratos es fijo al crearse la
@@ -2239,6 +2256,7 @@ el idioma de los documentos de la instancia. Rama `feat/idioma-instancia`,
 
 - [[ingles-olas]] — el tablero de la traducción: qué lote, en qué rama, qué validador y qué falta
 - [[italiano-olas]] — el tercer idioma (2026-11-03): `IDIOMA_ITALIANO`, la tabla de formatos por idioma (`formato-idioma.ts`), la caída al inglés y los lotes
+- [[portugues-olas]] — el cuarto idioma, pt-BR (2026-11-05): `IDIOMA_PORTUGUES`, la caída al ESPAÑOL, lo que la base aún no acepta y los lotes
 - [[acceso-y-sesion-ui]] — la pantalla de entrar, que es la traducida
 - [[shell-y-navegacion]] — el menú lateral
 - [[convenciones]] — el español como idioma del código
