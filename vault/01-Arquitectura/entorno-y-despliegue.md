@@ -197,10 +197,14 @@ archivos:
 >   migraciones), tras poner `modo = automatica`.
 > - **`DEMO_URL = https://demo.space-os.io/spaces-dooh`** (con *basePath*;
 >   `promover.yml:250-261`) y el secreto `FLOTA_TOKEN` de GitHub al de la DEMO nueva.
-> - **Riesgos aceptados** (recuadro al principio de la guía): datos reales de un
->   cliente en una dirección pública, cuentas de g500 vivas con sus contraseñas
->   (paso opcional para desactivarlas), ligas públicas de g500 que también
->   funcionan en `demo.`, y la copia deja de ser fiel en cuanto diverjan.
+> - **Riesgos aceptados** (recuadro al principio de la guía, nueve): datos reales
+>   de un cliente en una dirección pública; cuentas de g500 activas con sus
+>   contraseñas (Q2); ligas públicas de g500 que también funcionan en `demo.`; la
+>   copia deja de ser fiel en cuanto diverjan; `/root/g500-mudanza/` con la base y
+>   los secretos de g500 en claro, sin tocar (Q1); y **el almacén de medios real
+>   de g500 compartido con la DEMO** (Q3). En v0.12.6 nada borra en ese almacén
+>   (`storage.ts:2` solo importa `Put`/`Get`); cerrar una OT con foto en la DEMO
+>   **sube** un archivo al de g500 (`ot-repo.ts:309-311`).
 > - Hasta retirar la DEMO del PADRE habrá **dos DEMO** y cada release se instala
 >   en las dos.
 

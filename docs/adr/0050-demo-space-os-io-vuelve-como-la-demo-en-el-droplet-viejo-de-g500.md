@@ -2,9 +2,9 @@
 
 - **Fecha:** 2026-11-05
 - **Estado:** Aceptada
-- **Decide:** Emiliano (dueño), 2026-11-05, en dos tiempos: la máquina y el nombre
-  por la mañana; **los datos, por la tarde** (contestando las preguntas P1–P10 de
-  la guía 31)
+- **Decide:** Emiliano (dueño), 2026-11-05, en tres tiempos: la máquina y el
+  nombre por la mañana; **los datos**, por la tarde (P1–P10 de la guía 31); y
+  **el material de la mudanza, las cuentas y el almacén de medios** (Q1–Q4)
 - **Sustituye a:** [ADR 0024](0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md)
 - **Relacionadas:** [ADR 0015](0015-demo-dentro-del-padre.md) ·
   [ADR 0017](0017-todo-se-concentra-en-el-padre.md) ·
@@ -66,8 +66,11 @@ Desde entonces:
    prefijo `g500/` (el respaldo pasa a `demo/`), la clave real de DOOHmain, Google,
    Resend, Maps, las claves de los roles de Postgres (se rotan), el certificado de
    `g500.space-os.io`, el cron apartado en la mudanza y el material de
-   `/root/g500-mudanza/`. La guía 31 lo comprueba con `grep` de los valores sin
-   imprimirlos.
+   La guía 31 lo comprueba con `grep` de los valores sin imprimirlos.
+   **Excepciones decididas (Q1, Q3):** `/root/g500-mudanza/` (base en claro y
+   `config.tgz` con todos los secretos de g500) **se deja como está**, y la DEMO
+   **usa el almacén de medios real de g500** (sus `DO_SPACES_*`, copiadas al
+   `app.env` nuevo).
 4. **La instancia pasa de `g500` a `demo` sobre la misma base**: `instancia.env` y
    `app.env` nuevos (escritos con las mismas funciones que el alta,
    `infra/scripts/entorno-instancia.sh`), `CANAL=beta`, nginx de
@@ -76,13 +79,18 @@ Desde entonces:
    vigente, con respaldo previo.
 5. **Space Eyes no se sirve en la DEMO**: sus contenedores quedan **parados y sin
    borrar**, con su configuración apartada, como copia.
-6. **Sin DOOHmain** (`DOOHMAIN_PUBLISH_ENABLED=0` y sin clave), **sin correo**
+6. **Las cuentas de g500 siguen activas** en la DEMO (Q2); solo se recomienda
+   cerrar las sesiones abiertas y los enlaces pendientes de restablecer
+   contraseña. No hay usuario de demostración aparte.
+7. **Los respaldos de la DEMO van con una llave de Spaces NUEVA** (Q4), al
+   prefijo `demo/`.
+8. **Sin DOOHmain** (`DOOHMAIN_PUBLISH_ENABLED=0` y sin clave), **sin correo**
    (sin Resend), **sin Google**: la DEMO no publica en pantallas reales ni escribe
    a los clientes de g500. Español y MXN (los de g500).
-7. **`DEMO_URL` pasa a `https://demo.space-os.io/spaces-dooh`** y el secreto
+9. **`DEMO_URL` pasa a `https://demo.space-os.io/spaces-dooh`** y el secreto
    `FLOTA_TOKEN` de GitHub al de la DEMO nueva, cuando esta corra la versión que
    se vaya a promover. La v0.12.6 se promueve el 05/11 aún con la del PADRE.
-8. **`prueba.space-os.io` y `space-os-demo` del PADRE se mantienen hasta la
+10. **`prueba.space-os.io` y `space-os-demo` del PADRE se mantienen hasta la
    primera promoción validada contra la nueva**, y luego se apagan (reversible,
    guía 31 §8).
 
@@ -142,9 +150,21 @@ Mismo resultado con otra factura, y sin conservar la copia. Descartada.
   `solo_google` no puede entrar porque la DEMO no tiene Google.
 - **Las ligas públicas que g500 ya mandó** (`/p/<token>`, portal) **funcionan
   también en `demo.space-os.io`**: el token vive en la base, no en el dominio.
-- **La llave de Spaces de la DEMO alcanza el bucket entero**, también el prefijo
-  `g500/`: Spaces limita por bucket, no por prefijo (`instancia.env.example`,
+- **La llave de respaldos de la DEMO (nueva) alcanza el bucket entero**, también el
+  prefijo `g500/`: Spaces limita por bucket, no por prefijo (`instancia.env.example`,
   bloque de respaldos). El prefijo `demo/` separa por convención, no por permiso.
+- **La base y los secretos de g500 en claro siguen en el disco de la DEMO**
+  (`/root/g500-mudanza/`, Q1): quien llegue a root en la DEMO tiene la identidad
+  completa de g500 (`FLOTA_TOKEN`, Spaces, DOOHmain, Google, Resend), aunque la
+  DEMO ya no la use.
+- **La DEMO comparte el almacén de medios real de g500** (Q3) y **cada `beta` se
+  instala sola** sobre ella. En v0.12.6 el código **no borra ningún archivo**
+  (`apps/web/lib/server/storage.ts:2` solo importa `PutObjectCommand` y
+  `GetObjectCommand`; es el único cliente del almacén) y **escribe** solo al
+  cerrar una OT con foto (`apps/web/lib/server/ot-repo.ts:309-311`,
+  `evidencias/<id OT>/<ms>.jpg`, sin pisar nada). Una versión futura que añada un
+  borrado lo ejecutaría desde la DEMO contra los archivos reales de g500: toda
+  versión que toque `storage.ts` se mira con esto delante.
 - **La IP `142.93.113.106` fue de g500**: cualquier lista de IP permitidas que la
   conserve (Google, DOOHmain) se revisa en la guía 31 §2.1.
 - **Ningún secreto de g500 queda en uso**: claves de Postgres rotadas, tokens

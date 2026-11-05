@@ -1,7 +1,7 @@
 # Convertir el droplet viejo de g500 en la DEMO de `https://demo.space-os.io`, con una copia de sus datos
 
 > Preparada el 2026-11-05 y **rehecha el mismo día** con las respuestas del dueño
-> a las preguntas P1–P10 de la primera versión
+> a las preguntas P1–P10 de la primera versión y a Q1–Q4 de la segunda
 > ([ADR 0050](../adr/0050-demo-space-os-io-vuelve-como-la-demo-en-el-droplet-viejo-de-g500.md),
 > que sustituye al 0024). **La corre una persona**: Claude no entra a servidores
 > (ni `ssh`, ni `scp`, ni `psql` remoto, ni `doctl`, ni `gh`). Cada bloque dice
@@ -51,9 +51,41 @@
 > 5. **En cuanto g500 y la DEMO diverjan, la DEMO deja de ser copia fiel**: lo que
 >    g500 capture desde el 04/11 no llega, y lo que se toque en la DEMO no vuelve.
 >    Es una copia **al 04/11**, no un espejo ni un respaldo de la base.
-> 6. **La llave de Spaces de la DEMO alcanza el bucket entero**, prefijo `g500/`
->    incluido: Spaces limita por bucket, no por prefijo. El prefijo `demo/` separa
->    por convención.
+> 6. **La llave de Spaces de los RESPALDOS de la DEMO (nueva, Q4) alcanza el
+>    bucket entero**, prefijo `g500/` incluido: Spaces limita por bucket, no por
+>    prefijo. El prefijo `demo/` separa por convención.
+> 7. **La base y la configuración de g500 EN CLARO siguen en el droplet de la
+>    DEMO** (Q1): `/root/g500-mudanza/` se deja como está —`spaces.dump` (la base
+>    entera del 04/11), `config.tgz` (todos los secretos de g500: `FLOTA_TOKEN`,
+>    Spaces, DOOHmain, Google, Resend, claves de Postgres), `roles.sql` y el
+>    volcado de MySQL de Space Eyes—. Quien llegue a root en la DEMO tiene la
+>    identidad completa de g500, aunque la DEMO ya no la use.
+> 8. **Las cuentas de g500 NO se desactivan** (Q2): sus personas pueden entrar a
+>    la DEMO con su contraseña de siempre y con su rol, y no hay usuario de
+>    demostración aparte.
+> 9. **La DEMO usa el ALMACÉN DE MEDIOS REAL de g500** (Q3: se le dan sus
+>    `DO_SPACES_*`). Con esa llave la DEMO —y **cada `beta`** que se instale en
+>    ella— puede **leer, escribir y borrar** en el bucket de evidencias de g500.
+>    **Lo que hace el código de hoy (v0.12.6)**, medido:
+>    - **No borra ningún archivo**: `apps/web/lib/server/storage.ts:2` solo importa
+>      `PutObjectCommand` y `GetObjectCommand`, y es el **único** sitio del código
+>      que habla con el almacén. Ninguna acción de la DEMO (borrar una evidencia,
+>      un creativo, una OT o una campaña) borra hoy un archivo de g500. Tampoco hay
+>      un `delete` de `evidencias_ot` en el código.
+>    - **Sí escribe** en ese bucket: al **cerrar una OT con foto**
+>      (`apps/web/lib/server/ot-repo.ts:309-311`) sube
+>      `evidencias/<id de la OT>/<milisegundos>.jpg`. Si la OT es una de g500
+>      copiada, el archivo cae **junto a las evidencias reales** de esa OT en el
+>      bucket de g500 (no pisa ninguna: el nombre lleva la hora al milisegundo).
+>    - **Lee** con URL firmada cada evidencia que tenga `foto_key`
+>      (`ot-repo.ts:49-50`).
+>    - **Lo que puede cambiar**: una `beta` futura que añada un borrado (p. ej.
+>      `DeleteObjectCommand` al quitar una evidencia) **lo ejecutaría contra el
+>      almacén real de g500 desde la DEMO**, y la DEMO instala `beta` sola a las
+>      04:17. Antes de publicar una versión que toque `storage.ts`, hay que mirar
+>      esto.
+>    - Y la llave en sí, en `app.env`, permite a quien tenga root en la DEMO
+>      borrar todo el bucket con `s3cmd`.
 
 ## Qué es y qué no es esta guía
 
@@ -79,7 +111,7 @@ DOOHmain, escribir a sus clientes, presentar su certificado).
 | # | Decisión | Por qué (evidencia en el repo) |
 |---|---|---|
 | D1 | **Se conserva el disco**: base `spaces`, volúmenes de Space Eyes, fotos | Decisión del dueño (P1/P2): el droplet es además la única otra copia de Space Eyes de g500, que no tiene respaldo fuera del droplet (guía 30 §7) |
-| D2 | **`app.env` e `instancia.env` se escriben NUEVOS desde las plantillas**, con las funciones del alta (`reescribir_env_docker` / `reescribir_env_sourceado` de `infra/scripts/entorno-instancia.sh`), no editando los de g500 | Editar los viejos deja en su sitio cualquier clave que no se nombre (DOOHmain, Google, Resend, Maps, `DO_SPACES_*`…). Escribir desde la plantilla parte de **todo vacío** y solo pone lo que se dice aquí. Y `instancia.env` se **sourcea** como root (`update.sh` hace `. "$CONF"`): con valores mal entrecomillados ejecuta código (zona R7). Las mismas funciones que usa `provision-instancia.sh:909-942` |
+| D2 | **`app.env` e `instancia.env` se escriben NUEVOS desde las plantillas**, con las funciones del alta (`reescribir_env_docker` / `reescribir_env_sourceado` de `infra/scripts/entorno-instancia.sh`), no editando los de g500 | Editar los viejos deja en su sitio cualquier clave que no se nombre (DOOHmain, Google, Resend, Maps, `DO_SPACES_*`…). Escribir desde la plantilla parte de **todo vacío** y solo pone lo que se dice aquí (más las `DO_SPACES_*` de g500, que la plantilla no trae y se copian a propósito, Q3). Y `instancia.env` se **sourcea** como root (`update.sh` hace `. "$CONF"`): con valores mal entrecomillados ejecuta código (zona R7). Las mismas funciones que usa `provision-instancia.sh:909-942` |
 | D3 | **Las claves de `spaces_app` y `spaces_migrador` se ROTAN** | Son las de g500 (guía 30 D5 las copió idénticas a gh500). Rotarlas hace que **ningún secreto de g500 siga en uso** en la DEMO y que la búsqueda de §2.7 tenga sentido |
 | D4 | **Se borran los contenedores de la app de g500** (`space-os`, `space-os-antes-doohmain` y el muerto) antes de instalar | Docker guarda el entorno de cada contenedor (el `--env-file` de g500 con todos sus secretos) en `/var/lib/docker/containers/*/config.v2.json`. Sin contenedor, `update.sh` instala como en un alta (no hay a dónde volver, y no hace falta: la vuelta atrás es el respaldo previo) |
 | D5 | **`modo = automatica`** en `actualizaciones_instancia` | La base dice `v0.12.5` instalada en modo `aprobacion` (censo del 04/11). Con `aprobacion`, `update.sh` sale en «esperando-aprobacion … Esperar no es un error» (`update.sh:2428`) sin instalar. En `automatica`, la corrida completa instala sola (`scripts/actualizaciones.mjs:27-30`), y la DEMO tiene que tomar cada `beta` |
@@ -109,14 +141,14 @@ DOOHmain, escribir a sus clientes, presentar su certificado).
 | P9 | ¿Correo de Let's Encrypt? | **El mismo que usó g500** (§4.4 lo lee de la máquina) |
 | P10 | ¿Backups de DO? | **Sin Backups** en la DEMO; los que tenga el viejo, ver §2.1 |
 
-### 0.2 · Lo que el dueño todavía tiene que decidir (no bloquea empezar)
+### 0.2 · Lo que contestó el dueño a la segunda ronda (Q1–Q4, 05/11)
 
-| | Pregunta | Recomendación | Dónde |
+| | Pregunta | Respuesta | Dónde |
 |---|---|---|---|
-| **Q1** | `/root/g500-mudanza/` tiene **la base de g500 en claro** (`spaces.dump`), **todos sus secretos** (`config.tgz`), los hashes de sus roles (`roles.sql`) y el volcado de MySQL de Space Eyes (`space_eye.sql.gz`). ¿Borrar o cifrar? | **Borrar** `config.tgz`, `roles.sql` y `spaces.dump` (la base ya está viva en la DEMO, gh500 tiene la suya y sus respaldos en `g500/`); **conservar** `space_eye.sql.gz` en la copia de Space Eyes (§2.4), en `600`. Si prefieres no borrar nada, `gpg -c` con una clave que no viva en la máquina (§2.5, alternativa) | §2.5 |
-| **Q2** | ¿Desactivar las cuentas de g500 en la DEMO y crear un usuario de demostración? | **Sí** (riesgo 2 del recuadro). Es opcional y está marcado | §3.4 |
-| **Q3** | Si `app.env` de g500 tenía **`DO_SPACES_*`** (evidencias en el bucket de medios), ¿se le dan a la DEMO? | **No**: con ellas la DEMO leería **y escribiría** en el almacén de g500. Sin ellas, las fotos de evidencia que estén en ese bucket **no se verán** en la DEMO (las que estén en la base, sí) | §2.2, §5.3 |
-| **Q4** | ¿La llave de Spaces de la DEMO es **la misma** de la flota o una **nueva**? | **Nueva**, solo para la DEMO: se puede revocar sin tocar a g500. Alcanza el bucket entero igual (riesgo 6) | §2.6 |
+| Q1 | `/root/g500-mudanza/` (base en claro, secretos, roles, MySQL de Space Eyes): ¿borrar o cifrar? | **Se deja como está.** Riesgo 7 del recuadro | §2.5 |
+| Q2 | ¿Desactivar las cuentas de g500 y crear un usuario de demostración? | **No.** Solo se cierran (recomendado, no obligatorio) las sesiones abiertas y los enlaces pendientes de restablecer contraseña. Riesgo 8 | §3.4 |
+| Q3 | ¿Se le dan a la DEMO las `DO_SPACES_*` del almacén de medios de g500? | **Sí.** Se copian al `app.env` nuevo sin imprimirlas. Riesgo 9 | §2.6 |
+| Q4 | ¿Llave de Spaces de los respaldos de la DEMO? | **Nueva**, solo para la DEMO | §2.6 |
 
 ### 0.3 · Precondiciones — si una no se cumple, **para**
 
@@ -237,20 +269,22 @@ viven en el disco y se van en §2.6.
 ### 2.2 · [VIEJO] Los valores secretos de g500, guardados sin imprimirlos
 Se guardan **antes** de cambiar nada, para comprobar en §2.7 que no queda ninguno
 en uso. Se toman de `app.env` e `instancia.env` (y sus copias `*.antes-*`); **no**
-de `eyes.env`, que se queda como parte de la copia de Space Eyes (D9). Se excluye
-`REGISTRY_TOKEN`: es la credencial de **solo lectura** del registro, común a la
-flota, y la DEMO la seguirá usando.
+de `eyes.env`, que se queda como parte de la copia de Space Eyes (D9). Se excluyen
+`REGISTRY_TOKEN` (credencial de **solo lectura** del registro, común a la flota) y
+las `DO_SPACES_*` (el almacén de medios de g500, que la DEMO **sigue usando** por
+Q3): las dos se quedan en uso a propósito.
 ```bash
 echo ok; umask 077; F=/root/.g500-secretos
 ls -l /etc/space-os
 grep -hE '^[A-Z_]*(TOKEN|SECRET|KEY|PASSWORD|PASS|DATABASE_URL)[A-Z_]*=' /etc/space-os/app.env* /etc/space-os/instancia.env* 2>/dev/null \
-  | grep -v '^REGISTRY_TOKEN=' | cut -d= -f2- | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'\$//" | awk 'length($0)>=12' | sort -u > $F
+  | grep -vE '^(REGISTRY_TOKEN|DO_SPACES_[A-Z_]*)=' | cut -d= -f2- | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'\$//" | awk 'length($0)>=12' | sort -u > $F
 wc -l < $F
 awk -F= '/^(DO_SPACES_KEY|DOOHMAIN_API_KEY|RESEND_API_KEY|GOOGLE_CLIENT_SECRET|GOOGLE_MAPS_SERVIDOR_KEY|SPACE_EYE_KEY|FLOTA_TOKEN|SPACES_KEY)=/{print FILENAME": "$1"="(length($2)>2?"(CON VALOR)":"(vacio)")}' /etc/space-os/app.env /etc/space-os/instancia.env
 ```
 Un número de valores (una veintena larga) y la lista de qué credenciales de
-terceros tenía g500. **Apunta si `DO_SPACES_KEY` sale `(CON VALOR)`**: es Q3 (las
-evidencias de g500 en su almacén de medios no se verán en la DEMO).
+terceros tenía g500. **Apunta si `DO_SPACES_KEY` sale `(CON VALOR)`**: si sale
+`(vacio)`, g500 guardaba las evidencias en la base y §2.6 no copiará nada (Q3 no
+aplica).
 
 ### 2.3 · [VIEJO] Los contenedores de la app de g500 (D4)
 ```bash
@@ -266,14 +300,14 @@ de `v0.12.5` sirve de nada, pero no lleva secretos; se poda sola más adelante).
 echo ok; C=/root/g500-eyes-copia; install -d -m 700 $C
 mv /etc/space-os/eyes.env* $C/ 2>/dev/null; mv /opt/space-os/eyes $C/opt-eyes 2>/dev/null; mv /opt/space-os/update-eyes.sh $C/ 2>/dev/null
 mv /etc/nginx/snippets/space-eyes*.conf $C/ 2>/dev/null
-[ -f /root/g500-mudanza/space_eye.sql.gz ] && mv /root/g500-mudanza/space_eye.sql.gz $C/
 chmod -R go-rwx $C; ls -la $C
 docker inspect -f '{{.Name}} {{.HostConfig.RestartPolicy.Name}} {{.State.Status}}' $(docker ps -aq)
 docker volume ls --format '{{.Name}}' | grep space-eyes; du -sh /var/lib/docker/volumes/space-eyes_*/_data
 for r in 8554/tcp 8189/udp 3478/tcp 3478/udp 49160:49200/udp; do ufw delete allow $r >/dev/null 2>&1; done; ufw status | head -8
 ```
 - En `$C`: `eyes.env` (y su copia), `opt-eyes/` (compose y `mediamtx.yml`),
-  `update-eyes.sh`, el snippet de nginx y `space_eye.sql.gz`.
+  `update-eyes.sh` y el snippet de nginx. (El volcado `space_eye.sql.gz` se queda
+  en `/root/g500-mudanza/`, Q1.)
 - Los cinco `space-eyes-*` con `no` y `exited`.
 - Los cuatro volúmenes con sus tamaños de la guía 30 (~2,3 GB en total).
 - `ufw` con **22, 80 y 443** (los puertos de vídeo se cierran: nadie escucha).
@@ -284,32 +318,17 @@ for r in 8554/tcp 8189/udp 3478/tcp 3478/udp 49160:49200/udp; do ufw delete allo
 > Hablaría como el Space Eyes de g500 (sus equipos van por el dominio de g500, que
 > apunta a gh500, así que no se cruzarían; pero esto no se ha probado).
 
-### 2.5 · [VIEJO] El material de la mudanza y el cron apartado (Q1)
-Recomendado (Q1): borrar lo que es **secreto o duplicado** y no conservar el cron
-viejo (se instala uno nuevo en §3.6, no este):
+### 2.5 · [VIEJO] El material de la mudanza se queda (Q1); el cron apartado, no
+`/root/g500-mudanza/` **se deja como está** (Q1, riesgo 7): solo se comprueba que
+sigue cerrado a otros usuarios. El cron apartado en la mudanza **no se reinstala**
+(se pone uno nuevo en §3.6) y se borra, junto con la llave efímera si quedara:
 ```bash
-echo ok; ls -la /root/g500-mudanza /root/cron-desactivado-mudanza
-rm -f /root/g500-mudanza/config.tgz /root/g500-mudanza/roles.sql /root/g500-mudanza/spaces.dump /root/g500-mudanza/sumas.txt /root/g500-mudanza/*conteos*.txt
-rmdir /root/g500-mudanza 2>/dev/null || ls -la /root/g500-mudanza
-rm -rf /root/cron-desactivado-mudanza /root/eyes-conteos.txt /root/pg-conteos.txt /root/conteos-pg.sql /root/.ssh/mudanza_g500 /root/.ssh/mudanza_g500.pub
+echo ok; ls -la /root/g500-mudanza; chmod 700 /root/g500-mudanza; chmod 600 /root/g500-mudanza/*; ls -ld /root /root/g500-mudanza
+rm -rf /root/cron-desactivado-mudanza /root/.ssh/mudanza_g500 /root/.ssh/mudanza_g500.pub
 ls /etc/cron.d | grep space-os || echo "sin cron de space-os"
 ```
-Si `rmdir` no puede, enseña lo que quedó: míralo antes de borrarlo.
-
-*Alternativa si Q1 = cifrar*: en vez del `rm` de `spaces.dump`,
-`gpg --symmetric --cipher-algo AES256 -o /root/g500-spaces.dump.gpg /root/g500-mudanza/spaces.dump && shred -u /root/g500-mudanza/spaces.dump`,
-con una frase que **no** se guarde en la máquina. (`config.tgz` y `roles.sql` se
-borran igual: sus secretos ya no sirven en la DEMO y siguen vivos en gh500.)
-
-Volcados sueltos que hayan quedado en otra parte (p. ej. el respaldo previo a la
-subida a PostgreSQL 16 del 01/10):
-```bash
-echo ok; find / -xdev \( -name '*.dump' -o -name '*.sql' -o -name '*.sql.gz' -o -name '*.tgz' -o -name '*.tar.gz' \) -size +50k -not -path '/usr/*' -not -path '/snap/*' -not -path '/var/lib/docker/*' -not -path '/proc/*' -not -path '/root/g500-eyes-copia/*' -not -path '/root/space-os-v0.12.6*' 2>/dev/null | head -20
-ls -l /var/lib/space-os/respaldos 2>/dev/null | tail -5
-```
-Los de `/var/lib/space-os/respaldos` son los locales de g500 (los podaba
-`update.sh`): **se quedan**, con el resto de datos (D1), en `drwx------`. Lo que
-salga fuera de ahí, míralo y decide con Q1.
+`/root` y `/root/g500-mudanza` en `drwx------` de root, los archivos en
+`-rw-------`, y `sin cron de space-os`.
 
 El cluster 14 parado en el 5433 (la vuelta atrás del 01/10, otra copia de la base
 de g500, de entonces): **se queda** por D1, parado. Comprueba que no arranca:
@@ -331,7 +350,7 @@ umask 077; R=/root/space-os-v0.12.6; ENTORNO_GUION=guia31
 REGISTRY_V=$(bash -c '. /etc/space-os/instancia.env; printf %s "$REGISTRY"')
 REGISTRY_TOKEN_V=$(bash -c '. /etc/space-os/instancia.env; printf %s "$REGISTRY_TOKEN"')
 echo "registro: [$REGISTRY_V]  token: $([ -n "$REGISTRY_TOKEN_V" ] && echo presente || echo FALTA)"
-read -rs -p "SPACES_KEY de la DEMO (Q4): " SK; echo; read -rs -p "SPACES_SECRET de la DEMO: " SS; echo
+read -rs -p "SPACES_KEY NUEVA de los respaldos de la DEMO (Q4): " SK; echo; read -rs -p "SPACES_SECRET de la DEMO: " SS; echo
 for v in "$REGISTRY_V" "$REGISTRY_TOKEN_V" "$SK" "$SS"; do validar_valor_seguro "valor" "$v"; done
 CLAVE_APP=$(openssl rand -hex 24); CLAVE_MIG=$(openssl rand -hex 24)
 printf "alter role spaces_app password '%s';\nalter role spaces_migrador password '%s';\n" "$CLAVE_APP" "$CLAVE_MIG" | sudo -u postgres psql -v ON_ERROR_STOP=1 -q && echo "ROLES ROTADOS"
@@ -348,11 +367,18 @@ reescribir_env_sourceado $R/infra/env/instancia.env.example \
   "REGISTRY=$REGISTRY_V" "REGISTRY_TOKEN=$REGISTRY_TOKEN_V" "CANAL=beta" \
   "SPACES_KEY=$SK" "SPACES_SECRET=$SS" "SPACES_BUCKET=space-os-respaldos" "SPACES_REGION=sfo3" \
   "LOGS_BUCKET=" > /etc/space-os/instancia.env.nuevo
+{ echo; echo '# --- Almacen de medios: el de g500, a proposito (guia 31, Q3). Ver el riesgo 9.'; grep -E '^DO_SPACES_[A-Z_]*=' /etc/space-os/app.env; } >> /etc/space-os/app.env.nuevo
 chmod 600 /etc/space-os/*.nuevo; ls -l /etc/space-os/*.nuevo
+awk -F= '/^DO_SPACES_/{print "app.env.nuevo: "$1"="(length($2)?"(CON VALOR)":"(vacio)")}' /etc/space-os/app.env.nuevo
 )
 ```
 Tiene que imprimir `registro: [registry.digitalocean.com/registryspaces]  token: presente`,
-**`ROLES ROTADOS`** y los dos `.nuevo` en `-rw-------`. Si sale algo de
+**`ROLES ROTADOS`**, los dos `.nuevo` en `-rw-------` y las `DO_SPACES_*` que
+tuviera g500 (`KEY`, `SECRET`, `ENDPOINT`, `BUCKET` y quizá `CDN_URL`) como
+`(CON VALOR)`, **las mismas que salieron en §2.2**. La app solo usa el almacén si
+están **las cuatro primeras** (`apps/web/lib/server/storage.ts:18-20`). Las
+`SPACES_*` que se teclean aquí son la **llave nueva de los respaldos** (Q4), otra
+cosa. Si sale algo de
 `guia31: … trae un caracter que no se puede escribir`, no se escribió nada: revisa
 el valor que tecleaste.
 
@@ -384,8 +410,11 @@ grep -rIlF -f $F /etc /opt /var/lib/space-os /var/www /root /home /srv /usr/loca
 grep -lF -f $F /var/lib/docker/containers/*/config.v2.json 2>/dev/null || echo "NINGUN CONTENEDOR CON SECRETOS DE g500"
 grep -rIl 'g500' /etc/space-os /opt/space-os /etc/nginx /etc/cron.d /var/www 2>/dev/null || echo "NADA SE LLAMA g500"
 ```
-- **`NINGUN SECRETO DE g500`**. (Se excluye `/var/lib/docker` y la carpeta de la
-  copia de Space Eyes no entra porque sus secretos no están en la lista.)
+- **`NINGUN SECRETO DE g500`**. Lo que sigue en el disco **a propósito** no está
+  en la lista y no sale: las `DO_SPACES_*` (Q3), los secretos internos de Space
+  Eyes y `/root/g500-mudanza/` —que **sí** los lleva todos, en `config.tgz`
+  comprimido, donde `grep` no mira: es el riesgo 7, no un fallo de esta
+  comprobación—.
 - **`NINGUN CONTENEDOR CON SECRETOS DE g500`**: los `space-eyes-*` llevan los de
   su pila, no los de la app.
 - `grep 'g500'`: de momento saldrán `/etc/nginx/sites-*/g500.space-os.io` (se
@@ -463,41 +492,32 @@ sudo -u postgres psql -d spaces -Atc "select slug, moneda, idioma_documentos fro
 Los datos siguen ahí (mismo bloque de conteos de §3.1): **los mismos números**,
 con 3 migraciones más.
 
-### 3.4 · [VIEJO] (OPCIONAL — Q2) Las cuentas de g500 y un usuario de demostración
-**Solo si el dueño contesta Q2 que sí.** Primero mira:
+### 3.4 · [VIEJO] (OPCIONAL, recomendado) Sesiones abiertas y enlaces de restablecer contraseña (Q2)
+Las cuentas de g500 **se quedan activas** (Q2, riesgo 8). Lo que se cierra es lo
+que nació en g500 y no debería servir contra esta copia: las **sesiones** que
+estaban abiertas el 04/11 (un token de sesión guardado entraría aquí) y los
+**enlaces de restablecer contraseña** pendientes. No hace falta para que la DEMO
+funcione:
 ```bash
-echo ok; sudo -u postgres psql -d spaces -Atc "select rol, activo, solo_google, count(*) from usuarios group by 1,2,3 order by 1"
+echo ok; sudo -u postgres psql -d spaces -Atc "select (select count(*) from sesiones)||' sesiones / '||(select count(*) from password_resets)||' enlaces'"
+sudo -u postgres psql -d spaces -c "delete from sesiones" -c "delete from password_resets"
+sudo -u postgres psql -d spaces -Atc "select rol, activo, solo_google, count(*) from usuarios group by 1,2,3 order by 1"
 ```
-Luego, en una sola transacción: se cierran las sesiones abiertas y los enlaces de
-restablecer contraseña de g500 (servirían contra esta base), se **desactivan** las
-cuentas de g500 (no se borran: sus acciones las referencian) y se crea un Dueño de
-demostración con contraseña. La contraseña se teclea sin eco; **sin comillas
-simples**, 12 caracteres o más:
-```bash
-echo ok; read -rs -p "Contrasena del usuario demo: " CL; echo
-printf "begin;\ndelete from sesiones;\ndelete from password_resets;\nupdate usuarios set activo = false where email not like '%%.invalid';\ninsert into usuarios (tenant_id, nombre, email, cargo, rol, password_hash, activo, debe_cambiar_password) select id, 'Demo', 'demo@demo.invalid', 'Demostracion', 'DUENO', crypt('%s', gen_salt('bf', 10)), true, false from tenants;\ncommit;\n" "$CL" | sudo -u postgres psql -d spaces -v ON_ERROR_STOP=1 -q && echo "USUARIOS LISTOS"; unset CL
-sudo -u postgres psql -d spaces -Atc "select email like '%.invalid', activo, count(*) from usuarios group by 1,2"
-```
-`USUARIOS LISTOS`, y dos filas: `f|f|5` (las de g500, inactivas) y `t|t|1`. **Si
-falla** (un trigger de la tabla, una restricción): no se aplicó nada —va en una
-transacción—; pega el error. Apunta la contraseña donde guarde las suyas el dueño.
-
-**Si Q2 = no**: al menos cierra las sesiones y los enlaces pendientes:
-```bash
-echo ok; sudo -u postgres psql -d spaces -c "delete from sesiones" -c "delete from password_resets"
-```
+`DELETE n` dos veces, y la lista de cuentas de g500 (para saber quién puede
+entrar: las de `solo_google = t` no, porque la DEMO no tiene Google).
 
 ### 3.5 · [VIEJO] Que la DEMO no habla con nadie real
 Nombres y si tienen valor, nunca el valor:
 ```bash
 echo ok; grep -E '^(APP_URL|CANAL|TZ|DOOHMAIN_PUBLISH_ENABLED|GOOGLE_OAUTH|AUTOREGISTRO)=' /etc/space-os/app.env
-awk -F= '/^(RESEND_API_KEY|GOOGLE_CLIENT_ID|GOOGLE_CLIENT_SECRET|GOOGLE_MAPS_SERVIDOR_KEY|DOOHMAIN_API_KEY|SPACE_EYE_BASE_URL|SPACE_EYE_KEY|BOOTSTRAP_TOKEN|DO_SPACES_KEY)=/{print $1"="(length($2)?"(CON VALOR)":"(vacio)")}' /etc/space-os/app.env
+awk -F= '/^(RESEND_API_KEY|GOOGLE_CLIENT_ID|GOOGLE_CLIENT_SECRET|GOOGLE_MAPS_SERVIDOR_KEY|DOOHMAIN_API_KEY|SPACE_EYE_BASE_URL|SPACE_EYE_KEY|BOOTSTRAP_TOKEN)=/{print $1"="(length($2)?"(CON VALOR)":"(vacio)")}' /etc/space-os/app.env
 grep -E '^(INSTANCIA|CANAL|FLOTA_REPORTE_URL|SPACES_BUCKET|LOGS_BUCKET)=' /etc/space-os/instancia.env
 docker exec space-os printenv DOOHMAIN_PUBLISH_ENABLED RESEND_API_KEY GOOGLE_OAUTH | cat -A | head -3
 ```
 - `APP_URL=https://demo.space-os.io`, `CANAL=beta`, `TZ=America/Mexico_City`,
   `DOOHMAIN_PUBLISH_ENABLED=0`, `GOOGLE_OAUTH=0`, `AUTOREGISTRO=0`.
-- Las nueve de la segunda línea **`(vacio)`**.
+- Las ocho de la segunda línea **`(vacio)`**. (Las `DO_SPACES_*` sí tienen valor:
+  Q3, ya comprobado en §2.6.)
 - `INSTANCIA="demo"`, `FLOTA_REPORTE_URL=""`: la DEMO **no reporta al panel de
   flota**; no hay nada en el PADRE que la confunda con g500.
 - Dentro del contenedor: `0$`, línea vacía, `0$`.
@@ -630,8 +650,8 @@ echo ok; docker image inspect -f '{{range .RepoDigests}}{{println .}}{{end}}' "$
 El `sha256:` = el del resumen del run *Release* de `v0.12.6` en GitHub Actions.
 
 ### 5.3 · Navegador, en `https://demo.space-os.io`
-1. Entra con **`demo@demo.invalid`** (si hiciste §3.4) o con una cuenta de g500
-   cuya contraseña conozcas (si no).
+1. Entra con una cuenta de g500 cuya contraseña conozcas (Q2: no hay usuario de
+   demostración aparte).
 2. Dashboard, Inventario (las 13 pantallas de g500), una propuesta y su PDF,
    Campañas, Finanzas, Reportes.
 3. **Que no rompe sin integraciones** (D7):
@@ -641,9 +661,10 @@ El `sha256:` = el del resumen del run *Release* de `v0.12.6` en GitHub Actions.
      **nadie** recibe nada;
    - Comercial negociación: el buscador de calles va por Nominatim (ADR 0047), sin
      clave de Google.
-4. **Evidencias y fotos** de órdenes de trabajo: si §2.2 dijo `DO_SPACES_KEY`
-   `(CON VALOR)` y Q3 = no, las que estén en ese almacén **no cargan**; es lo
-   esperado. Las guardadas en la base, sí.
+4. **Evidencias y fotos** de órdenes de trabajo: abre una OT de g500 **ya
+   cerrada** con foto. Tiene que cargar (URL firmada contra el almacén real,
+   `ot-repo.ts:49-50`). **No cierres una OT con foto en la DEMO para probarlo**:
+   subiría un archivo nuevo al almacén real de g500 (riesgo 9).
 5. **Space Eye** en el menú: sin `SPACE_EYE_BASE_URL`, el módulo no tiene a quién
    preguntar. Anota cómo se ve: si da un error feo delante de un cliente, es un
    ajuste aparte.
@@ -705,15 +726,15 @@ con ella.
 |---|---|
 | §1 | Apagar. Nada cambió |
 | §2.3–§2.6 (identidad) | **No hay vuelta a «ser g500»**, y no hace falta: g500 vive en gh500. La configuración de g500 sigue en gh500 si alguna vez se necesitara |
-| §2.5 (material de la mudanza) | Lo borrado no vuelve. gh500 tiene la base, la configuración y sus respaldos en `g500/` |
+| §2.5 (cron apartado) | No hace falta: el cron nuevo es el de §3.6. `/root/g500-mudanza/` no se toca (Q1) |
 | §3.3 (migración a v0.12.6) | Si `update.sh` falla, **vuelve solo** (restaura su respaldo y relanza la anterior: `infra/scripts/README.md` §2 y §6). A mano: el `.dump` de §3.3 con `pg_restore` como `postgres` |
-| §3.4 (usuarios) | `update usuarios set activo = true where email not like '%.invalid'` y borrar `demo@demo.invalid` |
+| §3.4 (sesiones) | No vuelven: cada persona vuelve a entrar con su contraseña |
 | §4.2 DNS | El A de `demo` a la IP anotada en §2.1 (o borrarlo) |
 | §6 | `DEMO_URL` y `FLOTA_TOKEN` a los valores de §6.1 |
 
 ### Riesgos y lo NO verificado
 
-- **Los seis del recuadro del principio**, aceptados por el dueño el 05/11.
+- **Los nueve del recuadro del principio**, aceptados por el dueño el 05/11.
 - **Esta guía no se ha corrido nunca**, y su forma —convertir una instancia en otra
   sobre la misma base— **no la cubre ningún guion** del repositorio. Las piezas sí
   tienen historia: `update.sh` de v0.12.5 a la siguiente en g500 y en DEMO, las
@@ -725,10 +746,9 @@ con ella.
 - **Las funciones de `entorno-instancia.sh` corridas a mano** (no desde un alta)
   en un subshell: cargadas por `.` y sin `set -e`. Su salida se comprueba
   sourceando `instancia.env` en §2.6.
-- **El `insert` del usuario de demostración (§3.4)** copia las columnas que usa
-  `scripts/semilla-catalogo-demo.mjs:1003-1004`; si la tabla tiene un trigger que
-  la semilla no dispara (la semilla corre con otro rol), fallará entero. Va en
-  transacción.
+- **El almacén de medios compartido** (riesgo 9) no se ha probado desde dos
+  máquinas a la vez; por el código, solo lecturas firmadas y escrituras con
+  nombre nuevo, así que no deberían pisarse.
 - **Cómo se ve el menú de Space Eye sin Space Eye** en una organización que lo
   tenía: no está mirado (§5.3).
 - **Las migraciones `@tipo: datos`** que g500 tuviera pendientes siguen pendientes
