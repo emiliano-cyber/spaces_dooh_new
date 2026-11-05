@@ -1664,7 +1664,7 @@ export const PT_PROPUESTAS: Record<ClavePropuestas, string> = {
   'propuestas.lista.kpi.ganado': 'Ganho (histórico)',
   'propuestas.lista.kpi.ganado.sub': '{aprobadas} · perdido {perdido} em {rechazadas}',
   'propuestas.lista.kpi.tasa': 'Taxa de fechamento histórica',
-  'propuestas.lista.kpi.tasa.sub': 'aprovadas sobre {n} fechadas, desde sempre',
+  'propuestas.lista.kpi.tasa.sub': 'aprovadas entre {n} fechadas, desde sempre',
   'propuestas.lista.kpi.tasa.sin-cierres': 'ainda sem fechamentos',
   'propuestas.lista.vacia': 'Ainda não há propostas.',
   'propuestas.lista.vacia.arma': ' Monte a primeira com “Nova proposta”.',
@@ -1695,7 +1695,7 @@ export const PT_PROPUESTAS: Record<ClavePropuestas, string> = {
   'propuestas.fila.chip-aprobado': 'aprovado',
   'propuestas.fila.cupo-lleno': 'limite atingido',
   'propuestas.fila.cupo-lleno.titulo':
-    'O ponto já está no limite de clientes nessas datas ({clientes}). Na reserva, será recusado, a menos que uma vaga se libere ou o limite aumente.',
+    'O ponto já está no limite de clientes nessas datas ({clientes}). A reserva será recusada, a menos que uma vaga se libere ou o limite aumente.',
   'propuestas.fila.ya-generada': 'Esta proposta já gerou sua campanha',
   'propuestas.fila.ver-campana': 'Ver campanha',
 
@@ -1974,7 +1974,7 @@ export const PT_PROPUESTAS: Record<ClavePropuestas, string> = {
   'propuestas.codigo.ayuda.compone': 'aplica em cascata',
   'propuestas.codigo.ayuda.pendiente': 'aguardando aprovação',
   'propuestas.codigo.rechazada': 'Esta proposta está recusada: {aviso}',
-  'propuestas.codigo.rechazada.aviso': 'aplicar um código a reativa como rascunho.',
+  'propuestas.codigo.rechazada.aviso': 'aplicar um código a faz voltar para rascunho.',
   'propuestas.codigo.vigente': 'Código vigente',
   'propuestas.codigo.vigente.elige': 'Escolha um código vigente…',
   'propuestas.codigo.opcion': '{codigo} — {pct}% · {usos}',
@@ -1988,7 +1988,7 @@ export const PT_PROPUESTAS: Record<ClavePropuestas, string> = {
   // ── Condiciones y vigencia ──
   'propuestas.condiciones.guardadas': 'Condições e validade salvas',
   'propuestas.condiciones.vigencia': 'Validade',
-  'propuestas.condiciones.vencio': 'Venceu ({fecha}): o link não permite mais aceitá-la. Defina outra data ou envie-a de novo.',
+  'propuestas.condiciones.vencio': 'Vencida desde {fecha}: o link não permite mais aceitá-la. Defina outra data ou envie-a de novo.',
   'propuestas.condiciones.hasta': 'O cliente pode aceitá-la até {fecha} (esse dia incluído).',
   'propuestas.condiciones.sin-vigencia':
     'É definida automaticamente ao enviá-la, com os dias que sua organização tem em Configurações.',

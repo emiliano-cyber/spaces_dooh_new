@@ -335,7 +335,7 @@ export const PT_CODIGOS: Record<ClaveCodigos, string> = {
   'codigos.asignar.ayuda':
     'Consome um uso do código e fica {pendiente}: o cliente não o vê até que um administrador ou gerente o aprove na proposta.',
   'codigos.asignar.pendiente': 'aguardando aprovação',
-  'codigos.asignar.rechazada': ' Esta proposta está recusada: atribuir o código a reativa como rascunho.',
+  'codigos.asignar.rechazada': ' Esta proposta está recusada: atribuir o código a faz voltar para rascunho.',
 
   // ── El alta ──
   'codigos.nuevo.titulo': 'Novo código',

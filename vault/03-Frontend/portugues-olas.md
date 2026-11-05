@@ -87,7 +87,7 @@ toca **solo sus archivos** de `textos/` (y el L5, además, la base de
 
 | Lote | Rama | Estado | Cobertura de sus filas |
 |---|---|---|---|
-| **L2** | `feat/portugues-l2-comercial` | **Hecho, sin validar** (05/11) | **1201/1201, 0 pendientes** (comercial 502 · codigos 59 · propuestas 446 · catalogos 194) |
+| **L2** | `feat/portugues-l2-comercial` | **VERDE** (05/11, `docs/i18n/validacion-portugues-l2.md`); hallazgos bajos H2–H6 corregidos; la costura con P3 (H1) va al integrar | **1201/1201, 0 pendientes** (comercial 502 · codigos 59 · propuestas 446 · catalogos 194) |
 | **L5** | `feat/portugues-l5-armazon` | **Validación ÁMBAR, corregida; pendiente de revalidar** (05/11) | **1346/1346, 0 pendientes** (base 119 · compartidos 113 · shell 59 · cuenta 125 · admin 542 · notificaciones 47 · servidor 32 · errores 205 + 30 + 12 + 62) |
 
 ### Lote L5 · Armazón, cuenta, administración, compartidos y servidor
@@ -128,8 +128,11 @@ pendiente de revalidar** (revisión §11). Revisión clave por clave en
 ### Lote L2 · Comercial y propuestas
 
 Rama `feat/portugues-l2-comercial` (sale de `integra/portugues`, `72b33050`).
-**Hecho, sin validar.** Revisión clave por clave en
-`docs/i18n/revision-portugues-l2.md`.
+**Validación VERDE** (`docs/i18n/validacion-portugues-l2.md`); los hallazgos
+bajos H2–H6 corregidos en la misma rama (revisión §11): cuatro frases y dos
+guardias nuevas en la prueba estática (cifras en el orden del español y
+negación conservada) más `valla → outdoor` en el glosario. Revisión clave por
+clave en `docs/i18n/revision-portugues-l2.md`.
 
 - **1201 claves, 0 pendientes**: los cuatro `PT_*` (`comercial`, `codigos`,
   `propuestas`, `catalogos`) ya son `Record`. Ningún archivo de la aplicación

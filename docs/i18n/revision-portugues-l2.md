@@ -241,3 +241,34 @@ explicadas:
 5. **Tramo = *patamar*, escala plana = *escala não progressiva***.
 6. **Horario de transmisión = *grade de programação***.
 7. **«Buen Fin»** se queda en los ejemplos (la instancia es mexicana).
+
+## 11 · Correcciones de la validación (VERDE con hallazgos bajos, 05/11)
+
+Respuesta a `docs/i18n/validacion-portugues-l2.md` (`4aaaab97`). H1 (la
+costura con P3 y el diario) se hace al integrar; «Ref. interna» en el correo
+al cliente lo decide el dueño: ninguno de los dos se tocó.
+
+| # | Clave | Antes | Ahora |
+|---|---|---|---|
+| H2 | `propuestas.fila.cupo-lleno.titulo` | «…Na reserva, será recusado, a menos que…» | «…A reserva será recusada, a menos que…» |
+| H3 | `propuestas.condiciones.vencio` | «Venceu ({fecha}): o link…» | «Vencida desde {fecha}: o link…», como la ficha |
+| H4 | `propuestas.lista.kpi.tasa.sub` | «aprovadas sobre {n} fechadas…» | «aprovadas entre {n} fechadas…» |
+| H5 | `propuestas.codigo.rechazada.aviso`, `codigos.asignar.rechazada` | «…a reativa como rascunho» | «…a faz voltar para rascunho» |
+
+**H6 · guardias nuevas en `portugues-l2.test.ts`, en rojo primero** (commit
+propio): `valla → outdoor` en el `GLOSARIO`; **las cifras de cada texto, en el
+mismo orden que en el español** (solo dígitos: «51,2 %» y «51,2%» son la misma
+secuencia); y **si el español niega, el portugués también**. Sin excepciones,
+2 de 24 rojas: 1 clave de cifras (`propuestas.ficha.mapa.sin-coords.uno`, el
+«1» del plural forzado español) y 5 de negación por prefijo («Indisponível»,
+«inválida»), declaradas con su porqué en `CIFRAS_DISTINTAS` y `SIN_NEGACION`,
+con su prueba de que muerden y de que no sobran.
+
+**Mutantes del validador:** V2 (64% al revés), V4 (valla = Painel) y V6 (TODAS
+sin el «não») **mueren** ahora; los 12 del lote (§5) siguen muriendo.
+
+**Medido otra vez:** `DICCIONARIOS.es/.en/.it` y `traducirError` es/en/it,
+`cmp` idéntico al volcado de `72b33050`; typecheck limpio; `npx vitest run
+--testTimeout=60000` (toda la suite unitaria): **420 archivos, 8959 en verde +
+1 omitida, 0 rojas**. La frase esperada del borrador vencido en
+`pantallas-propuestas` pasa a «Vencida desde 1 de dez. de 2026: o link…».

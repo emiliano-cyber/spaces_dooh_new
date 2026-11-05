@@ -1447,7 +1447,7 @@ const PORTUGUES: Record<string, string[]> = {
   ],
   'ficha de un borrador vencido, con catalogo de paquetes': [
     'Vencida desde 1 de dez. de 2026', 'Combo — MX$ 5.000,00 · 2 pontos', 'nenhum ponto aprovado de 2', 'divisor ×1,00',
-    'Venceu (1 de dez. de 2026): o link não permite mais aceitá-la.',
+    'Vencida desde 1 de dez. de 2026: o link não permite mais aceitá-la.',
   ],
 }
 
