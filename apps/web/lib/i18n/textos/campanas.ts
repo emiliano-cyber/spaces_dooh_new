@@ -1621,7 +1621,7 @@ export const PT_CAMPANAS: Record<ClaveCampanas, string> = {
   'campanas.menu.mostrar': 'Exibir o menu de campanhas',
   'campanas.menu.ocultar': 'Ocultar o menu de campanhas',
   'campanas.menu.titulo': 'Campanhas ({n})',
-  'campanas.menu.boton.mostrar': 'Exibir',
+  'campanas.menu.boton.mostrar': 'Mostrar',
   'campanas.menu.boton.ocultar': 'Ocultar',
   'campanas.menu.otras': 'Outras campanhas',
 
@@ -1729,9 +1729,9 @@ export const PT_CAMPANAS: Record<ClaveCampanas, string> = {
   // ── Horario de exibicion ──
   'campanas.horario.no-leer': 'Não foi possível ler o horário de exibição',
   'campanas.horario.no-programar': 'Não foi possível programar',
-  'campanas.horario.otra-franja': 'outra faixa',
+  'campanas.horario.otra-franja': 'outra faixa horária',
   'campanas.horario.todo-el-dia': 'O dia todo',
-  'campanas.horario.titulo': 'Horário de exibição',
+  'campanas.horario.titulo': 'Grade de programação',
   'campanas.horario.vendida': 'Vendida (não muda aqui)',
   'campanas.horario.se-transmite': 'Faixa no ar',
   'campanas.horario.dada-de-baja': ' (desativada)',

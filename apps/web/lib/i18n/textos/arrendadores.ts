@@ -1724,7 +1724,7 @@ export const PT_ARRENDADORES: Record<ClaveArrendadores, string> = {
   'arrendadores.rentabilidad.titulo': 'Rentabilidade por ponto',
   'arrendadores.rentabilidad.sub':
     'Margem mensal = receita das reservas vigentes − aluguel do locador. Os de margem negativa são candidatos a renegociar ou desativar.',
-  'arrendadores.rentabilidad.sin-filtro': 'Nenhum ponto coincide com o filtro.',
+  'arrendadores.rentabilidad.sin-filtro': 'Nenhum ponto corresponde ao filtro.',
   'arrendadores.rentabilidad.vacio': 'Ainda não há contratos nem reservas ativas.',
   'arrendadores.rentabilidad.ingreso': 'Receita/mês',
   'arrendadores.rentabilidad.renta': 'Aluguel/mês',
@@ -1831,7 +1831,7 @@ export const PT_ARRENDADORES: Record<ClaveArrendadores, string> = {
     'Falta: {lista}. Você pode salvar o contrato mesmo assim, mas sem isso não será possível faturar o aluguel quando chegar a hora de pagá-lo.',
   'arrendadores.completar.importe': 'Valor do aluguel',
   'arrendadores.completar.importe-cero': 'Informe um valor maior que zero',
-  'arrendadores.completar.cada-cuando': 'Com que frequência se paga',
+  'arrendadores.completar.cada-cuando': 'Periodicidade do pagamento',
   'arrendadores.completar.desde': 'De',
   'arrendadores.completar.hasta': 'Até',
   'arrendadores.completar.antes-inicio': 'Não pode ser anterior ao início ({fecha})',
@@ -1844,7 +1844,7 @@ export const PT_ARRENDADORES: Record<ClaveArrendadores, string> = {
   'arrendadores.completar.al-guardar-per':
     'Ao salvar, o contrato deixa de estar incompleto: passa a contar como custo de aluguel na DRE e o calendário de pagamentos ({periodicidad}) é gerado.',
   'arrendadores.adjunto.tipo': 'Deve ser um PDF ou uma imagem (PNG, JPG ou WebP)',
-  'arrendadores.adjunto.tamano': 'O arquivo passa de {mb} MB',
+  'arrendadores.adjunto.tamano': 'O arquivo excede {mb} MB',
   'arrendadores.adjunto.leer': 'Não foi possível ler o arquivo',
   'arrendadores.adjunto.listo': 'Arquivo pronto',
   'arrendadores.adjunto.quitar': 'Remover',

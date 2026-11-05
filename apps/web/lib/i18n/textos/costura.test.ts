@@ -19,7 +19,7 @@ import { ES_OPERACIONES2, EN_OPERACIONES2 } from './operaciones2'
 import { ES_INICIO, EN_INICIO } from './inicio'
 import { ES_ENERGIA, EN_ENERGIA } from './energia'
 import { ES_REPORTES, EN_REPORTES } from './reportes'
-import { DICCIONARIOS, AMBITOS_ITALIANO, IT_PARCIAL } from '../diccionario'
+import { DICCIONARIOS, AMBITOS_ITALIANO, IT_PARCIAL, AMBITOS_PORTUGUES, PT_PARCIAL } from '../diccionario'
 import { traducirError } from '../errores-servidor'
 
 // ============================================================================
@@ -395,3 +395,110 @@ describe('costura del italiano · los lotes dicen lo mismo de la misma manera', 
     expect(distintos).toEqual([])
   })
 })
+
+// ============================================================================
+//  LA COSTURA DEL PORTUGUES (2026-11-05).
+// ----------------------------------------------------------------------------
+//  La misma regla que el ingles y el italiano —el mismo espanol en dos lotes
+//  se dice igual— sobre los cinco lotes del portugues juntos (L1 Space Eyes y
+//  luz, L2 comercial, L3 inventario, L4 campanas, L5 armazon), que se
+//  tradujeron en paralelo y cada uno solo vio su glosario y el comun (§2 bis
+//  de `vault/03-Frontend/portugues-olas.md`). Con la cobertura completa ya no
+//  hay vacios: se compara todo.
+// ============================================================================
+
+// Los del ingles valen (si en ingles se dicen distinto a proposito, en cada
+// pantalla significa otra cosa). Los del italiano que son de CONCORDANCIA no
+// se heredan: el genero portugues no es el italiano. Lo que el portugues
+// necesita aparte va aqui, con el porque.
+const DISTINTOS_A_PROPOSITO_PT: Record<string, string> = {
+  ...DISTINTOS_A_PROPOSITO,
+  // Glosario comun (§2 bis), como en italiano: el ponto de inventario frente a
+  // la tela DIGITAL (DOOHmain, el articulo de almacen, Space Eyes).
+  Pantalla: 'la pantalla como unidad de inventario, que puede ser un painel o un outdoor («Ponto», glosario comun) frente a la pantalla DIGITAL: la columna de lo que va a DOOHmain, el articulo «Pantalla» del almacen y la que vigila Space Eyes («Tela»)',
+  'Guardar pantalla': 'Space Eyes guarda la tela digital que vigila («Salvar tela»); inventario guarda el ponto («Salvar ponto»)',
+  Sitio: 'el ponto de inventario («Ponto») frente al lugar fisico donde esta un dispositivo de Space Eyes («Local», glosario aprobado por el dueno el 05/11)',
+  Lista: 'la vista en lista del alta de propuestas, la alternativa al mapa («Lista»), frente al precio de lista en el reparto de un paquete («Tabela», de «preço de tabela»)',
+  // Concordancia: el genero portugues de lo que el espanol calla.
+  Fija: 'concordancia: en propuestas es el ponto, masculino («Fixo»); en inventario, la mídia, femenina («Fixa»)',
+  Todas: 'concordancia: propostas, falhas y OS son femeninas («Todas»); en la Network son los pontos, masculino («Todos»)',
+  Automática: 'concordancia: la renovacion de un contrato es femenina («Automática»); el modo de actualizacion de Administracion, «modo», masculino («Automático»)',
+  'Sin asignar': 'la razon social sin asignar, femenina («Não atribuída»), frente al responsable de una OS, que no hay («Sem responsável»)',
+  '— Sin asignar —': 'el locador de un ponto, masculino, sin elegir («— Não atribuído —») frente a la OS nueva sin responsable («— Sem responsável —»)',
+  Vencida: 'la cobranza vencida («Vencida») frente a la OS fuera de plazo («Atrasada», glosario comun: OT vencida → OS atrasada)',
+  Vencidas: 'lo mismo que «Vencida», en plural: cobranzas «Vencidas», OS «Atrasadas»',
+  // Formas de la frase.
+  a: 'entre dos FECHAS va «a» («1 de dez. a 5 de dez.»); entre dos HORAS (DOOHmain, Space Eyes), «às» («das 6h às 22h»), como el italiano «–»/«alle»',
+  '{desde} a {hasta}': 'lo mismo que «a»: un rango de fechas («{desde} a {hasta}») frente al horario de DOOHmain («{desde} às {hasta}»)',
+  Siguiente: 'el boton de un asistente por pasos («Avançar», el de las interfaces brasileñas) frente a la pagina o la foto siguiente («Próxima»)',
+  Fin: 'el termino de un CONTRATO de locacion («Término», como lo dice el contrato) frente al fin de una reserva, junto a «Início» («Fim»)',
+  Operación: 'la familia de ajustes que lleva al modulo («Operações», como el menu) frente al costo de operar un ponto («Operação»)',
+  No: 'en las instrucciones del Raspberry Pi Imager el boton se llama «No» (la herramienta esta en ingles: se cita tal cual, revision del L1); en las demas, la respuesta «Não»',
+  Teléfono: 'el aparato que se da de alta en Space Eyes es un celular («Celular»); en los demas es el numero de contacto («Telefone»)',
+  '{n} nueva': 'las novedades de las notas de version («{n} novidade», sustantivo) frente a los pontos creados por una carga de Inventario, masculino («{n} novo»)',
+  '{n} nuevas': 'lo mismo que «{n} nueva», en plural («{n} novidades» / «{n} novos»)',
+}
+
+function lotesPortugues(): LoteIt[] {
+  const deAmbito = new Set(AMBITOS_PORTUGUES.flatMap((a) => Object.keys(a.es)))
+  const esBase = Object.fromEntries(
+    Object.entries(DICCIONARIOS.es as Record<string, string>).filter(([k]) => !deAmbito.has(k)),
+  )
+  return [
+    ['base', esBase, PT_PARCIAL as Partial<Record<string, string>>],
+    ...AMBITOS_PORTUGUES.map((a): LoteIt => [a.ambito, a.es, a.pt]),
+  ]
+}
+
+describe('costura del portugues · los lotes dicen lo mismo de la misma manera', () => {
+  it('el mismo espanol en dos lotes lleva el mismo portugues (salvo los declarados)', () => {
+    expect(divergenciasItaliano(lotesPortugues(), DISTINTOS_A_PROPOSITO_PT)).toEqual([])
+  })
+
+  it('las excepciones propias del portugues siguen existiendo y siguen divergiendo', () => {
+    const propias = Object.keys(DISTINTOS_A_PROPOSITO_PT).filter((t) => !(t in DISTINTOS_A_PROPOSITO))
+    const sinExcepcion = divergenciasItaliano(lotesPortugues(), {})
+    expect(propias.filter((t) => !sinExcepcion.some((d) => d.startsWith(`«${t}» →`)))).toEqual([])
+  })
+
+  it('las comillas portuguesas son las curvas “ ”, nunca « » ni rectas que abren', () => {
+    const malas = Object.entries(PT_PARCIAL as Record<string, string>).filter(([, v]) => /[«»]|(^|[\s(])"/.test(v))
+    expect(malas.map(([k]) => k)).toEqual([])
+  })
+
+  // «peso» que no es dinero, en portugues (el grosor de la letra, como en
+  // espanol). Y sin «reais» suelto: «dispositivos reais» son los de verdad.
+  const PESO_QUE_NO_ES_DINERO_PT = ['peso da fonte']
+  it('ningun texto portugues da por hecha la moneda (ADR 0048)', () => {
+    const malas = Object.entries(PT_PARCIAL as Record<string, string>)
+      .filter(([, v]) => {
+        let t = v.replace(/\{\w+\}/g, '')
+        for (const f of PESO_QUE_NO_ES_DINERO_PT) t = t.replace(new RegExp(f, 'gi'), '')
+        return /\bpesos?\b|\bd[óo]lar(es)?\b|\b(MXN|USD|BRL)\b|R\$|\d\s*reais\b/i.test(t)
+      })
+      .map(([k]) => k)
+    expect(malas).toEqual([])
+    expect(PESO_QUE_NO_ES_DINERO_PT.filter((f) => /\bpesos\b|centav|preço|valor/i.test(f))).toEqual([])
+  })
+
+  it('«Ex.:» para un ejemplo (glosario del L2), nunca «p. ex.»', () => {
+    const malas = Object.entries(PT_PARCIAL as Record<string, string>).filter(([, v]) => /\bp\. ?ex\./i.test(v))
+    expect(malas.map(([k]) => k)).toEqual([])
+  })
+
+  it('un texto que tambien manda el servidor se dice igual en el campo y en el error', () => {
+    const ES_D = DICCIONARIOS.es as Record<string, string>
+    const rellenar = (t: string) => t.replace(/\{\w+\}/g, '1000')
+    const conocidas = Object.keys(ES_D).filter((k) => traducirError(rellenar(ES_D[k]), 'pt') !== rellenar(ES_D[k]))
+    const distintos = conocidas
+      .filter((k) => !CALCULADORA_DIVERGE_PT.includes(k))
+      .filter((k) => rellenar((PT_PARCIAL as Record<string, string>)[k]) !== traducirError(rellenar(ES_D[k]), 'pt'))
+      .map((k) => `${k}: «${rellenar((PT_PARCIAL as Record<string, string>)[k])}» / servidor «${traducirError(rellenar(ES_D[k]), 'pt')}»`)
+    expect(distintos).toEqual([])
+    expect(conocidas.length).toBeGreaterThanOrEqual(10)
+  })
+})
+
+// Lo mismo que en ingles: `rellenar` pone 1000 en el hueco y el servidor elige
+// con razon la forma plural del singular de «pocos libres».
+const CALCULADORA_DIVERGE_PT = ['compartidos.calc.motivo.pocos-libres.uno']

@@ -166,6 +166,7 @@ export const COGNADOS_PT_L5 = new Set<string>([
   'admin.network.col.tipo',                          // "Tipo"
   'admin.network.col.tarifa',                        // "Tarifa"
   'admin.actividad.todos',                           // "Todos"
+  'admin.actividad.hora',                            // "Hora" (costura: como Space Eyes; antes «Horário»)
   'admin.razones.n-avisos.uno',                      // "{n} aviso"
   'admin.razones.n-avisos.otros',                    // "{n} avisos"
   'admin.razones.principal',                         // "Principal"

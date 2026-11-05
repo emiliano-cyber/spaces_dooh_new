@@ -1386,7 +1386,7 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
   'La calculadora de spots necesita la tarifa por spot de la línea.':
     'A calculadora de spots precisa da tarifa por spot da linha.',
   'Solo un gerente o superior puede poner prima a un Roadblock.':
-    'Só um gerente ou um perfil superior pode pôr acréscimo num Roadblock.',
+    'Só um gerente ou um perfil superior pode pôr acréscimo em um Roadblock.',
   'La calculadora de spots solo aplica a pantallas digitales vendidas por spot.':
     'A calculadora de spots só se aplica a telas digitais vendidas por spot.',
   'La pantalla no tiene capturado cuántos espacios tiene su loop; captúralo en su ficha antes de usar la calculadora.':

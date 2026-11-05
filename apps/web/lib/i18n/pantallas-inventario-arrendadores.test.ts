@@ -1918,7 +1918,7 @@ const PORTUGUES: Record<string, string[]> = {
   'inventario · el alta con contrato (vía elegida)': ['Cadastro de um ponto junto com o seu contrato de locação.', 'Contrato + ponto'],
   'inventario · selección y cambio masivo de tarifa': ['2 selecionados', 'Fixar tarifa', 'placeholder="Nova tarifa"'],
   'inventario · cambio masivo de renta por porcentaje': ['1 selecionado', 'Fixar aluguel', 'Ajustar %', 'placeholder="ex.: 10 ou -5"'],
-  'inventario · búsqueda sin resultados con filtros': ['Nenhum ponto coincide com “zzz” e os filtros escolhidos.', 'Remover filtros'],
+  'inventario · búsqueda sin resultados con filtros': ['Nenhum ponto coincide com “zzz” e os filtros escolhidos.', 'Limpar filtros'],
   'inventario · solo filtros sin resultados': ['Nenhum ponto coincide com os filtros escolhidos.'],
   'inventario · vacío': ['0 digitais · 0 fixos', 'todos têm contrato ou são próprios', 'Ainda não há pontos no inventário.'],
   'contrato + pantalla · paso 1, predio con contrato vigente': [
@@ -1936,7 +1936,7 @@ const PORTUGUES: Record<string, string[]> = {
   ],
   'contrato + pantalla · todas las pantallas con predio': ['Todos os seus pontos já estão atribuídos a um imóvel. Mude para “Ponto novo”.'],
   'alta manual · todas las pestañas': [
-    'Novo ponto', 'Cadastro manual de um único ponto', 'Locador (dono do espaço)', 'Aluguel pago ao locador', 'Fixa (impressa)',
+    'Novo ponto', 'Cadastro manual de um único ponto', 'Locador (dono do espaço)', 'Aluguel ao locador', 'Fixa (impressa)',
     'Digital (tela)', 'Painel', 'Outdoor', 'Mobiliário urbano (abrigo de ônibus/mupi/expositor em loja)', 'Total de slots',
     'O custo deste ponto é o', 'Ainda não informado.', 'Salvar ponto',
   ],

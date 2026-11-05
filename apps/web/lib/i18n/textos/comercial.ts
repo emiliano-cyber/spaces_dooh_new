@@ -1743,7 +1743,7 @@ export const PT_COMERCIAL: Record<ClaveComercial, string> = {
   'comercial.comun.disponibilidad': 'Disponibilidade',
   'comercial.comun.no-disponible': 'Indisponível',
   'comercial.comun.telefono': 'Telefone',
-  'comercial.comun.hace.segundos': 'há segundos',
+  'comercial.comun.hace.segundos': 'há poucos segundos',
   'comercial.comun.hace.min': 'há {n} min',
   'comercial.comun.hace.horas': 'há {n} h',
   'comercial.comun.hace.dias': 'há {n} d',

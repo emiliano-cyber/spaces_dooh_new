@@ -94,7 +94,6 @@ export const COGNADOS_PT_L3 = new Set<string>([
   'inventario.wizard.existente', // Existente
   'inventario.wizard.rfc', // RFC
   'inventario.wizard.caras', // Faces
-  'inventario.wizard.tarifa-publicada', // Tarifa publicada
   'inventario.wizard.slots', // Slots (digital)
   'inventario.alta.tab.basico', // Básico
   'inventario.alta.tab.ia', // IA/Vision

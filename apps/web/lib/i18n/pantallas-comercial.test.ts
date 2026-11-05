@@ -1521,7 +1521,7 @@ const PORTUGUES: Record<string, string[]> = {
     'Um ponto já atingiu seu limite de clientes',
   ],
   'space eye · foto correcta, en grande': ['Último sinal há 2 h', 'há 5 min', 'Anúncio correto · confiança 93%', '2 de nov. de 2026, 11:55'],
-  'space eye · foto que no coincide, y sin foto': ['Último sinal há 3 d', 'Último sinal há segundos', 'Não corresponde ao criativo · 40%'],
+  'space eye · foto que no coincide, y sin foto': ['Último sinal há 3 d', 'Último sinal há poucos segundos', 'Não corresponde ao criativo · 40%'],
   'comercial negociacion · un espacio con todo': [
     '36 meses', 'MX$ 9.000,00/mês', 'desde 15 de set. de 2026', 'mostrando os 2 com atividade mais recente, de 5',
     'Salva por Ana · 1 de out. de 2026 · pela busca · GPS do celular: pendente',

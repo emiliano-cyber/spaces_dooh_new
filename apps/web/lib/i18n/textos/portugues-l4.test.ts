@@ -72,6 +72,7 @@ export const COGNADOS_PT_L4 = new Set<string>([
   'campanas.ficha.seccion.completo',                   // "Completo"
   'campanas.ficha.seccion.expandir',                   // "Expandir"
   'campanas.menu.boton.ocultar',                       // "Ocultar"
+  'campanas.menu.boton.mostrar',                       // "Mostrar" (costura: como Space Eyes; antes «Exibir»)
   'campanas.creativo.codigo',                          // "Código"
   'campanas.candado.registrando',                      // "Registrando…"
   'campanas.doohmain-ahora.pausar',                    // "Pausar"

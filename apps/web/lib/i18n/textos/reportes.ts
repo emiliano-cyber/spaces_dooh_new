@@ -761,7 +761,7 @@ export const PT_REPORTES: Record<ClaveReportes, string> = {
   'reportes.motivo.sin-fin': 'Falta a data de término do relatório',
   'reportes.motivo.formato': 'Use datas no formato AAAA-MM-DD',
   'reportes.motivo.invertido': 'A data de término não pode ser anterior à de início',
-  'reportes.motivo.tope': 'O relatório abrange no máximo 24 meses por consulta. Encurte o intervalo de datas.',
+  'reportes.motivo.tope': 'O relatório abrange no máximo 24 meses por consulta. Reduza o intervalo de datas.',
 
   // ── Las columnas ──
   'reportes.col.pantalla': 'Ponto',

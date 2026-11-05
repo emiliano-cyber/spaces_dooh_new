@@ -1803,7 +1803,7 @@ export const PT_PROPUESTAS: Record<ClavePropuestas, string> = {
   'propuestas.calc.horas.aria': 'Horas por dia de {sitio}',
   'propuestas.calc.roadblock.titulo': 'Compra TODOS os slots do loop; exige que estejam livres',
   'propuestas.calc.prima.puede': 'Percentual acima da tarifa por spot. Fica registrado como ajuste em seu nome.',
-  'propuestas.calc.prima.no-puede': 'Só um gerente ou superior pode pôr acréscimo em um Roadblock.',
+  'propuestas.calc.prima.no-puede': 'Só um gerente ou um perfil superior pode pôr acréscimo em um Roadblock.',
   'propuestas.calc.prima': 'Acréscimo %',
   'propuestas.calc.prima.aria': 'Acréscimo do Roadblock de {sitio}',
   'propuestas.calc.loop': 'Loop de {n} {anunciantes}',

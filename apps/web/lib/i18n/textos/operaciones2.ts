@@ -869,7 +869,7 @@ export const PT_OPERACIONES2: Record<ClaveOperaciones2, string> = {
   'operaciones2.checklist.omision.montaje': 'Instalação / execução',
   'operaciones2.checklist.omision.foto': 'Foto de comprovação com geolocalização',
   'operaciones2.ficha.candado-encendido': 'Faturamento liberado',
-  'operaciones2.ficha.evidencia-alt': 'comprovação',
+  'operaciones2.ficha.evidencia-alt': 'foto de comprovação',
   'operaciones2.ficha.puedes-cerrar': 'Você pode fechar esta janela. A comprovação já ficou registrada.',
 
   // ── lib/costo-ot-captura.ts ──
@@ -907,12 +907,12 @@ export const PT_OPERACIONES2: Record<ClaveOperaciones2, string> = {
   'operaciones2.creativos.vacio.ninguna': 'Nenhuma campanha coincide',
   'operaciones2.creativos.vacio.ninguna-detalle': 'Tente outro texto de busca ou remova o filtro de status.',
   'operaciones2.creativos.limpiar': 'Limpar filtros',
-  'operaciones2.creativos.imagen-supera': 'A imagem passa de {mb} MB',
+  'operaciones2.creativos.imagen-supera': 'A imagem excede {mb} MB',
   'operaciones2.creativos.no-subir': 'Não foi possível enviar',
   'operaciones2.creativos.no-guardar': 'Não foi possível salvar',
   'operaciones2.creativos.motivo-rechazo': 'Motivo da recusa (opcional):',
   'operaciones2.creativos.no-validar': 'Não foi possível validar',
-  'operaciones2.creativos.retirado-doohmain': '“{nombre}” foi retirado. A arte continua no DOOHmain — remova-a no painel dele',
+  'operaciones2.creativos.retirado-doohmain': '“{nombre}” foi retirado. A arte continua no DOOHmain — remova-a no painel de lá',
   'operaciones2.creativos.eliminado': '“{nombre}” foi excluído',
   'operaciones2.creativos.no-eliminar': 'Não foi possível excluir',
   'operaciones2.creativos.reemplazado-doohmain':

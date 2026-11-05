@@ -606,7 +606,7 @@ export const PT_INICIO: Record<ClaveInicio, string> = {
   'inicio.tipo-alerta.cobranza': 'Faturas (cobrança)',
   'inicio.tipo-alerta.incidencia': 'Pontos bloqueados por ocorrência',
   'inicio.tipo-alerta.ot': 'Ordens de serviço (SLA)',
-  'inicio.tipo-alerta.licencia': 'Licenças e autorizações',
+  'inicio.tipo-alerta.licencia': 'Licenças e alvarás',
 
   // ── Huecos y renovaciones ──
   'inicio.huecos': 'Espaços livres e renovações',
@@ -670,10 +670,10 @@ export const PT_INICIO: Record<ClaveInicio, string> = {
   'inicio.alerta.licencia-por-vencer': 'Licença a vencer',
   'inicio.alerta.licencia-vence.uno': '{donde} — {que} vence em {n} dia',
   'inicio.alerta.licencia-vence.otros': '{donde} — {que} vence em {n} dias',
-  'inicio.licencia.municipal': 'Licença municipal',
+  'inicio.licencia.municipal': 'Alvará municipal',
   'inicio.licencia.ambiental': 'Licença ambiental',
   'inicio.licencia.estructural': 'Laudo estrutural',
-  'inicio.licencia.otro': 'Autorização',
+  'inicio.licencia.otro': 'Licença',
   'inicio.alerta.campana': 'campanha',
   'inicio.alerta.cobertura': 'O contrato não cobre a campanha',
   'inicio.alerta.cobertura.vence': '{sitio} — “{campana}” vai até {hasta}, mas o contrato vence antes ({fin})',
