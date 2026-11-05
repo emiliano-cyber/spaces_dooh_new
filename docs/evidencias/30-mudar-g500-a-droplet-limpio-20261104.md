@@ -527,6 +527,26 @@ docker exec space-os node -v; free -m | head -2
 
 ---
 
+## Corrida real del 2026-11-04 (la corrió el dueño; Claude no entró a servidores)
+
+Droplet nuevo `gh500` (Ubuntu 24.04, 2 GB, NYC1, IP `159.65.221.205`; llave SSH de la PC `~/.ssh/g500`). g500 viejo (`142.93.113.106`) **parado y sin cron** (`/root/cron-desactivado-mudanza/`), contenedores con `--restart=no`.
+
+| Paso | Resultado medido |
+|---|---|
+| §0.3 censo | Todo lo esperado (tabla §0.3 bis). Roles `postgres`, `spaces_app` (`f|f|f|f|t|f`), `spaces_migrador` (`…|t|t`); sin `pg_auth_members`. Sin clave de Maps. g500 **no tenía respaldo diario** (`respaldo.sh` sin cron) |
+| §1.3 paquete y base del sistema | `sin CRLF`, 9 huellas exactas, `setup=0`, PostgreSQL **16.15** (igual que g500), swap 2 GB, ufw igual |
+| §1.5 configuración | `roles.sql` 4 líneas; `config.tgz` `948e90fc…` idéntico en los dos lados |
+| §1.6 instalación | `IP_PUBLICA=159.65.221.205`, `[g500] [estable] [--network host]`, 8 guiones con huella, `NGINX_OK`, certificado copiado (vence 2026-12-08) |
+| §1.7 imágenes | 5 de Space Eyes con Id idéntico (incluida `space-eye:0.16.24-local` `f3ee217f13d9`); app por digest `e6608ac9f02f` en los dos |
+| §1.8 precopia | ~2,3 GB (fotos 1,2 GB, descargas 247 MB, base 855 MB, redis 4,5 MB) |
+| §2.1–2.3 corte | `Dump completed` (MySQL, 2,4 MB), md5 de conteos MySQL `9fe6ab71…`; `pg_dump=0` 18,6 MB, 851 entradas, `1/5/13/11/11/6`; pasada final casi vacía; 4 × `OK` en `sha256sum -c`; fotos 2631 archivos, descargas 8 |
+| §3.1 restauración | **`BASE IDENTICA`** (74 líneas de huella: tablas, dueños, tipos, permisos, políticas, migraciones), `1/5/13/11/11/6`, `v0.12.5|f` |
+| §3.2 Space Eyes | 5 contenedores Up, `eyes 401` (vivo), MySQL 8.0.46 `ready` sin `[ERROR]`, MediaMTX con la IP nueva. `commands` 3114 vs 3095: los 19 de más los creó la API nueva al arrancar (05/11 01:43:00–01:43:13 UTC, fotos programadas y vivo, `pending`, caducan a los 10 min); el resto, idéntico |
+| §3.3 app | `version 200`, `metodos 200`, `app->eyes 401`, Node `v22.23.4`, 1,1 GB disponibles |
+
+**Falta (la persona):** §4.1 comprobación por HTTPS con `--resolve` · §4.2 **cambiar el A de `g500` en Cloudflare a `159.65.221.205`** · §4.3 prueba real (DOOHmain, Space Eyes en línea, foto y vivo) · §4.4 cron + **respaldo diario** + actualizadores · §4.5 certificado nuevo · §4.6 retirar la llave efímera y apagar el viejo · TTL a Auto al día siguiente.
+
+**Tropiezos de la guía corregidos sobre la marcha:** `!~` en las consultas de roles (bash lo tomaba como historial: `not (… ~ …)`) y `relkind||` ambiguo en PG16 (`relkind::text`). Dos bloques se pegaron en el droplet equivocado sin daño: conviene mirar el prompt (`root@g500` vs `root@gh500`) antes de cada pegado.
 ## 4 · Comprobar, mover el DNS y probar de verdad
 
 ### 4.1 · [PC] El sitio en la máquina nueva ANTES del DNS
