@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-11-04
+actualizado: 2026-11-05
 tags: [frontend, i18n, idiomas, ingles, dinero]
 archivos:
   - apps/web/components/demo/shell/salir.ts
@@ -56,6 +56,8 @@ archivos:
   - apps/web/components/demo/finanzas/comprobante.ts
   - apps/web/components/demo/finanzas/facturas-lista.ts
   - docs/i18n/revision-costura.md
+  - apps/web/lib/i18n/librerias.ts
+  - apps/web/app/(app)/layout.tsx
 ---
 
 # La aplicación en dos idiomas (I18N-01)
@@ -2235,6 +2237,35 @@ el idioma de los documentos de la instancia. Rama `feat/idioma-instancia`,
   `<div lang={idioma de la instancia} style="display:contents">` (WCAG 3.1.2):
   los lectores de pantalla leen el papel con la voz correcta.
 
+## 13 · Lo que pintan las librerías (B70 · 05/11)
+
+Autorizado por el dueño el 05/11: **cambia el español a propósito**, solo en
+textos que antes salían en inglés o no existían. Rama `feat/verificacion-ajustes`.
+
+- **B70 · MapLibre y sonner** ponen sus propios textos en el navegador
+  (`aria-label` y `title`), fuera del HTML que rinden las pruebas, y salían en
+  inglés en los tres idiomas. `lib/i18n/librerias.ts` los traduce por
+  configuración, sin tocar el HTML de las librerías:
+  - `localeMapa(idioma)` → el `locale` de `new maplibregl.Map` en
+    `components/demo/MapView.tsx`, `components/demo/comercial-opex/SelectorUbicacion.tsx`
+    y `components/maps/SitiosMap.tsx` (este último no lo importa nadie; se
+    arregló igual para que no sea la excepción el día que vuelva). Claves
+    `compartidos.mapa.lib.*`: «Acercar», «Alejar», «Buscar mi ubicación»,
+    «Mostrar u ocultar los créditos del mapa», «Marcador del mapa», «Mapa»…
+  - `propsAvisos(idioma)` → `containerAriaLabel` y
+    `toastOptions.closeButtonAriaLabel` del `Toaster` de `app/(app)/layout.tsx`
+    (Server Component, con `idiomaDeLaPeticion()`): «Notificaciones alt+T» y
+    «Cerrar aviso».
+  - **El inglés:** el del mapa es el de MapLibre **tal cual** —
+    `lib/i18n/librerias.test.ts` lee el `defaultLocale` del paquete instalado y
+    compara; si una versión nueva trae un texto, la prueba pide su clave—. El
+    de sonner conserva «Notifications»; «Close toast» pasa a «Close
+    notification», porque «toast» es jerga de programador y es justo lo que oye
+    quien usa lector de pantalla.
+  - **Lo que queda:** las unidades de la escala («km», «ft»), que no son
+    palabras y ningún mapa usa. Y MapLibre lee el `locale` al crear el mapa: si
+    la persona cambia de idioma sin salir de la pantalla, los controles siguen en
+    el anterior hasta volver a entrar.
 ## Enlaces
 
 - [[ingles-olas]] — el tablero de la traducción: qué lote, en qué rama, qué validador y qué falta

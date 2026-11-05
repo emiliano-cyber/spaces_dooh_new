@@ -3,6 +3,8 @@
 import { useEffect, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { localeMapa } from '@/lib/i18n/librerias'
 
 // ============================================================================
 //  SelectorUbicacion — un mapa con UN pin que la persona coloca y arrastra.
@@ -39,6 +41,7 @@ export function SelectorUbicacion({
   onCambio: (p: Punto) => void
   className?: string
 }) {
+  const { idioma } = useIdioma()
   const contRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const pinRef = useRef<maplibregl.Marker | null>(null)
@@ -52,6 +55,8 @@ export function SelectorUbicacion({
       style: ESTILO,
       center: punto ? [punto.lng, punto.lat] : CDMX,
       zoom: punto ? 16 : 10,
+      // B70 · los textos de los botones del mapa, en el idioma de la persona.
+      locale: localeMapa(idioma),
       attributionControl: { compact: true },
     })
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')

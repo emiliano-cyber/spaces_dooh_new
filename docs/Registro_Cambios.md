@@ -5,6 +5,22 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-05 · Mapas, avisos y botones de cerrar en el idioma de cada persona (sin publicar)
+
+Cambios que el dueño autorizó el 05/11. Se notan sobre todo con un lector de pantalla o al
+dejar el ratón encima de un botón.
+
+- **Los botones de los mapas** (acercar, alejar, buscar mi ubicación, créditos del mapa) y
+  el aviso de los marcadores decían «Zoom in», «Find my location», «Map marker»… en
+  inglés, también con la aplicación en español. Ahora salen en español, inglés o italiano,
+  según el idioma de quien usa la aplicación.
+- **Los avisos** que aparecen abajo a la derecha se anunciaban como «Notifications» y su
+  botón de cerrar como «Close toast». Ahora dicen «Notificaciones» y «Cerrar aviso» (en
+  inglés, «Notifications» y «Close notification»; en italiano, «Notifiche» y «Chiudi
+  notifica»).
+
+---
+
 ## 2026-11-04 · Idiomas: el correo de «olvidé mi contraseña», «provvigione» y los contratos de ejemplo (sin publicar)
 
 Tres cambios que el dueño autorizó el 04/11. En un servidor en español no cambia nada.

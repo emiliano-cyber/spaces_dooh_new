@@ -2,6 +2,8 @@
 
 import { useEffect, useRef } from 'react'
 import { htmlPopupSitio } from '@/lib/popup-sitio'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { localeMapa } from '@/lib/i18n/librerias'
 
 export interface SitioFeature {
   type: 'Feature'
@@ -51,6 +53,7 @@ const ESTATUS_COLORS: Record<string, string> = {
 }
 
 export default function SitiosMap({ sitios, onSitioClick, height = '400px' }: Props) {
+  const { idioma } = useIdioma()
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<any>(null)
   const markersRef = useRef<any[]>([])
@@ -70,6 +73,8 @@ export default function SitiosMap({ sitios, onSitioClick, height = '400px' }: Pr
         style: OSM_STYLE,
         center: [-99.1332, 19.4326],
         zoom: 9,
+        // B70 · los textos de los botones del mapa, en el idioma de la persona.
+        locale: localeMapa(idioma),
       })
 
       // Add navigation control

@@ -2626,11 +2626,16 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
   del navegador», la regla de `resolverIdioma` (cookie > `navigator.languages` > español, entre
   los encendidos). Sin cambio de idioma sale el texto de siempre; el diccionario no cambia. 8/8
   mutantes. Pendiente de su validador.
-- **B70 · ⚪ ABIERTA (2026-11-04) · Los controles del mapa y del *toaster* salen en inglés en todos
-  los idiomas.** MapLibre pone «Zoom in», «Zoom out», «Find my location», «Map marker» y «Toggle
-  attribution»; sonner pone «Notifications alt+T». **Por qué:** son los valores por omisión de las
-  librerías. Darles el idioma (`locale` de MapLibre, `containerAriaLabel` de sonner) cambia el
-  español. No se tocó. Menor (sobre todo para lector de pantalla).
+- ~~**B70 · Los controles del mapa y del *toaster* salen en inglés en todos los idiomas.**~~ ✅
+  **CERRADA el 2026-11-05 en `feat/verificacion-ajustes`** (autorizada por el dueño el 05/11, cambia
+  el español a propósito). `lib/i18n/librerias.ts`: `localeMapa(idioma)` para el `locale` de los
+  tres `new maplibregl.Map` (`MapView`, `SelectorUbicacion` y el `SitiosMap` sin uso) y
+  `propsAvisos(idioma)` para el `Toaster` del layout de `(app)`. Claves nuevas
+  `compartidos.mapa.lib.*` (20) y `compartidos.avisos.*` (2) en es/en/it. El inglés del mapa es el
+  de MapLibre tal cual (la prueba lo lee del paquete instalado y pide clave si llega un texto
+  nuevo); el de sonner conserva «Notifications» y cambia «Close toast» por «Close notification»
+  («toast» es jerga). La escala («km», «ft») se queda: unidades, y no se usa. Detalle y medición
+  en [[idiomas-es-en]] §13. Pendiente de su validador.
 - **B71 · ⚪ ABIERTA (2026-11-04) · El botón de cerrar de los diálogos no tiene nombre
   accesible.** Pasa en todos los idiomas: el lector de pantalla anuncia solo «botón». **Por qué:**
   la X del `Modal` no lleva `aria-label`. Ponérselo cambia el HTML español e inglés de las pruebas

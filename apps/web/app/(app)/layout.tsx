@@ -4,6 +4,7 @@ import { IndicadorCarga } from '@/components/demo/ui/IndicadorCarga'
 import { nombreDeMarca } from '@/lib/entorno'
 import { traducir } from '@/lib/i18n/diccionario'
 import { idiomaDeLaPeticion } from '@/lib/i18n/servidor'
+import { propsAvisos } from '@/lib/i18n/librerias'
 import './demo.css'
 
 // Layout raíz de la demo. Aquí viven: los tokens SET (vía .demo-root), la fuente
@@ -65,11 +66,14 @@ export function generateMetadata(): Metadata {
 }
 
 export default function DemoRootLayout({ children }: { children: React.ReactNode }) {
+  // B70 · sin esto sonner anuncia «Notifications alt+T» y «Close toast» en
+  // ingles a quien usa lector de pantalla, sea cual sea su idioma.
+  const idioma = idiomaDeLaPeticion()
   return (
     <div className="demo-root min-h-screen">
       <IndicadorCarga />
       {children}
-      <Toaster position="bottom-right" richColors closeButton expand />
+      <Toaster position="bottom-right" richColors closeButton expand {...propsAvisos(idioma)} />
     </div>
   )
 }
