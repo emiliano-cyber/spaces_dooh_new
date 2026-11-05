@@ -1249,8 +1249,12 @@ if [ "${1:-}" = '--mutantes' ]; then
   probar_mutante 'el alta vuelve a imprimir una clave del Dueno' \
     's@La organizacion no lleva contrasena@    clave:    xxxx@'
 
+  # Desde los ADR 0048/0049 el cuerpo sigue con la moneda y el idioma DESPUES
+  # del correo, y la expresion vieja (`"email":"$EMAIL_DUENO"}`) dejo de casar:
+  # el mutante no se aplicaba y la barrida lo contaba como malo (CI del PR de
+  # la v0.12.6, 05/11). Se ancla en la coma que sigue al correo.
   probar_mutante 'el cuerpo del bootstrap vuelve a llevar password' \
-    's@"email":"$EMAIL_DUENO"}@"email":"$EMAIL_DUENO","password":"x"}@'
+    's@"email":"$EMAIL_DUENO",@"email":"$EMAIL_DUENO","password":"x",@'
 
   # ─── Lo que se ESCRIBE en la instancia (2026-09-11) ───────────────────────
   #  El primero es el mas grave de todo este archivo: deja la APLICACION
