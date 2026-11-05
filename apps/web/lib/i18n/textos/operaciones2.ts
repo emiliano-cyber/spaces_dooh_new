@@ -737,7 +737,8 @@ export const IT_OPERACIONES2: Record<ClaveOperaciones2, string> = {
 // serviço, FEMENINO: «Nova OS», «OS atrasada», «OS encerrada») · cuadrilla →
 // equipe de campo · fecha compromiso → prazo · vencida / por vencer →
 // atrasada / a vencer · responsable → responsável · candado de facturacion →
-// bloqueio de faturamento («mantêm o faturamento bloqueado») · fotografia
+// bloqueio de faturamento («mantêm o faturamento bloqueado»; ABIERTO al
+// cerrar la OS, «Faturamento liberado»: validacion H1) · fotografia
 // comprobatoria → foto de comprovação · evidencia → comprovação · sello de
 // ubicacion → carimbo de localização · costo real → custo real · estimacion
 // por tipo → estimativa por tipo · rentabilidad → rentabilidade · tachar →
@@ -867,7 +868,7 @@ export const PT_OPERACIONES2: Record<ClaveOperaciones2, string> = {
   'operaciones2.checklist.omision.inspeccion': 'Inspeção da estrutura e das ferragens',
   'operaciones2.checklist.omision.montaje': 'Instalação / execução',
   'operaciones2.checklist.omision.foto': 'Foto de comprovação com geolocalização',
-  'operaciones2.ficha.candado-encendido': 'Bloqueio de faturamento ativado',
+  'operaciones2.ficha.candado-encendido': 'Faturamento liberado',
   'operaciones2.ficha.evidencia-alt': 'comprovação',
   'operaciones2.ficha.puedes-cerrar': 'Você pode fechar esta janela. A comprovação já ficou registrada.',
 

@@ -896,6 +896,8 @@ const PORTUGUES: Record<string, string[]> = {
   'ficha · escritorio cerrada con costo': [
     'OS encerrada', 'A comprovação foi enviada ao pipeline da campanha.', 'Encerrada: 5 de out. de 2026', 'Checklist concluído',
     'alt="comprovação"', 'Custo registrado: MX$ 2.300,00. A OS está encerrada e não pode mais ser alterada.',
+    // Validacion H1: el candado ABIERTO al cerrar la OS (`LockOpen`), no «bloqueio ativado».
+    'Faturamento liberado',
   ],
   'ficha · escritorio cerrada sin costo': ['Foi encerrada sem custo informado: o relatório de rentabilidade usa a estimativa por tipo de tarefa.'],
   'ficha · movil cerrada': ['Você pode fechar esta janela. A comprovação já ficou registrada.'],

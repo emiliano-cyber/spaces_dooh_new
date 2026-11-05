@@ -180,7 +180,8 @@ describe('portugues L3 · el diccionario entero, sin depender de lo que se rinde
 // Los huecos de fecha de este lote (mas que los de la regla comun): `{cuando}`,
 // `{hasta}`, `{fin}`, `{inicio}`, `{fechaFin}`… Se sacan del propio espanol:
 // cualquier hueco cuyo nombre diga fecha, dia, vence, desde o hasta.
-const NOMBRE_DE_FECHA = /^(?:fecha\w*|\w*Fecha|fin\w*|inicio\w*|desde|hasta|vence\w*|cuando|dia)$/i
+// `periodo` tambien (validacion H4): en Disponibilidad es «mar. de 2026» o «1/3–14/3».
+const NOMBRE_DE_FECHA = /^(?:fecha\w*|\w*Fecha|fin\w*|inicio\w*|desde|hasta|vence\w*|cuando|dia|periodo)$/i
 const PREPOSICION = /(?:^|\s)(?:em|no|na|do|da|ao|à|pelo|pela|dia)\s+\{(\w+)\}/gi
 
 describe('portugues L3 · ninguna fecha en hueco con preposicion delante', () => {
@@ -193,7 +194,7 @@ describe('portugues L3 · ninguna fecha en hueco con preposicion delante', () =>
   })
   it('y la comprobacion MUERDE', () => {
     const muerde = (s: string) => [...s.matchAll(PREPOSICION)].some((m) => NOMBRE_DE_FECHA.test(m[1]))
-    for (const s of ['Pago em {fechaPago}', 'Encerrada no {fecha}', 'locado até o dia {fin}', 'assinado pelo {cuando}'])
+    for (const s of ['Pago em {fechaPago}', 'Encerrada no {fecha}', 'locado até o dia {fin}', 'assinado pelo {cuando}', 'não lotados em {periodo}'])
       expect(muerde(s), s).toBe(true)
     for (const s of ['Encerrada: {fecha}', 'até {fin}', 'a partir de {desde}', 'no {sitio}', 'em {donde}'])
       expect(muerde(s), s).toBe(false)
@@ -227,5 +228,41 @@ describe('portugues L3 · el glosario propio del lote', () => {
     expect(PT_ARRENDADORES['arrendadores.constancia.parte.arrendador']).toBe('O LOCADOR')
     expect(PT_ARRENDADORES['arrendadores.constancia.parte.arrendatario']).toBe('O LOCATÁRIO')
     expect(PT_ARRENDADORES['arrendadores.constancia.intro']).not.toMatch(/\bem \{fecha\}/)
+  })
+})
+
+// ─── Validacion del lote (AMBAR, 05/11) ─────────────────────────────────────
+// Lo que el validador encontro y ninguna prueba fijaba.
+describe('portugues L3 · los hallazgos del validador (ambar, 05/11)', () => {
+  it('H1 · al cerrar la OS el candado se ABRE: la facturacion queda liberada, no bloqueada', () => {
+    // `OTVista.tsx` lo pinta en verde con `LockOpen` («Billing lock open»,
+    // «Fatturazione sbloccata»). «Bloqueio de faturamento ativado» decia lo contrario.
+    const abierto = PT_OPERACIONES2['operaciones2.ficha.candado-encendido']
+    expect(abierto).toBe('Faturamento liberado')
+    expect(abierto).not.toMatch(/bloque|ativad/i)
+    // Y las que hablan del candado CERRADO (una OS atrasada lo retiene) siguen diciendolo.
+    expect(PT_OPERACIONES2['operaciones2.ot.kpi.frenan']).toBe('mantêm o faturamento bloqueado')
+    expect(PT_OPERACIONES2['operaciones2.ot.banner.explica']).toMatch(/mantém o faturamento bloqueado\.$/)
+  })
+  it('H2 · la ayuda fiscal del alta no dice quien emite ni a quien se emite: el nombre de la fatura', () => {
+    expect(PT_ARRENDADORES['arrendadores.alta.fiscales-ayuda']).toMatch(/^É o nome que aparece na fatura do aluguel\. /)
+  })
+  it('H3 · las rentas atrasadas llevan su sustantivo (aluguel es masculino)', () => {
+    expect(PT_ARRENDADORES['arrendadores.pagos.vencidas.uno']).toBe('{n} parcela atrasada ({monto}) · ')
+    expect(PT_ARRENDADORES['arrendadores.pagos.vencidas.otros']).toBe('{n} parcelas atrasadas ({monto}) · ')
+  })
+  it('H4 · el periodo de Disponibilidad sin «em» delante', () => {
+    expect(PT_OPERACIONES['operaciones.disponibilidad.kpi.en-periodo']).toBe('no período {periodo}')
+    expect(PT_OPERACIONES['operaciones.disponibilidad.kpi.no-llenas']).toBe('não lotados no período {periodo}')
+  })
+  it('H5 · el ejemplo de domicilio dice CEP (glosario comun)', () => {
+    expect(PT_ARRENDADORES['arrendadores.alta.domicilio-ph']).toBe('Rua, número, bairro, CEP, cidade, estado')
+    expect(PT_ARRENDADORES['arrendadores.lista.domicilio-ph']).toBe('Rua, número, bairro, CEP, cidade')
+  })
+  it('H6 · los dias del calendario van de lunes a domingo, como el espanol (la rejilla empieza en lunes)', () => {
+    const es = ES_OPERACIONES['operaciones.calendario.dias'].split(',')
+    const pt = PT_OPERACIONES['operaciones.calendario.dias'].split(',')
+    expect(es).toEqual(['L', 'M', 'M', 'J', 'V', 'S', 'D'])
+    expect(pt).toEqual(['S', 'T', 'Q', 'Q', 'S', 'S', 'D'])
   })
 })

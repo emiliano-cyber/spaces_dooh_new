@@ -1710,12 +1710,12 @@ export const PT_ARRENDADORES: Record<ClaveArrendadores, string> = {
   'arrendadores.alta.repetido': 'Se foi engano, feche e procure-o na lista; se de fato é outro locador, clique de novo.',
   'arrendadores.alta.rfc-malo':
     'Formato inválido. São 3 letras (empresa) ou 4 (pessoa física), a data AAMMDD e 3 caracteres de homoclave.',
-  'arrendadores.alta.domicilio-ph': 'Rua, número, bairro, código postal, cidade, estado',
+  'arrendadores.alta.domicilio-ph': 'Rua, número, bairro, CEP, cidade, estado',
   'arrendadores.alta.domicilio-ayuda':
     'O contrato de locação precisa dele para as notificações. Sem ele, o documento sai com esse campo em branco.',
   'arrendadores.alta.fiscales': 'Dados fiscais',
   'arrendadores.alta.fiscales-ayuda':
-    'É quem fatura o aluguel. Se você deixar em branco, o locador é cadastrado do mesmo jeito e você pode informar isso depois pela ficha dele.',
+    'É o nome que aparece na fatura do aluguel. Se você deixar em branco, o locador é cadastrado do mesmo jeito e você pode informar isso depois pela ficha dele.',
   'arrendadores.alta.regimen-ayuda': 'Fica disponível ao informar a razão social: o regime é dela.',
 
   // ── Por razão social e rentabilidade ──
@@ -1740,7 +1740,7 @@ export const PT_ARRENDADORES: Record<ClaveArrendadores, string> = {
   'arrendadores.lista.vacio': 'Ainda não há locadores. Use {boton} para cadastrar um.',
   'arrendadores.lista.vacio-boton': '“Novo locador”',
   'arrendadores.lista.contacto': 'Contato',
-  'arrendadores.lista.domicilio-ph': 'Rua, número, bairro, código postal, cidade',
+  'arrendadores.lista.domicilio-ph': 'Rua, número, bairro, CEP, cidade',
   'arrendadores.lista.falta': 'Falta',
   'arrendadores.lista.activos-title': '{activos} ativo(s) de {total}. Só os ativos impedem a desativação.',
   'arrendadores.lista.predios-title': 'Um locador com imóveis em seu nome não pode ser desativado.',
@@ -1970,8 +1970,8 @@ export const PT_ARRENDADORES: Record<ClaveArrendadores, string> = {
   'arrendadores.pagos.vencido': 'Atrasado',
   'arrendadores.pagos.por-vencer': 'A vencer',
   'arrendadores.pagos.programado': 'Programado',
-  'arrendadores.pagos.vencidas.uno': '{n} atrasada ({monto}) · ',
-  'arrendadores.pagos.vencidas.otros': '{n} atrasadas ({monto}) · ',
+  'arrendadores.pagos.vencidas.uno': '{n} parcela atrasada ({monto}) · ',
+  'arrendadores.pagos.vencidas.otros': '{n} parcelas atrasadas ({monto}) · ',
   'arrendadores.pagos.por-vencer-n': '{n} a vencer · ',
   'arrendadores.pagos.por-pagar': '{monto} a pagar',
   'arrendadores.pagos.sin-importe.uno':
