@@ -8,7 +8,7 @@ import { qRaw as q, qRaw1 as q1 } from './db'
 import { usuarioActual } from './auth'
 import { MONEDA_POR_OMISION, type Moneda } from '@/lib/i18n/dinero'
 import { monedaDeLaInstancia } from './moneda-instancia'
-import { IDIOMA_POR_OMISION, type Idioma } from '@/lib/i18n/idiomas'
+import { IDIOMA_POR_OMISION, type IdiomaEnLaBase } from '@/lib/i18n/idiomas'
 
 // ============================================================================
 //  lib/server/tenant.ts — Multi-tenant a nivel aplicación.
@@ -100,12 +100,16 @@ export async function listarTenants(): Promise<TenantRow[]> {
 // organizacion la elige; las demas heredan la de la instancia).
 //
 // ADR 0049: lo mismo con el idioma de los DOCUMENTOS (contrato y constancia).
+// El tipo es `IdiomaEnLaBase` y no `Idioma` (validacion de la ola 0 del
+// portugues, H2): la columna tiene un CHECK es/en/it y un `pt` moriria en el
+// INSERT con un 500. Asi `tsc` impide pasarlo, como en el resto de la cadena
+// de escritura (`idioma-alta.ts`, `idioma-instancia.ts`). Solo cambia el tipo.
 export async function crearTenant(
   nombre: string,
   slug: string,
   client?: PoolClient,
   moneda: Moneda = MONEDA_POR_OMISION,
-  idiomaDocumentos: Idioma = IDIOMA_POR_OMISION,
+  idiomaDocumentos: IdiomaEnLaBase = IDIOMA_POR_OMISION as IdiomaEnLaBase,
 ): Promise<TenantRow> {
   const base = slug.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'crm'
   const uno = async (texto: string, params: unknown[]) =>
