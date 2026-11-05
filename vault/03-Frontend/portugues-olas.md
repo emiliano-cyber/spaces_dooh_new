@@ -50,11 +50,11 @@ se repiten.
 | D1 | **pt-BR (Brasil), trato «você»**. Locale `pt-BR`; la clave del idioma es `pt` | **Decidido**. `IDIOMAS = ['es','en','it','pt']` (`idiomas.ts`), etiqueta «Português» |
 | D2 | **Pesos: «MX$ 1.160,00»** —símbolo delante con espacio, separadores brasileños—, como el italiano. **No se añade el real (BRL)** | **Decidido**. `FORMATO_IDIOMA.pt` (`formato-idioma.ts`) |
 | D3 | **Mientras falte una clave en portugués, se pinta en ESPAÑOL** (no en inglés como el italiano). Lo mismo los errores del servidor: un mensaje sale entero en portugués o entero en español, nunca a medias | **Decidido**. La caída vive en un solo sitio: `conCaidaAlEspanol(ES, PT)` (`diccionario.ts`); en el servidor, `errorEnTablas(TABLAS_PT, …) ?? mensaje` (`errores-servidor.ts`) |
-| D4 | Fechas «1 de dez. de 2026» (la corta de pt-BR), cifras «1.160,5», porcentaje «55,0%», trimestre «T1 2026» | **Propuesto en la ola 0**, sin decidir. En `FORMATO_IDIOMA.pt` |
-| P1 | **Dólar de una instancia USD en portugués** — provisional «US$ 1.160,00» | **Pendiente del dueño** |
-| P2 | **¿Se teclean las cifras a la brasileña («1.500,50»)?** Hoy, a la mexicana (`separadorDecimal: '.'`), porque es una decisión de dinero (ZONA ROJA) que el dueño tomó para el italiano (P-L2-1, 04/11) y no para el portugués, y porque los avisos de captura caen al español («la coma separa miles»): con coma decimal mentirían | **Pendiente del dueño** |
+| D4 | Fechas «1 de dez. de 2026» (la corta de pt-BR), cifras «1.160,5», porcentaje «55,0%», trimestre «T1 2026» | **Decidido** (05/11). En `FORMATO_IDIOMA.pt` |
+| P1 | **Dólar de una instancia USD en portugués: «US$ 1.160,00»** | **Decidido** (05/11) |
+| P2 | **¿Se teclean las cifras a la brasileña («1.500,50»)?** Hoy, a la mexicana (`separadorDecimal: '.'`), porque es una decisión de dinero (ZONA ROJA) que el dueño tomó para el italiano (P-L2-1, 04/11) y no para el portugués, y porque los avisos de captura caen al español («la coma separa miles»): con coma decimal mentirían | **Decidido (05/11): A LA BRASILEÑA.** Tarea ROJA aparte (`feat/portugues-cifras`), como la del italiano del 04/11 |
 | P3 | **Los papeles en portugués** (contrato de ejemplo, constancia, propuesta impresa, `/p`, portal, comprobante, correos) en una instancia `pt` | **Tarea ROJA aparte** (§3): migración de los dos CHECK, `--idioma pt` y el texto |
-| P4 | Glosario: ¿los anglicismos del sector se quedan en inglés como en italiano (spot, loop, DOOH, «loops/h»)? | Pendiente; lo propone L5 con el glosario común |
+| P4 | Glosario: ¿los anglicismos del sector se quedan en inglés como en italiano (spot, loop, DOOH, «loops/h»)? | **Decidido (05/11): se quedan en inglés** (spot, loop, DOOH, CPM, «loops/h»), como en italiano |
 
 ## 2 · Las olas
 
@@ -131,7 +131,7 @@ a `IDIOMAS`, añade `--idioma pt` y escribe los papeles.
 - [ ] `coberturaPortugues()` con **0 pendientes** en todas las filas (hoy, 5937)
 - [ ] El espejo (`I18N_VOLCAR_PT`) sin hallazgos de formato (hoy, §5)
 - [ ] La costura extendida al portugués, en verde
-- [ ] P1 y P2 contestadas por el dueño
+- [x] P1 y P2 contestadas por el dueño (05/11)
 - [ ] La tarea roja P3, si las instancias `pt` van a tener papeles en portugués
 - [ ] El recorrido en el navegador, pantalla por pantalla, con su validador
 
