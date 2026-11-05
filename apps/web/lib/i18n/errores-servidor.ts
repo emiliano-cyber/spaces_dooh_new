@@ -1,5 +1,5 @@
 import { IDIOMA_POR_OMISION, type Idioma } from './idiomas'
-import { ES_SERVIDOR, EN_SERVIDOR, IT_SERVIDOR, type ClaveServidor } from './textos/servidor'
+import { ES_SERVIDOR, EN_SERVIDOR, IT_SERVIDOR, PT_SERVIDOR, type ClaveServidor } from './textos/servidor'
 
 // ============================================================================
 //  lib/i18n/errores-servidor.ts — LOS ERRORES DEL SERVIDOR, EN DOS IDIOMAS.
@@ -1243,6 +1243,29 @@ export const FALTA_FIRMA_IT: Partial<Record<string, string>> = {
   'Periodicidad del pago': 'Periodicità del pagamento',
 }
 
+// ─── PORTUGUES (pt-BR) · ola 0 (2026-11-05) ─────────────────────────────────
+//
+// Los mismos catalogos, del espanol canonico al portugues. Nacen VACIOS y los
+// rellena el lote del servidor (`vault/03-Frontend/portugues-olas.md`). La
+// caida es la de la interfaz para el portugues (`diccionario.ts`): lo que no
+// tiene portugues sale en ESPANOL —el mensaje tal como lo escribio el
+// servidor—. Y nunca a medias: un «Campo: motivo» o un patron con huecos solo
+// va en portugues si TODAS sus piezas lo tienen; si no, entero en espanol.
+export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {}
+
+/** El de `lib/` sale del diccionario, como `CATALOGO_LIB_IT`: se escribe una vez, en `textos/servidor.ts`. */
+export const CATALOGO_LIB_PT: Partial<Record<string, string>> = Object.fromEntries(
+  (Object.keys(PT_SERVIDOR) as ClaveServidor[])
+    .filter((k) => !ES_SERVIDOR[k].includes('{') && typeof PT_SERVIDOR[k] === 'string' && PT_SERVIDOR[k] !== '')
+    .map((k) => [ES_SERVIDOR[k], PT_SERVIDOR[k] as string]),
+)
+
+/** El espejo de `CAMPO_EN`. */
+export const CAMPO_PT: Partial<Record<string, string>> = {}
+
+/** El espejo de `FALTA_FIRMA_EN` (para los `huecosPt` de los patrones de la firma). */
+export const FALTA_FIRMA_PT: Partial<Record<string, string>> = {}
+
 const deTabla = (tabla: Record<string, string>) => (v: string) => tabla[v] ?? v
 const lista = (tabla: Record<string, string>) => (v: string) =>
   v.split(', ').map(deTabla(tabla)).join(', ')
@@ -1302,6 +1325,13 @@ export type PatronError = {
    * de una frase italiana, y en ese caso el mensaje entero sale en ingles.
    */
   huecosIt?: Record<number, (valor: string) => string>
+  /**
+   * Ola 0 del portugues (2026-11-05): lo mismo para el portugues. Sin la
+   * plantilla, o sin la funcion de un hueco que en ingles la lleva, el
+   * mensaje sale ENTERO en ESPANOL (decision del dueno del 05/11).
+   */
+  pt?: string
+  huecosPt?: Record<number, (valor: string) => string>
 }
 
 // ─── Los motivos de zod que llevan un NUMERO dentro ─────────────────────────
@@ -1892,6 +1922,26 @@ export function patronesItSinPatron(): string[] {
   return Object.keys(PATRONES_IT).filter((k) => !ens.has(k))
 }
 
+// ─── PORTUGUES DE LOS PATRONES · ola 0 (2026-11-05) ─────────────────────────
+//
+// Igual que `PATRONES_IT`: una entrada por patron, con la plantilla `en` de su
+// patron como clave. Nace VACIO; lo rellena el lote del servidor. Un hueco que
+// en ingles pasa por una funcion necesita la suya en `huecosPt`.
+const PATRONES_PT: Record<string, { pt: string; huecosPt?: Record<number, (valor: string) => string> }> = {}
+
+for (const p of PATRONES_ERROR) {
+  const t = PATRONES_PT[p.en]
+  if (!t) continue
+  p.pt = t.pt
+  if (t.huecosPt) p.huecosPt = t.huecosPt
+}
+
+/** Las claves de `PATRONES_PT` que no casan con ningun patron (para la prueba). */
+export function patronesPtSinPatron(): string[] {
+  const ens = new Set(PATRONES_ERROR.map((p) => p.en))
+  return Object.keys(PATRONES_PT).filter((k) => !ens.has(k))
+}
+
 // Rearma un patron con los huecos del mensaje: `$n` (pasado por su funcion de
 // `huecos`, si tiene) y `{n|uno|otros}`. No se usa `String.replace` con la
 // cadena `en` como antes porque `$n` solo sabe copiar: ni traduce un hueco ni
@@ -1916,36 +1966,78 @@ function armarCon(
     })
 }
 
-// El italiano de un motivo suelto, o `null` si no lo hay ENTERO.
-function motivoEnItaliano(motivo: string): string | null {
-  const exacto = CATALOGO_ERRORES_IT[motivo] ?? CATALOGO_LIB_IT[motivo]
+// ─── UN MENSAJE ENTERO EN OTRO IDIOMA, O NADA ───────────────────────────────
+//
+// Ola 0 del portugues (2026-11-05): la logica que era del italiano, con las
+// tablas como parametro, para que el portugues siga EXACTAMENTE la misma regla
+// de «nunca a medias». Lo unico que cambia entre los dos es a donde se cae
+// cuando falta una pieza, y eso lo decide `traducirError` (abajo).
+interface TablasDeError {
+  catalogo: Partial<Record<string, string>>
+  lib: Partial<Record<string, string>>
+  campo: Partial<Record<string, string>>
+  plantilla: (p: PatronError) => string | undefined
+  huecosDe: (p: PatronError) => Record<number, (valor: string) => string> | undefined
+}
+
+const TABLAS_IT: TablasDeError = {
+  catalogo: CATALOGO_ERRORES_IT,
+  lib: CATALOGO_LIB_IT,
+  campo: CAMPO_IT,
+  plantilla: (p) => p.it,
+  huecosDe: (p) => p.huecosIt,
+}
+
+const TABLAS_PT: TablasDeError = {
+  catalogo: CATALOGO_ERRORES_PT,
+  lib: CATALOGO_LIB_PT,
+  campo: CAMPO_PT,
+  plantilla: (p) => p.pt,
+  huecosDe: (p) => p.huecosPt,
+}
+
+// Un motivo suelto en el idioma de las tablas, o `null` si no lo hay ENTERO.
+function motivoEnTablas(t: TablasDeError, motivo: string): string | null {
+  const exacto = t.catalogo[motivo] ?? t.lib[motivo]
   if (exacto !== undefined) return exacto
   for (const p of PATRONES_ERROR) {
     const m = p.re.exec(motivo)
     if (!m) continue
     // El primer patron que casa es el que manda, igual que en ingles: si no
-    // tiene italiano, no se sigue buscando otro.
-    if (p.it === undefined) return null
-    const sinItaliano = Object.keys(p.huecos ?? {}).some((n) => !p.huecosIt?.[Number(n)])
-    if (sinItaliano) return null
-    // Un hueco italiano que no se pudo traducir deja su marca: entero al ingles.
-    const armado = armarCon(p.it, p.huecosIt, m.slice(1))
+    // tiene plantilla en este idioma, no se sigue buscando otro.
+    const plantilla = t.plantilla(p)
+    if (plantilla === undefined) return null
+    const huecos = t.huecosDe(p)
+    const sinTraducir = Object.keys(p.huecos ?? {}).some((n) => !huecos?.[Number(n)])
+    if (sinTraducir) return null
+    // Un hueco que no se pudo traducir deja su marca: el mensaje entero cae.
+    const armado = armarCon(plantilla, huecos, m.slice(1))
     return armado.includes(SIN_ITALIANO) ? null : armado
   }
   return null
 }
 
-// El italiano de un mensaje entero, o `null` si alguna pieza no lo tiene.
-function errorEnItaliano(mensaje: string): string | null {
-  const exacto = CATALOGO_ERRORES_IT[mensaje] ?? CATALOGO_LIB_IT[mensaje]
+// Un mensaje entero en el idioma de las tablas, o `null` si alguna pieza no lo tiene.
+function errorEnTablas(t: TablasDeError, mensaje: string): string | null {
+  const exacto = t.catalogo[mensaje] ?? t.lib[mensaje]
   if (exacto !== undefined) return exacto
   const corte = mensaje.indexOf(': ')
   if (corte > 0 && CAMPO_EN[mensaje.slice(0, corte)] !== undefined) {
-    const campo = CAMPO_IT[mensaje.slice(0, corte)]
-    const motivo = motivoEnItaliano(mensaje.slice(corte + 2))
+    const campo = t.campo[mensaje.slice(0, corte)]
+    const motivo = motivoEnTablas(t, mensaje.slice(corte + 2))
     return campo !== undefined && motivo !== null ? `${campo}: ${motivo}` : null
   }
-  return motivoEnItaliano(mensaje)
+  return motivoEnTablas(t, mensaje)
+}
+
+// El italiano de un motivo suelto, o `null` si no lo hay ENTERO.
+function motivoEnItaliano(motivo: string): string | null {
+  return motivoEnTablas(TABLAS_IT, motivo)
+}
+
+// El italiano de un mensaje entero, o `null` si alguna pieza no lo tiene.
+function errorEnItaliano(mensaje: string): string | null {
+  return errorEnTablas(TABLAS_IT, mensaje)
 }
 
 // Una pieza suelta: el motivo, sin la etiqueta de campo delante.
@@ -1974,6 +2066,9 @@ export function traducirError(mensaje: string, idioma: Idioma): string {
     if (italiano !== null) return italiano
     // Sin italiano completo, sigue abajo: el ingles.
   }
+  // Ola 0 del portugues (05/11): sin portugues completo, el mensaje tal como
+  // entro, que es el ESPANOL (decision del dueno). Nunca el ingles.
+  if (idioma === 'pt') return errorEnTablas(TABLAS_PT, mensaje) ?? mensaje
 
   const exacto = CATALOGO_ERRORES[mensaje] ?? CATALOGO_LIB[mensaje]
   if (exacto !== undefined) return exacto
