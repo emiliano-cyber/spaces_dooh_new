@@ -9,7 +9,8 @@ import {
   pintarCrudo,
   motivoCifraAjena,
   textoAlSalir,
-  formatearMientrasEscribe,
+  teclearCifra,
+  cifraAMedias,
   type LecturaCifra,
   type OpcionesCifra,
 } from '@/lib/captura-cifra'
@@ -30,6 +31,13 @@ import {
 //  antes. Las comas solo existen en lo que se ve. Si lo tecleado no se entiende,
 //  el padre recibe 'NaN' (que `Number()` nunca acepta) y el error, y debe
 //  bloquear el envío con él.
+//
+//  D18 (05/11) · una coma que teclea o pega la PERSONA se queda donde la puso
+//  y `leerCifra` decide, igual que al pegar: «2,5» se ve «2,5» y se rechaza
+//  (antes acababa en 25 sin aviso). A media escritura («1,», «1,5», camino de
+//  «1,500») no se avisa; el aviso sale al salir del campo o con Enter. La
+//  regla, en `teclearCifra` y `cifraAMedias`. En italiano, lo mismo con el
+//  PUNTO de millar (B87): «1.5000» tecleado se queda y se rechaza.
 //
 //  EN ITALIANO los signos van al revés —se teclea y se ve «1.500,50»— y el
 //  padre recibe lo mismo que en español: «1500.5». Ver `lib/captura-cifra.ts`.
@@ -83,6 +91,7 @@ export function CampoCifra({
   mostrarError = true,
   idioma: idiomaProp,
   onBlur,
+  onKeyDown,
   ...resto
 }: CampoCifraProps) {
   const idiomaPantalla = useIdioma().idioma
@@ -99,6 +108,10 @@ export function CampoCifra({
   // B82: lo pintado es un crudo de OTRO idioma que no es una cifra («1,500»
   // guardado en español y abierto en italiano). Se avisa hasta que se teclee.
   const [ajeno, setAjeno] = React.useState(() => pintarCrudo(crudoProp, idioma).ajeno)
+  // D18: el texto lleva comas que puso la persona (no se recolocan), y se está
+  // tecleando (lo que va a medias no avisa todavía).
+  const [comasPropias, setComasPropias] = React.useState(false)
+  const [escribiendo, setEscribiendo] = React.useState(false)
   const ultimoEmitido = React.useRef(crudoProp)
   const cursorPendiente = React.useRef<number | null>(null)
   const ref = React.useRef<HTMLInputElement>(null)
@@ -114,14 +127,22 @@ export function CampoCifra({
   // cambio: si no, cada tecla borraría el punto final de «212,500.».
   // Y si cambia el idioma con el campo montado, se repinta con sus signos: el
   // valor es el mismo, pero «1,500.5» leído en italiano sería otra cifra.
+  //
+  // D18: lo que va A MEDIAS («1,» camino de «1,500») no se repinta mientras se
+  // teclea. Un formulario que se queda con el último valor válido (la cantidad
+  // de la propuesta) o que acota a 0 lo ilegible (la reserva) devolvería el
+  // valor de antes en cada coma, y «1,000» no se podría teclear. Al salir del
+  // campo sí se repinta: entonces se ve lo que el formulario guardó.
   const idiomaPintado = React.useRef(idioma)
+  const aMedias = escribiendo && cifraAMedias(texto, idioma)
   React.useEffect(() => {
-    if (crudoProp !== ultimoEmitido.current || idioma !== idiomaPintado.current) {
+    if ((crudoProp !== ultimoEmitido.current && !aMedias) || idioma !== idiomaPintado.current) {
       ultimoEmitido.current = crudoProp
       idiomaPintado.current = idioma
       const p = pintarCrudo(crudoProp, idioma)
       setTexto(p.texto)
       setAjeno(p.ajeno)
+      setComasPropias(false)
     }
   })
 
@@ -142,7 +163,7 @@ export function CampoCifra({
   }
 
   const lectura = leerCifra(texto, opciones)
-  const error = ajeno ? motivoCifraAjena(idioma) : lectura.ok ? null : lectura.error
+  const error = ajeno ? motivoCifraAjena(idioma) : lectura.ok || aMedias ? null : lectura.error
 
   return (
     <>
@@ -160,17 +181,17 @@ export function CampoCifra({
         title={error ?? resto.title}
         onChange={(e) => {
           const el = e.target
-          const r = formatearMientrasEscribe(
-            {
-              anterior: texto,
-              nuevo: el.value,
-              cursor: el.selectionStart ?? el.value.length,
-              tipoEntrada: (e.nativeEvent as InputEvent).inputType,
-            },
+          const tipoEntrada = (e.nativeEvent as InputEvent).inputType
+          const r = teclearCifra(
+            { texto, comasPropias },
+            { nuevo: el.value, cursor: el.selectionStart ?? el.value.length, tipoEntrada },
             idioma,
           )
           cursorPendiente.current = r.cursor
           setTexto(r.texto)
+          setComasPropias(r.comasPropias)
+          // Lo pegado no va «a medias»: avisa en el acto, como siempre.
+          setEscribiendo(tipoEntrada !== 'insertFromPaste' && tipoEntrada !== 'insertFromDrop')
           emitir(r.texto)
         }}
         onBlur={(e) => {
@@ -180,7 +201,17 @@ export function CampoCifra({
           // válido («1.500,50» → «1.500,5»), lo pintaría como una cifra correcta
           // que no es la que se manda.
           if (!ajeno) setTexto(textoAlSalir(texto, opciones))
+          // D18: al salir se avisa de lo que quedó a medias; y una cifra
+          // válida se pinta canónica, así que sus comas pasan a ser del campo.
+          setEscribiendo(false)
+          if (lectura.ok) setComasPropias(false)
           onBlur?.(e)
+        }}
+        onKeyDown={(e) => {
+          // D18: Enter suele enviar el formulario sin salir del campo; el
+          // aviso de lo que quedó a medias tiene que verse entonces.
+          if (e.key === 'Enter') setEscribiendo(false)
+          onKeyDown?.(e)
         }}
       />
       {mostrarError && error && (

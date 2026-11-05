@@ -285,7 +285,50 @@ archivo dentro de la pregunta.
 > D18 es la misma trampa en español, que el dueño pidió no tocar. (Numeradas tras D17 y B76, que
 > ya existen en `integra/idiomas`.)
 
-### D18 · En un campo de dinero, si alguien escribe «2,5» en español, hoy se queda en 25 sin ningún aviso. ¿Se cambia para que avise, aunque eso cambie el comportamiento en español?
+### ~~D18 · En un campo de dinero, si alguien escribe «2,5» en español, hoy se queda en 25 sin ningún aviso. ¿Se cambia para que avise, aunque eso cambie el comportamiento en español?~~ — CERRADA (b)
+
+> ✅ **CONTESTADA el 2026-11-05 por el dueño (opción b) y CONSTRUIDA** en
+> `feat/d18-aviso-al-teclear` (sale de `verificacion` `a91580bb`; rojo a la vista `6dce3b0f`, 28
+> rojas en formularios y las unitarias; arreglo en el commit siguiente). Sin validar todavía.
+>
+> **La regla exacta**, en español e inglés y en todos los campos `CampoCifra` (dinero y
+> cantidades enteras): las comas que pone el CAMPO al teclear la cuarta cifra se recolocan como
+> siempre; una coma que pone la PERSONA —tecleada, o en un texto pegado— se queda donde la puso,
+> y mientras quede alguna el campo no recoloca ninguna (`teclearCifra`, `lib/captura-cifra.ts`).
+> Decide `leerCifra`, la misma de pegar: «1,500» y «12,500.50» valen; «2,5», «12,34», «1,5000»
+> y «15000,50» se quedan a la vista, se rechazan con «las comas van cada tres cifras» y el
+> formulario recibe `'NaN'` (no envía, con las guardias de siempre). **A media escritura no se
+> avisa**: lo que acaba en un grupo de millar incompleto («1,», «1,5», «12,50») va camino de
+> «1,500» (`cifraAMedias`); el aviso sale al salir del campo o con Enter. Lo pegado avisa en el
+> acto, como antes. El italiano no cambia.
+>
+> **Qué cambia en español, medido** contra la función de `a91580bb`, tecleando de corrido todas
+> las secuencias de hasta 7 teclas sobre `0 1 2 5 , .` (335 922 por idioma; inglés idéntico):
+> sin una coma tecleada, **ninguna** cambia; con alguna, en dinero 125 259 pasan de una cifra a
+> un rechazo y 84 799 solo cambian el texto (ya se rechazaban); en cantidades enteras, 88 399 y
+> 121 659. **Ninguna** pasa de rechazo a cifra ni de una cifra a otra. En la batería de la
+> huella cambian exactamente 68 filas de 116 000, todas una coma insertada que ahora se queda
+> (apuntadas en `captura-cifra.es-en.test.ts`). Volcado `I18N_VOLCAR_TODO` de toda la suite:
+> 0 HTML distintos (ninguna prueba de pantalla teclea una coma mal puesta).
+>
+> **Lo que NO cubre, y es otro defecto:** los campos `EntradaCifra` en español e inglés
+> (medidas, porcentajes —comisiones, el descuento de la propuesta—, caras, plazos) son el
+> `<input>` de siempre: no reagrupaban nada, así que no tenían la diferencia entre teclear y
+> pegar que decide D18. Ahí «12,5» sigue siendo `Number('12,5') || 0` = 0, tecleado o pegado,
+> como se dejó a propósito el 04/11. Cambiarlo cambia su HTML y su contrato: si se quiere, es
+> una decisión nueva.
+>
+> **Supervisión 2026-11-04 (hora local): ÁMBAR** — `docs/Supervision/d18-aviso-al-teclear.md`.
+> Medido aparte contra la función de `a91580bb`: las cifras de arriba se reproducen exactas
+> (125 259 / 84 799 / 88 399 / 121 659, 0 rechazo→cifra); la huella de antes es `e5240e24…` y las
+> 68 filas distintas son exactamente `CAMBIOS_D18`; volcado de toda la suite, 0 HTML distintos;
+> 100 000 secuencias al azar sin coma de la persona, 0 distintas; 11 de 13 mutantes mueren.
+> **Una precisión:** «ninguna pasa de una cifra a otra» vale solo para teclear de corrido. Con
+> retroceso sí cambian (24 069 de 3 257 436 desde vacío), y es a favor del arreglo: antes el
+> retroceso tras una coma tragada borraba una cifra (143 150 casos perdían una cifra con la función
+> vieja, 0 con la nueva). Deuda nueva: **B87** (el gemelo italiano; el supervisor la numeró B84, número ya usado), **B85** (pegar sobre una
+> selección), **B86** (dos mutantes vivos), y la decisión **D19** (`EntradaCifra` en es/en).
+
 
 - **Bloquea:** nada de lo construido ni de la rama italiana. El arreglo del italiano (B77) se
   puede hacer ya sin esta respuesta. **Lo que SÍ se puede mientras:** todo.
@@ -310,6 +353,33 @@ archivo dentro de la pregunta.
 - **Si nadie contesta:** queda la (a). Aceptable a corto plazo: es lo de siempre y la cifra se ve en
   pantalla. Deja de serlo si entra un cliente que teclee con costumbre europea en español.
 - **Caduca:** no caduca por fecha; pierde valor cada factura o propuesta que se capture así.
+
+### D19 · En español e inglés, si alguien escribe «12,5» en el porcentaje de comisión de una agencia o de una propuesta, hoy se guarda 0 % sin ningún aviso. ¿Se cambia para que avise y no guarde?
+
+- **Bloquea:** nada de lo construido; D18 aterriza sin esta respuesta. **Lo que SÍ se puede
+  mientras:** todo. Solo queda abierto que esos campos sigan guardando 0.
+- **Por qué importa:** la comisión de la agencia y la de la propuesta entran en el precio. Quien
+  escribe «12,5» pensando en «doce y medio» —costumbre europea o de calculadora— guarda **0 %**: la
+  agencia queda sin comisión y la propuesta sale con otro precio, y la pantalla no dice nada. Es el
+  mismo error que D18 acaba de quitar de los campos de importe, en los campos de porcentaje, que
+  son de otra clase y D18 no tocaba. Pasa hoy, en el idioma con clientes. En los campos de
+  porcentaje con flechas (descuento, tope, cupones) depende del navegador y no está medido.
+- **Opciones:**
+  - **(a) Dejarlo como está.** Cero días. El riesgo queda en quien escriba con coma decimal.
+  - **(b) Que esos campos rechacen lo que no es una cifra y no dejen guardar, con un aviso.** Medio
+    día con sus pruebas, solo en los campos de porcentaje y de dinero (comisiones, descuento, tope,
+    cupones, descuento por volumen). Cambia cómo se ven esos campos cuando hay un error; con una
+    cifra bien escrita, nada.
+  - **(c) Pasar todos esos campos al campo de cifras que ya usan los importes** (el mismo de D18).
+    Uno o dos días. Un solo comportamiento en toda la aplicación, pero cambia también cómo se ven
+    con cifras correctas (comas de miles) y hay que revisarlos uno por uno.
+- **Recomendación:** **(b)** ahora, en los campos que tocan dinero. Es el principio que el dueño ya
+  fijó dos veces («lo ambiguo se rechaza», B77 y D18) y es el arreglo más pequeño que lo cumple. (c)
+  queda para cuando haya tiempo de revisar campo por campo.
+- **Si nadie contesta:** queda la (a). Aceptable solo mientras nadie capture comisiones con coma
+  decimal; un 0 % en una comisión no se ve hasta que alguien revise el precio o el pago a la agencia.
+- **Caduca:** no caduca por fecha; pierde valor con cada comisión o propuesta capturada así.
+
 
 ---
 
@@ -2920,6 +2990,53 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
   `node scripts/recuentos.mjs` al cerrar la rama (`node scripts/recuentos.mjs`: 1671 en `a91580bb`, 1674 en `aed31579`; el diario
   ya dice 1674). La rama añade tres enlaces en el diario y no tocó `CLAUDE.md`. **Cómo se cierra:**
   correr el script y poner la cifra, en esta rama antes de fusionar. **Quién:** el ejecutor. Menor.
+
+  > **2026-11-04 · supervisión de `feat/d18-aviso-al-teclear`** (`6dce3b0f` + `598a3a25`), ÁMBAR —
+  > `docs/Supervision/d18-aviso-al-teclear.md`. Tres advertencias nuevas; la decisión nueva es D19.
+
+- ~~**B87 · En italiano, «1.500» tecleado y luego un «0» se vuelve «15.000» sin aviso.**~~ ✅ **CERRADA el 2026-11-05** (`3a040dec` rojo a la vista; arreglo en el commit
+  siguiente de `feat/d18-aviso-al-teclear`). La rama italiana de `teclearCifra` es el espejo de la española con los signos intercambiados: un
+  punto de millar que pone la persona no se recoloca. «1.5000» y «1.2345» tecleados se quedan y se
+  rechazan, como pegados; «1.500», «1.500,50», «1500» → «1.500» igual que antes; pegar «1.500» sobre
+  «2.000» + 0 → «1.5000» rechazado. Lo único que cambia en las pruebas italianas de antes son esos
+  dos casos (`captura-cifra.d18.test.ts`). `cifraAMedias` sigue en `false` en italiano. Numerada
+  **B84** por el supervisor; ese número ya lo usaba otra rama.
+  Lo que decía la advertencia: Qué es:** el gemelo exacto de lo
+  que D18 corrige en español. B77 deja el punto tecleado donde cae, pero cuando el texto vuelve a
+  parecer canónico («1.500») la tecla siguiente lo regrupa. **Evidencia:** `teclearCifra(…, 'it')`
+  tecla a tecla: `1 > 1. > 1.5 > 1.50 > 1.500 > 15.000` → 15000; `1.2345` → 12345; en español la
+  misma secuencia con coma da `1,5000` → rechazado. Pegado, «1.5000» se rechaza también en italiano.
+  La rama italiana de `teclearCifra` devuelve `comasPropias: false` siempre (`lib/captura-cifra.ts:439`
+  y siguientes). **Cómo se cierra:** el mismo estado de D18 («separadores propios») en la rama
+  italiana; prueba roja con «1.500» + «0». No hace falta decisión nueva: el principio del dueño para
+  el italiano ya es «lo tecleado acaba igual que lo pegado» (B77). **Quién:** el ejecutor de la
+  captura italiana (ZONA ROJA ya autorizada en B77), verificador aparte. **Si no se cierra antes del
+  14/10:** la fecha pasó; lo que importa es **antes de encender el italiano** en un servidor con
+  clientes: un importe tecleado así se guarda 10 veces mayor, a la vista pero sin aviso.
+- ~~**B85 · Pegar una cifra con comas ENCIMA de otra con las mismas comas no cuenta como «coma de la persona».**~~ ✅ **CERRADA el 2026-11-05** (`3a040dec` rojo a la vista; arreglo en el commit
+  siguiente de `feat/d18-aviso-al-teclear`). Lo pegado o soltado (`insertFromPaste`/`insertFromDrop`) con coma cuenta como de la persona siempre;
+  «2,000» → pegar «1,500» → «0» da «1,5000» rechazado (unitaria y en el campo).
+  Lo que decía la advertencia: Qué es:** `teclearCifra` marca la coma
+  como de la persona solo si el cambio trae **más** comas que antes (`lib/captura-cifra.ts:453`).
+  **Evidencia:** `""` → pegar «1,500» → «0» da `1,5000` rechazado; `"2,000"` → pegar «1,500» (sobre
+  la selección) → «0» da `15,000` = 15000. La regla escrita en la función («tecleada, o en un texto
+  pegado») y la prueba «lo pegado con coma cuenta como de la persona» solo se cumplen pegando en
+  vacío. Reemplazar una tarifa seleccionándola y pegando es la edición normal. Lo que se ve es lo que
+  se manda y es el comportamiento de antes de D18, por eso no es rojo. **Cómo se cierra:** en
+  `insertFromPaste`/`insertFromDrop`, marcar como propio si el texto resultante lleva coma; prueba
+  roja con «2,000» → pegar «1,500» → «0». **Quién:** el ejecutor de `feat/d18-aviso-al-teclear`.
+  **Si no:** queda un camino por el que «1,500» + 0 da 15,000 sin aviso, el patrón que D18 cerró.
+- ~~**B86 · Dos mutantes de D18 sobreviven a las unitarias.**~~ ✅ **CERRADA el 2026-11-05** (`3a040dec` rojo a la vista; arreglo en el commit
+  siguiente de `feat/d18-aviso-al-teclear`). Dos pruebas en `cifras-d18.test.ts`: «1,000» bajo un mínimo de 1500, salir y «0» → «1,0000»; y un
+  repintado del padre («1,500,5» → «1,500») vuelve a reagrupar («15,000»). Los dos mutantes mueren
+  (2 rojas cada uno), igual que otros seis sobre B85 y B87 (8/8).
+  Lo que decía la advertencia: Qué es:**
+  M11 (salir del campo con una cifra INVÁLIDA también apaga `comasPropias`) y M13 (el repintado del
+  padre deja de apagarlo) pasan las 260 pruebas de captura de cifras. El código de hoy hace lo
+  correcto (`components/demo/ui/CampoCifra.tsx:206` y `:144`); nada lo protege. Con M11, un campo con
+  mínimo 1500, «1,000» tecleado, salir, volver y «0» daría 10,000 válido. **Cómo se cierra:** una
+  prueba por cada uno en `lib/i18n/cifras-d18.test.ts` (el arnés ya tiene `salir()` y `refs: true`).
+  **Quién:** el ejecutor. Menor.
 
 - **B57 · 🟠 ABIERTA (2026-10-29) · Un usuario que ya usó el sistema NO se puede
   borrar: la bitácora lo impide.** Encontrada escribiendo la prueba de P19.

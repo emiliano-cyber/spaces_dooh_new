@@ -42,6 +42,14 @@ export const tienda = {
   efectos: [] as Efecto[],
   depsPrevias: new Map<number, readonly unknown[] | undefined>(),
   cambios: 0,
+  /**
+   * Solo con `montar(…, { refs: true })`: `useRef` recuerda entre renders,
+   * como en el navegador. Sin él es el `useRef` del servidor, que nace en cada
+   * render (lo de siempre: así las pruebas de antes no cambian).
+   */
+  conRefs: false,
+  refs: new Map<number, { current: unknown }>(),
+  r: 0,
 }
 
 export function reiniciarTienda(): void {
@@ -53,6 +61,9 @@ export function reiniciarTienda(): void {
   tienda.efectos = []
   tienda.depsPrevias.clear()
   tienda.cambios = 0
+  tienda.conRefs = false
+  tienda.refs.clear()
+  tienda.r = 0
 }
 
 function correrEfectos(): void {
@@ -89,7 +100,13 @@ export function reactConEstado(real: typeof ReactNS): typeof ReactNS {
     const k = tienda.e++
     if (tienda.conEfectos) tienda.efectos.push({ k, fn, deps })
   }
-  const r = { useState, useEffect, useLayoutEffect: useEffect }
+  function useRef(inicial?: unknown) {
+    if (!tienda.conRefs) return real.useRef(inicial)
+    const k = tienda.r++
+    if (!tienda.refs.has(k)) tienda.refs.set(k, { current: inicial })
+    return tienda.refs.get(k)
+  }
+  const r = { useState, useEffect, useLayoutEffect: useEffect, useRef }
   return { ...real, ...r, default: { ...real, ...r } } as unknown as typeof ReactNS
 }
 
@@ -117,12 +134,14 @@ export function textoDe(n: unknown): string {
 }
 
 /** Un formulario montado: se rinde, se teclea y se pulsa. */
-export function montar(elemento: () => ReactElement, opciones: { efectos?: boolean } = {}) {
+export function montar(elemento: () => ReactElement, opciones: { efectos?: boolean; refs?: boolean } = {}) {
   let html = ''
   tienda.conEfectos = !!opciones.efectos
+  tienda.conRefs = !!opciones.refs
   const rendir = () => {
     tienda.i = 0
     tienda.e = 0
+    tienda.r = 0
     tienda.elementos = []
     tienda.efectos = []
     html = renderToStaticMarkup(elemento())
@@ -184,6 +203,19 @@ export function montar(elemento: () => ReactElement, opciones: { efectos?: boole
         })
         rendir()
       }
+    },
+    /**
+     * Sale del campo (su `onBlur`) y vuelve a rendir. D18: el aviso de una
+     * cifra a medias («1,5») sale aquí, no mientras se teclea.
+     */
+    salir(texto: string, exacto = false) {
+      ;(this.campo(texto, exacto).props.onBlur as ((ev: unknown) => void) | undefined)?.({ target: {} })
+      rendir()
+    },
+    /** Pulsa una tecla (`onKeyDown`) en el campo y vuelve a rendir. */
+    pulsarTecla(texto: string, tecla: string, exacto = false) {
+      ;(this.campo(texto, exacto).props.onKeyDown as ((ev: unknown) => void) | undefined)?.({ key: tecla, preventDefault() {} })
+      rendir()
     },
     /** Teclea en el n-ésimo `<input>` sin placeholder ni etiqueta que lo distinga. */
     teclearEn(e: Elemento, valor: string) {
