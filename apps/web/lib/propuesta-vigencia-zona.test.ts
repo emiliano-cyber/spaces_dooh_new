@@ -69,8 +69,8 @@ describe('B88 · el dia de la vigencia se cuenta en la zona del negocio, explici
   })
 
   it('la forma de glibc con dos puntos delante tambien vale', () => {
-    process.env.TZ = ':America/Mexico_City'
-    expect(zonaDelNegocio()).toBe('America/Mexico_City')
+    process.env.TZ = ':America/Los_Angeles'
+    expect(zonaDelNegocio()).toBe('America/Los_Angeles')
   })
 
   it('pasada la medianoche de Mexico, ya es el dia siguiente', () => {

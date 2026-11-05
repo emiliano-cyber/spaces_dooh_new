@@ -2188,8 +2188,23 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
 - **Quién:** el dueño o quien opere g500, para medir; el ejecutor, para el comentario y el aviso.
 - **Si no se cierra antes de fusionar:** la vigencia queda bien en la hipótesis de la plantilla y
   sin red en la otra. Y D20 se decide sobre una premisa sin medir.
+- **2026-11-05 · H4 hecho en la rama** (`475e6403` rojo, arreglo en el commit siguiente): `hoyDeVigencia()`
+  cuenta con `Intl` y la zona EXPLÍCITA (`zonaDelNegocio()`, `lib/propuesta-vigencia.ts`): la `TZ` del
+  proceso si es válida (también con los dos puntos de glibc) y, si falta o no vale,
+  `ZONA_DEL_NEGOCIO_POR_OMISION = America/Mexico_City` con un `console.warn` una sola vez. Ya no
+  cae a UTC en silencio, y no depende de que el runtime honre `TZ` (Node en Windows no la honra
+  para `America/Los_Angeles`: medido). 6/6 mutantes. **Sigue abierta** por la medición de g500
+  (`printenv TZ`, `date` y `show timezone;`), que corre una persona, y por el comentario de
+  `finanzas-repo.ts:319-320` que se corrige con esa salida. El comentario de la rama ya no afirma
+  la zona de Postgres de g500 como medida.
 
-#### B89 · 🟡 ABIERTA (2026-11-04) · «Enviar» no tiene prueba que muerda la fecha del correo
+#### ~~B89 · «Enviar» no tiene prueba que muerda la fecha del correo~~ ✅ CERRADA el 2026-11-05 en `feat/verificacion-ajustes`
+
+- **Cerrada con** `lib/server/propuestas-envio-hora.test.ts` (`2070b34a`): llama a
+  `enviarPropuestaCtrl` con el reloj a las 19:00 de México y la base simulada comparando con el día
+  que le llega (vence hoy, sin vigencia, vencida ayer). M5 (`:65`) y M4 (`:87`) del supervisor
+  mueren, 2 rojas cada uno. Lo de abajo es el texto con que se abrió.
+
 
 - **Qué es:** de la regla única de la vigencia, la mitad del correo de «Enviar» solo la vigila una
   guardia de texto contra `current_date`. Dos mutantes que leen el día con `toISOString()` en
@@ -2900,8 +2915,9 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
   `current_date` y build, `3 failed`; 5 de 7 mutantes de vigencia mueren. **Lo que deja abierto:**
   la premisa de g500 sin medir (B88), la fecha del correo sin prueba que muerda (B89), y del
   «resto», lo de dinero —cupones, facturas, cobros, tablero de finanzas— va a **D20**.
-- **B90 · ⚪ ABIERTA (2026-11-04) · `CLAUDE.md:42` dice 1671 enlaces y `feat/verificacion-ajustes`
-  tiene 1674** (`node scripts/recuentos.mjs`: 1671 en `a91580bb`, 1674 en `aed31579`; el diario
+- ~~**B90 · `CLAUDE.md:42` dice 1671 enlaces y `feat/verificacion-ajustes`
+  tiene 1674**~~ ✅ **CERRADA el 2026-11-05**: `CLAUDE.md` lleva la cifra medida con
+  `node scripts/recuentos.mjs` al cerrar la rama (`node scripts/recuentos.mjs`: 1671 en `a91580bb`, 1674 en `aed31579`; el diario
   ya dice 1674). La rama añade tres enlaces en el diario y no tocó `CLAUDE.md`. **Cómo se cierra:**
   correr el script y poner la cifra, en esta rama antes de fusionar. **Quién:** el ejecutor. Menor.
 

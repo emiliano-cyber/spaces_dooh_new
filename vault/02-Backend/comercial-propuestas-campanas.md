@@ -728,6 +728,12 @@ Decisiones del dueño del 29/10. Migración
   en UTC, reloj a las 19:00 de México, y una guardia contra `current_date` en
   `propuestas-repo.ts` y `propuestas-envio.ts`) y la e2e, que ya no depende de
   la hora.
+- **Si falta `TZ` (B88 · H4, 05/11).** `hoyDeVigencia()` cuenta con `Intl` y la
+  zona explícita de `zonaDelNegocio()`: la `TZ` del proceso si es válida y, si
+  falta o no vale, `ZONA_DEL_NEGOCIO_POR_OMISION` (`America/Mexico_City`, la de
+  la plantilla `app.env.example`) con un aviso en el log una sola vez. Antes
+  caía a UTC en silencio. La fecha del correo de «Enviar» la fija
+  `lib/server/propuestas-envio-hora.test.ts` (B89).
 - **Condiciones.** `config_negocio.condiciones_propuesta` es una PLANTILLA que
   `crearPropuesta` **copia** a `propuestas.condiciones`: cambiarla no toca las ya
   creadas. Se editan por propuesta en la ficha («Condiciones y vigencia») y
