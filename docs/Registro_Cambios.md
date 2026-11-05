@@ -5,6 +5,16 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-05 · v0.12.6 (preparada, todavía sin publicar)
+
+Junta todo lo que está abajo marcado «sin publicar» desde el 02/11: inglés e italiano,
+el idioma de cada persona, los papeles en el idioma del servidor, pesos o dólares por
+servidor, las cifras con coma, la vigencia de las propuestas, los nombres accesibles y lo
+nuevo de Space Eyes. Las notas que verá cada cliente están en `apps/web/novedades.json`.
+**El portugués NO va en esta versión**: sigue en su rama, `integra/portugues`.
+
+---
+
 ## 2026-11-05 · Mapas, avisos y botones de cerrar en el idioma de cada persona, y la vigencia de las propuestas sin depender de la hora (sin publicar)
 
 Cambios que el dueño autorizó el 05/11. Los tres primeros se notan sobre todo con un lector de pantalla o al
