@@ -140,7 +140,7 @@ vi.mock('@/lib/predio-cercania', () => ({
 // `docIdioma` (ADR 0049): el idioma de los DOCUMENTOS de la instancia, que
 // trae el propio documento. `idioma` es el de la persona (la peticion).
 const servidor = vi.hoisted(() => ({
-  idioma: 'es' as 'es' | 'en' | 'it',
+  idioma: 'es' as 'es' | 'en' | 'it' | 'pt',
   docIdioma: 'es' as 'es' | 'en' | 'it',
   permiso: true,
   firma: null as unknown,

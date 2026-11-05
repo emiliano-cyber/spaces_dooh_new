@@ -71,3 +71,30 @@ describe('guardarIdiomaCtrl', () => {
     await expect(guardarIdiomaCtrl('u1', { idioma: 'en' })).rejects.toMatchObject({ status: 404 })
   })
 })
+
+// Ola 0 del portugues (2026-11-05) · `usuarios.idioma_preferido` tiene un CHECK
+// es/en/it. Con el portugues ENCENDIDO, la cuenta no lo ofrece ni lo guarda:
+// un `pt` llegaria al UPDATE y el CHECK lo tumbaria con un 500. La tarea roja
+// que abre la columna cambiara esta prueba a proposito.
+describe('el portugues encendido no llega a la base', () => {
+  beforeEach(() => {
+    process.env.IDIOMA_PORTUGUES = '1'
+  })
+  afterEach(() => {
+    delete process.env.IDIOMA_PORTUGUES
+  })
+
+  it('leer: «disponibles» no lo incluye', async () => {
+    expect(await leerIdiomaCtrl('u1')).toEqual({ preferido: null, disponibles: ['es', 'en'] })
+  })
+  it('NEGATIVO · guardar pt: 400 y la base ni se toca', async () => {
+    await expect(guardarIdiomaCtrl('u1', { idioma: 'pt' })).rejects.toMatchObject({
+      status: 400,
+      message: 'Ese idioma no está disponible en este servidor.',
+    })
+    expect(repo.llamadas).toEqual([])
+  })
+  it('lo demas, como siempre', async () => {
+    expect(await guardarIdiomaCtrl('u1', { idioma: 'en' })).toEqual({ preferido: 'en', disponibles: ['es', 'en'] })
+  })
+})

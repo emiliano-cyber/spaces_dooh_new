@@ -621,3 +621,12 @@ export const IT_FINANZAS: Record<ClaveFinanzas, string> = {
   'finanzas.comprobante.aviso':
     'Ricevuta di pagamento. NON è un CFDI timbrato presso il SAT: il CFDI timbrato si emette a parte e questo documento non sostituisce la fattura fiscale.',
 }
+
+// ─── PORTUGUES (pt-BR) · ola 0 (2026-11-05) ─────────────────────────────────
+// PARCIAL a proposito: lo rellena el lote de traduccion de este ambito
+// (`vault/03-Frontend/portugues-olas.md`). Mientras falte una clave, la
+// pantalla la pinta en ESPANOL (decision del dueno del 05/11; `diccionario.ts`,
+// `DICCIONARIOS.pt`) y la prueba de cobertura (`cobertura-portugues.test.ts`)
+// la cuenta como pendiente. Cuando el lote termine, el tipo pasa a
+// `Record<ClaveFinanzas, string>` y `tsc` vuelve a exigir cada clave.
+export const PT_FINANZAS: Partial<Record<ClaveFinanzas, string>> = {}

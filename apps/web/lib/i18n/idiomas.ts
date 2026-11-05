@@ -47,7 +47,11 @@
 // El italiano entra el 2026-11-03 (ola 0 del italiano, pedido del dueno:
 // «ahora version en italiano»). Va TERCERO a proposito: el orden de esta lista
 // es el del selector, y los dos que ya existian no se mueven.
-export const IDIOMAS = ['es', 'en', 'it'] as const
+//
+// El portugues (pt-BR) entra el 2026-11-05 (ola 0 del portugues), CUARTO por
+// el mismo motivo. `pt` y no `pt-BR`: la clave es la subetiqueta primaria
+// (`normalizarIdioma`), y el locale vive en `formato-idioma.ts`.
+export const IDIOMAS = ['es', 'en', 'it', 'pt'] as const
 export type Idioma = (typeof IDIOMAS)[number]
 
 // El espanol es el idioma ORIGINAL del producto y el unico que esta completo.
@@ -97,6 +101,21 @@ export function italianoActivo(
 }
 
 /**
+ * ¿Está ENCENDIDO el portugués (pt-BR)? APAGADO por omisión (2026-11-05), con
+ * la MISMA regla que el inglés y el italiano: solo el valor exacto `1`. Es SU
+ * interruptor: encenderlo no enciende ningún otro, ni al revés.
+ *
+ * Mientras los lotes de traducción no terminen, lo que falta se pinta en
+ * ESPAÑOL (decisión del dueño del 05/11, `diccionario.ts`), no en inglés como
+ * el italiano.
+ */
+export function portuguesActivo(
+  entorno: Record<string, string | undefined> = process.env,
+): boolean {
+  return entorno.IDIOMA_PORTUGUES === '1'
+}
+
+/**
  * Los idiomas que ESTA instancia ofrece, en el orden del selector. El español
  * siempre, y cada uno de los otros si su interruptor está encendido. Es lo
  * único que mira el resto del código (el layout raíz, `servidor.ts`,
@@ -109,8 +128,42 @@ export function idiomasActivos(
     es: true,
     en: inglesActivo(entorno),
     it: italianoActivo(entorno),
+    pt: portuguesActivo(entorno),
   }
   return IDIOMAS.filter((i) => encendido[i])
+}
+
+// ─── LO QUE LA BASE ACEPTA (ola 0 del portugues, 2026-11-05) ───────────────
+//
+//  El portugues entra en la INTERFAZ antes que en la BASE. Las dos columnas
+//  que guardan un idioma tienen un CHECK `in ('es', 'en', 'it')`:
+//
+//   · `usuarios.idioma_preferido` (`20261103_usuarios_idioma_preferido.sql`)
+//   · `tenants.idioma_documentos` (`20261103_idioma_documentos_por_instancia.sql`)
+//
+//  Abrirlas a `pt` es una migracion (ZONA ROJA, tarea aparte, junto con los
+//  papeles en portugues y `--idioma pt` del aprovisionamiento). Hasta entonces
+//  quien ESCRIBE en esas columnas valida contra esta lista y no contra
+//  `IDIOMAS`: si no, un `pt` llegaria a la base y el CHECK lo tumbaria con un
+//  500 en vez del 400 legible de siempre. Leer si puede usar `IDIOMAS`: la
+//  base no puede devolver un `pt`.
+
+/** Los idiomas que caben HOY en las columnas de la base (su CHECK). */
+export const IDIOMAS_EN_LA_BASE = ['es', 'en', 'it'] as const satisfies readonly Idioma[]
+export type IdiomaEnLaBase = (typeof IDIOMAS_EN_LA_BASE)[number]
+
+export function esIdiomaEnLaBase(x: unknown): x is IdiomaEnLaBase {
+  return typeof x === 'string' && (IDIOMAS_EN_LA_BASE as readonly string[]).includes(x)
+}
+
+/**
+ * Lo que «Mi cuenta → Idioma» puede GUARDAR: los encendidos que caben en la
+ * base. Sin el portugues encendido es exactamente `idiomasActivos()`.
+ */
+export function idiomasDeCuenta(
+  entorno: Record<string, string | undefined> = process.env,
+): Idioma[] {
+  return idiomasActivos(entorno).filter(esIdiomaEnLaBase)
 }
 
 /**
@@ -130,7 +183,10 @@ export function idiomasActivos(
  */
 export function idiomasPorOmision(): Idioma[] {
   const entorno = typeof process === 'undefined' ? {} : process.env
-  return IDIOMAS.filter((i) => i !== 'it' || italianoActivo(entorno))
+  // El portugues (05/11), con la regla del italiano: solo si esta encendido.
+  return IDIOMAS.filter(
+    (i) => (i !== 'it' || italianoActivo(entorno)) && (i !== 'pt' || portuguesActivo(entorno)),
+  )
 }
 
 // Mismo prefijo que `spaces_sesion` y `spaces_csrf`. NO es `httpOnly`: es una

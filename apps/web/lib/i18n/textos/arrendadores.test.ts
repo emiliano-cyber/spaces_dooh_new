@@ -178,12 +178,14 @@ describe('arrendadores · los avisos que no se rinden usan su clave', () => {
 // ============================================================================
 describe('arrendadores · el documento del contrato va en el idioma de la INSTANCIA (ADR 0049)', () => {
   it('el redactor (`lib/contrato-documento.ts`) no usa el diccionario de la interfaz', () => {
-    // Solo importa el TIPO `Idioma`. Sus textos no son claves del diccionario:
+    // Solo importa el TIPO del idioma. Sus textos no son claves del diccionario:
     // son el texto que se sella, y no puede cambiar porque alguien retoque una
     // traduccion de pantalla.
     const doc = leer('lib/contrato-documento.ts')
     expect(doc).not.toMatch(/diccionario|traducir|servidor'/)
-    expect(doc).toMatch(/^import type \{ Idioma \} from '@\/lib\/i18n\/idiomas'$/m)
+    // Ola 0 del portugues (05/11): el tipo es `IdiomaEnLaBase` (es/en/it), no
+    // `Idioma`, que ya incluye el portugues de la interfaz.
+    expect(doc).toMatch(/^import type \{ IdiomaEnLaBase \} from '@\/lib\/i18n\/idiomas'$/m)
   })
 
   it('el redactor: su huella se actualiza A PROPOSITO en el commit que lo cambia', () => {
@@ -200,7 +202,11 @@ describe('arrendadores · el documento del contrato va en el idioma de la INSTAN
     // 04/11 (cierre de idiomas, D13): SOLO comentarios —el contrato en/it es una
     // plantilla de ejemplo, ya no «requiere revision de un abogado»—. Ni una
     // linea de codigo; los hashes de `contrato-documento-idioma.test.ts`, en verde.
-    expect(huella).toBe('94b4ce172078b4af1c05294a2270c79c244cb05ec17a2ebdb110e868773e908f')
+    // 05/11 (ola 0 del portugues): SOLO el tipo del idioma —`IdiomaEnLaBase`
+    // (es/en/it) en vez de `Idioma`, que ya incluye `pt`— y su comentario. Ni
+    // una linea de texto; los hashes de `contrato-documento-idioma.test.ts`,
+    // en verde. El contrato en portugues es una tarea roja aparte.
+    expect(huella).toBe('eca3df839368a294024e587abe45f27de7d50742915890af00cac0e5336d6069')
   })
 
   it('el hash de las firmas es el del documento, no el de la constancia', () => {
@@ -216,7 +222,7 @@ describe('arrendadores · el documento del contrato va en el idioma de la INSTAN
     expect(constancia).not.toMatch(/>\s*Constancia de firma electrónica\s*</)
     const pagina = leer('app/(app)/contrato/[id]/page.tsx')
     expect(pagina).toMatch(/<ConstanciaFirmas estado=\{estadoFirmas\} idioma=\{idiomaDoc\} \/>/)
-    expect(pagina).toMatch(/const idiomaDoc: Idioma = doc\.idioma \?\? 'es'/)
+    expect(pagina).toMatch(/const idiomaDoc: IdiomaEnLaBase = doc\.idioma \?\? 'es'/)
     // NEGATIVO: ya no la decide la peticion.
     expect(pagina).not.toMatch(/<ConstanciaFirmas[^>]*idiomaDeLaPeticion/)
     // …y en espanol dice lo de siempre.

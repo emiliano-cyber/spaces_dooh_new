@@ -12,7 +12,7 @@ import { traducir } from '@/lib/i18n/diccionario'
 import { idiomaDeLaPeticion } from '@/lib/i18n/servidor'
 import { localeDe } from '@/lib/i18n/formato-idioma'
 import { ParteEnIdioma } from '@/lib/i18n/parte-en-idioma'
-import type { Idioma } from '@/lib/i18n/idiomas'
+import type { Idioma, IdiomaEnLaBase } from '@/lib/i18n/idiomas'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -103,7 +103,7 @@ export default async function ContratoDocumentoPage({ params }: { params: { id: 
   // texto, sus encabezados, los sellos, la constancia y el aviso del pie— va
   // en él. Lo que no se imprime (la barra, el panel de firmas, el `title` de
   // los huecos) sigue el idioma de la persona.
-  const idiomaDoc: Idioma = doc.idioma ?? 'es'
+  const idiomaDoc: IdiomaEnLaBase = doc.idioma ?? 'es'
   const e = encabezadosDocumento(idiomaDoc)
   // B72 · lo que se imprime declara el idioma de la instancia cuando no es el
   // de la persona (dos partes: el panel de firmas, en medio, no se imprime y

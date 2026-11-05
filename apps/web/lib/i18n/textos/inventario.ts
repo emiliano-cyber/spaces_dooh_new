@@ -1220,3 +1220,12 @@ export const IT_INVENTARIO: Record<ClaveInventario, string> = {
   'inventario.agregar.titulo': 'Aggiungi inventario',
   'inventario.agregar.sub': 'Caricamento massivo da Excel/CSV con modello, o inserimento manuale di un impianto.',
 }
+
+// ─── PORTUGUES (pt-BR) · ola 0 (2026-11-05) ─────────────────────────────────
+// PARCIAL a proposito: lo rellena el lote de traduccion de este ambito
+// (`vault/03-Frontend/portugues-olas.md`). Mientras falte una clave, la
+// pantalla la pinta en ESPANOL (decision del dueno del 05/11; `diccionario.ts`,
+// `DICCIONARIOS.pt`) y la prueba de cobertura (`cobertura-portugues.test.ts`)
+// la cuenta como pendiente. Cuando el lote termine, el tipo pasa a
+// `Record<ClaveInventario, string>` y `tsc` vuelve a exigir cada clave.
+export const PT_INVENTARIO: Partial<Record<ClaveInventario, string>> = {}

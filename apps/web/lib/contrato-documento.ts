@@ -31,7 +31,15 @@
 //    el dueño, 04/11: «cada cliente los irá armando según contrate la app»).
 // ============================================================================
 
-import type { Idioma } from '@/lib/i18n/idiomas'
+import type { IdiomaEnLaBase } from '@/lib/i18n/idiomas'
+
+// El idioma de un PAPEL es el de la instancia (`tenants.idioma_documentos`),
+// y la base solo acepta es/en/it. Ola 0 del portugues (05/11): el portugues ya
+// es un idioma de la INTERFAZ, pero el contrato en portugues es una tarea ROJA
+// aparte (abrir el CHECK, `--idioma pt`, el texto). Hasta entonces el tipo no
+// deja pedir un contrato en `pt`: `tsc` lo impide en vez de un hueco en
+// silencio.
+type Idioma = IdiomaEnLaBase
 
 export type Periodicidad =
   | 'SEMANAL' | 'CATORCENAL' | 'QUINCENAL' | 'MENSUAL'

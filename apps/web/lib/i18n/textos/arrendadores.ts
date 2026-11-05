@@ -1598,3 +1598,12 @@ export const IT_ARRENDADORES: Record<ClaveArrendadores, string> = {
   'arrendadores.constancia.nota':
     'Firma elettronica semplice. L’indirizzo IP e il browser sono dati forniti dal dispositivo del firmatario e sono conservati come indizi; da soli non costituiscono prova dell’identità. Questa attestazione non include il certificato e.firma del SAT né l’attestazione di conservazione NOM-151.',
 }
+
+// ─── PORTUGUES (pt-BR) · ola 0 (2026-11-05) ─────────────────────────────────
+// PARCIAL a proposito: lo rellena el lote de traduccion de este ambito
+// (`vault/03-Frontend/portugues-olas.md`). Mientras falte una clave, la
+// pantalla la pinta en ESPANOL (decision del dueno del 05/11; `diccionario.ts`,
+// `DICCIONARIOS.pt`) y la prueba de cobertura (`cobertura-portugues.test.ts`)
+// la cuenta como pendiente. Cuando el lote termine, el tipo pasa a
+// `Record<ClaveArrendadores, string>` y `tsc` vuelve a exigir cada clave.
+export const PT_ARRENDADORES: Partial<Record<ClaveArrendadores, string>> = {}

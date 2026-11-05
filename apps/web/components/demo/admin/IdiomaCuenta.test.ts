@@ -154,3 +154,18 @@ describe('B69 · lo que se lee del navegador', () => {
     expect(idiomasDelNavegador()).toEqual(['it-IT'])
   })
 })
+
+// Ola 0 del portugues (2026-11-05) · «Mi cuenta» NO ofrece guardar el
+// portugues aunque este encendido: `usuarios.idioma_preferido` tiene un CHECK
+// es/en/it y abrirlo es una tarea ROJA aparte. Quien quiera portugues lo
+// consigue con «Usar el idioma del navegador» o con el selector (cookie).
+describe('IdiomaCuenta · el portugues todavia no se guarda en la cuenta', () => {
+  it('encendido, no aparece como opcion; los demas, igual que antes', () => {
+    const html = pintar('es', ['es', 'en', 'it', 'pt'])
+    expect(html).not.toContain('value="pt"')
+    expect(html).not.toContain('Português')
+    expect(html).toContain('value="navegador"')
+    expect(html).toContain('>Italiano<')
+    expect(html).toBe(pintar('es', ['es', 'en', 'it']))
+  })
+})

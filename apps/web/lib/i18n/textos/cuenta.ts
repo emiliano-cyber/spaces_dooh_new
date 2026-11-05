@@ -507,3 +507,12 @@ export const IT_CUENTA: Record<ClaveCuenta, string> = {
   'cuenta.publica.error.nombre': 'Scrivi il tuo nome per accettare',
   'cuenta.publica.error.aceptar': 'Non è stato possibile accettare. Riprova.',
 }
+
+// ─── PORTUGUES (pt-BR) · ola 0 (2026-11-05) ─────────────────────────────────
+// PARCIAL a proposito: lo rellena el lote de traduccion de este ambito
+// (`vault/03-Frontend/portugues-olas.md`). Mientras falte una clave, la
+// pantalla la pinta en ESPANOL (decision del dueno del 05/11; `diccionario.ts`,
+// `DICCIONARIOS.pt`) y la prueba de cobertura (`cobertura-portugues.test.ts`)
+// la cuenta como pendiente. Cuando el lote termine, el tipo pasa a
+// `Record<ClaveCuenta, string>` y `tsc` vuelve a exigir cada clave.
+export const PT_CUENTA: Partial<Record<ClaveCuenta, string>> = {}

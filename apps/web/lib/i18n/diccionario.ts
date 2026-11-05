@@ -1,25 +1,25 @@
 import { IDIOMA_POR_OMISION, type Idioma } from './idiomas'
-import { ES_PROPUESTAS, EN_PROPUESTAS, IT_PROPUESTAS } from './textos/propuestas'
-import { ES_COMPARTIDOS, EN_COMPARTIDOS, IT_COMPARTIDOS } from './textos/compartidos'
-import { ES_CAMPANAS, EN_CAMPANAS, IT_CAMPANAS } from './textos/campanas'
-import { ES_FINANZAS, EN_FINANZAS, IT_FINANZAS } from './textos/finanzas'
-import { ES_COMERCIAL, EN_COMERCIAL, IT_COMERCIAL } from './textos/comercial'
-import { ES_CODIGOS, EN_CODIGOS, IT_CODIGOS } from './textos/codigos'
-import { ES_CATALOGOS, EN_CATALOGOS, IT_CATALOGOS } from './textos/catalogos'
-import { ES_ADMIN, EN_ADMIN, IT_ADMIN } from './textos/admin'
-import { ES_CUENTA, EN_CUENTA, IT_CUENTA } from './textos/cuenta'
-import { ES_SHELL, EN_SHELL, IT_SHELL } from './textos/shell'
-import { ES_SERVIDOR, EN_SERVIDOR, IT_SERVIDOR } from './textos/servidor'
-import { ES_CLIENTES, EN_CLIENTES, IT_CLIENTES } from './textos/clientes'
-import { ES_OPERACIONES, EN_OPERACIONES, IT_OPERACIONES } from './textos/operaciones'
-import { ES_SPACEEYES, EN_SPACEEYES, IT_SPACEEYES } from './textos/spaceeyes'
-import { ES_INVENTARIO, EN_INVENTARIO, IT_INVENTARIO } from './textos/inventario'
-import { ES_ARRENDADORES, EN_ARRENDADORES, IT_ARRENDADORES } from './textos/arrendadores'
-import { ES_OPERACIONES2, EN_OPERACIONES2, IT_OPERACIONES2 } from './textos/operaciones2'
-import { ES_INICIO, EN_INICIO, IT_INICIO } from './textos/inicio'
-import { ES_ENERGIA, EN_ENERGIA, IT_ENERGIA } from './textos/energia'
-import { ES_REPORTES, EN_REPORTES, IT_REPORTES } from './textos/reportes'
-import { ES_NOTIFICACIONES, EN_NOTIFICACIONES, IT_NOTIFICACIONES } from './textos/notificaciones'
+import { ES_PROPUESTAS, EN_PROPUESTAS, IT_PROPUESTAS, PT_PROPUESTAS } from './textos/propuestas'
+import { ES_COMPARTIDOS, EN_COMPARTIDOS, IT_COMPARTIDOS, PT_COMPARTIDOS } from './textos/compartidos'
+import { ES_CAMPANAS, EN_CAMPANAS, IT_CAMPANAS, PT_CAMPANAS } from './textos/campanas'
+import { ES_FINANZAS, EN_FINANZAS, IT_FINANZAS, PT_FINANZAS } from './textos/finanzas'
+import { ES_COMERCIAL, EN_COMERCIAL, IT_COMERCIAL, PT_COMERCIAL } from './textos/comercial'
+import { ES_CODIGOS, EN_CODIGOS, IT_CODIGOS, PT_CODIGOS } from './textos/codigos'
+import { ES_CATALOGOS, EN_CATALOGOS, IT_CATALOGOS, PT_CATALOGOS } from './textos/catalogos'
+import { ES_ADMIN, EN_ADMIN, IT_ADMIN, PT_ADMIN } from './textos/admin'
+import { ES_CUENTA, EN_CUENTA, IT_CUENTA, PT_CUENTA } from './textos/cuenta'
+import { ES_SHELL, EN_SHELL, IT_SHELL, PT_SHELL } from './textos/shell'
+import { ES_SERVIDOR, EN_SERVIDOR, IT_SERVIDOR, PT_SERVIDOR } from './textos/servidor'
+import { ES_CLIENTES, EN_CLIENTES, IT_CLIENTES, PT_CLIENTES } from './textos/clientes'
+import { ES_OPERACIONES, EN_OPERACIONES, IT_OPERACIONES, PT_OPERACIONES } from './textos/operaciones'
+import { ES_SPACEEYES, EN_SPACEEYES, IT_SPACEEYES, PT_SPACEEYES } from './textos/spaceeyes'
+import { ES_INVENTARIO, EN_INVENTARIO, IT_INVENTARIO, PT_INVENTARIO } from './textos/inventario'
+import { ES_ARRENDADORES, EN_ARRENDADORES, IT_ARRENDADORES, PT_ARRENDADORES } from './textos/arrendadores'
+import { ES_OPERACIONES2, EN_OPERACIONES2, IT_OPERACIONES2, PT_OPERACIONES2 } from './textos/operaciones2'
+import { ES_INICIO, EN_INICIO, IT_INICIO, PT_INICIO } from './textos/inicio'
+import { ES_ENERGIA, EN_ENERGIA, IT_ENERGIA, PT_ENERGIA } from './textos/energia'
+import { ES_REPORTES, EN_REPORTES, IT_REPORTES, PT_REPORTES } from './textos/reportes'
+import { ES_NOTIFICACIONES, EN_NOTIFICACIONES, IT_NOTIFICACIONES, PT_NOTIFICACIONES } from './textos/notificaciones'
 
 // ============================================================================
 //  lib/i18n/diccionario.ts — LOS TEXTOS, Y LA CONVENCION DE CLAVES.
@@ -93,6 +93,7 @@ const ES = {
   'idioma.es': 'Español',
   'idioma.en': 'English',
   'idioma.it': 'Italiano',
+  'idioma.pt': 'Português',
   'idioma.cambiar': 'Cambiar idioma',
   // «Mi cuenta → Idioma» (IDIOMA-USUARIO, 03/11): la preferencia de la CUENTA,
   // que sigue a la persona a cualquier dispositivo.
@@ -315,6 +316,7 @@ const EN: Record<ClaveTexto, string> = {
   'idioma.es': 'Español',
   'idioma.en': 'English',
   'idioma.it': 'Italiano',
+  'idioma.pt': 'Português',
   'idioma.cambiar': 'Change language',
   'idioma.cuenta.titulo': 'Language',
   'idioma.cuenta.ayuda':
@@ -514,6 +516,7 @@ const IT_BASE: Partial<Record<ClaveTexto, string>> = {
   'idioma.es': 'Español',
   'idioma.en': 'English',
   'idioma.it': 'Italiano',
+  'idioma.pt': 'Português',
   'idioma.cambiar': 'Cambia lingua',
 
   'marca.descriptivo': 'Gestione degli spazi pubblicitari',
@@ -701,6 +704,82 @@ const IT: Partial<Record<ClaveTexto, string>> = {
   ...IT_NOTIFICACIONES,
 }
 
+// ─── PORTUGUES (pt-BR) · ola 0 (2026-11-05) ─────────────────────────────────
+//
+// Decisiones del dueno del 05/11 (`vault/03-Frontend/portugues-olas.md`): Brasil,
+// trato «voce», y MIENTRAS FALTE UNA CLAVE SE PINTA EN ESPANOL —no en ingles
+// como el italiano—. La caida vive en un solo sitio, `conCaidaAlEspanol`
+// (abajo); `traducir()` no sabe nada del portugues.
+//
+// Ola 0: solo el selector de idioma. Cada idioma se nombra en si mismo, como
+// en ES, EN e IT. El resto lo rellenan los lotes, cada uno en su
+// `PT_<AMBITO>` de `textos/` (y el de la base, aqui).
+const PT_BASE: Partial<Record<ClaveTexto, string>> = {
+  'idioma.etiqueta': 'Idioma',
+  'idioma.es': 'Español',
+  'idioma.en': 'English',
+  'idioma.it': 'Italiano',
+  'idioma.pt': 'Português',
+  'idioma.cambiar': 'Mudar idioma',
+}
+
+/** Cada ambito de `textos/` con su espanol y su portugues, para la prueba de cobertura. */
+export const AMBITOS_PORTUGUES: ReadonlyArray<{
+  ambito: string
+  es: Record<string, string>
+  pt: Partial<Record<string, string>>
+}> = [
+  { ambito: 'propuestas', es: ES_PROPUESTAS, pt: PT_PROPUESTAS },
+  { ambito: 'compartidos', es: ES_COMPARTIDOS, pt: PT_COMPARTIDOS },
+  { ambito: 'campanas', es: ES_CAMPANAS, pt: PT_CAMPANAS },
+  { ambito: 'finanzas', es: ES_FINANZAS, pt: PT_FINANZAS },
+  { ambito: 'comercial', es: ES_COMERCIAL, pt: PT_COMERCIAL },
+  { ambito: 'codigos', es: ES_CODIGOS, pt: PT_CODIGOS },
+  { ambito: 'catalogos', es: ES_CATALOGOS, pt: PT_CATALOGOS },
+  { ambito: 'admin', es: ES_ADMIN, pt: PT_ADMIN },
+  { ambito: 'cuenta', es: ES_CUENTA, pt: PT_CUENTA },
+  { ambito: 'shell', es: ES_SHELL, pt: PT_SHELL },
+  { ambito: 'servidor', es: ES_SERVIDOR, pt: PT_SERVIDOR },
+  { ambito: 'clientes', es: ES_CLIENTES, pt: PT_CLIENTES },
+  { ambito: 'operaciones', es: ES_OPERACIONES, pt: PT_OPERACIONES },
+  { ambito: 'spaceeyes', es: ES_SPACEEYES, pt: PT_SPACEEYES },
+  { ambito: 'inventario', es: ES_INVENTARIO, pt: PT_INVENTARIO },
+  { ambito: 'arrendadores', es: ES_ARRENDADORES, pt: PT_ARRENDADORES },
+  { ambito: 'operaciones2', es: ES_OPERACIONES2, pt: PT_OPERACIONES2 },
+  { ambito: 'inicio', es: ES_INICIO, pt: PT_INICIO },
+  { ambito: 'energia', es: ES_ENERGIA, pt: PT_ENERGIA },
+  { ambito: 'reportes', es: ES_REPORTES, pt: PT_REPORTES },
+  { ambito: 'notificaciones', es: ES_NOTIFICACIONES, pt: PT_NOTIFICACIONES },
+]
+
+const PT: Partial<Record<ClaveTexto, string>> = {
+  ...PT_BASE,
+  ...PT_PROPUESTAS,
+  ...PT_COMPARTIDOS,
+  ...PT_CAMPANAS,
+  ...PT_FINANZAS,
+  ...PT_COMERCIAL,
+  ...PT_CODIGOS,
+  ...PT_CATALOGOS,
+  ...PT_ADMIN,
+  ...PT_CUENTA,
+  ...PT_SHELL,
+  ...PT_SERVIDOR,
+  ...PT_CLIENTES,
+  ...PT_OPERACIONES,
+  ...PT_SPACEEYES,
+  ...PT_INVENTARIO,
+  ...PT_ARRENDADORES,
+  ...PT_OPERACIONES2,
+  ...PT_INICIO,
+  ...PT_ENERGIA,
+  ...PT_REPORTES,
+  ...PT_NOTIFICACIONES,
+}
+
+/** El portugues que YA esta escrito, sin la caida al espanol. Para la cobertura y los lotes. */
+export const PT_PARCIAL: Readonly<Partial<Record<ClaveTexto, string>>> = PT
+
 /** El italiano que YA esta escrito, sin la caida al ingles. Para la cobertura y los lotes. */
 export const IT_PARCIAL: Readonly<Partial<Record<ClaveTexto, string>>> = IT
 
@@ -717,11 +796,26 @@ export function conCaidaAlIngles(
   return { ...en, ...(Object.fromEntries(escritas) as Partial<Record<ClaveTexto, string>>) }
 }
 
+/**
+ * El portugues COMPLETO que ve la pantalla: el ESPANOL, y encima lo que ya este
+ * traducido (decision del dueno del 05/11). Misma regla que el italiano: una
+ * cadena vacia no cuenta como traducida. Exportada para probarla.
+ */
+export function conCaidaAlEspanol(
+  es: Record<ClaveTexto, string>,
+  pt: Partial<Record<ClaveTexto, string>>,
+): Record<ClaveTexto, string> {
+  const escritas = Object.entries(pt).filter(([, v]) => typeof v === 'string' && v !== '')
+  return { ...es, ...(Object.fromEntries(escritas) as Partial<Record<ClaveTexto, string>>) }
+}
+
 export const DICCIONARIOS: Record<Idioma, Record<ClaveTexto, string>> = {
   es: ES,
   en: EN,
   // La caida al ingles, en una linea (ver arriba).
   it: conCaidaAlIngles(EN, IT),
+  // La caida al ESPANOL, en una linea (ver arriba).
+  pt: conCaidaAlEspanol(ES, PT),
 }
 
 export const CLAVES = Object.keys(ES) as ClaveTexto[]
@@ -743,8 +837,9 @@ export function interpolar(texto: string, valores: Record<string, string | numbe
  * El texto de una clave en un idioma.
  *
  * El respaldo al espanol no deberia poder dispararse nunca —`tsc` obliga a que
- * `EN` este completo, y el italiano que falta ya viene relleno con el ingles
- * en `DICCIONARIOS.it`— pero existe porque la alternativa en produccion seria
+ * `EN` este completo, el italiano que falta ya viene relleno con el ingles
+ * en `DICCIONARIOS.it` y el portugues con el espanol en `DICCIONARIOS.pt`—
+ * pero existe porque la alternativa en produccion seria
  * pintar la clave cruda («login.titulo.login») en la pantalla de alguien.
  *
  * `diccionarios` es un parametro para poder ejercer ese respaldo en una prueba

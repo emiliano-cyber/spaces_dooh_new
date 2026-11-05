@@ -614,3 +614,12 @@ export const IT_OPERACIONES: Record<ClaveOperaciones, string> = {
   'operaciones.imprenta.campo.proveedor-ej': 'Tipografia fornitrice',
   'operaciones.imprenta.digital-ayuda': 'Lascia larghezza e altezza a 0 per i contenuti digitali.',
 }
+
+// ─── PORTUGUES (pt-BR) · ola 0 (2026-11-05) ─────────────────────────────────
+// PARCIAL a proposito: lo rellena el lote de traduccion de este ambito
+// (`vault/03-Frontend/portugues-olas.md`). Mientras falte una clave, la
+// pantalla la pinta en ESPANOL (decision del dueno del 05/11; `diccionario.ts`,
+// `DICCIONARIOS.pt`) y la prueba de cobertura (`cobertura-portugues.test.ts`)
+// la cuenta como pendiente. Cuando el lote termine, el tipo pasa a
+// `Record<ClaveOperaciones, string>` y `tsc` vuelve a exigir cada clave.
+export const PT_OPERACIONES: Partial<Record<ClaveOperaciones, string>> = {}

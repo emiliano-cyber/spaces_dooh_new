@@ -10,7 +10,7 @@ import { crearUsuario, emailExiste } from './usuarios-repo'
 import type { Moneda } from '@/lib/i18n/dinero'
 import { monedaPedida, resolverMonedaDeAlta } from './moneda-alta'
 import { recordarMonedaDeLaInstancia } from './moneda-instancia'
-import type { Idioma } from '@/lib/i18n/idiomas'
+import type { Idioma, IdiomaEnLaBase } from '@/lib/i18n/idiomas'
 import { idiomaDocumentosPedido, resolverIdiomaDocumentosDeAlta } from './idioma-alta'
 import { recordarIdiomaDeLaInstancia } from './idioma-instancia'
 
@@ -73,7 +73,7 @@ export async function crearOrgConDueno(args: {
   // ADR 0048 · la moneda pedida, ya validada. Ver `resolverMonedaDeAlta`.
   moneda?: Moneda
   // ADR 0049 · el idioma de documentos pedido. Ver `resolverIdiomaDocumentosDeAlta`.
-  idiomaDocumentos?: Idioma
+  idiomaDocumentos?: IdiomaEnLaBase
 }) {
   const errPass = validarPassword(args.password)
   if (errPass) throw new AppError(errPass, 400)

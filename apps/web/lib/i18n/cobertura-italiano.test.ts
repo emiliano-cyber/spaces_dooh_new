@@ -121,7 +121,8 @@ describe('lote L5 · sus ambitos sin pendientes', () => {
 // proposito, declaradas una por una (lote L5, 2026-11-03).
 describe('lote L5 · el italiano que coincide con otro idioma, solo el declarado', () => {
   const IGUAL_AL_INGLES = [
-    'idioma.es', 'idioma.en', 'idioma.it', 'login.campo.correo', 'login.campo.password', 'sidebar.logo-alt',
+    // «Português» (ola 0 del portugues, 05/11): cada idioma se nombra en si mismo.
+    'idioma.es', 'idioma.en', 'idioma.it', 'idioma.pt', 'login.campo.correo', 'login.campo.password', 'sidebar.logo-alt',
     'nav.grupo.ojos', 'nav.dashboard', 'nav.network', 'shell.topbar.cuenta', 'shell.candado.contrasena',
     'cuenta.cuestionario.no', 'admin.modulo.dashboard', 'admin.modulo.network', 'admin.usuarios.equipo',
     'admin.usuarios.col.contrasena', 'admin.alta.correo', 'admin.alta.contrasena', 'admin.logo.campo',

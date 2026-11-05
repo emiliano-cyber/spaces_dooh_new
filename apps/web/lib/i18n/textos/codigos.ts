@@ -262,3 +262,12 @@ export const IT_CODIGOS: Record<ClaveCodigos, string> = {
   'codigos.nuevo.anadir': 'Aggiungi codice di negoziazione',
   'codigos.obligatorio': ' (obbligatorio)',
 }
+
+// ─── PORTUGUES (pt-BR) · ola 0 (2026-11-05) ─────────────────────────────────
+// PARCIAL a proposito: lo rellena el lote de traduccion de este ambito
+// (`vault/03-Frontend/portugues-olas.md`). Mientras falte una clave, la
+// pantalla la pinta en ESPANOL (decision del dueno del 05/11; `diccionario.ts`,
+// `DICCIONARIOS.pt`) y la prueba de cobertura (`cobertura-portugues.test.ts`)
+// la cuenta como pendiente. Cuando el lote termine, el tipo pasa a
+// `Record<ClaveCodigos, string>` y `tsc` vuelve a exigir cada clave.
+export const PT_CODIGOS: Partial<Record<ClaveCodigos, string>> = {}

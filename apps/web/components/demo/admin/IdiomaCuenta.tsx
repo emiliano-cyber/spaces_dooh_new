@@ -8,7 +8,7 @@ import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Campo } from '@/components/demo/ui/Campo'
 import { useIdioma } from '@/lib/i18n/contexto'
 import { traducir } from '@/lib/i18n/diccionario'
-import { COOKIE_IDIOMA, resolverIdioma, type Idioma } from '@/lib/i18n/idiomas'
+import { COOKIE_IDIOMA, esIdiomaEnLaBase, resolverIdioma, type Idioma } from '@/lib/i18n/idiomas'
 
 const API = '/spaces-dooh/api'
 const inputCls =
@@ -141,8 +141,11 @@ export function IdiomaCuenta() {
         >
           {preferido === null && <option value="">{t('comun.cargando')}</option>}
           <option value="navegador">{t('idioma.cuenta.navegador')}</option>
-          {/* Cada idioma se nombra en sí mismo, como en el selector del login. */}
-          {disponibles.map((i) => (
+          {/* Cada idioma se nombra en sí mismo, como en el selector del login.
+              Solo los que caben en la base (ola 0 del portugués, 05/11): con
+              el portugués encendido no se ofrece, porque
+              `usuarios.idioma_preferido` aún no lo acepta (tarea roja aparte). */}
+          {disponibles.filter(esIdiomaEnLaBase).map((i) => (
             <option key={i} value={i}>
               {t(`idioma.${i}` as 'idioma.es' | 'idioma.en' | 'idioma.it')}
             </option>

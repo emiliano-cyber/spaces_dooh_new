@@ -187,3 +187,12 @@ export const IT_SERVIDOR: Record<ClaveServidor, string> = {
   'servidor.periodo.rango': 'L’intervallo richiede una data di inizio e una di fine (AAAA-MM-GG)',
   'servidor.periodo.cliente-invalido': 'Cliente non valido',
 }
+
+// ─── PORTUGUES (pt-BR) · ola 0 (2026-11-05) ─────────────────────────────────
+// PARCIAL a proposito: lo rellena el lote de traduccion de este ambito
+// (`vault/03-Frontend/portugues-olas.md`). Mientras falte una clave, la
+// pantalla la pinta en ESPANOL (decision del dueno del 05/11; `diccionario.ts`,
+// `DICCIONARIOS.pt`) y la prueba de cobertura (`cobertura-portugues.test.ts`)
+// la cuenta como pendiente. Cuando el lote termine, el tipo pasa a
+// `Record<ClaveServidor, string>` y `tsc` vuelve a exigir cada clave.
+export const PT_SERVIDOR: Partial<Record<ClaveServidor, string>> = {}
