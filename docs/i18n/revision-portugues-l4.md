@@ -266,3 +266,62 @@ Decididas por el traductor con su porqué; el dueño puede cambiarlas:
    (propuestas, comercial) tiene el mismo término: que lo iguale la costura.
 5. **«Nome fantasia»** para el nombre comercial (el término legal brasileño)
    y **«veículo»** para el medio: términos del mercado brasileño, no calcos.
+
+## 11 · Correcciones de la validación (ÁMBAR leve, 05/11)
+
+Respuesta a `docs/i18n/validacion-portugues-l4.md` (`159e786a`). Commits
+`fa631579` (pruebas, en rojo) y `31e183df` (corrección).
+
+**H1 (media) · lo vencido es al CORTE.** Elegido **«Vencido até {fecha}»** y
+**«{n} fatura vencida até {fecha}» / «{n} faturas vencidas até {fecha}»**: es
+lo que dice una cartera brasileña («títulos vencidos até…»), con *até* que
+marca la fecha de corte de lo vencido y no «atrasado hasta». Se descartó «Em
+atraso · posição de {fecha}»: más contable, pero el «·» en un encabezado del
+CSV queda raro. En el CSV la línea sale `Vencido até 30 de set. de 2026
+(MX$);6600` (fijada en `estado-cuenta-csv-idioma.test.ts`; esa prueba deja de
+buscar «Vencido», que también es portugués, y busca «Vencido al»). La etiqueta
+del indicador del resumen sigue siendo «Em atraso» (sin fecha), correcta.
+
+| # | Cómo quedó |
+|---|---|
+| H2 | «…mas {arte} (a API não permite)…» |
+| H3 | «{estimadas} de {total} visita…», «{sin} de {total} reserva…» (los tres `.uno`) |
+| H4 | «Não falta nenhuma conta: a conta prevista do período está registrada ({esperados} no total)…» (la cobertura exige los mismos huecos que el español: un solo `{esperados}`) |
+| H5 | «{n} confirmada(s), ainda por começar» |
+| H6 | «NÃO é um CFDI timbrado pelo SAT: o timbrado é emitido à parte…» |
+| H7 | «da fatura correspondente» (extrato y resumen del periodo) |
+| H8 | «Buscar cliente» (cognado declarado: es el verbo de toda la app) |
+| H9 | **se queda** «CEP fiscal» con «Código postal inválido (5 dígitos)»: la etiqueta es la del glosario común y la de Administración (`admin.razones.cp`, L5), y el mensaje es el gemelo del catálogo del servidor (retoque 12 del L5). Cambiar uno solo rompería otra coherencia; si se cambia, en la costura y en los tres sitios a la vez |
+| H10 | `campanas.creatividad.validada` = «Aprovada» y «({validadas}/{total} aprovados)», como «Criativo aprovado», «Todos aprovados» e `impresion.validado` |
+
+**Además:** «Quitado {monto}» (aluguel pago) y «o que foi desembolsado» en vez
+de «pago», que la guardia nueva prohíbe; y `campanas.evidencia.alt` = «foto de
+comprovação» (propuesta del validador §4).
+
+**Guardias nuevas, solo en `textos/portugues-l4.test.ts`** (no se toca la del
+L5): `libre`, `libres`, `pago`, `cobro`, `alta` como palabras solo españolas
+(también `libre/libres/cobro` en `barrido-portugues-l4.ts`, para el HTML), y
+`TUTEO_L4`: «Revisa/Usa/Completa/Verifica/Ajusta» con mayúscula o con
+enclítico («revisa-o»), con su prueba de que muerde y de que no muerde
+«Revise-o», «a lista completa», «Revisão», «usado», «Remover», «Usuário».
+
+**Mutantes:** MV3 («Nada fica libre», Dashboard) y MV4 («Revisa-o antes…»)
+**mueren** ahora; también «Em atraso até» (muere en la estática y en el CSV),
+«carimbado» y «Pago {monto}».
+
+**Medido:** `DICCIONARIOS.es/.en/.it` + `traducirError` es/en/it + patrones:
+`cmp` idéntico al volcado de `72b33050`; el diff de fuentes solo toca líneas de
+`PT_*` (una línea española que el reemplazo alcanzó por error,
+`campanas.creatividad.validada`, se detectó en el diff y se restauró antes del
+commit). typecheck limpio; `npx vitest run --testTimeout=60000`: **420
+archivos, 9235 en verde + 1 omitida, 0 rojas**.
+
+**Para la costura, actualizado:** con `PT_PAPELES` difieren ahora **cuatro**
+claves (las tres de §9 y `finanzas.comprobante.aviso`, «timbrado» frente a
+«carimbado»); según la validación §4, gana el lote. Y lo de §5 de la
+validación: al fusionar con `integra/portugues` se ponen rojas
+`papeles-portugues.test.ts` y `cobertura-portugues.test.ts` (fuera del L5
+lo traducido ya no es solo lo de los papeles), y el diario choca.
+
+**Sin cambiar, a propósito (decide el dueño):** «Captação de pontos» y
+«Provisória».

@@ -89,7 +89,7 @@ toca **solo sus archivos** de `textos/` (y el L5, además, la base de
 | Lote | Rama | Estado | Cobertura de sus filas |
 |---|---|---|---|
 | **L5** | `feat/portugues-l5-armazon` | **Validación ÁMBAR, corregida; pendiente de revalidar** (05/11) | **1346/1346, 0 pendientes** (base 119 · compartidos 113 · shell 59 · cuenta 125 · admin 542 · notificaciones 47 · servidor 32 · errores 205 + 30 + 12 + 62) |
-| **L4** | `feat/portugues-l4-campanas` | **Hecho, sin validar** (05/11) | **1082/1082, 0 pendientes** (campanas 396 · finanzas 170 · clientes 220 · reportes 148 · inicio 148) |
+| **L4** | `feat/portugues-l4-campanas` | **Validación ÁMBAR leve, corregida; pendiente de revalidar** (05/11) | **1082/1082, 0 pendientes** (campanas 396 · finanzas 170 · clientes 220 · reportes 148 · inicio 148) |
 
 ### Lote L5 · Armazón, cuenta, administración, compartidos y servidor
 
@@ -129,7 +129,7 @@ pendiente de revalidar** (revisión §11). Revisión clave por clave en
 ### Lote L4 · Campañas, finanzas, clientes, reportes y Dashboard
 
 Rama `feat/portugues-l4-campanas` (sale de `integra/portugues`, `72b33050`).
-**Hecho, sin validar.** Revisión clave por clave en
+**Validación ÁMBAR leve (`docs/i18n/validacion-portugues-l4.md`), corregida el 05/11, pendiente de revalidar** (revisión §11). Revisión clave por clave en
 `docs/i18n/revision-portugues-l4.md`.
 
 - **1082 claves**: los cinco `PT_*` del lote ya son `Record`. Lo que falta del
@@ -149,7 +149,7 @@ Rama `feat/portugues-l4-campanas` (sale de `integra/portugues`, `72b33050`).
 Glosario propio (lo que §2 bis no traía): ingreso → **receita** · margen bruto
 / neto → **margem bruta / líquido** · tarifa publicada o de lista → **tarifa de
 tabela** · cuota → **parcela** («{n} parcelas, duas por mês»; mensais,
-bimestrais…) · al corriente → **Em dia** · cargo / abono del extrato →
+bimestrais…) · al corriente → **Em dia** · vencido al corte → **Vencido até {fecha}** · timbrado (CFDI) → **timbrado** · cargo / abono del extrato →
 **Débito / Crédito** · folio de una factura → **Nº da fatura** · nombre
 comercial → **nome fantasia** · tasa de cierre → **taxa de fechamento** · hueco
 → **espaço livre** · tentativa → **Provisória** · el medio → **veículo** ·
@@ -164,7 +164,9 @@ DOOHmain, masculino («no DOOHmain»).
 > - `textos/papeles-portugues.ts` (P3) no está en esta rama: el texto de los
 >   papeles del lote se copió de allí, salvo `campanas.evidencia.vacia.texto`
 >   y `campanas.evidencia.alt` («comprovação», el glosario común; el papel dice
->   «evidências») y `finanzas.comun.folio` («Nº da fatura»; el papel, «Número»).
+>   «evidências»), `finanzas.comun.folio` («Nº da fatura»; el papel, «Número») y
+>   `finanzas.comprobante.aviso` («timbrado»; el papel, «carimbado»). Gana el
+>   lote (validación §4).
 > - `clientes.captacion.falta.dueno` dice «o dono do terreno», y su gemelo del
 >   servidor (`FALTA_REVISION_PT`, L5) «o proprietário».
 > - `campanas.candado.monto-ilegible` dice la verdad mexicana de hoy: la tarea
