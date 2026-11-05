@@ -1,6 +1,6 @@
 import { agruparPorTipo, type EntradaNovedades, type TipoNovedad } from '@/lib/novedades'
 import { TONO } from '@/components/demo/admin/Chip'
-import { useTexto } from '@/lib/i18n/contexto'
+import { useIdioma } from '@/lib/i18n/contexto'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
 
 // ============================================================================
@@ -11,7 +11,9 @@ import type { ClaveTexto } from '@/lib/i18n/diccionario'
 //
 //  Sin estado y sin 'use client': sirve igual dentro de un componente de
 //  cliente y en `renderToStaticMarkup` de la prueba. Su unico hook es
-//  `useTexto()` (I18N, 2026-11-02), que fuera del proveedor cae al espanol. El
+//  `useIdioma()` (I18N, 2026-11-02), que fuera del proveedor cae al espanol.
+//  Desde el 2026-11-05 los items tambien salen en el idioma de quien lee
+//  (`textoDeItem`, con caida al espanol en las entradas sin traducir). El
 //  texto va como hijo de React, nunca como HTML: lo escribio un desarrollador,
 //  pero lo de `notas_disponibles` llega desde otra imagen.
 // ============================================================================
@@ -40,11 +42,11 @@ export const CLAVE_TIPO_NOVEDAD: Record<TipoNovedad, ClaveTexto> = {
 }
 
 export function NotasDeVersion({ notas }: { notas: EntradaNovedades | null }) {
-  const t = useTexto()
+  const { t, idioma } = useIdioma()
   if (!notas) return <p className="text-[12px] text-muted">{t('admin.novedades.sin-notas')}</p>
   return (
     <div className="space-y-3">
-      {agruparPorTipo(notas.items).map((g) => (
+      {agruparPorTipo(notas.items, idioma).map((g) => (
         <div key={g.tipo} className="space-y-1">
           <span className={`inline-block rounded-full border px-2 py-0.5 text-[11px] font-semibold ${CLASE_TIPO[g.tipo]}`}>
             {t(CLAVE_TIPO_NOVEDAD[g.tipo])}

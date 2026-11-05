@@ -228,6 +228,41 @@ export function textoDesdeCrudo(crudo: string, idioma: Idioma = 'es'): string {
 }
 
 /**
+ * B82 (supervisión, 04/11; cerrada el 05/11) · el crudo que llega de OTRO idioma.
+ *
+ * En español e inglés `EntradaCifra` guarda lo tecleado TAL CUAL («1,500»,
+ * «12.9»), no la cifra canónica. Si la persona cambia a italiano con el
+ * diálogo abierto, el campo italiano recibe ese texto como si fuera canónico, y
+ * `textoDesdeCrudo('1,500', 'it')` pintaba «1.500» —mil quinientos a la
+ * italiana— mientras el formulario seguía mandando `Number('1,500') || 0` = 0.
+ *
+ * Aquí se RELEE el crudo sin cambiar lo que se manda: si es canónico, el camino
+ * de siempre; si `Number()` lo entiende («2.500» es 2.5, « 7 » es 7), se pinta
+ * ESA cifra con los signos nuevos, que es la que el formulario mandará; y si no
+ * lo entiende, se deja como se tecleó con `ajeno: true`, para que el campo avise
+ * (`motivoCifraAjena`) en vez de enseñar una cifra que no se va a mandar.
+ *
+ * Solo en italiano: en español e inglés el crudo de `CampoCifra` siempre es
+ * suyo (lo emite él), y esto es la identidad con `textoDesdeCrudo`.
+ */
+export function pintarCrudo(crudo: string, idioma: Idioma): { texto: string; ajeno: boolean } {
+  const t = crudo.trim()
+  if (!comaDecimal(idioma) || t === '' || t === CRUDO_INVALIDO || CIFRA_SIN_COMAS.test(t)) {
+    return { texto: textoDesdeCrudo(crudo, idioma), ajeno: false }
+  }
+  const n = Number(t)
+  if (Number.isFinite(n)) return { texto: textoDesdeCrudo(String(n), idioma), ajeno: false }
+  return { texto: crudo, ajeno: true }
+}
+
+/** El aviso de un crudo ajeno (B82): el motivo de forma del idioma, con su ejemplo. */
+export function motivoCifraAjena(idioma: Idioma): string {
+  if (idioma === 'es') return MSJ_FORMA
+  const ejemplo = comaDecimal(idioma) ? intercambiar('212,500.50') : '212,500.50'
+  return traducir(idioma, 'compartidos.cifra.forma', { ejemplo })
+}
+
+/**
  * Al salir del campo: si lo tecleado es válido se pinta canónico (sin `$`, sin
  * espacios, sin punto colgando, con sus comas) conservando las cifras
  * tecleadas; si no, se deja tal cual, para que se vea qué se escribió junto al

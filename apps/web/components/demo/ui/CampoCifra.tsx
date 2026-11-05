@@ -6,7 +6,8 @@ import { useIdioma } from '@/lib/i18n/contexto'
 import {
   leerCifra,
   crudoDeLectura,
-  textoDesdeCrudo,
+  pintarCrudo,
+  motivoCifraAjena,
   textoAlSalir,
   formatearMientrasEscribe,
   type LecturaCifra,
@@ -94,7 +95,10 @@ export function CampoCifra({
     idioma,
   }
   const crudoProp = aCrudo(valor)
-  const [texto, setTexto] = React.useState(() => textoDesdeCrudo(crudoProp, idioma))
+  const [texto, setTexto] = React.useState(() => pintarCrudo(crudoProp, idioma).texto)
+  // B82: lo pintado es un crudo de OTRO idioma que no es una cifra («1,500»
+  // guardado en español y abierto en italiano). Se avisa hasta que se teclee.
+  const [ajeno, setAjeno] = React.useState(() => pintarCrudo(crudoProp, idioma).ajeno)
   const ultimoEmitido = React.useRef(crudoProp)
   const cursorPendiente = React.useRef<number | null>(null)
   const ref = React.useRef<HTMLInputElement>(null)
@@ -115,7 +119,9 @@ export function CampoCifra({
     if (crudoProp !== ultimoEmitido.current || idioma !== idiomaPintado.current) {
       ultimoEmitido.current = crudoProp
       idiomaPintado.current = idioma
-      setTexto(textoDesdeCrudo(crudoProp, idioma))
+      const p = pintarCrudo(crudoProp, idioma)
+      setTexto(p.texto)
+      setAjeno(p.ajeno)
     }
   })
 
@@ -131,11 +137,12 @@ export function CampoCifra({
     const lectura = leerCifra(t, opciones)
     const crudo = crudoDeLectura(lectura)
     ultimoEmitido.current = crudo
+    setAjeno(false)
     onCambio(crudo, lectura)
   }
 
   const lectura = leerCifra(texto, opciones)
-  const error = lectura.ok ? null : lectura.error
+  const error = ajeno ? motivoCifraAjena(idioma) : lectura.ok ? null : lectura.error
 
   return (
     <>
@@ -167,7 +174,12 @@ export function CampoCifra({
           emitir(r.texto)
         }}
         onBlur={(e) => {
-          setTexto(textoAlSalir(texto, opciones))
+          // Con un crudo ajeno (B82) no se reformatea al salir: se queda a la
+          // vista lo tecleado en el otro idioma, junto a su aviso. Pasarlo por
+          // `textoAlSalir` lo leería con la regla italiana y, si allí es
+          // válido («1.500,50» → «1.500,5»), lo pintaría como una cifra correcta
+          // que no es la que se manda.
+          if (!ajeno) setTexto(textoAlSalir(texto, opciones))
           onBlur?.(e)
         }}
       />

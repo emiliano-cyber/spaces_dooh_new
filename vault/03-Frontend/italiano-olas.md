@@ -1,7 +1,7 @@
 ---
 tipo: tablero
 estado: en-curso
-actualizado: 2026-11-04
+actualizado: 2026-11-05
 tags: [frontend, i18n, italiano, olas, agentes, dinero]
 archivos:
   - apps/web/lib/i18n/idiomas.ts
@@ -661,3 +661,44 @@ ROJA (dinero), autorizada por el dueño el 04/11**, sin validar. La regla está 
 - **No se tocaron**, a propósito: las coordenadas (se pegan de un mapa, con
   punto), Space Eyes (configuración técnica entera) y los enteros sin control
   de Administración y el orden de la rejilla.
+
+## 14 · Las notas de versión en inglés e italiano, y B82 (2026-11-05)
+
+Rama `feat/italiano-novedades` (sale de `integra/idiomas`, `e6c8ca43`), **sin
+validar**. Lo que todavía salía en español con el idioma encendido y no exigía
+cambiar el español. Detalle y tabla de decisiones de traducción en
+`docs/i18n/revision-italiano-novedades.md`.
+
+- **Las notas de versión dejan de ser «español a propósito».** Cada item de
+  `apps/web/novedades.json` admite `en` e `it` opcionales junto a `texto` (el
+  español). En español se pinta siempre `texto`; en inglés `en`; en italiano
+  `it`, luego `en`, luego `texto` (`textoDeItem`, `lib/novedades.ts`). Las 18
+  versiones (110 items) van traducidas. Formato, reglas y la puerta de la
+  release en [[notas-de-version]]: `verificar-novedades.mjs` sale igual que
+  antes y solo AVISA de lo que falte por traducir.
+- **El panel de Actualizaciones sigue en español** para la versión pendiente:
+  el actualizador quita `en`/`it` de `notas_disponibles` porque esa columna la
+  lee la aplicación vieja, que rechaza campos desconocidos (B83 en
+  `ABIERTOS.md`).
+- **Glosario nuevo de este tramo** (además de §7 y §12): pantalla de la app →
+  *pagina*; «Inicio» → *la pagina iniziale*; campanita → *campanella*; pin →
+  *segnaposto*; arte → *grafica*; prima → *maggiorazione*; folio de campaña →
+  *rif. interno*; folio de una solicitud → *numero della richiesta*; «se
+  cuentan hacia abajo» → *si contano per difetto*; fechas en prosa fija **con** su
+  artículo, como en italiano: *il 21 ottobre*, *dal 5 ottobre*, *termina il 4
+  dicembre*, *dal 1° al 31*, y con la elisión correcta ante 8, 11 y 80–89
+  (*dall’8*, *l’11*). **Precisión tras la validación (05/11):** la regla «sin
+  artículo ante fecha» de §5 y §7 es para las fechas en HUECO (`{fecha}`), donde
+  no se sabe qué cifra caerá y «il {fecha}» saldría «il 8»; en prosa fija no
+  aplica. La primera vuelta la había aplicado a la prosa («in data 21
+  ottobre», «dal giorno 5 ottobre») y el validador lo corrigió;
+  `novedades-idiomas.test.ts` vigila ahora la elisión, con su prueba de que
+  muerde. Las cifras de una nota se escriben a la
+  italiana (2.500, MX$ 1.234.567,50, 7,50%), y en la nota que explica cómo se
+  teclean las cifras (v0.11.3) el caso ambiguo es el espejo («2,500»).
+- **B82 cerrada.** Al cambiar de es/en a italiano con un diálogo de cifras
+  abierto, `CampoCifra` relee el crudo (`pintarCrudo`): lo canónico se pinta
+  con los signos italianos; lo que `Number()` entiende, como la cifra que se
+  mandará; y lo que no es una cifra («1,500» tecleado en español) se deja como
+  se tecleó con su aviso, en vez de pintarse «1.500». Lo que se manda no
+  cambia. Probado tecla a tecla con `lib/test/formulario-sin-dom.ts`.

@@ -155,6 +155,10 @@ export const A_PROPOSITO_IT: readonly Excepcion[] = [
   { en: 'contexto', tipo: 'frase', patron: /error del servidor/, motivo: 'dato: el mensaje que la prueba fuerza en InvitarModal (`DATOS` de pantallas-admin)' },
   { en: 'contexto', tipo: 'formato', patron: /mozilla\/5\.0|10\.0\.0\.1/, motivo: 'dato: el navegador y la IP de una firma (constancia)' },
   { en: 'contexto', tipo: 'formato', patron: /ca-0001\.1/, motivo: 'dato: folio de una extension de campaña (CA-0001.1)' },
+  // (05/11) Los dos que salieron al barrer por primera vez `cifras-formularios`
+  // (su espejo italiano no se habia volcado nunca).
+  { en: 'contexto', tipo: 'formato', patron: /«1,500» sarebbe 1,5/, motivo: 'el motivo de rechazo CITA lo que la persona tecleo («1,500», la cifra a la inglesa que se rechaza): es lo tecleado, no un formato de la aplicacion' },
+  { en: 'contexto', tipo: 'frase', patron: /impianto «pantalla nueva»/, motivo: 'dato: el nombre de pantalla que teclea la prueba del asistente de contrato («Pantalla Nueva», cifras-formularios)' },
   { en: 'contexto', tipo: 'formato', patron: /millar «0,\d{3}»/, motivo: 'falso positivo de la guardia: «0,812» es el decimal italiano del SSIM (Space Eyes), no un millar: ninguna cifra con millar empieza por 0' },
   { en: 'contexto', patron: /contrato que celebran las partes|declara el arrendador|da en arrendamiento el espacio|ciudad de méxico, a 2 de noviembre de 2026|contrato de arrendamiento texto legal/, motivo: 'dato: el cuerpo del contrato simulado de pantallas-inventario-arrendadores (documento y firma publica) va en español sea cual sea el idioma del documento (el texto real lo arma `contrato-documento.ts`, con su propia prueba)' },
   { en: 'archivo', patron: /espejo-italiano\.test\.ts/, motivo: 'la prueba de la propia guardia: pinta una fecha inglesa a proposito para ver que muerde' },
