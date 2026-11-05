@@ -5,8 +5,11 @@ import {
   textoDesdeCrudo,
   textoAlSalir,
   crudoDeLectura,
+  pintarCrudo,
+  motivoCifraAjena,
   type OpcionesCifra,
 } from './captura-cifra'
+import { traducir } from './i18n/diccionario'
 
 // ============================================================================
 //  La captura de cifras EN ITALIANO (decision del dueno del 04/11, P-L2-1).
@@ -273,5 +276,48 @@ describe('B77 · en italiano, lo TECLEADO acaba igual que lo pegado', () => {
       expect(teclear('12.9', { decimales: 2, minimo: 0, idioma }).crudo).toBe('12.9')
       expect(teclear('2,5', { decimales: 2, minimo: 0, idioma }).crudo).toBe('25')
     }
+  })
+})
+
+// ─── B82 (05/11) · lo que guardaba el formulario en OTRO idioma ─────────────
+// En español e inglés `EntradaCifra` guarda lo tecleado TAL CUAL; si la
+// persona cambia a italiano con el diálogo abierto, el campo italiano recibe
+// ese texto como si fuera una cifra canónica. «1,500» se pintaba «1.500» (mil
+// quinientos a la italiana) mientras el formulario seguía mandando
+// `Number('1,500') || 0` = 0. `pintarCrudo` relee el crudo: si es una cifra,
+// la pinta con los signos nuevos; si no lo es, la deja como se tecleó y avisa.
+describe('B82 · pintarCrudo: el crudo de otro idioma, pintado sin mentir', () => {
+  it('una cifra canónica se pinta con los signos italianos, como siempre', () => {
+    expect(pintarCrudo('12.9', 'it')).toEqual({ texto: '12,9', ajeno: false })
+    expect(pintarCrudo('1500', 'it')).toEqual({ texto: '1.500', ajeno: false })
+    expect(pintarCrudo('', 'it')).toEqual({ texto: '', ajeno: false })
+  })
+
+  it('lo que `Number()` sí entiende se pinta como la cifra que se va a mandar', () => {
+    // «2.500» tecleado en español es 2.5 para el formulario: en italiano, «2,5».
+    expect(pintarCrudo('2.500', 'it')).toEqual({ texto: '2,500', ajeno: false })
+    expect(pintarCrudo(' 12.9 ', 'it')).toEqual({ texto: '12,9', ajeno: false })
+  })
+
+  it('NEGATIVO · «1,500» no se pinta «1.500»: se deja como se tecleó y se avisa', () => {
+    expect(pintarCrudo('1,500', 'it')).toEqual({ texto: '1,500', ajeno: true })
+    expect(pintarCrudo('12,9', 'it')).toEqual({ texto: '12,9', ajeno: true })
+    expect(pintarCrudo('1.500,50', 'it')).toEqual({ texto: '1.500,50', ajeno: true })
+  })
+
+  it('el «NaN» del propio campo no es ajeno: lo pinta el camino de siempre', () => {
+    expect(pintarCrudo('NaN', 'it')).toEqual({ texto: textoDesdeCrudo('NaN', 'it'), ajeno: false })
+  })
+
+  it('ESPAÑOL E INGLÉS · idéntico a textoDesdeCrudo, nunca ajeno', () => {
+    for (const idioma of ['es', 'en'] as const) {
+      for (const crudo of ['', '12.9', '1500', '1,500', '12,9', 'NaN', '2.500', ' 7 ']) {
+        expect(pintarCrudo(crudo, idioma)).toEqual({ texto: textoDesdeCrudo(crudo, idioma), ajeno: false })
+      }
+    }
+  })
+
+  it('el aviso es el motivo de forma del idioma, con su ejemplo', () => {
+    expect(motivoCifraAjena('it')).toBe(traducir('it', 'compartidos.cifra.forma', { ejemplo: '212.500,50' }))
   })
 })

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { createElement, type ReactElement } from 'react'
+import { createElement, useState, type ReactElement } from 'react'
 import { ProveedorIdioma } from './contexto'
 import { traducir } from './diccionario'
 import type { Idioma } from './idiomas'
@@ -167,6 +167,8 @@ import { ContratoWizard } from '@/components/demo/inventario/ContratoWizard'
 import { Captacion, CLAVE_TIPO_PROSPECTO } from '@/components/demo/captacion/Captacion'
 import { Ficha } from '@/components/demo/comercial-opex/ComercialOpex'
 import ClientesPage from '@/app/(app)/(shell)/clientes/page'
+import { EntradaCifra } from '@/components/demo/ui/EntradaCifra'
+import { cifraIlegible } from '@/lib/captura-cifra'
 
 function en(idioma: Idioma, hijo: ReactElement) {
   return createElement(ProveedorIdioma, { idioma, puedeElegir: true, disponibles: ['es', 'en', 'it'] }, hijo)
@@ -564,5 +566,106 @@ describe('B79 · Clientes (alta de una agencia con su comisión)', () => {
     reiniciarTienda()
     api.llamadas.length = 0
     expect(await cliente('es', '12,5')).toMatchObject({ comisionAgenciaPct: 0 })
+  })
+})
+
+// ─── B82 (05/11) · cambiar de idioma con un diálogo de cifras abierto ───────
+// En español e inglés `EntradaCifra` guarda lo tecleado tal cual. Si la
+// persona cambia a italiano con el diálogo abierto, el campo italiano tiene
+// que pintar la cifra que el formulario VA A MANDAR, con los signos italianos,
+// o avisar si lo guardado no es una cifra. Lo que se manda NO cambia.
+//
+// Se monta un formulario mínimo con la MISMA forma que el alta de Comercial
+// (`AltaSitioDialog`: `useState('')`, `EntradaCifra`, `cifraIlegible` y
+// `Number(x) || 0` al guardar) y no el diálogo entero, a propósito: el arnés
+// recuerda el estado por POSICIÓN de llamada, y al cambiar de idioma cada
+// `<input>` de es/en pasa a ser un `CampoCifra` con estado propio, así que los
+// estados de los componentes de después se correrían de sitio (el ancho salía
+// vacío por leer el estado de otro). Con el campo al final del árbol, el
+// estado nuevo cae en posiciones vírgenes, como en React.
+describe('B82 · cambiar a italiano con cifras ya tecleadas (tecla a tecla)', () => {
+  function formulario() {
+    const enviados: unknown[] = []
+    let idioma: Idioma = 'es'
+    let enviar = () => {}
+    function Alta() {
+      const [ancho, setAncho] = useState('')
+      enviar = () => {
+        if (!cifraIlegible(ancho, idioma)) enviados.push(Number(ancho) || 0)
+      }
+      return createElement(EntradaCifra, {
+        className: 'x', inputMode: 'decimal', valor: ancho, onCambio: setAncho, decimales: 2, minimo: 0,
+        placeholder: 'ancho', idioma,
+      })
+    }
+    const f = montar(() => createElement(Alta))
+    return {
+      f,
+      enviados,
+      cambiar(i: Idioma) {
+        idioma = i
+        f.rendir()
+      },
+      enviar: () => enviar(),
+    }
+  }
+
+  for (const desde of ['es', 'en'] as const) {
+    it(`${desde.toUpperCase()} → IT · «12.9» se repinta «12,9» y se manda 12.9, como antes`, () => {
+      const r = formulario()
+      r.cambiar(desde)
+      r.f.teclearTeclaATecla('ancho', '12.9')
+      r.cambiar('it')
+      expect(r.f.campo('ancho').props.value).toBe('12,9')
+      expect(r.f.campo('ancho').props['aria-invalid']).toBeUndefined()
+      r.enviar()
+      expect(r.enviados).toEqual([12.9])
+    })
+
+    it(`${desde.toUpperCase()} → IT · «1500» se repinta «1.500»`, () => {
+      const r = formulario()
+      r.cambiar(desde)
+      r.f.teclearTeclaATecla('ancho', '1500')
+      r.cambiar('it')
+      expect(r.f.campo('ancho').props.value).toBe('1.500')
+      r.enviar()
+      expect(r.enviados).toEqual([1500])
+    })
+
+    it(`${desde.toUpperCase()} → IT · NEGATIVO: «1,500» NO se pinta «1.500» (mil quinientos): se deja y se avisa`, () => {
+      const r = formulario()
+      r.cambiar(desde)
+      r.f.teclearTeclaATecla('ancho', '1,500')
+      expect(r.f.campo('ancho').props.value).toBe('1,500')
+      r.cambiar('it')
+      expect(r.f.campo('ancho').props.value).toBe('1,500')
+      expect(r.f.campo('ancho').props['aria-invalid']).toBe(true)
+      expect(r.f.html).toContain('role="alert"')
+      expect(r.f.html).toContain(traducir('it', 'compartidos.cifra.forma', { ejemplo: '212.500,50' }))
+      // Lo que se manda no cambia: `Number('1,500') || 0`, lo mismo que en es/en.
+      r.enviar()
+      expect(r.enviados).toEqual([0])
+    })
+
+    it(`${desde.toUpperCase()} → IT · tras el aviso, lo que se teclea en italiano se lee en italiano y se manda`, () => {
+      const r = formulario()
+      r.cambiar(desde)
+      r.f.teclearTeclaATecla('ancho', '1,500')
+      r.cambiar('it')
+      r.f.teclear('ancho', '1.500,5')
+      expect(r.f.campo('ancho').props['aria-invalid']).toBeUndefined()
+      r.enviar()
+      expect(r.enviados).toEqual([1500.5])
+    })
+  }
+
+  it('IT sin cambiar de idioma · lo de siempre: «1,500» tecleado en italiano es 1,5… y se rechaza en dinero', () => {
+    const r = formulario()
+    r.cambiar('it')
+    r.f.teclear('ancho', '1,500')
+    expect(r.f.campo('ancho').props.value).toBe('1,500')
+    expect(r.f.campo('ancho').props['aria-invalid']).toBe(true)
+    r.enviar()
+    expect(r.enviados).toEqual([])
   })
 })
