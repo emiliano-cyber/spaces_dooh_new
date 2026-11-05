@@ -240,6 +240,17 @@ for (const idioma of ['es', 'en'] as const) {
       expect(r.crudo).toBe('NaN')
     })
 
+    it('B85 · pegar «1,500» ENCIMA de «2,000» (mismas comas) también cuenta: + 0 → «1,5000», rechazado (antes 15,000)', () => {
+      const p = teclearCifra({ texto: '2,000', comasPropias: false }, { nuevo: '1,500', cursor: 5, tipoEntrada: 'insertFromPaste' }, idioma)
+      expect(p.comasPropias).toBe(true)
+      const r = teclear('0', idioma, DINERO, p)
+      expect(r.texto).toBe('1,5000')
+      expect(r.crudo).toBe('NaN')
+      // Y soltar (arrastrar) igual que pegar.
+      const d = teclearCifra({ texto: '2,000', comasPropias: false }, { nuevo: '1,500', cursor: 5, tipoEntrada: 'insertFromDrop' }, idioma)
+      expect(d.comasPropias).toBe(true)
+    })
+
     it('lo pegado sin coma no: «1500» pegado + 0 → «15,000»', () => {
       const p = teclearCifra({ texto: '', comasPropias: false }, { nuevo: '1500', cursor: 4, tipoEntrada: 'insertFromPaste' }, idioma)
       expect(p.comasPropias).toBe(false)
@@ -257,9 +268,49 @@ for (const idioma of ['es', 'en'] as const) {
   })
 }
 
-describe('D18 · el ITALIANO no cambia (B77 ya lo hacía así)', () => {
-  it('teclearCifra en italiano es formatearMientrasEscribe tecla a tecla, sin comas propias', () => {
-    for (const t of ['2.5', '12,9', '1.500,50', '1500,50', '1.5000', '15000', '2,5']) {
+// ─── B87 (supervisión de D18, 05/11) · el gemelo italiano ────────────────────
+// B77 dejó el punto tecleado donde caía, pero en cuanto el texto volvía a
+// parecer canónico («1.500») la tecla siguiente lo reagrupaba: «1.5000»
+// tecleado daba 15.000 y «1.2345» 12.345, mientras pegados se rechazaban. Se
+// aplica la regla de D18 con los signos intercambiados: un punto que pone la
+// persona no se recoloca, y mientras quede alguno no se recoloca ninguno.
+// LO QUE CAMBIA respecto a la prueba de antes («el italiano no cambia»):
+// «1.5000» → «1.5000» rechazado (antes «15.000» = 15000) y «1.2345» →
+// «1.2345» rechazado (antes «12.345»). Lo demás de esa lista sale igual.
+describe('B87 · ITALIANO · el punto que pone la persona tampoco se reagrupa', () => {
+  const IT: OpcionesCifra = { decimales: 2, minimo: 0 }
+  it('«1.5000» y «1.2345» tecleados se quedan y se rechazan, como pegados', () => {
+    for (const t of ['1.5000', '1.2345']) {
+      const r = teclear(t, 'it', IT)
+      expect(r.texto, t).toBe(t)
+      expect(r.crudo, t).toBe('NaN')
+      expect(r.lectura, t).toEqual(pegado(t, 'it', IT))
+      expect(r.estado.comasPropias, t).toBe(true)
+    }
+  })
+  it('lo bien puesto sigue igual: «1.500» = 1500, «1.500,50» = 1500.5, «1500» → «1.500», «15000,50» → «15.000,50»', () => {
+    expect(teclear('1.500', 'it', IT).crudo).toBe('1500')
+    expect(teclear('1.500,50', 'it', IT).crudo).toBe('1500.5')
+    const r = teclear('1500', 'it', IT)
+    expect(r.texto).toBe('1.500')
+    expect(r.estado.comasPropias).toBe(false)
+    expect(teclear('15000,50', 'it', IT).texto).toBe('15.000,50')
+    expect(teclear('2.5', 'it', IT).crudo).toBe('NaN')
+    expect(teclear('12,9', 'it', IT).crudo).toBe('12.9')
+  })
+  it('los puntos que puso el campo se siguen recolocando: «1.500» + 0 → «15.000»', () => {
+    expect(teclear('0', 'it', IT, { texto: '1.500', comasPropias: false }).texto).toBe('15.000')
+  })
+  it('pegar «1.500» encima de «2.000» y teclear 0 → «1.5000», rechazado (B85 en italiano)', () => {
+    const p = teclearCifra({ texto: '2.000', comasPropias: false }, { nuevo: '1.500', cursor: 5, tipoEntrada: 'insertFromPaste' }, 'it')
+    expect(p.comasPropias).toBe(true)
+    expect(teclear('0', 'it', IT, p).texto).toBe('1.5000')
+  })
+})
+
+describe('D18 · el ITALIANO, lo que no cambia', () => {
+  it('teclearCifra en italiano da lo de formatearMientrasEscribe tecla a tecla en todo lo que no lleva un punto propio', () => {
+    for (const t of ['12,9', '1500,50', '15000', '2,5']) {
       let viejo = ''
       let estado: TecleoCifra = { texto: '', comasPropias: false }
       for (const ch of t) {
@@ -271,6 +322,9 @@ describe('D18 · el ITALIANO no cambia (B77 ya lo hacía así)', () => {
         expect(estado.comasPropias).toBe(false)
       }
     }
+    // «2.5» y «1.500,50» llevan un punto propio y acaban igual que antes.
+    expect(teclear('2.5', 'it').texto).toBe('2.5')
+    expect(teclear('1.500,50', 'it').texto).toBe('1.500,50')
   })
   it('cifraAMedias es siempre false en italiano: su aviso sale como antes', () => {
     expect(cifraAMedias('1.', 'it')).toBe(false)

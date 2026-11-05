@@ -255,7 +255,7 @@ for (const idioma of ['es', 'en'] as const) {
 
   // ─── El campo solo: Enter también enseña el aviso; y lo que repinta el padre ──
   describe(`D18 · ${I} · CampoCifra suelto`, () => {
-    function campo(opciones: { guardaUltimoValido?: boolean } = {}) {
+    function campo(opciones: { guardaUltimoValido?: boolean; minimo?: number } = {}) {
       const recibidos: string[] = []
       function F() {
         const [v, setV] = useState('')
@@ -263,6 +263,7 @@ for (const idioma of ['es', 'en'] as const) {
           valor: v,
           placeholder: 'importe',
           idioma,
+          ...(opciones.minimo != null ? { minimo: opciones.minimo } : {}),
           onCambio: (crudo, lectura) => {
             recibidos.push(crudo)
             if (!opciones.guardaUltimoValido || lectura.ok) setV(crudo)
@@ -271,6 +272,39 @@ for (const idioma of ['es', 'en'] as const) {
       }
       return { f: montar(() => createElement(F), { efectos: true, refs: true }), recibidos }
     }
+
+    it('B85 · pegar «1,500» encima de «2,000» y teclear 0 → «1,5000», rechazado (antes 15,000)', () => {
+      const { f } = campo()
+      f.teclearTeclaATecla('importe', '2000')
+      expect(f.campo('importe').props.value).toBe('2,000')
+      f.teclear('importe', '1,500')
+      f.teclearTeclaATecla('importe', '0')
+      expect(f.campo('importe').props.value).toBe('1,5000')
+      expect(f.campo('importe').props['aria-invalid']).toBe(true)
+    })
+
+    it('B86 · salir con una cifra INVÁLIDA no olvida las comas propias: «1,000» bajo el mínimo + 0 → «1,0000»', () => {
+      const { f } = campo({ minimo: 1500 })
+      f.teclearTeclaATecla('importe', '1,000')
+      f.salir('importe')
+      f.rendir()
+      expect(f.campo('importe').props.value).toBe('1,000')
+      f.teclearTeclaATecla('importe', '0')
+      expect(f.campo('importe').props.value).toBe('1,0000')
+    })
+
+    it('B86 · el repintado del padre SÍ las olvida: «1,500,5» repintado «1,500» + 0 → «15,000»', () => {
+      const { f, recibidos } = campo({ guardaUltimoValido: true })
+      f.teclearTeclaATecla('importe', '1500')
+      f.teclearTeclaATecla('importe', ',5')
+      expect(f.campo('importe').props.value).toBe('1,500,5')
+      f.salir('importe')
+      f.rendir() // el efecto repinta con lo que guardó el padre
+      expect(f.campo('importe').props.value).toBe('1,500')
+      f.teclearTeclaATecla('importe', '0')
+      expect(f.campo('importe').props.value).toBe('15,000')
+      expect(recibidos.at(-1)).toBe('15000')
+    })
 
     it('Enter enseña el aviso de lo que se dejó a medias', () => {
       const { f } = campo()
@@ -313,3 +347,25 @@ for (const idioma of ['es', 'en'] as const) {
     })
   })
 }
+
+// ─── B87 · el gemelo italiano, en el campo ──────────────────────────────────
+describe('B87 · IT · CampoCifra suelto', () => {
+  function campo() {
+    function F() {
+      const [v, setV] = useState('')
+      return createElement(CampoCifra, { valor: v, placeholder: 'importe', idioma: 'it', onCambio: (crudo) => setV(crudo) })
+    }
+    return montar(() => createElement(F), { efectos: true, refs: true })
+  }
+  it('«1.5000» tecleado se queda y se rechaza (antes «15.000» = 15000)', () => {
+    const f = campo()
+    f.teclearTeclaATecla('importe', '1.5000')
+    expect(f.campo('importe').props.value).toBe('1.5000')
+    expect(f.campo('importe').props['aria-invalid']).toBe(true)
+  })
+  it('«1500» se pinta «1.500», como siempre', () => {
+    const f = campo()
+    f.teclearTeclaATecla('importe', '1500')
+    expect(f.campo('importe').props.value).toBe('1.500')
+  })
+})
