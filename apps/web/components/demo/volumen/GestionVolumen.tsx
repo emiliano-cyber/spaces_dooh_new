@@ -94,7 +94,7 @@ export function GestionVolumen() {
     }
   }
 
-  if (cargando) return <p className="text-sm text-neutral-500">Cargando la escala…</p>
+  if (cargando) return <p className="text-sm text-muted">Cargando la escala…</p>
 
   return (
     <div className="space-y-4">
@@ -117,13 +117,13 @@ export function GestionVolumen() {
 
       <section>
         <h2 className="mb-1 text-sm font-semibold">Tramos por unidad de venta</h2>
-        <p className="mb-3 text-xs text-neutral-500">
+        <p className="mb-3 text-xs text-muted">
           Cada unidad tiene su propia escala, porque 50 spots y 50 meses no son la misma compra.
           Los tramos tienen que <b>crecer</b>: comprar más nunca puede descontar menos.
         </p>
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b text-left text-xs text-neutral-500">
+            <tr className="border-b text-left text-xs text-muted">
               <th className="py-1">Unidad</th>
               <th>A partir de</th>
               <th>Descuento</th>
@@ -133,7 +133,7 @@ export function GestionVolumen() {
           <tbody>
             {tramos.length === 0 && (
               <tr>
-                <td colSpan={4} className="py-3 text-neutral-500">
+                <td colSpan={4} className="py-3 text-muted">
                   Todavía no hay ninguno. Sin tramos, todo se vende al precio de tarifa — que es
                   exactamente como funciona hoy.
                 </td>

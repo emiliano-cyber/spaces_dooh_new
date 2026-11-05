@@ -72,7 +72,7 @@ const fecha = (iso: string) => (/^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso.split('-')
 const ETIQUETA: Record<EstadoDelCodigo, { texto: string; clase: string }> = {
   VIGENTE: { texto: 'Vigente', clase: 'border-[#10b98140] bg-[#e6f6ec] text-[#0f7a55]' },
   PROXIMO: { texto: 'Próximo', clase: 'border-[#0a66ff33] bg-[#eef4ff] text-[#0a4fc4]' },
-  VENCIDO: { texto: 'Vencido', clase: 'border-neutral-300 bg-neutral-100 text-neutral-600' },
+  VENCIDO: { texto: 'Vencido', clase: 'border-border-strong bg-surface-2 text-muted' },
   AGOTADO: { texto: 'Agotado', clase: 'border-[#f59e0b40] bg-[#fff7e6] text-[#9a6700]' },
 }
 
@@ -188,7 +188,7 @@ export function GestionCodigos() {
   const nombreCliente = (id: string | null) =>
     (clientes ?? []).find((x) => x.id === id)?.nombre ?? 'sin cliente'
 
-  if (cargando) return <p className="text-sm text-neutral-500">Cargando los códigos…</p>
+  if (cargando) return <p className="text-sm text-muted">Cargando los códigos…</p>
 
   return (
     <div className="space-y-4">
@@ -214,14 +214,14 @@ export function GestionCodigos() {
 
       <section>
         <h2 className="mb-1 text-sm font-semibold">Códigos de esta empresa</h2>
-        <p className="mb-3 text-xs text-neutral-500">
+        <p className="mb-3 text-xs text-muted">
           Las promociones las pone cada empresa: estos códigos no se comparten con nadie más. Los
           dos extremos de la vigencia son <b>inclusivos</b> — «hasta el 30» incluye el 30. Dejar el
           tope de usos vacío significa <b>sin tope</b>; entonces el único freno es la fecha.
         </p>
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b text-left text-xs text-neutral-500">
+            <tr className="border-b text-left text-xs text-muted">
               <th className="py-1.5 font-medium">Código</th>
               <th className="font-medium">Estado</th>
               <th className="font-medium">Descuento</th>
@@ -233,7 +233,7 @@ export function GestionCodigos() {
           <tbody>
             {codigos.length === 0 && (
               <tr>
-                <td colSpan={6} className="py-4 text-neutral-500">
+                <td colSpan={6} className="py-4 text-muted">
                   Todavía no hay ninguno. Sin códigos, todo se vende como hoy.
                 </td>
               </tr>
@@ -252,7 +252,7 @@ export function GestionCodigos() {
                     </span>
                   </td>
                   <td className="font-medium">{c.descuentoPct} %</td>
-                  <td className={estado === 'VENCIDO' ? 'text-neutral-400' : undefined}>
+                  <td className={estado === 'VENCIDO' ? 'text-muted/60' : undefined}>
                     {fecha(c.vigenteDesde)} → {fecha(c.vigenteHasta)}
                   </td>
                   <td>
@@ -260,7 +260,7 @@ export function GestionCodigos() {
                       {c.usos} de {tope ?? '∞'}
                     </div>
                     {tope != null && tope > 0 && (
-                      <div className="mt-1 h-1 w-20 overflow-hidden rounded bg-neutral-200" aria-hidden>
+                      <div className="mt-1 h-1 w-20 overflow-hidden rounded bg-surface-2" aria-hidden>
                         <div
                           className={`h-full ${estado === 'AGOTADO' ? 'bg-[#f59e0b]' : 'bg-accent'}`}
                           style={{ width: `${Math.min(100, (c.usos / tope) * 100)}%` }}
@@ -304,7 +304,7 @@ export function GestionCodigos() {
                     <tr className="border-b bg-surface-2/40">
                       <td colSpan={6} className="px-3 py-3">
                         {elegibles.length === 0 ? (
-                          <p className="text-xs text-neutral-500">
+                          <p className="text-xs text-muted">
                             No hay propuestas a las que asignarlo: solo se puede en una propuesta en
                             borrador, enviada o rechazada, y que no lleve ya otro código.
                           </p>
@@ -333,7 +333,7 @@ export function GestionCodigos() {
                             <Button size="sm" variant="ghost" onClick={() => setAsignando(null)}>
                               Cancelar
                             </Button>
-                            <p className="w-full text-xs text-neutral-500">
+                            <p className="w-full text-xs text-muted">
                               Consume un uso del código y queda <b>pendiente de aprobación</b>: el
                               cliente no lo ve hasta que un administrador o gerente lo apruebe desde
                               la propuesta.
@@ -364,7 +364,7 @@ export function GestionCodigos() {
         </h3>
         <div className="flex flex-wrap items-end gap-3">
           <label className="text-xs">
-            <span className="mb-0.5 block text-neutral-500">Código</span>
+            <span className="mb-0.5 block text-muted">Código</span>
             <input
               aria-label="Código"
               className={`${campo} w-36 font-mono uppercase`}
@@ -374,7 +374,7 @@ export function GestionCodigos() {
             />
           </label>
           <label className="text-xs">
-            <span className="mb-0.5 block text-neutral-500">Descuento (%)</span>
+            <span className="mb-0.5 block text-muted">Descuento (%)</span>
             <input
               aria-label="Descuento por ciento"
               type="number"
@@ -388,7 +388,7 @@ export function GestionCodigos() {
             />
           </label>
           <label className="text-xs">
-            <span className="mb-0.5 block text-neutral-500">Vigente desde</span>
+            <span className="mb-0.5 block text-muted">Vigente desde</span>
             <input
               aria-label="Vigente desde"
               type="date"
@@ -398,7 +398,7 @@ export function GestionCodigos() {
             />
           </label>
           <label className="text-xs">
-            <span className="mb-0.5 block text-neutral-500">Vigente hasta</span>
+            <span className="mb-0.5 block text-muted">Vigente hasta</span>
             <input
               aria-label="Vigente hasta"
               type="date"
@@ -408,7 +408,7 @@ export function GestionCodigos() {
             />
           </label>
           <label className="text-xs">
-            <span className="mb-0.5 block text-neutral-500">Tope de usos</span>
+            <span className="mb-0.5 block text-muted">Tope de usos</span>
             {/* Entero, con coma de miles. Vacío sigue siendo SIN TOPE, y lo
                 que no se entiende llega como 'NaN', que `motivoCodigoInvalido`
                 rechaza («tiene que ser un numero entero»). */}

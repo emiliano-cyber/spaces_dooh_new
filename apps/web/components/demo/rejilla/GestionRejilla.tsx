@@ -97,7 +97,7 @@ export function GestionRejilla() {
     }
   }
 
-  if (cargando) return <p className="text-sm text-neutral-500">Cargando el catálogo…</p>
+  if (cargando) return <p className="text-sm text-muted">Cargando el catálogo…</p>
 
   return (
     <div className="space-y-6">
@@ -113,14 +113,14 @@ export function GestionRejilla() {
 
       <section>
         <h2 className="mb-1 text-sm font-semibold">Franjas horarias</h2>
-        <p className="mb-3 text-xs text-neutral-500">
+        <p className="mb-3 text-xs text-muted">
           El fin es <b>exclusivo</b>: 06:00–10:00 y 10:00–14:00 se tocan y no se pisan. Dos franjas
           no pueden solaparse — si pudieran, el precio de un spot a las 09:30 dependería de un
           desempate que nadie decidió.
         </p>
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b text-left text-xs text-neutral-500">
+            <tr className="border-b text-left text-xs text-muted">
               <th className="py-1">Nombre</th>
               <th>Desde</th>
               <th>Hasta</th>
@@ -131,14 +131,14 @@ export function GestionRejilla() {
           <tbody>
             {franjas.length === 0 && (
               <tr>
-                <td colSpan={5} className="py-3 text-neutral-500">
+                <td colSpan={5} className="py-3 text-muted">
                   Todavía no hay ninguna. Sin franjas, todo se vende con la tarifa base — que es
                   exactamente como funciona hoy.
                 </td>
               </tr>
             )}
             {franjas.map((f) => (
-              <tr key={f.id} className={'border-b ' + (f.activo ? '' : 'text-neutral-400 line-through')}>
+              <tr key={f.id} className={'border-b ' + (f.activo ? '' : 'text-muted/60 line-through')}>
                 <td className="py-1.5">{f.nombre}</td>
                 <td>{f.horaInicio}</td>
                 <td>{f.horaFin}</td>
@@ -213,14 +213,14 @@ export function GestionRejilla() {
 
       <section>
         <h2 className="mb-1 text-sm font-semibold">Temporadas</h2>
-        <p className="mb-3 text-xs text-neutral-500">
+        <p className="mb-3 text-xs text-muted">
           Fechas <b>concretas</b>, con año: «Buen Fin 2026» y «Buen Fin 2027» son dos temporadas,
           porque las fechas cambian cada año. Ambos extremos entran. Tampoco pueden solaparse: si
           «Diciembre» y «Buen Fin» se pisan, hay que decidir qué precio manda esos días.
         </p>
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b text-left text-xs text-neutral-500">
+            <tr className="border-b text-left text-xs text-muted">
               <th className="py-1">Nombre</th>
               <th>Desde</th>
               <th>Hasta</th>
@@ -230,13 +230,13 @@ export function GestionRejilla() {
           <tbody>
             {temporadas.length === 0 && (
               <tr>
-                <td colSpan={4} className="py-3 text-neutral-500">
+                <td colSpan={4} className="py-3 text-muted">
                   Todavía no hay ninguna.
                 </td>
               </tr>
             )}
             {temporadas.map((t) => (
-              <tr key={t.id} className={'border-b ' + (t.activo ? '' : 'text-neutral-400 line-through')}>
+              <tr key={t.id} className={'border-b ' + (t.activo ? '' : 'text-muted/60 line-through')}>
                 <td className="py-1.5">{t.nombre}</td>
                 <td>{t.desde}</td>
                 <td>{t.hasta}</td>

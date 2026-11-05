@@ -46,14 +46,14 @@ const inputCls =
 const labelCls = 'block text-xs font-medium text-ink-muted'
 
 const COLOR_ETAPA: Record<Etapa, string> = {
-  PROSPECTO: 'bg-neutral-100 text-neutral-700',
+  PROSPECTO: 'bg-surface-2 text-ink',
   CONTACTADO: 'bg-sky-50 text-sky-800',
   VISITA: 'bg-indigo-50 text-indigo-800',
   NEGOCIACION: 'bg-violet-50 text-violet-800',
   EN_REVISION: 'bg-amber-50 text-amber-900',
   APROBADO: 'bg-emerald-50 text-emerald-800',
   RECHAZADO: 'bg-red-50 text-red-800',
-  PERDIDO: 'bg-neutral-100 text-neutral-500',
+  PERDIDO: 'bg-surface-2 text-muted',
 }
 
 function Etiqueta({ etapa }: { etapa: Etapa }) {

@@ -145,7 +145,7 @@ export function GestionPaquetes() {
     }
   }
 
-  if (cargando) return <p className="text-sm text-neutral-500">Cargando los paquetes…</p>
+  if (cargando) return <p className="text-sm text-muted">Cargando los paquetes…</p>
 
   return (
     <div className="space-y-4">
@@ -170,14 +170,14 @@ export function GestionPaquetes() {
 
       <section>
         <h2 className="mb-1 text-sm font-semibold">Paquetes de la organización</h2>
-        <p className="mb-3 text-xs text-neutral-500">
+        <p className="mb-3 text-xs text-muted">
           El precio se reparte entre las pantallas <b>a prorrata de su tarifa de lista</b>, y la
           suma de las partes da el precio del paquete <b>al peso</b>. Ese reparto es el ingreso que
           el reporte de rentabilidad le atribuye a cada pantalla.
         </p>
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b text-left text-xs text-neutral-500">
+            <tr className="border-b text-left text-xs text-muted">
               <th className="py-1">Paquete</th>
               <th>Pantallas</th>
               <th>Precio cerrado</th>
@@ -189,14 +189,14 @@ export function GestionPaquetes() {
           <tbody>
             {paquetes.length === 0 && (
               <tr>
-                <td colSpan={6} className="py-3 text-neutral-500">
+                <td colSpan={6} className="py-3 text-muted">
                   Todavía no hay ninguno. Sin paquetes, todo se vende al precio de tarifa — que es
                   exactamente como funciona hoy.
                 </td>
               </tr>
             )}
             {paquetes.map((p) => (
-              <tr key={p.id} className={`border-b ${p.activo ? '' : 'text-neutral-400'}`}>
+              <tr key={p.id} className={`border-b ${p.activo ? '' : 'text-muted/60'}`}>
                 <td className="py-1.5">
                   {p.nombre}
                   {!p.activo && <span className="ml-1 text-xs">(desactivado)</span>}
@@ -237,7 +237,7 @@ export function GestionPaquetes() {
         </h3>
         <div className="flex flex-wrap items-end gap-3">
           <label className="text-xs">
-            <span className="mb-0.5 block text-neutral-500">Nombre</span>
+            <span className="mb-0.5 block text-muted">Nombre</span>
             <input
               aria-label="Nombre del paquete"
               className="w-56 rounded border px-2 py-1 text-sm"
@@ -247,7 +247,7 @@ export function GestionPaquetes() {
             />
           </label>
           <label className="text-xs">
-            <span className="mb-0.5 block text-neutral-500">Precio del conjunto (pesos enteros)</span>
+            <span className="mb-0.5 block text-muted">Precio del conjunto (pesos enteros)</span>
             {/* Pesos ENTEROS (decimales 0): el reparto no admite centavos. Lo
                 que no se entiende llega como 'NaN' y `motivoPaqueteInvalido`
                 lo rechaza («tiene que ser un numero»). */}
@@ -280,7 +280,7 @@ export function GestionPaquetes() {
         </div>
 
         <div className="mt-3">
-          <p className="mb-1 text-xs text-neutral-500">
+          <p className="mb-1 text-xs text-muted">
             Pantallas del paquete (mínimo 2). Una propuesta solo puede aplicar este paquete si
             tiene <b>exactamente</b> estas pantallas.
           </p>
@@ -300,7 +300,7 @@ export function GestionPaquetes() {
                   }
                 />
                 {s.nombre}
-                <span className="text-neutral-400">{pesos(listaDe(s.id))} de lista</span>
+                <span className="text-muted/60">{pesos(listaDe(s.id))} de lista</span>
               </label>
             ))}
           </div>
@@ -321,7 +321,7 @@ export function GestionPaquetes() {
                 </>
               )}
             </p>
-            <p className="mb-1 text-neutral-600">
+            <p className="mb-1 text-muted">
               Así se repartiría entre las pantallas — y esto es lo que el reporte de rentabilidad
               le atribuirá a cada una:
             </p>
@@ -329,7 +329,7 @@ export function GestionPaquetes() {
               {previsto.map((x) => (
                 <li key={x.id}>
                   {nombreDe(x.id)}: <b>{pesos(x.parte)}</b>{' '}
-                  <span className="text-neutral-400">(lista {pesos(x.lista)})</span>
+                  <span className="text-muted/60">(lista {pesos(x.lista)})</span>
                 </li>
               ))}
             </ul>

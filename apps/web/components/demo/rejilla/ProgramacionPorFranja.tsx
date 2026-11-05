@@ -83,7 +83,7 @@ export function ProgramacionPorFranja() {
     }
   }
 
-  if (cargando) return <p className="text-sm text-neutral-500">Cargando la programación…</p>
+  if (cargando) return <p className="text-sm text-muted">Cargando la programación…</p>
 
   const activas = franjas.filter((f) => f.activo)
 
@@ -93,7 +93,7 @@ export function ProgramacionPorFranja() {
         <h2 className="mb-1 flex items-center gap-1.5 text-sm font-semibold">
           <CalendarClock className="h-4 w-4" /> Horario de transmisión
         </h2>
-        <p className="text-xs text-neutral-500">
+        <p className="text-xs text-muted">
           En qué franja <b>se transmite</b> cada campaña. No cambia ningún precio: lo vendido ya
           está en la campaña desde la propuesta. Puedes marcar varias campañas y programarlas de
           una vez; si alguna no se puede, no se programa ninguna.
@@ -103,7 +103,7 @@ export function ProgramacionPorFranja() {
       <AvisoFranjaCMS />
 
       {!puede && (
-        <p className="text-xs text-neutral-500">
+        <p className="text-xs text-muted">
           Solo el gerente de ventas, el director comercial y la dirección pueden programar el
           horario. Aquí ves cómo está.
         </p>
@@ -116,7 +116,7 @@ export function ProgramacionPorFranja() {
       )}
 
       {activas.length === 0 && (
-        <p className="text-sm text-neutral-500">
+        <p className="text-sm text-muted">
           Da de alta al menos una franja arriba para poder programar campañas en ella.
         </p>
       )}
@@ -133,7 +133,7 @@ export function ProgramacionPorFranja() {
               <div className="text-sm font-medium">{etiquetaFranja(f)}</div>
 
               {suyas.length === 0 ? (
-                <p className="text-xs text-neutral-500">Ninguna campaña se transmite en esta franja.</p>
+                <p className="text-xs text-muted">Ninguna campaña se transmite en esta franja.</p>
               ) : (
                 <ul className="flex flex-wrap gap-1.5">
                   {suyas.map((c) => (
@@ -149,7 +149,7 @@ export function ProgramacionPorFranja() {
                           onClick={() => void operar(null, [c.id])}
                           aria-label={`Quitar ${nombreCampana(c)} de ${f.nombre}`}
                           title="Quitar de esta franja (no toca lo vendido)"
-                          className="text-neutral-500 hover:text-red-700 disabled:opacity-50"
+                          className="text-muted hover:text-red-700 disabled:opacity-50"
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -172,7 +172,7 @@ export function ProgramacionPorFranja() {
 
               {puede && ofrecibles.length > 0 && (
                 <details className="text-xs">
-                  <summary className="cursor-pointer select-none text-neutral-600">
+                  <summary className="cursor-pointer select-none text-muted">
                     Programar campañas en {f.nombre}
                     {sel.length ? ` (${sel.length} marcada${sel.length === 1 ? '' : 's'})` : ''}
                   </summary>
@@ -192,7 +192,7 @@ export function ProgramacionPorFranja() {
                             }
                           />
                           <span>{nombreCampana(c)}</span>
-                          {hoy && <span className="text-neutral-400">(hoy en {hoy.nombre})</span>}
+                          {hoy && <span className="text-muted/60">(hoy en {hoy.nombre})</span>}
                         </label>
                       )
                     })}
