@@ -8,6 +8,10 @@
         "texto": "La camara de cada equipo puede tener un ajuste de dia y otro de noche. Se configuran en la ficha del equipo, en Ajustes de imagen: eliges desde que hora y hasta que hora rige el de noche, y el equipo cambia solo. Sirve para los sitios donde la pantalla deslumbra al anochecer y la foto sale quemada."
       },
       {
+        "tipo": "CORREGIDO",
+        "texto": "Los ajustes de imagen ensenan solo los que ese equipo puede aplicar. Un telefono acepta la exposicion, el balance de blancos y el enfoque; el resto de los controles eran de la Raspberry y no hacian nada, pero se veian igual y parecian funcionar. Lo que se baja de noche ahora es la exposicion, que es lo unico que recupera una pantalla de LED quemada: el brillo sumaba luz sobre la foto ya tomada y en el telefono ni siquiera llegaba."
+      },
+      {
         "tipo": "NUEVO",
         "texto": "La ficha de un creativo ensena dos fotos: como aparecio la primera vez y como se ve hoy. Es la forma rapida de ver que una lona se decoloro o que la pantalla perdio un modulo."
       },
