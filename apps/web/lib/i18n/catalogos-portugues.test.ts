@@ -37,8 +37,15 @@ describe('catalogos fuera de textos/ · portugues = espanol mientras falte (los 
     expect(etiquetaDePapel('Un papel renombrado', 'pt')).toBe('Un papel renombrado')
   })
 
-  it('checklist de OT', () => {
-    for (const l of CHECKLIST_OT_POR_OMISION) expect(etiquetaDePuntoOT(l, 'pt')).toBe(etiquetaDePuntoOT(l, 'es'))
+  // Lote L3 (05/11): la lista por omision de una OT sale de `operaciones2`, ya en
+  // portugues. Lo guardado por una persona sigue saliendo tal cual.
+  it('checklist de OT (lote L3: en portugues)', () => {
+    expect(CHECKLIST_OT_POR_OMISION.map((l) => etiquetaDePuntoOT(l, 'pt'))).toEqual([
+      'Inspeção da estrutura e das ferragens',
+      'Instalação / execução',
+      'Foto de comprovação com geolocalização',
+    ])
+    expect(etiquetaDePuntoOT('Inspección de estructura', 'pt')).toBe('Inspección de estructura')
   })
 
   it('nombres y lugares de falla de Space Eyes', () => {
