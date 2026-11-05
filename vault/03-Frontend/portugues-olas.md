@@ -461,7 +461,9 @@ Si choca con un glosario de lote, gana esto.
 | folio en lo que ve el cliente | **Nº** («Nº P-1», «Comprovante Nº {folio}») | decisión del dueño (05/11); dentro de la app, «Ref. interna» |
 | espectacular · valla · muro · puente | **Painel · Outdoor · Empena · Passarela** | aprobado en bloque (05/11) |
 | comisión · precio/tarifa de lista · neto para el medio | **comissão · preço/tarifa de tabela · líquido para o veículo** | aprobado en bloque |
-| tramo · horario de transmisión | **patamar · grade de programação** | aprobado; la costura unificó «Horário de exibição» de Campañas |
+| tramo · horario de transmisión | **patamar · grade de programação** (también en los errores del panel y en el aviso de franja del servidor) | aprobado; la costura unificó «Horário de exibição» y «horário de veiculação» (H2 de su validación) |
+| tarifa publicada / de lista | **tarifa de tabela / preço de tabela** (también en Comercial) | aprobado; H1 de la validación de la costura |
+| entre dos fechas · entre dos horas | **a** («1 de dez. a 5 de dez.») · **às** («De 06:00 às 22:00») | costura (H3 de su validación) |
 | nombre comercial · el medio que vende | **nome fantasia · veículo** | aprobado |
 | quincenal (cuotas) | **duas por mês** | aprobado |
 | distrito / alcaldía · etiqueta del almacén | **bairro / região · plaqueta / número de patrimônio** | aprobado |
@@ -570,7 +572,8 @@ base como un 500. Desde P3:
 - [x] P1 y P2 contestadas por el dueño (05/11)
 - [x] La tarea roja P3 (05/11, `feat/portugues-documentos`), validada VERDE
 - [ ] **La tarea roja de cifras** (`feat/portugues-cifras`, P2): teclear a la brasileña y reescribir `compartidos.cifra.*` y `campanas.candado.monto-ilegible`
-- [ ] **Validar la costura** (`feat/portugues-costura`) y llevarla a `integra/portugues`
+- [x] **Validar la costura**: VERDE (`docs/i18n/validacion-portugues-costura.md`); sus hallazgos H1–H4 cerrados en la misma rama (`854d470c`, `937f9eb7`)
+- [ ] Llevar `feat/portugues-costura` a `integra/portugues`
 - [ ] El recorrido en el navegador, pantalla por pantalla, con su validador
 
 > [!danger] Lo que distingue al portugués: a medias NO SE NOTA

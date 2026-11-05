@@ -209,7 +209,7 @@ pruebas).
 
 ## 9 · Lo que queda
 
-- **Validar esta rama** y llevarla a `integra/portugues`.
+- Llevar esta rama a `integra/portugues` (validada VERDE, §10).
 - **La tarea roja de cifras** (`feat/portugues-cifras`, P2): teclear a la
   brasileña, reescribir `compartidos.cifra.*` y `campanas.candado.monto-ilegible`
   (texto propuesto en la revisión del L5 §3 y del L4 §3). Se llevará las 24
@@ -221,3 +221,32 @@ pruebas).
   el portugués, y los papeles (correo «Nº P-1», comprobante «Comprovante Nº …»)
   en una instancia con documentos en `pt`.
 - `IDIOMA_PORTUGUES` sigue **apagado**.
+
+## 10 · La validación (VERDE) y sus cuatro hallazgos bajos, cerrados
+
+Expediente: `docs/i18n/validacion-portugues-costura.md` (`ea82b8ef`). Rojo primero
+en los cuatro; ninguno toca es/en/it.
+
+| # | Hallazgo | Corrección | Prueba |
+|---|---|---|---|
+| H1 | «Tarifa publicada» en cuatro textos de Comercial (`comercial.ficha.tarifa-publicada`, `.tarifas-unidad.vacio`, `comercial.editar.tarifa`, `comercial.alta.tarifa`) | «Tarifa de tabela» | `costura.test.ts`: el glosario **por palabra** (no solo por español idéntico): si el español dice «tarifa publicada / de lista», el portugués dice «de tabela», y «tarifa publicada» no sale en ningún sitio |
+| H2 | «horário de exibição» en el error de lectura y en el de permiso del panel «Grade de programação», y «horário de veiculação» en el aviso de franja del servidor | «a grade de programação» en los tres (`campanas.horario.no-leer`, `.sin-permiso`, `servidor.franja.aviso`) | la misma regla por palabra: «horario de transmisión» → «grade de programação»; «horário de exibição/veiculação/transmissão», descartados |
+| H3 | entre dos horas de DOOHmain, «a» en dos claves y «às» en otras | «às» siempre entre horas (`campanas.doohmain.horario.a`, `campanas.comun.rango-horas`); «a» entre fechas. El porqué de `a` en `DISTINTOS_A_PROPOSITO_PT` lo dice ya bien | `costura.test.ts`: las cuatro claves de rango horario (`ENTRE_HORAS`) llevan «às» |
+| H4 | `portugues-comun.test.ts` no veía una excepción que ya no hace falta | `excepcionesSobrantes()`: cada excepción tiene que SEGUIR disparando su regla | rojo visto con «É usado o valor padrão»; prueba de que muerde con datos de muestra |
+
+Rojo primero: H1 y H2 dieron los 7 textos (14 hallazgos: falta el término y
+sale el descartado); H3, 2 claves; H4, el mutante. Las listas de cognados de L2
+(`comercial.ficha.tarifa-publicada`, `comercial.alta.tarifa`) y L4
+(`campanas.comun.rango-horas`, `campanas.doohmain.horario.a`) pierden lo que
+ya no es igual al español, y una frase esperada de `pantallas-comercial` pasa a
+«Tarifa de tabela (mensal)».
+
+**Mutantes nuevos (4/4 mueren):** MH1 vuelve «Tarifa publicada ({simbolo})»,
+MH2 vuelve «horário de veiculação» en el servidor, MH3 vuelve «a» entre horas,
+MH4 la excepción de tuteo sobra.
+
+**Medido:** typecheck limpio; `npx vitest run --testTimeout=60000`: **426
+archivos, 9908 en verde + 1 omitida, 0 rojas**; `DICCIONARIOS` y
+`traducirError` es/en/it `cmp` idénticos a `2e2a62e1`; volcado
+`I18N_VOLCAR_TODO` de toda la suite: 0 HTML de es/en/it distintos, nuevos o
+desaparecidos (los 15 distintos, portugueses).
