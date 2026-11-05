@@ -98,6 +98,109 @@ Después, una **costura** como la del italiano (`textos/costura.test.ts`, que ho
 compara inglés e italiano: se extiende al portugués con el primer lote) y el
 **recorrido en el navegador**.
 
+## 2 bis · Glosario común (lote L5, 05/11) — los demás lotes lo copian
+
+Primera entrega del lote L5 (`feat/portugues-l5-armazon`), **antes** de
+traducir: es el encargo de los otros cuatro lotes. Lo fijan `compartidos`
+(unidades, periodicidades, periodos) y el menú de la base. Si un lote necesita
+un término que aquí no está, lo decide y lo anota en su revisión; si choca con
+uno de aquí, gana este y se cambia en la costura.
+
+**Registro y forma.** pt-BR, **«você»** con el imperativo de 3.ª persona
+(«Digite», «Escolha», «Clique», «Tente de novo»); posesivo sin artículo cuando
+suena natural («sua senha», «seu e-mail»). Frases cortas, mayúscula solo al
+inicio (como el español). **Comillas curvas “ ”** (Brasil no usa « »); el
+apóstrofo casi no aparece. Cifras, dinero y fechas los pone `FORMATO_IDIOMA.pt`:
+**nunca** una cifra o símbolo de moneda en el diccionario.
+
+**Fechas en hueco: sin preposición contraída ni «em» delante.** «no {fecha}»,
+«do {fecha}», «ao {fecha}», «pelo {fecha}» y «em {fecha}» quedan prohibidos
+(el hueco puede ser «1 de dez. de 2026», «1º», un rango…). Se escribe
+«Vence: {fecha}», «até {fecha}», «a partir de {fecha}», «desde {fecha}», o
+«{desde} a {hasta}». Lo vigila `textos/portugues-l5.test.ts` sobre todo
+`PT_PARCIAL`.
+
+### Lo que se queda en inglés (D-P4)
+
+spot · loop · DOOH · CPM · CPS · «loops/h» · Roadblock · slot · Dashboard ·
+Network · DOOHmain · Space Eyes · CRM · e-mail (con guion, como se escribe en
+Brasil) · link · prospect · login no (se dice **entrar**).
+
+### Las palabras de todos
+
+| Español | pt-BR | Por qué |
+|---|---|---|
+| pantalla (inventario en general: mapa, propuesta pública, Network, cupo) | **ponto** (masc.; «ponto de mídia» si hace falta) | en OOH brasileño la unidad de inventario es el *ponto*; una pantalla del inventario puede ser un espectacular |
+| pantalla digital (calculadora, loop, DOOHmain, franja) | **tela** (fem.) | «telas» es lo que dice el DOOH brasileño (elevadores, metrô) |
+| pantalla de la aplicación | **página** (o «tela» solo si no hay ambigüedad) | evita el choque con la tela DOOH |
+| espectacular | **painel** (propuesta para L3) | el *outdoor* brasileño es el de papel 9×3 |
+| sitio (campo «Sitio» del servidor) | **Ponto** | en la app, el sitio es la unidad de inventario |
+| catorcena · Catorcenal | **bissemana / bissemanas** · **Bissemanal** | el periodo de 14 días con que se vende el outdoor en Brasil; «quinzena» sería la quincena |
+| quincenal (dos veces al mes) | **Duas vezes por mês** | «quinzenal» se confundiría con la bissemana |
+| Diaria · Semanal · Mensual | **Diária · Semanal · Mensal** (fem.: «a tarifa mensal») | |
+| Bimestral · Trimestral · Semestral · Anual | **Bimestral · Trimestral · Semestral · Anual** | en pt-BR no son ambiguos (bimestral = cada dos meses); cognados declarados |
+| CPS · costo por salida · salida | **CPS · custo por inserção** · **inserção/inserções** | «inserção» es la salida al aire en mídia brasileña |
+| millar / millares · CPM · costo por millar | **milhar / milhares** · **CPM · custo por mil impressões** | |
+| espacios del loop | **slots do loop** («1 slot», «3 slots») | |
+| prima (Roadblock) | **acréscimo** | |
+| franja horaria · temporada · rejilla | **faixa horária** · **temporada** · **tabela de preços** | |
+| trimestre (etiqueta) | **T1 2026** (D4) | |
+| periodo del selector | Este mês · Mês passado · Este trimestre · Trimestre passado · Este ano · Período personalizado | |
+| Desde / Hasta / a | **De / Até / a** | |
+| días | dom · seg · ter · qua · qui · sex · sáb | |
+| propuesta · campaña · cliente · agencia | **proposta · campanha · cliente · agência** | |
+| cupón / código promocional | **código de negociação** | D-P4, como el «negotiation code» inglés |
+| Folio | **Ref. interna** | decisión del dueño |
+| arrendador · arrendataria (nuestra empresa) | **locador · locatária** | términos de la Lei do Inquilinato |
+| renta (al arrendador) | **aluguel** | |
+| contrato de arrendamiento | **contrato de locação** | |
+| predio | **imóvel** | |
+| Captación (menú) | **Captação de pontos** | buscar espacios que arrendar (como la captação de imóveis), no clientes |
+| Comercial negociación | **Negociação de locações** | |
+| prospecto | **prospect** (pl. prospects) | uso del sector |
+| cobranza · factura · abono | **cobrança · fatura · pagamento parcial** | un abono no es un adelanto |
+| recordatorio de cobro · estado de cuenta | **lembrete de cobrança · extrato** | |
+| razón social · RFC · régimen fiscal · CP fiscal · uso de CFDI | **razão social · RFC · regime tributário · CEP fiscal · uso do CFDI** | «razão social» es el término brasileño exacto; RFC y CFDI son mexicanos y no se traducen |
+| Sin asignar (razón social) · dada de baja | **Não atribuída · desativada** (fem.) | |
+| OT (orden de trabajo) | **OS** (ordem de serviço, fem.: «Nova OS», «OS atrasada») | |
+| OC (orden de compra) | **PC** (pedido de compra, masc.) | |
+| cuadrilla · fecha compromiso · vencida (OT) · por vencer | **equipe de campo · prazo · atrasada · a vencer** | |
+| incidencia | **ocorrência** | |
+| candado de facturación | **bloqueio de faturamento** | |
+| evidencia | **comprovação** («foto de comprovação») | el *checking* de mídia |
+| creativo · arte | **criativo · arte** | |
+| imprenta (módulo y proveedor) | **Gráfica** | en Brasil la imprenta *es* la gráfica |
+| orden de impresión · prueba de color · montaje | **ordem de impressão · prova de cor · instalação** | |
+| almacén · traslado · dar de baja (almacén) | **almoxarifado · transferência · dar baixa** | |
+| dar de baja (persona, arrendador, razón social) | **desativar** | |
+| luz · recibo de luz · medidor | **energia · conta de luz · medidor** | |
+| P&L | **DRE** | |
+| Configuración (menú) | **Configurações** | |
+| Configuración de la cuenta / del negocio | **Configurações da conta / da empresa** | |
+| Contraseña · Correo | **senha · e-mail** | |
+| Equipo (personas) · Soporte | **Equipe · Suporte** | |
+| Gerente de ventas · Director comercial · Vendedor | **Gerente de vendas · Diretor comercial · Vendedor** | |
+| Comisiones · comisión de la agencia | **Comissões · comissão da agência** | |
+| tope de descuento | **teto de desconto** | |
+| Reportes · Actividad | **Relatórios · Registro de atividades** | |
+| Finanzas · Operaciones · Inventario | **Finanças · Operações · Inventário** | |
+| Consumo de luz | **Consumo de energia** | |
+| Programático | **Programática** | «mídia programática» es lo que se dice en Brasil |
+| vigente · vencido | **vigente · vencido** (pago: **atrasado**) | |
+| Borrador · Enviada · Aprobada · Rechazada · En curso · Pendiente | **Rascunho · Enviada · Aprovada · Recusada · Em andamento · Pendente** | |
+| Guardar · Eliminar · Quitar · Agregar · Editar · Ver | **Salvar · Excluir · Remover · Adicionar · Editar · Ver** | el estándar de las interfaces brasileñas |
+| Guardando… · Cargando… · Creando… · Enviando… | **Salvando… · Carregando… · Criando… · Enviando…** | |
+| «No se pudo …» | **Não foi possível …** | |
+| Iniciar sesión / Entrar | **Entrar** | |
+
+### Captura de cifras (P2)
+
+El dueño decidió teclear **a la brasileña**, en una tarea ROJA aparte
+(`feat/portugues-cifras`). Hasta que llegue, `CampoCifra` lee el portugués **a
+la mexicana**, y los avisos `compartidos.cifra.*` del portugués dicen **eso**
+(que hoy es la verdad). Esa tarea los reescribe; el texto brasileño propuesto
+está en `docs/i18n/revision-portugues-l5.md`.
+
 ## 3 · La base todavía no sabe portugués (dependencia de P3)
 
 Dos columnas guardan un idioma y las dos tienen un CHECK `in ('es','en','it')`:
