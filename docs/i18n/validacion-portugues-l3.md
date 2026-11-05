@@ -131,3 +131,41 @@ verdad, huecos intactos.
 
 H1 es obligatoria antes de integrar (y su prueba, H6). H2 conviene corregirla a
 la vez (una línea). H3–H5 son de una línea cada una. Ninguna toca es/en/it.
+
+## Segunda vuelta (05/11) · HEAD `ce46c6f4`
+
+Correcciones del traductor en `5aa18935` (código y pruebas) y `ce46c6f4`
+(revisión, tablero y diario), encima de la primera vuelta (`885815b0`).
+
+### Veredicto final: VERDE
+
+| # | Comprobado | Resultado |
+|---|---|---|
+| H1 | `operaciones2.ficha.candado-encendido` = «**Faturamento liberado**» (`operaciones2.ts:871`). Las demás claves del candado de facturación dicen lo mismo que es/en/it: `ot.kpi.frenan` «mantêm o faturamento bloqueado» y `ot.banner.explica` «…mantém o faturamento bloqueado.» (candado CERRADO por una OS atrasada = «keeping the billing lock closed» / «tengono bloccata la fatturazione»); `ficha.candado.*` es el reingreso de contraseña, no el candado de facturación, y está bien. El ejemplo de la revisión y el comentario del glosario (`operaciones2.ts:740-741`) se corrigieron | ✔ |
+| H2 | «É o nome que aparece na fatura do aluguel.» (`arrendadores.ts:1718`): neutro, vale para las dos lecturas | ✔ |
+| H3 | «{n} parcela atrasada / parcelas atrasadas ({monto}) · » | ✔ |
+| H4 | «no período {periodo}», «não lotados no período {periodo}». `periodo` entra en `NOMBRE_DE_FECHA` **anclado** (`^…$`): no atrapa `{periodicidad}`, y «período {periodo}» no lleva preposición delante del hueco. Sin falsos positivos: la prueba de las cuatro tablas pasa, y la de «muerde» añade «não lotados em {periodo}» | ✔ |
+| H5 | «Rua, número, bairro, CEP, cidade[, estado]» en los dos textos de ejemplo | ✔ |
+| H6 | Pruebas nuevas en `portugues-l3.test.ts` (un `describe` por hallazgo) y «Faturamento liberado» en el estado «OS encerrada» de `pantallas-operaciones2.test.ts:899-900` | ✔ |
+
+**Mutantes** (contra `lib/i18n/textos/`, las tres pruebas de pantallas del lote y
+`catalogos-portugues`; restaurados, árbol limpio):
+
+| # | Mutante | Resultado |
+|---|---|---|
+| V4 | vuelve «Bloqueio de faturamento ativado» | **muere** (2) |
+| V4b | «Faturamento desbloqueado» (sinónimo correcto) | muere (2): la prueba fija el texto exacto; si un día se cambia, se cambia la prueba con él |
+| V7 | días «D,S,T,Q,Q,S,S» | **muere** (1) |
+| V8 | vuelve «não lotados em {periodo}» | **muere** (2) |
+| V9 | `ot.kpi.frenan` = «liberam o faturamento» (el candado cerrado al revés) | **muere** (2) |
+
+**Mediciones:**
+
+- `npm run typecheck`: limpio.
+- `npx vitest run --testTimeout=60000`: **420 archivos, 9018 en verde + 1 omitida, 0 rojas**.
+- `DICCIONARIOS.es/.en/.it` + `traducirError(es/en/it)` en HEAD contra el volcado de `72b33050`: **1 280 736 bytes, `cmp` idénticos**. En `git diff 72b33050..HEAD` de los cuatro `textos/`, `diccionario.ts` y `errores-servidor.ts` no se retira ninguna línea es/en/it.
+
+**Dudas del dueño:** aprobadas hoy tal como se propusieron (Painel / Outdoor /
+Empena / Passarela, bairro / região, plaqueta / número de patrimônio,
+alvará / laudo). La intro de la constancia ya coincide con `integra/portugues`.
+No queda nada abierto en el lote.
