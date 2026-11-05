@@ -88,7 +88,7 @@ toca **solo sus archivos** de `textos/` (y el L5, además, la base de
 | Lote | Rama | Estado | Cobertura de sus filas |
 |---|---|---|---|
 | **L5** | `feat/portugues-l5-armazon` | **Validación ÁMBAR, corregida; pendiente de revalidar** (05/11) | **1346/1346, 0 pendientes** (base 119 · compartidos 113 · shell 59 · cuenta 125 · admin 542 · notificaciones 47 · servidor 32 · errores 205 + 30 + 12 + 62) |
-| **L1** | `feat/portugues-l1-spaceeyes` | **Hecho, sin validar** (05/11) | **1128/1128, 0 pendientes** (spaceeyes 1007 · energia 121) |
+| **L1** | `feat/portugues-l1-spaceeyes` | **Validación ÁMBAR leve, corregida; pendiente de revalidar** (05/11) | **1128/1128, 0 pendientes** (spaceeyes 1007 · energia 121) |
 
 ### Lote L5 · Armazón, cuenta, administración, compartidos y servidor
 
@@ -128,7 +128,9 @@ pendiente de revalidar** (revisión §11). Revisión clave por clave en
 ### Lote L1 · Space Eyes y luz
 
 Rama `feat/portugues-l1-spaceeyes` (sale de `integra/portugues`, `72b33050`).
-**Hecho, sin validar.** Revisión clave por clave en
+**Validación ÁMBAR leve (`docs/i18n/validacion-portugues-l1.md`), corregida el
+05/11, pendiente de revalidar** (revisión §9: «o app», «Estado da tela»,
+«vinculação», guardia contra el portugués de Portugal). Revisión clave por clave en
 `docs/i18n/revision-portugues-l1.md`.
 
 - **1128 claves**: `PT_SPACEEYES` (1007) y `PT_ENERGIA` (121) ya son `Record`.
@@ -155,7 +157,8 @@ Rama `feat/portugues-l1-spaceeyes` (sale de `integra/portugues`, `72b33050`).
 | falla · recuperada | **falha · resolvida** |
 | gabinete · creativo | **gabinete · criativo** |
 | vigilancia · vista en vivo · encuadre | **monitoramento · visualização ao vivo · enquadramento** |
-| código de vinculación | **código de pareamento** (el botón de la app sigue «Vincular») |
+| código de vinculación | **código de vinculação** (como el botón «Vincular» de la app) |
+| app | **o app** (masc.; «a app» es de Portugal) |
 | flota | **parque de dispositivos** |
 | marca de la foto | **legenda** (el menú) |
 | folio de un ticket · panel de tickets | **chamado · painel de chamados** |

@@ -2,7 +2,9 @@
 
 **Fecha:** 2026-11-05 · **Rama:** `feat/portugues-l1-spaceeyes` (sale de
 `integra/portugues`, `72b33050`) · **Tablero:** `vault/03-Frontend/portugues-olas.md`
-(subsección «Lote L1») · **Estado:** hecho, sin validar.
+(subsección «Lote L1») · **Estado:** validado ÁMBAR leve
+(`docs/i18n/validacion-portugues-l1.md`) y corregido en la segunda vuelta (§9);
+pendiente de revalidar.
 
 ## 1 · Qué se hizo
 
@@ -117,7 +119,8 @@ restaurado byte a byte.
 | vigilancia / vigilar | **monitoramento / monitorar** | «vigilância» suena a seguridad |
 | vista en vivo | **visualização ao vivo** («Ao vivo» en la pestaña) | |
 | encuadre · acercamiento · lente | **enquadramento · aproximação · lente** (fem.) | |
-| código de vinculación · vincular | **código de pareamento · parear** | lo que dicen Android y los fabricantes en Brasil |
+| código de vinculación · vincular | **código de vinculação · vincular** | segunda vuelta (H3): la web dice lo mismo que el botón «Vincular» de la app; *pareamento* suena a Bluetooth |
+| app (la del teléfono) | **o app** (masc.) | segunda vuelta (H1): «a app» es de Portugal |
 | flota | **parque de dispositivos** («de todo o parque de dispositivos») | «frota» es de vehículos; la lección del italiano |
 | marca de la foto | **legenda** | el menú ya dice «Legenda das fotos» (L5) |
 | evidencia | **comprovação** | glosario común; «Comprovação de veiculação» = prueba de exhibición |
@@ -149,7 +152,7 @@ restaurado byte a byte.
   nombre propio y lo que el usuario ve en el papel.
 - **Lo que se lee del PDF de la CFE** (`energia.leido.*`), que el usuario
   compara con el papel: «**nº de serviço** {n}» (el «No. de servicio» del
-  recibo), «**medidor nº** {n}», «**faturamento** {monto}» (la línea de
+  recibo), «**medidor nº** {n}», «**valor faturado** {monto}» (la línea de
   facturación), «**iluminação pública (DAP)** {monto}» — el **DAP** (derecho de
   alumbrado público) es la sigla que trae el recibo y se deja para que lo
   encuentre; «Total da conta {monto} (inclui débitos anteriores e
@@ -205,7 +208,7 @@ concuerden con cualquiera:
 - `solicitudes.copiada` «Copiado»: lo copiado es el *comando* (masc.).
 - `lista.kpi.mas-10` «há mais de 10 min»; `lista.filtro.atencion` «Pedem
   atenção · {n}»; `lista.filtro.manual` «Atualização manual · {n}».
-- `actualizacion.*` «Atualiza sozinho» (el dispositivo); «Precisa de uma
+- `actualizacion.*` «Se atualiza sozinho» (el dispositivo); «Precisa de uma
   confirmação no celular…».
 - `pconfig.revision.ok` «sem problemas» y `.inconcluso` «não avaliada»: van
   dentro de «{cuando} · tela {pantalla}…» («tela sem problemas», «tela não
@@ -215,7 +218,7 @@ concuerden con cualquiera:
 - `admin.actualizar.pc`: «O agente confere a assinatura…» (sujeto explícito,
   la lección del italiano: sin él se lee como orden al usuario).
 - `admin.registros*` «Logs do dispositivo» (§4).
-- `alta.lote.*`: «O dispositivo número {siguiente} já não consegue entrar»
+- `alta.lote.*`: «O dispositivo número {siguiente} não consegue mais entrar»
   ({siguiente} es la cifra n+1).
 - `alta.lote.completo` « · esgotado» (todos los usos gastados).
 - Ejemplos: «Ex.: Painel Av. Paulista, 222», «Ex.: Verão 2026», «Ex.: Natura»,
@@ -239,7 +242,7 @@ concuerden con cualquiera:
 
 1. **D1 · Los conceptos del recibo de la CFE.** Se dejó la **CFE** y la sigla
    **DAP**; «servicio», «facturación» y «total» van en portugués («nº de
-   serviço», «faturamento», «Total da conta»). Alternativa: dejar el rótulo
+   serviço», «valor faturado», «Total da conta»). Alternativa: dejar el rótulo
    del papel tal cual («No. de servicio», «Facturación») entre paréntesis.
 2. **D2 · *local* para el sitio físico.** En Space Eyes el «sitio» (donde está
    el equipo) es *local* y la pantalla del inventario es *ponto*; el campo
@@ -268,3 +271,34 @@ concuerden con cualquiera:
   este árbol, y Space Eyes y energía no tienen papeles; nada que igualar.
 - La costura (`textos/costura.test.ts`) aún compara inglés e italiano; el
   portugués de este lote ya cumple la forma que exigiría.
+
+## 9 · Segunda vuelta (validación ÁMBAR leve)
+
+Expediente: `docs/i18n/validacion-portugues-l1.md` (`de3eddea`). Rojo primero:
+`65d9e2af`, **5 de 33** en la estática (la guardia nueva caza exactamente las 17
+claves de H1). Corrección: `a8a169e1`.
+
+| Hallazgo | Corrección |
+|---|---|
+| H1 · «a app» en femenino (pt-PT), 17 claves | **«o app»**: «Versão do app», «o app vai reiniciar sozinho», «No app, escolha {vincular}…», «precisa do app 0.15…», «Escaneie pelo app Space Eye», «Instale o app {app}», «não só o app», «o app seja o administrador do aparelho» |
+| H2 · «Estado do ponto» con opciones femeninas (se veía en el HTML) | **«Estado da tela»**; la ayuda dice «deixam a tela fora das programações». `comun.activa`/`campanas.inactiva` (campañas) no se tocan |
+| H3 · *pareamento* frente al botón «Vincular» | **vinculação / vinculado**: «Aguardando vinculação», «É vinculado lendo um QR», «Códigos de vinculação». Sin motivo para mantener *parear*: el botón de la app manda, y el lote ya decía «não está vinculado a um ponto» |
+| Retoques 4, 6–11 | «não está carregando», «escolha manualmente», «os dados de uma foto», «Dispositivos desta campanha», «Se instala/atualiza sozinho», «não consegue mais entrar», «registrá-la» (la conta) |
+| Retoque 5 (`energia.leido.facturacion`) | **«valor faturado {monto}»** (*faturamento* son los ingresos de una empresa) |
+| Hueco de prueba: nada distinguía pt-BR de pt-PT | Guardia `PT_DE_PORTUGAL` en `textos/portugues-l1.test.ts` (ecrã, aplicação, «a/da/na/pela/à/uma app», telemóvel, ficheiro, utilizador, registo) con límite de letra \p{L}, más «já não» y «parear/pareamento». Prueba de que muerde (10 frases) y de que no da falsos positivos (registro, aplicativo, Aplicar, aplicado, «o app», «Atualizar app», «Instalar apps desconhecidos»…) |
+
+Las **6 dudas del glosario** (§7: *local*, *parque de dispositivos*, *unidade
+consumidora*, *legenda*, *chamado*, conceptos de la CFE) **no se tocan**: las
+decide el dueño. «valor faturado» era un retoque pedido, no una de ellas.
+
+**Mutantes de la segunda vuelta (unitarias, restaurados): 8/8 muertos.**
+«Ecrã apagado…» (MV2 del validador) y «Versão da aplicação» (MV8), que antes
+sobrevivían, y «Na app», «Estado do ponto», «Códigos de pareamento», «já não
+consegue», «faturamento», «ficheiro».
+
+**Medido otra vez:** typecheck limpio; `npx vitest run --testTimeout=60000`
+(sin `cifras-formularios` ni `middleware`): 418 archivos, **9056 en verde + 1
+omitida, 0 rojas**; `DICCIONARIOS` y `traducirError` es/en/it `cmp`-idénticos
+al volcado de `72b33050`; volcado de toda la suite frente a `72b33050`: 5199
+archivos, **0 HTML distintos**, 0 desaparecidos; `_italiano.txt` ordenado
+idéntico. Frente a la primera vuelta solo cambian estados portugueses.
