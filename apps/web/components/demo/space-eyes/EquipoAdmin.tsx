@@ -893,7 +893,22 @@ function AjustesImagen({
 
             {cap.sliders.length > 0 ? (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {cap.sliders.map((c) => deslizador(c.campo, c.nombre, c.min, c.max, c.paso, c.pordefecto))}
+                {/* Un paso entero se escribe entero: la exposicion del telefono
+                    es un indice y «0.00» le pone decimales a algo que no los
+                    tiene. */}
+                {cap.sliders.map((c) =>
+                  deslizador(
+                    c.campo,
+                    c.nombre,
+                    c.min,
+                    c.max,
+                    c.paso,
+                    c.pordefecto,
+                    c.paso >= 1
+                      ? (v) => `${Math.round(v)}${v < 0 ? ' · más oscuro' : v > 0 ? ' · más claro' : ''}`
+                      : undefined,
+                  ),
+                )}
               </div>
             ) : null}
             {tipo !== 'pi' && (
