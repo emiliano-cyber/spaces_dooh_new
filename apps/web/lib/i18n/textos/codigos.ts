@@ -263,11 +263,89 @@ export const IT_CODIGOS: Record<ClaveCodigos, string> = {
   'codigos.obligatorio': ' (obbligatorio)',
 }
 
-// ─── PORTUGUES (pt-BR) · ola 0 (2026-11-05) ─────────────────────────────────
-// PARCIAL a proposito: lo rellena el lote de traduccion de este ambito
-// (`vault/03-Frontend/portugues-olas.md`). Mientras falte una clave, la
-// pantalla la pinta en ESPANOL (decision del dueno del 05/11; `diccionario.ts`,
-// `DICCIONARIOS.pt`) y la prueba de cobertura (`cobertura-portugues.test.ts`)
-// la cuenta como pendiente. Cuando el lote termine, el tipo pasa a
-// `Record<ClaveCodigos, string>` y `tsc` vuelve a exigir cada clave.
-export const PT_CODIGOS: Partial<Record<ClaveCodigos, string>> = {}
+// ─── PORTUGUES (pt-BR) · lote L2 (2026-11-05) ──────────────────────────────
+// Cupon / codigo promocional / codigo de negociacion → «código de negociação»
+// (decision del dueno); donde la frase ya lo dejo claro, basta «código». «Se
+// compone» → «se aplica em cascata» (descuentos encadenados, no sumados).
+// Porcentaje pegado («20%», D4). Vigencia de un codigo → «validade».
+export const PT_CODIGOS: Record<ClaveCodigos, string> = {
+  // ── La pagina ──
+  'codigos.pagina.titulo': 'Códigos de negociação',
+  'codigos.pagina.descripcion':
+    'Códigos com validade e limite de usos que um vendedor aplica a uma cotação. São definidos por esta empresa e não são compartilhados com mais ninguém.',
+
+  // ── Estados ──
+  'codigos.estado.vigente': 'Vigente',
+  'codigos.estado.proximo': 'Em breve',
+  'codigos.estado.vencido': 'Vencido',
+  'codigos.estado.agotado': 'Esgotado',
+  'codigos.estados.vigentes': 'Vigentes',
+  'codigos.estados.proximos': 'Em breve',
+  'codigos.estados.agotados': 'Esgotados',
+  'codigos.estados.vencidos': 'Vencidos',
+
+  // ── Mensajes ──
+  'codigos.error.leer': 'Não foi possível ler os códigos',
+  'codigos.error.guardar': 'Não foi possível salvar',
+  'codigos.error.eliminar': 'Não foi possível excluir',
+  'codigos.error.elige-propuesta': 'Escolha a proposta à qual o código será atribuído',
+  'codigos.error.asignar': 'Não foi possível atribuir',
+  'codigos.asignado': 'Código {codigo} atribuído a {folio}: aguardando aprovação',
+  'codigos.asignado.reactivada': 'Código {codigo} atribuído a {folio}: aguardando aprovação. A proposta volta para rascunho.',
+  'codigos.cargando': 'Carregando os códigos',
+
+  // ── El aviso de arriba ──
+  'codigos.aviso.uso': 'O uso é contado quando alguém aplica o código a uma cotação, não quando a venda é fechada.',
+  'codigos.aviso.por-que':
+    'É o que permite dizer ao cliente “sim, seu código vale” no momento em que ele o digita, em vez de descobrir na assinatura que ele já tinha acabado. Em troca, uma cotação abandonada com o código aplicado retém um uso: remover o código, ou excluir a cotação, o devolve.',
+  'codigos.aviso.compone':
+    'E se {compone} sobre as outras camadas: 20% por volume, 20% comercial e 20% de código deixam o cliente pagando {resultado}, não 40%.',
+  'codigos.aviso.compone.palabra': 'aplica em cascata',
+  'codigos.aviso.compone.resultado': '51,2%',
+
+  // ── La lista ──
+  'codigos.lista.titulo': 'Códigos desta empresa',
+  'codigos.lista.subtitulo': 'Só desta empresa · validade inclusiva',
+  'codigos.lista.ayuda':
+    'As promoções são definidas por cada empresa: estes códigos não são compartilhados com mais ninguém. As duas pontas da validade são {inclusivos} — “até 30” inclui o dia 30. Deixar o limite de usos vazio significa {sinTope}; aí o único freio é a data.',
+  'codigos.lista.inclusivos': 'inclusivas',
+  'codigos.col.codigo': 'Código',
+  'codigos.col.estado': 'Situação',
+  'codigos.col.descuento': 'Desconto',
+  'codigos.col.vigencia': 'Validade',
+  'codigos.col.usos': 'Usos',
+  'codigos.lista.vacia': 'Ainda não há nenhum. Sem códigos, tudo é vendido como hoje.',
+  'codigos.pct': '{pct}%',
+  'codigos.usos': '{usos} de {tope}',
+  'codigos.usos.sin-tope': '{usos} (sem limite)',
+  'codigos.sin-tope': 'sem limite',
+  'codigos.asignar-a-propuesta': 'Atribuir a uma proposta',
+  'codigos.eliminar.ayuda':
+    'Excluir: deixa de poder ser aplicado. O que já foi cotado e o que já foi aprovado não muda, mas a contagem de usos se perde: se você o criar de novo com o mesmo código, ele começa do zero.',
+  'codigos.eliminar': 'Excluir',
+
+  // ── Asignar a una propuesta ──
+  'codigos.asignar.sin-propuestas':
+    'Não há propostas às quais atribuí-lo: só é possível em uma proposta em rascunho, enviada ou recusada, e que ainda não tenha outro código.',
+  'codigos.asignar.propuesta-para': 'Proposta para {codigo}',
+  'codigos.asignar.elige': 'Escolha uma proposta…',
+  'codigos.asignar.sin-cliente': 'sem cliente',
+  'codigos.asignar.asignando': 'Atribuindo…',
+  'codigos.asignar.asignar': 'Atribuir',
+  'codigos.asignar.ayuda':
+    'Consome um uso do código e fica {pendiente}: o cliente não o vê até que um administrador ou gerente o aprove na proposta.',
+  'codigos.asignar.pendiente': 'aguardando aprovação',
+  'codigos.asignar.rechazada': ' Esta proposta está recusada: atribuir o código a faz voltar para rascunho.',
+
+  // ── El alta ──
+  'codigos.nuevo.titulo': 'Novo código',
+  'codigos.nuevo.codigo': 'Código',
+  'codigos.nuevo.descuento': 'Desconto (%)',
+  'codigos.nuevo.descuento-etiqueta': 'Desconto percentual',
+  'codigos.nuevo.desde': 'Válido a partir de',
+  'codigos.nuevo.hasta': 'Válido até',
+  'codigos.nuevo.tope': 'Limite de usos',
+  'codigos.nuevo.tope-etiqueta': 'Limite de usos (vazio = sem limite)',
+  'codigos.nuevo.anadir': 'Adicionar código',
+  'codigos.obligatorio': ' (obrigatório)',
+}
