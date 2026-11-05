@@ -297,6 +297,9 @@ describe('B82 · pintarCrudo: el crudo de otro idioma, pintado sin mentir', () =
     // «2.500» tecleado en español es 2.5 para el formulario: en italiano, «2,5».
     expect(pintarCrudo('2.500', 'it')).toEqual({ texto: '2,500', ajeno: false })
     expect(pintarCrudo(' 12.9 ', 'it')).toEqual({ texto: '12,9', ajeno: false })
+    // No es canónico, pero `Number()` lo entiende: el formulario mandará 1000.
+    expect(pintarCrudo('1e3', 'it')).toEqual({ texto: '1.000', ajeno: false })
+    expect(pintarCrudo('+1500.5', 'it')).toEqual({ texto: '1.500,5', ajeno: false })
   })
 
   it('NEGATIVO · «1,500» no se pinta «1.500»: se deja como se tecleó y se avisa', () => {
