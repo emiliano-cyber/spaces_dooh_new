@@ -1,5 +1,7 @@
 import { agruparPorTipo, type EntradaNovedades, type TipoNovedad } from '@/lib/novedades'
 import { TONO } from '@/components/demo/admin/Chip'
+import { useIdioma } from '@/lib/i18n/contexto'
+import type { ClaveTexto } from '@/lib/i18n/diccionario'
 
 // ============================================================================
 //  NotasDeVersion — las notas de UNA version, agrupadas por tipo.
@@ -7,8 +9,11 @@ import { TONO } from '@/components/demo/admin/Chip'
 //  Novedades y el panel de Actualizaciones (antes de instalar). Una sola
 //  forma de pintarlas, con su prueba (`NotasDeVersion.test.ts`).
 //
-//  Sin hooks y sin 'use client': no tiene estado, asi que sirve igual dentro
-//  de un componente de cliente y en `renderToStaticMarkup` de la prueba. El
+//  Sin estado y sin 'use client': sirve igual dentro de un componente de
+//  cliente y en `renderToStaticMarkup` de la prueba. Su unico hook es
+//  `useIdioma()` (I18N, 2026-11-02), que fuera del proveedor cae al espanol.
+//  Desde el 2026-11-05 los items tambien salen en el idioma de quien lee
+//  (`textoDeItem`, con caida al espanol en las entradas sin traducir). El
 //  texto va como hijo de React, nunca como HTML: lo escribio un desarrollador,
 //  pero lo de `notas_disponibles` llega desde otra imagen.
 // ============================================================================
@@ -28,14 +33,23 @@ const CLASE_TIPO: Record<TipoNovedad, string> = {
   CORREGIDO: 'border-border bg-surface-2 text-ink',
 }
 
+// La etiqueta de cada grupo en el idioma vigente. Su espanol es
+// `ETIQUETA_TIPO` (`lib/novedades-reglas.mjs`), y `textos/admin.test.ts` lo ata.
+export const CLAVE_TIPO_NOVEDAD: Record<TipoNovedad, ClaveTexto> = {
+  NUEVO: 'admin.novedades.tipo.nuevo',
+  AJUSTADO: 'admin.novedades.tipo.ajustado',
+  CORREGIDO: 'admin.novedades.tipo.corregido',
+}
+
 export function NotasDeVersion({ notas }: { notas: EntradaNovedades | null }) {
-  if (!notas) return <p className="text-[12px] text-muted">{SIN_NOTAS}</p>
+  const { t, idioma } = useIdioma()
+  if (!notas) return <p className="text-[12px] text-muted">{t('admin.novedades.sin-notas')}</p>
   return (
     <div className="space-y-3">
-      {agruparPorTipo(notas.items).map((g) => (
+      {agruparPorTipo(notas.items, idioma).map((g) => (
         <div key={g.tipo} className="space-y-1">
           <span className={`inline-block rounded-full border px-2 py-0.5 text-[11px] font-semibold ${CLASE_TIPO[g.tipo]}`}>
-            {g.etiqueta}
+            {t(CLAVE_TIPO_NOVEDAD[g.tipo])}
           </span>
           <ul className="list-disc space-y-0.5 pl-5 text-[13px] text-ink">
             {g.textos.map((t, i) => (

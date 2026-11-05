@@ -80,7 +80,7 @@ Sin las banderas (`LICENCIA_DEL_PADRE`, `--con-eyes`) todo se comporta como en
 cd apps/web
 npx tsc --noEmit                      # limpio
 npx eslint components/demo/space-eyes # limpio
-npx vitest run                        # 249 archivos, 3443 pruebas en verde (incluye space-eyes-campanas 8/8)
+npx vitest run                        # 250 archivos, 3448 pruebas en verde (incluye space-eyes-campanas 8/8)
 
 # Space Eye: servidor
 cd space-eye/backend && npm ci && npx tsc --noEmit
@@ -88,24 +88,56 @@ npm run prueba:agentes                # publicador de agentes (sin red)
 
 # Raspberry
 cd space-eye/pi-agent && npm ci && npm run probar          # Node 10/10
-python3 -m pytest vision/pruebas                            # 79, necesita python3-opencv y numpy
+python3 -m pytest vision/pruebas                            # 82, necesita python3-opencv y numpy
 
 # Teléfono (JDK 17)
-cd space-eye/android && ./gradlew testDebugUnitTest          # 99
+cd space-eye/android && ./gradlew testDebugUnitTest          # 107
 ```
 
 **De punta a punta sin hardware** (`space-eye/infra/ensayo-pi/`, necesita
 Docker y un Space Eye local; ver el encabezado de cada script): instalación
-11/11, gabinetes apagados 7/7, envío juntas y apagón 17/17, campañas 11/11,
+11/11, gabinetes apagados 7/7, envío juntas y apagón 17/17, campañas 12/12,
 mudanza 20/20. Y de SPACE OS a la Raspberry simulada: una campaña confirmada
 en Operaciones llegó sola, la Pi bajó la referencia en 94 s y su foto de
 prueba llegó 21 s después de que el arte salió en pantalla.
 
+## 4 bis. Antes de subir a producción (lista de Carlos)
+
+Lo que falta para que esto quede en producción con la flota de g500. Cada paso
+que toque `159.203.188.58` lo autoriza Carlos.
+
+1. **Revisar y aprobar** esta rama, incluida la zona ROJA (§3).
+2. **Códigos de pantalla.** En Inventario, cada pantalla debe tener en
+   `codigo_proveedor` el mismo código que su equipo (`billboard_code`); si no,
+   las campañas de Operaciones no le llegan. Hoy, por ejemplo, TLALPAN
+   (`05601-D01`) no está ligado a ningún sitio.
+3. **Actualizar la flota a la versión nueva.** Hoy tienen teléfonos 0.8 / 0.13
+   / 0.14, una Raspberry 0.4 y una PC 1.4, sin vigilancia, campañas ni mudanza.
+   - **Teléfonos → 0.16.4** (APK firmada con la llave de la flota, publicada en
+     :4000). Desde la 0.16.4 se actualizan **solos**; el paso a la 0.16.4 pide
+     **un toque** en cada teléfono, una vez. El de la 0.8 necesita visita. En
+     el panel, el filtro «Se actualizan a mano» los lista. La prueba en el
+     teléfono de pruebas está preparada (fuera del repo) y **no se ha corrido**.
+   - **Raspberry 0.4 → 0.7.6**: ensayar antes ese salto (el actualizador
+     automático se probó desde 0.6).
+   - **PC 1.4 → 1.6.0**: el instalador `.exe` de la 1.6.0 nunca se ha compilado.
+4. **Etapa 5:** crear el Space Eye de g500 y mudar sus equipos uno por uno
+   (`space-eye/docs/ETAPA5_MIGRACION_G500.md`), en horario de poco uso y con el
+   regreso a :4000 probado.
+5. **Verificación con IA de las campañas:** queda apagada en las instancias
+   (no hay ai-worker en `infra/eyes`). Para encenderla: agregar el ai-worker a
+   la pila y `VERIFICACION_IA=1` en el Space Eye.
+6. **Recomendable:** limitar la vista en vivo (es el 85 % del consumo; la
+   flota proyecta ~6.5 GB/mes contra el tope de 4 GB) y que cada usuario tenga
+   su propia cuenta (hoy casi todos entran con la misma).
+
 ## 5. Lo que NO está probado todavía
 
 - En una **Raspberry real** (solo simulada en Docker) y en un **teléfono real**
-  con la app 0.16.3 (sus pruebas son unitarias; el reconocimiento con OpenCV
+  con la app 0.16.4 (sus pruebas son unitarias; el reconocimiento con OpenCV
   del teléfono solo lo revisó el compilador).
+- Que el teléfono se actualice **sin toque** (0.16.4 → 0.16.5): preparado, sin
+  correr.
 - Los umbrales del aviso de apagón (brillo 40, desviación 14, luz alrededor 45)
   están medidos con fotos de prueba, no con la cámara del teléfono de noche ni
   a contraluz.

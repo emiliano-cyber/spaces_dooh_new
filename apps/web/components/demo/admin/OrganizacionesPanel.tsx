@@ -6,7 +6,9 @@ import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { Chip } from './Chip'
-import { validarPassword, REGLA_PASSWORD } from '@/lib/password'
+import { validarPassword } from '@/lib/password'
+import { useTexto } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
 
 const API = '/spaces-dooh/api'
 
@@ -29,6 +31,7 @@ export function OrganizacionesPanel() {
   // con un fallo de red no se inventa una explicación que puede ser falsa.
   const [estado, setEstado] = useState<'cargando' | 'ok' | 'sin-permiso' | 'error'>('cargando')
   const [busy, setBusy] = useState(false)
+  const t = useTexto()
 
   async function cargar() {
     try {
@@ -69,17 +72,17 @@ export function OrganizacionesPanel() {
     return (
       <CardColapsable
         id="admin.organizaciones"
-        titulo="Organizaciones (CRMs)"
+        titulo={t('admin.orgs.titulo')}
         icono={<Building2 className="h-4 w-4 text-muted" />}
-        subtitulo="Reservado al administrador de la plataforma"
+        subtitulo={t('admin.orgs.reservado')}
         defaultAbierto={false}
       >
           <p className="text-[12px] text-muted">
-            Crear organizaciones y cambiar entre ellas está reservado al
-            <b className="text-ink"> administrador de la plataforma</b>. Tu usuario administra
-            su propia organización, no el conjunto.
+            {interpolarNodos(t('admin.orgs.reservado-texto'), {
+              admin: <b className="text-ink">{t('admin.orgs.admin-plataforma')}</b>,
+            })}
             <br />
-            Si necesitas una organización nueva, pídesela a quien administre Space OS.
+            {t('admin.orgs.pidesela')}
           </p>
       </CardColapsable>
     )
@@ -91,7 +94,7 @@ export function OrganizacionesPanel() {
   return (
     <CardColapsable
       id="admin.organizaciones"
-      titulo="Organizaciones (CRMs)"
+      titulo={t('admin.orgs.titulo')}
       icono={<Building2 className="h-4 w-4 text-muted" />}
     >
         {/* Antes esto mandaba a «Crear cuenta» del login. En producción ese
@@ -121,7 +124,7 @@ export function OrganizacionesPanel() {
                     <span className="truncate text-[13px] font-medium text-ink">{o.nombre}</span>
                     {esActivo && (
                       <Chip tono="exito">
-                        <Check className="h-3 w-3 text-[#0f7a55]" /> Activo
+                        <Check className="h-3 w-3 text-[#0f7a55]" /> {t('admin.comun.activo')}
                       </Chip>
                     )}
                   </div>
@@ -129,20 +132,20 @@ export function OrganizacionesPanel() {
                 </div>
                 {!esActivo && (
                   <Button size="sm" variant="secondary" disabled={busy} onClick={() => cambiar(o.id)}>
-                    <LogIn className="h-3.5 w-3.5" /> Entrar
+                    <LogIn className="h-3.5 w-3.5" /> {t('admin.orgs.entrar')}
                   </Button>
                 )}
               </li>
             )
           })}
           {orgs && orgs.length === 0 && (
-            <li className="px-3 py-3 text-[12px] text-muted">Sin organizaciones.</li>
+            <li className="px-3 py-3 text-[12px] text-muted">{t('admin.orgs.sin-orgs')}</li>
           )}
         </ul>
 
         <div className="mt-2">
           <Button size="sm" variant="ghost" disabled={busy} onClick={() => cambiar(null)}>
-            <RotateCcw className="h-3.5 w-3.5" /> Volver a mi CRM
+            <RotateCcw className="h-3.5 w-3.5" /> {t('admin.orgs.volver')}
           </Button>
         </div>
     </CardColapsable>
@@ -168,6 +171,7 @@ function NuevaOrganizacion({ onCreada }: { onCreada: () => void }) {
   const [googleDisponible, setGoogleDisponible] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
+  const t = useTexto()
 
   // La bandera de Google no viaja al cliente, así que se pregunta al servidor.
   useEffect(() => {
@@ -216,13 +220,13 @@ function NuevaOrganizacion({ onCreada }: { onCreada: () => void }) {
         }),
       })
       const d = await r.json().catch(() => ({}))
-      if (!r.ok) throw new Error((d as { error?: string }).error ?? 'No se pudo crear la organización')
+      if (!r.ok) throw new Error((d as { error?: string }).error ?? t('admin.orgs.error'))
       setOrg(''); setNombre(''); setEmail(''); setPassword(''); setConGoogle(false)
       ob.reiniciar()
       setAbierto(false)
       onCreada()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo crear la organización')
+      setError(e instanceof Error ? e.message : t('admin.orgs.error'))
     }
     setEnviando(false)
   }
@@ -234,7 +238,7 @@ function NuevaOrganizacion({ onCreada }: { onCreada: () => void }) {
     return (
       <div className="mb-3">
         <Button variant="success" size="sm" onClick={() => setAbierto(true)}>
-          <Plus className="h-3.5 w-3.5" /> Nueva organización
+          <Plus className="h-3.5 w-3.5" /> {t('admin.orgs.nueva')}
         </Button>
       </div>
     )
@@ -242,16 +246,16 @@ function NuevaOrganizacion({ onCreada }: { onCreada: () => void }) {
 
   return (
     <div className="mb-3 space-y-2.5 rounded-md border border-border bg-bg p-3">
-      <div className="text-[12px] font-medium text-ink">Nueva organización</div>
-      <Campo label="Nombre de la organización" obligatorio falta={ob.falta('org')}>
-        <input className={campoCls} value={org} onChange={(e) => setOrg(e.target.value)} placeholder="Mi Empresa SA de CV" autoFocus />
+      <div className="text-[12px] font-medium text-ink">{t('admin.orgs.nueva')}</div>
+      <Campo label={t('admin.orgs.nombre')} obligatorio falta={ob.falta('org')}>
+        <input className={campoCls} value={org} onChange={(e) => setOrg(e.target.value)} placeholder={t('admin.orgs.nombre-ejemplo')} autoFocus />
       </Campo>
       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-        <Campo label="Nombre del Dueño" obligatorio falta={ob.falta('nombre')}>
+        <Campo label={t('admin.orgs.nombre-dueno')} obligatorio falta={ob.falta('nombre')}>
           <input className={campoCls} value={nombre} onChange={(e) => setNombre(e.target.value)} />
         </Campo>
-        <Campo label="Su correo" obligatorio falta={ob.falta('email')}>
-          <input className={campoCls} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="correo@empresa.com" />
+        <Campo label={t('admin.orgs.su-correo')} obligatorio falta={ob.falta('email')}>
+          <input className={campoCls} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t('admin.alta.ejemplo-correo')} />
         </Campo>
       </div>
 
@@ -259,10 +263,9 @@ function NuevaOrganizacion({ onCreada }: { onCreada: () => void }) {
         <label className="flex cursor-pointer items-start gap-2 rounded border border-border bg-surface p-2.5">
           <input type="checkbox" className="mt-0.5" checked={conGoogle} onChange={(e) => { setConGoogle(e.target.checked); setError(null) }} />
           <span className="text-[12px] leading-snug">
-            <span className="font-medium text-ink">El Dueño entra con su cuenta de Google</span>
+            <span className="font-medium text-ink">{t('admin.orgs.google.titulo')}</span>
             <span className="block text-muted">
-              No tendrás que inventar ni enviarle ninguna contraseña. Su correo de Google
-              debe ser el mismo que escribiste arriba.
+              {t('admin.orgs.google.detalle')}
             </span>
           </span>
         </label>
@@ -271,17 +274,17 @@ function NuevaOrganizacion({ onCreada }: { onCreada: () => void }) {
       {/* Desaparece —no se deshabilita— cuando entra con Google: un campo gris
           que sigue ahí invita a preguntarse si hay que rellenarlo igual. */}
       {!conGoogle && (
-        <Campo label="Contraseña del Dueño" obligatorio falta={ob.falta('password')}>
-          <input className={campoCls} type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={REGLA_PASSWORD} />
+        <Campo label={t('admin.orgs.contrasena-dueno')} obligatorio falta={ob.falta('password')}>
+          <input className={campoCls} type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t('password.regla')} />
         </Campo>
       )}
 
       {error && <p className="text-[12px] text-error">{error}</p>}
 
       <div className="flex justify-end gap-2 pt-0.5">
-        <Button size="sm" variant="secondary" onClick={() => { setAbierto(false); setError(null); ob.reiniciar() }}>Cancelar</Button>
+        <Button size="sm" variant="secondary" onClick={() => { setAbierto(false); setError(null); ob.reiniciar() }}>{t('comun.cancelar')}</Button>
         <Button variant="success" size="sm" disabled={passwordInvalida || enviando} onClick={crear}>
-          {enviando ? 'Creando…' : 'Crear organización'}
+          {enviando ? t('admin.comun.creando') : t('admin.orgs.crear')}
         </Button>
       </div>
     </div>

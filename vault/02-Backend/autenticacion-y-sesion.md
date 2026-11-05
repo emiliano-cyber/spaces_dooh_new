@@ -1,9 +1,11 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-21
+actualizado: 2026-11-04
 tags: [backend, auth, seguridad, rojo]
 archivos:
+  - apps/web/app/api/auth/forgot/route.ts
+  - apps/web/lib/server/correo-reset-idioma.test.ts
   - apps/web/lib/server/auth.ts
   - apps/web/lib/server/cambios.ts
   - apps/web/lib/server/cambios.test.ts
@@ -77,6 +79,7 @@ No hay NextAuth, ni `jose`, ni iron-session.
 | Hash de contraseña | bcrypt costo 10 | `lib/server/auth.ts:91-93` |
 | Contraseña generada (alta con Google) | `passwordAleatoria()`, cumple la política por construcción | `lib/server/auth.ts:63-66` |
 | Cookie CSRF | `spaces_csrf`, **httpOnly:false a propósito** | `lib/server/auth.ts:268-291` |
+| Cookie del idioma de la cuenta | `spaces_idioma_cuenta` = `<idioma>.<huella del token>`, httpOnly, un año. **(03/11, IDIOMA-USUARIO)** La ponen los tres sitios donde nace una sesión (login, Google, código de recuperación) y `PUT /api/perfil/idioma`; la borra el logout. Atada a la sesión por `huellaDeSesion()` (sha256 del token, 32 hex): con otra sesión no casa y se ignora. **No es una credencial** — falsificarla solo cambia el idioma propio. `auth.ts` y `middleware.ts` no cambiaron | `lib/server/idioma-cuenta.ts`, `lib/server/huella-sesion.ts` |
 | `Secure` | ON en producción salvo `COOKIE_SECURE=0` | `lib/server/auth.ts:245-253` |
 
 > [!warning] Las seis citas de arriba habían derivado hasta 21 líneas — recalculadas el 27/08
@@ -561,6 +564,14 @@ Restablecimiento por correo: `password_resets`, token de 256 bits, un solo uso,
 60 minutos, y **borra todas las sesiones del usuario**
 (`password-reset-repo.ts`). Está apagado en producción
 (`NEXT_PUBLIC_RECUPERAR_PASSWORD`) porque no hay correo saliente.
+
+El correo sale en el **idioma de la instancia** (ADR 0049) desde el 04/11:
+`forgot/route.ts` pasa `await idiomaDeLaInstancia()` a `asuntoCorreoReset` y
+`htmlCorreoReset` (`lib/server/email.ts`). En `es` es el literal de siempre,
+byte a byte; en/it salen de `cuenta.correo.reset.*`. La lectura del idioma va
+**dentro** del `try` del envío: si la base no contesta, lanza, el correo no sale
+(nunca en otro idioma) y la respuesta sigue siendo la genérica. Solo se lee si el
+correo existe. Lo atan `correo-reset-idioma.test.ts` y `correos-idioma.test.ts`.
 
 **Invitación de usuarios (06/10, [ADR 0044](../../docs/adr/0044-invitacion-de-usuarios-con-enlace-para-elegir-contrasena.md)).**
 La misma tabla y la misma página, con otra vigencia: `POST /api/usuarios` con

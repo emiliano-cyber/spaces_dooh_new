@@ -73,7 +73,23 @@ export function notasParaVersion(texto, version) {
     const lista = JSON.parse(texto)
     if (!Array.isArray(lista)) return null
     const e = lista.find((x) => x && typeof x === 'object' && x.version === m[1])
-    return e && Array.isArray(e.items) ? e : null
+    if (!e || !Array.isArray(e.items)) return null
+    // Las traducciones (`en`, `it`, 2026-11-05) se QUITAN aqui, a proposito.
+    // Esta funcion corre en la imagen NUEVA, pero lo que devuelve lo guarda
+    // `notas_disponibles` y lo lee la aplicacion VIEJA en el panel de
+    // Actualizaciones, ANTES de instalar. Una aplicacion anterior a las
+    // traducciones rechaza cualquier campo de item que no conozca
+    // (`entradaValida` → null), y el panel le ensenaria al dueno la ALARMA de
+    // `avisoSinNotas` (`actualizaciones-ui.ts`: no llegaron las notas, «Avisa a soporte
+    // antes de aprobarla») justo en la version que si las trae. El
+    // panel las ensena en espanol; ya instalada, el dialogo y la pagina de
+    // Novedades las leen del `novedades.json` de su imagen, traducidas.
+    const items = e.items.map((i) => {
+      if (!i || typeof i !== 'object') return i
+      const { en: _en, it: _it, ...resto } = i
+      return resto
+    })
+    return { ...e, items }
   } catch {
     return null
   }

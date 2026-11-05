@@ -57,5 +57,10 @@ export default defineConfig({
     // Postgres y el servidor levantados. Si entraran aquí, `npm test` fallaría
     // en cualquier máquina sin Docker y el rojo se acabaría ignorando.
     exclude: ['**/node_modules/**', '**/*.e2e.test.ts'],
+    // Ola 0 del italiano (2026-11-03): el volcado de TODO el HTML rendido y el
+    // espejo italiano (`lib/test/volcado-html.ts`). Solo si se pide: en un
+    // `npm test` normal no se envuelve nada.
+    setupFiles:
+      process.env.I18N_VOLCAR_TODO || process.env.I18N_VOLCAR_IT ? ['lib/test/volcado-html.ts'] : [],
   },
 })

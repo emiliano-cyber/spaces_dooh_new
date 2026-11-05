@@ -108,3 +108,28 @@ describe('scripts/verificar-novedades.mjs', () => {
     expect(correr(['v99.0.0']).salida).toContain('apps/web/novedades.json')
   })
 })
+
+// ─── 2026-11-05 · las notas en ingles y en italiano ────────────────────────
+describe('scripts/verificar-novedades.mjs · las traducciones (`en`, `it`)', () => {
+  const TRADUCIDA = { ...ENTRADA, items: [{ tipo: 'NUEVO', texto: 'Algo nuevo.', en: 'Something new.', it: 'Qualcosa di nuovo.' }] }
+
+  it('una entrada traducida pasa, y no avisa de nada', () => {
+    const r = correr(['v0.9.2', '--archivo', archivo('traducida.json', [TRADUCIDA])])
+    expect(r.codigo).toBe(0)
+    expect(r.salida).not.toMatch(/sin traducir/i)
+  })
+
+  it('una entrada sin traducir PASA (no rompe la release), pero avisa cuantos items faltan y en que idioma', () => {
+    const r = correr(['v0.9.2', '--archivo', archivo('sin-traducir.json', [ENTRADA])])
+    expect(r.codigo).toBe(0)
+    expect(r.salida).toMatch(/::warning::/)
+    expect(r.salida).toMatch(/1 item\(s\) sin traducir al ingles \(«en»\)/)
+    expect(r.salida).toMatch(/1 item\(s\) sin traducir al italiano \(«it»\)/)
+  })
+
+  it('NEGATIVO: una traduccion vacia es un archivo invalido: sale con 1', () => {
+    const r = correr(['v0.9.2', '--archivo', archivo('vacia.json', [{ ...ENTRADA, items: [{ ...TRADUCIDA.items[0], it: ' ' }] }])])
+    expect(r.codigo).toBe(1)
+    expect(r.salida).toMatch(/«it»/)
+  })
+})

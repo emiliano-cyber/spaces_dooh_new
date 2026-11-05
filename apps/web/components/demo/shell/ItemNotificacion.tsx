@@ -1,6 +1,8 @@
 'use client'
 
 import { X } from 'lucide-react'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { traducirNotificacion } from '@/lib/i18n/notificaciones'
 
 // ============================================================================
 //  Un aviso de la campanita, con su botón para borrarlo SOLO (NOTIF-USUARIO).
@@ -11,6 +13,9 @@ import { X } from 'lucide-react'
 //  La papelera va AL LADO del botón que abre el aviso, no dentro: un <button>
 //  dentro de otro es HTML inválido, el navegador lo saca fuera al pintar, y el
 //  clic en borrar acababa abriendo también el enlace del aviso.
+//
+//  Ola 6 del inglés: el título y el detalle son DATO guardado en español. Se
+//  traducen al pintarlos (`traducirNotificacion`); en español salen tal cual.
 // ============================================================================
 
 export interface AvisoCampanita {
@@ -31,6 +36,8 @@ export function ItemNotificacion({
   onAbrir: (id: string, link: string | null) => void
   onBorrar: (id: string) => void
 }) {
+  const { t, idioma } = useIdioma()
+  const v = traducirNotificacion(n, idioma)
   return (
     <div className={`group flex items-start gap-1 rounded hover:bg-surface-2 ${n.leida ? 'opacity-60' : ''}`}>
       <button
@@ -44,24 +51,24 @@ export function ItemNotificacion({
               n.nivel === 'ok' ? 'bg-success' : n.nivel === 'warn' ? 'bg-warning' : 'bg-info'
             } ${n.leida ? 'opacity-0' : ''}`}
           />
-          <span className="text-[13px] font-medium text-ink">{n.titulo}</span>
+          <span className="text-[13px] font-medium text-ink">{v.titulo}</span>
         </div>
         {/* B6: `truncate` cortaba el detalle en «…el importe de la re…»
             y no había forma de ver el resto. Se deja en DOS líneas: la
             mayoría cabe entera, y el aviso sigue siendo una fila corta
             de lista y no un párrafo. El `title` da el texto íntegro al
             pasar el ratón, para el caso que aun así se pase. */}
-        {n.detalle && (
-          <div className="ml-4 line-clamp-2 text-[12px] text-muted" title={n.detalle}>
-            {n.detalle}
+        {v.detalle && (
+          <div className="ml-4 line-clamp-2 text-[12px] text-muted" title={v.detalle}>
+            {v.detalle}
           </div>
         )}
       </button>
       <button
         type="button"
         onClick={() => onBorrar(n.id)}
-        aria-label={`Borrar la notificación ${n.titulo}`}
-        title="Borrar esta notificación"
+        aria-label={t('shell.notificacion.borrar-aria', { titulo: v.titulo })}
+        title={t('shell.notificacion.borrar-title')}
         className="mt-1.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted transition-colors hover:bg-surface hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
       >
         <X className="h-3.5 w-3.5" />

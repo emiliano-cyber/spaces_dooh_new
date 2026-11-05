@@ -11,9 +11,13 @@ import { registrarPagoRentaApi } from '@/lib/data/estado-api'
 import { useCandado, DialogoCandado } from '@/components/demo/ui/candado'
 import { Paginacion, usePaginacion } from '@/components/demo/ui/Paginacion'
 import {
-  clasificarVencimiento, textoVencimiento, periodicidadLabel,
+  clasificarVencimiento, periodicidadLabel,
   type EstadoVencimiento,
 } from '@/lib/renta-periodicidad'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
+import type { ClaveTexto } from '@/lib/i18n/diccionario'
+import { textoVencimientoRel } from '@/components/demo/arrendadores/etiquetas'
 
 // ============================================================================
 //  Calendario de pagos de renta a los propietarios: cuánto toca pagar por cada
@@ -40,12 +44,17 @@ const VENC_TONO: Record<EstadoVencimiento, Tono> = {
   POR_VENCER: 'ambar',
   PROGRAMADO: 'neutro',
 }
-const VENC_LABEL: Record<EstadoVencimiento, string> = {
-  PAGADO: 'Pagado',
-  VENCIDO: 'Vencido',
-  POR_VENCER: 'Por vencer',
-  PROGRAMADO: 'Programado',
+// I18N (2026-11-02) · la clave de cada etiqueta; el espanol es el de siempre.
+const VENC_LABEL: Record<EstadoVencimiento, ClaveTexto> = {
+  PAGADO: 'arrendadores.pagos.pagado',
+  VENCIDO: 'arrendadores.pagos.vencido',
+  POR_VENCER: 'arrendadores.pagos.por-vencer',
+  PROGRAMADO: 'arrendadores.pagos.programado',
 }
+// El titulo por omision. El `id` de la tarjeta (donde se guarda si esta
+// plegada) sale de el, y por eso se queda en espanol en los dos idiomas: lo
+// que cambia con el idioma es solo lo que se PINTA.
+const TITULO_POR_OMISION = 'Pagos de renta'
 // Vencidos primero y, dentro de ellos, el más atrasado arriba; luego lo que está
 // por vencer, y al final lo programado. Es el orden en que hay que actuar.
 const ORDEN: Record<EstadoVencimiento, number> = {
@@ -53,7 +62,7 @@ const ORDEN: Record<EstadoVencimiento, number> = {
 }
 export function PagosRentaCard({
   soloPendientes = false,
-  titulo = 'Pagos de renta',
+  titulo = TITULO_POR_OMISION,
   onToast,
   contratosVisibles,
 }: {
@@ -83,6 +92,8 @@ export function PagosRentaCard({
   // UN CLIC: no hay cuadro donde meter el campo, así que el 403 abre uno.
   // Ver el encabezado de `ui/candado.tsx` para el porqué de esa forma.
   const candado = useCandado()
+  const { idioma, t } = useIdioma()
+  const tituloVisible = titulo === TITULO_POR_OMISION ? t('arrendadores.ficha.pagos') : titulo
 
   // El `return` de carga NO puede ir aquí: `usePaginacion` se llama más abajo y
   // los hooks tienen que ejecutarse en el mismo orden en todos los renders.
@@ -133,7 +144,7 @@ export function PagosRentaCard({
 
   if (cargando) {
     return (
-      <CardColapsable id={`renta.${titulo}`} titulo={titulo} contentClassName="space-y-2">
+      <CardColapsable id={`renta.${titulo}`} titulo={tituloVisible} contentClassName="space-y-2">
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className="h-10 animate-pulse rounded bg-surface-2" />
         ))}
@@ -164,9 +175,9 @@ export function PagosRentaCard({
     // pide, `DialogoCandado` se abre solo con esta misma acción dentro.
     await candado.ejecutar({
       guardar: () => registrarPagoRentaApi(id),
-      alLograr: () => onToast?.('Pago registrado'),
+      alLograr: () => onToast?.(t('arrendadores.pago.registrado')),
       alFallar: (m) => onToast?.(m),
-      mensajeSiFalla: 'No se pudo registrar el pago',
+      mensajeSiFalla: t('finanzas.pago.no-registrar'),
     })
     setBusy(null)
   }
@@ -175,7 +186,7 @@ export function PagosRentaCard({
     <>
     <CardColapsable
       id={`renta.${titulo}`}
-      titulo={titulo}
+      titulo={tituloVisible}
       contentClassName="px-0 pb-0"
       resumen={
         porPagar.length > 0 ? (
@@ -185,13 +196,16 @@ export function PagosRentaCard({
                 paga primero. */}
             {vencidos.length > 0 && (
               <span className="font-medium text-error">
-                {vencidos.length} vencida{vencidos.length === 1 ? '' : 's'} ({formatMonto(totalVencido)}) ·{' '}
+                {t(vencidos.length === 1 ? 'arrendadores.pagos.vencidas.uno' : 'arrendadores.pagos.vencidas.otros', {
+                  n: vencidos.length,
+                  monto: formatMonto(totalVencido, idioma),
+                })}
               </span>
             )}
             {porVencer.length > 0 && (
-              <span className="font-medium text-warning">{porVencer.length} por vencer · </span>
+              <span className="font-medium text-warning">{t('arrendadores.pagos.por-vencer-n', { n: porVencer.length })}</span>
             )}
-            {formatMonto(totalPorPagar)} por pagar
+            {t('arrendadores.pagos.por-pagar', { monto: formatMonto(totalPorPagar, idioma) })}
           </span>
         ) : null
       }
@@ -202,24 +216,28 @@ export function PagosRentaCard({
           // un "no hay pendientes" a secas se lee como que la renta está al día.
           incompletos > 0 ? (
             <p className="px-4 pb-4 text-[13px] text-muted">
-              No se puede calcular lo que hay que pagar: {incompletos} contrato
-              {incompletos === 1 ? '' : 's'} sin importe capturado.{' '}
               {/* El enlace solo se ofrece a quien puede completarlo de verdad:
                   Finanzas ve estos pagos pero no necesariamente tiene permiso
                   sobre Arrendadores, y mandarlo a una pantalla que le va a dar
                   403 es peor que no ofrecer nada. */}
-              {puedeCompletar ? (
-                <Link href="/arrendadores" className="text-info hover:underline">
-                  Complétalo en Arrendadores
-                </Link>
-              ) : (
-                'Complétalo en Arrendadores'
-              )}{' '}
-              y el calendario de pagos se genera solo.
+              {interpolarNodos(
+                t(incompletos === 1 ? 'arrendadores.pagos.sin-importe.uno' : 'arrendadores.pagos.sin-importe.otros', {
+                  n: incompletos,
+                }),
+                {
+                  enlace: puedeCompletar ? (
+                    <Link href="/arrendadores" className="text-info hover:underline">
+                      {t('arrendadores.pagos.completalo')}
+                    </Link>
+                  ) : (
+                    t('arrendadores.pagos.completalo')
+                  ),
+                },
+              )}
             </p>
           ) : (
             <p className="px-4 pb-4 text-[13px] text-muted">
-              {soloPendientes ? 'No hay rentas pendientes de pago.' : 'Sin pagos de renta registrados.'}
+              {soloPendientes ? t('arrendadores.pagos.sin-pendientes') : t('arrendadores.pagos.vacio')}
             </p>
           )
         ) : (
@@ -227,13 +245,13 @@ export function PagosRentaCard({
             <table className="w-full text-left text-[13px]">
               <thead>
                 <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
-                  <th className="px-4 py-2 font-medium">Pantalla</th>
-                  <th className="px-4 py-2 font-medium">Renta</th>
-                  <th className="px-4 py-2 font-medium">Vence</th>
-                  <th className="px-4 py-2 text-right font-medium">Monto</th>
-                  <th className="px-4 py-2 font-medium">Estatus</th>
-                  <th className="px-4 py-2 font-medium">Contrato hasta</th>
-                  <th className="px-4 py-2 font-medium">Pagado el</th>
+                  <th className="px-4 py-2 font-medium">{t('arrendadores.comun.pantalla')}</th>
+                  <th className="px-4 py-2 font-medium">{t('arrendadores.comun.renta')}</th>
+                  <th className="px-4 py-2 font-medium">{t('arrendadores.pagos.col.vence')}</th>
+                  <th className="px-4 py-2 text-right font-medium">{t('arrendadores.pagos.col.monto')}</th>
+                  <th className="px-4 py-2 font-medium">{t('arrendadores.comun.estatus')}</th>
+                  <th className="px-4 py-2 font-medium">{t('arrendadores.pagos.col.contrato-hasta')}</th>
+                  <th className="px-4 py-2 font-medium">{t('arrendadores.pagos.col.pagado-el')}</th>
                   <th className="px-4 py-2" />
                 </tr>
               </thead>
@@ -244,11 +262,11 @@ export function PagosRentaCard({
                     {/* Cada cuánto se paga esta renta: sin esto, "vence en 5
                         días" no dice si el siguiente pago llega en una semana o
                         en un año. */}
-                    <td className="px-4 py-2.5 text-muted">{periodicidadLabel(periodicidad)}</td>
+                    <td className="px-4 py-2.5 text-muted">{periodicidadLabel(periodicidad, '—', idioma)}</td>
                     <td className="demo-num px-4 py-2.5 text-muted">
                       {/* El espacio va como carácter, no solo como margen: al
                           copiar la celda salía «16/07/2026hace 18 días» (M8). */}
-                      {formatFecha(p.periodo)}{' '}
+                      {formatFecha(p.periodo, idioma)}{' '}
                       {/* La fecha sola obliga a restar mentalmente contra hoy.
                           Este es el dato que responde "cuál está cerca". */}
                       {estado !== 'PAGADO' && (
@@ -261,22 +279,22 @@ export function PagosRentaCard({
                                 : 'text-muted'
                           }
                         >
-                          {textoVencimiento(dias)}
+                          {textoVencimientoRel(dias, t)}
                         </span>
                       )}
                     </td>
-                    <td className="demo-num px-4 py-2.5 text-right text-ink">{formatMonto(p.monto)}</td>
+                    <td className="demo-num px-4 py-2.5 text-right text-ink">{formatMonto(p.monto, idioma)}</td>
                     <td className="px-4 py-2.5">
-                      <StatusBadge tono={VENC_TONO[estado]}>{VENC_LABEL[estado]}</StatusBadge>
+                      <StatusBadge tono={VENC_TONO[estado]}>{t(VENC_LABEL[estado])}</StatusBadge>
                     </td>
                     {/* Hasta cuándo corre el contrato del que sale esta cuota:
                         dice si habrá más pagos después de este o si toca
                         renovar. Vacío mientras el contrato esté INCOMPLETO. */}
                     <td className="demo-num px-4 py-2.5 text-muted">
-                      {contratoHasta ? formatFecha(contratoHasta) : '—'}
+                      {contratoHasta ? formatFecha(contratoHasta, idioma) : '—'}
                     </td>
                     <td className="demo-num px-4 py-2.5 text-muted">
-                      {p.fechaPago ? formatFecha(p.fechaPago) : '—'}
+                      {p.fechaPago ? formatFecha(p.fechaPago, idioma) : '—'}
                     </td>
                     <td className="px-4 py-2.5 text-right">
                       {p.estatus !== 'PAGADO' && puedeRegistrar && (
@@ -286,7 +304,7 @@ export function PagosRentaCard({
                           disabled={busy === p.id}
                           onClick={() => registrar(p.id)}
                         >
-                          {busy === p.id ? 'Registrando…' : 'Registrar pago'}
+                          {busy === p.id ? t('arrendadores.pagos.registrando') : t('finanzas.pago.titulo')}
                         </Button>
                       )}
                     </td>
@@ -299,16 +317,17 @@ export function PagosRentaCard({
       {/* Dentro del contenido, no fuera: al plegar la sección tiene que irse
           con la tabla. Suelto en la tarjeta, quedaba un paginador huérfano
           bajo un encabezado cerrado. */}
-      <Paginacion {...pag} etiqueta="pagos" />
+      {/* «pagos» en espanol como siempre; los demas, del diccionario (ver Paginacion.tsx). */}
+      <Paginacion {...pag} etiqueta={idioma !== 'es' ? t('compartidos.paginacion.pagos') : 'pagos'} />
     </CardColapsable>
     {/* FUERA de la tarjeta, no dentro: `CardColapsable` desmonta su contenido al
         plegarse, y el cuadro se iría con él dejando el pago a medias y sin
         forma de confirmarlo. */}
     <DialogoCandado
       candado={candado}
-      titulo="Confirma con tu contraseña"
-      subtitulo="Dar por pagada una renta es un cambio sensible: tu organización pide que vuelvas a identificarte."
-      etiquetaConfirmar="Confirmar y registrar el pago"
+      titulo={t('inventario.tabla.confirma')}
+      subtitulo={t('arrendadores.pagos.sensible')}
+      etiquetaConfirmar={t('arrendadores.pagos.confirmar')}
     />
     </>
   )

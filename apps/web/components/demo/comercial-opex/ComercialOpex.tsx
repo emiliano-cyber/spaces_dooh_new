@@ -19,6 +19,8 @@ import {
   Wallet,
 } from 'lucide-react'
 import { Button } from '@/components/demo/ui/Button'
+import { EntradaCifra } from '@/components/demo/ui/EntradaCifra'
+import { cifraIlegible } from '@/lib/captura-cifra'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
 import { formatFecha, formatMonto } from '@/lib/data/client'
@@ -45,16 +47,13 @@ import {
   type Prospecto,
   type ProspectoDetalle,
 } from '@/lib/data/captacion-api'
-import { ETAPAS_DE_TRABAJO, ETIQUETA_ETAPA, etapaCerrada, type Etapa } from '@/lib/captacion'
+import { ETAPAS_DE_TRABAJO, etapaCerrada, type Etapa } from '@/lib/captacion'
 import { diasSinContacto, espacioElegido, iniciales, resumen } from '@/lib/comercial-opex'
 import { interpretarUbicacion } from '@/lib/interpretar-ubicacion'
 import {
   CANALES,
   ESTADOS_OFERTA,
   ETAPAS_RESPONSABLE,
-  ETIQUETA_CANAL,
-  ETIQUETA_OFERTA,
-  ETIQUETA_VISIBILIDAD,
   VISIBILIDADES,
   areaM2,
   estadoEspacio,
@@ -66,6 +65,9 @@ import {
   type EstadoOferta,
   type Visibilidad,
 } from '@/lib/negociacion'
+import { useIdioma, useTexto } from '@/lib/i18n/contexto'
+import type { ClaveTexto } from '@/lib/i18n/diccionario'
+import { numeroEnIdioma } from '@/lib/i18n/formato-idioma'
 
 // ============================================================================
 //  Comercial negociación · prospección de arrendadores.  NEG-01.
@@ -112,17 +114,61 @@ const COLOR_ESTADO: Record<EstadoEspacio, string> = {
   activo: 'bg-success-soft text-[#0f7a55] border-[#10b98140]',
   inactivo: 'bg-surface-2 text-muted border-border',
 }
-const ETIQUETA_ESTADO: Record<EstadoEspacio, string> = {
-  negociacion: 'En negociación',
-  activo: 'Activo',
-  inactivo: 'Inactivo',
+const ETIQUETA_ESTADO: Record<EstadoEspacio, ClaveTexto> = {
+  negociacion: 'comercial.negociacion.estado.negociacion',
+  activo: 'comercial.negociacion.estado.activo',
+  inactivo: 'comercial.negociacion.estado.inactivo',
 }
 
+// ─── Las etiquetas de `lib/negociacion.ts` y `lib/captacion.ts`, por clave ──
+// Esas etiquetas siguen siendo la verdad en espanol (el servidor las usa en
+// sus mensajes) y NO se tocan: aqui va la clave de traduccion de cada valor, y
+// `pantallas-comercial.test.ts` exige que el espanol del diccionario las
+// reproduzca EXACTAMENTE. Lote ingles «comercial», 2026-11-02.
+export const CLAVE_VISIBILIDAD: Record<Visibilidad, ClaveTexto> = {
+  CERCANA: 'comercial.negociacion.visibilidad.cercana',
+  MEDIA: 'comercial.negociacion.visibilidad.media',
+  LEJANA: 'comercial.negociacion.visibilidad.lejana',
+}
+export const CLAVE_CANAL: Record<Canal, ClaveTexto> = {
+  LLAMADA: 'comercial.negociacion.canal.llamada',
+  VISITA: 'comercial.negociacion.canal.visita',
+  REUNION: 'comercial.negociacion.canal.reunion',
+  CORREO: 'comercial.negociacion.canal.correo',
+  WHATSAPP: 'comercial.negociacion.canal.whatsapp',
+  OTRO: 'comercial.negociacion.canal.otro',
+}
+export const CLAVE_OFERTA: Record<EstadoOferta, ClaveTexto> = {
+  ENVIADA: 'comercial.negociacion.oferta.enviada',
+  CONTRAOFERTA: 'comercial.negociacion.oferta.contraoferta',
+  RECHAZADA: 'comercial.negociacion.oferta.rechazada',
+  ACEPTADA: 'comercial.negociacion.oferta.aceptada',
+}
+export const CLAVE_ETAPA: Record<Etapa, ClaveTexto> = {
+  PROSPECTO: 'comercial.negociacion.etapa.prospecto',
+  CONTACTADO: 'comercial.negociacion.etapa.contactado',
+  VISITA: 'comercial.negociacion.etapa.visita',
+  NEGOCIACION: 'comercial.negociacion.etapa.negociacion',
+  EN_REVISION: 'comercial.negociacion.etapa.en-revision',
+  APROBADO: 'comercial.negociacion.etapa.aprobado',
+  RECHAZADO: 'comercial.negociacion.etapa.rechazado',
+  PERDIDO: 'comercial.negociacion.etapa.perdido',
+}
+/** Las cinco de `ETAPAS_RESPONSABLE`, en el mismo orden (1..5). */
+export const CLAVE_RESPONSABLE: ClaveTexto[] = [
+  'comercial.negociacion.responsable.1',
+  'comercial.negociacion.responsable.2',
+  'comercial.negociacion.responsable.3',
+  'comercial.negociacion.responsable.4',
+  'comercial.negociacion.responsable.5',
+]
+
 function Estado({ etapa }: { etapa: Etapa }) {
+  const t = useTexto()
   const e = estadoEspacio(etapa)
   return (
     <span className={`inline-block shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium ${COLOR_ESTADO[e]}`}>
-      {ETIQUETA_ESTADO[e]}
+      {t(ETIQUETA_ESTADO[e])}
     </span>
   )
 }
@@ -136,16 +182,17 @@ function Etiqueta({ children }: { children: React.ReactNode }) {
 }
 
 function Antiguedad({ p, hoy }: { p: Prospecto; hoy: Date }) {
+  const t = useTexto()
   const d = diasSinContacto(p, hoy)
   // Sin bitácora NO se pinta un cero: se dice que no hay contacto.
   // Desde el 26/10 es una pastilla a la derecha del nombre, como los días del
   // Dashboard; en rojo solo la que se enfrió en negociación (Pipedrive «rotting»).
   const pastilla = 'shrink-0 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px]'
-  if (d === null) return <span className={`${pastilla} border-border text-muted`}>Sin contacto</span>
+  if (d === null) return <span className={`${pastilla} border-border text-muted`}>{t('comercial.negociacion.sin-contacto')}</span>
   const frio = estadoEspacio(p.etapa) === 'negociacion' && d > 30
   return (
     <span className={`${pastilla} ${frio ? 'border-[#ef444440] font-semibold text-error' : 'border-border text-muted'}`}>
-      {d === 0 ? 'hoy' : `hace ${d} d`}
+      {d === 0 ? t('comercial.negociacion.hoy') : t('comercial.comun.hace.dias', { n: d })}
     </span>
   )
 }
@@ -186,20 +233,24 @@ type Accion = (fn: () => Promise<ProspectoDetalle>) => Promise<boolean>
 
 // ─── La búsqueda del responsable ────────────────────────────────────────────
 function Pasos({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; puede: boolean }) {
+  const { t, idioma } = useIdioma()
   const etapa = p.etapaResponsable ?? 0
   return (
-    <ol className={`${LISTA} flex flex-wrap items-start gap-y-2`} aria-label="Búsqueda del responsable">
-      {ETAPAS_RESPONSABLE.map((nombre, i) => {
+    <ol className={`${LISTA} flex flex-wrap items-start gap-y-2`} aria-label={t('comercial.negociacion.responsable')}>
+      {ETAPAS_RESPONSABLE.map((clave, i) => {
+        // `clave` es el texto espanol de `lib/negociacion.ts` y sirve de `key`;
+        // lo que se PINTA sale del diccionario.
+        const nombre = t(CLAVE_RESPONSABLE[i])
         const n = i + 1
         const hecho = n < etapa
         const actual = n === etapa
-        const motivo = motivoEtapaResponsable(n, p.contactos)
+        const motivo = motivoEtapaResponsable(n, p.contactos, idioma)
         return (
-          <li key={nombre} className="flex items-start">
+          <li key={clave} className="flex items-start">
             <button
               type="button"
               disabled={!puede || actual || !!motivo}
-              title={motivo ?? (puede ? `Pasar a «${nombre}»` : undefined)}
+              title={motivo ?? (puede ? t('comercial.negociacion.responsable.pasar', { nombre }) : undefined)}
               onClick={() => void accion(() => fichaApi(p.id, { etapaResponsable: n }))}
               className="flex w-24 flex-col items-center text-center disabled:cursor-default"
             >
@@ -229,7 +280,9 @@ function Pasos({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; pued
 }
 
 // ─── La ficha ───────────────────────────────────────────────────────────────
-function Ficha({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; puede: boolean }) {
+// Exportada para `lib/i18n/cifras-formularios.test.ts` (B79): se monta sola.
+export function Ficha({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; puede: boolean }) {
+  const { t, idioma } = useIdioma()
   const inicial = () => ({
     tipoEspacio: p.tipoEspacio ?? '',
     visibilidad: (p.visibilidad ?? '') as Visibilidad | '',
@@ -248,8 +301,24 @@ function Ficha({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; pued
     disabled: !puede,
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value }),
   })
+  // P-L2-1 · las cifras de la ficha van por `EntradaCifra`: el mismo
+  // `type="number"` en español e inglés y, en italiano, punto de millar y coma
+  // decimal. Mismo orden de atributos que `campo` (el HTML no cambia).
+  type Cifra = 'anchoM' | 'altoM' | 'superficieM2' | 'presupuestoMin' | 'presupuestoMax'
+  const cifra = (k: Cifra) => ({
+    valor: f[k],
+    disabled: !puede,
+    onCambio: (crudo: string) => setF({ ...f, [k]: crudo }),
+  })
+  // En italiano, lo que no se entiende llega como 'NaN' y `numeroO` lo
+  // mandaría como NaN → null en JSON, BORRANDO el dato guardado. El campo ya
+  // lo dice en rojo; aquí solo no se guarda. En español e inglés, `false`.
+  const cifraMal = (['anchoM', 'altoM', 'superficieM2', 'presupuestoMin', 'presupuestoMax'] as const).some((k) =>
+    cifraIlegible(f[k], idioma),
+  )
 
   async function guardar() {
+    if (cifraMal) return
     const cuerpo: FichaForm = {
       tipoEspacio: f.tipoEspacio.trim() || null,
       visibilidad: f.visibilidad || null,
@@ -264,56 +333,56 @@ function Ficha({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; pued
   }
 
   return (
-    <Bloque id="ficha" titulo="Ficha técnica" icono={Building2}>
+    <Bloque id="ficha" titulo={t('comercial.negociacion.ficha')} icono={Building2}>
       <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-[13px]">
         <label className="col-span-2">
-          <span className={labelCls}>Tipo de espacio</span>
-          <input className={inputCls} maxLength={80} placeholder="Ej. espectacular en azotea, muro, unipolar" {...campo('tipoEspacio')} />
+          <span className={labelCls}>{t('comercial.negociacion.ficha.tipo')}</span>
+          <input className={inputCls} maxLength={80} placeholder={t('comercial.negociacion.ficha.tipo-ej')} {...campo('tipoEspacio')} />
         </label>
         <label className="col-span-2">
-          <span className={labelCls}>Visibilidad</span>
+          <span className={labelCls}>{t('comercial.negociacion.ficha.visibilidad')}</span>
           <select className={inputCls} {...campo('visibilidad')}>
-            <option value="">Sin definir</option>
+            <option value="">{t('comercial.negociacion.sin-definir')}</option>
             {VISIBILIDADES.map((v) => (
               <option key={v} value={v}>
-                {ETIQUETA_VISIBILIDAD[v]}
+                {t(CLAVE_VISIBILIDAD[v])}
               </option>
             ))}
           </select>
         </label>
         <label>
-          <span className={labelCls}>Ancho (m)</span>
-          <input className={inputCls} type="number" min={0} step="0.01" {...campo('anchoM')} />
+          <span className={labelCls}>{t('comercial.comun.ancho')}</span>
+          <EntradaCifra className={inputCls} type="number" min={0} step="0.01" {...cifra('anchoM')} decimales={2} minimo={0} />
         </label>
         <label>
-          <span className={labelCls}>Alto (m)</span>
-          <input className={inputCls} type="number" min={0} step="0.01" {...campo('altoM')} />
+          <span className={labelCls}>{t('comercial.comun.alto')}</span>
+          <EntradaCifra className={inputCls} type="number" min={0} step="0.01" {...cifra('altoM')} decimales={2} minimo={0} />
         </label>
         <div>
-          <span className={labelCls}>Área de la cara</span>
-          <span className="block py-2 text-ink">{area == null ? '—' : `${area.toLocaleString('es-MX')} m²`}</span>
+          <span className={labelCls}>{t('comercial.negociacion.ficha.area')}</span>
+          <span className="block py-2 text-ink">{area == null ? '—' : `${numeroEnIdioma(area, idioma)} m²`}</span>
         </div>
         <label>
-          <span className={labelCls}>Superficie del terreno (m²)</span>
-          <input className={inputCls} type="number" min={0} step="0.01" {...campo('superficieM2')} />
+          <span className={labelCls}>{t('comercial.negociacion.ficha.superficie')}</span>
+          <EntradaCifra className={inputCls} type="number" min={0} step="0.01" {...cifra('superficieM2')} decimales={2} minimo={0} />
         </label>
         <label>
-          <span className={labelCls}>Renta autorizada, mínimo</span>
-          <input className={inputCls} type="number" min={0} {...campo('presupuestoMin')} />
+          <span className={labelCls}>{t('comercial.negociacion.ficha.renta-min')}</span>
+          <EntradaCifra className={inputCls} type="number" min={0} {...cifra('presupuestoMin')} decimales={2} minimo={0} />
         </label>
         <label>
-          <span className={labelCls}>Renta autorizada, máximo</span>
-          <input className={inputCls} type="number" min={0} {...campo('presupuestoMax')} />
+          <span className={labelCls}>{t('comercial.negociacion.ficha.renta-max')}</span>
+          <EntradaCifra className={inputCls} type="number" min={0} {...cifra('presupuestoMax')} decimales={2} minimo={0} />
         </label>
         <label className="col-span-2">
-          <span className={labelCls}>Quién autoriza</span>
-          <input className={inputCls} maxLength={120} placeholder="Ej. Dirección comercial" {...campo('presupuestoAutoriza')} />
+          <span className={labelCls}>{t('comercial.negociacion.ficha.autoriza')}</span>
+          <input className={inputCls} maxLength={120} placeholder={t('comercial.negociacion.ficha.autoriza-ej')} {...campo('presupuestoAutoriza')} />
         </label>
       </div>
       {puede && (
         <div className="mt-3 flex justify-end">
           <Button size="sm" onClick={() => void guardar()}>
-            Guardar ficha
+            {t('comercial.negociacion.ficha.guardar')}
           </Button>
         </div>
       )}
@@ -323,6 +392,7 @@ function Ficha({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; pued
 
 // ─── La ubicación ───────────────────────────────────────────────────────────
 function Ubicacion({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; puede: boolean }) {
+  const { t, idioma } = useIdioma()
   const guardado: Punto | null = p.lat != null && p.lng != null ? { lat: p.lat, lng: p.lng } : null
   const [punto, setPunto] = useState<Punto | null>(guardado)
   const [origen, setOrigen] = useState<'PIN' | 'BUSCADOR'>('PIN')
@@ -351,9 +421,7 @@ function Ubicacion({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; 
     setOrigen('PIN')
     setPlaceId(null)
     setCandidatos(null)
-    setNota(
-      `${deEnlace ? 'Pin en el punto del enlace' : 'Pin en esas coordenadas'}. Arrástralo para afinarlo y guarda la ubicación.`,
-    )
+    setNota(t(deEnlace ? 'comercial.negociacion.pin.enlace' : 'comercial.negociacion.pin.coordenadas'))
   }
 
   async function buscar() {
@@ -361,7 +429,7 @@ function Ubicacion({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; 
     setNota(null)
     // Lo que se puede resolver sin red se resuelve aquí: unas coordenadas o un
     // enlace largo no tienen por qué gastar el tope de búsquedas.
-    const i = interpretarUbicacion(q)
+    const i = interpretarUbicacion(q, idioma)
     if (i.tipo === 'punto') return ponerPin(i.lat, i.lng, i.fuente === 'enlace')
     if (i.tipo === 'invalido') {
       setCandidatos(null)
@@ -374,14 +442,14 @@ function Ubicacion({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; 
       }
       setProveedor(r.proveedor)
       setCandidatos(r.resultados)
-      if (!r.resultados.length) setAviso('No se encontró esa dirección. Pega coordenadas o marca el punto en el mapa.')
+      if (!r.resultados.length) setAviso(t('comercial.negociacion.buscar.sin-resultados'))
     } catch (e) {
-      setAviso(e instanceof Error ? e.message : 'No se pudo buscar')
+      setAviso(e instanceof Error ? e.message : t('comercial.negociacion.buscar.error'))
     }
   }
 
   return (
-    <Bloque id="ubicacion" titulo="Ubicación" icono={MapPin}>
+    <Bloque id="ubicacion" titulo={t('comercial.comun.ubicacion')} icono={MapPin}>
       {puede && (
         <form
           className="mb-2 flex gap-2"
@@ -391,22 +459,21 @@ function Ubicacion({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; 
           }}
         >
           <input
-            aria-label="Buscar dirección, coordenadas o enlace de Google Maps"
+            aria-label={t('comercial.negociacion.buscar.etiqueta')}
             className={inputCls}
             value={q}
             maxLength={2000}
-            placeholder="Calle y número, coordenadas o enlace de Google Maps"
+            placeholder={t('comercial.negociacion.buscar.ph')}
             onChange={(e) => setQ(e.target.value)}
           />
           <Button size="sm" variant="secondary" type="submit" disabled={q.trim().length < 3}>
-            <Search className="mr-1 h-3.5 w-3.5" /> Ubicar
+            <Search className="mr-1 h-3.5 w-3.5" /> {t('comercial.negociacion.buscar.ubicar')}
           </Button>
         </form>
       )}
       {puede && !aviso && !nota && !candidatos && (
         <p className="m-0 mb-2 text-[11px] text-muted">
-          También puedes pegar coordenadas (19.4326, -99.1332 o 19°25&apos;57&quot;N 99°07&apos;59&quot;W) o un enlace de
-          Google Maps. Después arrastra el pin para afinarlo.
+          {t('comercial.negociacion.buscar.ayuda')}
         </p>
       )}
       {aviso && <p className="m-0 mb-2 text-[12px] text-[#9a6700]">{aviso}</p>}
@@ -424,7 +491,7 @@ function Ubicacion({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; 
                     setOrigen('BUSCADOR')
                     setPlaceId(c.placeId ?? null)
                     setCandidatos(null)
-                    setNota('Arrastra el pin para afinarlo y guarda la ubicación.')
+                    setNota(t('comercial.negociacion.pin.candidato'))
                   }}
                 >
                   {c.nombre}
@@ -434,7 +501,7 @@ function Ubicacion({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; 
           </ul>
           {/* Las dos fuentes piden que se diga de dónde salen los resultados. */}
           <p className="m-0 mt-1 text-right text-[10px] text-muted">
-            {proveedor === 'google' ? 'Resultados de Google' : 'Resultados de © OpenStreetMap'}
+            {proveedor === 'google' ? t('comercial.negociacion.resultados.google') : t('comercial.negociacion.resultados.osm')}
           </p>
         </div>
       )}
@@ -450,11 +517,21 @@ function Ubicacion({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; 
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted">
         <span>
           {guardado
-            ? `Guardada${p.ubicacionFijadaPorNombre ? ` por ${p.ubicacionFijadaPorNombre}` : ''}${
-                p.ubicacionFijadaEn ? ` el ${fecha(p.ubicacionFijadaEn)}` : ''
-              }${p.ubicacionOrigen === 'BUSCADOR' ? ' · desde el buscador' : p.ubicacionOrigen === 'PIN' ? ' · marcada en el mapa' : ''}`
-            : 'Sin ubicación guardada'}
-          {' · '}GPS del teléfono: pendiente
+            ? t('comercial.negociacion.ubicacion.guardada', {
+                por: p.ubicacionFijadaPorNombre
+                  ? t('comercial.negociacion.ubicacion.por', { nombre: p.ubicacionFijadaPorNombre })
+                  : '',
+                el: p.ubicacionFijadaEn ? t('comercial.negociacion.ubicacion.el', { fecha: fecha(p.ubicacionFijadaEn, idioma) }) : '',
+                origen:
+                  p.ubicacionOrigen === 'BUSCADOR'
+                    ? t('comercial.negociacion.ubicacion.buscador')
+                    : p.ubicacionOrigen === 'PIN'
+                      ? t('comercial.negociacion.ubicacion.mapa')
+                      : '',
+              })
+            : t('comercial.negociacion.ubicacion.sin')}
+          {' · '}
+          {t('comercial.negociacion.ubicacion.gps')}
         </span>
         {puede && cambiado && (
           <Button
@@ -467,7 +544,7 @@ function Ubicacion({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; 
               )
             }
           >
-            Guardar ubicación
+            {t('comercial.negociacion.ubicacion.guardar')}
           </Button>
         )}
       </div>
@@ -477,12 +554,13 @@ function Ubicacion({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; 
 
 // ─── Contactos ──────────────────────────────────────────────────────────────
 function Contactos({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; puede: boolean }) {
+  const t = useTexto()
   const vacio = { nombre: '', papel: '', telefono: '', email: '', esLegal: false }
   const [n, setN] = useState(vacio)
   return (
-    <Bloque id="contactos" titulo="Responsables y contactos" icono={Users} cuenta={p.contactos.length}>
+    <Bloque id="contactos" titulo={t('comercial.negociacion.contactos')} icono={Users} cuenta={p.contactos.length}>
       {p.contactos.length === 0 ? (
-        <Vacio>Todavía no se sabe con quién hablar.</Vacio>
+        <Vacio>{t('comercial.negociacion.contactos.vacio')}</Vacio>
       ) : (
         <ul className={`${LISTA} divide-y divide-border`}>
           {p.contactos.map((c) => (
@@ -493,7 +571,7 @@ function Contactos({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; 
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className="text-[13px] font-medium text-ink">{c.nombre}</span>
-                  {c.esLegal && <span className="rounded bg-ink px-1.5 text-[10px] font-medium text-surface">firma</span>}
+                  {c.esLegal && <span className="rounded bg-ink px-1.5 text-[10px] font-medium text-surface">{t('comercial.negociacion.contactos.firma-chip')}</span>}
                 </div>
                 {c.papel && <div className="text-[12px] text-muted">{c.papel}</div>}
                 {(c.telefono || c.email) && (
@@ -518,12 +596,12 @@ function Contactos({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; 
                     variant="secondary"
                     onClick={() => void accion(() => editarContactoApi(p.id, c.id, { esLegal: !c.esLegal }))}
                   >
-                    {c.esLegal ? 'No firma' : 'Firma'}
+                    {c.esLegal ? t('comercial.negociacion.contactos.no-firma') : t('comercial.negociacion.contactos.firma')}
                   </Button>
                   <Button
                     size="sm"
                     variant="secondary"
-                    aria-label={`Quitar a ${c.nombre}`}
+                    aria-label={t('comercial.negociacion.quitar-a', { nombre: c.nombre })}
                     onClick={() => void accion(() => borrarContactoApi(p.id, c.id))}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -542,16 +620,16 @@ function Contactos({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; 
             if (await accion(() => crearContactoApi(p.id, n))) setN(vacio)
           }}
         >
-          <input aria-label="Nombre del contacto" className={inputCls} placeholder="Nombre" maxLength={200} value={n.nombre} onChange={(e) => setN({ ...n, nombre: e.target.value })} />
-          <input aria-label="Papel" className={inputCls} placeholder="Papel (dueño, vecina…)" maxLength={80} value={n.papel} onChange={(e) => setN({ ...n, papel: e.target.value })} />
-          <input aria-label="Teléfono" className={inputCls} placeholder="Teléfono" maxLength={40} value={n.telefono} onChange={(e) => setN({ ...n, telefono: e.target.value })} />
-          <input aria-label="Correo" type="email" className={inputCls} placeholder="Correo" maxLength={200} value={n.email} onChange={(e) => setN({ ...n, email: e.target.value })} />
+          <input aria-label={t('comercial.negociacion.contactos.nombre')} className={inputCls} placeholder={t('comercial.comun.nombre')} maxLength={200} value={n.nombre} onChange={(e) => setN({ ...n, nombre: e.target.value })} />
+          <input aria-label={t('comercial.negociacion.contactos.papel')} className={inputCls} placeholder={t('comercial.negociacion.contactos.papel-ph')} maxLength={80} value={n.papel} onChange={(e) => setN({ ...n, papel: e.target.value })} />
+          <input aria-label={t('comercial.comun.telefono')} className={inputCls} placeholder={t('comercial.comun.telefono')} maxLength={40} value={n.telefono} onChange={(e) => setN({ ...n, telefono: e.target.value })} />
+          <input aria-label={t('comercial.negociacion.contactos.correo')} type="email" className={inputCls} placeholder={t('comercial.negociacion.contactos.correo')} maxLength={200} value={n.email} onChange={(e) => setN({ ...n, email: e.target.value })} />
           <label className="flex items-center gap-2 text-[12px] text-ink">
-            <input type="checkbox" checked={n.esLegal} onChange={(e) => setN({ ...n, esLegal: e.target.checked })} /> Es quien firma
+            <input type="checkbox" checked={n.esLegal} onChange={(e) => setN({ ...n, esLegal: e.target.checked })} /> {t('comercial.negociacion.contactos.es-firma')}
           </label>
           <div className="flex justify-end">
             <Button size="sm" type="submit" disabled={!n.nombre.trim()}>
-              <Plus className="mr-1 h-3.5 w-3.5" /> Agregar contacto
+              <Plus className="mr-1 h-3.5 w-3.5" /> {t('comercial.negociacion.contactos.agregar')}
             </Button>
           </div>
         </form>
@@ -562,46 +640,49 @@ function Contactos({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; 
 
 // ─── Ofertas al dueño ───────────────────────────────────────────────────────
 function Ofertas({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; puede: boolean }) {
+  const { t, idioma } = useIdioma()
   const [n, setN] = useState({ importe: '', plazo: '36', notas: '' })
   return (
-    <Bloque id="ofertas" titulo="Ofertas de renta al arrendador" icono={Wallet} cuenta={p.ofertas.length}>
+    <Bloque id="ofertas" titulo={t('comercial.negociacion.ofertas')} icono={Wallet} cuenta={p.ofertas.length}>
       {p.ofertas.length === 0 ? (
-        <Vacio>Todavía no se le ha ofrecido nada.</Vacio>
+        <Vacio>{t('comercial.negociacion.ofertas.vacio')}</Vacio>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-[13px]">
             <thead className="text-left text-[11px] text-muted">
               <tr>
-                <th className="pb-1 font-medium">Versión</th>
-                <th className="pb-1 font-medium">Fecha</th>
-                <th className="pb-1 font-medium">Renta</th>
-                <th className="pb-1 font-medium">Plazo</th>
-                <th className="pb-1 font-medium">Estado</th>
+                <th className="pb-1 font-medium">{t('comercial.negociacion.ofertas.version')}</th>
+                <th className="pb-1 font-medium">{t('comercial.negociacion.ofertas.fecha')}</th>
+                <th className="pb-1 font-medium">{t('comercial.negociacion.ofertas.renta')}</th>
+                <th className="pb-1 font-medium">{t('comercial.negociacion.ofertas.plazo')}</th>
+                <th className="pb-1 font-medium">{t('comercial.negociacion.ofertas.estado')}</th>
               </tr>
             </thead>
             <tbody>
               {p.ofertas.map((o) => (
                 <tr key={o.id} className="border-t border-border align-top">
                   <td className="py-1.5 text-ink">v{o.version}</td>
-                  <td className="py-1.5 text-muted">{fecha(o.fecha)}</td>
-                  <td className="demo-num py-1.5 font-medium text-ink">{pesos(o.importeMensual)}/mes</td>
-                  <td className="py-1.5 text-muted">{o.plazoMeses} meses</td>
+                  <td className="py-1.5 text-muted">{fecha(o.fecha, idioma)}</td>
+                  <td className="demo-num py-1.5 font-medium text-ink">{t('comercial.negociacion.ofertas.por-mes', { monto: pesos(o.importeMensual, idioma) })}</td>
+                  <td className="py-1.5 text-muted">
+                    {t(o.plazoMeses === 1 ? 'comercial.negociacion.ofertas.meses.uno' : 'comercial.negociacion.ofertas.meses.otros', { n: o.plazoMeses })}
+                  </td>
                   <td className="py-1.5 text-ink">
                     {puede ? (
                       <select
-                        aria-label={`Estado de la oferta v${o.version}`}
+                        aria-label={t('comercial.negociacion.ofertas.estado-de', { version: o.version })}
                         className={`${inputCls} h-7 w-36`}
                         value={o.estado}
                         onChange={(e) => void accion(() => editarOfertaApi(p.id, o.id, { estado: e.target.value as EstadoOferta }))}
                       >
                         {ESTADOS_OFERTA.map((s) => (
                           <option key={s} value={s} disabled={!!motivoCambioOferta(o.estado, s)}>
-                            {ETIQUETA_OFERTA[s]}
+                            {t(CLAVE_OFERTA[s])}
                           </option>
                         ))}
                       </select>
                     ) : (
-                      ETIQUETA_OFERTA[o.estado]
+                      t(CLAVE_OFERTA[o.estado])
                     )}
                     {o.notas && <div className="text-[11px] text-muted">{o.notas}</div>}
                   </td>
@@ -622,11 +703,14 @@ function Ofertas({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; pu
             if (ok) setN({ importe: '', plazo: n.plazo, notas: '' })
           }}
         >
-          <input aria-label="Renta mensual" type="number" min={1} className={inputCls} placeholder="Renta mensual" value={n.importe} onChange={(e) => setN({ ...n, importe: e.target.value })} />
-          <input aria-label="Plazo en meses" type="number" min={1} max={240} className={inputCls} placeholder="Meses" value={n.plazo} onChange={(e) => setN({ ...n, plazo: e.target.value })} />
-          <input aria-label="Notas de la oferta" className={inputCls} placeholder="Notas" maxLength={2000} value={n.notas} onChange={(e) => setN({ ...n, notas: e.target.value })} />
+          {/* P-L2-1 · en italiano, punto de millar y coma decimal. Lo que no se
+              entiende llega como 'NaN', y `Number('NaN') > 0` deja el botón
+              apagado: no hace falta otra guardia. */}
+          <EntradaCifra aria-label={t('comercial.negociacion.ofertas.renta-mensual')} type="number" min={1} className={inputCls} placeholder={t('comercial.negociacion.ofertas.renta-mensual')} valor={n.importe} onCambio={(crudo) => setN({ ...n, importe: crudo })} decimales={2} minimo={1} />
+          <EntradaCifra aria-label={t('comercial.negociacion.ofertas.plazo-meses')} type="number" min={1} max={240} className={inputCls} placeholder={t('comercial.negociacion.ofertas.meses-ph')} valor={n.plazo} onCambio={(crudo) => setN({ ...n, plazo: crudo })} decimales={0} minimo={1} maximo={240} />
+          <input aria-label={t('comercial.negociacion.ofertas.notas')} className={inputCls} placeholder={t('comercial.comun.notas')} maxLength={2000} value={n.notas} onChange={(e) => setN({ ...n, notas: e.target.value })} />
           <Button size="sm" type="submit" disabled={!(Number(n.importe) > 0 && Number(n.plazo) >= 1)}>
-            <Plus className="mr-1 h-3.5 w-3.5" /> Nueva versión
+            <Plus className="mr-1 h-3.5 w-3.5" /> {t('comercial.negociacion.ofertas.nueva')}
           </Button>
         </form>
       )}
@@ -636,11 +720,12 @@ function Ofertas({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; pu
 
 // ─── Competencia ────────────────────────────────────────────────────────────
 function Competencia({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; puede: boolean }) {
+  const { t, idioma } = useIdioma()
   const [n, setN] = useState({ nombre: '', nota: '', desde: '' })
   return (
-    <Bloque id="competencia" titulo="Competencia" icono={Swords} cuenta={p.competencia.length}>
+    <Bloque id="competencia" titulo={t('comercial.negociacion.competencia')} icono={Swords} cuenta={p.competencia.length}>
       {p.competencia.length === 0 ? (
-        <Vacio>Sin competencia identificada.</Vacio>
+        <Vacio>{t('comercial.negociacion.competencia.vacio')}</Vacio>
       ) : (
         <ul className={`${LISTA} space-y-2`}>
           {p.competencia.map((c) => (
@@ -648,14 +733,18 @@ function Competencia({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-2">
                   <span className="text-[13px] font-medium text-ink">{c.nombre}</span>
-                  {c.desde && <span className="text-[11px] text-muted">desde {fecha(c.desde)}</span>}
+                  {c.desde && (
+                    <span className="text-[11px] text-muted">
+                      {t('comercial.negociacion.competencia.desde', { fecha: fecha(c.desde, idioma) })}
+                    </span>
+                  )}
                 </div>
                 {c.nota && <p className="m-0 text-[12px] text-ink">{c.nota}</p>}
               </div>
               {puede && (
                 <button
                   type="button"
-                  aria-label={`Quitar a ${c.nombre}`}
+                  aria-label={t('comercial.negociacion.quitar-a', { nombre: c.nombre })}
                   className="shrink-0 border-0 bg-transparent p-0 text-muted hover:text-error"
                   onClick={() => void accion(() => borrarCompetidorApi(p.id, c.id))}
                 >
@@ -677,12 +766,12 @@ function Competencia({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion
             if (ok) setN({ nombre: '', nota: '', desde: '' })
           }}
         >
-          <input aria-label="Competidor" className={inputCls} placeholder="Quién" maxLength={200} value={n.nombre} onChange={(e) => setN({ ...n, nombre: e.target.value })} />
-          <input aria-label="Desde" type="date" className={inputCls} value={n.desde} onChange={(e) => setN({ ...n, desde: e.target.value })} />
-          <input aria-label="Qué ofrece" className={`${inputCls} col-span-2`} placeholder="Qué ofrece o qué se sabe" maxLength={2000} value={n.nota} onChange={(e) => setN({ ...n, nota: e.target.value })} />
+          <input aria-label={t('comercial.negociacion.competencia.competidor')} className={inputCls} placeholder={t('comercial.negociacion.competencia.quien')} maxLength={200} value={n.nombre} onChange={(e) => setN({ ...n, nombre: e.target.value })} />
+          <input aria-label={t('comercial.negociacion.competencia.desde-etiqueta')} type="date" className={inputCls} value={n.desde} onChange={(e) => setN({ ...n, desde: e.target.value })} />
+          <input aria-label={t('comercial.negociacion.competencia.ofrece')} className={`${inputCls} col-span-2`} placeholder={t('comercial.negociacion.competencia.ofrece-ph')} maxLength={2000} value={n.nota} onChange={(e) => setN({ ...n, nota: e.target.value })} />
           <div className="col-span-2 flex justify-end">
             <Button size="sm" type="submit" disabled={!n.nombre.trim()}>
-              <Plus className="mr-1 h-3.5 w-3.5" /> Agregar
+              <Plus className="mr-1 h-3.5 w-3.5" /> {t('comercial.negociacion.agregar')}
             </Button>
           </div>
         </form>
@@ -693,6 +782,7 @@ function Competencia({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion
 
 // ─── Bitácora ───────────────────────────────────────────────────────────────
 function Historial({ p, accion }: { p: ProspectoDetalle; accion: Accion }) {
+  const { t, idioma } = useIdioma()
   // A qué etapas se puede mover desde aquí: las de trabajo, revisión y perdido
   // (aprobar y rechazar se deciden en Captación, por quien puede aprobar).
   const etapas: Etapa[] = p.etapa === 'EN_REVISION' ? ['EN_REVISION'] : [...ETAPAS_DE_TRABAJO, 'EN_REVISION', 'PERDIDO']
@@ -711,7 +801,7 @@ function Historial({ p, accion }: { p: ProspectoDetalle; accion: Accion }) {
   const avances = [...p.avances].reverse()
   const cerrado = etapaCerrada(p.etapa)
   return (
-    <Bloque id="historial" titulo="Historial" icono={MessageSquare} cuenta={p.avances.length}>
+    <Bloque id="historial" titulo={t('comercial.negociacion.historial')} icono={MessageSquare} cuenta={p.avances.length}>
       {!cerrado && (
         <form
           className="mb-3 grid grid-cols-2 gap-2 border-b border-border pb-3"
@@ -729,40 +819,40 @@ function Historial({ p, accion }: { p: ProspectoDetalle; accion: Accion }) {
             if (ok) setN({ ...n, nota: '', siguiente: '' })
           }}
         >
-          <select aria-label="Canal" className={inputCls} value={n.canal} onChange={(e) => setN({ ...n, canal: e.target.value as Canal | '' })}>
-            <option value="">Canal…</option>
+          <select aria-label={t('comercial.negociacion.historial.canal')} className={inputCls} value={n.canal} onChange={(e) => setN({ ...n, canal: e.target.value as Canal | '' })}>
+            <option value="">{t('comercial.negociacion.historial.canal-ph')}</option>
             {CANALES.map((c) => (
               <option key={c} value={c}>
-                {ETIQUETA_CANAL[c]}
+                {t(CLAVE_CANAL[c])}
               </option>
             ))}
           </select>
-          <select aria-label="Con quién" className={inputCls} value={n.contacto} onChange={(e) => setN({ ...n, contacto: e.target.value })}>
-            <option value="">Con quién…</option>
+          <select aria-label={t('comercial.negociacion.historial.con-quien')} className={inputCls} value={n.contacto} onChange={(e) => setN({ ...n, contacto: e.target.value })}>
+            <option value="">{t('comercial.negociacion.historial.con-quien-ph')}</option>
             {p.contactos.map((c) => (
               <option key={c.id} value={c.nombre}>
                 {c.nombre}
               </option>
             ))}
           </select>
-          <input aria-label="Qué pasó" className={`${inputCls} col-span-2`} placeholder="Qué pasó" maxLength={2000} value={n.nota} onChange={(e) => setN({ ...n, nota: e.target.value })} />
-          <input aria-label="Siguiente paso" className={inputCls} placeholder="Siguiente paso" maxLength={300} value={n.siguiente} onChange={(e) => setN({ ...n, siguiente: e.target.value })} />
-          <select aria-label="Etapa" className={inputCls} value={n.etapa} onChange={(e) => setN({ ...n, etapa: e.target.value as Etapa })}>
+          <input aria-label={t('comercial.negociacion.historial.que-paso')} className={`${inputCls} col-span-2`} placeholder={t('comercial.negociacion.historial.que-paso')} maxLength={2000} value={n.nota} onChange={(e) => setN({ ...n, nota: e.target.value })} />
+          <input aria-label={t('comercial.negociacion.siguiente-paso')} className={inputCls} placeholder={t('comercial.negociacion.siguiente-paso')} maxLength={300} value={n.siguiente} onChange={(e) => setN({ ...n, siguiente: e.target.value })} />
+          <select aria-label={t('comercial.negociacion.historial.etapa')} className={inputCls} value={n.etapa} onChange={(e) => setN({ ...n, etapa: e.target.value as Etapa })}>
             {etapas.map((e) => (
               <option key={e} value={e}>
-                {ETIQUETA_ETAPA[e]}
+                {t(CLAVE_ETAPA[e])}
               </option>
             ))}
           </select>
           <div className="col-span-2 flex justify-end">
             <Button size="sm" type="submit" disabled={!n.nota.trim()}>
-              Registrar contacto
+              {t('comercial.negociacion.historial.registrar')}
             </Button>
           </div>
         </form>
       )}
       {avances.length === 0 ? (
-        <Vacio>Sin contactos registrados.</Vacio>
+        <Vacio>{t('comercial.negociacion.historial.vacio')}</Vacio>
       ) : (
         <ol className={`${LISTA} relative`}>
           {avances.map((a, i) => (
@@ -777,13 +867,15 @@ function Historial({ p, accion }: { p: ProspectoDetalle; accion: Accion }) {
                 aria-hidden="true"
               />
               <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-                <span className="font-semibold text-ink">{fecha(a.creadoEn)}</span>
-                {a.canal && <Etiqueta>{ETIQUETA_CANAL[a.canal]}</Etiqueta>}
-                {a.contactoNombre && <span className="text-muted">con {a.contactoNombre}</span>}
-                <span className="text-muted">· {a.usuarioNombre ?? 'Usuario eliminado'}</span>
+                <span className="font-semibold text-ink">{fecha(a.creadoEn, idioma)}</span>
+                {a.canal && <Etiqueta>{t(CLAVE_CANAL[a.canal])}</Etiqueta>}
+                {a.contactoNombre && (
+                  <span className="text-muted">{t('comercial.negociacion.historial.con', { nombre: a.contactoNombre })}</span>
+                )}
+                <span className="text-muted">· {a.usuarioNombre ?? t('comercial.negociacion.usuario-eliminado')}</span>
                 {a.etapaAnterior && a.etapaAnterior !== a.etapaNueva && (
                   <span className="text-muted">
-                    · {ETIQUETA_ETAPA[a.etapaAnterior]} → {ETIQUETA_ETAPA[a.etapaNueva]}
+                    · {t(CLAVE_ETAPA[a.etapaAnterior])} → {t(CLAVE_ETAPA[a.etapaNueva])}
                   </span>
                 )}
               </div>
@@ -798,9 +890,10 @@ function Historial({ p, accion }: { p: ProspectoDetalle; accion: Accion }) {
 
 // ─── Notas ──────────────────────────────────────────────────────────────────
 function Notas({ p, accion }: { p: ProspectoDetalle; accion: Accion }) {
+  const { t, idioma } = useIdioma()
   const [texto, setTexto] = useState('')
   return (
-    <Bloque id="notas" titulo="Notas adicionales" icono={NotebookPen} cuenta={p.notas.length}>
+    <Bloque id="notas" titulo={t('comercial.negociacion.notas')} icono={NotebookPen} cuenta={p.notas.length}>
       <form
         className="mb-3 space-y-2"
         onSubmit={async (e) => {
@@ -809,28 +902,28 @@ function Notas({ p, accion }: { p: ProspectoDetalle; accion: Accion }) {
         }}
       >
         <textarea
-          aria-label="Nota nueva"
+          aria-label={t('comercial.negociacion.notas.nueva')}
           className={`${inputCls} h-20 py-2`}
           maxLength={4000}
-          placeholder="Acceso, horarios, permisos, lo que haga falta recordar…"
+          placeholder={t('comercial.negociacion.notas.ph')}
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
         />
         <div className="flex items-center justify-between">
-          <span className="text-[11px] text-muted">Las notas no se editan ni se borran: quedan con su autor y su fecha.</span>
+          <span className="text-[11px] text-muted">{t('comercial.negociacion.notas.ayuda')}</span>
           <Button size="sm" type="submit" disabled={!texto.trim()}>
-            Agregar nota
+            {t('comercial.negociacion.notas.agregar')}
           </Button>
         </div>
       </form>
       {p.notas.length === 0 ? (
-        <Vacio>Sin notas todavía.</Vacio>
+        <Vacio>{t('comercial.negociacion.notas.vacio')}</Vacio>
       ) : (
         <ul className={`${LISTA} space-y-2`}>
           {p.notas.map((n) => (
             <li key={n.id} className="rounded bg-surface-2 px-2.5 py-1.5">
               <div className="text-[11px] text-muted">
-                {n.autorNombre ?? 'Usuario eliminado'} · {fecha(n.creadoEn)}
+                {n.autorNombre ?? t('comercial.negociacion.usuario-eliminado')} · {fecha(n.creadoEn, idioma)}
               </div>
               <p className="m-0 whitespace-pre-wrap text-[13px] text-ink">{n.texto}</p>
             </li>
@@ -843,6 +936,7 @@ function Notas({ p, accion }: { p: ProspectoDetalle; accion: Accion }) {
 
 // ─── El detalle ─────────────────────────────────────────────────────────────
 function Detalle({ p, hoy, onCambio }: { p: ProspectoDetalle; hoy: Date; onCambio: (p: ProspectoDetalle) => void }) {
+  const { t, idioma } = useIdioma()
   const [error, setError] = useState<string | null>(null)
   useEffect(() => setError(null), [p.id])
   const accion: Accion = async (fn) => {
@@ -851,7 +945,7 @@ function Detalle({ p, hoy, onCambio }: { p: ProspectoDetalle; hoy: Date; onCambi
       onCambio(await fn())
       return true
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo guardar')
+      setError(e instanceof Error ? e.message : t('comercial.comun.no-se-pudo-guardar'))
       return false
     }
   }
@@ -864,8 +958,8 @@ function Detalle({ p, hoy, onCambio }: { p: ProspectoDetalle; hoy: Date; onCambi
         <div>
           <h2 className="m-0 text-lg font-semibold text-ink">{p.nombre}</h2>
           <p className="m-0 text-[12px] text-muted">
-            {[p.tipoEspacio, p.direccion].filter(Boolean).join(' · ') || 'Sin dirección'} · en seguimiento desde{' '}
-            {fecha(p.creadoEn)}
+            {[p.tipoEspacio, p.direccion].filter(Boolean).join(' · ') || t('comercial.negociacion.sin-direccion')}
+            {t('comercial.negociacion.seguimiento-desde', { fecha: fecha(p.creadoEn, idioma) })}
             {p.vendedorNombre ? ` · ${p.vendedorNombre}` : ''}
           </p>
         </div>
@@ -884,11 +978,11 @@ function Detalle({ p, hoy, onCambio }: { p: ProspectoDetalle; hoy: Date; onCambi
       )}
       {!puedeFicha && (
         <p className="m-0 rounded-md border border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">
-          {motivoEdicion(p.etapa, 'ficha')}
+          {motivoEdicion(p.etapa, 'ficha', idioma)}
         </p>
       )}
 
-      <Bloque id="responsable" titulo="Búsqueda del responsable" icono={ShieldCheck}>
+      <Bloque id="responsable" titulo={t('comercial.negociacion.responsable')} icono={ShieldCheck}>
         <div className="overflow-x-auto pb-1">
           <Pasos p={p} accion={accion} puede={puedeFicha} />
         </div>
@@ -897,16 +991,18 @@ function Detalle({ p, hoy, onCambio }: { p: ProspectoDetalle; hoy: Date; onCambi
       {ultimo && (
         <div className="rounded-md border border-accent bg-accent-soft px-3 py-2 text-[13px]">
           <div className="font-medium text-ink">
-            Último contacto{ultimo.contactoNombre ? `: ${ultimo.contactoNombre}` : ''}{' '}
+            {ultimo.contactoNombre
+              ? t('comercial.negociacion.ultimo.con', { nombre: ultimo.contactoNombre })
+              : t('comercial.negociacion.ultimo')}{' '}
             <span className="font-normal text-muted">
-              · {fecha(ultimo.creadoEn)}
-              {ultimo.canal ? ` · ${ETIQUETA_CANAL[ultimo.canal]}` : ''}
+              · {fecha(ultimo.creadoEn, idioma)}
+              {ultimo.canal ? ` · ${t(CLAVE_CANAL[ultimo.canal])}` : ''}
             </span>
           </div>
           <p className="m-0 mt-0.5 text-ink">{ultimo.nota}</p>
           {p.siguientePaso && (
             <p className="m-0 mt-1 inline-flex items-start gap-1 text-ink">
-              <ArrowRight className="mt-0.5 h-3 w-3 shrink-0" /> <strong>Siguiente paso:</strong>&nbsp;{p.siguientePaso}
+              <ArrowRight className="mt-0.5 h-3 w-3 shrink-0" /> <strong>{t('comercial.negociacion.siguiente-paso.etiqueta')}</strong>&nbsp;{p.siguientePaso}
             </p>
           )}
         </div>
@@ -935,6 +1031,7 @@ function Detalle({ p, hoy, onCambio }: { p: ProspectoDetalle; hoy: Date; onCambi
 
 // ─── El alta ────────────────────────────────────────────────────────────────
 function Alta({ abierto, onCerrar, onCreado }: { abierto: boolean; onCerrar: () => void; onCreado: (p: ProspectoDetalle) => void }) {
+  const t = useTexto()
   const vacio = { tipo: 'PREDIO' as 'PREDIO' | 'PANTALLA', nombre: '', direccion: '', contacto: '', telefono: '', nota: '' }
   const [f, setF] = useState(vacio)
   const [error, setError] = useState<string | null>(null)
@@ -954,22 +1051,22 @@ function Alta({ abierto, onCerrar, onCreado }: { abierto: boolean; onCerrar: () 
       setF(vacio)
       onCreado(p)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo dar de alta')
+      setError(e instanceof Error ? e.message : t('comercial.negociacion.alta.error'))
     }
   }
   return (
     <Sheet
       open={abierto}
       onOpenChange={(v) => !v && onCerrar()}
-      title="Nuevo espacio"
-      subtitle="Lo mínimo para empezar a darle seguimiento. La ficha, la ubicación y los contactos se completan después."
+      title={t('comercial.negociacion.nuevo')}
+      subtitle={t('comercial.negociacion.alta.subtitulo')}
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={onCerrar}>
-            Cancelar
+            {t('comun.cancelar')}
           </Button>
           <Button onClick={() => void guardar()} disabled={!f.nombre.trim()}>
-            Guardar
+            {t('comun.guardar')}
           </Button>
         </div>
       }
@@ -981,32 +1078,32 @@ function Alta({ abierto, onCerrar, onCreado }: { abierto: boolean; onCerrar: () 
       )}
       <div className="space-y-3">
         <label className="block">
-          <span className={labelCls}>Qué es</span>
+          <span className={labelCls}>{t('comercial.negociacion.alta.que-es')}</span>
           <select className={inputCls} value={f.tipo} onChange={(e) => setF({ ...f, tipo: e.target.value as 'PREDIO' | 'PANTALLA' })}>
-            <option value="PREDIO">Un predio (muro, azotea, terreno)</option>
-            <option value="PANTALLA">Una pantalla que ya existe</option>
+            <option value="PREDIO">{t('comercial.negociacion.alta.predio')}</option>
+            <option value="PANTALLA">{t('comercial.negociacion.alta.pantalla')}</option>
           </select>
         </label>
         <label className="block">
-          <span className={labelCls}>Nombre</span>
-          <input className={inputCls} maxLength={200} placeholder="Ej. Azotea Insurgentes 1420" value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} />
+          <span className={labelCls}>{t('comercial.comun.nombre')}</span>
+          <input className={inputCls} maxLength={200} placeholder={t('comercial.negociacion.alta.nombre-ej')} value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} />
         </label>
         <label className="block">
-          <span className={labelCls}>Dirección</span>
+          <span className={labelCls}>{t('comercial.negociacion.alta.direccion')}</span>
           <input className={inputCls} maxLength={400} value={f.direccion} onChange={(e) => setF({ ...f, direccion: e.target.value })} />
         </label>
         <div className="grid grid-cols-2 gap-2">
           <label className="block">
-            <span className={labelCls}>Primer contacto</span>
-            <input className={inputCls} maxLength={200} placeholder="Nombre" value={f.contacto} onChange={(e) => setF({ ...f, contacto: e.target.value })} />
+            <span className={labelCls}>{t('comercial.negociacion.alta.primer-contacto')}</span>
+            <input className={inputCls} maxLength={200} placeholder={t('comercial.comun.nombre')} value={f.contacto} onChange={(e) => setF({ ...f, contacto: e.target.value })} />
           </label>
           <label className="block">
-            <span className={labelCls}>Teléfono</span>
+            <span className={labelCls}>{t('comercial.comun.telefono')}</span>
             <input className={inputCls} maxLength={40} value={f.telefono} onChange={(e) => setF({ ...f, telefono: e.target.value })} />
           </label>
         </div>
         <label className="block">
-          <span className={labelCls}>Cómo surgió</span>
+          <span className={labelCls}>{t('comercial.negociacion.alta.como-surgio')}</span>
           <input className={inputCls} maxLength={2000} value={f.nota} onChange={(e) => setF({ ...f, nota: e.target.value })} />
         </label>
       </div>
@@ -1016,6 +1113,7 @@ function Alta({ abierto, onCerrar, onCreado }: { abierto: boolean; onCerrar: () 
 
 // ─── La pantalla ────────────────────────────────────────────────────────────
 export function ComercialOpex({ hoyIso }: { hoyIso: string }) {
+  const t = useTexto()
   // La fecha llega del servidor para que «hace N días» salga igual en el HTML y
   // al hidratar: calcularla dos veces podía diferir por un día a medianoche.
   const hoy = useMemo(() => new Date(hoyIso), [hoyIso])
@@ -1033,8 +1131,10 @@ export function ComercialOpex({ hoyIso }: { hoyIso: string }) {
       setTotal(r.total)
       setError(null)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudieron leer los espacios')
+      setError(e instanceof Error ? e.message : t('comercial.negociacion.cargar-error'))
     }
+    // `t` solo cambia con el idioma; meterlo volveria a pedir la lista al cambiarlo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -1051,7 +1151,7 @@ export function ComercialOpex({ hoyIso }: { hoyIso: string }) {
     let vivo = true
     prospectoApi(s.id)
       .then((d) => vivo && setDetalle(d))
-      .catch((e) => vivo && setError(e instanceof Error ? e.message : 'No se pudo abrir el espacio'))
+      .catch((e) => vivo && setError(e instanceof Error ? e.message : t('comercial.negociacion.abrir-error')))
     return () => {
       vivo = false
     }
@@ -1083,14 +1183,13 @@ export function ComercialOpex({ hoyIso }: { hoyIso: string }) {
           derecha como «Nuevo cliente» (antes vivía dentro de la lista). */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl text-ink">Comercial negociación</h1>
+          <h1 className="text-2xl text-ink">{t('comercial.negociacion.titulo')}</h1>
           <p className="mt-1 text-[13px] text-muted">
-            Prospección de arrendadores: los espacios que se están persiguiendo, quién manda en cada
-            uno y cómo va la negociación de su renta.
+            {t('comercial.negociacion.descripcion')}
           </p>
         </div>
         <Button size="sm" variant="success" onClick={() => setAlta(true)}>
-          <Plus className="h-3.5 w-3.5" /> Nuevo espacio
+          <Plus className="h-3.5 w-3.5" /> {t('comercial.negociacion.nuevo')}
         </Button>
       </div>
 
@@ -1112,33 +1211,33 @@ export function ComercialOpex({ hoyIso }: { hoyIso: string }) {
         ) : (
           <>
             <KPICard
-              label="En seguimiento"
+              label={t('comercial.negociacion.kpi.seguimiento')}
               value={String(r.total)}
               sub={
                 total > espacios.length
-                  ? `se muestran los ${espacios.length} con algo más reciente de ${total}`
-                  : 'predios y pantallas'
+                  ? t('comercial.negociacion.kpi.seguimiento.parcial', { n: espacios.length, total })
+                  : t('comercial.negociacion.kpi.seguimiento.sub')
               }
               icon={<Building2 className="h-4 w-4" />}
             />
             <KPICard
-              label="En negociación"
+              label={t('comercial.negociacion.estado.negociacion')}
               value={String(r.enNegociacion)}
-              sub="todavía sin cerrar con el dueño"
+              sub={t('comercial.negociacion.kpi.negociacion.sub')}
               tono={r.enNegociacion ? 'ambar' : 'neutro'}
               icon={<Wallet className="h-4 w-4" />}
             />
             <KPICard
-              label="Activos"
+              label={t('comercial.negociacion.kpi.activos')}
               value={String(r.activos)}
-              sub="negociación cerrada"
+              sub={t('comercial.negociacion.kpi.activos.sub')}
               tono={r.activos ? 'verde' : 'neutro'}
               icon={<ShieldCheck className="h-4 w-4" />}
             />
             <KPICard
-              label="Sin contacto +30 días"
+              label={t('comercial.negociacion.kpi.frios')}
               value={String(r.enfriados)}
-              sub="en negociación y sin bitácora reciente"
+              sub={t('comercial.negociacion.kpi.frios.sub')}
               tono={r.enfriados ? 'rojo' : 'neutro'}
               icon={<Clock className="h-4 w-4" />}
             />
@@ -1149,11 +1248,11 @@ export function ComercialOpex({ hoyIso }: { hoyIso: string }) {
       <div className="grid items-start gap-4 lg:grid-cols-[320px_1fr]">
         <CardColapsable
           id="comercial-opex.espacios"
-          titulo="Espacios en seguimiento"
+          titulo={t('comercial.negociacion.lista')}
           resumen={
             espacios && (busqueda.trim() || filtro) ? (
               <span className="text-[12px] text-muted">
-                {visibles.length} de {espacios.length}
+                {t('comercial.negociacion.lista.de', { n: visibles.length, total: espacios.length })}
               </span>
             ) : undefined
           }
@@ -1167,21 +1266,21 @@ export function ComercialOpex({ hoyIso }: { hoyIso: string }) {
               <span className="relative block">
                 <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
                 <input
-                  aria-label="Buscar espacio"
+                  aria-label={t('comercial.negociacion.lista.buscar')}
                   value={busqueda}
                   onChange={(ev) => setBusqueda(ev.target.value)}
-                  placeholder="Nombre o dirección…"
+                  placeholder={t('comercial.negociacion.lista.buscar-ph')}
                   className={`${inputCls} h-8 pl-7 text-[12px]`}
                 />
               </span>
-              <div className="flex flex-wrap gap-1" role="group" aria-label="Estado">
+              <div className="flex flex-wrap gap-1" role="group" aria-label={t('comercial.negociacion.lista.estado')}>
                 {(
                   [
-                    ['', 'Todos', espacios.length],
-                    ['negociacion', 'En negociación', r.enNegociacion],
-                    ['activo', 'Activos', r.activos],
-                    ['inactivo', 'Inactivos', espacios.filter((e) => estadoEspacio(e.etapa) === 'inactivo').length],
-                    ['frios', 'Sin contacto +30 d', r.enfriados],
+                    ['', t('comercial.negociacion.lista.todos'), espacios.length],
+                    ['negociacion', t('comercial.negociacion.estado.negociacion'), r.enNegociacion],
+                    ['activo', t('comercial.negociacion.kpi.activos'), r.activos],
+                    ['inactivo', t('comercial.negociacion.lista.inactivos'), espacios.filter((e) => estadoEspacio(e.etapa) === 'inactivo').length],
+                    ['frios', t('comercial.negociacion.lista.frios'), r.enfriados],
                   ] as const
                 ).map(([valor, etiqueta, n]) => (
                   <button
@@ -1213,9 +1312,9 @@ export function ComercialOpex({ hoyIso }: { hoyIso: string }) {
               ))}
             </ul>
           ) : espacios.length === 0 ? (
-            <Vacio>Todavía no hay espacios. Da de alta el primero con «Nuevo espacio».</Vacio>
+            <Vacio>{t('comercial.negociacion.lista.vacia')}</Vacio>
           ) : visibles.length === 0 ? (
-            <Vacio>Ningún espacio coincide. Quita el filtro para ver los {espacios.length}.</Vacio>
+            <Vacio>{t('comercial.negociacion.lista.sin-resultados', { n: espacios.length })}</Vacio>
           ) : (
           // Renglones en un `divide-y` como las listas del Dashboard, no
           // tarjetas con borde: el nombre a la izquierda y la antigüedad del
@@ -1246,7 +1345,7 @@ export function ComercialOpex({ hoyIso }: { hoyIso: string }) {
                       <Estado etapa={e.etapa} />
                       <span className="text-muted">
                         {e.vendedorNombre ?? '—'}
-                        {e.visibilidad ? ` · ${ETIQUETA_VISIBILIDAD[e.visibilidad]}` : ''}
+                        {e.visibilidad ? ` · ${t(CLAVE_VISIBILIDAD[e.visibilidad])}` : ''}
                       </span>
                     </div>
                   </button>
@@ -1276,12 +1375,11 @@ export function ComercialOpex({ hoyIso }: { hoyIso: string }) {
             // Sin espacios: la columna derecha ya no queda en blanco.
             <div className="rounded-md border border-border bg-surface p-8 text-center">
               <p className="m-0 text-[13px] text-muted">
-                Aquí verás el detalle de cada espacio: quién manda, la ficha, las ofertas al dueño y la
-                bitácora. Da de alta el primero para empezar.
+                {t('comercial.negociacion.detalle.vacio')}
               </p>
               <div className="mt-3">
                 <Button size="sm" variant="success" onClick={() => setAlta(true)}>
-                  <Plus className="h-3.5 w-3.5" /> Nuevo espacio
+                  <Plus className="h-3.5 w-3.5" /> {t('comercial.negociacion.nuevo')}
                 </Button>
               </div>
             </div>

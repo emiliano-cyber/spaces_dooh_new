@@ -18,8 +18,12 @@ import { ClientesBadge } from '@/components/demo/ClientesBadge'
 import {
   StatusBadge,
   pinTono,
-  SITIO_LABEL,
 } from '@/components/demo/StatusBadge'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
+import type { ClaveTexto } from '@/lib/i18n/diccionario'
+import { CLAVE_ESTATUS } from '@/components/demo/propuestas/estatus'
+import { CLAVE_SITIO_ESTATUS, CLAVE_TIPO_MEDIO } from '@/components/demo/comercial/claves'
 import { cn } from '@/lib/cn'
 import { descargarInventario } from '@/lib/inventario-export'
 import { itemsEnPropuesta, agruparPorPropuesta, type PropuestaEnVeremos } from '@/lib/data/en-propuesta'
@@ -48,23 +52,36 @@ import {
 const selectCls =
   'h-9 rounded border border-border-strong bg-surface px-2.5 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 
-// Leyenda del mapa en UN objeto del módulo, con los textos de `SITIO_LABEL`
-// (los mismos que dice la lista). Los colores son los de los pines de
+// Leyenda del mapa en UN lugar del módulo, con los textos de `SITIO_LABEL`
+// (los mismos que dice la lista; aquí por sus claves de traducción, ver
+// `components/demo/comercial/claves.ts`). Los colores son los de los pines de
 // `MapView` (`TONO_HEX`, que no se exporta y es del Dashboard, así que no se
 // toca): si cambian allá, hay que cambiarlos aquí.
-const LEYENDA_MAPA: { color: string; label: string }[] = [
-  { color: '#0a66ff', label: 'Digital' },
-  { color: '#10b981', label: SITIO_LABEL.DISPONIBLE },
-  { color: '#ef4444', label: `${SITIO_LABEL.OCUPADO} o ${SITIO_LABEL.BLOQUEADO.toLowerCase()}` },
-  { color: '#f59e0b', label: SITIO_LABEL.RESERVADO },
-]
+function leyendaMapa(t: (c: ClaveTexto, v?: Record<string, string | number>) => string): { color: string; label: string }[] {
+  return [
+    { color: '#0a66ff', label: t('comercial.pagina.leyenda.digital') },
+    { color: '#10b981', label: t(CLAVE_SITIO_ESTATUS.DISPONIBLE) },
+    {
+      color: '#ef4444',
+      label: t('comercial.pagina.leyenda.no-libre', {
+        ocupado: t(CLAVE_SITIO_ESTATUS.OCUPADO),
+        bloqueado: t(CLAVE_SITIO_ESTATUS.BLOQUEADO).toLowerCase(),
+      }),
+    },
+    { color: '#f59e0b', label: t(CLAVE_SITIO_ESTATUS.RESERVADO) },
+  ]
+}
 
-const ESTATUS_PROPUESTA_LABEL: Record<PropuestaEnVeremos['estatus'], string> = {
-  BORRADOR: 'Borrador',
-  ENVIADA: 'Enviada',
+// El chip de cada propuesta abierta: el MISMO texto que la lista de
+// Propuestas (`CLAVE_ESTATUS`, «Borrador» / «Enviada»).
+const ESTATUS_PROPUESTA_CLAVE: Record<PropuestaEnVeremos['estatus'], ClaveTexto> = {
+  BORRADOR: CLAVE_ESTATUS.BORRADOR,
+  ENVIADA: CLAVE_ESTATUS.ENVIADA,
 }
 
 export default function ComercialPage() {
+  const { t, idioma } = useIdioma()
+  const nPantallas = (n: number) => conteo(n, t('comercial.unidad.pantalla'), t('comercial.unidad.pantallas'))
   const sitios = useSitios()
   const propuestas = usePropuestas()
   const clientes = useClientes()
@@ -117,9 +134,9 @@ export default function ComercialPage() {
   function bajarInventario(formato: 'xlsx' | 'csv') {
     try {
       descargarInventario(filtrados, formato)
-      notify(`Descargadas ${filtrados.length} pantalla${filtrados.length === 1 ? '' : 's'}`)
+      notify(t(filtrados.length === 1 ? 'comercial.pagina.descargadas.uno' : 'comercial.pagina.descargadas.otros', { n: filtrados.length }))
     } catch {
-      notify('No se pudo generar el archivo. Prueba a filtrar para descargar menos pantallas.')
+      notify(t('comercial.pagina.descarga-error'))
     }
   }
 
@@ -226,12 +243,16 @@ export default function ComercialPage() {
     <div className="w-full space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl text-ink">Comercial</h1>
-          <p className="mt-1 text-[13px] text-muted">Tu red en el mapa · {conteo(filtrados.length, 'sitio')}</p>
+          <h1 className="text-2xl text-ink">{t('comercial.pagina.titulo')}</h1>
+          <p className="mt-1 text-[13px] text-muted">
+            {t('comercial.pagina.subtitulo', {
+              sitios: conteo(filtrados.length, t('comercial.unidad.sitio'), t('comercial.unidad.sitios')),
+            })}
+          </p>
         </div>
         {puedeCrear && (
           <Button variant="success" size="sm" onClick={() => setAltaOpen(true)}>
-            <Plus className="h-3.5 w-3.5" /> Nueva pantalla
+            <Plus className="h-3.5 w-3.5" /> {t('comercial.pagina.nueva-pantalla')}
           </Button>
         )}
       </div>
@@ -248,40 +269,48 @@ export default function ComercialPage() {
         ) : (
           <>
             <KPICard
-              label="Libres para vender"
-              value={formatNumero(cifras.libres)}
-              sub={`de ${conteo(filtrados.length, 'pantalla')}${filtrosActivos ? ' filtradas' : ''}`}
+              label={t('comercial.pagina.kpi.libres')}
+              value={formatNumero(cifras.libres, 0, idioma)}
+              sub={t(filtrosActivos ? 'comercial.pagina.kpi.libres.sub-filtradas' : 'comercial.pagina.kpi.libres.sub', {
+                pantallas: nPantallas(filtrados.length),
+              })}
               tono={cifras.libres > 0 ? 'verde' : 'neutro'}
               icon={<CheckCircle2 className="h-4 w-4" />}
             />
             <KPICard
-              label="Slots digitales libres"
-              value={cifras.slots == null ? '—' : formatNumero(cifras.slots)}
+              label={t('comercial.pagina.kpi.slots')}
+              value={cifras.slots == null ? '—' : formatNumero(cifras.slots, 0, idioma)}
               sub={
                 !cifras.hayDigitales
-                  ? 'no hay digitales en la vista'
+                  ? t('comercial.pagina.kpi.slots.sin-digitales')
                   : cifras.slots == null
-                    ? 'las digitales no tienen slots capturados'
-                    : 'sumando las digitales de la vista'
+                    ? t('comercial.pagina.kpi.slots.sin-capturar')
+                    : t('comercial.pagina.kpi.slots.sub')
               }
               tono="azul"
               icon={<LayoutGrid className="h-4 w-4" />}
             />
             <KPICard
-              label="En propuesta"
-              value={formatNumero(enVeremos.pantallas)}
+              label={t('comercial.pagina.en-propuesta')}
+              value={formatNumero(enVeremos.pantallas, 0, idioma)}
               sub={
                 enVeremos.props.length
-                  ? `pantallas en ${conteo(enVeremos.props.length, 'propuesta abierta', 'propuestas abiertas')} · no bloquean`
-                  : 'ninguna propuesta abierta'
+                  ? t('comercial.pagina.kpi.propuesta.sub', {
+                      propuestas: conteo(
+                        enVeremos.props.length,
+                        t('comercial.unidad.propuesta-abierta'),
+                        t('comercial.unidad.propuestas-abiertas'),
+                      ),
+                    })
+                  : t('comercial.pagina.kpi.propuesta.ninguna')
               }
               tono={enVeremos.props.length ? 'ambar' : 'neutro'}
               icon={<FileText className="h-4 w-4" />}
             />
             <KPICard
-              label="Bloqueadas por contrato"
-              value={formatNumero(cifras.bloqueadas)}
-              sub={cifras.bloqueadas ? 'contrato incompleto: se arreglan en Arrendadores' : 'todas con contrato completo'}
+              label={t('comercial.pagina.kpi.bloqueadas')}
+              value={formatNumero(cifras.bloqueadas, 0, idioma)}
+              sub={cifras.bloqueadas ? t('comercial.pagina.kpi.bloqueadas.sub') : t('comercial.pagina.kpi.bloqueadas.ninguna')}
               tono={cifras.bloqueadas ? 'ambar' : 'neutro'}
               icon={<Lock className="h-4 w-4" />}
             />
@@ -297,8 +326,8 @@ export default function ComercialPage() {
       {enVeremos.props.length > 0 && (
         <CardColapsable
           id="comercial.en-propuesta"
-          titulo="En propuesta"
-          subtitulo="pantallas que piden propuestas abiertas · avisan, no bloquean"
+          titulo={t('comercial.pagina.en-propuesta')}
+          subtitulo={t('comercial.pagina.en-propuesta.sub')}
           icono={<FileText className="h-4 w-4 text-[#9a6700]" />}
           className="bg-warning-soft"
           headerClassName="px-3 pt-3 pb-2"
@@ -311,13 +340,13 @@ export default function ComercialPage() {
                   <Link href={`/propuestas/${p.propuestaId}`} className="text-[13px] font-medium text-ink hover:underline">
                     {p.folio}
                   </Link>
-                  <span className="text-[13px] text-muted"> · {p.clienteNombre ?? 'sin cliente todavía'}</span>
+                  <span className="text-[13px] text-muted"> · {p.clienteNombre ?? t('comercial.pagina.en-propuesta.sin-cliente')}</span>
                   <div className="demo-num text-[11px] text-muted">
-                    {conteo(p.pantallas, 'pantalla')} · {formatFecha(p.desde)}–{formatFecha(p.hasta)}
+                    {nPantallas(p.pantallas)} · {formatFecha(p.desde, idioma)}–{formatFecha(p.hasta, idioma)}
                   </div>
                 </div>
                 <span className="shrink-0 rounded-full border border-[#f59e0b40] bg-surface px-2 py-0.5 text-[12px] font-medium text-[#9a6700]">
-                  {ESTATUS_PROPUESTA_LABEL[p.estatus]}
+                  {t(ESTATUS_PROPUESTA_CLAVE[p.estatus])}
                 </span>
               </li>
             ))}
@@ -332,34 +361,34 @@ export default function ComercialPage() {
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Buscar avenida, distrito…"
+            placeholder={t('comercial.pagina.buscar')}
             className="h-9 w-full rounded border border-border-strong bg-surface pl-8 pr-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
           />
         </div>
         <select className={selectCls} value={fTipo} onChange={(e) => setFTipo(e.target.value)}>
-          <option value="">Todos los tipos</option>
-          {Object.entries(TIPO_MEDIO_LABEL).map(([k, v]) => (
-            <option key={k} value={k}>{v}</option>
+          <option value="">{t('comercial.pagina.filtro.tipos')}</option>
+          {Object.keys(TIPO_MEDIO_LABEL).map((k) => (
+            <option key={k} value={k}>{t(CLAVE_TIPO_MEDIO[k as keyof typeof CLAVE_TIPO_MEDIO])}</option>
           ))}
         </select>
         <select className={selectCls} value={fDistrito} onChange={(e) => setFDistrito(e.target.value)}>
-          <option value="">Todos los distritos</option>
+          <option value="">{t('comercial.pagina.filtro.distritos')}</option>
           {distritos.map((d) => (
             <option key={d} value={d}>{d}</option>
           ))}
         </select>
         <select className={selectCls} value={fDisp} onChange={(e) => setFDisp(e.target.value)}>
-          <option value="">Toda disponibilidad</option>
-          <option value="DISPONIBLE">Disponible</option>
-          <option value="OCUPADO">No disponible</option>
-          <option value="BLOQUEADO">Bloqueado</option>
+          <option value="">{t('comercial.pagina.filtro.disponibilidad')}</option>
+          <option value="DISPONIBLE">{t(CLAVE_SITIO_ESTATUS.DISPONIBLE)}</option>
+          <option value="OCUPADO">{t('comercial.comun.no-disponible')}</option>
+          <option value="BLOQUEADO">{t(CLAVE_SITIO_ESTATUS.BLOQUEADO)}</option>
         </select>
         {rangosPrecio.length > 0 && (
           <select className={selectCls} value={fPrecio} onChange={(e) => setFPrecio(e.target.value)}>
-            <option value="">Cualquier precio</option>
+            <option value="">{t('comercial.pagina.filtro.precio')}</option>
             {rangosPrecio.map((c) => (
               <option key={c} value={c}>
-                ≤ {formatMontoCorto(c)}
+                ≤ {formatMontoCorto(c, idioma)}
               </option>
             ))}
           </select>
@@ -372,7 +401,7 @@ export default function ComercialPage() {
             onClick={limpiarFiltros}
             className="h-9 rounded border border-border bg-transparent px-3 text-[13px] font-medium text-info hover:bg-surface-2"
           >
-            Limpiar ({filtrosActivos})
+            {t('comercial.pagina.limpiar', { n: filtrosActivos })}
           </button>
         )}
       </div>
@@ -385,12 +414,12 @@ export default function ComercialPage() {
             fuera de la tarjeta: plegar la lista no los pierde. */}
         <CardColapsable
           id="comercial.inventario"
-          titulo="Inventario"
+          titulo={t('comercial.pagina.inventario')}
           icono={<SlidersHorizontal className="h-3.5 w-3.5 text-muted" />}
           className="flex max-h-[560px] flex-col overflow-hidden"
           headerClassName="border-b border-border px-3 py-2"
           contentClassName="flex min-h-0 flex-1 flex-col px-0 pb-0"
-          resumen={<span className="text-[12px] text-muted">{conteo(filtrados.length, 'resultado')}</span>}
+          resumen={<span className="text-[12px] text-muted">{conteo(filtrados.length, t('comercial.unidad.resultado'), t('comercial.unidad.resultados'))}</span>}
           accion={
               /* Baja lo que hay en pantalla, con los filtros aplicados. Aqui
                   eso es lo util: se filtra por zona o disponibilidad para armar
@@ -402,7 +431,7 @@ export default function ComercialPage() {
                 <button
                   onClick={() => bajarInventario('xlsx')}
                   disabled={filtrados.length === 0}
-                  title="Descargar estas pantallas en Excel"
+                  title={t('comercial.pagina.descargar-excel')}
                   className="rounded border-0 bg-transparent px-1.5 py-0.5 font-medium text-ink hover:bg-surface-2 disabled:cursor-not-allowed disabled:text-muted"
                 >
                   Excel
@@ -410,7 +439,7 @@ export default function ComercialPage() {
                 <button
                   onClick={() => bajarInventario('csv')}
                   disabled={filtrados.length === 0}
-                  title="Descargar estas pantallas en CSV"
+                  title={t('comercial.pagina.descargar-csv')}
                   className="rounded border-0 bg-transparent px-1.5 py-0.5 font-medium text-ink hover:bg-surface-2 disabled:cursor-not-allowed disabled:text-muted"
                 >
                   CSV
@@ -429,17 +458,30 @@ export default function ComercialPage() {
             ) : filtrados.length === 0 ? (
               <li className="px-4 py-10 text-center text-[13px] text-muted">
                 {/* Dice QUÉ filtros estorban, en vez de un «ninguno» a secas. */}
-                Ninguna pantalla cumple:{' '}
-                {[
-                  q && `«${q}»`,
-                  fTipo && `tipo «${TIPO_MEDIO_LABEL[fTipo as keyof typeof TIPO_MEDIO_LABEL] ?? fTipo}»`,
-                  fDistrito && fDistrito,
-                  fDisp && (fDisp === 'OCUPADO' ? 'no disponible' : fDisp.toLowerCase()),
-                  cortePrecio != null && `≤ ${formatMontoCorto(cortePrecio)}`,
-                ]
-                  .filter(Boolean)
-                  .join(' · ') || 'sin pantallas en el inventario'}
-                .{filtrosActivos > 0 && ' Quita un filtro o pulsa Limpiar.'}
+                {t('comercial.pagina.vacio', {
+                  filtros:
+                    [
+                      q && t('comercial.pagina.vacio.busqueda', { q }),
+                      fTipo &&
+                        t('comercial.pagina.vacio.tipo', {
+                          tipo:
+                            fTipo in CLAVE_TIPO_MEDIO
+                              ? t(CLAVE_TIPO_MEDIO[fTipo as keyof typeof CLAVE_TIPO_MEDIO])
+                              : fTipo,
+                        }),
+                      fDistrito && fDistrito,
+                      fDisp &&
+                        (fDisp === 'OCUPADO'
+                          ? t('comercial.pagina.vacio.no-disponible')
+                          : fDisp === 'DISPONIBLE' || fDisp === 'BLOQUEADO'
+                            ? t(CLAVE_SITIO_ESTATUS[fDisp]).toLowerCase()
+                            : fDisp.toLowerCase()),
+                      cortePrecio != null && `≤ ${formatMontoCorto(cortePrecio, idioma)}`,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ') || t('comercial.pagina.vacio.inventario-vacio'),
+                })}
+                {filtrosActivos > 0 && t('comercial.pagina.vacio.quitar-filtro')}
               </li>
             ) : (
               filtrados.map((s) => {
@@ -465,7 +507,7 @@ export default function ComercialPage() {
                           sel ? 'border-accent bg-accent text-accent-fg' : 'border-border-strong bg-surface',
                         )}
                         style={{ height: 18, width: 18 }}
-                        aria-label={sel ? 'Quitar de selección' : 'Seleccionar para reservar'}
+                        aria-label={sel ? t('comercial.pagina.quitar-seleccion') : t('comercial.pagina.seleccionar')}
                       >
                         {sel && <Check className="h-3 w-3" strokeWidth={3} />}
                       </button>
@@ -488,7 +530,7 @@ export default function ComercialPage() {
                           del renglón gris). */}
                       <div className="flex items-baseline justify-between gap-2">
                         <div className="truncate text-[15px] font-medium text-ink" title={s.nombre}>{s.nombre}</div>
-                        <div className="demo-num shrink-0 text-[13px] font-medium text-ink">{formatMonto(tarifaDeSitio(s))}</div>
+                        <div className="demo-num shrink-0 text-[13px] font-medium text-ink">{formatMonto(tarifaDeSitio(s), idioma)}</div>
                       </div>
                       {/* Renglón 2: código · alcaldía · propietario. La ciudad va
                           en el `title`: en una red de una ciudad es redundante. */}
@@ -499,13 +541,13 @@ export default function ComercialPage() {
                         <span className="demo-num shrink-0">{s.codigoProveedor}</span>
                         {s.alcaldia && <span className="shrink-0">· {s.alcaldia}</span>}
                         {esDigital && s.totalSpots == null && s.spotsPorHora != null && (
-                          <span className="demo-num shrink-0">· {formatNumero(s.spotsPorHora)} slots/h</span>
+                          <span className="demo-num shrink-0">· {formatNumero(s.spotsPorHora, 0, idioma)}{t('comercial.pagina.slots-hora')}</span>
                         )}
                         <span className="shrink-0">·</span>
                         <UserRound className="h-3.5 w-3.5 shrink-0" />
                         {/* v0.12.3 · una propia no tiene arrendador, y no es un pendiente. */}
-                        <span className="truncate" title={s.propio ? 'Pantalla propia' : (propietarioPorSitio.get(s.id) ?? 'Sin arrendador')}>
-                          {s.propio ? 'Propia' : (propietarioPorSitio.get(s.id) ?? 'Sin arrendador')}
+                        <span className="truncate" title={s.propio ? t('comercial.comun.pantalla-propia') : (propietarioPorSitio.get(s.id) ?? t('comercial.pagina.sin-arrendador'))}>
+                          {s.propio ? t('comercial.pagina.propia') : (propietarioPorSitio.get(s.id) ?? t('comercial.pagina.sin-arrendador'))}
                         </span>
                       </div>
                     </button>
@@ -541,15 +583,15 @@ export default function ComercialPage() {
                           href="/arrendadores"
                           onClick={(e) => e.stopPropagation()}
                           className="shrink-0"
-                          title="Completar el contrato en Arrendadores"
+                          title={t('comercial.pagina.completar-contrato')}
                         >
                           <StatusBadge tono="ambar" className="shrink-0 hover:underline">
-                            Contrato incompleto
+                            {t('comercial.pagina.contrato-incompleto')}
                           </StatusBadge>
                         </Link>
                       ) : (
                         <StatusBadge tono="ambar" className="shrink-0">
-                          Contrato incompleto
+                          {t('comercial.pagina.contrato-incompleto')}
                         </StatusBadge>
                       )
                     ) : (
@@ -559,12 +601,12 @@ export default function ComercialPage() {
                       // es por slots, salvo que esté bloqueada.
                       <StatusBadge tono={libre ? 'verde' : 'rojo'}>
                         {libre
-                          ? 'Disponible'
+                          ? t(CLAVE_SITIO_ESTATUS.DISPONIBLE)
                           : esDigital
                             ? s.estatusComercial === 'BLOQUEADO'
-                              ? SITIO_LABEL.BLOQUEADO
-                              : 'Sin slots libres'
-                            : SITIO_LABEL[s.estatusComercial]}
+                              ? t(CLAVE_SITIO_ESTATUS.BLOQUEADO)
+                              : t('comercial.pagina.sin-slots')
+                            : t(CLAVE_SITIO_ESTATUS[s.estatusComercial])}
                       </StatusBadge>
                     )}
                   </li>
@@ -577,18 +619,20 @@ export default function ComercialPage() {
           {seleccion.size > 0 && puedeCrear && (
             <div className="flex items-center justify-between border-t border-border bg-surface px-3 py-2.5">
               <div className="text-[12px] text-muted">
-                {seleccion.size} sel. ·{' '}
-                <span className="demo-num font-medium text-ink">{formatMonto(totalSel)}</span>/mes
+                {interpolarNodos(t('comercial.pagina.seleccion'), {
+                  n: seleccion.size,
+                  total: <span className="demo-num font-medium text-ink">{formatMonto(totalSel, idioma)}</span>,
+                })}
               </div>
               <Button size="sm" onClick={() => setReservaOpen(true)}>
-                Reservar
+                {t('comercial.pagina.reservar')}
               </Button>
             </div>
           )}
         </CardColapsable>
 
         {/* Mapa */}
-        <CardColapsable id="comercial.mapa" titulo="Mapa" className="overflow-hidden" contentClassName="px-0 pb-0">
+        <CardColapsable id="comercial.mapa" titulo={t('comercial.pagina.mapa')} className="overflow-hidden" contentClassName="px-0 pb-0">
           <div className="h-[560px] w-full">
             {sitios ? (
               <MapView points={puntos} selectedId={activo} onSelect={abrirFicha} zoom={11} />
@@ -597,7 +641,7 @@ export default function ComercialPage() {
             )}
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1.5 border-t border-border px-3 py-2 text-[11px] text-muted">
-            {LEYENDA_MAPA.map((x) => (
+            {leyendaMapa(t).map((x) => (
               <Pin key={x.label} color={x.color} label={x.label} />
             ))}
           </div>
@@ -608,7 +652,7 @@ export default function ComercialPage() {
       <AltaSitioDialog
         open={altaOpen}
         onOpenChange={setAltaOpen}
-        onCreado={(s) => notify(`Pantalla "${s.nombre}" dada de alta`)}
+        onCreado={(s) => notify(t('comercial.pagina.alta-hecha', { nombre: s.nombre }))}
       />
 
       {/* Ficha de sitio */}
@@ -624,7 +668,7 @@ export default function ComercialPage() {
             // sonner.error, NO notify(): el toast local de esta página
             // lleva palomita verde de éxito, y un bloqueo con palomita verde se
             // lee como "listo, hecho".
-            sonner.error('Esa pantalla tiene el contrato de arrendamiento incompleto. Complétalo en Arrendadores para poder venderla.')
+            sonner.error(t('comercial.pagina.sin-contrato-error'))
             return
           }
           setSeleccion(new Set([id]))
@@ -640,7 +684,7 @@ export default function ComercialPage() {
         sitios={sitiosSeleccionados}
         onReserved={(_, nombre) => {
           setSeleccion(new Set())
-          notify(`Sitios reservados: "${nombre}"`)
+          notify(t('comercial.pagina.reservados', { nombre }))
         }}
       />
 

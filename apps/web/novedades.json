@@ -1,75 +1,175 @@
 [
   {
+    "version": "v0.12.6",
+    "fecha": "2026-11-05",
+    "items": [
+      {
+        "tipo": "NUEVO",
+        "texto": "La aplicación se puede usar en inglés y en italiano. Cada servidor decide qué idiomas ofrece; quien entra elige el suyo en la pantalla de acceso.",
+        "en": "The application can now be used in English and Italian. Each server decides which languages it offers; you choose yours on the sign-in screen.",
+        "it": "L’applicazione si può usare in inglese e in italiano. Ogni server decide quali lingue offre; chi accede sceglie la sua nella schermata di accesso."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "En «Mi cuenta → Idioma» cada persona guarda su idioma, y lo encuentra igual en cualquier navegador.",
+        "en": "In “My account → Language” each person saves their language, and gets it on any browser.",
+        "it": "In «Il mio account → Lingua» ogni persona salva la sua lingua, e la ritrova uguale su qualsiasi browser."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Los papeles (contrato de ejemplo, constancia de firmas, propuesta imprimible, liga de la propuesta, portal, comprobante y correos) salen en el idioma elegido al crear el servidor.",
+        "en": "Documents (sample contract, signature record, printable proposal, proposal link, portal, receipt and emails) come out in the language chosen when the server was created.",
+        "it": "I documenti (contratto di esempio, attestazione delle firme, proposta stampabile, link della proposta, portale, ricevuta ed email) escono nella lingua scelta alla creazione del server."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Cada servidor trabaja en pesos o en dólares, elegido una sola vez al crearlo. Los servidores que ya existen siguen en pesos y se ven igual.",
+        "en": "Each server works in Mexican pesos or US dollars, chosen once when it is created. Existing servers stay in pesos and look the same.",
+        "it": "Ogni server lavora in pesos messicani o in dollari, scelti una sola volta alla creazione. I server esistenti restano in pesos e si vedono uguali."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Una coma mal puesta en un importe («2,5», «15000,50») ya no cambia la cifra en silencio: el campo la marca en rojo y no deja guardar hasta corregirla, igual al teclear que al pegar.",
+        "en": "A misplaced comma in an amount (“2,5”, “15000,50”) no longer changes the figure silently: the field marks it in red and will not save until it is fixed, whether typed or pasted.",
+        "it": "Una virgola nel posto sbagliato in un importo («2,5», «15000,50») non cambia più la cifra in silenzio: il campo la segna in rosso e non lascia salvare finché non è corretta, sia digitata sia incollata."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "La vigencia de las propuestas ya no depende de la hora: entre las 18:00 y la medianoche una propuesta válida «hasta hoy» se podía ver como vencida. El último día vale completo.",
+        "en": "Proposal validity no longer depends on the time of day: between 18:00 and midnight a proposal valid “until today” could show as expired. The last day now counts in full.",
+        "it": "La validità delle proposte non dipende più dall’ora: tra le 18:00 e mezzanotte una proposta valida «fino a oggi» poteva risultare scaduta. L’ultimo giorno ora vale per intero."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Los botones de los mapas, los avisos y la X de cerrar ventanas tienen nombre en el idioma de cada persona, también para lectores de pantalla.",
+        "en": "Map buttons, notifications and the X that closes windows are labelled in each person’s language, screen readers included.",
+        "it": "I pulsanti delle mappe, gli avvisi e la X che chiude le finestre hanno un nome nella lingua di ogni persona, anche per i lettori di schermo."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Space Eyes: la galería dice de dónde salió cada foto y de qué campaña, una pantalla apagada ya no entra como creativo nuevo, y la ficha explica por qué faltan fotos.",
+        "en": "Space Eyes: the gallery shows where each photo came from and for which campaign, a switched-off screen no longer counts as a new creative, and the record explains why photos are missing.",
+        "it": "Space Eyes: la galleria dice da dove viene ogni foto e di quale campagna, uno schermo spento non entra più come nuova creatività, e la scheda spiega perché mancano foto."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Space Eyes se puede agregar a un servidor que ya existe, y los equipos entran por el dominio de su propia empresa.",
+        "en": "Space Eyes can be added to an existing server, and devices connect through their own company’s domain.",
+        "it": "Space Eyes si può aggiungere a un server già esistente, e i dispositivi entrano dal dominio della propria azienda."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "En Paquetes, los textos ya no dan por hecho que se cobra en pesos.",
+        "en": "In Packages, the texts no longer assume you charge in pesos.",
+        "it": "In Pacchetti, i testi non danno più per scontato che si incassi in pesos."
+      }
+    ]
+  },
+  {
     "version": "v0.12.5",
     "fecha": "2026-10-29",
     "items": [
       {
         "tipo": "NUEVO",
-        "texto": "«Generar PDF» de una propuesta abre el documento para el cliente: pantallas con foto, mapa, importes, términos y condiciones, y la liga con su código QR. Se guarda como PDF desde «Imprimir»."
+        "texto": "«Generar PDF» de una propuesta abre el documento para el cliente: pantallas con foto, mapa, importes, términos y condiciones, y la liga con su código QR. Se guarda como PDF desde «Imprimir».",
+        "en": "“Generate PDF” on a proposal opens the document for the client: screens with photo, map, amounts, terms and conditions, and the link with its QR code. Save it as a PDF from “Print”.",
+        "it": "«Genera PDF» di una proposta apre il documento per il cliente: impianti con foto, mappa, importi, termini e condizioni, e il link con il suo codice QR. Si salva come PDF da «Stampa»."
       },
       {
         "tipo": "NUEVO",
-        "texto": "«Enviar» manda la propuesta por correo al cliente, con un mensaje opcional y copia para ti. En una propuesta ya enviada el botón es «Reenviar»."
+        "texto": "«Enviar» manda la propuesta por correo al cliente, con un mensaje opcional y copia para ti. En una propuesta ya enviada el botón es «Reenviar».",
+        "en": "“Send” emails the proposal to the client, with an optional message and a copy for you. On a proposal that was already sent, the button is “Resend”.",
+        "it": "«Invia» manda la proposta al cliente via email, con un messaggio facoltativo e una copia per te. In una proposta già inviata il pulsante è «Invia di nuovo»."
       },
       {
         "tipo": "NUEVO",
-        "texto": "Las propuestas tienen vigencia: al enviarlas valen 30 días (cada organización lo cambia en Administración). Vencida, el cliente ya no puede aceptarla desde su liga; por dentro se le pone otra fecha o se reenvía."
+        "texto": "Las propuestas tienen vigencia: al enviarlas valen 30 días (cada organización lo cambia en Administración). Vencida, el cliente ya no puede aceptarla desde su liga; por dentro se le pone otra fecha o se reenvía.",
+        "en": "Proposals now have a validity period: once sent, they are valid for 30 days (each organization can change this in Settings). Once expired, the client can no longer accept it from their link; internally you can set another date or resend it.",
+        "it": "Le proposte hanno una validità: una volta inviate valgono 30 giorni (ogni organizzazione può cambiarla in Impostazioni). Una volta scaduta, il cliente non può più accettarla dal suo link; internamente puoi impostare un’altra data o inviarla di nuovo."
       },
       {
         "tipo": "NUEVO",
-        "texto": "Términos y condiciones en las propuestas: una plantilla en Administración que cada propuesta copia al crearse y se puede ajustar en su ficha."
+        "texto": "Términos y condiciones en las propuestas: una plantilla en Administración que cada propuesta copia al crearse y se puede ajustar en su ficha.",
+        "en": "Terms and conditions on proposals: a template in Settings that each proposal copies when it is created and that can be adjusted on its profile.",
+        "it": "Termini e condizioni nelle proposte: un modello in Impostazioni che ogni proposta copia quando viene creata e che si può modificare nella sua scheda."
       },
       {
         "tipo": "NUEVO",
-        "texto": "A una propuesta en borrador o enviada se le pueden agregar y quitar pantallas. Si ya estaba enviada, sube de versión."
+        "texto": "A una propuesta en borrador o enviada se le pueden agregar y quitar pantallas. Si ya estaba enviada, sube de versión.",
+        "en": "You can add and remove screens on a draft or sent proposal. If it had already been sent, its version goes up.",
+        "it": "A una proposta in bozza o inviata puoi aggiungere e togliere impianti. Se era già stata inviata, passa a una nuova versione."
       },
       {
         "tipo": "NUEVO",
-        "texto": "«Duplicar» crea una propuesta nueva con las mismas pantallas y el mismo cliente, cotizada con la tarifa de hoy. «Borrar» quita un borrador (y devuelve el uso del código de negociación, si tenía)."
+        "texto": "«Duplicar» crea una propuesta nueva con las mismas pantallas y el mismo cliente, cotizada con la tarifa de hoy. «Borrar» quita un borrador (y devuelve el uso del código de negociación, si tenía).",
+        "en": "“Duplicate” creates a new proposal with the same screens and the same client, quoted at today’s rate. “Delete” removes a draft (and makes the negotiation code’s use available again, if it had one).",
+        "it": "«Duplica» crea una nuova proposta con gli stessi impianti e lo stesso cliente, quotata con la tariffa di oggi. «Elimina» toglie una bozza (e restituisce l’uso del codice di negoziazione, se ne aveva uno)."
       },
       {
         "tipo": "CORREGIDO",
-        "texto": "Si se borra a un vendedor, sus ventas siguen saliendo a su nombre en Reportes y en el Dashboard, en vez de pasar a «Sin vendedor»."
+        "texto": "Si se borra a un vendedor, sus ventas siguen saliendo a su nombre en Reportes y en el Dashboard, en vez de pasar a «Sin vendedor».",
+        "en": "If a sales rep is deleted, their sales still show under their name in Reports and on the Dashboard, instead of moving to “No sales rep”.",
+        "it": "Se si elimina un commerciale, le sue vendite continuano a comparire a suo nome in Report e nella Dashboard, invece di passare a «Nessun commerciale»."
       },
       {
         "tipo": "NUEVO",
-        "texto": "Extender una campaña ahora pide el contrato firmado de la extensión. En la ficha de la campaña, la tarjeta «Extensiones» tiene el botón «Extender campaña» y la lista de extensiones con su folio, fechas, quién la hizo y su contrato. El contrato original no se toca."
+        "texto": "Extender una campaña ahora pide el contrato firmado de la extensión. En la ficha de la campaña, la tarjeta «Extensiones» tiene el botón «Extender campaña» y la lista de extensiones con su folio, fechas, quién la hizo y su contrato. El contrato original no se toca.",
+        "en": "Extending a campaign now asks for the extension’s signed contract. On the campaign’s profile, the “Extensions” card has the “Extend campaign” button and the list of extensions with their internal ref., dates, who made each one and its contract. The original contract is left untouched.",
+        "it": "Estendere una campagna ora richiede il contratto firmato dell’estensione. Nella scheda della campagna, il riquadro «Estensioni» ha il pulsante «Estendi campagna» e l’elenco delle estensioni con il loro rif. interno, le date, chi le ha fatte e il loro contratto. Il contratto originale non si tocca."
       },
       {
         "tipo": "NUEVO",
-        "texto": "En Comercial negociación la ubicación se pone pegando coordenadas (19.4326, -99.1332 o 19°25'57.4\"N 99°07'59.5\"W) o un enlace de Google Maps, también el corto del teléfono. El pin se pone ahí y se afina arrastrándolo."
+        "texto": "En Comercial negociación la ubicación se pone pegando coordenadas (19.4326, -99.1332 o 19°25'57.4\"N 99°07'59.5\"W) o un enlace de Google Maps, también el corto del teléfono. El pin se pone ahí y se afina arrastrándolo.",
+        "en": "In Lease negotiation, the location is set by pasting coordinates (19.4326, -99.1332 or 19°25'57.4\"N 99°07'59.5\"W) or a Google Maps link, including the short one from your phone. The pin is placed there and you fine-tune it by dragging it.",
+        "it": "In Negoziazione locazioni la posizione si imposta incollando le coordinate (19.4326, -99.1332 o 19°25'57.4\"N 99°07'59.5\"W) o un link di Google Maps, anche quello breve del telefono. Il segnaposto si mette lì e lo rifinisci trascinandolo."
       },
       {
         "tipo": "NUEVO",
-        "texto": "En la ficha de la campaña, «Reproducciones» muestra cada anuncio publicado con sus pantallas de DOOHmain y cómo está allí: al aire, en pausa, programado, terminado o finalizado (y si lo borraron en DOOHmain, también lo dice). Un anuncio se puede pausar y reanudar sin perderlo ni volver a publicarlo."
+        "texto": "En la ficha de la campaña, «Reproducciones» muestra cada anuncio publicado con sus pantallas de DOOHmain y cómo está allí: al aire, en pausa, programado, terminado o finalizado (y si lo borraron en DOOHmain, también lo dice). Un anuncio se puede pausar y reanudar sin perderlo ni volver a publicarlo.",
+        "en": "On the campaign’s profile, “Plays” shows each published ad with its DOOHmain screens and its status there: on air, paused, scheduled, ended or finished (and if it was deleted in DOOHmain, it says so too). An ad can be paused and resumed without losing it or publishing it again.",
+        "it": "Nella scheda della campagna, «Passaggi» mostra ogni annuncio pubblicato con i suoi schermi di DOOHmain e il suo stato lì: in onda, in pausa, programmato, concluso o terminato (e se è stato eliminato su DOOHmain, lo dice). Un annuncio si può mettere in pausa e riprendere senza perderlo né pubblicarlo di nuovo."
       },
       {
         "tipo": "NUEVO",
-        "texto": "Pestaña «Historial de sus pantallas»: lo que DOOHmain registró día por día en las pantallas de la campaña. Incluye otras campañas de esas pantallas, así que no cuenta como prueba de esta ni la deja lista para facturar."
+        "texto": "Pestaña «Historial de sus pantallas»: lo que DOOHmain registró día por día en las pantallas de la campaña. Incluye otras campañas de esas pantallas, así que no cuenta como prueba de esta ni la deja lista para facturar.",
+        "en": "“Screen history” tab: what DOOHmain logged day by day on the campaign’s screens. It includes other campaigns on those screens, so it does not count as proof for this one and does not make it ready to invoice.",
+        "it": "Scheda «Storico dei suoi schermi»: quello che DOOHmain ha registrato giorno per giorno sugli schermi della campagna. Include altre campagne di quegli schermi, quindi non vale come prova di questa e non la rende pronta per la fatturazione."
       },
       {
         "tipo": "CORREGIDO",
-        "texto": "Al generar una campaña desde una propuesta con la misma pantalla en dos horarios o dos periodos, cada reserva lleva el importe de su línea. Antes las dos tomaban el de la última. Las campañas ya generadas no cambian."
+        "texto": "Al generar una campaña desde una propuesta con la misma pantalla en dos horarios o dos periodos, cada reserva lleva el importe de su línea. Antes las dos tomaban el de la última. Las campañas ya generadas no cambian.",
+        "en": "When a campaign is generated from a proposal with the same screen in two time slots or two periods, each booking carries its own line’s amount. Before, both took the amount of the last one. Campaigns already generated do not change.",
+        "it": "Quando si genera una campagna da una proposta con lo stesso impianto in due orari o due periodi, ogni prenotazione riporta l’importo della sua riga. Prima entrambe prendevano quello dell’ultima. Le campagne già generate non cambiano."
       },
       {
         "tipo": "CORREGIDO",
-        "texto": "Una propuesta aprobada solo nombra la temporada si fue la que puso el precio."
+        "texto": "Una propuesta aprobada solo nombra la temporada si fue la que puso el precio.",
+        "en": "An approved proposal only names the season if that season set the price.",
+        "it": "Una proposta approvata nomina la stagione solo se è stata quella a fissare il prezzo."
       },
       {
         "tipo": "CORREGIDO",
-        "texto": "Reportes: vender dos horarios de la misma pantalla ya no la saca de «tarifa publicada vs neta»."
+        "texto": "Reportes: vender dos horarios de la misma pantalla ya no la saca de «tarifa publicada vs neta».",
+        "en": "Reports: selling two time slots of the same screen no longer drops it from “Published vs net”.",
+        "it": "Report: vendere due orari dello stesso impianto non lo esclude più da «Pubblicata vs netta»."
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "Reemplazar un anuncio aprobado avisa antes que el anterior se baja del aire en DOOHmain y recuerda eliminar su campaña en el panel de DOOHmain (la que aparece como finalizada)."
+        "texto": "Reemplazar un anuncio aprobado avisa antes que el anterior se baja del aire en DOOHmain y recuerda eliminar su campaña en el panel de DOOHmain (la que aparece como finalizada).",
+        "en": "Replacing an approved ad now warns beforehand that the previous one goes off air in DOOHmain, and reminds you to delete its campaign in the DOOHmain panel (the one shown as finished).",
+        "it": "Sostituire un annuncio approvato ora avvisa in anticipo che il precedente andrà fuori onda su DOOHmain e ricorda di eliminare la sua campagna nel pannello di DOOHmain (quella che risulta terminata)."
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "Franjas y temporadas pide la contraseña cuando el control de cambios está encendido, en vez de mostrar un error sin salida."
+        "texto": "Franjas y temporadas pide la contraseña cuando el control de cambios está encendido, en vez de mostrar un error sin salida.",
+        "en": "Dayparts and seasons asks for the password when change control is on, instead of showing an error with no way out.",
+        "it": "Fasce orarie e stagioni chiede la password quando il controllo delle modifiche è attivo, invece di mostrare un errore senza via d’uscita."
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "El reporte de rentabilidad se pide de hasta 24 meses por consulta."
+        "texto": "El reporte de rentabilidad se pide de hasta 24 meses por consulta.",
+        "en": "The profitability report can cover up to 24 months per query.",
+        "it": "Il report di redditività si richiede per un massimo di 24 mesi per consultazione."
       }
     ]
   },
@@ -79,31 +179,45 @@
     "items": [
       {
         "tipo": "AJUSTADO",
-        "texto": "Nuevo diseño: todas las pantallas (menos Space Eyes) se ven como el Dashboard. Cada módulo abre con sus cifras clave arriba, filtros en chips con su conteo, listas más compactas y «Ver todas». Nada cambia en lo que hacen: los mismos botones, permisos y cifras."
+        "texto": "Nuevo diseño: todas las pantallas (menos Space Eyes) se ven como el Dashboard. Cada módulo abre con sus cifras clave arriba, filtros en chips con su conteo, listas más compactas y «Ver todas». Nada cambia en lo que hacen: los mismos botones, permisos y cifras.",
+        "en": "New design: every page (except Space Eyes) looks like the Dashboard. Each module opens with its key figures at the top, chip filters with their counts, more compact lists and “Show all”. Nothing changes in what they do: same buttons, permissions and figures.",
+        "it": "Nuovo design: tutte le pagine (tranne Space Eyes) hanno l’aspetto della Dashboard. Ogni modulo si apre con le sue cifre chiave in alto, filtri a chip con il loro conteggio, elenchi più compatti e «Mostra tutte». Non cambia nulla in quello che fanno: stessi pulsanti, permessi e cifre."
       },
       {
         "tipo": "NUEVO",
-        "texto": "El Dashboard muestra lo de cada quien: quien ve Finanzas tiene el ingreso y el margen del mes; un vendedor, su pipeline abierto, su tasa de cierre y lo ganado. Además: huecos y renovaciones de los próximos 30 días, por cobrar por antigüedad y alertas ordenadas por urgencia."
+        "texto": "El Dashboard muestra lo de cada quien: quien ve Finanzas tiene el ingreso y el margen del mes; un vendedor, su pipeline abierto, su tasa de cierre y lo ganado. Además: huecos y renovaciones de los próximos 30 días, por cobrar por antigüedad y alertas ordenadas por urgencia.",
+        "en": "The Dashboard shows what matters to each person: whoever sees Finance gets the month’s revenue and margin; a sales rep gets their open pipeline, their close rate and what they won. Also: gaps and renewals in the next 30 days, receivables by age and alerts sorted by urgency.",
+        "it": "La Dashboard mostra quello che serve a ciascuno: chi vede Finanza ha i ricavi e il margine del mese; un commerciale, la sua pipeline aperta, il suo tasso di chiusura e quanto ha vinto. Inoltre: spazi vuoti e rinnovi dei prossimi 30 giorni, crediti da incassare per anzianità e avvisi ordinati per urgenza."
       },
       {
         "tipo": "CORREGIDO",
-        "texto": "El ingreso y el margen del Dashboard son los del mes y coinciden con Reportes → Rentabilidad. Antes el ingreso sumaba todas las ventas confirmadas y la renta se contaba una vez por venta."
+        "texto": "El ingreso y el margen del Dashboard son los del mes y coinciden con Reportes → Rentabilidad. Antes el ingreso sumaba todas las ventas confirmadas y la renta se contaba una vez por venta.",
+        "en": "The Dashboard’s revenue and margin are the month’s and match Reports → Profitability. Before, revenue added up every confirmed sale and rent was counted once per sale.",
+        "it": "I ricavi e il margine della Dashboard sono quelli del mese e coincidono con Report → Redditività. Prima i ricavi sommavano tutte le vendite confermate e il canone si contava una volta per ogni vendita."
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "«Tentativo» ahora quiere decir «está en una propuesta». En Disponibilidad, una pantalla que alguien pidió en una propuesta abierta sale «En propuesta», en ámbar, con qué propuesta y qué cliente. Es solo un aviso: se puede seguir ofreciendo."
+        "texto": "«Tentativo» ahora quiere decir «está en una propuesta». En Disponibilidad, una pantalla que alguien pidió en una propuesta abierta sale «En propuesta», en ámbar, con qué propuesta y qué cliente. Es solo un aviso: se puede seguir ofreciendo.",
+        "en": "“Tentative” now means “it is in a proposal”. In Availability, a screen someone requested in an open proposal shows as “In a proposal”, in amber, with which proposal and which client. It is only a heads-up: it can still be offered.",
+        "it": "«Provvisorio» ora vuol dire «è in una proposta». In Disponibilità, un impianto che qualcuno ha richiesto in una proposta aperta risulta «In proposta», in ambra, con la proposta e il cliente. È solo un avviso: si può continuare a offrire."
       },
       {
         "tipo": "NUEVO",
-        "texto": "Un contrato firmado ya se puede cambiar: «Editar términos» pide el motivo, guarda la versión firmada en «Versiones firmadas anteriores» y lo vuelve a mandar a firma. Antes de enviar a firma se revisan los datos que va a llevar."
+        "texto": "Un contrato firmado ya se puede cambiar: «Editar términos» pide el motivo, guarda la versión firmada en «Versiones firmadas anteriores» y lo vuelve a mandar a firma. Antes de enviar a firma se revisan los datos que va a llevar.",
+        "en": "A signed contract can now be changed: “Edit terms” asks for the reason, saves the signed version under “Previous signed versions” and sends it out for signature again. Before sending it for signature, you review the data it will carry.",
+        "it": "Un contratto firmato ora si può modificare: «Modifica termini» chiede il motivo, salva la versione firmata in «Versioni firmate precedenti» e lo rimanda alla firma. Prima di inviarlo alla firma si controllano i dati che riporterà."
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "«Pantalla propia» también en el alta desde Comercial, y al volver a importar pantallas propias que ya existían quedan como propias."
+        "texto": "«Pantalla propia» también en el alta desde Comercial, y al volver a importar pantallas propias que ya existían quedan como propias.",
+        "en": "“Owned screen” is also available when adding from Sales, and owned screens that already existed stay owned when you import them again.",
+        "it": "«Impianto di proprietà» anche nell’inserimento da Vendite, e reimportando impianti di proprietà che esistevano già restano di proprietà."
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "En la ficha de campaña, «Validación de publicación» está siempre abierta, debajo de los creativos. Y si la campaña ya tiene franja horaria, no se le pone otro horario: se muestra qué franja se manda a DOOHmain."
+        "texto": "En la ficha de campaña, «Validación de publicación» está siempre abierta, debajo de los creativos. Y si la campaña ya tiene franja horaria, no se le pone otro horario: se muestra qué franja se manda a DOOHmain.",
+        "en": "On the campaign’s profile, “Publication review” is always open, below the creatives. And if the campaign already has a daypart, no other schedule is set: it shows which daypart is sent to DOOHmain.",
+        "it": "Nella scheda della campagna, «Convalida della pubblicazione» è sempre aperta, sotto le creatività. E se la campagna ha già una fascia oraria, non le si imposta un altro orario: si mostra quale fascia oraria si manda a DOOHmain."
       }
     ]
   },
@@ -113,19 +227,27 @@
     "items": [
       {
         "tipo": "NUEVO",
-        "texto": "Pantallas y lugares propios: al dar de alta o importar se puede marcar «Pantalla propia». No pide arrendador ni contrato, se puede vender igual y su costo es solo luz y operación."
+        "texto": "Pantallas y lugares propios: al dar de alta o importar se puede marcar «Pantalla propia». No pide arrendador ni contrato, se puede vender igual y su costo es solo luz y operación.",
+        "en": "Owned screens and locations: when adding or importing, you can tick “Owned screen”. It does not ask for a landlord or a contract, it can be sold just the same, and its only costs are electricity and operations.",
+        "it": "Impianti e luoghi di proprietà: inserendo o importando si può spuntare «Impianto di proprietà». Non chiede locatore né contratto, si può vendere lo stesso e il suo costo è solo luce e operazioni."
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "En la propuesta, si escribes a mano la fecha «Hasta», la duración se pone sola: meses, catorcenas, semanas o días, la que cuadre exacta."
+        "texto": "En la propuesta, si escribes a mano la fecha «Hasta», la duración se pone sola: meses, catorcenas, semanas o días, la que cuadre exacta.",
+        "en": "In a proposal, if you type the “To” date by hand, the duration fills in on its own: months, two-week periods, weeks or days, whichever fits exactly.",
+        "it": "Nella proposta, se scrivi a mano la data «Fino a», la durata si imposta da sola: mesi, periodi di due settimane, settimane o giorni, quella che torna esatta."
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "En Creativos, varios creativos en un mismo spot rotan solos en partes iguales: se marca cuáles van y ya no hay que escribir cuántas veces sale cada uno."
+        "texto": "En Creativos, varios creativos en un mismo spot rotan solos en partes iguales: se marca cuáles van y ya no hay que escribir cuántas veces sale cada uno.",
+        "en": "In Creatives, several creatives in the same spot rotate on their own in equal shares: you tick which ones go in and no longer have to type how many times each one plays.",
+        "it": "In Creatività, più creatività nello stesso spot ruotano da sole in parti uguali: spunti quali vanno e non devi più scrivere quante volte esce ciascuna."
       },
       {
         "tipo": "CORREGIDO",
-        "texto": "Al reemplazar un creativo publicado, si DOOHmain no confirma que finalizó el anterior, ya no se reemplaza a medias: avisa y no cambia nada. Y se explica que el arte anterior sigue en la lista de DOOHmain, finalizado, porque DOOHmain no deja quitarlo."
+        "texto": "Al reemplazar un creativo publicado, si DOOHmain no confirma que finalizó el anterior, ya no se reemplaza a medias: avisa y no cambia nada. Y se explica que el arte anterior sigue en la lista de DOOHmain, finalizado, porque DOOHmain no deja quitarlo.",
+        "en": "When replacing a published creative, if DOOHmain does not confirm that the previous one finished, it is no longer half-replaced: you get a warning and nothing changes. It also explains that the previous artwork stays in the DOOHmain list, finished, because DOOHmain does not allow removing it.",
+        "it": "Sostituendo una creatività pubblicata, se DOOHmain non conferma che la precedente è terminata, non si sostituisce più a metà: avvisa e non cambia nulla. E spiega che la grafica precedente resta nell’elenco di DOOHmain, terminata, perché DOOHmain non permette di toglierla."
       }
     ]
   },
@@ -135,51 +257,75 @@
     "items": [
       {
         "tipo": "NUEVO",
-        "texto": "Comercial negociación ya guarda de verdad: das de alta cada espacio que persigues (muro, azotea, terreno o pantalla) con su ficha, contactos, ofertas de renta al dueño, competencia, historial de contactos y notas."
+        "texto": "Comercial negociación ya guarda de verdad: das de alta cada espacio que persigues (muro, azotea, terreno o pantalla) con su ficha, contactos, ofertas de renta al dueño, competencia, historial de contactos y notas.",
+        "en": "Lease negotiation now really saves: you add each space you are pursuing (wall, rooftop, lot or screen) with its profile, contacts, rent offers to the owner, competitors, contact history and notes.",
+        "it": "Negoziazione locazioni ora salva davvero: inserisci ogni spazio che stai cercando di ottenere (muro, tetto, terreno o schermo) con la sua scheda, i contatti, le offerte di affitto al proprietario, la concorrenza, lo storico dei contatti e le note."
       },
       {
         "tipo": "NUEVO",
-        "texto": "Cada espacio tiene su visibilidad (cercana, media o lejana) y sus medidas: ancho y alto con el área calculada, y la superficie del terreno."
+        "texto": "Cada espacio tiene su visibilidad (cercana, media o lejana) y sus medidas: ancho y alto con el área calculada, y la superficie del terreno.",
+        "en": "Each space has its visibility (near, medium or far) and its measurements: width and height with the calculated area, and the lot’s surface.",
+        "it": "Ogni spazio ha la sua visibilità (vicina, media o lontana) e le sue misure: larghezza e altezza con l’area calcolata, e la superficie del terreno."
       },
       {
         "tipo": "NUEVO",
-        "texto": "Ubicación de cada espacio: busca la dirección, elige el resultado y afina el punto arrastrando el pin en el mapa. Se guarda el punto que dejas marcado."
+        "texto": "Ubicación de cada espacio: busca la dirección, elige el resultado y afina el punto arrastrando el pin en el mapa. Se guarda el punto que dejas marcado.",
+        "en": "Location of each space: search for the address, pick the result and fine-tune the point by dragging the pin on the map. The point you leave marked is the one saved.",
+        "it": "Posizione di ogni spazio: cerca l’indirizzo, scegli il risultato e rifinisci il punto trascinando il segnaposto sulla mappa. Si salva il punto che lasci segnato."
       },
       {
         "tipo": "NUEVO",
-        "texto": "Notas adicionales en cada espacio, con quién las escribió y cuándo. No se editan ni se borran."
+        "texto": "Notas adicionales en cada espacio, con quién las escribió y cuándo. No se editan ni se borran.",
+        "en": "Additional notes on each space, with who wrote them and when. They cannot be edited or deleted.",
+        "it": "Note aggiuntive in ogni spazio, con chi le ha scritte e quando. Non si modificano né si eliminano."
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "Para marcar «Responsable legal confirmado» hay que indicar antes qué contacto firma. Las ofertas al dueño van por versiones y no se borran: son la historia de la negociación."
+        "texto": "Para marcar «Responsable legal confirmado» hay que indicar antes qué contacto firma. Las ofertas al dueño van por versiones y no se borran: son la historia de la negociación.",
+        "en": "To tick “Legal representative confirmed”, you first have to say which contact signs. Offers to the owner are versioned and never deleted: they are the history of the negotiation.",
+        "it": "Per spuntare «Responsabile legale confermato» bisogna prima indicare quale contatto firma. Le offerte al proprietario vanno per versioni e non si eliminano: sono la storia della negoziazione."
       },
       {
         "tipo": "NUEVO",
-        "texto": "Al publicar en DOOHmain se manda también cuántas reproducciones le tocan a cada pantalla en toda la campaña y los datos del cliente (RFC, razón social, dirección y si es directo o agencia). Si la campaña tiene franja de horario, se manda su horario y DOOHmain reparte las reproducciones dentro de él; si no, se manda lo mismo que antes."
+        "texto": "Al publicar en DOOHmain se manda también cuántas reproducciones le tocan a cada pantalla en toda la campaña y los datos del cliente (RFC, razón social, dirección y si es directo o agencia). Si la campaña tiene franja de horario, se manda su horario y DOOHmain reparte las reproducciones dentro de él; si no, se manda lo mismo que antes.",
+        "en": "Publishing to DOOHmain now also sends how many plays each screen gets over the whole campaign, plus the client’s details (RFC, legal entity, address and whether it is direct or an agency). If the campaign has a daypart, its schedule is sent and DOOHmain spreads the plays within it; if not, the same as before is sent.",
+        "it": "Pubblicando su DOOHmain si mandano anche quanti passaggi spettano a ogni schermo in tutta la campagna e i dati del cliente (RFC, ragione sociale, indirizzo e se è diretto o agenzia). Se la campagna ha una fascia oraria, si manda il suo orario e DOOHmain distribuisce i passaggi al suo interno; altrimenti si manda lo stesso di prima."
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "En la ficha de la campaña, al enviar al dominio y al publicar, sale un recordatorio: no estar en la pantalla dentro del sitio de DOOHmain para permitir el proceso."
+        "texto": "En la ficha de la campaña, al enviar al dominio y al publicar, sale un recordatorio: no estar en la pantalla dentro del sitio de DOOHmain para permitir el proceso.",
+        "en": "On the campaign’s profile, when submitting for publishing and when publishing, a reminder appears: do not stay on the screen’s page inside the DOOHmain site, so the process can run.",
+        "it": "Nella scheda della campagna, inviando per la pubblicazione e pubblicando, compare un promemoria: non restare nella pagina dello schermo dentro il sito di DOOHmain, per permettere il processo."
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "Los creativos son lo primero de la ficha de la campaña y siempre están abiertos: se ven y se suben ahí mismo en cualquier momento, aunque la campaña ya esté cerrada."
+        "texto": "Los creativos son lo primero de la ficha de la campaña y siempre están abiertos: se ven y se suben ahí mismo en cualquier momento, aunque la campaña ya esté cerrada.",
+        "en": "Creatives come first on the campaign’s profile and are always open: you see them and upload them right there at any time, even if the campaign is already closed.",
+        "it": "Le creatività sono la prima cosa nella scheda della campagna e sono sempre aperte: si vedono e si caricano lì stesso in qualsiasi momento, anche se la campagna è già chiusa."
       },
       {
         "tipo": "NUEVO",
-        "texto": "Antes de publicar en DOOHmain se ve lo que se va a mandar: por cada pantalla, el creativo, el horario de la franja (o todo el día) y cuántas reproducciones por día y en toda la campaña."
+        "texto": "Antes de publicar en DOOHmain se ve lo que se va a mandar: por cada pantalla, el creativo, el horario de la franja (o todo el día) y cuántas reproducciones por día y en toda la campaña.",
+        "en": "Before publishing to DOOHmain you see what will be sent: for each screen, the creative, the daypart’s schedule (or all day) and how many plays per day and over the whole campaign.",
+        "it": "Prima di pubblicare su DOOHmain si vede quello che verrà inviato: per ogni schermo, la creatività, l’orario della fascia oraria (o tutto il giorno) e quanti passaggi al giorno e in tutta la campagna."
       },
       {
         "tipo": "CORREGIDO",
-        "texto": "El aviso de la franja horaria decía que no se envía al CMS; ahora dice que a DOOHmain sí se envía al publicar, y que en pantallas de otro CMS hay que programarla a mano."
+        "texto": "El aviso de la franja horaria decía que no se envía al CMS; ahora dice que a DOOHmain sí se envía al publicar, y que en pantallas de otro CMS hay que programarla a mano.",
+        "en": "The daypart notice used to say it is not sent to the CMS; it now says it is sent to DOOHmain when publishing, and that on screens with another CMS it has to be scheduled by hand.",
+        "it": "L’avviso della fascia oraria diceva che non si invia al CMS; ora dice che a DOOHmain si invia al momento della pubblicazione, e che sugli schermi con un altro CMS va programmata a mano."
       },
       {
         "tipo": "NUEVO",
-        "texto": "Cada campaña puede tener su propio horario en DOOHmain: hora de inicio, de fin y, si se quiere, los días de la semana. Manda sobre la franja programada o la contratada."
+        "texto": "Cada campaña puede tener su propio horario en DOOHmain: hora de inicio, de fin y, si se quiere, los días de la semana. Manda sobre la franja programada o la contratada.",
+        "en": "Each campaign can have its own schedule in DOOHmain: start time, end time and, if you want, the days of the week. It takes priority over the scheduled or contracted daypart.",
+        "it": "Ogni campagna può avere il suo orario su DOOHmain: ora di inizio, di fine e, se vuoi, i giorni della settimana. Prevale sulla fascia oraria programmata o contrattata."
       },
       {
         "tipo": "CORREGIDO",
-        "texto": "En Inventario se ve el id de DOOHmain de cada pantalla, también cuando lo pone el servidor: antes, al editar la pantalla, el campo salía vacío aunque ya tuviera uno."
+        "texto": "En Inventario se ve el id de DOOHmain de cada pantalla, también cuando lo pone el servidor: antes, al editar la pantalla, el campo salía vacío aunque ya tuviera uno.",
+        "en": "Inventory shows each screen’s DOOHmain id, also when the server sets it: before, when editing the screen, the field came up empty even if it already had one.",
+        "it": "In Inventario si vede l’id di DOOHmain di ogni schermo, anche quando lo imposta il server: prima, modificando lo schermo, il campo risultava vuoto anche se ne aveva già uno."
       }
     ]
   },
@@ -189,7 +335,9 @@
     "items": [
       {
         "tipo": "CORREGIDO",
-        "texto": "Seguridad: la aplicación pasa a una versión de Node con los parches de seguridad publicados el 21 de octubre. La versión anterior ya no recibía parches. No cambia nada de lo que ves en pantalla."
+        "texto": "Seguridad: la aplicación pasa a una versión de Node con los parches de seguridad publicados el 21 de octubre. La versión anterior ya no recibía parches. No cambia nada de lo que ves en pantalla.",
+        "en": "Security: the application moves to a Node version with the security patches released on October 21. The previous version was no longer receiving patches. Nothing you see on screen changes.",
+        "it": "Sicurezza: l’applicazione passa a una versione di Node con le patch di sicurezza pubblicate il 21 ottobre. La versione precedente non riceveva più patch. Non cambia nulla di quello che vedi sullo schermo."
       }
     ]
   },
@@ -199,63 +347,93 @@
     "items": [
       {
         "tipo": "NUEVO",
-        "texto": "Notificaciones: cada aviso de la campanita tiene una ✕ para borrarlo solo, además de «Borrar todas». Las que ya leíste se quedan en la lista, atenuadas, hasta que las borres."
+        "texto": "Notificaciones: cada aviso de la campanita tiene una ✕ para borrarlo solo, además de «Borrar todas». Las que ya leíste se quedan en la lista, atenuadas, hasta que las borres.",
+        "en": "Notifications: each notice under the bell has an ✕ to clear just that one, besides “Clear all”. The ones you have read stay on the list, dimmed, until you clear them.",
+        "it": "Notifiche: ogni avviso della campanella ha una ✕ per cancellarlo da solo, oltre a «Cancella tutte». Quelle che hai già letto restano nell’elenco, attenuate, finché non le cancelli."
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "Tu campanita es tuya: lo que marcas como leído o borras ya no cambia la de tus compañeros. Lo que ya se había leído o borrado para todos antes de esta versión se queda como estaba."
+        "texto": "Tu campanita es tuya: lo que marcas como leído o borras ya no cambia la de tus compañeros. Lo que ya se había leído o borrado para todos antes de esta versión se queda como estaba.",
+        "en": "Your bell is yours: what you mark as read or clear no longer changes your colleagues’ bell. What had already been read or cleared for everyone before this version stays as it was.",
+        "it": "La tua campanella è tua: quello che segni come letto o cancelli non cambia più quella dei tuoi colleghi. Quello che era già stato letto o cancellato per tutti prima di questa versione resta com’era."
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "Solo un Dueño puede restablecer la contraseña de otro Dueño. Un administrador lo sigue haciendo igual con el resto de los usuarios."
+        "texto": "Solo un Dueño puede restablecer la contraseña de otro Dueño. Un administrador lo sigue haciendo igual con el resto de los usuarios.",
+        "en": "Only an Owner can reset another Owner’s password. An administrator can still do it as before for every other user.",
+        "it": "Solo un Titolare può reimpostare la password di un altro Titolare. Un amministratore continua a farlo come prima per tutti gli altri utenti."
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "Al cambiar tu contraseña o tu correo en Configuración, tu sesión se cierra en los demás equipos y navegadores donde la tuvieras abierta. La pantalla donde hiciste el cambio sigue abierta."
+        "texto": "Al cambiar tu contraseña o tu correo en Configuración, tu sesión se cierra en los demás equipos y navegadores donde la tuvieras abierta. La pantalla donde hiciste el cambio sigue abierta.",
+        "en": "When you change your password or your email in Account settings, your session is closed on the other devices and browsers where you had it open. The page where you made the change stays open.",
+        "it": "Quando cambi la password o l’email in Impostazioni dell’account, la tua sessione si chiude sugli altri dispositivi e browser dove l’avevi aperta. La pagina dove hai fatto la modifica resta aperta."
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "Tras 10 contraseñas equivocadas para un mismo correo, esa cuenta no entra con contraseña durante 15 minutos, aunque los intentos vengan de equipos distintos. Entrar con Google o con un código de recuperación sigue funcionando, y un acceso correcto la pone a cero."
+        "texto": "Tras 10 contraseñas equivocadas para un mismo correo, esa cuenta no entra con contraseña durante 15 minutos, aunque los intentos vengan de equipos distintos. Entrar con Google o con un código de recuperación sigue funcionando, y un acceso correcto la pone a cero.",
+        "en": "After 10 wrong passwords for the same email, that account cannot sign in with a password for 15 minutes, even if the attempts come from different devices. Signing in with Google or with a recovery code still works, and a successful sign-in resets the count.",
+        "it": "Dopo 10 password sbagliate per la stessa email, quell’account non può accedere con password per 15 minuti, anche se i tentativi arrivano da dispositivi diversi. L’accesso con Google o con un codice di recupero continua a funzionare, e un accesso riuscito azzera il conteggio."
       },
       {
         "tipo": "CORREGIDO",
-        "texto": "Los enlaces a contratos y órdenes de compra solo aceptan un archivo subido o una dirección web (http o https), y el botón «Volver» solo lleva a pantallas de la propia aplicación."
+        "texto": "Los enlaces a contratos y órdenes de compra solo aceptan un archivo subido o una dirección web (http o https), y el botón «Volver» solo lleva a pantallas de la propia aplicación.",
+        "en": "Links to contracts and purchase orders only accept an uploaded file or a web address (http or https), and the “Back” button only takes you to pages of the application itself.",
+        "it": "I link a contratti e ordini d’acquisto accettano solo un file caricato o un indirizzo web (http o https), e il pulsante «Indietro» porta solo a pagine dell’applicazione stessa."
       },
       {
         "tipo": "CORREGIDO",
-        "texto": "Correcciones de seguridad internas, sin cambios en cómo se usa la aplicación."
+        "texto": "Correcciones de seguridad internas, sin cambios en cómo se usa la aplicación.",
+        "en": "Internal security fixes, with no change in how the application is used.",
+        "it": "Correzioni di sicurezza interne, senza cambiamenti nel modo di usare l’applicazione."
       },
       {
         "tipo": "NUEVO",
-        "texto": "Cobranza: al registrar un pago de cliente puedes adjuntar su comprobante (recibo o transferencia, PDF o imagen de hasta 5 MB). En cada cobranza con algo pagado, «Pagos y comprobantes» muestra los pagos recibidos con su fecha y quién los registró; ahí abres cada comprobante o subes el que llegó después, sin cambiar el importe ni la fecha del pago."
+        "texto": "Cobranza: al registrar un pago de cliente puedes adjuntar su comprobante (recibo o transferencia, PDF o imagen de hasta 5 MB). En cada cobranza con algo pagado, «Pagos y comprobantes» muestra los pagos recibidos con su fecha y quién los registró; ahí abres cada comprobante o subes el que llegó después, sin cambiar el importe ni la fecha del pago.",
+        "en": "Collections: when you record a client payment you can attach its proof of payment (receipt or transfer, PDF or image up to 5 MB). In each collection with something paid, “Payments and proof of payment” shows the payments received with their date and who recorded them; from there you open each proof of payment or upload one that arrived later, without changing the payment’s amount or date.",
+        "it": "Incassi: quando registri un pagamento di un cliente puoi allegare la sua prova di pagamento (ricevuta o bonifico, PDF o immagine fino a 5 MB). In ogni incasso con qualcosa di pagato, «Pagamenti e prove di pagamento» mostra i pagamenti ricevuti con la loro data e chi li ha registrati; da lì apri ogni prova di pagamento o carichi quella arrivata dopo, senza cambiare l’importo né la data del pagamento."
       },
       {
         "tipo": "NUEVO",
-        "texto": "Clientes: al pulsar el nombre de un cliente se abre su ficha con su pipeline (borrador, enviada, aprobada, campaña en curso y terminada, con montos) y sus campañas; al pulsar una campaña vas directo a ella."
+        "texto": "Clientes: al pulsar el nombre de un cliente se abre su ficha con su pipeline (borrador, enviada, aprobada, campaña en curso y terminada, con montos) y sus campañas; al pulsar una campaña vas directo a ella.",
+        "en": "Clients: clicking a client’s name opens their profile with their pipeline (draft, sent, approved, campaign running and finished, with amounts) and their campaigns; clicking a campaign takes you straight to it.",
+        "it": "Clienti: cliccando sul nome di un cliente si apre la sua scheda con la sua pipeline (bozza, inviata, approvata, campagna in corso e conclusa, con importi) e le sue campagne; cliccando su una campagna vai direttamente lì."
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "En todos los formularios de alta y edición, los campos obligatorios llevan asterisco y los opcionales solo su nombre. Si guardas con un obligatorio vacío, ese campo se pone en rojo con «Falta este dato» y no se guarda nada; al escribirlo, el rojo se quita. Reportar una incidencia ahora pide la descripción."
+        "texto": "En todos los formularios de alta y edición, los campos obligatorios llevan asterisco y los opcionales solo su nombre. Si guardas con un obligatorio vacío, ese campo se pone en rojo con «Falta este dato» y no se guarda nada; al escribirlo, el rojo se quita. Reportar una incidencia ahora pide la descripción.",
+        "en": "In every add and edit form, required fields carry an asterisk and optional ones just their name. If you save with a required field empty, that field turns red with “This field is required” and nothing is saved; once you fill it in, the red goes away. Reporting an incident now asks for the description.",
+        "it": "In tutti i moduli di inserimento e modifica, i campi obbligatori hanno un asterisco e quelli facoltativi solo il loro nome. Se salvi con un campo obbligatorio vuoto, quel campo diventa rosso con «Manca questo dato» e non si salva nulla; quando lo compili, il rosso sparisce. Segnalare un’anomalia ora richiede la descrizione."
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "Todas las pantallas se pliegan por secciones, como Arrendadores: un clic en el encabezado de cada bloque lo pliega o despliega, y sus cifras siguen a la vista. La aplicación recuerda en tu navegador lo que dejaste plegado."
+        "texto": "Todas las pantallas se pliegan por secciones, como Arrendadores: un clic en el encabezado de cada bloque lo pliega o despliega, y sus cifras siguen a la vista. La aplicación recuerda en tu navegador lo que dejaste plegado.",
+        "en": "Every page folds by sections, like Landlords: one click on each block’s header collapses or expands it, and its figures stay in view. The application remembers in your browser what you left collapsed.",
+        "it": "Tutte le pagine si chiudono per sezioni, come Locatori: un clic sull’intestazione di ogni blocco lo chiude o lo apre, e le sue cifre restano in vista. L’applicazione ricorda nel tuo browser quello che hai lasciato chiuso."
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "Space Eyes: solo el Dueño puede fijar el encuadre de un equipo (lente, zoom, orientación y las esquinas de la pantalla). Cambiarlo borra lo que el equipo aprendió y lo deja un día sin reconocer los creativos. Los demás siguen moviendo el zoom, la luz y el enfoque en la vista en vivo, y la foto que piden sale como la ven, sin cambiar el encuadre del sitio. En Actividad queda quién fijó el encuadre de qué equipo."
+        "texto": "Space Eyes: solo el Dueño puede fijar el encuadre de un equipo (lente, zoom, orientación y las esquinas de la pantalla). Cambiarlo borra lo que el equipo aprendió y lo deja un día sin reconocer los creativos. Los demás siguen moviendo el zoom, la luz y el enfoque en la vista en vivo, y la foto que piden sale como la ven, sin cambiar el encuadre del sitio. En Actividad queda quién fijó el encuadre de qué equipo.",
+        "en": "Space Eyes: only the Owner can set a device’s framing (lens, zoom, orientation and the screen’s corners). Changing it erases what the device learned and leaves it a day without recognizing the creatives. Everyone else can still adjust zoom, light and focus in the live view, and the photo they request comes out the way they see it, without changing the site’s framing. The Activity log records who set the framing of which device.",
+        "it": "Space Eyes: solo il Titolare può fissare l’inquadratura di un dispositivo (obiettivo, zoom, orientamento e gli angoli dello schermo). Cambiarla cancella quello che il dispositivo ha imparato e lo lascia un giorno senza riconoscere le creatività. Gli altri continuano a regolare zoom, luce e messa a fuoco nella vista dal vivo, e la foto che richiedono esce come la vedono, senza cambiare l’inquadratura del sito. Nel Registro attività resta chi ha fissato l’inquadratura di quale dispositivo."
       },
       {
         "tipo": "NUEVO",
-        "texto": "Space Eyes: en la vista en vivo, «Ver con este lente» y «Ver nítido» dejan mirar por otro lente o con el acercamiento de la Raspberry sin fijarlo."
+        "texto": "Space Eyes: en la vista en vivo, «Ver con este lente» y «Ver nítido» dejan mirar por otro lente o con el acercamiento de la Raspberry sin fijarlo.",
+        "en": "Space Eyes: in the live view, “View with this lens” and “View sharp” let you look through another lens or with the Raspberry’s zoom without fixing it.",
+        "it": "Space Eyes: nella vista dal vivo, «Vedi con questo obiettivo» e «Vedi nitido» permettono di guardare con un altro obiettivo o con lo zoom del Raspberry senza fissarlo."
       },
       {
         "tipo": "CORREGIDO",
-        "texto": "Space Eyes: las campañas con el arte guardado como archivo, o envuelto en HTML, ya llegan a los equipos. Antes no aparecían en la lista del equipo y no daban ningún error."
+        "texto": "Space Eyes: las campañas con el arte guardado como archivo, o envuelto en HTML, ya llegan a los equipos. Antes no aparecían en la lista del equipo y no daban ningún error.",
+        "en": "Space Eyes: campaigns whose artwork is saved as a file, or wrapped in HTML, now reach the devices. Before, they did not appear in the device’s list and gave no error.",
+        "it": "Space Eyes: le campagne con la grafica salvata come file, o racchiusa in HTML, ora arrivano ai dispositivi. Prima non comparivano nell’elenco del dispositivo e non davano nessun errore."
       },
       {
         "tipo": "CORREGIDO",
-        "texto": "Space Eyes: «Agregar dispositivo» avisa cuando la dirección del servidor no sirve, en vez de mostrar una que el equipo no puede alcanzar."
+        "texto": "Space Eyes: «Agregar dispositivo» avisa cuando la dirección del servidor no sirve, en vez de mostrar una que el equipo no puede alcanzar.",
+        "en": "Space Eyes: “Add device” warns you when the server address does not work, instead of showing one the device cannot reach.",
+        "it": "Space Eyes: «Aggiungi dispositivo» avvisa quando l’indirizzo del server non funziona, invece di mostrarne uno che il dispositivo non può raggiungere."
       }
     ]
   },
@@ -265,7 +443,9 @@
     "items": [
       {
         "tipo": "AJUSTADO",
-        "texto": "En el menú Comercial, «Comercial OPEX» ahora se llama «Comercial negociación» y «Códigos promocionales» se llama «Códigos de negociación». En la propuesta y en Paquetes, «código promocional» también pasa a «código de negociación». Las pantallas y los permisos siguen igual."
+        "texto": "En el menú Comercial, «Comercial OPEX» ahora se llama «Comercial negociación» y «Códigos promocionales» se llama «Códigos de negociación». En la propuesta y en Paquetes, «código promocional» también pasa a «código de negociación». Las pantallas y los permisos siguen igual.",
+        "en": "In the Sales menu, “Comercial OPEX” is now called “Lease negotiation” and “Promo codes” is now called “Negotiation codes”. On proposals and in Bundles, “promo code” also becomes “negotiation code”. Pages and permissions stay the same.",
+        "it": "Nel menu Vendite, «Comercial OPEX» ora si chiama «Negoziazione locazioni» e «Codici promozionali» si chiama «Codici di negoziazione». Nella proposta e in Pacchetti, anche «codice promozionale» diventa «codice di negoziazione». Le pagine e i permessi restano uguali."
       }
     ]
   },
@@ -275,7 +455,9 @@
     "items": [
       {
         "tipo": "CORREGIDO",
-        "texto": "Una propuesta aprobada sin cliente ya puede generar su campaña: al pulsar «Generar campaña» se abre una ventana para elegir el cliente. Solo si la propuesta no tenía cliente, debe ser un anunciante (no una agencia) y con el mismo IVA con el que se aprobó; si no, el total cambiaría y la aplicación lo avisa."
+        "texto": "Una propuesta aprobada sin cliente ya puede generar su campaña: al pulsar «Generar campaña» se abre una ventana para elegir el cliente. Solo si la propuesta no tenía cliente, debe ser un anunciante (no una agencia) y con el mismo IVA con el que se aprobó; si no, el total cambiaría y la aplicación lo avisa.",
+        "en": "An approved proposal with no client can now generate its campaign: clicking “Generate campaign” opens a window to choose the client. Only if the proposal had no client; it must be an advertiser (not an agency) and have the same VAT the proposal was approved with; otherwise the total would change, and the application warns you.",
+        "it": "Una proposta approvata senza cliente ora può generare la sua campagna: cliccando «Genera campagna» si apre una finestra per scegliere il cliente. Solo se la proposta non aveva cliente; deve essere un inserzionista (non un’agenzia) e con la stessa IVA con cui è stata approvata; altrimenti il totale cambierebbe, e l’applicazione lo segnala."
       }
     ]
   },
@@ -285,11 +467,15 @@
     "items": [
       {
         "tipo": "NUEVO",
-        "texto": "En la ficha de cada pantalla digital (Editar) eliges a qué pantalla de DOOHmain se publica, de la lista de pantallas de tu cuenta. Ya no hace falta pedir que se configure en el servidor cada pantalla nueva; si lo dejas vacío, se usa lo configurado en el servidor, como hasta hoy."
+        "texto": "En la ficha de cada pantalla digital (Editar) eliges a qué pantalla de DOOHmain se publica, de la lista de pantallas de tu cuenta. Ya no hace falta pedir que se configure en el servidor cada pantalla nueva; si lo dejas vacío, se usa lo configurado en el servidor, como hasta hoy.",
+        "en": "On each digital screen’s profile (Edit) you choose which DOOHmain screen it publishes to, from the list of screens in your account. You no longer need to ask for each new screen to be configured on the server; if you leave it empty, the server configuration is used, as until now.",
+        "it": "Nella scheda di ogni schermo digitale (Modifica) scegli su quale schermo di DOOHmain si pubblica, dall’elenco degli schermi del tuo account. Non serve più chiedere che ogni nuovo schermo venga configurato sul server; se lo lasci vuoto, si usa la configurazione del server, come finora."
       },
       {
         "tipo": "CORREGIDO",
-        "texto": "Las pantallas que en su ficha dicen otro CMS (por ejemplo Broadsign) ya no se suben a DOOHmain al publicar una campaña: aparecen como «Se programa en su CMS»."
+        "texto": "Las pantallas que en su ficha dicen otro CMS (por ejemplo Broadsign) ya no se suben a DOOHmain al publicar una campaña: aparecen como «Se programa en su CMS».",
+        "en": "Screens whose profile names another CMS (for example Broadsign) are no longer uploaded to DOOHmain when a campaign is published: they show as “Scheduled in its CMS”.",
+        "it": "Gli schermi che nella loro scheda indicano un altro CMS (per esempio Broadsign) non si caricano più su DOOHmain quando si pubblica una campagna: risultano «Si programma nel suo CMS»."
       }
     ]
   },
@@ -299,15 +485,21 @@
     "items": [
       {
         "tipo": "CORREGIDO",
-        "texto": "Publicar una campaña en DOOHmain vuelve a funcionar: al aprobar la publicación, el arte no llegaba a ninguna pantalla. Se corrige al actualizar, sin tocar lo ya publicado."
+        "texto": "Publicar una campaña en DOOHmain vuelve a funcionar: al aprobar la publicación, el arte no llegaba a ninguna pantalla. Se corrige al actualizar, sin tocar lo ya publicado.",
+        "en": "Publishing a campaign to DOOHmain works again: when the publication was approved, the artwork did not reach any screen. It is fixed by updating, without touching what was already published.",
+        "it": "Pubblicare una campagna su DOOHmain funziona di nuovo: approvando la pubblicazione, la grafica non arrivava a nessuno schermo. Si corregge con l’aggiornamento, senza toccare quanto già pubblicato."
       },
       {
         "tipo": "NUEVO",
-        "texto": "Al aprobar la publicación de una campaña ves qué pasó en cada pantalla: su pantalla en DOOHmain y si quedó publicada, ya lo estaba, o con qué error. En Actividad queda escrito qué pantallas fallaron y por qué."
+        "texto": "Al aprobar la publicación de una campaña ves qué pasó en cada pantalla: su pantalla en DOOHmain y si quedó publicada, ya lo estaba, o con qué error. En Actividad queda escrito qué pantallas fallaron y por qué.",
+        "en": "When you approve a campaign’s publication you see what happened on each screen: its DOOHmain screen and whether it was published, was already published, or which error it hit. The Activity log records which screens failed and why.",
+        "it": "Quando approvi la pubblicazione di una campagna vedi cosa è successo su ogni schermo: il suo schermo su DOOHmain e se è stato pubblicato, se lo era già o con quale errore. Nel Registro attività resta scritto quali schermi hanno fallito e perché."
       },
       {
         "tipo": "NUEVO",
-        "texto": "Botón «Volver a publicar en DOOHmain» en las campañas con la publicación aprobada: vuelve a mandar las pantallas que falten sin duplicar las que ya están y sin cambiar el estado de la campaña."
+        "texto": "Botón «Volver a publicar en DOOHmain» en las campañas con la publicación aprobada: vuelve a mandar las pantallas que falten sin duplicar las que ya están y sin cambiar el estado de la campaña.",
+        "en": "“Publish again in DOOHmain” button on campaigns whose publication was approved: it sends the missing screens again without duplicating the ones already there and without changing the campaign’s status.",
+        "it": "Pulsante «Ripubblica su DOOHmain» nelle campagne con la pubblicazione approvata: rimanda gli schermi che mancano senza duplicare quelli già presenti e senza cambiare lo stato della campagna."
       }
     ]
   },
@@ -317,19 +509,27 @@
     "items": [
       {
         "tipo": "AJUSTADO",
-        "texto": "En Administración → Identidad de la empresa, la razón social ya no se escribe: se elige de tus Razones sociales. Es el mismo registro, así que si la renombras o le corriges el RFC allí, Identidad, Inicio y los contratos lo ven al momento. La que ya tenías escrita se pasó sola a la lista."
+        "texto": "En Administración → Identidad de la empresa, la razón social ya no se escribe: se elige de tus Razones sociales. Es el mismo registro, así que si la renombras o le corriges el RFC allí, Identidad, Inicio y los contratos lo ven al momento. La que ya tenías escrita se pasó sola a la lista.",
+        "en": "In Settings → Company identity, the legal entity is no longer typed: you choose it from your Legal entities. It is the same record, so if you rename it or correct its RFC there, Company identity, the home page and the contracts see it right away. The one you had typed was moved to the list automatically.",
+        "it": "In Impostazioni → Identità dell’azienda, la ragione sociale non si scrive più: si sceglie dalle tue Ragioni sociali. È lo stesso record, quindi se la rinomini o ne correggi l’RFC lì, Identità dell’azienda, la pagina iniziale e i contratti lo vedono subito. Quella che avevi scritto è passata da sola nell’elenco."
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "Inicio, Inventario, Comercial y el resto de las pantallas abren más rápido cuando hay pantallas con muchas fotos: las listas ya no cargan las fotos que no muestran. Las fotos se siguen viendo al abrir la ficha de cada pantalla."
+        "texto": "Inicio, Inventario, Comercial y el resto de las pantallas abren más rápido cuando hay pantallas con muchas fotos: las listas ya no cargan las fotos que no muestran. Las fotos se siguen viendo al abrir la ficha de cada pantalla.",
+        "en": "The home page, Inventory, Sales and the other pages open faster when there are screens with many photos: lists no longer load the photos they do not show. Photos are still visible when you open each screen’s profile.",
+        "it": "La pagina iniziale, Inventario, Vendite e le altre pagine si aprono più in fretta quando ci sono impianti con molte foto: gli elenchi non caricano più le foto che non mostrano. Le foto si vedono comunque aprendo la scheda di ogni impianto."
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "Nuevo texto en la presentación de Space Eyes: «Incidencias reportadas antes de que voltee a ver el sitio. Campaña programática comprobada en cuanto se reproduce.»"
+        "texto": "Nuevo texto en la presentación de Space Eyes: «Incidencias reportadas antes de que voltee a ver el sitio. Campaña programática comprobada en cuanto se reproduce.»",
+        "en": "New wording on the Space Eyes presentation: “Issues reported before anyone looks at the site. Programmatic campaigns verified as soon as they play.”",
+        "it": "Nuovo testo nella presentazione di Space Eyes: «Problemi segnalati prima che qualcuno guardi il sito. Campagne programmatic verificate appena vanno in onda.»"
       },
       {
         "tipo": "CORREGIDO",
-        "texto": "En las páginas de Space Eyes (Galería, Gráficas, Fallas…) el menú marca solo la página abierta; antes «Equipos» se quedaba marcado también."
+        "texto": "En las páginas de Space Eyes (Galería, Gráficas, Fallas…) el menú marca solo la página abierta; antes «Equipos» se quedaba marcado también.",
+        "en": "On the Space Eyes pages (Gallery, Charts, Faults…) the menu highlights only the open page; before, “Devices” stayed highlighted too.",
+        "it": "Nelle pagine di Space Eyes (Galleria, Grafici, Guasti…) il menu evidenzia solo la pagina aperta; prima restava evidenziata anche «Dispositivi»."
       }
     ]
   },
@@ -339,11 +539,15 @@
     "items": [
       {
         "tipo": "AJUSTADO",
-        "texto": "Space Eyes abre más rápido: la lista de equipos y las fotos recientes usan una versión ligera de cada foto, y la foto grande aparece al instante y se completa al terminar de bajar."
+        "texto": "Space Eyes abre más rápido: la lista de equipos y las fotos recientes usan una versión ligera de cada foto, y la foto grande aparece al instante y se completa al terminar de bajar.",
+        "en": "Space Eyes opens faster: the list of devices and the recent photos use a light version of each photo, and the large photo appears instantly and sharpens once it finishes downloading.",
+        "it": "Space Eyes si apre più in fretta: l’elenco dei dispositivi e le foto recenti usano una versione leggera di ogni foto, e la foto grande compare subito e si completa quando finisce di scaricarsi."
       },
       {
         "tipo": "CORREGIDO",
-        "texto": "La ficha de un equipo de Space Eyes ya no falla cuando el teléfono manda su ubicación."
+        "texto": "La ficha de un equipo de Space Eyes ya no falla cuando el teléfono manda su ubicación.",
+        "en": "A Space Eyes device’s profile no longer fails when the phone sends its location.",
+        "it": "La scheda di un dispositivo di Space Eyes non dà più errore quando il telefono manda la sua posizione."
       }
     ]
   },
@@ -353,11 +557,15 @@
     "items": [
       {
         "tipo": "AJUSTADO",
-        "texto": "Todas las cifras que se ven llevan coma de miles (2,500 y $ 1,234,567.50): Inicio, la gráfica de tentativas, los pases al día, el historial de cambios del contrato, Energía, Actividad, Space Eyes y los contadores. Las descargas a CSV/Excel siguen sin coma, para que Excel pueda sumar."
+        "texto": "Todas las cifras que se ven llevan coma de miles (2,500 y $ 1,234,567.50): Inicio, la gráfica de tentativas, los pases al día, el historial de cambios del contrato, Energía, Actividad, Space Eyes y los contadores. Las descargas a CSV/Excel siguen sin coma, para que Excel pueda sumar.",
+        "en": "Every figure on screen has a thousands separator (2,500 and MX$1,234,567.50): the home page, the tentative chart, plays per day, the contract change history, Power usage, the Activity log, Space Eyes and the counters. CSV/Excel downloads still have no separator, so Excel can add them up.",
+        "it": "Tutte le cifre visualizzate hanno il separatore delle migliaia (2.500 e MX$ 1.234.567,50): la pagina iniziale, il grafico delle provvisorie, i passaggi al giorno, lo storico delle modifiche del contratto, Consumo elettrico, Registro attività, Space Eyes e i contatori. I download in CSV/Excel restano senza separatore, perché Excel possa sommarli."
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "Al escribir un importe o una cantidad grande, la coma de miles aparece mientras tecleas (212,500). Se guarda el mismo número que antes. Si la cifra es ambigua —una coma mal puesta, o «2.500» en un importe— el campo se pone en rojo y te dice cómo escribirla, en lugar de adivinar."
+        "texto": "Al escribir un importe o una cantidad grande, la coma de miles aparece mientras tecleas (212,500). Se guarda el mismo número que antes. Si la cifra es ambigua —una coma mal puesta, o «2.500» en un importe— el campo se pone en rojo y te dice cómo escribirla, en lugar de adivinar.",
+        "en": "When you type an amount or a large quantity, the thousands separator appears as you type (212,500). The same number is saved as before. If the figure is ambiguous (a misplaced comma, or “2.500” in an amount), the field turns red and tells you how to write it, instead of guessing.",
+        "it": "Quando scrivi un importo o una quantità grande, il separatore delle migliaia compare mentre digiti (212.500). Si salva lo stesso numero di prima. Se la cifra è ambigua (un punto messo male, o «2,500» in un importo), il campo diventa rosso e ti dice come scriverla, invece di indovinare."
       }
     ]
   },
@@ -367,27 +575,39 @@
     "items": [
       {
         "tipo": "AJUSTADO",
-        "texto": "En Administración → Actualizaciones, si una versión nueva llega sin sus notas, ahora sale un aviso para que lo reportes antes de aprobarla, en lugar de «Esta versión no trae notas»."
+        "texto": "En Administración → Actualizaciones, si una versión nueva llega sin sus notas, ahora sale un aviso para que lo reportes antes de aprobarla, en lugar de «Esta versión no trae notas».",
+        "en": "In Settings → Updates, if a new version arrives without its notes, a notice now asks you to report it before approving it, instead of “This version has no notes”.",
+        "it": "In Impostazioni → Aggiornamenti, se una nuova versione arriva senza le sue note, ora compare un avviso perché tu lo segnali prima di approvarla, invece di «Questa versione non ha note»."
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "Al solicitar Space Eyes desde su demostración, el aviso de confirmación muestra el folio de tu solicitud."
+        "texto": "Al solicitar Space Eyes desde su demostración, el aviso de confirmación muestra el folio de tu solicitud.",
+        "en": "When requesting Space Eyes from its demo, the confirmation notice shows your request’s reference number.",
+        "it": "Quando richiedi Space Eyes dalla sua dimostrazione, l’avviso di conferma mostra il numero della tua richiesta."
       },
       {
         "tipo": "CORREGIDO",
-        "texto": "Una notificación aparece en pantalla una sola vez; después queda solo en la campanita. Antes podía repetirse cada 15 segundos."
+        "texto": "Una notificación aparece en pantalla una sola vez; después queda solo en la campanita. Antes podía repetirse cada 15 segundos.",
+        "en": "A notification appears on screen only once; after that it stays only under the bell. Before, it could repeat every 15 seconds.",
+        "it": "Una notifica compare sullo schermo una sola volta; poi resta solo nella campanella. Prima poteva ripetersi ogni 15 secondi."
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "Una orden de trabajo nueva nace programada para hoy."
+        "texto": "Una orden de trabajo nueva nace programada para hoy.",
+        "en": "A new work order starts out scheduled for today.",
+        "it": "Un nuovo ordine di lavoro viene creato già programmato per oggi."
       },
       {
         "tipo": "CORREGIDO",
-        "texto": "Operaciones muestra quién es el responsable de cada orden de trabajo; antes todas decían «Sin asignar». Si una se cierra sin responsable, queda quien la cerró. Al crear una, el campo «Responsable» ya ofrece a quién asignarla."
+        "texto": "Operaciones muestra quién es el responsable de cada orden de trabajo; antes todas decían «Sin asignar». Si una se cierra sin responsable, queda quien la cerró. Al crear una, el campo «Responsable» ya ofrece a quién asignarla.",
+        "en": "Operations shows who is assigned to each work order; before, they all said “Unassigned”. If one is closed without an assignee, whoever closed it is kept. When creating one, the “Assignee” field now offers who to assign it to.",
+        "it": "Operazioni mostra chi è il responsabile di ogni ordine di lavoro; prima dicevano tutti «Non assegnato». Se uno si chiude senza responsabile, resta chi lo ha chiuso. Creandone uno, il campo «Responsabile» propone già a chi assegnarlo."
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "El costo de una orden de trabajo se captura antes de cerrarla: al cerrar se avisa, y una vez cerrada ya no se puede registrar ni cambiar."
+        "texto": "El costo de una orden de trabajo se captura antes de cerrarla: al cerrar se avisa, y una vez cerrada ya no se puede registrar ni cambiar.",
+        "en": "A work order’s cost is entered before closing it: you are warned when closing, and once closed it can no longer be recorded or changed.",
+        "it": "Il costo di un ordine di lavoro si inserisce prima di chiuderlo: alla chiusura compare un avviso, e una volta chiuso non si può più registrare né cambiare."
       }
     ]
   },
@@ -397,11 +617,15 @@
     "items": [
       {
         "tipo": "AJUSTADO",
-        "texto": "En Inicio, «Tentativas» son ahora las propuestas que aún no se cierran (en borrador o enviadas), sin IVA, y dice cuántas son. Antes eran las reservas tentativas, que casi siempre sumaban cero."
+        "texto": "En Inicio, «Tentativas» son ahora las propuestas que aún no se cierran (en borrador o enviadas), sin IVA, y dice cuántas son. Antes eran las reservas tentativas, que casi siempre sumaban cero.",
+        "en": "On the home page, “Tentative” now means proposals that are not yet closed (draft or sent), excluding VAT, and it says how many there are. Before, it meant tentative bookings, which almost always added up to zero.",
+        "it": "Nella pagina iniziale, «Provvisorie» ora sono le proposte non ancora chiuse (in bozza o inviate), IVA esclusa, e indica quante sono. Prima erano le prenotazioni provvisorie, che quasi sempre davano zero."
       },
       {
         "tipo": "CORREGIDO",
-        "texto": "El resumen de Propuestas por periodo carga más rápido: ya no lee las fotos de todas las pantallas para calcular la renta. Las cifras no cambian."
+        "texto": "El resumen de Propuestas por periodo carga más rápido: ya no lee las fotos de todas las pantallas para calcular la renta. Las cifras no cambian.",
+        "en": "The Proposals summary by period loads faster: it no longer reads the photos of every screen to calculate rent. The figures do not change.",
+        "it": "Il riepilogo delle Proposte per periodo si carica più in fretta: non legge più le foto di tutti gli impianti per calcolare il canone. Le cifre non cambiano."
       }
     ]
   },
@@ -411,19 +635,27 @@
     "items": [
       {
         "tipo": "NUEVO",
-        "texto": "Space Eyes, el módulo de cámaras que vigila tus pantallas, se contrata aparte y vive dentro de SPACE OS: la lista de equipos con su última foto, tomar una foto o ver en vivo, las fallas que detecta cada equipo en su pantalla, los creativos que pasaron al aire, galería, gráficas y programación de fotos."
+        "texto": "Space Eyes, el módulo de cámaras que vigila tus pantallas, se contrata aparte y vive dentro de SPACE OS: la lista de equipos con su última foto, tomar una foto o ver en vivo, las fallas que detecta cada equipo en su pantalla, los creativos que pasaron al aire, galería, gráficas y programación de fotos.",
+        "en": "Space Eyes, the camera module that watches over your screens, is contracted separately and lives inside SPACE OS: the list of devices with their latest photo, taking a photo or watching live, the faults each device detects on its screen, the creatives that went on air, gallery, charts and photo scheduling.",
+        "it": "Space Eyes, il modulo di telecamere che sorveglia i tuoi schermi, si contratta a parte e vive dentro SPACE OS: l’elenco dei dispositivi con la loro ultima foto, scattare una foto o guardare dal vivo, i guasti che ogni dispositivo rileva sul suo schermo, le creatività andate in onda, galleria, grafici e programmazione delle foto."
       },
       {
         "tipo": "NUEVO",
-        "texto": "Con Space Eyes, las campañas confirmadas llegan solas a los equipos de sus pantallas: cuando el equipo reconoce el creativo, manda la foto de prueba. Los equipos nuevos se agregan con un código o un QR de un solo uso, y una Raspberry se instala sola con un archivo para su microSD."
+        "texto": "Con Space Eyes, las campañas confirmadas llegan solas a los equipos de sus pantallas: cuando el equipo reconoce el creativo, manda la foto de prueba. Los equipos nuevos se agregan con un código o un QR de un solo uso, y una Raspberry se instala sola con un archivo para su microSD.",
+        "en": "With Space Eyes, confirmed campaigns reach the devices on their screens automatically: when the device recognizes the creative, it sends the proof photo. New devices are added with a single-use code or QR, and a Raspberry installs itself with a file for its microSD.",
+        "it": "Con Space Eyes, le campagne confermate arrivano da sole ai dispositivi dei loro schermi: quando il dispositivo riconosce la creatività, manda la foto di verifica. I nuovi dispositivi si aggiungono con un codice o un QR monouso, e un Raspberry si installa da solo con un file per la sua microSD."
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "Si tu empresa no tiene Space Eyes, su menú muestra una demostración de lo que hace. Nada de tus datos cambia."
+        "texto": "Si tu empresa no tiene Space Eyes, su menú muestra una demostración de lo que hace. Nada de tus datos cambia.",
+        "en": "If your company does not have Space Eyes, its menu shows a demo of what it does. None of your data changes.",
+        "it": "Se la tua azienda non ha Space Eyes, il suo menu mostra una dimostrazione di quello che fa. Nessuno dei tuoi dati cambia."
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "En Roles y permisos, «Inventario» dice que también abre Space Eyes (cámaras, fotos, vista en vivo y órdenes a los equipos)."
+        "texto": "En Roles y permisos, «Inventario» dice que también abre Space Eyes (cámaras, fotos, vista en vivo y órdenes a los equipos).",
+        "en": "In Roles and permissions, “Inventory” says that it also opens Space Eyes (cameras, photos, live view and commands to the devices).",
+        "it": "In Ruoli e permessi, «Inventario» indica che apre anche Space Eyes (telecamere, foto, vista dal vivo e comandi ai dispositivi)."
       }
     ]
   },
@@ -433,83 +665,123 @@
     "items": [
       {
         "tipo": "NUEVO",
-        "texto": "Finanzas tiene un resumen por periodo: eliges este mes, el mes pasado, el trimestre, el año o un rango de fechas, y ves lo facturado, lo cobrado, lo que queda por cobrar, las facturas vencidas y la renta pagada y por pagar a propietarios."
+        "texto": "Finanzas tiene un resumen por periodo: eliges este mes, el mes pasado, el trimestre, el año o un rango de fechas, y ves lo facturado, lo cobrado, lo que queda por cobrar, las facturas vencidas y la renta pagada y por pagar a propietarios.",
+        "en": "Finance has a summary by period: you pick this month, last month, the quarter, the year or a date range, and you see what was invoiced, what was collected, what is still receivable, overdue invoices, and rent paid and payable to landlords.",
+        "it": "Finanza ha un riepilogo per periodo: scegli questo mese, il mese scorso, il trimestre, l’anno o un intervallo di date, e vedi il fatturato, l’incassato, quanto resta da incassare, le fatture scadute e i canoni pagati e da pagare ai locatori."
       },
       {
         "tipo": "NUEVO",
-        "texto": "Estado de cuenta de este mes y del mes pasado, de la empresa o de un cliente: saldo al inicio, lo facturado, lo cobrado, el saldo al cierre y lo vencido, con cada factura y cada pago en orden. Se descarga en CSV para abrirlo en Excel."
+        "texto": "Estado de cuenta de este mes y del mes pasado, de la empresa o de un cliente: saldo al inicio, lo facturado, lo cobrado, el saldo al cierre y lo vencido, con cada factura y cada pago en orden. Se descarga en CSV para abrirlo en Excel.",
+        "en": "Account statement for this month and last month, for the company or for a client: opening balance, invoiced, collected, closing balance and overdue, with each invoice and each payment in order. It downloads as CSV to open in Excel.",
+        "it": "Estratto conto di questo mese e del mese scorso, dell’azienda o di un cliente: saldo iniziale, fatturato, incassato, saldo finale e scaduto, con ogni fattura e ogni pagamento in ordine. Si scarica in CSV per aprirlo in Excel."
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "Al registrar un pago ahora pones la fecha en que se recibió (por omisión, hoy), para que lo cobrado caiga en el mes correcto. Los pagos registrados antes de esta versión llevan una fecha aproximada, y la pantalla lo avisa."
+        "texto": "Al registrar un pago ahora pones la fecha en que se recibió (por omisión, hoy), para que lo cobrado caiga en el mes correcto. Los pagos registrados antes de esta versión llevan una fecha aproximada, y la pantalla lo avisa.",
+        "en": "When recording a payment you now enter the date it was received (today, by default), so that what was collected lands in the right month. Payments recorded before this version carry an approximate date, and the page says so.",
+        "it": "Quando registri un pagamento ora inserisci la data in cui è stato ricevuto (per impostazione predefinita, oggi), perché l’incassato cada nel mese giusto. I pagamenti registrati prima di questa versione hanno una data approssimativa, e la pagina lo segnala."
       },
       {
         "tipo": "NUEVO",
-        "texto": "Propuestas tiene un resumen por periodo: cuántas se generaron, se aprobaron y se rechazaron, la tasa de cierre y el desglose por vendedor. El Dueño, el Administrador y el Director comercial ven además la ganancia: lo vendido menos la renta de las pantallas."
+        "texto": "Propuestas tiene un resumen por periodo: cuántas se generaron, se aprobaron y se rechazaron, la tasa de cierre y el desglose por vendedor. El Dueño, el Administrador y el Director comercial ven además la ganancia: lo vendido menos la renta de las pantallas.",
+        "en": "Proposals has a summary by period: how many were generated, approved and rejected, the close rate and the breakdown by sales rep. The Owner, the Administrator and the Sales director also see the profit: what was sold minus the screens’ rent.",
+        "it": "Proposte ha un riepilogo per periodo: quante ne sono state generate, approvate e rifiutate, il tasso di chiusura e il dettaglio per commerciale. Il Titolare, l’Amministratore e il Direttore commerciale vedono anche il guadagno: il venduto meno il canone degli impianti."
       },
       {
         "tipo": "NUEVO",
-        "texto": "Los contratos de arrendador se pueden cambiar antes de firmarse con «Editar términos», en la ficha del contrato. Cada cambio queda en su historial con lo que había antes y lo que quedó, quién lo propuso (el arrendador o nosotros), el motivo y quién lo registró. Si el contrato ya se había enviado a firma, el enlace anterior deja de servir y hay que enviarlo otra vez."
+        "texto": "Los contratos de arrendador se pueden cambiar antes de firmarse con «Editar términos», en la ficha del contrato. Cada cambio queda en su historial con lo que había antes y lo que quedó, quién lo propuso (el arrendador o nosotros), el motivo y quién lo registró. Si el contrato ya se había enviado a firma, el enlace anterior deja de servir y hay que enviarlo otra vez.",
+        "en": "Landlord contracts can be changed before they are signed with “Edit terms”, on the contract’s profile. Each change stays in its history with what was there before and what it became, who proposed it (the landlord or us), the reason and who recorded it. If the contract had already been sent for signature, the previous link stops working and it has to be sent again.",
+        "it": "I contratti dei locatori si possono modificare prima della firma con «Modifica termini», nella scheda del contratto. Ogni modifica resta nel suo storico con quello che c’era prima e quello che è rimasto, chi l’ha proposta (il locatore o noi), il motivo e chi l’ha registrata. Se il contratto era già stato inviato alla firma, il link precedente smette di funzionare e bisogna inviarlo di nuovo."
       },
       {
         "tipo": "NUEVO",
-        "texto": "Nueva unidad de venta «CPM · costo por millar» para pantallas digitales: en la propuesta tecleas los millares contratados (2,500 millares = 2.5 millones de impactos) y el importe es tarifa × millares. Para venderla, agrega la tarifa CPM en la ficha de la pantalla, en sus unidades de venta."
+        "texto": "Nueva unidad de venta «CPM · costo por millar» para pantallas digitales: en la propuesta tecleas los millares contratados (2,500 millares = 2.5 millones de impactos) y el importe es tarifa × millares. Para venderla, agrega la tarifa CPM en la ficha de la pantalla, en sus unidades de venta.",
+        "en": "New sales unit “CPM · cost per thousand impressions” for digital screens: in the proposal you type the thousands contracted (2,500 thousand = 2.5 million impressions) and the amount is rate × thousands. To sell it, add the CPM rate on the screen’s profile, among its sales units.",
+        "it": "Nuova unità di vendita «CPM · costo per mille impression» per gli schermi digitali: nella proposta digiti le migliaia contrattate (2.500 migliaia = 2,5 milioni di impression) e l’importo è tariffa × migliaia. Per venderla, aggiungi la tariffa CPM nella scheda dello schermo, tra le sue unità di vendita."
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "«Por spot» ahora se llama «CPS · costo por salida», y la cantidad se lee en salidas. El cálculo es el mismo y nada de lo ya vendido cambia de precio."
+        "texto": "«Por spot» ahora se llama «CPS · costo por salida», y la cantidad se lee en salidas. El cálculo es el mismo y nada de lo ya vendido cambia de precio.",
+        "en": "“Per spot” is now called “CPS · cost per play”, and the quantity is counted in plays. The calculation is the same and nothing already sold changes price.",
+        "it": "«A spot» ora si chiama «CPS · costo per passaggio», e la quantità si legge in passaggi. Il calcolo è lo stesso e niente di quanto già venduto cambia prezzo."
       },
       {
         "tipo": "NUEVO",
-        "texto": "La campaña que se genera de una propuesta lleva el mismo folio de la propuesta (por ejemplo PR-2026-0042), y cada vez que la extiendes a una fecha posterior el folio sube un tramo: .1, .2… Las campañas que ya existían conservan su folio hasta que se extiendan."
+        "texto": "La campaña que se genera de una propuesta lleva el mismo folio de la propuesta (por ejemplo PR-2026-0042), y cada vez que la extiendes a una fecha posterior el folio sube un tramo: .1, .2… Las campañas que ya existían conservan su folio hasta que se extiendan.",
+        "en": "The campaign generated from a proposal carries the same internal ref. as the proposal (for example PR-2026-0042), and each time you extend it to a later date the internal ref. goes up a step: .1, .2… Existing campaigns keep their internal ref. until they are extended.",
+        "it": "La campagna generata da una proposta porta lo stesso rif. interno della proposta (per esempio PR-2026-0042), e ogni volta che la estendi a una data successiva il rif. interno sale di un passo: .1, .2… Le campagne che esistevano già conservano il loro rif. interno finché non vengono estese."
       },
       {
         "tipo": "CORREGIDO",
-        "texto": "Si dos personas extienden la misma campaña al mismo tiempo, la extensión más corta ya no puede recortarla: quien llega tarde recibe un aviso y no se cambia nada."
+        "texto": "Si dos personas extienden la misma campaña al mismo tiempo, la extensión más corta ya no puede recortarla: quien llega tarde recibe un aviso y no se cambia nada.",
+        "en": "If two people extend the same campaign at the same time, the shorter extension can no longer cut it back: whoever is late gets a warning and nothing changes.",
+        "it": "Se due persone estendono la stessa campagna nello stesso momento, l’estensione più breve non può più accorciarla: chi arriva tardi riceve un avviso e non cambia nulla."
       },
       {
         "tipo": "NUEVO",
-        "texto": "Al crear un usuario puedes mandarle una invitación para que elija su propia contraseña, en lugar de inventarle una. El enlace vale 72 horas y sirve una sola vez; mientras no haya correo configurado, te aparece para que se lo envíes tú."
+        "texto": "Al crear un usuario puedes mandarle una invitación para que elija su propia contraseña, en lugar de inventarle una. El enlace vale 72 horas y sirve una sola vez; mientras no haya correo configurado, te aparece para que se lo envíes tú.",
+        "en": "When creating a user you can send them an invitation to choose their own password, instead of making one up for them. The link is valid for 72 hours and works only once; while no email is configured, it is shown to you so you can send it yourself.",
+        "it": "Quando crei un utente puoi mandargli un invito perché scelga la sua password, invece di inventargliene una. Il link vale 72 ore e funziona una sola volta; finché non c’è un’email configurata, ti compare perché glielo mandi tu."
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "La calculadora de spots cuenta igual que la calculadora «Valor Real del Spot Unitario»: el precio por spot sale de la tarifa mensual de la pantalla y el loop cuenta a los anunciantes de hoy más los espacios que compras. Debajo de cada línea ves el desglose de la cuenta. Las propuestas ya guardadas no cambian hasta que las edites."
+        "texto": "La calculadora de spots cuenta igual que la calculadora «Valor Real del Spot Unitario»: el precio por spot sale de la tarifa mensual de la pantalla y el loop cuenta a los anunciantes de hoy más los espacios que compras. Debajo de cada línea ves el desglose de la cuenta. Las propuestas ya guardadas no cambian hasta que las edites.",
+        "en": "The spot calculator counts the same way as the “Valor Real del Spot Unitario” calculator: the price per spot comes from the screen’s monthly rate, and the loop counts today’s advertisers plus the slots you buy. Below each line you see the breakdown of the calculation. Proposals already saved do not change until you edit them.",
+        "it": "La calcolatrice di spot conta come la calcolatrice «Valor Real del Spot Unitario»: il prezzo per spot viene dalla tariffa mensile dell’impianto e il loop conta gli inserzionisti di oggi più gli spazi che acquisti. Sotto ogni riga vedi il dettaglio del calcolo. Le proposte già salvate non cambiano finché non le modifichi."
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "En Disponibilidad, las pantallas digitales dicen cuántos espacios quedan («7 libres» o «Lleno») en lugar de «3/10»."
+        "texto": "En Disponibilidad, las pantallas digitales dicen cuántos espacios quedan («7 libres» o «Lleno») en lugar de «3/10».",
+        "en": "In Availability, digital screens say how many slots are left (“7 free” or “Full”) instead of “3/10”.",
+        "it": "In Disponibilità, gli schermi digitali indicano quanti spazi restano («7 liberi» o «Pieno») invece di «3/10»."
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "El descuento comercial de una propuesta aparece como 0.00 % y acepta centésimas, por ejemplo 7.50 %."
+        "texto": "El descuento comercial de una propuesta aparece como 0.00 % y acepta centésimas, por ejemplo 7.50 %.",
+        "en": "A proposal’s commercial discount shows as 0.00% and accepts hundredths, for example 7.50%.",
+        "it": "Lo sconto commerciale di una proposta compare come 0,00% e ammette i centesimi, per esempio 7,50%."
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "El tope de descuento se respeta siempre: una propuesta que quedó por encima del tope ya no se aprueba ni la acepta el cliente desde su liga, y quitar un paquete no deja el descuento total por encima del máximo. Si el descuento por volumen ya llega al tope, puedes dejar el descuento comercial en 0 % y aprobar."
+        "texto": "El tope de descuento se respeta siempre: una propuesta que quedó por encima del tope ya no se aprueba ni la acepta el cliente desde su liga, y quitar un paquete no deja el descuento total por encima del máximo. Si el descuento por volumen ya llega al tope, puedes dejar el descuento comercial en 0 % y aprobar.",
+        "en": "The discount cap is always respected: a proposal left above the cap can no longer be approved or accepted by the client from their link, and removing a bundle does not leave the total discount above the maximum. If the volume discount already reaches the cap, you can leave the commercial discount at 0% and approve.",
+        "it": "Il tetto di sconto si rispetta sempre: una proposta rimasta sopra il tetto non si approva più né la accetta il cliente dal suo link, e togliere un pacchetto non lascia lo sconto totale sopra il massimo. Se lo sconto per volume arriva già al tetto, puoi lasciare lo sconto commerciale a 0% e approvare."
       },
       {
         "tipo": "CORREGIDO",
-        "texto": "Un código promocional ya no se gasta en una propuesta con un paquete que no admite códigos: el sistema avisa antes y no descuenta ningún uso de la promoción."
+        "texto": "Un código promocional ya no se gasta en una propuesta con un paquete que no admite códigos: el sistema avisa antes y no descuenta ningún uso de la promoción.",
+        "en": "A negotiation code is no longer used up on a proposal with a bundle that does not accept codes: the system warns you beforehand and does not deduct any use of the code.",
+        "it": "Un codice di negoziazione non si consuma più in una proposta con un pacchetto che non ammette codici: il sistema avvisa prima e non scala nessun uso del codice."
       },
       {
         "tipo": "CORREGIDO",
-        "texto": "Pagar dos veces la misma cuota ya no es posible, ni con un doble clic."
+        "texto": "Pagar dos veces la misma cuota ya no es posible, ni con un doble clic.",
+        "en": "Paying the same installment twice is no longer possible, not even with a double click.",
+        "it": "Pagare due volte la stessa rata non è più possibile, nemmeno con un doppio clic."
       },
       {
         "tipo": "CORREGIDO",
-        "texto": "En Cobranza, una cuota pagada ya no dice «vencida» junto a su fecha."
+        "texto": "En Cobranza, una cuota pagada ya no dice «vencida» junto a su fecha.",
+        "en": "In Collections, a paid installment no longer says “overdue” next to its date.",
+        "it": "In Incassi, una rata pagata non dice più «scaduta» accanto alla sua data."
       },
       {
         "tipo": "CORREGIDO",
-        "texto": "En Disponibilidad, el filtro «Solo con hueco libre» ya no esconde las pantallas digitales a medio vender."
+        "texto": "En Disponibilidad, el filtro «Solo con hueco libre» ya no esconde las pantallas digitales a medio vender.",
+        "en": "In Availability, the “Only with availability” filter no longer hides partly sold digital screens.",
+        "it": "In Disponibilità, il filtro «Solo con spazio libero» non nasconde più gli schermi digitali venduti a metà."
       },
       {
         "tipo": "CORREGIDO",
-        "texto": "Crear un usuario sin tocar el rol ya no da error."
+        "texto": "Crear un usuario sin tocar el rol ya no da error.",
+        "en": "Creating a user without touching the role no longer gives an error.",
+        "it": "Creare un utente senza toccare il ruolo non dà più errore."
       },
       {
         "tipo": "CORREGIDO",
-        "texto": "La lista de Facturas muestra la fecha de emisión legible."
+        "texto": "La lista de Facturas muestra la fecha de emisión legible.",
+        "en": "The Invoices list shows the issue date in a readable form.",
+        "it": "L’elenco delle Fatture mostra la data di emissione in forma leggibile."
       }
     ]
   },
@@ -519,31 +791,45 @@
     "items": [
       {
         "tipo": "NUEVO",
-        "texto": "Cada versión nueva trae sus notas: después de instalarse, cada persona ve una sola vez qué cambió, y puede volver a consultarlo cuando quiera en «Novedades»."
+        "texto": "Cada versión nueva trae sus notas: después de instalarse, cada persona ve una sola vez qué cambió, y puede volver a consultarlo cuando quiera en «Novedades».",
+        "en": "Every new version comes with its notes: after it is installed, each person sees what changed once, and can look it up again whenever they want in “What’s new”.",
+        "it": "Ogni nuova versione porta le sue note: dopo l’installazione, ogni persona vede una sola volta cosa è cambiato, e può riconsultarlo quando vuole in «Novità»."
       },
       {
         "tipo": "NUEVO",
-        "texto": "En Administración → Actualizaciones, el Dueño y el Administrador ven qué trae la versión disponible antes de decidir si la instalan."
+        "texto": "En Administración → Actualizaciones, el Dueño y el Administrador ven qué trae la versión disponible antes de decidir si la instalan.",
+        "en": "In Settings → Updates, the Owner and the Administrator see what the available version brings before deciding whether to install it.",
+        "it": "In Impostazioni → Aggiornamenti, il Titolare e l’Amministratore vedono cosa porta la versione disponibile prima di decidere se installarla."
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "En las propuestas, el sistema calcula la tarifa de cada pantalla. Solo el Gerente de ventas, el Director comercial, el Administrador y el Dueño pueden poner un precio distinto; el Vendedor cotiza siempre a la tarifa calculada. Cuando alguien ajusta un precio, la propuesta muestra por dentro cuál era la tarifa y quién la cambió; el cliente solo ve el precio final."
+        "texto": "En las propuestas, el sistema calcula la tarifa de cada pantalla. Solo el Gerente de ventas, el Director comercial, el Administrador y el Dueño pueden poner un precio distinto; el Vendedor cotiza siempre a la tarifa calculada. Cuando alguien ajusta un precio, la propuesta muestra por dentro cuál era la tarifa y quién la cambió; el cliente solo ve el precio final.",
+        "en": "On proposals, the system calculates each screen’s rate. Only the Sales manager, the Sales director, the Administrator and the Owner can set a different price; the Sales rep always quotes at the calculated rate. When someone adjusts a price, the proposal shows internally what the rate was and who changed it; the client only sees the final price.",
+        "it": "Nelle proposte, il sistema calcola la tariffa di ogni impianto. Solo il Manager vendite, il Direttore commerciale, l’Amministratore e il Titolare possono mettere un prezzo diverso; il Commerciale quota sempre alla tariffa calcolata. Quando qualcuno modifica un prezzo, la proposta mostra internamente qual era la tariffa e chi l’ha cambiata; il cliente vede solo il prezzo finale."
       },
       {
         "tipo": "NUEVO",
-        "texto": "Calculadora de spots en las propuestas: al cotizar una pantalla digital por spot, eliges cuántos espacios del loop compras y cuántas horas al día, y el sistema calcula los spots de toda la campaña. El precio por spot sigue siendo la tarifa de la pantalla. Por ahora viene apagada: se enciende con la casilla «Calculadora de spots» en cada pantalla."
+        "texto": "Calculadora de spots en las propuestas: al cotizar una pantalla digital por spot, eliges cuántos espacios del loop compras y cuántas horas al día, y el sistema calcula los spots de toda la campaña. El precio por spot sigue siendo la tarifa de la pantalla. Por ahora viene apagada: se enciende con la casilla «Calculadora de spots» en cada pantalla.",
+        "en": "Spot calculator on proposals: when quoting a digital screen per spot, you choose how many loop slots you buy and how many hours per day, and the system calculates the spots for the whole campaign. The price per spot is still the screen’s rate. For now it comes switched off: it is turned on with the “Spot calculator” checkbox on each screen.",
+        "it": "Calcolatrice di spot nelle proposte: quotando uno schermo digitale a spot, scegli quanti spazi del loop acquisti e quante ore al giorno, e il sistema calcola gli spot di tutta la campagna. Il prezzo per spot resta la tariffa dello schermo. Per ora è spenta: si accende con la casella «Calcolatrice di spot» in ogni schermo."
       },
       {
         "tipo": "NUEVO",
-        "texto": "Roadblock: una línea puede comprar todos los espacios de una pantalla, siempre que estén todos libres. Solo el Gerente de ventas y superiores pueden ponerle una prima encima de la tarifa; el Vendedor puede marcarlo sin prima."
+        "texto": "Roadblock: una línea puede comprar todos los espacios de una pantalla, siempre que estén todos libres. Solo el Gerente de ventas y superiores pueden ponerle una prima encima de la tarifa; el Vendedor puede marcarlo sin prima.",
+        "en": "Roadblock: a line can buy every slot on a screen, as long as they are all free. Only the Sales manager and above can add a premium on top of the rate; the Sales rep can mark it without a premium.",
+        "it": "Roadblock: una riga può acquistare tutti gli spazi di uno schermo, purché siano tutti liberi. Solo il Manager vendite e i ruoli superiori possono aggiungere una maggiorazione sopra la tariffa; il Commerciale può segnarlo senza maggiorazione."
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "Los spots se cuentan hacia abajo, día por día: si con los espacios elegidos no cabe un spot completo, no se cobra. Por eso el total puede salir unos pesos por debajo de la calculadora que se usaba antes."
+        "texto": "Los spots se cuentan hacia abajo, día por día: si con los espacios elegidos no cabe un spot completo, no se cobra. Por eso el total puede salir unos pesos por debajo de la calculadora que se usaba antes.",
+        "en": "Spots are counted down, day by day: if a full spot does not fit in the chosen slots, it is not charged. That is why the total can come out a few pesos below the calculator used before.",
+        "it": "Gli spot si contano per difetto, giorno per giorno: se con gli spazi scelti non ci sta uno spot intero, non viene addebitato. Per questo il totale può risultare qualche peso sotto la calcolatrice che si usava prima."
       },
       {
         "tipo": "CORREGIDO",
-        "texto": "En Nueva propuesta, la duración en meses ya usa meses de calendario: «desde el 5 de octubre, 2 meses» termina el 4 de diciembre, y no el 3 como antes. Y se cobra igual: del 1 al 31 de un mes es 1 mes, no 2. Las propuestas ya guardadas conservan su precio."
+        "texto": "En Nueva propuesta, la duración en meses ya usa meses de calendario: «desde el 5 de octubre, 2 meses» termina el 4 de diciembre, y no el 3 como antes. Y se cobra igual: del 1 al 31 de un mes es 1 mes, no 2. Las propuestas ya guardadas conservan su precio.",
+        "en": "In New proposal, a duration in months now uses calendar months: “from October 5, 2 months” ends on December 4, not on the 3rd as before. And it is charged the same way: from the 1st to the 31st of a month is 1 month, not 2. Proposals already saved keep their price.",
+        "it": "In Nuova proposta, la durata in mesi ora usa i mesi di calendario: «dal 5 ottobre, 2 mesi» termina il 4 dicembre, e non il 3 come prima. E viene addebitato allo stesso modo: dal 1° al 31 di un mese è 1 mese, non 2. Le proposte già salvate conservano il loro prezzo."
       }
     ]
   }

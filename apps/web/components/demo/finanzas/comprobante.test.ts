@@ -65,3 +65,10 @@ describe('armarComprobante', () => {
     expect(armarComprobante(F({ folioFiscal: null }), CAMPANAS, ENTIDADES).folioFiscal).toBe('—')
   })
 })
+
+describe('armarComprobante en ingles (costura, 2026-11-02)', () => {
+  it('sin emisora, «Unassigned»; en espanol, «Sin asignar» como siempre', () => {
+    expect(armarComprobante(F({ entidadEmisoraId: null }), CAMPANAS, ENTIDADES, 'en').emisor.razonSocial).toBe('Unassigned')
+    expect(armarComprobante(F({ entidadEmisoraId: null }), CAMPANAS, ENTIDADES).emisor.razonSocial).toBe('Sin asignar')
+  })
+})

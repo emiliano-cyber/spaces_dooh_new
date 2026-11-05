@@ -472,6 +472,7 @@
                            :style="giroDeFoto(recentPhotos[0]) ? `transform: rotate(${giroDeFoto(recentPhotos[0])}deg)` : ''" alt="Última foto">
                     </div>
                     <p class="font-mono text-xs text-neutral-500 mt-2" x-text="fechaCorta(recentPhotos[0].taken_at)"></p>
+                    <p class="text-xs text-neutral-500" x-show="textoOrigenFoto(recentPhotos[0])" x-text="textoOrigenFoto(recentPhotos[0])"></p>
                   </div>
                 </template>
                 <p x-show="!recentPhotos[0]" class="text-sm text-neutral-500 py-6 text-center">Sin fotos todavía.</p>
@@ -824,6 +825,10 @@
                     Todavía no ha detectado creativos nuevos.
                   </p>
                 </div>
+                <!-- La huella de un creativo viaja siempre; la foto, solo si el
+                     equipo podía tomarla. Sin esta línea, el catálogo y la
+                     galería no cuadran y parece un error. -->
+                <p x-show="leyendaSinFoto()" class="mt-2 text-[11px] text-neutral-500" x-text="leyendaSinFoto()"></p>
               </div>
             </div>
           </template>

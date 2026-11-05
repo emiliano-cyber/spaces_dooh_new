@@ -23,6 +23,10 @@
 //   · `days`        → no se manda: las franjas no tienen días de la semana.
 // ============================================================================
 
+import { traducir, type ClaveTexto } from './i18n/diccionario'
+import type { Idioma } from './i18n/idiomas'
+import { numeroEnIdioma } from './i18n/formato-idioma'
+
 export interface Franja {
   horaInicio: string
   horaFin: string
@@ -51,22 +55,44 @@ export function franjaQueViaja(e: { individual: Franja | null; programadaOContra
   return null
 }
 
-/** Por qué no se acepta un horario individual; null si vale. Lo usan la pantalla y el servidor. */
-export function motivoHorarioInvalido(h: { horaInicio: string; horaFin: string; dias: number[] | null }): string | null {
-  if (!HHMM.test(h.horaInicio) || !HHMM.test(h.horaFin)) return 'Las horas van como HH:mm, por ejemplo 07:30'
-  if (h.horaInicio === h.horaFin) return 'La hora de inicio y la de fin no pueden ser iguales'
+/**
+ * Por qué no se acepta un horario individual; null si vale. Lo usan la pantalla y el servidor.
+ *
+ * I18N (lote servidor, 2026-11-02) · `idioma` con 'es' por omisión: el servidor
+ * no lo pasa (su `AppError` lo traduce I18N-05) y la pantalla le pasa el suyo.
+ */
+export function motivoHorarioInvalido(
+  h: { horaInicio: string; horaFin: string; dias: number[] | null },
+  idioma: Idioma = 'es',
+): string | null {
+  const m = (es: string, clave: ClaveTexto) => (idioma === 'es' ? es : traducir(idioma, clave))
+  if (!HHMM.test(h.horaInicio) || !HHMM.test(h.horaFin)) return m('Las horas van como HH:mm, por ejemplo 07:30', 'servidor.horario.formato')
+  if (h.horaInicio === h.horaFin) return m('La hora de inicio y la de fin no pueden ser iguales', 'servidor.horario.iguales')
   if (h.dias) {
-    if (h.dias.length === 0) return 'Elige al menos un día, o ninguno para que sean todos'
-    if (h.dias.some((d) => !Number.isInteger(d) || d < 0 || d > 6)) return 'Ese día de la semana no existe'
-    if (new Set(h.dias).size !== h.dias.length) return 'Hay un día repetido'
+    if (h.dias.length === 0) return m('Elige al menos un día, o ninguno para que sean todos', 'servidor.horario.sin-dias')
+    if (h.dias.some((d) => !Number.isInteger(d) || d < 0 || d > 6)) return m('Ese día de la semana no existe', 'servidor.horario.dia-no-existe')
+    if (new Set(h.dias).size !== h.dias.length) return m('Hay un día repetido', 'servidor.horario.dia-repetido')
   }
   return null
 }
 
-const NOMBRE_DIA = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb']
+export const NOMBRE_DIA = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb']
+
+// I18N (costura, 2026-11-02) · los textos que pinta la ficha llevan `idioma`
+// con 'es' por omisión, como los de `lib/periodos.ts`: el servidor y el CLI no
+// lo pasan y no cambian. En español se devuelve el literal de siempre; solo el
+// otro idioma va al diccionario (`compartidos.doohmain.*`), y
+// `textos/compartidos.test.ts` exige que el español de allí sea este.
+const ORIGEN_DOOHMAIN: Record<'ficha' | 'mapa' | 'servidor' | 'ninguna', ClaveTexto> = {
+  ficha: 'compartidos.doohmain.origen.ficha',
+  mapa: 'compartidos.doohmain.origen.mapa',
+  servidor: 'compartidos.doohmain.origen.servidor',
+  ninguna: 'compartidos.doohmain.origen.ninguna',
+}
 
 /** Cómo se dice en Inventario de dónde sale el id de DOOHmain de una pantalla. */
-export function textoOrigenDoohmain(origen: 'ficha' | 'mapa' | 'servidor' | null): string {
+export function textoOrigenDoohmain(origen: 'ficha' | 'mapa' | 'servidor' | null, idioma: Idioma = 'es'): string {
+  if (idioma !== 'es') return traducir(idioma, ORIGEN_DOOHMAIN[origen ?? 'ninguna'])
   if (origen === 'ficha') return 'escrita en esta ficha'
   if (origen === 'mapa') return 'del mapa del servidor (no está escrita en la ficha)'
   if (origen === 'servidor') return 'la pantalla por omisión del servidor (no está escrita en la ficha)'
@@ -131,23 +157,31 @@ export function programacionDoohmain(e: {
 // ─── Lo que la ficha de la campaña enseña ANTES de publicar (22/10) ────────
 
 /** El horario que se manda: la franja, o que no hay y sale todo el día. */
-export function textoHorario(p: ProgramacionDoohmain): string {
+export function textoHorario(p: ProgramacionDoohmain, idioma: Idioma = 'es'): string {
+  if (idioma !== 'es') {
+    if (!p.horaInicio || !p.horaFin) return traducir(idioma, 'compartidos.doohmain.todo-el-dia')
+    const diasEn = p.dias?.length
+      ? ` · ${p.dias.map((d) => traducir(idioma, `compartidos.dia.${d}` as ClaveTexto)).join(', ')}`
+      : ''
+    return traducir(idioma, 'compartidos.doohmain.horario', { desde: p.horaInicio, hasta: p.horaFin }) + diasEn
+  }
   if (!p.horaInicio || !p.horaFin) return 'Todo el día (sin franja)'
   const dias = p.dias?.length ? ` · ${p.dias.map((d) => NOMBRE_DIA[d]).join(', ')}` : ''
   return `${p.horaInicio} a ${p.horaFin}${dias}`
 }
 
-const miles = (n: number) => n.toLocaleString('es-MX')
+const miles = (n: number, idioma: Idioma) => numeroEnIdioma(n, idioma)
 
 /**
  * Las reproducciones, por día y en toda la campaña. Sin pauta contratada NO se
  * pinta un cero —diría que no sale nunca—: se dice que DOOHmain pone las que
  * quepan, que es lo que pasa.
  */
-export function textoReproducciones(p: ProgramacionDoohmain): { porDia: string; total: string } {
+export function textoReproducciones(p: ProgramacionDoohmain, idioma: Idioma = 'es'): { porDia: string; total: string } {
+  const quepan = idioma === 'es' ? 'Las que quepan' : traducir(idioma, 'compartidos.doohmain.las-que-quepan')
   return {
-    porDia: p.cantDia != null ? miles(p.cantDia) : 'Las que quepan',
-    total: p.cantTotal != null ? miles(p.cantTotal) : 'Las que quepan',
+    porDia: p.cantDia != null ? miles(p.cantDia, idioma) : quepan,
+    total: p.cantTotal != null ? miles(p.cantTotal, idioma) : quepan,
   }
 }
 

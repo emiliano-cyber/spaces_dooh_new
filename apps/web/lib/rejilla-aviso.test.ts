@@ -79,7 +79,11 @@ describe('1 · el texto vive en UN solo sitio', () => {
 
   it('el componente que lo pinta lo IMPORTA de `lib/rejilla`, no lo repite', () => {
     const c = sinComentarios('components/demo/rejilla/AvisoFranjaCMS.tsx')
-    expect(c).toMatch(/import \{ AVISO_FRANJA_NO_VIAJA_AL_CMS \} from '@\/lib\/rejilla'/)
+    // Desde el lote «compartidos» de la version en ingles (2026-11-02) importa
+    // `avisoFranja(idioma)`, que en espanol devuelve ESTA MISMA constante
+    // (`compartidos-idioma.test.ts`). Lo que se vigila sigue igual: que venga
+    // de `lib/rejilla` y no se escriba a mano.
+    expect(c).toMatch(/import \{ avisoFranja \} from '@\/lib\/rejilla'/)
     expect(c).not.toContain(AVISO_FRANJA_NO_VIAJA_AL_CMS.slice(0, 40))
   })
 })

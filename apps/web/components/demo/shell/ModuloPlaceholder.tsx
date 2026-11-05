@@ -2,6 +2,7 @@
 
 import type { LucideIcon } from 'lucide-react'
 import { EmptyState } from '@/components/demo/EmptyState'
+import { useTexto } from '@/lib/i18n/contexto'
 
 // Placeholder de módulo aún no construido. Mantiene la navegación del shell sin
 // pantallas en blanco ni 404 mientras avanzan las fases.
@@ -16,6 +17,7 @@ export function ModuloPlaceholder({
   icon: LucideIcon
   fase: string
 }) {
+  const t = useTexto()
   return (
     <div className="w-full space-y-6">
       <div>
@@ -24,8 +26,8 @@ export function ModuloPlaceholder({
       </div>
       <EmptyState
         icon={icon}
-        titulo={`Módulo en construcción (${fase})`}
-        detalle="Los cimientos y la capa de datos ya están listos; esta pantalla se arma en la fase indicada."
+        titulo={t('shell.placeholder.titulo', { fase })}
+        detalle={t('shell.placeholder.detalle')}
       />
     </div>
   )

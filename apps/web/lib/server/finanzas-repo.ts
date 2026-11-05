@@ -11,6 +11,8 @@ import {
 import { notificar } from './notificaciones-repo'
 import { IGV_PCT } from './campanas-repo'
 import { candadoDeSegmentos, formatMonto } from '@/lib/data/derive'
+import { simboloMoneda } from '@/lib/i18n/dinero'
+import { monedaDeLaInstancia } from './moneda-instancia'
 
 // ============================================================================
 //  lib/server/finanzas-repo.ts — Facturación y cobranza.
@@ -70,8 +72,10 @@ export async function listarCobranzas() {
 export const UMBRAL_RECORDATORIO_DIAS = 7
 export const CADENCIA_RECORDATORIO_DIAS = 3
 
+// ADR 0048 · simbolo de la moneda de la instancia. Quien llama a
+// `textoRecordatorio` la pide antes (`monedaDeLaInstancia()`).
 const fmtMonto = (v: number) =>
-  '$' + Math.round(v).toLocaleString('es-MX')
+  simboloMoneda() + Math.round(v).toLocaleString('es-MX')
 
 function textoRecordatorio(r: { folio: string; cliente: string | null; dias: number; saldo: number }) {
   const vencida = r.dias < 0
@@ -91,6 +95,7 @@ function textoRecordatorio(r: { folio: string; cliente: string | null; dias: num
 export async function recordarCobranzasVencidas(): Promise<number> {
   const tenantId = await tenantActual()
   if (!tenantId) return 0
+  await monedaDeLaInstancia() // ADR 0048: el aviso escribe el saldo
   const rows = await q<any>(
     `select c.id, f.folio, f.monto, cl.nombre as cliente, c.monto_pagado,
             (c.fecha_vencimiento - current_date) as dias
@@ -117,6 +122,7 @@ export async function recordarCobranzasVencidas(): Promise<number> {
 export async function enviarRecordatorioCobranza(
   cobranzaId: string,
 ): Promise<{ ok: boolean; recordatoriosEnviados: number; motivo?: string } | null> {
+  await monedaDeLaInstancia() // ADR 0048: el aviso escribe el saldo
   const r = await q1<any>(
     `select c.id, f.folio, f.monto, cl.nombre as cliente, c.monto_pagado, c.recordatorios_enviados,
             (c.fecha_vencimiento - current_date) as dias
@@ -164,6 +170,7 @@ export async function generarFactura(
   // misma funcion. Este parametro solo viaja al INSERT.
   entidadEmisoraId?: string | null,
 ) {
+  await monedaDeLaInstancia() // ADR 0048: el rechazo de parcialidades escribe importes
   const c = await q1<any>('select * from campanas where id=$1', [campanaId])
   if (!c) throw new FacturaError('Campaña no encontrada')
   // Candado por segmento (A-2): la MISMA regla que usa la UI (derive.ts). Una

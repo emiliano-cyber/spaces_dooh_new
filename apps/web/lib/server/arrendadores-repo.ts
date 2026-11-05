@@ -550,9 +550,13 @@ export async function crearContratoConSitio(input: {
     const { rows: cr } = await client.query(
       `insert into contratos_arrendamiento
         (sitio_id, predio_id, arrendador_id, fecha_inicio, fecha_fin, monto_renta, periodicidad, moneda, auto_renovable, documento_url, estatus, tenant_id)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) returning *`,
+       values ($1,$2,$3,$4,$5,$6,$7,
+               -- ADR 0048: sin moneda, la de la INSTANCIA (era el literal 'MXN').
+               -- El controller ya rechazo cualquier otra.
+               coalesce($8, (select moneda from tenants where id = $12)),
+               $9,$10,$11,$12) returning *`,
       [sitioId, predioId, arrendadorId, input.contrato.fechaInicio, input.contrato.fechaFin, input.contrato.montoRenta,
-       input.contrato.periodicidad, input.contrato.moneda ?? 'MXN', input.contrato.autoRenovable ?? false,
+       input.contrato.periodicidad, input.contrato.moneda ?? null, input.contrato.autoRenovable ?? false,
        input.contrato.documentoUrl ?? null, estatus, tenantId],
     )
 

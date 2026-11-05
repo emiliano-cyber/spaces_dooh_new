@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { AppError, validar } from './errores'
 import { avisosDeProgramacion, textoAccionProgramacion } from '@/lib/franja-programada'
 import { asignarFranjaProgramada, listarProgramacion } from './programacion-repo'
+import { idiomaDeLaPeticion } from '@/lib/i18n/servidor'
 
 // ============================================================================
 //  lib/server/programacion-controller.ts — la forma de entrada de la franja
@@ -81,14 +82,22 @@ export async function programacionCtrl(op?: { campanaId?: string | null }) {
     d.campanaId ? { campanaId: d.campanaId } : undefined,
   )
   const porId = new Map(franjas.map((f) => [f.id, f]))
+  // El aviso viaja en el CUERPO de la respuesta y lo pinta la pantalla tal
+  // cual: se arma en el idioma de quien lo pide (lote servidor, 02/11). La
+  // regla es la misma de I18N-05 —cookie > Accept-Language > español— y fuera
+  // de una peticion cae al español sin lanzar.
+  const idioma = idiomaDeLaPeticion()
   return {
     franjas,
     campanas: campanas.map((c) => ({
       ...c,
-      avisos: avisosDeProgramacion({
-        programada: c.franjaProgramadaId ? porId.get(c.franjaProgramadaId) ?? null : null,
-        contratadas: c.contratadas,
-      }),
+      avisos: avisosDeProgramacion(
+        {
+          programada: c.franjaProgramadaId ? porId.get(c.franjaProgramadaId) ?? null : null,
+          contratadas: c.contratadas,
+        },
+        idioma,
+      ),
     })),
   }
 }

@@ -1,11 +1,12 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-10-29
+actualizado: 2026-11-03
 tags: [datos, esquema, er, postgres]
 archivos:
   - db/schema.sql
   - db/migrations/20261029_campana_extensiones.sql
+  - db/migrations/20261102_moneda_inmutable_por_instancia.sql
   - db/migrations/20261022_comercial_negociacion.sql
   - db/migrations/20261022_campana_horario_doohmain.sql
   - db/migrations/20261022_pantallas_propias.sql
@@ -581,13 +582,13 @@ erDiagram
 ### Plataforma y acceso
 | Tabla | RLS | Nota |
 |---|---|---|
-| `tenants` | **Exenta** | Una fila por organización. **El esquema no siembra ninguna** (ver el aviso de arriba). Desde el 21/09 lleva `cambios_password_hash` — la contraseña compartida del candado de cambios (ADR 0036), `null` = sin asignar — ver [[02-Backend/autenticacion-y-sesion]]. Desde el 12/10 lleva `entidad_principal_id`: la razón social de la empresa es una de `entidades_fiscales` y se lee de ahí (FK compuesta con `id`); `razon_social` y `rfc` quedan de respaldo — ver [[02-Backend/entidades-fiscales]] |
-| `usuarios` | fail-closed + FORCE | Correo UNIQUE **global** `lower(email)` |
+| `tenants` | **Exenta** | Una fila por organización. **El esquema no siembra ninguna** (ver el aviso de arriba). Desde el 21/09 lleva `cambios_password_hash` — la contraseña compartida del candado de cambios (ADR 0036), `null` = sin asignar — ver [[02-Backend/autenticacion-y-sesion]]. Desde el 12/10 lleva `entidad_principal_id`: la razón social de la empresa es una de `entidades_fiscales` y se lee de ahí (FK compuesta con `id`); `razon_social` y `rfc` quedan de respaldo — ver [[02-Backend/entidades-fiscales]]  **Desde el 02/11 (ADR 0048), `moneda` es la de la INSTANCIA:** `check (moneda in ('MXN','USD'))`, no se puede cambiar (trigger `trg_tenants_moneda_inmutable`) y todas las organizaciones de la instancia comparten la misma (`trg_tenants_moneda_unica`). **Desde el 03/11 (ADR 0049), `idioma_documentos`** (`es`/`en`/`it`, DEFAULT `es`): el idioma del contrato y de la constancia de firmas de la INSTANCIA, con las mismas dos reglas (`trg_tenants_idioma_documentos_inmutable`, `trg_tenants_idioma_documentos_unico`) |
+| `usuarios` | fail-closed + FORCE | Correo UNIQUE **global** `lower(email)`. **(03/11, IDIOMA-USUARIO)** `idioma_preferido text null`, CHECK `usuarios_idioma_preferido_valido` (`es`/`en`/`it`); `null` = sigue al navegador. Se lee con `qConTenant` al abrir sesión y con `q` en «Mi cuenta» — ver [[03-Frontend/idiomas-es-en]] |
 | `sesiones` | **Exenta** | + `desbloqueo_expira_en` + `desbloqueo_es_propio` (ADR 0036: si el desbloqueo vigente fue con la contraseña propia o la compartida) |
 | `identidades_externas` | fail-closed + FORCE | ADR 0012 |
 | `password_resets` | fail-closed (desde 07/08) | Token único, 60 min |
 | `rol_permisos` | **Sin tenant_id** | RBAC global a la instalación. Desde el **29/09** (ADR 0040) son **86 filas · 10 módulos · 8 roles**: entran los cuatro roles de venta y el módulo `precios`, y `COMERCIAL` se queda **a cero** — el valor sigue en el enum porque no se puede quitar, pero sin filas no autoriza nada. Ver [[02-Backend/roles-de-venta]] |
-| `config_negocio` | fail-closed + FORCE | Una fila **por tenant**, sin DEFAULT. La crea quien da de alta la organización, o la app al primer acceso (`lib/server/config-repo.ts:59-61`). Desde el 17/09 lleva `costos_ot jsonb` —costo de mano de obra por tipo de OT, `{}` = sin configurar— con CHECK de forma; ver [[02-Backend/operaciones-y-ot]]. Desde el **28/09** lleva `tope_descuento_pct numeric(5,2) not null default 100` —el descuento máximo que esa organización autoriza en una propuesta, `100` = sin tope, que es como nace— con `check (>= 0 and <= 100)`; ver [[02-Backend/comercial-propuestas-campanas]] |
+| `config_negocio` | fail-closed + FORCE | Una fila **por tenant**, sin DEFAULT. La crea quien da de alta la organización, o la app al primer acceso (`lib/server/config-repo.ts:59-61`). Desde el 17/09 lleva `costos_ot jsonb` —costo de mano de obra por tipo de OT, `{}` = sin configurar— con CHECK de forma; ver [[02-Backend/operaciones-y-ot]]. Desde el **28/09** lleva `tope_descuento_pct numeric(5,2) not null default 100` —el descuento máximo que esa organización autoriza en una propuesta, `100` = sin tope, que es como nace— con `check (>= 0 and <= 100)`; ver [[02-Backend/comercial-propuestas-campanas]]  **Desde el 02/11 (ADR 0048), `moneda` es espejo de `tenants.moneda`:** se copia al insertar (`trg_config_negocio_moneda_espejo`, venga lo que venga en el INSERT), `check` MXN/USD y no se puede cambiar (`trg_config_negocio_moneda_inmutable`) |
 | `folios_consecutivos` | Sin tenant_id | Contador global |
 | `schema_migrations` | Sin tenant_id | Qué migraciones corrió **esta instancia**. Ver [[migraciones]] |
 | `acciones` | fail-closed | Bitácora append-only |
@@ -756,6 +757,33 @@ Restricciones **UNIQUE globales** (sin tenant): `sitios.clave_interna`,
 
 `set_actualizado_en()` mantiene `actualizado_en` en `config_negocio`, `sitios`,
 `campanas`, `ordenes_trabajo`, `ordenes_impresion`.
+
+**La moneda de la instancia (02/11, ADR 0048,
+`20261102_moneda_inmutable_por_instancia.sql`).** Cuatro triggers, y paran a
+todos los roles, superusuario incluido:
+
+| Trigger | Tabla | Qué impide |
+|---|---|---|
+| `trg_tenants_moneda_inmutable` | `tenants` (before update of moneda) | Cambiar la moneda. Reescribir el mismo valor pasa |
+| `trg_config_negocio_moneda_inmutable` | `config_negocio` (before update of moneda) | Lo mismo en el espejo |
+| `trg_tenants_moneda_unica` | `tenants` (before insert) | Una organización en otra moneda que las existentes; serializa con `pg_advisory_xact_lock` |
+| `trg_config_negocio_moneda_espejo` | `config_negocio` (before insert) | Que la fila nazca en otra moneda que su organización (la crea perezosa `obtenerConfigRow()` con el DEFAULT `'MXN'`) |
+
+Cambiar la moneda de una instancia que ya existe **no es un ajuste**: es una
+corrección de datos con tipo de cambio en `docs/datos/`, deshabilitando estos
+triggers a propósito. Ver [[03-Frontend/idiomas-es-en]] §7.
+
+**El idioma de los documentos de la instancia (03/11, ADR 0049,
+`20261103_idioma_documentos_por_instancia.sql`).** Dos triggers más, con la
+misma forma y para todos los roles:
+
+| Trigger | Tabla | Qué impide |
+|---|---|---|
+| `trg_tenants_idioma_documentos_inmutable` | `tenants` (before update of idioma_documentos) | Cambiar el idioma de los documentos. Reescribir el mismo pasa |
+| `trg_tenants_idioma_documentos_unico` | `tenants` (before insert) | Una organización en otro idioma de documentos que las existentes; serializa con `pg_advisory_xact_lock` |
+
+Cambiarlo no es un ajuste: los contratos firmados se cotejan regenerando su
+texto, y en otro idioma aparecerían alterados. Ver [[03-Frontend/idiomas-es-en]] §12.
 
 ## Relacionadas
 [[migraciones]] · [[multi-tenancy-y-rls]] · [[glosario]] ·

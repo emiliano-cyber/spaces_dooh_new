@@ -6,7 +6,6 @@ import { AlertTriangle, Building2, Check, Pencil, Plus, RotateCcw, Trash2, X } f
 import Link from 'next/link'
 import { cn } from '@/lib/cn'
 import { useConfigNegocio } from '@/lib/data/client'
-import { conteo } from '@/lib/plural'
 import { EmptyState } from '@/components/demo/EmptyState'
 import { Chip, TONO } from '@/components/demo/admin/Chip'
 import { Button } from '@/components/demo/ui/Button'
@@ -23,6 +22,10 @@ import {
   type BorradorEntidad,
   type EntidadUI,
 } from './gestion'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { etiquetaDePapel } from '@/lib/i18n/papeles'
+import { interpolarNodos } from '@/lib/i18n/nodos'
+import { formatNumero } from '@/lib/formato-numero'
 
 // ============================================================================
 //  Alta, edición, baja y reactivación de las razones sociales del OWNER.
@@ -71,10 +74,13 @@ export function GestionEntidadesFiscales({
   const [creando, setCreando] = useState(false)
   const [borrador, setBorrador] = useState<BorradorEntidad>(BORRADOR_VACIO)
   const [ocupado, setOcupado] = useState(false)
+  const { t, idioma } = useIdioma()
 
   const claves = useMemo(() => catalogo.map((c) => c.rol), [catalogo])
+  // Ola 6 · la etiqueta del catalogo es dato en espanol; en ingles se pinta la
+  // de partida traducida (si alguien la renombro, se queda como esta).
   const etiquetaDe = (rol: string) =>
-    catalogo.find((c) => c.rol === rol)?.etiqueta ?? rol
+    etiquetaDePapel(catalogo.find((c) => c.rol === rol)?.etiqueta ?? rol, idioma)
   const ordenadas = useMemo(() => entidadesOrdenadas(entidades), [entidades])
   const huerfanos = useMemo(() => rolesSinDueno(entidades, claves), [entidades, claves])
   const compartidos = useMemo(() => rolesCompartidos(entidades, claves), [entidades, claves])
@@ -90,7 +96,7 @@ export function GestionEntidadesFiscales({
     existentes: entidades,
     editando,
     catalogo: claves,
-  })
+  }, idioma)
   // OBLIG-01 · la razón social es lo único obligatorio (`entidades-controller.ts:35`).
   // Vacía, ya no se regaña al abrir el formulario ni se deshabilita el botón:
   // se pulsa y el campo se pinta en rojo. Los OTROS motivos de
@@ -152,15 +158,15 @@ export function GestionEntidadesFiscales({
       }
       if (creando) {
         await crearEntidadApi(datos)
-        toast.success('Razón social agregada')
+        toast.success(t('admin.razones.toast.agregada'))
       } else if (editando) {
         await editarEntidadApi(editando, datos)
-        toast.success('Razón social actualizada')
+        toast.success(t('admin.razones.toast.actualizada'))
       }
       cerrar()
       alCambiar()
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'No se pudo guardar')
+      toast.error(e instanceof Error ? e.message : t('admin.comun.no-se-pudo-guardar'))
     } finally {
       setOcupado(false)
     }
@@ -172,10 +178,10 @@ export function GestionEntidadesFiscales({
       await desactivarEntidadApi(e.id)
       // Se dice que la baja es reversible y que los documentos se conservan: sin
       // eso, «dar de baja» suena a borrar y nadie lo usa.
-      toast.success('Razón social dada de baja · los documentos que la nombran se conservan')
+      toast.success(t('admin.razones.toast.baja'))
       alCambiar()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'No se pudo dar de baja')
+      toast.error(err instanceof Error ? err.message : t('admin.razones.error.baja'))
     } finally {
       setOcupado(false)
     }
@@ -185,10 +191,10 @@ export function GestionEntidadesFiscales({
     setOcupado(true)
     try {
       await editarEntidadApi(e.id, { razonSocial: e.razonSocial, activo: true })
-      toast.success('Razón social reactivada')
+      toast.success(t('admin.razones.toast.reactivada'))
       alCambiar()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'No se pudo reactivar')
+      toast.error(err instanceof Error ? err.message : t('admin.razones.error.reactivar'))
     } finally {
       setOcupado(false)
     }
@@ -199,12 +205,12 @@ export function GestionEntidadesFiscales({
     // el borde sale del tono «acento», y el texto vuelve a `ink`.
     <div className={cn('space-y-3 rounded border p-3', TONO.acento, 'text-ink')}>
       <div className="grid gap-2.5 sm:grid-cols-2">
-        <Campo label="Razón social" obligatorio falta={ob.falta('razonSocial')} className="sm:col-span-2">
+        <Campo label={t('admin.razones.razon-social')} obligatorio falta={ob.falta('razonSocial')} className="sm:col-span-2">
           <input
             className={inputCls}
             value={borrador.razonSocial}
             onChange={(ev) => setBorrador({ ...borrador, razonSocial: ev.target.value })}
-            placeholder="Denominación fiscal, como aparece en la constancia"
+            placeholder={t('admin.razones.razon-ejemplo')}
             autoFocus
           />
         </Campo>
@@ -217,7 +223,7 @@ export function GestionEntidadesFiscales({
             maxLength={13}
           />
         </Campo>
-        <Campo label="Régimen fiscal">
+        <Campo label={t('admin.razones.regimen')}>
           <input
             className={inputCls}
             value={borrador.regimen}
@@ -226,7 +232,7 @@ export function GestionEntidadesFiscales({
             maxLength={120}
           />
         </Campo>
-        <Campo label="CP fiscal">
+        <Campo label={t('admin.razones.cp')}>
           <input
             className={cn(inputCls, 'demo-num')}
             value={borrador.cpFiscal}
@@ -235,7 +241,7 @@ export function GestionEntidadesFiscales({
             maxLength={5}
           />
         </Campo>
-        <Campo label="Serie de folios">
+        <Campo label={t('admin.razones.serie')}>
           <input
             className={cn(inputCls, 'uppercase')}
             value={borrador.serieFolios}
@@ -250,7 +256,7 @@ export function GestionEntidadesFiscales({
 
       <div>
         <span className="mb-1.5 block text-[11.5px] text-muted">
-          Qué papel juega esta razón social
+          {t('admin.razones.papel')}
         </span>
         {/* Los cinco salen del catálogo con su etiqueta y en el orden de la
             tabla. No hay botón de «añadir papel» a propósito: son el
@@ -271,13 +277,13 @@ export function GestionEntidadesFiscales({
                     : 'border-border-strong bg-surface text-ink hover:border-accent',
                 )}
               >
-                {c.etiqueta}
+                {etiquetaDePapel(c.etiqueta, idioma)}
               </button>
             )
           })}
         </div>
         <p className="mt-1.5 text-[11.5px] text-muted">
-          Sin ningún papel también se guarda: cuál juega se puede decidir después.
+          {t('admin.razones.sin-papel-ok')}
         </p>
       </div>
 
@@ -288,10 +294,10 @@ export function GestionEntidadesFiscales({
       )}
       <div className="flex gap-2">
         <Button size="sm" disabled={!!motivo || ocupado} onClick={guardar}>
-          <Check className="h-3.5 w-3.5" /> {ocupado ? 'Guardando…' : 'Guardar'}
+          <Check className="h-3.5 w-3.5" /> {ocupado ? t('admin.comun.guardando') : t('comun.guardar')}
         </Button>
         <Button size="sm" variant="secondary" onClick={cerrar} disabled={ocupado}>
-          <X className="h-3.5 w-3.5" /> Cancelar
+          <X className="h-3.5 w-3.5" /> {t('comun.cancelar')}
         </Button>
       </div>
     </div>
@@ -306,9 +312,7 @@ export function GestionEntidadesFiscales({
             <p className="flex gap-1.5">
               <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0 text-warning" />
               <span>
-                Ninguna razón social activa tiene{' '}
-                <b>{huerfanos.map(etiquetaDe).join(', ')}</b>. Los documentos de ese tipo van a
-                nacer sin razón social hasta que se lo asignes a alguna.
+                {interpolarNodos(t('admin.razones.huerfanos'), { papeles: <b>{huerfanos.map(etiquetaDe).join(', ')}</b> })}
               </span>
             </p>
           )}
@@ -316,9 +320,7 @@ export function GestionEntidadesFiscales({
             <p className="flex gap-1.5">
               <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0 text-warning" />
               <span>
-                <b>{compartidos.map(etiquetaDe).join(', ')}</b> lo tienen dos o más. Cuando hay
-                varias con el mismo papel el sistema no propone ninguna, así que habrá que
-                elegirla a mano en cada contrato o comprobante.
+                {interpolarNodos(t('admin.razones.compartidos'), { papeles: <b>{compartidos.map(etiquetaDe).join(', ')}</b> })}
               </span>
             </p>
           )}
@@ -333,21 +335,21 @@ export function GestionEntidadesFiscales({
           no lo pierde. */}
       <CardColapsable
         id="razones-sociales.lista"
-        titulo="Razones sociales"
+        titulo={t('admin.razones.titulo')}
         contentClassName="space-y-4"
         resumen={entidades.length > 0 ? (
           <div className="flex flex-wrap gap-1.5">
-            <Chip tono="exito" punto><span className="demo-num">{conteo(activas, 'activa')}</span></Chip>
-            <Chip punto><span className="demo-num">{deBaja}</span> de baja</Chip>
+            <Chip tono="exito" punto><span className="demo-num">{t(activas === 1 ? 'admin.razones.n-activas.uno' : 'admin.razones.n-activas.otros', { n: formatNumero(activas) })}</span></Chip>
+            <Chip punto>{interpolarNodos(t('admin.razones.de-baja'), { n: <span className="demo-num">{deBaja}</span> })}</Chip>
             {/* El detalle de los avisos sigue FUERA de la tarjeta (ver arriba);
                 esto solo los cuenta para que se vean con la tarjeta plegada. */}
-            {avisos > 0 && <Chip tono="aviso"><span className="demo-num">{conteo(avisos, 'aviso')}</span></Chip>}
+            {avisos > 0 && <Chip tono="aviso"><span className="demo-num">{t(avisos === 1 ? 'admin.razones.n-avisos.uno' : 'admin.razones.n-avisos.otros', { n: formatNumero(avisos) })}</span></Chip>}
           </div>
         ) : undefined}
       >
       {puedeEditar && !creando && !editando && ordenadas.length > 0 && (
         <Button variant="success" size="sm" onClick={abrirAlta}>
-          <Plus className="h-3.5 w-3.5" /> Nueva razón social
+          <Plus className="h-3.5 w-3.5" /> {t('admin.razones.nueva')}
         </Button>
       )}
       {creando && formulario}
@@ -358,22 +360,24 @@ export function GestionEntidadesFiscales({
           // un párrafo suelto debajo de la tarjeta, lejos del vacío.
           <EmptyState
             icon={Building2}
-            titulo="Todavía no hay ninguna razón social registrada."
-            detalle="Es la identidad fiscal del negocio: con cuál pagas las rentas, con cuál compras los activos, con cuál tramitas licencias y con cuál vendes. Pueden ser varias, y es lo normal."
+            titulo={t('admin.razones.vacio')}
+            detalle={t('admin.razones.vacio-detalle')}
             className="py-8"
             accion={
               <div className="flex flex-col items-center gap-2">
                 {puedeEditar && (
                   <Button variant="success" size="sm" onClick={abrirAlta}>
-                    <Plus className="h-3.5 w-3.5" /> Nueva razón social
+                    <Plus className="h-3.5 w-3.5" /> {t('admin.razones.nueva')}
                   </Button>
                 )}
                 <p className="m-0 text-[12.5px] text-muted">
-                  Si prefieres capturarlas contestando tres preguntas, el{' '}
-                  <Link href="/bienvenida" className="text-muted underline hover:text-ink">
-                    cuestionario de bienvenida
-                  </Link>{' '}
-                  las crea de una vez con sus papeles.
+                  {interpolarNodos(t('admin.razones.cuestionario'), {
+                    enlace: (
+                      <Link href="/bienvenida" className="text-muted underline hover:text-ink">
+                        {t('admin.razones.cuestionario-enlace')}
+                      </Link>
+                    ),
+                  })}
                 </p>
               </div>
             }
@@ -399,21 +403,21 @@ export function GestionEntidadesFiscales({
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-[13.5px] font-medium text-ink">{e.razonSocial}</span>
                       {e.id === principalId && (
-                        <Chip tono="acento" title="Sale en contratos y en el Dashboard · se cambia en Administración → Configuración">
-                          Principal
+                        <Chip tono="acento" title={t('admin.razones.principal-title')}>
+                          {t('admin.razones.principal')}
                         </Chip>
                       )}
-                      {e.activo === false && <Chip>Dada de baja</Chip>}
+                      {e.activo === false && <Chip>{t('admin.razones.dada-de-baja')}</Chip>}
                     </div>
                     <p className="m-0 mt-0.5 text-[12px] text-muted">
-                      <span className="demo-num">{e.rfc || 'sin RFC'}</span>
+                      <span className="demo-num">{e.rfc || t('admin.razones.sin-rfc')}</span>
                       {e.regimen ? ` · ${e.regimen}` : ''}
-                      {e.cpFiscal ? ` · CP ${e.cpFiscal}` : ''}
-                      {e.serieFolios ? ` · serie ${e.serieFolios}` : ''}
+                      {e.cpFiscal ? t('admin.razones.cp-n', { cp: e.cpFiscal }) : ''}
+                      {e.serieFolios ? t('admin.razones.serie-n', { serie: e.serieFolios }) : ''}
                     </p>
                     <div className="mt-1.5 flex flex-wrap gap-1">
                       {(e.roles ?? []).length === 0 ? (
-                        <span className="text-[11.5px] text-muted">Sin papel asignado</span>
+                        <span className="text-[11.5px] text-muted">{t('admin.razones.sin-papel')}</span>
                       ) : (
                         (e.roles ?? []).map((r) => (
                           <span
@@ -429,7 +433,7 @@ export function GestionEntidadesFiscales({
                   {puedeEditar && (
                     <div className="flex w-full shrink-0 flex-wrap gap-1.5 sm:w-auto">
                       <Button size="sm" variant="secondary" onClick={() => abrirEdicion(e)}>
-                        <Pencil className="h-3.5 w-3.5" /> Editar
+                        <Pencil className="h-3.5 w-3.5" /> {t('admin.razones.editar')}
                       </Button>
                       {e.activo === false ? (
                         <Button
@@ -438,7 +442,7 @@ export function GestionEntidadesFiscales({
                           disabled={ocupado}
                           onClick={() => reactivar(e)}
                         >
-                          <RotateCcw className="h-3.5 w-3.5" /> Reactivar
+                          <RotateCcw className="h-3.5 w-3.5" /> {t('admin.razones.reactivar')}
                         </Button>
                       ) : (
                         <Button
@@ -447,7 +451,7 @@ export function GestionEntidadesFiscales({
                           disabled={ocupado}
                           onClick={() => darDeBaja(e)}
                         >
-                          <Trash2 className="h-3.5 w-3.5" /> Dar de baja
+                          <Trash2 className="h-3.5 w-3.5" /> {t('admin.razones.dar-de-baja')}
                         </Button>
                       )}
                     </div>

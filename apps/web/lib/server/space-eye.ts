@@ -1,4 +1,5 @@
 import 'server-only'
+import { contarSinFoto } from '@/lib/space-eyes-sin-foto'
 import { readFile } from 'node:fs/promises'
 import { giroDeFoto } from '@/lib/space-eyes-marca'
 import { licenciaIncluyeModulo } from '@/lib/licencia'
@@ -145,6 +146,10 @@ interface SEPhoto {
   verification_score: number | null
   /** Cuánto hay que girar la foto para verla derecha (la guarda el equipo). */
   display_rotation?: number | string | null
+  /** De dónde salió: scheduled, on_demand, campana, falla… (ENUM de Space Eye). */
+  source?: string | null
+  /** De QUÉ campaña es la prueba. Space Eye lo manda desde la migración 024. */
+  campaign_name?: string | null
 }
 
 // Devuelve la visión (cámara + IA) de la pantalla cuyo código de proveedor
@@ -249,6 +254,8 @@ export interface SEFotoModulo {
   ancho: number | null
   alto: number | null
   origen: string | null
+  /** El nombre de la campaña cuando `origen` es 'campana'; si no, null. */
+  campana: string | null
   verificacionEstatus: string | null
   esCorrecta: boolean | null
   score: number | null
@@ -409,7 +416,8 @@ export async function equipoDetalle(id: number): Promise<SEEquipoDetalle | null>
       tomadaEn: p.taken_at,
       ancho: p.width,
       alto: p.height,
-      origen: (p as any).source ?? null,
+      origen: p.source ?? null,
+      campana: p.campaign_name ?? null,
       verificacionEstatus: p.verification_status,
       esCorrecta: p.is_correct,
       score: p.verification_score != null ? Number(p.verification_score) : null,
@@ -758,6 +766,16 @@ export interface SECreativosEquipo {
   maxDia: number
   /** Con foto, del más reciente al más viejo. */
   creativos: SECreativo[]
+  /**
+   * Los que se detectaron pero no trajeron foto, por motivo: cuántos son y por
+   * qué. El catálogo y la galería se llenan por caminos distintos —la huella
+   * del creativo viaja siempre, 32 bytes pegados al reporte de estado; la foto
+   * solo si el equipo podía tomarla— así que un hallazgo sin foto es normal y
+   * hasta ahora desaparecía de la pantalla sin decir nada. Quien contaba nueve
+   * creativos en el catálogo y veía cinco fotos no tenía forma de saber qué
+   * había pasado con las otras cuatro.
+   */
+  sinFoto: Record<string, number>
 }
 
 export async function creativosDeEquipo(id: number): Promise<SECreativosEquipo | null> {
@@ -782,6 +800,7 @@ export async function creativosDeEquipo(id: number): Promise<SECreativosEquipo |
         vistas: Number(c.vistas ?? 0),
         foto: urlDeFoto(String(c.thumbnail_path || c.storage_path)),
       })),
+    sinFoto: contarSinFoto(d.creativos ?? []),
   }
 }
 

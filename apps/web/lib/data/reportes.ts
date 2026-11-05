@@ -7,6 +7,16 @@ import {
   type DatosAtribucion,
 } from './derive'
 import { costoEfectivoDeOt, tieneCostoReal } from '../costos-ot'
+// ADR 0048: las notas de cobertura nombran importes en la moneda de la
+// instancia. Era un `toLocaleString` con el peso escrito a mano, cuatro
+// veces: en una instancia en dolares habrian dicho pesos.
+import { formatearDineroRedondo } from '../i18n/dinero'
+// Lote de ingles «reportes» (2026-11-02): las notas se arman con el
+// diccionario, en espanol por omision. El servidor las sigue mandando en
+// espanol (nadie le pasa idioma); la pantalla en ingles las vuelve a armar
+// desde los numeros que viajan con ellas. Ver `avisosDelReporte`.
+import { traducir } from '../i18n/diccionario'
+import type { Idioma } from '../i18n/idiomas'
 
 // ============================================================================
 //  lib/data/reportes.ts — Rentabilidad por periodo. LÓGICA PURA.
@@ -1893,9 +1903,9 @@ export function rentabilidadPorTrimestre(
  * nunca lo fue. Mismo criterio que `notaDeTarifas` y `notaDeVendedores`, cuya
  * primera frase también hace falta con o sin hueco.
  */
-function notaDeCostosOt(c: Omit<CoberturaCostoOt, 'nota'>): string {
+export function notaDeCostosOt(c: Omit<CoberturaCostoOt, 'nota'>, idioma: Idioma = 'es'): string {
   const pesos = (v: number) =>
-    v.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 })
+    formatearDineroRedondo(v, idioma)
 
   const total = c.visitasConCostoReal + c.visitasConEstimacion
 
@@ -1903,30 +1913,38 @@ function notaDeCostosOt(c: Omit<CoberturaCostoOt, 'nota'>): string {
   // y «no te lo digo» se ven idénticos sin texto. Es el hallazgo C1 de la
   // auditoría QA otra vez, el silencio indistinguible de la ausencia.
   if (total === 0) {
-    return 'No hubo ninguna visita en este periodo, así que el costo de operación es cero porque no se fue a ninguna pantalla, no porque falte capturarlo.'
+    return traducir(idioma, 'reportes.nota.ot.sin-visitas')
   }
 
+  // Los dos importes del ejemplo entran por hueco, formateados con la moneda
+  // de la instancia: el diccionario no lleva cifras de dinero (GUARDIA 2 de
+  // `dinero.test.ts`). En espanol y en pesos dicen lo de siempre: «$12,000» y
+  // «$800».
   const partes = [
-    'El costo de operación se arma de dos fuentes y NO son lo mismo: lo que de verdad costó cada ' +
-      'visita, cuando alguien lo capturó en su orden de trabajo, y una ESTIMACIÓN por tipo de ' +
-      'orden —la de Configuración— cuando no. La estimación cobra igual una herrería de $12,000 ' +
-      'que una de $800.',
+    traducir(idioma, 'reportes.nota.ot.intro', { caro: pesos(12000), barato: pesos(800) }),
   ]
 
   if (c.visitasConEstimacion > 0) {
+    // Dos concordancias independientes en ingles («1 of the 5 visits ... goes»
+    // contra «2 of the 5 ... go»): la variante sale del total Y de las
+    // estimadas. En espanol las tres dicen lo que decian.
+    const variante =
+      total === 1 ? 'uno' : c.visitasConEstimacion === 1 ? 'una-de-varias' : 'otros'
     partes.push(
-      `${c.visitasConEstimacion} de las ${total} ` +
-        (total === 1 ? 'visita' : 'visitas') +
-        ` del periodo ${c.visitasConEstimacion === 1 ? 'entra' : 'entran'} con la estimación por tipo ` +
-        `(${pesos(c.costoEstimado)}) y ${c.visitasConCostoReal} con su costo real ` +
-        `(${pesos(c.costoRealCapturado)}). Esa parte del costo —y el margen que sale de ella— es ` +
-        'una estimación, no una medición: capturar el costo en la orden de trabajo la sustituye.',
+      traducir(idioma, `reportes.nota.ot.estimacion.${variante}`, {
+        estimadas: c.visitasConEstimacion,
+        total,
+        estimado: pesos(c.costoEstimado),
+        reales: c.visitasConCostoReal,
+        capturado: pesos(c.costoRealCapturado),
+      }),
     )
   } else {
     partes.push(
-      `Las ${total} ${total === 1 ? 'visita' : 'visitas'} del periodo van con su costo REAL ` +
-        `capturado (${pesos(c.costoRealCapturado)}): aquí no hay ninguna estimación, el costo de ` +
-        'operación que ves es lo que se pagó.',
+      traducir(idioma, total === 1 ? 'reportes.nota.ot.reales.uno' : 'reportes.nota.ot.reales.otros', {
+        total,
+        capturado: pesos(c.costoRealCapturado),
+      }),
     )
   }
   return partes.join(' ')
@@ -2078,22 +2096,26 @@ function vendePorSpots(s: Sitio): boolean {
   )
 }
 
-function notaDeExclusiones(digitales: number, sinMedidas: number): string {
+export function notaDeExclusiones(digitales: number, sinMedidas: number, idioma: Idioma = 'es'): string {
   if (digitales === 0 && sinMedidas === 0) {
-    return 'No se excluyó ninguna pantalla: todas las que tuvieron movimiento son estáticas y tienen sus medidas capturadas.'
+    return traducir(idioma, 'reportes.nota.m2.ninguna')
   }
   const partes: string[] = []
   if (digitales > 0) {
     partes.push(
-      `${digitales} ${digitales === 1 ? 'pantalla digital o rotativa' : 'pantallas digitales o rotativas'}, porque su denominador correcto son spots y no metros`,
+      traducir(idioma, digitales === 1 ? 'reportes.nota.m2.digitales.uno' : 'reportes.nota.m2.digitales.otros', {
+        n: digitales,
+      }),
     )
   }
   if (sinMedidas > 0) {
     partes.push(
-      `${sinMedidas} ${sinMedidas === 1 ? 'estática' : 'estáticas'} sin ancho o sin alto capturados`,
+      traducir(idioma, sinMedidas === 1 ? 'reportes.nota.m2.sin-medidas.uno' : 'reportes.nota.m2.sin-medidas.otros', {
+        n: sinMedidas,
+      }),
     )
   }
-  return `Quedaron fuera del ranking: ${partes.join(' · ')}.`
+  return traducir(idioma, 'reportes.nota.m2.fuera', { partes: partes.join(' · ') })
 }
 
 /**
@@ -2217,30 +2239,34 @@ export function rentabilidadPorM2(
 /** La fila del dinero que no se puede poner a nombre de nadie. */
 const CLAVE_SIN_ASIGNAR = ''
 
-function notaDeAtribucion(a: Omit<AtribucionEntidad, 'nota'>): string {
+export function notaDeAtribucion(a: Omit<AtribucionEntidad, 'nota'>, idioma: Idioma = 'es'): string {
   const pesos = (v: number) =>
-    v.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 })
+    formatearDineroRedondo(v, idioma)
 
   // Primero lo estructural, que es lo que cambia cómo se lee la tabla entera, y
   // después los huecos de captura, que son arreglables por una persona.
   const partes = [
-    `La operación (${pesos(a.costoOperacionSinRepartir)}) y la luz ` +
-      `(${pesos(a.costoEnergiaSinRepartir)}) NO se reparten entre razones sociales: ` +
-      'ningún dato dice a nombre de quién se pagan. Por eso esta vista no muestra ' +
-      'margen — saldría mejor que el real.',
+    traducir(idioma, 'reportes.nota.entidad.intro', {
+      operacion: pesos(a.costoOperacionSinRepartir),
+      luz: pesos(a.costoEnergiaSinRepartir),
+    }),
   ]
   if (a.reservasSinEmisora > 0) {
     partes.push(
-      `${a.reservasSinEmisora} ` +
-        (a.reservasSinEmisora === 1 ? 'reserva' : 'reservas') +
-        ' del periodo sin comprobante con emisora: su ingreso sale en «Sin asignar».',
+      traducir(
+        idioma,
+        a.reservasSinEmisora === 1 ? 'reportes.nota.entidad.sin-emisora.uno' : 'reportes.nota.entidad.sin-emisora.otros',
+        { n: a.reservasSinEmisora },
+      ),
     )
   }
   if (a.contratosSinEntidad > 0) {
     partes.push(
-      `${a.contratosSinEntidad} ` +
-        (a.contratosSinEntidad === 1 ? 'contrato' : 'contratos') +
-        ' sin razón social asignada: su renta sale en «Sin asignar».',
+      traducir(
+        idioma,
+        a.contratosSinEntidad === 1 ? 'reportes.nota.entidad.sin-entidad.uno' : 'reportes.nota.entidad.sin-entidad.otros',
+        { n: a.contratosSinEntidad },
+      ),
     )
   }
   return partes.join(' ')
@@ -2375,27 +2401,25 @@ export function rentabilidadPorEntidad(
 //  7 · `tarifa` — ¿cuánto separa la tarifa PUBLICADA de lo que entra?
 // ════════════════════════════════════════════════════════════════════════════
 
-function notaDeTarifas(c: Omit<CoberturaTarifa, 'nota'>): string {
+export function notaDeTarifas(c: Omit<CoberturaTarifa, 'nota'>, idioma: Idioma = 'es'): string {
   const pesos = (v: number) =>
-    v.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 })
+    formatearDineroRedondo(v, idioma)
 
   // Primero QUÉ ES la brecha, porque sin eso la columna se lee mal entera: el
   // hueco entre la publicada y el neto lleva dentro la comisión de la agencia,
   // que no es una rebaja que nadie concediera.
-  const partes = [
-    'La diferencia entre la tarifa publicada y el neto es el descuento comercial MÁS ' +
-      'la comisión de agencia: las dos se congelan juntas en la propuesta y el dato no ' +
-      'las separa por pantalla.',
-  ]
+  const partes = [traducir(idioma, 'reportes.nota.tarifa.intro')]
   const total = c.reservasConTarifa + c.reservasSinTarifa
   if (c.reservasSinTarifa > 0) {
+    // Tres variantes por la concordancia inglesa (total de uno, una de varias,
+    // varias de varias). El espanol de las dos ultimas es el mismo.
+    const variante = total === 1 ? 'uno' : c.reservasSinTarifa === 1 ? 'una-de-varias' : 'otros'
     partes.push(
-      `${c.reservasSinTarifa} de las ${total} ` +
-        (total === 1 ? 'reserva' : 'reservas') +
-        ` del periodo no tienen tarifa publicada con la que comparar (${pesos(c.ingresoSinTarifa)} de ingreso): ` +
-        'o nacieron en Comercial —donde el precio que se guarda YA ES la tarifa de lista— ' +
-        'o su precio no coincide con el neto que congeló su propuesta. Esas filas salen ' +
-        'con una raya y no con un cero: un cero diría que se regaló la tarifa entera.',
+      traducir(idioma, `reportes.nota.tarifa.sin-tarifa.${variante}`, {
+        sin: c.reservasSinTarifa,
+        total,
+        ingreso: pesos(c.ingresoSinTarifa),
+      }),
     )
   }
   return partes.join(' ')
@@ -2539,20 +2563,16 @@ export function rentabilidadPorTarifa(
 //  Aquí eso llega ya resuelto: este motor no sabe de cookies.
 // ════════════════════════════════════════════════════════════════════════════
 
-function notaDeVendedores(c: Omit<CoberturaVendedor, 'nota'>): string {
+export function notaDeVendedores(c: Omit<CoberturaVendedor, 'nota'>, idioma: Idioma = 'es'): string {
   const pesos = (v: number) =>
-    v.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 })
+    formatearDineroRedondo(v, idioma)
 
   // Primero QUÉ ES la brecha, y hace falta SIEMPRE —aunque no falte ni una
   // atribución—: sin esa frase la columna «Descuento y comisión» se lee como si
   // el vendedor hubiera regalado toda la diferencia, cuando dentro va la
   // comisión de agencia, que no la concede él. Mismo criterio que
   // `saldoAtribuido` en `entidad` y que la nota de `tarifa`.
-  const partes = [
-    'La diferencia entre la tarifa publicada y el neto es el descuento comercial MÁS ' +
-      'la comisión de agencia: las dos se congelan juntas en la propuesta y el dato no ' +
-      'las separa. No es todo rebaja que el vendedor concediera.',
-  ]
+  const partes = [traducir(idioma, 'reportes.nota.vendedor.intro')]
 
   // Y después el hueco, con sus DOS causas separadas: una se arregla y la otra
   // no, y confundirlas manda a alguien a buscar en los papeles un dato que no
@@ -2561,30 +2581,21 @@ function notaDeVendedores(c: Omit<CoberturaVendedor, 'nota'>): string {
   if (c.reservasSinVendedor > 0) {
     const causas: string[] = []
     if (c.reservasSinPropuesta > 0) {
-      causas.push(
-        `${c.reservasSinPropuesta} de campañas creadas directamente en Comercial, que nunca ` +
-          'tuvieron propuesta y por tanto no tienen a quién atribuirse',
-      )
+      causas.push(traducir(idioma, 'reportes.nota.vendedor.sin-propuesta', { n: c.reservasSinPropuesta }))
     }
     if (c.reservasDePropuestaSinVendedor > 0) {
-      causas.push(
-        `${c.reservasDePropuestaSinVendedor} de propuestas anteriores al 2026-09-28, cuando ` +
-          'todavía no se guardaba quién las hacía: ese dato NO SE PUEDE RECUPERAR —la bitácora ' +
-          'guarda el nombre de la propuesta, no su identificador— así que esas ventas se quedan ' +
-          'sin vendedor para siempre',
-      )
+      causas.push(traducir(idioma, 'reportes.nota.vendedor.historicas', { n: c.reservasDePropuestaSinVendedor }))
     }
+    const variante = total === 1 ? 'uno' : c.reservasSinVendedor === 1 ? 'una-de-varias' : 'otros'
     partes.push(
-      `${c.reservasSinVendedor} de las ${total} ` +
-        (total === 1 ? 'reserva' : 'reservas') +
-        ` del periodo salen en «Sin vendedor» (${pesos(c.ingresoSinVendedor)} de ingreso): ` +
-        causas.join('; ') +
-        '.',
+      traducir(idioma, `reportes.nota.vendedor.sin-vendedor.${variante}`, {
+        sin: c.reservasSinVendedor,
+        total,
+        ingreso: pesos(c.ingresoSinVendedor),
+        causas: causas.join('; '),
+      }),
     )
-    partes.push(
-      'Esas filas salen con una raya y no con un cero: un cero en «Descuento y comisión» ' +
-        'afirmaría que no se concedió ninguno.',
-    )
+    partes.push(traducir(idioma, 'reportes.nota.vendedor.raya'))
   }
   return partes.join(' ')
 }
@@ -2763,11 +2774,12 @@ export function puntoDeMedicion(predioId: string | null | undefined, sitioId: st
 }
 
 /** La frase, redactada UNA vez y pintada verbatim. Ver `notaDeExclusiones`. */
-function notaDeCobertura(
+export function notaDeCobertura(
   faltantes: number,
   esperados: number,
   recibosSinDestino: number,
   importeSinDestino: number,
+  idioma: Idioma = 'es',
 ): string {
   const partes: string[] = []
   if (faltantes === 0) {
@@ -2777,19 +2789,35 @@ function notaDeCobertura(
     // de exclusiones del m².
     partes.push(
       esperados === 0
-        ? 'No hay recibos de luz que esperar en este periodo.'
-        : `No falta ningún recibo: están capturados los ${esperados} del periodo, así que el costo de la luz está completo.`,
+        ? traducir(idioma, 'reportes.nota.luz.sin-esperados')
+        : traducir(idioma, esperados === 1 ? 'reportes.nota.luz.completa.uno' : 'reportes.nota.luz.completa.otros', {
+            esperados,
+          }),
     )
   } else {
     partes.push(
-      `Faltan ${faltantes} de ${esperados} recibos del periodo, así que el costo de la luz que ves está INCOMPLETO y el margen sale mejor de lo que va a quedar. Un mes sin recibo no es un mes sin consumo: es un dato que nadie ha capturado todavía.`,
+      traducir(idioma, esperados === 1 ? 'reportes.nota.luz.faltan.uno' : 'reportes.nota.luz.faltan.otros', {
+        faltantes,
+        esperados,
+      }),
     )
   }
   if (recibosSinDestino > 0) {
     // Dinero capturado que no aparece en ninguna fila. Sin esta frase
     // desaparecería del reporte sin dar ningún error.
+    //
+    // El importe va CRUDO en espanol («por 350», sin moneda), que es como lo
+    // escribio siempre esta frase y como lo sigue mandando el servidor: cambiarlo
+    // cambiaria el espanol. En ingles se formatea con la moneda de la instancia.
     partes.push(
-      `Además, ${recibosSinDestino} ${recibosSinDestino === 1 ? 'recibo' : 'recibos'} por ${importeSinDestino} no ${recibosSinDestino === 1 ? 'aparece' : 'aparecen'} en ninguna fila, porque su predio todavía no tiene pantallas dadas de alta.`,
+      traducir(
+        idioma,
+        recibosSinDestino === 1 ? 'reportes.nota.luz.sin-destino.uno' : 'reportes.nota.luz.sin-destino.otros',
+        {
+          n: recibosSinDestino,
+          importe: idioma === 'es' ? `${importeSinDestino}` : formatearDineroRedondo(importeSinDestino, idioma),
+        },
+      ),
     )
   }
   return partes.join(' ')

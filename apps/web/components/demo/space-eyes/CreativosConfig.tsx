@@ -5,8 +5,13 @@ import { AlertTriangle, Info, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
 import { ConfirmDialog } from '@/components/demo/ui/ConfirmDialog'
-import { seApi, fotoSE, ErrorSE } from '@/lib/data/space-eyes-se'
+import { seApi, fotoSE, ErrorSE, textoDeError } from '@/lib/data/space-eyes-se'
+import { contarSinFoto, textoSinFoto } from '@/lib/space-eyes-sin-foto'
 import { fechaHora, gigas, hace } from './piezas'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
+import type { Idioma } from '@/lib/i18n/idiomas'
+import { interpolarNodos } from '@/lib/i18n/nodos'
 
 // ============================================================================
 //  CreativosConfig — la vigilancia de creativos de un equipo, en su parte de
@@ -50,30 +55,33 @@ type Creativo = {
   vistas: number
   thumbnail_path: string | null
   storage_path: string | null
+  // Por qué no trajo foto, si no la trajo (Space Eye, migración 028).
+  sin_foto?: string | null
+  aprendido?: number | boolean
 }
 type Resp = { config: Config | null; fotos_hoy: number; creativos: Creativo[] }
 
 // Cuándo manda las fotos nuevas. Mirar no cambia: el equipo sigue mirando
 // todo el tiempo y no se le escapa un creativo que sale una sola vez.
-const ENVIO = [
-  { v: 0, t: 'Al momento' },
-  { v: 120, t: 'Juntas cada 2 horas' },
-  { v: 240, t: 'Juntas cada 4 horas' },
-  { v: 480, t: 'Juntas cada 8 horas' },
-  { v: 720, t: 'Juntas cada 12 horas' },
+const ENVIO: { v: number; t: ClaveTexto }[] = [
+  { v: 0, t: 'spaceeyes.creativos.envio.0' },
+  { v: 120, t: 'spaceeyes.creativos.envio.120' },
+  { v: 240, t: 'spaceeyes.creativos.envio.240' },
+  { v: 480, t: 'spaceeyes.creativos.envio.480' },
+  { v: 720, t: 'spaceeyes.creativos.envio.720' },
 ]
 
 // El tope de datos del chip por equipo y mes (plan contratado hoy).
 const TOPE_MES = 4 * 1024 ** 3
 
-const FRECUENCIA = [
-  { v: 0, t: 'Continuo (avisa al minuto)' },
-  { v: 30, t: 'Cada 30 min' },
-  { v: 60, t: 'Cada hora' },
-  { v: 120, t: 'Cada 2 horas' },
-  { v: 180, t: 'Cada 3 horas' },
-  { v: 360, t: 'Cada 6 horas' },
-  { v: 720, t: 'Cada 12 horas' },
+const FRECUENCIA: { v: number; t: ClaveTexto }[] = [
+  { v: 0, t: 'spaceeyes.creativos.frecuencia.0' },
+  { v: 30, t: 'spaceeyes.frecuencia.30' },
+  { v: 60, t: 'spaceeyes.frecuencia.60' },
+  { v: 120, t: 'spaceeyes.frecuencia.120' },
+  { v: 180, t: 'spaceeyes.frecuencia.180' },
+  { v: 360, t: 'spaceeyes.frecuencia.360' },
+  { v: 720, t: 'spaceeyes.frecuencia.720' },
 ]
 
 // La APK desde la 0.15.0 y la Raspberry saben vigilar; el agente de PC no.
@@ -92,26 +100,27 @@ function usaPantalla(version: string | null | undefined): boolean {
 // Los datos del chip en el mes contra el tope de 4 GB. Las fotos son lo de
 // menos: casi todo se va en la vista en vivo.
 function MedidorMes({ bytes }: { bytes: number | null }) {
+  const { t, idioma } = useIdioma()
   const pct = bytes == null ? 0 : Math.min(100, (bytes / TOPE_MES) * 100)
   const tono = pct >= 90 ? 'bg-error' : pct >= 70 ? 'bg-warning' : 'bg-success'
   return (
     <div
       className="col-span-2 rounded-md border border-border p-3"
-      title="Datos móviles (chip) que el equipo lleva este mes, según su propio reporte. Casi todo lo gasta la vista en vivo; las fotos de creativos pesan poco."
+      title={t('spaceeyes.creativos.mes.ayuda')}
     >
-      <p className="text-[11px] uppercase tracking-wide text-muted">Datos del chip este mes</p>
+      <p className="text-[11px] uppercase tracking-wide text-muted">{t('spaceeyes.creativos.mes')}</p>
       {bytes == null ? (
-        <p className="mt-1.5 text-[12px] text-muted">El equipo todavía no reporta su consumo.</p>
+        <p className="mt-1.5 text-[12px] text-muted">{t('spaceeyes.creativos.mes.sin')}</p>
       ) : (
         <>
           <p className="mt-1 text-lg tabular-nums text-ink">
-            {gigas(bytes)}
+            {gigas(bytes, idioma)}
             <span className="text-muted"> / 4 GB</span>
           </p>
           <div
             className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-2"
             role="meter"
-            aria-label="Datos del chip este mes"
+            aria-label={t('spaceeyes.creativos.mes')}
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={Math.round(pct)}
@@ -124,9 +133,9 @@ function MedidorMes({ bytes }: { bytes: number | null }) {
   )
 }
 
-function mensaje(e: unknown): string {
-  if (e instanceof ErrorSE && e.status === 403) return 'No tienes permiso para cambiar esto.'
-  return e instanceof Error ? e.message : String(e)
+function mensaje(e: unknown, idioma: Idioma): string {
+  if (e instanceof ErrorSE && e.status === 403) return traducir(idioma, 'spaceeyes.comun.sin-permiso-cambiar')
+  return textoDeError(e, idioma) ?? String(e)
 }
 
 export function CreativosConfig({
@@ -140,6 +149,7 @@ export function CreativosConfig({
   onAmpliar?: (url: string) => void
   onCambio?: () => void
 }) {
+  const { t, idioma } = useIdioma()
   const [datos, setDatos] = useState<Resp | null>(null)
   const [version, setVersion] = useState<string | null>(null)
   // Bytes del chip en el mes (lo reporta el equipo con su telemetría).
@@ -177,11 +187,11 @@ export function CreativosConfig({
         setDatosMes(mes == null || mes === '' ? null : Number(mes))
         setMarcada(!!p.pantalla)
       })
-      .catch((e) => vivo && setError(mensaje(e)))
+      .catch((e) => vivo && setError(mensaje(e, idioma)))
     return () => {
       vivo = false
     }
-  }, [equipoId])
+  }, [equipoId, idioma])
 
   async function guardar(cambios: Partial<Pick<Config, 'vigilar' | 'cada_min' | 'envio_min'>>) {
     setGuardando(true)
@@ -191,7 +201,7 @@ export function CreativosConfig({
       await cargar()
       onCambio?.()
     } catch (e) {
-      setAviso(`No se pudo guardar: ${mensaje(e)}`)
+      setAviso(t('spaceeyes.comun.no-guardar', { motivo: mensaje(e, idioma) }))
     } finally {
       setGuardando(false)
     }
@@ -207,7 +217,7 @@ export function CreativosConfig({
       setReaprender(false)
     } catch (e) {
       setReaprender(false)
-      setAviso(`No se pudo reiniciar: ${mensaje(e)}`)
+      setAviso(t('spaceeyes.creativos.no-reiniciar', { motivo: mensaje(e, idioma) }))
     } finally {
       setReaprendiendo(false)
     }
@@ -221,7 +231,7 @@ export function CreativosConfig({
       await cargar()
       onCambio?.()
     } catch (e) {
-      setAviso(`No se pudo descartar: ${mensaje(e)}`)
+      setAviso(t('spaceeyes.creativos.no-descartar', { motivo: mensaje(e, idioma) }))
     } finally {
       setDescartando(null)
     }
@@ -230,14 +240,14 @@ export function CreativosConfig({
   if (error) {
     return (
       <div className="rounded-md border border-border bg-surface p-3 text-[12px] text-muted">
-        No se pudo leer la vigilancia de creativos: {error}
+        {t('spaceeyes.creativos.error', { error })}
       </div>
     )
   }
   if (!datos) {
     return (
       <div className="flex items-center gap-2 rounded-md border border-border bg-surface p-3 text-[12px] text-muted">
-        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Leyendo la vigilancia de creativos…
+        <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t('spaceeyes.creativos.leyendo')}
       </div>
     )
   }
@@ -248,20 +258,20 @@ export function CreativosConfig({
   // Los que tienen foto son los hallazgos; los demás son el loop que se
   // aprendió (o huellas sin foto por el tope diario).
   const hallazgos = (datos.creativos ?? []).filter((c) => c.photo_id && !c.descartado)
+  // Los que se detectaron y no trajeron foto no caben en la cuadrícula, pero
+  // callarlos deja el catálogo y la galería sin cuadrar y sin explicación.
+  const leyendaSinFoto = textoSinFoto(contarSinFoto(datos.creativos), idioma)
   const finAprendizaje =
     cfg?.desde != null
-      ? fechaHora(new Date(new Date(cfg.desde).getTime() + Number(cfg.aprendizaje_min ?? 120) * 60_000).toISOString())
+      ? fechaHora(new Date(new Date(cfg.desde).getTime() + Number(cfg.aprendizaje_min ?? 120) * 60_000).toISOString(), idioma)
       : ''
 
   return (
     <section className="overflow-hidden rounded-md border border-border bg-surface">
       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border p-3">
         <div className="min-w-0 flex-1">
-          <h2 className="text-[14px] font-semibold text-ink">Vigilancia de creativos</h2>
-          <p className="mt-0.5 text-[12px] text-muted">
-            El equipo reconoce los anuncios de su pantalla sin gastar datos y solo sube foto cuando aparece uno que no
-            conocía.
-          </p>
+          <h2 className="text-[14px] font-semibold text-ink">{t('spaceeyes.creativos.titulo')}</h2>
+          <p className="mt-0.5 text-[12px] text-muted">{t('spaceeyes.creativos.descripcion')}</p>
         </div>
         <div className="flex shrink-0 items-center gap-3">
           <span
@@ -274,10 +284,16 @@ export function CreativosConfig({
                   : 'bg-success-soft text-success',
             )}
           >
-            {!vigilar ? 'Apagado' : cfg?.aprendiendo ? 'Aprendiendo' : cfg?.cada_min === 0 ? 'Vigilando en continuo' : 'Vigilando'}
+            {!vigilar
+              ? t('spaceeyes.comun.apagado')
+              : cfg?.aprendiendo
+                ? t('spaceeyes.vigilancia.aprendiendo')
+                : cfg?.cada_min === 0
+                  ? t('spaceeyes.creativos.continuo')
+                  : t('spaceeyes.vigilancia.vigilando')}
           </span>
           <Interruptor
-            etiqueta="Vigilar la pantalla"
+            etiqueta={t('spaceeyes.creativos.vigilar')}
             activo={vigilar}
             deshabilitado={!puedeOperar || !sabe || guardando}
             onCambio={(v) => guardar({ vigilar: v })}
@@ -288,14 +304,12 @@ export function CreativosConfig({
       <div className="flex flex-col gap-3 p-3">
         {!sabe && (
           <Aviso tono="alerta">
-            Este equipo no sabe vigilar su pantalla todavía: los celulares necesitan la app 0.15.0 o posterior, y el
-            agente de PC no lo tiene.
+            {t('spaceeyes.creativos.no-sabe')}
           </Aviso>
         )}
         {usaPantalla(version) && !marcada && (
           <Aviso tono="alerta">
-            Falta marcar la pantalla (en «Pantalla y fallas»): sin eso el equipo no reconoce creativos, porque el fondo
-            los confunde entre sí.
+            {t('spaceeyes.creativos.sin-marcar')}
           </Aviso>
         )}
         {aviso && <Aviso tono="falla">{aviso}</Aviso>}
@@ -304,29 +318,30 @@ export function CreativosConfig({
           <>
             {cfg.aprendiendo && (
               <Aviso tono="info">
-                Aprendiendo el loop hasta <span className="font-medium">{finAprendizaje}</span>: en este plazo no toma
-                fotos.
+                {interpolarNodos(t('spaceeyes.creativos.aprendiendo'), {
+                  fin: <span className="font-medium">{finAprendizaje}</span>,
+                })}
               </Aviso>
             )}
 
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
               <div className="rounded-md border border-border p-3">
-                <p className="text-[11px] uppercase tracking-wide text-muted">Fotos hoy</p>
+                <p className="text-[11px] uppercase tracking-wide text-muted">{t('spaceeyes.creativos.fotos-hoy')}</p>
                 <p className="mt-1 text-lg tabular-nums text-ink">
                   {datos.fotos_hoy}
                   <span className="text-muted"> / {cfg.max_dia}</span>
                 </p>
               </div>
               <div className="rounded-md border border-border p-3">
-                <p className="text-[11px] uppercase tracking-wide text-muted">En el catálogo</p>
+                <p className="text-[11px] uppercase tracking-wide text-muted">{t('spaceeyes.creativos.catalogo')}</p>
                 <p className="mt-1 text-lg tabular-nums text-ink">{(datos.creativos ?? []).length}</p>
               </div>
               <div
                 className="col-span-2 rounded-md border border-border p-3"
-                title="Continuo: el equipo mira su pantalla todo el día dentro del horario y avisa en menos de un minuto cuando sale un creativo nuevo. Sigue sin gastar datos: solo manda la foto de lo nuevo."
+                title={t('spaceeyes.creativos.frecuencia.ayuda')}
               >
                 <label htmlFor={`cre-frec-${equipoId}`} className="text-[11px] uppercase tracking-wide text-muted">
-                  Frecuencia
+                  {t('spaceeyes.comun.frecuencia')}
                 </label>
                 <div className="mt-1.5 flex flex-wrap items-center gap-2">
                   <select
@@ -337,8 +352,8 @@ export function CreativosConfig({
                     className="h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:bg-surface-2 disabled:text-muted"
                   >
                     {(FRECUENCIA.some((o) => o.v === cfg.cada_min)
-                      ? FRECUENCIA
-                      : [...FRECUENCIA, { v: cfg.cada_min, t: `Cada ${cfg.cada_min} min` }]
+                      ? FRECUENCIA.map((o) => ({ v: o.v, t: t(o.t) }))
+                      : [...FRECUENCIA.map((o) => ({ v: o.v, t: t(o.t) })), { v: cfg.cada_min, t: t('spaceeyes.frecuencia.otra', { n: cfg.cada_min }) }]
                     ).map((o) => (
                       <option key={o.v} value={o.v}>
                         {o.t}
@@ -347,7 +362,7 @@ export function CreativosConfig({
                   </select>
                   {puedeOperar && (
                     <Button size="sm" variant="danger" onClick={() => setReaprender(true)}>
-                      Volver a aprender
+                      {t('spaceeyes.creativos.reaprender')}
                     </Button>
                   )}
                 </div>
@@ -355,10 +370,10 @@ export function CreativosConfig({
 
               <div
                 className="col-span-2 rounded-md border border-border p-3"
-                title="Mirar y mandar son dos cosas: el equipo mira todo el tiempo y aquí se elige cuándo viajan las fotos. Juntas llega una por creativo, la más nítida; un creativo que se repite no se vuelve a mandar."
+                title={t('spaceeyes.creativos.envio.ayuda')}
               >
                 <label htmlFor={`cre-envio-${equipoId}`} className="text-[11px] uppercase tracking-wide text-muted">
-                  Mandar las fotos nuevas
+                  {t('spaceeyes.creativos.envio')}
                 </label>
                 <div className="mt-1.5">
                   <select
@@ -369,8 +384,11 @@ export function CreativosConfig({
                     className="h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:bg-surface-2 disabled:text-muted"
                   >
                     {(ENVIO.some((o) => o.v === (cfg.envio_min ?? 0))
-                      ? ENVIO
-                      : [...ENVIO, { v: cfg.envio_min ?? 0, t: `Juntas cada ${cfg.envio_min} min` }]
+                      ? ENVIO.map((o) => ({ v: o.v, t: t(o.t) }))
+                      : [
+                          ...ENVIO.map((o) => ({ v: o.v, t: t(o.t) })),
+                          { v: cfg.envio_min ?? 0, t: t('spaceeyes.creativos.envio.otra', { n: cfg.envio_min ?? 0 }) },
+                        ]
                     ).map((o) => (
                       <option key={o.v} value={o.v}>
                         {o.t}
@@ -378,7 +396,7 @@ export function CreativosConfig({
                     ))}
                   </select>
                   <p className="mt-1.5 text-[11px] text-muted">
-                    Solo las nuevas: una foto por creativo. Mirar no gasta datos.
+                    {t('spaceeyes.creativos.envio.pie')}
                   </p>
                 </div>
               </div>
@@ -388,14 +406,12 @@ export function CreativosConfig({
 
             {cfg.cada_min > 0 && (
               <Aviso tono="info">
-                Mirando por intervalos, un creativo que sale una sola vez entre dos miradas no se ve. Para no perder
-                ninguno, usa «Continuo»: mirar no gasta datos, y con «Juntas cada N horas» decides cuándo llegan las
-                fotos.
+                {t('spaceeyes.creativos.intervalos')}
               </Aviso>
             )}
 
             <div>
-              <p className="mb-2 text-[11px] uppercase tracking-wide text-muted">Creativos nuevos detectados</p>
+              <p className="mb-2 text-[11px] uppercase tracking-wide text-muted">{t('spaceeyes.creativos.nuevos')}</p>
               {hallazgos.length > 0 ? (
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
                   {hallazgos.map((c) => {
@@ -403,7 +419,7 @@ export function CreativosConfig({
                     const grande = fotoSE(c.storage_path || c.thumbnail_path)
                     const imagen = mini ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={mini} alt="Creativo detectado" className="h-full w-full object-contain" />
+                      <img src={mini} alt={t('spaceeyes.creativo.alt')} className="h-full w-full object-contain" />
                     ) : null
                     return (
                       <div key={c.id} className="overflow-hidden rounded-md border border-border">
@@ -412,7 +428,7 @@ export function CreativosConfig({
                             type="button"
                             onClick={() => onAmpliar(grande)}
                             className="block aspect-[4/3] w-full bg-surface-2"
-                            title="Ver en grande"
+                            title={t('spaceeyes.comun.ver-grande')}
                           >
                             {imagen}
                           </button>
@@ -420,9 +436,12 @@ export function CreativosConfig({
                           <div className="aspect-[4/3] bg-surface-2">{imagen}</div>
                         )}
                         <div className="border-t border-border px-2 py-1.5 text-[11px]">
-                          <div className="text-ink">Apareció {fechaHora(c.primera_vez)}</div>
+                          <div className="text-ink">{t('spaceeyes.creativo.aparecio', { fecha: fechaHora(c.primera_vez, idioma) })}</div>
                           <div className="text-muted">
-                            Visto <span className="tabular-nums">{c.vistas}</span> veces · último {hace(c.ultima_vez)}
+                            {interpolarNodos(t(c.vistas === 1 ? 'spaceeyes.creativo.visto.uno' : 'spaceeyes.creativo.visto.otros'), {
+                              n: <span className="tabular-nums">{c.vistas}</span>,
+                              hace: hace(c.ultima_vez, idioma),
+                            })}
                           </div>
                           {puedeOperar && (
                             <Button
@@ -430,10 +449,10 @@ export function CreativosConfig({
                               variant="secondary"
                               className="mt-1.5 w-full"
                               disabled={descartando === c.id}
-                              title="No era un creativo nuevo (reflejo, pantalla apagada…)"
+                              title={t('spaceeyes.creativos.no-nuevo.ayuda')}
                               onClick={() => descartar(c)}
                             >
-                              {descartando === c.id ? 'Descartando…' : 'No es nuevo'}
+                              {descartando === c.id ? t('spaceeyes.creativos.descartando') : t('spaceeyes.creativos.no-nuevo')}
                             </Button>
                           )}
                         </div>
@@ -443,9 +462,14 @@ export function CreativosConfig({
                 </div>
               ) : (
                 <p className="rounded-md border border-dashed border-border-strong py-6 text-center text-[12px] text-muted">
-                  Todavía no ha detectado creativos nuevos.
+                  {t('spaceeyes.creativo.ninguno')}
                 </p>
               )}
+              {/* La huella de un creativo viaja siempre; la foto, solo si el
+                  equipo podía tomarla. Los hallazgos sin foto no caben en la
+                  cuadrícula, pero callarlos hace que el catálogo y la galería no
+                  cuadren sin explicación (TLALPAN, 23-oct-2026). */}
+              {leyendaSinFoto && <p className="mt-2 text-[11px] text-muted">{leyendaSinFoto}</p>}
             </div>
           </>
         )}
@@ -454,13 +478,12 @@ export function CreativosConfig({
       <ConfirmDialog
         open={reaprender}
         onOpenChange={setReaprender}
-        title="Volver a aprender la pantalla"
-        confirmLabel="Volver a aprender"
+        title={t('spaceeyes.creativos.reaprender.titulo')}
+        confirmLabel={t('spaceeyes.creativos.reaprender')}
         busy={reaprendiendo}
         onConfirm={() => void confirmarReaprender()}
       >
-        Se borra todo lo que el equipo aprendió de esta pantalla. Vuelve a aprender durante el plazo de aprendizaje, y
-        en ese tiempo no toma fotos.
+        {t('spaceeyes.creativos.reaprender.texto')}
       </ConfirmDialog>
     </section>
   )

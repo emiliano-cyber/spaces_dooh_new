@@ -13,6 +13,10 @@ import {
 import { textoDeEstado, textoConfirmarInstalar, tituloNotasDisponibles, avisoSinNotas } from '@/components/demo/admin/actualizaciones-ui'
 import { NotasDeVersion } from '@/components/demo/novedades/NotasDeVersion'
 import { TONO } from './Chip'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
+import type { Idioma } from '@/lib/i18n/idiomas'
+import { localeDe } from '@/lib/i18n/formato-idioma'
 
 // ============================================================================
 //  ActualizacionesPanel — ADR 0037: el dueño de la instancia ve qué versión
@@ -39,9 +43,9 @@ const TONO_CLASE = {
 } as const
 const TONO_ICONO_CLASE = { ok: 'text-success', alerta: 'text-warning', info: 'text-muted' } as const
 
-function formatearFecha(iso: string | null): string {
-  if (!iso) return 'nunca'
-  return new Date(iso).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' })
+function formatearFecha(iso: string | null, idioma: Idioma = 'es', nunca = 'nunca'): string {
+  if (!iso) return nunca
+  return new Date(iso).toLocaleString(localeDe(idioma), { dateStyle: 'medium', timeStyle: 'short' })
 }
 
 export function ActualizacionesPanel({ onToast }: { onToast: (m: string) => void }) {
@@ -50,6 +54,7 @@ export function ActualizacionesPanel({ onToast }: { onToast: (m: string) => void
   const [cambiandoModo, setCambiandoModo] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [instalando, setInstalando] = useState(false)
+  const { t, idioma } = useIdioma()
 
   async function cargar() {
     try {
@@ -79,9 +84,9 @@ export function ActualizacionesPanel({ onToast }: { onToast: (m: string) => void
     setCambiandoModo(true)
     try {
       setEstado(await fijarModoActualizacionApi(modo))
-      onToast(modo === 'automatica' ? 'Modo cambiado a automática' : 'Modo cambiado a con aprobación')
+      onToast(modo === 'automatica' ? t('admin.act.modo.automatica') : t('admin.act.modo.aprobacion'))
     } catch (e) {
-      onToast(e instanceof Error ? e.message : 'No se pudo cambiar el modo')
+      onToast(e instanceof Error ? e.message : t('admin.act.error.modo'))
     }
     setCambiandoModo(false)
   }
@@ -91,10 +96,10 @@ export function ActualizacionesPanel({ onToast }: { onToast: (m: string) => void
     setInstalando(true)
     try {
       setEstado(await aprobarActualizacionApi(estado.digestDisponible))
-      onToast('Instalación aprobada: se instalará en los próximos minutos')
+      onToast(t('admin.act.aprobada'))
       setConfirmOpen(false)
     } catch (e) {
-      onToast(e instanceof Error ? e.message : 'No se pudo aprobar la instalación')
+      onToast(e instanceof Error ? e.message : t('admin.act.error.aprobar'))
     }
     setInstalando(false)
   }
@@ -105,7 +110,7 @@ export function ActualizacionesPanel({ onToast }: { onToast: (m: string) => void
     return (
       <CardColapsable
         id="admin.actualizaciones"
-        titulo="Actualizaciones"
+        titulo={t('admin.act.titulo')}
         icono={<Download className="h-4 w-4 text-muted" />}
       >
           {/* Este estado sale SOLO del GET (`cargar()`, arriba: 401/403 -> aqui) y
@@ -116,9 +121,7 @@ export function ActualizacionesPanel({ onToast }: { onToast: (m: string) => void
               manda a pedir algo que no resuelve nada (ronda 2 de revision). Si el
               guard del GET cambia de accion, esta frase tiene que cambiar con el. */}
           <p className="text-[12px] text-muted">
-            Ver y decidir la actualización de esta instancia está reservado a quien tenga el
-            permiso de <b className="text-ink">Administración → ver</b>. Pídeselo a quien
-            administre los roles y permisos de tu organización.
+            {interpolarNodos(t('admin.act.reservado'), { permiso: <b className="text-ink">{t('admin.act.permiso')}</b> })}
           </p>
       </CardColapsable>
     )
@@ -128,18 +131,18 @@ export function ActualizacionesPanel({ onToast }: { onToast: (m: string) => void
     <>
     <CardColapsable
       id="admin.actualizaciones"
-      titulo="Actualizaciones"
+      titulo={t('admin.act.titulo')}
       icono={<Download className="h-4 w-4 text-muted" />}
       contentClassName="space-y-3"
     >
         {status === 'cargando' ? (
           <div className="h-24 animate-pulse rounded bg-surface-2" />
         ) : status === 'error' || !estado ? (
-          <p className="text-[13px] text-error">No se pudo cargar el estado de la actualización.</p>
+          <p className="text-[13px] text-error">{t('admin.act.error')}</p>
         ) : (
           <>
             {(() => {
-              const { tono, texto } = textoDeEstado(estado)
+              const { tono, texto } = textoDeEstado(estado, idioma)
               const Icono = TONO_ICONO[tono]
               return (
                 <div className={`flex items-start gap-2 rounded border px-3 py-2 text-[13px] ${TONO_CLASE[tono]}`}>
@@ -153,25 +156,25 @@ export function ActualizacionesPanel({ onToast }: { onToast: (m: string) => void
                 línea, en vez de una rejilla suelta sin contorno. */}
             <div className="flex flex-wrap gap-x-5 gap-y-1 rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px] text-muted">
               <span>
-                Instalada: <span className="demo-num text-ink">{estado.versionInstalada ?? '—'}</span>
+                {t('admin.act.instalada')} <span className="demo-num text-ink">{estado.versionInstalada ?? '—'}</span>
               </span>
               <span>
-                Disponible: <span className="demo-num text-ink">{estado.versionDisponible ?? '—'}</span>
+                {t('admin.act.disponible')} <span className="demo-num text-ink">{estado.versionDisponible ?? '—'}</span>
               </span>
               <span>
                 {/* `?? '—'`, nunca `?? 0`: null es "no se pudo contar", no
                     "ninguna". Pintarlo como 0 al lado del botón que corta el
                     servicio es la misma mentira que corregía
                     `textoConfirmarInstalar`. */}
-                Migraciones: <span className="demo-num text-ink">{estado.migracionesPendientes ?? '—'}</span>
+                {t('admin.act.migraciones')} <span className="demo-num text-ink">{estado.migracionesPendientes ?? '—'}</span>
               </span>
               <span className="inline-flex items-center gap-1">
-                <History className="h-3 w-3" /> Comprobado: <span className="text-ink">{formatearFecha(estado.comprobadoEn)}</span>
+                <History className="h-3 w-3" /> {t('admin.act.comprobado')} <span className="text-ink">{formatearFecha(estado.comprobadoEn, idioma, t('admin.act.nunca'))}</span>
               </span>
             </div>
 
             <div className="space-y-1.5 border-t border-border pt-3">
-              <p className="text-[12px] font-medium text-ink">Modo</p>
+              <p className="text-[12px] font-medium text-ink">{t('admin.act.modo')}</p>
               <div className="flex gap-2">
                 <Button
                   size="sm"
@@ -180,7 +183,7 @@ export function ActualizacionesPanel({ onToast }: { onToast: (m: string) => void
                   onClick={() => void cambiarModo('aprobacion')}
                 >
                   {cambiandoModo && estado.modo !== 'aprobacion' && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  Con aprobación
+                  {t('admin.act.con-aprobacion')}
                 </Button>
                 <Button
                   size="sm"
@@ -189,12 +192,11 @@ export function ActualizacionesPanel({ onToast }: { onToast: (m: string) => void
                   onClick={() => void cambiarModo('automatica')}
                 >
                   {cambiandoModo && estado.modo !== 'automatica' && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  Automática
+                  {t('admin.act.automatica')}
                 </Button>
               </div>
               <p className="text-[11px] text-muted">
-                Con aprobación, tú decides cuándo instalar. Automática la instala sola en la ventana de
-                madrugada en cuanto se publica.
+                {t('admin.act.modo-ayuda')}
               </p>
             </div>
 
@@ -204,13 +206,13 @@ export function ActualizacionesPanel({ onToast }: { onToast: (m: string) => void
                 entra de madrugada--, siempre que haya novedad. */}
             {estado.hayNovedad && (
               <div className="space-y-2 border-t border-border pt-3">
-                <p className="text-[12px] font-medium text-ink">{tituloNotasDisponibles(estado)}</p>
+                <p className="text-[12px] font-medium text-ink">{tituloNotasDisponibles(estado, idioma)}</p>
                 {/* Sin notas NO se pinta «Esta versión no trae notas»: si
                     faltan es que el servidor no las anotó (avisoSinNotas). */}
-                {avisoSinNotas(estado) ? (
+                {avisoSinNotas(estado, idioma) ? (
                   <div className={`flex items-start gap-2 rounded border px-3 py-2 text-[13px] ${TONO_CLASE.alerta}`}>
                     <AlertTriangle className={`mt-0.5 h-4 w-4 shrink-0 ${TONO_ICONO_CLASE.alerta}`} />
-                    <span>{avisoSinNotas(estado)}</span>
+                    <span>{avisoSinNotas(estado, idioma)}</span>
                   </div>
                 ) : (
                   <NotasDeVersion notas={estado.notasDisponibles} />
@@ -220,7 +222,7 @@ export function ActualizacionesPanel({ onToast }: { onToast: (m: string) => void
 
             {estado.hayNovedad && estado.modo === 'aprobacion' && estado.aprobadoDigest !== estado.digestDisponible && (
               <Button size="sm" onClick={() => setConfirmOpen(true)}>
-                <Download className="h-3.5 w-3.5" /> Instalar {estado.versionDisponible}
+                <Download className="h-3.5 w-3.5" /> {t('admin.act.instalar-version', { version: estado.versionDisponible ?? '' })}
               </Button>
             )}
           </>
@@ -232,13 +234,13 @@ export function ActualizacionesPanel({ onToast }: { onToast: (m: string) => void
         <ConfirmDialog
           open={confirmOpen}
           onOpenChange={setConfirmOpen}
-          title={`Instalar ${estado.versionDisponible ?? ''}`}
+          title={t('admin.act.instalar-version', { version: estado.versionDisponible ?? '' })}
           variant="primary"
           busy={instalando}
-          confirmLabel="Instalar"
+          confirmLabel={t('admin.act.instalar')}
           onConfirm={() => void instalar()}
         >
-          {textoConfirmarInstalar(estado)}
+          {textoConfirmarInstalar(estado, idioma)}
         </ConfirmDialog>
       )}
     </>

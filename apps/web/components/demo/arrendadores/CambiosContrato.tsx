@@ -24,11 +24,17 @@ import {
   type CambioContratoUI,
   type VersionFirmadaUI,
 } from '@/lib/data/estado-api'
-import { PERIODICIDADES } from '@/lib/renta-periodicidad'
+import { PERIODICIDADES, periodicidadLabel } from '@/lib/renta-periodicidad'
 import { valorParaMostrar } from '@/lib/contrato-cambios'
 import { desbloquearApi } from '@/lib/data/cambios-api'
 import { confirmarConCandado } from '@/lib/cambios-candado'
 import { ROL_CONTRATO, opcionesDeAsignacion } from '@/components/demo/razones-sociales/asignacion'
+import { monedaInstancia } from '@/lib/i18n/dinero'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
+import type { Idioma } from '@/lib/i18n/idiomas'
+import { CLAVE_CAMPO_CONTRATO, CLAVE_PARTE } from '@/components/demo/arrendadores/etiquetas'
+import { localeDe } from '@/lib/i18n/formato-idioma'
 
 // ============================================================================
 //  CONTRATO-CAMBIOS (07/10) · cambiar un contrato ANTES de firmarlo, diciendo
@@ -52,11 +58,14 @@ import { ROL_CONTRATO, opcionesDeAsignacion } from '@/components/demo/razones-so
 const inputCls =
   'h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 
-const PARTE_LABEL = { ARRENDADOR: 'El arrendador', ARRENDATARIO: 'Nosotros' } as const
+// I18N (2026-11-02) · la etiqueta de cada parte es `CLAVE_PARTE`
+// (arrendadores/etiquetas.ts): «El arrendador» y «Nosotros» en espanol.
 
-function fechaHora(iso: string) {
+// En espanol, la de siempre; en ingles, la fecha de `formatFecha` y la hora
+// de reloj de alla.
+function fechaHora(iso: string, idioma: Idioma = 'es') {
   const d = new Date(iso)
-  return `${formatFecha(iso)} ${d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`
+  return `${formatFecha(iso, idioma)} ${d.toLocaleTimeString(localeDe(idioma), { hour: '2-digit', minute: '2-digit' })}`
 }
 
 export function CambiosContrato({
@@ -71,6 +80,7 @@ export function CambiosContrato({
   const [versiones, setVersiones] = useState<VersionFirmadaUI[]>([])
   const [error, setError] = useState<string | null>(null)
   const [editando, setEditando] = useState(false)
+  const { idioma, t } = useIdioma()
 
   const cargar = useCallback(async () => {
     try {
@@ -84,9 +94,9 @@ export function CambiosContrato({
       setVersiones(v)
       setError(null)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo leer el historial')
+      setError(e instanceof Error ? e.message : t('arrendadores.cambios.no-historial'))
     }
-  }, [contrato.id])
+  }, [contrato.id, t])
 
   useEffect(() => {
     void cargar()
@@ -100,23 +110,22 @@ export function CambiosContrato({
     <div>
       <div className="mb-2 flex items-center justify-between">
         <h4 className="flex items-center gap-1.5 text-[13px] font-medium text-ink">
-          <History className="h-3.5 w-3.5" /> Cambios al contrato
+          <History className="h-3.5 w-3.5" /> {t('arrendadores.cambios.titulo')}
         </h4>
         {editable && (
           <Button size="sm" variant="secondary" onClick={() => setEditando(true)}>
-            <Pencil className="h-3.5 w-3.5" /> Editar términos
+            <Pencil className="h-3.5 w-3.5" /> {t('arrendadores.cambios.editar')}
           </Button>
         )}
       </div>
       {firma?.firmado && (
         <p className="mb-2 text-[12px] text-muted">
-          Ya está firmado. Si cambias sus términos, esta versión se archiva tal como se firmó y el
-          contrato se vuelve a firmar con los datos actuales.
+          {t('arrendadores.cambios.ya-firmado')}
         </p>
       )}
       {error && <p className="text-[12px] text-error">{error}</p>}
       {historial && historial.length === 0 && (
-        <p className="text-[12px] text-muted">Sin cambios registrados desde que se dio de alta.</p>
+        <p className="text-[12px] text-muted">{t('arrendadores.cambios.vacio')}</p>
       )}
       {historial && historial.length > 0 && (
         <ol className="space-y-2">
@@ -126,33 +135,39 @@ export function CambiosContrato({
                 <span className="text-ink">
                   {h.propuestoPor ? (
                     <>
-                      Lo propuso <b>{PARTE_LABEL[h.propuestoPor].toLowerCase()}</b>
+                      {interpolarNodos(t('arrendadores.cambios.lo-propuso'), {
+                        parte: <b>{t(CLAVE_PARTE[h.propuestoPor]).toLowerCase()}</b>,
+                      })}
                     </>
                   ) : (
-                    'Captura interna'
+                    t('arrendadores.cambios.interna')
                   )}
-                  <span className="text-muted"> · lo registró {h.usuarioNombre}</span>
+                  <span className="text-muted">{t('arrendadores.cambios.registro', { nombre: h.usuarioNombre })}</span>
                 </span>
-                <span className="demo-num text-[11px] text-muted">{fechaHora(h.creadoEn)}</span>
+                <span className="demo-num text-[11px] text-muted">{fechaHora(h.creadoEn, idioma)}</span>
               </div>
-              {h.motivo && <p className="mt-0.5 text-muted">«{h.motivo}»</p>}
+              {h.motivo && <p className="mt-0.5 text-muted">{t('arrendadores.comun.motivo', { motivo: h.motivo })}</p>}
               <ul className="mt-1 space-y-0.5">
                 {h.cambios.map((c) => (
                   <li key={c.campo}>
-                    <span className="text-muted">{c.etiqueta}:</span>{' '}
-                    <span className="line-through decoration-muted">{valorParaMostrar(c.campo, c.antes) ?? 'vacío'}</span>
+                    {/* La etiqueta viene GUARDADA en espanol con cada cambio; en ingles se
+                        pinta la del campo, que es estable. Uno desconocido, tal cual. */}
+                    <span className="text-muted">
+                      {idioma !== 'es' && CLAVE_CAMPO_CONTRATO[c.campo] ? t(CLAVE_CAMPO_CONTRATO[c.campo]) : c.etiqueta}:
+                    </span>{' '}
+                    <span className="line-through decoration-muted">{valorParaMostrar(c.campo, c.antes, idioma) ?? t('arrendadores.cambios.vacio-valor')}</span>
                     {' → '}
-                    <b className="text-ink">{valorParaMostrar(c.campo, c.despues) ?? 'vacío'}</b>
+                    <b className="text-ink">{valorParaMostrar(c.campo, c.despues, idioma) ?? t('arrendadores.cambios.vacio-valor')}</b>
                   </li>
                 ))}
               </ul>
               {h.versionFirmada != null ? (
                 <p className="mt-1 text-[11.5px] text-warning">
-                  Estaba firmado: se archivó como versión firmada {h.versionFirmada} y se anularon sus firmas.
+                  {t('arrendadores.cambios.archivada', { n: h.versionFirmada })}
                 </p>
               ) : h.envioAnulado && (
                 <p className="mt-1 text-[11.5px] text-warning">
-                  Ya se había enviado a firma: ese enlace dejó de servir y hubo que reenviarlo.
+                  {t('arrendadores.cambios.envio-anulado')}
                 </p>
               )}
             </li>
@@ -185,47 +200,51 @@ export function CambiosContrato({
 function VersionesFirmadas({ contratoId, versiones }: { contratoId: string; versiones: VersionFirmadaUI[] }) {
   const [abierta, setAbierta] = useState<VersionFirmadaUI | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const { idioma, t } = useIdioma()
 
   async function abrir(v: number) {
     setError(null)
     try {
       setAbierta(await versionFirmadaApi(contratoId, v))
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo leer la versión firmada')
+      setError(e instanceof Error ? e.message : t('arrendadores.versiones.no-leer'))
     }
   }
 
   return (
     <div className="mt-3">
       <h4 className="mb-2 flex items-center gap-1.5 text-[13px] font-medium text-ink">
-        <FileSignature className="h-3.5 w-3.5" /> Versiones firmadas anteriores
+        <FileSignature className="h-3.5 w-3.5" /> {t('arrendadores.versiones.titulo')}
       </h4>
       <ol className="space-y-2">
         {versiones.map((v) => (
           <li key={v.version} className="rounded-md border border-border px-3 py-2 text-[12.5px]">
             <div className="flex flex-wrap items-baseline justify-between gap-x-2">
               <span className="text-ink">
-                <b>Versión {v.version}</b>
-                <span className="text-muted"> · archivada {fechaHora(v.archivadoEn)}</span>
+                <b>{t('arrendadores.versiones.version', { n: v.version })}</b>
+                <span className="text-muted">{t('arrendadores.versiones.archivada', { fecha: fechaHora(v.archivadoEn, idioma) })}</span>
               </span>
               <button
                 type="button"
                 onClick={() => void abrir(v.version)}
                 className="text-[12px] text-accent underline-offset-2 hover:underline"
               >
-                Ver texto firmado
+                {t('arrendadores.versiones.ver')}
               </button>
             </div>
             {v.motivo && (
               <p className="mt-0.5 text-muted">
-                «{v.motivo}»{v.usuarioNombre ? ` · ${v.usuarioNombre}` : ''}
+                {t('arrendadores.comun.motivo', { motivo: v.motivo })}{v.usuarioNombre ? ` · ${v.usuarioNombre}` : ''}
               </p>
             )}
             <ul className="mt-1 space-y-0.5">
               {v.firmas.map((f) => (
                 <li key={f.parte}>
-                  <span className="text-muted">{PARTE_LABEL[f.parte]}:</span> firmó <b>{f.nombreFirmante}</b>
-                  {f.firmadoEn ? ` el ${fechaHora(f.firmadoEn)}` : ''}
+                  {interpolarNodos(t(f.firmadoEn ? 'arrendadores.versiones.firmo-el' : 'arrendadores.versiones.firmo'), {
+                    parte: <span className="text-muted">{t(CLAVE_PARTE[f.parte])}:</span>,
+                    nombre: <b>{f.nombreFirmante}</b>,
+                    fecha: f.firmadoEn ? fechaHora(f.firmadoEn, idioma) : '',
+                  })}
                 </li>
               ))}
             </ul>
@@ -237,8 +256,8 @@ function VersionesFirmadas({ contratoId, versiones }: { contratoId: string; vers
         <Modal
           open
           onOpenChange={(o) => (o ? undefined : setAbierta(null))}
-          title={`Versión firmada ${abierta.version}`}
-          subtitle={`Sello SHA-256: ${abierta.documentoHash}`}
+          title={t('arrendadores.versiones.modal', { n: abierta.version })}
+          subtitle={t('arrendadores.versiones.sello', { hash: abierta.documentoHash })}
         >
           <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap text-[12px] text-ink">{abierta.documento}</pre>
         </Modal>
@@ -278,7 +297,7 @@ function EditarTerminosModal({
     fechaFin: contrato.fechaFin ? contrato.fechaFin.slice(0, 10) : '',
     montoRenta: contrato.montoRenta != null ? String(contrato.montoRenta) : '',
     periodicidad: contrato.periodicidad ?? 'MENSUAL',
-    moneda: contrato.moneda ?? 'MXN',
+    moneda: contrato.moneda ?? monedaInstancia(),
     deposito: contrato.deposito != null ? String(contrato.deposito) : '',
     autoRenovable: contrato.autoRenovable,
   }
@@ -289,6 +308,7 @@ function EditarTerminosModal({
   const [enviando, setEnviando] = useState(false)
   const [reautenticando, setReautenticando] = useState(false)
   const [pass, setPass] = useState('')
+  const { idioma, t } = useIdioma()
 
   const poner = <K extends keyof typeof inicial>(k: K, v: (typeof inicial)[K]) => setF((x) => ({ ...x, [k]: v }))
 
@@ -356,19 +376,19 @@ function EditarTerminosModal({
       desbloquear: desbloquearApi,
       guardar: () =>
         editarContratoApi(contrato.id, { ...patch, propuestoPor, ...(motivo.trim() ? { motivo: motivo.trim() } : {}) }),
-      mensajeSiFalla: 'No se pudo guardar el cambio',
+      mensajeSiFalla: t('arrendadores.editar.no-guardar'),
     })
     if (r.estado === 'hecho') {
       setPass('')
       onHecho(
         firmado
-          ? 'Cambio guardado · la versión firmada quedó archivada; envía el contrato a firma otra vez'
+          ? t('arrendadores.editar.hecho-firmado')
           : enviado
-            ? 'Cambio guardado · vuelve a enviar el contrato a firma'
-            : 'Cambio guardado en el historial',
+            ? t('arrendadores.editar.hecho-enviado')
+            : t('arrendadores.editar.hecho'),
       )
     } else if (r.estado === 'falta-contrasena') {
-      setError('Escribe tu contraseña para confirmar.')
+      setError(t('compartidos.candado.falta'))
     } else if (r.estado === 'pedir-contrasena') {
       setReautenticando(true)
       setError(r.error)
@@ -382,21 +402,21 @@ function EditarTerminosModal({
     <Modal
       open
       onOpenChange={(v) => (v ? undefined : cerrar())}
-      title="Editar términos del contrato"
+      title={t('arrendadores.editar.titulo')}
       subtitle={
         firmado
-          ? 'Ya firmado: la versión firmada se archiva y se vuelve a firmar.'
-          : 'Antes de firmarse. Cada cambio queda en el historial con quién lo pidió.'
+          ? t('arrendadores.editar.sub-firmado')
+          : t('arrendadores.editar.sub')
       }
       footer={
         <div className="flex items-center justify-end gap-2">
-          {aviso && <span className="mr-auto text-[12px] text-error">Revisa los campos marcados en rojo.</span>}
+          {aviso && <span className="mr-auto text-[12px] text-error">{t('arrendadores.comun.revisa-rojo')}</span>}
           <Button variant="secondary" size="sm" onClick={cerrar} disabled={enviando}>
-            Cancelar
+            {t('comun.cancelar')}
           </Button>
           <Button size="sm" disabled={enviando || bloqueado || (reautenticando && !pass)} onClick={guardar}>
             {enviando && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            {reautenticando ? 'Confirmar y guardar' : 'Guardar cambio'}
+            {reautenticando ? t('comercial.comun.confirmar-guardar') : t('arrendadores.editar.guardar')}
           </Button>
         </div>
       }
@@ -404,19 +424,15 @@ function EditarTerminosModal({
       <div className="space-y-3 text-[13px]">
         {firmado ? (
           <p className="rounded border border-warning/40 bg-warning-soft p-2 text-[12.5px] text-ink">
-            Este contrato <b>ya está firmado</b>. Si guardas un cambio, la versión firmada se
-            archiva tal como se firmó —texto y firmas— y las firmas actuales se anulan. Después
-            tendrás que enviarlo a firma otra vez, con los datos actuales, para que las dos partes
-            lo revisen y lo firmen de nuevo. Escribe el motivo: queda en el historial.
+            {interpolarNodos(t('arrendadores.editar.aviso-firmado'), { firmado: <b>{t('arrendadores.editar.aviso-firmado-b')}</b> })}
           </p>
         ) : enviado && (
           <p className="rounded border border-warning/40 bg-warning-soft p-2 text-[12.5px] text-ink">
-            Este contrato <b>ya se envió a firma</b>. Si guardas un cambio, el enlace que tiene el
-            arrendador deja de servir y tendrás que enviarlo otra vez con el texto nuevo.
+            {interpolarNodos(t('arrendadores.editar.aviso-enviado'), { enviado: <b>{t('arrendadores.editar.aviso-enviado-b')}</b> })}
           </p>
         )}
 
-        <Campo label="¿Quién propuso el cambio?" como="div" obligatorio falta={ob.falta('propuestoPor')}>
+        <Campo label={t('arrendadores.editar.quien')} como="div" obligatorio falta={ob.falta('propuestoPor')}>
           <div className="flex gap-4" role="radiogroup">
             {(['ARRENDADOR', 'ARRENDATARIO'] as const).map((p) => (
               <label key={p} className="flex items-center gap-1.5">
@@ -427,25 +443,25 @@ function EditarTerminosModal({
                   onChange={() => setPropuestoPor(p)}
                   disabled={enviando}
                 />
-                {PARTE_LABEL[p]}
+                {t(CLAVE_PARTE[p])}
               </label>
             ))}
           </div>
         </Campo>
 
-        <Campo label="Motivo" obligatorio={firmado} falta={ob.falta('motivo')}>
+        <Campo label={t('arrendadores.editar.motivo')} obligatorio={firmado} falta={ob.falta('motivo')}>
           <input
             className={inputCls}
             value={motivo}
             maxLength={500}
             onChange={(e) => setMotivo(e.target.value)}
-            placeholder="Ej. pidió bajar la renta a cambio de un plazo más largo"
+            placeholder={t('arrendadores.editar.motivo-ph')}
             disabled={enviando}
           />
         </Campo>
 
         <div className="grid grid-cols-1 gap-3 border-t border-border pt-3 sm:grid-cols-2">
-          <Campo label="Arrendador" obligatorio falta={ob.falta('arrendadorId')} className="sm:col-span-2">
+          <Campo label={t('arrendadores.comun.arrendador')} obligatorio falta={ob.falta('arrendadorId')} className="sm:col-span-2">
             <select
               className={inputCls}
               value={f.arrendadorId}
@@ -459,14 +475,14 @@ function EditarTerminosModal({
               ))}
             </select>
           </Campo>
-          <Campo label="Razón social del arrendador">
+          <Campo label={t('arrendadores.editar.razon-arrendador')}>
             <select
               className={inputCls}
               value={f.razonSocialId}
               onChange={(e) => poner('razonSocialId', e.target.value)}
               disabled={enviando}
             >
-              <option value="">Sin razón social</option>
+              <option value="">{t('arrendadores.comun.sin-razon')}</option>
               {razonesDelArrendador.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.razonSocial}
@@ -474,69 +490,72 @@ function EditarTerminosModal({
               ))}
             </select>
           </Campo>
-          <Campo label="La paga">
+          <Campo label={t('arrendadores.comun.la-paga')}>
             <select
               className={inputCls}
               value={f.entidadId}
               onChange={(e) => poner('entidadId', e.target.value)}
               disabled={enviando}
             >
-              {opcionesDeAsignacion(entidades ?? [], ROL_CONTRATO, contrato.entidadId).map((o) => (
+              {opcionesDeAsignacion(entidades ?? [], ROL_CONTRATO, contrato.entidadId, idioma).map((o) => (
                 <option key={o.valor || 'sin-asignar'} value={o.valor}>
                   {o.etiqueta}
                 </option>
               ))}
             </select>
           </Campo>
-          <Campo label="Inicio" obligatorio falta={ob.falta('fechaInicio')}>
+          <Campo label={t('arrendadores.editar.inicio')} obligatorio falta={ob.falta('fechaInicio')}>
             <input type="date" className={inputCls} value={f.fechaInicio}
               onChange={(e) => poner('fechaInicio', e.target.value)} disabled={enviando} />
           </Campo>
           <Campo
-            label="Fin"
+            label={t('arrendadores.editar.fin')}
             obligatorio
             falta={ob.falta('fechaFin')}
-            error={fechasInvertidas ? 'No puede ser anterior al inicio' : null}
+            error={fechasInvertidas ? t('inventario.wizard.no-antes-inicio') : null}
           >
             <input type="date" className={inputCls} value={f.fechaFin}
               onChange={(e) => poner('fechaFin', e.target.value)} disabled={enviando} />
           </Campo>
           <Campo
-            label="Renta"
+            label={t('arrendadores.comun.renta')}
             obligatorio
             falta={ob.falta('montoRenta')}
             error={
               rentaIlegible
-                ? 'No se entiende la cifra'
+                ? t('inventario.wizard.cifra')
                 : ob.intento && rentaMala
-                  ? 'Tiene que ser mayor que cero'
+                  ? t('arrendadores.editar.mayor-cero')
                   : null
             }
           >
             <CampoCifra className={inputCls} valor={f.montoRenta}
               onCambio={(crudo) => poner('montoRenta', crudo)} disabled={enviando} />
           </Campo>
-          <Campo label="Periodicidad" obligatorio>
+          <Campo label={t('arrendadores.comun.periodicidad')} obligatorio>
             <select className={inputCls} value={f.periodicidad}
               onChange={(e) => poner('periodicidad', e.target.value)} disabled={enviando}>
               {PERIODICIDADES.map((p) => (
                 <option key={p.value} value={p.value}>
-                  {p.label}
+                  {idioma === 'es' ? p.label : periodicidadLabel(p.value, '—', idioma)}
                 </option>
               ))}
             </select>
           </Campo>
-          <Campo label="Moneda">
-            <input className={inputCls} value={f.moneda}
-              onChange={(e) => poner('moneda', e.target.value.toUpperCase())} disabled={enviando} />
+          {/* ADR 0048 · la moneda NO se edita: es la de la instancia. Era un
+              campo de texto libre que aceptaba cualquier codigo, y el importe
+              se seguia pintando con la moneda de la instancia. El servidor
+              rechaza otra (`arrendadores-controller.ts`). */}
+          <Campo label={t('arrendadores.editar.moneda')}>
+            <div className={`${inputCls} flex items-center bg-surface-2 text-muted`}>{f.moneda}</div>
           </Campo>
           <Campo
-            label="Depósito"
+            label={t('arrendadores.comun.deposito')}
             error={
               depositoIlegible
-                ? 'No se entiende la cifra'
+                ? t('inventario.wizard.cifra')
                 : depositoNegativo
-                  ? 'No puede ser negativo'
+                  ? t('arrendadores.editar.negativo')
                   : null
             }
           >
@@ -546,14 +565,14 @@ function EditarTerminosModal({
           <label className="flex items-center gap-2 sm:col-span-2">
             <input type="checkbox" checked={f.autoRenovable}
               onChange={(e) => poner('autoRenovable', e.target.checked)} disabled={enviando} />
-            Renovación automática
+            {t('arrendadores.ficha.renovacion')}
           </label>
         </div>
 
         {reautenticando && (
           <div className="space-y-2 border-t border-border pt-2">
             <p className="text-[12px] text-muted">
-              Tu organización pide la contraseña para confirmar los cambios sensibles.
+              {t('compartidos.candado.pide')}
             </p>
             <CampoContrasena
               valor={pass}

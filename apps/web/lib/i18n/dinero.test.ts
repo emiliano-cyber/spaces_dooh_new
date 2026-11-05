@@ -1,8 +1,13 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterEach } from 'vitest'
 import { readFileSync, readdirSync } from 'node:fs'
 import path from 'node:path'
 import {
-  MONEDA,
+  MONEDAS,
+  MONEDA_POR_OMISION,
+  monedaInstancia,
+  fijarMonedaInstancia,
+  simboloMoneda,
+  nombreMoneda,
   LOCALE_DE_IDIOMA,
   formatearDinero,
   formatearDineroRedondo,
@@ -14,22 +19,23 @@ import { DICCIONARIOS } from './diccionario'
 
 // ============================================================================
 //  I18N-02 · TRADUCIR NO PUEDE MOVER EL DINERO.
+//  ADR 0048 (2026-11-02) · Y LA MONEDA ES DE LA INSTANCIA, NO DEL CODIGO.
 // ----------------------------------------------------------------------------
-//  Decision del dueno (2026-09-30): «el sistema se rige 100% en pesos mexicanos
-//  por ahora, despues lo moveremos». UNA moneda, declarada UNA vez.
-//
-//  Lo que se prueba aqui no es que el texto salga de una forma concreta —eso
-//  depende de la version de ICU que traiga Node y se rompe solo—, sino la
-//  INVARIANTE que importa:
+//  Hasta el 02/11 habia una constante `MONEDA = 'MXN'`. Desde ese dia cada
+//  instancia elige MXN o USD al nacer y NO la puede cambiar. Lo que se prueba
+//  aqui sigue siendo la INVARIANTE, no un texto concreto:
 //
 //      el mismo importe, en los dos idiomas, VALE LO MISMO
-//      y LLEVA LA MISMA MONEDA.
+//      y LLEVA LA MISMA MONEDA — la de la instancia, para las dos.
 //
-//  El modo de fallo que esto ataca no da error y no se ve en una captura: basta
-//  que alguien, traduciendo una pantalla, escriba `currency: 'USD'` o cambie un
-//  `es-MX` por un `en-US` dejando la moneda suelta, y la MISMA pantalla afirma
-//  otro precio segun el idioma. Un numero creible y equivocado.
+//  Y una nueva, que es la que pidio el dueno: una instancia MXN en espanol
+//  se ve EXACTAMENTE como antes del 02/11. Se mide contra una copia literal de
+//  la implementacion anterior, no contra lo que uno cree recordar.
 // ============================================================================
+
+// Cada prueba que cambie la moneda la deja como estaba: el valor es de modulo,
+// y una prueba que lo olvidara pintaria dolares en las que corren despues.
+afterEach(() => fijarMonedaInstancia(MONEDA_POR_OMISION))
 
 // Lee el numero que un humano veria en el texto formateado. Deliberadamente
 // tonta: si el formateo aplicara un factor de conversion, esto lo veria.
@@ -42,16 +48,56 @@ function numeroLeido(texto: string): number {
 
 const IMPORTES = [0, 1, 99.99, 1234.5, 1_000_000, 45_678_901.23, -250.75, 0.01]
 
-describe('MONEDA · una sola, y en un solo sitio', () => {
-  it('es el peso mexicano', () => {
-    expect(MONEDA).toBe('MXN')
+describe('LA MONEDA DE LA INSTANCIA · una sola, elegida al nacer', () => {
+  it('solo hay dos posibles, MXN y USD, y por omision es MXN', () => {
+    expect([...MONEDAS]).toEqual(['MXN', 'USD'])
+    expect(MONEDA_POR_OMISION).toBe('MXN')
+    // Sin que nadie la fije, una instancia pinta pesos: es en lo que se quedan
+    // todas las que existian antes del 02/11.
+    expect(monedaInstancia()).toBe('MXN')
   })
 
-  it('coincide con el respaldo de totalizarMoneda', () => {
-    // `lib/data/derive.ts:282` hace `|| 'MXN'` cuando una fila no trae moneda.
-    // Si las dos se despegaran, el total y su etiqueta discreparian en la misma
-    // pantalla.
-    expect(MONEDA).toBe('MXN')
+  it('fijarla a USD cambia la de todos los formateadores', () => {
+    fijarMonedaInstancia('USD')
+    expect(monedaInstancia()).toBe('USD')
+    expect(formatearDinero(1, 'en')).toBe('$1.00')
+  })
+
+  it.each(['EUR', 'PEN', 'usd', '', 'MXN ', null, undefined, 1])(
+    'una moneda que no es MXN ni USD (%s) LANZA y deja la vigente como estaba',
+    (mala) => {
+      fijarMonedaInstancia('USD')
+      expect(() => fijarMonedaInstancia(mala as unknown as string)).toThrow(/no soportada/)
+      // Caer a MXN en silencio seria pintar pesos en una instancia en dolares.
+      expect(monedaInstancia()).toBe('USD')
+    },
+  )
+
+  it('DOS COPIAS del modulo ven la MISMA moneda (el build empaqueta dinero.ts varias veces)', async () => {
+    // El validador lo midio el 02/11: las rutas de `app/api` llevan una copia de
+    // este archivo y el layout otra. Con un `let` de modulo, fijarla en una no la
+    // fijaba en la otra y `/api/reportes/rentabilidad` pintaba «$» en una
+    // instancia en dolares. Aqui se reproduce con dos importaciones frescas.
+    const { vi } = await import('vitest')
+    vi.resetModules()
+    const copiaA = await import('./dinero')
+    vi.resetModules()
+    const copiaB = await import('./dinero')
+    expect(copiaA).not.toBe(copiaB) // de verdad son dos instancias del modulo
+    copiaA.fijarMonedaInstancia('USD')
+    expect(copiaB.monedaInstancia()).toBe('USD')
+    expect(copiaB.formatearDinero(1, 'es')).toBe('US$1.00')
+    copiaB.fijarMonedaInstancia('MXN')
+    expect(copiaA.monedaInstancia()).toBe('MXN')
+  })
+
+  it('el punto comun del servidor la fija: `tenantActual()` llama a `monedaDeLaInstancia()`', () => {
+    // Sin envoltura de handlers en el repo, casi toda peticion con sesion pasa
+    // por `tenantActual`. Si alguien quita esta llamada, una ruta que formatea
+    // en un proceso recien arrancado vuelve a pintar el simbolo por omision.
+    const src = readFileSync(path.join(__dirname, '..', 'server', 'tenant.ts'), 'utf8')
+    const cuerpo = src.slice(src.indexOf('export const tenantActual'), src.indexOf('export async function hayAlgunTenant'))
+    expect(cuerpo).toMatch(/await monedaDeLaInstancia\(\)/)
   })
 
   it('hay un locale por idioma, y el locale NO es una moneda', () => {
@@ -61,56 +107,158 @@ describe('MONEDA · una sola, y en un solo sitio', () => {
   })
 
   it('`formatearDinero` NO acepta una moneda: no se puede pasar la equivocada', () => {
-    // La firma es la defensa. Si algun dia alguien le anade un tercer
-    // parametro, esta prueba obliga a venir aqui a explicarlo.
+    // La firma es la defensa. El tercer parametro son SOLO los decimales y
+    // tiene valor por omision, asi que `length` sigue siendo 2. Si algun dia
+    // alguien le anade una moneda, esta prueba obliga a venir aqui.
     expect(formatearDinero.length).toBe(2)
     expect(formatearDineroRedondo.length).toBe(2)
   })
 })
 
-describe('LA PRUEBA NEGATIVA · el mismo importe vale lo mismo en los dos idiomas', () => {
-  it.each(IMPORTES)('%s se lee igual en espanol y en ingles', (monto) => {
-    const es = formatearDinero(monto, 'es')
-    const en = formatearDinero(monto, 'en')
-
-    // 1) Los dos idiomas dan el MISMO numero.
-    expect(numeroLeido(es)).toBe(numeroLeido(en))
-    // 2) Y ese numero es el del dato de origen: ninguno aplica un factor.
-    expect(numeroLeido(es)).toBeCloseTo(monto, 2)
-    expect(numeroLeido(en)).toBeCloseTo(monto, 2)
+describe('LA TABLA · el simbolo segun idioma y moneda', () => {
+  // El `$` a secas es la moneda LOCAL del lector: el peso en espanol, el dolar
+  // en ingles. La otra lleva prefijo. Nunca un `$` que se lea como la otra.
+  const TABLA: Array<[string, 'es' | 'en', string, string]> = [
+    ['MXN', 'es', '$1,234.50', '$'],
+    ['MXN', 'en', 'MX$1,234.50', 'MX$'],
+    ['USD', 'es', 'US$1,234.50', 'US$'],
+    ['USD', 'en', '$1,234.50', '$'],
+  ]
+  it.each(TABLA)('%s en %s se escribe %s', (moneda, idioma, esperado, simbolo) => {
+    fijarMonedaInstancia(moneda)
+    expect(formatearDinero(1234.5, idioma)).toBe(esperado)
+    expect(simboloMoneda(idioma)).toBe(simbolo)
   })
 
-  it.each(IMPORTES)('%s lleva la MISMA moneda en los dos idiomas', (monto) => {
-    const es = formatearDinero(monto, 'es')
-    const en = formatearDinero(monto, 'en')
+  it('los negativos llevan el signo delante del simbolo, en las cuatro', () => {
+    fijarMonedaInstancia('USD')
+    expect(formatearDinero(-1234.5, 'es')).toBe('-US$1,234.50')
+    expect(formatearDinero(-1234.5, 'en')).toBe('-$1,234.50')
+    fijarMonedaInstancia('MXN')
+    expect(formatearDinero(-1234.5, 'es')).toBe('-$1,234.50')
+    expect(formatearDinero(-1234.5, 'en')).toBe('-MX$1,234.50')
+  })
 
-    // Ninguno de los dos puede hablar de otra divisa.
-    for (const texto of [es, en]) {
-      expect(texto).not.toMatch(/USD/)
-      expect(texto).not.toMatch(/US\$/)
+  it('el nombre de la moneda para Administracion', () => {
+    expect(nombreMoneda('es')).toBe('Peso mexicano (MXN)')
+    fijarMonedaInstancia('USD')
+    expect(nombreMoneda('es')).toBe('Dólar estadounidense (USD)')
+    expect(nombreMoneda('en')).toBe('US dollar (USD)')
+  })
+})
+
+// ─── PARIDAD · una instancia MXN se ve EXACTAMENTE como antes ───────────────
+//
+// Copia LITERAL de la implementacion que habia hasta el 02/11 (`27047bfe`,
+// `lib/i18n/dinero.ts:76-101`). No se importa de ningun sitio a proposito:
+// es la foto del comportamiento que el dueno pidio no mover.
+function formatearDineroAntes(monto: number, idioma: 'es' | 'en'): string {
+  if (!(typeof monto === 'number' && Number.isFinite(monto))) return '—'
+  return new Intl.NumberFormat(LOCALE_DE_IDIOMA[idioma], {
+    style: 'currency',
+    currency: 'MXN',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(monto)
+}
+function formatearDineroRedondoAntes(monto: number, idioma: 'es' | 'en'): string {
+  if (!(typeof monto === 'number' && Number.isFinite(monto))) return '—'
+  return new Intl.NumberFormat(LOCALE_DE_IDIOMA[idioma], {
+    style: 'currency',
+    currency: 'MXN',
+    maximumFractionDigits: 0,
+  }).format(monto)
+}
+
+// Una muestra ancha y reproducible: los bordes de siempre mas 2000 importes
+// pseudoaleatorios con semilla fija, de centavos a cientos de millones y con
+// signo.
+function muestra(): number[] {
+  const fijos = [0, -0, 0.004, 0.005, 0.01, 1, 9.995, 99.99, 999.999, 1000, 1234.5, 999_999.995,
+    1_000_000, 45_678_901.23, -250.75, -0.01, -1_000_000.5, 123_456_789.12]
+  let s = 20261102
+  const azar = () => ((s = (s * 1103515245 + 12345) % 2 ** 31) / 2 ** 31)
+  const otros = Array.from({ length: 2000 }, () => {
+    const signo = azar() < 0.15 ? -1 : 1
+    return signo * Math.round(azar() * 10 ** Math.floor(azar() * 9) * 100) / 100
+  })
+  return [...fijos, ...otros]
+}
+
+describe('PARIDAD · MXN se escribe igual que antes del 02/11, en los dos idiomas', () => {
+  const IMPORTES_PARIDAD = muestra()
+  // Solo es y en: el «antes» es de cuando no habia italiano (su formato lo fija
+  // `formato-idioma.test.ts`).
+  const IDIOMAS = ['es', 'en'] as const
+
+  it('formatearDinero: idéntico, importe por importe', () => {
+    const distintos = IMPORTES_PARIDAD.flatMap((m) =>
+      IDIOMAS.flatMap((i) =>
+        formatearDinero(m, i) === formatearDineroAntes(m, i)
+          ? []
+          : [`${m} ${i}: ${formatearDineroAntes(m, i)} -> ${formatearDinero(m, i)}`],
+      ),
+    )
+    expect(distintos).toEqual([])
+    expect(IMPORTES_PARIDAD.length).toBeGreaterThan(2000)
+  })
+
+  it('formatearDineroRedondo: idéntico, importe por importe', () => {
+    const distintos = IMPORTES_PARIDAD.flatMap((m) =>
+      IDIOMAS.flatMap((i) =>
+        formatearDineroRedondo(m, i) === formatearDineroRedondoAntes(m, i)
+          ? []
+          : [`${m} ${i}: ${formatearDineroRedondoAntes(m, i)} -> ${formatearDineroRedondo(m, i)}`],
+      ),
+    )
+    expect(distintos).toEqual([])
+  })
+})
+
+describe('LA PRUEBA NEGATIVA · el mismo importe vale lo mismo en los dos idiomas', () => {
+  it.each(MONEDAS.flatMap((m) => IMPORTES.map((i) => [m, i] as const)))(
+    'en una instancia %s, %s se lee igual en espanol y en ingles',
+    (moneda, monto) => {
+      fijarMonedaInstancia(moneda)
+      const es = formatearDinero(monto, 'es')
+      const en = formatearDinero(monto, 'en')
+
+      // 1) Los dos idiomas dan el MISMO numero.
+      expect(numeroLeido(es)).toBe(numeroLeido(en))
+      // 2) Y ese numero es el del dato de origen: ninguno aplica un factor.
+      expect(numeroLeido(es)).toBeCloseTo(monto, 2)
+      expect(numeroLeido(en)).toBeCloseTo(monto, 2)
+    },
+  )
+
+  it.each(IMPORTES)('en una instancia MXN, %s nunca habla de dolares', (monto) => {
+    for (const texto of [formatearDinero(monto, 'es'), formatearDinero(monto, 'en')]) {
+      expect(texto).not.toMatch(/USD|US\$/)
       expect(texto).not.toMatch(/EUR|€|GBP|£|¥/)
     }
-
-    // Y lo que `Intl` resuelve de verdad —no lo que le pedimos— es MXN en los
-    // dos idiomas. Si alguien colara otra moneda por detras, esto lo veria.
-    const resueltas = IDIOMAS.map(
-      (idioma) =>
-        new Intl.NumberFormat(LOCALE_DE_IDIOMA[idioma], { style: 'currency', currency: MONEDA })
-          .resolvedOptions().currency,
-    )
-    expect(new Set(resueltas)).toEqual(new Set(['MXN']))
   })
 
-  it('el ingles DESAMBIGUA el peso en vez de convertirlo', () => {
-    // En `es-MX` el peso se escribe `$`, que un lector anglosajon lee como
-    // dolar. En `en-US`, ICU escribe `MX$`: sigue siendo el MISMO importe en
-    // pesos, y encima lo dice. Por eso no se fuerza el locale mexicano en la
-    // rama inglesa.
-    const en = formatearDinero(1234.5, 'en')
-    const es = formatearDinero(1234.5, 'es')
-    expect(en).toMatch(/MX\$/)
-    expect(es).toMatch(/^\$/)
-    expect(numeroLeido(en)).toBe(numeroLeido(es))
+  it.each(IMPORTES)('en una instancia USD, %s nunca habla de pesos', (monto) => {
+    fijarMonedaInstancia('USD')
+    for (const texto of [formatearDinero(monto, 'es'), formatearDinero(monto, 'en')]) {
+      expect(texto).not.toMatch(/MXN|MX\$/)
+      expect(texto).not.toMatch(/EUR|€|GBP|£|¥/)
+    }
+    // Y en espanol el dolar NUNCA sale con el `$` a secas, que un lector
+    // mexicano leeria como peso.
+    if (Number.isFinite(monto)) expect(formatearDinero(monto, 'es')).toMatch(/US\$/)
+  })
+
+  it('lo que `Intl` resuelve de verdad es la moneda de la instancia, en los dos idiomas', () => {
+    for (const moneda of MONEDAS) {
+      fijarMonedaInstancia(moneda)
+      const resueltas = IDIOMAS.map(
+        (idioma) =>
+          new Intl.NumberFormat(LOCALE_DE_IDIOMA[idioma], { style: 'currency', currency: monedaInstancia() })
+            .resolvedOptions().currency,
+      )
+      expect(new Set(resueltas)).toEqual(new Set([moneda]))
+    }
   })
 
   it('la separacion anglosajona de miles se respeta, y no cambia el valor', () => {
@@ -124,13 +272,16 @@ describe('LA PRUEBA NEGATIVA · el mismo importe vale lo mismo en los dos idioma
   })
 
   it('la version redonda tampoco cambia de valor ni de moneda con el idioma', () => {
-    for (const monto of [0, 1500, 1_000_000]) {
-      const es = formatearDineroRedondo(monto, 'es')
-      const en = formatearDineroRedondo(monto, 'en')
-      expect(numeroLeido(es)).toBe(monto)
-      expect(numeroLeido(en)).toBe(monto)
-      expect(en).not.toMatch(/USD|US\$/)
+    for (const moneda of MONEDAS) {
+      fijarMonedaInstancia(moneda)
+      for (const monto of [0, 1500, 1_000_000]) {
+        expect(numeroLeido(formatearDineroRedondo(monto, 'es'))).toBe(monto)
+        expect(numeroLeido(formatearDineroRedondo(monto, 'en'))).toBe(monto)
+      }
     }
+    fijarMonedaInstancia('USD')
+    expect(formatearDineroRedondo(1500, 'es')).toBe('US$1,500')
+    expect(formatearDineroRedondo(1500, 'en')).toBe('$1,500')
   })
 
   it('un monto que no es un numero no pinta «NaN» en la pantalla', () => {
@@ -201,7 +352,7 @@ function fuentes(dir: string = RAIZ, acc: string[] = []): string[] {
   return acc
 }
 
-describe('GUARDIA 1 · en todo apps/web, formatear moneda es formatear MXN', () => {
+describe('GUARDIA 1 · en todo apps/web, formatear moneda es formatear la de la instancia', () => {
   it('encuentra archivos que revisar (el arnes no esta vacio)', () => {
     // Sin esto, un fallo del recorrido dejaria las dos pruebas de abajo en
     // verde por no mirar nada — el clasico arnes que no muerde.
@@ -210,24 +361,62 @@ describe('GUARDIA 1 · en todo apps/web, formatear moneda es formatear MXN', () 
     expect(todos).toContain('lib/i18n/dinero.ts')
   })
 
-  it('todo `style: currency` declara `currency: MXN` en la misma llamada', () => {
+  it('`style: currency` solo existe en dinero.ts, y ahi declara la moneda de la instancia', () => {
+    // Hasta el 02/11 se admitia `currency: 'MXN'` en cualquier archivo. Ya no:
+    // un 'MXN' escrito a mano en un reporte pintaria pesos en una instancia en
+    // dolares, sin error. Y tampoco basta con `currency: monedaInstancia()`
+    // fuera de aqui: en `es-MX` ICU escribe el dolar «USD 1,234», no `US$`. El
+    // unico sitio que sabe poner el simbolo de la tabla es `formatearDinero`.
     const culpables: string[] = []
+    let enDinero = 0
     for (const rel of fuentes()) {
       if (rel === ESTE) continue
       const texto = readFileSync(path.join(RAIZ, rel), 'utf8')
       const re = /style:\s*['"]currency['"]/g
       let m: RegExpExecArray | null
       while ((m = re.exec(texto)) !== null) {
+        const linea = texto.slice(0, m.index).split('\n').length
+        if (rel !== 'lib/i18n/dinero.ts') {
+          culpables.push(`${rel}:${linea} · formatea moneda por su cuenta`)
+          continue
+        }
+        enDinero++
         // Ventana de 200 caracteres: cubre de sobra un objeto de opciones y no
         // se estira hasta el siguiente formateo.
         const ventana = texto.slice(m.index, m.index + 200)
-        // Se admite el literal 'MXN' o la constante `MONEDA`, que es el unico
-        // sitio donde ese literal puede vivir.
-        if (!/currency:\s*(['"]MXN['"]|MONEDA\b)/.test(ventana)) {
-          const linea = texto.slice(0, m.index).split('\n').length
-          culpables.push(`${rel}:${linea}`)
-        }
+        if (!/currency:\s*monedaInstancia\(\)/.test(ventana)) culpables.push(`${rel}:${linea}`)
       }
+    }
+    expect(culpables).toEqual([])
+    // Y el arnes mira: dinero.ts SI formatea moneda, una vez.
+    expect(enDinero).toBe(1)
+  })
+
+  it('ningun archivo de la app escribe una moneda a mano en un `currency:`', () => {
+    const culpables: string[] = []
+    for (const rel of fuentes()) {
+      // dinero.ts se salta: su cabecera CITA el fallo (`currency: 'USD'`), y su
+      // unico formateo ya lo mira la prueba de arriba.
+      if (rel === ESTE || rel === 'lib/i18n/dinero.ts') continue
+      const texto = readFileSync(path.join(RAIZ, rel), 'utf8')
+      if (/currency:\s*['"][A-Z]{3}['"]/.test(texto)) culpables.push(rel)
+    }
+    expect(culpables).toEqual([])
+  })
+
+  it('solo dos sitios FIJAN la moneda: el lector del servidor y el proveedor del navegador', () => {
+    // Un tercero que la fijara —con un valor de prueba, con una constante—
+    // cambiaria la de TODA la instancia desde una pantalla.
+    const permitidos = new Set([
+      'lib/i18n/dinero.ts',
+      'lib/i18n/moneda-cliente.tsx',
+      'lib/server/moneda-instancia.ts',
+    ])
+    const culpables: string[] = []
+    for (const rel of fuentes()) {
+      if (rel === ESTE || /\.test\.tsx?$/.test(rel) || permitidos.has(rel)) continue
+      const texto = readFileSync(path.join(RAIZ, rel), 'utf8')
+      if (/fijarMonedaInstancia\s*\(/.test(texto)) culpables.push(rel)
     }
     expect(culpables).toEqual([])
   })

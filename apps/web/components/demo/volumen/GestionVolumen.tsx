@@ -1,4 +1,5 @@
 'use client'
+import { cifraEnEtiqueta } from '@/lib/i18n/cifra-en-etiqueta'
 
 import { Fragment, useCallback, useEffect, useState } from 'react'
 import { Trash2, Plus } from 'lucide-react'
@@ -9,9 +10,12 @@ import {
   type TramoVolumenUI,
 } from '@/lib/data/volumen-api'
 import { motivoTramoInvalido } from '@/lib/volumen'
-import { UNIDADES, unidadCorta } from '@/lib/periodos'
+import { UNIDADES, unidadCorta, etiquetaUnidad } from '@/lib/periodos'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { EntradaCifra } from '@/components/demo/ui/EntradaCifra'
 import { useObligatorios } from '@/components/demo/ui/Campo'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { formatNumero } from '@/lib/formato-numero'
@@ -43,6 +47,9 @@ import { formatNumero } from '@/lib/formato-numero'
 const vacio = { unidad: 'spot', desdeCantidad: '', descuentoPct: '' }
 
 export function GestionVolumen() {
+  const { idioma, t } = useIdioma()
+  // Dentro del map de los tramos, «t» es el tramo.
+  const tx = t
   const [tramos, setTramos] = useState<TramoVolumenUI[]>([])
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(true)
@@ -58,7 +65,7 @@ export function GestionVolumen() {
       setTramos(await escalasVolumenApi())
       setError(null)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo leer la escala')
+      setError(e instanceof Error ? e.message : t('catalogos.volumen.no-leer'))
     } finally {
       setCargando(false)
     }
@@ -78,7 +85,7 @@ export function GestionVolumen() {
       desdeCantidad: nuevo.desdeCantidad as unknown as number,
       descuentoPct: nuevo.descuentoPct as unknown as number,
     }
-    const motivo = motivoTramoInvalido({ id: '', ...candidato }, tramos)
+    const motivo = motivoTramoInvalido({ id: '', ...candidato }, tramos, idioma)
     if (!completos || motivo) return setError(motivo)
     try {
       await guardarTramoVolumenApi({
@@ -90,7 +97,7 @@ export function GestionVolumen() {
       ob.reiniciar()
       await cargar()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo guardar')
+      setError(e instanceof Error ? e.message : t('catalogos.comun.no-guardar'))
     }
   }
 
@@ -99,14 +106,14 @@ export function GestionVolumen() {
       await borrarTramoVolumenApi(id)
       await cargar()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo eliminar')
+      setError(e instanceof Error ? e.message : t('catalogos.comun.no-eliminar'))
     }
   }
 
   // Esqueleto y no un «Cargando…» en texto (rediseño del 2026-10-26).
   if (cargando) {
     return (
-      <div className="space-y-4" aria-busy="true" aria-label="Cargando la escala">
+      <div className="space-y-4" aria-busy="true" aria-label={t('catalogos.volumen.cargando')}>
         <div className="h-16 animate-pulse rounded-md bg-surface-2" />
         <div className="h-40 animate-pulse rounded-md bg-surface-2" />
       </div>
@@ -120,7 +127,7 @@ export function GestionVolumen() {
   // esté en `UNIDADES` (no debería) sale al final con su clave, para no
   // esconder un tramo.
   const grupos = [
-    ...UNIDADES.map((u) => ({ unidad: u.unidad as string, label: u.label })),
+    ...UNIDADES.map((u) => ({ unidad: u.unidad as string, label: idioma === 'es' ? u.label : etiquetaUnidad(u.unidad, idioma) })),
     ...[...new Set(tramos.map((t) => t.unidad))]
       .filter((x) => !UNIDADES.some((u) => u.unidad === x))
       .map((x) => ({ unidad: x, label: x })),
@@ -145,14 +152,13 @@ export function GestionVolumen() {
           `StatusBadge`), el MISMO texto y las mismas negritas. Sigue fuera de
           la tarjeta plegable. */}
       <div className="rounded-md border border-[#f59e0b40] bg-warning-soft px-3 py-2 text-[12px] text-[#9a6700]">
-        <b>El descuento se aplica sobre TODAS las unidades, no solo sobre las que pasan del
-        umbral.</b>{' '}
-        «A partir de 50 spots, 10 %» quiere decir que quien compra 50 paga los 50 con el 10 %
-        menos. Consecuencia: quien compra 49 paga más que quien compra 50, y el salto puede ser
-        mayor que el precio de una unidad.
+        <b>{t('catalogos.volumen.aviso.todas')}</b>{' '}
+        {t('catalogos.volumen.aviso.ejemplo')}
         <br />
-        Y se <b>compone</b> con el descuento comercial: un 20 % aquí y un 20 % en la propuesta
-        dejan al cliente pagando el <b>64 %</b>, no el 60 %.
+        {interpolarNodos(t('catalogos.volumen.aviso.compone'), {
+          compone: <b>{t('catalogos.volumen.aviso.compone.negrita')}</b>,
+          pct: <b>{t('catalogos.volumen.aviso.compone.pct')}</b>,
+        })}
       </div>
 
       {/* PLEG-02 · la escala se pliega; el aviso de arriba no, porque es lo
@@ -160,29 +166,28 @@ export function GestionVolumen() {
           alta vive en el estado de este componente: plegar no lo borra. */}
       <CardColapsable
         id="descuentos-por-volumen.tramos"
-        titulo="Tramos por unidad de venta"
-        subtitulo="Cada unidad tiene su propia escala"
+        titulo={t('catalogos.volumen.tramos.titulo')}
+        subtitulo={t('catalogos.volumen.tramos.subtitulo')}
         // El modelo con su nombre corto, como lo llama Stripe en su selector
         // de precios («volume» frente a «graduated»): el aviso de arriba
         // explica qué quiere decir.
         resumen={
-          <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted" title="El descuento del tramo alcanzado se aplica a TODAS las unidades">
-            Escala plana (volumen)
+          <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted" title={t('catalogos.volumen.escala.title')}>
+            {t('catalogos.volumen.escala')}
           </span>
         }
         contentClassName="space-y-3"
       >
         <p className="rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px] text-muted">
-          Cada unidad tiene su propia escala, porque 50 spots y 50 meses no son la misma compra.
-          Los tramos tienen que <b>crecer</b>: comprar más nunca puede descontar menos.
+          {interpolarNodos(t('catalogos.volumen.explicacion'), { crecer: <b>{t('catalogos.volumen.explicacion.crecer')}</b> })}
         </p>
         <div className="relative overflow-x-auto">
         <table className="w-full text-left text-[13px]">
           <thead>
             <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
-              <th className="px-3 py-2 font-medium">Unidad<Asterisco /></th>
-              <th className="px-3 py-2 text-right font-medium">A partir de<Asterisco /></th>
-              <th className="px-3 py-2 text-right font-medium">Descuento<Asterisco /></th>
+              <th className="px-3 py-2 font-medium">{t('catalogos.comun.unidad')}<Asterisco /></th>
+              <th className="px-3 py-2 text-right font-medium">{t('catalogos.volumen.col.a-partir')}<Asterisco /></th>
+              <th className="px-3 py-2 text-right font-medium">{t('catalogos.volumen.col.descuento')}<Asterisco /></th>
               <th className="px-3 py-2" />
             </tr>
           </thead>
@@ -190,8 +195,7 @@ export function GestionVolumen() {
             {tramos.length === 0 && (
               <tr>
                 <td colSpan={4} className="px-3 py-2.5 text-muted">
-                  Todavía no hay ninguno. Sin tramos, todo se vende al precio de tarifa — que es
-                  exactamente como funciona hoy.
+                  {t('catalogos.volumen.vacio')}
                 </td>
               </tr>
             )}
@@ -200,16 +204,19 @@ export function GestionVolumen() {
                 <tr>
                   <td colSpan={4} className="px-3 pb-1 pt-3 text-[12px] font-medium text-ink">
                     {g.label}
-                    <span className="font-normal text-muted"> · {g.tramos.length} tramo{g.tramos.length === 1 ? '' : 's'}</span>
+                    <span className="font-normal text-muted">{t(g.tramos.length === 1 ? 'catalogos.volumen.tramos.uno' : 'catalogos.volumen.tramos.otros', { n: g.tramos.length })}</span>
                   </td>
                 </tr>
                 {g.tramos.map((t, i) => (
                   <tr key={t.id}>
-                    <td className="px-3 py-2 pl-6 text-[12px] text-muted">Escalón {i + 1}</td>
+                    <td className="px-3 py-2 pl-6 text-[12px] text-muted">{tx('catalogos.volumen.escalon', { n: i + 1 })}</td>
                     <td className="demo-num whitespace-nowrap px-3 py-2 text-right text-ink">
-                      desde {formatNumero(t.desdeCantidad)} {unidadCorta(t.unidad, t.desdeCantidad)}
+                      {tx('catalogos.volumen.desde', {
+                        cantidad: formatNumero(t.desdeCantidad, 0, idioma),
+                        unidad: unidadCorta(t.unidad, t.desdeCantidad, idioma),
+                      })}
                     </td>
-                    <td className="demo-num whitespace-nowrap px-3 py-2 text-right font-medium text-ink">→ {t.descuentoPct} %</td>
+                    <td className="demo-num whitespace-nowrap px-3 py-2 text-right font-medium text-ink">{tx('catalogos.volumen.pct', { pct: cifraEnEtiqueta(t.descuentoPct, idioma) })}</td>
                     <td className="px-3 py-2 text-right">
                       <Button
                         type="button"
@@ -217,9 +224,9 @@ export function GestionVolumen() {
                         size="sm"
                         variant="ghost"
                         className="text-error hover:text-error"
-                        title="Eliminar: deja de aplicarse a partir de ahora. Lo ya cotizado y lo ya aprobado no se mueven."
+                        title={tx('catalogos.volumen.eliminar.title')}
                       >
-                        <Trash2 className="h-3.5 w-3.5" /> Eliminar
+                        <Trash2 className="h-3.5 w-3.5" /> {tx('catalogos.comun.eliminar')}
                       </Button>
                     </td>
                   </tr>
@@ -232,14 +239,14 @@ export function GestionVolumen() {
             <tr className="bg-surface-2">
               <td className="px-3 py-2.5" data-falta={ob.falta('unidad') || undefined}>
                 <select
-                  aria-label="Unidad de venta"
+                  aria-label={t('catalogos.volumen.unidad.aria')}
                   className={CAMPO}
                   value={nuevo.unidad}
                   onChange={(e) => setNuevo({ ...nuevo, unidad: e.target.value })}
                 >
                   {UNIDADES.map((u) => (
                     <option key={u.unidad} value={u.unidad}>
-                      {u.label}
+                      {idioma === 'es' ? u.label : etiquetaUnidad(u.unidad, idioma)}
                     </option>
                   ))}
                 </select>
@@ -248,26 +255,32 @@ export function GestionVolumen() {
                 {/* Entera, con coma de miles. Lo que no se entiende llega como
                     'NaN' y `motivoTramoInvalido` lo rechaza como siempre. */}
                 <CampoCifra
-                  aria-label="A partir de qué cantidad"
+                  aria-label={t('catalogos.volumen.cantidad.aria')}
                   decimales={0}
                   mostrarError={false}
+                  idioma={idioma}
                   className={`${CAMPO} demo-num w-28 text-right`}
-                  placeholder="p. ej. 50"
+                  placeholder={t('catalogos.volumen.cantidad.placeholder')}
                   valor={nuevo.desdeCantidad}
                   onCambio={(crudo) => setNuevo({ ...nuevo, desdeCantidad: crudo })}
                 />
               </td>
               <td className="px-3 py-2.5 text-right" data-falta={ob.falta('descuentoPct') || undefined}>
-                <input
-                  aria-label="Descuento por ciento"
+                {/* P-L2-1 · en italiano «12,5»; lo ilegible llega como 'NaN'
+                    y lo para `motivoTramoInvalido`. */}
+                <EntradaCifra
+                  aria-label={t('catalogos.volumen.pct.aria')}
                   type="number"
                   min={0}
                   max={100}
                   step={0.5}
                   className={`${CAMPO} demo-num w-28 text-right`}
-                  placeholder="p. ej. 10"
-                  value={nuevo.descuentoPct}
-                  onChange={(e) => setNuevo({ ...nuevo, descuentoPct: e.target.value })}
+                  placeholder={t('catalogos.volumen.pct.placeholder')}
+                  valor={nuevo.descuentoPct}
+                  onCambio={(crudo) => setNuevo({ ...nuevo, descuentoPct: crudo })}
+                  decimales={2}
+                  minimo={0}
+                  maximo={100}
                 />
               </td>
               <td className="px-3 py-2.5 text-right">
@@ -277,7 +290,7 @@ export function GestionVolumen() {
                   size="sm"
                   variant="success"
                 >
-                  <Plus className="h-3.5 w-3.5" /> Añadir tramo
+                  <Plus className="h-3.5 w-3.5" /> {t('catalogos.volumen.anadir')}
                 </Button>
               </td>
             </tr>
@@ -296,10 +309,11 @@ const CAMPO =
 
 /** OBLIG-01 · el asterisco de una cabecera de columna obligatoria. */
 function Asterisco() {
+  const t = useIdioma().t
   return (
     <>
       <span aria-hidden="true" className="ml-0.5 text-error">*</span>
-      <span className="sr-only"> (obligatorio)</span>
+      <span className="sr-only">{t('compartidos.campo.obligatorio')}</span>
     </>
   )
 }

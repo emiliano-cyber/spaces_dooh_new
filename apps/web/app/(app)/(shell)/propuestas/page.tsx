@@ -1,13 +1,15 @@
 'use client'
 
 import { toast } from 'sonner'
-import { conteo } from '@/lib/plural'
+import { conteo, plural } from '@/lib/plural'
+import { useIdioma, useTexto } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { Plus, FileText, Send, Check, X, ChevronDown, ChevronRight, Monitor, Square, List, Map as MapIcon, Trophy, Target } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
-import { EST, ORDEN_ESTATUS } from '@/components/demo/propuestas/estatus'
+import { EST, ORDEN_ESTATUS, CLAVE_ESTATUS } from '@/components/demo/propuestas/estatus'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { AvisoFranjaCMS } from '@/components/demo/rejilla/AvisoFranjaCMS'
 import { catalogoRejillaApi, type FranjaUI, type TemporadaUI } from '@/lib/data/rejilla-api'
@@ -33,7 +35,8 @@ import { Modal } from '@/components/demo/ui/Modal'
 import { ElegirClienteDialog } from '@/components/demo/propuestas/ElegirClienteDialog'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
-import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
+import { CRUDO_INVALIDO, cifraIlegible } from '@/lib/captura-cifra'
+import { EntradaCifra } from '@/components/demo/ui/EntradaCifra'
 import { MapView } from '@/components/demo/MapView'
 import { pinTono } from '@/components/demo/StatusBadge'
 import { usePuede } from '@/components/demo/shell/SesionContext'
@@ -61,10 +64,11 @@ import {
 import { useRouter } from 'next/navigation'
 import { ArrowUpRight } from 'lucide-react'
 import { withTrail } from '@/lib/nav-trail'
-import { crearPropuestaApi, agregarSitiosPropuestaApi, cambiarEstatusPropuestaApi, aprobarItemPropuestaApi, generarCampanaDesdePropuestaApi, ConfirmacionCeroError } from '@/lib/data/estado-api'
+import { crearPropuestaApi, agregarSitiosPropuestaApi, cambiarEstatusPropuestaApi, aprobarItemPropuestaApi, generarCampanaDesdePropuestaApi, ConfirmacionCeroError, CodigoPendienteApiError } from '@/lib/data/estado-api'
 import {
   UNIDADES,
   unidadCorta,
+  etiquetaUnidad,
   cantidadEfectiva,
   diasInclusivos,
   precioItem,
@@ -74,8 +78,12 @@ import {
   esCantidadManual,
   type Unidad,
 } from '@/lib/periodos'
-import { PERIODICIDADES, factorMensual } from '@/lib/renta-periodicidad'
+import { PERIODICIDADES, factorMensual, periodicidadLabel } from '@/lib/renta-periodicidad'
 import { formatNumero } from '@/lib/formato-numero'
+import { formatearDineroRedondo } from '@/lib/i18n/dinero'
+import { numeroEnIdioma } from '@/lib/i18n/formato-idioma'
+import { cifraEnEtiqueta } from '@/lib/i18n/cifra-en-etiqueta'
+import type { Idioma } from '@/lib/i18n/idiomas'
 
 // Periodicidades de la renta al propietario (enum `periodicidad_pago` en la BD)
 // y su equivalencia a mensual: ambas vienen de lib/renta-periodicidad.ts, la
@@ -91,6 +99,7 @@ const inputCls =
 // comparten la lista y el detalle, que antes tenían cada uno su copia.
 
 export default function PropuestasPage() {
+  const { t, idioma } = useIdioma()
   const propuestas = usePropuestas()
   const funnel = useFunnelPropuestas()
   const clientes = useClientes()
@@ -115,7 +124,8 @@ export default function PropuestasPage() {
     pedido.current = null
     const base = propuestas.find((x) => x.id === ped.id)
     if (base) setModo({ tipo: ped.tipo, propuesta: base })
-    else toast.error('No se encontró la propuesta')
+    else toast.error(t('propuestas.lista.no-encontrada'))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [propuestas])
   function cerrarModo(nuevaId?: string | null) {
     const m = modo
@@ -156,12 +166,12 @@ export default function PropuestasPage() {
     <div className="w-full space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl text-ink">Propuestas</h1>
-          <p className="mt-1 text-[13px] text-muted">Cotizaciones con método del divisor (bruto / neto)</p>
+          <h1 className="text-2xl text-ink">{t('propuestas.lista.titulo')}</h1>
+          <p className="mt-1 text-[13px] text-muted">{t('propuestas.lista.subtitulo')}</p>
         </div>
         {puedeEditar && (
           <Button variant="success" size="sm" onClick={() => setNuevoOpen(true)}>
-            <Plus className="h-3.5 w-3.5" /> Nueva propuesta
+            <Plus className="h-3.5 w-3.5" /> {t('propuestas.lista.nueva')}
           </Button>
         )}
       </div>
@@ -182,33 +192,43 @@ export default function PropuestasPage() {
         ) : (
           <>
             <KPICard
-              label="En pipeline"
-              value={formatMonto(funnel.pipelineValue)}
-              sub={`${conteo(funnel.borrador + funnel.enviadas, 'propuesta', 'propuestas')} en borrador o enviadas · total c/IVA`}
+              label={t('propuestas.lista.kpi.pipeline')}
+              value={formatMonto(funnel.pipelineValue, idioma)}
+              sub={t('propuestas.lista.kpi.pipeline.sub', {
+                propuestas: conteo(
+                  funnel.borrador + funnel.enviadas,
+                  t('propuestas.unidad.propuesta'),
+                  t('propuestas.unidad.propuestas'),
+                ),
+              })}
               tono="ambar"
               icon={<FileText className="h-4 w-4" />}
             />
             <KPICard
-              label="Enviadas sin respuesta"
-              value={formatNumero(funnel.enviadas)}
-              sub="esperan que el cliente apruebe o rechace"
+              label={t('propuestas.lista.kpi.enviadas')}
+              value={formatNumero(funnel.enviadas, 0, idioma)}
+              sub={t('propuestas.lista.kpi.enviadas.sub')}
               tono={funnel.enviadas > 0 ? 'azul' : 'neutro'}
               icon={<Send className="h-4 w-4" />}
             />
             <KPICard
-              label="Ganado (histórico)"
-              value={formatMonto(funnel.ganadoValue)}
-              sub={`${conteo(funnel.aprobadas, 'aprobada', 'aprobadas')} · perdido ${formatMontoCorto(funnel.perdidoValue)} en ${conteo(funnel.rechazadas, 'rechazada', 'rechazadas')}`}
+              label={t('propuestas.lista.kpi.ganado')}
+              value={formatMonto(funnel.ganadoValue, idioma)}
+              sub={t('propuestas.lista.kpi.ganado.sub', {
+                aprobadas: conteo(funnel.aprobadas, t('propuestas.unidad.aprobada'), t('propuestas.unidad.aprobadas')),
+                perdido: formatMontoCorto(funnel.perdidoValue, idioma),
+                rechazadas: conteo(funnel.rechazadas, t('propuestas.unidad.rechazada'), t('propuestas.unidad.rechazadas')),
+              })}
               tono="verde"
               icon={<Trophy className="h-4 w-4" />}
             />
             <KPICard
-              label="Tasa de cierre histórica"
+              label={t('propuestas.lista.kpi.tasa')}
               value={funnel.winRate != null ? `${Math.round(funnel.winRate * 100)}%` : '—'}
               sub={
                 funnel.winRate != null
-                  ? `aprobadas sobre ${funnel.aprobadas + funnel.rechazadas} cerradas, desde siempre`
-                  : 'sin cierres aún'
+                  ? t('propuestas.lista.kpi.tasa.sub', { n: funnel.aprobadas + funnel.rechazadas })
+                  : t('propuestas.lista.kpi.tasa.sin-cierres')
               }
               icon={<Target className="h-4 w-4" />}
             />
@@ -220,41 +240,45 @@ export default function PropuestasPage() {
         <div className="h-40 animate-pulse rounded-md bg-surface-2" />
       ) : propuestas.length === 0 ? (
         <p className="py-10 text-center text-[13px] text-muted">
-          Aún no hay propuestas.{puedeEditar ? ' Arma la primera con «Nueva propuesta».' : ''}
+          {t('propuestas.lista.vacia')}
+          {puedeEditar ? t('propuestas.lista.vacia.arma') : ''}
         </p>
       ) : (
         // PLEG-02 · qué propuesta está desplegada vive en `abierta`, en esta
         // página: plegar la lista y volver a abrirla la deja como estaba.
         <CardColapsable
           id="propuestas.lista"
-          titulo="Lista de propuestas"
+          titulo={t('propuestas.lista.tarjeta')}
           resumen={
             <span className="text-[12px] text-muted">
-              {hayFiltro ? `${filtradas.length} de ${propuestas.length}` : propuestas.length}{' '}
-              {propuestas.length === 1 ? 'propuesta' : 'propuestas'}
+              {t(hayFiltro ? 'propuestas.lista.resumen.filtrado' : 'propuestas.lista.resumen', {
+                n: filtradas.length,
+                total: propuestas.length,
+                propuestas: plural(propuestas.length, t('propuestas.unidad.propuesta'), t('propuestas.unidad.propuestas')),
+              })}
             </span>
           }
         >
           {/* Filtros en una fila: estatus con su conteo, cliente y búsqueda. */}
           <div className="mb-3 flex flex-wrap items-center gap-2">
-            <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Estatus">
+            <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={t('propuestas.lista.filtro.estatus')}>
               <ChipFiltro activo={!filtroEstatus} onClick={() => setFiltroEstatus('')}>
-                Todas <span className="demo-num">{propuestas.length}</span>
+                {t('propuestas.lista.filtro.todas')} <span className="demo-num">{propuestas.length}</span>
               </ChipFiltro>
               {ORDEN_ESTATUS.map((e) => (
                 <ChipFiltro key={e} activo={filtroEstatus === e} onClick={() => setFiltroEstatus(filtroEstatus === e ? '' : e)}>
-                  {EST[e].label} <span className="demo-num">{cuentaPor(e)}</span>
+                  {t(CLAVE_ESTATUS[e])} <span className="demo-num">{cuentaPor(e)}</span>
                 </ChipFiltro>
               ))}
             </div>
             <div className="ml-auto flex flex-wrap items-center gap-2">
               <select
-                aria-label="Cliente"
+                aria-label={t('propuestas.comun.cliente')}
                 value={filtroCliente}
                 onChange={(e) => setFiltroCliente(e.target.value)}
                 className="h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
-                <option value="">Todos los clientes</option>
+                <option value="">{t('propuestas.lista.filtro.todos-clientes')}</option>
                 {clientesConPropuesta.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.nombre}
@@ -262,10 +286,10 @@ export default function PropuestasPage() {
                 ))}
               </select>
               <input
-                aria-label="Buscar propuesta"
+                aria-label={t('propuestas.lista.filtro.buscar')}
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
-                placeholder="Folio o nombre…"
+                placeholder={t('propuestas.lista.filtro.buscar.ejemplo')}
                 className="h-8 w-48 rounded border border-border-strong bg-surface px-2.5 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
               />
             </div>
@@ -277,11 +301,20 @@ export default function PropuestasPage() {
 
           {filtradas.length === 0 ? (
             <p className="py-8 text-center text-[13px] text-muted">
-              Ninguna propuesta
-              {filtroEstatus ? ` ${EST[filtroEstatus].label.toLowerCase()}` : ''}
-              {filtroCliente ? ` de ${clientes?.find((c) => c.id === filtroCliente)?.nombre ?? 'ese cliente'}` : ''}
-              {busqueda.trim() ? ` que coincida con «${busqueda.trim()}»` : ''}. Quita el filtro para ver las{' '}
-              {propuestas.length}.
+              {/* Una sola frase con huecos, no trozos pegados: en ingles el
+                  estatus va ANTES del sustantivo («No approved proposals»). */}
+              {t('propuestas.lista.sin-resultados', {
+                estatus: filtroEstatus ? ` ${t(CLAVE_ESTATUS[filtroEstatus]).toLowerCase()}` : '',
+                cliente: filtroCliente
+                  ? t('propuestas.lista.sin-resultados.cliente', {
+                      cliente:
+                        clientes?.find((c) => c.id === filtroCliente)?.nombre ??
+                        t('propuestas.lista.sin-resultados.ese-cliente'),
+                    })
+                  : '',
+                busqueda: busqueda.trim() ? t('propuestas.lista.sin-resultados.busqueda', { q: busqueda.trim() }) : '',
+                n: propuestas.length,
+              })}
             </p>
           ) : (
             <ul className="m-0 list-none divide-y divide-border p-0">
@@ -331,6 +364,8 @@ function ChipFiltro({ activo, onClick, children }: { activo: boolean; onClick: (
 function PropuestaCard({
   p, abierta, onToggle, puedeEditar,
 }: { p: Propuesta; abierta: boolean; onToggle: () => void; puedeEditar: boolean }) {
+  const { t, idioma } = useIdioma()
+  const nSitios = (n: number) => conteo(n, t('propuestas.unidad.sitio'), t('propuestas.unidad.sitios'))
   const clientes = useClientes()
   const sitios = useSitios()
   const campanas = useCampanas()
@@ -340,6 +375,7 @@ function PropuestaCard({
   // de crear campaña y ofrece verla.
   const campanaGenerada = campanas?.find((c) => c.propuestaId === p.id) ?? null
   const est = EST[p.estatus]
+  const etiquetaEst = t(CLAVE_ESTATUS[p.estatus])
   const router = useRouter()
   const [generando, setGenerando] = useState(false)
   const [elegirCliente, setElegirCliente] = useState(false)
@@ -377,10 +413,15 @@ function PropuestaCard({
       await cambiarEstatusPropuestaApi(p.id, estatus, confirmarCero)
     } catch (e) {
       if (e instanceof ConfirmacionCeroError) {
-        if (window.confirm(`${e.message}\n\n¿Aprobar de todas formas?`)) return cambiar(estatus, true)
+        // I18N (2026-11-02) · la pregunta la pinta la pantalla con su clave, como
+        // el cupon pendiente: el `error` de la ruta llega siempre en español (no
+        // pasa por `respuestaError()`). Se reconoce por la bandera
+        // `requiereConfirmacionCero`, y confirmar reintenta igual que antes.
+        if (window.confirm(`${t('servidor.propuesta.aprobar-en-cero', { total: formatearDineroRedondo(0, idioma) })}\n\n${t('propuestas.comun.aprobar-igual')}`)) return cambiar(estatus, true)
         return
       }
-      toast.error(e instanceof Error ? e.message : 'Error')
+      if (e instanceof CodigoPendienteApiError) return void toast.error(t('servidor.codigo.aprobar-con-pendiente'))
+      toast.error(e instanceof Error ? e.message : t('propuestas.comun.error'))
     }
   }
   // Sin cliente no se genera: primero se elige (ElegirClienteDialog).
@@ -394,11 +435,11 @@ function PropuestaCard({
       const camp = await generarCampanaDesdePropuestaApi(p.id, clienteId)
       setElegirCliente(false)
       if (camp?.id) router.push(`/campanas/${camp.id}`)
-    } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
+    } catch (e) { toast.error(e instanceof Error ? e.message : t('propuestas.comun.error')) }
     setGenerando(false)
   }
   async function aprobar(itemId: string, aprobado: boolean) {
-    try { await aprobarItemPropuestaApi(itemId, aprobado) } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
+    try { await aprobarItemPropuestaApi(itemId, aprobado) } catch (e) { toast.error(e instanceof Error ? e.message : t('propuestas.comun.error')) }
   }
 
   // Fechas de la propuesta (min/max de los items), igual que el detalle: en la
@@ -425,12 +466,12 @@ function PropuestaCard({
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <span className="demo-num text-[12px] text-muted">{p.folio}</span>
-                <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${est.cls}`}>{est.label}</span>
+                <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${est.cls}`}>{etiquetaEst}</span>
                 {p.version > 1 && (
                   <span className="rounded-full border border-border px-1.5 py-0.5 text-[10px] font-medium text-muted">v{p.version}</span>
                 )}
                 {p.descuentoPct > 0 && (
-                  <span className="rounded-full border border-[#f59e0b40] px-1.5 py-0.5 text-[10px] font-medium text-[#9a6700]">−{p.descuentoPct}%</span>
+                  <span className="rounded-full border border-[#f59e0b40] px-1.5 py-0.5 text-[10px] font-medium text-[#9a6700]">−{cifraEnEtiqueta(p.descuentoPct, idioma)}%</span>
                 )}
                 {/* COD-03 · la marca de la lista: hay un cupón esperando a que
                     alguien con `comercial.aprobar` lo decida. Sin ella, el
@@ -439,32 +480,34 @@ function PropuestaCard({
                     cotización sin el descuento que el vendedor le ofreció. */}
                 {p.codigoEstado === 'PENDIENTE' && (
                   <span
-                    title={`El código ${p.codigoTexto ?? ''} espera aprobación; el cliente todavía no lo ve`}
+                    title={t('propuestas.fila.cupon-pendiente.titulo', { codigo: p.codigoTexto ?? '' })}
                     className="rounded-full border border-[#f59e0b40] bg-[#f59e0b14] px-1.5 py-0.5 text-[10px] font-medium text-[#9a6700]"
                   >
-                    Cupón pendiente
+                    {t('propuestas.fila.cupon-pendiente')}
                   </span>
                 )}
               </div>
               <div className="mt-0.5 text-[14px] font-medium text-ink">{p.nombre}</div>
               <div className="text-[12px] text-muted">
-                {cliente?.nombre ?? 'Sin cliente'}
-                {agencia ? <> · vía <span className="text-ink">{agencia.nombre}</span></> : ''}
-                {desde && hasta ? <> · <span className="demo-num">{formatFecha(desde)} – {formatFecha(hasta)}</span></> : ''}
-                {' '}· {conteo(p.items.length, 'sitio')}
+                {cliente?.nombre ?? t('propuestas.comun.sin-cliente')}
+                {agencia
+                  ? interpolarNodos(t('propuestas.comun.via'), { agencia: <span className="text-ink">{agencia.nombre}</span> })
+                  : ''}
+                {desde && hasta ? <> · <span className="demo-num">{formatFecha(desde, idioma)} – {formatFecha(hasta, idioma)}</span></> : ''}
+                {' '}· {nSitios(p.items.length)}
               </div>
             </div>
           </button>
           <div className="flex items-center gap-3">
             <div className="text-right">
-              <div className="demo-num text-[15px] font-semibold text-ink">{formatMonto(p.total)}</div>
-              <div className="text-[11px] text-muted">total c/IVA</div>
+              <div className="demo-num text-[15px] font-semibold text-ink">{formatMonto(p.total, idioma)}</div>
+              <div className="text-[11px] text-muted">{t('propuestas.comun.total-con-iva')}</div>
             </div>
             <Link
-              href={withTrail(`/propuestas/${p.id}`, [{ label: 'Propuestas', href: '/propuestas' }])}
+              href={withTrail(`/propuestas/${p.id}`, [{ label: t('propuestas.lista.titulo'), href: '/propuestas' }])}
               className="inline-flex items-center gap-1 rounded border border-border-strong px-2.5 py-1.5 text-[12px] font-medium text-info hover:bg-surface-2"
             >
-              Abrir <ArrowUpRight className="h-3.5 w-3.5" />
+              {t('propuestas.fila.abrir')} <ArrowUpRight className="h-3.5 w-3.5" />
             </Link>
           </div>
         </div>
@@ -477,23 +520,33 @@ function PropuestaCard({
                 verde que había. */}
             <div className="space-y-1 rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px]">
               <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
-                <Dato label="Bruto (lista)" valor={formatMonto(p.bruto)} />
-                <Dato label={`Comisión ${(100 - p.divisor * 100).toFixed(0)}% · divisor ${p.divisor.toFixed(2)}`} valor={`× ${p.divisor.toFixed(2)}`} />
-                <Dato label="Neto propuesto" valor={formatMonto(p.neto)} />
-                <Dato label={`IVA ${p.bruto ? Math.round((p.iva / p.bruto) * 100) : 16}%`} valor={formatMonto(p.iva)} />
+                <Dato label={t('propuestas.fila.bruto-lista')} valor={formatMonto(p.bruto, idioma)} />
+                <Dato
+                  label={t('propuestas.fila.comision', { pct: (100 - p.divisor * 100).toFixed(0), divisor: cifraEnEtiqueta(p.divisor, idioma, 2) })}
+                  valor={`× ${cifraEnEtiqueta(p.divisor, idioma, 2)}`}
+                />
+                <Dato label={t('propuestas.fila.neto-propuesto')} valor={formatMonto(p.neto, idioma)} />
+                <Dato label={t('propuestas.comun.iva', { pct: p.bruto ? Math.round((p.iva / p.bruto) * 100) : 16 })} valor={formatMonto(p.iva, idioma)} />
               </div>
               {/* Neto vs aprobado (aprobación granular). Con nada aprobado se
                   dice, en vez de enseñar tres ceros que parecen cifras. */}
               <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
-                <span className="font-medium text-ink">Aprobado · {p.itemsAprobados}/{conteo(p.items.length, 'sitio')}</span>
+                <span className="font-medium text-ink">
+                  {t('propuestas.fila.aprobado', { aprobados: p.itemsAprobados, sitios: nSitios(p.items.length) })}
+                </span>
                 {p.itemsAprobados === 0 ? (
                   <span className="text-muted">
-                    —, aún no se aprueba ningún sitio{puedeEditar ? ': marca las casillas de abajo' : ''}
+                    {t('propuestas.fila.ninguno-aprobado', {
+                      marca: puedeEditar ? t('propuestas.fila.ninguno-aprobado.marca') : '',
+                    })}
                   </span>
                 ) : (
                   <span className="text-muted">
-                    Neto aprobado <b className="demo-num text-[#0f7a55]">{formatMonto(p.netoAprobado)}</b>
-                    {' '}de {formatMonto(p.neto)} · Total <b className="demo-num text-ink">{formatMonto(p.totalAprobado)}</b>
+                    {interpolarNodos(t('propuestas.fila.neto-aprobado'), {
+                      aprobado: <b className="demo-num text-[#0f7a55]">{formatMonto(p.netoAprobado, idioma)}</b>,
+                      neto: formatMonto(p.neto, idioma),
+                      total: <b className="demo-num text-ink">{formatMonto(p.totalAprobado, idioma)}</b>,
+                    })}
                   </span>
                 )}
               </div>
@@ -515,7 +568,7 @@ function PropuestaCard({
                       )}
                       <span className={`truncate ${it.aprobado ? 'text-ink' : 'text-muted'}`}>{s?.nombre ?? it.sitioId}</span>
                       {it.aprobado && (
-                        <span className="rounded-full border border-[#10b98140] px-1.5 text-[10px] text-[#0f7a55]">aprobado</span>
+                        <span className="rounded-full border border-[#10b98140] px-1.5 text-[10px] text-[#0f7a55]">{t('propuestas.fila.chip-aprobado')}</span>
                       )}
                       {/* ADR 0008: AVISO, no bloqueo. Una propuesta es una
                           intención comercial y el inventario puede liberarse
@@ -525,13 +578,13 @@ function PropuestaCard({
                       {sinCupo.has(it.sitioId) && (
                         <span
                           className="rounded-full border border-[#f59e0b66] bg-warning-soft px-1.5 text-[10px] text-[#9a6700]"
-                          title={`La pantalla ya tiene su cupo de clientes en estas fechas (${sinCupo.get(it.sitioId)}). Al reservar se rechazará salvo que se libere o se suba el cupo.`}
+                          title={t('propuestas.fila.cupo-lleno.titulo', { clientes: sinCupo.get(it.sitioId) ?? '' })}
                         >
-                          cupo lleno
+                          {t('propuestas.fila.cupo-lleno')}
                         </span>
                       )}
                     </label>
-                    <span className="demo-num text-muted">{formatMonto(it.precio)}</span>
+                    <span className="demo-num text-muted">{formatMonto(it.precio, idioma)}</span>
                   </li>
                 )
               })}
@@ -540,27 +593,28 @@ function PropuestaCard({
             {puedeEditar && (
               <div className="flex flex-wrap gap-2">
                 {p.estatus === 'BORRADOR' && (
-                  <Button size="sm" variant="primary" onClick={() => cambiar('ENVIADA')}><Send className="h-3.5 w-3.5" /> Enviar</Button>
+                  <Button size="sm" variant="primary" onClick={() => cambiar('ENVIADA')}><Send className="h-3.5 w-3.5" /> {t('propuestas.comun.enviar')}</Button>
                 )}
                 {(p.estatus === 'ENVIADA' || p.estatus === 'BORRADOR') && (
                   <>
-                    <Button size="sm" onClick={() => cambiar('APROBADA')}><Check className="h-3.5 w-3.5" /> Aprobar</Button>
-                    <Button size="sm" variant="danger" onClick={() => cambiar('RECHAZADA')}><X className="h-3.5 w-3.5" /> Rechazar</Button>
+                    <Button size="sm" onClick={() => cambiar('APROBADA')}><Check className="h-3.5 w-3.5" /> {t('propuestas.comun.aprobar')}</Button>
+                    <Button size="sm" variant="danger" onClick={() => cambiar('RECHAZADA')}><X className="h-3.5 w-3.5" /> {t('propuestas.comun.rechazar')}</Button>
                   </>
                 )}
                 {p.estatus === 'APROBADA' && (
                   campanaGenerada ? (
                     <>
-                      <Button size="sm" disabled title="Esta propuesta ya generó su campaña">
-                        <Check className="h-3.5 w-3.5" /> Campaña generada
+                      <Button size="sm" disabled title={t('propuestas.fila.ya-generada')}>
+                        <Check className="h-3.5 w-3.5" /> {t('propuestas.comun.campana-generada')}
                       </Button>
                       <Button size="sm" variant="secondary" onClick={() => router.push(`/campanas/${campanaGenerada.id}`)}>
-                        Ver campaña
+                        {t('propuestas.fila.ver-campana')}
                       </Button>
                     </>
                   ) : (
                     <Button size="sm" disabled={generando} onClick={() => void generarCampana()}>
-                      <ChevronRight className="h-3.5 w-3.5" /> {generando ? 'Generando…' : 'Generar campaña'}
+                      <ChevronRight className="h-3.5 w-3.5" />{' '}
+                      {generando ? t('propuestas.comun.generando') : t('propuestas.comun.generar-campana')}
                     </Button>
                   )
                 )}
@@ -595,6 +649,7 @@ function NuevaPropuestaDialog({
   onClose: (nuevaId?: string | null) => void
   modo?: ModoDialogo
 }) {
+  const { t, idioma } = useIdioma()
   const base = modo?.propuesta ?? null
   const agregando = modo?.tipo === 'agregar'
   const periodoBase = base ? periodoDe(base) : { desde: '', hasta: '' }
@@ -609,7 +664,9 @@ function NuevaPropuestaDialog({
   const [agenciaId, setAgenciaId] = useState(base?.agenciaId ?? '')
   // Al agregar, el nombre no se edita (no se pinta) pero cuenta como «tiene
   // nombre» para los obligatorios. Al duplicar se marca como copia.
-  const [nombre, setNombre] = useState(!base ? '' : agregando ? base.nombre : `${base.nombre} (copia)`)
+  const [nombre, setNombre] = useState(
+    !base ? '' : agregando ? base.nombre : t('propuestas.alta.nombre-copia', { nombre: base.nombre }),
+  )
   const [comision, setComision] = useState(base ? String(base.comisionPct ?? 0) : '0')
 
   // Agencias = clientes tipo AGENCIA (una agencia se asocia a un cliente directo).
@@ -851,7 +908,7 @@ function NuevaPropuestaDialog({
       horasDia: num(c.horasDia),
       roadblock: c.roadblock,
       primaRoadblockPct: c.roadblock ? primaDe(s) : null,
-    })
+    }, idioma)
   }
 
   // ADR 0043 · la tarifa BASE de una línea: con calculadora, la tarifa mensual
@@ -1039,18 +1096,18 @@ function NuevaPropuestaDialog({
   const comisionNum = Number(comision)
   const errComision =
     comision.trim() === '' || !Number.isFinite(comisionNum)
-      ? 'Escribe un porcentaje de comisión (0 si no hay).'
+      ? t('propuestas.alta.error.comision-vacia')
       : comisionNum < 0
-        ? 'La comisión no puede ser negativa.'
+        ? t('propuestas.alta.error.comision-negativa')
         : comisionNum >= 100
-          ? 'La comisión debe ser menor que 100%: al 100% el neto de la propuesta sería cero.'
+          ? t('propuestas.alta.error.comision-cien')
           : null
   const duracionNum = parseInt(duracionN, 10)
   const errDuracion =
-    !Number.isFinite(duracionNum) || duracionNum <= 0 ? 'La duración debe ser de al menos 1 periodo.' : null
+    !Number.isFinite(duracionNum) || duracionNum <= 0 ? t('propuestas.alta.error.duracion') : null
   const errFechas =
     fechaInicio && fechaFin && new Date(fechaFin) < new Date(fechaInicio)
-      ? 'La fecha de fin no puede ser anterior a la de inicio.'
+      ? t('propuestas.alta.error.fechas')
       : null
   // ADR 0042 · una línea de la calculadora que el servidor rechazaría (más
   // espacios que los libres, horas de más, un Roadblock sin el loop entero…) se
@@ -1073,9 +1130,15 @@ function NuevaPropuestaDialog({
   const errCifras = (() => {
     for (const s of seleccionados) {
       const c = cfgDe(s)
-      if (c.tarifaManual === CRUDO_INVALIDO) return `${s.nombre}: la tarifa no se entiende. Corrígela antes de guardar.`
-      if (c.rentaMonto === CRUDO_INVALIDO) return `${s.nombre}: la renta no se entiende. Corrígela antes de guardar.`
-      if (c.spotsPorDia === CRUDO_INVALIDO && !usaCalcDe(s)) return `${s.nombre}: los spots por día no se entienden. Corrígelos antes de guardar.`
+      if (c.tarifaManual === CRUDO_INVALIDO) return t('propuestas.alta.error.tarifa', { sitio: s.nombre })
+      if (c.rentaMonto === CRUDO_INVALIDO) return t('propuestas.alta.error.renta', { sitio: s.nombre })
+      if (c.spotsPorDia === CRUDO_INVALIDO && !usaCalcDe(s)) return t('propuestas.alta.error.spots', { sitio: s.nombre })
+      // P-L2-1 · en italiano los espacios, las horas y la prima van por
+      // `EntradaCifra`; lo ilegible llega como 'NaN' y caería en silencio a 1
+      // espacio o a prima 0. En español e inglés `cifraIlegible` es `false`.
+      if (usaCalcDe(s) && [c.espacios, c.horasDia, c.prima].some((x) => cifraIlegible(x, idioma))) {
+        return t('propuestas.alta.error.calculadora', { sitio: s.nombre })
+      }
     }
     return null
   })()
@@ -1146,7 +1209,11 @@ function NuevaPropuestaDialog({
       // (lo pone el servidor). Nueva o duplicada: el alta de siempre.
       if (agregando) {
         await agregarSitiosPropuestaApi(base!.id, items)
-        toast.success(`${conteo(items.length, 'sitio')} agregado${items.length === 1 ? '' : 's'}`)
+        toast.success(
+          t(items.length === 1 ? 'propuestas.alta.agregados.uno' : 'propuestas.alta.agregados.otros', {
+            sitios: conteo(items.length, t('propuestas.unidad.sitio'), t('propuestas.unidad.sitios')),
+          }),
+        )
         onClose()
         return
       }
@@ -1164,7 +1231,7 @@ function NuevaPropuestaDialog({
       })
       onClose(creada.id)
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'No se pudo crear la propuesta'
+      const msg = e instanceof Error ? e.message : t('propuestas.alta.error.crear')
       setError(msg)
       toast.error(msg) // notificación (sonner), además del aviso en el pie del modal
       setGuardando(false)
@@ -1176,15 +1243,21 @@ function NuevaPropuestaDialog({
       open
       onOpenChange={(v) => !v && onClose()}
       size="lg"
-      title={agregando ? `Agregar sitios a «${base!.nombre}»` : modo?.tipo === 'duplicar' ? 'Duplicar propuesta' : 'Nueva propuesta'}
+      title={
+        agregando
+          ? t('propuestas.alta.titulo.agregar', { nombre: base!.nombre })
+          : modo?.tipo === 'duplicar'
+            ? t('propuestas.alta.titulo.duplicar')
+            : t('propuestas.alta.titulo.nueva')
+      }
       subtitle={
         agregando
           ? base!.estatus === 'ENVIADA'
-            ? 'Ya está enviada: agregar sitios sube la versión (renegociación).'
-            : 'Se cotizan con el periodo de la propuesta.'
+            ? t('propuestas.alta.subtitulo.agregar-enviada')
+            : t('propuestas.alta.subtitulo.agregar')
           : modo?.tipo === 'duplicar'
-            ? 'Mismos sitios y contratación; los precios se calculan con la tarifa de hoy.'
-            : 'Selecciona sitios; el método del divisor calcula bruto → neto'
+            ? t('propuestas.alta.subtitulo.duplicar')
+            : t('propuestas.alta.subtitulo.nueva')
       }
       footer={
         <div className="flex items-center justify-between">
@@ -1199,17 +1272,25 @@ function NuevaPropuestaDialog({
                   renglones de arriba y se lee como un defecto. */}
               {volumenMonto > 0 && (
                 <>
-                  Volumen: <b className="demo-num text-ink">− {formatMonto(volumenMonto)}</b>
+                  {interpolarNodos(t('propuestas.alta.pie.volumen'), {
+                    monto: <b className="demo-num text-ink">− {formatMonto(volumenMonto, idioma)}</b>,
+                  })}
                   {' · '}
                 </>
               )}
-              Total c/IVA: <b className="demo-num text-ink">{formatMonto(total)}</b>
+              {interpolarNodos(t('propuestas.alta.pie.total'), {
+                total: <b className="demo-num text-ink">{formatMonto(total, idioma)}</b>,
+              })}
             </span>
           )}
           <div className="flex gap-2">
-            <Button variant="secondary" size="sm" onClick={() => onClose()}>Cancelar</Button>
+            <Button variant="secondary" size="sm" onClick={() => onClose()}>{t('comun.cancelar')}</Button>
             <Button variant="success" size="sm" disabled={!valido || guardando} onClick={guardar}>
-              {guardando ? 'Guardando…' : agregando ? 'Agregar sitios' : 'Crear propuesta'}
+              {guardando
+                ? t('propuestas.comun.guardando')
+                : agregando
+                  ? t('propuestas.comun.agregar-sitios')
+                  : t('propuestas.alta.crear')}
             </Button>
           </div>
         </div>
@@ -1220,16 +1301,17 @@ function NuevaPropuestaDialog({
             comisión son los de la propuesta y no se tocan aquí. */}
         {agregando ? (
           <p className="rounded-md border border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">
-            Periodo de la propuesta: <b className="text-ink">{formatFecha(fechaInicio)} – {formatFecha(fechaFin)}</b>.
-            Los sitios nuevos se cotizan con esas fechas y con la tarifa de hoy.
+            {interpolarNodos(t('propuestas.alta.periodo'), {
+              periodo: <b className="text-ink">{formatFecha(fechaInicio, idioma)} – {formatFecha(fechaFin, idioma)}</b>,
+            })}
           </p>
         ) : (
           <>
-          <Campo label="Nombre de la propuesta" obligatorio falta={ob.falta('nombre')}>
+          <Campo label={t('propuestas.alta.nombre')} obligatorio falta={ob.falta('nombre')}>
             <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus />
           </Campo>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Campo label="Cliente">
+            <Campo label={t('propuestas.comun.cliente')}>
               <select
                 className={inputCls}
                 value={clienteId}
@@ -1241,21 +1323,21 @@ function NuevaPropuestaDialog({
                   if (c?.agenciaId) aplicarAgencia(c.agenciaId)
                 }}
               >
-                <option value="">— Sin cliente —</option>
+                <option value="">{t('propuestas.alta.sin-cliente')}</option>
                 {/* Solo clientes directos como anunciante; las agencias van aparte. */}
                 {clientes?.filter((c) => c.tipo !== 'AGENCIA').map((c) => (
                   <option key={c.id} value={c.id}>{c.nombre}</option>
                 ))}
               </select>
             </Campo>
-            <Campo label="Agencia">
+            <Campo label={t('propuestas.comun.agencia')}>
               {agencias.length === 0 ? (
                 <div className="flex h-9 items-center rounded border border-dashed border-border-strong px-3 text-[12px] text-muted">
-                  Crea un cliente tipo «Agencia» para asociarla
+                  {t('propuestas.alta.sin-agencias')}
                 </div>
               ) : (
                 <select className={inputCls} value={agenciaId} onChange={(e) => aplicarAgencia(e.target.value)}>
-                  <option value="">— Sin agencia (directo) —</option>
+                  <option value="">{t('propuestas.alta.sin-agencia')}</option>
                   {agencias.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
                 </select>
               )}
@@ -1267,32 +1349,36 @@ function NuevaPropuestaDialog({
               <span className="mt-0.5 text-[#9a6700]">⚠</span>
               <div>
                 <div className="font-medium text-ink">
-                  La negociación con «{agenciaSel?.nombre}» no está validada
+                  {t('propuestas.alta.negociacion.titulo', { agencia: agenciaSel?.nombre ?? '' })}
                 </div>
                 <div className="text-muted">
-                  Valida la negociación de la agencia en Clientes para poder crear la propuesta.
+                  {t('propuestas.alta.negociacion.texto')}
                 </div>
               </div>
             </div>
           )}
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Campo label="Desde" obligatorio falta={ob.falta('fechaInicio')}><input type="date" className={inputCls} value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} /></Campo>
-            <Campo label="Duración de la campaña">
+            <Campo label={t('propuestas.comun.desde')} obligatorio falta={ob.falta('fechaInicio')}><input type="date" className={inputCls} value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} /></Campo>
+            <Campo label={t('propuestas.alta.duracion')}>
               <div className="flex gap-2">
-                <input
+                {/* P-L2-1 · en italiano, `CampoCifra`; lo ilegible ('NaN') lo
+                    para `errDuracion`. */}
+                <EntradaCifra
                   type="number"
                   min={1}
                   className={`${inputCls} w-20`}
-                  value={duracionN}
-                  onChange={(e) => setDuracionN(e.target.value)}
+                  valor={duracionN}
+                  onCambio={setDuracionN}
+                  decimales={0}
+                  minimo={1}
                 />
                 <select className={inputCls} value={duracionUnidad} onChange={(e) => setDuracionUnidad(e.target.value as Unidad)}>
                   {UNIDADES.filter((u) => !esCantidadManual(u.unidad)).map((u) => {
                     const n = parseInt(duracionN, 10) || 1
                     return (
                       <option key={u.unidad} value={u.unidad}>
-                        {unidadCorta(u.unidad, n)}
+                        {unidadCorta(u.unidad, n, idioma)}
                       </option>
                     )
                   })}
@@ -1301,7 +1387,7 @@ function NuevaPropuestaDialog({
             </Campo>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Campo label="Hasta (se calcula de la duración, o escríbela)" obligatorio falta={ob.falta('fechaFin')}>
+            <Campo label={t('propuestas.alta.hasta')} obligatorio falta={ob.falta('fechaFin')}>
               <input
                 type="date"
                 className={inputCls}
@@ -1323,7 +1409,7 @@ function NuevaPropuestaDialog({
                 }}
               />
             </Campo>
-            <Campo label="Comisión de la agencia (%)"><input className={inputCls} value={comision} onChange={(e) => setComision(e.target.value)} /></Campo>
+            <Campo label={t('propuestas.alta.comision')}><EntradaCifra className={inputCls} valor={comision} onCambio={setComision} decimales={2} minimo={0} /></Campo>
           </div>
 
           </>
@@ -1332,7 +1418,7 @@ function NuevaPropuestaDialog({
         {/* Selección de sitios: dos vistas alternables (lista / mapa). `div` y no
             `label`: dentro hay botones, y un <label> que los envuelve dispara el
             primero al pulsar el texto. */}
-        <Campo como="div" className="relative" label={`Sitios (${sel.size})`} obligatorio falta={ob.falta('sitios')}>
+        <Campo como="div" className="relative" label={t('propuestas.alta.sitios', { n: sel.size })} obligatorio falta={ob.falta('sitios')}>
           {/* Switch de vista, a la altura de la etiqueta como antes */}
           <div className="absolute -top-1 right-0">
             <div className="inline-flex overflow-hidden rounded-md border border-border-strong text-[11px]">
@@ -1343,7 +1429,7 @@ function NuevaPropuestaDialog({
                   vistaSitios === 'lista' ? 'bg-accent text-white' : 'text-muted hover:bg-surface-2'
                 }`}
               >
-                <List className="h-3 w-3" /> Lista
+                <List className="h-3 w-3" /> {t('propuestas.alta.vista.lista')}
               </button>
               <button
                 type="button"
@@ -1352,7 +1438,7 @@ function NuevaPropuestaDialog({
                   vistaSitios === 'mapa' ? 'bg-accent text-white' : 'text-muted hover:bg-surface-2'
                 }`}
               >
-                <MapIcon className="h-3 w-3" /> Mapa
+                <MapIcon className="h-3 w-3" /> {t('propuestas.alta.vista.mapa')}
               </button>
             </div>
           </div>
@@ -1371,7 +1457,7 @@ function NuevaPropuestaDialog({
                       <input type="checkbox" checked={sel.has(s.id)} onChange={() => toggle(s.id)} className="h-4 w-4 shrink-0 accent-[var(--accent)]" />
                       <span className="truncate text-ink">{s.nombre}</span>
                       {agregando && base!.items.some((i) => i.sitioId === s.id) && (
-                        <span className="shrink-0 text-[10px] text-muted">ya en la propuesta</span>
+                        <span className="shrink-0 text-[10px] text-muted">{t('propuestas.alta.ya-en-propuesta')}</span>
                       )}
                       <span
                         className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium leading-none ${
@@ -1381,10 +1467,10 @@ function NuevaPropuestaDialog({
                         }`}
                       >
                         {digital ? <Monitor className="h-2.5 w-2.5" /> : <Square className="h-2.5 w-2.5" />}
-                        {digital ? 'Digital' : 'Fija'}
+                        {digital ? t('propuestas.comun.digital') : t('propuestas.comun.fija')}
                       </span>
                     </span>
-                    <span className="demo-num shrink-0 text-muted">{sel.has(s.id) ? formatMonto(precioDe(s)) : ''}</span>
+                    <span className="demo-num shrink-0 text-muted">{sel.has(s.id) ? formatMonto(precioDe(s), idioma) : ''}</span>
                   </label>
                 )
               })}
@@ -1413,8 +1499,9 @@ function NuevaPropuestaDialog({
                 />
               </div>
               <p className="mt-1 text-[11px] text-muted">
-                Toca un punto para agregar o quitar el sitio. O usa <b className="text-ink">Dibujar zona</b> para
-                quedarte solo con las pantallas de esa área (se descartan las demás).
+                {interpolarNodos(t('propuestas.alta.mapa.ayuda'), {
+                  dibujar: <b className="text-ink">{t('propuestas.alta.mapa.dibujar')}</b>,
+                })}
               </p>
             </>
           )}
@@ -1423,7 +1510,7 @@ function NuevaPropuestaDialog({
         {/* Configuración por tiempo de cada sitio seleccionado */}
         {seleccionados.length > 0 && (
           <div>
-            <span className="mb-1 block text-[12px] font-medium text-ink">Contratación por sitio</span>
+            <span className="mb-1 block text-[12px] font-medium text-ink">{t('propuestas.alta.contratacion')}</span>
             {/* REJILLA-01 · el aviso va PEGADO al selector y solo cuando alguien
                 ya eligió una franja: es el momento en que sirve. Puesto siempre,
                 se convertiría en decorado y dejaría de leerse. */}
@@ -1456,7 +1543,7 @@ function NuevaPropuestaDialog({
                     >
                       {mods.map((m) => (
                         <option key={m.unidad} value={m.unidad}>
-                          {UNIDADES.find((u) => u.unidad === m.unidad)?.label ?? m.unidad}
+                          {etiquetaUnidad(m.unidad, idioma)}
                         </option>
                       ))}
                     </select>
@@ -1470,9 +1557,9 @@ function NuevaPropuestaDialog({
                         className="h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
                         value={c.franjaId}
                         onChange={(e) => setCfgSitio(s.id, { franjaId: e.target.value, tarifaManual: '' })}
-                        title="Franja horaria contratada. Es un compromiso comercial: no se envía al CMS."
+                        title={t('propuestas.alta.franja.titulo')}
                       >
-                        <option value="">Todo el día</option>
+                        <option value="">{t('propuestas.alta.franja.todo-el-dia')}</option>
                         {franjas.map((f) => (
                           <option key={f.id} value={f.id}>
                             {f.nombre} · {f.horaInicio}–{f.horaFin}
@@ -1483,8 +1570,12 @@ function NuevaPropuestaDialog({
                     {/* Cantidad: auto (periodos del rango), de la calculadora
                         (digital por spot) o manual (spot/hora/cpm) */}
                     {usaCalcDe(s) ? (
-                      <span className="demo-num whitespace-nowrap text-muted" title="Salidas que salen de la calculadora de abajo">
-                        {calcDe(s)?.ok ? `${cantidadDe(s).toLocaleString('es-MX')} salidas` : '— salidas'}
+                      <span className="demo-num whitespace-nowrap text-muted" title={t('propuestas.alta.salidas.titulo')}>
+                        {calcDe(s)?.ok
+                          ? t(cantidadDe(s) === 1 ? 'propuestas.alta.salidas.uno' : 'propuestas.alta.salidas.otros', {
+                              n: numeroEnIdioma(cantidadDe(s), idioma),
+                            })
+                          : t('propuestas.alta.salidas.otros', { n: '—' })}
                       </span>
                     ) : esManual ? (
                       // Entera y con coma de miles (2,500 millares). Vacío
@@ -1499,11 +1590,18 @@ function NuevaPropuestaDialog({
                         onCambio={(_crudo, lectura) => {
                           if (lectura.ok) setCfgSitio(s.id, { cantidadManual: Math.max(1, lectura.valor ?? 1) })
                         }}
-                        title={c.unidad === 'cpm' ? 'Millares de impactos contratados (1 millar = 1,000 impactos)' : `Nº de ${unidadCorta(c.unidad, 2)}`}
+                        // El «1,000» va por hueco y no escrito en el diccionario:
+                        // una cifra con separador de miles ahi la rechaza la
+                        // GUARDIA 2 de `dinero.test.ts`.
+                        title={
+                          c.unidad === 'cpm'
+                            ? t('propuestas.alta.cpm.titulo', { mil: numeroEnIdioma(1000, idioma) })
+                            : t('propuestas.alta.cantidad.titulo', { unidad: unidadCorta(c.unidad, 2, idioma) })
+                        }
                       />
                     ) : (
-                      <span className="whitespace-nowrap text-muted" title="Periodos calculados del rango de fechas">
-                        {periodos} {unidadCorta(c.unidad, periodos)}
+                      <span className="whitespace-nowrap text-muted" title={t('propuestas.alta.periodos.titulo')}>
+                        {periodos} {unidadCorta(c.unidad, periodos, idioma)}
                       </span>
                     )}
                     {/* CPS-CPM · el CPM se captura en MILLARES. Se escribe a cuántos
@@ -1511,30 +1609,32 @@ function NuevaPropuestaDialog({
                         van 2,500: cobraría mil veces de más. */}
                     {esManual && !usaCalcDe(s) && c.unidad === 'cpm' && (
                       <span className="demo-num whitespace-nowrap text-muted">
-                        millares = {(c.cantidadManual * 1000).toLocaleString('es-MX')} impactos
+                        {t('propuestas.alta.cpm.equivale', { n: numeroEnIdioma(c.cantidadManual * 1000, idioma) })}
                       </span>
                     )}
                     {/* Programación: spots por día — solo pantallas digitales.
                         Con la calculadora sale de la misma cuenta. */}
                     {usaCalcDe(s) ? (
-                      <span className="demo-num w-24 text-center text-[11px] text-muted" title="Programación que sale de la calculadora">
+                      <span className="demo-num w-24 text-center text-[11px] text-muted" title={t('propuestas.alta.programacion.titulo')}>
                         {(() => {
                           const p = calcDe(s)
-                          return p?.ok ? `${p.spotsDia.toLocaleString('es-MX')} pases/día` : '—'
+                          return p?.ok ? t('propuestas.alta.pases-dia', { n: numeroEnIdioma(p.spotsDia, idioma) }) : '—'
                         })()}
                       </span>
                     ) : digital ? (
                       <CampoCifra
                         decimales={0}
                         mostrarError={false}
-                        placeholder="spots/día"
+                        placeholder={t('propuestas.alta.spots-dia.ejemplo')}
                         className="h-8 w-24 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
                         valor={c.spotsPorDia}
                         onCambio={(crudo) => setCfgSitio(s.id, { spotsPorDia: crudo })}
-                        title="Programación: cuántas veces al día se muestra (opcional)"
+                        title={t('propuestas.alta.spots-dia.titulo')}
                       />
                     ) : (
-                      <span className="w-24 text-center text-[11px] text-muted" title="Las pantallas fijas no manejan spots">Fija · sin spots</span>
+                      <span className="w-24 text-center text-[11px] text-muted" title={t('propuestas.alta.fija.titulo')}>
+                        {t('propuestas.alta.fija.sin-spots')}
+                      </span>
                     )}
                     {/* PRECIO-01 · la TARIFA por unidad. Calculada por el
                         sistema; solo un gerente o superior la puede cambiar.
@@ -1545,11 +1645,11 @@ function NuevaPropuestaDialog({
                       const manual = tarifaManualDe(c)
                       const ajustada = manual != null && Math.round(manual * 100) !== Math.round(calc.tarifa * 100)
                       return puedeAjustarTarifa ? (
-                        <span className="flex items-center gap-1" title="Tarifa por unidad. Déjala vacía para usar la calculada.">
-                          <span className="text-[11px] text-muted">Tarifa</span>
+                        <span className="flex items-center gap-1" title={t('propuestas.alta.tarifa.ayuda')}>
+                          <span className="text-[11px] text-muted">{t('propuestas.alta.tarifa')}</span>
                           <CampoCifra
-                            aria-label={`Tarifa por unidad de ${s.nombre}`}
-                            placeholder={calc.calculable ? String(calc.tarifa) : 'sin tarifa'}
+                            aria-label={t('propuestas.alta.tarifa.aria', { sitio: s.nombre })}
+                            placeholder={calc.calculable ? String(calc.tarifa) : t('propuestas.alta.tarifa.sin')}
                             className={`h-8 w-24 rounded border bg-surface px-2 text-[12px] text-ink ${
                               ajustada ? 'border-[#f59e0b]' : 'border-border-strong'
                             }`}
@@ -1559,22 +1659,22 @@ function NuevaPropuestaDialog({
                           />
                           {ajustada && (
                             <span className="text-[10px] font-medium text-[#9a6700]">
-                              calculada {calc.calculable ? formatMonto(calc.tarifa) : '—'}
+                              {t('propuestas.alta.tarifa.calculada', { monto: calc.calculable ? formatMonto(calc.tarifa, idioma) : '—' })}
                             </span>
                           )}
                         </span>
                       ) : (
                         <span
                           className="whitespace-nowrap text-[11px] text-muted"
-                          title="Tarifa calculada por el sistema. Solo un gerente o superior puede cambiarla."
+                          title={t('propuestas.alta.tarifa.sistema')}
                         >
                           {calc.calculable
-                            ? `Tarifa ${formatMonto(calc.tarifa)}`
-                            : 'Sin tarifa · pide a un gerente'}
+                            ? t('propuestas.alta.tarifa.monto', { monto: formatMonto(calc.tarifa, idioma) })
+                            : t('propuestas.alta.tarifa.pide-gerente')}
                         </span>
                       )
                     })()}
-                    <span className="demo-num w-24 text-right font-medium text-ink">{formatMonto(precioDe(s))}</span>
+                    <span className="demo-num w-24 text-right font-medium text-ink">{formatMonto(precioDe(s), idioma)}</span>
 
                     {/* ADR 0042 · la CALCULADORA DE SPOTS. Solo en pantalla
                         digital vendida por spot. Da la CANTIDAD y, desde el ADR
@@ -1610,12 +1710,19 @@ function NuevaPropuestaDialog({
                       const mes = Math.round((cv.montoRenta ?? 0) * factorMensual(cv.periodicidad))
                       return (
                         <div className="flex w-full items-center gap-2 rounded bg-surface-2 px-2 py-1.5 text-[11px] text-muted">
-                          <span className="font-medium">Renta al arrendador</span>
+                          <span className="font-medium">{t('propuestas.alta.renta.titulo')}</span>
                           <span className="text-ink">
-                            {formatMonto(cv.montoRenta ?? 0)} {String(cv.periodicidad ?? '').toLowerCase()}
+                            {/* Ola 5: en ingles, la etiqueta traducida; en español, el dato crudo de siempre. */}
+                            {formatMonto(cv.montoRenta ?? 0, idioma)}{' '}
+                            {idioma === 'es'
+                              ? String(cv.periodicidad ?? '').toLowerCase()
+                              : periodicidadLabel(cv.periodicidad, '', idioma).toLowerCase()}
                           </span>
                           <span className="ml-auto">
-                            ya pactada en el contrato{cv.predioId ? ' del predio' : ''} · costo {formatMonto(mes)}/mes
+                            {t('propuestas.alta.renta.pactada', {
+                              predio: cv.predioId ? t('propuestas.alta.renta.pactada.predio') : '',
+                              costo: formatMonto(mes, idioma),
+                            })}
                           </span>
                         </div>
                       )
@@ -1623,26 +1730,26 @@ function NuevaPropuestaDialog({
                     {/* v0.12.3 · una pantalla PROPIA no tiene renta que pedir. */}
                     {s.propio && (
                       <div className="flex w-full items-center gap-2 rounded bg-surface-2 px-2 py-1.5 text-[11px] text-muted">
-                        <span className="font-medium">Pantalla propia</span>
-                        <span className="ml-auto">sin renta · su costo es luz y operación</span>
+                        <span className="font-medium">{t('propuestas.alta.propia')}</span>
+                        <span className="ml-auto">{t('propuestas.alta.propia.texto')}</span>
                       </div>
                     )}
                     {!s.propio && !tieneContrato(s) && (
                       <div className="flex w-full flex-wrap items-center gap-2 rounded bg-surface-2 px-2 py-1.5">
-                        <span className="text-[11px] font-medium text-muted">Renta al arrendador</span>
+                        <span className="text-[11px] font-medium text-muted">{t('propuestas.alta.renta.titulo')}</span>
                         <select
                           className="h-8 min-w-[9rem] rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
                           value={c.rentaArrendadorId}
                           onChange={(e) => setCfgSitio(s.id, { rentaArrendadorId: e.target.value })}
-                          title="A quién se le paga"
+                          title={t('propuestas.alta.renta.a-quien')}
                         >
-                          <option value="">Arrendador…</option>
+                          <option value="">{t('propuestas.alta.renta.arrendador')}</option>
                           {(arrendadores ?? []).map((a) => (
                             <option key={a.id} value={a.id}>{a.nombre}</option>
                           ))}
                         </select>
                         <CampoCifra
-                          placeholder="importe"
+                          placeholder={t('propuestas.alta.renta.importe')}
                           className="h-8 w-28 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
                           valor={c.rentaMonto}
                           mostrarError={false}
@@ -1652,10 +1759,10 @@ function NuevaPropuestaDialog({
                           className="h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
                           value={c.rentaPeriodicidad}
                           onChange={(e) => setCfgSitio(s.id, { rentaPeriodicidad: e.target.value })}
-                          title="Cada cuándo se paga"
+                          title={t('propuestas.alta.renta.cada-cuando')}
                         >
                           {PERIODICIDADES_RENTA.map((x) => (
-                            <option key={x.value} value={x.value}>{x.label}</option>
+                            <option key={x.value} value={x.value}>{periodicidadLabel(x.value, '—', idioma)}</option>
                           ))}
                         </select>
                         {/* El aviso iba en gris al final de la fila y pasaba
@@ -1666,24 +1773,24 @@ function NuevaPropuestaDialog({
                         <span className="w-full text-[11px]">
                           {rentaSospechosa(s) ? (
                             <span className="font-medium text-warning">
-                              ⚠ La renta ({formatMonto(Number(c.rentaMonto))}) iguala o supera lo que
-                              le cobras al cliente ({formatMonto(precioDe(s))}): la campaña saldría a
-                              pérdida. Aquí va lo que le pagas al PROPIETARIO, no el precio de venta.
+                              {t('propuestas.alta.renta.sospechosa', {
+                                renta: formatMonto(Number(c.rentaMonto), idioma),
+                                precio: formatMonto(precioDe(s), idioma),
+                              })}
                             </span>
                           ) : rentaIncompleta(s) ? (
                             <span className="font-medium text-warning">
-                              ⚠ Falta {!c.rentaArrendadorId ? 'elegir el propietario' : 'el importe'}:
-                              el contrato nacerá pendiente y no se generará el calendario de pagos.
+                              {!c.rentaArrendadorId
+                                ? t('propuestas.alta.renta.falta-propietario')
+                                : t('propuestas.alta.renta.falta-importe')}
                             </span>
                           ) : Number(c.rentaMonto) > 0 ? (
                             <span className="text-muted">
-                              Costo {formatMonto(rentaMensualDe(s))}/mes · el contrato nacerá completo
-                              y con su calendario de pagos
+                              {t('propuestas.alta.renta.completo', { costo: formatMonto(rentaMensualDe(s), idioma) })}
                             </span>
                           ) : (
                             <span className="text-muted">
-                              Opcional · sin esto el contrato nace pendiente y habrá que capturarlo
-                              después en Arrendadores
+                              {t('propuestas.alta.renta.opcional')}
                             </span>
                           )}
                         </span>
@@ -1694,17 +1801,17 @@ function NuevaPropuestaDialog({
               })}
             </div>
             {!fechaInicio || !fechaFin ? (
-              <p className="mt-1 text-[11px] text-muted">Elige las fechas para calcular los periodos y el precio.</p>
+              <p className="mt-1 text-[11px] text-muted">{t('propuestas.alta.elige-fechas')}</p>
             ) : null}
           </div>
         )}
 
         {/* Resumen del divisor en vivo */}
         <div className="grid grid-cols-2 gap-x-6 gap-y-1 rounded-md border border-border bg-surface-2 p-3 text-[12px] sm:grid-cols-4">
-          <Dato label="Bruto" valor={formatMonto(bruto)} />
-          <Dato label={`Divisor (${comision || 0}%)`} valor={`× ${divisor.toFixed(2)}`} />
-          <Dato label="Neto" valor={formatMonto(neto)} />
-          <Dato label={`IVA ${ivaPctSel}%`} valor={formatMonto(iva)} />
+          <Dato label={t('propuestas.comun.bruto')} valor={formatMonto(bruto, idioma)} />
+          <Dato label={t('propuestas.alta.divisor', { pct: comision || 0 })} valor={`× ${cifraEnEtiqueta(divisor, idioma, 2)}`} />
+          <Dato label={t('propuestas.comun.neto')} valor={formatMonto(neto, idioma)} />
+          <Dato label={t('propuestas.comun.iva', { pct: ivaPctSel })} valor={formatMonto(iva, idioma)} />
         </div>
       </div>
     </Modal>
@@ -1730,7 +1837,13 @@ function puntoEnPoligono(p: [number, number], poly: [number, number][]): boolean
 // `lib/calculadora-spots.ts`, que es donde lo vigila su prueba.
 const CALC_POR_OMISION = { ...CALCULADORA_POR_OMISION }
 
-const fmtNum = (n: number, dec = 2) => n.toLocaleString('es-MX', { maximumFractionDigits: dec })
+// Italiano (lote L2, 2026-11-03): con el idioma. En es y en sigue siendo el
+// `es-MX` de siempre (escribe las cifras igual que `en-US`); en italiano, la
+// tabla de `formato-idioma.ts` («3.240», «1,5»).
+const fmtNum = (n: number, dec = 2, idioma: Idioma = 'es') =>
+  idioma === 'es' || idioma === 'en'
+    ? n.toLocaleString('es-MX', { maximumFractionDigits: dec })
+    : numeroEnIdioma(n, idioma, { maximumFractionDigits: dec })
 
 type CfgCalculadora = { manual: boolean; espacios: string; horasDia: string; roadblock: boolean; prima: string }
 
@@ -1767,6 +1880,7 @@ function CalculadoraSpotsLinea({
   puedePrima: boolean
   cambiar: (patch: Partial<CfgCalculadora>) => void
 }) {
+  const { t, idioma } = useIdioma()
   const total = Number(sitio.totalSpots ?? 0)
   const libres = sitio.spotsDisponibles
   const horasMax = horasPorOmision({ franja, horario: sitio.horario })
@@ -1783,54 +1897,61 @@ function CalculadoraSpotsLinea({
     <div className="w-full rounded bg-surface-2 px-2 py-1.5 text-[11px] text-muted">
       <label className="inline-flex items-center gap-1.5 font-medium text-ink">
         <input type="checkbox" checked={!cfg.manual} onChange={(e) => cambiar({ manual: !e.target.checked })} />
-        Calculadora de spots
+        {t('propuestas.calc.titulo')}
       </label>
       {cfg.manual ? (
-        <span className="ml-2">Apagada: la cantidad de spots se captura a mano.</span>
+        <span className="ml-2">{t('propuestas.calc.apagada')}</span>
       ) : (
         <>
           <div className="mt-1 flex flex-wrap items-center gap-3">
-            <label className="inline-flex items-center gap-1" title="Cuántos espacios del loop compra esta línea">
-              Espacios del loop
-              <input
+            <label className="inline-flex items-center gap-1" title={t('propuestas.calc.espacios.titulo')}>
+              {t('propuestas.calc.espacios')}
+              <EntradaCifra
                 type="number"
                 min={1}
                 max={total || undefined}
                 step={1}
-                aria-label={`Espacios del loop de ${sitio.nombre}`}
+                aria-label={t('propuestas.calc.espacios.aria', { sitio: sitio.nombre })}
                 className={inputCls}
-                value={cfg.roadblock ? String(total) : cfg.espacios}
+                valor={cfg.roadblock ? String(total) : cfg.espacios}
                 disabled={cfg.roadblock}
-                onChange={(e) => cambiar({ espacios: e.target.value })}
+                onCambio={(crudo) => cambiar({ espacios: crudo })}
+                decimales={0}
+                minimo={1}
               />
               <span className="demo-num">
-                de {total || '—'} · {libres != null ? `${libres} libres` : 'libres sin dato'}
+                {t('propuestas.calc.de-total', {
+                  total: total || '—',
+                  libres: libres != null ? t('propuestas.calc.libres', { n: libres }) : t('propuestas.calc.libres-sin-dato'),
+                })}
               </span>
             </label>
             <label
               className="inline-flex items-center gap-1"
               title={
                 franja
-                  ? `Las horas de la franja ${franja.nombre}; se pueden bajar`
-                  : 'Las horas del horario de la pantalla; se pueden bajar'
+                  ? t('propuestas.calc.horas.franja', { franja: franja.nombre })
+                  : t('propuestas.calc.horas.horario')
               }
             >
-              Horas al día
-              <input
+              {t('propuestas.calc.horas')}
+              <EntradaCifra
                 type="number"
                 min={0.25}
                 max={horasMax}
                 step={0.25}
-                aria-label={`Horas al día de ${sitio.nombre}`}
-                placeholder={fmtNum(horasMax)}
+                aria-label={t('propuestas.calc.horas.aria', { sitio: sitio.nombre })}
+                placeholder={fmtNum(horasMax, 2, idioma)}
                 className={inputCls}
-                value={cfg.horasDia}
-                onChange={(e) => cambiar({ horasDia: e.target.value })}
+                valor={cfg.horasDia}
+                onCambio={(crudo) => cambiar({ horasDia: crudo })}
+                decimales={2}
+                minimo={0}
               />
             </label>
             <label
               className="inline-flex items-center gap-1"
-              title="Compra TODOS los espacios del loop; exige que estén libres"
+              title={t('propuestas.calc.roadblock.titulo')}
             >
               <input
                 type="checkbox"
@@ -1843,56 +1964,88 @@ function CalculadoraSpotsLinea({
               className="inline-flex items-center gap-1"
               title={
                 puedePrima
-                  ? 'Porcentaje encima de la tarifa por spot. Queda como ajuste a tu nombre.'
-                  : 'Solo un gerente o superior puede poner prima a un Roadblock.'
+                  ? t('propuestas.calc.prima.puede')
+                  : t('propuestas.calc.prima.no-puede')
               }
             >
-              Prima %
-              <input
+              {t('propuestas.calc.prima')}
+              <EntradaCifra
                 type="number"
                 min={0}
                 max={100}
                 step={0.5}
-                aria-label={`Prima de Roadblock de ${sitio.nombre}`}
+                aria-label={t('propuestas.calc.prima.aria', { sitio: sitio.nombre })}
                 placeholder="0"
                 className={inputCls}
-                value={puedePrima ? cfg.prima : ''}
+                valor={puedePrima ? cfg.prima : ''}
                 disabled={!cfg.roadblock || !puedePrima}
-                onChange={(e) => cambiar({ prima: e.target.value })}
+                onCambio={(crudo) => cambiar({ prima: crudo })}
+                decimales={2}
+                minimo={0}
+                maximo={100}
               />
             </label>
           </div>
           {resultado?.ok ? (
             <>
               <div className="demo-num mt-1">
-                Loop de {resultado.loop} {resultado.loop === 1 ? 'anunciante' : 'anunciantes'}
-                {!resultado.roadblock && resultado.loop < total && ` (${resultado.loop - resultado.espaciosComprados} hoy + esta línea)`}
+                {t('propuestas.calc.loop', {
+                  n: resultado.loop,
+                  anunciantes: plural(resultado.loop, t('propuestas.calc.anunciante'), t('propuestas.calc.anunciantes')),
+                })}
+                {!resultado.roadblock &&
+                  resultado.loop < total &&
+                  t('propuestas.calc.loop.hoy', { n: resultado.loop - resultado.espaciosComprados })}
                 {' · '}
                 {Math.floor((resultado.loop * duracionSeg) / 60)}:
                 {String((resultado.loop * duracionSeg) % 60).padStart(2, '0')} min
               </div>
               <div className="demo-num text-ink">
                 {resultado.roadblock
-                  ? `${spotsHoraRB.toLocaleString('es-MX')} spots/h`
-                  : `${fmtNum(resultado.rotacionesHora)} rotaciones/h`}{' '}
-                · {fmtNum(resultado.spotsDiaExactos)} spots/día × {dias} {dias === 1 ? 'día' : 'días'} ={' '}
-                <b>{resultado.cantidad.toLocaleString('es-MX')} spots</b>
+                  ? t('propuestas.calc.spots-hora', { n: numeroEnIdioma(spotsHoraRB, idioma) })
+                  : t('propuestas.calc.rotaciones', { n: fmtNum(resultado.rotacionesHora, 2, idioma) })}{' '}
+                {t('propuestas.calc.spots-dia', {
+                  spots: fmtNum(resultado.spotsDiaExactos, 2, idioma),
+                  dias,
+                  unidad: plural(dias, t('propuestas.calc.dia'), t('propuestas.calc.dias')),
+                })}{' '}
+                <b>{numeroEnIdioma(resultado.cantidad, idioma)}{t('propuestas.calc.spots-sufijo')}</b>
               </div>
               {tarifaSpot.calculable && (
                 <div className="demo-num">
                   {resultado.roadblock && ingresoHora != null ? (
                     <>
-                      Hora del loop: {formatMonto(tarifaMensual)} × {resultado.loop} ÷ {fmtNum(horasMes)} h ={' '}
-                      {formatMonto(ingresoHora)}
-                      {prima > 0 && ` + prima ${fmtNum(prima)} % = ${formatMonto(ingresoHora * (1 + prima / 100))}`} ÷{' '}
-                      {formatNumero(spotsHoraRB)} spots ={' '}
-                      <b className="text-ink">{formatMonto(prima > 0 ? tarifaConPrima(tarifaSpot.tarifa, prima) : tarifaSpot.tarifa)} por spot</b>
+                      {interpolarNodos(t('propuestas.calc.rb.hora'), {
+                        tarifa: formatMonto(tarifaMensual, idioma),
+                        loop: resultado.loop,
+                        horas: fmtNum(horasMes, 2, idioma),
+                        ingreso: formatMonto(ingresoHora, idioma),
+                        prima:
+                          prima > 0
+                            ? t('propuestas.calc.rb.prima', {
+                                pct: fmtNum(prima, 2, idioma),
+                                monto: formatMonto(ingresoHora * (1 + prima / 100), idioma),
+                              })
+                            : '',
+                        spots: formatNumero(spotsHoraRB, 0, idioma),
+                        precio: (
+                          <b className="text-ink">
+                            {t('propuestas.calc.por-spot', {
+                              monto: formatMonto(prima > 0 ? tarifaConPrima(tarifaSpot.tarifa, prima) : tarifaSpot.tarifa, idioma),
+                            })}
+                          </b>
+                        ),
+                      })}
                     </>
                   ) : (
                     <>
-                      Tarifa mensual {formatMonto(tarifaMensual)} ÷{' '}
-                      {fmtNum(rotacionesPorHora(resultado.loop, duracionSeg) * horario.horas * DIAS_DEL_MES, 0)} spots de un
-                      anunciante al mes = <b className="text-ink">{formatMonto(tarifaSpot.tarifa)} por spot</b>
+                      {interpolarNodos(t('propuestas.calc.mensual'), {
+                        tarifa: formatMonto(tarifaMensual, idioma),
+                        spots: fmtNum(rotacionesPorHora(resultado.loop, duracionSeg) * horario.horas * DIAS_DEL_MES, 0, idioma),
+                        precio: (
+                          <b className="text-ink">{t('propuestas.calc.por-spot', { monto: formatMonto(tarifaSpot.tarifa, idioma) })}</b>
+                        ),
+                      })}
                     </>
                   )}
                 </div>
@@ -1901,16 +2054,16 @@ function CalculadoraSpotsLinea({
           ) : resultado && conFechas ? (
             <div className="mt-1 text-error">{resultado.motivo}</div>
           ) : !conFechas ? (
-            <div className="mt-1">Pon las fechas para calcular los spots.</div>
+            <div className="mt-1">{t('propuestas.calc.pon-fechas')}</div>
           ) : null}
           {!franja && !horario.reconocido && (
             <div className="mt-0.5 text-[#9a6700]">
-              No se entiende el horario de la pantalla («{sitio.horario || 'vacío'}»): se toman 18 h al día.
+              {t('propuestas.calc.horario-ilegible', { horario: sitio.horario || t('propuestas.calc.horario-vacio') })}
             </div>
           )}
           {!tarifaSpot.calculable && (
             <div className="mt-0.5 text-[#9a6700]">
-              La pantalla no tiene tarifa mensual: el precio por spot sale de ella. Pide a un gerente que lo ponga.
+              {t('propuestas.calc.sin-tarifa')}
             </div>
           )}
         </>
@@ -1933,6 +2086,7 @@ function Dato({ label, valor }: { label: string; valor: string }) {
 // el pipeline, lo ganado y la tasa de cierre subieron a las `KPICard` de arriba
 // (eran las mismas cuatro cifras), y aquí queda solo el embudo en barras.
 function FunnelStrip({ f }: { f: FunnelPropuestas }) {
+  const t = useTexto()
   // Ancho relativo del embudo (enviadas alguna vez = base).
   const base = Math.max(1, f.enviadas + f.aprobadas + f.rechazadas)
   const barra = (n: number, cls: string) => (
@@ -1942,11 +2096,11 @@ function FunnelStrip({ f }: { f: FunnelPropuestas }) {
   )
   return (
     <div className="mb-3 rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px]">
-      <div className="mb-1 font-medium text-ink">Embudo histórico</div>
+      <div className="mb-1 font-medium text-ink">{t('propuestas.embudo.titulo')}</div>
       <div className="grid gap-x-6 gap-y-1 sm:grid-cols-3">
-        <FunnelRow label="Enviadas" n={f.enviadas + f.aprobadas + f.rechazadas} bar={barra(f.enviadas + f.aprobadas + f.rechazadas, 'bg-info')} />
-        <FunnelRow label="Aprobadas" n={f.aprobadas} bar={barra(f.aprobadas, 'bg-success')} />
-        <FunnelRow label="Perdidas" n={f.rechazadas} bar={barra(f.rechazadas, 'bg-error')} />
+        <FunnelRow label={t('propuestas.embudo.enviadas')} n={f.enviadas + f.aprobadas + f.rechazadas} bar={barra(f.enviadas + f.aprobadas + f.rechazadas, 'bg-info')} />
+        <FunnelRow label={t('propuestas.embudo.aprobadas')} n={f.aprobadas} bar={barra(f.aprobadas, 'bg-success')} />
+        <FunnelRow label={t('propuestas.embudo.perdidas')} n={f.rechazadas} bar={barra(f.rechazadas, 'bg-error')} />
       </div>
     </div>
   )

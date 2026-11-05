@@ -7,7 +7,9 @@ import { SlotsBadge } from '@/components/demo/SlotsBadge'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
 import { useDisponibilidad, formatFecha, type GranDisponibilidad, type EstadoCelda } from '@/lib/data/client'
-import { conteo } from '@/lib/plural'
+import { useIdioma } from '@/lib/i18n/contexto'
+import type { Idioma } from '@/lib/i18n/idiomas'
+import { localeDe } from '@/lib/i18n/formato-idioma'
 
 // Calendario de disponibilidad futura: responde "¿qué tengo libre en septiembre?".
 // Cruza las reservas confirmadas contra una rejilla de catorcenas o meses y
@@ -35,6 +37,24 @@ const TONO_CELDA: Record<EstadoCelda, string> = {
 // texto ámbar es el oscuro del Dashboard (`text-warning` no se lee a 11 px).
 const TONO_EN_PROPUESTA = 'bg-warning-soft text-[#9a6700] border-dashed border-warning'
 
+// La etiqueta de cada periodo la arma `lib/data/derive.ts` en espanol
+// («1/3–14/3», «mar 26»). En ingles se rehace AQUI con las mismas fechas
+// (`inicio` y `fin`), en el orden y con los nombres de `en-US`; el espanol
+// sigue siendo la etiqueta de siempre. El mes va con el ano entero («Mar 2026»):
+// «Mar 26» se lee en ingles como «26 de marzo» (validacion del lote).
+function etiquetaPeriodo(p: { label: string; inicio: string; fin: string }, gran: GranDisponibilidad, idioma: Idioma): string {
+  if (idioma === 'es') return p.label
+  const [y, m, d] = p.inicio.split('-').map(Number)
+  // Con el locale del idioma (`formato-idioma.ts`): «Mar 2026» y «3/1–3/14» en
+  // ingles —lo de siempre—, «mar 2026» y «1/3–14/3» en italiano.
+  const locale = localeDe(idioma)
+  if (gran === 'mes') return new Date(y, m - 1, d).toLocaleDateString(locale, { month: 'short', year: 'numeric' })
+  const [y2, m2, d2] = p.fin.split('-').map(Number)
+  const diaMes = (a: number, b: number, c: number) =>
+    new Date(a, b - 1, c).toLocaleDateString(locale, { month: 'numeric', day: 'numeric' })
+  return `${diaMes(y, m, d)}–${diaMes(y2, m2, d2)}`
+}
+
 function hoyISO(): string {
   const d = new Date()
   const y = d.getFullYear()
@@ -45,6 +65,7 @@ function hoyISO(): string {
 
 export default function DisponibilidadPage() {
   // `desde` se fija en el cliente tras montar para no romper la hidratación.
+  const { t, idioma } = useIdioma()
   const [desde, setDesde] = useState('')
   const [gran, setGran] = useState<GranDisponibilidad>('catorcena')
   const [nPeriodos, setNPeriodos] = useState(8)
@@ -64,10 +85,10 @@ export default function DisponibilidadPage() {
 
   const filas = useMemo(() => {
     if (!disp) return []
-    const t = busqueda.trim().toLowerCase()
-    if (!t) return disp.filas
+    const q = busqueda.trim().toLowerCase()
+    if (!q) return disp.filas
     return disp.filas.filter(
-      (f) => f.nombre.toLowerCase().includes(t) || f.clave.toLowerCase().includes(t),
+      (f) => f.nombre.toLowerCase().includes(q) || f.clave.toLowerCase().includes(q),
     )
   }, [disp, busqueda])
 
@@ -79,7 +100,7 @@ export default function DisponibilidadPage() {
     const estaticas = disp.filas.filter((f) => !f.digital)
     const digitales = disp.filas.filter((f) => f.digital && f.celdas[0]?.estado !== 'OCUPADO')
     return {
-      periodo: disp.periodos[0].label,
+      periodo: etiquetaPeriodo(disp.periodos[0], gran, idioma),
       libres: estaticas.filter((f) => f.celdas[0]?.estado === 'LIBRE').length,
       estaticas: estaticas.length,
       digitales: digitales.length,
@@ -89,7 +110,7 @@ export default function DisponibilidadPage() {
       enPropuesta: disp.filas.filter((f) => (f.celdas[0]?.enPropuesta.length ?? 0) > 0).length,
       propuestas: new Set(disp.filas.flatMap((f) => (f.celdas[0]?.enPropuesta ?? []).map((x) => x.propuestaId))).size,
     }
-  }, [disp])
+  }, [disp, gran, idioma])
 
   return (
     // Sin el `p-6` propio: el shell ya pone el margen, y con los dos esta
@@ -97,11 +118,9 @@ export default function DisponibilidadPage() {
     <div className="w-full space-y-5">
       {/* Encabezado con el patrón del Dashboard: título y una línea, sin icono. */}
       <div>
-        <h1 className="text-2xl text-ink">Disponibilidad</h1>
+        <h1 className="text-2xl text-ink">{t('operaciones.disponibilidad.titulo')}</h1>
         <p className="mt-1 text-[13px] text-muted">
-          Ocupación futura por catorcena o mes: cruza las reservas confirmadas contra el
-          inventario para ver qué tienes libre más adelante, y avisa qué está en una
-          propuesta abierta.
+          {t('operaciones.disponibilidad.descripcion')}
         </p>
       </div>
 
@@ -120,36 +139,41 @@ export default function DisponibilidadPage() {
           ) : (
             <>
               <KPICard
-                label="Estáticas libres"
-                value={`${resumenPrimer.libres} de ${resumenPrimer.estaticas}`}
-                sub={`en ${resumenPrimer.periodo}`}
+                label={t('operaciones.disponibilidad.kpi.estaticas')}
+                value={t('operaciones.disponibilidad.kpi.de', { n: resumenPrimer.libres, total: resumenPrimer.estaticas })}
+                sub={t('operaciones.disponibilidad.kpi.en-periodo', { periodo: resumenPrimer.periodo })}
                 tono={resumenPrimer.libres > 0 ? 'verde' : 'neutro'}
                 icon={<CalendarRange className="h-4 w-4" />}
               />
               <KPICard
-                label="Digitales con lugar"
+                label={t('operaciones.disponibilidad.kpi.digitales')}
                 value={String(resumenPrimer.digitales)}
-                sub={`no llenas en ${resumenPrimer.periodo}`}
+                sub={t('operaciones.disponibilidad.kpi.no-llenas', { periodo: resumenPrimer.periodo })}
                 tono="azul"
                 icon={<Monitor className="h-4 w-4" />}
               />
               <KPICard
-                label="Slots libres"
+                label={t('operaciones.disponibilidad.kpi.slots')}
                 value={resumenPrimer.digitales > 0 ? String(resumenPrimer.slots) : '—'}
                 sub={
                   resumenPrimer.digitales > 0
-                    ? 'sumando las digitales con lugar'
-                    : 'ninguna digital con lugar en el periodo'
+                    ? t('operaciones.disponibilidad.kpi.sumando')
+                    : t('operaciones.disponibilidad.kpi.ninguna-digital')
                 }
                 icon={<LayoutGrid className="h-4 w-4" />}
               />
               <KPICard
-                label="En propuesta"
+                label={t('operaciones.disponibilidad.kpi.en-propuesta')}
                 value={String(resumenPrimer.enPropuesta)}
                 sub={
                   resumenPrimer.enPropuesta > 0
-                    ? `pantallas que piden ${conteo(resumenPrimer.propuestas, 'propuesta abierta', 'propuestas abiertas')} · no bloquean`
-                    : 'ninguna propuesta abierta las pide'
+                    ? t(
+                        resumenPrimer.propuestas === 1
+                          ? 'operaciones.disponibilidad.kpi.piden.uno'
+                          : 'operaciones.disponibilidad.kpi.piden.otros',
+                        { n: resumenPrimer.propuestas },
+                      )
+                    : t('operaciones.disponibilidad.kpi.ninguna-pide')
                 }
                 tono={resumenPrimer.enPropuesta > 0 ? 'ambar' : 'neutro'}
                 icon={<Clock className="h-4 w-4" />}
@@ -164,14 +188,14 @@ export default function DisponibilidadPage() {
       <div className="flex flex-wrap items-center gap-2">
         <input
           type="date"
-          aria-label="Desde"
-          title="Desde"
+          aria-label={t('operaciones.disponibilidad.desde')}
+          title={t('operaciones.disponibilidad.desde')}
           value={desde}
           onChange={(e) => setDesde(e.target.value)}
           className={selectCls}
         />
 
-        <div className="inline-flex rounded-md border border-border bg-surface p-0.5" role="group" aria-label="Vista">
+        <div className="inline-flex rounded-md border border-border bg-surface p-0.5" role="group" aria-label={t('operaciones.disponibilidad.vista')}>
           {(['catorcena', 'mes'] as GranDisponibilidad[]).map((g) => (
             <button
               key={g}
@@ -184,21 +208,21 @@ export default function DisponibilidadPage() {
                 gran === g ? 'bg-surface-2 font-medium text-ink' : 'bg-transparent text-muted hover:text-ink',
               )}
             >
-              {g === 'catorcena' ? 'Catorcena' : 'Mes'}
+              {g === 'catorcena' ? t('operaciones.disponibilidad.catorcena') : t('operaciones.disponibilidad.mes')}
             </button>
           ))}
         </div>
 
         <select
-          aria-label="Periodos"
-          title="Periodos a mostrar"
+          aria-label={t('operaciones.disponibilidad.periodos')}
+          title={t('operaciones.disponibilidad.periodos-title')}
           value={nPeriodos}
           onChange={(e) => setNPeriodos(Number(e.target.value))}
           className={selectCls}
         >
           {[4, 6, 8, 12].map((v) => (
             <option key={v} value={v}>
-              {v} periodos
+              {t('operaciones.disponibilidad.n-periodos', { n: v })}
             </option>
           ))}
         </select>
@@ -206,10 +230,10 @@ export default function DisponibilidadPage() {
         <span className="relative">
           <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
           <input
-            aria-label="Buscar pantalla"
+            aria-label={t('operaciones.disponibilidad.buscar-aria')}
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar pantalla: nombre o clave…"
+            placeholder={t('operaciones.disponibilidad.buscar')}
             className={cn(selectCls, 'w-64 pl-7')}
           />
         </span>
@@ -229,7 +253,7 @@ export default function DisponibilidadPage() {
             onChange={(e) => setSoloDisponibles(e.target.checked)}
             className="h-3.5 w-3.5 accent-accent"
           />
-          Solo con hueco libre
+          {t('operaciones.disponibilidad.solo-hueco')}
         </label>
       </div>
 
@@ -237,17 +261,17 @@ export default function DisponibilidadPage() {
           búsqueda viven en la página, fuera de la tarjeta: plegar no los pierde. */}
       <CardColapsable
         id="disponibilidad.calendario"
-        titulo="Calendario por pantalla"
-        subtitulo="Cada celda dice su estado; pasa el cursor para ver qué campaña la ocupa."
+        titulo={t('operaciones.disponibilidad.calendario')}
+        subtitulo={t('operaciones.disponibilidad.calendario-sub')}
         contentClassName="px-0 pb-0"
       >
       {!disp ? (
         <div className="border-t border-border p-8 text-center text-[13px] text-muted">
-          Cargando disponibilidad…
+          {t('operaciones.disponibilidad.cargando')}
         </div>
       ) : filas.length === 0 ? (
         <div className="border-t border-border p-8 text-center text-[13px] text-muted">
-          Sin pantallas que coincidan.
+          {t('operaciones.disponibilidad.sin-coincidencias')}
         </div>
       ) : (
         <div className="overflow-x-auto border-t border-border">
@@ -255,7 +279,7 @@ export default function DisponibilidadPage() {
             <thead>
               <tr className="border-b border-border">
                 <th className="sticky left-0 z-10 min-w-[220px] bg-surface px-3 py-2 text-left font-medium text-muted">
-                  Pantalla
+                  {t('operaciones.disponibilidad.pantalla')}
                 </th>
                 {disp.periodos.map((p) => (
                   <th
@@ -263,7 +287,7 @@ export default function DisponibilidadPage() {
                     className="min-w-[76px] px-2 py-2 text-center font-medium text-muted"
                     title={`${p.inicio} → ${p.fin}`}
                   >
-                    {p.label}
+                    {etiquetaPeriodo(p, gran, idioma)}
                   </th>
                 ))}
               </tr>
@@ -280,12 +304,12 @@ export default function DisponibilidadPage() {
                       {f.digital && f.totalSpots != null ? (
                         <SlotsBadge total={f.totalSpots} disponibles={f.celdas[0]?.spotsLibres} />
                       ) : f.digital ? (
-                        <span className="rounded bg-surface-2 px-1 text-[10px] text-muted">digital</span>
+                        <span className="rounded bg-surface-2 px-1 text-[10px] text-muted">{t('operaciones.disponibilidad.digital')}</span>
                       ) : null}
                       {/* Cuánto del horizonte visible está libre (patrón LMX),
                           contado de las celdas ya cargadas. */}
                       <span className="demo-num rounded-full border border-border px-2 py-0.5 text-[11px] text-muted">
-                        {f.celdas.filter((c) => c.estado === 'LIBRE').length} de {f.celdas.length} libres
+                        {t('operaciones.disponibilidad.libres-de', { n: f.celdas.filter((c) => c.estado === 'LIBRE').length, total: f.celdas.length })}
                       </span>
                     </div>
                   </td>
@@ -297,17 +321,26 @@ export default function DisponibilidadPage() {
                     const titulo = [
                       c.ocupantes.length > 0
                         ? c.ocupantes
-                            .map((o) => `${o.campana} (confirmada${o.spots != null ? `, ${o.spots} slots` : ''})`)
+                            .map((o) =>
+                              o.spots != null
+                                ? t('operaciones.disponibilidad.ocupante-slots', { campana: o.campana, spots: o.spots })
+                                : t('operaciones.disponibilidad.ocupante', { campana: o.campana }),
+                            )
                             .join('\n') +
-                          (c.spotsLibres != null ? `\nQuedan ${c.spotsLibres} de ${c.spotsTotal} slots` : '')
+                          (c.spotsLibres != null
+                            ? `\n${t('operaciones.disponibilidad.quedan', { libres: c.spotsLibres, total: String(c.spotsTotal) })}`
+                            : '')
                         : c.spotsLibres != null
-                          ? `Libre: ${c.spotsLibres} slots`
-                          : 'Libre',
-                      ...c.enPropuesta.map(
-                        (x) =>
-                          `En propuesta ${x.folio}${x.clienteNombre ? ` · ${x.clienteNombre}` : ''} (${formatFecha(x.fechaInicio)} a ${formatFecha(x.fechaFin)}${
-                            x.spots != null ? `, ${x.spots} spots` : ''
-                          })`,
+                          ? t('operaciones.disponibilidad.libre-slots', { n: c.spotsLibres })
+                          : t('operaciones.disponibilidad.libre'),
+                      ...c.enPropuesta.map((x) =>
+                        t('operaciones.disponibilidad.en-propuesta-titulo', {
+                          folio: x.folio,
+                          cliente: x.clienteNombre ? ` · ${x.clienteNombre}` : '',
+                          desde: formatFecha(x.fechaInicio, idioma),
+                          hasta: formatFecha(x.fechaFin, idioma),
+                          spots: x.spots != null ? t('operaciones.disponibilidad.en-propuesta-spots', { n: x.spots }) : '',
+                        }),
                       ),
                     ].join('\n')
                     return (
@@ -321,15 +354,20 @@ export default function DisponibilidadPage() {
                         >
                           {f.digital && c.spotsLibres != null
                             ? c.spotsLibres > 0
-                              ? `${c.spotsLibres} ${c.spotsLibres === 1 ? 'libre' : 'libres'}`
-                              : 'Lleno'
+                              ? t(
+                                  c.spotsLibres === 1
+                                    ? 'operaciones.disponibilidad.celda.libres.uno'
+                                    : 'operaciones.disponibilidad.celda.libres.otros',
+                                  { n: c.spotsLibres },
+                                )
+                              : t('operaciones.disponibilidad.celda.lleno')
                             : c.estado === 'LIBRE'
                             ? avisoPropuesta
-                              ? 'En propuesta'
-                              : 'Libre'
+                              ? t('operaciones.disponibilidad.celda.en-propuesta')
+                              : t('operaciones.disponibilidad.libre')
                             : f.digital
-                              ? `${c.spotsUsados} usados`
-                              : 'Ocupada'}
+                              ? t('operaciones.disponibilidad.celda.usados', { n: c.spotsUsados })
+                              : t('operaciones.disponibilidad.celda.ocupada')}
                         </div>
                       </td>
                     )
@@ -346,18 +384,16 @@ export default function DisponibilidadPage() {
           sustituye a «Tentativa» desde TENT-PROP (26/10). */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-muted">
         <span className="flex items-center gap-1.5">
-          <span className={cn('inline-block h-3 w-4 rounded border', TONO_CELDA.LIBRE)} /> Libre
+          <span className={cn('inline-block h-3 w-4 rounded border', TONO_CELDA.LIBRE)} /> {t('operaciones.disponibilidad.leyenda.libre')}
         </span>
         <span className="flex items-center gap-1.5">
-          <span className={cn('inline-block h-3 w-4 rounded border', TONO_EN_PROPUESTA)} /> En propuesta
-          (libre, pero una propuesta abierta la pide)
+          <span className={cn('inline-block h-3 w-4 rounded border', TONO_EN_PROPUESTA)} /> {t('operaciones.disponibilidad.leyenda.en-propuesta')}
         </span>
         <span className="flex items-center gap-1.5">
-          <span className={cn('inline-block h-3 w-4 rounded border', TONO_CELDA.PARCIAL)} /> Parcial
-          (digital: el número son los slots que quedan libres)
+          <span className={cn('inline-block h-3 w-4 rounded border', TONO_CELDA.PARCIAL)} /> {t('operaciones.disponibilidad.leyenda.parcial')}
         </span>
         <span className="flex items-center gap-1.5">
-          <span className={cn('inline-block h-3 w-4 rounded border', TONO_CELDA.OCUPADO)} /> Ocupada
+          <span className={cn('inline-block h-3 w-4 rounded border', TONO_CELDA.OCUPADO)} /> {t('operaciones.disponibilidad.leyenda.ocupada')}
         </span>
       </div>
     </div>

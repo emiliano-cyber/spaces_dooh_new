@@ -11,6 +11,7 @@ import {
 } from '@/lib/data/programacion-api'
 import { etiquetaFranja } from '@/lib/franja-programada'
 import { Button } from '@/components/demo/ui/Button'
+import { useTexto } from '@/lib/i18n/contexto'
 
 // ============================================================================
 //  El horario de transmisión de UNA campaña: verlo y cambiarlo.   PROG-01.
@@ -29,6 +30,7 @@ import { Button } from '@/components/demo/ui/Button'
 // ============================================================================
 
 export function FranjaProgramadaCampana({ campanaId }: { campanaId: string }) {
+  const t = useTexto()
   const [franjas, setFranjas] = useState<FranjaProgramacionUI[]>([])
   const [campana, setCampana] = useState<CampanaProgramacionUI | null>(null)
   const [eleccion, setEleccion] = useState<string>('')
@@ -49,10 +51,11 @@ export function FranjaProgramadaCampana({ campanaId }: { campanaId: string }) {
       setPuede(d.puedeProgramar === true)
       setError(null)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo leer el horario de transmisión')
+      setError(e instanceof Error ? e.message : t('campanas.horario.no-leer'))
     } finally {
       setCargando(false)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campanaId])
 
   useEffect(() => {
@@ -65,7 +68,7 @@ export function FranjaProgramadaCampana({ campanaId }: { campanaId: string }) {
       await programarFranjaApi(eleccion || null, [campanaId])
       await cargar()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo programar')
+      setError(e instanceof Error ? e.message : t('campanas.horario.no-programar'))
     } finally {
       setOcupado(false)
     }
@@ -81,14 +84,16 @@ export function FranjaProgramadaCampana({ campanaId }: { campanaId: string }) {
   // que el selector no mienta sobre lo que hay guardado.
   const opciones = franjas.filter((f) => f.activo || f.id === actual?.id)
   const vendidas = (campana?.contratadas ?? []).map((c) => ({
-    nombre: c.franjaId ? porId.get(c.franjaId)?.nombre ?? c.franjaNombre ?? 'otra franja' : 'Todo el día',
+    nombre: c.franjaId
+      ? porId.get(c.franjaId)?.nombre ?? c.franjaNombre ?? t('campanas.horario.otra-franja')
+      : t('campanas.horario.todo-el-dia'),
     pantallas: c.pantallas,
   }))
 
   return (
     // PLEG-01 · plegar NO pierde la franja elegida sin guardar: `eleccion` vive
     // en este componente, que sigue montado; solo se desmonta el contenido.
-    <CardColapsable id="campana.horario" titulo="Horario de transmisión" contentClassName="space-y-3 text-[13px]">
+    <CardColapsable id="campana.horario" titulo={t('campanas.horario.titulo')} contentClassName="space-y-3 text-[13px]">
         {error && (
           <p role="alert" className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-red-800">
             {error}
@@ -98,7 +103,7 @@ export function FranjaProgramadaCampana({ campanaId }: { campanaId: string }) {
           <>
             <dl className="space-y-1.5">
               <div className="flex justify-between gap-3">
-                <dt className="text-muted">Vendida (no cambia aquí)</dt>
+                <dt className="text-muted">{t('campanas.horario.vendida')}</dt>
                 <dd className="text-right text-ink">
                   {vendidas.length
                     ? vendidas.map((v) => `${v.nombre} (${v.pantallas})`).join(' · ')
@@ -106,27 +111,28 @@ export function FranjaProgramadaCampana({ campanaId }: { campanaId: string }) {
                 </dd>
               </div>
               <div className="flex justify-between gap-3">
-                <dt className="text-muted">Se transmite en</dt>
+                <dt className="text-muted">{t('campanas.horario.se-transmite')}</dt>
                 <dd className="text-right text-ink">
-                  {actual ? etiquetaFranja(actual) + (actual.activo ? '' : ' (dada de baja)') : 'Sin franja programada'}
+                  {actual
+                    ? etiquetaFranja(actual) + (actual.activo ? '' : t('campanas.horario.dada-de-baja'))
+                    : t('campanas.horario.sin-franja')}
                 </dd>
               </div>
             </dl>
 
             {!puede ? (
               <p className="text-[12px] text-muted">
-                Solo el gerente de ventas, el director comercial y la dirección pueden cambiar el
-                horario de transmisión.
+                {t('campanas.horario.sin-permiso')}
               </p>
             ) : (
             <div className="flex flex-wrap items-center gap-2">
               <select
-                aria-label="Franja de transmisión"
+                aria-label={t('campanas.horario.franja')}
                 className="rounded border px-2 py-1"
                 value={eleccion}
                 onChange={(e) => setEleccion(e.target.value)}
               >
-                <option value="">Sin franja programada</option>
+                <option value="">{t('campanas.horario.sin-franja')}</option>
                 {opciones.map((f) => (
                   <option key={f.id} value={f.id}>
                     {etiquetaFranja(f)}
@@ -139,7 +145,7 @@ export function FranjaProgramadaCampana({ campanaId }: { campanaId: string }) {
                 onClick={() => void guardar()}
                 size="sm"
               >
-                Guardar
+                {t('comun.guardar')}
               </Button>
             </div>
             )}

@@ -1,5 +1,7 @@
 import type { Ticket } from '@/lib/data/tickets-api'
-import { conteo } from '@/lib/plural'
+import { formatNumero } from '@/lib/formato-numero'
+import type { Idioma } from '@/lib/i18n/idiomas'
+import { traducir } from '@/lib/i18n/diccionario'
 
 // ============================================================================
 //  tickets-ui.ts — Las frases del panel de tickets de soporte en
@@ -26,20 +28,26 @@ export type TonoEstado = 'ok' | 'alerta' | 'info'
 //     nueve tickets contestados y uno pendiente veria "ya contestamos todo"
 //     -- la misma mentira tranquilizadora que `actualizaciones-ui.ts` ya
 //     documenta para el caso del digest sin comprobar.
-export function textoDeEstado(tickets: Ticket[]): { tono: TonoEstado; texto: string } {
+// I18N (lote administracion, 2026-11-02) · `idioma` con `'es'` por omision; el
+// espanol (sin acentos, como se pinta hoy) vive en `admin.tickets.estado-*`.
+export function textoDeEstado(tickets: Ticket[], idioma: Idioma = 'es'): { tono: TonoEstado; texto: string } {
   if (tickets.length === 0) {
-    return { tono: 'info', texto: 'Todavia no has abierto ningun ticket de soporte.' }
+    return { tono: 'info', texto: traducir(idioma, 'admin.tickets.estado-ninguno') }
   }
 
   const sinRespuesta = tickets.filter((t) => !t.respuesta)
   if (sinRespuesta.length > 0) {
     return {
       tono: 'info',
-      texto: `Tienes ${conteo(sinRespuesta.length, 'ticket esperando respuesta', 'tickets esperando respuesta')}.`,
+      texto: traducir(
+        idioma,
+        sinRespuesta.length === 1 ? 'admin.tickets.estado-esperando.uno' : 'admin.tickets.estado-esperando.otros',
+        { n: formatNumero(sinRespuesta.length) },
+      ),
     }
   }
 
-  return { tono: 'ok', texto: 'Todos tus tickets estan contestados.' }
+  return { tono: 'ok', texto: traducir(idioma, 'admin.tickets.estado-todos') }
 }
 
 // El boton "Nuevo ticket" no manda un formulario vacio. La validacion fuerte

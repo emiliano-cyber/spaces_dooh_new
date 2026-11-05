@@ -8,7 +8,8 @@ import { AppError, validar } from './errores'
 import { validarPassword, hashPassword, passwordDeAlta, passwordAleatoria } from './auth'
 import { googleHabilitado } from './google-oauth'
 import { crearInvitacion } from './password-reset-repo'
-import { emailHabilitado, enviarEmail, htmlCorreoInvitacion } from './email'
+import { asuntoCorreoInvitacion, emailHabilitado, enviarEmail, htmlCorreoInvitacion } from './email'
+import { idiomaDeLaInstancia } from './idioma-instancia'
 import { esEmailValido } from '@/lib/validacion'
 import { ROLES_ASIGNABLES } from '@/lib/roles'
 import { rechazoDeNombrarDueno } from '@/lib/guardas-usuarios'
@@ -160,10 +161,15 @@ async function invitar(
   const enlace = `${baseUrl}/spaces-dooh/recuperar/${token}?bienvenida=1`
   if (!emailHabilitado()) return { enviada: false, enlace }
   try {
+    // ADR 0049 · en el idioma de los DOCUMENTOS de la instancia («todo debe
+    // salir en el idioma que se configuro el programa»). Dentro del `try`: si la
+    // base no contesta, la invitacion no se manda y se entrega el enlace, como
+    // cualquier otro fallo del correo.
+    const idioma = await idiomaDeLaInstancia()
     await enviarEmail({
       to: usuario.email,
-      subject: 'Te dieron acceso a Space OS · elige tu contraseña',
-      html: htmlCorreoInvitacion(usuario.nombre, enlace),
+      subject: asuntoCorreoInvitacion(idioma),
+      html: htmlCorreoInvitacion(usuario.nombre, enlace, idioma),
     })
     return { enviada: true }
   } catch (e) {

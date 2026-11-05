@@ -8,14 +8,17 @@ import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
+import { EntradaCifra } from '@/components/demo/ui/EntradaCifra'
+import { cifraIlegible } from '@/lib/captura-cifra'
 import { EmptyState } from '@/components/demo/EmptyState'
 import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
 import { formatNumero } from '@/lib/formato-numero'
 import {
   StatusBadge,
   IMPRESION_TONO,
-  IMPRESION_LABEL,
 } from '@/components/demo/StatusBadge'
+import { CLAVE_IMPRESION } from '@/components/demo/campanas/etiquetas'
+import { useIdioma, useTexto } from '@/lib/i18n/contexto'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { crearOrdenImpresionApi, avanzarOrdenImpresionApi, aprobarPruebaColorApi } from '@/lib/data/estado-api'
 import {
@@ -34,6 +37,7 @@ const PROCESO: EstOrdenImpresion[] = [
 ]
 
 export default function ImprentaPage() {
+  const t = useTexto()
   const ois = useOrdenesImpresion()
   const campanas = useCampanas()
   const sitios = useSitios()
@@ -61,7 +65,7 @@ export default function ImprentaPage() {
     try {
       await avanzarOrdenImpresionApi(id)
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'No se pudo avanzar la orden')
+      toast.error(e instanceof Error ? e.message : t('operaciones.imprenta.no-avanzar'))
     }
     setAvanzando(null)
   }
@@ -72,12 +76,12 @@ export default function ImprentaPage() {
           (`items-start`), como Operaciones; con `items-end` quedaba descolgado. */}
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h1 className="text-2xl text-ink">Imprenta</h1>
-          <p className="mt-1 text-[13px] text-muted">Órdenes de impresión · del arte al montaje</p>
+          <h1 className="text-2xl text-ink">{t('operaciones.imprenta.titulo')}</h1>
+          <p className="mt-1 text-[13px] text-muted">{t('operaciones.imprenta.descripcion')}</p>
         </div>
         {puedeCrear && (
           <Button variant="success" size="sm" onClick={() => setNueva(true)}>
-            <Plus className="h-3.5 w-3.5" /> Nueva orden
+            <Plus className="h-3.5 w-3.5" /> {t('operaciones.imprenta.nueva')}
           </Button>
         )}
       </div>
@@ -95,25 +99,25 @@ export default function ImprentaPage() {
         ) : (
           <>
             <KPICard
-              label="En proceso"
+              label={t('operaciones.imprenta.kpi.en-proceso')}
               value={formatNumero(oisVisibles.filter((o) => o.estatus !== 'LISTO_MONTAJE').length)}
-              sub="aún no están listas para montaje"
+              sub={t('operaciones.imprenta.kpi.en-proceso-sub')}
             />
             <KPICard
-              label="Prueba de color pendiente"
+              label={t('operaciones.imprenta.kpi.prueba')}
               value={formatNumero(pruebasPendientes)}
-              sub="sin aprobar"
+              sub={t('operaciones.imprenta.kpi.sin-aprobar')}
               tono={pruebasPendientes > 0 ? 'ambar' : 'neutro'}
             />
             <KPICard
-              label="En producción"
+              label={t('operaciones.imprenta.kpi.en-produccion')}
               value={formatNumero(conteoPorEtapa.EN_PRODUCCION + conteoPorEtapa.IMPRESO)}
-              sub="en producción o ya impresas"
+              sub={t('operaciones.imprenta.kpi.en-produccion-sub')}
             />
             <KPICard
-              label="Listas para montaje"
+              label={t('operaciones.imprenta.kpi.listas')}
               value={formatNumero(conteoPorEtapa.LISTO_MONTAJE)}
-              sub="pasan a una OT"
+              sub={t('operaciones.imprenta.kpi.listas-sub')}
               tono={conteoPorEtapa.LISTO_MONTAJE > 0 ? 'verde' : 'neutro'}
             />
           </>
@@ -126,7 +130,7 @@ export default function ImprentaPage() {
         <div className="flex flex-wrap gap-x-4 gap-y-1 rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px]">
           {PROCESO.map((p) => (
             <span key={p} className="text-muted">
-              {IMPRESION_LABEL[p]} <span className="demo-num font-medium text-ink">{formatNumero(conteoPorEtapa[p])}</span>
+              {t(CLAVE_IMPRESION[p])} <span className="demo-num font-medium text-ink">{formatNumero(conteoPorEtapa[p])}</span>
             </span>
           ))}
         </div>
@@ -136,11 +140,11 @@ export default function ImprentaPage() {
           secciones de Arrendadores. */}
       <CardColapsable
         id="imprenta.ordenes"
-        titulo="Órdenes de impresión"
+        titulo={t('operaciones.imprenta.ordenes')}
         resumen={
           ois ? (
             <span className="demo-num text-[12px] text-muted">
-              {oisVisibles.length} orden{oisVisibles.length === 1 ? '' : 'es'}
+              {t(oisVisibles.length === 1 ? 'operaciones.imprenta.orden.uno' : 'operaciones.imprenta.orden.otros', { n: oisVisibles.length })}
             </span>
           ) : undefined
         }
@@ -154,12 +158,12 @@ export default function ImprentaPage() {
       ) : oisVisibles.length === 0 ? (
         <EmptyState
           icon={Ruler}
-          titulo="Sin órdenes de impresión"
-          detalle="Crea una orden ligada a una campaña fija (OOH/híbrida) para llevar el proceso del arte al montaje."
+          titulo={t('operaciones.imprenta.vacia')}
+          detalle={t('operaciones.imprenta.vacia-detalle')}
           accion={
             puedeCrear ? (
               <Button variant="success" onClick={() => setNueva(true)}>
-                <Plus className="h-3.5 w-3.5" /> Nueva orden
+                <Plus className="h-3.5 w-3.5" /> {t('operaciones.imprenta.nueva')}
               </Button>
             ) : undefined
           }
@@ -181,12 +185,12 @@ export default function ImprentaPage() {
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-baseline gap-x-2">
                     <span className="demo-num text-[12px] text-muted">{o.folio}</span>
-                    <span className="text-[14px] font-medium text-ink">{o.material || 'Sin material'}</span>
+                    <span className="text-[14px] font-medium text-ink">{o.material || t('operaciones.imprenta.sin-material')}</span>
                   </div>
                   <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted">
                     <span className="inline-flex items-center gap-1.5">
                       <Ruler className="h-3.5 w-3.5" />
-                      {digital ? 'Contenido digital' : `${o.ancho} × ${o.alto} m`}
+                      {digital ? t('operaciones.imprenta.contenido-digital') : `${o.ancho} × ${o.alto} m`}
                     </span>
                     {sitio && <span>{sitio.nombre}</span>}
                     {o.proveedor && <span>· {o.proveedor}</span>}
@@ -196,25 +200,25 @@ export default function ImprentaPage() {
                           href={`/campanas/${camp.id}`}
                           className="inline-flex items-center gap-1 font-medium text-info hover:underline"
                         >
-                          Campaña: {camp.nombre} <ArrowUpRight className="h-3.5 w-3.5" />
+                          {t('operaciones.imprenta.campana', { nombre: camp.nombre })} <ArrowUpRight className="h-3.5 w-3.5" />
                         </Link>
                       ) : (
-                        <span>Campaña: {camp.nombre}</span>
+                        <span>{t('operaciones.imprenta.campana', { nombre: camp.nombre })}</span>
                       )
                     ) : (
-                      <span>Sin campaña</span>
+                      <span>{t('operaciones.imprenta.sin-campana')}</span>
                     )}
                   </div>
                   {/* Progreso: una barra de un solo color y el paso en texto
                       (el color no carga el significado solo). */}
-                  <div className="mt-1.5 flex items-center gap-2" title={PROCESO.map((p) => IMPRESION_LABEL[p]).join(' → ')}>
+                  <div className="mt-1.5 flex items-center gap-2" title={PROCESO.map((p) => t(CLAVE_IMPRESION[p])).join(' → ')}>
                     <div className="flex w-28 gap-0.5" aria-hidden>
                       {PROCESO.map((p, i) => (
                         <span key={p} className={`h-1.5 flex-1 rounded-full ${i <= idx ? 'bg-info' : 'bg-surface-2'}`} />
                       ))}
                     </div>
                     <span className="demo-num text-[11px] text-muted">
-                      Paso {idx + 1} de {PROCESO.length}
+                      {t('operaciones.imprenta.paso', { n: idx + 1, total: PROCESO.length })}
                     </span>
                   </div>
                 </div>
@@ -228,20 +232,20 @@ export default function ImprentaPage() {
                         : 'border-border text-muted'
                     }`}
                   >
-                    Prueba de color: {o.pruebaColorAprobada ? 'Aprobada' : 'Pendiente'}
+                    {o.pruebaColorAprobada ? t('operaciones.imprenta.prueba-aprobada') : t('operaciones.imprenta.prueba-pendiente')}
                   </span>
                   <StatusBadge tono={IMPRESION_TONO[o.estatus]}>
-                    {IMPRESION_LABEL[o.estatus]}
+                    {t(CLAVE_IMPRESION[o.estatus])}
                   </StatusBadge>
                   {puedeCrear && !o.pruebaColorAprobada && (
                     <Button
                       size="sm"
                       variant="primary"
                       onClick={async () => {
-                        try { await aprobarPruebaColorApi(o.id, true) } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
+                        try { await aprobarPruebaColorApi(o.id, true) } catch (e) { toast.error(e instanceof Error ? e.message : t('operaciones.imprenta.error')) }
                       }}
                     >
-                      Aprobar prueba
+                      {t('operaciones.imprenta.aprobar-prueba')}
                     </Button>
                   )}
                   {puedeCrear && !enFinal && (
@@ -251,7 +255,7 @@ export default function ImprentaPage() {
                       disabled={avanzando === o.id}
                       onClick={() => avanzar(o.id)}
                     >
-                      {avanzando === o.id ? 'Avanzando…' : 'Avanzar'}
+                      {avanzando === o.id ? t('operaciones.imprenta.avanzando') : t('operaciones.imprenta.avanzar')}
                       <ChevronRight className="h-3.5 w-3.5" />
                     </Button>
                   )}
@@ -269,6 +273,8 @@ export default function ImprentaPage() {
 }
 
 function NuevaOrdenDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const t = useTexto()
+  const { idioma } = useIdioma()
   const campanas = useCampanas()
   const sitios = useSitios()
   const [campanaId, setCampanaId] = useState('')
@@ -285,6 +291,10 @@ function NuevaOrdenDialog({ open, onClose }: { open: boolean; onClose: () => voi
 
   async function guardar() {
     if (!ob.validar()) return
+    // P-L2-1 · en italiano las medidas van por `EntradaCifra` («12,9»); lo
+    // ilegible llega como 'NaN' (en rojo en el campo) y no se manda. En
+    // español e inglés `cifraIlegible` es `false`.
+    if (cifraIlegible(ancho, idioma) || cifraIlegible(alto, idioma)) return
     setEnviando(true)
     try {
       await crearOrdenImpresionApi({
@@ -299,7 +309,7 @@ function NuevaOrdenDialog({ open, onClose }: { open: boolean; onClose: () => voi
       ob.reiniciar()
       onClose()
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'No se pudo crear la orden')
+      toast.error(e instanceof Error ? e.message : t('operaciones.imprenta.no-crear'))
     }
     setEnviando(false)
   }
@@ -308,24 +318,24 @@ function NuevaOrdenDialog({ open, onClose }: { open: boolean; onClose: () => voi
     <Modal
       open={open}
       onOpenChange={(v) => !v && onClose()}
-      title="Nueva orden de impresión"
+      title={t('operaciones.imprenta.nueva-titulo')}
       footer={
         <div className="flex justify-end gap-2">
-          <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
+          <Button variant="secondary" size="sm" onClick={onClose}>{t('comun.cancelar')}</Button>
           <Button variant="success" size="sm" disabled={enviando} onClick={guardar}>
-            {enviando ? 'Creando…' : 'Crear orden'}
+            {enviando ? t('operaciones.imprenta.creando') : t('operaciones.imprenta.crear')}
           </Button>
         </div>
       }
     >
       <div className="space-y-3">
-        <Campo label="Campaña" obligatorio falta={ob.falta('campanaId')}>
+        <Campo label={t('operaciones.imprenta.campo.campana')} obligatorio falta={ob.falta('campanaId')}>
           <select
             value={campanaId}
             onChange={(e) => setCampanaId(e.target.value)}
             className="w-full rounded border border-border-strong bg-surface px-2.5 py-2 text-[13px] text-ink"
           >
-            <option value="">Selecciona una campaña…</option>
+            <option value="">{t('operaciones.imprenta.selecciona-campana')}</option>
             {(campanas ?? [])
               .filter((c) => c.tipoCampana !== 'DOOH') // digital no imprime
               .map((c) => (
@@ -333,7 +343,7 @@ function NuevaOrdenDialog({ open, onClose }: { open: boolean; onClose: () => voi
               ))}
           </select>
         </Campo>
-        <Campo label="Sitio">
+        <Campo label={t('operaciones.imprenta.campo.sitio')}>
           <select
             value={sitioId}
             onChange={(e) => setSitioId(e.target.value)}
@@ -345,39 +355,39 @@ function NuevaOrdenDialog({ open, onClose }: { open: boolean; onClose: () => voi
             ))}
           </select>
         </Campo>
-        <Campo label="Material">
+        <Campo label={t('operaciones.imprenta.campo.material')}>
           <input
             value={material}
             onChange={(e) => setMaterial(e.target.value)}
-            placeholder="Lona front, vinil, contenido digital…"
+            placeholder={t('operaciones.imprenta.campo.material-ej')}
             className="w-full rounded border border-border-strong bg-surface px-2.5 py-2 text-[13px] text-ink"
           />
         </Campo>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Campo label="Ancho (m)">
-            <input
-              type="number" inputMode="decimal" value={ancho}
-              onChange={(e) => setAncho(e.target.value)} placeholder="0"
+          <Campo label={t('operaciones.imprenta.campo.ancho')}>
+            <EntradaCifra
+              type="number" inputMode="decimal" valor={ancho}
+              onCambio={setAncho} placeholder="0" decimales={2} minimo={0}
               className="demo-num w-full rounded border border-border-strong bg-surface px-2.5 py-2 text-[13px] text-ink"
             />
           </Campo>
-          <Campo label="Alto (m)">
-            <input
-              type="number" inputMode="decimal" value={alto}
-              onChange={(e) => setAlto(e.target.value)} placeholder="0"
+          <Campo label={t('operaciones.imprenta.campo.alto')}>
+            <EntradaCifra
+              type="number" inputMode="decimal" valor={alto}
+              onCambio={setAlto} placeholder="0" decimales={2} minimo={0}
               className="demo-num w-full rounded border border-border-strong bg-surface px-2.5 py-2 text-[13px] text-ink"
             />
           </Campo>
         </div>
-        <Campo label="Proveedor">
+        <Campo label={t('operaciones.imprenta.campo.proveedor')}>
           <input
             value={proveedor}
             onChange={(e) => setProveedor(e.target.value)}
-            placeholder="Imprenta proveedora"
+            placeholder={t('operaciones.imprenta.campo.proveedor-ej')}
             className="w-full rounded border border-border-strong bg-surface px-2.5 py-2 text-[13px] text-ink"
           />
         </Campo>
-        <p className="text-[11px] text-muted">Deja ancho y alto en 0 para contenido digital.</p>
+        <p className="text-[11px] text-muted">{t('operaciones.imprenta.digital-ayuda')}</p>
       </div>
     </Modal>
   )

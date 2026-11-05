@@ -6,6 +6,7 @@ import { TONO } from '@/components/demo/admin/Chip'
 import { GestionEntidadesFiscales } from '@/components/demo/razones-sociales/GestionEntidadesFiscales'
 import type { EntidadUI } from '@/components/demo/razones-sociales/gestion'
 import type { RolCatalogo } from '@/lib/cuestionario-entidades'
+import { useTexto } from '@/lib/i18n/contexto'
 
 const API = '/spaces-dooh/api'
 
@@ -50,6 +51,7 @@ interface Respuesta {
 export default function RazonesSocialesPage() {
   const [datos, setDatos] = useState<Respuesta | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const t = useTexto()
 
   const cargar = useCallback(async () => {
     try {
@@ -64,16 +66,19 @@ export default function RazonesSocialesPage() {
         // buscando un fallo que no existe.
         setError(
           r.status === 403
-            ? 'Tu rol no tiene acceso a la administración de la organización.'
-            : (d?.error ?? 'No se pudieron cargar las razones sociales'),
+            ? t('admin.razones.sin-acceso')
+            : (d?.error ?? t('admin.razones.error')),
         )
         return
       }
       setError(null)
       setDatos({ entidades: d.entidades ?? [], catalogo: d.catalogo ?? [] })
     } catch {
-      setError('No se pudieron cargar las razones sociales')
+      setError(t('admin.razones.error'))
     }
+    // `t` fuera a proposito: el mensaje se elige al fallar, y releer la
+    // lista por un cambio de idioma no aporta nada.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -84,10 +89,9 @@ export default function RazonesSocialesPage() {
     <div className="w-full space-y-4">
       <div>
         {/* Sin icono delante, como el resto de los módulos. */}
-        <h1 className="text-2xl text-ink">Razones sociales</h1>
+        <h1 className="text-2xl text-ink">{t('admin.razones.titulo')}</h1>
         <p className="mt-1 text-[13px] text-muted">
-          Las de tu empresa · con cuál pagas las rentas, compras los activos, tramitas licencias y
-          vendes
+          {t('admin.razones.subtitulo')}
         </p>
       </div>
 

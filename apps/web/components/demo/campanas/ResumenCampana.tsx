@@ -12,6 +12,7 @@ import {
 } from '@/lib/data/client'
 import { formatNumero } from '@/lib/formato-numero'
 import { cn } from '@/lib/cn'
+import { useIdioma } from '@/lib/i18n/contexto'
 
 // ============================================================================
 //  Franja de resumen bajo el encabezado de la campaña — la franja secundaria
@@ -33,6 +34,7 @@ import { cn } from '@/lib/cn'
 // ============================================================================
 
 export function ResumenCampana({ campanaId }: { campanaId: string }) {
+  const { t, idioma } = useIdioma()
   const c = useCampana(campanaId)
   const ots = useOrdenesTrabajo()
   const evidencias = useEvidencias()
@@ -50,35 +52,38 @@ export function ResumenCampana({ campanaId }: { campanaId: string }) {
   return (
     <dl className="m-0 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px]">
       <Par
-        etiqueta="Total"
-        valor={c.presupuestoBruto ? formatMonto(c.presupuestoBruto) : '—'}
-        title={c.presupuestoBruto ? undefined : 'Sin presupuesto capturado en la propuesta'}
+        etiqueta={t('campanas.comun.total')}
+        valor={c.presupuestoBruto ? formatMonto(c.presupuestoBruto, idioma) : '—'}
+        title={c.presupuestoBruto ? undefined : t('campanas.comun.sin-presupuesto')}
       />
       <Par
-        etiqueta="Margen"
+        etiqueta={t('campanas.comun.margen')}
         valor={margen ? `${margen.margenPct.toFixed(0)}%` : '—'}
         cls={margen ? (margen.margen >= 0 ? 'text-[#0f7a55]' : 'text-error') : undefined}
       />
       <Par
-        etiqueta="Entregado"
+        etiqueta={t('campanas.resumen.entregado')}
         valor={reporte ? `${reporte.cumplimientoPct.toFixed(0)}%` : '—'}
         cls={reporte ? (reporte.cumplimientoPct >= 100 ? 'text-[#0f7a55]' : 'text-[#9a6700]') : undefined}
       />
       <Par
-        etiqueta="Candado"
-        valor={candado ? 'Lista para facturar' : 'Pendiente'}
+        etiqueta={t('campanas.resumen.candado')}
+        valor={candado ? t('campanas.comun.lista-facturar') : t('campanas.comun.pendiente')}
         cls={candado ? 'text-[#0f7a55]' : 'text-[#9a6700]'}
         mono={false}
       />
       <Par
-        etiqueta="OT"
+        etiqueta={t('campanas.resumen.ot')}
         valor={
           misOts.length === 0
             ? '—'
-            : `${formatNumero(abiertas)} ${abiertas === 1 ? 'abierta' : 'abiertas'} de ${formatNumero(misOts.length)}`
+            : t(abiertas === 1 ? 'campanas.resumen.ot.uno' : 'campanas.resumen.ot.otros', {
+                n: formatNumero(abiertas),
+                total: formatNumero(misOts.length),
+              })
         }
       />
-      {tieneFija && <Par etiqueta="Evidencias" valor={formatNumero(misEvid.length)} />}
+      {tieneFija && <Par etiqueta={t('campanas.resumen.evidencias')} valor={formatNumero(misEvid.length)} />}
     </dl>
   )
 }

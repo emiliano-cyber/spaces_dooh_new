@@ -13,6 +13,20 @@
 #    provision-instancia.sh --host <ip|dns> --dominio <dominio> --emitir-certificado --confirmar
 #    provision-instancia.sh --host <ip|dns> --dominio <dominio> --instancia <nombre> \
 #                           --email <correo-del-dueno> --bootstrap --confirmar
+#                           [--moneda MXN|USD] [--idioma es|en|it]
+#
+#  ─── La moneda (ADR 0048) ─────────────────────────────────────────────────
+#  `--moneda MXN|USD` va con `--bootstrap` y decide en que moneda trabaja la
+#  instancia PARA SIEMPRE: la base no deja cambiarla despues. Sin la bandera,
+#  MXN. Es un parametro de ESTA corrida y no una variable del `.env`: el `.env`
+#  se relee en cada arranque y se puede editar, y una moneda que pareciera
+#  editable ahi y no lo fuera en la base seria una trampa.
+#
+#  ─── El idioma de los documentos (ADR 0049) ───────────────────────────────
+#  `--idioma es|en|it` (o `--idioma=en`) va con `--bootstrap`, igual que la
+#  moneda, y decide en que idioma se redactan el CONTRATO y la constancia de
+#  firmas PARA SIEMPRE. Sin la bandera, es. NO es el idioma de la interfaz:
+#  ese lo elige cada persona en la aplicacion.
 #
 #  NADA se ejecuta sin `--confirmar`. Sin esa bandera el script se comporta
 #  como `--dry-run` aunque no se pida: aprovisionar es crear una base y un
@@ -81,6 +95,12 @@ CREAR_DROPLET=0
 CONFIRMAR=0
 EMITIR_CERT=0
 BOOTSTRAP=0
+# ADR 0048 · la moneda de la instancia. Solo la usa --bootstrap.
+MONEDA="MXN"
+MONEDA_DADA=0
+# ADR 0049 · el idioma de los DOCUMENTOS de la instancia. Solo lo usa --bootstrap.
+IDIOMA="es"
+IDIOMA_DADO=0
 # Region y tamano solo se usan con --crear-droplet. Se dejan como variables de
 # entorno y sin valor por defecto quemado: son decisiones de cuenta, no del
 # script.
@@ -163,7 +183,7 @@ LOGS_BUCKET="${LOGS_BUCKET:-}"
 # No hay valor por defecto que lo permita: tiene que teclearlo una persona.
 SIN_RESPALDO_REMOTO=0
 
-uso() { sed -n '2,44p' "$0"; }
+uso() { sed -n '2,58p' "$0"; }
 
 # Space Eyes dentro de la instancia (ADR 0045). Va en las DOS corridas: la del
 # aprovisionamiento y la de --emitir-certificado (el certificado lleva eyes.<dominio>).
@@ -179,6 +199,9 @@ while [[ $# -gt 0 ]]; do
     --dry-run)             CONFIRMAR=0; shift ;;
     --emitir-certificado)  EMITIR_CERT=1; shift ;;
     --bootstrap)           BOOTSTRAP=1; shift ;;
+    --moneda)              MONEDA="${2:-}"; MONEDA_DADA=1; shift 2 ;;
+    --idioma)              IDIOMA="${2:-}"; IDIOMA_DADO=1; shift 2 ;;
+    --idioma=*)            IDIOMA="${1#--idioma=}"; IDIOMA_DADO=1; shift ;;
     --sin-respaldo-remoto) SIN_RESPALDO_REMOTO=1; shift ;;
     --con-eyes)            CON_EYES=1; shift ;;
     -h|--ayuda|--help)     uso; exit 0 ;;
@@ -188,6 +211,39 @@ done
 
 # ─── Validacion ─────────────────────────────────────────────────────────────
 [[ -n "$DOMINIO" ]] || { echo "provision: falta --dominio" >&2; exit "$EX_USO"; }
+
+# ADR 0048 · antes de tocar NADA: una moneda mal escrita no puede llegar a la
+# puerta de un solo uso. Si llegara, la aplicacion la rechaza con 400 -- pero
+# mejor que el operador lo lea aqui, sin ssh de por medio.
+case "$MONEDA" in
+  MXN|USD) ;;
+  *) echo "provision: --moneda '$MONEDA' no vale: tiene que ser MXN o USD (en mayusculas)." >&2
+     echo "           La moneda de una instancia no se puede cambiar despues (ADR 0048)." >&2
+     exit "$EX_USO" ;;
+esac
+# Y solo con --bootstrap. Sin el, la bandera no haria nada: el operador
+# creeria haber elegido dolares y la instancia naceria en el paso siguiente
+# con lo que mande ESA corrida. Se para en vez de ignorarla.
+if [[ "$MONEDA_DADA" -eq 1 && "$BOOTSTRAP" -eq 0 ]]; then
+  echo "provision: --moneda solo vale junto con --bootstrap: es ahi donde se elige la moneda de la instancia." >&2
+  echo "           Pasala en la corrida de --bootstrap (ADR 0048)." >&2
+  exit "$EX_USO"
+fi
+
+# ADR 0049 · el idioma de los documentos, con las MISMAS dos puertas que la
+# moneda: mal escrito se para aqui, sin ssh; y sin --bootstrap no se ignora.
+# En minusculas exactas: `EN` o `es-MX` no se adivinan.
+case "$IDIOMA" in
+  es|en|it) ;;
+  *) echo "provision: --idioma '$IDIOMA' no vale: tiene que ser es, en o it (en minusculas)." >&2
+     echo "           Es el idioma del contrato y de la constancia de firmas, y no se puede cambiar despues (ADR 0049)." >&2
+     exit "$EX_USO" ;;
+esac
+if [[ "$IDIOMA_DADO" -eq 1 && "$BOOTSTRAP" -eq 0 ]]; then
+  echo "provision: --idioma solo vale junto con --bootstrap: es ahi donde se elige el idioma de los documentos." >&2
+  echo "           Pasalo en la corrida de --bootstrap (ADR 0049)." >&2
+  exit "$EX_USO"
+fi
 
 # Fail-closed, y el mismo patron que el guard del arnes de pruebas: lo que se
 # evita no es la decision, es el DESCUIDO. Una instancia de cliente sin respaldo
@@ -452,8 +508,8 @@ if [[ "$EMITIR_CERT" -eq 1 ]]; then
   #
   # `--webroot` tampoco necesita parar nginx, que es lo que obliga
   # `--standalone` y lo que convierte una renovacion en una caida.
+  # Un solo nombre aun con --con-eyes: los equipos entran por el MISMO dominio.
   NOMBRES_CERT="-d '$DOMINIO'"
-  [[ "$CON_EYES" -eq 1 ]] && NOMBRES_CERT="$NOMBRES_CERT -d 'eyes.$DOMINIO'"
   remoto "certbot certonly --webroot -w /var/www/html -n --agree-tos --no-eff-email \
     -m '$CERTBOT_EMAIL' $NOMBRES_CERT"
 
@@ -566,6 +622,8 @@ if [[ "$BOOTSTRAP" -eq 1 ]]; then
   echo "  La organizacion no lleva contrasena: el Dueño entra con Google."
   echo "    dominio:  https://$DOMINIO/spaces-dooh/login/"
   echo "    correo:   $EMAIL_DUENO   <-- tiene que ser su cuenta de Google"
+  echo "    moneda:   $MONEDA   <-- NO se podra cambiar despues (ADR 0048)"
+  echo "    idioma de los documentos: $IDIOMA   <-- contrato y constancia; NO se podra cambiar (ADR 0049)"
   echo ""
   echo "  La primera vez que entre, la aplicacion le enseñara sus codigos de"
   echo "  recuperacion y le pedira que ponga su propia contrasena. Esa"
@@ -596,7 +654,7 @@ if [[ "$BOOTSTRAP" -eq 1 ]]; then
     -H 'Content-Type: application/json' \
     -H \"x-bootstrap-token: \$(sed -n 's/^BOOTSTRAP_TOKEN=//p' /etc/space-os/app.env)\" \
     --data-binary @-" <<JSON
-{"organizacion":"$INSTANCIA","nombre":"Dueno","email":"$EMAIL_DUENO"}
+{"organizacion":"$INSTANCIA","nombre":"Dueno","email":"$EMAIL_DUENO","moneda":"$MONEDA","idiomaDocumentos":"$IDIOMA"}
 JSON
 )"
   set -e
@@ -910,7 +968,7 @@ paso "Actualizador"
 remoto "mkdir -p /opt/space-os /var/log/space-os"
 remoto_escribir /opt/space-os/update.sh 750 < "$RAIZ/infra/scripts/update.sh"
 if [[ "$CON_EYES" -eq 1 ]]; then
-  remoto "mkdir -p /opt/space-os/eyes"
+  remoto "mkdir -p /opt/space-os/eyes /etc/nginx/snippets"
   while IFS=$'\t' read -r origen destino modo; do
     remoto_escribir "$destino" "$modo" < "$origen"
   done < <(eyes_archivos "$RAIZ")
@@ -970,7 +1028,7 @@ if remoto "/opt/space-os/update.sh"; then
   echo "  la instancia ya sirve: no hay que esperar al cron de las 4:17"
   if [[ "$CON_EYES" -eq 1 ]]; then
     remoto "/opt/space-os/update-eyes.sh" \
-      && echo "  Space Eyes levantado (servira por eyes.$DOMINIO cuando haya certificado)" \
+      && echo "  Space Eyes levantado (los equipos entran por $DOMINIO cuando haya certificado)" \
       || echo "  AVISO: Space Eyes no levanto; el cron lo reintenta. ssh root@$HOST 'tail -40 /var/log/space-os/eyes.log'" >&2
   fi
 else

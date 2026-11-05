@@ -7,6 +7,8 @@ import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
 import { EmptyState } from '@/components/demo/EmptyState'
 import { formatMonto, formatFecha } from '@/lib/data/derive'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
 import type { ReporteRentabilidad } from '@/lib/data/reportes'
 import { FiltrosRentabilidad } from '@/components/demo/reportes/FiltrosRentabilidad'
 import { TablaRentabilidad } from '@/components/demo/reportes/TablaRentabilidad'
@@ -81,6 +83,7 @@ export default function ReportesPage() {
   // selector no sepa pintar — eso lo garantiza `filtrosDesdeUrl`, que ignora lo
   // que no encaja. Ver su cabecera en `consulta.ts`.
   const params = useSearchParams()
+  const { t, idioma } = useIdioma()
   const [filtros, setFiltros] = useState<FiltrosReporte>(() =>
     filtrosDesdeUrl(new URLSearchParams(params?.toString() ?? ''), new Date()),
   )
@@ -89,7 +92,7 @@ export default function ReportesPage() {
   const [reporte, setReporte] = useState<ReporteRentabilidad | null>(null)
   const [orden, setOrden] = useState<Orden>(() => ordenInicialDe(filtros.dimension))
 
-  const motivo = motivoInvalido(filtros)
+  const motivo = motivoInvalido(filtros, idioma)
 
   useEffect(() => {
     if (!debePedir(filtros)) return
@@ -123,7 +126,11 @@ export default function ReportesPage() {
         // `status: 0` = la petición no llegó a tener respuesta. La máquina de
         // estados lo trata como error y NO como «sin datos»: un cero filas
         // encima de un cable desconectado afirmaría que no hubo movimiento.
-        setRespuesta({ status: 0, mensaje: 'No se pudo contactar al servidor. Revisa la conexión y vuelve a intentar.', filas: 0 })
+        //
+        // Sin mensaje, a proposito (lote de ingles, 2026-11-02): la frase de la
+        // red caida la pone `estadoDeReporte` en el idioma de la pantalla. Aqui
+        // se quedaria escrita en el idioma del momento del fallo.
+        setRespuesta({ status: 0, mensaje: null, filas: 0 })
       } finally {
         // En el `finally`, y esto es lo que impide el spinner infinito: pase lo
         // que pase —200, 501, JSON roto o red caída— `cargando` vuelve a false.
@@ -133,7 +140,7 @@ export default function ReportesPage() {
     return () => control.abort()
   }, [filtros])
 
-  const estado = estadoDeReporte({ motivoInvalido: motivo, cargando, respuesta })
+  const estado = estadoDeReporte({ motivoInvalido: motivo, cargando, respuesta }, idioma)
 
   // Al cambiar de filtros se vuelve al orden DEL SERVIDOR PARA ESA DIMENSIÓN
   // —peor margen en `sitio`, más costo de operación en `operacion`, peor margen
@@ -197,9 +204,9 @@ export default function ReportesPage() {
             // tabla: una visita sin costo capturado no sale con una raya ni con
             // un cero, sale con una cifra creíble.
             costosReales: reporte.costosReales,
-          })
+          }, idioma)
         : [],
-    [reporte],
+    [reporte, idioma],
   )
 
   const hayDatos = estado.fase === 'datos' && reporte
@@ -217,9 +224,9 @@ export default function ReportesPage() {
       {/* Encabezado con la forma del Dashboard (rediseño 2026-10-26): sin la
           caja de icono, que llevaba un azul con hex suelto. */}
       <div>
-        <h1 className="text-2xl text-ink">Reportes de rentabilidad</h1>
+        <h1 className="text-2xl text-ink">{t('reportes.titulo')}</h1>
         <p className="mt-1 text-[13px] text-muted">
-          Qué ingresa y qué cuesta cada pantalla en el periodo que elijas.
+          {t('reportes.subtitulo')}
         </p>
       </div>
 
@@ -237,7 +244,7 @@ export default function ReportesPage() {
           del Dashboard: el margen se lee en porcentaje y su monto va debajo.
           «Margen» y «Margen sobre ingreso» eran dos tarjetas para la misma
           idea. Son los mismos campos de `reporte.totales`; no se calcula nada. */}
-      <CardColapsable id="reportes.indicadores" titulo="Indicadores del periodo">
+      <CardColapsable id="reportes.indicadores" titulo={t('reportes.indicadores')}>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         {estado.fase === 'cargando' ? (
           <>
@@ -248,14 +255,14 @@ export default function ReportesPage() {
         ) : hayDatos ? (
           <>
             <KPICard
-              label="Ingreso del periodo"
-              value={formatMonto(reporte.totales.ingreso)}
+              label={t('reportes.kpi.ingreso')}
+              value={formatMonto(reporte.totales.ingreso, idioma)}
               /* La frase la decide `subtituloDeConteo`, en `tabla.ts`, y no este
                  archivo: aquí dentro no la probaba nadie —vitest no monta jsdom—
                  y por eso llegó a decir «4 razones sociales con movimiento» con
                  una de ellas en cero, contando además «Sin asignar» como una
                  sociedad más del cliente. */
-              sub={subtituloDeConteo(reporte.dimension, reporte.filas)}
+              sub={subtituloDeConteo(reporte.dimension, reporte.filas, idioma)}
               tono="azul"
               icon={<TrendingUp className="h-4 w-4" />}
             />
@@ -265,15 +272,19 @@ export default function ReportesPage() {
                 suma de lo que dice debajo, en el sitio más grande de la
                 pantalla y sin nada que lo explicara. */}
             <KPICard
-              label="Costo total"
-              value={formatMonto(reporte.totales.costoTotal)}
-              sub={`Espacio ${formatMonto(reporte.totales.costoEspacio)} · Operación ${formatMonto(reporte.totales.costoOperacion)} · Luz ${formatMonto(reporte.totales.costoEnergia)}`}
+              label={t('reportes.col.costo-total')}
+              value={formatMonto(reporte.totales.costoTotal, idioma)}
+              sub={t('reportes.kpi.costo-sub', {
+                espacio: formatMonto(reporte.totales.costoEspacio, idioma),
+                operacion: formatMonto(reporte.totales.costoOperacion, idioma),
+                luz: formatMonto(reporte.totales.costoEnergia, idioma),
+              })}
               icon={<Coins className="h-4 w-4" />}
             />
             <KPICard
-              label="Margen sobre ingreso"
-              value={formatoPorcentaje(reporte.totales.margenBrutoPct)}
-              sub={`Margen ${formatMonto(reporte.totales.margenBruto)}`}
+              label={t('reportes.kpi.margen')}
+              value={formatoPorcentaje(reporte.totales.margenBrutoPct, idioma)}
+              sub={t('reportes.kpi.margen-sub', { monto: formatMonto(reporte.totales.margenBruto, idioma) })}
               tono={
                 reporte.totales.margenBrutoPct == null
                   ? reporte.totales.margenBruto < 0 ? 'rojo' : 'neutro'
@@ -292,12 +303,21 @@ export default function ReportesPage() {
           en ISO. */}
       <CardColapsable
         id="reportes.resultado"
-        titulo={hayDatos ? `Del ${formatFecha(reporte.desde)} al ${formatFecha(reporte.hasta)}` : 'Resultado'}
+        titulo={
+          hayDatos
+            ? t('reportes.rango', { desde: formatFecha(reporte.desde, idioma), hasta: formatFecha(reporte.hasta, idioma) })
+            : t('reportes.resultado')
+        }
         icono={<BarChart3 className="h-4 w-4 text-muted" />}
         resumen={
           hayDatos ? (
             <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted">
-              {reporte.periodos.length} {reporte.periodos.length === 1 ? 'periodo' : 'periodos'}
+              {/* Con `interpolarNodos` y la palabra aparte: la cifra y la palabra
+                  siguen siendo nodos separados, como antes. */}
+              {interpolarNodos(t('reportes.periodos'), {
+                n: reporte.periodos.length,
+                periodos: t(reporte.periodos.length === 1 ? 'reportes.periodos.palabra.uno' : 'reportes.periodos.palabra.otros'),
+              })}
             </span>
           ) : null
         }
@@ -311,19 +331,22 @@ export default function ReportesPage() {
           ) : estado.fase === 'error' ? (
             <EmptyState
               icon={ServerCrash}
-              titulo="No se pudo calcular el reporte"
+              titulo={t('reportes.error.titulo')}
               detalle={estado.mensaje ?? undefined}
             />
           ) : estado.fase === 'invalido' ? (
-            <EmptyState icon={CalendarSearch} titulo="Revisa el periodo" detalle={estado.mensaje ?? undefined} />
+            <EmptyState icon={CalendarSearch} titulo={t('reportes.invalido.titulo')} detalle={estado.mensaje ?? undefined} />
           ) : estado.fase === 'vacio' ? (
             /* Vacío HONESTO: se dice qué se preguntó y por qué puede salir
                vacío, en vez de un «no hay datos» que deja a quien lo lee sin
                saber si el problema son sus fechas o su inventario. */
             <EmptyState
               icon={CalendarSearch}
-              titulo="Sin movimiento en este periodo"
-              detalle={`Entre el ${formatFecha(filtros.desde)} y el ${formatFecha(filtros.hasta)} ninguna pantalla registró ingreso, renta ni órdenes de trabajo. Una pantalla sin nada de eso no aparece en el reporte; prueba con un rango más amplio.`}
+              titulo={t('reportes.vacio.titulo')}
+              detalle={t('reportes.vacio.detalle', {
+                desde: formatFecha(filtros.desde, idioma),
+                hasta: formatFecha(filtros.hasta, idioma),
+              })}
             />
           ) : hayDatos ? (
             <div className="space-y-3">
@@ -369,7 +392,7 @@ export default function ReportesPage() {
                 <details className="group rounded-md border border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">
                   <summary className="flex cursor-pointer list-none items-center gap-1.5 font-medium text-ink [&::-webkit-details-marker]:hidden">
                     <ChevronRight className="h-3.5 w-3.5 text-muted transition-transform group-open:rotate-90" />
-                    Notas sobre estas cifras ({avisosNota.length})
+                    {interpolarNodos(t('reportes.notas'), { n: avisosNota.length })}
                   </summary>
                   <ul className="mt-2 space-y-1.5">
                     {avisosNota.map((a) => (
@@ -388,7 +411,7 @@ export default function ReportesPage() {
               />
             </div>
           ) : (
-            <EmptyState icon={CalendarSearch} titulo="Elige un periodo" detalle="El reporte se calcula al elegir las fechas." />
+            <EmptyState icon={CalendarSearch} titulo={t('reportes.inicial.titulo')} detalle={t('reportes.inicial.detalle')} />
           )}
       </CardColapsable>
     </div>

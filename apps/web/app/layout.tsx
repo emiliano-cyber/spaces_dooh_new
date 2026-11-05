@@ -3,12 +3,23 @@ import { Inter, Source_Serif_4 } from 'next/font/google'
 import './globals.css'
 import { Providers } from './providers'
 import { idiomaDeLaPeticion } from '@/lib/i18n/servidor'
-import { inglesActivo } from '@/lib/i18n/idiomas'
+import { idiomasActivos } from '@/lib/i18n/idiomas'
 import { ProveedorIdioma } from '@/lib/i18n/contexto'
+import { ProveedorMoneda } from '@/lib/i18n/moneda-cliente'
+import { monedaDeLaInstancia } from '@/lib/server/moneda-instancia'
+import { idiomaDeLaInstancia } from '@/lib/server/idioma-instancia'
+import { ProveedorIdiomaDocumentos } from '@/lib/i18n/idioma-documentos-cliente'
+import { traducir } from '@/lib/i18n/diccionario'
 
-export const metadata: Metadata = {
-  title: 'Spaces DOOH',
-  description: 'Gestión de espacios publicitarios DOOH',
+// `generateMetadata` y no un `metadata` fijo: la descripcion sale en el idioma
+// de la peticion (lote de administracion, cuenta y shell, 2026-11-02). Este
+// layout ya lee la cookie para el <html lang>, asi que no se vuelve dinamico
+// nada que no lo fuera. El titulo es la marca y no se traduce.
+export function generateMetadata(): Metadata {
+  return {
+    title: 'Spaces DOOH',
+    description: traducir(idiomaDeLaPeticion(), 'shell.meta.descripcion'),
+  }
 }
 
 // ── El sistema Institucional: Source Serif 4 + Inter ────────────────────────
@@ -60,14 +71,42 @@ const inter = Inter({
 // `lang` en el `<html>` no es decoracion: es lo que usan los lectores de
 // pantalla para elegir voz y el navegador para ofrecer la traduccion. Hasta hoy
 // decia `es` fijo, y para un usuario en ingles eso era una afirmacion falsa.
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+
+// ── Y la MONEDA, tambien aqui (ADR 0048, 02/11) ──────────────────────────────
+//
+// Es de la INSTANCIA —se elige al crearla y la base no deja cambiarla— y este
+// layout es el unico sitio por el que pasa TODA pagina, incluidas las publicas
+// (la propuesta que ve el cliente, el comprobante). `ProveedorMoneda` la fija
+// antes del primer `formatMonto` de cualquier pantalla.
+//
+// Si la base no contesta, la pagina FALLA en vez de caer a MXN. Se penso lo
+// contrario —no tumbar /login por esto— y se descarto: el valor que fija este
+// layout se queda en el navegador toda la sesion, y los importes llegan
+// DESPUES por la API. Un tropiezo de la base en este instante, con la API
+// sana un segundo despues, dejaria una instancia en dolares pintando pesos
+// hasta recargar, sin ningun error. Sin base tampoco se puede iniciar sesion,
+// asi que el fallo no quita nada que funcionara.
+
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const idioma = idiomaDeLaPeticion()
+  const moneda = await monedaDeLaInstancia()
+  // ADR 0049 · el idioma de los DOCUMENTOS de la instancia, para los papeles
+  // que se pintan en el navegador (el comprobante). Fail-closed como la
+  // moneda: si la base no contesta, la pagina falla en vez de suponer espanol.
+  const idiomaDocumentos = await idiomaDeLaInstancia()
+  // Los idiomas ENCENDIDOS (ola 0 del italiano, 2026-11-03). Con uno solo —el
+  // espanol— no hay nada que elegir y el selector no se pinta.
+  const disponibles = idiomasActivos()
   return (
     <html lang={idioma} className={`${serif.variable} ${inter.variable}`}>
       <body>
-        <ProveedorIdioma idioma={idioma} puedeElegir={inglesActivo()}>
-          <Providers>{children}</Providers>
-        </ProveedorIdioma>
+        <ProveedorMoneda moneda={moneda}>
+          <ProveedorIdioma idioma={idioma} puedeElegir={disponibles.length > 1} disponibles={disponibles}>
+            <ProveedorIdiomaDocumentos idioma={idiomaDocumentos}>
+              <Providers>{children}</Providers>
+            </ProveedorIdiomaDocumentos>
+          </ProveedorIdioma>
+        </ProveedorMoneda>
       </body>
     </html>
   )

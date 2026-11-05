@@ -1,7 +1,7 @@
 ---
 tipo: operacion
 estado: verificado
-actualizado: 2026-10-23
+actualizado: 2026-11-05
 tags: [convenciones, estilo, pruebas]
 archivos:
   - apps/web/components/demo/ui/Button.tsx
@@ -13,6 +13,8 @@ archivos:
   - apps/web/lib/formato-numero.guardia.test.ts
   - apps/web/lib/captura-cifra.ts
   - apps/web/components/demo/ui/CampoCifra.tsx
+  - apps/web/components/demo/ui/EntradaCifra.tsx
+  - apps/web/lib/i18n/formato-idioma.ts
   - apps/web/lib/server/errores.ts
   - apps/web/lib/test/README.md
   - docs/DEPENDENCIAS.md
@@ -485,7 +487,10 @@ Un campo de importe o de cantidad que puede pasar de 999 es un `CampoCifra`,
 **no** un `<input type="number">` (que no admite comas: con una, el navegador
 da el campo por vacío). `type="text"` con `inputMode` `decimal` (dinero,
 `decimales={2}`, por omisión) o `numeric` (cantidades, `decimales={0}`).
-Porcentajes, caras, segundos, días, metros y coordenadas **no** lo usan.
+Porcentajes, caras, segundos, días, metros y coordenadas **no** lo usan: desde
+el 04/11 van por `EntradaCifra`, que en español e inglés es su `<input>` de
+siempre y en italiano un `CampoCifra` (ver «La cifra se teclea en el idioma de
+la persona», abajo).
 
 **El contrato con el formulario no cambia.** El padre guarda lo mismo que
 guardaba con el `type="number"`: la cifra **sin comas** como texto
@@ -533,15 +538,124 @@ y el motivo:
 —y el cursor con ellas— **solo** cuando el cambio es UNA tecla sobre un texto
 que ya era canónico. Lo **pegado** se deja tal cual y lo valida `leerCifra`:
 reformatear un «2,50» pegado daría «250», que nadie decidió. Retroceso o
-suprimir sobre una coma borran la cifra vecina (si no, la tecla no haría
-nada). Al salir del campo, lo válido se pinta canónico (`textoAlSalir`) sin
-cambiar el valor.
+suprimir sobre una coma **del campo** borran la cifra vecina (si no, la tecla
+no haría nada). Al salir del campo, lo válido se pinta canónico
+(`textoAlSalir`) sin cambiar el valor.
+
+> [!important] D18 (2026-11-05) · al teclear se avisa igual que al pegar
+> Decisión del dueño, opción (b), ZONA ROJA (dinero). Hasta ese día una coma
+> **tecleada** nunca se quedaba: al recolocar las comas se quitaba, y «2,5»
+> acababa en **25**, «15000,50» en **1,500,050** y «1,5000» en **15,000**, sin
+> ningún aviso; pegado, el mismo texto se rechazaba. La regla
+> (`teclearCifra` y `cifraAMedias`, `lib/captura-cifra.ts`), en español e
+> inglés y en **todos** los `CampoCifra` (dinero y cantidades enteras):
+>
+> 1. Las comas que pone **el campo** (al teclear la cuarta cifra) se siguen
+>    recolocando.
+> 2. Una coma que pone **la persona** —tecleada, o en un texto pegado— se queda
+>    donde la puso, y mientras quede alguna el campo **no recoloca ninguna**
+>    (`comasPropias`, que guarda `CampoCifra`). Retroceso sobre una coma
+>    propia la quita a ella sola. Se apaga cuando el texto se queda sin comas,
+>    al salir con una cifra válida o cuando el formulario repinta el campo.
+> 3. Decide `leerCifra`: «1,500», «12,500.50», «2.5» valen; «2,5», «12,34»,
+>    «1,5000» se rechazan con «las comas van cada tres cifras» y el formulario
+>    recibe `'NaN'`.
+> 4. **A media escritura no se avisa**: lo que acaba en un grupo de millar
+>    incompleto («1,», «1,5», «12,50», también «2,5») va camino de una cifra
+>    bien puesta. El formulario ya recibe `'NaN'`, pero el borde rojo y el
+>    motivo salen **al salir del campo o con Enter**. Mientras va a medias,
+>    el campo tampoco se repinta con lo que guarda el formulario: si no, en
+>    los que se quedan con el último valor válido («cantidad» de la
+>    propuesta) o acotan a 0 (la reserva), «1,000» no se podría teclear.
+>    Lo pegado avisa en el acto, como siempre.
+>
+> Lo pegado o soltado con coma cuenta como de la persona **siempre**, también
+> encima de otra cifra con las mismas comas (B85). Y en **italiano** rige lo
+> mismo con el PUNTO de millar (B87, 05/11): «1.5000» tecleado se queda y se
+> rechaza, como pegado; allí el aviso sale en el acto (`cifraAMedias` es
+> `false`).
+>
+> Lo medido, en `docs/Supervision/ABIERTOS.md` (D18): sin coma tecleada no
+> cambia nada; ninguna entrada pasa de rechazo a cifra ni de una cifra a otra.
+> Las pruebas: `captura-cifra.d18.test.ts` (tecla a tecla, cursor en medio,
+> borrado) y `lib/i18n/cifras-d18.test.ts` (alta de Comercial, alta de
+> Inventario y paquete cerrado, tecleados con `teclearTeclaATecla` y saliendo
+> con `salir()`).
 
 > [!note] El costo real de la OT cambió de regla, no de lección
 > `leerCostoOt` **rechazaba las comas a propósito** hasta el 08/10, porque la
 > pantalla no las producía. Desde la fase 2 es `leerCifra` (2 decimales, sin
 > negativos): la regla tiene que entender lo que la propia pantalla enseña.
 > Lo ambiguo (`1,5`) sigue fuera, y el vacío sigue siendo BORRAR.
+
+### La cifra se teclea en el idioma de la persona (P-L2-1, 2026-11-04)
+
+Decisión del dueño del 04/11, autorizada como **ZONA ROJA (dinero)**. Hasta ese
+día `CampoCifra` leía a la mexicana en **todos** los idiomas, y un italiano que
+tecleaba «12,9» en el ancho de una pantalla la daba de alta con **cero
+metros** (`Number('12,9') || 0`), o «1.500» caras se guardaban como 1,5.
+
+| Idioma | Millar | Decimal | Se teclea | Se guarda |
+|---|---|---|---|---|
+| `es`, `en` | coma | punto | `212,500.50` | `212500.5` |
+| `it` | punto | coma | `212.500,50` | `212500.5` |
+
+- **Una sola regla escrita.** El italiano es el ESPEJO exacto de la mexicana:
+  `leerCifra` intercambia los dos signos de lo tecleado (`intercambiar`), lee
+  con la regla de siempre y vuelve a intercambiar las cifras de los ejemplos
+  del motivo. Lo ambiguo se rechaza en los dos sentidos por la misma razón:
+  en dinero, «2.500» en español y «2,500» en italiano se **rechazan** con el
+  porqué, en vez de adivinar si quería mil veces menos. El signo decimal de
+  cada idioma vive en `FORMATO_IDIOMA[idioma].separadorDecimal`
+  (`lib/i18n/formato-idioma.ts`).
+- **Un punto TECLEADO en italiano no se recoloca** (B77, 04/11). Al
+  recolocar separadores tecla a tecla, un punto fuera de posición de millar
+  se perdía: «12.9» tecleado acababa en 129 y «2.5» en 25, mientras pegado se
+  rechazaba. Ahora se deja donde se tecleó y `leerCifra` decide: «1.500» vale
+  mil quinientos, «12.9» se rechaza con su motivo. Las pruebas teclean tecla
+  a tecla (`teclear()` en `captura-cifra.italiano.test.ts`,
+  `teclearTeclaATecla` en `lib/test/formulario-sin-dom.ts`), no solo pegan.
+  El caso español simétrico («2,5» tecleado → 25) lo cerró la decisión D18
+  del dueño el 05/11 (ver «Mientras se escribe», arriba).
+- **Lo que viaja no cambia.** `crudoDeLectura` entrega la MISMA cifra en los
+  tres idiomas: punto decimal, sin separadores. Ni una API ni la base se
+  enteran del idioma.
+- **Español e inglés no pasan por el intercambio**: su camino es el de antes
+  carácter por carácter. Lo fija `lib/captura-cifra.es-en.test.ts` con la
+  huella sha256 de una batería de 2000 entradas (116 000 resultados) calculada
+  con la función de ANTES (`cb116dde`). Si un solo motivo o un solo valor
+  cambia en es/en, la huella no cuadra. **Única excepción autorizada: D18**
+  (05/11), que cambia 68 filas —todas una coma insertada que ahora se queda—;
+  están apuntadas en la prueba con su antes y su ahora, y la huella se
+  comprueba con ellas devueltas a su valor de antes. Al escribirlo se corrió además un
+  barrido aleatorio de 2,88 millones de lecturas contra una copia congelada de
+  la función vieja (no versionada).
+- **Los campos que no eran `CampoCifra`** (medidas, caras, segundos, cupos,
+  porcentajes, plazos, comisiones: hacían `Number(texto)` o eran
+  `type="number"`) usan **`EntradaCifra`** (`components/demo/ui/EntradaCifra.tsx`):
+  en español e inglés pinta **el mismo `<input>` de antes, con los atributos en
+  el mismo orden** (el HTML sale idéntico byte a byte) y entrega lo tecleado tal
+  cual; en italiano es un `CampoCifra` y entrega la cifra canónica o `'NaN'`.
+  El formulario solo añade **bloquear el envío con `cifraIlegible(x, idioma)`**,
+  que en español e inglés es siempre `false`.
+- **Los ejemplos** de un `placeholder` o de un aviso («Ej. 12.9», «(15,000.50)»)
+  pasan por `ejemploCifra(texto, idioma)`: la identidad en es/en, los signos
+  intercambiados en italiano.
+- **Las coordenadas NO** cambian: se pegan de un mapa, que las da con punto en
+  todos los idiomas. Tampoco los campos de Space Eyes (configuración técnica,
+  enteros con `type="number"`), ni los enteros sin control (`defaultValue`) de
+  Administración (cupo global, loop, segundos del spot, vigencia de la
+  propuesta) ni el orden de la rejilla: enteros que el navegador normaliza.
+
+> [!important] Cómo se comprueba que español e inglés no cambian
+> 1. La huella de `captura-cifra.es-en.test.ts` (corre en cada `vitest`).
+> 2. El volcado de TODA la suite con `I18N_VOLCAR_TODO` contra la base y
+>    `diff -rq`: los únicos estados que cambian están en `_italiano.txt`.
+> 3. `lib/i18n/cifras-formularios.test.ts` monta los formularios de verdad
+>    (`lib/test/formulario-sin-dom.ts`: estado entre renders y manejadores sin
+>    DOM), teclea y pulsa: en italiano «12,9» llega a la API como 12.9 y
+>    «1.500,50» como 1500.5; en español e inglés llega lo de siempre, también
+>    lo malo de siempre (`Number('12,9') || 0` = 0 en el alta de Comercial).
 
 ## Nombres
 

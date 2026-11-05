@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
+import { simboloMoneda } from '@/lib/i18n/dinero'
 import Link from 'next/link'
 import {
   Radio,
@@ -13,7 +14,11 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import { candadoDeSegmentos, estadoSLAOT, formatFecha, formatFechaHora } from '@/lib/data/derive'
-import { TIPO_OT_LABEL } from '@/lib/tipos-ot'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { etiquetaDePuntoOT } from '@/lib/i18n/checklist-ot'
+import { CLAVE_OT } from '@/components/demo/campanas/etiquetas'
+import { CLAVE_PRIORIDAD, CLAVE_TIPO_OT } from '@/components/operaciones/claves'
+import { interpolarNodos } from '@/lib/i18n/nodos'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { FotoUploaderMock } from '@/components/demo/FotoUploaderMock'
 import { Button } from '@/components/demo/ui/Button'
@@ -22,7 +27,6 @@ import { Breadcrumbs, type Crumb } from '@/components/demo/ui/Breadcrumbs'
 import {
   StatusBadge,
   OT_TONO,
-  OT_LABEL,
 } from '@/components/demo/StatusBadge'
 import { cn } from '@/lib/cn'
 import { trailFromLocation } from '@/lib/nav-trail'
@@ -36,7 +40,8 @@ import {
   avisoAntesDeCerrar,
   textoCostoDeCerrada,
 } from '@/lib/costo-ot-captura'
-import type { FotoMeta, EstOT, ChecklistItem, TipoOT } from '@/lib/data/types'
+import type { FotoMeta, EstOT, ChecklistItem, TipoOT, Prioridad } from '@/lib/data/types'
+import { FORMATO_IDIOMA, numeroEnIdioma } from '@/lib/i18n/formato-idioma'
 
 // blob: URL → data URL (base64) para que la foto persista en la BD.
 //
@@ -107,13 +112,14 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
   // Enlazar la campaña solo a quien puede verla (como en Imprenta). Fuera del
   // shell (vista móvil) no hay sesión y diría que no, pero allí no se usa.
   const puedeVerCampana = usePuede('comercial', 'ver')
+  const { t, idioma } = useIdioma()
   // Rastro de navegación ("cómo llegué aquí"). Por defecto, Operaciones.
   const [trail, setTrail] = useState<Crumb[]>([])
   useEffect(() => {
-    const t = trailFromLocation()
-    setTrail(t.length ? t : [{ label: 'Operaciones', href: '/operaciones' }])
-  }, [])
-  const volver = trail.length ? trail[trail.length - 1] : { label: 'Operaciones', href: '/operaciones' }
+    const rastro = trailFromLocation()
+    setTrail(rastro.length ? rastro : [{ label: t('nav.operaciones'), href: '/operaciones' }])
+  }, [t])
+  const volver = trail.length ? trail[trail.length - 1] : { label: t('nav.operaciones'), href: '/operaciones' }
 
   // OT-CHECK-01 · autoguardado del checklist. Hasta el 30/09 `checks` vivía
   // SOLO aquí: se tachaba en memoria, lo único que escribía era «Cerrar OT» y
@@ -181,9 +187,9 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
   if (data === null) {
     return (
       <div className={cn('flex flex-col items-center justify-center gap-2 px-6 text-center', embedded ? 'py-16' : 'min-h-screen')}>
-        <p className="text-[13px] text-muted">No se pudo cargar la orden de trabajo.</p>
+        <p className="text-[13px] text-muted">{t('operaciones2.ficha.no-cargar')}</p>
         <Link href="/login" className="text-[13px] font-medium text-info hover:underline">
-          Inicia sesión para continuar
+          {t('operaciones2.ficha.inicia-sesion')}
         </Link>
       </div>
     )
@@ -216,7 +222,7 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
       await cerrarOTApi(ot.id, { fotoUrl, tomadaEn: fotos[0].tomadaEn, lat: geo?.lat, lng: geo?.lng })
       await recargar()
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'No se pudo cerrar la OT')
+      alert(e instanceof Error ? e.message : t('operaciones2.ficha.no-cerrar'))
     }
     setCerrando(false)
   }
@@ -236,14 +242,14 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
       setCostoError(costoErrorLectura)
       return
     }
-    const leido = leerCostoOt(costoTexto)
+    const leido = leerCostoOt(costoTexto, idioma)
     if (!leido.ok) {
       setCostoError(leido.error)
       return
     }
     const original: number | null = ot.costoReal ?? null
     if (!hayQueGuardarCosto(original, leido.valor)) {
-      setCostoAviso('No hay ningún cambio que guardar.')
+      setCostoAviso(t('operaciones2.ficha.sin-cambios'))
       return
     }
     setGuardandoCosto(true)
@@ -252,13 +258,13 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
       alLograr: () => {
         setCostoAviso(
           leido.valor == null
-            ? 'Costo borrado: esta visita vuelve a entrar al reporte con la estimación por tipo.'
-            : 'Costo guardado. El reporte de rentabilidad usará este importe en vez de la estimación.',
+            ? t('operaciones2.ficha.costo-borrado')
+            : t('operaciones2.ficha.costo-guardado'),
         )
         recargar()
       },
       alFallar: (m) => setCostoError(m),
-      mensajeSiFalla: 'No se pudo guardar el costo',
+      mensajeSiFalla: t('operaciones2.ficha.no-guardar-costo'),
     })
     setGuardandoCosto(false)
   }
@@ -270,16 +276,18 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
   // de un montaje es justo la fricción que la ruta separada evita.
   const costoSection = (
     <div className="space-y-2 rounded-md border border-border bg-surface p-3">
-      <div className="text-[13px] font-semibold text-ink">Costo real de esta visita</div>
+      <div className="text-[13px] font-semibold text-ink">{t('operaciones2.ficha.costo')}</div>
       <p className="text-[12px] text-muted">
-        Lo que de verdad costó. <strong>Sustituye</strong> a la estimación por tipo de tarea que
-        usa el reporte de rentabilidad, no se suma a ella. Déjalo vacío si no lo sabes: entonces
-        el reporte sigue usando la estimación y te lo dice.
+        {interpolarNodos(t('operaciones2.ficha.costo-explica'), {
+          sustituye: <strong>{t('operaciones2.ficha.costo-sustituye')}</strong>,
+        })}
       </p>
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative">
           <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[13px] text-muted">
-            $
+            {/* En espanol, el «$» de siempre; en ingles, el simbolo sin ambiguedad
+                (MX$ / $), como cualquier importe de la pantalla. */}
+            {idioma === 'es' ? '$' : simboloMoneda(idioma)}
           </span>
           <CampoCifra
             valor={costoTexto}
@@ -290,26 +298,31 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
               setCostoError(null)
               setCostoAviso(null)
             }}
-            placeholder="Sin capturar"
-            aria-label="Costo real de esta visita"
+            placeholder={t('operaciones2.ficha.sin-capturar')}
+            aria-label={t('operaciones2.ficha.costo')}
             className="demo-num w-40 rounded-md border border-border bg-surface py-1.5 pl-5 pr-2 text-[13px] text-ink"
           />
         </div>
         <Button onClick={guardarCosto} disabled={guardandoCosto || candado.enviando}>
-          {guardandoCosto ? 'Guardando…' : 'Guardar costo'}
+          {guardandoCosto ? t('operaciones2.comun.guardando') : t('operaciones2.ficha.guardar-costo')}
         </Button>
       </div>
       {/* El importe guardado se dice con todas las letras, incluido el CERO:
           una caja con un 0 dentro y nada más se lee como «no he escrito nada». */}
       {ot.costoReal != null && (
         <p className="text-[12px] text-muted">
-          Guardado: <span className="demo-num">${Number(ot.costoReal).toLocaleString('es-MX')}</span>
-          {Number(ot.costoReal) === 0 && ' — esta visita está capturada como que no costó nada.'}
+          {interpolarNodos(t('operaciones2.ficha.guardado-importe'), {
+            // En italiano el simbolo va separado de la cifra («MX$ 1.500», decision del
+            // dueño del 03/11); en es y en, pegado como siempre. Un solo texto: el
+            // HTML de es y en sale identico.
+            importe: <span className="demo-num">{`${simboloMoneda(idioma)}${FORMATO_IDIOMA[idioma].posicionSimbolo === 'delante-con-espacio' ? ' ' : ''}${numeroEnIdioma(Number(ot.costoReal), idioma)}`}</span>,
+          })}
+          {Number(ot.costoReal) === 0 && t('operaciones2.ficha.guardado-cero')}
         </p>
       )}
       {ot.costoReal == null && (
         <p className="text-[12px] text-muted">
-          Sin capturar: el reporte usa la estimación por tipo de tarea.
+          {t('operaciones2.ficha.sin-capturar-reporte')}
         </p>
       )}
       {costoError && <p className="text-[12px] text-error">{costoError}</p>}
@@ -321,10 +334,12 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
   const cabecera = (
     <div>
       <h1 className="text-lg font-semibold text-ink">{ot.descripcion}</h1>
-      {campana && <p className="mt-0.5 text-[12px] text-muted">Campaña: {campana.nombre}</p>}
+      {campana && <p className="mt-0.5 text-[12px] text-muted">{t('operaciones2.ficha.campana-de', { nombre: campana.nombre })}</p>}
       {responsable !== undefined && (
         <p className="mt-0.5 text-[12px] text-muted">
-          Responsable: <span className="text-ink">{responsable ?? 'Sin asignar'}</span>
+          {interpolarNodos(t('operaciones2.ficha.responsable-de'), {
+            nombre: <span className="text-ink">{responsable ?? t('operaciones2.comun.sin-asignar')}</span>,
+          })}
         </p>
       )}
       {sitio && (
@@ -358,12 +373,12 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
     <span aria-live="polite" className="text-[11px]">
       {guardado.estado === 'guardando' && (
         <span className="inline-flex items-center gap-1 text-muted">
-          <Loader2 className="h-3 w-3 animate-spin" /> Guardando…
+          <Loader2 className="h-3 w-3 animate-spin" /> {t('operaciones2.comun.guardando')}
         </span>
       )}
       {guardado.estado === 'guardado' && (
         <span className="inline-flex items-center gap-1 text-success">
-          <Check className="h-3 w-3" strokeWidth={3} /> Guardado
+          <Check className="h-3 w-3" strokeWidth={3} /> {t('operaciones2.ficha.guardado')}
         </span>
       )}
     </span>
@@ -372,7 +387,7 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
   const checklistSection = puedeChecklist ? (
     <section>
       <div className="mb-2 flex items-center justify-between gap-2">
-        <h2 className="text-[13px] font-medium text-ink">Checklist</h2>
+        <h2 className="text-[13px] font-medium text-ink">{t('operaciones2.ficha.checklist')}</h2>
         {indicadorGuardado}
       </div>
       {guardado.estado === 'error' && (
@@ -382,16 +397,16 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
         >
           <AlertCircle className="h-3.5 w-3.5 shrink-0" />
           <span className="min-w-0 flex-1">
-            Error al guardar: {guardado.error}. Lo tachado se ve aquí pero aún NO está guardado.
+            {t('operaciones2.ficha.error-guardar', { error: guardado.error ?? '' })}
           </span>
           <Button variant="secondary" onClick={() => cola.reintentar()}>
-            Reintentar
+            {t('operaciones2.ficha.reintentar')}
           </Button>
         </div>
       )}
       {!puedeEditar && (
         <p className="mb-2 text-[12px] text-muted">
-          Solo lectura: tu rol puede ver esta orden de trabajo, pero no marcar su checklist.
+          {t('operaciones2.ficha.solo-lectura')}
         </p>
       )}
       <ul className="space-y-1.5">
@@ -416,7 +431,9 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
               >
                 {checks[i] && <Check className="h-3 w-3" strokeWidth={3} />}
               </span>
-              <span className={cn('text-[13px]', checks[i] ? 'text-ink' : 'text-muted')}>{c.label}</span>
+              {/* Ola 6 · se PINTA traducido si es un punto de la lista por omision; a
+                  `alternarPunto` (arriba) va el texto guardado. */}
+              <span className={cn('text-[13px]', checks[i] ? 'text-ink' : 'text-muted')}>{etiquetaDePuntoOT(c.label, idioma)}</span>
             </button>
           </li>
         ))}
@@ -426,14 +443,14 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
 
   const fotoSection = (
     <section>
-      <h2 className="mb-2 text-[13px] font-medium text-ink">Fotografía comprobatoria</h2>
-      <FotoUploaderMock fotos={fotos} onChange={setFotos} capture label="Tomar foto" />
+      <h2 className="mb-2 text-[13px] font-medium text-ink">{t('operaciones2.ficha.foto')}</h2>
+      <FotoUploaderMock fotos={fotos} onChange={setFotos} capture label={t('operaciones2.ficha.tomar-foto')} />
     </section>
   )
 
   const geoSection = (
     <section>
-      <h2 className="mb-2 text-[13px] font-medium text-ink">Sello de ubicación</h2>
+      <h2 className="mb-2 text-[13px] font-medium text-ink">{t('operaciones2.ficha.sello')}</h2>
       {geo ? (
         <div className="flex items-center gap-2 rounded-md border border-success/40 bg-[#10b9810d] px-3 py-2.5 text-[13px]">
           <MapPin className="h-4 w-4 text-success" />
@@ -442,7 +459,7 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
         </div>
       ) : (
         <Button variant="secondary" className="w-full" onClick={capturarUbicacion}>
-          <MapPin className="h-4 w-4" /> Capturar ubicación
+          <MapPin className="h-4 w-4" /> {t('operaciones2.ficha.capturar-ubicacion')}
         </Button>
       )}
     </section>
@@ -454,20 +471,20 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
           avisa AQUÍ, antes de cerrar, que es el último momento para capturarlo. */}
       <p className="mb-2 flex items-start gap-1.5 rounded border border-warning/40 bg-warning/10 px-2 py-1.5 text-[12px] text-ink">
         <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
-        <span>{avisoAntesDeCerrar(ot.costoReal ?? null)}</span>
+        <span>{avisoAntesDeCerrar(ot.costoReal ?? null, idioma)}</span>
       </p>
       {/* Mientras un punto viaja, cerrar esperaría a nada y la petición del
           punto llegaría DESPUÉS del cierre, con un 409 que parecería un fallo. */}
       <Button className="w-full" disabled={!todoListo || cerrando || guardado.estado === 'guardando'} onClick={cerrar}>
         {cerrando ? (
-          <><Loader2 className="h-4 w-4 animate-spin" /> Cerrando…</>
+          <><Loader2 className="h-4 w-4 animate-spin" /> {t('operaciones2.ficha.cerrando')}</>
         ) : (
-          <>Cerrar OT</>
+          <>{t('operaciones2.ficha.cerrar')}</>
         )}
       </Button>
       {!todoListo && (
         <p className="mt-1.5 text-center text-[11px] text-muted">
-          Completa el checklist, toma una foto y captura la ubicación.
+          {t('operaciones2.ficha.completa')}
         </p>
       )}
     </>
@@ -525,7 +542,7 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
               </p>
             )}
           </div>
-          <StatusBadge tono={OT_TONO[ot.estatus as EstOT]}>{OT_LABEL[ot.estatus as EstOT]}</StatusBadge>
+          <StatusBadge tono={OT_TONO[ot.estatus as EstOT]}>{t(CLAVE_OT[ot.estatus as EstOT])}</StatusBadge>
         </div>
 
         {/* Los datos de la lista —tipo, prioridad, compromiso y si va vencida—
@@ -533,41 +550,41 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
             completa de `rowToOT`); el que falte no se pinta. */}
         <dl className="m-0 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px]">
           {ot.tipo && (
-            <ParOT etiqueta="Tipo">
-              {TIPO_OT_LABEL[ot.tipo as TipoOT] ?? ot.tipo}
+            <ParOT etiqueta={t('operaciones2.comun.tipo')}>
+              {CLAVE_TIPO_OT[ot.tipo as TipoOT] ? t(CLAVE_TIPO_OT[ot.tipo as TipoOT]) : ot.tipo}
             </ParOT>
           )}
           {ot.prioridad && (
-            <ParOT etiqueta="Prioridad">
+            <ParOT etiqueta={t('operaciones2.comun.prioridad')}>
               <span
                 className={
                   ot.prioridad === 'URGENTE' ? 'text-error' : ot.prioridad === 'ALTA' ? 'text-[#9a6700]' : 'text-ink'
                 }
               >
-                {PRIORIDAD_LABEL_OT[ot.prioridad as string] ?? ot.prioridad}
+                {PRIORIDAD_LABEL_OT[ot.prioridad as string] ? t(CLAVE_PRIORIDAD[ot.prioridad as Prioridad]) : ot.prioridad}
               </span>
             </ParOT>
           )}
           {ot.fechaProgramada && (
-            <ParOT etiqueta="Compromiso">
-              <span className="demo-num">{formatFecha(ot.fechaProgramada)}</span>
+            <ParOT etiqueta={t('operaciones2.ficha.compromiso')}>
+              <span className="demo-num">{formatFecha(ot.fechaProgramada, idioma)}</span>
               {sla === 'VENCIDA' && (
                 <span className="ml-1.5 rounded-full border border-transparent bg-error-soft px-2 py-0.5 text-[11px] font-medium text-error">
-                  Vencida
+                  {t('operaciones2.comun.vencida')}
                 </span>
               )}
               {sla === 'POR_VENCER' && (
                 <span className="ml-1.5 rounded-full border border-transparent bg-warning-soft px-2 py-0.5 text-[11px] font-medium text-[#9a6700]">
-                  Por vencer
+                  {t('operaciones2.comun.por-vencer')}
                 </span>
               )}
             </ParOT>
           )}
           {responsable !== undefined && (
-            <ParOT etiqueta="Responsable">{responsable ?? 'Sin asignar'}</ParOT>
+            <ParOT etiqueta={t('operaciones2.comun.responsable')}>{responsable ?? t('operaciones2.comun.sin-asignar')}</ParOT>
           )}
           {campana && (
-            <ParOT etiqueta="Campaña">
+            <ParOT etiqueta={t('operaciones2.comun.campana')}>
               {/* Antes texto plano: desde la campaña se llegaba a la OT, pero
                   no al revés. Con el permiso de verla, como en Imprenta. */}
               {puedeVerCampana ? (
@@ -620,8 +637,8 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
               servidor lo rechaza igual (`fijarCostoOT`, 409). */}
           {completada ? (
             <div className="rounded-md border border-border bg-surface p-3">
-              <div className="text-[13px] font-semibold text-ink">Costo real de esta visita</div>
-              <p className="mt-1 text-[12px] text-muted">{textoCostoDeCerrada(ot.costoReal ?? null)}</p>
+              <div className="text-[13px] font-semibold text-ink">{t('operaciones2.ficha.costo')}</div>
+              <p className="mt-1 text-[12px] text-muted">{textoCostoDeCerrada(ot.costoReal ?? null, idioma)}</p>
             </div>
           ) : (
             costoSection
@@ -630,9 +647,9 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
       </div>
       <DialogoCandado
         candado={candado}
-        titulo="Confirma con tu contraseña"
-        subtitulo="Capturar el costo de una orden de trabajo cambia el margen del reporte de rentabilidad: tu organización pide que vuelvas a identificarte."
-        etiquetaConfirmar="Confirmar y guardar el costo"
+        titulo={t('operaciones2.ficha.candado.titulo')}
+        subtitulo={t('operaciones2.ficha.candado.subtitulo')}
+        etiquetaConfirmar={t('operaciones2.ficha.candado.confirmar')}
       />
       </>
     )
@@ -650,7 +667,7 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
             <div className="demo-num text-[13px] font-semibold text-ink">{ot.folio}</div>
             <div className="truncate text-[11px] text-muted">{sitio?.nombre ?? '—'}</div>
           </div>
-          <StatusBadge tono={OT_TONO[ot.estatus as EstOT]}>{OT_LABEL[ot.estatus as EstOT]}</StatusBadge>
+          <StatusBadge tono={OT_TONO[ot.estatus as EstOT]}>{t(CLAVE_OT[ot.estatus as EstOT])}</StatusBadge>
         </div>
       </header>
 
@@ -713,21 +730,22 @@ function CompletadaView({
   checklist?: ChecklistItem[]
   cerradaEn?: string | null
 }) {
+  const { t, idioma } = useIdioma()
   const real = evidenciaUrls.filter((u) => u.startsWith('blob:') || u.startsWith('http') || u.startsWith('data:'))
   return (
     <div className="space-y-4">
       <div className="flex flex-col items-center rounded-md border border-success/40 bg-[#10b9810d] px-4 py-6 text-center">
         <CheckCircle2 className="mb-2 h-9 w-9 text-success" />
-        <p className="text-[15px] font-semibold text-ink">OT cerrada</p>
-        <p className="mt-1 text-[13px] text-muted">La evidencia se envió al pipeline de la campaña.</p>
+        <p className="text-[15px] font-semibold text-ink">{t('operaciones2.ficha.cerrada')}</p>
+        <p className="mt-1 text-[13px] text-muted">{t('operaciones2.ficha.evidencia-enviada')}</p>
         {embedded && cerradaEn && (
-          <p className="demo-num mt-1 text-[12px] text-muted">Cerrada el {formatFechaHora(cerradaEn)}</p>
+          <p className="demo-num mt-1 text-[12px] text-muted">{t('operaciones2.ficha.cerrada-el', { fecha: formatFechaHora(cerradaEn, idioma) })}</p>
         )}
       </div>
 
       {embedded && checklist && checklist.length > 0 && (
         <div className={TARJETA}>
-          <h2 className="mb-2 mt-0 text-[13px] font-medium text-ink">Checklist cumplido</h2>
+          <h2 className="mb-2 mt-0 text-[13px] font-medium text-ink">{t('operaciones2.ficha.checklist-cumplido')}</h2>
           <ul className="m-0 list-none space-y-1.5 p-0">
             {checklist.map((c, i) => (
               <li key={i} className="flex items-center gap-2.5 text-[13px]">
@@ -739,7 +757,7 @@ function CompletadaView({
                 >
                   {c.hecho && <Check className="h-3 w-3" strokeWidth={3} />}
                 </span>
-                <span className={c.hecho ? 'text-ink' : 'text-muted'}>{c.label}</span>
+                <span className={c.hecho ? 'text-ink' : 'text-muted'}>{etiquetaDePuntoOT(c.label, idioma)}</span>
               </li>
             ))}
           </ul>
@@ -749,18 +767,18 @@ function CompletadaView({
       {candado && (
         <div className="flex items-center gap-2 rounded-md border border-success/40 bg-[#10b9810d] px-3 py-3">
           <LockOpen className="h-4 w-4 text-success" />
-          <span className="text-[13px] font-medium text-ink">Candado de facturación encendido</span>
+          <span className="text-[13px] font-medium text-ink">{t('operaciones2.ficha.candado-encendido')}</span>
         </div>
       )}
 
       {real.length > 0 && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={real[0]} alt="evidencia" className="w-full rounded-md border border-border object-cover" />
+        <img src={real[0]} alt={t('operaciones2.ficha.evidencia-alt')} className="w-full rounded-md border border-border object-cover" />
       )}
 
       {!embedded && (
         <p className="text-center text-[12px] text-muted">
-          Puedes cerrar esta ventana. La evidencia ya quedó registrada.
+          {t('operaciones2.ficha.puedes-cerrar')}
         </p>
       )}
     </div>

@@ -9,6 +9,8 @@ import { useAcciones, formatFechaHora, formatFecha } from '@/lib/data/client'
 import { Button } from '@/components/demo/ui/Button'
 import { Chip } from '@/components/demo/admin/Chip'
 import { formatNumero } from '@/lib/formato-numero'
+import { useIdioma } from '@/lib/i18n/contexto'
+import type { Idioma } from '@/lib/i18n/idiomas'
 
 const selectCls =
   'h-9 rounded border border-border-strong bg-surface px-2.5 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
@@ -29,6 +31,7 @@ export default function ActividadPage() {
   const [fUsuario, setFUsuario] = useState('')
   const [fFecha, setFFecha] = useState('')
   const [fHora, setFHora] = useState('')
+  const { t, idioma } = useIdioma()
 
   // Usuarios distintos presentes en la bitácora (para el filtro "quién").
   const usuarios = useMemo(
@@ -59,9 +62,9 @@ export default function ActividadPage() {
   return (
     <div className="w-full space-y-4">
       <div>
-        <h1 className="text-2xl text-ink">Actividad</h1>
+        <h1 className="text-2xl text-ink">{t('admin.actividad.titulo')}</h1>
         <p className="mt-1 text-[13px] text-muted">
-          Bitácora de acciones · quién hizo qué y cuándo
+          {t('admin.actividad.subtitulo')}
         </p>
       </div>
 
@@ -75,12 +78,12 @@ export default function ActividadPage() {
           estado sigue en esta página, así que plegar no los borra. */}
       <CardColapsable
         id="actividad.registro"
-        titulo="Registro de acciones"
+        titulo={t('admin.actividad.registro')}
         icono={<History className="h-4 w-4 text-muted" />}
         contentClassName="px-0 pb-0"
         resumen={acciones ? (
           <Chip tono={hayFiltro ? 'acento' : 'neutro'}>
-            <span className="demo-num">{formatNumero(lista.length)} de {formatNumero(acciones.length)}</span>
+            <span className="demo-num">{t('admin.comun.n-de', { n: formatNumero(lista.length, 0, idioma), total: formatNumero(acciones.length, 0, idioma) })}</span>
           </Chip>
         ) : undefined}
       >
@@ -88,22 +91,22 @@ export default function ActividadPage() {
           {/* Filtros: fecha · hora · quién */}
           <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-border bg-surface-2 px-4 py-2">
             <label className="flex items-center gap-1.5 text-[12px] text-muted">
-              Fecha
+              {t('admin.actividad.fecha')}
               <input type="date" value={fFecha} onChange={(e) => setFFecha(e.target.value)} className={selectCls} />
             </label>
             <label className="flex items-center gap-1.5 text-[12px] text-muted">
-              Hora
+              {t('admin.actividad.hora')}
               <select value={fHora} onChange={(e) => setFHora(e.target.value)} className={selectCls}>
-                <option value="">Toda hora</option>
+                <option value="">{t('admin.actividad.toda-hora')}</option>
                 {Array.from({ length: 24 }, (_, h) => (
                   <option key={h} value={h}>{pad(h)}:00–{pad(h)}:59</option>
                 ))}
               </select>
             </label>
             <label className="flex items-center gap-1.5 text-[12px] text-muted">
-              Quién
+              {t('admin.actividad.quien')}
               <select value={fUsuario} onChange={(e) => setFUsuario(e.target.value)} className={selectCls}>
-                <option value="">Todos</option>
+                <option value="">{t('admin.actividad.todos')}</option>
                 {usuarios.map((u) => <option key={u} value={u}>{u}</option>)}
               </select>
             </label>
@@ -113,7 +116,7 @@ export default function ActividadPage() {
                 onClick={limpiar}
                 className="m-0 ml-auto inline-flex h-9 cursor-pointer items-center gap-1 rounded border border-border-strong bg-surface px-2.5 text-[12px] text-ink hover:bg-surface-2"
               >
-                <X className="h-3.5 w-3.5" /> Limpiar
+                <X className="h-3.5 w-3.5" /> {t('admin.actividad.limpiar')}
               </button>
             )}
           </div>
@@ -127,18 +130,18 @@ export default function ActividadPage() {
           ) : acciones.length === 0 ? (
             <EmptyState
               icon={History}
-              titulo="Sin actividad todavía"
-              detalle="Las acciones (reservar, confirmar, cerrar OT, facturar…) aparecerán aquí con su usuario y fecha."
+              titulo={t('admin.actividad.vacio')}
+              detalle={t('admin.actividad.vacio-detalle')}
             />
           ) : lista.length === 0 ? (
             // Con la salida al lado: antes era una frase sin nada que hacer.
             <EmptyState
               icon={History}
-              titulo="Ninguna acción coincide con los filtros."
+              titulo={t('admin.actividad.sin-coincidencias')}
               className="py-8"
               accion={
                 <Button variant="secondary" size="sm" onClick={limpiar}>
-                  <X className="h-3.5 w-3.5" /> Limpiar filtros
+                  <X className="h-3.5 w-3.5" /> {t('admin.actividad.limpiar-filtros')}
                 </Button>
               }
             />
@@ -156,7 +159,7 @@ export default function ActividadPage() {
                   <li key={a.id}>
                     {nuevoDia && (
                       <p className={`m-0 pb-1 text-[11px] font-medium uppercase tracking-wide text-muted ${i === 0 ? '' : 'pt-4'}`}>
-                        {rotuloDia(a.timestamp)}
+                        {rotuloDia(a.timestamp, idioma, t('admin.actividad.hoy'), t('admin.actividad.ayer'))}
                       </p>
                     )}
                     <div className={`flex items-center justify-between gap-3 py-2 ${nuevoDia ? '' : 'border-t border-border'}`}>
@@ -170,7 +173,7 @@ export default function ActividadPage() {
                         </div>
                       </div>
                       <span
-                        title={formatFechaHora(a.timestamp)}
+                        title={formatFechaHora(a.timestamp, idioma)}
                         className="demo-num shrink-0 rounded-full border border-border px-2 py-0.5 text-[11px] text-muted"
                       >
                         {horaMinuto(a.timestamp)}
@@ -184,20 +187,20 @@ export default function ActividadPage() {
         </div>
         {/* Fuera del relleno para que la línea superior del control quede a
             ras del borde de la tarjeta, como en el resto de tablas. */}
-        <Paginacion {...pag} etiqueta="acciones" />
+        <Paginacion {...pag} etiqueta={t('admin.actividad.acciones')} />
       </CardColapsable>
     </div>
   )
 }
 
 // «Hoy», «Ayer» o la fecha, con el mismo criterio de día LOCAL que el filtro.
-function rotuloDia(iso: string): string {
+function rotuloDia(iso: string, idioma: Idioma = 'es', hoyTxt = 'Hoy', ayerTxt = 'Ayer'): string {
   const dia = fechaLocal(iso)
   const hoy = new Date()
   const ayer = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - 1)
-  if (dia === fechaLocal(hoy.toISOString())) return 'Hoy'
-  if (dia === fechaLocal(ayer.toISOString())) return 'Ayer'
-  return dia ? formatFecha(dia) : '—'
+  if (dia === fechaLocal(hoy.toISOString())) return hoyTxt
+  if (dia === fechaLocal(ayer.toISOString())) return ayerTxt
+  return dia ? formatFecha(dia, idioma) : '—'
 }
 
 function horaMinuto(iso: string): string {

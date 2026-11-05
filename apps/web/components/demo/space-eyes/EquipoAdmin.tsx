@@ -6,10 +6,14 @@ import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { ConfirmDialog } from '@/components/demo/ui/ConfirmDialog'
-import { seApi, fotoSE, ErrorSE } from '@/lib/data/space-eyes-se'
-import { fechaHora } from './piezas'
+import { seApi, fotoSE, ErrorSE, textoDeError } from '@/lib/data/space-eyes-se'
+import { fechaHora, fijo } from './piezas'
 import { comoSeActualiza } from '@/lib/space-eyes-actualizacion'
 import { formatNumero } from '@/lib/formato-numero'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
+import type { Idioma } from '@/lib/i18n/idiomas'
+import { interpolarNodos } from '@/lib/i18n/nodos'
 
 // ============================================================================
 //  EquipoAdmin — la administración de un equipo: sus datos de sitio, los
@@ -72,45 +76,45 @@ type Ajustes = Record<string, number | string | boolean | null | undefined>
 const CAMPO =
   'h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none placeholder:text-muted focus-visible:ring-2 focus-visible:ring-accent disabled:bg-surface-2 disabled:text-muted'
 
-const ESTADOS = [
-  { v: 'provisioning', t: 'En operación' },
-  { v: 'active', t: 'Activa' },
-  { v: 'maintenance', t: 'En mantenimiento' },
-  { v: 'inactive', t: 'Dada de baja' },
+const ESTADOS: { v: string; t: ClaveTexto }[] = [
+  { v: 'provisioning', t: 'spaceeyes.admin.estado.provisioning' },
+  { v: 'active', t: 'spaceeyes.admin.estado.active' },
+  { v: 'maintenance', t: 'spaceeyes.admin.estado.maintenance' },
+  { v: 'inactive', t: 'spaceeyes.admin.estado.inactive' },
 ]
 
-const CONTROLES = [
-  { campo: 'centro_x', nombre: 'Centro horizontal', min: 0, max: 1, pordefecto: 0.5 },
-  { campo: 'centro_y', nombre: 'Centro vertical', min: 0, max: 1, pordefecto: 0.5 },
-  { campo: 'brillo', nombre: 'Brillo', min: -1, max: 1, pordefecto: 0 },
-  { campo: 'ev', nombre: 'Exposición', min: -3, max: 3, pordefecto: 0 },
-  { campo: 'contraste', nombre: 'Contraste', min: 0, max: 2, pordefecto: 1 },
-  { campo: 'saturacion', nombre: 'Saturación', min: 0, max: 2, pordefecto: 1 },
-  { campo: 'nitidez', nombre: 'Nitidez', min: 0, max: 2, pordefecto: 1 },
+const CONTROLES: { campo: string; nombre: ClaveTexto; min: number; max: number; pordefecto: number }[] = [
+  { campo: 'centro_x', nombre: 'spaceeyes.admin.control.centro-x', min: 0, max: 1, pordefecto: 0.5 },
+  { campo: 'centro_y', nombre: 'spaceeyes.admin.control.centro-y', min: 0, max: 1, pordefecto: 0.5 },
+  { campo: 'brillo', nombre: 'spaceeyes.comun.brillo', min: -1, max: 1, pordefecto: 0 },
+  { campo: 'ev', nombre: 'spaceeyes.comun.exposicion', min: -3, max: 3, pordefecto: 0 },
+  { campo: 'contraste', nombre: 'spaceeyes.admin.control.contraste', min: 0, max: 2, pordefecto: 1 },
+  { campo: 'saturacion', nombre: 'spaceeyes.admin.control.saturacion', min: 0, max: 2, pordefecto: 1 },
+  { campo: 'nitidez', nombre: 'spaceeyes.admin.control.nitidez', min: 0, max: 2, pordefecto: 1 },
 ]
 
-const MEDICION = [
-  { v: 'centre', t: 'Centro del cuadro (normal)' },
-  { v: 'spot', t: 'Solo el centro — para exponer la pantalla' },
-  { v: 'average', t: 'Todo el cuadro por igual' },
-  { v: 'matrix', t: 'Por zonas' },
+const MEDICION: { v: string; t: ClaveTexto }[] = [
+  { v: 'centre', t: 'spaceeyes.admin.medicion.centre' },
+  { v: 'spot', t: 'spaceeyes.admin.medicion.spot' },
+  { v: 'average', t: 'spaceeyes.admin.medicion.average' },
+  { v: 'matrix', t: 'spaceeyes.admin.medicion.matrix' },
 ]
-const BALANCE = [
-  { v: 'auto', t: 'Automático' },
-  { v: 'daylight', t: 'Luz de día' },
-  { v: 'cloudy', t: 'Nublado' },
-  { v: 'tungsten', t: 'Foco incandescente' },
-  { v: 'fluorescent', t: 'Fluorescente' },
-  { v: 'indoor', t: 'Interior' },
+const BALANCE: { v: string; t: ClaveTexto }[] = [
+  { v: 'auto', t: 'spaceeyes.admin.balance.auto' },
+  { v: 'daylight', t: 'spaceeyes.balance.daylight' },
+  { v: 'cloudy', t: 'spaceeyes.balance.cloudy' },
+  { v: 'tungsten', t: 'spaceeyes.admin.balance.tungsten' },
+  { v: 'fluorescent', t: 'spaceeyes.balance.fluorescent' },
+  { v: 'indoor', t: 'spaceeyes.admin.balance.indoor' },
 ]
 const GIROS = [0, 90, 180, 270] as const
 
 const esPc = (v: string | null | undefined) => /^pc-agent/i.test(String(v || ''))
 const esPi = (v: string | null | undefined) => /^pi-agent/i.test(String(v || ''))
 
-function mensaje(e: unknown): string {
-  if (e instanceof ErrorSE && e.status === 403) return 'No tienes permiso para esto.'
-  return e instanceof Error ? e.message : String(e)
+function mensaje(e: unknown, idioma: Idioma): string {
+  if (e instanceof ErrorSE && e.status === 403) return traducir(idioma, 'spaceeyes.comun.sin-permiso')
+  return textoDeError(e, idioma) ?? String(e)
 }
 
 function leerAjustes(v: Equipo['camera_ajustes']): Ajustes {
@@ -136,6 +140,7 @@ export function EquipoAdmin({
   puedeEncuadrar: boolean
   onCambio?: () => void
 }) {
+  const { t, idioma } = useIdioma()
   const [equipo, setEquipo] = useState<Equipo | null>(null)
   const [estado, setEstado] = useState<Estado>(null)
   const [versiones, setVersiones] = useState<Versiones | null>(null)
@@ -151,26 +156,26 @@ export function EquipoAdmin({
   useEffect(() => {
     let vivo = true
     setError(null)
-    cargar().catch((e) => vivo && setError(mensaje(e)))
+    cargar().catch((e) => vivo && setError(mensaje(e, idioma)))
     seApi<Versiones>('app/version')
       .then((v) => vivo && setVersiones(v))
       .catch(() => vivo && setVersiones(null))
     return () => {
       vivo = false
     }
-  }, [cargar])
+  }, [cargar, idioma])
 
   if (error) {
     return (
       <div className="rounded-md border border-border bg-surface p-3 text-[12px] text-muted">
-        No se pudo leer el equipo: {error}
+        {t('spaceeyes.admin.error', { error })}
       </div>
     )
   }
   if (!equipo) {
     return (
       <div className="flex items-center gap-2 rounded-md border border-border bg-surface p-3 text-[12px] text-muted">
-        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Leyendo el equipo…
+        <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t('spaceeyes.admin.leyendo')}
       </div>
     )
   }
@@ -204,6 +209,7 @@ function FichaYDatos({
   puedeOperar: boolean
   onGuardado: () => Promise<void>
 }) {
+  const { t, idioma } = useIdioma()
   const [abierto, setAbierto] = useState(false)
   const [form, setForm] = useState<Record<string, string>>({})
   const [guardando, setGuardando] = useState(false)
@@ -256,9 +262,9 @@ function FichaYDatos({
       })
       await onGuardado()
       setAbierto(false)
-      setMsg({ tipo: 'ok', texto: 'Datos del sitio guardados.' })
+      setMsg({ tipo: 'ok', texto: t('spaceeyes.admin.datos.guardados') })
     } catch (e) {
-      setFallo(`No se pudo guardar: ${mensaje(e)}`)
+      setFallo(t('spaceeyes.comun.no-guardar', { motivo: mensaje(e, idioma) }))
     } finally {
       setGuardando(false)
     }
@@ -280,76 +286,83 @@ function FichaYDatos({
     <section className="overflow-hidden rounded-md border border-border bg-surface">
       <header className="flex items-start justify-between gap-3 border-b border-border p-3">
         <div className="min-w-0">
-          <h2 className="text-[14px] font-semibold text-ink">Ficha del equipo</h2>
-          <p className="mt-0.5 text-[12px] text-muted">Dónde está y qué aparato es.</p>
+          <h2 className="text-[14px] font-semibold text-ink">{t('spaceeyes.admin.ficha')}</h2>
+          <p className="mt-0.5 text-[12px] text-muted">{t('spaceeyes.admin.ficha.texto')}</p>
         </div>
         {puedeOperar && (
           <Button size="sm" variant="secondary" onClick={abrir}>
-            <Pencil className="h-3.5 w-3.5" /> Editar datos
+            <Pencil className="h-3.5 w-3.5" /> {t('spaceeyes.admin.editar')}
           </Button>
         )}
       </header>
       <div className="p-3 text-[12px]">
         {msg && <p className={cn('mb-2', msg.tipo === 'ok' ? 'text-success' : 'text-error')}>{msg.texto}</p>}
-        <Grupo titulo="Sitio">
-          <Dato k="Nombre" v={equipo.name} />
-          <Dato k="Código del espectacular" v={equipo.billboard_code} mono />
-          <Dato k="Dirección" v={[equipo.address, equipo.city, equipo.state].filter(Boolean).join(', ')} />
-          <Dato k="Estado" v={ESTADOS.find((s) => s.v === equipo.status)?.t ?? equipo.status} />
+        <Grupo titulo={t('spaceeyes.admin.sitio')}>
+          <Dato k={t('spaceeyes.comun.nombre')} v={equipo.name} />
+          <Dato k={t('spaceeyes.admin.codigo')} v={equipo.billboard_code} mono />
+          <Dato k={t('spaceeyes.admin.direccion')} v={[equipo.address, equipo.city, equipo.state].filter(Boolean).join(', ')} />
+          <Dato
+            k={t('spaceeyes.comun.estado')}
+            v={(() => {
+              const e = ESTADOS.find((s) => s.v === equipo.status)
+              return e ? t(e.t) : equipo.status
+            })()}
+          />
         </Grupo>
-        <Grupo titulo="Aparato">
-          <Dato k="Modelo" v={[equipo.manufacturer, equipo.model].filter(Boolean).join(' ')} />
+        <Grupo titulo={t('spaceeyes.admin.aparato')}>
+          <Dato k={t('spaceeyes.comun.modelo')} v={[equipo.manufacturer, equipo.model].filter(Boolean).join(' ')} />
           <Dato k="Android" v={equipo.android_version} mono />
-          <Dato k="Versión de la app" v={equipo.app_version} mono />
+          <Dato k={t('spaceeyes.admin.version-app')} v={equipo.app_version} mono />
         </Grupo>
-        <Grupo titulo="Conexión y salud">
-          <Dato k="Red" v={estado?.network_type} />
-          <Dato k="Operador" v={estado?.network_operator} />
-          <Dato k="IP pública" v={estado?.source_ip} mono />
-          <Dato k="Última conexión" v={fechaHora(equipo.last_seen_at)} />
-          <Dato k="Almacenamiento libre" v={estado?.storage_free_mb ? `${formatNumero(estado.storage_free_mb)} MB` : null} mono />
-          <Dato k="Temperatura CPU" v={estado?.cpu_temp ? `${estado.cpu_temp} °C` : null} mono />
-          <Dato k="Temperatura batería" v={estado?.battery_temp != null ? `${estado.battery_temp} °C` : null} mono />
+        <Grupo titulo={t('spaceeyes.admin.salud')}>
+          <Dato k={t('spaceeyes.admin.red')} v={estado?.network_type} />
+          <Dato k={t('spaceeyes.admin.operador')} v={estado?.network_operator} />
+          <Dato k={t('spaceeyes.admin.ip')} v={estado?.source_ip} mono />
+          <Dato k={t('spaceeyes.admin.ultima-conexion')} v={fechaHora(equipo.last_seen_at, idioma)} />
+          <Dato
+            k={t('spaceeyes.comun.almacenamiento')}
+            v={estado?.storage_free_mb ? `${formatNumero(estado.storage_free_mb, 0, idioma)} MB` : null}
+            mono
+          />
+          <Dato k={t('spaceeyes.admin.temp-cpu')} v={estado?.cpu_temp ? `${estado.cpu_temp} °C` : null} mono />
+          <Dato k={t('spaceeyes.admin.temp-bateria')} v={estado?.battery_temp != null ? `${estado.battery_temp} °C` : null} mono />
         </Grupo>
       </div>
 
       <Modal
         open={abierto}
         onOpenChange={(v) => !guardando && setAbierto(v)}
-        title="Editar datos del sitio"
+        title={t('spaceeyes.admin.editar.titulo')}
         footer={
           <div className="flex justify-end gap-2">
             <Button size="sm" variant="secondary" disabled={guardando} onClick={() => setAbierto(false)}>
-              Cancelar
+              {t('comun.cancelar')}
             </Button>
             <Button size="sm" disabled={guardando || lat === 'mal' || lng === 'mal'} onClick={guardar}>
-              {guardando ? 'Guardando…' : 'Guardar'}
+              {guardando ? t('spaceeyes.comun.guardando') : t('comun.guardar')}
             </Button>
           </div>
         }
       >
         <div className="flex flex-col gap-3">
           {fallo && <p className="text-[12px] text-error">{fallo}</p>}
-          {campo('name', 'Nombre', { placeholder: 'Ej. Espectacular Reforma 222' })}
-          {campo('billboard_code', 'Código del espectacular')}
-          {campo('address', 'Dirección')}
+          {campo('name', t('spaceeyes.comun.nombre'), { placeholder: t('spaceeyes.admin.nombre-ej') })}
+          {campo('billboard_code', t('spaceeyes.admin.codigo'))}
+          {campo('address', t('spaceeyes.admin.direccion'))}
           <div className="grid grid-cols-2 gap-3">
-            {campo('city', 'Ciudad')}
-            {campo('state', 'Estado')}
+            {campo('city', t('spaceeyes.admin.ciudad'))}
+            {campo('state', t('spaceeyes.admin.estado-region'))}
           </div>
           <div className="grid grid-cols-2 gap-3">
-            {campo('lat', 'Latitud', { inputMode: 'decimal', placeholder: '19.4326' })}
-            {campo('lng', 'Longitud', { inputMode: 'decimal', placeholder: '-99.1332' })}
+            {campo('lat', t('spaceeyes.admin.latitud'), { inputMode: 'decimal', placeholder: '19.4326' })}
+            {campo('lng', t('spaceeyes.admin.longitud'), { inputMode: 'decimal', placeholder: '-99.1332' })}
           </div>
           {(lat === 'mal' || lng === 'mal') && (
-            <p className="-mt-1 text-[12px] text-error">La latitud va de −90 a 90 y la longitud de −180 a 180.</p>
+            <p className="-mt-1 text-[12px] text-error">{t('spaceeyes.admin.coordenadas-mal')}</p>
           )}
-          <p className="-mt-1 text-[12px] text-muted">
-            Déjalas vacías si no las sabes. Sirven para ubicar la pantalla y para calcular la luz de su sitio, que es lo
-            que decide a qué horas la foto sale limpia y a qué horas sale con líneas.
-          </p>
+          <p className="-mt-1 text-[12px] text-muted">{t('spaceeyes.admin.coordenadas')}</p>
           <label className="block">
-            <span className="text-[12px] text-muted">Estado de la pantalla</span>
+            <span className="text-[12px] text-muted">{t('spaceeyes.admin.estado-pantalla')}</span>
             <select
               value={form.status ?? 'provisioning'}
               onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
@@ -357,15 +370,12 @@ function FichaYDatos({
             >
               {ESTADOS.map((s) => (
                 <option key={s.v} value={s.v}>
-                  {s.t}
+                  {t(s.t)}
                 </option>
               ))}
             </select>
           </label>
-          <p className="-mt-1 text-[12px] text-muted">
-            Mantenimiento y dada de baja dejan a la pantalla fuera de las programaciones: no le llegan fotos y deja de
-            gastar datos, sin borrar nada. En operación y activa hoy se comportan igual.
-          </p>
+          <p className="-mt-1 text-[12px] text-muted">{t('spaceeyes.admin.estado-ayuda')}</p>
         </div>
       </Modal>
     </section>
@@ -394,6 +404,7 @@ function Dato({ k, v, mono }: { k: string; v: string | number | null | undefined
 
 // ─── Órdenes: reiniciar y actualizar ─────────────────────────────────────────
 function Ordenes({ equipo, versiones, puedeOperar }: { equipo: Equipo; versiones: Versiones | null; puedeOperar: boolean }) {
+  const { t, idioma } = useIdioma()
   const [pedir, setPedir] = useState<'reiniciar' | 'actualizar' | 'equipo' | null>(null)
   const [enviando, setEnviando] = useState(false)
   const [msg, setMsg] = useState<Mensaje>(null)
@@ -402,7 +413,7 @@ function Ordenes({ equipo, versiones, puedeOperar }: { equipo: Equipo; versiones
   // Lo publicado PARA ESTE equipo: cada tipo baja lo suyo.
   const publicado: Publicado | undefined = esPc(v) ? versiones?.agente_pc : esPi(v) ? versiones?.agente_pi : versiones ?? undefined
   const owner = equipo.device_owner === 1 || equipo.device_owner === true
-  const como = comoSeActualiza(equipo)
+  const como = comoSeActualiza(equipo, idioma)
   const seActualizaSolo = como.sola
   const instaladaTexto = String(v || '').replace(/^(pc|pi)-agent\s*v?/i, '')
   const instalado = Number(equipo.app_version_code) || 0
@@ -413,12 +424,14 @@ function Ordenes({ equipo, versiones, puedeOperar }: { equipo: Equipo; versiones
       : Boolean(publicado.version && instaladaTexto && instaladaTexto !== publicado.version))
 
   const avisoActualizar = esPc(v)
-    ? 'Se instalará el agente publicado en esta PC. Verifica la huella del archivo antes de sustituirlo y, si el programa nuevo no arranca, vuelve solo al anterior.'
+    ? t('spaceeyes.admin.actualizar.pc')
     : esPi(v)
-      ? 'Se instalará el agente publicado en esta Raspberry. Verifica la huella y lo prueba antes de reemplazar nada; si la versión nueva no arranca, vuelve sola a la anterior. La identidad del equipo y sus fotos pendientes se conservan.'
+      ? t('spaceeyes.admin.actualizar.pi')
       : owner || seActualizaSolo
-        ? `Se instalará la versión ${publicado?.version || 'publicada'} en este equipo. Tardará un par de minutos y la app se reiniciará sola.`
-        : `${como.texto} ¿Enviar de todos modos?`
+        ? publicado?.version
+          ? t('spaceeyes.admin.actualizar.version', { version: publicado.version })
+          : t('spaceeyes.admin.actualizar.publicada')
+        : t('spaceeyes.admin.actualizar.de-todos-modos', { como: como.texto })
 
   async function enviar() {
     const tipo = pedir
@@ -434,21 +447,24 @@ function Ordenes({ equipo, versiones, puedeOperar }: { equipo: Equipo; versiones
         tipo: 'ok',
         texto:
           tipo === 'reiniciar'
-            ? 'Orden enviada: la app se reinicia en el equipo.'
+            ? t('spaceeyes.admin.orden.reiniciar')
             : tipo === 'equipo'
-              ? 'Orden enviada: la Raspberry se reinicia; vuelve a reportar en uno o dos minutos.'
+              ? t('spaceeyes.admin.orden.equipo')
             : seActualizaSolo
-              ? 'Actualización enviada; el equipo se reiniciará al terminar.'
-              : 'Orden enviada: falta confirmar la instalación en el equipo.',
+              ? t('spaceeyes.admin.orden.actualizar')
+              : t('spaceeyes.admin.orden.confirmar'),
       })
     } catch (e) {
-      const motivos: Record<string, string> = {
-        apk_no_publicado: 'No hay APK publicada en el servidor.',
-        agente_no_publicado: 'No hay agente de PC publicado en el servidor.',
-        agente_pi_no_publicado: 'No hay agente de Raspberry publicado en el servidor.',
+      const motivos: Record<string, ClaveTexto> = {
+        apk_no_publicado: 'spaceeyes.admin.motivo.apk',
+        agente_no_publicado: 'spaceeyes.admin.motivo.pc',
+        agente_pi_no_publicado: 'spaceeyes.admin.motivo.pi',
       }
       const clave = e instanceof ErrorSE ? (e.cuerpo as { error?: string } | null)?.error : undefined
-      setMsg({ tipo: 'error', texto: (clave && motivos[clave]) || `No se pudo enviar la orden: ${mensaje(e)}` })
+      setMsg({
+        tipo: 'error',
+        texto: clave && motivos[clave] ? t(motivos[clave]) : t('spaceeyes.admin.orden.error', { motivo: mensaje(e, idioma) }),
+      })
     } finally {
       setEnviando(false)
       setPedir(null)
@@ -458,17 +474,23 @@ function Ordenes({ equipo, versiones, puedeOperar }: { equipo: Equipo; versiones
   return (
     <section className="overflow-hidden rounded-md border border-border bg-surface">
       <header className="border-b border-border p-3">
-        <h2 className="text-[14px] font-semibold text-ink">Programa del equipo</h2>
+        <h2 className="text-[14px] font-semibold text-ink">{t('spaceeyes.admin.programa')}</h2>
         <p className="mt-0.5 text-[12px] text-muted">
-          Reiniciar la app{esPi(v) ? ' o el equipo' : ''}, o instalarle la versión publicada, sin ir al sitio.
+          {esPi(v) ? t('spaceeyes.admin.programa.texto-pi') : t('spaceeyes.admin.programa.texto')}
         </p>
       </header>
       <div className="flex flex-col gap-3 p-3 text-[12px]">
         <dl className="divide-y divide-border">
-          <Dato k="Instalada" v={v} mono />
+          <Dato k={t('spaceeyes.admin.instalada')} v={v} mono />
           <Dato
-            k="Publicada"
-            v={versiones == null ? 'sin dato' : publicado?.disponible ? publicado.version ?? 'sin número' : 'nada publicado'}
+            k={t('spaceeyes.admin.publicada')}
+            v={
+              versiones == null
+                ? t('spaceeyes.comun.sin-dato')
+                : publicado?.disponible
+                  ? publicado.version ?? t('spaceeyes.admin.sin-numero')
+                  : t('spaceeyes.admin.nada-publicado')
+            }
             mono
           />
         </dl>
@@ -476,14 +498,14 @@ function Ordenes({ equipo, versiones, puedeOperar }: { equipo: Equipo; versiones
           <div className="flex items-start gap-2 rounded-md border border-border border-l-[3px] border-l-warning bg-warning-soft p-2.5 text-ink">
             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
             <div>
-              Hay una versión nueva: <span className="font-medium tabular-nums">{publicado?.version}</span>.{' '}
-              <span className="text-muted">
-                {seActualizaSolo ? 'Se instala sola, sin tocar el equipo.' : como.texto}
-              </span>
+              {interpolarNodos(t('spaceeyes.admin.nueva'), {
+                version: <span className="font-medium tabular-nums">{publicado?.version}</span>,
+              })}{' '}
+              <span className="text-muted">{seActualizaSolo ? t('spaceeyes.admin.se-instala-sola') : como.texto}</span>
             </div>
           </div>
         ) : (
-          publicado?.disponible && <p className="text-success">Tiene la versión publicada.</p>
+          publicado?.disponible && <p className="text-success">{t('spaceeyes.admin.al-dia')}</p>
         )}
         {/* Siempre a la vista: decide si actualizar la flota necesita visitas. */}
         <p
@@ -492,7 +514,7 @@ function Ordenes({ equipo, versiones, puedeOperar }: { equipo: Equipo; versiones
             como.tono === 'ok' ? 'text-success' : como.tono === 'visita' ? 'text-error' : 'text-warning',
           )}
         >
-          Actualizaciones: {como.texto}
+          {t('spaceeyes.admin.actualizaciones', { como: como.texto })}
         </p>
         {msg && <p className={msg.tipo === 'ok' ? 'text-success' : 'text-error'}>{msg.texto}</p>}
         <div className="flex flex-wrap gap-2">
@@ -502,14 +524,14 @@ function Ordenes({ equipo, versiones, puedeOperar }: { equipo: Equipo; versiones
             disabled={!puedeOperar || !publicado?.disponible || enviando}
             onClick={() => setPedir('actualizar')}
           >
-            <Upload className="h-3.5 w-3.5" /> Actualizar app
+            <Upload className="h-3.5 w-3.5" /> {t('spaceeyes.admin.boton.actualizar')}
           </Button>
           <Button size="sm" variant="danger" disabled={!puedeOperar || enviando} onClick={() => setPedir('reiniciar')}>
-            <Power className="h-3.5 w-3.5" /> Reiniciar app
+            <Power className="h-3.5 w-3.5" /> {t('spaceeyes.admin.boton.reiniciar')}
           </Button>
           {esPi(v) && (
             <Button size="sm" variant="danger" disabled={!puedeOperar || enviando} onClick={() => setPedir('equipo')}>
-              <Power className="h-3.5 w-3.5" /> Reiniciar equipo
+              <Power className="h-3.5 w-3.5" /> {t('spaceeyes.admin.boton.reiniciar-equipo')}
             </Button>
           )}
         </div>
@@ -518,29 +540,28 @@ function Ordenes({ equipo, versiones, puedeOperar }: { equipo: Equipo; versiones
       <ConfirmDialog
         open={pedir === 'reiniciar'}
         onOpenChange={(o) => !o && setPedir(null)}
-        title="Reiniciar la aplicación"
-        confirmLabel="Reiniciar"
+        title={t('spaceeyes.admin.reiniciar.titulo')}
+        confirmLabel={t('spaceeyes.admin.reiniciar.boton')}
         busy={enviando}
         onConfirm={() => void enviar()}
       >
-        Se reinicia la aplicación en el equipo. Deja de reportar unos segundos y vuelve sola.
+        {t('spaceeyes.admin.reiniciar.texto')}
       </ConfirmDialog>
       <ConfirmDialog
         open={pedir === 'equipo'}
         onOpenChange={(o) => !o && setPedir(null)}
-        title="Reiniciar la Raspberry"
-        confirmLabel="Reiniciar equipo"
+        title={t('spaceeyes.admin.reiniciar-pi.titulo')}
+        confirmLabel={t('spaceeyes.admin.boton.reiniciar-equipo')}
         busy={enviando}
         onConfirm={() => void enviar()}
       >
-        Se reinicia la Raspberry entera, no solo la app: es lo que destraba una cámara o una red que se quedaron colgadas.
-        Deja de reportar uno o dos minutos y vuelve sola.
+        {t('spaceeyes.admin.reiniciar-pi.texto')}
       </ConfirmDialog>
       <ConfirmDialog
         open={pedir === 'actualizar'}
         onOpenChange={(o) => !o && setPedir(null)}
-        title="Actualizar el programa del equipo"
-        confirmLabel="Actualizar"
+        title={t('spaceeyes.admin.actualizar.titulo')}
+        confirmLabel={t('spaceeyes.admin.actualizar.boton')}
         variant="primary"
         busy={enviando}
         onConfirm={() => void enviar()}
@@ -561,6 +582,7 @@ function AjustesImagen({
   puedeEncuadrar: boolean
   onGuardado: () => Promise<void>
 }) {
+  const { t, idioma } = useIdioma()
   const inicial = leerAjustes(equipo.camera_ajustes)
   const [abierto, setAbierto] = useState(false)
   const [aj, setAj] = useState<Ajustes>(inicial)
@@ -626,10 +648,10 @@ function AjustesImagen({
     try {
       await seApi(`devices/${equipo.id}/camera`, { method: 'PUT', body: { ajustes: cuerpo(), photo_rotation: giro } })
       await onGuardado()
-      setMsg({ tipo: 'ok', texto: 'Ajustes guardados: se aplican a todas las fotos del equipo.' })
+      setMsg({ tipo: 'ok', texto: t('spaceeyes.admin.ajustes.guardados') })
       return true
     } catch (e) {
-      setMsg({ tipo: 'error', texto: `No se pudieron guardar: ${mensaje(e)}` })
+      setMsg({ tipo: 'error', texto: t('spaceeyes.admin.ajustes.no-guardar', { motivo: mensaje(e, idioma) }) })
       return false
     } finally {
       setGuardando(false)
@@ -657,16 +679,16 @@ function AjustesImagen({
           if (sondeo.current) clearInterval(sondeo.current)
           setProbando(false)
           setFotoPrueba(fotoSE(nueva.storage_path || nueva.thumbnail_path))
-          setMsg({ tipo: 'ok', texto: 'Así se ve con estos ajustes.' })
+          setMsg({ tipo: 'ok', texto: t('spaceeyes.admin.prueba.asi') })
         } else if (intentos >= 15) {
           if (sondeo.current) clearInterval(sondeo.current)
           setProbando(false)
-          setMsg({ tipo: 'error', texto: 'No llegó la foto: el equipo puede estar apagado o transmitiendo.' })
+          setMsg({ tipo: 'error', texto: t('spaceeyes.admin.prueba.no-llego') })
         }
       }, 2000)
     } catch (e) {
       setProbando(false)
-      setMsg({ tipo: 'error', texto: `No se pudo pedir la foto de prueba: ${mensaje(e)}` })
+      setMsg({ tipo: 'error', texto: t('spaceeyes.admin.prueba.error', { motivo: mensaje(e, idioma) }) })
     }
   }
 
@@ -685,7 +707,7 @@ function AjustesImagen({
       <label key={campo} className="block">
         <span className="mb-1 flex justify-between text-[12px] text-muted">
           <span>{nombre}</span>
-          <span className="tabular-nums text-ink">{texto ? texto(valor) : valor.toFixed(2)}</span>
+          <span className="tabular-nums text-ink">{texto ? texto(valor) : fijo(valor, 2, idioma)}</span>
         </span>
         <input
           type="range"
@@ -706,13 +728,11 @@ function AjustesImagen({
     <section className="overflow-hidden rounded-md border border-border bg-surface">
       <header className="flex items-start justify-between gap-3 border-b border-border p-3">
         <div className="min-w-0">
-          <h2 className="text-[14px] font-semibold text-ink">Ajustes de imagen</h2>
-          <p className="mt-0.5 text-[12px] text-muted">
-            Se guardan en el equipo y se aplican a todas sus fotos, incluidas las programadas.
-          </p>
+          <h2 className="text-[14px] font-semibold text-ink">{t('spaceeyes.admin.ajustes')}</h2>
+          <p className="mt-0.5 text-[12px] text-muted">{t('spaceeyes.admin.ajustes.texto')}</p>
         </div>
         <Button size="sm" variant="tertiary" onClick={() => setAbierto((a) => !a)} aria-expanded={abierto}>
-          {abierto ? 'Ocultar' : 'Mostrar'}
+          {abierto ? t('spaceeyes.admin.ocultar') : t('spaceeyes.admin.mostrar')}
         </Button>
       </header>
 
@@ -721,7 +741,7 @@ function AjustesImagen({
           <div className="flex flex-col gap-4">
             {/* Giro de la foto: se aplica al recibirla. No es el giro de la vista en vivo. */}
             <div>
-              <p className="mb-1 text-[12px] font-medium text-ink">Giro de la foto</p>
+              <p className="mb-1 text-[12px] font-medium text-ink">{t('spaceeyes.admin.giro')}</p>
               <div className="inline-flex rounded-md border border-border bg-surface p-0.5 text-[12px]">
                 {GIROS.map((g) => (
                   <button
@@ -734,30 +754,28 @@ function AjustesImagen({
                       giro === g ? 'bg-surface-2 font-medium text-ink' : 'text-muted hover:text-ink',
                     )}
                   >
-                    {g === 0 ? 'Sin giro' : <><RotateCw className="h-3 w-3" />{g}°</>}
+                    {g === 0 ? t('spaceeyes.admin.sin-giro') : <><RotateCw className="h-3 w-3" />{g}°</>}
                   </button>
                 ))}
               </div>
               <p className="mt-1 text-[11px] text-muted">
-                Endereza la foto al recibirla. Es distinto de la orientación de la vista en vivo.
+                {t('spaceeyes.admin.giro.texto')}
               </p>
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {CONTROLES.map((c) => deslizador(c.campo, c.nombre, c.min, c.max, 0.05, c.pordefecto))}
+              {CONTROLES.map((c) => deslizador(c.campo, t(c.nombre), c.min, c.max, 0.05, c.pordefecto))}
             </div>
 
             <div className="border-t border-border pt-4">
-              <p className="mb-2 text-[12px] font-medium text-ink">Pantalla de LED</p>
-              {deslizador('cuadros', 'Cuadros a promediar', 1, 32, 1, 1, (v) => (v > 1 ? `${v} cuadros` : 'un disparo'))}
-              <p className="mb-3 mt-1 text-[11px] text-muted">
-                Contra las líneas de la pantalla: cada cuadro las agarra en otra posición y al promediarlos se cancelan
-                (con 16 la marca baja de 40% a 10%). Tarda ~1 s más y, si el creativo cambia a media captura, sale
-                mezclado.
-              </p>
+              <p className="mb-2 text-[12px] font-medium text-ink">{t('spaceeyes.admin.led')}</p>
+              {deslizador('cuadros', t('spaceeyes.admin.cuadros'), 1, 32, 1, 1, (v) =>
+                v > 1 ? t('spaceeyes.admin.cuadros.n', { n: v }) : t('spaceeyes.admin.cuadros.un-disparo'),
+              )}
+              <p className="mb-3 mt-1 text-[11px] text-muted">{t('spaceeyes.admin.cuadros.texto')}</p>
 
               <label className="mb-3 block">
-                <span className="mb-1 block text-[12px] text-muted">Dónde mide la luz</span>
+                <span className="mb-1 block text-[12px] text-muted">{t('spaceeyes.admin.medicion')}</span>
                 <select
                   value={String(aj.medicion ?? 'centre')}
                   disabled={bloqueado}
@@ -766,7 +784,7 @@ function AjustesImagen({
                 >
                   {MEDICION.map((o) => (
                     <option key={o.v} value={o.v}>
-                      {o.t}
+                      {t(o.t)}
                     </option>
                   ))}
                 </select>
@@ -780,25 +798,22 @@ function AjustesImagen({
                   onChange={(e) => alternarExp(e.target.checked)}
                   className="h-4 w-4 accent-[var(--accent)]"
                 />
-                Fijar la exposición a mano
+                {t('spaceeyes.admin.exposicion-mano')}
               </label>
               {expManual && (
                 <>
                   <div className="grid grid-cols-2 gap-3">
-                    {deslizador('obturador', 'Obturador', 200, 40000, 100, 8000, (v) => `${formatNumero(v)} µs`)}
-                    {deslizador('ganancia', 'Ganancia', 1, 16, 0.25, 1)}
+                    {deslizador('obturador', t('spaceeyes.admin.obturador'), 200, 40000, 100, 8000, (v) => `${formatNumero(v, 0, idioma)} µs`)}
+                    {deslizador('ganancia', t('spaceeyes.admin.ganancia'), 1, 16, 0.25, 1)}
                   </div>
-                  <p className="mt-1 text-[11px] text-muted">
-                    Al fijarlo se pierde el automático: hay que mover los dos juntos o la foto sale quemada o a oscuras
-                    según la hora.
-                  </p>
+                  <p className="mt-1 text-[11px] text-muted">{t('spaceeyes.admin.exposicion-mano.texto')}</p>
                 </>
               )}
             </div>
 
             <div className="border-t border-border pt-4">
               <label className="mb-2 block">
-                <span className="mb-1 block text-[12px] text-muted">Balance de blancos</span>
+                <span className="mb-1 block text-[12px] text-muted">{t('spaceeyes.comun.balance')}</span>
                 <select
                   value={String(aj.awb ?? 'auto')}
                   disabled={bloqueado}
@@ -807,7 +822,7 @@ function AjustesImagen({
                 >
                   {BALANCE.map((o) => (
                     <option key={o.v} value={o.v}>
-                      {o.t}
+                      {t(o.t)}
                     </option>
                   ))}
                 </select>
@@ -820,12 +835,12 @@ function AjustesImagen({
                   onChange={(e) => alternarWb(e.target.checked)}
                   className="h-4 w-4 accent-[var(--accent)]"
                 />
-                Ajustar el color a mano (necesario si las hojas salen moradas)
+                {t('spaceeyes.admin.color-mano')}
               </label>
               {wbManual && (
                 <div className="grid grid-cols-2 gap-3">
-                  {deslizador('awb_rojo', 'Rojo', 0.5, 4, 0.05, 1.5)}
-                  {deslizador('awb_azul', 'Azul', 0.5, 4, 0.05, 1.5)}
+                  {deslizador('awb_rojo', t('spaceeyes.admin.rojo'), 0.5, 4, 0.05, 1.5)}
+                  {deslizador('awb_azul', t('spaceeyes.admin.azul'), 0.5, 4, 0.05, 1.5)}
                 </div>
               )}
             </div>
@@ -835,26 +850,26 @@ function AjustesImagen({
                 size="sm"
                 variant="secondary"
                 disabled={bloqueado}
-                title="Promedia 16 cuadros, baja la exposición y mide la luz en la pantalla"
+                title={t('spaceeyes.admin.receta.led.ayuda')}
                 onClick={() => {
                   setAj((a) => ({ ...a, cuadros: 16, ev: -0.7, medicion: 'spot' }))
-                  setMsg({ tipo: 'ok', texto: 'Punto de partida para pantalla aplicado. Prueba y sube o baja la exposición.' })
+                  setMsg({ tipo: 'ok', texto: t('spaceeyes.admin.receta.led.aplicada') })
                 }}
               >
-                Pantalla de LED: punto de partida
+                {t('spaceeyes.admin.receta.led')}
               </Button>
               <Button
                 size="sm"
                 variant="secondary"
                 disabled={bloqueado}
-                title="Para cámaras sin filtro infrarrojo, donde la vegetación sale morada"
+                title={t('spaceeyes.admin.receta.hojas.ayuda')}
                 onClick={() => {
                   setWbManual(true)
                   setAj((a) => ({ ...a, awb_rojo: 1.05, awb_azul: 1.9, saturacion: 0.75, contraste: 1.1 }))
-                  setMsg({ tipo: 'ok', texto: 'Punto de partida aplicado. Prueba y afina con los deslizadores.' })
+                  setMsg({ tipo: 'ok', texto: t('spaceeyes.admin.receta.hojas.aplicada') })
                 }}
               >
-                Hojas moradas: punto de partida
+                {t('spaceeyes.admin.receta.hojas')}
               </Button>
               <Button
                 size="sm"
@@ -864,43 +879,43 @@ function AjustesImagen({
                   setAj({})
                   setWbManual(false)
                   setExpManual(false)
-                  setMsg({ tipo: 'ok', texto: 'Ajustes en blanco. Guarda para que el equipo los tome.' })
+                  setMsg({ tipo: 'ok', texto: t('spaceeyes.admin.restablecidos') })
                 }}
               >
-                Restablecer
+                {t('spaceeyes.admin.restablecer')}
               </Button>
             </div>
           </div>
 
           <div>
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-              <span className="text-[12px] text-muted">Foto de prueba</span>
+              <span className="text-[12px] text-muted">{t('spaceeyes.admin.prueba')}</span>
               <div className="flex gap-2">
                 <Button size="sm" variant="secondary" disabled={bloqueado || probando || guardando} onClick={probar}>
-                  {probando ? 'Tomando…' : 'Probar'}
+                  {probando ? t('spaceeyes.admin.tomando') : t('spaceeyes.admin.probar')}
                 </Button>
                 <Button size="sm" disabled={bloqueado || guardando || probando} onClick={guardar}>
-                  {guardando ? 'Guardando…' : 'Guardar'}
+                  {guardando ? t('spaceeyes.comun.guardando') : t('comun.guardar')}
                 </Button>
               </div>
             </div>
             {bloqueado && (
               <p className="mb-2 text-[12px] text-muted">
-                Estos ajustes cambian lo que la cámara ve en todas sus fotos: solo los mueve el Dueño.
+                {t('spaceeyes.admin.solo-dueno')}
               </p>
             )}
             {msg && <p className={cn('mb-2 text-[12px]', msg.tipo === 'ok' ? 'text-success' : 'text-error')}>{msg.texto}</p>}
             <div className="flex aspect-video items-center justify-center overflow-hidden rounded-md border border-border bg-surface-2">
               {fotoPrueba ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={fotoPrueba} alt="Foto de prueba" className="h-full w-full object-contain" />
+                <img src={fotoPrueba} alt={t('spaceeyes.admin.prueba')} className="h-full w-full object-contain" />
               ) : probando ? (
                 <Loader2 className="h-6 w-6 animate-spin text-muted" />
               ) : (
-                <p className="px-4 text-center text-[12px] text-muted">«Probar» guarda los ajustes y pide una foto para ver cómo quedan.</p>
+                <p className="px-4 text-center text-[12px] text-muted">{t('spaceeyes.admin.probar.texto')}</p>
               )}
             </div>
-            <p className="mt-2 text-[11px] text-muted">Cada prueba consume una foto de datos. En equipos con SIM, úsala con medida.</p>
+            <p className="mt-2 text-[11px] text-muted">{t('spaceeyes.admin.prueba.datos')}</p>
           </div>
         </div>
       )}
@@ -916,6 +931,7 @@ const TINTA_NIVEL: Record<string, string> = {
 }
 
 function Registros({ equipoId }: { equipoId: number }) {
+  const { t, idioma } = useIdioma()
   const [logs, setLogs] = useState<Registro[] | null>(null)
   const [cargando, setCargando] = useState(false)
   const [fallo, setFallo] = useState<string | null>(null)
@@ -927,11 +943,11 @@ function Registros({ equipoId }: { equipoId: number }) {
       const r = await seApi<{ logs: Registro[] }>(`devices/${equipoId}/logs?limit=50`)
       setLogs(r.logs ?? [])
     } catch (e) {
-      setFallo(mensaje(e))
+      setFallo(mensaje(e, idioma))
     } finally {
       setCargando(false)
     }
-  }, [equipoId])
+  }, [equipoId, idioma])
 
   useEffect(() => {
     void cargar()
@@ -941,21 +957,21 @@ function Registros({ equipoId }: { equipoId: number }) {
     <section className="overflow-hidden rounded-md border border-border bg-surface">
       <header className="flex items-start justify-between gap-3 border-b border-border p-3">
         <div className="min-w-0">
-          <h2 className="text-[14px] font-semibold text-ink">Registros del equipo</h2>
-          <p className="mt-0.5 text-[12px] text-muted">Lo que el equipo reporta de sí mismo, para diagnosticarlo en campo.</p>
+          <h2 className="text-[14px] font-semibold text-ink">{t('spaceeyes.admin.registros')}</h2>
+          <p className="mt-0.5 text-[12px] text-muted">{t('spaceeyes.admin.registros.texto')}</p>
         </div>
         <Button size="sm" variant="tertiary" disabled={cargando} onClick={cargar}>
-          <RefreshCw className={cn('h-3.5 w-3.5', cargando && 'animate-spin')} /> Actualizar
+          <RefreshCw className={cn('h-3.5 w-3.5', cargando && 'animate-spin')} /> {t('spaceeyes.comun.actualizar')}
         </Button>
       </header>
-      {fallo && <p className="p-3 text-[12px] text-error">No se pudieron leer los registros: {fallo}</p>}
+      {fallo && <p className="p-3 text-[12px] text-error">{t('spaceeyes.admin.registros.error', { error: fallo })}</p>}
       <div className="max-h-72 divide-y divide-border overflow-y-auto">
         {logs === null && !fallo ? (
           <div className="flex items-center gap-2 p-3 text-[12px] text-muted">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Leyendo registros…
+            <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t('spaceeyes.admin.registros.leyendo')}
           </div>
         ) : logs && logs.length === 0 ? (
-          <p className="py-8 text-center text-[12px] text-muted">Sin registros todavía.</p>
+          <p className="py-8 text-center text-[12px] text-muted">{t('spaceeyes.admin.registros.vacio')}</p>
         ) : (
           (logs ?? []).map((l) => (
             <div key={l.id} className="flex flex-wrap items-start gap-x-3 gap-y-0.5 px-3 py-2 text-[12px] sm:flex-nowrap">
@@ -969,7 +985,7 @@ function Registros({ equipoId }: { equipoId: number }) {
               </span>
               <span className="w-14 shrink-0 truncate text-muted">{l.category || '—'}</span>
               <span className="min-w-0 flex-1 basis-full break-words text-ink sm:basis-auto">{l.message}</span>
-              <span className="shrink-0 tabular-nums text-muted">{fechaHora(l.logged_at)}</span>
+              <span className="shrink-0 tabular-nums text-muted">{fechaHora(l.logged_at, idioma)}</span>
             </div>
           ))
         )}

@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { Copy, Inbox } from 'lucide-react'
 import { fechaHora } from './piezas'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
 
 // ============================================================================
 //  Las solicitudes de activación de Space Eyes, en el SPACE OS del PADRE.
@@ -30,6 +32,7 @@ type Solicitud = {
 }
 
 export function SolicitudesActivacion() {
+  const { t, idioma } = useIdioma()
   const [lista, setLista] = useState<Solicitud[] | null>(null)
   const [copiada, setCopiada] = useState<string | null>(null)
 
@@ -62,14 +65,16 @@ export function SolicitudesActivacion() {
     <section className="mx-4 mt-4 rounded-md border border-border bg-surface sm:mx-6">
       <header className="flex items-center gap-2 border-b border-border p-3">
         <Inbox className="h-4 w-4 text-accent" />
-        <h2 className="text-[14px] font-semibold text-ink">Solicitudes de activación de Space Eyes</h2>
+        <h2 className="text-[14px] font-semibold text-ink">{t('spaceeyes.solicitudes.titulo')}</h2>
         <span className="ml-auto text-[12px] text-muted">
-          {lista.length === 0 ? 'Ninguna pendiente' : `${lista.length} pendiente(s)`}
+          {lista.length === 0
+            ? t('spaceeyes.solicitudes.ninguna')
+            : t(lista.length === 1 ? 'spaceeyes.solicitudes.pendientes.uno' : 'spaceeyes.solicitudes.pendientes.otros', { n: lista.length })}
         </span>
       </header>
       {lista.length === 0 ? (
         <p className="p-3 text-[12px] text-muted">
-          Cuando una empresa pida Space Eyes desde su demostración, aparece aquí con la orden para activarlo.
+          {t('spaceeyes.solicitudes.vacio')}
         </p>
       ) : (
         <ul className="divide-y divide-border">
@@ -79,8 +84,8 @@ export function SolicitudesActivacion() {
                 <div className="font-medium text-ink">{s.nombre}</div>
                 <div className="text-muted">
                   {s.dominio}
-                  {s.folio ? ` · folio ${s.folio}` : ''}
-                  {s.creado_en ? ` · ${fechaHora(s.creado_en)}` : ''}
+                  {s.folio ? t('spaceeyes.solicitudes.folio', { folio: s.folio }) : ''}
+                  {s.creado_en ? ` · ${fechaHora(s.creado_en, idioma)}` : ''}
                 </div>
               </div>
               <code className="max-w-full overflow-x-auto rounded bg-surface-2 px-2 py-1 text-[11.5px] text-ink">
@@ -91,15 +96,20 @@ export function SolicitudesActivacion() {
                 onClick={() => void copiar(s.orden)}
                 className="inline-flex items-center gap-1 text-accent hover:underline"
               >
-                <Copy className="h-3.5 w-3.5" /> {copiada === s.orden ? 'Copiada' : 'Copiar orden'}
+                <Copy className="h-3.5 w-3.5" /> {copiada === s.orden ? t('spaceeyes.solicitudes.copiada') : t('spaceeyes.solicitudes.copiar')}
               </button>
             </li>
           ))}
         </ul>
       )}
       <p className="border-t border-border p-3 text-[11.5px] text-muted">
-        La orden se corre en el padre y pide la frase de paso de la llave de licencias. La empresa ve Space Eyes en
-        unos 15 minutos. Después, cierra su ticket en el <a className="text-accent hover:underline" href="/flota/tickets/">panel de tickets</a>.
+        {interpolarNodos(t('spaceeyes.solicitudes.pie'), {
+          panel: (
+            <a className="text-accent hover:underline" href="/flota/tickets/">
+              {t('spaceeyes.solicitudes.panel')}
+            </a>
+          ),
+        })}
       </p>
     </section>
   )

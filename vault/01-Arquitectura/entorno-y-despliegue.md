@@ -1,9 +1,10 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-10-09
+actualizado: 2026-11-04
 tags: [despliegue, entorno, ci, env, instancias]
 archivos:
+  - apps/web/lib/test/db-e2e.ts
   - infra/scripts/pruebas-update.sh
   - infra/scripts/pruebas-vuelta-atras-real.sh
   - .env.example
@@ -164,6 +165,18 @@ archivos:
 
 ---
 # Entorno y despliegue
+
+> [!important] 2026-11-04 · Mudar g500 a un droplet NUEVO instalado desde cero, con todos sus datos
+> Guía para una persona: `docs/evidencias/30-mudar-g500-a-droplet-limpio-20261104.md`.
+> Ubuntu 24.04 (PostgreSQL 16 como g500), base del sistema con `setup-droplet.sh`
+> de `v0.12.5`, y encima la base `spaces` restaurada en una base VACÍA (roles con
+> el mismo hash por `pg_dumpall --roles-only`, sin esquema ni bootstrap), `/etc/space-os`
+> copiado tal cual (solo cambia `IP_PUBLICA`), Space Eyes por volúmenes (`rsync` en
+> caliente y en el corte) con su imagen local por `docker save`, y el certificado
+> copiado y reemitido tras el DNS. Dos trampas que deja escritas: `update.sh` **no
+> levanta el contenedor** sobre una base que ya dice instalada (`sin-cambios`), y
+> `git archive` sin `-c core.autocrlf=false` entrega `update.sh` en CRLF (medido:
+> `6add877f…`). Alternativa por instantánea: guía 29. Sin correr todavía.
 
 > [!danger] 2026-10-02 · El registro de imágenes se LLENA: limpiar antes de publicar
 > `release.yml` de `v0.9.2` falló con `denied: quota exceeded`: 471.52 de 500 MiB
@@ -399,6 +412,10 @@ cd apps/web && DATABASE_URL=postgresql://spaces:spaces@localhost:5433/spaces \
   ORG_SLUG=rgb ORG_NOMBRE='RGB Catorce' \
   ADMIN_EMAIL=jose@pixeled.com.mx ADMIN_NOMBRE='Cliente_ RGB Catorce' \
   node scripts/bootstrap-auth.mjs
+#    OJO (B59, ADR 0048/0049): esta organizacion nace SIEMPRE en MXN y con los
+#    documentos en ESPANOL. Es una ruta de desarrollo, solo-es. Una instancia en
+#    USD o con contratos en/it nace por POST /api/bootstrap
+#    (provision-instancia.sh --moneda --idioma)
 
 # 4. La app
 cd apps/web && npm run dev     # http://localhost:3000/spaces-dooh/
@@ -582,6 +599,15 @@ no entran.
 Las e2e necesitan una base aparte cuyo nombre **debe** terminar en `_e2e` o
 `_test` (`apps/web/lib/test/db-e2e.ts`, `exigirBaseDePrueba()`). Ver
 [[convenciones]].
+
+> [!warning] La base de las e2e habla en UTC, la fije quien la fije (2026-11-03)
+> El arnés la pone en UTC él mismo (`HUSO_E2E` en `apps/web/lib/test/db-e2e.ts`:
+> `options` en sus pools y `alter database` en `recrearEsquema()`). Las
+> semillas calculan fechas en UTC y el Postgres de docker-compose y del CI ya
+> corría en UTC; un Postgres en la hora local (el portátil de Windows, en
+> America/Mexico_City) hacía caer **diez e2e cada tarde a partir de las 18:00**,
+> cuando el día UTC ya es mañana. Reproducido con la base en
+> Pacific/Kiritimati: sin el arreglo, `estado-campanas` cae en rojo.
 
 ### Hay DOS formas de arrancar, y las dos son válidas (13/08, F2.1)
 
@@ -2233,12 +2259,12 @@ para el redirect URI de Google.
 | `DATABASE_URL` | Conexión Postgres | `lib/server/db.ts:23` |
 | `NODE_ENV` | Modo, default de `Secure`, pool en dev | `lib/server/auth.ts:252` |
 | `COOKIE_SECURE` | Fuerza/apaga `Secure` en cookies | `lib/server/auth.ts:249-253` (`cookieSecure`) |
-| `APP_URL` | Base de enlaces en correos y de la invitación de usuarios | `app/api/auth/forgot/route.ts:50`, `app/api/usuarios/route.ts:30` |
+| `APP_URL` | Base de enlaces en correos y de la invitación de usuarios | `app/api/auth/forgot/route.ts:51`, `app/api/usuarios/route.ts:30` |
 | `HSTS` | Activa Strict-Transport-Security. **Bandera de BUILD**, no de ejecución | `next.config.mjs:178-191` |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Correo saliente | `lib/server/email.ts` |
 | `RECORDATORIOS_TOKEN` | Autentica el cron; sin él la ruta da 503 | `app/api/recordatorios/route.ts` |
 | **`AUTOREGISTRO`** | **solo `'1'` enciende** el alta pública; **ausente = apagado**. Se lee en cada petición, no se hornea (F2.6, 14/08) | `lib/entorno.ts` · `app/api/signup/route.ts:21-26` |
-| `NEXT_PUBLIC_RECUPERAR_PASSWORD` | Apaga **pedir** un enlace de recuperación; usarlo no (ADR 0044) | `app/api/auth/forgot/route.ts:18` |
+| `NEXT_PUBLIC_RECUPERAR_PASSWORD` | Apaga **pedir** un enlace de recuperación; usarlo no (ADR 0044) | `app/api/auth/forgot/route.ts:19` |
 | `NEXT_PUBLIC_MAPTILER_KEY` | Mapas. **Nadie la define, y en la flota NO PUEDE definirse**: `NEXT_PUBLIC_*` se hornea al compilar, así que sería una clave para toda la flota (ADR 0030). El basemap real es OpenFreeMap, sin clave | `components/demo/MapView.tsx` |
 | `DO_SPACES_KEY/SECRET/ENDPOINT/BUCKET/CDN_URL` | Almacenamiento S3 | `lib/server/storage.ts:12-16` |
 | `GOOGLE_OAUTH`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` | Acceso con Google | `lib/server/google-oauth.ts` |

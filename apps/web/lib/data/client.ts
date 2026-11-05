@@ -20,6 +20,8 @@
 
 'use client'
 
+import type { Idioma } from '@/lib/i18n/idiomas'
+
 import { useEffect, useMemo, useState } from 'react'
 import { useDemoStore, type DemoStore } from './store'
 import {
@@ -311,16 +313,20 @@ export function useAcciones() {
 }
 
 /** Métricas del dashboard del dueño, recalculadas en vivo. */
-export function useDashboard(): DashboardMetrics | undefined {
+// I18N (2026-11-02) · `idioma` solo cambia el texto de las alertas; sin él,
+// español, como siempre.
+export function useDashboard(idioma: Idioma = 'es'): DashboardMetrics | undefined {
   const m = useMounted()
-  const v = useStoreMemo((s) => dashboardMetrics(s), [])
+  const v = useStoreMemo((s) => dashboardMetrics(s, new Date(), idioma), [idioma])
   return m ? v : undefined
 }
 
 /** Serie de ocupación día/semana/mes, recalculada en vivo. */
-export function useOcupacionSerie(gran: Granularidad): SerieOcupacion | undefined {
+// `idioma` ('es' por omision) es el de los rotulos del eje; el Dashboard pasa
+// el de `useIdioma()`.
+export function useOcupacionSerie(gran: Granularidad, idioma: Idioma = 'es'): SerieOcupacion | undefined {
   const m = useMounted()
-  const v = useStoreMemo((s) => ocupacionSerie(s, gran), [gran])
+  const v = useStoreMemo((s) => ocupacionSerie(s, gran, idioma), [gran, idioma])
   return m ? v : undefined
 }
 
@@ -364,6 +370,8 @@ export interface PasoPipeline {
   key: EtapaPipeline
   label: string
   fecha?: string
+  /** La fecha cruda (ISO) del paso, para que la pantalla la formatee en otro idioma (ola 5). */
+  iso?: string
 }
 export interface PipelineVista {
   etapa: EtapaPipeline
@@ -380,17 +388,27 @@ export function usePipeline(campanaId: string): PipelineVista | undefined {
     const etapa = pipelineStage(c, s)
     const fechas = fechasPipeline(c, s)
     const etapas = etapasPipeline(c)
-    const pasos: PasoPipeline[] = etapas.map((k) => ({
-      key: k,
-      label: ETAPA_LABEL[k],
-      fecha: fechas[k] ? formatFechaLocal(fechas[k]!) : undefined,
-    }))
+    const pasos: PasoPipeline[] = etapas.map((k) => {
+      const iso = fechas[k] ? isoDePaso(fechas[k]!) : undefined
+      return { key: k, label: ETAPA_LABEL[k], fecha: iso ? formatFechaLocal(iso) : undefined, iso }
+    })
     return { etapa, index: etapaIndex(etapa, etapas), pasos }
   }, [campanaId])
   return m ? (v ?? undefined) : undefined
 }
 
-function formatFechaLocal(iso: string): string {
+/**
+ * Ola 6 (menor C de la ola 5) · una fecha SIN hora («2026-11-03», la
+ * `fechaInicio` de la campaña) es un día del calendario. `new Date()` la lee
+ * como medianoche UTC, que en México todavía es el día anterior: el paso
+ * «Confirmada» salía un día antes, en los dos idiomas. Se le pone la
+ * medianoche LOCAL. Lo que ya trae hora (las marcas de tiempo) no se toca.
+ */
+export function isoDePaso(iso: string): string {
+  return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? `${iso}T00:00:00` : iso
+}
+
+export function formatFechaLocal(iso: string): string {
   const d = new Date(iso)
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`
 }

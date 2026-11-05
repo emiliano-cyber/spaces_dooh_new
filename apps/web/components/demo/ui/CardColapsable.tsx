@@ -6,6 +6,7 @@ import { ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { Card, CardHeader, CardTitle, CardContent } from './Card'
 import { CLAVE_PLEGADAS, leerPlegadas, conPlegada } from '@/lib/secciones-plegadas'
+import { useTexto } from '@/lib/i18n/contexto'
 
 // ============================================================================
 //  Tarjeta con encabezado plegable. Mismo gesto que las secciones de la ficha
@@ -64,6 +65,7 @@ export function CardColapsable({
   contentClassName?: string
   children: React.ReactNode
 }) {
+  const t = useTexto()
   const [abierto, setAbierto] = useState(defaultAbierto)
   // Lo guardado se lee DESPUÉS de montar y no en el `useState`: el servidor no
   // tiene localStorage, y leerlo en el primer render daría un HTML distinto al
@@ -111,7 +113,7 @@ export function CardColapsable({
           <button
             type="button"
             aria-expanded={abierto}
-            aria-label={`${abierto ? 'Minimizar' : 'Expandir'} ${titulo}`}
+            aria-label={t(abierto ? 'compartidos.plegar.minimizar' : 'compartidos.plegar.expandir', { titulo })}
             onClick={alternar}
             className="rounded text-muted transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >

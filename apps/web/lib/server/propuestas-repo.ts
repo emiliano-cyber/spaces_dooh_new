@@ -27,7 +27,7 @@ import {
   repartirPaquete,
 } from '@/lib/paquete'
 import { rutaLogo } from '@/lib/medios-url'
-import { fechaDia, propuestaVencida } from '@/lib/propuesta-vigencia'
+import { fechaDia, hoyDeVigencia, propuestaVencida } from '@/lib/propuesta-vigencia'
 
 /**
  * Forma del JSON de `snapshot_economico`. Ausente en los congelados hasta el
@@ -952,9 +952,9 @@ export async function aceptarPropuestaPublica(
       tenantId,
       `select id, tenant_id, folio, nombre, estatus, aceptado_en, aceptado_por,
               to_char(vigente_hasta, 'DD/MM/YYYY') as vigente_hasta_txt,
-              (vigente_hasta < current_date) as vencida
+              (vigente_hasta < $2::date) as vencida
          from propuestas where token_publico = $1 limit 1`,
-      [cod],
+      [cod, hoyDeVigencia()],
     )
   )[0]
   if (!p) return null
@@ -976,8 +976,10 @@ export async function aceptarPropuestaPublica(
     throw new PropuestaError('Esta propuesta ya no está vigente')
   }
   // PROP-COMPLETA (29/10) · decisión del dueño: vencida, la liga NO deja
-  // aceptar. Se decide en la BASE (`vigente_hasta < current_date`) y no con el
-  // reloj de quien llama, y va DESPUÉS del idempotente de arriba: una propuesta
+  // aceptar. Se decide en el SERVIDOR con el día del negocio (`hoyDeVigencia()`,
+  // el mismo que pinta la liga; 05/11: antes era el `current_date` de la base,
+  // que en g500 va en UTC) y no con el reloj de quien llama, y va DESPUÉS del
+  // idempotente de arriba: una propuesta
   // ya aceptada sigue diciendo que se aceptó aunque hoy esté fuera de fecha.
   // `vigente_hasta` nulo (todo lo enviado antes del 29/10) no vence nunca.
   if (p.vencida === true) {
@@ -1920,13 +1922,15 @@ export async function cambiarEstatusPropuesta(
             aprobada_en  = case when $2::text = 'APROBADA'  then coalesce(aprobada_en, now()) else null end,
             rechazada_en = case when $2::text = 'RECHAZADA' then coalesce(rechazada_en, now()) else null end,
             vigente_hasta = case
-              when $2::text = 'ENVIADA' and (vigente_hasta is null or vigente_hasta < current_date)
-                then current_date + $3::int
+              when $2::text = 'ENVIADA' and (vigente_hasta is null or vigente_hasta < $4::date)
+                then $4::date + $3::int
               else vigente_hasta end
       where id=$1
         and ($2::text <> 'APROBADA' or codigo_estado is distinct from 'PENDIENTE')
       returning *`,
-    [id, estatus, diasVigencia],
+    // $4 · el día del negocio, el mismo con que el correo de «Enviar» calcula
+    // la fecha que promete (`propuestas-envio.ts`). Ver `hoyDeVigencia()`.
+    [id, estatus, diasVigencia, hoyDeVigencia()],
   )
   if (!rows.length) {
     if (estatus === 'APROBADA') {

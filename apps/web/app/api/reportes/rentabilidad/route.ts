@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { exigir } from '@/lib/server/auth'
 import { rentabilidadCtrl } from '@/lib/server/reportes-controller'
 import { respuestaError } from '@/lib/server/errores'
+import { monedaDeLaInstancia } from '@/lib/server/moneda-instancia'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -31,6 +32,10 @@ export async function GET(req: Request) {
   const g = await exigir('finanzas', 'ver')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   try {
+    // ADR 0048 · las notas de cobertura del reporte escriben importes
+    // (`lib/data/reportes.ts`). La fija tambien `tenantActual()`, pero aqui se
+    // pide antes de armar nada: es la ruta que el validador encontro sin ella.
+    await monedaDeLaInstancia()
     // `Object.fromEntries` y no lectura campo a campo: el schema es `.strict()`,
     // así que un parámetro de más da 400 en vez de ignorarse en silencio. Un
     // `?granularidadd=mes` con typo devolvería el reporte por omisión —otro

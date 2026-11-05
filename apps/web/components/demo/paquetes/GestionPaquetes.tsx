@@ -15,6 +15,11 @@ import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
 import { useObligatorios } from '@/components/demo/ui/Campo'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { ejemploCifra } from '@/lib/captura-cifra'
+import { interpolarNodos } from '@/lib/i18n/nodos'
+import type { Idioma } from '@/lib/i18n/idiomas'
+import { formatearDineroRedondo } from '@/lib/i18n/dinero'
 
 // ============================================================================
 //  El CATÁLOGO DE PAQUETES CERRADOS de la organización. ADR 0039, Fase 4.
@@ -56,9 +61,20 @@ const vacio = { nombre: '', precioCerrado: '', admiteCodigo: false, sitios: [] a
 // reparto ya son enteros; la tarifa de lista puede traer centavos y se
 // enseñaba redondeada— y solo se quita el «.00», que en un precio que no
 // admite centavos sería ruido. NO toca `repartirPaquete`.
-const montoEntero = (n: number) => formatMonto(Math.round(n)).replace('.00', '')
+// I18N (lote catalogos) · el idioma solo cambia el simbolo («MX$» en ingles en
+// una instancia MXN); el redondeo y el formato son los de siempre.
+//
+// Italiano (lote L2, 2026-11-03): el `.replace('.00', '')` es de la cifra
+// inglesa. En «MX$ 1.000,00» se comia el punto de los MILES y dejaba
+// «MX$ 1000,00». En es y en sigue siendo la expresion de siempre; en los demas
+// idiomas, el importe ya redondeado de `dinero.ts` («MX$ 1.000»).
+const montoEntero = (n: number, idioma: Idioma = 'es') =>
+  idioma === 'es' || idioma === 'en'
+    ? formatMonto(Math.round(n), idioma).replace('.00', '')
+    : formatearDineroRedondo(Math.round(n), idioma)
 
 export function GestionPaquetes() {
+  const { idioma, t } = useIdioma()
   const sitios = useSitios()
   const [paquetes, setPaquetes] = useState<PaqueteUI[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -74,7 +90,7 @@ export function GestionPaquetes() {
       setPaquetes(await paquetesApi())
       setError(null)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo leer el catálogo de paquetes')
+      setError(e instanceof Error ? e.message : t('catalogos.paquetes.no-leer'))
     } finally {
       setCargando(false)
     }
@@ -119,11 +135,14 @@ export function GestionPaquetes() {
     // Se manda lo TECLEADO y no un `Number(...) || 0`: ese respaldo convertiría
     // «abc» en un paquete de precio 0, que la validación rechazaría con el
     // mensaje equivocado. Quien valida es `motivoPaqueteInvalido`.
-    const motivo = motivoPaqueteInvalido({
-      nombre: nuevo.nombre,
-      precioCerrado: nuevo.precioCerrado as unknown as number,
-      sitios: nuevo.sitios,
-    })
+    const motivo = motivoPaqueteInvalido(
+      {
+        nombre: nuevo.nombre,
+        precioCerrado: nuevo.precioCerrado as unknown as number,
+        sitios: nuevo.sitios,
+      },
+      idioma,
+    )
     if (!completos || motivo) return setError(motivo)
     try {
       await guardarPaqueteApi({
@@ -138,7 +157,7 @@ export function GestionPaquetes() {
       await cargar()
       setError(null)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo guardar el paquete')
+      setError(e instanceof Error ? e.message : t('catalogos.paquetes.no-guardar'))
     }
   }
 
@@ -147,7 +166,7 @@ export function GestionPaquetes() {
       await guardarPaqueteApi({ ...p, activo: !p.activo })
       await cargar()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo cambiar el paquete')
+      setError(e instanceof Error ? e.message : t('catalogos.paquetes.no-cambiar'))
     }
   }
 
@@ -156,14 +175,14 @@ export function GestionPaquetes() {
       await borrarPaqueteApi(id)
       await cargar()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo eliminar el paquete')
+      setError(e instanceof Error ? e.message : t('catalogos.paquetes.no-eliminar'))
     }
   }
 
   // Esqueleto y no un «Cargando…» en texto (rediseño del 2026-10-26).
   if (cargando) {
     return (
-      <div className="space-y-4" aria-busy="true" aria-label="Cargando los paquetes">
+      <div className="space-y-4" aria-busy="true" aria-label={t('catalogos.paquetes.cargando')}>
         <div className="h-20 animate-pulse rounded-md bg-surface-2" />
         <div className="h-40 animate-pulse rounded-md bg-surface-2" />
       </div>
@@ -182,16 +201,12 @@ export function GestionPaquetes() {
 
       {/* La franja ámbar del proyecto (tokens del Dashboard); mismo texto. */}
       <div className="rounded-md border border-[#f59e0b40] bg-warning-soft px-3 py-2 text-[12px] text-[#9a6700]">
-        <b>El precio del paquete SUSTITUYE la suma de las tarifas de lista: no la descuenta, la
-        reemplaza.</b>{' '}
-        Da igual lo que sumen las pantallas — se cobra el precio del paquete.
+        <b>{t('catalogos.paquetes.aviso.sustituye')}</b>{' '}
+        {t('catalogos.paquetes.aviso.da-igual')}
         <br />
-        Por eso un paquete <b>no admite descuento por volumen</b> (su precio ya lo lleva dentro) ni
-        código de negociación, salvo que marques la casilla de abajo. El descuento comercial de la
-        propuesta sí se sigue aplicando encima.
+        {interpolarNodos(t('catalogos.paquetes.aviso.volumen'), { negrita: <b>{t('catalogos.paquetes.aviso.volumen.negrita')}</b> })}
         <br />
-        Y <b>quitar una pantalla de una propuesta ya cotizada NO baja el precio</b>: el reparto se
-        recalcula entre las que quedan y la propuesta lo avisa.
+        {interpolarNodos(t('catalogos.paquetes.aviso.quitar'), { negrita: <b>{t('catalogos.paquetes.aviso.quitar.negrita')}</b> })}
       </div>
 
       {/* PLEG-02 · la lista se pliega; el aviso de arriba y el alta de abajo
@@ -203,24 +218,25 @@ export function GestionPaquetes() {
           chevrón de plegar se caía debajo del texto. */}
       <CardColapsable
         id="paquetes.lista"
-        titulo="Paquetes de la organización"
-        subtitulo="Se reparte a prorrata de la tarifa de lista"
+        titulo={t('catalogos.paquetes.lista.titulo')}
+        subtitulo={t('catalogos.paquetes.lista.subtitulo')}
         contentClassName="space-y-3"
       >
         <p className="rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px] text-muted">
-          El precio se reparte entre las pantallas <b>a prorrata de su tarifa de lista</b>, y la
-          suma de las partes da el precio del paquete <b>al peso</b>. Ese reparto es el ingreso
-          que el reporte de rentabilidad le atribuye a cada pantalla.
+          {interpolarNodos(t('catalogos.paquetes.lista.explicacion'), {
+            prorrata: <b>{t('catalogos.paquetes.lista.explicacion.prorrata')}</b>,
+            peso: <b>{t('catalogos.paquetes.lista.explicacion.peso')}</b>,
+          })}
         </p>
         <div className="overflow-x-auto">
         <table className="w-full text-left text-[13px]">
           <thead>
             <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
-              <th className="px-3 py-2 font-medium">Paquete</th>
-              <th className="px-3 py-2 font-medium">Pantallas</th>
-              <th className="px-3 py-2 text-right font-medium">Precio cerrado</th>
-              <th className="px-3 py-2 font-medium">¿Códigos?</th>
-              <th className="px-3 py-2 text-right font-medium">En uso</th>
+              <th className="px-3 py-2 font-medium">{t('catalogos.paquetes.col.paquete')}</th>
+              <th className="px-3 py-2 font-medium">{t('catalogos.paquetes.col.pantallas')}</th>
+              <th className="px-3 py-2 text-right font-medium">{t('catalogos.paquetes.col.precio')}</th>
+              <th className="px-3 py-2 font-medium">{t('catalogos.paquetes.col.codigos')}</th>
+              <th className="px-3 py-2 text-right font-medium">{t('catalogos.paquetes.col.en-uso')}</th>
               <th className="px-3 py-2" />
             </tr>
           </thead>
@@ -228,8 +244,7 @@ export function GestionPaquetes() {
             {paquetes.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-3 py-2.5 text-muted">
-                  Todavía no hay ninguno. Sin paquetes, todo se vende al precio de tarifa — que es
-                  exactamente como funciona hoy.
+                  {t('catalogos.paquetes.vacio')}
                 </td>
               </tr>
             )}
@@ -239,28 +254,28 @@ export function GestionPaquetes() {
                   <div className={p.activo ? 'font-medium text-ink' : ''}>{p.nombre}</div>
                   {/* El estado con chip y palabra, no solo con el gris. */}
                   <StatusBadge tono={p.activo ? 'verde' : 'neutro'} className="mt-1">
-                    {p.activo ? 'Activo' : 'Desactivado'}
+                    {p.activo ? t('catalogos.paquetes.activo') : t('catalogos.paquetes.desactivado')}
                   </StatusBadge>
                 </td>
                 {/* Los nombres A LA VISTA, en una línea recortada; el `title`
                     se queda para la lista completa. Antes solo estaban en el
                     `title`, y en una pantalla táctil no se veían nunca. */}
                 <td className="max-w-[18rem] px-3 py-2.5" title={p.sitios.map(nombreDe).join(' · ')}>
-                  <div className="demo-num text-ink">{p.sitios.length} pantalla{p.sitios.length === 1 ? '' : 's'}</div>
+                  <div className="demo-num text-ink">{t(p.sitios.length === 1 ? 'catalogos.paquetes.pantallas.uno' : 'catalogos.paquetes.pantallas.otros', { n: p.sitios.length })}</div>
                   <div className="truncate text-[11px] text-muted">{p.sitios.map(nombreDe).join(' · ')}</div>
                 </td>
-                <td className="demo-num whitespace-nowrap px-3 py-2.5 text-right font-medium">{montoEntero(p.precioCerrado)}</td>
+                <td className="demo-num whitespace-nowrap px-3 py-2.5 text-right font-medium">{montoEntero(p.precioCerrado, idioma)}</td>
                 <td className="px-3 py-2.5">
                   <span className="whitespace-nowrap rounded-full border border-border px-2 py-0.5 text-[11px] text-muted">
-                    {p.admiteCodigo ? 'Admite código' : 'Precio final'}
+                    {p.admiteCodigo ? t('catalogos.paquetes.admite-codigo') : t('catalogos.paquetes.precio-final')}
                   </span>
                 </td>
                 <td className="px-3 py-2.5 text-right">
                   <span
                     className="demo-num whitespace-nowrap rounded-full border border-border px-2 py-0.5 text-[11px] text-muted"
-                    title="Propuestas que aplican este paquete"
+                    title={t('catalogos.paquetes.en-uso.title')}
                   >
-                    En uso · {p.aplicadoEn}
+                    {t('catalogos.paquetes.en-uso', { n: p.aplicadoEn })}
                   </span>
                 </td>
                 <td className="space-x-3 whitespace-nowrap px-3 py-2.5 text-right">
@@ -268,9 +283,9 @@ export function GestionPaquetes() {
                     type="button"
                     onClick={() => void alternarActivo(p)}
                     className="text-[12px] font-medium text-info hover:underline"
-                    title="Desactivar conserva la definición y deja de poder venderse. Lo ya cotizado y lo ya aprobado no se mueven."
+                    title={t('catalogos.paquetes.desactivar.title')}
                   >
-                    {p.activo ? 'Desactivar' : 'Activar'}
+                    {p.activo ? t('catalogos.paquetes.desactivar') : t('catalogos.paquetes.activar')}
                   </button>
                   <Button
                     type="button"
@@ -278,9 +293,9 @@ export function GestionPaquetes() {
                     size="sm"
                     variant="ghost"
                     className="text-error hover:text-error"
-                    title="Eliminar: ninguna venta se mueve, porque su precio ya está copiado en cada propuesta. Lo que se pierde es saber de qué paquete salió."
+                    title={t('catalogos.paquetes.eliminar.title')}
                   >
-                    <Trash2 className="h-3.5 w-3.5" /> Eliminar
+                    <Trash2 className="h-3.5 w-3.5" /> {t('catalogos.comun.eliminar')}
                   </Button>
                 </td>
               </tr>
@@ -296,29 +311,30 @@ export function GestionPaquetes() {
           mismo `anadir()`. */}
       <section className="rounded-md border border-border bg-surface p-4">
         <h3 className="mb-3 flex items-center gap-1.5 text-[14px] font-medium text-ink">
-          <Package className="h-4 w-4 text-muted" /> Nuevo paquete
+          <Package className="h-4 w-4 text-muted" /> {t('catalogos.paquetes.nuevo')}
         </h3>
         <div className="flex flex-wrap items-end gap-3">
           <label className="text-[12px]" data-falta={ob.falta('nombre') || undefined}>
-            <EtiquetaCompacta texto="Nombre" obligatorio falta={ob.falta('nombre')} />
+            <EtiquetaCompacta texto={t('catalogos.comun.nombre')} obligatorio falta={ob.falta('nombre')} />
             <input
-              aria-label="Nombre del paquete"
+              aria-label={t('catalogos.paquetes.nombre.aria')}
               className={`${CAMPO} w-56`}
-              placeholder="p. ej. Paquete Periférico"
+              placeholder={t('catalogos.paquetes.nombre.placeholder')}
               value={nuevo.nombre}
               onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })}
             />
           </label>
           <label className="text-[12px]" data-falta={ob.falta('precioCerrado') || undefined}>
-            <EtiquetaCompacta texto="Precio del conjunto (pesos enteros)" obligatorio falta={ob.falta('precioCerrado')} />
+            <EtiquetaCompacta texto={t('catalogos.paquetes.precio')} obligatorio falta={ob.falta('precioCerrado')} />
             {/* Pesos ENTEROS (decimales 0): el reparto no admite centavos. Lo
                 que no se entiende llega como 'NaN' y `motivoPaqueteInvalido`
                 lo rechaza («tiene que ser un numero»). */}
             <CampoCifra
-              aria-label="Precio cerrado del paquete"
+              aria-label={t('catalogos.paquetes.precio.aria')}
               decimales={0}
+              idioma={idioma}
               className={`${CAMPO} demo-num w-36 text-right`}
-              placeholder="p. ej. 180,000"
+              placeholder={t('catalogos.paquetes.precio.placeholder', { ejemplo: ejemploCifra('180,000', idioma) })}
               valor={nuevo.precioCerrado}
               onCambio={(crudo) => setNuevo({ ...nuevo, precioCerrado: crudo })}
             />
@@ -326,22 +342,25 @@ export function GestionPaquetes() {
           <label className="flex h-9 items-center gap-1.5 text-[12px] text-ink">
             <input
               type="checkbox"
-              aria-label="Admite código de negociación encima"
+              aria-label={t('catalogos.paquetes.admite-codigo-encima')}
               checked={nuevo.admiteCodigo}
               onChange={(e) => setNuevo({ ...nuevo, admiteCodigo: e.target.checked })}
             />
-            Admite código de negociación encima
+            {t('catalogos.paquetes.admite-codigo-encima')}
           </label>
         </div>
 
         <div className="mt-4">
           <p className={`mb-1 text-[12px] ${ob.falta('sitios') ? 'text-error' : 'text-muted'}`}>
-            Pantallas del paquete
+            {t('catalogos.paquetes.pantallas-del-paquete')}
             <span aria-hidden="true" className="ml-0.5 text-error">*</span>
-            <span className="sr-only"> (obligatorio)</span> (mínimo 2). Una propuesta solo puede aplicar este paquete si
-            tiene <b>exactamente</b> estas pantallas.
+            <span className="sr-only">{t('compartidos.campo.obligatorio')}</span>
+            {interpolarNodos(t('catalogos.paquetes.minimo'), { exactamente: <b>{t('catalogos.paquetes.minimo.exactamente')}</b> })}
             <span className="ml-1 rounded-full border border-border px-2 py-0.5 text-[11px] text-muted">
-              <span className="demo-num">{nuevo.sitios.length}</span> elegida{nuevo.sitios.length === 1 ? '' : 's'}
+              {interpolarNodos(
+                t(nuevo.sitios.length === 1 ? 'catalogos.paquetes.elegidas.uno' : 'catalogos.paquetes.elegidas.otros'),
+                { n: <span className="demo-num">{nuevo.sitios.length}</span> },
+              )}
             </span>
           </p>
           <div className={`max-h-56 divide-y divide-border overflow-auto rounded-md border px-3 py-1 ${ob.falta('sitios') ? 'border-error' : 'border-border'}`}>
@@ -360,7 +379,7 @@ export function GestionPaquetes() {
                   }
                 />
                 <span className="min-w-0 flex-1 truncate">{s.nombre}</span>
-                <span className="demo-num shrink-0 text-[12px] text-muted">{montoEntero(listaDe(s.id))} de lista</span>
+                <span className="demo-num shrink-0 text-[12px] text-muted">{t('catalogos.paquetes.de-lista', { monto: montoEntero(listaDe(s.id), idioma) })}</span>
               </label>
             ))}
           </div>
@@ -374,48 +393,47 @@ export function GestionPaquetes() {
           <div className="mt-4 space-y-2">
             <div className="flex flex-wrap items-center gap-x-5 gap-y-1 rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px]">
               <span className="text-muted">
-                Lista <span className="demo-num text-ink">{montoEntero(sumaListas)}</span>
+                {interpolarNodos(t('catalogos.paquetes.resumen.lista'), { monto: <span className="demo-num text-ink">{montoEntero(sumaListas, idioma)}</span> })}
               </span>
               <span className="text-muted">
-                Paquete <span className="demo-num font-medium text-ink">{montoEntero(precio)}</span>
+                {interpolarNodos(t('catalogos.paquetes.resumen.paquete'), { monto: <span className="demo-num font-medium text-ink">{montoEntero(precio, idioma)}</span> })}
               </span>
               {sumaListas > 0 && (
                 <span className={precio < sumaListas ? 'text-muted' : 'font-medium text-[#9a6700]'}>
                   {precio < sumaListas
-                    ? <>se deja de cobrar <span className="demo-num text-ink">{montoEntero(sumaListas - precio)}</span></>
-                    : <>se cobra <span className="demo-num">{montoEntero(precio - sumaListas)}</span> POR ENCIMA de la lista</>}
+                    ? interpolarNodos(t('catalogos.paquetes.resumen.deja-de-cobrar'), { monto: <span className="demo-num text-ink">{montoEntero(sumaListas - precio, idioma)}</span> })
+                    : interpolarNodos(t('catalogos.paquetes.resumen.por-encima'), { monto: <span className="demo-num">{montoEntero(precio - sumaListas, idioma)}</span> })}
                 </span>
               )}
             </div>
             <p className="text-[12px] text-muted">
-              Así se repartiría entre las pantallas — y esto es lo que el reporte de rentabilidad
-              le atribuirá a cada una:
+              {t('catalogos.paquetes.reparto.intro')}
             </p>
             <div className="overflow-x-auto rounded-md border border-border">
               <table className="w-full text-left text-[13px]">
                 <thead>
                   <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
-                    <th className="px-3 py-2 font-medium">Pantalla</th>
-                    <th className="px-3 py-2 text-right font-medium">Lista</th>
-                    <th className="px-3 py-2 text-right font-medium">Parte del paquete</th>
+                    <th className="px-3 py-2 font-medium">{t('catalogos.paquetes.reparto.pantalla')}</th>
+                    <th className="px-3 py-2 text-right font-medium">{t('catalogos.paquetes.reparto.lista')}</th>
+                    <th className="px-3 py-2 text-right font-medium">{t('catalogos.paquetes.reparto.parte')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {previsto.map((x) => (
                     <tr key={x.id}>
                       <td className="px-3 py-2 text-ink">{nombreDe(x.id)}</td>
-                      <td className="demo-num whitespace-nowrap px-3 py-2 text-right text-muted">{montoEntero(x.lista)}</td>
-                      <td className="demo-num whitespace-nowrap px-3 py-2 text-right font-medium text-ink">{montoEntero(x.parte)}</td>
+                      <td className="demo-num whitespace-nowrap px-3 py-2 text-right text-muted">{montoEntero(x.lista, idioma)}</td>
+                      <td className="demo-num whitespace-nowrap px-3 py-2 text-right font-medium text-ink">{montoEntero(x.parte, idioma)}</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
                   <tr className="border-t-2 border-border-strong">
                     <td className="px-3 py-2 font-medium text-ink" colSpan={2}>
-                      Suma de las partes <span className="font-normal text-muted">— cuadra al peso</span>
+                      {interpolarNodos(t('catalogos.paquetes.reparto.suma'), { cuadra: <span className="font-normal text-muted">{t('catalogos.paquetes.reparto.cuadra')}</span> })}
                     </td>
                     <td className="demo-num whitespace-nowrap px-3 py-2 text-right font-semibold text-ink">
-                      {montoEntero(previsto.reduce((s, x) => s + x.parte, 0))}
+                      {montoEntero(previsto.reduce((s, x) => s + x.parte, 0), idioma)}
                     </td>
                   </tr>
                 </tfoot>
@@ -431,7 +449,7 @@ export function GestionPaquetes() {
             size="sm"
             variant="success"
           >
-            <Plus className="h-3.5 w-3.5" /> Crear paquete
+            <Plus className="h-3.5 w-3.5" /> {t('catalogos.paquetes.crear')}
           </Button>
         </div>
       </section>
@@ -450,13 +468,14 @@ const CAMPO =
 // que falta por encima de las demás. El borde rojo del control lo pone igual
 // `globals.css` por el `data-falta` del <label>; el motivo, el aviso de arriba.
 function EtiquetaCompacta({ texto, obligatorio = false, falta = false }: { texto: string; obligatorio?: boolean; falta?: boolean }) {
+  const t = useIdioma().t
   return (
     <span className={`mb-0.5 block ${falta ? 'text-error' : 'text-muted'}`}>
       {texto}
       {obligatorio && (
         <>
           <span aria-hidden="true" className="ml-0.5 text-error">*</span>
-          <span className="sr-only"> (obligatorio)</span>
+          <span className="sr-only">{t('compartidos.campo.obligatorio')}</span>
         </>
       )}
     </span>

@@ -365,7 +365,7 @@ class Monitor(
                 if (cCfg != null) {
                     val gris = Enderezador.aDoubles(v.pantalla)
                     val huella = com.spaceeye.agent.creativos.Huella.calcular(gris, v.pantalla.cols(), v.pantalla.rows())
-                    if (huella == null) {
+                    if (huella == null || sinContenido(v, sCfg)) {
                         candidata = null   // sin contraste: pantalla apagada o lente tapada
                     } else {
                         reconocibles++
@@ -482,9 +482,11 @@ class Monitor(
             vueltasSalud = 0
             texturaNormal = null
         }
-        // "|fuera": las referencias viejas se tomaron con la pantalla incluida;
-        // con este sufijo se vuelven a tomar solo con lo de alrededor.
-        revision.abrir(firmaEncuadre + "|fuera")
+        // El sufijo marca COMO se tomaron las referencias; al cambiarlo, las
+        // viejas se tiran y se vuelven a tomar. "|fuera" las dejo solo con lo de
+        // alrededor salvo cuando la pantalla llenaba la foto, que seguia
+        // comparandose entera; "|fuera2" quita esa excepcion.
+        revision.abrir(firmaEncuadre + "|fuera2")
         // Aprende la primera vuelta en que vea la pantalla funcionando, y ademas
         // los minutos configurados (0 = solo esa vuelta).
         val aprendizajeMs = cfg.optLong("aprendizaje_min", 120L) * 60_000L
@@ -493,7 +495,20 @@ class Monitor(
 
         val camaraEstado = revision.revisar(vistazos, geo)
         val excluir = geo.excluir + seguimiento.excluidas()
-        val resultado = if (camaraEstado == Seguimiento.Camara.OK)
+        // Solo la EVIDENCIA invalida lo que se mide: si la camara se movio, las
+        // esquinas marcadas ya no caen sobre la pantalla y un "gabinete apagado"
+        // podria ser cielo. "No se" (INCONCLUSO) no es evidencia, y sin embargo
+        // valia lo mismo: la pantalla no se analizaba en absoluto.
+        //
+        // Eso convirtio una falsa alarma en un apagon de la vigilancia. TLALPAN
+        // abrio tres fallas de "camara movida" seguidas -de noche, con la
+        // pantalla funcionando en sus propias fotos de evidencia- y entre el 24
+        // y el 26 de oct de 2026 se quedo unas doce horas al dia sin que nadie
+        // mirara su pantalla. En silencio: una pantalla que no se revisa se ve
+        // igual que una pantalla sana.
+        val camaraInvalida = camaraEstado == Seguimiento.Camara.MOVIDA ||
+            camaraEstado == Seguimiento.Camara.SIN_IMAGEN
+        val resultado = if (!camaraInvalida)
             SaludAnalisis.analizar(vistazos.map { it.salud }, geo.filas, geo.columnas, excluir, texturaNormal,
                 cfg.optDouble("cambio_minimo", SaludAnalisis.CAMBIO_MINIMO).coerceIn(2.0, 30.0),
                 cfg.optDouble("sin_contenido", SaludAnalisis.SIN_CONTENIDO).coerceIn(0.1, 0.8)) else null
@@ -643,10 +658,42 @@ class Monitor(
 
     /** Manda las fotos de creativos nuevos que esperaban, una por creativo. */
     private fun enviarLote(cCfg: JSONObject?) {
-        val e = lote.enviar(cCfg?.optInt("restantes_hoy", 0) ?: 0) { h, jpeg -> subirCreativo(jpeg, h) }
+        val e = lote.enviar(cCfg?.optInt("restantes_hoy", 0) ?: 0) { h, jpeg, visto -> subirCreativo(jpeg, h, visto) }
         cCfg?.put("restantes_hoy", e.restantes)
         RemoteLog.info(ctx, "creative", "Envio agrupado: ${e.enviadas} foto(s) de creativos nuevos" +
             (if (e.quedan > 0) "; ${e.quedan} esperan al tope de manana" else ""))
+    }
+
+    /**
+     * La pantalla no esta mostrando nada: esto no es un creativo.
+     *
+     * La unica guarda que tenia la vigilancia de creativos era el contraste
+     * minimo de la huella, y una pantalla apagada DE DIA no es negra: es un
+     * panel gris que refleja el cielo, con un degradado de arriba abajo que pasa
+     * ese minimo de sobra. Como ademas el reconocimiento va por esquinas (ORB) y
+     * una pantalla lisa no tiene esquinas que casar, nunca coincide con nada y
+     * sale "creativo nuevo" cada vez que se la ve. TLALPAN subio asi su pantalla
+     * en blanco el 25 y el 26 de oct de 2026, a las 07:11 de la mañana las dos
+     * veces.
+     *
+     * La medida es la MISMA que ya usa la revision de la pantalla para decir
+     * "apagada o sin contenido": los bordes que tiene la toma contra los que
+     * tiene este sitio en sus vueltas sanas. Un anuncio tiene letras, logos y
+     * fotos; un reflejo es liso. Se compara contra lo normal de AQUI y no contra
+     * un numero fijo, porque el valor absoluto depende de cuanto ocupa la
+     * pantalla en la foto; y el umbral es el mismo ajustable desde la web
+     * (migracion 026), asi que un sitio que se pase de listo se corrige sin APK.
+     *
+     * Si todavia no sabemos lo normal del sitio -la vigilancia de pantalla esta
+     * apagada, o aun no ha tenido una vuelta sana- no se opina: se deja pasar,
+     * como antes.
+     */
+    private fun sinContenido(v: Vistazo, sCfg: JSONObject?): Boolean {
+        val normal = texturaNormal ?: return false
+        if (normal <= 0.0) return false
+        val umbral = (sCfg?.optDouble("sin_contenido", SaludAnalisis.SIN_CONTENIDO) ?: SaludAnalisis.SIN_CONTENIDO)
+            .coerceIn(0.1, 0.8)
+        return SaludAnalisis.textura(v.salud) < umbral * normal
     }
 
     private fun medirApagada(v: Vistazo, geo: Geometria): DetectorApagada.Medida {
@@ -702,8 +749,10 @@ class Monitor(
         } else RemoteLog.warn(ctx, "campaign", "Campana $id vista en la pantalla, pero la foto no se pudo subir")
     }
 
-    private fun subirCreativo(jpeg: ByteArray, huella: String): Boolean {
-        val ok = api.uploadPhoto(photoBytes = jpeg, source = "creative_change", watermarkBaked = false, phash = huella)
+    /** @param visto cuando se vio el creativo, si la foto no sale al momento (lote). */
+    private fun subirCreativo(jpeg: ByteArray, huella: String, visto: Long? = null): Boolean {
+        val ok = api.uploadPhoto(photoBytes = jpeg, source = "creative_change", watermarkBaked = false,
+            phash = huella, takenAt = visto)
         if (ok) RemoteLog.info(ctx, "creative", "Creativo nuevo detectado en la pantalla; foto subida (${jpeg.size / 1024} KB)")
         else RemoteLog.warn(ctx, "creative", "Creativo nuevo detectado, pero la foto no se pudo subir")
         return ok

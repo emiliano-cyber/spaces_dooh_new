@@ -12,8 +12,9 @@ import {
   fijarExigirReautenticacionApi,
   fijarContrasenaCambiosApi,
 } from '@/lib/data/cambios-api'
-import { REGLA_PASSWORD } from '@/lib/password'
 import { TONO } from './Chip'
+import { useTexto } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
 
 const inputCls =
   'h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
@@ -33,6 +34,7 @@ const inputCls =
 
 export function ControlCambiosPanel({ onToast }: { onToast: (m: string) => void }) {
   const { sesion } = useSesionCtx()
+  const t = useTexto()
   // El Dueño y el ADMINISTRADOR (29/09). La regla vive en `lib/roles.ts` con su
   // prueba: dentro de este `.tsx` no la comprobaría nada.
   const puedeVerlo = puedeVerControlCambios(sesion?.usuario?.rol)
@@ -61,7 +63,7 @@ export function ControlCambiosPanel({ onToast }: { onToast: (m: string) => void 
   async function guardarContrasena() {
     setErrorPass(null)
     if (!ob.validar()) return
-    if (pass !== pass2) { setErrorPass('Las dos contraseñas no coinciden'); return }
+    if (pass !== pass2) { setErrorPass(t('admin.cambios.no-coinciden')); return }
     setGuardandoPass(true)
     try {
       await fijarContrasenaCambiosApi(pass)
@@ -69,10 +71,10 @@ export function ControlCambiosPanel({ onToast }: { onToast: (m: string) => void 
       setPass2('')
       ob.reiniciar()
       setEditando(false)
-      onToast(tieneContrasena ? 'Contraseña de cambios actualizada' : 'Contraseña de cambios asignada')
+      onToast(tieneContrasena ? t('admin.cambios.toast.actualizada') : t('admin.cambios.toast.asignada'))
       await refrescar()
     } catch (e) {
-      setErrorPass(e instanceof Error ? e.message : 'No se pudo guardar')
+      setErrorPass(e instanceof Error ? e.message : t('admin.comun.no-se-pudo-guardar'))
     }
     setGuardandoPass(false)
   }
@@ -83,15 +85,13 @@ export function ControlCambiosPanel({ onToast }: { onToast: (m: string) => void 
   async function cambiar(siguiente: boolean) {
     if (
       siguiente &&
-      !window.confirm(
-        'A partir de ahora, TODOS —tú incluido— tendrán que volver a teclear su propia contraseña para los cambios que mueven dinero o el catálogo. ¿Activar?',
-      )
+      !window.confirm(t('admin.cambios.confirmar-activar'))
     ) {
       return
     }
     if (
       !siguiente &&
-      !window.confirm('¿Desactivar? Los cambios sensibles dejarán de pedir contraseña a nadie.')
+      !window.confirm(t('admin.cambios.confirmar-desactivar'))
     ) {
       return
     }
@@ -100,9 +100,9 @@ export function ControlCambiosPanel({ onToast }: { onToast: (m: string) => void 
     try {
       await fijarExigirReautenticacionApi(siguiente)
       setActivo(siguiente)
-      onToast(siguiente ? 'Control de cambios activado' : 'Control de cambios desactivado')
+      onToast(siguiente ? t('admin.cambios.toast.activado') : t('admin.cambios.toast.desactivado'))
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo guardar')
+      setError(e instanceof Error ? e.message : t('admin.comun.no-se-pudo-guardar'))
     }
     setEnviando(false)
   }
@@ -112,19 +112,15 @@ export function ControlCambiosPanel({ onToast }: { onToast: (m: string) => void 
     // en el contenido: plegar no la borra.
     <CardColapsable
       id="admin.control-cambios"
-      titulo="Control de cambios"
+      titulo={t('admin.cambios.titulo')}
       icono={activo ? <Lock className="h-4 w-4 text-success" /> : <Unlock className="h-4 w-4 text-muted" />}
       contentClassName="space-y-3"
     >
         <p className="text-[13px] text-muted">
-          Actívalo y los cambios que mueven dinero o el catálogo —tarifas, rentas, contratos, pagos,
-          facturación y borrar pantallas, clientes o arrendadores— pedirán una contraseña: la propia
-          de quien los hace, o la que asignes aquí abajo para todo el equipo. El trabajo diario —crear
-          campañas, subir creatividades, cerrar órdenes— sigue sin fricción.
+          {t('admin.cambios.explica')}
         </p>
         <p className="text-[12px] text-muted">
-          <span className="text-ink">Aplica también a ti.</span> Antes el Dueño estaba exento y una
-          sesión suya olvidada abierta podía facturar sin que nadie confirmara nada.
+          <span className="text-ink">{t('admin.cambios.aplica-a-ti')}</span> {t('admin.cambios.antes-exento')}
         </p>
 
         {activo === null ? (
@@ -133,16 +129,15 @@ export function ControlCambiosPanel({ onToast }: { onToast: (m: string) => void 
           <>
             <div className={`flex items-center gap-2 rounded border px-3 py-2 text-[12px] ${TONO.exito}`}>
               <ShieldCheck className="h-4 w-4 shrink-0 text-success" />
-              Activo. Al teclear una contraseña válida, la sesión queda desbloqueada {minutos} minutos
-              y luego se vuelve a pedir.
+              {t('admin.cambios.activo', { minutos })}
             </div>
             <Button size="sm" variant="secondary" onClick={() => cambiar(false)} disabled={enviando}>
-              {enviando && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Desactivar el control
+              {enviando && <Loader2 className="h-3.5 w-3.5 animate-spin" />} {t('admin.cambios.desactivar')}
             </Button>
           </>
         ) : (
           <Button size="sm" onClick={() => cambiar(true)} disabled={enviando}>
-            {enviando && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Activar el control de cambios
+            {enviando && <Loader2 className="h-3.5 w-3.5 animate-spin" />} {t('admin.cambios.activar')}
           </Button>
         )}
         {error && <p className="text-[12px] text-error">{error}</p>}
@@ -150,26 +145,24 @@ export function ControlCambiosPanel({ onToast }: { onToast: (m: string) => void 
         <div className="space-y-2 border-t border-border pt-3">
           <p className="flex items-center gap-2 text-[13px] text-ink">
             <KeyRound className="h-4 w-4 shrink-0 text-muted" />
-            Contraseña del control de cambios
+            {t('admin.cambios.contrasena')}
           </p>
           <p className="text-[12px] text-muted">
-            Independiente de la contraseña de acceso de cada persona. Sirve para desbloquear cambios
-            sensibles, pero <b>no</b> para restablecer la contraseña de otra persona — eso siempre
-            exige la contraseña propia de quien lo hace.
+            {interpolarNodos(t('admin.cambios.independiente'), { no: <b>{t('admin.cambios.no')}</b> })}
           </p>
 
           {!editando ? (
             <div className="flex items-center gap-2">
               <span className="text-[12px] text-muted">
-                {tieneContrasena ? 'Ya hay una contraseña asignada.' : 'Todavía no se ha asignado ninguna.'}
+                {tieneContrasena ? t('admin.cambios.ya-hay') : t('admin.cambios.ninguna')}
               </span>
               <Button size="sm" variant="secondary" onClick={() => setEditando(true)}>
-                {tieneContrasena ? 'Cambiarla' : 'Asignar contraseña'}
+                {tieneContrasena ? t('admin.cambios.cambiarla') : t('admin.cambios.asignar')}
               </Button>
             </div>
           ) : (
             <div className="space-y-2">
-              <Campo label={`Contraseña nueva (${REGLA_PASSWORD})`} obligatorio falta={ob.falta('pass')}>
+              <Campo label={t('admin.cambios.nueva', { regla: t('password.regla') })} obligatorio falta={ob.falta('pass')}>
                 <input
                   type="password"
                   value={pass}
@@ -178,7 +171,7 @@ export function ControlCambiosPanel({ onToast }: { onToast: (m: string) => void 
                   autoComplete="off"
                 />
               </Campo>
-              <Campo label="Repetirla" obligatorio falta={ob.falta('pass2')}>
+              <Campo label={t('admin.cambios.repetirla')} obligatorio falta={ob.falta('pass2')}>
                 <input
                   type="password"
                   value={pass2}
@@ -194,7 +187,7 @@ export function ControlCambiosPanel({ onToast }: { onToast: (m: string) => void 
                   onClick={guardarContrasena}
                   disabled={guardandoPass}
                 >
-                  {guardandoPass && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Guardar
+                  {guardandoPass && <Loader2 className="h-3.5 w-3.5 animate-spin" />} {t('comun.guardar')}
                 </Button>
                 <Button
                   size="sm"
@@ -202,7 +195,7 @@ export function ControlCambiosPanel({ onToast }: { onToast: (m: string) => void 
                   onClick={() => { setEditando(false); setPass(''); setPass2(''); setErrorPass(null); ob.reiniciar() }}
                   disabled={guardandoPass}
                 >
-                  Cancelar
+                  {t('comun.cancelar')}
                 </Button>
               </div>
             </div>

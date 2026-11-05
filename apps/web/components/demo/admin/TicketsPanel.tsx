@@ -13,6 +13,11 @@ import {
 } from '@/lib/data/tickets-api'
 import { textoDeEstado, formularioValido } from '@/components/demo/admin/tickets-ui'
 import { Chip, TONO, type Tono } from './Chip'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
+import type { ClaveTexto } from '@/lib/i18n/diccionario'
+import type { Idioma } from '@/lib/i18n/idiomas'
+import { localeDe } from '@/lib/i18n/formato-idioma'
 
 // ============================================================================
 //  TicketsPanel — ADR 0038, tarea 7: el dueño de la instancia escribe una
@@ -39,11 +44,13 @@ const TONO_CLASE = {
   info: 'border-border bg-surface-2 text-ink',
 } as const
 
-const ESTADO_LABEL: Record<EstadoTicket, string> = {
-  ABIERTO: 'Abierto',
-  EN_PROCESO: 'En proceso',
-  RESUELTO: 'Resuelto',
-  CERRADO: 'Cerrado',
+// I18N (2026-11-02) · la clave de cada estado y prioridad. El espanol de
+// `admin.tickets.*` es el de siempre (`textos/admin.test.ts` lo fija).
+export const CLAVE_ESTADO_TICKET: Record<EstadoTicket, ClaveTexto> = {
+  ABIERTO: 'admin.tickets.estado.abierto',
+  EN_PROCESO: 'admin.tickets.estado.en-proceso',
+  RESUELTO: 'admin.tickets.estado.resuelto',
+  CERRADO: 'admin.tickets.estado.cerrado',
 }
 const ESTADO_TONO: Record<EstadoTicket, Tono> = {
   ABIERTO: 'aviso',
@@ -51,20 +58,21 @@ const ESTADO_TONO: Record<EstadoTicket, Tono> = {
   RESUELTO: 'exito',
   CERRADO: 'neutro',
 }
-const PRIORIDAD_LABEL: Record<PrioridadTicket, string> = {
-  BAJA: 'Baja',
-  NORMAL: 'Normal',
-  ALTA: 'Alta',
-  URGENTE: 'Urgente',
+export const CLAVE_PRIORIDAD_TICKET: Record<PrioridadTicket, ClaveTexto> = {
+  BAJA: 'admin.tickets.prioridad.baja',
+  NORMAL: 'admin.tickets.prioridad.normal',
+  ALTA: 'admin.tickets.prioridad.alta',
+  URGENTE: 'admin.tickets.prioridad.urgente',
 }
 const PRIORIDADES: PrioridadTicket[] = ['BAJA', 'NORMAL', 'ALTA', 'URGENTE']
 
 const inputCls =
   'h-9 w-full rounded border border-border-strong bg-surface px-2.5 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 
-function formatearFecha(iso: string | null): string {
+// En espanol, `es-MX` como siempre; en ingles, `en-US` (fecha legible en EE. UU.).
+function formatearFecha(iso: string | null, idioma: Idioma = 'es'): string {
   if (!iso) return '—'
-  return new Date(iso).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' })
+  return new Date(iso).toLocaleString(localeDe(idioma), { dateStyle: 'medium', timeStyle: 'short' })
 }
 
 export function TicketsPanel({ onToast }: { onToast: (m: string) => void }) {
@@ -79,6 +87,8 @@ export function TicketsPanel({ onToast }: { onToast: (m: string) => void }) {
   // OBLIG-01 · asunto y cuerpo, los dos que exige el servidor
   // (`tickets-controller.ts:25-26`). La prioridad trae NORMAL de inicio.
   const ob = useObligatorios({ asunto, cuerpo }, ['asunto', 'cuerpo'])
+  const { t, idioma } = useIdioma()
+  const tx = t
 
   async function cargar() {
     try {
@@ -116,9 +126,9 @@ export function TicketsPanel({ onToast }: { onToast: (m: string) => void }) {
       setAsunto(''); setCuerpo(''); setPrioridad('NORMAL')
       ob.reiniciar()
       setAbierto(false)
-      onToast(`Ticket abierto: ${nuevo.folio}`)
+      onToast(t('admin.tickets.toast.abierto', { folio: nuevo.folio }))
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo abrir el ticket')
+      setError(e instanceof Error ? e.message : t('admin.tickets.error.abrir'))
     }
     setEnviando(false)
   }
@@ -129,13 +139,11 @@ export function TicketsPanel({ onToast }: { onToast: (m: string) => void }) {
     return (
       <CardColapsable
         id="admin.soporte"
-        titulo="Soporte"
+        titulo={t('admin.tickets.titulo')}
         icono={<LifeBuoy className="h-4 w-4 text-muted" />}
       >
           <p className="text-[12px] text-muted">
-            Ver y abrir tickets de soporte está reservado a quien tenga el permiso de{' '}
-            <b className="text-ink">Administración → ver</b>. Pídeselo a quien administre los
-            roles y permisos de tu organización.
+            {interpolarNodos(t('admin.tickets.reservado'), { permiso: <b className="text-ink">{t('admin.act.permiso')}</b> })}
           </p>
       </CardColapsable>
     )
@@ -146,31 +154,31 @@ export function TicketsPanel({ onToast }: { onToast: (m: string) => void }) {
   return (
     <CardColapsable
       id="admin.soporte"
-      titulo="Soporte"
+      titulo={t('admin.tickets.titulo')}
       icono={<LifeBuoy className="h-4 w-4 text-muted" />}
       contentClassName="space-y-3"
     >
         {status === 'cargando' ? (
           <div className="h-24 animate-pulse rounded bg-surface-2" />
         ) : status === 'error' || !tickets ? (
-          <p className="text-[13px] text-error">No se pudieron cargar tus tickets de soporte.</p>
+          <p className="text-[13px] text-error">{t('admin.tickets.error')}</p>
         ) : (
           <>
             {(() => {
-              const { tono, texto } = textoDeEstado(tickets)
+              const { tono, texto } = textoDeEstado(tickets, idioma)
               return <div className={`rounded border px-3 py-2 text-[13px] ${TONO_CLASE[tono]}`}>{texto}</div>
             })()}
 
             {!abierto ? (
               <Button variant="success" size="sm" onClick={() => setAbierto(true)}>
-                <Plus className="h-3.5 w-3.5" /> Nuevo ticket
+                <Plus className="h-3.5 w-3.5" /> {t('admin.tickets.nuevo')}
               </Button>
             ) : (
               <div className="space-y-2.5 rounded-md border border-border bg-bg p-3">
-                <Campo label="Asunto" obligatorio falta={ob.falta('asunto')}>
+                <Campo label={t('admin.tickets.asunto')} obligatorio falta={ob.falta('asunto')}>
                   <input className={inputCls} value={asunto} onChange={(e) => setAsunto(e.target.value)} autoFocus />
                 </Campo>
-                <Campo label="Cuéntanos qué pasa" obligatorio falta={ob.falta('cuerpo')}>
+                <Campo label={t('admin.tickets.cuerpo')} obligatorio falta={ob.falta('cuerpo')}>
                   <textarea
                     className={`${inputCls} h-auto py-2 leading-snug`}
                     rows={3}
@@ -179,25 +187,25 @@ export function TicketsPanel({ onToast }: { onToast: (m: string) => void }) {
                     onChange={(e) => setCuerpo(e.target.value)}
                   />
                 </Campo>
-                <Campo label="Prioridad">
+                <Campo label={t('admin.tickets.prioridad')}>
                   <select
                     className={inputCls}
                     value={prioridad}
                     onChange={(e) => setPrioridad(e.target.value as PrioridadTicket)}
                   >
                     {PRIORIDADES.map((p) => (
-                      <option key={p} value={p}>{PRIORIDAD_LABEL[p]}</option>
+                      <option key={p} value={p}>{t(CLAVE_PRIORIDAD_TICKET[p])}</option>
                     ))}
                   </select>
                 </Campo>
                 {error && <p className="text-[12px] text-error">{error}</p>}
                 <div className="flex justify-end gap-2 pt-0.5">
                   <Button size="sm" variant="secondary" onClick={() => { setAbierto(false); setError(null); ob.reiniciar() }}>
-                    Cancelar
+                    {t('comun.cancelar')}
                   </Button>
                   <Button size="sm" disabled={enviando} onClick={abrirTicket}>
                     {enviando && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                    Abrir ticket
+                    {t('admin.tickets.abrir')}
                   </Button>
                 </div>
               </div>
@@ -205,17 +213,18 @@ export function TicketsPanel({ onToast }: { onToast: (m: string) => void }) {
 
             <ul className="m-0 list-none space-y-2 p-0">
               {tickets.length === 0 && !abierto && (
-                <li className="text-[12px] text-muted">Aquí verás tus tickets en cuanto abras el primero.</li>
+                <li className="text-[12px] text-muted">{t('admin.tickets.vacio')}</li>
               )}
               {tickets.map((t) => (
+                // `t` es el ticket (nombre de siempre); el traductor va como `tx`.
                 <li key={t.id} className="rounded-md border border-border p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <span className="demo-num text-[11px] text-muted">{t.folio}</span>
-                      <Chip tono={ESTADO_TONO[t.estado]} punto>{ESTADO_LABEL[t.estado]}</Chip>
-                      <span className="text-[11px] text-muted">{PRIORIDAD_LABEL[t.prioridad]}</span>
+                      <Chip tono={ESTADO_TONO[t.estado]} punto>{tx(CLAVE_ESTADO_TICKET[t.estado])}</Chip>
+                      <span className="text-[11px] text-muted">{tx(CLAVE_PRIORIDAD_TICKET[t.prioridad])}</span>
                     </div>
-                    <span className="text-[11px] text-muted">{formatearFecha(t.creadoEn)}</span>
+                    <span className="text-[11px] text-muted">{formatearFecha(t.creadoEn, idioma)}</span>
                   </div>
                   <p className="mt-1.5 text-[13px] font-medium text-ink">{t.asunto}</p>
                   <p className="mt-0.5 whitespace-pre-wrap text-[12px] text-muted">{t.cuerpo}</p>
@@ -227,12 +236,12 @@ export function TicketsPanel({ onToast }: { onToast: (m: string) => void }) {
                   {t.respuesta ? (
                     <div className="mt-2 rounded border border-border bg-surface-2 px-2.5 py-2">
                       <p className="text-[11px] font-medium text-ink">
-                        Respuesta de AS OOH · {formatearFecha(t.respondidoEn)}
+                        {tx('admin.tickets.respuesta', { fecha: formatearFecha(t.respondidoEn, idioma) })}
                       </p>
                       <p className="mt-0.5 whitespace-pre-wrap text-[12px] text-ink">{t.respuesta}</p>
                     </div>
                   ) : (
-                    <p className="mt-2 text-[11px] text-muted">Esperando respuesta de AS OOH.</p>
+                    <p className="mt-2 text-[11px] text-muted">{tx('admin.tickets.esperando')}</p>
                   )}
                 </li>
               ))}

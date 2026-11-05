@@ -5,14 +5,14 @@ import Link from 'next/link'
 import {
   StatusBadge,
   IMPRESION_TONO,
-  IMPRESION_LABEL,
   OT_TONO,
-  OT_LABEL,
 } from '@/components/demo/StatusBadge'
 import { withTrail } from '@/lib/nav-trail'
 import type { Crumb } from '@/components/demo/ui/Breadcrumbs'
 import { estadoSLAOT, formatFecha } from '@/lib/data/client'
 import type { OrdenImpresion, OrdenTrabajo } from '@/lib/data/types'
+import { useIdioma, useTexto } from '@/lib/i18n/contexto'
+import { CLAVE_IMPRESION, CLAVE_OT } from './etiquetas'
 
 // ============================================================================
 //  Las listas de Imprenta y de Órdenes de trabajo de la ficha de campaña, con
@@ -28,17 +28,19 @@ import type { OrdenImpresion, OrdenTrabajo } from '@/lib/data/types'
 const A_LA_VISTA = 5
 
 function VerTodas({ total, todas, alternar }: { total: number; todas: boolean; alternar: () => void }) {
+  const t = useTexto()
   if (total <= A_LA_VISTA) return null
   return (
     <button type="button" onClick={alternar} className="mt-2 bg-transparent text-[12px] font-medium text-info hover:underline">
-      {todas ? 'Ver menos' : `Ver todas (${total})`}
+      {todas ? t('campanas.comun.ver-menos') : t('campanas.comun.ver-todas', { n: total })}
     </button>
   )
 }
 
 export function ListaImpresionCampana({ ordenes }: { ordenes: OrdenImpresion[] }) {
+  const t = useTexto()
   const [todas, setTodas] = useState(false)
-  if (ordenes.length === 0) return <p className="text-[13px] text-muted">Sin órdenes de impresión.</p>
+  if (ordenes.length === 0) return <p className="text-[13px] text-muted">{t('campanas.listas.sin-impresion')}</p>
   return (
     <>
       <ul className="m-0 list-none divide-y divide-border p-0">
@@ -48,7 +50,7 @@ export function ListaImpresionCampana({ ordenes }: { ordenes: OrdenImpresion[] }
               <div className="demo-num truncate text-[12px] text-ink">{o.folio}</div>
               <div className="truncate text-[11px] text-muted">{o.material}</div>
             </div>
-            <StatusBadge tono={IMPRESION_TONO[o.estatus]}>{IMPRESION_LABEL[o.estatus]}</StatusBadge>
+            <StatusBadge tono={IMPRESION_TONO[o.estatus]}>{t(CLAVE_IMPRESION[o.estatus])}</StatusBadge>
           </li>
         ))}
       </ul>
@@ -58,8 +60,9 @@ export function ListaImpresionCampana({ ordenes }: { ordenes: OrdenImpresion[] }
 }
 
 export function ListaOTCampana({ ordenes, trail }: { ordenes: OrdenTrabajo[]; trail: Crumb[] }) {
+  const { t, idioma } = useIdioma()
   const [todas, setTodas] = useState(false)
-  if (ordenes.length === 0) return <p className="text-[13px] text-muted">Sin órdenes de trabajo.</p>
+  if (ordenes.length === 0) return <p className="text-[13px] text-muted">{t('campanas.listas.sin-ot')}</p>
   return (
     <>
       <ul className="m-0 list-none divide-y divide-border p-0">
@@ -81,17 +84,17 @@ export function ListaOTCampana({ ordenes, trail }: { ordenes: OrdenTrabajo[]; tr
                   {o.fechaProgramada && (
                     <span
                       className={`demo-num rounded-full border px-2 py-0.5 text-[11px] ${vencida ? 'border-transparent bg-error-soft text-error' : 'border-border text-muted'}`}
-                      title="Fecha compromiso"
+                      title={t('campanas.listas.compromiso')}
                     >
-                      {formatFecha(o.fechaProgramada)}
+                      {formatFecha(o.fechaProgramada, idioma)}
                     </span>
                   )}
                   {vencida && (
                     <span className="rounded-full border border-transparent bg-error-soft px-2 py-0.5 text-[11px] font-medium text-error">
-                      Vencida
+                      {t('campanas.listas.vencida')}
                     </span>
                   )}
-                  <StatusBadge tono={OT_TONO[o.estatus]}>{OT_LABEL[o.estatus]}</StatusBadge>
+                  <StatusBadge tono={OT_TONO[o.estatus]}>{t(CLAVE_OT[o.estatus])}</StatusBadge>
                 </div>
               </Link>
             </li>

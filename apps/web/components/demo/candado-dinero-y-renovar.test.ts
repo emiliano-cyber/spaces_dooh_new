@@ -295,8 +295,10 @@ describe('6 · «Registrar pago» de cobranza pide la clave dentro de su cuadro'
     // `candado.reintentar()` aparece tambien en el `onEnter` del campo, asi que
     // la version floja sobrevivia al mutante que cambiaba el boton por
     // `pagar(true)` — o sea, a liquidar el saldo entero sin haberlo pedido.
+    // Desde el lote de ingles (2026-11-02) el rotulo sale del diccionario:
+    // `finanzas.pago.confirmar` es «Confirmar y registrar» en espanol.
     expect(cuerpo()).toMatch(
-      /onClick=\{\(\) => void candado\.reintentar\(\)\}[\s\S]{0,160}Confirmar y registrar/,
+      /onClick=\{\(\) => void candado\.reintentar\(\)\}[\s\S]{0,160}t\('finanzas\.pago\.confirmar'\)/,
     )
   })
 

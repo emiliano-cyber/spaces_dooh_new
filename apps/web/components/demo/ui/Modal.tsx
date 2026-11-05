@@ -2,6 +2,7 @@
 
 import * as Dialog from '@radix-ui/react-dialog'
 import { X } from 'lucide-react'
+import { useTexto } from '@/lib/i18n/contexto'
 import { cn } from '@/lib/cn'
 
 // Ancho máximo en desktop. En móvil siempre es w-full (se topa con el viewport),
@@ -31,6 +32,7 @@ export function Modal({
   footer?: React.ReactNode
   size?: ModalSize
 }) {
+  const t = useTexto()
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
@@ -50,7 +52,12 @@ export function Modal({
                 </Dialog.Description>
               ) : null}
             </div>
-            <Dialog.Close className="flex h-8 w-8 items-center justify-center rounded text-muted hover:bg-surface-2">
+            {/* B71 · sin nombre, el lector de pantalla anunciaba solo «botón». */}
+            <Dialog.Close
+              aria-label={t('comun.cerrar')}
+              title={t('comun.cerrar')}
+              className="flex h-8 w-8 items-center justify-center rounded text-muted hover:bg-surface-2"
+            >
               <X className="h-4 w-4" />
             </Dialog.Close>
           </div>

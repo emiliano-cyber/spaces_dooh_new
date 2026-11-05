@@ -3,6 +3,8 @@
 import { useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { formatNumero } from '@/lib/formato-numero'
+import { useIdioma } from '@/lib/i18n/contexto'
+import type { ClaveTexto } from '@/lib/i18n/diccionario'
 
 // ============================================================================
 //  Paginacion — recorte de listas largas + su control.
@@ -55,6 +57,15 @@ export function Paginacion({
   irA: (p: number) => void
   etiqueta?: string
 }) {
+  // Recorrido del italiano (04/11): estas tres palabras iban escritas a mano en
+  // espanol y salian asi en TODOS los idiomas. Ahora pasan por el diccionario
+  // en italiano y en ingles (el ingles, por decision del orquestador del mismo
+  // dia: era el mismo defecto). En espanol, el literal de siempre, byte a byte.
+  // Y los espacios van DENTRO de la misma cadena que la palabra (O5, 04/11):
+  // `{' '}{tr(…)}` son dos nodos de texto, y `renderToString` (la hidratacion)
+  // mete un `<!-- -->` entre ellos que el literal de antes no llevaba.
+  const { idioma, t } = useIdioma()
+  const tr = (clave: ClaveTexto, espanol: string) => (idioma !== 'es' ? t(clave) : espanol)
   // Con una sola página no se pinta nada: un control de paginación que no
   // pagina es ruido, y encima sugiere que hay más datos de los que hay.
   if (paginas <= 1) return null
@@ -63,16 +74,16 @@ export function Paginacion({
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-2.5">
       <span className="text-[12px] text-muted">
-        <span className="demo-num text-ink">{formatNumero(desde)}–{formatNumero(hasta)}</span> de{' '}
-        <span className="demo-num text-ink">{formatNumero(total)}</span> {etiqueta}
+        <span className="demo-num text-ink">{formatNumero(desde, 0, idioma)}–{formatNumero(hasta, 0, idioma)}</span>{` ${tr('compartidos.paginacion.de', 'de')}`}{' '}
+        <span className="demo-num text-ink">{formatNumero(total, 0, idioma)}</span> {etiqueta}
       </span>
       <div className="flex items-center gap-1.5">
         <button type="button" className={btn} onClick={() => irA(pagina - 1)} disabled={pagina <= 1}>
-          <ChevronLeft className="h-3.5 w-3.5" /> Anterior
+          <ChevronLeft className="h-3.5 w-3.5" />{` ${tr('compartidos.paginacion.anterior', 'Anterior')}`}
         </button>
         <span className="demo-num px-1 text-[12px] text-muted">{pagina} / {paginas}</span>
         <button type="button" className={btn} onClick={() => irA(pagina + 1)} disabled={pagina >= paginas}>
-          Siguiente <ChevronRight className="h-3.5 w-3.5" />
+          {`${tr('compartidos.paginacion.siguiente', 'Siguiente')} `}<ChevronRight className="h-3.5 w-3.5" />
         </button>
       </div>
     </div>

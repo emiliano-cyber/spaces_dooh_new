@@ -19,6 +19,9 @@
 //  lista de etapas de venta es justo lo que el negocio va a querer retocar.
 // ============================================================================
 
+import { traducir } from './i18n/diccionario'
+import type { Idioma } from './i18n/idiomas'
+
 export const TIPOS_PROSPECTO = ['CLIENTE', 'ARRENDADOR', 'PREDIO', 'PANTALLA'] as const
 export type TipoProspecto = (typeof TIPOS_PROSPECTO)[number]
 
@@ -126,23 +129,27 @@ const lleno = (v: unknown) => typeof v === 'string' && v.trim() !== ''
  * Lo que le falta a un prospecto para poder enviarse a revisión. Lista vacía =
  * listo. Se pide lo mínimo para que quien aprueba pueda CREAR el registro real
  * sin tener que volver a preguntarle nada al vendedor.
+ *
+ * `idioma` (ingles, 2026-11-02) va con `'es'` por omision: el servidor
+ * (`captacion-repo.ts`) la sigue llamando sin el y sigue contestando en
+ * espanol. Las frases viven en `textos/clientes.ts` (`clientes.captacion.falta.*`).
  */
-export function faltantesParaRevision(p: ProspectoParaRevision): string[] {
+export function faltantesParaRevision(p: ProspectoParaRevision, idioma: Idioma = 'es'): string[] {
   const faltan: string[] = []
   const c = p.contacto ?? {}
   const contactable = lleno(c.telefono) || lleno(c.email)
   if (p.tipo === 'CLIENTE' || p.tipo === 'ARRENDADOR') {
-    if (!contactable) faltan.push('un teléfono o un correo de contacto')
+    if (!contactable) faltan.push(traducir(idioma, 'clientes.captacion.falta.contacto'))
   }
   if (p.tipo === 'PREDIO' || p.tipo === 'PANTALLA') {
-    if (!lleno(p.direccion)) faltan.push('la dirección')
+    if (!lleno(p.direccion)) faltan.push(traducir(idioma, 'clientes.captacion.falta.direccion'))
   }
   if (p.tipo === 'PREDIO') {
     // Un predio siempre cuelga de un arrendador (`predios.arrendador_id not
     // null`). O ya existe, o el contacto es el dueño y se da de alta al aprobar.
     const conDueno = lleno(p.datos?.arrendadorId) || (lleno(c.nombre) && contactable)
     if (!conDueno) {
-      faltan.push('el dueño: un arrendador existente o el nombre y teléfono del contacto')
+      faltan.push(traducir(idioma, 'clientes.captacion.falta.dueno'))
     }
   }
   return faltan

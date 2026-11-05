@@ -24,6 +24,10 @@ import type {
 } from './types'
 import { factorMensual, diasAvisoPago, diasCriticoPago } from '../renta-periodicidad'
 import { costoEfectivoDeOt } from '../costos-ot'
+import type { Idioma } from '../i18n/idiomas'
+import { traducir, type ClaveTexto } from '../i18n/diccionario'
+import { monedaInstancia, simboloMoneda } from '../i18n/dinero'
+import { FORMATO_IDIOMA, localeDe, numeroEnIdioma } from '../i18n/formato-idioma'
 import { itemsEnPropuesta, enPropuestaEntre, type ItemEnPropuesta } from './en-propuesta'
 
 // Orden canónico de las 10 etapas del pipeline (sección 7.4).
@@ -280,7 +284,9 @@ export function totalizarMoneda(
 ): TotalPorMoneda {
   const porMoneda: Record<string, number> = {}
   for (const it of items) {
-    const m = (typeof it.moneda === 'string' && it.moneda.trim()) || 'MXN'
+    // Sin moneda en la fila, la de la INSTANCIA (ADR 0048). Era el literal 'MXN',
+    // que en una instancia en dolares habria declarado «mixto» un total que no lo es.
+    const m = (typeof it.moneda === 'string' && it.moneda.trim()) || monedaInstancia()
     porMoneda[m] = (porMoneda[m] ?? 0) + (Number(it.monto) || 0)
   }
   const monedas = Object.keys(porMoneda)
@@ -354,6 +360,28 @@ export const LICENCIA_LABEL: Record<string, string> = {
   AMBIENTAL: 'Permiso ambiental',
   ESTRUCTURAL: 'Dictamen estructural',
   OTRO: 'Permiso',
+}
+
+// I18N · la clave de cada etiqueta de `LICENCIA_LABEL`, para las alertas en
+// ingles. La tabla espanola sigue siendo la verdad (`textos/inicio.test.ts`).
+// I18N · el tipo de incidencia (`TipoIncidencia`) es un enum: en español la
+// alerta lo pinta en minúsculas desde el dato, como siempre; en inglés, por
+// clave (hallazgo del validador: salía «vandalismo» en la pantalla inglesa).
+export const CLAVE_INCIDENCIA: Record<string, ClaveTexto> = {
+  CLIMA: 'inicio.incidencia.clima',
+  MANTENIMIENTO: 'inicio.incidencia.mantenimiento',
+  LEGAL: 'inicio.incidencia.legal',
+  VANDALISMO: 'inicio.incidencia.vandalismo',
+  SUSPENSION_OPERATIVA: 'inicio.incidencia.suspension-operativa',
+  ACCIDENTE: 'inicio.incidencia.accidente',
+  OTRO: 'inicio.incidencia.otro',
+}
+
+export const CLAVE_LICENCIA: Record<string, ClaveTexto> = {
+  MUNICIPAL: 'inicio.licencia.municipal',
+  AMBIENTAL: 'inicio.licencia.ambiental',
+  ESTRUCTURAL: 'inicio.licencia.estructural',
+  OTRO: 'inicio.licencia.otro',
 }
 
 // ─── Vigencia por fechas vs estado guardado (A-1 de la auditoría QA) ────────
@@ -606,7 +634,10 @@ export function ocupacionRed(
   }
 }
 
-export function dashboardMetrics(state: DemoState, hoy: Date = new Date()): DashboardMetrics {
+// I18N (lote operaciones parte 2, 2026-11-02) · `idioma` es el ULTIMO parametro
+// y vale 'es' por omision: solo cambia el texto de las alertas. El Dashboard
+// pasa el suyo; el resto de llamadores sigue igual.
+export function dashboardMetrics(state: DemoState, hoy: Date = new Date(), idioma: Idioma = 'es'): DashboardMetrics {
   const confirmadas = state.reservas.filter((r) => r.estatus === 'CONFIRMADA')
   // Lo vendido en reservas que siguen confirmadas, de TODO periodo. Es la barra
   // «Confirmadas» de la gráfica de tentativas; no es el ingreso del mes.
@@ -699,7 +730,7 @@ export function dashboardMetrics(state: DemoState, hoy: Date = new Date()): Dash
     propuestasAbiertas: abiertas.length,
     valorTentativo,
     valorConfirmado,
-    alertas: construirAlertas(state),
+    alertas: construirAlertas(state, idioma),
     moneda,
     monedasMixtas,
     ingresoPorMoneda: ingresoTot.porMoneda,
@@ -781,14 +812,20 @@ export function reporteCampana(c: Campana, state: DemoState): ReporteCampana {
   }
 }
 
-function construirAlertas(state: DemoState): Alerta[] {
+function construirAlertas(state: DemoState, idioma: Idioma = 'es'): Alerta[] {
   const alertas: Alerta[] = []
+  // En espanol, el literal de siempre; en ingles, `inicio.alerta.*`
+  // (`textos/inicio.test.ts` ata el espanol del diccionario a estos literales).
+  const m = (literal: string, clave: ClaveTexto, valores?: Record<string, string | number>) =>
+    idioma === 'es' ? literal : traducir(idioma, clave, valores)
+  const pl = (n: number, uno: ClaveTexto, otros: ClaveTexto) => (n === 1 ? uno : otros)
+  const sitioGenerico = m('Sitio', 'inicio.alerta.sitio')
 
   const contratoPorId = new Map(state.contratos.map((c) => [c.id, c]))
   const sitioDeContrato = (contratoId: string): string => {
     const con = contratoPorId.get(contratoId)
     const sit = con && state.sitios.find((s) => s.id === con.sitioId)
-    return sit?.nombre ?? 'Sitio'
+    return sit?.nombre ?? sitioGenerico
   }
 
   // Renta vencida: UNA alerta por contrato, con cuántas cuotas se deben y el
@@ -814,11 +851,11 @@ function construirAlertas(state: DemoState): Alerta[] {
       id: `al-pago-${contratoId}`,
       tipo: 'pago',
       nivel: 'rojo',
-      titulo: 'Renta vencida',
+      titulo: m('Renta vencida', 'inicio.alerta.renta-vencida'),
       detalle:
         v.n === 1
-          ? `${sitioDeContrato(contratoId)} — pago ${v.masViejo} sin liquidar (${formatMonto(v.total)})`
-          : `${sitioDeContrato(contratoId)} — ${v.n} cuotas sin liquidar desde ${v.masViejo} (${formatMonto(v.total)})`,
+          ? m(`${sitioDeContrato(contratoId)} — pago ${v.masViejo} sin liquidar (${formatMonto(v.total, idioma)})`, 'inicio.alerta.renta-vencida.una', { sitio: sitioDeContrato(contratoId), periodo: v.masViejo, monto: formatMonto(v.total, idioma) })
+          : m(`${sitioDeContrato(contratoId)} — ${v.n} cuotas sin liquidar desde ${v.masViejo} (${formatMonto(v.total, idioma)})`, 'inicio.alerta.renta-vencida.varias', { sitio: sitioDeContrato(contratoId), n: v.n, periodo: v.masViejo, monto: formatMonto(v.total, idioma) }),
     })
   }
 
@@ -844,11 +881,11 @@ function construirAlertas(state: DemoState): Alerta[] {
       id: `al-pagov-${p.id}`,
       tipo: 'pago',
       nivel: dias <= diasCriticoPago(periodicidad) ? 'rojo' : 'ambar',
-      titulo: 'Renta por vencer',
+      titulo: m('Renta por vencer', 'inicio.alerta.renta-por-vencer'),
       detalle:
         dias === 0
-          ? `${sitioDeContrato(p.contratoId)} — vence hoy (${formatMonto(p.monto)})`
-          : `${sitioDeContrato(p.contratoId)} — vence en ${dias} ${dias === 1 ? 'día' : 'días'} (${formatMonto(p.monto)})`,
+          ? m(`${sitioDeContrato(p.contratoId)} — vence hoy (${formatMonto(p.monto, idioma)})`, 'inicio.alerta.renta-hoy', { sitio: sitioDeContrato(p.contratoId), monto: formatMonto(p.monto, idioma) })
+          : m(`${sitioDeContrato(p.contratoId)} — vence en ${dias} ${dias === 1 ? 'día' : 'días'} (${formatMonto(p.monto, idioma)})`, pl(dias, 'inicio.alerta.renta-en.uno', 'inicio.alerta.renta-en.otros'), { sitio: sitioDeContrato(p.contratoId), n: dias, monto: formatMonto(p.monto, idioma) }),
     })
   }
 
@@ -864,8 +901,8 @@ function construirAlertas(state: DemoState): Alerta[] {
         id: `al-coninc-${c.id}`,
         tipo: 'contrato',
         nivel: 'ambar',
-        titulo: 'Contrato incompleto',
-        detalle: `${sit?.nombre ?? 'Sitio'} — falta arrendador e importe de renta`,
+        titulo: m('Contrato incompleto', 'inicio.alerta.contrato-incompleto'),
+        detalle: m(`${sit?.nombre ?? 'Sitio'} — falta arrendador e importe de renta`, 'inicio.alerta.contrato-incompleto.detalle', { sitio: sit?.nombre ?? sitioGenerico }),
       })
     } else if (c.estatus === 'POR_VENCER' && c.fechaFin) {
       const dias = diasHasta(c.fechaFin)
@@ -873,8 +910,8 @@ function construirAlertas(state: DemoState): Alerta[] {
         id: `al-con-${c.id}`,
         tipo: 'contrato',
         nivel: dias <= 30 ? 'rojo' : 'ambar',
-        titulo: 'Contrato por vencer',
-        detalle: `${sit?.nombre ?? 'Sitio'} — vence en ${dias} días`,
+        titulo: m('Contrato por vencer', 'inicio.alerta.contrato-por-vencer'),
+        detalle: m(`${sit?.nombre ?? 'Sitio'} — vence en ${dias} días`, pl(dias, 'inicio.alerta.contrato-vence.uno', 'inicio.alerta.contrato-vence.otros'), { sitio: sit?.nombre ?? sitioGenerico, n: dias }),
       })
     } else if (c.estatus === 'VENCIDO' && c.fechaFin) {
       const dias = Math.abs(diasHasta(c.fechaFin))
@@ -882,8 +919,8 @@ function construirAlertas(state: DemoState): Alerta[] {
         id: `al-conv-${c.id}`,
         tipo: 'contrato',
         nivel: 'rojo',
-        titulo: 'Contrato vencido',
-        detalle: `${sit?.nombre ?? 'Sitio'} — venció hace ${dias} días`,
+        titulo: m('Contrato vencido', 'inicio.alerta.contrato-vencido'),
+        detalle: m(`${sit?.nombre ?? 'Sitio'} — venció hace ${dias} días`, pl(dias, 'inicio.alerta.contrato-vencio.uno', 'inicio.alerta.contrato-vencio.otros'), { sitio: sit?.nombre ?? sitioGenerico, n: dias }),
       })
     }
   }
@@ -904,22 +941,27 @@ function construirAlertas(state: DemoState): Alerta[] {
     const donde = l.predioId
       ? state.predios.find((p) => p.id === l.predioId)?.nombre
       : state.sitios.find((s) => s.id === l.sitioId)?.nombre
-    const que = `${LICENCIA_LABEL[l.tipo] ?? 'Permiso'}${l.folio ? ` ${l.folio}` : ''}`
+    const etiquetaLicencia =
+      idioma === 'es'
+        ? (LICENCIA_LABEL[l.tipo] ?? 'Permiso')
+        : traducir(idioma, CLAVE_LICENCIA[l.tipo] ?? 'inicio.licencia.otro')
+    const que = `${etiquetaLicencia}${l.folio ? ` ${l.folio}` : ''}`
+    const lugar = donde ?? m('Ubicación', 'inicio.alerta.ubicacion')
     alertas.push(
       dias < 0
         ? {
             id: `al-licv-${l.id}`,
             tipo: 'licencia',
             nivel: 'rojo',
-            titulo: 'Licencia vencida',
-            detalle: `${donde ?? 'Ubicación'} — ${que} venció hace ${Math.abs(dias)} días`,
+            titulo: m('Licencia vencida', 'inicio.alerta.licencia-vencida'),
+            detalle: m(`${donde ?? 'Ubicación'} — ${que} venció hace ${Math.abs(dias)} días`, pl(Math.abs(dias), 'inicio.alerta.licencia-vencio.uno', 'inicio.alerta.licencia-vencio.otros'), { donde: lugar, que, n: Math.abs(dias) }),
           }
         : {
             id: `al-lic-${l.id}`,
             tipo: 'licencia',
             nivel: dias <= 30 ? 'rojo' : 'ambar',
-            titulo: 'Licencia por vencer',
-            detalle: `${donde ?? 'Ubicación'} — ${que} vence en ${dias} días`,
+            titulo: m('Licencia por vencer', 'inicio.alerta.licencia-por-vencer'),
+            detalle: m(`${donde ?? 'Ubicación'} — ${que} vence en ${dias} días`, pl(dias, 'inicio.alerta.licencia-vence.uno', 'inicio.alerta.licencia-vence.otros'), { donde: lugar, que, n: dias }),
           },
     )
   }
@@ -951,8 +993,8 @@ function construirAlertas(state: DemoState): Alerta[] {
     const prev = descubiertos.get(r.sitioId)
     if (!prev || r.fechaFin > prev.hasta) {
       descubiertos.set(r.sitioId, {
-        sitio: sit?.nombre ?? 'Sitio',
-        campana: camp?.nombre ?? 'campaña',
+        sitio: sit?.nombre ?? sitioGenerico,
+        campana: camp?.nombre ?? m('campaña', 'inicio.alerta.campana'),
         hasta: r.fechaFin,
         fin: cubreHasta ?? null,
       })
@@ -963,10 +1005,14 @@ function construirAlertas(state: DemoState): Alerta[] {
       id: `al-cobertura-${sitioId}`,
       tipo: 'contrato',
       nivel: 'rojo',
-      titulo: 'El contrato no cubre la campaña',
-      detalle: `${d.sitio} — «${d.campana}» va hasta ${formatFecha(d.hasta)} y el contrato ${
-        d.fin ? `vence el ${formatFecha(d.fin)}` : 'no tiene fecha de fin'
-      }`,
+      titulo: m('El contrato no cubre la campaña', 'inicio.alerta.cobertura'),
+      detalle: m(
+        `${d.sitio} — «${d.campana}» va hasta ${formatFecha(d.hasta)} y el contrato ${
+          d.fin ? `vence el ${formatFecha(d.fin)}` : 'no tiene fecha de fin'
+        }`,
+        d.fin ? 'inicio.alerta.cobertura.vence' : 'inicio.alerta.cobertura.sin-fin',
+        { sitio: d.sitio, campana: d.campana, hasta: formatFecha(d.hasta, idioma), fin: d.fin ? formatFecha(d.fin, idioma) : '' },
+      ),
     })
   }
 
@@ -979,8 +1025,8 @@ function construirAlertas(state: DemoState): Alerta[] {
         id: `al-cob-${cob.id}`,
         tipo: 'cobranza',
         nivel: est === 'VENCIDA' ? 'rojo' : 'ambar',
-        titulo: est === 'VENCIDA' ? 'Factura vencida' : 'Factura por vencer',
-        detalle: `${fac?.folio ?? 'Factura'} — ${formatMonto(fac?.monto ?? 0)}`,
+        titulo: est === 'VENCIDA' ? m('Factura vencida', 'inicio.alerta.factura-vencida') : m('Factura por vencer', 'inicio.alerta.factura-por-vencer'),
+        detalle: `${fac?.folio ?? m('Factura', 'inicio.alerta.factura')} — ${formatMonto(fac?.monto ?? 0, idioma)}`,
       })
     }
   }
@@ -992,7 +1038,7 @@ function construirAlertas(state: DemoState): Alerta[] {
         id: `al-pausa-${s.id}`,
         tipo: 'incidencia',
         nivel: 'rojo',
-        titulo: 'Pantalla en pausa legal',
+        titulo: m('Pantalla en pausa legal', 'inicio.alerta.pausa-legal'),
         detalle: `${s.nombre}${s.motivoPausaLegal ? ` — ${s.motivoPausaLegal}` : ''}`,
       })
     }
@@ -1006,8 +1052,10 @@ function construirAlertas(state: DemoState): Alerta[] {
         id: `al-inc-${inc.id}`,
         tipo: 'incidencia',
         nivel: 'rojo',
-        titulo: 'Sitio bloqueado por incidencia',
-        detalle: `${sit?.nombre ?? 'Sitio'} — ${inc.tipo.toLowerCase()}`,
+        titulo: m('Sitio bloqueado por incidencia', 'inicio.alerta.incidencia'),
+        detalle: `${sit?.nombre ?? sitioGenerico} — ${
+          idioma === 'es' ? inc.tipo.toLowerCase() : traducir(idioma, CLAVE_INCIDENCIA[inc.tipo] ?? 'inicio.incidencia.otro')
+        }`,
       })
     }
   }
@@ -1020,15 +1068,28 @@ function construirAlertas(state: DemoState): Alerta[] {
     const sit = state.sitios.find((s) => s.id === ot.sitioId)
     const dias = diasHasta(ot.fechaProgramada!)
     const sinAsignar = ot.asignadoAUserId ? '' : ' · sin asignar'
+    const detalleEs =
+      `${ot.folio} · ${sit?.nombre ?? 'sin sitio'} — ` +
+      (sla === 'VENCIDA' ? `venció hace ${Math.abs(dias)} día(s)` : `vence en ${dias} día(s)`) +
+      sinAsignar
+    const nOt = sla === 'VENCIDA' ? Math.abs(dias) : dias
     alertas.push({
       id: `al-ot-${ot.id}`,
       tipo: 'ot',
       nivel: sla === 'VENCIDA' ? 'rojo' : 'ambar',
-      titulo: sla === 'VENCIDA' ? 'OT vencida' : 'OT por vencer',
-      detalle:
-        `${ot.folio} · ${sit?.nombre ?? 'sin sitio'} — ` +
-        (sla === 'VENCIDA' ? `venció hace ${Math.abs(dias)} día(s)` : `vence en ${dias} día(s)`) +
-        sinAsignar,
+      titulo: sla === 'VENCIDA' ? m('OT vencida', 'inicio.alerta.ot-vencida') : m('OT por vencer', 'inicio.alerta.ot-por-vencer'),
+      detalle: m(
+        detalleEs,
+        sla === 'VENCIDA'
+          ? pl(nOt, 'inicio.alerta.ot-vencio.uno', 'inicio.alerta.ot-vencio.otros')
+          : pl(nOt, 'inicio.alerta.ot-vence.uno', 'inicio.alerta.ot-vence.otros'),
+        {
+          folio: ot.folio,
+          sitio: sit?.nombre ?? m('sin sitio', 'inicio.alerta.ot-sin-sitio'),
+          n: nOt,
+          sinAsignar: ot.asignadoAUserId ? '' : m(' · sin asignar', 'inicio.alerta.ot-sin-asignar'),
+        },
+      ),
     })
   }
 
@@ -1421,12 +1482,23 @@ export function medioLabel(s: Pick<Sitio, 'tipoMedio' | 'esRotativo' | 'exhibici
 // «$ -156,986.66» se lee mal en una columna de cifras — el signo se pierde
 // entre dígitos y una cantidad que resta parece que suma. El color lo pone
 // quien lo pinta (`tono`), no el formateador.
-export function formatMonto(n: number): string {
-  const cifra = Math.abs(n).toLocaleString('es-MX', {
+//
+// ADR 0048 (02/11) · el SIMBOLO es el de la moneda de la instancia
+// (`lib/i18n/dinero.ts`): `$` en una instancia MXN —identico a como era— y
+// `US$` en una USD. No recibe moneda, igual que `formatearDinero`: no se
+// puede pasar la equivocada. El `idioma` es opcional y solo cambia el
+// simbolo (en ingles, `MX$` para el peso y `$` para el dolar); la cifra se
+// escribe igual en los dos, con el estilo de siempre.
+export function formatMonto(n: number, idioma: Idioma = 'es'): string {
+  // Ola 0 del italiano: la cifra en el idioma de quien lee. `es-MX` y `en-US`
+  // escriben los numeros IGUAL (medido sobre 200 000 importes), asi que es y en
+  // no cambian; en italiano sale «MX$ 1.160,00», la decision del dueno.
+  const cifra = numeroEnIdioma(Math.abs(n), idioma, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })
-  return n < 0 ? `($ ${cifra})` : `$ ${cifra}`
+  const s = simboloMoneda(idioma)
+  return n < 0 ? `(${s} ${cifra})` : `${s} ${cifra}`
 }
 
 // Monto compacto para ejes, tarjetas y etiquetas ($ 18.5k, $ 4.9M).
@@ -1435,7 +1507,7 @@ export function formatMonto(n: number): string {
 // «$ 4897.5k»: sin separador de miles, sin unidad reconocible y más largo que
 // la cifra que abreviaba. Se escala por magnitud y se apoya en toLocaleString
 // para que, si la cifra abreviada aún tiene miles (1,234.5M), lleve su coma.
-export function formatMontoCorto(n: number): string {
+export function formatMontoCorto(n: number, idioma: Idioma = 'es'): string {
   // El redondeo puede DESBORDAR la escala: 999,999 cae en el tramo de miles,
   // redondea a 1000 y sale «$ 1,000.0k» — el mismo defecto que este arreglo
   // venía a quitar, reaparecido justo en el borde. Cuando pasa, se sube a la
@@ -1451,11 +1523,12 @@ export function formatMontoCorto(n: number): string {
   // Un decimal solo si aporta: 4.9M sí, 5.0M no. Se mira el valor ya redondeado
   // — sobre el crudo, 4,999,999 daba «5.0M» con un decimal que no dice nada.
   const decimales = sufijo && valor % 1 !== 0 ? 1 : 0
-  const cifra = valor.toLocaleString('es-MX', {
+  const cifra = numeroEnIdioma(valor, idioma, {
     minimumFractionDigits: decimales,
     maximumFractionDigits: decimales,
   })
-  return n < 0 ? `($ ${cifra}${sufijo})` : `$ ${cifra}${sufijo}`
+  const s = simboloMoneda(idioma)
+  return n < 0 ? `(${s} ${cifra}${sufijo})` : `${s} ${cifra}${sufijo}`
 }
 
 // Fecha dd/mm/yyyy (formato de la demo).
@@ -1482,21 +1555,48 @@ export function formatMontoCorto(n: number): string {
 // justo en medianoche UTC: las 18:00 de México); la solución de raíz es que el
 // driver devuelva las columnas `date` como texto plano, y entonces caen en la
 // primera rama.
-export function formatFecha(iso: string): string {
+//
+// IDIOMA (lote de ingles, decision del dueno del 2026-11-02): en ingles la
+// fecha cambia de FORMATO, no de dia. `01/12/2026` un lector de EE. UU. lo lee
+// como 12 de enero; por eso en `en` sale «Dec 1, 2026», que no admite dos
+// lecturas. El segundo parametro va con 'es' POR OMISION y la rama espanola es
+// la de siempre, linea por linea: los ~80 llamadores que no pasan idioma pintan
+// exactamente lo mismo que antes (`derive.fecha-idioma.test.ts` lo fija).
+// La medianoche local de arriba vale igual para las dos ramas: se construye
+// el mismo `Date` y solo cambia como se escribe.
+export function formatFecha(iso: string, idioma: Idioma = 'es'): string {
   const soloFecha = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
   const d = soloFecha
     ? new Date(Number(soloFecha[1]), Number(soloFecha[2]) - 1, Number(soloFecha[3]))
     : new Date(iso)
+  // Ola 0 del italiano: cualquier idioma que no sea el espanol va por `Intl`
+  // con SU locale (`formato-idioma.ts`). Mismas opciones que el ingles de
+  // siempre; `Intl` pone el orden de cada idioma: «Dec 1, 2026», «1 dic 2026».
+  if (idioma !== 'es') {
+    // `Intl` LANZA con una fecha invalida; la rama espanola pintaba «NaN/…».
+    if (isNaN(d.getTime())) return '—'
+    return new Intl.DateTimeFormat(localeDe(idioma), { month: 'short', day: 'numeric', year: 'numeric' }).format(d)
+  }
   const dd = String(d.getDate()).padStart(2, '0')
   const mm = String(d.getMonth() + 1).padStart(2, '0')
   return `${dd}/${mm}/${d.getFullYear()}`
 }
 
 // dd/mm/yyyy HH:mm — para timestamps (fecha de creación / subida de imágenes).
-export function formatFechaHora(iso: string): string {
+// En ingles, «Dec 1, 2026, 3:45 PM» (mismo criterio que `formatFecha`).
+export function formatFechaHora(iso: string, idioma: Idioma = 'es'): string {
   if (!iso) return '—'
   const d = new Date(iso)
   if (isNaN(d.getTime())) return '—'
+  if (idioma !== 'es') {
+    return new Intl.DateTimeFormat(localeDe(idioma), {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    }).format(d)
+  }
   const dd = String(d.getDate()).padStart(2, '0')
   const mm = String(d.getMonth() + 1).padStart(2, '0')
   const hh = String(d.getHours()).padStart(2, '0')
@@ -1553,7 +1653,9 @@ function startOfToday(): Date {
 //
 // `diasOcupados`/`diasDisponibles` pasan a ser espacios·día (un slot vendido
 // durante un día es 1), no pantallas·día.
-export function ocupacionSerie(state: DemoState, gran: Granularidad): SerieOcupacion {
+// `idioma` ('es' por omision) solo cambia la ETIQUETA de cada punto del eje
+// (`etiquetaBucket`): los numeros son los mismos en los dos idiomas.
+export function ocupacionSerie(state: DemoState, gran: Granularidad, idioma: Idioma = 'es'): SerieOcupacion {
   const { buckets, dias } = CONFIG_GRAN[gran]
   const inicio = startOfToday()
 
@@ -1572,7 +1674,7 @@ export function ocupacionSerie(state: DemoState, gran: Granularidad): SerieOcupa
     diasOcupados += red.ocupados * dias
     diasDisponibles += red.capacidad * dias
 
-    puntos.push({ label: etiquetaBucket(bStart, gran), pct: red.pct, ocupados: red.ocupados })
+    puntos.push({ label: etiquetaBucket(bStart, gran, idioma), pct: red.pct, ocupados: red.ocupados })
   }
 
   return { puntos, diasOcupados, diasDisponibles }
@@ -1581,7 +1683,20 @@ export function ocupacionSerie(state: DemoState, gran: Granularidad): SerieOcupa
 // Exportada desde el 17/09: la usan la gráfica de ocupación y los reportes de
 // rentabilidad. Dos etiquetados del mismo bucket acabarían diciendo «T1» en una
 // pantalla y «1er trimestre» en la otra para el mismo periodo.
-export function etiquetaBucket(d: Date, gran: Granularidad): string {
+//
+// `idioma` va con 'es' por omision, y la rama espanola es LA DE SIEMPRE: el
+// motor del reporte la llama sin idioma desde el servidor y su etiqueta viaja
+// en el JSON. En ingles: `Q1 2026` (el trimestre en EE. UU. es «Q», no «T»),
+// el mes con `en-US` («Jan») y la semana como «Jan 12»: un `12/01` lo lee un
+// lector de EE. UU. como 1 de diciembre.
+export function etiquetaBucket(d: Date, gran: Granularidad, idioma: Idioma = 'es'): string {
+  if (idioma !== 'es') {
+    // La letra del trimestre es del idioma (`formato-idioma.ts`): «Q» en ingles.
+    if (gran === 'trimestre') return `${FORMATO_IDIOMA[idioma].letraTrimestre}${Math.floor(d.getMonth() / 3) + 1} ${d.getFullYear()}`
+    if (gran === 'mes') return d.toLocaleDateString(localeDe(idioma), { month: 'short' })
+    if (gran === 'semana') return d.toLocaleDateString(localeDe(idioma), { month: 'short', day: 'numeric' })
+    return String(d.getDate())
+  }
   if (gran === 'trimestre') {
     // `T1 2026`. Lleva el año porque un reporte cruza años con normalidad y
     // «T1» a secas no dice cuál — al contrario que los meses de la gráfica, que

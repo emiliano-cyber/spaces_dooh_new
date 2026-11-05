@@ -9,7 +9,8 @@ import { usePuede } from '@/components/demo/shell/SesionContext'
 import { crearOrdenCompraApi } from '@/lib/data/estado-api'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
-import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
+import { CRUDO_INVALIDO, ejemploCifra } from '@/lib/captura-cifra'
+import { useIdioma, useTexto } from '@/lib/i18n/contexto'
 
 const hoyISO = () => new Date().toISOString().slice(0, 10)
 
@@ -21,6 +22,8 @@ export function CandadoPanel({ campanaId }: { campanaId: string }) {
   const r = useReadiness(campanaId)
   const camp = useCampana(campanaId)
   const puedeOC = usePuede('comercial', 'crear')
+  const t = useTexto()
+  const { idioma } = useIdioma()
   const [enviando, setEnviando] = useState(false)
   const [numeroOc, setNumeroOc] = useState('')
   const [monto, setMonto] = useState('')
@@ -66,7 +69,7 @@ export function CandadoPanel({ campanaId }: { campanaId: string }) {
         documentoUrl: camp?.contratoUrl ?? null,
       })
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'No se pudo registrar la OC')
+      toast.error(e instanceof Error ? e.message : t('campanas.candado.no-registrar'))
     }
     setEnviando(false)
   }
@@ -88,7 +91,7 @@ export function CandadoPanel({ campanaId }: { campanaId: string }) {
           <Lock className="h-4 w-4 text-muted" strokeWidth={1.75} />
         )}
         <span className={cn('text-[13px] font-medium', abierto ? 'text-[#0f7a55]' : 'text-muted')}>
-          {abierto ? 'Lista para facturar' : 'Cerrado: faltan condiciones por cumplir'}
+          {abierto ? t('campanas.comun.lista-facturar') : t('campanas.candado.cerrado')}
         </span>
       </div>
       {/* Solo las condiciones que APLICAN a esta campaña. Antes se pintaban las
@@ -97,18 +100,18 @@ export function CandadoPanel({ campanaId }: { campanaId: string }) {
           "Completo": la contradicción visual del hallazgo C3. Los segmentos son
           los mismos que decide `candadoDeSegmentos` en derive.ts. */}
       <ul className="m-0 list-none space-y-2 p-0">
-        <Condicion ok={r.ocRecibida} label="Orden de compra recibida" />
-        {exigeFisica && <Condicion ok={r.fotosComprobatorias} label="Fotografías comprobatorias" />}
-        {exigeDigital && <Condicion ok={r.reportePublicacion} label="Reporte de publicación" />}
+        <Condicion ok={r.ocRecibida} label={t('campanas.candado.oc')} />
+        {exigeFisica && <Condicion ok={r.fotosComprobatorias} label={t('campanas.candado.fotos')} />}
+        {exigeDigital && <Condicion ok={r.reportePublicacion} label={t('campanas.candado.reporte')} />}
       </ul>
       {!r.ocRecibida && puedeOC && (
         <div className="mt-3 space-y-2 rounded border border-border bg-surface p-3">
-          <p className="text-[12px] font-medium text-ink">Registrar OC del cliente</p>
-          <Campo label="Número de OC del cliente" obligatorio falta={ob.falta('numeroOc')}>
+          <p className="text-[12px] font-medium text-ink">{t('campanas.candado.registrar.titulo')}</p>
+          <Campo label={t('campanas.candado.numero')} obligatorio falta={ob.falta('numeroOc')}>
             <input className={inp} value={numeroOc} onChange={(e) => setNumeroOc(e.target.value)} />
           </Campo>
           <div className="grid grid-cols-2 gap-2">
-            <Campo label="Monto">
+            <Campo label={t('campanas.comun.monto')}>
               <CampoCifra
                 className={inp}
                 valor={monto}
@@ -116,7 +119,7 @@ export function CandadoPanel({ campanaId }: { campanaId: string }) {
                 onCambio={(crudo) => setMonto(crudo)}
               />
             </Campo>
-            <Campo label="Fecha">
+            <Campo label={t('campanas.comun.fecha')}>
               <input className={inp} type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
             </Campo>
           </div>
@@ -126,16 +129,15 @@ export function CandadoPanel({ campanaId }: { campanaId: string }) {
             onClick={registrarOC}
             className="w-full rounded border border-border-strong px-3 py-2 text-[12px] font-medium text-ink transition-colors duration-150 hover:bg-surface-2 disabled:opacity-50"
           >
-            {enviando ? 'Registrando…' : 'Registrar OC'}
+            {enviando ? t('campanas.candado.registrando') : t('campanas.candado.registrar')}
           </button>
           {monto === CRUDO_INVALIDO && (
             <p className="text-[11px] text-error">
-              El monto no se entiende: la coma separa miles y el punto, decimales (212,500.50).
+              {t('campanas.candado.monto-ilegible', { ejemplo: ejemploCifra('212,500.50', idioma) })}
             </p>
           )}
           <p className="text-[10px] text-muted">
-            Número, monto y fecha vienen precargados de la campaña; ajústalos si el cliente dio otros.
-            El documento de la OC es el contrato (se adjunta en “Datos de facturación”).
+            {t('campanas.candado.precargados')}
           </p>
         </div>
       )}
@@ -143,7 +145,7 @@ export function CandadoPanel({ campanaId }: { campanaId: string }) {
           que aplican (dos en una OOH o en una DOOH). */}
       {!abierto && (
         <p className="mt-3 text-[12px] text-muted">
-          El candado se abre cuando se cumplen estas condiciones.
+          {t('campanas.candado.se-abre')}
         </p>
       )}
     </div>

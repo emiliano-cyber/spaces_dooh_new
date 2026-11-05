@@ -1,7 +1,7 @@
 ---
 tipo: preguntas
 estado: verificado
-actualizado: 2026-10-29
+actualizado: 2026-11-03
 tags: [preguntas, pendientes, riesgo]
 archivos:
   - apps/web/lib/server/
@@ -13,6 +13,14 @@ archivos:
 > [!success] 2026-09-30, tarde · I18N — LAS TRES CERRADAS por el dueño
 > Las tres preguntas que dejó I18N-01 tienen respuesta. **No se vuelven a
 > abrir**, y están escritas en el código donde antes decía «suposición»:
+>
+>
+> > [!important] 2026-11-03 · la 1 la AMPLIÓ el propio dueño
+> > «El idioma de papeles y contratos es fijo al crearse la app en cada server,
+> > pero el idioma de lo demás se debe poder configurar **por usuario y
+> > navegador**». Desde la rama `feat/idioma-por-usuario` la cuenta SÍ opina, y
+> > manda: `cuenta > cookie > navegador > español`. Ver
+> > [[03-Frontend/idiomas-es-en]] §1. Lo de abajo queda como historia.
 >
 > **1 · El idioma se recuerda POR DISPOSITIVO.** Lo que ya había: una cookie.
 > Quien elija inglés en su portátil seguirá viendo español en su teléfono.
@@ -58,6 +66,13 @@ archivos:
 > > propósito: se cerró la puerta de entrada, no el almacén. Medido en ese
 > > commit: ni un USD ni un PEN en la base del 5433. Las citas de arriba
 > > (`:498-501`) describen el código ANTES de ese commit y se dejan como historia.
+>
+> > [!success] Y el 2026-11-02 el «después lo moveremos» llegó — ADR 0048
+> > La moneda pasa a ser **de la instancia**: MXN o USD, elegida al crearla y
+> > **sin poder cambiarse** (la base y la API lo impiden). `MONEDA` dejó de ser
+> > una constante: `monedaInstancia()` en `lib/i18n/dinero.ts`. La pregunta de
+> > arriba queda cerrada del lado bueno: **una** moneda por instancia, nunca
+> > «la del dato». Ver [[03-Frontend/idiomas-es-en]] §7.
 
 
 > [!danger] 2026-08-24 · P1 dejó de ser una pregunta: la cerraron los hechos

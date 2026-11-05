@@ -5,7 +5,7 @@ import { tenantActual } from './tenant'
 import { AppError } from './errores'
 import { datosContrato, expedienteContrato, type DatosContrato } from './contrato-expediente'
 import { JOIN_PRINCIPAL } from './config-repo'
-import { documentoATexto, fechaISO, generarContrato } from '@/lib/contrato-documento'
+import { documentoATexto, fechaISO, generarContrato, hashParaCotejar } from '@/lib/contrato-documento'
 import { rutaLogo } from '@/lib/medios-url'
 import type { PoolClient } from 'pg'
 
@@ -326,9 +326,20 @@ export async function firmasDeContrato(
   // renderiza con la fecha del congelado, no con la de hoy: si no, la única
   // diferencia sería el día y toda firma se invalidaría sola al amanecer.
   let hashActual: string | null = null
+  //
+  // ADR 0048: con la regla de la letra con la que se CONGELÓ. Un contrato en USD
+  // congelado antes del 02/11 lleva «PESOS … M.N.» en su texto sellado; con la
+  // letra nueva aparecería alterado sin que nadie lo tocara. `hashParaCotejar`
+  // prueba la regla de hoy y, si no coincide, la anterior.
   if (c.congelado_en) {
-    const doc = await expedienteContrato(contratoId, fechaISO(c.congelado_en)!)
-    if (doc) hashActual = hashDocumento(documentoATexto(doc))
+    const datos = await datosContrato(contratoId)
+    if (datos) {
+      hashActual = hashParaCotejar(
+        { ...datos, fechaFirma: fechaISO(c.congelado_en)! },
+        c.documento_hash ?? null,
+        hashDocumento,
+      )
+    }
   }
 
   const rows = await q<Record<string, any>>(

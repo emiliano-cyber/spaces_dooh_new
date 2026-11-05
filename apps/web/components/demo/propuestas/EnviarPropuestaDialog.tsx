@@ -7,7 +7,8 @@ import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
 import { Campo } from '@/components/demo/ui/Campo'
 import { enviarPropuestaApi } from '@/lib/data/estado-api'
-import { esEmailValido, EMAIL_INVALIDO } from '@/lib/validacion'
+import { esEmailValido } from '@/lib/validacion'
+import { useTexto } from '@/lib/i18n/contexto'
 
 // «Enviar» / «Reenviar» (PROP-COMPLETA, decisión del dueño del 29/10): manda la
 // liga al cliente por correo, con copia a quien la envía, y deja la propuesta
@@ -33,6 +34,7 @@ export function EnviarPropuestaDialog({
   /** Sin correo configurado: la pantalla ofrece copiar la liga. */
   onSinCorreo: () => void
 }) {
+  const t = useTexto()
   const [para, setPara] = useState('')
   const [mensaje, setMensaje] = useState('')
   const [enviando, setEnviando] = useState(false)
@@ -48,7 +50,9 @@ export function EnviarPropuestaDialog({
   async function enviar() {
     const limpio = para.trim()
     if (!esEmailValido(limpio)) {
-      setError(EMAIL_INVALIDO)
+      // `validacion.email` reproduce `EMAIL_INVALIDO` letra por letra (lo
+      // exige `diccionario.test.ts`), asi que en espanol no cambia nada.
+      setError(t('validacion.email'))
       return
     }
     setEnviando(true)
@@ -56,13 +60,13 @@ export function EnviarPropuestaDialog({
       const r = await enviarPropuestaApi(propuestaId, { para: limpio, mensaje: mensaje.trim() || null })
       onOpenChange(false)
       if (r.correo === 'enviado') {
-        toast.success(`Propuesta enviada a ${limpio}`)
+        toast.success(t('propuestas.enviar.hecho', { correo: limpio }))
       } else {
-        toast.warning('La propuesta quedó como enviada, pero esta instancia no tiene correo configurado: manda la liga tú.')
+        toast.warning(t('propuestas.enviar.sin-correo'))
         onSinCorreo()
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo enviar')
+      setError(e instanceof Error ? e.message : t('propuestas.enviar.error'))
     } finally {
       setEnviando(false)
     }
@@ -72,44 +76,49 @@ export function EnviarPropuestaDialog({
     <Modal
       open={open}
       onOpenChange={onOpenChange}
-      title={reenvio ? 'Reenviar propuesta' : 'Enviar propuesta'}
-      subtitle="El cliente recibe la liga para revisarla y aceptarla. Tú recibes copia."
+      title={reenvio ? t('propuestas.enviar.titulo.reenviar') : t('propuestas.enviar.titulo.enviar')}
+      subtitle={t('propuestas.enviar.subtitulo')}
       footer={
         <>
           <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={enviando}>
-            Cancelar
+            {t('comun.cancelar')}
           </Button>
           <Button onClick={enviar} disabled={enviando}>
-            <Send className="h-3.5 w-3.5" /> {enviando ? 'Enviando…' : reenvio ? 'Reenviar' : 'Enviar'}
+            <Send className="h-3.5 w-3.5" />{' '}
+            {enviando
+              ? t('propuestas.comun.enviando')
+              : reenvio
+                ? t('propuestas.comun.reenviar')
+                : t('propuestas.comun.enviar')}
           </Button>
         </>
       }
     >
       <div className="space-y-3">
-        <Campo label="Correo del cliente">
+        <Campo label={t('propuestas.enviar.correo')}>
           <input
             type="email"
             inputMode="email"
             autoComplete="off"
             className={`h-9 ${cls}`}
-            placeholder="cliente@empresa.com"
+            placeholder={t('propuestas.enviar.correo.ejemplo')}
             value={para}
             onChange={(e) => { setPara(e.target.value); setError(null) }}
           />
         </Campo>
-        <Campo label="Mensaje (opcional)">
+        <Campo label={t('propuestas.enviar.mensaje')}>
           <textarea
             rows={4}
             maxLength={2000}
             className={`py-2 ${cls}`}
-            placeholder="Unas líneas para el cliente; van antes del botón de la liga."
+            placeholder={t('propuestas.enviar.mensaje.ejemplo')}
             value={mensaje}
             onChange={(e) => setMensaje(e.target.value)}
           />
         </Campo>
         {reenvio && (
           <p className="text-[11px] text-muted">
-            Si la propuesta ya venció, reenviarla le da una vigencia nueva.
+            {t('propuestas.enviar.reenvio.aviso')}
           </p>
         )}
         {error && <p className="text-[12px] text-error">{error}</p>}

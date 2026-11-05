@@ -13,11 +13,13 @@ import type { Cobranza, Factura, EstCobranza } from '@/lib/data/types'
 import {
   StatusBadge,
   COBRANZA_TONO,
-  COBRANZA_LABEL,
 } from '@/components/demo/StatusBadge'
 import { cn } from '@/lib/cn'
 import { armarListaFacturas, cuentaPorEstatus } from '@/components/demo/finanzas/facturas-lista'
 import { etiquetaVencimiento, type TonoVencimiento } from '@/components/demo/finanzas/vencimiento-cuota'
+import { CLAVE_COBRANZA, CLAVE_PARCIALIDAD, textoVencimiento } from '@/components/demo/finanzas/etiquetas'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
 import { ComprobanteDialog } from '@/components/demo/finanzas/ComprobanteDialog'
 import { TableroPeriodo } from '@/components/demo/finanzas/TableroPeriodo'
 import { ChipConteo } from '@/components/demo/finanzas/ChipConteo'
@@ -29,7 +31,7 @@ import { useCandado, PasoContrasena } from '@/components/demo/ui/candado'
 import { PagosRentaCard } from '@/components/demo/arrendadores/PagosRentaCard'
 import { CompromisoRentaCard } from '@/components/demo/arrendadores/CompromisoRentaCard'
 import {
-  repartirCuotas, PERIODICIDAD_LABEL, duracionMeses, opcionesParcialidad,
+  repartirCuotas, duracionMeses, opcionesParcialidad,
   type PeriodicidadCuota,
 } from '@/lib/finanzas-calculo'
 import {
@@ -56,6 +58,7 @@ import {
 } from '@/components/demo/razones-sociales/asignacion'
 
 export default function FinanzasPage() {
+  const { t, idioma } = useIdioma()
   const resumen = useCampanasResumen()
   const entidades = useEntidadesFiscales()
   const facturas = useFacturas()
@@ -79,9 +82,9 @@ export default function FinanzasPage() {
     setRecordando(id)
     try {
       await recordarCobranzaApi(id)
-      notify('Recordatorio de cobro enviado')
+      notify(t('finanzas.recordatorio.enviado'))
     } catch (e) {
-      notify(e instanceof Error ? e.message : 'No se pudo enviar el recordatorio')
+      notify(e instanceof Error ? e.message : t('finanzas.recordatorio.no-enviar'))
     } finally {
       setRecordando(null)
     }
@@ -149,8 +152,9 @@ export default function FinanzasPage() {
         // lo delato el typecheck al enchufarlo. Se traduce aqui y no se
         // ensancha el tipo del modulo, que asi sirve para cualquier catalogo.
         (entidades ?? []).map((e) => ({ id: e.id, nombre: e.razonSocial })),
+        idioma,
       ),
-    [facturas, clientes, resumen, entidades],
+    [facturas, clientes, resumen, entidades, idioma],
   )
   const cuentaFactura = useMemo(() => cuentaPorEstatus(facturas), [facturas])
   const [verFactura, setVerFactura] = useState<string | null>(null)
@@ -180,7 +184,7 @@ export default function FinanzasPage() {
   const tarjetaListas = (
     <CardColapsable
       id="finanzas.listas-para-facturar"
-      titulo="Listas para facturar"
+      titulo={t('finanzas.listas.titulo')}
       icono={<Lock className="h-4 w-4 text-muted" />}
     >
         {!resumen ? (
@@ -188,7 +192,7 @@ export default function FinanzasPage() {
         ) : listas.length === 0 ? (
           <p className="flex items-center gap-2 text-[13px] text-muted">
             <FileText className="h-4 w-4 shrink-0" />
-            Nada por facturar ahora. Cuando una campaña complete su candado (OC + fotos + reporte) aparecerá aquí.
+            {t('finanzas.listas.vacio')}
           </p>
         ) : (
           <ul className="divide-y divide-border">
@@ -201,15 +205,15 @@ export default function FinanzasPage() {
                   <div className="text-[13px] font-medium text-ink">{r.campana.nombre}</div>
                   <div className="demo-num text-[11px] text-muted">
                     {r.clienteNombre} ·{' '}
-                    {r.campana.presupuestoBruto ? `${formatMonto(r.campana.presupuestoBruto)} · IVA inc.` : '—'}
+                    {r.campana.presupuestoBruto ? t('finanzas.listas.iva-inc', { monto: formatMonto(r.campana.presupuestoBruto, idioma) }) : '—'}
                   </div>
                 </div>
                 {puedeFacturar ? (
                   <Button size="sm" onClick={() => setFacturar(r.campana)}>
-                    <Receipt className="h-3.5 w-3.5" /> Generar factura
+                    <Receipt className="h-3.5 w-3.5" /> {t('finanzas.listas.generar')}
                   </Button>
                 ) : (
-                  <span className="text-[11px] text-muted">Lista · requiere Finanzas</span>
+                  <span className="text-[11px] text-muted">{t('finanzas.listas.requiere')}</span>
                 )}
               </li>
             ))}
@@ -221,8 +225,8 @@ export default function FinanzasPage() {
   return (
     <div className="w-full space-y-4">
       <div>
-        <h1 className="text-2xl text-ink">Finanzas</h1>
-        <p className="mt-1 text-[13px] text-muted">Facturación, cobranza y renta a arrendadores</p>
+        <h1 className="text-2xl text-ink">{t('finanzas.titulo')}</h1>
+        <p className="mt-1 text-[13px] text-muted">{t('finanzas.subtitulo')}</p>
       </div>
 
       {/* Lo primero que se ve: cómo va el periodo (06/10, ADR 0046). */}
@@ -235,17 +239,17 @@ export default function FinanzasPage() {
           una acción hoy (cobrar lo vencido), y «Facturas» es consulta. */}
       <CardColapsable
         id="finanzas.cobranza"
-        titulo="Cobranza"
+        titulo={t('finanzas.cobranza.titulo')}
         contentClassName="px-0 pb-0"
         resumen={
           // Los conteos son de CUOTAS, no de facturas: una factura en tres
           // parcialidades cuenta tres. El resumen del periodo cuenta FACTURAS,
           // y sin decirlo las dos cifras parecían contradecirse.
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] text-muted">Cuotas</span>
-            <ChipConteo label="Vencidas" n={cuenta.VENCIDA} tono={cuenta.VENCIDA > 0 ? 'error' : 'neutro'} />
-            <ChipConteo label="Por vencer" n={cuenta.POR_VENCER} tono={cuenta.POR_VENCER > 0 ? 'ambar' : 'neutro'} />
-            <ChipConteo label="Al corriente" n={cuenta.AL_CORRIENTE} />
+            <span className="text-[11px] text-muted">{t('finanzas.cobranza.cuotas')}</span>
+            <ChipConteo label={t('finanzas.cobranza.chip.vencidas')} n={cuenta.VENCIDA} tono={cuenta.VENCIDA > 0 ? 'error' : 'neutro'} />
+            <ChipConteo label={t('finanzas.cobranza.chip.por-vencer')} n={cuenta.POR_VENCER} tono={cuenta.POR_VENCER > 0 ? 'ambar' : 'neutro'} />
+            <ChipConteo label={t('finanzas.cobranza.chip.al-corriente')} n={cuenta.AL_CORRIENTE} />
           </div>
         }
       >
@@ -256,22 +260,22 @@ export default function FinanzasPage() {
               ))}
             </div>
           ) : cobranzas.length === 0 ? (
-            <p className="px-4 pb-4 text-[13px] text-muted">Sin facturas en cobranza.</p>
+            <p className="px-4 pb-4 text-[13px] text-muted">{t('finanzas.cobranza.vacia')}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-[13px]">
                 <thead>
                   <tr className={CABECERA}>
-                    <th className="px-4 py-2 font-medium">Folio</th>
+                    <th className="px-4 py-2 font-medium">{t('finanzas.comun.folio')}</th>
                     {/* Folio fiscal y RFC solo en pantallas anchas: en cada fila
                         apilaban tres renglones de 10 px y partían el folio.
                         Quién EMITE sigue visible siempre, bajo el folio. */}
-                    <th className="hidden px-4 py-2 font-medium xl:table-cell">Folio fiscal</th>
-                    <th className="hidden px-4 py-2 font-medium md:table-cell">Cliente</th>
-                    <th className="px-4 py-2 text-right font-medium">Monto</th>
-                    <th className="hidden px-4 py-2 font-medium lg:table-cell">Plazo</th>
-                    <th className="px-4 py-2 font-medium">Vence</th>
-                    <th className="px-4 py-2 font-medium">Estatus</th>
+                    <th className="hidden px-4 py-2 font-medium xl:table-cell">{t('finanzas.comun.folio-fiscal')}</th>
+                    <th className="hidden px-4 py-2 font-medium md:table-cell">{t('finanzas.comun.cliente')}</th>
+                    <th className="px-4 py-2 text-right font-medium">{t('finanzas.comun.monto')}</th>
+                    <th className="hidden px-4 py-2 font-medium lg:table-cell">{t('finanzas.cobranza.col.plazo')}</th>
+                    <th className="px-4 py-2 font-medium">{t('finanzas.cobranza.col.vence')}</th>
+                    <th className="px-4 py-2 font-medium">{t('finanzas.cobranza.col.estatus')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -304,7 +308,7 @@ export default function FinanzasPage() {
                                 anteriores al 2026-09-17 están «sin asignar» y
                                 no se sabe a nombre de quién salieron. */}
                             <div className="text-[11px] text-muted">
-                              Emite: {etiquetaAsignacion(entidades ?? [], g.factura?.entidadEmisoraId)}
+                              {t('finanzas.cobranza.emite', { entidad: etiquetaAsignacion(entidades ?? [], g.factura?.entidadEmisoraId, idioma) })}
                             </div>
                           </td>
                           <td className="hidden px-4 py-2.5 align-top xl:table-cell">
@@ -315,19 +319,19 @@ export default function FinanzasPage() {
                           </td>
                           <td className="hidden px-4 py-2.5 align-top text-muted md:table-cell">{g.factura ? cliNombre(g.factura.clienteId) : '—'}</td>
                           <td className="demo-num whitespace-nowrap px-4 py-2.5 text-right align-top text-ink">
-                            {formatMonto(g.total)}
+                            {formatMonto(g.total, idioma)}
                             <div className="text-[11px] text-muted">
-                              {g.pagadas} de {g.cuotas.length} cuotas pagadas
+                              {t('finanzas.cobranza.cuotas-pagadas', { pagadas: g.pagadas, total: g.cuotas.length })}
                             </div>
                           </td>
-                          <td className="demo-num hidden whitespace-nowrap px-4 py-2.5 align-top text-muted lg:table-cell">{g.cuotas[0].plazoDias} días</td>
+                          <td className="demo-num hidden whitespace-nowrap px-4 py-2.5 align-top text-muted lg:table-cell">{t('finanzas.comun.dias', { n: g.cuotas[0].plazoDias })}</td>
                           <td className="demo-num whitespace-nowrap px-4 py-2.5 align-top text-muted">
                             {/* La fecha del GRUPO es la de la próxima cuota sin
                                 pagar: es la que dice cuándo hay que actuar. */}
-                            {g.proxima ? formatFecha(g.proxima) : '—'}
+                            {g.proxima ? formatFecha(g.proxima, idioma) : '—'}
                           </td>
                           <td className="px-4 py-2.5 align-top">
-                            <StatusBadge tono={COBRANZA_TONO[g.estado]}>{COBRANZA_LABEL[g.estado]}</StatusBadge>
+                            <StatusBadge tono={COBRANZA_TONO[g.estado]}>{t(CLAVE_COBRANZA[g.estado])}</StatusBadge>
                           </td>
                         </tr>
                         {abierta && g.cuotas.map((c) => <FilaCuota key={c.id} cob={c} fac={g.factura} entidades={entidades ?? []} sangrada cliNombre={cliNombre} puedeCobrar={puedeCobrar} recordando={recordando} onPagar={setPagoCob} onVerPagos={setPagosDe} onRecordar={recordar} />)}
@@ -343,13 +347,13 @@ export default function FinanzasPage() {
       {/* Facturas emitidas */}
       <CardColapsable
         id="finanzas.facturas"
-        titulo="Facturas"
+        titulo={t('finanzas.facturas.titulo')}
         contentClassName="px-0 pb-0"
         resumen={
           <div className="flex flex-wrap items-center gap-1.5">
-            <ChipConteo label="Emitidas" n={cuentaFactura.EMITIDA} />
-            <ChipConteo label="Pagadas" n={cuentaFactura.PAGADA} tono={cuentaFactura.PAGADA > 0 ? 'verde' : 'neutro'} />
-            <ChipConteo label="Anuladas" n={cuentaFactura.ANULADA} />
+            <ChipConteo label={t('finanzas.facturas.chip.emitidas')} n={cuentaFactura.EMITIDA} />
+            <ChipConteo label={t('finanzas.facturas.chip.pagadas')} n={cuentaFactura.PAGADA} tono={cuentaFactura.PAGADA > 0 ? 'verde' : 'neutro'} />
+            <ChipConteo label={t('finanzas.facturas.chip.anuladas')} n={cuentaFactura.ANULADA} />
           </div>
         }
       >
@@ -363,8 +367,8 @@ export default function FinanzasPage() {
             <div className="px-4 pb-4">
               <EmptyState
                 icon={FileText}
-                titulo="Todavía no hay facturas"
-                detalle="Aquí aparecerán en cuanto emitas la primera desde «Listas para facturar»."
+                titulo={t('finanzas.facturas.vacio.titulo')}
+                detalle={t('finanzas.facturas.vacio.texto')}
               />
             </div>
           ) : (
@@ -373,14 +377,14 @@ export default function FinanzasPage() {
               <table className="w-full text-left text-[13px]">
                 <thead>
                   <tr className={CABECERA}>
-                    <th className="px-4 py-2 font-medium">Folio</th>
-                    <th className="hidden px-4 py-2 font-medium lg:table-cell">Folio fiscal</th>
-                    <th className="px-4 py-2 font-medium">Emitida</th>
-                    <th className="px-4 py-2 font-medium">Cliente</th>
-                    <th className="px-4 py-2 font-medium">Campaña</th>
-                    <th className="hidden px-4 py-2 font-medium lg:table-cell">La emite</th>
-                    <th className="px-4 py-2 text-right font-medium">Monto</th>
-                    <th className="px-4 py-2 font-medium">Estatus</th>
+                    <th className="px-4 py-2 font-medium">{t('finanzas.comun.folio')}</th>
+                    <th className="hidden px-4 py-2 font-medium lg:table-cell">{t('finanzas.comun.folio-fiscal')}</th>
+                    <th className="px-4 py-2 font-medium">{t('finanzas.facturas.col.emitida')}</th>
+                    <th className="px-4 py-2 font-medium">{t('finanzas.comun.cliente')}</th>
+                    <th className="px-4 py-2 font-medium">{t('finanzas.comun.campana')}</th>
+                    <th className="hidden px-4 py-2 font-medium lg:table-cell">{t('finanzas.comun.la-emite')}</th>
+                    <th className="px-4 py-2 text-right font-medium">{t('finanzas.comun.monto')}</th>
+                    <th className="px-4 py-2 font-medium">{t('finanzas.cobranza.col.estatus')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -389,7 +393,7 @@ export default function FinanzasPage() {
                       key={f.id}
                       onClick={() => setVerFactura(f.id)}
                       className="cursor-pointer border-b border-border last:border-0 hover:bg-surface-2"
-                      title="Ver el comprobante"
+                      title={t('finanzas.facturas.ver')}
                     >
                       {/* `whitespace-nowrap` en folio y monto: sin él el monto
                           se partía en dos renglones («$» arriba, cifra abajo),
@@ -397,11 +401,11 @@ export default function FinanzasPage() {
                       <td className="demo-num whitespace-nowrap px-4 py-2.5 font-medium text-ink">{f.folio}</td>
                       <td className="demo-num hidden px-4 py-2.5 text-[11px] text-muted lg:table-cell">{f.folioFiscal}</td>
                       {/* Formateada: llegaba cruda del servidor (`2026-10-01T06:00:00.000Z`), visto en el navegador el 06/10. */}
-                      <td className="demo-num whitespace-nowrap px-4 py-2.5 text-muted">{formatFecha(f.fechaEmision)}</td>
+                      <td className="demo-num whitespace-nowrap px-4 py-2.5 text-muted">{formatFecha(f.fechaEmision, idioma)}</td>
                       <td className="px-4 py-2.5 text-muted">{f.cliente}</td>
                       <td className="px-4 py-2.5 text-muted">{f.campana}</td>
                       <td className="hidden px-4 py-2.5 text-muted lg:table-cell">{f.emisora}</td>
-                      <td className="demo-num whitespace-nowrap px-4 py-2.5 text-right text-ink">{formatMonto(f.monto)}</td>
+                      <td className="demo-num whitespace-nowrap px-4 py-2.5 text-right text-ink">{formatMonto(f.monto, idioma)}</td>
                       <td className="px-4 py-2.5">
                         {/* El semáforo único de la app (`StatusBadge`) en vez de
                             un chip con hex propios. La anulada conserva el
@@ -410,7 +414,11 @@ export default function FinanzasPage() {
                           tono={f.estatus === 'PAGADA' ? 'verde' : f.estatus === 'ANULADA' ? 'neutro' : 'azul'}
                           className={cn('whitespace-nowrap', f.estatus === 'ANULADA' && 'line-through')}
                         >
-                          {f.estatus === 'PAGADA' ? 'Pagada' : f.estatus === 'ANULADA' ? 'Anulada' : 'Emitida'}
+                          {f.estatus === 'PAGADA'
+                            ? t('finanzas.facturas.estatus.pagada')
+                            : f.estatus === 'ANULADA'
+                              ? t('finanzas.facturas.estatus.anulada')
+                              : t('finanzas.facturas.estatus.emitida')}
                         </StatusBadge>
                       </td>
                     </tr>
@@ -425,7 +433,7 @@ export default function FinanzasPage() {
                   onClick={() => setTodasLasFacturas((v) => !v)}
                   className="text-[12px] font-medium text-info hover:underline"
                 >
-                  {todasLasFacturas ? 'Ver menos' : `Ver todas (${filasFactura.length})`}
+                  {todasLasFacturas ? t('finanzas.comun.ver-menos') : t('finanzas.comun.ver-todas', { n: filasFactura.length })}
                 </button>
               </div>
             )}
@@ -458,7 +466,7 @@ export default function FinanzasPage() {
           solo las pendientes, que es lo que Finanzas tiene que programar. */}
       <PagosRentaCard
         soloPendientes
-        titulo="Renta por pagar a propietarios"
+        titulo={t('finanzas.renta.titulo')}
         onToast={notify}
       />
 
@@ -481,7 +489,7 @@ export default function FinanzasPage() {
         campana={facturar}
         entidades={entidades ?? []}
         onClose={() => setFacturar(null)}
-        onDone={() => notify('Factura generada')}
+        onDone={() => notify(t('finanzas.factura.generada'))}
       />
 
       {pagoCob && (
@@ -532,6 +540,7 @@ function GenerarFacturaDialog({
   onClose: () => void
   onDone: (folio: string) => void
 }) {
+  const { t, idioma } = useIdioma()
   // CFG-01 · los plazos los pone la ORGANIZACIÓN, no el código. Estaban a fuego
   // (`([60, 90, 120] as const).map(...)`) mientras Administración dejaba
   // capturarlos: quien configuraba 45 días no veía el botón, y si llegaba a
@@ -627,7 +636,7 @@ function GenerarFacturaDialog({
       // Un fallo que NO es el candado sigue yéndose por el toast de siempre: el
       // cuadro se queda abierto y el error no compite con el campo.
       alFallar: (m) => toast.error(m),
-      mensajeSiFalla: 'No se pudo generar la factura',
+      mensajeSiFalla: t('finanzas.factura.no-generar'),
     })
   }
 
@@ -635,12 +644,12 @@ function GenerarFacturaDialog({
     <Modal
       open={!!campana}
       onOpenChange={(v) => !v && onClose()}
-      title="Generar factura"
+      title={t('finanzas.factura.titulo')}
       subtitle={campana.nombre}
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="secondary" size="sm" onClick={onClose}>
-            Cancelar
+            {t('comun.cancelar')}
           </Button>
           <Button
             size="sm"
@@ -655,10 +664,10 @@ function GenerarFacturaDialog({
             onClick={() => void (candado.reautenticando ? candado.reintentar() : emitir())}
           >
             {candado.reautenticando
-              ? 'Confirmar y emitir'
+              ? t('finanzas.factura.confirmar')
               : candado.enviando
-                ? 'Generando…'
-                : 'Emitir factura'}
+                ? t('finanzas.factura.generando')
+                : t('finanzas.factura.emitir')}
           </Button>
         </div>
       }
@@ -666,27 +675,29 @@ function GenerarFacturaDialog({
       <div className="space-y-3">
         <div className="rounded-md border border-border bg-surface-2 px-3 py-2 text-[13px]">
           <div className="flex items-center justify-between">
-            <span className="text-muted">Subtotal (neto)</span>
+            <span className="text-muted">{t('finanzas.comun.subtotal-neto')}</span>
             <span className="demo-num text-ink">
-              {campana.presupuestoNeto ? formatMonto(campana.presupuestoNeto) : '—'}
+              {campana.presupuestoNeto ? formatMonto(campana.presupuestoNeto, idioma) : '—'}
             </span>
           </div>
           <div className="mt-1 flex items-center justify-between">
             <span className="text-muted">
-              IVA ({campana.presupuestoNeto
-                ? Math.round((((campana.presupuestoBruto ?? 0) - campana.presupuestoNeto) / campana.presupuestoNeto) * 100)
-                : 16}%)
+              {t('finanzas.comun.iva-pct', {
+                pct: campana.presupuestoNeto
+                  ? Math.round((((campana.presupuestoBruto ?? 0) - campana.presupuestoNeto) / campana.presupuestoNeto) * 100)
+                  : 16,
+              })}
             </span>
             <span className="demo-num text-ink">
               {campana.presupuestoNeto != null && campana.presupuestoBruto != null
-                ? formatMonto(campana.presupuestoBruto - campana.presupuestoNeto)
+                ? formatMonto(campana.presupuestoBruto - campana.presupuestoNeto, idioma)
                 : '—'}
             </span>
           </div>
           <div className="mt-1.5 flex items-center justify-between border-t border-border pt-1.5">
-            <span className="font-medium text-ink">Total</span>
+            <span className="font-medium text-ink">{t('finanzas.comun.total')}</span>
             <span className="demo-num font-semibold text-ink">
-              {campana.presupuestoBruto ? formatMonto(campana.presupuestoBruto) : '—'}
+              {campana.presupuestoBruto ? formatMonto(campana.presupuestoBruto, idioma) : '—'}
             </span>
           </div>
         </div>
@@ -696,7 +707,7 @@ function GenerarFacturaDialog({
             servidor del presupuesto de la campaña y de la tasa del cliente.
             Emitir es zona R4 y lo único que este selector decide es el nombre
             que va arriba del documento. */}
-        <Campo label="Con cuál de tus razones sociales se emite">
+        <Campo label={t('finanzas.factura.emisora')}>
           <select
             className="h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
             value={emisoraId}
@@ -705,22 +716,20 @@ function GenerarFacturaDialog({
             // confirmar es la emisión que el servidor rechazó, no otra.
             disabled={candado.reautenticando}
           >
-            {opcionesDeAsignacion(entidades, ROL_COMPROBANTE).map((o) => (
+            {opcionesDeAsignacion(entidades, ROL_COMPROBANTE, undefined, idioma).map((o) => (
               <option key={o.valor || 'sin-asignar'} value={o.valor}>
                 {o.etiqueta}
-                {o.recomendada ? ' — la que vende' : ''}
+                {o.recomendada ? t('finanzas.factura.la-que-vende') : ''}
               </option>
             ))}
           </select>
           {entidades.length === 0 ? (
             <p className="mt-1 text-[11.5px] text-muted">
-              Todavía no tienes razones sociales capturadas. Se dan de alta en Razones sociales;
-              la factura se emite igual y queda «sin asignar».
+              {t('finanzas.factura.sin-entidades')}
             </p>
           ) : emisoraId === SIN_ASIGNAR ? (
             <p className="mt-1 text-[11.5px] text-muted">
-              Sin elegir, el comprobante queda «sin asignar». No se inventa: hay más de una
-              razón social que vende, o ninguna la tiene marcada.
+              {t('finanzas.factura.sin-elegir')}
             </p>
           ) : null}
         </Campo>
@@ -732,8 +741,7 @@ function GenerarFacturaDialog({
         <div className="rounded-md border border-border px-3 py-2.5">
           {opciones.length === 0 ? (
             <p className="text-[12px] text-muted">
-              Esta campaña dura {meses} {meses === 1 ? 'mes' : 'meses'}: no admite un
-              reparto en cuotas iguales, así que se cobra en una sola exhibición.
+              {t(meses === 1 ? 'finanzas.factura.dura.uno' : 'finanzas.factura.dura.otros', { n: meses })}
             </p>
           ) : (
             <>
@@ -747,13 +755,15 @@ function GenerarFacturaDialog({
                     if (e.target.checked && !periodicidad) setPeriodicidad(opciones[0].periodicidad)
                   }}
                 />
-                Cobrar en parcialidades
-                <span className="text-[11px] text-muted">· campaña de {meses} {meses === 1 ? 'mes' : 'meses'}</span>
+                {t('finanzas.factura.en-cuotas')}
+                <span className="text-[11px] text-muted">
+                  {t(meses === 1 ? 'finanzas.factura.campana-de.uno' : 'finanzas.factura.campana-de.otros', { n: meses })}
+                </span>
               </label>
               {enCuotas && (
                 <div className="mt-2.5 space-y-2">
                   <div className="flex flex-wrap items-start gap-2">
-                    <Campo label="Cuotas" obligatorio falta={ob.falta('periodicidad')}>
+                    <Campo label={t('finanzas.factura.cuotas')} obligatorio falta={ob.falta('periodicidad')}>
                       <select
                         value={periodicidad}
                         disabled={candado.reautenticando}
@@ -762,12 +772,12 @@ function GenerarFacturaDialog({
                       >
                         {opciones.map((o) => (
                           <option key={o.periodicidad} value={o.periodicidad}>
-                            {o.cuotas} cuotas {PERIODICIDAD_LABEL[o.periodicidad]}
+                            {t(CLAVE_PARCIALIDAD[o.periodicidad], { n: o.cuotas })}
                           </option>
                         ))}
                       </select>
                     </Campo>
-                    <Campo label="Primer vencimiento" obligatorio falta={ob.falta('primerVenc')}>
+                    <Campo label={t('finanzas.factura.primer-venc')} obligatorio falta={ob.falta('primerVenc')}>
                       <input
                         type="date" value={primerVenc}
                         disabled={candado.reautenticando}
@@ -778,12 +788,15 @@ function GenerarFacturaDialog({
                   </div>
                   {campana.presupuestoBruto != null && nCuotas > 0 && (
                     <p className="text-[12px] text-muted">
-                      {nCuotas} cuotas de{' '}
-                      <span className="demo-num font-medium text-ink">
-                        {formatMonto(repartirCuotas(campana.presupuestoBruto, nCuotas)[0])}
-                      </span>
-                      {' '}(la última ajusta el redondeo) · suman{' '}
-                      <span className="demo-num text-ink">{formatMonto(campana.presupuestoBruto)}</span>
+                      {interpolarNodos(t('finanzas.factura.reparto'), {
+                        n: nCuotas,
+                        monto: (
+                          <span className="demo-num font-medium text-ink">
+                            {formatMonto(repartirCuotas(campana.presupuestoBruto, nCuotas)[0], idioma)}
+                          </span>
+                        ),
+                        total: <span className="demo-num text-ink">{formatMonto(campana.presupuestoBruto, idioma)}</span>,
+                      })}
                     </p>
                   )}
                 </div>
@@ -794,7 +807,7 @@ function GenerarFacturaDialog({
 
         <div>
           <span className="mb-1.5 block text-[12px] font-medium text-ink">
-            Plazo de cobranza{enCuotas ? ' (informativo con parcialidades)' : ''}
+            {enCuotas ? t('finanzas.factura.plazo.informativo') : t('finanzas.factura.plazo')}
           </span>
           {/* `flex-wrap` porque la lista ya no son tres botones fijos: una
               organización puede tener seis plazos capturados y sin esto se
@@ -813,7 +826,7 @@ function GenerarFacturaDialog({
                     : 'border-border-strong text-muted hover:bg-surface-2',
                 )}
               >
-                {p} días
+                {t('finanzas.comun.dias', { n: p })}
               </button>
             ))}
           </div>
@@ -844,6 +857,7 @@ function PagoModal({
   onClose: () => void
   onDone: (msg: string) => void
 }) {
+  const { t, idioma } = useIdioma()
   const [monto, setMonto] = useState(String(Math.round(cob.saldo * 100) / 100))
   // El DÍA en que entró el dinero (ADR 0046): por omisión hoy, y se puede
   // poner el de la transferencia de ayer. El servidor rechaza una fecha futura.
@@ -866,9 +880,9 @@ function PagoModal({
     return candado.ejecutar({
       // total → liquida el saldo; parcial → el monto ingresado (el backend lo acota al saldo)
       guardar: () => pagarCobranzaApi(cob.id, total ? undefined : num, fecha || undefined, comprobante?.url ?? null),
-      alLograr: () => onDone(total || num >= cob.saldo ? 'Cobranza liquidada' : 'Abono registrado'),
+      alLograr: () => onDone(total || num >= cob.saldo ? t('finanzas.pago.liquidada') : t('finanzas.pago.abono-registrado')),
       alFallar: setError,
-      mensajeSiFalla: 'No se pudo registrar el pago',
+      mensajeSiFalla: t('finanzas.pago.no-registrar'),
     })
   }
 
@@ -876,8 +890,8 @@ function PagoModal({
     <Modal
       open
       onOpenChange={(v) => !v && onClose()}
-      title="Registrar pago"
-      subtitle={`${cob.folio} · saldo ${formatMonto(cob.saldo)}`}
+      title={t('finanzas.pago.titulo')}
+      subtitle={t('finanzas.pago.subtitulo', { folio: cob.folio, saldo: formatMonto(cob.saldo, idioma) })}
       footer={
         <div className="flex items-center justify-between">
           {error ? <span className="text-[12px] text-error">{error}</span> : <span />}
@@ -889,33 +903,33 @@ function PagoModal({
           {candado.reautenticando ? (
             <div className="flex gap-2">
               <Button variant="secondary" size="sm" onClick={onClose} disabled={candado.enviando}>
-                Cancelar
+                {t('comun.cancelar')}
               </Button>
               <Button
                 size="sm"
                 disabled={candado.enviando || (candado.reautenticando && !candado.pass)}
                 onClick={() => void candado.reintentar()}
               >
-                Confirmar y registrar
+                {t('finanzas.pago.confirmar')}
               </Button>
             </div>
           ) : (
             <div className="flex gap-2">
-              <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
+              <Button variant="secondary" size="sm" onClick={onClose}>{t('comun.cancelar')}</Button>
               <Button
                 variant="secondary"
                 size="sm"
                 disabled={candado.enviando}
                 onClick={() => void pagar(true)}
               >
-                Liquidar total
+                {t('finanzas.pago.liquidar')}
               </Button>
               <Button
                 size="sm"
                 disabled={candado.enviando || !num || num <= 0}
                 onClick={() => void pagar(false)}
               >
-                {candado.enviando ? 'Guardando…' : 'Registrar abono'}
+                {candado.enviando ? t('finanzas.pago.guardando') : t('finanzas.pago.registrar-abono')}
               </Button>
             </div>
           )}
@@ -926,7 +940,7 @@ function PagoModal({
         {/* Sin asterisco a propósito: el servidor no exige monto ni fecha
             (`finanzas-controller.ts:21` y `:25`, ausente = liquidar y hoy), y
             los dos llegan ya rellenos con el saldo y la fecha de hoy. */}
-        <Campo label="Monto del abono">
+        <Campo label={t('finanzas.pago.monto')}>
           {/* Con coma de miles al teclear (CampoCifra). `monto` sigue siendo la
               cifra sin comas; si no se entiende llega 'NaN' y «Registrar
               abono» queda deshabilitado por el mismo `!num` de siempre. */}
@@ -939,7 +953,7 @@ function PagoModal({
             className="h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-60"
           />
         </Campo>
-        <Campo label="Fecha en que se recibió">
+        <Campo label={t('finanzas.pago.fecha')}>
           <input
             type="date"
             value={fecha}
@@ -959,11 +973,11 @@ function PagoModal({
         />
         {excede && (
           <p className="text-[12px] text-warning">
-            ⚠ El monto excede el saldo ({formatMonto(cob.saldo)}). Solo se aplicará el saldo pendiente.
+            {t('finanzas.pago.excede', { saldo: formatMonto(cob.saldo, idioma) })}
           </p>
         )}
         <p className="text-[11px] text-muted">
-          Al cubrir el saldo total, la cobranza pasa a <b>Pagada</b> y se detienen los recordatorios.
+          {interpolarNodos(t('finanzas.pago.al-cubrir'), { pagada: <b>{t('finanzas.pago.pagada')}</b> })}
         </p>
 
         {/* B38 · el paso de la contraseña, DENTRO del cuadro. No pinta nada
@@ -1006,13 +1020,17 @@ onPagar: (c: { id: string; folio: string; saldo: number }) => void
 onVerPagos: (c: { id: string; folio: string }) => void
 onRecordar: (id: string) => void
 }) {
+  const { t, idioma } = useIdioma()
   const est = estadoCobranza(cob)
-  const venc = etiquetaVencimiento(est, diasHasta(cob.fechaVencimiento))
+  const dias = diasHasta(cob.fechaVencimiento)
+  // El TONO lo sigue decidiendo `etiquetaVencimiento`; el texto sale del
+  // diccionario con las mismas tres ramas (`textoVencimiento`, con prueba).
+  const venc = etiquetaVencimiento(est, dias)
   return (
     <tr className={cn('border-b border-border last:border-0', sangrada && 'bg-surface-2/40')}>
       <td className={cn('px-4 py-2.5 align-top', sangrada && 'pl-10')}>
         <div className={cn('demo-num whitespace-nowrap', sangrada ? 'text-muted' : 'text-ink')}>
-          {sangrada ? `Cuota ${cob.numero ?? '—'} de ${cob.totalCuotas ?? '—'}` : fac?.folio ?? '—'}
+          {sangrada ? t('finanzas.cobranza.cuota', { n: cob.numero ?? '—', total: cob.totalCuotas ?? '—' }) : fac?.folio ?? '—'}
         </div>
         {!sangrada && (
           <>
@@ -1024,7 +1042,7 @@ onRecordar: (id: string) => void
                 se veia en las de parcialidades. MEDIDO el 2026-09-18 mirando la
                 pantalla, no leyendo el codigo. */}
             <div className="text-[11px] text-muted">
-              Emite: {etiquetaAsignacion(entidades, fac?.entidadEmisoraId)}
+              {t('finanzas.cobranza.emite', { entidad: etiquetaAsignacion(entidades, fac?.entidadEmisoraId, idioma) })}
             </div>
           </>
         )}
@@ -1043,28 +1061,28 @@ onRecordar: (id: string) => void
       <td className="demo-num whitespace-nowrap px-4 py-2.5 text-right align-top text-ink">
         {/* Con parcialidades, el importe de la fila es el de LA CUOTA, no el
             de la factura entera. */}
-        {cob.monto != null ? formatMonto(cob.monto) : fac ? formatMonto(fac.monto) : '—'}
+        {cob.monto != null ? formatMonto(cob.monto, idioma) : fac ? formatMonto(fac.monto, idioma) : '—'}
         {cob.montoPagado > 0 && est !== 'PAGADA' && fac && (
-          <div className="text-[11px] text-[#9a6700]">saldo {formatMonto(saldoCobranza(cob, fac))}</div>
+          <div className="text-[11px] text-[#9a6700]">{t('finanzas.cobranza.saldo', { monto: formatMonto(saldoCobranza(cob, fac), idioma) })}</div>
         )}
       </td>
-      <td className="demo-num hidden whitespace-nowrap px-4 py-2.5 align-top text-muted lg:table-cell">{cob.plazoDias} días</td>
+      <td className="demo-num hidden whitespace-nowrap px-4 py-2.5 align-top text-muted lg:table-cell">{t('finanzas.comun.dias', { n: cob.plazoDias })}</td>
       <td className="demo-num whitespace-nowrap px-4 py-2.5 align-top text-muted">
         {/* El espacio es un carácter de verdad, no solo el margen: `ml-1`
             separa a la vista pero al copiar la celda salía «27/08/2026(24d)»
             pegado, que es lo que reportó M8. */}
-        {formatFecha(cob.fechaVencimiento)}{' '}
+        {formatFecha(cob.fechaVencimiento, idioma)}{' '}
         {/* El ESTADO manda, no la fecha: una cuota pagada no dice «vencida»
             aunque su fecha haya pasado (06/10, `vencimiento-cuota.ts`).
             Desde el 2026-10-26 es la pastilla de días del Dashboard («Huecos y
             renovaciones»), con el MISMO texto de `etiquetaVencimiento`. */}
         <span className={cn('rounded-full border px-1.5 py-0.5 text-[11px] font-medium', PASTILLA_TONO[venc.tono])}>
-          {venc.texto}
+          {textoVencimiento(est, dias, t)}
         </span>
       </td>
       <td className="px-4 py-2.5 align-top">
         <div className="flex flex-col items-start gap-1.5">
-          <StatusBadge tono={COBRANZA_TONO[est]} className="whitespace-nowrap">{COBRANZA_LABEL[est]}</StatusBadge>
+          <StatusBadge tono={COBRANZA_TONO[est]} className="whitespace-nowrap">{t(CLAVE_COBRANZA[est])}</StatusBadge>
           {/* COB-COMP · los pagos ya recibidos y su comprobante. Se ve también
               en una cobranza PAGADA: es justo cuando se busca el recibo. */}
           {cob.montoPagado > 0 && (
@@ -1073,7 +1091,7 @@ onRecordar: (id: string) => void
               onClick={() => onVerPagos({ id: cob.id, folio: fac?.folio ?? cob.id })}
               className="inline-flex items-center gap-1 whitespace-nowrap text-[11px] text-info hover:underline"
             >
-              <Receipt className="h-3 w-3" /> Pagos y comprobantes
+              <Receipt className="h-3 w-3" /> {t('finanzas.cobranza.pagos')}
             </button>
           )}
           {est !== 'PAGADA' && puedeCobrar && (
@@ -1086,7 +1104,7 @@ onRecordar: (id: string) => void
                 onClick={() => onPagar({ id: cob.id, folio: fac?.folio ?? cob.id, saldo: saldoCobranza(cob, fac) })}
                 className="whitespace-nowrap rounded border border-accent bg-accent px-2 py-0.5 text-[11px] font-medium text-accent-fg hover:border-accent-hover hover:bg-accent-hover"
               >
-                Registrar pago
+                {t('finanzas.cobranza.registrar-pago')}
               </button>
               <button
                 type="button"
@@ -1094,11 +1112,13 @@ onRecordar: (id: string) => void
                 disabled={recordando === cob.id}
                 className="whitespace-nowrap rounded border border-border-strong bg-surface px-2 py-0.5 text-[11px] text-ink hover:bg-surface-2 disabled:opacity-50"
               >
-                {recordando === cob.id ? 'Enviando…' : 'Recordar'}
+                {recordando === cob.id ? t('finanzas.comun.enviando') : t('finanzas.cobranza.recordar')}
               </button>
               {cob.recordatoriosEnviados > 0 && (
-                <span className="whitespace-nowrap text-[11px] text-muted" title={cob.recordatorioEn ? `Último: ${formatFecha(cob.recordatorioEn)}` : ''}>
-                  {cob.recordatoriosEnviados} enviado{cob.recordatoriosEnviados === 1 ? '' : 's'}
+                <span className="whitespace-nowrap text-[11px] text-muted" title={cob.recordatorioEn ? t('finanzas.cobranza.ultimo', { fecha: formatFecha(cob.recordatorioEn, idioma) }) : ''}>
+                  {t(cob.recordatoriosEnviados === 1 ? 'finanzas.cobranza.enviados.uno' : 'finanzas.cobranza.enviados.otros', {
+                    n: cob.recordatoriosEnviados,
+                  })}
                 </span>
               )}
             </div>

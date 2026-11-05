@@ -11,6 +11,10 @@ import {
   type PantallaEquipo,
 } from '@/lib/data/space-eyes-api'
 import { fechaHora, hace } from './piezas'
+import { useIdioma } from '@/lib/i18n/contexto'
+import type { ClaveTexto } from '@/lib/i18n/diccionario'
+import { interpolarNodos } from '@/lib/i18n/nodos'
+import { dondeDeFallaEnIdioma, nombreDeFallaEnIdioma } from '@/lib/i18n/donde-falla'
 
 // ============================================================================
 //  Lo que el equipo descubre mirando SU pantalla, en la ficha del equipo.
@@ -28,10 +32,11 @@ import { fechaHora, hace } from './piezas'
 //  encender la vigilancia se hace en Space Eye.
 // ============================================================================
 
-const ESTADO: Record<Falla['estado'], { texto: string; clase: string }> = {
-  abierta: { texto: 'Abierta', clase: 'bg-error-soft text-error' },
-  recuperada: { texto: 'Recuperada', clase: 'bg-success-soft text-success' },
-  descartada: { texto: 'No era falla', clase: 'bg-surface-2 text-muted' },
+// Las mismas claves que las fallas de la flota (`FallasFlota`).
+const ESTADO: Record<Falla['estado'], { texto: ClaveTexto; clase: string }> = {
+  abierta: { texto: 'spaceeyes.falla.estado.abierta', clase: 'bg-error-soft text-error' },
+  recuperada: { texto: 'spaceeyes.falla.estado.recuperada', clase: 'bg-success-soft text-success' },
+  descartada: { texto: 'spaceeyes.falla.estado.descartada', clase: 'bg-surface-2 text-muted' },
 }
 
 export function PantallaYCreativos({
@@ -45,13 +50,14 @@ export function PantallaYCreativos({
   // aquí solo queda el historial de fallas.
   soloFallas?: boolean
 }) {
+  const { t, idioma } = useIdioma()
   const [pantalla, setPantalla] = useState<PantallaEquipo | null>(null)
   const [creativos, setCreativos] = useState<CreativosEquipo | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let vivo = true
-    Promise.all([fallasApi(id), creativosApi(id)])
+    Promise.all([fallasApi(id, idioma), creativosApi(id, idioma)])
       .then(([p, c]) => {
         if (!vivo) return
         setPantalla(p)
@@ -61,19 +67,19 @@ export function PantallaYCreativos({
     return () => {
       vivo = false
     }
-  }, [id])
+  }, [id, idioma])
 
   if (error) {
     return (
       <div className="rounded-md border border-border bg-surface p-3 text-[12px] text-muted">
-        No se pudo leer lo que el equipo vio en su pantalla: {error}
+        {t('spaceeyes.pyc.error', { error })}
       </div>
     )
   }
   if (!pantalla || !creativos) {
     return (
       <div className="flex items-center gap-2 rounded-md border border-border bg-surface p-3 text-[12px] text-muted">
-        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Leyendo la vigilancia de la pantalla…
+        <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t('spaceeyes.pyc.leyendo')}
       </div>
     )
   }
@@ -88,9 +94,9 @@ export function PantallaYCreativos({
       <section className="overflow-hidden rounded-md border border-border bg-surface">
         <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border p-3">
           <div className="min-w-0">
-            <h2 className="text-[14px] font-semibold text-ink">{soloFallas ? 'Historial de fallas' : 'Pantalla y fallas'}</h2>
+            <h2 className="text-[14px] font-semibold text-ink">{soloFallas ? t('spaceeyes.pyc.historial') : t('spaceeyes.pantalla.titulo')}</h2>
             <p className="mt-0.5 text-[12px] text-muted">
-              El equipo revisa su pantalla y avisa solo cuando confirma una falla o cuando se arregla.
+              {t('spaceeyes.pyc.descripcion')}
             </p>
           </div>
           <EstadoVigilancia
@@ -104,22 +110,32 @@ export function PantallaYCreativos({
           {pantalla.disponible && (
             <div className="flex flex-wrap gap-x-6 gap-y-1 text-[12px]">
               <span className="text-muted">
-                Pantalla:{' '}
-                <span className="text-ink">
-                  {pantalla.gabinetes ? `${pantalla.gabinetes} gabinetes` : 'sin marcar'}
-                </span>
+                {interpolarNodos(t('spaceeyes.pyc.pantalla'), {
+                  valor: (
+                    <span className="text-ink">
+                      {pantalla.gabinetes
+                        ? t('spaceeyes.pyc.gabinetes', { n: pantalla.gabinetes })
+                        : t('spaceeyes.pyc.sin-marcar')}
+                    </span>
+                  ),
+                })}
               </span>
               {pantalla.horario && (
                 <span className="text-muted">
-                  Encendida de <span className="tabular-nums text-ink">{pantalla.horario.inicio}</span> a{' '}
-                  <span className="tabular-nums text-ink">{pantalla.horario.fin}</span>
+                  {interpolarNodos(t('spaceeyes.comun.encendida'), {
+                    inicio: <span className="tabular-nums text-ink">{pantalla.horario.inicio}</span>,
+                    fin: <span className="tabular-nums text-ink">{pantalla.horario.fin}</span>,
+                  })}
                 </span>
               )}
               <span className="text-muted">
-                Última revisión:{' '}
-                <span className="text-ink">
-                  {pantalla.ultimaRevision ? hace(pantalla.ultimaRevision.cuando) : 'todavía ninguna'}
-                </span>
+                {interpolarNodos(t('spaceeyes.pyc.ultima-revision'), {
+                  valor: (
+                    <span className="text-ink">
+                      {pantalla.ultimaRevision ? hace(pantalla.ultimaRevision.cuando, idioma) : t('spaceeyes.pyc.ninguna')}
+                    </span>
+                  ),
+                })}
               </span>
             </div>
           )}
@@ -133,20 +149,22 @@ export function PantallaYCreativos({
                       type="button"
                       onClick={() => onAmpliar(f.evidencia ?? f.evidenciaMini!)}
                       className="h-16 w-24 shrink-0 overflow-hidden rounded bg-surface-2"
-                      title="Ver la foto de evidencia"
+                      title={t('spaceeyes.falla.ver-evidencia')}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={f.evidenciaMini} alt="Evidencia de la falla" className="h-full w-full object-cover" />
+                      <img src={f.evidenciaMini} alt={t('spaceeyes.falla.alt-evidencia')} className="h-full w-full object-cover" />
                     </button>
                   )}
                   <div className="min-w-0 text-[12px]">
                     <div className="flex items-center gap-1.5 font-semibold text-error">
-                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> {f.nombre}
+                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> {nombreDeFallaEnIdioma(f.nombre, idioma)}
                     </div>
-                    <div className="mt-0.5 break-words text-ink">{f.donde}</div>
+                    <div className="mt-0.5 break-words text-ink">{dondeDeFallaEnIdioma(f.donde, idioma)}</div>
                     <div className="mt-0.5 text-muted">
-                      Detectada {fechaHora(f.detectadaEn)} · confianza{' '}
-                      <span className="tabular-nums">{Math.round(f.confianza * 100)}%</span>
+                      {interpolarNodos(t('spaceeyes.pyc.detectada'), {
+                        fecha: fechaHora(f.detectadaEn, idioma),
+                        pct: <span className="tabular-nums">{Math.round(f.confianza * 100)}%</span>,
+                      })}
                     </div>
                   </div>
                 </div>
@@ -156,7 +174,7 @@ export function PantallaYCreativos({
             pantalla.disponible &&
             pantalla.vigilando && (
               <div className="flex items-center gap-2 text-[12px] text-success">
-                <CheckCircle2 className="h-4 w-4" /> Sin fallas abiertas.
+                <CheckCircle2 className="h-4 w-4" /> {t('spaceeyes.pyc.sin-abiertas')}
               </div>
             )
           )}
@@ -166,32 +184,34 @@ export function PantallaYCreativos({
               <table className="w-full min-w-[560px] text-[12px]">
                 <thead className="border-b border-border text-left text-[11px] text-muted">
                   <tr>
-                    <th className="py-1.5 pr-3 font-medium">Detectada</th>
-                    <th className="pr-3 font-medium">Falla</th>
-                    <th className="pr-3 font-medium">Dónde</th>
-                    <th className="pr-3 font-medium">Estado</th>
-                    <th className="pr-3 font-medium">Cerrada</th>
-                    <th className="font-medium">Evidencia</th>
+                    <th className="py-1.5 pr-3 font-medium">{t('spaceeyes.falla.detectada')}</th>
+                    <th className="pr-3 font-medium">{t('spaceeyes.falla.falla')}</th>
+                    <th className="pr-3 font-medium">{t('spaceeyes.pyc.donde')}</th>
+                    <th className="pr-3 font-medium">{t('spaceeyes.comun.estado')}</th>
+                    <th className="pr-3 font-medium">{t('spaceeyes.pyc.cerrada')}</th>
+                    <th className="font-medium">{t('spaceeyes.falla.evidencia')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {fallas.map((f) => (
                     <tr key={f.id}>
-                      <td className="whitespace-nowrap py-1.5 pr-3 tabular-nums">{fechaHora(f.detectadaEn)}</td>
-                      <td className="pr-3 text-ink">{f.nombre}</td>
-                      <td className="pr-3 text-muted">{f.donde}</td>
+                      <td className="whitespace-nowrap py-1.5 pr-3 tabular-nums">{fechaHora(f.detectadaEn, idioma)}</td>
+                      <td className="pr-3 text-ink">{nombreDeFallaEnIdioma(f.nombre, idioma)}</td>
+                      <td className="pr-3 text-muted">{dondeDeFallaEnIdioma(f.donde, idioma)}</td>
                       <td className="pr-3">
                         <span className={cn('rounded-full px-2 py-0.5 text-[11px]', ESTADO[f.estado]?.clase)}>
-                          {ESTADO[f.estado]?.texto ?? f.estado}
+                          {ESTADO[f.estado] ? t(ESTADO[f.estado].texto) : f.estado}
                         </span>
                       </td>
                       <td className="whitespace-nowrap pr-3 tabular-nums text-muted">
-                        {f.recuperadaEn ? `${fechaHora(f.recuperadaEn)}${f.cerradaPor === 'usuario' ? ' · a mano' : ''}` : '—'}
+                        {f.recuperadaEn
+                          ? `${fechaHora(f.recuperadaEn, idioma)}${f.cerradaPor === 'usuario' ? t('spaceeyes.falla.a-mano') : ''}`
+                          : '—'}
                       </td>
                       <td className="whitespace-nowrap">
                         {f.evidencia && (
                           <button type="button" onClick={() => onAmpliar(f.evidencia!)} className="text-accent hover:underline">
-                            al detectar
+                            {t('spaceeyes.falla.al-detectar')}
                           </button>
                         )}
                         {f.evidenciaRecuperacion && (
@@ -200,7 +220,7 @@ export function PantallaYCreativos({
                             onClick={() => onAmpliar(f.evidenciaRecuperacion!)}
                             className="ml-2 text-accent hover:underline"
                           >
-                            al recuperar
+                            {t('spaceeyes.falla.al-recuperar')}
                           </button>
                         )}
                       </td>
@@ -213,10 +233,10 @@ export function PantallaYCreativos({
 
           {pantalla.disponible && !pantalla.vigilando && fallas.length === 0 && (
             <p className="text-[12px] text-muted">
-              Este equipo no está vigilando su pantalla. Se enciende en Space Eye (necesita la app 0.15 o posterior).
+              {t('spaceeyes.pyc.sin-vigilar')}
             </p>
           )}
-          {!pantalla.disponible && <p className="text-[12px] text-muted">Space Eye no tiene datos de pantalla de este equipo.</p>}
+          {!pantalla.disponible && <p className="text-[12px] text-muted">{t('spaceeyes.pyc.sin-datos')}</p>}
         </div>
       </section>
 
@@ -225,10 +245,8 @@ export function PantallaYCreativos({
       <section className="overflow-hidden rounded-md border border-border bg-surface">
         <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border p-3">
           <div className="min-w-0">
-            <h2 className="text-[14px] font-semibold text-ink">Creativos detectados</h2>
-            <p className="mt-0.5 text-[12px] text-muted">
-              Cada anuncio distinto que ha pasado por la pantalla, reconocido por el propio equipo.
-            </p>
+            <h2 className="text-[14px] font-semibold text-ink">{t('spaceeyes.pyc.creativos')}</h2>
+            <p className="mt-0.5 text-[12px] text-muted">{t('spaceeyes.pyc.creativos.texto')}</p>
           </div>
           <EstadoVigilancia
             disponible={creativos.disponible}
@@ -249,13 +267,16 @@ export function PantallaYCreativos({
                   <div className="aspect-[4/3] bg-surface-2">
                     {c.foto && (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={c.foto} alt="Creativo detectado" className="h-full w-full object-contain" />
+                      <img src={c.foto} alt={t('spaceeyes.creativo.alt')} className="h-full w-full object-contain" />
                     )}
                   </div>
                   <div className="border-t border-border px-2 py-1.5 text-[11px]">
-                    <div className="text-ink">Apareció {fechaHora(c.primeraVez)}</div>
+                    <div className="text-ink">{t('spaceeyes.creativo.aparecio', { fecha: fechaHora(c.primeraVez, idioma) })}</div>
                     <div className="text-muted">
-                      Visto <span className="tabular-nums">{c.vistas}</span> veces · último {hace(c.ultimaVez)}
+                      {interpolarNodos(t(c.vistas === 1 ? 'spaceeyes.creativo.visto.uno' : 'spaceeyes.creativo.visto.otros'), {
+                        n: <span className="tabular-nums">{c.vistas}</span>,
+                        hace: hace(c.ultimaVez, idioma),
+                      })}
                     </div>
                   </div>
                 </button>
@@ -263,7 +284,7 @@ export function PantallaYCreativos({
             </div>
           ) : (
             <p className="text-[12px] text-muted">
-              {creativos.vigilando ? 'Todavía no ha detectado creativos nuevos.' : 'Este equipo no está vigilando los creativos de su pantalla.'}
+              {creativos.vigilando ? t('spaceeyes.creativo.ninguno') : t('spaceeyes.pyc.sin-vigilar-creativos')}
             </p>
           )}
         </div>
@@ -274,12 +295,13 @@ export function PantallaYCreativos({
 }
 
 function EstadoVigilancia({ disponible, vigilando, aprendiendo }: { disponible: boolean; vigilando: boolean; aprendiendo: boolean }) {
-  const [texto, clase] = !disponible
-    ? ['Sin datos', 'bg-surface-2 text-muted']
+  const t = useIdioma().t
+  const [texto, clase]: [ClaveTexto, string] = !disponible
+    ? ['spaceeyes.pyc.sin-datos-corto', 'bg-surface-2 text-muted']
     : !vigilando
-      ? ['Apagada', 'bg-surface-2 text-muted']
+      ? ['spaceeyes.pyc.apagada', 'bg-surface-2 text-muted']
       : aprendiendo
-        ? ['Aprendiendo', 'bg-accent-soft text-accent']
-        : ['Vigilando', 'bg-success-soft text-success']
-  return <span className={cn('shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium', clase)}>{texto}</span>
+        ? ['spaceeyes.vigilancia.aprendiendo', 'bg-accent-soft text-accent']
+        : ['spaceeyes.vigilancia.vigilando', 'bg-success-soft text-success']
+  return <span className={cn('shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium', clase)}>{t(texto)}</span>
 }

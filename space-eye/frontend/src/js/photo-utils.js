@@ -111,6 +111,29 @@ function overlayInfoLines(photo, deviceName) {
 // manda derecha, y sin visor -el boton de foto a todas y las programadas- la
 // manda como sale del sensor. El archivo guardado NUNCA se toca: se gira solo al
 // mostrarla y al descargarla, para no recomprimir la evidencia.
+// De donde salio una foto, en palabras. El ENUM de `photos.source` tiene SIETE
+// valores (migracion 024) y la galeria solo nombraba tres: una prueba de
+// campana o una foto de falla se quedaban sin etiqueta, o -peor, en el modulo-
+// se presentaban como «programada», que es otra cosa.
+const ORIGENES_FOTO = {
+  manual: 'Manual',
+  scheduled: 'Programada',
+  on_demand: 'A peticion',
+  boot: 'Al encender',
+  creative_change: 'Creativo nuevo',
+  falla: 'Falla de pantalla',
+  campana: 'Campana',
+};
+
+// La prueba de una campana dice CUAL: sin el nombre, «Campana» no distingue
+// entre los dos creativos que una misma pantalla puede tener vendidos.
+function textoOrigenFoto(photo) {
+  if (!photo) return '';
+  const base = ORIGENES_FOTO[photo.source] || '';
+  if (photo.source === 'campana' && photo.campaign_name) return base + ' · ' + photo.campaign_name;
+  return base;
+}
+
 function giroDeFoto(photo) {
   const g = Number(photo && photo.display_rotation) || 0;
   return [90, 180, 270].includes(g) ? g : 0;
@@ -185,4 +208,54 @@ function photoOverlayLines(photo, siteText) {
     ? ('GPS: ' + Number(photo.gps_lat).toFixed(5) + ', ' + Number(photo.gps_lng).toFixed(5))
     : null;
   return [siteText || photo.device_name || 'SPACE EYE', dt, gps].filter(Boolean);
+}
+
+
+// ─── Creativos detectados que no trajeron foto ──────────────────────────────
+//
+// El catalogo de creativos y la galeria se llenan por caminos DISTINTOS: la
+// huella del creativo viaja siempre -32 bytes pegados al reporte de estado- y
+// la foto solo si el equipo podia tomarla. Un hallazgo sin foto es normal; lo
+// que no lo era es esconderlo sin decir nada, porque entonces el catalogo y la
+// galeria no cuadran y parece un error (TLALPAN, 23-oct-2026).
+//
+// Los motivos los guarda el servidor en device_creatives.sin_foto (migracion
+// 028). Primero lo que hay que atender, al final lo que es de esperarse.
+const MOTIVOS_SIN_FOTO = [
+  { clave: 'no_subio', texto: 'no se pudo subir' },
+  { clave: 'tope_del_dia', texto: 'se agoto el tope de fotos del dia' },
+  { clave: 'envio_agrupado', texto: 'esperan el envio agrupado' },
+  { clave: 'aprendizaje', texto: 'se aprendieron del loop' },
+  { clave: 'desconocido', texto: 'sin motivo registrado' },
+];
+
+/** Los hallazgos sin foto del catalogo, agrupados por motivo. */
+function contarSinFoto(filas) {
+  const cuenta = {};
+  for (const c of filas || []) {
+    if (c.thumbnail_path || c.storage_path) continue;
+    // Los viejos no traen motivo (la columna es nueva) y los aprendidos nunca se
+    // fotografian a proposito: ni unos ni otros son noticia.
+    const motivo = c.sin_foto ? String(c.sin_foto) : (c.aprendido ? 'aprendizaje' : 'desconocido');
+    cuenta[motivo] = (cuenta[motivo] || 0) + 1;
+  }
+  return cuenta;
+}
+
+/** Una linea que lo explique, o '' si todas tienen su foto (lo normal: sin ruido). */
+function textoSinFoto(cuenta) {
+  if (!cuenta) return '';
+  const conocidos = new Set(MOTIVOS_SIN_FOTO.map((m) => m.clave));
+  let total = 0;
+  const partes = [];
+  for (const m of MOTIVOS_SIN_FOTO) {
+    const n = cuenta[m.clave] || 0;
+    if (n > 0) { total += n; partes.push(n + ' ' + m.texto); }
+  }
+  // Un motivo que esta version no conozca suma al total aunque no se nombre: que
+  // el total cuadre importa mas, es lo que se mira primero.
+  for (const k of Object.keys(cuenta)) if (!conocidos.has(k) && cuenta[k] > 0) total += cuenta[k];
+  if (total === 0) return '';
+  const cabeza = total === 1 ? '1 detectado sin foto' : total + ' detectados sin foto';
+  return partes.length ? cabeza + ': ' + partes.join(', ') : cabeza;
 }

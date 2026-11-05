@@ -385,6 +385,43 @@ export async function passwordHashDe(id: string): Promise<string | null> {
   return r?.password_hash ?? null
 }
 
+// ─── Idioma de la interfaz, por persona (IDIOMA-USUARIO, 03/11) ─────────────
+// `usuarios` es fail-closed + FORCE: todo va con el tenant puesto —`q` toma el
+// de la sesión, `qConTenant` el que ya se conoce al abrirla— y además con
+// `tenant_id = $n` explícito, como el resto de este archivo. Un `qRaw` aquí no
+// daría error: daría CERO filas, y la preferencia se perdería en silencio (R2).
+
+/** La preferencia del usuario en sesión. `null` = sigue a su navegador. */
+export async function idiomaPreferidoPropio(id: string): Promise<string | null> {
+  const r = await q1<{ idioma_preferido: string | null }>(
+    'select idioma_preferido from usuarios where id = $1 and tenant_id = $2',
+    [id, await tenantOblig()],
+  )
+  return r?.idioma_preferido ?? null
+}
+
+/** Guarda la preferencia del usuario en sesión. Devuelve si tocó una fila. */
+export async function guardarIdiomaPreferido(id: string, idioma: string | null): Promise<boolean> {
+  const filas = await q(
+    'update usuarios set idioma_preferido = $1 where id = $2 and tenant_id = $3 returning id',
+    [idioma, id, await tenantOblig()],
+  )
+  return filas.length > 0
+}
+
+/**
+ * La preferencia al ABRIR una sesión, cuando todavía no hay cookie de la que
+ * sacar el tenant pero ya se sabe cuál es (el callback de Google lo trae).
+ */
+export async function idiomaPreferidoAlEntrar(id: string, tenantId: string): Promise<string | null> {
+  const [r] = await qConTenant<{ idioma_preferido: string | null }>(
+    tenantId,
+    'select idioma_preferido from usuarios where id = $1 and tenant_id = $2',
+    [id, tenantId],
+  )
+  return r?.idioma_preferido ?? null
+}
+
 // Unicidad de correo: es GLOBAL a propósito, porque el login es por email sin
 // tenant y dos usuarios con el mismo correo en tenants distintos lo harían
 // ambiguo. Con la RLS fail-closed de `usuarios`, una consulta normal solo vería

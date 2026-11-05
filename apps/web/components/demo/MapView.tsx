@@ -1,6 +1,9 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { localeMapa } from '@/lib/i18n/librerias'
+import { interpolarNodos } from '@/lib/i18n/nodos'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { puntoUtil } from '@/lib/coordenadas'
@@ -137,6 +140,7 @@ export function MapView({
   // algo de rendimiento, por eso solo se enciende donde se imprime.
   imprimible?: boolean
 }) {
+  const { t, idioma } = useIdioma()
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const markersRef = useRef<Map<string, maplibregl.Marker>>(new Map())
@@ -172,6 +176,8 @@ export function MapView({
       style: buildStyle(),
       center: CENTRO_POR_DEFECTO,
       zoom,
+      // B70 · los textos de los botones del mapa, en el idioma de la persona.
+      locale: localeMapa(idioma),
       attributionControl: { compact: true },
       ...(imprimible ? { canvasContextAttributes: { preserveDrawingBuffer: true } } : {}),
     })
@@ -391,8 +397,8 @@ export function MapView({
       {sinUbicacion > 0 && (
         <div className="pointer-events-none absolute bottom-2 left-2 z-10 rounded-md border border-border-strong bg-surface/95 px-2 py-1 text-[11px] font-medium text-ink-2 shadow-sm">
           {sinUbicacion === 1
-            ? '1 pantalla sin ubicación capturada'
-            : `${sinUbicacion} pantallas sin ubicación capturada`}
+            ? t('compartidos.mapa.sin-ubicacion.uno')
+            : t('compartidos.mapa.sin-ubicacion.otros', { n: sinUbicacion })}
         </div>
       )}
       {permitirDibujo && (
@@ -400,28 +406,33 @@ export function MapView({
           <div className="pointer-events-auto flex gap-1">
             {!dibujando && !zonaCerrada && (
               <button type="button" onClick={iniciarDibujo} className={btnCls}>
-                Dibujar zona
+                {/* Misma clave que la ayuda de «Nueva propuesta», que nombra este
+                    boton: si se tradujeran por separado, la ayuda mandaria a
+                    pulsar un rotulo que no esta en pantalla. */}
+                {t('propuestas.alta.mapa.dibujar')}
               </button>
             )}
             {dibujando && (
               <>
                 <button type="button" onClick={cerrarZona} disabled={vertices.length < 3} className={btnCls}>
-                  Cerrar zona ({vertices.length})
+                  {/* Con `interpolarNodos` y no `t()`: la cifra sigue siendo su
+                      propio nodo, como antes, y el HTML espanol no cambia. */}
+                  {interpolarNodos(t('compartidos.mapa.cerrar-zona'), { n: vertices.length })}
                 </button>
                 <button type="button" onClick={limpiarZona} className={btnCls}>
-                  Cancelar
+                  {t('comun.cancelar')}
                 </button>
               </>
             )}
             {zonaCerrada && (
               <button type="button" onClick={limpiarZona} className={btnCls}>
-                Limpiar zona
+                {t('compartidos.mapa.limpiar-zona')}
               </button>
             )}
           </div>
           {dibujando && (
             <span className="pointer-events-none rounded bg-black/70 px-2 py-1 text-[11px] text-white">
-              Toca el mapa para marcar la zona (mín. 3 puntos)
+              {t('compartidos.mapa.indicacion')}
             </span>
           )}
         </div>

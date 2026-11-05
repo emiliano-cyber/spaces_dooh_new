@@ -6,7 +6,7 @@ import { AlertTriangle, ArrowLeft, Camera, CameraOff, Loader2, Move, Type } from
 import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
 import { usePuede } from '@/components/demo/shell/SesionContext'
-import { seApi, fotoSE, ErrorSE } from '@/lib/data/space-eyes-se'
+import { seApi, fotoSE, ErrorSE, textoDeError } from '@/lib/data/space-eyes-se'
 import {
   MARCA_POR_OMISION,
   RANGOS,
@@ -23,6 +23,10 @@ import {
   type EstiloMarca,
   type PesoMarca,
 } from '@/lib/space-eyes-marca-editor'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { fijo } from './piezas'
+import type { ClaveTexto } from '@/lib/i18n/diccionario'
+import { interpolarNodos } from '@/lib/i18n/nodos'
 
 // ============================================================================
 //  Space Eyes — «Ajustar texto».
@@ -60,6 +64,7 @@ type Aviso = { tono: 'ok' | 'error'; texto: string } | null
 const INTENTOS_FOTO = 15 // cada 2 s → ~30 s, lo mismo que el original
 
 export function AjustarTexto() {
+  const { t, idioma } = useIdioma()
   const puedeEditar = usePuede('inventario', 'crear')
 
   const [equipos, setEquipos] = useState<EquipoSE[] | null>(null)
@@ -130,11 +135,11 @@ export function AjustarTexto() {
         setFoto(f)
       } catch (e) {
         if (mio !== turno.current) return
-        avisar('error', e instanceof Error ? e.message : 'No se pudo leer el equipo')
+        avisar('error', textoDeError(e, idioma) ?? t('spaceeyes.vivo.no-leer'))
       }
       if (mio === turno.current) setCargandoEquipo(false)
     },
-    [avisar, pararEncuesta, ultimaFoto],
+    [avisar, pararEncuesta, ultimaFoto, t, idioma],
   )
 
   useEffect(() => {
@@ -153,16 +158,16 @@ export function AjustarTexto() {
         setDeviceId(String(elegido.id))
         void cargarEquipo(String(elegido.id))
       } catch (e) {
-        if (vivo) setError(e instanceof ErrorSE || e instanceof Error ? e.message : 'No se pudo consultar Space Eyes')
+        if (vivo) setError(textoDeError(e, idioma) ?? t('spaceeyes.comun.no-consultar'))
       }
     })()
     return () => {
       vivo = false
     }
-  }, [cargarEquipo])
+  }, [cargarEquipo, t, idioma])
 
   const cambiarEquipo = (id: string) => {
-    if (!mismaMarca(marca, guardada) && !window.confirm('Hay cambios sin guardar en la marca de este equipo. ¿Descartarlos?')) return
+    if (!mismaMarca(marca, guardada) && !window.confirm(t('spaceeyes.texto.confirmar-descartar'))) return
     setDeviceId(id)
     void cargarEquipo(id)
   }
@@ -187,17 +192,17 @@ export function AjustarTexto() {
           pararEncuesta()
           setFoto(f)
           setCapturando(false)
-          avisar('ok', 'Fotografía capturada')
+          avisar('ok', t('spaceeyes.texto.capturada'))
         } else if (intentos >= INTENTOS_FOTO) {
           pararEncuesta()
           setCapturando(false)
-          avisar('error', 'No llegó la foto. ¿El equipo está en línea?')
+          avisar('error', t('spaceeyes.texto.no-llego'))
         }
       }, 2000)
     } catch (e) {
       if (mio !== turno.current) return
       setCapturando(false)
-      avisar('error', e instanceof ErrorSE && e.status === 403 ? 'No tienes permiso para tomar fotos' : 'No se pudo enviar la orden al equipo')
+      avisar('error', e instanceof ErrorSE && e.status === 403 ? t('spaceeyes.texto.sin-permiso-foto') : t('spaceeyes.texto.no-orden'))
     }
   }
 
@@ -207,9 +212,9 @@ export function AjustarTexto() {
     try {
       await seApi(`devices/${deviceId}/overlay`, { method: 'PUT', body: cuerpoMarca(marca) })
       setGuardada(marca)
-      avisar('ok', 'Configuración guardada y aplicada al equipo')
+      avisar('ok', t('spaceeyes.texto.guardada'))
     } catch (e) {
-      avisar('error', e instanceof ErrorSE && e.status === 403 ? 'No tienes permiso para cambiar la marca' : 'No se pudo guardar la configuración')
+      avisar('error', e instanceof ErrorSE && e.status === 403 ? t('spaceeyes.texto.sin-permiso-marca') : t('spaceeyes.texto.no-guardar'))
     }
     setGuardando(false)
   }
@@ -233,10 +238,11 @@ export function AjustarTexto() {
           <Type className="h-5 w-5" strokeWidth={1.75} />
         </span>
         <div className="min-w-[12rem] flex-1">
-          <h1 className="text-lg font-semibold text-ink">Ajustar texto de las fotos</h1>
+          <h1 className="text-lg font-semibold text-ink">{t('spaceeyes.texto.titulo')}</h1>
           <p className="text-[13px] text-muted">
-            Toma una fotografía de prueba y acomoda cómo se verá <b className="font-medium text-ink">nombre · fecha · hora</b>.
-            Se aplica a todas las fotos del equipo.
+            {interpolarNodos(t('spaceeyes.texto.descripcion'), {
+              marca: <b className="font-medium text-ink">{t('spaceeyes.texto.marca')}</b>,
+            })}
           </p>
         </div>
       </div>
@@ -245,31 +251,31 @@ export function AjustarTexto() {
         <div className="flex items-start gap-2 rounded-md border border-[#dc262640] bg-error-soft p-3 text-[12px]">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-error" />
           <div>
-            <div className="font-medium text-ink">No se pudo consultar Space Eyes</div>
+            <div className="font-medium text-ink">{t('spaceeyes.comun.no-consultar')}</div>
             <div className="text-muted">{error}</div>
           </div>
         </div>
       ) : equipos && equipos.length === 0 ? (
         <div className="rounded-md border border-border bg-surface-2 px-3 py-10 text-center text-[13px] text-muted">
-          Todavía no hay equipos Space Eyes dados de alta para esta cuenta.
+          {t('spaceeyes.comun.sin-equipos')}
         </div>
       ) : (
         <>
           {/* Equipo + foto de prueba */}
           <div className="flex flex-wrap items-end gap-3 rounded-md border border-border bg-surface p-3">
             <label className="block w-full min-w-0 sm:w-auto">
-              <span className="text-[12px] text-muted">Equipo</span>
+              <span className="text-[12px] text-muted">{t('spaceeyes.comun.equipo')}</span>
               <select
                 value={deviceId}
                 onChange={(e) => cambiarEquipo(e.target.value)}
                 disabled={!equipos}
                 className="mt-1 h-9 w-full max-w-full rounded border border-border-strong bg-surface px-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent sm:min-w-[240px]"
               >
-                {!equipos && <option>Cargando…</option>}
+                {!equipos && <option>{t('comun.cargando')}</option>}
                 {(equipos ?? []).map((d) => (
                   <option key={d.id} value={String(d.id)}>
                     {d.name}
-                    {d.online ? '' : ' (sin comunicación)'}
+                    {d.online ? '' : t('spaceeyes.texto.sin-comunicacion')}
                   </option>
                 ))}
               </select>
@@ -281,14 +287,12 @@ export function AjustarTexto() {
               disabled={capturando || !deviceId || !puedeEditar || cargandoEquipo}
             >
               {capturando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-              {capturando ? 'Capturando…' : 'Tomar fotografía'}
+              {capturando ? t('spaceeyes.texto.capturando') : t('spaceeyes.texto.tomar')}
             </Button>
             <div className="flex min-w-0 flex-col gap-0.5 text-[12px]">
-              {!foto && <span className="text-muted">La cámara solo captura al pulsar el botón.</span>}
-              {capturando && <span className="text-muted">Esperando la foto del equipo (hasta 30 s)…</span>}
-              {!puedeEditar && (
-                <span className="text-warning">Solo quien puede editar inventario puede tomar la foto y guardar la marca.</span>
-              )}
+              {!foto && <span className="text-muted">{t('spaceeyes.texto.solo-boton')}</span>}
+              {capturando && <span className="text-muted">{t('spaceeyes.texto.esperando')}</span>}
+              {!puedeEditar && <span className="text-warning">{t('spaceeyes.texto.sin-permiso')}</span>}
             </div>
           </div>
 
@@ -305,11 +309,11 @@ export function AjustarTexto() {
               {foto && puedeEditar && (
                 <p className="mt-2 flex items-center gap-1.5 text-[12px] text-muted">
                   <Move className="h-3.5 w-3.5" />
-                  Arrastra sobre la foto para mover la marca (o usa las flechas del teclado). Los cambios se ven al momento.
+                  {t('spaceeyes.texto.arrastra')}
                 </p>
               )}
               {foto?.tomadaEn && (
-                <p className="mt-1 text-[12px] text-muted">La fecha y la hora de la vista previa son las de esta foto.</p>
+                <p className="mt-1 text-[12px] text-muted">{t('spaceeyes.texto.fecha-foto')}</p>
               )}
             </div>
 
@@ -322,15 +326,15 @@ export function AjustarTexto() {
                 <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
                   <span className="demo-num text-[12px] text-muted">
                     x: {Math.round(marca.x)}% · y: {Math.round(marca.y)}%
-                    {sucio && <span className="ml-2 text-warning">sin guardar</span>}
+                    {sucio && <span className="ml-2 text-warning">{t('spaceeyes.texto.sin-guardar')}</span>}
                   </span>
                   <div className="ml-auto flex gap-2">
                     <Button variant="secondary" size="sm" onClick={() => setMarca(guardada)} disabled={!sucio || guardando}>
-                      Descartar
+                      {t('spaceeyes.comun.descartar')}
                     </Button>
                     <Button variant="primary" size="sm" onClick={() => void guardar()} disabled={!puedeEditar || !deviceId || guardando}>
                       {guardando && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                      Guardar configuración
+                      {t('spaceeyes.texto.guardar')}
                     </Button>
                   </div>
                 </div>
@@ -373,6 +377,7 @@ function VistaPrevia({
   editable: boolean
   onMover: (x: number, y: number) => void
 }) {
+  const t = useIdioma().t
   const recuadroRef = useRef<HTMLDivElement>(null)
   const marcaRef = useRef<HTMLDivElement>(null)
   const arrastrando = useRef(false)
@@ -424,7 +429,7 @@ function VistaPrevia({
       <div
         ref={recuadroRef}
         role={activo ? 'application' : undefined}
-        aria-label={activo ? 'Posición de la marca: arrastra o usa las flechas' : undefined}
+        aria-label={activo ? t('spaceeyes.texto.posicion') : undefined}
         tabIndex={activo ? 0 : undefined}
         className={cn(
           'relative w-full select-none overflow-hidden rounded-md border border-border bg-surface-2 outline-none focus-visible:ring-2 focus-visible:ring-accent',
@@ -463,7 +468,7 @@ function VistaPrevia({
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={foto.url}
-            alt="Foto de referencia del equipo"
+            alt={t('spaceeyes.texto.alt')}
             draggable={false}
             onLoad={(e) => {
               const i = e.currentTarget
@@ -488,7 +493,7 @@ function VistaPrevia({
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-[13px] text-muted">
             {cargando ? <Loader2 className="h-6 w-6 animate-spin" /> : <CameraOff className="h-8 w-8" strokeWidth={1.4} />}
-            {cargando ? 'Cargando…' : 'Toma una fotografía para previsualizar'}
+            {cargando ? t('comun.cargando') : t('spaceeyes.texto.previsualizar')}
           </div>
         )}
 
@@ -513,7 +518,7 @@ function VistaPrevia({
 
         {foto?.url && !marca.enabled && (
           <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2.5 py-1 text-[10.5px] font-semibold text-white">
-            Marca desactivada
+            {t('spaceeyes.texto.desactivada')}
           </span>
         )}
       </div>
@@ -535,73 +540,74 @@ function Controles({
   fijar: <K extends keyof EstiloMarca>(k: K, v: EstiloMarca[K]) => void
   pie: React.ReactNode
 }) {
+  const t = useIdioma().t
   const s = marca.style
   return (
     <div className="space-y-4 rounded-md border border-border bg-surface p-4 text-[13px]">
       <fieldset disabled={deshabilitado} className={cn('space-y-4', deshabilitado && 'opacity-60')}>
-        <Interruptor etiqueta="Mostrar marca" valor={marca.enabled} onChange={onEnabled} fuerte />
+        <Interruptor etiqueta={t('spaceeyes.texto.mostrar')} valor={marca.enabled} onChange={onEnabled} fuerte />
 
         <Deslizador
-          etiqueta="Tamaño"
+          etiqueta={t('spaceeyes.texto.tamano')}
           valor={s.size}
           decimales={1}
           rango={RANGOS.size}
           onChange={(v) => fijar('size', v)}
         />
 
-        <Campo etiqueta="Peso de la fuente">
+        <Campo etiqueta={t('spaceeyes.texto.peso')}>
           <Segmentado<PesoMarca>
             valor={s.weight}
             opciones={[
-              ['normal', 'Normal'],
-              ['bold', 'Negrita'],
+              ['normal', t('spaceeyes.texto.normal')],
+              ['bold', t('spaceeyes.texto.negrita')],
             ]}
             onChange={(v) => fijar('weight', v)}
           />
         </Campo>
 
-        <Campo etiqueta="Color del texto">
+        <Campo etiqueta={t('spaceeyes.texto.color')}>
           <div className="flex items-center gap-2">
             <input
               type="color"
               value={s.color}
               onChange={(e) => fijar('color', e.target.value)}
-              aria-label="Color del texto"
+              aria-label={t('spaceeyes.texto.color')}
               className="h-9 w-14 cursor-pointer rounded border border-border-strong bg-surface p-0.5"
             />
             <span className="demo-num text-[12px] uppercase text-muted">{s.color}</span>
           </div>
         </Campo>
 
-        <Campo etiqueta="Alineación">
+        <Campo etiqueta={t('spaceeyes.texto.alineacion')}>
           <Segmentado<AlineacionMarca>
             valor={s.align}
             opciones={[
-              ['left', 'Izquierda'],
-              ['center', 'Centro'],
-              ['right', 'Derecha'],
+              ['left', t('spaceeyes.texto.izquierda')],
+              ['center', t('spaceeyes.texto.centro')],
+              ['right', t('spaceeyes.texto.derecha')],
             ]}
             onChange={(v) => fijar('align', v)}
           />
         </Campo>
 
         <Deslizador
-          etiqueta="Espaciado entre líneas"
+          etiqueta={t('spaceeyes.texto.interlineado')}
           valor={s.lineSpacing}
           decimales={1}
           rango={RANGOS.lineSpacing}
           onChange={(v) => fijar('lineSpacing', v)}
         />
         <Deslizador
-          etiqueta="Espaciado entre letras"
+          etiqueta={t('spaceeyes.texto.interletra')}
           valor={s.letterSpacing}
           decimales={2}
           rango={RANGOS.letterSpacing}
           onChange={(v) => fijar('letterSpacing', v)}
         />
 
-        <Interruptor etiqueta="Sombra" valor={s.shadow} onChange={(v) => fijar('shadow', v)} />
-        <Interruptor etiqueta="Fondo semitransparente" valor={s.bg} onChange={(v) => fijar('bg', v)} />
+        <Interruptor etiqueta={t('spaceeyes.texto.sombra')} valor={s.shadow} onChange={(v) => fijar('shadow', v)} />
+        <Interruptor etiqueta={t('spaceeyes.texto.fondo')} valor={s.bg} onChange={(v) => fijar('bg', v)} />
       </fieldset>
       {pie}
     </div>
@@ -630,11 +636,12 @@ function Deslizador({
   rango: { min: number; max: number; step: number }
   onChange: (v: number) => void
 }) {
+  const { idioma } = useIdioma()
   return (
     <label className="block">
       <span className="flex items-baseline justify-between text-[12px] text-muted">
         {etiqueta}
-        <span className="demo-num text-ink">{Number(valor).toFixed(decimales)}</span>
+        <span className="demo-num text-ink">{fijo(Number(valor), decimales, idioma)}</span>
       </span>
       <input
         type="range"

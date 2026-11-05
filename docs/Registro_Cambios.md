@@ -5,6 +5,156 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-05 · v0.12.6 (preparada, todavía sin publicar)
+
+Junta todo lo que está abajo marcado «sin publicar» desde el 02/11: inglés e italiano,
+el idioma de cada persona, los papeles en el idioma del servidor, pesos o dólares por
+servidor, las cifras con coma, la vigencia de las propuestas, los nombres accesibles y lo
+nuevo de Space Eyes. Las notas que verá cada cliente están en `apps/web/novedades.json`.
+**El portugués NO va en esta versión**: sigue en su rama, `integra/portugues`.
+
+---
+
+## 2026-11-05 · Mapas, avisos y botones de cerrar en el idioma de cada persona, y la vigencia de las propuestas sin depender de la hora (sin publicar)
+
+Cambios que el dueño autorizó el 05/11. Los tres primeros se notan sobre todo con un lector de pantalla o al
+dejar el ratón encima de un botón.
+
+- **Los botones de los mapas** (acercar, alejar, buscar mi ubicación, créditos del mapa) y
+  el aviso de los marcadores decían «Zoom in», «Find my location», «Map marker»… en
+  inglés, también con la aplicación en español. Ahora salen en español, inglés o italiano,
+  según el idioma de quien usa la aplicación.
+- **Los avisos** que aparecen abajo a la derecha se anunciaban como «Notifications» y su
+  botón de cerrar como «Close toast». Ahora dicen «Notificaciones» y «Cerrar aviso» (en
+  inglés, «Notifications» y «Close notification»; en italiano, «Notifiche» y «Chiudi
+  notifica»).
+- **La X que cierra las ventanas y los paneles laterales** no tenía nombre: un lector de
+  pantalla decía solo «botón». Ahora dice «Cerrar» («Close», «Chiudi»), y al dejar el ratón
+  encima aparece el mismo texto. Igual con las X para quitar una tasa de IVA o un plazo de
+  cobranza en Administración («Quitar IVA 16%», «Quitar plazo 30 días»).
+- **La vigencia de las propuestas ya no depende de la hora.** Entre las 6 de la tarde y la
+  medianoche, una propuesta válida «hasta hoy» enseñaba al cliente el botón de aceptar y, al
+  pulsarlo, le decía que ya había vencido. Y una propuesta enviada a esas horas quedaba con un
+  día más de vigencia que el que decía su correo. Ahora todo cuenta con el mismo día, el de la
+  zona horaria de la empresa: el último día de vigencia vale completo, hasta la medianoche.
+
+## 2026-11-05 · Cifras: una coma mal puesta ya no cambia el importe en silencio (sin publicar)
+
+Decisión del dueño. Hasta ahora, en un campo de importe o de cantidad, si alguien
+**tecleaba** «2,5» pensando en «dos y medio», la coma desaparecía y se guardaba **25**,
+sin ningún aviso; «15000,50» se guardaba como 1,500,050. Si **pegaba** el mismo texto, en
+cambio, el campo lo rechazaba y explicaba por qué.
+
+Ahora teclear y pegar se tratan igual, en español y en inglés:
+
+- **La coma que escribe la persona se queda donde la escribió.** Si está bien puesta
+  («1,500», «12,500.50») vale como siempre. Si no («2,5», «12,34», «1,5000»), el campo la
+  deja a la vista, se marca en rojo con el aviso «Las comas van cada tres cifras…» y el
+  formulario **no se guarda** hasta corregirla.
+- **No regaña mientras se escribe.** Al teclear «1,500» se pasa por «1,» y «1,5»: ahí no
+  sale nada. El aviso aparece al salir del campo o al pulsar Enter, si lo que quedó no es
+  una cifra bien puesta.
+- **Lo de siempre no cambia:** quien teclea «1500» sigue viendo «1,500» mientras escribe,
+  y el punto sigue siendo el decimal («2.5» es dos y medio).
+
+Afecta a todos los campos donde se teclea un importe o una cantidad con coma de miles
+(tarifas, rentas, precios, cantidades). Los campos de medidas y porcentajes (por ejemplo
+la comisión o el descuento) no cambian. En italiano ya funcionaba así.
+
+---
+
+## 2026-11-04 · Idiomas: el correo de «olvidé mi contraseña», «provvigione» y los contratos de ejemplo (sin publicar)
+
+Tres cambios que el dueño autorizó el 04/11. En un servidor en español no cambia nada.
+
+- **El correo para restablecer la contraseña** llega en el idioma del servidor, como ya
+  pasaba con la invitación: en inglés o en italiano si el servidor se creó así. En español
+  sale exactamente igual que antes. Lo demás de «olvidé mi contraseña» no cambia: el enlace
+  vence igual, los límites de intentos son los mismos y la respuesta sigue sin decir si el
+  correo está registrado.
+- **En italiano, «comisión» se dice siempre «provvigione»**, como en el menú. Antes las
+  pantallas de Comisiones, Propuestas y Reportes decían «commissione».
+- **Los contratos en inglés e italiano son plantillas de ejemplo** que cada cliente irá
+  adaptando. Ya no hace falta esperar la revisión de un abogado para crear un servidor en
+  esos idiomas. El texto del contrato no cambió.
+
+---
+
+## 2026-11-02 · Paquetes: los textos ya no dan por hecho que se cobra en pesos (sin publicar)
+
+Ahora que una instancia puede trabajar en dólares, cuatro textos de la pantalla
+de **Paquetes** decían algo falso en esa instancia, porque hablaban de pesos. Se
+reescribieron sin nombrar la moneda, en español y en inglés. Es el único cambio
+de texto en español que el dueño autorizó en la traducción al inglés.
+
+- «Precio del conjunto (pesos enteros)» → **«Precio del conjunto (cantidad
+  entera, sin centavos)»**.
+- «la suma de las partes da el precio del paquete al peso» → **«… con
+  exactitud»**.
+- «Suma de las partes — cuadra al peso» → **«— cuadra exacto»**.
+- El aviso al guardar un paquete con centavos: «tiene que ser un numero entero
+  de pesos» → **«tiene que ser una cantidad entera»** (el resto de la frase
+  sigue igual: el reparto entre las pantallas no admite centavos).
+
+Lo demás del español no cambió. Se comprobó con las pruebas automáticas que
+dibujan las pantallas ya traducidas (propuestas, campañas, finanzas, comercial,
+catálogos de precio y piezas compartidas): 124 estados de pantalla, comparados
+antes y después. Solo cambian esas frases, y solo en Paquetes. Las pantallas
+que aún no se traducen no tienen esas pruebas, pero tampoco tenían ninguno de
+estos textos. La cantidad con letra
+de los contratos («… PESOS 00/100 M.N.») y los recibos de CFE se quedan como
+están, a propósito.
+
+Además, en inglés, los avisos «no puede ser mayor que…» y «no puede ser menor
+que…» de un campo de cifra ahora dicen «Must not be greater than…» y «Must not
+be less than…», igual que el aviso del servidor.
+
+---
+
+## 2026-11-02 · La moneda de cada instancia: pesos o dólares, elegida al crearla y para siempre (sin publicar)
+
+Decisión del dueño: una instancia trabaja en **pesos mexicanos (MXN)** o en
+**dólares (USD)**. Se elige **una sola vez, al crearla**, y después **no se puede
+cambiar**, por seguridad. Las instancias que ya existen se quedan en pesos y se
+ven exactamente igual que antes.
+
+- **Por qué no se puede cambiar.** Los importes que ya están guardados
+  (contratos, propuestas, cobranza) son solo números: no dicen en qué moneda
+  están. Si se cambiara la moneda, «$10,000 pesos» pasaría a leerse como
+  «$10,000 dólares» sin convertir nada. Por eso lo impiden dos cosas a la vez:
+  la base de datos y la aplicación. Cambiarla a la fuerza ya no es un ajuste: es
+  una corrección de datos con tipo de cambio, que se decide aparte.
+- **Cómo se ve.** En una instancia en pesos todo sigue igual: `$ 1,234.50`. En
+  una en dólares, en español se escribe `US$ 1,234.50` para que nadie lo lea
+  como pesos. El documento de la propuesta que se le da al cliente, los avisos y
+  la bitácora usan la moneda de la instancia. Un contrato en dólares dice
+  «DÓLARES … USD» en la cantidad con letra, no «PESOS … M.N.».
+- **Los contratos ya firmados no cambian.** Si un contrato en dólares se firmó
+  antes de este cambio (cuando su letra todavía decía «PESOS»), sus firmas
+  siguen apareciendo como válidas: el sistema lo revisa con la regla con la que
+  se firmó. Si alguien cambia un dato de ese contrato, se sigue avisando.
+- **Si la base de datos no responde**, la aplicación muestra una página propia
+  en español («El sistema no está disponible en este momento», con un botón
+  para reintentar) en lugar de una pantalla de error en inglés. No muestra los
+  importes con una moneda adivinada.
+- **El registro abierto no elige la moneda.** Solo quien da de alta la
+  instancia la elige; las organizaciones que se creen después usan la misma.
+- **Administración → Identidad** muestra la moneda de la instancia (antes decía
+  «Peso mexicano» escrito a mano) y avisa de que no se puede cambiar.
+- **Cambios de contrato** ya no deja escribir otra moneda: el campo se muestra y
+  no se edita. Un contrato va siempre en la moneda de la instancia.
+- **Captación** dice «Presupuesto estimado (USD)» en una instancia en dólares.
+- **Quien da de alta una instancia** elige la moneda con `--moneda MXN` o
+  `--moneda USD` en el último paso (`--bootstrap`). Si no la pone, pesos. Si la
+  pone en otro paso, el guion se para y lo avisa. Ver
+  `docs/runbook-alta-de-owner.md` §6.
+- En las pantallas en inglés el símbolo sigue siendo el de siempre; mostrar
+  «MX$» en inglés se hará en otra tarea.
+
+Detalle técnico: ADR 0048 y `vault/03-Frontend/idiomas-es-en.md` §7.
+
+---
+
 ## 2026-10-29 · DOOHmain: pausar creativos, su estado y el historial por pantalla (entra en la v0.12.5, todavía sin publicar)
 
 Pedido del dueño: subir y bajar creativos, ver el historial de reproducción y

@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { cn } from '@/lib/cn'
 import { camposFaltantes, type ReglaObligatorio } from '@/lib/campos-obligatorios'
+import { useTexto } from '@/lib/i18n/contexto'
 
 // ============================================================================
 //  OBLIG-01 · el campo de un formulario de alta o edición.
@@ -44,8 +45,9 @@ export function Campo({
   className?: string
   children: React.ReactNode
 }) {
+  const t = useTexto()
   const Envoltura = como
-  const mensaje = error || (falta ? 'Falta este dato' : null)
+  const mensaje = error || (falta ? t('compartidos.campo.falta') : null)
   return (
     <Envoltura className={cn('block', className)} data-falta={mensaje ? 'true' : undefined}>
       <span className={cn('mb-1 block text-[12px] font-medium', mensaje ? 'text-error' : 'text-ink')}>
@@ -55,7 +57,7 @@ export function Campo({
             <span aria-hidden="true" className="ml-0.5 text-error">
               *
             </span>
-            <span className="sr-only"> (obligatorio)</span>
+            <span className="sr-only">{t('compartidos.campo.obligatorio')}</span>
           </>
         )}
       </span>
