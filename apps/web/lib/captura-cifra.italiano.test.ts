@@ -271,10 +271,15 @@ describe('B77 · en italiano, lo TECLEADO acaba igual que lo pegado', () => {
     expect(r.crudo).toBe('12500')
   })
 
-  it('en español e inglés, tecleado, lo de siempre (D18 no se toca aquí)', () => {
+  // D18 (05/11, decisión del dueño) cerró el caso español simétrico: «2,5»
+  // tecleado ya no acaba en 25 sino que se queda y se rechaza. Lo prueba
+  // `captura-cifra.d18.test.ts`; aquí queda el «12.9» de siempre y el rechazo.
+  it('en español e inglés, tecleado: «12.9» como siempre, y «2,5» se rechaza desde D18 (antes 25)', () => {
     for (const idioma of ['es', 'en'] as const) {
       expect(teclear('12.9', { decimales: 2, minimo: 0, idioma }).crudo).toBe('12.9')
-      expect(teclear('2,5', { decimales: 2, minimo: 0, idioma }).crudo).toBe('25')
+      const r = teclear('2,5', { decimales: 2, minimo: 0, idioma })
+      expect(r.texto).toBe('2,5')
+      expect(r.crudo).toBe('NaN')
     }
   })
 })

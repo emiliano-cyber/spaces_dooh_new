@@ -285,7 +285,39 @@ archivo dentro de la pregunta.
 > D18 es la misma trampa en español, que el dueño pidió no tocar. (Numeradas tras D17 y B76, que
 > ya existen en `integra/idiomas`.)
 
-### D18 · En un campo de dinero, si alguien escribe «2,5» en español, hoy se queda en 25 sin ningún aviso. ¿Se cambia para que avise, aunque eso cambie el comportamiento en español?
+### ~~D18 · En un campo de dinero, si alguien escribe «2,5» en español, hoy se queda en 25 sin ningún aviso. ¿Se cambia para que avise, aunque eso cambie el comportamiento en español?~~ — CERRADA (b)
+
+> ✅ **CONTESTADA el 2026-11-05 por el dueño (opción b) y CONSTRUIDA** en
+> `feat/d18-aviso-al-teclear` (sale de `verificacion` `a91580bb`; rojo a la vista `6dce3b0f`, 28
+> rojas en formularios y las unitarias; arreglo en el commit siguiente). Sin validar todavía.
+>
+> **La regla exacta**, en español e inglés y en todos los campos `CampoCifra` (dinero y
+> cantidades enteras): las comas que pone el CAMPO al teclear la cuarta cifra se recolocan como
+> siempre; una coma que pone la PERSONA —tecleada, o en un texto pegado— se queda donde la puso,
+> y mientras quede alguna el campo no recoloca ninguna (`teclearCifra`, `lib/captura-cifra.ts`).
+> Decide `leerCifra`, la misma de pegar: «1,500» y «12,500.50» valen; «2,5», «12,34», «1,5000»
+> y «15000,50» se quedan a la vista, se rechazan con «las comas van cada tres cifras» y el
+> formulario recibe `'NaN'` (no envía, con las guardias de siempre). **A media escritura no se
+> avisa**: lo que acaba en un grupo de millar incompleto («1,», «1,5», «12,50») va camino de
+> «1,500» (`cifraAMedias`); el aviso sale al salir del campo o con Enter. Lo pegado avisa en el
+> acto, como antes. El italiano no cambia.
+>
+> **Qué cambia en español, medido** contra la función de `a91580bb`, tecleando de corrido todas
+> las secuencias de hasta 7 teclas sobre `0 1 2 5 , .` (335 922 por idioma; inglés idéntico):
+> sin una coma tecleada, **ninguna** cambia; con alguna, en dinero 125 259 pasan de una cifra a
+> un rechazo y 84 799 solo cambian el texto (ya se rechazaban); en cantidades enteras, 88 399 y
+> 121 659. **Ninguna** pasa de rechazo a cifra ni de una cifra a otra. En la batería de la
+> huella cambian exactamente 68 filas de 116 000, todas una coma insertada que ahora se queda
+> (apuntadas en `captura-cifra.es-en.test.ts`). Volcado `I18N_VOLCAR_TODO` de toda la suite:
+> 0 HTML distintos (ninguna prueba de pantalla teclea una coma mal puesta).
+>
+> **Lo que NO cubre, y es otro defecto:** los campos `EntradaCifra` en español e inglés
+> (medidas, porcentajes —comisiones, el descuento de la propuesta—, caras, plazos) son el
+> `<input>` de siempre: no reagrupaban nada, así que no tenían la diferencia entre teclear y
+> pegar que decide D18. Ahí «12,5» sigue siendo `Number('12,5') || 0` = 0, tecleado o pegado,
+> como se dejó a propósito el 04/11. Cambiarlo cambia su HTML y su contrato: si se quiere, es
+> una decisión nueva.
+
 
 - **Bloquea:** nada de lo construido ni de la rama italiana. El arreglo del italiano (B77) se
   puede hacer ya sin esta respuesta. **Lo que SÍ se puede mientras:** todo.

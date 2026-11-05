@@ -1,7 +1,7 @@
 ---
 tipo: operacion
 estado: verificado
-actualizado: 2026-11-04
+actualizado: 2026-11-05
 tags: [convenciones, estilo, pruebas]
 archivos:
   - apps/web/components/demo/ui/Button.tsx
@@ -538,9 +538,43 @@ y el motivo:
 —y el cursor con ellas— **solo** cuando el cambio es UNA tecla sobre un texto
 que ya era canónico. Lo **pegado** se deja tal cual y lo valida `leerCifra`:
 reformatear un «2,50» pegado daría «250», que nadie decidió. Retroceso o
-suprimir sobre una coma borran la cifra vecina (si no, la tecla no haría
-nada). Al salir del campo, lo válido se pinta canónico (`textoAlSalir`) sin
-cambiar el valor.
+suprimir sobre una coma **del campo** borran la cifra vecina (si no, la tecla
+no haría nada). Al salir del campo, lo válido se pinta canónico
+(`textoAlSalir`) sin cambiar el valor.
+
+> [!important] D18 (2026-11-05) · al teclear se avisa igual que al pegar
+> Decisión del dueño, opción (b), ZONA ROJA (dinero). Hasta ese día una coma
+> **tecleada** nunca se quedaba: al recolocar las comas se quitaba, y «2,5»
+> acababa en **25**, «15000,50» en **1,500,050** y «1,5000» en **15,000**, sin
+> ningún aviso; pegado, el mismo texto se rechazaba. La regla
+> (`teclearCifra` y `cifraAMedias`, `lib/captura-cifra.ts`), en español e
+> inglés y en **todos** los `CampoCifra` (dinero y cantidades enteras):
+>
+> 1. Las comas que pone **el campo** (al teclear la cuarta cifra) se siguen
+>    recolocando.
+> 2. Una coma que pone **la persona** —tecleada, o en un texto pegado— se queda
+>    donde la puso, y mientras quede alguna el campo **no recoloca ninguna**
+>    (`comasPropias`, que guarda `CampoCifra`). Retroceso sobre una coma
+>    propia la quita a ella sola. Se apaga cuando el texto se queda sin comas,
+>    al salir con una cifra válida o cuando el formulario repinta el campo.
+> 3. Decide `leerCifra`: «1,500», «12,500.50», «2.5» valen; «2,5», «12,34»,
+>    «1,5000» se rechazan con «las comas van cada tres cifras» y el formulario
+>    recibe `'NaN'`.
+> 4. **A media escritura no se avisa**: lo que acaba en un grupo de millar
+>    incompleto («1,», «1,5», «12,50», también «2,5») va camino de una cifra
+>    bien puesta. El formulario ya recibe `'NaN'`, pero el borde rojo y el
+>    motivo salen **al salir del campo o con Enter**. Mientras va a medias,
+>    el campo tampoco se repinta con lo que guarda el formulario: si no, en
+>    los que se quedan con el último valor válido («cantidad» de la
+>    propuesta) o acotan a 0 (la reserva), «1,000» no se podría teclear.
+>    Lo pegado avisa en el acto, como siempre.
+>
+> Lo medido, en `docs/Supervision/ABIERTOS.md` (D18): sin coma tecleada no
+> cambia nada; ninguna entrada pasa de rechazo a cifra ni de una cifra a otra.
+> Las pruebas: `captura-cifra.d18.test.ts` (tecla a tecla, cursor en medio,
+> borrado) y `lib/i18n/cifras-d18.test.ts` (alta de Comercial, alta de
+> Inventario y paquete cerrado, tecleados con `teclearTeclaATecla` y saliendo
+> con `salir()`).
 
 > [!note] El costo real de la OT cambió de regla, no de lección
 > `leerCostoOt` **rechazaba las comas a propósito** hasta el 08/10, porque la
@@ -575,8 +609,8 @@ metros** (`Number('12,9') || 0`), o «1.500» caras se guardaban como 1,5.
   mil quinientos, «12.9» se rechaza con su motivo. Las pruebas teclean tecla
   a tecla (`teclear()` en `captura-cifra.italiano.test.ts`,
   `teclearTeclaATecla` en `lib/test/formulario-sin-dom.ts`), no solo pegan.
-  El caso español simétrico («2,5» tecleado → 25) es anterior y no se toca:
-  es la decisión D18 del dueño.
+  El caso español simétrico («2,5» tecleado → 25) lo cerró la decisión D18
+  del dueño el 05/11 (ver «Mientras se escribe», arriba).
 - **Lo que viaja no cambia.** `crudoDeLectura` entrega la MISMA cifra en los
   tres idiomas: punto decimal, sin separadores. Ni una API ni la base se
   enteran del idioma.
@@ -584,7 +618,10 @@ metros** (`Number('12,9') || 0`), o «1.500» caras se guardaban como 1,5.
   carácter por carácter. Lo fija `lib/captura-cifra.es-en.test.ts` con la
   huella sha256 de una batería de 2000 entradas (116 000 resultados) calculada
   con la función de ANTES (`cb116dde`). Si un solo motivo o un solo valor
-  cambia en es/en, la huella no cuadra. Al escribirlo se corrió además un
+  cambia en es/en, la huella no cuadra. **Única excepción autorizada: D18**
+  (05/11), que cambia 68 filas —todas una coma insertada que ahora se queda—;
+  están apuntadas en la prueba con su antes y su ahora, y la huella se
+  comprueba con ellas devueltas a su valor de antes. Al escribirlo se corrió además un
   barrido aleatorio de 2,88 millones de lecturas contra una copia congelada de
   la función vieja (no versionada).
 - **Los campos que no eran `CampoCifra`** (medidas, caras, segundos, cupos,

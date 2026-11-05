@@ -40,7 +40,14 @@
 //
 //  Español e inglés NO pasan por el intercambio: su camino es el de antes,
 //  carácter por carácter, y lo fija `captura-cifra.es-en.test.ts` contra lo
-//  que daba la función de antes. Lo que se entrega al formulario
+//  que daba la función de antes — con UNA excepción autorizada, D18 (decisión
+//  del dueño del 2026-11-05): una coma TECLEADA ya no se quita al recolocar,
+//  se queda y la lee `leerCifra` como si se hubiera pegado (`teclearCifra`).
+//
+//  MIENTRAS SE ESCRIBE (`teclearCifra`, D18): el campo recoloca SUS comas de
+//  millar; las que pone la persona no las toca nunca. «2,5» tecleado se queda
+//  «2,5» y se rechaza; «1,500» vale mil quinientos. A media escritura («1,»,
+//  «1,5», camino de «1,500») no se avisa (`cifraAMedias`). Lo que se entrega al formulario
 //  (`crudoDeLectura`) es la MISMA cifra en los tres idiomas: sin separadores y
 //  con punto decimal.
 // ============================================================================
@@ -299,6 +306,10 @@ function esCanonico(texto: string): boolean {
  * (o un cambio de varios caracteres) se deja tal cual y lo valida `leerCifra`:
  * reformatear «2,50» pegado daría «250», que nadie decidió.
  *
+ * D18 (decisión del dueño del 2026-11-05, opción b): tampoco reformatea cuando
+ * la tecla es una COMA ni mientras el texto lleve comas que puso la persona
+ * (`comasPropias`, que lleva `CampoCifra` vía `teclearCifra`). Ver allí.
+ *
  * `cursor` es `selectionStart` después del cambio; `tipoEntrada` es el
  * `inputType` del evento nativo, si lo hay.
  */
@@ -308,6 +319,8 @@ export function formatearMientrasEscribe(
     nuevo: string
     cursor: number
     tipoEntrada?: string
+    /** D18 · el texto anterior lleva comas que puso la persona: no se recoloca nada. */
+    comasPropias?: boolean
   },
   idioma: Idioma = 'es',
 ): { texto: string; cursor: number } {
@@ -332,7 +345,13 @@ export function formatearMientrasEscribe(
   }
   const { anterior, nuevo, cursor, tipoEntrada } = e
   const intacto = { texto: nuevo, cursor }
-  if (tipoEntrada === 'insertFromPaste' || tipoEntrada === 'insertFromDrop') return intacto
+  if (esPegado(tipoEntrada)) return intacto
+  // D18 · una COMA tecleada no se recoloca, y mientras quede alguna de la
+  // persona no se recoloca nada. Hasta el 05/11 la coma tecleada pasaba a ser
+  // una «coma de millar» mal puesta y al recolocar se QUITABA: «2,5» acababa en
+  // 25, «15000,50» en 1,500,050 y «1,5000» en 15,000, sin ningún aviso,
+  // mientras pegado se rechazaba. Es la misma trampa que B77 en italiano.
+  if (e.comasPropias || insertoUnaComa(anterior, nuevo, cursor)) return intacto
   if (!esCanonico(anterior)) return intacto
 
   let texto = nuevo
@@ -372,25 +391,89 @@ export function formatearMientrasEscribe(
   return { texto: formateado, cursor: pos }
 }
 
+const esPegado = (tipoEntrada?: string) => tipoEntrada === 'insertFromPaste' || tipoEntrada === 'insertFromDrop'
+
+/** ¿El cambio es UNA coma insertada en `cursor - 1` y nada más? */
+function insertoUnaComa(anterior: string, nuevo: string, cursor: number): boolean {
+  return (
+    nuevo.length === anterior.length + 1 &&
+    cursor >= 1 &&
+    nuevo[cursor - 1] === ',' &&
+    nuevo.slice(0, cursor - 1) + nuevo.slice(cursor) === anterior
+  )
+}
+
 /** Lo que `CampoCifra` guarda al teclear: el texto y si lleva comas de la persona. */
 export interface TecleoCifra {
   texto: string
+  /**
+   * El texto lleva alguna coma que puso la PERSONA (tecleada o pegada), no el
+   * campo. Mientras sea así, el campo no recoloca ninguna.
+   */
   comasPropias: boolean
 }
 
-/** D18 · PENDIENTE (rojo): hoy es el camino de siempre. */
+/**
+ * D18 (decisión del dueño del 2026-11-05, opción b) · UNA TECLA EN UN CAMPO DE
+ * CIFRAS, con el estado que guarda `CampoCifra`. Al teclear se trata lo mal
+ * puesto igual que al pegar.
+ *
+ * LA REGLA, en español e inglés:
+ *  1. Las comas que pone el CAMPO (al teclear la cuarta cifra: «1500» →
+ *     «1,500») se recolocan como siempre al teclear o borrar una cifra.
+ *  2. Una coma que pone la PERSONA —tecleada, o en un texto pegado— se queda
+ *     donde la puso, y mientras quede alguna en el texto el campo no recoloca
+ *     NINGUNA (`comasPropias`). Si no, «1,500» tecleado coma incluida y luego
+ *     un 0 acabaría en «15,000» en vez de en el «1,5000» que se tecleó.
+ *  3. `comasPropias` se apaga cuando el texto se queda sin comas, al salir
+ *     del campo con una cifra válida (se pinta canónica) o cuando el
+ *     formulario repinta el campo con lo que guarda.
+ *  4. Decide `leerCifra`, la misma que al pegar: «1,500» y «12,500.50» valen;
+ *     «2,5», «12,34», «1,5000» y «15,000,50» se rechazan con «las comas van
+ *     cada tres cifras», y el formulario recibe 'NaN' y no envía.
+ *  5. A media escritura no se avisa: ver `cifraAMedias`.
+ *
+ * EN ITALIANO no cambia nada (B77 ya dejaba el punto tecleado donde caía): es
+ * `formatearMientrasEscribe` tal cual y `comasPropias` siempre `false`.
+ */
 export function teclearCifra(
   antes: TecleoCifra,
   e: { nuevo: string; cursor: number; tipoEntrada?: string },
   idioma: Idioma = 'es',
 ): TecleoCifra & { cursor: number } {
-  const r = formatearMientrasEscribe({ anterior: antes.texto, ...e }, idioma)
-  return { texto: r.texto, cursor: r.cursor, comasPropias: false }
+  if (comaDecimal(idioma)) {
+    const r = formatearMientrasEscribe({ anterior: antes.texto, ...e }, idioma)
+    return { texto: r.texto, cursor: r.cursor, comasPropias: false }
+  }
+  const r = formatearMientrasEscribe({ anterior: antes.texto, ...e, comasPropias: antes.comasPropias }, idioma)
+  // La persona PUSO una coma si el cambio trae más comas de las que había y
+  // el campo no lo reformateó: una coma tecleada, o un texto pegado (o
+  // arrastrado, o escrito sobre una selección) que las trae.
+  const comas = (t: string) => t.split(',').length - 1
+  const pone = comas(e.nuevo) > comas(antes.texto) && r.texto === e.nuevo
+  return { texto: r.texto, cursor: r.cursor, comasPropias: (antes.comasPropias || pone) && r.texto.includes(',') }
 }
 
-/** D18 · PENDIENTE (rojo): hoy nunca se calla un aviso. */
-export function cifraAMedias(_texto: string, _idioma: Idioma = 'es'): boolean {
-  return false
+/**
+ * D18 · ¿El texto va A MEDIAS hacia una cifra bien puesta? «1,» y «1,5» son el
+ * camino de teclear «1,500», así que mientras se teclea no se avisa (ni borde
+ * rojo ni motivo). El formulario SÍ recibe 'NaN' —no se puede mandar— y el
+ * aviso sale al salir del campo o al pulsar Enter (`CampoCifra`).
+ *
+ * Es a medias exactamente lo que acaba en un grupo de millar INCOMPLETO y nada
+ * más: `[1-9]` y hasta dos cifras, grupos de tres, y una coma final con 0, 1 o
+ * 2 cifras detrás («2,5» también: puede ir hacia «2,500»). Con `$`, signo o
+ * espacios alrededor, como `leerCifra`. Lo que ya no puede acabar bien
+ * («1,5000», «0,5», «1,,5», «1,5.0») avisa en el acto, como siempre.
+ *
+ * Solo español e inglés: en italiano es `false` y su aviso sale como antes.
+ */
+export function cifraAMedias(texto: string, idioma: Idioma = 'es'): boolean {
+  if (comaDecimal(idioma)) return false
+  let t = texto.trim()
+  if (t.startsWith('$')) t = t.slice(1).trim()
+  if (t.startsWith('-')) t = t.slice(1)
+  return /^[1-9]\d{0,2}(,\d{3})*,\d{0,2}$/.test(t)
 }
 
 // ─── Los campos que no eran `CampoCifra` (P-L2-1, 04/11) ─────────────────────

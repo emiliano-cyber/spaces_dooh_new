@@ -282,6 +282,13 @@ for (const idioma of ['es', 'en'] as const) {
       expect(f.campo('importe').props['aria-invalid']).toBe(true)
     })
 
+    it('lo PEGADO no va a medias: «2,5» pegado avisa en el acto, como siempre', () => {
+      const { f } = campo()
+      f.teclear('importe', '2,5')
+      expect(f.html).toContain('role="alert"')
+      expect(f.campo('importe').props['aria-invalid']).toBe(true)
+    })
+
     it('mientras se teclea, el formulario recibe NaN (no 2 ni 25) y al final la cifra', () => {
       const { f, recibidos } = campo()
       f.teclearTeclaATecla('importe', '2,500')

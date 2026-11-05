@@ -5,6 +5,31 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-05 · Cifras: una coma mal puesta ya no cambia el importe en silencio (sin publicar)
+
+Decisión del dueño. Hasta ahora, en un campo de importe o de cantidad, si alguien
+**tecleaba** «2,5» pensando en «dos y medio», la coma desaparecía y se guardaba **25**,
+sin ningún aviso; «15000,50» se guardaba como 1,500,050. Si **pegaba** el mismo texto, en
+cambio, el campo lo rechazaba y explicaba por qué.
+
+Ahora teclear y pegar se tratan igual, en español y en inglés:
+
+- **La coma que escribe la persona se queda donde la escribió.** Si está bien puesta
+  («1,500», «12,500.50») vale como siempre. Si no («2,5», «12,34», «1,5000»), el campo la
+  deja a la vista, se marca en rojo con el aviso «Las comas van cada tres cifras…» y el
+  formulario **no se guarda** hasta corregirla.
+- **No regaña mientras se escribe.** Al teclear «1,500» se pasa por «1,» y «1,5»: ahí no
+  sale nada. El aviso aparece al salir del campo o al pulsar Enter, si lo que quedó no es
+  una cifra bien puesta.
+- **Lo de siempre no cambia:** quien teclea «1500» sigue viendo «1,500» mientras escribe,
+  y el punto sigue siendo el decimal («2.5» es dos y medio).
+
+Afecta a todos los campos donde se teclea un importe o una cantidad con coma de miles
+(tarifas, rentas, precios, cantidades). Los campos de medidas y porcentajes (por ejemplo
+la comisión o el descuento) no cambian. En italiano ya funcionaba así.
+
+---
+
 ## 2026-11-04 · Idiomas: el correo de «olvidé mi contraseña», «provvigione» y los contratos de ejemplo (sin publicar)
 
 Tres cambios que el dueño autorizó el 04/11. En un servidor en español no cambia nada.
