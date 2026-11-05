@@ -145,7 +145,7 @@ base como un 500. Desde P3:
   el importe como el contrato pt, «1.234.567,89 MXN»), H2 (la cabecera de la
   migración ya no cita `deploy.yml`), H4 («à sua inteira satisfação»,
   «certificado de conservação NOM-151»). Desde ahí el contrato pt también va
-  **fijado por hash** (`HASH_PT`). H3 queda anotado como B89 en `ABIERTOS.md`.
+  **fijado por hash** (`HASH_PT`). H3 queda anotado como B91 en `ABIERTOS.md`.
   Ningún papel decía «Proprietário» por el rol Dueño («Titular», decisión del
   dueño del 05/11): el contrato dice «proprietário ou possuidor» del inmueble.
 

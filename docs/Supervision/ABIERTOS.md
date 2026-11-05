@@ -2584,7 +2584,7 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
 
 ### B · iii — Menores, para que no se pierdan
 
-- **B89 · ⚪ ABIERTA (2026-11-05) · `numeroALetras` sin acarreo de centavos y vacía desde mil
+- **B91 · ⚪ ABIERTA (2026-11-05) · `numeroALetras` sin acarreo de centavos y vacía desde mil
   millones, en los CUATRO idiomas** (H3 de `docs/i18n/validacion-portugues-documentos.md`;
   heredado, no lo introdujo P3). `numeroALetras(1.995)` da «… 100/100» (redondea los centavos sin
   sumar el peso) y `1 000 000 000` deja el número vacío (« MILHÕES», « MILLONES»…). Pasa igual en
