@@ -450,16 +450,19 @@ describe('el portugues en el layout y el selector (ola 0, 2026-11-05)', () => {
     expect(opciones(await pintarConLayout())).toEqual(['Español', 'English', 'Italiano', 'Português'])
   })
 
-  it('encendido SOLO el portugues, con un navegador brasileno: pt, y lo que falta en espanol', async () => {
+  it('encendido SOLO el portugues, con un navegador brasileno: pt, y la entrada ya en portugues (lote L5)', async () => {
     delete process.env.IDIOMA_INGLES
     process.env.IDIOMA_PORTUGUES = '1'
     cabeceras.accept = 'pt-BR,pt;q=0.9,en;q=0.8'
     const html = await pintarConLayout()
     expect(html).toMatch(/<html[^>]*lang="pt"/)
     expect(opciones(html)).toEqual(['Español', 'Português'])
-    // El rotulo del selector ya esta en portugues; el resto cae al espanol.
+    // Desde el lote L5 (05/11) la pantalla de entrar es de la base y esta entera
+    // en portugues; lo que falta de otros lotes cae al espanol
+    // (`cobertura-portugues.test.ts`).
     expect(html).toMatch(/<select[^>]*aria-label="Mudar idioma"/)
-    expect(html).toContain('Iniciar sesión')
+    expect(html).toContain('Esqueceu sua senha?')
+    expect(html).not.toContain('Iniciar sesión')
     expect(html).not.toContain('Sign in')
   })
 })

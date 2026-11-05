@@ -1251,7 +1251,282 @@ export const FALTA_FIRMA_IT: Partial<Record<string, string>> = {
 // tiene portugues sale en ESPANOL —el mensaje tal como lo escribio el
 // servidor—. Y nunca a medias: un «Campo: motivo» o un patron con huecos solo
 // va en portugues si TODAS sus piezas lo tienen; si no, entero en espanol.
-export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {}
+//
+// Lote L5 (2026-11-05): COMPLETO, en el orden de `CATALOGO_ERRORES`. Lo que
+// tambien dice la interfaz (validacion, calculadora, ubicacion) se dice igual
+// que su clave del diccionario. Brasil, «voce», comillas curvas “ ” y el
+// glosario de `vault/03-Frontend/portugues-olas.md` (§2 bis).
+export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
+  'El idioma de los documentos debe ser es, en o it': 'O idioma dos documentos deve ser es, en ou it',
+  'El idioma de los documentos de la instancia ya está fijado: una organización nueva nace en el mismo que las demás':
+    'O idioma dos documentos da instância já está definido: uma organização nova nasce no mesmo idioma das demais',
+  'El idioma de los documentos de la instancia solo se elige al darla de alta':
+    'O idioma dos documentos da instância só é escolhido ao criá-la',
+  'La moneda debe ser MXN o USD': 'A moeda deve ser MXN ou USD',
+  'La moneda de la instancia ya está fijada: una organización nueva nace en la misma que las demás':
+    'A moeda da instância já está definida: uma organização nova nasce na mesma moeda das demais',
+  'La moneda no se puede cambiar: se eligió al crear la instancia y los importes guardados no la llevan':
+    'A moeda não pode ser alterada: foi escolhida ao criar a instância e os valores salvos não a registram',
+  'La moneda de la instancia solo se elige al darla de alta': 'A moeda da instância só é escolhida ao criá-la',
+  'Un contrato va en la moneda de la instancia: no se puede capturar en otra':
+    'Um contrato fica na moeda da instância: não pode ser cadastrado em outra',
+  'Propuesta no encontrada': 'Proposta não encontrada',
+  'Solo se agregan sitios a una propuesta en borrador o enviada':
+    'Só é possível adicionar pontos a uma proposta em rascunho ou enviada',
+  'Sitio de la propuesta no encontrado': 'Ponto da proposta não encontrado',
+  'Solo se envía una propuesta en borrador o ya enviada': 'Só é possível enviar uma proposta em rascunho ou já enviada',
+  'Esta propuesta no tiene liga; vuelve a guardarla': 'Esta proposta não tem link; salve-a de novo',
+  'No se pudo enviar el correo. La propuesta no cambió: inténtalo de nuevo o copia la liga y mándala tú.':
+    'Não foi possível enviar o e-mail. A proposta não mudou: tente de novo ou copie o link e envie você mesmo.',
+  'Adjunto inválido': 'Anexo inválido',
+  'Adjunto no encontrado': 'Anexo não encontrado',
+  'Alguna de las campañas elegidas no existe en esta organización; no se programó ninguna.':
+    'Alguma das campanhas escolhidas não existe nesta organização; nenhuma foi programada.',
+  'Arrendador no encontrado': 'Locador não encontrado',
+  'Otra persona acaba de extender esta campaña más lejos. Recarga para ver la fecha nueva.':
+    'Outra pessoa acabou de estender esta campanha para mais longe. Recarregue para ver a nova data.',
+  'Para extender la campaña adjunta el contrato firmado de la extensión':
+    'Para estender a campanha, anexe o contrato assinado da extensão',
+  'Campaña no encontrada': 'Campanha não encontrada',
+  'Cliente no encontrado': 'Cliente não encontrado',
+  'Cobranza no encontrada': 'Cobrança não encontrada',
+  'Falta el comprobante': 'Falta o comprovante',
+  'Comprobante no encontrado': 'Comprovante não encontrado',
+  'Esta cobranza ya está pagada': 'Esta cobrança já está paga',
+  'La fecha del pago no puede ser futura': 'A data do pagamento não pode ser futura',
+  'Contrato no encontrado': 'Contrato não encontrado',
+  'Contrato no encontrado o ya cancelado': 'Contrato não encontrado ou já cancelado',
+  'Correo de contacto inválido': 'E-mail de contato inválido',
+  'Correo del arrendatario inválido': 'E-mail do locatário inválido',
+  'Correo inválido': 'E-mail inválido',
+  'CURP inválida': 'CURP inválida',
+  'Debes ingresar tu contraseña actual para confirmar el cambio':
+    'Você deve digitar sua senha atual para confirmar a alteração',
+  'El archivo esta vacio.': 'O arquivo está vazio.',
+  'El archivo pesa demasiado para ser un recibo de CFE.': 'O arquivo é pesado demais para ser uma conta da CFE.',
+  'El arrendador de ese predio no existe en esta organización': 'O locador desse imóvel não existe nesta organização',
+  'El arrendador elegido no existe.': 'O locador escolhido não existe.',
+  'El arrendador no existe': 'O locador não existe',
+  'El campo `archivos` tiene que traer archivos, no texto.': 'O campo `archivos` tem de trazer arquivos, não texto.',
+  'El checklist de esta orden de trabajo cambió. Recarga la página y vuelve a marcarlo':
+    'O checklist desta ordem de serviço mudou. Recarregue a página e marque de novo',
+  'El contrato está CANCELADO; crea uno nuevo en su lugar': 'O contrato está CANCELADO; crie um novo no lugar dele',
+  'El contrato no existe.': 'O contrato não existe.',
+  'El contrato todavía no se ha enviado a firma.': 'O contrato ainda não foi enviado para assinatura.',
+  'El enlace de firma expiró. Pide uno nuevo.': 'O link de assinatura expirou. Peça um novo.',
+  'El enlace expiró. Solicita uno nuevo.': 'O link expirou. Solicite um novo.',
+  'El enlace no es válido.': 'O link não é válido.',
+  'El montaje digital ya no es una tarea de OT: el arte se sube con "Subir a producción" en la campaña':
+    'A instalação digital não é mais uma tarefa de OS: a arte é enviada com “Enviar para produção” na campanha',
+  'El predio elegido no existe o pertenece a otro arrendador.':
+    'O imóvel escolhido não existe ou pertence a outro locador.',
+  'El predio no existe': 'O imóvel não existe',
+  'El predio nuevo necesita un nombre.': 'O imóvel novo precisa de um nome.',
+  'El predio pertenece a otro arrendador': 'O imóvel pertence a outro locador',
+  'El predio ya tiene un contrato activo. Agrega la pantalla al predio en vez de crear otro contrato, o cancela/vence el contrato anterior primero.':
+    'O imóvel já tem um contrato ativo. Adicione o ponto ao imóvel em vez de criar outro contrato, ou cancele/vença o contrato anterior primeiro.',
+  'El ticket esta CERRADO: ya no admite respuesta ni cambio de estado':
+    'O ticket está FECHADO: não aceita mais respostas nem mudanças de status',
+  'Elige el arrendador de la pantalla: sin propietario no se puede abrir su contrato de arrendamiento.':
+    'Escolha o locador do ponto: sem proprietário não é possível abrir o contrato de locação dele.',
+  'Enlace de firma no válido.': 'Link de assinatura inválido.',
+  'Esa cuenta de Google no tiene el correo verificado.': 'Essa conta do Google não tem o e-mail verificado.',
+  'Esa entidad ya tiene ese rol asignado.': 'Essa entidade já tem esse papel atribuído.',
+  'Esa firma ya no está pendiente.': 'Essa assinatura não está mais pendente.',
+  'Esa franja no existe en esta organización': 'Essa faixa horária não existe nesta organização',
+  'Esa franja no existe en esta organización o está dada de baja.':
+    'Essa faixa horária não existe nesta organização ou foi desativada.',
+  'Esa pantalla no existe': 'Esse ponto não existe',
+  'Esa propuesta no existe en esta organizacion': 'Essa proposta não existe nesta organização',
+  'Esa propuesta no tiene ningun codigo aplicado': 'Essa proposta não tem nenhum código de negociação aplicado',
+  'Esa propuesta no tiene paquete aplicado': 'Essa proposta não tem pacote aplicado',
+  'Esa tarea no aplica a una pantalla digital (no lleva lona ni herrería)':
+    'Essa tarefa não se aplica a uma tela digital (não tem lona nem serralheria)',
+  'Esa temporada no existe en esta organización': 'Essa temporada não existe nesta organização',
+  'Esa versión firmada no existe': 'Essa versão assinada não existe',
+  'Escribe tu nombre completo para firmar.': 'Digite seu nome completo para assinar.',
+  'Ese codigo no existe en esta organizacion': 'Esse código não existe nesta organização',
+  'Ese correo ya está en uso': 'Esse e-mail já está em uso',
+  'Ese correo ya está registrado': 'Esse e-mail já está cadastrado',
+  'Ese digest ya no es el disponible: se publico una version nueva mientras tanto':
+    'Esse digest não é mais o disponível: uma versão nova foi publicada nesse meio-tempo',
+  'Ese mes todavía no ha terminado: no puede haber recibo.': 'Esse mês ainda não terminou: não pode haver conta.',
+  'Ese paquete no existe en esta organización': 'Esse pacote não existe nesta organização',
+  'Ese rol no existe en el catalogo.': 'Esse papel não existe no catálogo.',
+  'Ese tramo no existe en esta organización': 'Essa faixa não existe nesta organização',
+  'Esta alta no lleva contraseña: el Dueño entra con Google (ADR 0028). Quita `password` del cuerpo. Si estás siguiendo una tarjeta que la genera, esa tarjeta es anterior al 2026-09-07.':
+    'Este cadastro não leva senha: o Proprietário entra com o Google (ADR 0028). Tire `password` do corpo. Se você está seguindo um cartão que a gera, esse cartão é anterior a 2026-09-07.',
+  'Esta campaña no está publicada en DOOHmain: no hay reproducciones que consultar.':
+    'Esta campanha não está publicada no DOOHmain: não há exibições para consultar.',
+  'Esta campaña no está publicada en ninguna pantalla de DOOHmain.':
+    'Esta campanha não está publicada em nenhuma tela do DOOHmain.',
+  'Esta orden de trabajo ya está cerrada: su checklist ya no se puede cambiar':
+    'Esta ordem de serviço já está fechada: o checklist dela não pode mais ser alterado',
+  'Este contrato está incompleto: falta el arrendador, el importe de la renta y la periodicidad. Complétalo antes de renovarlo.':
+    'Este contrato está incompleto: faltam o locador, o valor do aluguel e a periodicidade. Complete-o antes de renová-lo.',
+  'Este contrato ya está firmado. Escribe el motivo del cambio: la versión firmada se archivará y habrá que volver a firmarlo.':
+    'Este contrato já está assinado. Escreva o motivo da alteração: a versão assinada será arquivada e será preciso assiná-lo de novo.',
+  'Este contrato ya fue firmado con este enlace.': 'Este contrato já foi assinado com este link.',
+  'Este enlace ya se usó. Solicita uno nuevo.': 'Este link já foi usado. Solicite um novo.',
+  'Este prospecto ya se decidió': 'Este prospect já foi decidido',
+  'Falta el id del ticket': 'Falta o id do ticket',
+  'Falta el recibo a borrar': 'Falta a conta a excluir',
+  'Fechas inválidas (se espera YYYY-MM-DD)': 'Datas inválidas (o formato esperado é AAAA-MM-DD)',
+  'Google devolvió la verificación del correo en un formato inesperado.':
+    'O Google devolveu a verificação do e-mail num formato inesperado.',
+  'Google no devolvió una identidad utilizable.': 'O Google não devolveu uma identidade utilizável.',
+  'Ítem no encontrado': 'Item não encontrado',
+  'Solo un gerente o superior puede cambiar la tarifa de una pantalla.':
+    'Só um gerente ou um perfil superior pode alterar a tarifa de um ponto.',
+  'Esta pantalla no tiene una tarifa calculada para esa unidad. Pide a un gerente o superior que le ponga precio.':
+    'Este ponto não tem uma tarifa calculada para essa unidade. Peça a um gerente ou a um perfil superior para definir o preço.',
+  'La calculadora de spots necesita la tarifa por spot de la línea.':
+    'A calculadora de spots precisa da tarifa por spot da linha.',
+  'Solo un gerente o superior puede poner prima a un Roadblock.':
+    'Só um gerente ou um perfil superior pode pôr acréscimo num Roadblock.',
+  'La calculadora de spots solo aplica a pantallas digitales vendidas por spot.':
+    'A calculadora de spots só se aplica a telas digitais vendidas por spot.',
+  'La pantalla no tiene capturado cuántos espacios tiene su loop; captúralo en su ficha antes de usar la calculadora.':
+    'Esta tela não tem cadastrado quantos slots tem o loop; informe isso na ficha da tela antes de usar a calculadora.',
+  'La prima de Roadblock va de 0 a 100 %.': 'O acréscimo de Roadblock vai de 0 a 100%.',
+  'La prima de Roadblock solo aplica a una línea marcada como Roadblock.':
+    'O acréscimo de Roadblock só se aplica a uma linha marcada como Roadblock.',
+  'Con esos espacios y esas horas no sale ni un spot al día.':
+    'Com esses slots e essas horas, não vai ao ar nem um spot por dia.',
+  'La línea no tiene días: revisa las fechas.': 'A linha não tem dias: confira as datas.',
+  'La campaña es requerida': 'A campanha é obrigatória',
+  'La contraseña actual no es correcta': 'A senha atual não está correta',
+  'El reporte abarca como máximo 24 meses por consulta. Acorta el rango de fechas.':
+    'O relatório abrange no máximo 24 meses por consulta. Reduza o intervalo de datas.',
+  'La fecha de fin no puede ser anterior a la de inicio': 'A data de término não pode ser anterior à de início',
+  'La fecha de pago no puede ser futura': 'A data de pagamento não pode ser futura',
+  'La fecha final no puede ser anterior a la inicial': 'A data final não pode ser anterior à inicial',
+  'La identidad de Google expiró. Vuelve a intentarlo.': 'A identidade do Google expirou. Tente de novo.',
+  'La identidad de Google llegó vacía.': 'A identidade do Google chegou vazia.',
+  'La identidad de Google no es para esta aplicación.': 'A identidade do Google não é para este aplicativo.',
+  'La identidad de Google no se pudo leer.': 'Não foi possível ler a identidade do Google.',
+  'La identidad de Google no tiene el formato esperado.': 'A identidade do Google não tem o formato esperado.',
+  'La identidad de Google no trae correo.': 'A identidade do Google não traz e-mail.',
+  'La identidad de Google no trae identificador.': 'A identidade do Google não traz identificador.',
+  'La identidad no la emitió Google.': 'A identidade não foi emitida pelo Google.',
+  'La licencia no puede vencer antes de expedirse.': 'A licença não pode vencer antes de ser emitida.',
+  'La pantalla no existe': 'O ponto não existe',
+  'La pantalla no existe.': 'O ponto não existe.',
+  'La pantalla ya pertenece a otro predio': 'O ponto já pertence a outro imóvel',
+  'La razon social elegida no existe o es de otra organizacion.':
+    'A razão social escolhida não existe ou é de outra organização.',
+  'La razón social elegida no existe o es de otro arrendador.':
+    'A razão social escolhida não existe ou é de outro locador.',
+  'La razon social emisora no existe o es de otra organizacion.':
+    'A razão social emissora não existe ou é de outra organização.',
+  'La respuesta de Google no corresponde a esta solicitud.': 'A resposta do Google não corresponde a esta solicitação.',
+  'La tanda entera pesa demasiado. Subela en varias veces.': 'O lote inteiro é pesado demais. Envie em várias vezes.',
+  'Licencia no encontrada': 'Licença não encontrada',
+  'Los datos del contrato cambiaron mientras los revisabas. Recarga la página, revísalos otra vez y vuelve a enviarlo.':
+    'Os dados do contrato mudaram enquanto você os revisava. Recarregue a página, revise de novo e envie outra vez.',
+  'Manda los PDF como formulario, en el campo `archivos`.': 'Envie os PDFs como formulário, no campo `archivos`.',
+  'Esa razón social no existe o está dada de baja.': 'Essa razão social não existe ou foi desativada.',
+  'Es la razón social principal de la empresa. Elige otra en Administración → Identidad de la empresa antes de darla de baja.':
+    'É a razão social principal da empresa. Escolha outra em Configurações → Identidade da empresa antes de desativá-la.',
+  'No encontrada': 'Não encontrada',
+  'No encontrado': 'Não encontrado',
+  'No encontramos esa orden de trabajo': 'Não encontramos essa ordem de serviço',
+  'Esta orden de trabajo ya está cerrada: su costo ya no se puede registrar ni cambiar.':
+    'Esta ordem de serviço já está fechada: o custo dela não pode mais ser registrado nem alterado.',
+  'Ese idioma no está disponible en este servidor.': 'Esse idioma não está disponível neste servidor.',
+  'No hay cambios que guardar': 'Não há alterações para salvar',
+  'No hay fila de actualizaciones: falta la migracion 20260921':
+    'Não há linha de atualizações: falta a migração 20260921',
+  'No hay nada que actualizar.': 'Não há nada para atualizar.',
+  'No hay nada que guardar': 'Não há nada para salvar',
+  'No llego ningun archivo.': 'Nenhum arquivo chegou.',
+  'No puedes eliminar tu propio usuario': 'Você não pode excluir o seu próprio usuário',
+  'No puedes modificar tu propio usuario. Cambia tu contraseña en Configuración.':
+    'Você não pode modificar o seu próprio usuário. Altere sua senha em Configurações.',
+  'No se pudo abrir el archivo: no parece un PDF valido.':
+    'Não foi possível abrir o arquivo: não parece um PDF válido.',
+  'No se pudo completar el acceso con Google.': 'Não foi possível concluir o acesso com o Google.',
+  'No se encontró el texto firmado de este contrato; no se puede archivar su versión firmada.':
+    'O texto assinado deste contrato não foi encontrado; não é possível arquivar a versão assinada.',
+  'Versión inválida': 'Versão inválida',
+  'No se puede eliminar: la pantalla tiene reservas u órdenes asociadas.':
+    'Não é possível excluir: o ponto tem reservas ou ordens associadas.',
+  'Orden no encontrada': 'Ordem não encontrada',
+  'Pago no encontrado': 'Pagamento não encontrado',
+  'Para cambiar tu propia contraseña usa Configuración.': 'Para alterar a sua própria senha, use Configurações.',
+  'Predio no encontrado': 'Imóvel não encontrado',
+  'Recibo no encontrado': 'Conta não encontrada',
+  'Reserva no encontrada': 'Reserva não encontrada',
+  'RFC inválido': 'RFC inválido',
+  'Una licencia ampara un predio O una pantalla suelta, no ambos ni ninguno.':
+    'Uma licença cobre um imóvel OU um ponto avulso, não os dois nem nenhum.',
+  'Ya existe un usuario con ese correo': 'Já existe um usuário com esse e-mail',
+  'Elige una sola forma de acceso: invitación, contraseña o Google.':
+    'Escolha uma só forma de acesso: convite, senha ou Google.',
+  'Dato con formato inválido': 'Dado com formato inválido',
+  'Fecha inválida': 'Data inválida',
+  'Fecha fuera de rango': 'Data fora do intervalo',
+  'Un valor excede la longitud permitida': 'Um valor excede o comprimento permitido',
+  'Falta un dato obligatorio': 'Falta um dado obrigatório',
+  'Un valor no cumple las reglas de la tabla': 'Um valor não cumpre as regras da tabela',
+  'El registro ya existe': 'O registro já existe',
+  'El registro está referenciado por otro': 'O registro é referenciado por outro',
+  'Sin acceso a ese registro': 'Sem acesso a esse registro',
+  'El servicio no está disponible en este momento. Intenta de nuevo en unos minutos.':
+    'O serviço não está disponível no momento. Tente de novo em alguns minutos.',
+  'Error interno': 'Erro interno',
+  'Datos inválidos': 'Dados inválidos',
+  'Este dato es obligatorio': 'Este dado é obrigatório',
+  'El valor tiene un formato inválido': 'O valor tem um formato inválido',
+  'Selecciona una opción válida': 'Selecione uma opção válida',
+  'El texto tiene un formato inválido': 'O texto tem um formato inválido',
+  'El valor no es válido': 'O valor não é válido',
+  'Ese prospecto no existe': 'Esse prospect não existe',
+  'El lugar elegido no existe o no es propio.': 'O lugar escolhido não existe ou não é próprio.',
+  '«Propia» es sí o no': '“Próprio” é sim ou não',
+  'Esta pantalla tiene un contrato de renta vigente: termínalo en Arrendadores antes de marcarla como propia.':
+    'Este ponto tem um contrato de aluguel vigente: encerre-o em Locadores antes de marcá-lo como próprio.',
+  'Esa campaña no existe': 'Essa campanha não existe',
+  'Llevas muchas búsquedas seguidas: espera unos minutos': 'Você fez muitas buscas seguidas: aguarde alguns minutos',
+  'Escribe una dirección de entre 3 y 200 letras': 'Digite um endereço de 3 a 200 letras',
+  'El buscador está ocupado: vuelve a intentar en un segundo': 'A busca está ocupada: tente de novo em um segundo',
+  'El buscador de direcciones no respondió. Puedes marcar el punto directamente en el mapa':
+    'A busca de endereços não respondeu. Você pode marcar o ponto diretamente no mapa',
+  'El buscador de Google no respondió. Puedes pegar coordenadas o marcar el punto en el mapa':
+    'A busca do Google não respondeu. Você pode colar coordenadas ou marcar o ponto no mapa',
+  'El buscador de Google rechazó la búsqueda (revisa la clave de Google de la instancia). Puedes pegar coordenadas o marcar el punto en el mapa':
+    'A busca do Google recusou a consulta (confira a chave do Google da instância). Você pode colar coordenadas ou marcar o ponto no mapa',
+  'No se pudo abrir el enlace de Google Maps. Pega las coordenadas o marca el punto directamente en el mapa':
+    'Não foi possível abrir o link do Google Maps. Cole as coordenadas ou marque o ponto diretamente no mapa',
+  'Ese enlace no lleva a un lugar de Google Maps': 'Esse link não leva a um lugar do Google Maps',
+  'Ese enlace de Google Maps no trae coordenadas. En Google Maps toca el lugar, copia las coordenadas que salen arriba y pégalas aquí':
+    'Esse link do Google Maps não traz coordenadas. No Google Maps, clique no lugar, copie as coordenadas que aparecem em cima e cole aqui',
+  'Escribe una dirección, pega unas coordenadas (19.4326, -99.1332) o un enlace de Google Maps':
+    'Digite um endereço, cole coordenadas (19.4326, -99.1332) ou um link do Google Maps',
+  'Solo se aceptan enlaces de Google Maps (google.com/maps o maps.app.goo.gl)':
+    'Só são aceitos links do Google Maps (google.com/maps ou maps.app.goo.gl)',
+  'Ese enlace corto no es de Google Maps, o le falta el final':
+    'Esse link curto não é do Google Maps, ou está faltando o final',
+  'La latitud va de -90 a 90. ¿Están al revés? Primero va la latitud (en México, alrededor de 14 a 33)':
+    'A latitude vai de -90 a 90. Estão invertidas? Primeiro vem a latitude (no México, entre 14 e 33, aproximadamente)',
+  'La longitud va de -180 a 180': 'A longitude vai de -180 a 180',
+  'El punto (0, 0) está en el mar: no es una ubicación': 'O ponto (0, 0) fica no mar: não é uma localização',
+  'Los minutos y los segundos van de 0 a 59': 'Os minutos e os segundos vão de 0 a 59',
+  'Primero va la latitud (N o S) y después la longitud (E u O)':
+    'Primeiro vem a latitude (N ou S) e depois a longitude (L ou O)',
+  'Tu organizacion ya tiene razones sociales registradas, asi que el cuestionario ya se contesto. Para cambiarlas, usa la pantalla de Administracion.':
+    'Sua organização já tem razões sociais cadastradas, então o questionário já foi respondido. Para alterá-las, use a página de Configurações.',
+  'Las tarifas por unidad se guardan en su propia ruta (PATCH /api/sitios/:id/modalidades), que siempre pide la contraseña.':
+    'As tarifas por unidade são salvas no próprio endpoint (PATCH /api/sitios/:id/modalidades), que sempre pede a senha.',
+  'Código postal inválido (5 dígitos)': 'CEP inválido (5 dígitos)',
+  'Teléfono inválido. Escribe 10 dígitos (p. ej. 55 1234 5678)':
+    'Telefone inválido. Digite 10 dígitos (ex.: 55 1234 5678)',
+  'Correo inválido. Usa el formato ejemplo@correo.com': 'E-mail inválido. Use o formato exemplo@email.com',
+  'La contraseña debe tener al menos 8 caracteres': 'A senha deve ter pelo menos 8 caracteres',
+  'La contraseña debe incluir al menos una letra': 'A senha deve incluir pelo menos uma letra',
+  'La contraseña debe incluir al menos un número': 'A senha deve incluir pelo menos um número',
+  'La contraseña no puede contener espacios': 'A senha não pode conter espaços',
+}
 
 /** El de `lib/` sale del diccionario, como `CATALOGO_LIB_IT`: se escribe una vez, en `textos/servidor.ts`. */
 export const CATALOGO_LIB_PT: Partial<Record<string, string>> = Object.fromEntries(
@@ -1261,10 +1536,54 @@ export const CATALOGO_LIB_PT: Partial<Record<string, string>> = Object.fromEntri
 )
 
 /** El espejo de `CAMPO_EN`. */
-export const CAMPO_PT: Partial<Record<string, string>> = {}
+export const CAMPO_PT: Partial<Record<string, string>> = {
+  'Nombre': 'Nome',
+  'Correo': 'E-mail',
+  'Contraseña': 'Senha',
+  'Contraseña actual': 'Senha atual',
+  'RFC': 'RFC',
+  'Razón social': 'Razão social',
+  'Régimen fiscal': 'Regime tributário',
+  'Uso de CFDI': 'Uso do CFDI',
+  'CP fiscal': 'CEP fiscal',
+  'Fecha de inicio': 'Data de início',
+  'Fecha de fin': 'Data de término',
+  'Fecha': 'Data',
+  'Comisión': 'Comissão',
+  'Cliente': 'Cliente',
+  'Agencia': 'Agência',
+  'Sitio': 'Ponto',
+  'Spots por día': 'Spots por dia',
+  'Cantidad': 'Quantidade',
+  'Tarifa': 'Tarifa',
+  'Precio': 'Preço',
+  'Unidad': 'Unidade',
+  'Monto': 'Valor',
+  'Renta': 'Aluguel',
+  'Contrato': 'Contrato',
+  'Orden de compra': 'Pedido de compra',
+  'Documento': 'Documento',
+  'Logo': 'Logo',
+  'Archivo': 'Arquivo',
+  'Código': 'Código',
+  'Periodo': 'Período',
+}
 
 /** El espejo de `FALTA_FIRMA_EN` (para los `huecosPt` de los patrones de la firma). */
-export const FALTA_FIRMA_PT: Partial<Record<string, string>> = {}
+export const FALTA_FIRMA_PT: Partial<Record<string, string>> = {
+  'Razón social de tu empresa': 'Razão social da sua empresa',
+  'RFC de tu empresa': 'RFC da sua empresa',
+  'Domicilio fiscal de tu empresa': 'Endereço fiscal da sua empresa',
+  'Representante legal de tu empresa': 'Representante legal da sua empresa',
+  'Nombre del arrendador': 'Nome do locador',
+  'RFC del arrendador': 'RFC do locador',
+  'Domicilio del arrendador': 'Endereço do locador',
+  'Dirección del espacio': 'Endereço do espaço',
+  'Fecha de inicio': 'Data de início',
+  'Fecha de fin': 'Data de término',
+  'Importe de la renta': 'Valor do aluguel',
+  'Periodicidad del pago': 'Periodicidade do pagamento',
+}
 
 const deTabla = (tabla: Record<string, string>) => (v: string) => tabla[v] ?? v
 const lista = (tabla: Record<string, string>) => (v: string) =>
@@ -1925,9 +2244,295 @@ export function patronesItSinPatron(): string[] {
 // ─── PORTUGUES DE LOS PATRONES · ola 0 (2026-11-05) ─────────────────────────
 //
 // Igual que `PATRONES_IT`: una entrada por patron, con la plantilla `en` de su
-// patron como clave. Nace VACIO; lo rellena el lote del servidor. Un hueco que
-// en ingles pasa por una funcion necesita la suya en `huecosPt`.
-const PATRONES_PT: Record<string, { pt: string; huecosPt?: Record<number, (valor: string) => string> }> = {}
+// patron como clave. Un hueco que en ingles pasa por una funcion necesita la
+// suya en `huecosPt`.
+//
+// Lote L5 (2026-11-05): COMPLETO. Como en italiano, las cifras que el servidor
+// escribe a la mexicana («2.5», «1,000») pasan por `cifraPt` («2,5», «1.000»:
+// pt-BR usa los mismos signos que el italiano); los nombres entre comillas
+// rectas, a comillas curvas “ ”; y los huecos con espanol armado, por sus
+// tablas. Sin «em $n» delante de una fecha (glosario): «até $1», «a partir de $2».
+
+/** «2.5» → «2,5», «1,000.5» → «1.000,5». Lo que no es una cifra, tal cual. */
+const cifraPt = cifraIt
+const distanciaPt = (v: string) => v.replace(/^(\d[\d,]*(?:\.\d+)?)/, (c) => cifraPt(c))
+// LA DIFERENCIA CON EL ITALIANO: una entrada que la tabla no conoce NO pasa
+// tal cual (saldria «ele inventada», espanol dentro de una frase portuguesa):
+// deja la marca y el mensaje entero cae al espanol (nunca a medias).
+const deTablaPt = (tabla: Record<string, string>) => (v: string) => tabla[v] ?? SIN_ITALIANO
+const listaPt = (tabla: Record<string, string>) => (v: string) => v.split(', ').map(deTablaPt(tabla)).join(', ')
+
+export const PERIODICIDAD_PT: Record<string, string> = {
+  diaria: 'diária',
+  semanal: 'semanal',
+  catorcenal: 'bissemanal',
+  quincenal: 'duas vezes por mês',
+  mensual: 'mensal',
+  bimestral: 'bimestral',
+  trimestral: 'trimestral',
+  semestral: 'semestral',
+  anual: 'anual',
+}
+
+// Detras de «ele»: cada etapa lleva su verbo («ainda é um prospect», «está
+// em negociação»), porque «ele está um prospect» no se dice.
+export const ETAPA_PT: Record<string, string> = {
+  prospecto: 'ainda é um prospect',
+  contactado: 'já foi contatado',
+  visita: 'está na fase de visita',
+  negociación: 'está em negociação',
+  'en revisión': 'está em revisão',
+  aprobado: 'já foi aprovado',
+  rechazado: 'foi recusado',
+  perdido: 'foi perdido',
+}
+
+export const FALTA_REVISION_PT: Record<string, string> = {
+  'un teléfono o un correo de contacto': 'um telefone ou um e-mail de contato',
+  'la dirección': 'o endereço',
+  'el dueño: un arrendador existente o el nombre y teléfono del contacto':
+    'o proprietário: um locador existente ou o nome e o telefone do contato',
+}
+
+function bloqueoClientePt(v: string): string {
+  return v
+    .split(' y ')
+    .map((pieza) => {
+      const m = /^(\d+) (campañas?|facturas?|clientes?|propuestas?)( que lo tienen como agencia)?$/.exec(pieza)
+      if (!m) return pieza
+      const uno = m[1] === '1'
+      const [singular, plural] = {
+        campaña: ['campanha', 'campanhas'],
+        factura: ['fatura', 'faturas'],
+        cliente: ['cliente', 'clientes'],
+        propuesta: ['proposta', 'propostas'],
+      }[m[2].replace(/s$/, '') as 'campaña']
+      const agencia = m[3] ? (uno ? ' que o tem como agência' : ' que o têm como agência') : ''
+      return `${m[1]} ${uno ? singular : plural}${agencia}`
+    })
+    .join(' e ')
+}
+
+const curvasPt = curvas
+function pantallaLejosPt(v: string): string {
+  return v === 'La pantalla' ? 'A tela' : curvasPt(v)
+}
+// La preposicion entra en el hueco, como en italiano: «do imóvel “Norte”», «de “P2”».
+function referenciaPredioPt(v: string): string {
+  const yaEsta = /^"(.*)", que ya está en el predio "(.*)"$/.exec(v)
+  if (yaEsta) return `de “${yaEsta[1]}”, que já está no imóvel “${yaEsta[2]}”`
+  const predio = /^el predio "(.*)"$/.exec(v)
+  if (predio) return `do imóvel “${predio[1]}”`
+  return `de ${curvasPt(v)}`
+}
+
+// El tope que envuelve va por `motivoEnPortugues`; si no se reconoce, la marca
+// tumba el mensaje entero al espanol (nunca a medias).
+function motivoEnPortugues(motivo: string): string | null {
+  return motivoEnTablas(TABLAS_PT, motivo)
+}
+
+const PCT2_PT = { 1: cifraPt, 2: cifraPt }
+const PCT3_PT = { ...PCT2_PT, 3: cifraPt }
+const PCT5_PT = { ...PCT3_PT, 4: cifraPt, 5: cifraPt }
+const PCT6_PT = { ...PCT5_PT, 6: cifraPt }
+
+const PATRONES_PT: Record<string, { pt: string; huecosPt?: Record<number, (valor: string) => string> }> = {
+  'This proposal expired on $1. Ask whoever sent it for an updated one.': {
+    pt: 'Esta proposta venceu ($1). Peça uma atualizada a quem a enviou.',
+  },
+  'Must be at least $1 characters': { pt: 'Deve ter pelo menos $1 caracteres' },
+  'Must not have more than $1 characters': { pt: 'Não pode ter mais de $1 caracteres' },
+  'Add at least $1': { pt: 'Adicione pelo menos $1' },
+  'Must be greater than or equal to $1': { pt: 'Deve ser maior ou igual a $1', huecosPt: { 1: cifraPt } },
+  'Must be greater than $1': { pt: 'Deve ser maior que $1', huecosPt: { 1: cifraPt } },
+  // Igual que `compartidos.cifra.mayor` (lo pinta tambien CampoCifra).
+  'Must not be greater than $1': { pt: 'Não pode ser maior que $1', huecosPt: { 1: cifraPt } },
+  // Los de la calculadora, iguales a `compartidos.calc.motivo.*`.
+  'A Roadblock buys every loop slot ($1), not $2.': {
+    pt: 'Um Roadblock compra todos os slots do loop ($1), não $2.',
+  },
+  'Loop slots go from 1 to $1.': { pt: 'Os slots do loop vão de 1 a $1.' },
+  'Hours per day must be greater than 0 and at most $1: hours beyond what the screen broadcasts would be spots that never play.':
+    {
+      pt: 'As horas por dia devem ser mais de 0 e no máximo $1: horas além das que a tela transmite seriam spots que não vão ao ar.',
+      huecosPt: { 1: cifraPt },
+    },
+  'The spot quantity does not match the calculator: with $1 slots, $2 h a day and $3 days it is $4 spots, not $5.': {
+    pt: 'A quantidade de spots não bate com a calculadora: com $1 slots, $2 h por dia e $3 dias são $4 spots, não $5.',
+    huecosPt: { 2: cifraPt, 5: (v) => (v === 'ninguna' ? 'nenhuma' : v) },
+  },
+  'A Roadblock needs every loop slot free ($1); the screen has $2 free.': {
+    pt: 'Um Roadblock precisa de todos os slots do loop livres ($1), e a tela tem $2.',
+  },
+  'You’re asking for $1 loop {1|slot|slots} and the screen only has $2 free.': {
+    pt: 'Você pede $1 {1|slot|slots} do loop e a tela só tem $2 livres.',
+  },
+  'The bundle “$1” on this proposal is a final price and does not accept negotiation codes. Remove the bundle, or swap it for one that does, before applying the code.':
+    {
+      pt: 'O pacote “$1” desta proposta tem preço fechado e não aceita códigos de negociação. Remova o pacote, ou troque-o por um que aceite, antes de aplicar o código.',
+    },
+  'The bundle “$1” is a final price and does not accept negotiation codes. Remove the code “$2” before applying it, or use a bundle that does.':
+    {
+      pt: 'O pacote “$1” tem preço fechado e não aceita códigos de negociação. Remova o código “$2” antes de aplicar o pacote, ou use um pacote que aceite.',
+    },
+  'The expected months must be $1.': { pt: 'Os meses esperados devem ser $1.' },
+  'There are $1 files and the maximum per batch is $2.': { pt: 'São $1 arquivos e o máximo por lote é $2.' },
+  'There are $1 files and the maximum per batch is $2. Upload them in several batches.': {
+    pt: 'São $1 arquivos e o máximo por lote é $2. Envie em várias vezes.',
+  },
+  '“$1” is too large to be a CFE bill.': { pt: '“$1” é pesado demais para ser uma conta da CFE.' },
+  'The PDF has $1 {1|page|pages} and a CFE bill has 2. Upload the bills separately.': {
+    pt: 'O PDF tem $1 {1|página|páginas} e uma conta da CFE tem 2. Envie as contas separadamente.',
+  },
+  'Cannot delete: the landlord has $1 {1|property|properties} and $2 active {2|contract|contracts}. Reassign or cancel their contracts first.':
+    {
+      pt: 'Não é possível excluir: o locador tem $1 {1|imóvel|imóveis} e $2 {2|contrato ativo|contratos ativos}. Reatribua ou cancele os contratos dele antes.',
+    },
+  'The end date ($1) cannot be earlier than the start date ($2).': {
+    pt: 'A data de término ($1) não pode ser anterior à de início ($2).',
+  },
+  'The new end date must be after the current term ($1).': {
+    pt: 'A nova data de término deve ser posterior ao prazo atual ($1).',
+  },
+  'This period is already paid ($1). Cancel it before recording it again.': {
+    pt: 'Este período já está pago ($1). Cancele-o antes de registrá-lo de novo.',
+    huecosPt: { 1: (v) => (v === 'sin fecha' ? 'sem data' : v) },
+  },
+  'Cannot delete: $1 {1|contract bills|contracts bill} to this legal entity. Change it in {1|that contract|those contracts} first.':
+    {
+      pt: 'Não é possível excluir: $1 {1|contrato fatura|contratos faturam} para esta razão social. Altere-a antes {1|nesse contrato|nesses contratos}.',
+    },
+  'The contract term generates more than $1 payments billed $2. Check the end date: at that frequency the schedule cannot cover such a long term.':
+    {
+      pt: 'O prazo do contrato gera mais de $1 pagamentos (periodicidade: $2). Confira a data de término: com essa frequência, o calendário não consegue cobrir um prazo tão longo.',
+      huecosPt: { 2: deTablaPt(PERIODICIDAD_PT) },
+    },
+  'That space was already leased until $1. The new contract must start on $2 or later, so it does not overlap the previous term.':
+    {
+      pt: 'Esse espaço já estava alugado até $1. O novo contrato deve começar a partir de $2, para não se sobrepor ao prazo anterior.',
+    },
+  'This campaign runs until $1. Extending can only make it longer: choose a later date.': {
+    pt: 'Esta campanha vai até $1. Estender só pode deixá-la mais longa: escolha uma data posterior.',
+  },
+  'This prospect cannot be edited: it is $1': {
+    pt: 'Não é possível editar este prospect: ele $1',
+    huecosPt: { 1: deTablaPt(ETAPA_PT) },
+  },
+  'To send it for review, it still needs: $1': {
+    pt: 'Para enviá-lo para revisão, ainda falta: $1',
+    huecosPt: { 1: listaPt(FALTA_REVISION_PT) },
+  },
+  'Cannot delete: the client has $1. Remove or reassign them before deleting it.': {
+    pt: 'Não é possível excluir: o cliente tem $1. Remova ou reatribua esses registros antes de excluí-lo.',
+    huecosPt: { 1: bloqueoClientePt },
+  },
+  '$1 is $2 from $3. A property is a single premises and its rent is split among the screens attached to it, so one that is far away would lower the cost for the others. Check the address or the coordinates, or give it its own property. (The limit is $4 m.)':
+    {
+      pt: '$1 está a $2 $3. Um imóvel é um único local e o aluguel dele é dividido entre as telas vinculadas a ele, então uma que esteja longe baratearia as demais. Confira o endereço ou as coordenadas, ou dê a ela um imóvel próprio. (O limite é $4 m.)',
+      huecosPt: { 1: pantallaLejosPt, 2: distanciaPt, 3: referenciaPredioPt, 4: cifraPt },
+    },
+  '“$1” cannot be sold yet: its lease is incomplete. Complete it in Landlords (landlord, term, amount and frequency) before booking it.':
+    {
+      pt: 'O ponto “$1” ainda não pode ser vendido: o contrato de locação dele está incompleto. Complete-o em Locadores (locador, prazo, valor e periodicidade) antes de reservá-lo.',
+    },
+  'The role $1 is repeated': { pt: 'O papel $1 está repetido' },
+  'These roles do not exist in the catalog: $1. The available ones are: $2.': {
+    pt: 'Estes papéis não existem no catálogo: $1. Os disponíveis são: $2.',
+  },
+  'Cannot send for signature: $1 {1|field is|fields are} still missing ($2).': {
+    pt: 'Não é possível enviar para assinatura: {1|ainda falta $1 dado|ainda faltam $1 dados} ($2).',
+    huecosPt: { 2: listaPt(FALTA_FIRMA_PT as Record<string, string>) },
+  },
+  'The name cannot be longer than $1 characters.': { pt: 'O nome não pode passar de $1 caracteres.' },
+  'This campaign already has a daypart ($1, $2 to $3): that is the schedule sent to DOOHmain, and it cannot have another one.':
+    {
+      pt: 'Esta campanha já tem uma faixa horária ($1, das $2 às $3): é o horário enviado ao DOOHmain, e ela não pode ter outra.',
+    },
+  'The daypart “$1” does not exist in this organization or is deactivated.': {
+    pt: 'A faixa horária “$1” não existe nesta organização ou está desativada.',
+  },
+  'The season “$1” does not exist in this organization or is deactivated.': {
+    pt: 'A temporada “$1” não existe nesta organização ou está desativada.',
+  },
+  'The same combination of unit, daypart and season appears twice ($1).': {
+    pt: 'A mesma combinação de unidade, faixa horária e temporada aparece duas vezes ($1).',
+  },
+  'The combination $1 is sent both to save and to remove.': {
+    pt: 'A combinação $1 foi enviada ao mesmo tempo para salvar e para remover.',
+  },
+  'The unit “$1” is repeated.': { pt: 'A unidade “$1” está repetida.' },
+  'The unit “$1” is sent to be saved and removed at the same time: choose one.': {
+    pt: 'A unidade “$1” foi enviada para ser salva e removida ao mesmo tempo: escolha uma das duas.',
+  },
+  '$1No file was received': { pt: '$1Nenhum arquivo foi recebido' },
+  '$1The file must come as a base64 data URL ($2)': { pt: '$1O arquivo deve chegar como data URL em base64 ($2)' },
+  '$1File type not allowed here. Accepted: $2': { pt: '$1Tipo de arquivo não permitido aqui. Aceitos: $2' },
+  '$1The file exceeds the $2 MB limit': { pt: '$1O arquivo passa do limite de $2 MB', huecosPt: { 2: cifraPt } },
+  '$1The file is corrupt or badly encoded': { pt: '$1O arquivo está corrompido ou mal codificado' },
+  '$1The file is empty': { pt: '$1O arquivo está vazio' },
+  '$1The file content is not a real $2': { pt: '$1O conteúdo do arquivo não é um $2 de verdade' },
+  '$1The file content is not valid text': { pt: '$1O conteúdo do arquivo não é um texto válido' },
+  '$1The SVG contains executable code (scripts or event handlers) and cannot be accepted': {
+    pt: '$1O SVG contém código executável (scripts ou manipuladores de eventos) e não pode ser aceito',
+  },
+  'The discount on this proposal, $1%, is over your organization’s current discount cap, $2%: the cap was lowered after it was saved. Adjust the discount before approving it (the commercial discount can go up to $3%), or ask an admin to raise the cap in Settings.':
+    {
+      pt:
+        'O desconto desta proposta, $1%, ultrapassa o teto de desconto atual da sua organização, $2%: o teto foi baixado depois que ela foi salva. ' +
+        'Corrija o desconto antes de aprová-la (o desconto comercial pode chegar a $3%) ou peça a um administrador para subir o teto em Configurações.',
+      huecosPt: PCT3_PT,
+    },
+  'The discount on this proposal, $1% ($2% in total with the $3% volume discount), is over your organization’s current discount cap, $4%: the cap was lowered after it was saved. Adjust the discount before approving it (the commercial discount can go up to $5%), or ask an admin to raise the cap in Settings.':
+    {
+      pt:
+        'O desconto desta proposta, $1% ($2% no total com o desconto por volume de $3%), ultrapassa o teto de desconto atual da sua organização, $4%: ' +
+        'o teto foi baixado depois que ela foi salva. Corrija o desconto antes de aprová-la (o desconto comercial pode chegar a $5%) ' +
+        'ou peça a um administrador para subir o teto em Configurações.',
+      huecosPt: PCT5_PT,
+    },
+  'The discount on this proposal, $1% ($2% in total with the $3% volume discount), is over your organization’s current discount cap, $4%: the cap was lowered after it was saved. The volume discount ($5%) is already over the cap ($6%): leave the commercial discount at 0% or ask an admin to raise the cap in Settings.':
+    {
+      pt:
+        'O desconto desta proposta, $1% ($2% no total com o desconto por volume de $3%), ultrapassa o teto de desconto atual da sua organização, $4%: ' +
+        'o teto foi baixado depois que ela foi salva. O desconto por volume ($5%) já ultrapassa o teto ($6%): deixe o desconto comercial em 0% ' +
+        'ou peça a um administrador para subir o teto em Configurações.',
+      huecosPt: PCT6_PT,
+    },
+  'The maximum discount your organization allows is $1%, and $2% was requested. The commercial discount can go up to $3%. Ask an admin to raise it in Settings if needed.':
+    {
+      pt:
+        'O desconto máximo que a sua organização permite é de $1%, e foram pedidos $2%. O desconto comercial pode chegar a $3%. ' +
+        'Se for preciso, peça a um administrador para aumentá-lo em Configurações.',
+      huecosPt: PCT3_PT,
+    },
+  'The maximum discount your organization allows is $1%. This proposal already has a $2% volume discount, so a $3% commercial discount leaves $4% in total (discounts compound, they don’t add up). The commercial discount can go up to $5%. Ask an admin to raise it in Settings if needed.':
+    {
+      pt:
+        'O desconto máximo que a sua organização permite é de $1%. Esta proposta já tem um desconto por volume de $2%, então um desconto comercial de $3% ' +
+        'deixa $4% no total (os descontos se compõem, não se somam). O desconto comercial pode chegar a $5%. ' +
+        'Se for preciso, peça a um administrador para aumentá-lo em Configurações.',
+      huecosPt: PCT5_PT,
+    },
+  'The volume discount ($1%) is already over the cap ($2%): leave the commercial discount at 0% or ask an admin to raise the cap in Settings.':
+    {
+      pt:
+        'O desconto por volume ($1%) já ultrapassa o teto ($2%): deixe o desconto comercial em 0% ' +
+        'ou peça a um administrador para subir o teto em Configurações.',
+      huecosPt: PCT2_PT,
+    },
+  'The negotiation with the agency $1 is not validated; validate it before creating the proposal': {
+    pt: 'A negociação com a agência $1 não está validada; valide-a antes de criar a proposta',
+  },
+  'The negotiation with the agency $1 is not validated; the proposal can’t be approved': {
+    pt: 'A negociação com a agência $1 não está validada; a proposta não pode ser aprovada',
+  },
+  'The bundle “$1” can’t be removed: without the bundle, the volume discount of the lines applies again. $2 Lower the commercial discount first, then remove the bundle again.':
+    {
+      pt: 'Não é possível remover o pacote “$1”: sem o pacote, o desconto por volume das linhas volta a valer. $2 Baixe primeiro o desconto comercial e depois remova o pacote de novo.',
+      huecosPt: { 2: (v) => motivoEnPortugues(v) ?? SIN_ITALIANO },
+    },
+}
 
 for (const p of PATRONES_ERROR) {
   const t = PATRONES_PT[p.en]

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { huellasDeFormatoEspanol } from './guardias-ingles'
 import { huellasEnItaliano } from './guardias-italiano'
+import { huellasEnPortugues } from './guardias-portugues'
 import { createElement, type ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { ProveedorIdioma } from './contexto'
@@ -84,6 +85,8 @@ type Pieza = {
   ingles: string[]
   /** Lote L5 del italiano (2026-11-03): lo que tiene que salir en italiano. */
   italiano: string[]
+  /** Lote L5 del portugues (2026-11-05): lo que tiene que salir en portugues. */
+  portugues: string[]
 }
 
 const PUNTOS = [
@@ -114,6 +117,7 @@ const PIEZAS: Pieza[] = [
     ],
     ingles: ['Close area (3)', 'Cancel', 'Click the map to mark the area (at least 3 points)', 'screens with no location entered'],
     italiano: ['Chiudi zona (3)', 'Annulla', 'Clicca sulla mappa per segnare la zona (min. 3 punti)', '2 impianti senza posizione inserita'],
+    portugues: ['Fechar zona (3)', 'Cancelar', 'Clique no mapa para marcar a zona (mín. 3 vértices)', '2 pontos sem localização cadastrada'],
   },
   {
     nombre: 'mapa · zona cerrada, una pantalla sin ubicacion',
@@ -127,6 +131,7 @@ const PIEZAS: Pieza[] = [
     espanol: ['Limpiar zona', '1 pantalla sin ubicación capturada'],
     ingles: ['Clear area', '1 screen with no location entered'],
     italiano: ['Cancella zona', '1 impianto senza posizione inserita'],
+    portugues: ['Limpar zona', '1 ponto sem localização cadastrada'],
   },
   {
     nombre: 'campo obligatorio que falta',
@@ -141,6 +146,7 @@ const PIEZAS: Pieza[] = [
     espanol: [' (obligatorio)', 'Falta este dato'],
     ingles: [' (required)', 'This field is required'],
     italiano: [' (obbligatorio)', 'Manca questo dato'],
+    portugues: [' (obrigatório)', 'Falta este dado'],
   },
   {
     nombre: 'migas de pan',
@@ -151,6 +157,7 @@ const PIEZAS: Pieza[] = [
     espanol: ['aria-label="Ruta de navegación"'],
     ingles: ['aria-label="Breadcrumb"'],
     italiano: ['aria-label="Percorso di navigazione"'],
+    portugues: ['aria-label="Trilha de navegação"'],
   },
   {
     nombre: 'cuadro de la contrasena (candado)',
@@ -171,6 +178,7 @@ const PIEZAS: Pieza[] = [
       'Annulla',
       'Conferma',
     ],
+    portugues: ['Sua organização pede a senha para confirmar as alterações sensíveis.', 'Sua senha', 'Cancelar', 'Confirmar'],
   },
   {
     nombre: 'aviso de la franja',
@@ -181,6 +189,7 @@ const PIEZAS: Pieza[] = [
     espanol: ['La franja horaria es un compromiso comercial: se cotiza y se cobra.'],
     ingles: ['The daypart is a commercial commitment: it is quoted and billed.'],
     italiano: ['La fascia oraria è un impegno commerciale: si quota e si fattura.'],
+    portugues: ['A faixa horária é um compromisso comercial: é cotada e cobrada.'],
   },
   // Ola 5 (recorrido en navegador): el boton del galon de TODAS las tarjetas
   // plegables decia «Minimizar Cobranza» en ingles. Es un `aria-label`, asi
@@ -195,6 +204,7 @@ const PIEZAS: Pieza[] = [
     espanol: ['aria-label="Minimizar Cobranza"'],
     ingles: ['aria-label="Collapse Cobranza"'],
     italiano: ['aria-label="Riduci Cobranza"'],
+    portugues: ['aria-label="Recolher Cobranza"'],
   },
   {
     nombre: 'tarjeta plegable cerrada',
@@ -206,6 +216,7 @@ const PIEZAS: Pieza[] = [
     espanol: ['aria-label="Expandir Cobranza"'],
     ingles: ['aria-label="Expand Cobranza"'],
     italiano: ['aria-label="Espandi Cobranza"'],
+    portugues: ['aria-label="Expandir Cobranza"'],
   },
 ]
 
@@ -263,6 +274,34 @@ describe('lote L5 · COMPARTIDOS en ITALIANO', () => {
       expect(p.espanol.filter((f) => html.includes(f) && !p.italiano.includes(f))).toEqual([])
       expect(p.ingles.filter((f) => html.includes(f) && !p.italiano.includes(f))).toEqual([])
       expect(huellasEnItaliano(crudo)).toEqual([])
+    })
+  }
+})
+
+// ============================================================================
+//  LOTE L5 DEL PORTUGUES (2026-11-05) · las mismas piezas, en portugues.
+//  Lo mismo que el italiano: sale el portugues esperado, no queda ninguna
+//  frase espanola (que en portugues seria una clave que cae al espanol, y NO
+//  se veria) ni inglesa, y ningun formato ajeno (`huellasEnPortugues`).
+// ============================================================================
+describe('lote L5 · COMPARTIDOS en PORTUGUES', () => {
+  for (const p of PIEZAS) {
+    it(p.nombre, async () => {
+      const crudo = await p.pintar('pt')
+      const html = texto(crudo)
+      expect(p.portugues.filter((f) => !html.includes(f))).toEqual([])
+      // Palabra entera: «Cancel» esta dentro de «Cancelar», que es portugues.
+      const esta = (f: string) => {
+        for (let i = html.indexOf(f); i >= 0; i = html.indexOf(f, i + 1)) {
+          const antes = html[i - 1] ?? ' '
+          const despues = html[i + f.length] ?? ' '
+          if (!/\p{L}/u.test(antes) && !/\p{L}/u.test(despues)) return true
+        }
+        return false
+      }
+      expect(p.espanol.filter((f) => esta(f) && !p.portugues.includes(f))).toEqual([])
+      expect(p.ingles.filter((f) => esta(f) && !p.portugues.includes(f))).toEqual([])
+      expect(huellasEnPortugues(crudo)).toEqual([])
     })
   }
 })

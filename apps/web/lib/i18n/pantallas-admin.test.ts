@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { huellasDeFormatoEspanol } from './guardias-ingles'
 import { huellasEnItaliano } from './guardias-italiano'
+import { huellasEnPortugues } from './guardias-portugues'
 import { culpablesEnItaliano } from '../test/barrido-italiano'
+import { espanolPendienteDeOtrosLotes } from '../test/barrido-portugues'
 import { createElement, type ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -895,6 +897,39 @@ describe('lote L5 · ADMIN en ITALIANO', () => {
       const crudo = await p.pintar('it')
       expect(culpablesEnItaliano(crudo, await diccionarios(), { ignorar: DATOS })).toEqual([])
       expect(huellasEnItaliano(crudo)).toEqual([])
+    })
+  }
+})
+
+// ============================================================================
+//  LOTE L5 DEL PORTUGUES (2026-11-05) · las mismas pantallas, en portugues.
+//  Como el italiano: ninguna frase espanola ni inglesa de admin, compartidos,
+//  shell ni la base (en portugues la espanola es la que mas importa: la caida
+//  no se ve) y ningun formato ajeno.
+// ============================================================================
+describe('lote L5 · ADMIN en PORTUGUES', () => {
+  async function diccionarios() {
+    const { ES_ADMIN, EN_ADMIN, PT_ADMIN } = await import('./textos/admin')
+    const { ES_COMPARTIDOS, EN_COMPARTIDOS, PT_COMPARTIDOS } = await import('./textos/compartidos')
+    const { ES_SHELL, EN_SHELL, PT_SHELL } = await import('./textos/shell')
+    const { DICCIONARIOS, PT_PARCIAL } = await import('./diccionario')
+    const { clavesBasePortugues } = await import('./cobertura-portugues')
+    const base = (d: Record<string, string>) => Object.fromEntries(clavesBasePortugues().map((k) => [k, d[k]]))
+    return {
+      es: { ...ES_ADMIN, ...ES_COMPARTIDOS, ...ES_SHELL, ...base(DICCIONARIOS.es) },
+      en: { ...EN_ADMIN, ...EN_COMPARTIDOS, ...EN_SHELL, ...base(DICCIONARIOS.en) },
+      it: { ...PT_ADMIN, ...PT_COMPARTIDOS, ...PT_SHELL, ...base(PT_PARCIAL as Record<string, string>) } as Partial<
+        Record<string, string>
+      >,
+    }
+  }
+  const DATOS = ['Pantalla Reforma', '601 - General de Ley Personas Morales', 'Error del servidor']
+
+  for (const p of PANTALLAS) {
+    it(p.nombre, async () => {
+      const crudo = await p.pintar('pt')
+      expect(culpablesEnItaliano(crudo, await diccionarios(), { ignorar: [...DATOS, ...espanolPendienteDeOtrosLotes()] })).toEqual([])
+      expect(huellasEnPortugues(crudo)).toEqual([])
     })
   }
 })

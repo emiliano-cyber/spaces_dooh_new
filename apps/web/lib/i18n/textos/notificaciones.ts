@@ -229,11 +229,63 @@ export const IT_NOTIFICACIONES: Record<keyof typeof ES_NOTIFICACIONES, string> =
   'notificaciones.ver': 'Vedi',
 }
 
-// ─── PORTUGUES (pt-BR) · ola 0 (2026-11-05) ─────────────────────────────────
-// PARCIAL a proposito: lo rellena el lote de traduccion de este ambito
-// (`vault/03-Frontend/portugues-olas.md`). Mientras falte una clave, la
-// pantalla la pinta en ESPANOL (decision del dueno del 05/11; `diccionario.ts`,
-// `DICCIONARIOS.pt`) y la prueba de cobertura (`cobertura-portugues.test.ts`)
-// la cuenta como pendiente. Cuando el lote termine, el tipo pasa a
-// `Record<keyof typeof ES_NOTIFICACIONES, string>` y `tsc` vuelve a exigir cada clave.
-export const PT_NOTIFICACIONES: Partial<Record<keyof typeof ES_NOTIFICACIONES, string>> = {}
+// ─── PORTUGUES (pt-BR) · lote L5 (2026-11-05) ────────────────────────────────
+// COMPLETO: el tipo es `Record` y `tsc` exige cada clave. Brasil, «voce»,
+// el glosario comun de `vault/03-Frontend/portugues-olas.md` (§2 bis) y lo no
+// obvio, clave por clave, en `docs/i18n/revision-portugues-l5.md`. La prueba
+// estatica es `textos/portugues-l5.test.ts`.
+export const PT_NOTIFICACIONES: Record<keyof typeof ES_NOTIFICACIONES, string> = {
+  // Glosario de este archivo: ODC → PC (pedido de compra, masc.) · cobranza →
+  // cobrança · saldo → saldo · al aire → no ar · enviar al dominio → enviar
+  // para publicação · contrato sin capturar → contrato sem cadastro.
+  'notificaciones.correo.contratos.asunto': 'Contratos que precisam de atenção: {resumen}',
+  'notificaciones.correo.contratos.titulo': 'Contratos que precisam de atenção',
+  'notificaciones.correo.contratos.pie': '{org} · este aviso é enviado uma vez por dia e só quando há algo novo.',
+  'notificaciones.correo.resumen.vencido.uno': '{n} vencido',
+  'notificaciones.correo.resumen.vencido.otros': '{n} vencidos',
+  'notificaciones.correo.resumen.por-vencer': '{n} a vencer',
+  'notificaciones.correo.resumen.sin-capturar': '{n} sem cadastro',
+  'notificaciones.propuesta.aprobada': 'Proposta aprovada',
+  'notificaciones.propuesta.rechazada': 'Proposta recusada',
+  'notificaciones.propuesta.aceptada': 'Proposta aceita pelo cliente',
+  'notificaciones.propuesta.aceptada.detalle': '{propuesta} — aceita por {nombre}',
+  'notificaciones.campana.generada': 'Campanha gerada a partir da proposta',
+  'notificaciones.campana.no-generada': 'Não foi possível gerar a campanha',
+  'notificaciones.campana.por-validar': 'Campanha aguardando revisão de publicação',
+  'notificaciones.campana.por-validar.detalle': '{campana} foi enviada para publicação e aguarda a revisão',
+  'notificaciones.publicacion.aprobada': 'Publicação aprovada',
+  'notificaciones.publicacion.aprobada.detalle': '{campana} foi aprovada e está no ar',
+  'notificaciones.publicacion.rechazada': 'Publicação recusada',
+  'notificaciones.publicacion.rechazada.detalle': '{campana} foi recusada',
+  'notificaciones.publicacion.rechazada.motivo': '{campana} foi recusada: {motivo}',
+  'notificaciones.factura.emitida': 'Fatura emitida',
+  'notificaciones.odc.registrada': 'PC registrado',
+  'notificaciones.pago.liquidada': 'Cobrança quitada',
+  'notificaciones.pago.abono': 'Pagamento parcial registrado',
+  'notificaciones.pago.sin-folio': 'cobrança',
+  'notificaciones.cobranza.vencida': 'Cobrança vencida',
+  'notificaciones.cobranza.recordatorio': 'Lembrete de cobrança',
+  'notificaciones.cobranza.vencida.detalle.uno': '{cobranza} — vencida há {n} dia · saldo {saldo}',
+  'notificaciones.cobranza.vencida.detalle.otros': '{cobranza} — vencida há {n} dias · saldo {saldo}',
+  'notificaciones.cobranza.vence.detalle.uno': '{cobranza} — vence em {n} dia · saldo {saldo}',
+  'notificaciones.cobranza.vence.detalle.otros': '{cobranza} — vence em {n} dias · saldo {saldo}',
+  'notificaciones.cobranza.vence.detalle.cero': '{cobranza} — vence hoje · saldo {saldo}',
+  'notificaciones.ot.vencida': 'OS atrasada',
+  'notificaciones.ot.vencida.detalle': '{ot} não foi fechada no prazo',
+  'notificaciones.ot.vencida.sin-asignar': '{ot} não foi fechada no prazo (sem responsável)',
+  'notificaciones.contrato.sin-capturar': 'Contrato sem cadastro: {contrato}',
+  'notificaciones.contrato.sin-capturar.detalle':
+    'Faltam o locador, o valor do aluguel, a periodicidade ou a data de término. Enquanto continuar assim, ele não conta como custo, não gera calendário de pagamentos e o ponto não pode ser reservado.',
+  'notificaciones.contrato.vencido': 'Contrato vencido: {contrato}',
+  'notificaciones.contrato.vencido.detalle.uno':
+    'Venceu há {n} dia e ninguém o renovou. O espaço continua ocupado sem um acordo vigente que o respalde.',
+  'notificaciones.contrato.vencido.detalle.otros':
+    'Venceu há {n} dias e ninguém o renovou. O espaço continua ocupado sem um acordo vigente que o respalde.',
+  'notificaciones.contrato.vence-hoy': 'Contrato vence HOJE: {contrato}',
+  'notificaciones.contrato.vence-en.uno': 'Contrato vence em {n} dia: {contrato}',
+  'notificaciones.contrato.vence-en.otros': 'Contrato vence em {n} dias: {contrato}',
+  'notificaciones.contrato.vence-en.cero': 'Contrato vence HOJE: {contrato}',
+  'notificaciones.contrato.por-vencer.detalle': 'Se for renovado, é melhor agir antes que ele vença.',
+  'notificaciones.contrato.un-espacio': 'um espaço',
+  'notificaciones.ver': 'Ver',
+}

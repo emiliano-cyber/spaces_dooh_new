@@ -21,16 +21,20 @@ import { haceSinPrefijo } from '../../components/demo/space-eyes/piezas'
 
 const ES = DICCIONARIOS.es as Record<string, string>
 
-describe('catalogos fuera de textos/ · portugues = espanol mientras falte', () => {
-  it('errores de acceso', () => {
-    expect(mensajeDeAcceso('Correo o contraseña inválidos', 'pt')).toBe('Correo o contraseña inválidos')
-    expect(mensajeDeAcceso('Demasiados intentos. Espera 30s.', 'pt')).toBe('Demasiados intentos. Espera 30s.')
+describe('catalogos fuera de textos/ · portugues = espanol mientras falte (los de L5, ya en portugues)', () => {
+  // Lote L5 (05/11): acceso, papeles y campanita ya tienen portugues. Lo que
+  // no se reconoce sigue saliendo tal cual (en espanol).
+  it('errores de acceso (lote L5: en portugues)', () => {
+    expect(mensajeDeAcceso('Correo o contraseña inválidos', 'pt')).toBe('E-mail ou senha inválidos')
+    expect(mensajeDeAcceso('Demasiados intentos. Espera 30s.', 'pt')).toBe('Muitas tentativas. Aguarde 30s.')
     expect(mensajeDeAcceso('raro', 'pt')).toBe('raro')
   })
 
-  it('papeles', () => {
-    expect(PAPELES_FIJOS.map((r) => codigoDePapel(r, 'pt'))).toEqual(PAPELES_FIJOS.map((r) => codigoDePapel(r, 'es')))
-    expect(etiquetaDePapel(ES['admin.papel.ventas'], 'pt')).toBe(ES['admin.papel.ventas'])
+  it('papeles (lote L5: en portugues; la etiqueta con acentos de la base tambien)', () => {
+    expect(PAPELES_FIJOS.map((r) => codigoDePapel(r, 'pt'))).toEqual(['LOCAÇÕES', 'ATIVOS', 'LICENÇAS', 'OPERAÇÃO', 'VENDAS'])
+    expect(etiquetaDePapel(ES['admin.papel.ventas'], 'pt')).toBe('Vende publicidade')
+    expect(etiquetaDePapel('Operación y nómina', 'pt')).toBe('Operação e folha de pagamento')
+    expect(etiquetaDePapel('Un papel renombrado', 'pt')).toBe('Un papel renombrado')
   })
 
   it('checklist de OT', () => {
@@ -43,14 +47,21 @@ describe('catalogos fuera de textos/ · portugues = espanol mientras falte', () 
     expect(nombreDeFallaEnIdioma(nombre, 'pt')).toBe(nombre)
   })
 
-  it('la campanita: el texto en espanol, el saldo con el formato portugues', () => {
+  it('la campanita (lote L5): el texto en portugues, el saldo con el formato portugues', () => {
     expect(traducirNotificacion({ titulo: 'Factura emitida', detalle: 'F-1 · 1,000' }, 'pt').titulo).toBe(
-      'Factura emitida',
+      'Fatura emitida',
     )
     const vencida = { titulo: 'Cobranza vencida', detalle: 'F-7 — vencida hace 3 día(s) · saldo $1,234' }
     const pt = traducirNotificacion(vencida, 'pt')
-    expect(pt.titulo).toBe('Cobranza vencida')
-    expect(pt.detalle).toContain('MX$ 1.234')
+    expect(pt.titulo).toBe('Cobrança vencida')
+    expect(pt.detalle).toMatch(/^F-7 — vencida há 3 dias · saldo MX\$ 1\.234/)
+    // El dia del vencimiento, sin «0 dias»; y un dia, en singular.
+    const vence = (n: number) =>
+      traducirNotificacion({ titulo: 'Recordatorio de cobro', detalle: `F-7 — vence en ${n} día(s) · saldo $10` }, 'pt')
+    expect(vence(0).detalle).toMatch(/^F-7 — vence hoje · saldo MX\$ 10/)
+    expect(vence(1).detalle).toMatch(/^F-7 — vence em 1 dia · saldo MX\$ 10/)
+    // Un aviso que no casa con ninguna plantilla se pinta tal cual, en espanol.
+    expect(traducirNotificacion({ titulo: 'Algo nuevo', detalle: 'x' }, 'pt').titulo).toBe('Algo nuevo')
   })
 
   it('las notas de version: el texto espanol, no el ingles ni el italiano', () => {

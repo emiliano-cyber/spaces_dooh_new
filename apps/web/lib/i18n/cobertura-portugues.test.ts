@@ -24,9 +24,15 @@ describe('DICCIONARIOS.pt · la caida al ESPANOL', () => {
     const pt = PT_PARCIAL as Record<string, string | undefined>
     const mal = CLAVES.filter((k) => PT[k] !== (pt[k] ? pt[k] : ES[k]))
     expect(mal).toEqual([])
-    expect(traducir('pt', 'login.titulo.login')).toBe(ES['login.titulo.login'])
-    expect(traducir('pt', 'comun.cancelar')).toBe('Cancelar')
-    expect(traducir('pt', 'comun.cancelar')).not.toBe(DICCIONARIOS.en['comun.cancelar'])
+    // Una clave sin portugues (cualquiera de otro lote) sale en espanol, nunca
+    // en ingles; una de L5, en portugues.
+    const pendiente = CLAVES.find((k) => !pt[k] && ES[k] !== DICCIONARIOS.en[k])
+    if (pendiente) {
+      expect(traducir('pt', pendiente)).toBe(ES[pendiente])
+      expect(traducir('pt', pendiente)).not.toBe(DICCIONARIOS.en[pendiente])
+    }
+    expect(traducir('pt', 'login.titulo.login')).toBe('Entrar')
+    expect(traducir('pt', 'comun.guardar')).toBe('Salvar')
   })
 
   it('la caida: lo escrito gana, lo vacio no cuenta', () => {
@@ -59,9 +65,25 @@ describe('cobertura del portugues', () => {
     expect(clavesBasePortugues()).toContain('idioma.pt')
   })
 
-  it('en la ola 0 solo esta el selector; los ambitos y el servidor, vacios', () => {
-    expect(filas[0].traducidas).toBe(6)
-    for (const f of filas.slice(1)) expect(f.traducidas, f.ambito).toBe(0)
+  // Lote L5 (05/11): sus once filas, sin pendientes. Las de los otros lotes no
+  // se fijan aqui: las cierra cada lote.
+  const FILAS_L5 = [
+    'base (diccionario.ts)',
+    'compartidos',
+    'admin',
+    'cuenta',
+    'shell',
+    'servidor',
+    'notificaciones',
+    'errores · catalogo',
+    'errores · campos',
+    'errores · firma',
+    'errores · patrones',
+  ]
+  it('el lote L5 (armazon, cuenta, administracion, compartidos y servidor) no tiene pendientes', () => {
+    const delLote = filas.filter((f) => FILAS_L5.includes(f.ambito))
+    expect(delLote.map((f) => f.ambito).sort()).toEqual([...FILAS_L5].sort())
+    for (const f of delLote) expect(f.pendientes, f.ambito).toBe(0)
   })
 
   it('el portugues escrito esta bien formado', () => {
@@ -69,7 +91,12 @@ describe('cobertura del portugues', () => {
   })
 
   it('y la comprobacion MUERDE: vacio, huecos perdidos y claves inventadas', () => {
+    // Desde el lote L5 las dos claves de la base YA tienen portugues: se
+    // guardan y se RESTAURAN (borrarlas dejaria el modulo sin ellas para las
+    // pruebas que corran despues en el mismo proceso).
     const pt = PT_PARCIAL as Record<string, string | undefined>
+    const antes = { demasiados: pt['login.error.demasiados'], o: pt['comun.o'] }
+    const traducidasAntes = coberturaPortugues()[0].traducidas
     pt['login.error.demasiados'] = 'Muitas tentativas.'
     pt['comun.o'] = ''
     pt['no.existe'] = 'x'
@@ -84,18 +111,20 @@ describe('cobertura del portugues', () => {
         ].sort(),
       )
       // Y una vacia no cuenta como traducida; una escrita si.
-      expect(coberturaPortugues()[0].traducidas).toBe(7)
+      expect(coberturaPortugues()[0].traducidas).toBe(traducidasAntes - 1)
     } finally {
-      delete pt['login.error.demasiados']
-      delete pt['comun.o']
+      pt['login.error.demasiados'] = antes.demasiados
+      pt['comun.o'] = antes.o
       delete pt['no.existe']
       delete CATALOGO_ERRORES_PT['Frase que no existe']
     }
+    expect(problemasPortugues()).toEqual([])
   })
 
-  it('la fila de patrones cuenta los que no tienen portugues', () => {
+  it('la fila de patrones cuenta los que no tienen portugues (lote L5: ninguno)', () => {
     const fila = filas.find((f) => f.ambito === 'errores · patrones')!
     expect(fila.claves).toBe(PATRONES_ERROR.length)
-    expect(fila.pendientes).toBe(PATRONES_ERROR.length)
+    expect(fila.pendientes).toBe(PATRONES_ERROR.filter((p) => !p.pt).length)
+    expect(fila.pendientes).toBe(0)
   })
 })
