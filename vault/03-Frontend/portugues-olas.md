@@ -18,6 +18,9 @@ archivos:
   - apps/web/lib/server/idioma-instancia.ts
   - apps/web/components/demo/admin/IdiomaCuenta.tsx
   - docs/i18n/revision-portugues-base.md
+  - docs/i18n/revision-portugues-l5.md
+  - apps/web/lib/i18n/textos/portugues-l5.test.ts
+  - apps/web/lib/test/barrido-portugues.ts
 ---
 
 # La versión en portugués (Brasil), ola por ola
@@ -79,6 +82,43 @@ toca **solo sus archivos** de `textos/` (y el L5, además, la base de
 | **L4 · Campañas, finanzas, clientes, reportes y Dashboard** | `campanas` 396 · `finanzas` 170 · `clientes` 220 · `reportes` 148 · `inicio` 148 | **1082** |
 | **L5 · Armazón, cuenta, administración y servidor** | base de `diccionario.ts` 113 (de 119; el selector ya está) · `shell` 59 · `cuenta` 125 · `admin` 542 · `compartidos` 113 · `notificaciones` 47 · `servidor` 32 · errores del servidor 309 (catálogo 205, campos 30, firma 12, patrones 62) | **1340** |
 | | **Total pendiente** | **5937** |
+
+| Lote | Rama | Estado | Cobertura de sus filas |
+|---|---|---|---|
+| **L5** | `feat/portugues-l5-armazon` | **Hecho, sin validar** (05/11) | **1346/1346, 0 pendientes** (base 119 · compartidos 113 · shell 59 · cuenta 125 · admin 542 · notificaciones 47 · servidor 32 · errores 205 + 30 + 12 + 62) |
+
+### Lote L5 · Armazón, cuenta, administración, compartidos y servidor
+
+Rama `feat/portugues-l5-armazon` (sale de `integra/portugues`, `e018b1bb`).
+**Hecho, sin validar.** Revisión clave por clave en
+`docs/i18n/revision-portugues-l5.md`.
+
+- **Glosario común primero** (§2 bis, commit propio `30b60385`): es el encargo
+  de los otros cuatro lotes.
+- **1346 claves** (1340 nuevas): los seis `PT_*` de `textos/` del lote ya son
+  `Record`; base y catálogos del servidor, completos. Total del portugués:
+  1346 con portugués, **4597 pendientes** (de L1–L4).
+- **Errores del servidor, una diferencia con el italiano:** las tablas de
+  huecos (periodicidad, etapa, faltantes, firma) no dejan pasar lo
+  desconocido; el mensaje entero cae al español en vez de salir con español
+  dentro (`deTablaPt`).
+- **Pruebas:** estática `textos/portugues-l5.test.ts` (rojo primero, 18/36;
+  incluye la regla de fechas sobre TODO `PT_PARCIAL`), 74 estados portugueses
+  nuevos en `pantallas-admin`, `-cuenta-shell` y `-compartidos` (barrido +
+  `huellasEnPortugues`) y `lib/test/barrido-portugues.ts`, que aparta el
+  español pendiente de otros lotes sin esconder nada del lote. **14/14
+  mutantes muertos.**
+- **es/en/it idénticos:** volcado de toda la suite antes y después, 0 HTML
+  distintos de es/en/it.
+- **Espejo:** 0 huellas en las pantallas del lote; en toda la suite, las mismas
+  309 de la ola 0 (P2 y P3, ningún ámbito del lote).
+- **H2 de la ola 0 cerrado:** `crearTenant` acepta `IdiomaEnLaBase` (solo tipo,
+  JS idéntico). H1 y H3 siguen abiertos (P3 y recorrido).
+- **Para el dueño:** ver «Dudas» en la revisión (§10): *ponto/tela*,
+  *bissemana*, *perfil/papel*, *Proprietário*, *a Network*, y los avisos de
+  captura (`compartidos.cifra.*`), que hoy dicen la verdad mexicana y
+  reescribirá `feat/portugues-cifras` con el texto que deja propuesto la
+  revisión §3.
 
 > [!tip] El glosario se fija ANTES de repartir
 > Como en el italiano: `compartidos` (L5) fija las palabras que usan todos
@@ -231,7 +271,7 @@ a `IDIOMAS`, añade `--idioma pt` y escribe los papeles.
 ## 4 · Antes de encender `IDIOMA_PORTUGUES`
 
 - [ ] Los cinco lotes en **VERDE**, con su tipo `PT_<AMBITO>` ya en `Record` completo
-- [ ] `coberturaPortugues()` con **0 pendientes** en todas las filas (hoy, 5937)
+- [ ] `coberturaPortugues()` con **0 pendientes** en todas las filas (hoy, 4597 con L5 hecho; eran 5937)
 - [ ] El espejo (`I18N_VOLCAR_PT`) sin hallazgos de formato (hoy, §5)
 - [ ] La costura extendida al portugués, en verde
 - [x] P1 y P2 contestadas por el dueño (05/11)
