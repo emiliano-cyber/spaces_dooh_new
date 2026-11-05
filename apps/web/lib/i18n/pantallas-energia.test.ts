@@ -8,6 +8,9 @@ import type { Idioma } from './idiomas'
 import { MONEDAS, fijarMonedaInstancia } from './dinero'
 import { leerDinero } from './simbolo-en-pantalla'
 import { huellasEnItaliano } from './guardias-italiano'
+import { huellasEnPortugues } from './guardias-portugues'
+import { culpablesEnItaliano } from '../test/barrido-italiano'
+import { espanolPendienteDeOtrosLotes } from '../test/barrido-portugues'
 
 // ============================================================================
 //  I18N · CONSUMO DE LUZ (`/energia`), RENDIDO EN LOS DOS IDIOMAS.
@@ -493,6 +496,124 @@ describe('ENERGIA · barrido italiano con el diccionario entero', () => {
           if (html.includes(t)) culpables.push(`${idioma} · ${clave} · «${t}»`)
         }
       }
+    }
+    expect(culpables).toEqual([])
+  })
+})
+
+// ─── PORTUGUES · lote L1 (2026-11-05) ───────────────────────────────────────
+// Las mismas pantallas, rendidas en `pt`. Lo que falta del portugues cae al
+// ESPANOL (decision del dueno): una frase sin traducir no se distingue de la
+// version espanola, asi que se exige:
+//   (a) el portugues esperado (`PORTUGUES`) y ninguna frase espanola;
+//   (b) el barrido del diccionario de energia: ningun trozo espanol ni ingles
+//       (lo de otros lotes que aun cae al espanol se aparta con
+//       `espanolPendienteDeOtrosLotes`, que no esconde nada de este);
+//   (c) ningun formato espanol ni ingles (`guardias-portugues.ts`);
+//   (d) el dinero con el simbolo de la instancia en `pt` («MX$ », «US$ »).
+const PORTUGUES: Record<string, string[]> = {
+  'energia · rejilla con huecos y huerfanos': [
+    'Uma conta por imóvel e por mês. É rateada entre os pontos dele do mesmo jeito que o aluguel.',
+    'Contas registradas', '3 de 6', 'do período', '>Faltam<', 'o relatório mostra menos energia que a real',
+    'Valor do período', 'só o registrado · 1 conta sem ponto', 'kWh do período', 'Registrar uma conta',
+    'Imóvel ou ponto', 'Predio Reforma · 2 pontos', 'Predio Sur · 1 ponto', 'Pantalla Aeropuerto · ponto avulso',
+    'Mês da conta', 'Medidor', '>Valor<', 'Salvar conta', '1 · Quantos meses do calendário cada conta deste lote abrange?',
+    'Nenhuma conta registrada: não é consumo zero, é um dado que falta',
+  ],
+  'energia · captura completa': [
+    'registro completo', 'Registro completo: as 6 contas do período estão lá.',
+    'Escolha acima quantos meses você espera antes de enviar os arquivos.',
+  ],
+  'energia · sin puntos de medicion': [
+    'Ainda não há onde registrar: o motivo está abaixo.', 'Ainda não há onde registrar',
+    'Ainda não há onde registrar contas: é preciso pelo menos um imóvel com pontos, ou um ponto sem imóvel.',
+    'Uma conta de luz pertence a um imóvel com pontos, ou a um ponto sem imóvel. Cadastre o inventário e esta página se preenche sozinha.',
+  ],
+  'energia · cargando': ['Carregando as unidades consumidoras…'],
+  'energia · error de carga y de borrado': ['Não foi possível carregar os registros', '>não foi possível carregar<'],
+  'energia · periodo invertido': ['Revise o período', 'O mês de fim não pode ser anterior ao de início'],
+  'energia · periodo sin inicio': ['Falta o mês de início'],
+  'energia · confirmar el borrado de un recibo': [
+    'Excluir a conta',
+    'A conta do medidor M-1, referente a jan. de 2026, de MX$ 3.400,50, será excluída. Não é possível desfazer: esse mês volta a contar como uma lacuna e, até você registrá-la de novo, o relatório de rentabilidade vai mostrar um custo de energia menor que o real.',
+  ],
+  'energia · recibos leidos con pegas': [
+    'Arquivos lidos: 2 de 3; linhas: 2. Revise antes de confirmar: 1 arquivo não é uma conta de luz da CFE; 2 não conferem com o número de meses que você declarou (1): o número de meses do calendário que essas 2 abrangem é 3; 1 sem imóvel: escolha manualmente; 1 com um número que não foi possível ler; 1 com o mês já registrado: salvar de novo DUPLICA o custo.',
+    '>Mês<', '>Dias<', '— escolha —', 'placeholder="digite"',
+    'nº de serviço 123456789012 · medidor nº AB12 · PDBT · período 2025-11-10 → 2026-01-09 · o PDF diz 1.500 kWh · valor faturado MX$ 4.000,00 · iluminação pública (DAP) MX$ 200,00 · Total da conta MX$ 9.000,00 (inclui débitos anteriores e pagamentos)',
+    'Você declarou 1 mês e esta conta abrange 3. Foi rateada conforme o PDF.',
+    'Já existe uma registrada para 2026-01: 1.200 kWh por MX$ 3.400,50. Salvar outra vez DUPLICA o custo desse mês.',
+    'Escolha a que imóvel ou ponto esta conta corresponde',
+  ],
+  'energia · recibos leidos sin pegas, uno guardado': [
+    '1 arquivo foi lido e gera 1 linha. Confira com a conta e confirme: nada é salvo até você clicar em salvar.',
+    ' Salvo</span>',
+  ],
+  'energia · leyendo, sin renglones, un error y un renglon guardando': ['Lendo…', 'Estes arquivos não geraram nenhuma linha.', 'Salvando…'],
+}
+
+// Iguales en portugues a proposito: datos del servidor y palabras que se
+// escriben igual («3 de 6», «Medidor»).
+const COMUNES_PT = new Set<string>([...COMUNES, '3 de 6', 'Medidor'])
+
+describe('ENERGIA · en PORTUGUES sale el portugues y nada en espanol', () => {
+  for (const p of ESTADOS) {
+    it(p.nombre, async () => {
+      const crudo = await p.pintar('pt')
+      const dir = process.env.I18N_VOLCAR
+      if (dir) {
+        mkdirSync(dir, { recursive: true })
+        writeFileSync(path.join(dir, `energia-${p.nombre.replace(/[^\w]+/g, '_')}-pt.html`), crudo)
+      }
+      const html = texto(crudo)
+      expect(p.espanol.filter((f) => html.includes(f) && !COMUNES_PT.has(f))).toEqual([])
+      expect((PORTUGUES[p.nombre] ?? []).filter((f) => !html.includes(f))).toEqual([])
+    })
+  }
+  it('cada estado de `PORTUGUES` existe (un nombre mal escrito no prueba nada)', () => {
+    const nombres = new Set(ESTADOS.map((p) => p.nombre))
+    expect(Object.keys(PORTUGUES).filter((n) => !nombres.has(n))).toEqual([])
+  })
+})
+
+describe('ENERGIA · en PORTUGUES ningun formato espanol ni ingles', () => {
+  for (const p of ESTADOS) {
+    it(p.nombre, async () => {
+      expect(huellasEnPortugues(await p.pintar('pt'))).toEqual([])
+    })
+  }
+})
+
+describe('ENERGIA · el dinero lleva el simbolo de la instancia, tambien en portugues', () => {
+  afterEach(() => fijarMonedaInstancia('MXN'))
+  for (const moneda of MONEDAS) {
+    for (const p of ESTADOS.filter((e) => e.dinero)) {
+      it(`${p.nombre} · ${moneda} · pt`, async () => {
+        fijarMonedaInstancia(moneda)
+        const crudo = await p.pintar('pt')
+        const { importes, ajenos } = leerDinero(texto(crudo), 'pt', moneda)
+        expect(importes).toBeGreaterThan(0)
+        expect(ajenos).toEqual([])
+        expect(huellasEnPortugues(crudo, { moneda })).toEqual([])
+      })
+    }
+  }
+})
+
+describe('ENERGIA · barrido portugues con el diccionario entero', () => {
+  it('ningun trozo espanol ni ingles del diccionario de energia en las pantallas portuguesas', async () => {
+    const { ES_ENERGIA, EN_ENERGIA, PT_ENERGIA } = await import('./textos/energia')
+    const DATOS = ['Predio Reforma', 'Predio Sur', 'Pantalla Aeropuerto', 'error-al-borrar', 'error-del-servidor']
+    const culpables: string[] = []
+    for (const p of ESTADOS) {
+      forzado.cola = []
+      const crudo = await p.pintar('pt')
+      culpables.push(
+        ...culpablesEnItaliano(crudo, { es: ES_ENERGIA, en: EN_ENERGIA, it: PT_ENERGIA }, {
+          minimo: 6,
+          ignorar: [...DATOS, ...espanolPendienteDeOtrosLotes()],
+        }).map((c) => `${p.nombre} · ${c}`),
+      )
     }
     expect(culpables).toEqual([])
   })

@@ -25,6 +25,8 @@ archivos:
   - docs/i18n/revision-portugues-l5.md
   - docs/i18n/revision-portugues-l3.md
   - apps/web/lib/i18n/textos/portugues-l3.test.ts
+  - docs/i18n/revision-portugues-l1.md
+  - apps/web/lib/i18n/textos/portugues-l1.test.ts
   - apps/web/lib/i18n/textos/portugues-l5.test.ts
   - apps/web/lib/test/barrido-portugues.ts
   - docs/i18n/revision-portugues-l2.md
@@ -102,6 +104,7 @@ toca **solo sus archivos** de `textos/` (y el L5, además, la base de
 | **L5** | `feat/portugues-l5-armazon` | **Validación ÁMBAR, corregida; pendiente de revalidar** (05/11) | **1346/1346, 0 pendientes** (base 119 · compartidos 113 · shell 59 · cuenta 125 · admin 542 · notificaciones 47 · servidor 32 · errores 205 + 30 + 12 + 62) |
 | **L3** | `feat/portugues-l3-inventario` | **Validación ÁMBAR, corregida; pendiente de revalidar** (05/11) | **1186/1186, 0 pendientes** (inventario 360 · arrendadores 444 · operaciones 177 · operaciones2 205) |
 | **L4** | `feat/portugues-l4-campanas` | **Validación ÁMBAR leve, corregida; pendiente de revalidar** (05/11) | **1082/1082, 0 pendientes** (campanas 396 · finanzas 170 · clientes 220 · reportes 148 · inicio 148) |
+| **L1** | `feat/portugues-l1-spaceeyes` | **Validación ÁMBAR leve, corregida; pendiente de revalidar** (05/11) | **1128/1128, 0 pendientes** (spaceeyes 1007 · energia 121) |
 
 ### Lote L5 · Armazón, cuenta, administración, compartidos y servidor
 
@@ -273,6 +276,55 @@ DOOHmain, masculino («no DOOHmain»).
 >   servidor (`FALTA_REVISION_PT`, L5) «o proprietário».
 > - `campanas.candado.monto-ilegible` dice la verdad mexicana de hoy: la tarea
 >   roja `feat/portugues-cifras` lo cambia (texto en la revisión, §3).
+
+### Lote L1 · Space Eyes y luz
+
+Rama `feat/portugues-l1-spaceeyes` (sale de `integra/portugues`, `72b33050`).
+**Validación ÁMBAR leve (`docs/i18n/validacion-portugues-l1.md`), corregida el
+05/11, pendiente de revalidar** (revisión §9: «o app», «Estado da tela»,
+«vinculação», guardia contra el portugués de Portugal). Revisión clave por clave en
+`docs/i18n/revision-portugues-l1.md`.
+
+- **1128 claves**: `PT_SPACEEYES` (1007) y `PT_ENERGIA` (121) ya son `Record`.
+  Total del portugués: **3469 pendientes** (de L2–L4).
+- **Sin código fuera de `textos/`**: el formato de cifras de los dos ámbitos ya
+  era genérico desde el italiano L1 («0,812», «1.234», «3,10 GB»).
+- **Pruebas:** estática `textos/portugues-l1.test.ts` (rojo primero, 7/24; 115
+  cognados declarados uno por uno), estados portugueses en
+  `pantallas-spaceeyes` (95 + galería con millar) y `pantallas-energia` (11 +
+  dinero MXN/USD) con barrido y `huellasEnPortugues`. **14/14 mutantes
+  muertos.** es/en/it idénticos (diccionarios con `cmp`, volcado de toda la
+  suite: 0 HTML distintos).
+- **Lo que se queda como en la app o el papel:** el botón «Vincular» de la app
+  Android (solo está en español), el «No» del Raspberry Pi Imager, la **CFE** y
+  la sigla **DAP** del recibo.
+
+**Glosario propio del lote** (lo que no está en §2 bis):
+
+| Español | pt-BR |
+|---|---|
+| equipo / dispositivo | **dispositivo** (el menú) |
+| la pantalla LED que mira el equipo | **tela** · la del inventario, **ponto** |
+| sitio físico del equipo | **local** («sem ir ao local») |
+| falla · recuperada | **falha · resolvida** |
+| gabinete · creativo | **gabinete · criativo** |
+| vigilancia · vista en vivo · encuadre | **monitoramento · visualização ao vivo · enquadramento** |
+| código de vinculación | **código de vinculação** (como el botón «Vincular» de la app) |
+| app | **o app** (masc.; «a app» es de Portugal) |
+| flota | **parque de dispositivos** |
+| marca de la foto | **legenda** (el menú) |
+| folio de un ticket · panel de tickets | **chamado · painel de chamados** |
+| un toque en el teléfono | **confirmação no celular** (en la web, «Clique») |
+| registros (logs) | **logs** |
+| recibo de luz · pantalla suelta | **conta de luz · ponto avulso** |
+| punto de medición | **unidade consumidora** (no choca con *ponto*) |
+| capturar · hueco · tanda · renglón | **registrar · lacuna · lote · linha** |
+| adeudos | **débitos anteriores** |
+
+**Para el dueño:** revisión §7 (los conceptos del recibo de la CFE, *local*
+frente a *ponto*, *parque de dispositivos*, *unidade consumidora*). **Para la
+costura:** el veredicto de la foto (`comercial.eye.*`, L2) cae al español en
+la ficha y está declarado en la prueba hasta que L2 llegue.
 
 > [!tip] El glosario se fija ANTES de repartir
 > Como en el italiano: `compartidos` (L5) fija las palabras que usan todos
@@ -454,6 +506,8 @@ base como un 500. Desde P3:
 - [ ] `coberturaPortugues()` con **0 pendientes** en todas las filas (hoy, 4597 con L5 hecho; 3396 en la rama del L2, que lleva L5 y L2; eran 5937)
 
 - [ ] `coberturaPortugues()` con **0 pendientes** en todas las filas (hoy, 3411 con L5 y L3 hechos en la rama de L3; 4597 con L5 solo; eran 5937)
+
+- [ ] `coberturaPortugues()` con **0 pendientes** en todas las filas (hoy, 3469 con L5 y L1 hechos; eran 5937)
 - [ ] El espejo (`I18N_VOLCAR_PT`) sin hallazgos de formato (hoy, §5)
 - [ ] La costura extendida al portugués, en verde
 - [x] P1 y P2 contestadas por el dueño (05/11)
