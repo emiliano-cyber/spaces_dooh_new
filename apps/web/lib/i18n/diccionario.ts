@@ -20,8 +20,6 @@ import { ES_INICIO, EN_INICIO, IT_INICIO, PT_INICIO } from './textos/inicio'
 import { ES_ENERGIA, EN_ENERGIA, IT_ENERGIA, PT_ENERGIA } from './textos/energia'
 import { ES_REPORTES, EN_REPORTES, IT_REPORTES, PT_REPORTES } from './textos/reportes'
 import { ES_NOTIFICACIONES, EN_NOTIFICACIONES, IT_NOTIFICACIONES, PT_NOTIFICACIONES } from './textos/notificaciones'
-// P3 del portugues (05/11): los papeles en portugues, aparte de los lotes.
-import { PT_PAPELES } from './textos/papeles-portugues'
 
 // ============================================================================
 //  lib/i18n/diccionario.ts — LOS TEXTOS, Y LA CONVENCION DE CLAVES.
@@ -877,11 +875,12 @@ export const AMBITOS_PORTUGUES: ReadonlyArray<{
 
 const PT: Partial<Record<ClaveTexto, string>> = {
   ...PT_BASE,
-  // P3 (05/11) · los PAPELES (constancia, propuesta impresa, /p, portal,
-  // comprobante y correos), DEBAJO de los lotes: si un lote traduce una de
-  // estas claves, gana el lote, y `papeles-portugues.test.ts` exige que diga
-  // lo mismo (costura). Ver `textos/papeles-portugues.ts`.
-  ...PT_PAPELES,
+  // P3 (05/11) escribio los PAPELES (constancia, propuesta impresa, /p,
+  // portal, comprobante y correos) aparte, en `textos/papeles-portugues.ts`,
+  // DEBAJO de los lotes. Con los cinco lotes cerrados, la costura (05/11) vio
+  // que las 151 claves ya estaban en su `PT_<AMBITO>` (138 iguales, 13 con el
+  // glosario comun) y retiro el archivo: un solo sitio por clave. Los papeles
+  // los sigue vigilando `papeles-portugues.test.ts`.
   ...PT_PROPUESTAS,
   ...PT_COMPARTIDOS,
   ...PT_CAMPANAS,

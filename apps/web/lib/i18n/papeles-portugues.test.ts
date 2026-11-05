@@ -1,15 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { createElement as h } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { DICCIONARIOS, PT_PARCIAL, traducir, type ClaveTexto } from './diccionario'
-import { PT_PAPELES } from './textos/papeles-portugues'
-import { PT_PROPUESTAS } from './textos/propuestas'
-import { PT_CUENTA } from './textos/cuenta'
-import { PT_FINANZAS } from './textos/finanzas'
-import { PT_ARRENDADORES } from './textos/arrendadores'
-import { PT_NOTIFICACIONES } from './textos/notificaciones'
-import { PT_CAMPANAS } from './textos/campanas'
-import { PT_COMERCIAL } from './textos/comercial'
+import { AMBITOS_PORTUGUES, DICCIONARIOS, PT_PARCIAL, traducir, type ClaveTexto } from './diccionario'
 import { ConstanciaFirmas } from '@/components/demo/arrendadores/ConstanciaFirmas'
 import { asuntoCorreoReset, htmlCorreoReset, asuntoCorreoInvitacion, htmlCorreoInvitacion } from '@/lib/server/email'
 import { asuntoCorreoPropuesta, htmlCorreoPropuesta } from '@/lib/server/propuesta-correo'
@@ -22,14 +14,16 @@ import { completo } from '@/lib/contrato-documento.datos-prueba'
 //
 //  En una instancia con documentos en `pt` (ADR 0049), los papeles salen en
 //  portugues: constancia de firmas, propuesta imprimible, `/p`, portal,
-//  comprobante y correos. Sus claves viven en `textos/papeles-portugues.ts`
-//  (aparte de los `PT_<AMBITO>` de los lotes, que se traducen en paralelo).
+//  comprobante y correos. P3 escribio sus claves aparte, en
+//  `textos/papeles-portugues.ts`, mientras los lotes traducian en paralelo; la
+//  costura (05/11) vio las 151 en su `PT_<AMBITO>` (gana el lote, con el
+//  glosario comun) y retiro ese archivo.
 //
 //  Lo que se protege:
 //   · que TODA clave de papel tenga portugues escrito (la caida al espanol del
-//     portugues no se nota a simple vista: aqui si);
-//   · la COSTURA con los lotes: si un lote escribe una de estas claves
-//     distinta, rojo;
+//     portugues no se nota a simple vista: aqui si), y en SU `PT_<AMBITO>`;
+//   · el folio: «Nº» en lo que ve el CLIENTE, «Ref. interna» dentro de la app
+//     (decision del dueno, 05/11);
 //   · que es/en/it no cambien: ninguna clave de papel toca esos diccionarios.
 // ============================================================================
 
@@ -48,6 +42,30 @@ const PAPELES: Array<[string, RegExp]> = [
   ['correo diario de contratos', /^notificaciones\.(correo\.|contrato\.)/],
   ['etapas del portal', /^campanas\.etapa\./],
 ]
+
+// Lo que un papel pinta y vive en una clave compartida con la interfaz (los
+// totales, el tipo de medio, la galeria del portal, el folio fiscal…). Es la
+// lista de P3 (`papeles-portugues.ts`) que no cae en ningun patron de arriba.
+const COMPARTIDAS_CON_PAPEL = [
+  'propuestas.comun.sin-cliente', 'propuestas.comun.agencia', 'propuestas.comun.via', 'propuestas.comun.iva',
+  'propuestas.comun.neto', 'propuestas.comun.total', 'propuestas.comun.bruto-lista', 'propuestas.comun.paquete-conjunto',
+  'propuestas.comun.descuento-volumen', 'propuestas.comun.codigo-pct', 'propuestas.ficha.meta.fechas',
+  'propuestas.ficha.meta.anunciante', 'propuestas.ficha.meta.directa', 'propuestas.ficha.meta.comision',
+  'propuestas.ficha.resumen', 'propuestas.ficha.kpi.total', 'propuestas.ficha.total', 'propuestas.ficha.sitios.vacia',
+  'propuestas.ficha.mapa', 'propuestas.condiciones.terminos', 'cuenta.comun.enlace-invalido', 'campanas.evidencia.vacia',
+  'campanas.evidencia.vacia.texto', 'campanas.evidencia.alt', 'campanas.evidencia.foto', 'campanas.evidencia.tomada',
+  'campanas.evidencia.subida', 'comercial.tipo-medio.espectacular', 'comercial.tipo-medio.pantalla-digital',
+  'comercial.tipo-medio.puente-peatonal', 'comercial.tipo-medio.mobiliario-urbano', 'comercial.tipo-medio.mural',
+  'comercial.tipo-medio.valla', 'comercial.tipo-medio.otro', 'finanzas.comun.folio', 'finanzas.comun.folio-fiscal',
+  'finanzas.comun.campana', 'finanzas.comun.la-emite', 'finanzas.comun.total',
+]
+
+/** Todas las claves que pinta un papel: las 151 de P3 y las que sus patrones cubren (169). */
+const CLAVES_DE_PAPEL: string[] = [
+  ...Object.keys(ES).filter((k) => PAPELES.some(([, p]) => p.test(k))),
+  ...COMPARTIDAS_CON_PAPEL,
+]
+const PAPEL_PT = (): Array<[string, string]> => CLAVES_DE_PAPEL.map((k) => [k, (PT_PARCIAL as Record<string, string>)[k]])
 
 describe('P3 · toda clave de papel tiene portugues escrito', () => {
   it.each(PAPELES)('%s', (_n, patron) => {
@@ -80,7 +98,7 @@ describe('P3 · toda clave de papel tiene portugues escrito', () => {
   it('el rol «Dueño» se dice «Titular» (dueno, 05/11): ningun papel dice «Proprietário» por el rol', () => {
     // El contrato dice «proprietário ou possuidor» del INMUEBLE (derecho
     // civil), no el rol de la aplicacion: ese no es el caso.
-    for (const [k, v] of Object.entries(PT_PAPELES)) expect(v, k).not.toMatch(/propriet[aá]ri/i)
+    for (const [k, v] of PAPEL_PT()) expect(v, k).not.toMatch(/propriet[aá]ri/i)
   })
 
   it('las partes de la constancia son las del contrato en portugues', () => {
@@ -90,7 +108,7 @@ describe('P3 · toda clave de papel tiene portugues escrito', () => {
 
   it('cada clave de papel existe en espanol y lleva sus mismos huecos', () => {
     const huecos = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort()
-    for (const [k, v] of Object.entries(PT_PAPELES)) {
+    for (const [k, v] of PAPEL_PT()) {
       expect(ES[k], k).toBeDefined()
       const esperados = k.endsWith('.cero') ? huecos(ES[k]).filter((x) => x !== 'n') : huecos(ES[k])
       expect(huecos(v!).filter((x) => !k.endsWith('.cero') || x !== 'n'), k).toEqual(esperados)
@@ -98,19 +116,26 @@ describe('P3 · toda clave de papel tiene portugues escrito', () => {
   })
 })
 
-describe('P3 · la costura con los lotes', () => {
-  const LOTES: Array<Partial<Record<string, string>>> = [
-    PT_PROPUESTAS, PT_CUENTA, PT_FINANZAS, PT_ARRENDADORES, PT_NOTIFICACIONES, PT_CAMPANAS, PT_COMERCIAL,
-  ]
-  it('si un lote escribe una clave de papel, tiene que decir LO MISMO (o se decide y se quita de aqui)', () => {
-    const choques: string[] = []
-    for (const lote of LOTES) {
-      for (const [k, v] of Object.entries(lote)) {
-        const papel = (PT_PAPELES as Record<string, string>)[k]
-        if (papel !== undefined && v && v !== papel) choques.push(`${k}: lote «${v}» / papel «${papel}»`)
-      }
-    }
-    expect(choques).toEqual([])
+describe('P3 · la costura con los lotes (05/11)', () => {
+  // Hasta la costura, P3 y los lotes escribian estas claves en dos sitios y
+  // una prueba exigia que dijeran lo mismo. Con `papeles-portugues.ts`
+  // retirado, la regla es mas simple y mas fuerte: cada clave de papel esta
+  // en el `PT_<AMBITO>` de su ambito, y en ningun otro sitio.
+  it('cada clave de papel vive en el PT_<AMBITO> de su ambito', () => {
+    const porAmbito = new Map(AMBITOS_PORTUGUES.map((a) => [a.ambito, a.pt as Partial<Record<string, string>>]))
+    const fuera = CLAVES_DE_PAPEL.filter((k) => !porAmbito.get(k.split('.')[0])?.[k])
+    expect(fuera).toEqual([])
+    expect(CLAVES_DE_PAPEL.length).toBe(169)
+  })
+
+  // Decision del dueno (05/11): en lo que ve el CLIENTE el folio es «Nº»
+  // («Proposta Nº P-1»); dentro de la app sigue «Ref. interna».
+  it('el folio: «Nº» en los papeles del cliente, «Ref. interna» dentro de la app', () => {
+    expect(PT['propuestas.correo.folio']).toBe('Nº {folio}')
+    expect(PT['finanzas.comprobante.titulo']).toBe('Comprovante Nº {folio}')
+    expect(PAPEL_PT().filter(([, v]) => /Ref. interna/.test(v)).map(([k]) => k)).toEqual([])
+    expect(PT['propuestas.ficha.folio']).toBe('Ref. interna:')
+    expect(PT['propuestas.tablero.col.folio']).toBe('Ref. interna')
   })
 })
 
@@ -120,7 +145,7 @@ describe('P3 · es/en/it no se tocan', () => {
   // entran en el PORTUGUES: el espanol, el ingles y el italiano de una clave de
   // papel siguen siendo los de su `textos/<ambito>.ts`.
   it('ninguna clave de papel escrita en pt aparece en es/en/it salvo donde la palabra es la misma', () => {
-    const iguales = Object.keys(PT_PAPELES).filter((k) => traducir('es', k as ClaveTexto) === PT[k])
+    const iguales = CLAVES_DE_PAPEL.filter((k) => traducir('es', k as ClaveTexto) === PT[k])
     // Palabras que el portugues escribe igual que el espanol («Total», «IVA»,
     // «Reservada»…): no son una caida, son la misma palabra.
     for (const k of iguales) expect(PT[k], k).toMatch(/^(Total|IVA|Subtotal|Mural|Reservada|Confirmada|Publicada|Anunciante|Para|foto|Navegador: \{navegador\}|Uso: \{uso\}|Total|Contrato vencido: \{contrato\}|\{n\} vencidos?|Código \{codigo\} \(\{pct\}%\)|IVA \{pct\}%)$/)
@@ -179,6 +204,7 @@ describe('P3 · los papeles pintados en portugues', () => {
     )
     expect(html).toContain('Ver a proposta')
     expect(html).toContain('Nº P-1')
+    expect(html).not.toContain('Ref. interna')
   })
 
   it('NEGATIVO · en una instancia espanola los correos siguen siendo los literales de siempre', () => {

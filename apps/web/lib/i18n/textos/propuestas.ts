@@ -1581,19 +1581,20 @@ export const IT_PROPUESTAS: Record<ClavePropuestas, string> = {
 //    · comisión → «comissão» (el italiano eligió «provvigione»); precio /
 //      tarifa de lista → «preço de tabela»; prima → «acréscimo»; salidas /
 //      pases → «inserções»; millar → «milhar»; impactos → «impressões».
-//    · folio → «Ref. interna»; liga → «link»; correo → «e-mail»; cupón →
-//      «código» (de negociação); tentativa → «provisória».
+//    · folio → «Ref. interna» dentro de la app; en los papeles que ve el
+//      CLIENTE (el correo), «Nº» (decision del dueno, 05/11, costura). Liga →
+//      «link»; correo → «e-mail»; cupón → «código» (de negociação);
+//      tentativa → «Pré-reserva» (decision del dueno, 05/11, costura).
 //    · Fechas sin preposición delante («Válida até {fecha}», «Aceita:
 //      {fecha}», «Venceu ({fecha})»): la regla comun del portugues.
 //    · El documento imprimible, la liga `/p` y el correo van en el idioma de
-//      la INSTANCIA (ADR 0049, tarea P3 `feat/portugues-documentos`): sus
-//      claves tambien estan en `papeles-portugues.ts` de esa rama; las
-//      diferencias se anotan en `docs/i18n/revision-portugues-l2.md` para la
-//      costura.
+//      la INSTANCIA (ADR 0049, tarea P3). P3 los escribio aparte, en
+//      `papeles-portugues.ts`; la costura (05/11) los dejo aqui solos (gana el
+//      lote) y retiro ese archivo. Los vigila `papeles-portugues.test.ts`.
 export const PT_PROPUESTAS: Record<ClavePropuestas, string> = {
   // ── ADR 0049 · los correos (idioma de los DOCUMENTOS de la instancia) ──
   'propuestas.correo.asunto': 'Proposta comercial: {nombre} · {org}',
-  'propuestas.correo.folio': 'Ref. interna {folio}',
+  'propuestas.correo.folio': 'Nº {folio}',
   'propuestas.correo.cuerpo':
     'Compartilhamos com você a nossa proposta comercial. No link você pode revisar os pontos, as datas, os valores e os termos, e aceitá-la se estiver de acordo.',
   'propuestas.correo.boton': 'Ver a proposta',

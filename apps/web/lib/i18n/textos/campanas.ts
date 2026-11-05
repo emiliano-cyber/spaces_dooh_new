@@ -1413,11 +1413,12 @@ export const IT_CAMPANAS: Record<ClaveCampanas, string> = {
 // enviar al dominio → enviar para publicação (como el ingles y el italiano) ·
 // medio (el que vende) → veículo · reporte de cumplimiento → relatório de
 // veiculação · reproducción → exibição · reanudar → retomar · bajar un
-// creativo → remover · tentativa → provisória · DOOHmain es masculino («no
-// DOOHmain», «ao DOOHmain»). Las etapas del pipeline y la galeria de
-// evidencias son tambien papel (el portal): su texto es el de
-// `papeles-portugues.ts` (rama `feat/portugues-documentos`), salvo dos claves
-// de la galeria que siguen el glosario («comprovação»; ver la revision).
+// creativo → remover · tentativa → «Pré-reserva» (decision del dueno, 05/11,
+// costura) · DOOHmain es masculino («no DOOHmain», «ao DOOHmain»). Las etapas
+// del pipeline y la galeria de evidencias son tambien papel (el portal): P3
+// las escribio aparte (`papeles-portugues.ts`, retirado en la costura) y aqui
+// van iguales, salvo dos claves de la galeria que siguen el glosario
+// («comprovação»): gana el lote.
 export const PT_CAMPANAS: Record<ClaveCampanas, string> = {
   // ── Comun ──
   'campanas.comun.campana': 'Campanha',

@@ -322,6 +322,9 @@ const SIN_TERMINO: Record<string, string> = {
   'propuestas.ficha.tabla.sin-contrato': '«contrato de renta» es «contrato de locação»: «aluguel» sobraria',
   'propuestas.tablero.sin-costo.uno': '«contrato de renta vigente» → «contrato de locação vigente»',
   'propuestas.tablero.sin-costo.otros': '«contrato de renta vigente» → «contrato de locação vigente»',
+  // Costura (05/11), decision del dueno: en los papeles que ve el CLIENTE el
+  // folio es «Nº» (el correo: «Nº P-1»); «Ref. interna» es solo dentro de la app.
+  'propuestas.correo.folio': 'papel del cliente: «Nº {folio}», decision del dueno del 05/11',
 }
 
 describe('portugues L2 · el glosario, obedecido', () => {

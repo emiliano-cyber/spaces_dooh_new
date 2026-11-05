@@ -1611,10 +1611,9 @@ export const IT_ARRENDADORES: Record<ClaveArrendadores, string> = {
 // interna») · sello → selo · P&L → DRE · régimen fiscal → regime tributário.
 // Ninguna fecha con preposición delante: «Vence: {fecha}», «Pago: {fecha}».
 //
-// La CONSTANCIA (`arrendadores.constancia.*`) es un papel: la escribe tambien
-// `textos/papeles-portugues.ts` (rama `feat/portugues-documentos`, tarea P3).
-// Aqui va IGUAL que alli, salvo `.intro`, que alli dice «selado em {fecha}» y
-// choca con la regla comun de la fecha en hueco; la costura decide.
+// La CONSTANCIA (`arrendadores.constancia.*`) es un papel (tarea P3). P3 la
+// escribio aparte, en `papeles-portugues.ts`, con el mismo texto que aqui; la
+// costura (05/11) retiro ese archivo y la constancia vive solo aqui.
 export const PT_ARRENDADORES: Record<ClaveArrendadores, string> = {
   // ── Comum ──
   'arrendadores.titulo': 'Locadores',
@@ -2057,7 +2056,7 @@ export const PT_ARRENDADORES: Record<ClaveArrendadores, string> = {
   'arrendadores.revision.corregir': 'Corrigir antes',
 
   // ── O comprovante de assinatura eletrônica (`ConstanciaFirmas.tsx`) ──
-  // Igual que `papeles-portugues.ts` (P3), salvo `.intro` (ver la cabecera).
+  // Un papel (P3): lo vigila `papeles-portugues.test.ts`.
   'arrendadores.constancia.titulo': 'Comprovante de assinatura eletrônica',
   'arrendadores.constancia.alerta':
     'ATENÇÃO: o contrato foi modificado depois de assinado. As assinaturas marcadas abaixo não correspondem ao texto deste documento e não devem ser consideradas válidas.',

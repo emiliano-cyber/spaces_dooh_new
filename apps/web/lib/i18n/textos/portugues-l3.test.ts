@@ -221,9 +221,10 @@ describe('portugues L3 · el glosario propio del lote', () => {
   it('ni «arrendador» ni «renta» ni «predio» (locador, aluguel, imovel)', () => {
     expect(todo.filter(([, v]) => /arrendador|\brentas?\b|\bpredios?\b/i.test(sinHuecos(v))).map(([k, v]) => `${k}: ${v}`)).toEqual([])
   })
-  it('la constancia es un papel: igual que `papeles-portugues.ts` (P3), salvo la intro (la fecha en hueco)', () => {
-    // Copia de `feat/portugues-documentos` (8ff73e17). Si un lado cambia, la
-    // costura lo ve en `papeles-portugues.test.ts`; aqui se fija lo nuestro.
+  it('la constancia es un papel (P3): las partes del contrato y la intro sin fecha en hueco', () => {
+    // P3 la escribio tambien en `papeles-portugues.ts`; la costura (05/11)
+    // retiro ese archivo y la constancia vive solo aqui. Los papeles los
+    // vigila `papeles-portugues.test.ts`; aqui se fija lo nuestro.
     expect(PT_ARRENDADORES['arrendadores.constancia.titulo']).toBe('Comprovante de assinatura eletrônica')
     expect(PT_ARRENDADORES['arrendadores.constancia.parte.arrendador']).toBe('O LOCADOR')
     expect(PT_ARRENDADORES['arrendadores.constancia.parte.arrendatario']).toBe('O LOCATÁRIO')

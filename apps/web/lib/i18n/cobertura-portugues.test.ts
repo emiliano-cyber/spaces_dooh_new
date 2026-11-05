@@ -1,4 +1,3 @@
-import { PT_PAPELES } from './textos/papeles-portugues'
 import { describe, it, expect } from 'vitest'
 import { CLAVES, DICCIONARIOS, AMBITOS_PORTUGUES, PT_PARCIAL, conCaidaAlEspanol, traducir } from './diccionario'
 import { CATALOGO_ERRORES_PT, PATRONES_ERROR } from './errores-servidor'
@@ -66,37 +65,26 @@ describe('cobertura del portugues', () => {
     expect(clavesBasePortugues()).toContain('idioma.pt')
   })
 
-  // Lote L5 (05/11): sus once filas, sin pendientes. Las de los otros lotes no
-  // se fijan aqui: las cierra cada lote.
-  const FILAS_L5 = [
-    'base (diccionario.ts)',
-    'compartidos',
-    'admin',
-    'cuenta',
-    'shell',
-    'servidor',
-    'notificaciones',
-    'errores · catalogo',
-    'errores · campos',
-    'errores · firma',
-    'errores · patrones',
-  ]
-  it('el lote L5 (armazon, cuenta, administracion, compartidos y servidor) no tiene pendientes', () => {
-    const delLote = filas.filter((f) => FILAS_L5.includes(f.ambito))
-    expect(delLote.map((f) => f.ambito).sort()).toEqual([...FILAS_L5].sort())
-    for (const f of delLote) expect(f.pendientes, f.ambito).toBe(0)
+  // La costura (05/11): con los cinco lotes integrados, NINGUNA fila tiene
+  // pendientes. Sustituye a las pruebas de transicion (las once filas del L5
+  // y «fuera del L5, solo lo de los papeles»). Es la medida que manda el
+  // tablero antes de encender `IDIOMA_PORTUGUES`: con la caida al espanol,
+  // una clave sin portugues no se nota en la pantalla, y solo esto la ve.
+  it('COSTURA · los cinco lotes cerrados: 0 pendientes en TODAS las filas', () => {
+    const conPendientes = filas.filter((f) => f.pendientes > 0).map((f) => `${f.ambito}: ${f.pendientes}`)
+    expect(conPendientes).toEqual([])
+    // Y que mire algo: las 21 filas de ambito, la base y las cuatro de errores.
+    expect(filas.length).toBe(AMBITOS_PORTUGUES.length + 5)
+    expect(filas.reduce((a, f) => a + f.traducidas, 0)).toBeGreaterThan(5900)
   })
 
-  it('P3 (05/11): fuera del L5, lo traducido es exactamente lo de los PAPELES', () => {
-    // Al integrar P3 con el L5 (05/11): las filas del L5 ya estan completas;
-    // en las demas solo hay lo que P3 escribio, hasta que cierre su lote.
-    // Lo traducido de cada ambito es exactamente lo que P3 escribio para los
-    // papeles (`textos/papeles-portugues.ts`); el resto lo traducen los lotes.
-    const dePapel = (ambito: string) => Object.keys(PT_PAPELES).filter((k) => k.split('.')[0] === ambito).length
-    for (const f of filas.filter((x) => !FILAS_L5.includes(x.ambito))) {
-      expect(f.traducidas, f.ambito).toBe(dePapel(f.ambito))
+  it('COSTURA · cada ambito se cubre con SU PT_<AMBITO>, no con lo escrito en otro sitio', () => {
+    // Entre P3 y la costura, `papeles-portugues.ts` tapaba 151 claves de siete
+    // ambitos: una fila podia salir completa sin que su lote las tuviera.
+    for (const a of AMBITOS_PORTUGUES) {
+      const faltan = Object.keys(a.es).filter((k) => !a.pt[k])
+      expect(faltan, a.ambito).toEqual([])
     }
-    expect(Object.keys(PT_PAPELES).length).toBeGreaterThan(150)
   })
 
   it('el portugues escrito esta bien formado', () => {

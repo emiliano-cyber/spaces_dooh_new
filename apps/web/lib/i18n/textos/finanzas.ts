@@ -628,9 +628,10 @@ export const IT_FINANZAS: Record<ClaveFinanzas, string> = {
 // Finanzas: cuota → parcela · al corriente → em dia · cargo/abono del extrato →
 // Débito/Crédito · folio de una factura → «Nº da fatura» (como el ingles
 // «Invoice no.») · las cuotas quincenales → «duas por mês» (el glosario
-// prohibe «quinzenal»). El comprobante es un papel: su texto es el de
-// `papeles-portugues.ts` (rama `feat/portugues-documentos`), salvo
-// `finanzas.comun.folio` (alli «Número»; ver la revision del lote).
+// prohibe «quinzenal»). El comprobante es un papel que ve el CLIENTE: su
+// folio es «Nº» («Comprovante Nº {folio}», decision del dueno del 05/11,
+// costura). P3 lo escribio aparte (`papeles-portugues.ts`, retirado en la
+// costura): gana el lote.
 export const PT_FINANZAS: Record<ClaveFinanzas, string> = {
   // ── Comun ──
   'finanzas.comun.ver-menos': 'Ver menos',
@@ -818,8 +819,8 @@ export const PT_FINANZAS: Record<ClaveFinanzas, string> = {
   'finanzas.periodo.sin-fecha':
     '{monto} do recebido são pagamentos de antes de o sistema registrar a data de cada pagamento: receberam a data da fatura correspondente, então o mês deles é aproximado.',
 
-  // ── Comprobante de una factura (el papel: `papeles-portugues.ts`) ──
-  'finanzas.comprobante.titulo': 'Comprovante {folio}',
+  // ── Comprobante de una factura (un papel que ve el cliente: folio = «Nº») ──
+  'finanzas.comprobante.titulo': 'Comprovante Nº {folio}',
   'finanzas.comprobante.cerrar': 'Fechar',
   'finanzas.comprobante.imprimir': 'Imprimir',
   'finanzas.comprobante.la-recibe': 'Destinatário',
