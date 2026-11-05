@@ -544,7 +544,8 @@ Droplet nuevo `gh500` (Ubuntu 24.04, 2 GB, NYC1, IP `159.65.221.205`; llave SSH 
 | §3.2 Space Eyes | 5 contenedores Up, `eyes 401` (vivo), MySQL 8.0.46 `ready` sin `[ERROR]`, MediaMTX con la IP nueva. `commands` 3114 vs 3095: los 19 de más los creó la API nueva al arrancar (05/11 01:43:00–01:43:13 UTC, fotos programadas y vivo, `pending`, caducan a los 10 min); el resto, idéntico |
 | §3.3 app | `version 200`, `metodos 200`, `app->eyes 401`, Node `v22.23.4`, 1,1 GB disponibles |
 
-**Falta (la persona):** §4.1 comprobación por HTTPS con `--resolve` · §4.2 **cambiar el A de `g500` en Cloudflare a `159.65.221.205`** · §4.3 prueba real (DOOHmain, Space Eyes en línea, foto y vivo) · §4.4 cron + **respaldo diario** + actualizadores · §4.5 certificado nuevo · §4.6 retirar la llave efímera y apagar el viejo · TTL a Auto al día siguiente.
+**§4.1 hecho (04/11):** `app 200` y `login-post 401` por HTTPS contra `159.65.221.205` con `--resolve`.
+**Falta (la persona, el 05/11):** §4.2 **cambiar el A de `g500` en Cloudflare a `159.65.221.205`** · §4.3 prueba real (DOOHmain, Space Eyes en línea, foto y vivo) · §4.4 cron + **respaldo diario** + actualizadores · §4.5 certificado nuevo · §4.6 retirar la llave efímera y apagar el viejo · TTL a Auto al día siguiente.
 
 **Tropiezos de la guía corregidos sobre la marcha:** `!~` en las consultas de roles (bash lo tomaba como historial: `not (… ~ …)`) y `relkind||` ambiguo en PG16 (`relkind::text`). Dos bloques se pegaron en el droplet equivocado sin daño: conviene mirar el prompt (`root@g500` vs `root@gh500`) antes de cada pegado.
 ## 4 · Comprobar, mover el DNS y probar de verdad
