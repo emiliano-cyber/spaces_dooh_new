@@ -10,6 +10,10 @@ import { MONEDAS, fijarMonedaInstancia } from './dinero'
 import { leerDinero } from './simbolo-en-pantalla'
 import { huellasEnItaliano } from './guardias-italiano'
 import { fugasItaliano, legible, copiasDeOtroIdioma, IGUALES_A_PROPOSITO_L4, reglasDelItaliano, palabrasEspanolas } from '../test/barrido-italiano-l4'
+import { huellasEnPortugues } from './guardias-portugues'
+import { culpablesEnItaliano } from '../test/barrido-italiano'
+import { espanolPendienteDeOtrosLotes } from '../test/barrido-portugues'
+import { palabrasEspanolasEnPortugues } from '../test/barrido-portugues-l4'
 
 // ============================================================================
 //  I18N · LOTE «REPORTES» (`/reportes`), RENDIDO EN LOS DOS IDIOMAS.
@@ -525,3 +529,49 @@ describe('lote REPORTES · reglas del italiano (validacion del L4)', () => {
 
 // Datos de prueba (nombres en espanol) que la guardia de palabras no mira.
 const AJENOS_IT: string[] = []
+
+// ─── PORTUGUES · lote L4 (2026-11-05) ───────────────────────────────────────
+//
+// Los mismos estados en portugues, con el barrido del L5 (frases espanolas e
+// inglesas del lote, quitando el espanol pendiente de otros lotes), palabras
+// espanolas sueltas y formatos ajenos. Las NOTAS del motor se vuelven a armar
+// en el idioma de la pantalla desde sus numeros, asi que el barrido las cubre.
+describe('lote REPORTES · en PORTUGUES', () => {
+  async function diccionarios() {
+    const { PT_REPORTES } = await import('./textos/reportes')
+    return { es: ES_REPORTES, en: EN_REPORTES, it: PT_REPORTES as Partial<Record<string, string>> }
+  }
+
+  for (const e of ESTADOS) {
+    it(`barrido y formatos · ${e.nombre}`, async () => {
+      forzado.cola = []
+      const crudo = (await e.pintar('pt')).replace(/ value="[^"]*"/g, '')
+      expect(culpablesEnItaliano(crudo, await diccionarios(), { minimo: 5, ignorar: espanolPendienteDeOtrosLotes() })).toEqual([])
+      expect(palabrasEspanolasEnPortugues(crudo, ['Medios del Norte SA'])).toEqual([]) // dato de prueba
+      expect(huellasEnPortugues(crudo)).toEqual([])
+    })
+  }
+
+  it('frases portuguesas a la vista', async () => {
+    forzado.cola = []
+    const html = texto(await ESTADOS[0].pintar('pt'))
+    expect(['Relatórios de rentabilidade', 'Indicadores do período', 'Por ponto'].filter((f) => !html.includes(f))).toEqual([])
+  })
+
+  afterEach(() => fijarMonedaInstancia('MXN'))
+  const vistos: Record<string, number> = {}
+  for (const moneda of MONEDAS) {
+    ESTADOS.forEach((e) => {
+      it(`${moneda} · pt · ${e.nombre}`, async () => {
+        forzado.cola = []
+        fijarMonedaInstancia(moneda)
+        const { importes, ajenos } = leerDinero(texto(await e.pintar('pt')), 'pt', moneda)
+        vistos[moneda] = (vistos[moneda] ?? 0) + importes
+        expect(ajenos).toEqual([])
+      })
+    })
+    it(`${moneda} · pt · el arnes encontro importes que mirar`, () => {
+      expect(vistos[moneda] ?? 0).toBeGreaterThan(0)
+    })
+  }
+})
