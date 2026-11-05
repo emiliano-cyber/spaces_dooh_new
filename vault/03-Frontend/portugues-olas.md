@@ -19,6 +19,8 @@ archivos:
   - apps/web/components/demo/admin/IdiomaCuenta.tsx
   - docs/i18n/revision-portugues-base.md
   - docs/i18n/revision-portugues-l5.md
+  - docs/i18n/revision-portugues-l3.md
+  - apps/web/lib/i18n/textos/portugues-l3.test.ts
   - apps/web/lib/i18n/textos/portugues-l5.test.ts
   - apps/web/lib/test/barrido-portugues.ts
 ---
@@ -86,6 +88,7 @@ toca **solo sus archivos** de `textos/` (y el L5, además, la base de
 | Lote | Rama | Estado | Cobertura de sus filas |
 |---|---|---|---|
 | **L5** | `feat/portugues-l5-armazon` | **Validación ÁMBAR, corregida; pendiente de revalidar** (05/11) | **1346/1346, 0 pendientes** (base 119 · compartidos 113 · shell 59 · cuenta 125 · admin 542 · notificaciones 47 · servidor 32 · errores 205 + 30 + 12 + 62) |
+| **L3** | `feat/portugues-l3-inventario` | **Hecho, sin validar** (05/11) | **1186/1186, 0 pendientes** (inventario 360 · arrendadores 444 · operaciones 177 · operaciones2 205) |
 
 ### Lote L5 · Armazón, cuenta, administración, compartidos y servidor
 
@@ -121,6 +124,55 @@ pendiente de revalidar** (revisión §11). Revisión clave por clave en
   captura (`compartidos.cifra.*`), que hoy dicen la verdad mexicana y
   reescribirá `feat/portugues-cifras` con el texto que deja propuesto la
   revisión §3.
+
+### Lote L3 · Inventario, arrendadores y operaciones
+
+Rama `feat/portugues-l3-inventario` (sale de `integra/portugues`, `72b33050`).
+**Hecho, sin validar** (05/11). Revisión clave por clave en
+`docs/i18n/revision-portugues-l3.md`.
+
+- **1186 claves**: `operaciones` 177, `operaciones2` 205, `inventario` 360 y
+  `arrendadores` 444 (con la constancia de firmas); los cuatro `PT_*` ya son
+  `Record`. Un solo componente tocado: el `alt` de la vista previa del alta
+  manual (`NuevaPantallaForm.tsx`) sale del diccionario también en portugués.
+- **La constancia** (`arrendadores.constancia.*`) es un papel y también la
+  escribe `papeles-portugues.ts` (P3, `feat/portugues-documentos`): aquí va
+  igual salvo `.intro` («selado em {fecha}» rompe la regla de la fecha en
+  hueco). **Para la costura.** `importeDeRevision` (`PanelFirmas.tsx`) no se
+  tocó: lo corrige la rama de los documentos.
+- **Pruebas:** estática `textos/portugues-l3.test.ts` (rojo primero, 8/22) con
+  los huecos de fecha del lote y el glosario; estados portugueses en
+  `pantallas-operaciones`, `-operaciones2` y `-inventario-arrendadores`
+  (barrido + `huellasEnPortugues` + frases), el dinero de la OT en portugués y
+  el `alt`. es/en/it idénticos (diccionarios y volcado de toda la suite);
+  12/12 mutantes muertos. Espejo: las 81 huellas de siempre (el documento del
+  contrato y «Mozilla/5.0»), ninguna del lote.
+- **Glosario propio** (además del común, §2 bis):
+
+  | Español | pt-BR | Por qué |
+  |---|---|---|
+  | pantalla (inventario) | **ponto** (masc.: «livre», «ocupado», «{n} selecionados») | §2 bis |
+  | espectacular | **Painel** | propuesta del validador del L5 |
+  | valla | **Outdoor** | el cartel de papel brasileño ES la valla mexicana (*Poster panel*) |
+  | muro · puente | **Empena · Passarela** | |
+  | artículo del almacén «Pantalla» | **Tela** | un aparato, no un ponto |
+  | propia | **própria / próprio** | |
+  | alta manual · carga masiva · plantilla | **cadastro manual · importação em massa · modelo** | |
+  | etiqueta del almacén · baja | **plaqueta / número de patrimônio · baixado** | |
+  | montaje | **instalação** | |
+  | cerrar una OS | **encerrar** | «fechar» es la ventana |
+  | candado de facturación | **bloqueio de faturamento** («mantêm o faturamento bloqueado») | H6 del italiano: no calcar «candado» |
+  | sello de ubicación · fotografía comprobatoria | **carimbo de localização · foto de comprovação** | |
+  | creativo | **criativo** (masc.) | |
+  | arrendataria (nuestra) | **locatária** (en la constancia, **O LOCATÁRIO**, como P3) | |
+  | emplazamiento · cuadre · depósito | **local · conciliação · caução** | |
+  | incidencia · reportar | **ocorrência · registrar** | |
+  | licencia municipal · permiso · dictamen estructural | **alvará municipal · licença · laudo estrutural** | |
+  | folio de una licencia | **Número** | el de la autoridad, no nuestra «Ref. interna» |
+  | domicilio | **endereço** | |
+  | efectivo · tarjeta | **dinheiro · cartão** | |
+  | firma autógrafa | **assinatura de próprio punho** | |
+  | distrito / alcaldía | **Bairro / região** | |
 
 > [!tip] El glosario se fija ANTES de repartir
 > Como en el italiano: `compartidos` (L5) fija las palabras que usan todos
@@ -274,7 +326,7 @@ a `IDIOMAS`, añade `--idioma pt` y escribe los papeles.
 ## 4 · Antes de encender `IDIOMA_PORTUGUES`
 
 - [ ] Los cinco lotes en **VERDE**, con su tipo `PT_<AMBITO>` ya en `Record` completo
-- [ ] `coberturaPortugues()` con **0 pendientes** en todas las filas (hoy, 4597 con L5 hecho; eran 5937)
+- [ ] `coberturaPortugues()` con **0 pendientes** en todas las filas (hoy, 3411 con L5 y L3 hechos en la rama de L3; 4597 con L5 solo; eran 5937)
 - [ ] El espejo (`I18N_VOLCAR_PT`) sin hallazgos de formato (hoy, §5)
 - [ ] La costura extendida al portugués, en verde
 - [x] P1 y P2 contestadas por el dueño (05/11)
