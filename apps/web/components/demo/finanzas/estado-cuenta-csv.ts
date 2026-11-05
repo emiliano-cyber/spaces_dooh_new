@@ -14,14 +14,14 @@ import type { Idioma } from '@/lib/i18n/idiomas'
 //      un apóstrofo (como `lib/contratos-export.ts` y `lib/inventario-export.ts`).
 //      Los importes son números y no pasan por aquí: un saldo negativo tiene que
 //      llegar como número negativo, no como texto.
-//    · el separador (la coma, o el «;» del italiano), las comillas y los saltos
+//    · el separador (la coma, o el «;» del italiano y el portugues), las comillas y los saltos
 //      de línea van entre comillas dobles.
 // ============================================================================
 
 const PELIGROSO = /^[=+\-@\t\r]/
 
 // `sep` es el separador de campos: la coma de siempre o el punto y coma del
-// italiano (abajo). Un texto que lo contenga va entre comillas.
+// italiano y del portugues (abajo). Un texto que lo contenga va entre comillas.
 function texto(v: string, sep: ',' | ';' = ','): string {
   const seguro = PELIGROSO.test(v) ? `'${v}` : v
   const especial = sep === ',' ? /[",\n\r]/ : /[";\n\r]/
@@ -50,12 +50,17 @@ export function csvEstadoCuenta(
   //    columna y lee «5000.5» como texto. El importe sigue siendo un NUMERO
   //    (sin miles ni simbolo) y la defensa contra formulas no cambia. Espanol
   //    e ingles, byte a byte los de antes.
+  //  · En PORTUGUES (lote L4, 2026-11-05; H4 de la validacion de la ola 0),
+  //    lo mismo que en italiano: una Excel brasilena tambien espera «;» y coma
+  //    decimal. No se lee de `comaDecimal()` (`lib/captura-cifra.ts`): esa es
+  //    la CAPTURA de cifras, que en portugues sigue a la mexicana hasta la
+  //    tarea roja P2; esto es el archivo que abre la Excel de quien lo baja.
   const t = (k: ClaveTexto, v?: Record<string, string>) => traducir(idioma, k, v)
   const es = idioma === 'es'
-  const italiano = idioma === 'it'
-  const sep = italiano ? ';' : ','
+  const excelConComa = idioma === 'it' || idioma === 'pt'
+  const sep = excelConComa ? ';' : ','
   const tx = (v: string) => texto(v, sep)
-  const num = (v: number) => (italiano ? String(v).replace('.', ',') : String(v))
+  const num = (v: number) => (excelConComa ? String(v).replace('.', ',') : String(v))
   const fecha = (iso: string) =>
     es ? iso : tx(formatearFecha(iso, idioma, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }))
   // En espanol nunca lleva moneda: es el encabezado de siempre.

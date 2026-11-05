@@ -10,6 +10,10 @@ import { MONEDAS, fijarMonedaInstancia } from './dinero'
 import { leerDinero } from './simbolo-en-pantalla'
 import { huellasEnItaliano } from './guardias-italiano'
 import { fugasItaliano, legible, copiasDeOtroIdioma, IGUALES_A_PROPOSITO_L4, reglasDelItaliano, palabrasEspanolas } from '../test/barrido-italiano-l4'
+import { huellasEnPortugues } from './guardias-portugues'
+import { culpablesEnItaliano } from '../test/barrido-italiano'
+import { espanolPendienteDeOtrosLotes } from '../test/barrido-portugues'
+import { palabrasEspanolasEnPortugues } from '../test/barrido-portugues-l4'
 
 // ============================================================================
 //  I18N · LOTE «CAMPANAS Y FINANZAS», RENDIDO DE VERDAD EN LOS DOS IDIOMAS.
@@ -1352,4 +1356,74 @@ describe('lote CAMPANAS y FINANZAS · frases corregidas por la validacion del L4
     expect(traducir('it', 'campanas.ficha.candado')).toBe('Blocco fatturazione')
     expect(traducir('it', 'campanas.kpi.listas.sub')).toBe('fatturazione sbloccata')
   })
+})
+
+// ─── PORTUGUES · lote L4 (2026-11-05) ───────────────────────────────────────
+//
+// Las mismas pantallas en portugues, con el barrido del L5: ni una frase
+// espanola ni inglesa de los DOS diccionarios del lote (quitando el espanol
+// pendiente de otros lotes), ni palabras espanolas sueltas, ni un formato
+// ajeno; y el dinero con el simbolo portugues de la instancia.
+describe('lote CAMPANAS y FINANZAS · en PORTUGUES', () => {
+  const AJENOS = ['Pantalla Reforma', 'Pantalla Sur', 'Pantalla Norte', 'Pantalla Oriente', 'Campaña Verano', 'Telco Andina',
+    'Refrescos del Norte', 'Refrescos SA', 'Arte 1', 'Arte 2', 'Mañana', 'Tarde', 'Lanzamiento', 'Otoño', 'Cuauhtémoc']
+  // El ejemplo del formato que se TECLEA: en portugues la captura sigue a la
+  // mexicana hasta la tarea roja P2 (`feat/portugues-cifras`), y el aviso lo
+  // dice con su ejemplo. Y el folio del tramo de una extension, un dato.
+  const PERMITIDOS: Record<string, RegExp[]> = {
+    'candado con el monto ilegible': [/^212,500\.50$/],
+    'extensiones con contrato': [/^0001\.1$/],
+  }
+  async function diccionarios() {
+    const { ES_CAMPANAS, EN_CAMPANAS, PT_CAMPANAS } = await import('./textos/campanas')
+    const { ES_FINANZAS, EN_FINANZAS, PT_FINANZAS } = await import('./textos/finanzas')
+    return {
+      es: { ...ES_CAMPANAS, ...ES_FINANZAS },
+      en: { ...EN_CAMPANAS, ...EN_FINANZAS },
+      it: { ...PT_CAMPANAS, ...PT_FINANZAS } as Partial<Record<string, string>>,
+    }
+  }
+
+  for (const p of PANTALLAS) {
+    it(`barrido y formatos · ${p.nombre}`, async () => {
+      reiniciar()
+      const crudo = await p.pintar('pt')
+      expect(culpablesEnItaliano(crudo, await diccionarios(), { ignorar: [...AJENOS, ...espanolPendienteDeOtrosLotes()] })).toEqual([])
+      expect(palabrasEspanolasEnPortugues(crudo, AJENOS)).toEqual([])
+      expect(huellasEnPortugues(crudo, { permitidos: PERMITIDOS[p.nombre] })).toEqual([])
+    })
+  }
+
+  it('frases portuguesas a la vista', async () => {
+    const vistas: [string, string[]][] = [
+      ['lista de campanas', ['Campanhas', 'Prontas para faturar']],
+      ['candado con el monto ilegible', ['O valor não foi entendido: a vírgula separa os milhares e o ponto, os decimais (212,500.50).']],
+      ['generar factura en parcialidades', ['Cobrar em parcelas']],
+      ['estado de cuenta sin movimientos, con un rango a mano', ['Nenhuma fatura nem pagamento de 5 de jan. de 2026 a 9 de mar. de 2026.']],
+    ]
+    const faltan: string[] = []
+    for (const [nombre, frases] of vistas) {
+      reiniciar()
+      const html = texto(await PANTALLAS.find((p) => p.nombre === nombre)!.pintar('pt'))
+      faltan.push(...frases.filter((f) => !html.includes(f)).map((f) => `${nombre} · ${f}`))
+    }
+    expect(faltan).toEqual([])
+  })
+
+  afterEach(() => fijarMonedaInstancia('MXN'))
+  const vistos: Record<string, number> = {}
+  for (const moneda of MONEDAS) {
+    PANTALLAS.forEach((p) => {
+      it(`${moneda} · pt · ${p.nombre}`, async () => {
+        reiniciar()
+        fijarMonedaInstancia(moneda)
+        const { importes, ajenos } = leerDinero(texto(await p.pintar('pt')), 'pt', moneda)
+        vistos[moneda] = (vistos[moneda] ?? 0) + importes
+        expect(ajenos).toEqual([])
+      })
+    })
+    it(`${moneda} · pt · el arnes encontro importes que mirar`, () => {
+      expect(vistos[moneda] ?? 0).toBeGreaterThan(0)
+    })
+  }
 })

@@ -29,6 +29,9 @@ archivos:
   - apps/web/lib/test/barrido-portugues.ts
   - docs/i18n/revision-portugues-l2.md
   - apps/web/lib/i18n/textos/portugues-l2.test.ts
+  - docs/i18n/revision-portugues-l4.md
+  - apps/web/lib/i18n/textos/portugues-l4.test.ts
+  - apps/web/lib/test/barrido-portugues-l4.ts
 ---
 
 # La versión en portugués (Brasil), ola por ola
@@ -92,11 +95,13 @@ toca **solo sus archivos** de `textos/` (y el L5, además, la base de
 | **L4 · Campañas, finanzas, clientes, reportes y Dashboard** | `campanas` 396 · `finanzas` 170 · `clientes` 220 · `reportes` 148 · `inicio` 148 | **1082** |
 | **L5 · Armazón, cuenta, administración y servidor** | base de `diccionario.ts` 113 (de 119; el selector ya está) · `shell` 59 · `cuenta` 125 · `admin` 542 · `compartidos` 113 · `notificaciones` 47 · `servidor` 32 · errores del servidor 309 (catálogo 205, campos 30, firma 12, patrones 62) | **1340** |
 | | **Total pendiente** | **5937** |
+
 | Lote | Rama | Estado | Cobertura de sus filas |
 |---|---|---|---|
 | **L2** | `feat/portugues-l2-comercial` | **VERDE** (05/11, `docs/i18n/validacion-portugues-l2.md`); hallazgos bajos H2–H6 corregidos; la costura con P3 (H1) va al integrar | **1201/1201, 0 pendientes** (comercial 502 · codigos 59 · propuestas 446 · catalogos 194) |
 | **L5** | `feat/portugues-l5-armazon` | **Validación ÁMBAR, corregida; pendiente de revalidar** (05/11) | **1346/1346, 0 pendientes** (base 119 · compartidos 113 · shell 59 · cuenta 125 · admin 542 · notificaciones 47 · servidor 32 · errores 205 + 30 + 12 + 62) |
 | **L3** | `feat/portugues-l3-inventario` | **Validación ÁMBAR, corregida; pendiente de revalidar** (05/11) | **1186/1186, 0 pendientes** (inventario 360 · arrendadores 444 · operaciones 177 · operaciones2 205) |
+| **L4** | `feat/portugues-l4-campanas` | **Validación ÁMBAR leve, corregida; pendiente de revalidar** (05/11) | **1082/1082, 0 pendientes** (campanas 396 · finanzas 170 · clientes 220 · reportes 148 · inicio 148) |
 
 ### Lote L5 · Armazón, cuenta, administración, compartidos y servidor
 
@@ -222,6 +227,52 @@ pendiente de revalidar** (revisión §11: H1 el candado ABIERTO al cerrar la OS 
   | efectivo · tarjeta | **dinheiro · cartão** | |
   | firma autógrafa | **assinatura de próprio punho** | |
   | distrito / alcaldía | **Bairro / região** | |
+
+### Lote L4 · Campañas, finanzas, clientes, reportes y Dashboard
+
+Rama `feat/portugues-l4-campanas` (sale de `integra/portugues`, `72b33050`).
+**Validación ÁMBAR leve (`docs/i18n/validacion-portugues-l4.md`), corregida el 05/11, pendiente de revalidar** (revisión §11). Revisión clave por clave en
+`docs/i18n/revision-portugues-l4.md`.
+
+- **1082 claves**: los cinco `PT_*` del lote ya son `Record`. Lo que falta del
+  portugués baja a 3515 pendientes (de L1–L3), medido en esta rama.
+- **El CSV del estado de cuenta** sale en portugués con «;» y coma decimal,
+  como el italiano (H4 de la validación de la ola 0); es/en/it byte a byte.
+- **Pruebas:** estática `textos/portugues-l4.test.ts` (rojo primero, 10/37:
+  copias, plurales, huecos, fechas con preposición, palabras que solo existen
+  en español y el glosario común: OS, PC, ocorrência, Titular); estados
+  portugueses en las cuatro `pantallas-*` del lote con el barrido del L5 y una
+  guardia nueva de palabras españolas sueltas (`lib/test/barrido-portugues-l4.ts`).
+- **es/en/it idénticos** (diccionarios byte a byte y volcado de toda la suite:
+  0 HTML distintos). **Espejo:** 0 huellas en las pantallas del lote.
+- **Diseño del Dashboard intacto:** solo textos; la instantánea española, en
+  verde.
+
+Glosario propio (lo que §2 bis no traía): ingreso → **receita** · margen bruto
+/ neto → **margem bruta / líquido** · tarifa publicada o de lista → **tarifa de
+tabela** · cuota → **parcela** («{n} parcelas, duas por mês»; mensais,
+bimestrais…) · al corriente → **Em dia** · vencido al corte → **Vencido até {fecha}** · timbrado (CFDI) → **timbrado** · cargo / abono del extrato →
+**Débito / Crédito** · folio de una factura → **Nº da fatura** · nombre
+comercial → **nome fantasia** · tasa de cierre → **taxa de fechamento** · hueco
+→ **espaço livre** · tentativa → **Provisória** · el medio → **veículo** ·
+reporte de cumplimiento → **relatório de veiculação** · reproducción →
+**exibição** · enviar al dominio → **enviar para publicação** · reanudar /
+bajar → **retomar / remover** · bitácora → **histórico** · embudo → **funil** ·
+giro → **ramo de atividade** · dueño del terreno → **dono do terreno** (no
+*proprietário*) · incidencia / accidente → **ocorrência / acidente** ·
+DOOHmain, masculino («no DOOHmain»).
+
+> [!warning] Para la costura del L4
+> - `textos/papeles-portugues.ts` (P3) no está en esta rama: el texto de los
+>   papeles del lote se copió de allí, salvo `campanas.evidencia.vacia.texto`
+>   y `campanas.evidencia.alt` («comprovação», el glosario común; el papel dice
+>   «evidências»), `finanzas.comun.folio` («Nº da fatura»; el papel, «Número») y
+>   `finanzas.comprobante.aviso` («timbrado»; el papel, «carimbado»). Gana el
+>   lote (validación §4).
+> - `clientes.captacion.falta.dueno` dice «o dono do terreno», y su gemelo del
+>   servidor (`FALTA_REVISION_PT`, L5) «o proprietário».
+> - `campanas.candado.monto-ilegible` dice la verdad mexicana de hoy: la tarea
+>   roja `feat/portugues-cifras` lo cambia (texto en la revisión, §3).
 
 > [!tip] El glosario se fija ANTES de repartir
 > Como en el italiano: `compartidos` (L5) fija las palabras que usan todos
