@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { huellasDeFormatoEspanol } from './guardias-ingles'
 import { huellasEnItaliano } from './guardias-italiano'
+import { huellasEnPortugues } from './guardias-portugues'
+import { culpablesEnItaliano } from '../test/barrido-italiano'
+import { espanolPendienteDeOtrosLotes } from '../test/barrido-portugues'
 import { createElement, type ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -1480,5 +1483,116 @@ describe('lote COMERCIAL · en ITALIANO', () => {
     }
     expect(culpables).toEqual([])
     expect(vistos).toBeGreaterThan(250)
+  })
+})
+
+// ============================================================================
+//  LOTE L2 DEL PORTUGUES (2026-11-05) · las mismas pantallas, en portugues.
+//  Como el italiano, pero con la caida al ESPANOL (que no se ve): ninguna
+//  frase espanola ni inglesa de `comercial.*` ni `codigos.*` (barrido con el
+//  diccionario, sin el espanol pendiente de OTROS lotes), ningun formato
+//  ajeno y el portugues esperado donde hay concordancia o formato.
+// ============================================================================
+// Los ejemplos de captura del alta («Ex.: 12.9») siguen la captura MEXICANA
+// hasta la tarea roja `feat/portugues-cifras` (P2): hoy dicen la verdad.
+const PERMITIDOS_PT = [/^12\.9$/, /^7\.2$/, /^15,000\.50$/, /^212,500\.50$/]
+const DATOS_PT = ['Pantalla Reforma', 'Azotea Insurgentes 1420', 'Seguros Andinos', 'Campaña Navidad']
+
+const PORTUGUES: Record<string, string[]> = {
+  'comercial · la lista con una propuesta abierta': [
+    'Sua rede no mapa · 3 pontos', 'Novo ponto', 'de 3 pontos', 'pontos em 1 proposta aberta · não bloqueiam',
+    'Reservado · sem PC', '3 resultados', 'Ocupado ou bloqueado', '1 ponto · 1 de nov. de 2026–30 de nov. de 2099',
+  ],
+  'comercial · filtros sin resultados': [
+    'Limpar (3)', 'de 0 pontos filtrados',
+    'Nenhum ponto corresponde a: “zzz” · tipo “Mural” · indisponível. Remova um filtro ou clique em Limpar.',
+  ],
+  'comercial · sin propuestas abiertas ni digitales con slots': ['nenhuma proposta aberta', '· 120 slots/h', '1 resultado'],
+  'comercial · con una pantalla seleccionada': ['1 sel. · ', '/mês', 'MX$ 30.000,00'],
+  'ficha de una pantalla propia en pausa legal, con incidencia': [
+    'Ponto não reservável (status: Ocupado)', 'Pausado por situação legal', ' · desde 1 de out. de 2026', 'Ocorrência ativa',
+  ],
+  'ficha de una pantalla digital con contrato': ['Tarifa publicada (mensal)', 'MX$ 20.000,00 · 67%', 'CPS · custo por inserção'],
+  'reservar dos pantallas digitales sin cupo': [
+    '2 pontos selecionados', '2 pontos já atingiram seu limite de clientes', ' — limite de 1 cliente nessas datas (Bebidas Sur)',
+    '2 dos pontos escolhidos têm seu próprio número de slots, que prevalece.', 'Reservar (provisória)',
+  ],
+  'reservar una pantalla con slots propios': [
+    '1 ponto selecionado', 'Pantalla Reforma tem 8 slots próprios, que prevalecem sobre este número.',
+    'Um ponto já atingiu seu limite de clientes',
+  ],
+  'space eye · foto correcta, en grande': ['Último sinal há 2 h', 'há 5 min', 'Anúncio correto · confiança 93%', '2 de nov. de 2026, 11:55'],
+  'space eye · foto que no coincide, y sin foto': ['Último sinal há 3 d', 'Último sinal há segundos', 'Não corresponde ao criativo · 40%'],
+  'comercial negociacion · un espacio con todo': [
+    '36 meses', 'MX$ 9.000,00/mês', 'desde 15 de set. de 2026', 'mostrando os 2 com atividade mais recente, de 5',
+    'Salva por Ana · 1 de out. de 2026 · pela busca · GPS do celular: pendente',
+  ],
+  'comercial negociacion · filtro vacio y un espacio perdido sin nada': ['0 de 2', 'Nenhum espaço corresponde. Remova o filtro para ver todos (2).'],
+  'codigos · la lista, con el selector de propuesta abierto': [
+    '51,2%', '40 de 100', '0 (sem limite)', '1 de jan. de 2020 → 31 de dez. de 2099', 'PR-0003 — Verano · Refrescos del Norte · recusada',
+    'aplica em cascata',
+  ],
+}
+
+describe('lote L2 · COMERCIAL en PORTUGUES', () => {
+  async function diccionarios() {
+    const { ES_COMERCIAL, EN_COMERCIAL, PT_COMERCIAL } = await import('./textos/comercial')
+    const { ES_CODIGOS, EN_CODIGOS, PT_CODIGOS } = await import('./textos/codigos')
+    return {
+      es: { ...ES_COMERCIAL, ...ES_CODIGOS } as Record<string, string>,
+      en: { ...EN_COMERCIAL, ...EN_CODIGOS } as Record<string, string>,
+      it: { ...PT_COMERCIAL, ...PT_CODIGOS } as Partial<Record<string, string>>,
+    }
+  }
+
+  beforeEach(() => {
+    process.env.IDIOMA_PORTUGUES = '1'
+  })
+  afterEach(() => {
+    delete process.env.IDIOMA_PORTUGUES
+  })
+
+  it('las frases portuguesas declaradas son de pantallas que existen', () => {
+    const nombres = new Set(PANTALLAS.map((p) => p.nombre))
+    expect(Object.keys(PORTUGUES).filter((n) => !nombres.has(n))).toEqual([])
+  })
+
+  for (const p of PANTALLAS) {
+    it(`${p.nombre} · sin espanol ni ingles del lote, sin formatos ajenos`, async () => {
+      const crudo = await p.pintar('pt')
+      volcar(`${p.nombre} en PORTUGUES`, crudo)
+      expect(culpablesEnItaliano(crudo, await diccionarios(), { ignorar: [...DATOS_PT, ...espanolPendienteDeOtrosLotes()] })).toEqual([])
+      expect(huellasEnPortugues(crudo, { permitidos: PERMITIDOS_PT })).toEqual([])
+      const html = texto(crudo)
+      expect((PORTUGUES[p.nombre] ?? []).filter((f) => !html.includes(f))).toEqual([])
+    })
+  }
+
+  // La leccion del italiano L2 (V5, V6): sin un porcentaje con decimales ni
+  // una cifra de cuatro digitos, una cifra sin el idioma pasa sin que nada la
+  // vea. Estados SOLO portugueses: el HTML es/en/it de arriba no cambia.
+  it('codigos · un descuento con decimales y usos de cuatro cifras, en portugues', async () => {
+    const G = await codigos()
+    forzar(esArregloVacio, [
+      { id: 'cd9', codigo: 'MEDIO', descuentoPct: 12.5, vigenteDesde: '2020-01-01', vigenteHasta: '2099-12-31', usosMaximos: 5000, usos: 1200 },
+    ])
+    forzar(esNull, null)
+    forzar((v) => v === true, false)
+    const html = texto(await pintar('pt', createElement(G)))
+    expect(html).toContain('12,5%')
+    expect(html).toContain('1.200 de 5.000')
+    expect(huellasEnPortugues(html)).toEqual([])
+  })
+
+  it('reserva · el total de slots con miles, en portugues', async () => {
+    const { ReservaDialog } = await import('../../components/demo/comercial/ReservaDialog')
+    forzar(esVacio, 'Seguros Andinos')
+    const sitios = [
+      { ...SITIO_DIGITAL, totalSpots: 1200, spotsDisponibles: 1200 },
+      { ...SITIO_DIGITAL, id: 's2', nombre: 'Pantalla Sur', totalSpots: 1200, spotsDisponibles: 1200 },
+    ]
+    const html = texto(pintar('pt', createElement(ReservaDialog, { open: true, onOpenChange: () => {}, sitios: sitios as never, onReserved: () => {} })))
+    expect(html).toContain('>2.400<')
+    expect(html).not.toContain('2,400')
   })
 })

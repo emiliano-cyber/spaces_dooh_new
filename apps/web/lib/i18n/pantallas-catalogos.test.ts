@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { huellasDeFormatoEspanol } from './guardias-ingles'
 import { huellasEnItaliano } from './guardias-italiano'
+import { huellasEnPortugues } from './guardias-portugues'
+import { culpablesEnItaliano } from '../test/barrido-italiano'
+import { espanolPendienteDeOtrosLotes } from '../test/barrido-portugues'
 import { createElement, type ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -803,4 +806,70 @@ describe('lote CATALOGOS · en ITALIANO', () => {
     expect(culpables).toEqual([])
     expect(vistos).toBeGreaterThan(100)
   })
+})
+
+// ============================================================================
+//  LOTE L2 DEL PORTUGUES (2026-11-05) · las mismas pantallas, en portugues.
+//  Barrido con el diccionario (ningun trozo espanol ni ingles de
+//  `catalogos.*`, sin el espanol pendiente de OTROS lotes), ninguna huella de
+//  formato ajeno y el portugues esperado donde hay concordancia o formato.
+// ============================================================================
+// Los ejemplos de cifras que se TECLEAN siguen la captura MEXICANA hasta la
+// tarea roja `feat/portugues-cifras` (P2): hoy dicen la verdad.
+const PERMITIDOS_PT = [/^180,000$/, /^15,000\.50$/, /^212,500\.50$/]
+const DATOS_PT = [
+  'Pantalla Reforma', 'Pantalla Sur', 'Pantalla Norte', 'Paquete Centro', 'Paquete Viejo', 'Buen Fin 2026', 'Navidad 2025',
+  'Madrugada', 'Mañana', 'Tarde', 'Verano', 'Otoño', 'Invierno', 'aviso-del-servidor', 'error-de-prueba',
+]
+
+const PORTUGUES: Record<string, string[]> = {
+  'paquetes · con paquetes, error y reparto previsto por debajo de la lista': [
+    '2 pontos', '1 ponto', 'MX$ 90.000', ' escolhidos', 'Tabela <span class="demo-num text-ink">MX$ 100.000<', 'deixa-se de cobrar ',
+  ],
+  'paquetes · una pantalla elegida y precio por encima de la lista': [' escolhido', 'MX$ 60.000 de tabela', ' ACIMA da tabela'],
+  'horario de transmision · con campanas, marcadas y un error': [
+    '1 campanha', '0 campanhas', 'Programar campanhas em Prime (1 marcada)', ' (2 marcadas)', 'Programar 2 em Mañana', '(hoje em Prime)',
+  ],
+  'volumen · con tramos, una unidad desconocida y un error': [' · 1 patamar', ' · 2 patamares', 'Degrau 2', '→ 15%', 'a partir de 50 inserções'],
+  'franjas y temporadas · con datos y un error': ['13 de nov. de 2026', 'Desativada', 'Fim exclusivo · sem sobreposição'],
+}
+
+describe('lote L2 · CATALOGOS en PORTUGUES', () => {
+  async function diccionarios() {
+    const { ES_CATALOGOS, EN_CATALOGOS, PT_CATALOGOS } = await import('./textos/catalogos')
+    return {
+      es: ES_CATALOGOS as Record<string, string>,
+      en: EN_CATALOGOS as Record<string, string>,
+      it: PT_CATALOGOS as Partial<Record<string, string>>,
+    }
+  }
+
+  beforeEach(() => {
+    process.env.IDIOMA_PORTUGUES = '1'
+  })
+  afterEach(() => {
+    delete process.env.IDIOMA_PORTUGUES
+  })
+
+  it('las frases portuguesas declaradas son de pantallas que existen', () => {
+    const nombres = new Set(PANTALLAS.map((p) => p.nombre))
+    expect(Object.keys(PORTUGUES).filter((n) => !nombres.has(n))).toEqual([])
+  })
+
+  for (const p of PANTALLAS) {
+    it(`${p.nombre} · sin espanol ni ingles del lote, sin formatos ajenos`, async () => {
+      forzado.cola = []
+      datos.sitios = []
+      const crudo = await p.pintar('pt')
+      const dir = process.env.VOLCAR_HTML
+      if (dir) {
+        mkdirSync(dir, { recursive: true })
+        writeFileSync(path.join(dir, `${p.nombre.replace(/[^\w]+/g, '_')}_en_PORTUGUES.html`), crudo)
+      }
+      expect(culpablesEnItaliano(crudo, await diccionarios(), { ignorar: [...DATOS_PT, ...espanolPendienteDeOtrosLotes()] })).toEqual([])
+      expect(huellasEnPortugues(crudo, { permitidos: PERMITIDOS_PT })).toEqual([])
+      const html = texto(crudo)
+      expect((PORTUGUES[p.nombre] ?? []).filter((f) => !html.includes(f))).toEqual([])
+    })
+  }
 })
