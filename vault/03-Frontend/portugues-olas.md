@@ -85,12 +85,13 @@ toca **solo sus archivos** de `textos/` (y el L5, además, la base de
 
 | Lote | Rama | Estado | Cobertura de sus filas |
 |---|---|---|---|
-| **L5** | `feat/portugues-l5-armazon` | **Hecho, sin validar** (05/11) | **1346/1346, 0 pendientes** (base 119 · compartidos 113 · shell 59 · cuenta 125 · admin 542 · notificaciones 47 · servidor 32 · errores 205 + 30 + 12 + 62) |
+| **L5** | `feat/portugues-l5-armazon` | **Validación ÁMBAR, corregida; pendiente de revalidar** (05/11) | **1346/1346, 0 pendientes** (base 119 · compartidos 113 · shell 59 · cuenta 125 · admin 542 · notificaciones 47 · servidor 32 · errores 205 + 30 + 12 + 62) |
 
 ### Lote L5 · Armazón, cuenta, administración, compartidos y servidor
 
 Rama `feat/portugues-l5-armazon` (sale de `integra/portugues`, `e018b1bb`).
-**Hecho, sin validar.** Revisión clave por clave en
+**Validación ÁMBAR (`docs/i18n/validacion-portugues-l5.md`), corregida el 05/11,
+pendiente de revalidar** (revisión §11). Revisión clave por clave en
 `docs/i18n/revision-portugues-l5.md`.
 
 - **Glosario común primero** (§2 bis, commit propio `30b60385`): es el encargo
@@ -115,7 +116,8 @@ Rama `feat/portugues-l5-armazon` (sale de `integra/portugues`, `e018b1bb`).
 - **H2 de la ola 0 cerrado:** `crearTenant` acepta `IdiomaEnLaBase` (solo tipo,
   JS idéntico). H1 y H3 siguen abiertos (P3 y recorrido).
 - **Para el dueño:** ver «Dudas» en la revisión (§10): *ponto/tela*,
-  *bissemana*, *perfil/papel*, *Proprietário*, *a Network*, y los avisos de
+  *bissemana*, *perfil/papel*, *a Network* (confirmadas por el dueño el 05/11;
+  Dueño = **Titular**), y los avisos de
   captura (`compartidos.cifra.*`), que hoy dicen la verdad mexicana y
   reescribirá `feat/portugues-cifras` con el texto que deja propuesto la
   revisión §3.
@@ -219,13 +221,14 @@ Brasil) · link · prospect · login no (se dice **entrar**).
 | Configuración de la cuenta / del negocio | **Configurações da conta / da empresa** | |
 | Contraseña · Correo | **senha · e-mail** | |
 | Equipo (personas) · Soporte | **Equipe · Suporte** | |
+| Dueño (rol) | **Titular** | decisión del dueño (05/11): «Proprietário» chocaba con el dueño de un ponto o de la red; *Titular* (de la conta) no |
 | Gerente de ventas · Director comercial · Vendedor | **Gerente de vendas · Diretor comercial · Vendedor** | |
 | Comisiones · comisión de la agencia | **Comissões · comissão da agência** | |
 | tope de descuento | **teto de desconto** | |
 | Reportes · Actividad | **Relatórios · Registro de atividades** | |
 | Finanzas · Operaciones · Inventario | **Finanças · Operações · Inventário** | |
 | Consumo de luz | **Consumo de energia** | |
-| Programático | **Programática** | «mídia programática» es lo que se dice en Brasil |
+| Programático | **Programática** (la mídia); de un ponto, **Programático** (masc.) | «mídia programática» es lo que se dice en Brasil |
 | vigente · vencido | **vigente · vencido** (pago: **atrasado**) | |
 | Borrador · Enviada · Aprobada · Rechazada · En curso · Pendiente | **Rascunho · Enviada · Aprovada · Recusada · Em andamento · Pendente** | |
 | Guardar · Eliminar · Quitar · Agregar · Editar · Ver | **Salvar · Excluir · Remover · Adicionar · Editar · Ver** | el estándar de las interfaces brasileñas |

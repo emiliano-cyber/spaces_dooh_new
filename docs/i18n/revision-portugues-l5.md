@@ -47,7 +47,7 @@ en su encargo. Resumen de lo que no es obvio:
 | OT · OC | **OS** (ordem de serviço, fem.) · **PC** (pedido de compra, masc.) | las siglas que usa Brasil |
 | arrendador · renta · predio | **locador** · **aluguel** · **imóvel** | Lei do Inquilinato |
 | Folio · cupón | **Ref. interna** · **código de negociação** | decisión del dueño |
-| Dueño (rol) | **Proprietário** | |
+| Dueño (rol) | **Titular** | decisión del dueño (05/11), §11 |
 | rol de una persona / de una razón social | **perfil** / **papel** | los sistemas brasileños dicen «perfil de acesso»; los papeles de una razón social son otra cosa y así no se cruzan |
 | Imprenta (módulo y rol) | **Gráfica** | en Brasil la imprenta *es* la gráfica; no hace falta la excepción módulo/rol del italiano |
 | Captación | **Captação de pontos** | como la *captação de imóveis* |
@@ -248,9 +248,61 @@ mejor antes de que los otros cuatro lotes las copien:
    catorcena mexicana no debe sonar a «outdoor», la alternativa es «período de
    14 dias».
 3. **Rol de una persona = *perfil*; papel de una razón social = *papel*.**
-4. **Dueño = *Proprietário*** (alternativa: *Dono*).
+4. ~~**Dueño = *Proprietário***~~ → **Titular** (decidido por el dueño, 05/11).
 5. **«a Network»**, femenino. El italiano eligió «il Network».
 6. **Captación = *Captação de pontos*.**
 7. **Los avisos de captura de cifras** dicen hoy la verdad mexicana; la tarea
    roja `feat/portugues-cifras` los cambia (texto propuesto en §3).
 8. **H3 · `<html lang="pt">` o `pt-BR`**: para el recorrido.
+
+## 11 · Correcciones de la validación (ÁMBAR, 05/11)
+
+Respuesta a `docs/i18n/validacion-portugues-l5.md`. Commits `9f3d5bda` (textos y
+pruebas) y `bcb3a867` (`lang="pt-BR"`).
+
+**Decisiones del dueño (05/11):** Dueño = **Titular** en todo el portugués
+(rol, «Nome / E-mail / Senha do Titular», «o Titular entra com o Google», el
+candado, el control de cambios). Los dos choques del validador: «sem
+proprietário» (del ponto) → «sem locador»; «o operador proprietário» → «o
+operador a que pertencem». Se quedan *Captação de pontos*, *ponto/tela*,
+*bissemana*, *perfil/papel* y «a Network» en femenino. «o proprietário» de
+`FALTA_REVISION_PT` se queda: es el dueño del espacio que se negocia, no el rol.
+
+**Los cinco hallazgos, corregidos:** «(E ou O)» en `servidor.ubicacion.orden` y
+su gemelo del catálogo; `cuenta.publica.mapa.parcial.*` = «Pontos sem
+coordenadas cadastradas: {faltan} de {n}. Os endereços estão na lista de
+pontos.» (declarada invariable); «como aparece na Constancia de Situación
+Fiscal» (el documento mexicano, por su nombre, como el RFC); «E-mail do
+Titular»; «não é da sua empresa».
+
+**Retoques §2.2 (6–18): aceptados los trece.** Notas: el 9 queda «livre(s)» en
+la clave y en el patrón, que deben decir lo mismo (la forma de la clave la
+elige `{espacios}`, no `{libres}`, así que no cabe un plural real); el 12 deja
+«Código postal inválido (5 dígitos)» igual al español y se declara cognado; el
+13 pone el filtro en masculino («Programático» de un ponto, también cognado);
+en el 17 el inciso de `admin.correo.modal.afecta` termina en punto y no en
+raya. `bloqueoClientePt` (8) deja la marca ante una pieza desconocida.
+
+**H3 de la ola 0:** `langDelHtml` (`idiomas.ts`) da `pt-BR` para `pt`; es, en e
+it, igual que siempre. Lo usan `app/layout.tsx` y `app/global-error.tsx` (que
+lo relee con `normalizarIdioma`). No toca sesión ni middleware.
+
+**Pruebas nuevas, en rojo primero** (9 rojas de 286 en los cuatro archivos):
+guardia de **tuteo** sobre todo `PT_PARCIAL`, el catálogo y los patrones
+(`tu/teu/tua/tens/podes/…` y «Tenta/Escolhe/Digita/Clica»; `{tu}` es hueco),
+con su prueba de que muerde; el bloqueo del cliente con «3 órdenes» sale entero
+en español; Titular y ningún «proprietário»; «E ou O»; el mapa parcial
+invariable; ni «constância» ni «não é próprio»; `lang="pt-BR"` en el layout y
+en la página de error global.
+
+**Mutantes: 7/7 mueren** — A1 «Tenta de novo» (el MV2 del validador), A2 el
+bloqueo deja pasar la pieza, A3 `lang` sin variante, A4 `lang` con locale en
+es/en/it, A5 «L ou O», A6 «Proprietário», A7 el mapa parcial en plural.
+
+**Medido:** `DICCIONARIOS.es/.en/.it` y `traducirError` es/en/it (catálogo,
+lib, 30 campos × 2 motivos y los patrones tocados) antes (`390e6e34`) y después:
+JSON de 1 185 855 bytes, `cmp` idénticos. Volcado de toda la suite contra el de
+`e018b1bb`: 0 HTML distintos de es/en/it (el único «solo antes» es el estado
+`lang="pt"` renombrado; 75 nuevos, portugueses). typecheck limpio; `npm test`
+419 archivos, **8863 en verde + 1 omitida**, 1 roja ajena (la semilla por
+tiempo, la de siempre).
