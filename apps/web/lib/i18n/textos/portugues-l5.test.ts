@@ -107,6 +107,7 @@ export const COGNADOS_PT_L5 = new Set<string>([
   'compartidos.plegar.expandir',                     // "Expandir {titulo}"
   'compartidos.paginacion.de',                       // "de"
   'compartidos.paginacion.anterior',                 // "Anterior"
+  'compartidos.mapa.lib.mapa',                       // "Mapa" (B70, de main)
   'shell.candado.desbloquear',                       // "Desbloquear"
   'shell.confirmar.confirmar',                       // "Confirmar"
   'cuenta.codigos.verificando',                      // "Verificando…"
