@@ -600,7 +600,7 @@ export const PT_CUENTA: Record<ClaveCuenta, string> = {
   'cuenta.bienvenida.ir-razones': 'Ir para Razões sociais',
   'cuenta.cuestionario.p1': 'Sua empresa tem várias razões sociais?',
   'cuenta.cuestionario.p1.ayuda':
-    'Quase todas as empresas de mídia dividem a operação entre várias. Se você tem uma só, isto poupa o resto.',
+    'Quase todas as empresas de mídia dividem a operação entre várias. Se você tem uma só, pode pular o resto.',
   'cuenta.cuestionario.p2': 'A operação está na mesma razão social que comercializa ou fatura as vendas?',
   'cuenta.cuestionario.p2.ayuda':
     'Costumam coincidir, e por isso perguntamos: se for o seu caso, o próximo passo pede um dado a menos.',
@@ -639,10 +639,12 @@ export const PT_CUENTA: Record<ClaveCuenta, string> = {
   'cuenta.publica.kpi.sitios': 'Pontos',
   'cuenta.publica.sitios': 'Pontos da proposta',
   'cuenta.publica.sin-ubicacion': 'Localização não cadastrada',
+  // La forma la elige el TOTAL de la propuesta, no {faltan} (validacion, H2):
+  // una frase que no depende de ninguna cifra, como el ingles.
   'cuenta.publica.mapa.parcial.uno':
-    '{faltan} de {n} ponto não tem coordenadas cadastradas; o endereço está na lista de pontos.',
+    'Pontos sem coordenadas cadastradas: {faltan} de {n}. Os endereços estão na lista de pontos.',
   'cuenta.publica.mapa.parcial.otros':
-    '{faltan} de {n} pontos não têm coordenadas cadastradas; os endereços estão na lista de pontos.',
+    'Pontos sem coordenadas cadastradas: {faltan} de {n}. Os endereços estão na lista de pontos.',
   'cuenta.publica.mapa.ninguna':
     'Os pontos desta proposta ainda não têm coordenadas cadastradas. Consulte o endereço de cada um na lista de pontos.',
   'cuenta.publica.aceptada.titulo': 'Proposta aceita',

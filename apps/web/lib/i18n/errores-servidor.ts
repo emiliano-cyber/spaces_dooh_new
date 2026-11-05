@@ -1324,11 +1324,11 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
   'El predio nuevo necesita un nombre.': 'O imóvel novo precisa de um nome.',
   'El predio pertenece a otro arrendador': 'O imóvel pertence a outro locador',
   'El predio ya tiene un contrato activo. Agrega la pantalla al predio en vez de crear otro contrato, o cancela/vence el contrato anterior primero.':
-    'O imóvel já tem um contrato ativo. Adicione o ponto ao imóvel em vez de criar outro contrato, ou cancele/vença o contrato anterior primeiro.',
+    'O imóvel já tem um contrato ativo. Adicione o ponto ao imóvel em vez de criar outro contrato, ou cancele o contrato anterior ou deixe-o vencer primeiro.',
   'El ticket esta CERRADO: ya no admite respuesta ni cambio de estado':
     'O ticket está FECHADO: não aceita mais respostas nem mudanças de status',
   'Elige el arrendador de la pantalla: sin propietario no se puede abrir su contrato de arrendamiento.':
-    'Escolha o locador do ponto: sem proprietário não é possível abrir o contrato de locação dele.',
+    'Escolha o locador do ponto: sem locador não é possível abrir o contrato de locação dele.',
   'Enlace de firma no válido.': 'Link de assinatura inválido.',
   'Esa cuenta de Google no tiene el correo verificado.': 'Essa conta do Google não tem o e-mail verificado.',
   'Esa entidad ya tiene ese rol asignado.': 'Essa entidade já tem esse papel atribuído.',
@@ -1355,7 +1355,7 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
   'Ese rol no existe en el catalogo.': 'Esse papel não existe no catálogo.',
   'Ese tramo no existe en esta organización': 'Essa faixa não existe nesta organização',
   'Esta alta no lleva contraseña: el Dueño entra con Google (ADR 0028). Quita `password` del cuerpo. Si estás siguiendo una tarjeta que la genera, esa tarjeta es anterior al 2026-09-07.':
-    'Este cadastro não leva senha: o Proprietário entra com o Google (ADR 0028). Tire `password` do corpo. Se você está seguindo um cartão que a gera, esse cartão é anterior a 2026-09-07.',
+    'Este cadastro não leva senha: o Titular entra com o Google (ADR 0028). Tire `password` do corpo. Se você está seguindo um cartão que a gera, esse cartão é anterior a 2026-09-07.',
   'Esta campaña no está publicada en DOOHmain: no hay reproducciones que consultar.':
     'Esta campanha não está publicada no DOOHmain: não há exibições para consultar.',
   'Esta campaña no está publicada en ninguna pantalla de DOOHmain.':
@@ -1482,7 +1482,7 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
   'El texto tiene un formato inválido': 'O texto tem um formato inválido',
   'El valor no es válido': 'O valor não é válido',
   'Ese prospecto no existe': 'Esse prospect não existe',
-  'El lugar elegido no existe o no es propio.': 'O lugar escolhido não existe ou não é próprio.',
+  'El lugar elegido no existe o no es propio.': 'O lugar escolhido não existe ou não é da sua empresa.',
   '«Propia» es sí o no': '“Próprio” é sim ou não',
   'Esta pantalla tiene un contrato de renta vigente: termínalo en Arrendadores antes de marcarla como propia.':
     'Este ponto tem um contrato de aluguel vigente: encerre-o em Locadores antes de marcá-lo como próprio.',
@@ -1513,12 +1513,12 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
   'El punto (0, 0) está en el mar: no es una ubicación': 'O ponto (0, 0) fica no mar: não é uma localização',
   'Los minutos y los segundos van de 0 a 59': 'Os minutos e os segundos vão de 0 a 59',
   'Primero va la latitud (N o S) y después la longitud (E u O)':
-    'Primeiro vem a latitude (N ou S) e depois a longitude (L ou O)',
+    'Primeiro vem a latitude (N ou S) e depois a longitude (E ou O)',
   'Tu organizacion ya tiene razones sociales registradas, asi que el cuestionario ya se contesto. Para cambiarlas, usa la pantalla de Administracion.':
     'Sua organização já tem razões sociais cadastradas, então o questionário já foi respondido. Para alterá-las, use a página de Configurações.',
   'Las tarifas por unidad se guardan en su propia ruta (PATCH /api/sitios/:id/modalidades), que siempre pide la contraseña.':
     'As tarifas por unidade são salvas no próprio endpoint (PATCH /api/sitios/:id/modalidades), que sempre pede a senha.',
-  'Código postal inválido (5 dígitos)': 'CEP inválido (5 dígitos)',
+  'Código postal inválido (5 dígitos)': 'Código postal inválido (5 dígitos)',
   'Teléfono inválido. Escribe 10 dígitos (p. ej. 55 1234 5678)':
     'Telefone inválido. Digite 10 dígitos (ex.: 55 1234 5678)',
   'Correo inválido. Usa el formato ejemplo@correo.com': 'E-mail inválido. Use o formato exemplo@email.com',
@@ -2299,7 +2299,9 @@ function bloqueoClientePt(v: string): string {
     .split(' y ')
     .map((pieza) => {
       const m = /^(\d+) (campañas?|facturas?|clientes?|propuestas?)( que lo tienen como agencia)?$/.exec(pieza)
-      if (!m) return pieza
+      // Una pieza que no se reconoce no pasa en espanol (validacion, retoque 8):
+      // deja la marca y el mensaje entero cae al espanol, como `deTablaPt`.
+      if (!m) return SIN_ITALIANO
       const uno = m[1] === '1'
       const [singular, plural] = {
         campaña: ['campanha', 'campanhas'],
@@ -2355,7 +2357,7 @@ const PATRONES_PT: Record<string, { pt: string; huecosPt?: Record<number, (valor
   'Loop slots go from 1 to $1.': { pt: 'Os slots do loop vão de 1 a $1.' },
   'Hours per day must be greater than 0 and at most $1: hours beyond what the screen broadcasts would be spots that never play.':
     {
-      pt: 'As horas por dia devem ser mais de 0 e no máximo $1: horas além das que a tela transmite seriam spots que não vão ao ar.',
+      pt: 'As horas por dia devem ser maiores que 0 e no máximo $1: horas além das que a tela transmite seriam spots que não vão ao ar.',
       huecosPt: { 1: cifraPt },
     },
   'The spot quantity does not match the calculator: with $1 slots, $2 h a day and $3 days it is $4 spots, not $5.': {
@@ -2366,7 +2368,7 @@ const PATRONES_PT: Record<string, { pt: string; huecosPt?: Record<number, (valor
     pt: 'Um Roadblock precisa de todos os slots do loop livres ($1), e a tela tem $2.',
   },
   'You’re asking for $1 loop {1|slot|slots} and the screen only has $2 free.': {
-    pt: 'Você pede $1 {1|slot|slots} do loop e a tela só tem $2 livres.',
+    pt: 'Você pede $1 {1|slot|slots} do loop e a tela só tem $2 livre(s).',
   },
   'The bundle “$1” on this proposal is a final price and does not accept negotiation codes. Remove the bundle, or swap it for one that does, before applying the code.':
     {
@@ -2401,7 +2403,7 @@ const PATRONES_PT: Record<string, { pt: string; huecosPt?: Record<number, (valor
   },
   'Cannot delete: $1 {1|contract bills|contracts bill} to this legal entity. Change it in {1|that contract|those contracts} first.':
     {
-      pt: 'Não é possível excluir: $1 {1|contrato fatura|contratos faturam} para esta razão social. Altere-a antes {1|nesse contrato|nesses contratos}.',
+      pt: 'Não é possível excluir: $1 {1|contrato fatura|contratos faturam} para esta razão social. Altere-a {1|nesse contrato|nesses contratos} antes.',
     },
   'The contract term generates more than $1 payments billed $2. Check the end date: at that frequency the schedule cannot cover such a long term.':
     {
@@ -2420,7 +2422,7 @@ const PATRONES_PT: Record<string, { pt: string; huecosPt?: Record<number, (valor
     huecosPt: { 1: deTablaPt(ETAPA_PT) },
   },
   'To send it for review, it still needs: $1': {
-    pt: 'Para enviá-lo para revisão, ainda falta: $1',
+    pt: 'Para enviá-lo para revisão, ainda faltam dados: $1',
     huecosPt: { 1: listaPt(FALTA_REVISION_PT) },
   },
   'Cannot delete: the client has $1. Remove or reassign them before deleting it.': {

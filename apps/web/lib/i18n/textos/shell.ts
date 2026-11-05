@@ -301,7 +301,7 @@ export const PT_SHELL: Record<ClaveShell, string> = {
   'shell.topbar.cerrar-menu': 'Fechar menu',
   'shell.topbar.vista-de': 'Visão de {rol}',
   'shell.topbar.notificaciones': 'Notificações',
-  'shell.topbar.borrar-todas': 'Apagar todas',
+  'shell.topbar.borrar-todas': 'Limpar todas',
   'shell.topbar.sin-notificaciones': 'Nenhuma notificação',
   'shell.topbar.cuenta': 'Conta',
   'shell.topbar.configuracion': 'Configurações da conta',
@@ -316,7 +316,7 @@ export const PT_SHELL: Record<ClaveShell, string> = {
   'shell.candado.titulo': 'Desbloquear alterações',
   'shell.candado.subtitulo': 'Sua senha ou a do controle de alterações',
   'shell.candado.explicacion':
-    'As alterações que mexem com dinheiro ou com o catálogo —tarifas, aluguéis, contratos, pagamentos, faturamento e exclusões— precisam de uma senha. Vale {propia} ou a senha do controle de alterações que o Proprietário definiu. Ao digitar qualquer uma das duas, você fica desbloqueado por um tempo e ela não é pedida de novo.',
+    'As alterações que mexem com dinheiro ou com o catálogo — tarifas, aluguéis, contratos, pagamentos, faturamento e exclusões — precisam de uma senha. Vale {propia} ou a senha do controle de alterações que o Titular definiu. Ao digitar qualquer uma das duas, você fica desbloqueado por um tempo e ela não é pedida de novo.',
   'shell.candado.explicacion.propia': 'a sua própria senha de acesso',
   'shell.candado.contrasena': 'Senha',
   'shell.candado.desbloquear': 'Desbloquear',

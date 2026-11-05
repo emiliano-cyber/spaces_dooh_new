@@ -160,6 +160,7 @@ export const COGNADOS_PT_L5 = new Set<string>([
   'admin.integ.consultar',                           // "Consultar métricas"
   'admin.network.indicadores',                       // "Indicadores"
   'admin.network.programaticos',                     // "Programáticos"
+  'admin.network.programatico',                       // "Programático" (masc., los pontos: validacion, retoque 13)
   'admin.network.tradicional',                       // "Tradicional"
   'admin.network.col.estatus',                       // "Status"
   'admin.network.col.operador',                      // "Operador"
@@ -173,11 +174,16 @@ export const COGNADOS_PT_L5 = new Set<string>([
 ])
 
 // Singular igual al plural A PROPOSITO (sustantivo invariable o frase sin numero).
-const PLURALES_INVARIABLES = new Set<string>([])
+const PLURALES_INVARIABLES = new Set<string>([
+  // Validacion L5 (H2): la forma la elige el TOTAL de la propuesta, no {faltan};
+  // una frase que no depende de ninguna cifra, como el ingles.
+  'cuenta.publica.mapa.parcial.uno',
+])
 
 // Mensajes del servidor que en portugues se escriben igual que en espanol o ingles.
 const COGNADOS_SERVIDOR = new Set<string>([
   'CURP inválida',
+  'Código postal inválido (5 dígitos)', // el CP es mexicano: no es el CEP de 8 cifras (validacion, retoque 12)
   'RFC inválido',
   'RFC',
   'Cliente',
@@ -242,6 +248,49 @@ describe('el barrido de pantallas portuguesas no esconde nada del lote', () => {
     } finally {
       pt['shell.carga.detalle'] = antes
     }
+  })
+})
+
+// ─── Validacion del lote (ambar, 05/11) ─────────────────────────────────────
+// El registro es «voce» con el imperativo de 3.a persona. Ninguna prueba lo
+// miraba (mutante MV2 del validador: «Tenta de novo» sobrevivia). Se vigila
+// sobre TODO el portugues escrito, los cinco lotes. `{tu}` es un hueco, no tuteo.
+const TUTEO = /(?:^|[^\p{L}{])(tu|teu|tua|teus|tuas|contigo|tens|podes|queres|Tenta|Escolhe|Digita|Clica)(?=$|[^\p{L}}])/u
+describe('portugues · regla comun: el registro es «voce», nunca «tu»', () => {
+  it('en TODO el portugues escrito y en los catalogos del servidor', () => {
+    const todo = [...Object.entries(PT_BASE_PARCIAL), ...Object.entries(CATALOGO_ERRORES_PT), ...PATRONES_ERROR.map((p) => [p.en, p.pt])]
+    expect(todo.filter(([, v]) => TUTEO.test(v ?? '')).map(([k, v]) => `${k}: ${v}`)).toEqual([])
+  })
+  it('y la comprobacion MUERDE', () => {
+    for (const s of ['Tenta de novo', 'Escolhe a tua senha', 'Se tens dúvidas', 'Clica para continuar.'])
+      expect(TUTEO.test(s), s).toBe(true)
+    for (const s of ['Tente de novo', 'Confirme com {tu} senha', 'Escolha sua senha', 'Confirmar', 'Revisar', 'Esperado'])
+      expect(TUTEO.test(s), s).toBe(false)
+  })
+})
+
+describe('portugues L5 · los hallazgos del validador (ambar, 05/11)', () => {
+  it('Dueno = «Titular», y «proprietário» no aparece en ningun texto del lote', () => {
+    expect(PT_ADMIN['admin.rol.dueno']).toBe('Titular')
+    const todo = [...Object.values(PT_BASE_PARCIAL), ...Object.values(CATALOGO_ERRORES_PT), ...PATRONES_ERROR.map((p) => p.pt)]
+    expect(todo.filter((v) => /propriet[áa]ri/i.test(v ?? ''))).toEqual([])
+  })
+  it('la longitud se escribe «E ou O», que es lo que acepta el interprete (interpretar-ubicacion.ts)', () => {
+    expect(PT_SERVIDOR['servidor.ubicacion.orden']).toContain('(E ou O)')
+    expect(CATALOGO_ERRORES_PT['Primero va la latitud (N o S) y después la longitud (E u O)']).toBe(PT_SERVIDOR['servidor.ubicacion.orden'])
+  })
+  it('el mapa parcial no depende del plural', () => {
+    expect(PT_CUENTA['cuenta.publica.mapa.parcial.uno']).toBe(PT_CUENTA['cuenta.publica.mapa.parcial.otros'])
+  })
+  it('ni «constância» ni «não é próprio»', () => {
+    const todo = [...Object.values(PT_BASE_PARCIAL), ...Object.values(CATALOGO_ERRORES_PT)]
+    expect(todo.filter((v) => /constância|não é próprio/i.test(v ?? ''))).toEqual([])
+  })
+  it('bloqueo del cliente: una pieza que no se conoce no sale a medias (entera en espanol)', () => {
+    const msg = 'No se puede borrar: el cliente tiene 2 campañas y 3 órdenes. Quítalos o reasígnalos antes de borrarlo.'
+    expect(traducirError(msg, 'pt')).toBe(msg)
+    const bien = 'No se puede borrar: el cliente tiene 1 factura. Quítalos o reasígnalos antes de borrarlo.'
+    expect(traducirError(bien, 'pt')).toBe('Não é possível excluir: o cliente tem 1 fatura. Remova ou reatribua esses registros antes de excluí-lo.')
   })
 })
 

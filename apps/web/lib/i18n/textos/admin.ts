@@ -1981,7 +1981,7 @@ export const IT_ADMIN: Record<ClaveAdmin, string> = {
 export const PT_ADMIN: Record<ClaveAdmin, string> = {
   // El rol de una PERSONA es el «perfil» (como dicen los sistemas brasilenos:
   // «perfil de acesso»); el de una razon social, el «papel» (cuenta, razones).
-  'admin.rol.dueno': 'Proprietário',
+  'admin.rol.dueno': 'Titular',
   'admin.rol.administrador': 'Administrador',
   'admin.rol.director_comercial': 'Diretor comercial',
   'admin.rol.gerente_ventas': 'Gerente de vendas',
@@ -2119,16 +2119,16 @@ export const PT_ADMIN: Record<ClaveAdmin, string> = {
   'admin.cambios.toast.actualizada': 'Senha de alterações atualizada',
   'admin.cambios.toast.asignada': 'Senha de alterações definida',
   'admin.cambios.confirmar-activar':
-    'A partir de agora, TODOS —você incluído— terão de digitar de novo a própria senha para as alterações que mexem com dinheiro ou com o catálogo. Ativar?',
+    'A partir de agora, TODOS — você incluído — terão de digitar de novo a própria senha para as alterações que mexem com dinheiro ou com o catálogo. Ativar?',
   'admin.cambios.confirmar-desactivar': 'Desativar? As alterações sensíveis deixarão de pedir senha a qualquer pessoa.',
   'admin.cambios.toast.activado': 'Controle de alterações ativado',
   'admin.cambios.toast.desactivado': 'Controle de alterações desativado',
   'admin.cambios.titulo': 'Controle de alterações',
   'admin.cambios.explica':
-    'Ative e as alterações que mexem com dinheiro ou com o catálogo —tarifas, aluguéis, contratos, pagamentos, faturamento e exclusão de pontos, clientes ou locadores— pedirão uma senha: a própria de quem as faz, ou a que você definir aqui embaixo para toda a equipe. O trabalho do dia a dia —criar campanhas, subir criativos, fechar ordens— continua sem atrito.',
+    'Ative e as alterações que mexem com dinheiro ou com o catálogo — tarifas, aluguéis, contratos, pagamentos, faturamento e exclusão de pontos, clientes ou locadores — pedirão uma senha: a própria de quem as faz, ou a que você definir aqui embaixo para toda a equipe. O trabalho do dia a dia — criar campanhas, subir criativos, fechar ordens — continua sem atrito.',
   'admin.cambios.aplica-a-ti': 'Vale também para você.',
   'admin.cambios.antes-exento':
-    'Antes o Proprietário ficava isento, e uma sessão dele esquecida aberta podia faturar sem que ninguém confirmasse nada.',
+    'Antes o Titular ficava isento, e uma sessão dele esquecida aberta podia faturar sem que ninguém confirmasse nada.',
   'admin.cambios.activo':
     'Ativo. Ao digitar uma senha válida, a sessão fica desbloqueada por {minutos} minutos e depois a senha é pedida de novo.',
   'admin.cambios.desactivar': 'Desativar o controle',
@@ -2159,7 +2159,7 @@ export const PT_ADMIN: Record<ClaveAdmin, string> = {
     'O maior desconto que se pode aplicar a uma proposta. Acima deste número, a proposta {noSeGuarda} e quem vende vê qual é o teto. Deixe {cien} para não limitar nada, que é como a organização nasce. O que já foi pactuado não muda: baixar o teto não mexe nas propostas que já o ultrapassam, só impede digitar esse desconto de novo.',
   'admin.tope.no-se-guarda': 'não é salva',
   'admin.tope.contrasena':
-    'Alterá-lo pede a sua senha: é o controle que limita quanto dinheiro se pode dar de presente numa venda, não mais um ajuste.',
+    'Alterá-lo pede a sua senha: é o controle que limita de quanto dinheiro se pode abrir mão numa venda, não mais um ajuste.',
   'admin.tope.candado.titulo': 'Confirme o teto de desconto',
   'admin.tope.candado.subtitulo': 'Você está alterando quanto desconto a sua equipe pode aplicar numa proposta.',
   'admin.logo.tipo': 'O logo deve ser PNG, JPG, WebP ou SVG',
@@ -2219,8 +2219,8 @@ export const PT_ADMIN: Record<ClaveAdmin, string> = {
   'admin.costos.toast': 'Custos de mão de obra atualizados',
   'admin.costos.titulo': 'Custo de mão de obra por tipo de ordem de serviço',
   'admin.costos.ayuda':
-    'É usado para calcular a margem no Dashboard e nos relatórios de rentabilidade. Deixe um campo em branco para que esse tipo use o valor de reserva, o mesmo que se aplicava a todas as OS antes de existir este cartão.',
-  'admin.costos.respaldo': 'Usa o valor de reserva',
+    'É usado para calcular a margem no Dashboard e nos relatórios de rentabilidade. Deixe um campo em branco para que esse tipo use o valor padrão, o mesmo que se aplicava a todas as OS antes de existir este cartão.',
+  'admin.costos.respaldo': 'Usa o valor padrão',
   'admin.fiscal.razon-social': 'Razão social',
   'admin.fiscal.rfc': 'RFC (cadastro fiscal)',
   'admin.fiscal.domicilio': 'Endereço fiscal',
@@ -2280,7 +2280,7 @@ export const PT_ADMIN: Record<ClaveAdmin, string> = {
     'É assim porque, para enviar a partir do seu próprio domínio, é preciso autorizá-lo nos registros DNS desse domínio. Sem essa autorização, um e-mail que dissesse vir do seu domínio seria marcado como falsificação e acabaria no spam. {avisanos}',
   'admin.correo.modal.avisanos': 'Se você quiser que saiam do seu domínio, avise-nos e nós configuramos.',
   'admin.correo.modal.afecta':
-    'Afeta os avisos de operação —hoje, o resumo diário de contratos que precisam de atenção—. As senhas e os convites continuarão saindo do e-mail da plataforma.',
+    'Afeta os avisos de operação — hoje, o resumo diário de contratos que precisam de atenção. As senhas e os convites continuarão saindo do e-mail da plataforma.',
   'admin.correo.modal.revisa':
     'Confira se está bem escrito: se o endereço não existir, as respostas dos seus clientes se perdem sem que ninguém perceba.',
   'admin.orgs.titulo': 'Organizações (CRMs)',
@@ -2296,12 +2296,12 @@ export const PT_ADMIN: Record<ClaveAdmin, string> = {
   'admin.orgs.nueva': 'Nova organização',
   'admin.orgs.nombre': 'Nome da organização',
   'admin.orgs.nombre-ejemplo': 'Minha Empresa Ltda.',
-  'admin.orgs.nombre-dueno': 'Nome do Proprietário',
-  'admin.orgs.su-correo': 'E-mail dele',
-  'admin.orgs.google.titulo': 'O Proprietário entra com a conta do Google',
+  'admin.orgs.nombre-dueno': 'Nome do Titular',
+  'admin.orgs.su-correo': 'E-mail do Titular',
+  'admin.orgs.google.titulo': 'O Titular entra com a conta do Google',
   'admin.orgs.google.detalle':
     'Você não vai precisar inventar nem enviar nenhuma senha. O e-mail do Google deve ser o mesmo que você digitou acima.',
-  'admin.orgs.contrasena-dueno': 'Senha do Proprietário',
+  'admin.orgs.contrasena-dueno': 'Senha do Titular',
   'admin.orgs.crear': 'Criar organização',
   'admin.act.nunca': 'nunca',
   // «Modo alterado: …», no «alterado para com aprovação» (calco).
@@ -2476,7 +2476,7 @@ export const PT_ADMIN: Record<ClaveAdmin, string> = {
   'admin.network.ninguno': '— nenhum espaço digital compartilhado ainda.',
   'admin.network.reglas': 'Regras de comercialização por ponto',
   'admin.network.todas': 'Todos',
-  'admin.network.programatico': 'Programática',
+  'admin.network.programatico': 'Programático',
   'admin.network.tradicional': 'Tradicional',
   'admin.network.col.pantalla': 'Ponto',
   'admin.network.col.comercializacion': 'Comercialização',
@@ -2489,7 +2489,7 @@ export const PT_ADMIN: Record<ClaveAdmin, string> = {
   'admin.network.compartida': 'Compartilhado',
   'admin.network.no': 'Não',
   'admin.network.red': 'Rede de pontos · toda a plataforma',
-  'admin.network.red-sub': 'Catálogo de todos os pontos cadastrados. Só o operador proprietário pode editá-los.',
+  'admin.network.red-sub': 'Catálogo de todos os pontos cadastrados. Só o operador a que pertencem pode editá-los.',
   'admin.network.red-vacia': 'Ainda não há pontos na rede.',
   'admin.network.todas-tuyas': 'Todos os pontos da rede são seus ({n}); aqui vão aparecer os de outros operadores.',
   'admin.network.ver-todas': 'Ver todos ({n}) →',
@@ -2528,7 +2528,7 @@ export const PT_ADMIN: Record<ClaveAdmin, string> = {
   'admin.razones.toast.reactivada': 'Razão social reativada',
   'admin.razones.error.reactivar': 'Não foi possível reativar',
   'admin.razones.razon-social': 'Razão social',
-  'admin.razones.razon-ejemplo': 'Denominação fiscal, como aparece na constância',
+  'admin.razones.razon-ejemplo': 'Denominação fiscal, como aparece na Constancia de Situación Fiscal',
   'admin.razones.regimen': 'Regime tributário',
   'admin.razones.cp': 'CEP fiscal',
   'admin.razones.serie': 'Série de numeração',
