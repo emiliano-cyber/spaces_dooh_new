@@ -10,9 +10,8 @@ import { asuntoCorreoPropuesta, htmlCorreoPropuesta } from './propuesta-correo'
 import { idiomaDeLaInstancia } from './idioma-instancia'
 import { urlLogo } from '@/lib/medios-url'
 import { esEmailValido, EMAIL_INVALIDO } from '@/lib/validacion'
-import { fechaLocalISO } from '@/lib/fecha-local'
 import { formatFecha } from '@/lib/data/derive'
-import { vigenciaDesde } from '@/lib/propuesta-vigencia'
+import { hoyDeVigencia, vigenciaDesde } from '@/lib/propuesta-vigencia'
 
 // ============================================================================
 //  lib/server/propuestas-envio.ts — «Enviar» manda la propuesta por CORREO
@@ -60,9 +59,10 @@ export async function enviarPropuestaCtrl(
   const p = await q1<any>(
     `select estatus, nombre, folio, token_publico,
             to_char(vigente_hasta, 'YYYY-MM-DD') as vigente_hasta,
-            (vigente_hasta < current_date) as vencida
+            (vigente_hasta < $3::date) as vencida
        from propuestas where id = $1 and tenant_id = $2`,
-    [id, tenant],
+    // $3 · el día del negocio (`hoyDeVigencia()`), no el `current_date` de la base.
+    [id, tenant, hoyDeVigencia()],
   )
   if (!p) throw new AppError('Propuesta no encontrada', 404)
   if (p.estatus !== 'BORRADOR' && p.estatus !== 'ENVIADA') {
@@ -84,7 +84,7 @@ export async function enviarPropuestaCtrl(
     // `cambiarEstatusPropuesta` un instante después).
     const vigente = p.vigente_hasta && p.vencida !== true
       ? p.vigente_hasta
-      : vigenciaDesde(fechaLocalISO(), await vigenciaPropuestaDelTenant())
+      : vigenciaDesde(hoyDeVigencia(), await vigenciaPropuestaDelTenant())
     // ADR 0049 · el correo sale en el idioma de los DOCUMENTOS de la instancia,
     // como la liga a la que lleva. Fail-closed: sin base no se envia nada.
     const idioma = await idiomaDeLaInstancia()

@@ -33,8 +33,77 @@ export function fechaDia(v: unknown): string | null {
   return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null
 }
 
+/**
+ * La zona del negocio cuando la instancia no dice otra: la de la plantilla
+ * (`infra/env/app.env.example`, `TZ=America/Mexico_City`, «la del owner, no
+ * la del servidor»). B88 · H4 (05/11): sin esto, una instancia sin `TZ`
+ * contaba la vigencia en UTC EN SILENCIO y sus propuestas vencían a las 18:00
+ * de México del último día. Se eligió caer a México y avisar, no a UTC: es la
+ * zona de todas las instancias de hoy, y un aviso en el log se ve.
+ */
+export const ZONA_DEL_NEGOCIO_POR_OMISION = 'America/Mexico_City'
+
+const avisado = new Set<string>()
+
+function esZonaValida(zona: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: zona })
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * La zona en que se cuenta el día de la vigencia: la `TZ` del proceso si es
+ * una zona válida (con o sin los dos puntos de glibc); si falta o no vale,
+ * `ZONA_DEL_NEGOCIO_POR_OMISION`, avisando UNA vez en el log.
+ */
+export function zonaDelNegocio(): string {
+  const tz = (typeof process !== 'undefined' ? process.env.TZ : undefined)?.trim().replace(/^:/, '')
+  if (tz && esZonaValida(tz)) return tz
+  const motivo = tz ? `TZ=«${tz}» no es una zona horaria` : 'TZ no está definida'
+  if (!avisado.has(motivo)) {
+    avisado.add(motivo)
+    console.warn(
+      `[vigencia] ${motivo}: el día de la vigencia de las propuestas se cuenta en ` +
+        `${ZONA_DEL_NEGOCIO_POR_OMISION}. Pon TZ en app.env (infra/env/app.env.example).`,
+    )
+  }
+  return ZONA_DEL_NEGOCIO_POR_OMISION
+}
+
+/**
+ * EL DÍA DE LA VIGENCIA: el de la zona del NEGOCIO (`zonaDelNegocio()`).
+ *
+ * Es la ÚNICA fuente de «hoy» para la vigencia de una propuesta, y la base lo
+ * recibe como PARÁMETRO (`vigente_hasta < $n::date`), nunca con su
+ * `current_date`. Hasta el 05/11 convivían dos relojes: la ficha y la liga
+ * usaban el de la aplicación, y aceptar, el correo de «Enviar» y la vigencia
+ * al enviar, el de la base. Con la base en UTC (la zona del sistema de g500
+ * según su expediente de mudanza; B88 pide medir la de Postgres), desde las
+ * 18:00 de México una propuesta «válida hasta hoy» salía vigente en la liga,
+ * con su botón, y aceptarla daba 409 «venció»; y la enviada a las 19:00 se
+ * guardaba con un día más del que decía su correo
+ * (`lib/server/propuesta-vigencia-hora.test.ts`).
+ *
+ * Con `Intl` y la zona explícita, no con los getters locales: esos dependen de
+ * que el runtime honre `TZ`, y Node en Windows no la honra para cualquier zona
+ * (`lib/propuesta-vigencia-zona.test.ts`).
+ */
+export function hoyDeVigencia(ahora: Date = new Date()): string {
+  const partes = new Intl.DateTimeFormat('en-CA', {
+    timeZone: zonaDelNegocio(),
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(ahora)
+  const de = (t: string) => partes.find((p) => p.type === t)?.value ?? ''
+  return `${de('year')}-${de('month')}-${de('day')}`
+}
+
 /** ¿Ya venció? `null` (sin vigencia, lo de antes del 29/10) nunca vence. */
-export function propuestaVencida(vigenteHasta: string | null, hoy: string = fechaLocalISO()): boolean {
+export function propuestaVencida(vigenteHasta: string | null, hoy: string = hoyDeVigencia()): boolean {
   if (!vigenteHasta) return false
   return vigenteHasta < hoy
 }

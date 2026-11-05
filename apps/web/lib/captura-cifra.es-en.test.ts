@@ -16,6 +16,14 @@ import * as C from './captura-cifra'
 //     de un motivo o un solo valor cambia en es/en, la huella no cuadra.
 //   · Una docena de casos a la vista, para que el rojo diga algo.
 //
+//  D18 (decisión del dueño del 2026-11-05) es el ÚNICO cambio autorizado en
+//  español e inglés desde entonces: una coma tecleada se queda donde se
+//  tecleó. Cambia exactamente 68 de las 116 000 filas —las de
+//  `formatearMientrasEscribe` cuyo evento inserta una coma—, y están
+//  apuntadas abajo (`CAMBIOS_D18`) con lo que daban antes y lo que dan ahora.
+//  La huella se comprueba con esas filas devueltas a su valor de antes: si
+//  cambia una sola fila más, no cuadra.
+//
 //  Además, al escribir el cambio se corrió un barrido aleatorio de 2,88
 //  millones de lecturas contra la función de antes, importada de su copia
 //  congelada; no se versiona (la copia sería código muerto), pero el
@@ -84,6 +92,96 @@ export function bateria(M: Modulo): unknown[] {
 /** Calculada con `lib/captura-cifra.ts` de cb116dde (antes de la captura italiana). */
 const HUELLA_DE_ANTES = 'e5240e24065a685350c809d98a02f6a07ba65f15ffef205896872af2c902fda3'
 
+/**
+ * D18 · las filas de la batería que cambian, y por qué. Todas son
+ * `formatearMientrasEscribe` con un evento que INSERTA UNA COMA (se verifica
+ * abajo): antes la coma pasaba a ser una «coma de millar» mal puesta y se
+ * quitaba al recolocar («87» + «,» → «87»; «16» + «,» en medio → «16»;
+ * «5963402.3» + «,» → «5,963,402.3»); ahora se queda donde se tecleó y
+ * `leerCifra` la acepta o la rechaza como si se hubiera pegado. Medido
+ * contra la función de `a91580bb` (antes de D18); las mismas 68 filas
+ * sin idioma, en español y en inglés.
+ *
+ * [fila, texto anterior, antes: texto, antes: cursor, ahora: texto, ahora: cursor]
+ */
+const CAMBIOS_D18: Array<[number, string, string, number, string, number]> = [
+  [4348, '87', '87', 2, '87,', 3],
+  [11714, '', '', 0, ',', 1],
+  [11772, '962326765', '962,326,765', 10, '96232676,5', 9],
+  [13744, '235595464', '235,595,464', 6, '23559,5464', 6],
+  [13976, '7.70', '7.70', 1, '7,.70', 2],
+  [14556, '778.397', '778.397', 5, '778.3,97', 6],
+  [16760, '0', '0', 1, '0,', 2],
+  [16992, '96.1514', '96.1514', 5, '96.15,14', 6],
+  [19370, '9', '9', 0, ',9', 1],
+  [21516, '0', '0', 1, '0,', 2],
+  [23140, '73,650', '73,650', 5, '73,65,0', 6],
+  [25924, '269906', '269,906', 7, '269906,', 7],
+  [28070, '3.1', '3.1', 1, '3,.1', 2],
+  [33000, '94,996,976.25', '94,996,976.25', 2, '94,,996,976.25', 3],
+  [33696, '22.219', '22.219', 6, '22.219,', 7],
+  [34508, '16', '16', 1, '1,6', 2],
+  [39612, '141.8', '141.8', 4, '141.,8', 5],
+  [39960, '6', '6', 1, '6,', 2],
+  [41468, '-531847.693', '-531,847.693', 6, '-5318,47.693', 6],
+  [42048, '5963402.3', '5,963,402.3', 3, '59,63402.3', 3],
+  [42280, '7,929', '7,929', 1, '7,,929', 2],
+  [42744, '13', '13', 2, '13,', 3],
+  [44020, '1.529', '1.529', 4, '1.52,9', 5],
+  [45644, '2.1947', '2.1947', 1, '2,.1947', 2],
+  [47036, '137,839,078', '137,839,078', 7, '137,839,,078', 8],
+  [48950, '1', '1', 0, ',1', 1],
+  [49472, '4447298', '4,447,298', 8, '444729,8', 7],
+  [51502, '7', '7', 1, '7,', 2],
+  [52604, '39', '39', 1, '3,9', 2],
+  [55040, '18981963', '18,981,963', 6, '18981,963', 6],
+  [55504, '546,933,889.861', '546,933,889.861', 6, '546,93,3,889.861', 7],
+  [56896, '71282267.4', '71,282,267.4', 10, '71282267,.4', 9],
+  [58172, '5', '5', 1, '5,', 2],
+  [59622, '', '', 0, ',', 1],
+  [60376, '694,775,820.823', '694,775,820.823', 3, '694,,775,820.823', 4],
+  [62464, '-0', '-0', 1, '-,0', 2],
+  [63044, '41234689', '41,234,689', 10, '41234689,', 9],
+  [66176, '-909070', '-909,070', 6, '-9090,70', 6],
+  [71454, '', '', 0, ',', 1],
+  [71512, '962326765', '962,326,765', 10, '96232676,5', 9],
+  [73484, '235595464', '235,595,464', 6, '23559,5464', 6],
+  [73716, '7.70', '7.70', 1, '7,.70', 2],
+  [74296, '778.397', '778.397', 5, '778.3,97', 6],
+  [76500, '0', '0', 1, '0,', 2],
+  [76732, '96.1514', '96.1514', 5, '96.15,14', 6],
+  [79110, '9', '9', 0, ',9', 1],
+  [81256, '0', '0', 1, '0,', 2],
+  [82880, '73,650', '73,650', 5, '73,65,0', 6],
+  [85664, '269906', '269,906', 7, '269906,', 7],
+  [87810, '3.1', '3.1', 1, '3,.1', 2],
+  [92740, '94,996,976.25', '94,996,976.25', 2, '94,,996,976.25', 3],
+  [93436, '22.219', '22.219', 6, '22.219,', 7],
+  [94248, '16', '16', 1, '1,6', 2],
+  [99352, '141.8', '141.8', 4, '141.,8', 5],
+  [99700, '6', '6', 1, '6,', 2],
+  [101208, '-531847.693', '-531,847.693', 6, '-5318,47.693', 6],
+  [101788, '5963402.3', '5,963,402.3', 3, '59,63402.3', 3],
+  [102020, '7,929', '7,929', 1, '7,,929', 2],
+  [102484, '13', '13', 2, '13,', 3],
+  [103760, '1.529', '1.529', 4, '1.52,9', 5],
+  [105384, '2.1947', '2.1947', 1, '2,.1947', 2],
+  [106776, '137,839,078', '137,839,078', 7, '137,839,,078', 8],
+  [108690, '1', '1', 0, ',1', 1],
+  [109212, '4447298', '4,447,298', 8, '444729,8', 7],
+  [111242, '7', '7', 1, '7,', 2],
+  [112344, '39', '39', 1, '3,9', 2],
+  [114780, '18981963', '18,981,963', 6, '18981,963', 6],
+  [115244, '546,933,889.861', '546,933,889.861', 6, '546,93,3,889.861', 7],
+]
+
+/** La batería con las filas de D18 devueltas a lo que daban antes. */
+function sinD18(filas: unknown[]): unknown[] {
+  const copia = [...filas]
+  for (const [fila, , texto, cursor] of CAMBIOS_D18) copia[fila] = { texto, cursor }
+  return copia
+}
+
 /** El módulo de hoy forzado a un idioma: lo que ven los campos en es y en en. */
 function enIdioma(idioma: 'es' | 'en'): Modulo {
   return {
@@ -99,9 +197,22 @@ function enIdioma(idioma: 'es' | 'en'): Modulo {
 const huella = (filas: unknown[]) => createHash('sha256').update(JSON.stringify(filas)).digest('hex')
 
 describe('captura de cifras · español e inglés, idénticos a antes', () => {
-  it('la batería entera da la huella de antes (sin idioma, y con es)', () => {
-    expect(huella(bateria(C))).toBe(HUELLA_DE_ANTES)
-    expect(huella(bateria(enIdioma('es')))).toBe(HUELLA_DE_ANTES)
+  it('la batería entera da la huella de antes (sin idioma, y con es), salvo las filas de D18', () => {
+    expect(huella(sinD18(bateria(C)))).toBe(HUELLA_DE_ANTES)
+    expect(huella(sinD18(bateria(enIdioma('es'))))).toBe(HUELLA_DE_ANTES)
+  })
+
+  it('D18 · las 68 filas que cambian son una coma tecleada que ahora se queda donde se tecleó', () => {
+    expect(CAMBIOS_D18).toHaveLength(68)
+    for (const M of [C, enIdioma('es'), enIdioma('en')]) {
+      const filas = bateria(M)
+      for (const [fila, anterior, , , texto, cursor] of CAMBIOS_D18) {
+        expect(filas[fila], `fila ${fila}`).toEqual({ texto, cursor })
+        // Lo de ahora es lo anterior con UNA coma insertada justo antes del cursor.
+        expect(texto[cursor - 1]).toBe(',')
+        expect(texto.slice(0, cursor - 1) + texto.slice(cursor)).toBe(anterior)
+      }
+    }
   })
 
   it('el ingles da los mismos numeros que el español (los motivos van en su idioma)', () => {

@@ -179,6 +179,34 @@ export const ES_COMPARTIDOS = {
   'compartidos.paginacion.anterior': 'Anterior',
   'compartidos.paginacion.siguiente': 'Siguiente',
   'compartidos.paginacion.pagos': 'pagos',
+  // ── B70 (05/11) · los textos que pinta MapLibre en los mapas (`lib/i18n/librerias.ts`) ──
+  // Antes salian en ingles en los tres idiomas. Son `aria-label` y `title` de
+  // los botones del mapa: lo que lee el lector de pantalla y el globo del raton.
+  'compartidos.mapa.lib.acercar': 'Acercar',
+  'compartidos.mapa.lib.alejar': 'Alejar',
+  'compartidos.mapa.lib.norte': 'Arrastra para girar el mapa; haz clic para volver al norte',
+  'compartidos.mapa.lib.pantalla-completa': 'Ver en pantalla completa',
+  'compartidos.mapa.lib.salir-pantalla-completa': 'Salir de pantalla completa',
+  'compartidos.mapa.lib.mi-ubicacion': 'Buscar mi ubicación',
+  'compartidos.mapa.lib.sin-ubicacion': 'Ubicación no disponible',
+  'compartidos.mapa.lib.creditos': 'Mostrar u ocultar los créditos del mapa',
+  'compartidos.mapa.lib.comentarios': 'Comentarios sobre el mapa',
+  'compartidos.mapa.lib.logo': 'Logotipo de MapLibre',
+  'compartidos.mapa.lib.mapa': 'Mapa',
+  'compartidos.mapa.lib.marcador': 'Marcador del mapa',
+  'compartidos.mapa.lib.cerrar-globo': 'Cerrar la ventana del mapa',
+  'compartidos.mapa.lib.globo-activar': 'Ver como globo terráqueo',
+  'compartidos.mapa.lib.globo-desactivar': 'Ver como mapa plano',
+  'compartidos.mapa.lib.relieve-activar': 'Mostrar el relieve',
+  'compartidos.mapa.lib.relieve-desactivar': 'Ocultar el relieve',
+  'compartidos.mapa.lib.zoom-windows': 'Usa Ctrl + rueda del ratón para acercar o alejar el mapa',
+  'compartidos.mapa.lib.zoom-mac': 'Usa ⌘ + rueda del ratón para acercar o alejar el mapa',
+  'compartidos.mapa.lib.zoom-movil': 'Usa dos dedos para mover el mapa',
+
+  // ── B70 · el contenedor de avisos (sonner, `Toaster` del layout) ──
+  // La region se anuncia como «<contenedor> alt+T» (el atajo lo pone sonner).
+  'compartidos.avisos.contenedor': 'Notificaciones',
+  'compartidos.avisos.cerrar': 'Cerrar aviso',
 } as const
 
 export type ClaveCompartidos = keyof typeof ES_COMPARTIDOS
@@ -327,6 +355,31 @@ export const EN_COMPARTIDOS: Record<ClaveCompartidos, string> = {
   'compartidos.paginacion.anterior': 'Previous',
   'compartidos.paginacion.siguiente': 'Next',
   'compartidos.paginacion.pagos': 'payments',
+  // B70 · el ingles de MapLibre TAL CUAL: la prueba lo compara con el paquete.
+  'compartidos.mapa.lib.acercar': 'Zoom in',
+  'compartidos.mapa.lib.alejar': 'Zoom out',
+  'compartidos.mapa.lib.norte': 'Drag to rotate map, click to reset north',
+  'compartidos.mapa.lib.pantalla-completa': 'Enter fullscreen',
+  'compartidos.mapa.lib.salir-pantalla-completa': 'Exit fullscreen',
+  'compartidos.mapa.lib.mi-ubicacion': 'Find my location',
+  'compartidos.mapa.lib.sin-ubicacion': 'Location not available',
+  'compartidos.mapa.lib.creditos': 'Toggle attribution',
+  'compartidos.mapa.lib.comentarios': 'Map feedback',
+  'compartidos.mapa.lib.logo': 'MapLibre logo',
+  'compartidos.mapa.lib.mapa': 'Map',
+  'compartidos.mapa.lib.marcador': 'Map marker',
+  'compartidos.mapa.lib.cerrar-globo': 'Close popup',
+  'compartidos.mapa.lib.globo-activar': 'Enable globe',
+  'compartidos.mapa.lib.globo-desactivar': 'Disable globe',
+  'compartidos.mapa.lib.relieve-activar': 'Enable terrain',
+  'compartidos.mapa.lib.relieve-desactivar': 'Disable terrain',
+  'compartidos.mapa.lib.zoom-windows': 'Use Ctrl + scroll to zoom the map',
+  'compartidos.mapa.lib.zoom-mac': 'Use ⌘ + scroll to zoom the map',
+  'compartidos.mapa.lib.zoom-movil': 'Use two fingers to move the map',
+  // «Notifications» es el de sonner. «Close toast» NO se conserva: «toast» es
+  // jerga de programador y es lo que oiria quien usa lector de pantalla.
+  'compartidos.avisos.contenedor': 'Notifications',
+  'compartidos.avisos.cerrar': 'Close notification',
 }
 
 // ─── ITALIANO · lote L5 (2026-11-03) ────────────────────────────────────────
@@ -484,6 +537,29 @@ export const IT_COMPARTIDOS: Record<ClaveCompartidos, string> = {
   'compartidos.paginacion.anterior': 'Precedente',
   'compartidos.paginacion.siguiente': 'Avanti',
   'compartidos.paginacion.pagos': 'pagamenti',
+  // B70 · i controlli di MapLibre e il contenitore degli avvisi (sonner).
+  'compartidos.mapa.lib.acercar': 'Aumenta lo zoom',
+  'compartidos.mapa.lib.alejar': 'Riduci lo zoom',
+  'compartidos.mapa.lib.norte': 'Trascina per ruotare la mappa; fai clic per tornare al nord',
+  'compartidos.mapa.lib.pantalla-completa': 'Visualizza a schermo intero',
+  'compartidos.mapa.lib.salir-pantalla-completa': 'Esci dallo schermo intero',
+  'compartidos.mapa.lib.mi-ubicacion': 'Trova la mia posizione',
+  'compartidos.mapa.lib.sin-ubicacion': 'Posizione non disponibile',
+  'compartidos.mapa.lib.creditos': 'Mostra o nascondi le attribuzioni della mappa',
+  'compartidos.mapa.lib.comentarios': 'Segnalazioni sulla mappa',
+  'compartidos.mapa.lib.logo': 'Logo di MapLibre',
+  'compartidos.mapa.lib.mapa': 'Mappa',
+  'compartidos.mapa.lib.marcador': 'Indicatore sulla mappa',
+  'compartidos.mapa.lib.cerrar-globo': 'Chiudi la finestra della mappa',
+  'compartidos.mapa.lib.globo-activar': 'Visualizza come globo',
+  'compartidos.mapa.lib.globo-desactivar': 'Visualizza come mappa piana',
+  'compartidos.mapa.lib.relieve-activar': 'Mostra il rilievo',
+  'compartidos.mapa.lib.relieve-desactivar': 'Nascondi il rilievo',
+  'compartidos.mapa.lib.zoom-windows': 'Usa Ctrl + rotellina del mouse per ingrandire o ridurre la mappa',
+  'compartidos.mapa.lib.zoom-mac': 'Usa ⌘ + rotellina del mouse per ingrandire o ridurre la mappa',
+  'compartidos.mapa.lib.zoom-movil': 'Usa due dita per spostare la mappa',
+  'compartidos.avisos.contenedor': 'Notifiche',
+  'compartidos.avisos.cerrar': 'Chiudi notifica',
 }
 
 // ─── PORTUGUES (pt-BR) · lote L5 (2026-11-05) ────────────────────────────────

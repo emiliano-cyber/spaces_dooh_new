@@ -1,5 +1,71 @@
 [
   {
+    "version": "v0.12.6",
+    "fecha": "2026-11-05",
+    "items": [
+      {
+        "tipo": "NUEVO",
+        "texto": "La aplicación se puede usar en inglés y en italiano. Cada servidor decide qué idiomas ofrece; quien entra elige el suyo en la pantalla de acceso.",
+        "en": "The application can now be used in English and Italian. Each server decides which languages it offers; you choose yours on the sign-in screen.",
+        "it": "L’applicazione si può usare in inglese e in italiano. Ogni server decide quali lingue offre; chi accede sceglie la sua nella schermata di accesso."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "En «Mi cuenta → Idioma» cada persona guarda su idioma, y lo encuentra igual en cualquier navegador.",
+        "en": "In “My account → Language” each person saves their language, and gets it on any browser.",
+        "it": "In «Il mio account → Lingua» ogni persona salva la sua lingua, e la ritrova uguale su qualsiasi browser."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Los papeles (contrato de ejemplo, constancia de firmas, propuesta imprimible, liga de la propuesta, portal, comprobante y correos) salen en el idioma elegido al crear el servidor.",
+        "en": "Documents (sample contract, signature record, printable proposal, proposal link, portal, receipt and emails) come out in the language chosen when the server was created.",
+        "it": "I documenti (contratto di esempio, attestazione delle firme, proposta stampabile, link della proposta, portale, ricevuta ed email) escono nella lingua scelta alla creazione del server."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Cada servidor trabaja en pesos o en dólares, elegido una sola vez al crearlo. Los servidores que ya existen siguen en pesos y se ven igual.",
+        "en": "Each server works in Mexican pesos or US dollars, chosen once when it is created. Existing servers stay in pesos and look the same.",
+        "it": "Ogni server lavora in pesos messicani o in dollari, scelti una sola volta alla creazione. I server esistenti restano in pesos e si vedono uguali."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Una coma mal puesta en un importe («2,5», «15000,50») ya no cambia la cifra en silencio: el campo la marca en rojo y no deja guardar hasta corregirla, igual al teclear que al pegar.",
+        "en": "A misplaced comma in an amount (“2,5”, “15000,50”) no longer changes the figure silently: the field marks it in red and will not save until it is fixed, whether typed or pasted.",
+        "it": "Una virgola nel posto sbagliato in un importo («2,5», «15000,50») non cambia più la cifra in silenzio: il campo la segna in rosso e non lascia salvare finché non è corretta, sia digitata sia incollata."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "La vigencia de las propuestas ya no depende de la hora: entre las 18:00 y la medianoche una propuesta válida «hasta hoy» se podía ver como vencida. El último día vale completo.",
+        "en": "Proposal validity no longer depends on the time of day: between 18:00 and midnight a proposal valid “until today” could show as expired. The last day now counts in full.",
+        "it": "La validità delle proposte non dipende più dall’ora: tra le 18:00 e mezzanotte una proposta valida «fino a oggi» poteva risultare scaduta. L’ultimo giorno ora vale per intero."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Los botones de los mapas, los avisos y la X de cerrar ventanas tienen nombre en el idioma de cada persona, también para lectores de pantalla.",
+        "en": "Map buttons, notifications and the X that closes windows are labelled in each person’s language, screen readers included.",
+        "it": "I pulsanti delle mappe, gli avvisi e la X che chiude le finestre hanno un nome nella lingua di ogni persona, anche per i lettori di schermo."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Space Eyes: la galería dice de dónde salió cada foto y de qué campaña, una pantalla apagada ya no entra como creativo nuevo, y la ficha explica por qué faltan fotos.",
+        "en": "Space Eyes: the gallery shows where each photo came from and for which campaign, a switched-off screen no longer counts as a new creative, and the record explains why photos are missing.",
+        "it": "Space Eyes: la galleria dice da dove viene ogni foto e di quale campagna, uno schermo spento non entra più come nuova creatività, e la scheda spiega perché mancano foto."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Space Eyes se puede agregar a un servidor que ya existe, y los equipos entran por el dominio de su propia empresa.",
+        "en": "Space Eyes can be added to an existing server, and devices connect through their own company’s domain.",
+        "it": "Space Eyes si può aggiungere a un server già esistente, e i dispositivi entrano dal dominio della propria azienda."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "En Paquetes, los textos ya no dan por hecho que se cobra en pesos.",
+        "en": "In Packages, the texts no longer assume you charge in pesos.",
+        "it": "In Pacchetti, i testi non danno più per scontato che si incassi in pesos."
+      }
+    ]
+  },
+  {
     "version": "v0.12.5",
     "fecha": "2026-10-29",
     "items": [

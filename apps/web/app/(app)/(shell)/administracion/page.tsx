@@ -1099,6 +1099,7 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
                 <span key={p} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-2.5 py-1 text-[13px] text-ink">
                   <span className="demo-num">{p}%</span>
                   <button type="button" disabled={config.ivaTasas.length <= 1}
+                    aria-label={t('admin.iva.quitar', { n: p })} title={t('admin.iva.quitar', { n: p })}
                     onClick={() => guardar({ ivaTasas: config.ivaTasas.filter((x) => x !== p) })}
                     className="m-0 inline-flex cursor-pointer border-0 bg-transparent p-0 text-muted hover:text-error disabled:cursor-default disabled:opacity-30"><X className="h-3.5 w-3.5" /></button>
                 </span>
@@ -1125,7 +1126,8 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
               {config.plazosCobranza.map((p) => (
                 <span key={p} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-2.5 py-1 text-[13px] text-ink">
                   <span className="demo-num">{p}</span>
-                  <button type="button" onClick={() => guardar({ plazosCobranza: config.plazosCobranza.filter((x) => x !== p) })} className="m-0 inline-flex cursor-pointer border-0 bg-transparent p-0 text-muted hover:text-error"><X className="h-3.5 w-3.5" /></button>
+                  <button type="button" aria-label={t('admin.plazos.quitar', { n: p })} title={t('admin.plazos.quitar', { n: p })}
+                    onClick={() => guardar({ plazosCobranza: config.plazosCobranza.filter((x) => x !== p) })} className="m-0 inline-flex cursor-pointer border-0 bg-transparent p-0 text-muted hover:text-error"><X className="h-3.5 w-3.5" /></button>
                 </span>
               ))}
               <div className="inline-flex items-center gap-1">

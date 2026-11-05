@@ -23,6 +23,64 @@ italiano no cambia nada: los contratos ya firmados siguen igual, letra por letra
 
 ---
 
+## 2026-11-05 · v0.12.6 (preparada, todavía sin publicar)
+
+Junta todo lo que está abajo marcado «sin publicar» desde el 02/11: inglés e italiano,
+el idioma de cada persona, los papeles en el idioma del servidor, pesos o dólares por
+servidor, las cifras con coma, la vigencia de las propuestas, los nombres accesibles y lo
+nuevo de Space Eyes. Las notas que verá cada cliente están en `apps/web/novedades.json`.
+**El portugués NO va en esta versión**: sigue en su rama, `integra/portugues`.
+
+---
+
+## 2026-11-05 · Mapas, avisos y botones de cerrar en el idioma de cada persona, y la vigencia de las propuestas sin depender de la hora (sin publicar)
+
+Cambios que el dueño autorizó el 05/11. Los tres primeros se notan sobre todo con un lector de pantalla o al
+dejar el ratón encima de un botón.
+
+- **Los botones de los mapas** (acercar, alejar, buscar mi ubicación, créditos del mapa) y
+  el aviso de los marcadores decían «Zoom in», «Find my location», «Map marker»… en
+  inglés, también con la aplicación en español. Ahora salen en español, inglés o italiano,
+  según el idioma de quien usa la aplicación.
+- **Los avisos** que aparecen abajo a la derecha se anunciaban como «Notifications» y su
+  botón de cerrar como «Close toast». Ahora dicen «Notificaciones» y «Cerrar aviso» (en
+  inglés, «Notifications» y «Close notification»; en italiano, «Notifiche» y «Chiudi
+  notifica»).
+- **La X que cierra las ventanas y los paneles laterales** no tenía nombre: un lector de
+  pantalla decía solo «botón». Ahora dice «Cerrar» («Close», «Chiudi»), y al dejar el ratón
+  encima aparece el mismo texto. Igual con las X para quitar una tasa de IVA o un plazo de
+  cobranza en Administración («Quitar IVA 16%», «Quitar plazo 30 días»).
+- **La vigencia de las propuestas ya no depende de la hora.** Entre las 6 de la tarde y la
+  medianoche, una propuesta válida «hasta hoy» enseñaba al cliente el botón de aceptar y, al
+  pulsarlo, le decía que ya había vencido. Y una propuesta enviada a esas horas quedaba con un
+  día más de vigencia que el que decía su correo. Ahora todo cuenta con el mismo día, el de la
+  zona horaria de la empresa: el último día de vigencia vale completo, hasta la medianoche.
+
+## 2026-11-05 · Cifras: una coma mal puesta ya no cambia el importe en silencio (sin publicar)
+
+Decisión del dueño. Hasta ahora, en un campo de importe o de cantidad, si alguien
+**tecleaba** «2,5» pensando en «dos y medio», la coma desaparecía y se guardaba **25**,
+sin ningún aviso; «15000,50» se guardaba como 1,500,050. Si **pegaba** el mismo texto, en
+cambio, el campo lo rechazaba y explicaba por qué.
+
+Ahora teclear y pegar se tratan igual, en español y en inglés:
+
+- **La coma que escribe la persona se queda donde la escribió.** Si está bien puesta
+  («1,500», «12,500.50») vale como siempre. Si no («2,5», «12,34», «1,5000»), el campo la
+  deja a la vista, se marca en rojo con el aviso «Las comas van cada tres cifras…» y el
+  formulario **no se guarda** hasta corregirla.
+- **No regaña mientras se escribe.** Al teclear «1,500» se pasa por «1,» y «1,5»: ahí no
+  sale nada. El aviso aparece al salir del campo o al pulsar Enter, si lo que quedó no es
+  una cifra bien puesta.
+- **Lo de siempre no cambia:** quien teclea «1500» sigue viendo «1,500» mientras escribe,
+  y el punto sigue siendo el decimal («2.5» es dos y medio).
+
+Afecta a todos los campos donde se teclea un importe o una cantidad con coma de miles
+(tarifas, rentas, precios, cantidades). Los campos de medidas y porcentajes (por ejemplo
+la comisión o el descuento) no cambian. En italiano ya funcionaba así.
+
+---
+
 ## 2026-11-04 · Idiomas: el correo de «olvidé mi contraseña», «provvigione» y los contratos de ejemplo (sin publicar)
 
 Tres cambios que el dueño autorizó el 04/11. En un servidor en español no cambia nada.

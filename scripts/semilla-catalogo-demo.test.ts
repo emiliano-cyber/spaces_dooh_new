@@ -69,7 +69,10 @@ describe('semilla-catalogo-demo', () => {
     const nov = plan('2026-11-03')
     expect(nov.campanas.find((c) => c.folio === 'CAT-CMP-020')!.desde).toBe('2026-12-01')
     expect(nov.contratos.find((k) => k.clave === 'REF-1')!.inicio).toBe('2024-02-01')
-  })
+    // 60 s: recorre cada dia hasta 2028 y en el CI tarda mas de los 5 s por
+    // omision (fallo el PR de la v0.12.6, 05/11; aqui tambien se pasaba con la
+    // maquina cargada). No es un cuelgue: es trabajo lineal en los dias.
+  }, 60_000)
 
   it('hay historia desde 2024 y contratos y campañas hasta 2028', () => {
     const p = plan()

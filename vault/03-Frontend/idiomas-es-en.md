@@ -57,6 +57,10 @@ archivos:
   - apps/web/components/demo/finanzas/comprobante.ts
   - apps/web/components/demo/finanzas/facturas-lista.ts
   - docs/i18n/revision-costura.md
+  - apps/web/lib/i18n/librerias.ts
+  - apps/web/app/(app)/layout.tsx
+  - apps/web/components/demo/ui/Modal.tsx
+  - apps/web/components/demo/ui/Sheet.tsx
 ---
 
 # La aplicación en dos idiomas (I18N-01)
@@ -2252,6 +2256,52 @@ el idioma de los documentos de la instancia. Rama `feat/idioma-instancia`,
   layouts de `/p/[id]` y `/portal/[token]` envuelven el contenido en un
   `<div lang={idioma de la instancia} style="display:contents">` (WCAG 3.1.2):
   los lectores de pantalla leen el papel con la voz correcta.
+
+## 13 · Lo que pintan las librerías y los botones de solo icono (B70, B71 · 05/11)
+
+Autorizado por el dueño el 05/11: **cambia el español a propósito**, solo en
+textos que antes salían en inglés o no existían. Rama `feat/verificacion-ajustes`.
+
+- **B70 · MapLibre y sonner** ponen sus propios textos en el navegador
+  (`aria-label` y `title`), fuera del HTML que rinden las pruebas, y salían en
+  inglés en los tres idiomas. `lib/i18n/librerias.ts` los traduce por
+  configuración, sin tocar el HTML de las librerías:
+  - `localeMapa(idioma)` → el `locale` de `new maplibregl.Map` en
+    `components/demo/MapView.tsx`, `components/demo/comercial-opex/SelectorUbicacion.tsx`
+    y `components/maps/SitiosMap.tsx` (este último no lo importa nadie; se
+    arregló igual para que no sea la excepción el día que vuelva). Claves
+    `compartidos.mapa.lib.*`: «Acercar», «Alejar», «Buscar mi ubicación»,
+    «Mostrar u ocultar los créditos del mapa», «Marcador del mapa», «Mapa»…
+  - `propsAvisos(idioma)` → `containerAriaLabel` y
+    `toastOptions.closeButtonAriaLabel` del `Toaster` de `app/(app)/layout.tsx`
+    (Server Component, con `idiomaDeLaPeticion()`): «Notificaciones alt+T» y
+    «Cerrar aviso».
+  - **El inglés:** el del mapa es el de MapLibre **tal cual** —
+    `lib/i18n/librerias.test.ts` lee el `defaultLocale` del paquete instalado y
+    compara; si una versión nueva trae un texto, la prueba pide su clave—. El
+    de sonner conserva «Notifications»; «Close toast» pasa a «Close
+    notification», porque «toast» es jerga de programador y es justo lo que oye
+    quien usa lector de pantalla.
+  - **Lo que queda:** las unidades de la escala («km», «ft»), que no son
+    palabras y ningún mapa usa. Y MapLibre lee el `locale` al crear el mapa: si
+    la persona cambia de idioma sin salir de la pantalla, los controles siguen en
+    el anterior hasta volver a entrar.
+- **B71 · la X de los diálogos** (`components/demo/ui/Modal.tsx`, `Sheet.tsx`)
+  era un `Dialog.Close` con solo un icono: el lector de pantalla decía «botón».
+  Lleva `aria-label` y `title` con la clave común `comun.cerrar` («Cerrar» /
+  «Close» / «Chiudi»). Los otros dos botones de solo icono sin nombre que había
+  —quitar una tasa de IVA y quitar un plazo de cobranza, en Administración—
+  llevan `admin.iva.quitar` y `admin.plazos.quitar`. Lo vigila una guardia
+  (`components/demo/ui/cerrar-accesible.test.ts`) que recorre `components/` y
+  `app/` buscando `<button>`, `<Button>` o `<Dialog.Close>` cuyo único hijo sea
+  un icono sin `aria-label`, `aria-labelledby` ni `title`.
+- **Medido** (volcado `I18N_VOLCAR_TODO` de toda la suite contra `a91580bb`,
+  `diff -rq`): cambian 30 estados, todos de `pantallas-admin.test.ts` (5 en
+  español, 20 en inglés, 5 en italiano), y solo por el `aria-label`/`title` de
+  las X de IVA y plazos. MapLibre, sonner y el `Modal`/`Sheet` reales no salen
+  en el volcado (los pinta el navegador, o las pruebas los simulan): los fijan
+  `librerias.test.ts` y `cerrar-accesible.test.ts`. `DICCIONARIOS`: 24 claves
+  nuevas por idioma, 0 valores cambiados.
 
 ## Enlaces
 

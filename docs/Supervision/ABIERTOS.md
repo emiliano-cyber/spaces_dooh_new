@@ -285,7 +285,50 @@ archivo dentro de la pregunta.
 > D18 es la misma trampa en español, que el dueño pidió no tocar. (Numeradas tras D17 y B76, que
 > ya existen en `integra/idiomas`.)
 
-### D18 · En un campo de dinero, si alguien escribe «2,5» en español, hoy se queda en 25 sin ningún aviso. ¿Se cambia para que avise, aunque eso cambie el comportamiento en español?
+### ~~D18 · En un campo de dinero, si alguien escribe «2,5» en español, hoy se queda en 25 sin ningún aviso. ¿Se cambia para que avise, aunque eso cambie el comportamiento en español?~~ — CERRADA (b)
+
+> ✅ **CONTESTADA el 2026-11-05 por el dueño (opción b) y CONSTRUIDA** en
+> `feat/d18-aviso-al-teclear` (sale de `verificacion` `a91580bb`; rojo a la vista `6dce3b0f`, 28
+> rojas en formularios y las unitarias; arreglo en el commit siguiente). Sin validar todavía.
+>
+> **La regla exacta**, en español e inglés y en todos los campos `CampoCifra` (dinero y
+> cantidades enteras): las comas que pone el CAMPO al teclear la cuarta cifra se recolocan como
+> siempre; una coma que pone la PERSONA —tecleada, o en un texto pegado— se queda donde la puso,
+> y mientras quede alguna el campo no recoloca ninguna (`teclearCifra`, `lib/captura-cifra.ts`).
+> Decide `leerCifra`, la misma de pegar: «1,500» y «12,500.50» valen; «2,5», «12,34», «1,5000»
+> y «15000,50» se quedan a la vista, se rechazan con «las comas van cada tres cifras» y el
+> formulario recibe `'NaN'` (no envía, con las guardias de siempre). **A media escritura no se
+> avisa**: lo que acaba en un grupo de millar incompleto («1,», «1,5», «12,50») va camino de
+> «1,500» (`cifraAMedias`); el aviso sale al salir del campo o con Enter. Lo pegado avisa en el
+> acto, como antes. El italiano no cambia.
+>
+> **Qué cambia en español, medido** contra la función de `a91580bb`, tecleando de corrido todas
+> las secuencias de hasta 7 teclas sobre `0 1 2 5 , .` (335 922 por idioma; inglés idéntico):
+> sin una coma tecleada, **ninguna** cambia; con alguna, en dinero 125 259 pasan de una cifra a
+> un rechazo y 84 799 solo cambian el texto (ya se rechazaban); en cantidades enteras, 88 399 y
+> 121 659. **Ninguna** pasa de rechazo a cifra ni de una cifra a otra. En la batería de la
+> huella cambian exactamente 68 filas de 116 000, todas una coma insertada que ahora se queda
+> (apuntadas en `captura-cifra.es-en.test.ts`). Volcado `I18N_VOLCAR_TODO` de toda la suite:
+> 0 HTML distintos (ninguna prueba de pantalla teclea una coma mal puesta).
+>
+> **Lo que NO cubre, y es otro defecto:** los campos `EntradaCifra` en español e inglés
+> (medidas, porcentajes —comisiones, el descuento de la propuesta—, caras, plazos) son el
+> `<input>` de siempre: no reagrupaban nada, así que no tenían la diferencia entre teclear y
+> pegar que decide D18. Ahí «12,5» sigue siendo `Number('12,5') || 0` = 0, tecleado o pegado,
+> como se dejó a propósito el 04/11. Cambiarlo cambia su HTML y su contrato: si se quiere, es
+> una decisión nueva.
+>
+> **Supervisión 2026-11-04 (hora local): ÁMBAR** — `docs/Supervision/d18-aviso-al-teclear.md`.
+> Medido aparte contra la función de `a91580bb`: las cifras de arriba se reproducen exactas
+> (125 259 / 84 799 / 88 399 / 121 659, 0 rechazo→cifra); la huella de antes es `e5240e24…` y las
+> 68 filas distintas son exactamente `CAMBIOS_D18`; volcado de toda la suite, 0 HTML distintos;
+> 100 000 secuencias al azar sin coma de la persona, 0 distintas; 11 de 13 mutantes mueren.
+> **Una precisión:** «ninguna pasa de una cifra a otra» vale solo para teclear de corrido. Con
+> retroceso sí cambian (24 069 de 3 257 436 desde vacío), y es a favor del arreglo: antes el
+> retroceso tras una coma tragada borraba una cifra (143 150 casos perdían una cifra con la función
+> vieja, 0 con la nueva). Deuda nueva: **B87** (el gemelo italiano; el supervisor la numeró B84, número ya usado), **B85** (pegar sobre una
+> selección), **B86** (dos mutantes vivos), y la decisión **D19** (`EntradaCifra` en es/en).
+
 
 - **Bloquea:** nada de lo construido ni de la rama italiana. El arreglo del italiano (B77) se
   puede hacer ya sin esta respuesta. **Lo que SÍ se puede mientras:** todo.
@@ -310,6 +353,78 @@ archivo dentro de la pregunta.
 - **Si nadie contesta:** queda la (a). Aceptable a corto plazo: es lo de siempre y la cifra se ve en
   pantalla. Deja de serlo si entra un cliente que teclee con costumbre europea en español.
 - **Caduca:** no caduca por fecha; pierde valor cada factura o propuesta que se capture así.
+
+### D19 · En español e inglés, si alguien escribe «12,5» en el porcentaje de comisión de una agencia o de una propuesta, hoy se guarda 0 % sin ningún aviso. ¿Se cambia para que avise y no guarde?
+
+- **Bloquea:** nada de lo construido; D18 aterriza sin esta respuesta. **Lo que SÍ se puede
+  mientras:** todo. Solo queda abierto que esos campos sigan guardando 0.
+- **Por qué importa:** la comisión de la agencia y la de la propuesta entran en el precio. Quien
+  escribe «12,5» pensando en «doce y medio» —costumbre europea o de calculadora— guarda **0 %**: la
+  agencia queda sin comisión y la propuesta sale con otro precio, y la pantalla no dice nada. Es el
+  mismo error que D18 acaba de quitar de los campos de importe, en los campos de porcentaje, que
+  son de otra clase y D18 no tocaba. Pasa hoy, en el idioma con clientes. En los campos de
+  porcentaje con flechas (descuento, tope, cupones) depende del navegador y no está medido.
+- **Opciones:**
+  - **(a) Dejarlo como está.** Cero días. El riesgo queda en quien escriba con coma decimal.
+  - **(b) Que esos campos rechacen lo que no es una cifra y no dejen guardar, con un aviso.** Medio
+    día con sus pruebas, solo en los campos de porcentaje y de dinero (comisiones, descuento, tope,
+    cupones, descuento por volumen). Cambia cómo se ven esos campos cuando hay un error; con una
+    cifra bien escrita, nada.
+  - **(c) Pasar todos esos campos al campo de cifras que ya usan los importes** (el mismo de D18).
+    Uno o dos días. Un solo comportamiento en toda la aplicación, pero cambia también cómo se ven
+    con cifras correctas (comas de miles) y hay que revisarlos uno por uno.
+- **Recomendación:** **(b)** ahora, en los campos que tocan dinero. Es el principio que el dueño ya
+  fijó dos veces («lo ambiguo se rechaza», B77 y D18) y es el arreglo más pequeño que lo cumple. (c)
+  queda para cuando haya tiempo de revisar campo por campo.
+- **Si nadie contesta:** queda la (a). Aceptable solo mientras nadie capture comisiones con coma
+  decimal; un 0 % en una comisión no se ve hasta que alguien revise el precio o el pago a la agencia.
+- **Caduca:** no caduca por fecha; pierde valor con cada comisión o propuesta capturada así.
+
+
+---
+
+### D20 · Entre las 6 de la tarde y la medianoche, los cupones, las facturas y los cobros ya cuentan como si fuera mañana. ¿Se arreglan para que cuenten con el día de México, como se acaba de hacer con las propuestas?
+
+> Abierta el 2026-11-04 (noche) por el supervisor, al revisar `feat/verificacion-ajustes`.
+> Expediente: `docs/Supervision/verificacion-ajustes.md` §3 (H1, H2).
+
+- **Bloquea:** nada de lo que ya está hecho. La rama de las propuestas puede fusionarse sin esta
+  respuesta. **Lo que SÍ se puede mientras:** todo; esta pregunta decide trabajo nuevo.
+- **Por qué importa:** el sistema lleva dos relojes. La pantalla usa el día de México; varias
+  cuentas de dinero usan el reloj de la base de datos, que en el servidor de g500 sigue la hora
+  universal (la de Londres en invierno): de 6 de la tarde a medianoche para ella ya es mañana.
+  Con las propuestas pasaba que el cliente veía el botón de aceptar y al pulsarlo le decían que ya
+  había vencido; eso ya se arregló. Lo mismo sigue pasando con:
+  - **los cupones:** el último día de un cupón, desde las 6 de la tarde, el panel dice «vigente»
+    pero al aplicarlo dice «venció»; y **la víspera** de que empiece, desde las 6 de la tarde, el
+    sistema **ya deja aplicarlo**: un descuento cobrable seis horas antes de lo que se configuró;
+  - **las facturas:** una factura emitida el día 30 a las 7 de la noche queda fechada el 1 del mes
+    siguiente, y cae en el reporte del mes equivocado;
+  - **los cobros** que se registran sin fecha, y **el corte del tablero de finanzas**, igual.
+  Está leído en el código, no provocado en el servidor; y la zona exacta de la base de g500 falta
+  confirmarla (una persona con acceso, dos comandos; está escrito en las advertencias).
+- **Opciones:**
+  - **(a) Arreglar todo lo de dinero ya** (cupones, facturas, cobros y el tablero de finanzas), con
+    la misma regla que las propuestas. Entre uno y dos días con sus pruebas. Quedan fuera las
+    cuentas de estado (campañas activas, órdenes de trabajo), que no mueven dinero.
+  - **(b) Solo los cupones ahora**, porque son un descuento que se le promete a alguien de fuera; lo
+    demás después. Medio día. Las facturas del último día del mes a partir de las 6 de la tarde
+    siguen cayendo en el mes siguiente hasta entonces.
+  - **(c) Poner la base de cada servidor en la hora del dueño**, sin tocar el programa. Unos minutos
+    por servidor, lo hace una persona. Arregla las treinta cuentas de golpe, pero depende de que
+    nadie se olvide al instalar un servidor nuevo, y las pruebas automáticas no lo ven (corren en
+    hora universal a propósito).
+  - **(d) Dejarlo así.** Cero días. El riesgo queda en lo que se haga entre las 6 de la tarde y la
+    medianoche.
+- **Recomendación:** **(b) ya, y (a) a continuación.** Los cupones son lo único de la lista que
+  promete dinero a un tercero y que hoy deja hacer algo antes de tiempo; es medio día y usa la misma
+  pieza que ya se probó en las propuestas. La (c) es tentadora por barata, pero es la misma clase de
+  ajuste que se pierde en silencio al reinstalar un servidor, y ya hay escrita una guía para mudar g500 a un servidor limpio.
+- **Si nadie contesta:** queda la (d). Es aceptable unas semanas porque los casos caen en una
+  franja de horas y se ven; deja de serlo en el primer cierre de mes en que se facture de noche, y
+  con el primer cupón que alguien use la víspera.
+- **Caduca:** el próximo cierre de mes, **30/11/2026**: lo facturado esa noche ya quedaría en
+  diciembre.
 
 ---
 
@@ -2121,6 +2236,58 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
 
 ---
 
+#### B88 · 🟠 ABIERTA (2026-11-04) · La zona horaria de g500 no está medida, el código se contradice sobre ella, y una instancia sin `TZ` cuenta en UTC sin avisar
+
+- **Qué es:** el arreglo de la vigencia (`feat/verificacion-ajustes`, B84) da por hecho «base en
+  UTC, aplicación en `TZ=America/Mexico_City`». Lo escrito es la zona **del sistema**
+  (`docs/evidencias/30-mudar-g500-a-droplet-limpio-20261104.md:140` y `:145`), no el
+  `show timezone` de Postgres, y la `TZ` de `app.env` está descrita, no impresa. Y el código afirma
+  lo contrario en dos sitios: `lib/server/finanzas-repo.ts:319-320` («zona America/Mexico_City en
+  producción … el reloj del servidor de la app está en UTC») y `lib/server/notificaciones-repo.ts:64-66`.
+  Uno de los dos lados es falso. Además `hoyDeVigencia()` toma la `TZ` del proceso sin comprobarla
+  (`grep process.env.TZ` en `lib/` y `app/`: solo pruebas): sin la línea de
+  `infra/env/app.env.example:186`, la instancia cuenta en UTC en silencio.
+- **Por qué es de severidad:** si g500 tuviera la base en México y la app sin `TZ`, la rama haría
+  que aceptar una propuesta y su correo pasaran a contar en UTC — **empeoraría** algo que hoy está
+  bien. Con la app en México (lo que dice la plantilla) el arreglo es correcto sea cual sea la base.
+- **Cómo se cierra:** una persona en g500 (no un agente: nada de `ssh` desde aquí):
+  `docker exec <contenedor de la app> printenv TZ` y
+  `docker exec <contenedor de la app> date`, y en la base `show timezone;`. Con la salida pegada:
+  corregir el comentario falso (`finanzas-repo.ts` o la propia rama) y, si se quiere red, un aviso al
+  arrancar o en `/api/version` cuando `TZ` falte.
+- **Quién:** el dueño o quien opere g500, para medir; el ejecutor, para el comentario y el aviso.
+- **Si no se cierra antes de fusionar:** la vigencia queda bien en la hipótesis de la plantilla y
+  sin red en la otra. Y D20 se decide sobre una premisa sin medir.
+- **2026-11-05 · H4 hecho en la rama** (`475e6403` rojo, arreglo en el commit siguiente): `hoyDeVigencia()`
+  cuenta con `Intl` y la zona EXPLÍCITA (`zonaDelNegocio()`, `lib/propuesta-vigencia.ts`): la `TZ` del
+  proceso si es válida (también con los dos puntos de glibc) y, si falta o no vale,
+  `ZONA_DEL_NEGOCIO_POR_OMISION = America/Mexico_City` con un `console.warn` una sola vez. Ya no
+  cae a UTC en silencio, y no depende de que el runtime honre `TZ` (Node en Windows no la honra
+  para `America/Los_Angeles`: medido). 6/6 mutantes. **Sigue abierta** por la medición de g500
+  (`printenv TZ`, `date` y `show timezone;`), que corre una persona, y por el comentario de
+  `finanzas-repo.ts:319-320` que se corrige con esa salida. El comentario de la rama ya no afirma
+  la zona de Postgres de g500 como medida.
+
+#### ~~B89 · «Enviar» no tiene prueba que muerda la fecha del correo~~ ✅ CERRADA el 2026-11-05 en `feat/verificacion-ajustes`
+
+- **Cerrada con** `lib/server/propuestas-envio-hora.test.ts` (`2070b34a`): llama a
+  `enviarPropuestaCtrl` con el reloj a las 19:00 de México y la base simulada comparando con el día
+  que le llega (vence hoy, sin vigencia, vencida ayer). M5 (`:65`) y M4 (`:87`) del supervisor
+  mueren, 2 rojas cada uno. Lo de abajo es el texto con que se abrió.
+
+
+- **Qué es:** de la regla única de la vigencia, la mitad del correo de «Enviar» solo la vigila una
+  guardia de texto contra `current_date`. Dos mutantes que leen el día con `toISOString()` en
+  `propuestas-envio.ts` (el de la fecha prometida, `:87`, y el de `vencida`, `:65`) **sobreviven**
+  a las 1442 unitarias de `lib/server` (`docs/Supervision/verificacion-ajustes.md` §1, M4 y M5).
+- **Cómo se cierra:** un caso en `lib/server/propuesta-vigencia-hora.test.ts` que llame a
+  `enviarPropuestaCtrl` con el reloj a las 19:00 de México y compare la fecha del correo con la del
+  `update`. Medio rato. **Quién:** el ejecutor de la rama.
+- **Si no se cierra:** el día que alguien toque ese archivo puede volver el «el correo dice un día y
+  la base otro» y nada se pone rojo.
+
+---
+
 ### B · ii — Críticas por CALENDARIO (no hay fallo silencioso; aprieta la fecha)
 
 #### B55 · 🔴 **ABIERTA (2026-10-21) · Node 22 y PHP en los servidores: la `v0.12.1` está en `estable`, pero NINGÚN servidor la tiene todavía**
@@ -2581,6 +2748,11 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
 - **Quién:** el dueño de la zona de pruebas / i18n.
 - **Si no se cierra:** un rojo que no dice nada del código. El daño real es el contrario: quien se
   acostumbra a «es la carga» deja de mirar el día que el rojo sí es suyo.
+- **2026-11-04 noche, otra vez y con OTRO archivo** (`feat/verificacion-ajustes` @ `aed31579`):
+  dos de tres corridas de `npm test` dieron `1 failed | 8672 passed` por
+  `scripts/semilla-catalogo-demo.test.ts` «el calendario se mueve con el ancla…», «Test timed out
+  in 5000ms»; la tercera, `8673 passed`. Sola: `29 passed (29)`, y esa prueba en 2197 ms. La rama no
+  toca `scripts/`. Ya no son solo las suites de pantallas: el arreglo de `lib/i18n/` no bastaría.
 
 ### B · iii — Menores, para que no se pierdan
 
@@ -2635,15 +2807,23 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
   del navegador», la regla de `resolverIdioma` (cookie > `navigator.languages` > español, entre
   los encendidos). Sin cambio de idioma sale el texto de siempre; el diccionario no cambia. 8/8
   mutantes. Pendiente de su validador.
-- **B70 · ⚪ ABIERTA (2026-11-04) · Los controles del mapa y del *toaster* salen en inglés en todos
-  los idiomas.** MapLibre pone «Zoom in», «Zoom out», «Find my location», «Map marker» y «Toggle
-  attribution»; sonner pone «Notifications alt+T». **Por qué:** son los valores por omisión de las
-  librerías. Darles el idioma (`locale` de MapLibre, `containerAriaLabel` de sonner) cambia el
-  español. No se tocó. Menor (sobre todo para lector de pantalla).
-- **B71 · ⚪ ABIERTA (2026-11-04) · El botón de cerrar de los diálogos no tiene nombre
-  accesible.** Pasa en todos los idiomas: el lector de pantalla anuncia solo «botón». **Por qué:**
-  la X del `Modal` no lleva `aria-label`. Ponérselo cambia el HTML español e inglés de las pruebas
-  de pantallas. No se tocó. Menor.
+- ~~**B70 · Los controles del mapa y del *toaster* salen en inglés en todos los idiomas.**~~ ✅
+  **CERRADA el 2026-11-05 en `feat/verificacion-ajustes`** (autorizada por el dueño el 05/11, cambia
+  el español a propósito). `lib/i18n/librerias.ts`: `localeMapa(idioma)` para el `locale` de los
+  tres `new maplibregl.Map` (`MapView`, `SelectorUbicacion` y el `SitiosMap` sin uso) y
+  `propsAvisos(idioma)` para el `Toaster` del layout de `(app)`. Claves nuevas
+  `compartidos.mapa.lib.*` (20) y `compartidos.avisos.*` (2) en es/en/it. El inglés del mapa es el
+  de MapLibre tal cual (la prueba lo lee del paquete instalado y pide clave si llega un texto
+  nuevo); el de sonner conserva «Notifications» y cambia «Close toast» por «Close notification»
+  («toast» es jerga). La escala («km», «ft») se queda: unidades, y no se usa. Detalle y medición
+  en [[idiomas-es-en]] §13. Pendiente de su validador.
+- ~~**B71 · El botón de cerrar de los diálogos no tiene nombre accesible.**~~ ✅ **CERRADA el
+  2026-11-05 en `feat/verificacion-ajustes`** (autorizada por el dueño el 05/11). La X de `Modal` y
+  de `Sheet` lleva `aria-label` y `title` con `comun.cerrar` («Cerrar» / «Close» / «Chiudi»), y los
+  dos botones de solo icono que también estaban sin nombre (quitar una tasa de IVA y un plazo de
+  cobranza en Administración) llevan `admin.iva.quitar` y `admin.plazos.quitar`. Una guardia
+  (`components/demo/ui/cerrar-accesible.test.ts`) recorre `components/` y `app/` y no deja otro.
+  Detalle en [[idiomas-es-en]] §13. Pendiente de su validador.
 - ~~**B72 · La propuesta imprimible, el contrato y el comprobante no llevan su propio `lang`
   cuando el idioma de la instancia no es el de la persona.**~~ ✅ **CERRADA el 2026-11-04 en
   `feat/italiano-pulido`** (`edea7c08` rojo, `df44ec0c` arreglo). `lib/i18n/parte-en-idioma.tsx`
@@ -2793,6 +2973,79 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
   **Cómo se cierra:** dejar de quitarlos cuando ninguna instancia corra una versión anterior a la
   que entiende `en`/`it` (la prueba «notas_disponibles» de `lib/novedades-idiomas.test.ts` se
   invierte entonces). **Quién:** quien publique, tras comprobar la versión de la flota. Menor.
+- ~~**B84 · `propuesta-vigencia.e2e` («la liga dice «vencida»…») cae en rojo entre las 18:00 y las
+  24:00 de México.**~~ ✅ **CERRADA el 2026-11-05 en `feat/verificacion-ajustes`. Era un defecto de
+  PRODUCCIÓN, no del arnés.** En g500 la base va en `Etc/UTC` y la aplicación con
+  `TZ=America/Mexico_City`: la ficha y la liga decían «vencida» con el día local de la aplicación,
+  y aceptar, el correo de «Enviar» y la vigencia al enviar usaban el `current_date` de la base.
+  Desde las 18:00 de México, una propuesta «válida hasta hoy» salía vigente en la liga con su botón
+  y aceptarla daba 409 «venció»; y la enviada a esa hora se guardaba con un día más del que decía
+  su correo. **Regla única:** el día de la vigencia es el de la zona del negocio (`hoyDeVigencia()`,
+  `lib/propuesta-vigencia.ts`), y la base lo recibe como parámetro (`propuestas-repo.ts`,
+  `propuestas-envio.ts`, sin un solo `current_date`). Prueba unitaria con la base simulada en UTC y
+  el reloj a las 19:00 de México (`lib/server/propuesta-vigencia-hora.test.ts`, 4/6 en rojo antes,
+  5/5 mutantes); la e2e pasa a usar el día del negocio en vez de `current_date`. Detalle en
+  [[comercial-propuestas-campanas]]. **Queda:** otras 30 consultas de `lib/server` usan
+  `current_date`/`now()` de la base para otras fechas (campañas, cobranza, OT…); no se revisaron
+  aquí. Pendiente de su validador.
+  **Supervisor, 04/11 noche (`docs/Supervision/verificacion-ajustes.md`): el arreglo se sostiene,
+  medido.** Rojo de `22e30e5f` repetido (`4 failed | 2 passed`, el del 409 por aserción); e2e
+  `11 passed` a las 22:40 de México (día local ≠ día de la base) y, con aceptar devuelto a
+  `current_date` y build, `3 failed`; 5 de 7 mutantes de vigencia mueren. **Lo que deja abierto:**
+  la premisa de g500 sin medir (B88), la fecha del correo sin prueba que muerda (B89), y del
+  «resto», lo de dinero —cupones, facturas, cobros, tablero de finanzas— va a **D20**.
+- ~~**B90 · `CLAUDE.md:42` dice 1671 enlaces y `feat/verificacion-ajustes`
+  tiene 1674**~~ ✅ **CERRADA el 2026-11-05**: `CLAUDE.md` lleva la cifra medida con
+  `node scripts/recuentos.mjs` al cerrar la rama (`node scripts/recuentos.mjs`: 1671 en `a91580bb`, 1674 en `aed31579`; el diario
+  ya dice 1674). La rama añade tres enlaces en el diario y no tocó `CLAUDE.md`. **Cómo se cierra:**
+  correr el script y poner la cifra, en esta rama antes de fusionar. **Quién:** el ejecutor. Menor.
+
+  > **2026-11-04 · supervisión de `feat/d18-aviso-al-teclear`** (`6dce3b0f` + `598a3a25`), ÁMBAR —
+  > `docs/Supervision/d18-aviso-al-teclear.md`. Tres advertencias nuevas; la decisión nueva es D19.
+
+- ~~**B87 · En italiano, «1.500» tecleado y luego un «0» se vuelve «15.000» sin aviso.**~~ ✅ **CERRADA el 2026-11-05** (`3a040dec` rojo a la vista; arreglo en el commit
+  siguiente de `feat/d18-aviso-al-teclear`). La rama italiana de `teclearCifra` es el espejo de la española con los signos intercambiados: un
+  punto de millar que pone la persona no se recoloca. «1.5000» y «1.2345» tecleados se quedan y se
+  rechazan, como pegados; «1.500», «1.500,50», «1500» → «1.500» igual que antes; pegar «1.500» sobre
+  «2.000» + 0 → «1.5000» rechazado. Lo único que cambia en las pruebas italianas de antes son esos
+  dos casos (`captura-cifra.d18.test.ts`). `cifraAMedias` sigue en `false` en italiano. Numerada
+  **B84** por el supervisor; ese número ya lo usaba otra rama.
+  Lo que decía la advertencia: Qué es:** el gemelo exacto de lo
+  que D18 corrige en español. B77 deja el punto tecleado donde cae, pero cuando el texto vuelve a
+  parecer canónico («1.500») la tecla siguiente lo regrupa. **Evidencia:** `teclearCifra(…, 'it')`
+  tecla a tecla: `1 > 1. > 1.5 > 1.50 > 1.500 > 15.000` → 15000; `1.2345` → 12345; en español la
+  misma secuencia con coma da `1,5000` → rechazado. Pegado, «1.5000» se rechaza también en italiano.
+  La rama italiana de `teclearCifra` devuelve `comasPropias: false` siempre (`lib/captura-cifra.ts:439`
+  y siguientes). **Cómo se cierra:** el mismo estado de D18 («separadores propios») en la rama
+  italiana; prueba roja con «1.500» + «0». No hace falta decisión nueva: el principio del dueño para
+  el italiano ya es «lo tecleado acaba igual que lo pegado» (B77). **Quién:** el ejecutor de la
+  captura italiana (ZONA ROJA ya autorizada en B77), verificador aparte. **Si no se cierra antes del
+  14/10:** la fecha pasó; lo que importa es **antes de encender el italiano** en un servidor con
+  clientes: un importe tecleado así se guarda 10 veces mayor, a la vista pero sin aviso.
+- ~~**B85 · Pegar una cifra con comas ENCIMA de otra con las mismas comas no cuenta como «coma de la persona».**~~ ✅ **CERRADA el 2026-11-05** (`3a040dec` rojo a la vista; arreglo en el commit
+  siguiente de `feat/d18-aviso-al-teclear`). Lo pegado o soltado (`insertFromPaste`/`insertFromDrop`) con coma cuenta como de la persona siempre;
+  «2,000» → pegar «1,500» → «0» da «1,5000» rechazado (unitaria y en el campo).
+  Lo que decía la advertencia: Qué es:** `teclearCifra` marca la coma
+  como de la persona solo si el cambio trae **más** comas que antes (`lib/captura-cifra.ts:453`).
+  **Evidencia:** `""` → pegar «1,500» → «0» da `1,5000` rechazado; `"2,000"` → pegar «1,500» (sobre
+  la selección) → «0» da `15,000` = 15000. La regla escrita en la función («tecleada, o en un texto
+  pegado») y la prueba «lo pegado con coma cuenta como de la persona» solo se cumplen pegando en
+  vacío. Reemplazar una tarifa seleccionándola y pegando es la edición normal. Lo que se ve es lo que
+  se manda y es el comportamiento de antes de D18, por eso no es rojo. **Cómo se cierra:** en
+  `insertFromPaste`/`insertFromDrop`, marcar como propio si el texto resultante lleva coma; prueba
+  roja con «2,000» → pegar «1,500» → «0». **Quién:** el ejecutor de `feat/d18-aviso-al-teclear`.
+  **Si no:** queda un camino por el que «1,500» + 0 da 15,000 sin aviso, el patrón que D18 cerró.
+- ~~**B86 · Dos mutantes de D18 sobreviven a las unitarias.**~~ ✅ **CERRADA el 2026-11-05** (`3a040dec` rojo a la vista; arreglo en el commit
+  siguiente de `feat/d18-aviso-al-teclear`). Dos pruebas en `cifras-d18.test.ts`: «1,000» bajo un mínimo de 1500, salir y «0» → «1,0000»; y un
+  repintado del padre («1,500,5» → «1,500») vuelve a reagrupar («15,000»). Los dos mutantes mueren
+  (2 rojas cada uno), igual que otros seis sobre B85 y B87 (8/8).
+  Lo que decía la advertencia: Qué es:**
+  M11 (salir del campo con una cifra INVÁLIDA también apaga `comasPropias`) y M13 (el repintado del
+  padre deja de apagarlo) pasan las 260 pruebas de captura de cifras. El código de hoy hace lo
+  correcto (`components/demo/ui/CampoCifra.tsx:206` y `:144`); nada lo protege. Con M11, un campo con
+  mínimo 1500, «1,000» tecleado, salir, volver y «0» daría 10,000 válido. **Cómo se cierra:** una
+  prueba por cada uno en `lib/i18n/cifras-d18.test.ts` (el arnés ya tiene `salir()` y `refs: true`).
+  **Quién:** el ejecutor. Menor.
 
 - **B57 · 🟠 ABIERTA (2026-10-29) · Un usuario que ya usó el sistema NO se puede
   borrar: la bitácora lo impide.** Encontrada escribiendo la prueba de P19.
