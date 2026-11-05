@@ -196,3 +196,17 @@ módulo exige instalarla (certificado con `eyes.`, ufw, `eyes.env`, cron). Hoy
 es un paso a mano; automatizarlo es el siguiente trabajo de esta zona. Los
 hijos administrados (`provision-instancia.sh`) no llevan licencia: en ellos
 Space Eyes depende solo de si nacieron con `--con-eyes`.
+
+## Enmienda (08-oct-2026): sin subdominio `eyes.<dominio>`
+
+Decisión del dueño: ningún equipo apunta a `eyes.<dominio>`. Cada empresa habla
+solo con su servidor, para evitar conflictos de confidencialidad. Los equipos
+entran por **el mismo dominio de la instancia**: nginx incluye
+`infra/nginx/space-eyes.conf`, que manda a Space Eye `/api/`, `/socket.io/`,
+`/storage/`, `/whep/` y las descargas.
+
+- El certificado y el DNS llevan un solo nombre.
+- El video y TURN van a `IP_PUBLICA`, porque el proxy de Cloudflare no los deja pasar.
+- `instalar-hijo.sh`, `provision-instancia.sh` y `altas.mjs` ya no piden ni crean `eyes.<dominio>`.
+- Las instancias que ya existen usan `infra/scripts/agregar-eyes.sh`
+  (ver `infra/eyes/AGREGAR-A-UNA-INSTANCIA.md`).
