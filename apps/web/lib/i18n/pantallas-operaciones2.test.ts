@@ -7,7 +7,10 @@ import { ProveedorIdioma } from './contexto'
 import type { Idioma } from './idiomas'
 import { MONEDAS, fijarMonedaInstancia } from './dinero'
 import { leerDinero } from './simbolo-en-pantalla'
-import { ES_OPERACIONES2, EN_OPERACIONES2, IT_OPERACIONES2 } from './textos/operaciones2'
+import { ES_OPERACIONES2, EN_OPERACIONES2, IT_OPERACIONES2, PT_OPERACIONES2 } from './textos/operaciones2'
+import { huellasEnPortugues } from './guardias-portugues'
+import { culpablesEnItaliano } from '../test/barrido-italiano'
+import { espanolPendienteDeOtrosLotes } from '../test/barrido-portugues'
 import { huellasEnItaliano } from './guardias-italiano'
 import { legible, fugasEnItaliano } from '../test/italiano-l3'
 
@@ -844,4 +847,88 @@ describe('lote OPERACIONES (parte 2) · barrido del diccionario contra el HTML i
     }
     expect(fugasEnItaliano(html, [{ es: ES_OPERACIONES2, en: EN_OPERACIONES2, it: IT_OPERACIONES2 }])).toEqual([])
   })
+})
+
+// ─── PORTUGUES · lote L3 (2026-11-05) ───────────────────────────────────────
+// Los mismos estados, rendidos en `pt`: ninguna huella de formato espanol o
+// ingles, ninguna frase espanola ni inglesa del lote (lo que falta del
+// portugues cae al ESPANOL y no da error: solo se ve aqui), las frases
+// portuguesas de los estados con lista y el dinero con «MX$ » delante. Lo
+// espanol de OTROS lotes aun sin traducir se aparta con
+// `espanolPendienteDeOtrosLotes()`.
+const DATOS_PT = ['Verano', 'Otoño', 'Invierno', 'Luisa Campo', 'Pantalla Reforma', 'Pantalla Sur', 'Valla Sur', 'Valla Norte', 'Cliente Uno', 'Revisar estructura',
+  // Los estados de la OT salen de Campanas (`campanas.ot.pendiente`, `campanas.ot.en-proceso`,
+  // lote L4, sin portugues aun) y dicen lo mismo que dos claves de este lote; las de
+  // este lote SI salen en portugues («Em andamento», «Pendente»): estan en las listas.
+  'Pendiente', 'En proceso']
+const PORTUGUES: Record<string, string[]> = {
+  'operaciones · cargando': ['Tarefas da equipe de campo · acompanhamento em campo', 'Nova OS', 'Ordens de serviço', '>Atribuídas<', '>Em andamento<', '>Concluídas<'],
+  'operaciones · con OT, aviso de SLA y filtros': [
+    '>Abertas<', '1 em andamento', '>Atrasadas<', 'mantêm o faturamento bloqueado', 'prazo em 2 dias ou menos',
+    'abertas sem responsável', '1 OS atrasada', '1 a vencer', '— uma OS aberta que passou do prazo mantém o faturamento bloqueado.',
+    'Instalação de lona', 'Manutenção corretiva', 'Elétrica', 'Desinstalação', 'title="Prazo"', 'title="Abrir OS"', 'title="Ver OS"',
+    'title="2 comprovações"', 'title="1 comprovação"', '20 de out. de 2026',
+  ],
+  'operaciones · varias vencidas y lista larga': ['26 OS atrasadas', 'Ver todas (26)'],
+  'operaciones · sin OT': ['Ainda não há ordens de serviço', 'Crie a primeira com “Nova OS”: ela fica ligada a uma campanha e ao seu ponto.'],
+  'operaciones · filtro sin resultados': ['Nenhuma OS em “Concluídas”', 'As demais continuam em “Todas”.'],
+  'operaciones · alta de OT con campaña y pantalla': [
+    'Nova ordem de serviço', 'Atribua uma tarefa à equipe de campo', 'Criar OS', '— Sem campanha —', '(automático pela campanha)',
+    '— Sem ponto —', 'Pantalla Reforma · Digital', 'Tipo de tarefa', '(opções de tela digital)', 'Inspeção', 'Manutenção preventiva',
+    'placeholder="ex.: Instalação de lona no painel…"', 'Prioridade', '>Baixa<', 'Atribuir a (responsável)', '— Sem responsável —',
+  ],
+  'operaciones · alta de OT con pantalla fija y campaña sin sitios': ['Esta campanha não tem pontos reservados.'],
+  'operaciones · alta de OT sin campaña, con pantalla fija': ['Valla Sur · Fixo', '(opções de ponto fixo)', 'Serralheria', 'Criando…'],
+  'ficha · no se pudo cargar': ['Não foi possível carregar a ordem de serviço.', 'Entre para continuar'],
+  'ficha · escritorio abierta, solo lectura y error de guardado': [
+    '>Prazo<', '>Responsável<', '>Sem responsável<', 'Erro ao salvar: error-del-servidor. O que foi marcado aparece aqui, mas ainda NÃO está salvo.',
+    'Somente leitura: seu perfil pode ver esta ordem de serviço, mas não marcar o checklist.', 'Foto de comprovação', 'Tirar foto',
+    'Inspeção da estrutura e das ferragens', 'Instalação / execução', 'Carimbo de localização', 'Registrar localização',
+    'Ao encerrá-la, o custo de MX$ 1.500,00 fica fixo: não poderá mais ser alterado.', 'Encerrar OS', 'Custo real desta visita',
+    'O que de fato custou. <strong>Substitui</strong> a estimativa por tipo de tarefa', 'placeholder="Não informado"', 'Salvar custo',
+  ],
+  'ficha · escritorio sin costo, guardando y con cero': [
+    'Salvando…', 'Encerrando…',
+    'Esta OS não tem custo informado. Se você encerrá-la, não poderá mais registrá-lo depois: o relatório de rentabilidade usará a estimativa por tipo de tarefa.',
+    'Não informado: o relatório usa a estimativa por tipo de tarefa.',
+  ],
+  'ficha · escritorio con costo cero y guardado': [' — esta visita está registrada como sem custo.'],
+  'ficha · escritorio cerrada con costo': [
+    'OS encerrada', 'A comprovação foi enviada ao pipeline da campanha.', 'Encerrada: 5 de out. de 2026', 'Checklist concluído',
+    'alt="comprovação"', 'Custo registrado: MX$ 2.300,00. A OS está encerrada e não pode mais ser alterada.',
+  ],
+  'ficha · escritorio cerrada sin costo': ['Foi encerrada sem custo informado: o relatório de rentabilidade usa a estimativa por tipo de tarefa.'],
+  'ficha · movil cerrada': ['Você pode fechar esta janela. A comprovação já ficou registrada.'],
+  'creativos · guardando, un spot con un creativo y la fuente cargando': ['1 criativo', 'text/html · carregando…', 'Carregando o código-fonte…'],
+  'creativos · ninguna coincide': ['Nenhuma campanha coincide', 'Tente outro texto de busca ou remova o filtro de status.', 'Limpar filtros'],
+  'creativos · sin campañas': ['Nenhuma campanha com slots ou criativos', 'Reserve pontos no Comercial ou envie um criativo para gerenciá-los aqui.'],
+  'creativos · una campaña solo de medios fijos': ['Você tem 1 campanha, de mídia fixa: a arte dela é acompanhada na Gráfica.', 'Ir para a Gráfica'],
+  'creativos · dos campañas solo de medios fijos': ['Você tem 2 campanhas, todas de mídia fixa: a arte delas é acompanhada na Gráfica.'],
+}
+
+describe('lote OPERACIONES (parte 2) · en PORTUGUES, sin formatos ajenos, sin espanol del lote y con su texto', () => {
+  for (const p of ESTADOS) {
+    it(p.nombre, async () => {
+      const crudo = await p.pintar('pt')
+      expect(huellasEnPortugues(crudo)).toEqual([])
+      const dic = { es: ES_OPERACIONES2, en: EN_OPERACIONES2, it: PT_OPERACIONES2 }
+      expect(culpablesEnItaliano(crudo, dic, { ignorar: [...DATOS_PT, ...espanolPendienteDeOtrosLotes()] })).toEqual([])
+      const html = texto(crudo)
+      expect((PORTUGUES[p.nombre] ?? []).filter((f) => !html.includes(f))).toEqual([])
+    })
+  }
+})
+
+describe('lote OPERACIONES (parte 2) · el dinero en portugues lleva el simbolo de la instancia', () => {
+  afterEach(() => fijarMonedaInstancia('MXN'))
+  for (const moneda of MONEDAS) {
+    for (const p of ESTADOS.filter((e) => e.dinero)) {
+      it(`${p.nombre} · ${moneda} · pt`, async () => {
+        fijarMonedaInstancia(moneda)
+        const { importes, ajenos } = leerDinero(texto(await p.pintar('pt')), 'pt', moneda)
+        expect(importes).toBeGreaterThan(0)
+        expect(ajenos).toEqual([])
+      })
+    }
+  }
 })

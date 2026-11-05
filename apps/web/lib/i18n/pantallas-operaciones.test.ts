@@ -7,7 +7,10 @@ import path from 'node:path'
 import { ProveedorIdioma } from './contexto'
 import type { Idioma } from './idiomas'
 import { DICCIONARIOS } from './diccionario'
-import { ES_OPERACIONES, EN_OPERACIONES, IT_OPERACIONES } from './textos/operaciones'
+import { ES_OPERACIONES, EN_OPERACIONES, IT_OPERACIONES, PT_OPERACIONES } from './textos/operaciones'
+import { huellasEnPortugues } from './guardias-portugues'
+import { culpablesEnItaliano } from '../test/barrido-italiano'
+import { espanolPendienteDeOtrosLotes } from '../test/barrido-portugues'
 import { huellasEnItaliano } from './guardias-italiano'
 import { legible, fugasEnItaliano } from '../test/italiano-l3'
 import { MONEDAS, fijarMonedaInstancia } from './dinero'
@@ -573,4 +576,62 @@ describe('lote OPERACIONES · barrido del diccionario contra el HTML italiano', 
       datos: ['Verano', 'Otoño', 'Muro Reforma', 'LED Insurgentes', 'LED Sur', 'Grafica Sur', 'Frontlit 13 oz', 'Refresco Azul', 'Norte'],
     })).toEqual([])
   })
+})
+
+// ─── PORTUGUES · lote L3 (2026-11-05) ───────────────────────────────────────
+// Los mismos estados, rendidos en `pt`. Se comprueba:
+//   (h) ninguna huella de formato espanol o ingles (`guardias-portugues.ts`);
+//   (i) ninguna frase espanola ni inglesa del lote (`culpablesEnItaliano` con
+//       el portugues en su sitio). En portugues la espanola es la que mas
+//       importa: lo que falta cae al ESPANOL y la pantalla no lo delata. Lo
+//       espanol de OTROS lotes aun sin traducir se aparta con
+//       `espanolPendienteDeOtrosLotes()`, que no esconde nada del lote
+//       (`portugues-l5.test.ts` lo vigila);
+//   (j) las frases portuguesas de los estados con lista.
+const DATOS_PT = ['Verano', 'Otoño', 'Muro Reforma', 'LED Insurgentes', 'LED Sur', 'Grafica Sur', 'Frontlit 13 oz', 'Refresco Azul', 'Norte',
+  // La etapa de la orden sale de Campanas (`campanas.impresion.en-produccion`, lote L4,
+  // sin portugues aun) y dice lo mismo que el titulo del indicador de este lote, que
+  // si sale en portugues: «Em produção» esta en la lista del estado.
+  'En producción']
+const PORTUGUES: Record<string, string[]> = {
+  'piezas · slots, cupo de clientes y calendario': [
+    'title="2 de 6 slots livres"', 'title="2 de 3 vagas de cliente livres"', 'Limite atingido: 3 clientes.',
+    'aria-label="Mês anterior"', '> confirmada</span>', '> em proposta</span>',
+  ],
+  'disponibilidad · la rejilla por catorcena': [
+    'Disponibilidade', 'Estáticos livres', 'Digitais com vaga', 'pontos pedidos por 1 proposta aberta · não bloqueiam',
+    '>Bissemana<', '8 períodos', 'Só com vaga livre', 'Calendário por ponto', 'Verano (confirmada)', '>Lotado<', '>Ocupado<',
+    'Em proposta (livre, mas uma proposta aberta o pede)',
+  ],
+  'disponibilidad · cargando': ['Carregando disponibilidade…'],
+  'disponibilidad · una busqueda sin resultados': ['Nenhum ponto coincide.'],
+  'almacen · la lista con los cuatro estados': [
+    'Almoxarifado', 'Cadastrar item', '1 baixado', 'em um ponto', 'guardados no depósito', 'a caminho', 'Plaqueta', 'Localização',
+    'No ponto: ', 'Depósito: ', '>Instalado<', '>Baixado<',
+  ],
+  'almacen · vacio, con permiso y sin el': ['nenhum baixado', 'Peça a Operações que os cadastre.'],
+  'almacen · fallo de carga': ['Não foi possível carregar o almoxarifado — red caida', 'Tentar de novo'],
+  'almacen · registrar un vehiculo': ['Entra no almoxarifado', 'Plaqueta / número de patrimônio', 'Número do chassi (VIN)', 'Onde fica guardado'],
+  'almacen · mover un articulo a una pantalla': ['Movimentar item', 'Instalar em um ponto', 'Marcar em transferência', 'Dar baixa', 'Ponto de destino'],
+  'imprenta · dos ordenes, una lista para montaje': [
+    'Gráfica', 'Ordens de impressão · da arte à instalação', 'Nova ordem', 'Prova de cor pendente', 'Prontas para instalação',
+    'viram uma OS', 'Em produção', '2 ordens', 'Campanha: Verano', 'Sem campanha', 'Etapa 3 de 5', 'Aprovar prova', 'Avançar',
+  ],
+  'imprenta · sin ordenes, con el alta abierta': [
+    'Nenhuma ordem de impressão', 'Nova ordem de impressão', 'Selecione uma campanha…', 'Largura (m)', 'Altura (m)', 'Fornecedor',
+    'Deixe largura e altura em 0 para conteúdo digital.', 'Criar ordem', '0 ordens',
+  ],
+}
+
+describe('lote OPERACIONES · en PORTUGUES, sin formatos ajenos, sin espanol del lote y con su texto', () => {
+  for (const e of ESTADOS) {
+    it(e.nombre, async () => {
+      const crudo = await e.pintar('pt')
+      expect(huellasEnPortugues(crudo)).toEqual([])
+      const dic = { es: ES_OPERACIONES, en: EN_OPERACIONES, it: PT_OPERACIONES }
+      expect(culpablesEnItaliano(crudo, dic, { ignorar: [...DATOS_PT, ...espanolPendienteDeOtrosLotes()] })).toEqual([])
+      const html = texto(crudo)
+      expect((PORTUGUES[e.nombre] ?? []).filter((f) => !html.includes(f))).toEqual([])
+    })
+  }
 })

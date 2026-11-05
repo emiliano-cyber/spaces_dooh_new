@@ -6,6 +6,9 @@ import path from 'node:path'
 import { ProveedorIdioma } from './contexto'
 import { huellasDeFormatoEspanol } from './guardias-ingles'
 import { huellasEnItaliano } from './guardias-italiano'
+import { huellasEnPortugues } from './guardias-portugues'
+import { culpablesEnItaliano } from '../test/barrido-italiano'
+import { espanolPendienteDeOtrosLotes } from '../test/barrido-portugues'
 import { legible, fugasEnItaliano } from '../test/italiano-l3'
 import type { Idioma } from './idiomas'
 
@@ -1033,7 +1036,7 @@ const PANTALLAS: Pantalla[] = [
     nombre: 'ficha del contrato · adjuntos de un pago hecho',
     pintar: async (idioma) => {
       forzar('ContratoSheet', 3, PAGOS[0])
-      forzar('AdjuntoInput', 0, idioma === 'es' ? 'El archivo supera 5 MB' : idioma === 'en' ? 'The file exceeds 5 MB' : 'Il file supera 5 MB')
+      forzar('AdjuntoInput', 0, idioma === 'es' ? 'El archivo supera 5 MB' : idioma === 'en' ? 'The file exceeds 5 MB' : idioma === 'pt' ? 'O arquivo passa de 5 MB' : 'Il file supera 5 MB')
       const H = await hoja()
       return pintar(idioma, createElement(H, { contrato: CONTRATOS[0] as never, open: true, onOpenChange: () => {}, onToast: () => {} }))
     },
@@ -1887,5 +1890,148 @@ describe('pulido italiano · el alt de la imagen promocional del alta manual', (
   it('en espanol y en ingles, el literal de siempre', async () => {
     expect(await alt('es')).toBe('preview')
     expect(await alt('en')).toBe('preview')
+  })
+})
+
+// ─── PORTUGUES · lote L3 (2026-11-05) ───────────────────────────────────────
+// Las mismas pantallas, rendidas en `pt`. Se comprueba:
+//   (h) ninguna huella de formato espanol o ingles (`guardias-portugues.ts`);
+//   (i) ninguna frase espanola ni inglesa de `textos/inventario.ts` ni de
+//       `textos/arrendadores.ts` (lo que falta del portugues cae al ESPANOL y
+//       la pantalla no lo delata). Lo espanol de OTROS lotes aun sin traducir
+//       se aparta con `espanolPendienteDeOtrosLotes()`;
+//   (j) las frases portuguesas de las pantallas con lista.
+//
+// Fuera, como en italiano: el DOCUMENTO del contrato y la CONSTANCIA de
+// firmas van en el idioma de los documentos de la INSTANCIA (ADR 0049), que
+// aqui es el espanol (`sinLoQueEsEspanolPorDiseno`). Y el importe que recita
+// el paso de revision de firmas: `importeDeRevision` (`PanelFirmas.tsx`) no
+// sabe portugues todavia y lo corrige la rama de los documentos
+// (`feat/portugues-documentos`), no este lote; aqui se aparta, como en la
+// guardia inglesa e italiana.
+const PORTUGUES: Record<string, string[]> = {
+  'inventario · la lista con indicadores y chips': [
+    'Consulte o inventário completo, ou adicione pontos por importação em massa ou cadastro manual.', 'Pontos',
+    '1 digitais · 4 fixos', 'Disponíveis', 'de 5 · 1 com slots vendidos', 'Sem contrato', 'cadastre-o em Locadores',
+    'text-muted">Próprios</span>', 'sem aluguel: o custo é energia e operação', 'Com slots vendidos', 'Fora de venda ou sem dado',
+    'Com contrato', '6 de 8 livres', '>Disponível<',
+  ],
+  'inventario · sin permiso': ['Esta seção é exclusiva do Titular e do administrador.'],
+  'inventario · el alta con contrato (vía elegida)': ['Cadastro de um ponto junto com o seu contrato de locação.', 'Contrato + ponto'],
+  'inventario · selección y cambio masivo de tarifa': ['2 selecionados', 'Fixar tarifa', 'placeholder="Nova tarifa"'],
+  'inventario · cambio masivo de renta por porcentaje': ['1 selecionado', 'Fixar aluguel', 'Ajustar %', 'placeholder="ex.: 10 ou -5"'],
+  'inventario · búsqueda sin resultados con filtros': ['Nenhum ponto coincide com “zzz” e os filtros escolhidos.', 'Remover filtros'],
+  'inventario · solo filtros sin resultados': ['Nenhum ponto coincide com os filtros escolhidos.'],
+  'inventario · vacío': ['0 digitais · 0 fixos', 'todos têm contrato ou são próprios', 'Ainda não há pontos no inventário.'],
+  'contrato + pantalla · paso 1, predio con contrato vigente': [
+    'Imóvel existente', 'Imóvel novo', 'Este imóvel já tem um contrato vigente de',
+    'Não se assina outro: o ponto é adicionado ao imóvel e divide esse aluguel com os demais.',
+  ],
+  'contrato + pantalla · paso 2 con historial del espacio': [
+    'Este espaço esteve locado até <strong class="text-ink">30 de jun. de 2026</strong>. O contrato novo começa a partir de 1 de jul. de 2026.',
+    'Anexar o PDF do contrato assinado (máx. 8 MB)',
+  ],
+  'contrato + pantalla · paso 3 del inventario con historial': [
+    'Ponto (3 sem locador)',
+    'Este ponto esteve locado até 30 de jun. de 2026. O início da vigência que você informou é 1 de jun. de 2026: volte à etapa 2 e mude-o para 1 de jul. de 2026 ou depois.',
+    'Dados que ele já tem', 'Será ligado ao imóvel do contrato.', 'Criar contrato e ponto',
+  ],
+  'contrato + pantalla · todas las pantallas con predio': ['Todos os seus pontos já estão atribuídos a um imóvel. Mude para “Ponto novo”.'],
+  'alta manual · todas las pestañas': [
+    'Novo ponto', 'Cadastro manual de um único ponto', 'Locador (dono do espaço)', 'Aluguel pago ao locador', 'Fixa (impressa)',
+    'Digital (tela)', 'Painel', 'Outdoor', 'Mobiliário urbano (abrigo de ônibus/mupi/expositor em loja)', 'Total de slots',
+    'O custo deste ponto é o', 'Ainda não informado.', 'Salvar ponto',
+  ],
+  'alta manual · el visor de la detección': ['Atualmente: 45.000.', 'Detecção por Computer Vision', 'Latitude e longitude obrigatórias (aba Localização)'],
+  'alta manual · cifra en rojo': ['Há um número em vermelho que não dá para entender (aluguel, tarifa, preço por m² ou slots)'],
+  'carga masiva · archivo leído con duplicados y un predio': [
+    'Importação em massa de inventário', 'São pontos próprios', 'O imóvel será criado e todos dividirão UM único contrato.',
+    'Um ponto não parece estar neste imóvel.', '1 código já existe', 'Criar novo', '3 linhas lidas', 'Processar importação',
+  ],
+  'carga masiva · el resumen tras importar': ['2 imagens carregadas', 'Criados', 'Atualizados', 'Ver informações adicionadas (1)', '1 linha lida'],
+  'carga masiva · sin archivo': ['É preciso informar o locador.', 'Nenhum arquivo'],
+  'información añadida': ['Informações adicionadas', '2 pontos no inventário', '1 modalidade', 'CDMX · coordenadas a verificar'],
+  'información añadida · vacía': ['0 pontos no inventário', 'Não há pontos para mostrar.'],
+  'arrendadores · la página con datos': [
+    'Locadores', 'O outro lado da rede · contratos, aluguéis e vencimentos', 'Aluguel mensal', '+ 1 a cadastrar', 'de 2 locadores',
+    'Conciliação de aluguéis por locador', '1 local', 'Rentabilidade por ponto', '1 contrato fatura aqui', 'Vendido em “Navidad”',
+    'MX$ 30.000,00 a pagar', 'há 8 dias', 'em 2 dias', 'A vencer',
+  ],
+  'arrendadores · vacía': ['0 contratos ativos', 'de 0 locadores'],
+  'arrendadores · dar de baja pide la contraseña': [
+    'Desativar Don Pepe', 'Desativar um locador não pode ser desfeito pelo aplicativo, por isso é preciso a sua senha.', 'Confirmar e desativar',
+  ],
+  'ficha del contrato · completar con un arrendador sin datos fiscales': [
+    'Completar contrato de locação', 'Falta: razão social, RFC, regime tributário.', 'placeholder="Descreva a ocorrência…"',
+    'Não pode ser anterior ao início (1 de mar. de 2026)', 'Medios SA — a que aluga',
+  ],
+  'ficha del contrato · adjuntos de un pago hecho': [
+    'Registrar ocorrência', 'Alvará municipal · LM-9', 'Vence em 18 d', 'Venceu há 32 d', 'Laudo estrutural',
+    'Pago: 2 de out. de 2026', 'Aqui só se anexam os documentos: o pagamento não é registrado de novo.', 'O arquivo passa de 5 MB',
+  ],
+  'ficha del contrato · un arrendador con varias razones': ['Tem 2 razões sociais; é exibida a primeira. A que fatura este contrato é escolhida na ficha dele.'],
+  'cambios al contrato · sin cambios y enviado sin firmar': ['Nenhuma alteração registrada desde o cadastro.', 'já foi enviado para assinatura'],
+  'licencias · fechas invertidas': ['A licença não pode vencer antes de ser emitida.'],
+  'renta comprometida (en Finanzas)': [
+    'Aluguel comprometido com locadores', '1 contrato vencido aparece na lista para ficar à vista, mas não entra no total: já não gera aluguel.',
+  ],
+  'panel de firmas · sin enviar': ['o texto exato deste contrato e o sela com SHA-256.', 'Enviar para assinatura'],
+  'panel de firmas · el arrendador firmó, falta la arrendataria': ['Assinar como locatária', 'Revise os dados que irão no contrato', 'Os dados estão corretos, enviar para assinatura'],
+  'barra del documento con un faltante': ['Falta 1 dado a informar.'],
+  'documento del contrato (Server Component)': ['Assinatura do contrato', 'Pendente — aguardando a assinatura de Don Pepe', 'Sua empresa (locatária)'],
+  'firma pública · expirada': ['O link expirou.', 'Peça ao remetente que envie um novo.'],
+  'firma pública · recién firmado': ['Contrato assinado.', 'Você pode guardar uma cópia com Ctrl+P → “Salvar como PDF”.'],
+}
+
+// Palabras sueltas de OTROS lotes aun sin portugues que dicen lo mismo que una
+// clave de este (`espanolPendienteDeOtrosLotes()` no aparta las cortas, a proposito):
+// el tipo de medio de la fila (`comercial.tipo-medio.*`), el estatus del sitio
+// (`comercial.sitio-estatus.disponible`), el del contrato
+// (`comercial.contrato-estatus.por-vencer`) y el del pago
+// (`comercial.pago-estatus.pendiente`), todos del lote L2. Y dos datos:
+// `renta_arrendador`, el nombre de una COLUMNA de la plantilla de carga, y el
+// correo de ejemplo `contacto@arrendador.com` (escrito a mano en el alta, igual
+// en todos los idiomas).
+// Lo de este lote que dice lo mismo SI sale en portugues: «Painel», «Tela
+// digital», «Disponível», «A vencer» estan en las listas.
+const AJENOS_CORTOS_PT = ['Pantalla digital', 'Espectacular', 'Mobiliario urbano', 'Por vencer', 'Disponible', 'Pendiente', 'renta_arrendador', 'contacto@arrendador.com']
+
+async function pintarEnPortugues(p: Pantalla): Promise<string> {
+  forzado.cola = []
+  sesion.rol = 'DUENO'
+  sesion.puede = true
+  servidor.permiso = true
+  servidor.firma = null
+  datos.sitios = SITIOS
+  datos.contratos = CONTRATOS
+  datos.arrendadores = ARRENDADORES
+  datos.pagos = PAGOS
+  datos.licencias = LICENCIAS
+  return p.pintar('pt')
+}
+
+describe('lote INVENTARIO Y ARRENDADORES · en PORTUGUES, sin formatos ajenos, sin espanol del lote y con su texto', () => {
+  for (const p of PANTALLAS) {
+    it(p.nombre, async () => {
+      const { ES_INVENTARIO, EN_INVENTARIO, PT_INVENTARIO } = await import('./textos/inventario')
+      const { ES_ARRENDADORES, EN_ARRENDADORES, PT_ARRENDADORES } = await import('./textos/arrendadores')
+      const crudo = sinNavegador(await pintarEnPortugues(p))
+      const sinPapel = sinLoQueEsEspanolPorDiseno(crudo).replace(/\$[\d,.]+ MXN/g, '')
+      expect(huellasEnPortugues(sinPapel, { permitidos: CIFRAS_DE_CAPTURA })).toEqual([])
+      const ignorar = [...DATOS_DE_PRUEBA, ...AJENOS_CORTOS_PT, ...espanolPendienteDeOtrosLotes()]
+      expect(culpablesEnItaliano(sinPapel, { es: ES_INVENTARIO, en: EN_INVENTARIO, it: PT_INVENTARIO }, { ignorar })).toEqual([])
+      expect(culpablesEnItaliano(sinPapel, { es: ES_ARRENDADORES, en: EN_ARRENDADORES, it: PT_ARRENDADORES }, { ignorar })).toEqual([])
+      const html = texto(crudo)
+      expect((PORTUGUES[p.nombre] ?? []).filter((f) => !html.includes(f))).toEqual([])
+    })
+  }
+})
+
+describe('portugues · el alt de la imagen promocional del alta manual', () => {
+  it('en portugues, del diccionario («Pré-visualização»), como el italiano', async () => {
+    forzar('NuevaPantallaForm', 22, 'data:image/png;base64,AA') // imagen
+    const A = await alta()
+    const html = pintar('pt', createElement(A, { open: true, inline: true, onOpenChange: () => {}, onCreado: () => {} }))
+    expect(/<img src="data:image\/png;base64,AA" alt="([^"]*)"/.exec(html)?.[1]).toBe('Pré-visualização')
   })
 })
