@@ -1427,7 +1427,7 @@ export const PT_INVENTARIO: Record<ClaveInventario, string> = {
   'inventario.wizard.importe-por-definir': 'valor a definir',
   'inventario.wizard.nombre-predio': 'Nome do imóvel',
   'inventario.wizard.direccion-predio': 'Endereço do imóvel',
-  'inventario.wizard.direccion-predio-ph': 'Usa o do ponto se você deixar em branco',
+  'inventario.wizard.direccion-predio-ph': 'Se você deixar em branco, vale o do ponto',
   'inventario.wizard.p2.intro': 'Condições da locação. {pasadas} para registrar contratos já assinados.',
   'inventario.wizard.p2.pasadas': 'Você pode usar datas passadas',
   'inventario.wizard.inicio-vigencia': 'Início da vigência',

@@ -1999,9 +1999,9 @@ export const PT_ARRENDADORES: Record<ClaveArrendadores, string> = {
   'arrendadores.compromiso.incompletos-falta.otros':
     'O total não inclui {n} contratos incompletos (falta {falta}): o custo real é maior.',
   'arrendadores.compromiso.vencidos.uno':
-    '{n} contrato vencido aparece na lista para ficar à vista, mas não entra no total: já não gera aluguel. Renove-o em Locadores ou ficará sem cobertura.',
+    '{n} contrato vencido aparece na lista para ficar à vista, mas não entra no total: não gera mais aluguel. Renove-o em Locadores ou ficará sem cobertura.',
   'arrendadores.compromiso.vencidos.otros':
-    '{n} contratos vencidos aparecem na lista para ficarem à vista, mas não entram no total: já não geram aluguel. Renove-os em Locadores ou ficarão sem cobertura.',
+    '{n} contratos vencidos aparecem na lista para ficarem à vista, mas não entram no total: não geram mais aluguel. Renove-os em Locadores ou ficarão sem cobertura.',
 
   // ── O painel de assinaturas (`PanelFirmas.tsx`) ──
   'arrendadores.firmas.parte.arrendador': 'O locador (dono do espaço)',

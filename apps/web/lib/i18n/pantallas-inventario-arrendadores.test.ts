@@ -1971,7 +1971,7 @@ const PORTUGUES: Record<string, string[]> = {
   'cambios al contrato · sin cambios y enviado sin firmar': ['Nenhuma alteração registrada desde o cadastro.', 'já foi enviado para assinatura'],
   'licencias · fechas invertidas': ['A licença não pode vencer antes de ser emitida.'],
   'renta comprometida (en Finanzas)': [
-    'Aluguel comprometido com locadores', '1 contrato vencido aparece na lista para ficar à vista, mas não entra no total: já não gera aluguel.',
+    'Aluguel comprometido com locadores', '1 contrato vencido aparece na lista para ficar à vista, mas não entra no total: não gera mais aluguel.',
   ],
   'panel de firmas · sin enviar': ['o texto exato deste contrato e o sela com SHA-256.', 'Enviar para assinatura'],
   'panel de firmas · el arrendador firmó, falta la arrendataria': ['Assinar como locatária', 'Revise os dados que irão no contrato', 'Os dados estão corretos, enviar para assinatura'],

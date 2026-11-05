@@ -781,7 +781,7 @@ export const PT_FINANZAS: Record<ClaveFinanzas, string> = {
   'finanzas.estado-cuenta.cobrado': '− Recebido',
   'finanzas.estado-cuenta.saldo-cierre': '= Saldo final',
   'finanzas.estado-cuenta.vencido-al': 'Vencido até {fecha}',
-  'finanzas.estado-cuenta.vacio': 'Nenhuma fatura nem pagamento em {periodo}.',
+  'finanzas.estado-cuenta.vacio': 'Nenhuma fatura nem pagamento no período {periodo}.',
   'finanzas.estado-cuenta.vacio-rango': 'Nenhuma fatura nem pagamento de {desde} a {hasta}.',
   'finanzas.estado-cuenta.col.fecha': 'Data',
   'finanzas.estado-cuenta.col.movimiento': 'Movimento',
