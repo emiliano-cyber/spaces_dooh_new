@@ -165,6 +165,14 @@ const PLURALES_INVARIABLES = new Set<string>([])
 const HUECO_FECHA = '\\{(?:fecha|fin|desde|hasta|mes)\\}'
 const PREPOSICION_ANTE_FECHA = new RegExp(`(?:^|\\s)(?:em|no|na|do|da|ao|à|pelo|pela|dia)\\s+${HUECO_FECHA}`, 'i')
 
+// Validacion L1 (ambar, 05/11): el portugues es de BRASIL. Marcas de Portugal
+// que un brasileno nota en la primera pagina: «ecrã», «aplicação» por app,
+// «a app» (en Brasil, «o app»), «telemóvel», «ficheiro», «utilizador»,
+// «registo». Con limite de letra (\p{L}): «registro», «aplicativo», «Aplicar»,
+// «aplicado» y «o app» son pt-BR y no cuentan.
+export const PT_DE_PORTUGAL =
+  /(?:^|[^\p{L}])(ecrãs?|aplicaç(?:ão|ões)|telemóve(?:l|is)|ficheiros?|utilizador(?:es|as?)?|registos?|(?:a|da|na|pela|à|uma) app)(?=$|[^\p{L}])/iu
+
 const huecos = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort().join(',')
 const sinVersiones = (v: string) => v.replace(/\d+\.\d+\.\d+/g, '').replace(/(?:\bapp |\bv|\bagente )\d+\.\d+/g, '')
 
@@ -223,6 +231,18 @@ describe('portugues L1 · el diccionario entero, sin depender de lo que se rinde
       const RESTOS = /\b(?:pantalla|equipo|falla|gabinetes? de|recibo|predio|renglón|guardar|eliminar|también|todavía|después|aquí|ningún)\b/i
       expect(textos().filter(([, v]) => RESTOS.test(v)).map(([k]) => k)).toEqual([])
     })
+
+    it(`${ambito} · portugues de Brasil: nada de Portugal («ecrã», «a app», «ficheiro», «já não»…)`, () => {
+      expect(textos().filter(([, v]) => PT_DE_PORTUGAL.test(v)).map(([k]) => k)).toEqual([])
+      // «já não» por «não … mais» es tambien de Portugal (validacion, retoque 10).
+      expect(textos().filter(([, v]) => /(?:^|[^\p{L}])já não(?=$|[^\p{L}])/iu.test(v)).map(([k]) => k)).toEqual([])
+    })
+
+    // Validacion L1 (H3): la web dice lo mismo que el boton de la app
+    // («Vincular»): vinculação / vinculado, nunca parear / pareamento.
+    it(`${ambito} · vincular como la app, nunca «parear/pareamento»`, () => {
+      expect(textos().filter(([, v]) => /\bpare(?:ar|ad[oa]s?|amentos?)\b/i.test(v)).map(([k]) => k)).toEqual([])
+    })
   }
 
   it('los declarados siguen existiendo y siguen siendo iguales (si uno se traduce, se quita)', () => {
@@ -243,6 +263,33 @@ describe('portugues L1 · el diccionario entero, sin depender de lo que se rinde
 })
 
 // El boton de la app Android se nombra como en la app (solo esta en espanol).
+describe('portugues L1 · la guardia de portugues de Portugal MUERDE y no da falsos positivos', () => {
+  it('caza las marcas de Portugal', () => {
+    for (const s of ['Ecrã apagado no horário', 'Versão da aplicação', 'Na app, escolha', 'Reiniciar a app', 'precisa da app 0.15',
+      'o telemóvel', 'Baixar ficheiro', 'Utilizador', 'Registo do dispositivo', 'pela app Space Eye'])
+      expect(PT_DE_PORTUGAL.test(s), s).toBe(true)
+  })
+  it('deja pasar el portugues de Brasil', () => {
+    for (const s of ['Versão do app', 'No app, escolha', 'Reiniciar o aplicativo', 'Registrar uma conta', 'registro', 'Aplicar',
+      'Aplicando…', 'é aplicado sozinho', 'Instalar apps desconhecidos', 'Atualizar app', 'pelo app Space Eye', 'Logs do dispositivo'])
+      expect(PT_DE_PORTUGAL.test(s), s).toBe(false)
+  })
+})
+
+describe('portugues L1 · los hallazgos del validador (ambar, 05/11)', () => {
+  it('H2: el rotulo de los estados femeninos concuerda («Estado da tela»)', () => {
+    expect(PT_SPACEEYES['spaceeyes.admin.estado-pantalla']).toBe('Estado da tela')
+    expect(PT_SPACEEYES['spaceeyes.admin.estado.active']).toBe('Ativa')
+  })
+  it('H3: la web dice «vinculação», como el boton «Vincular» de la app', () => {
+    expect(PT_SPACEEYES['spaceeyes.alta.codigos']).toBe('Códigos de vinculação')
+    expect(PT_SPACEEYES['spaceeyes.conexion.pendiente']).toBe('Aguardando vinculação')
+  })
+  it('retoque 5: en una conta, «valor faturado» (faturamento son los ingresos de una empresa)', () => {
+    expect(PT_ENERGIA['energia.leido.facturacion']).toBe('valor faturado {monto}')
+  })
+})
+
 describe('portugues L1 · lo que el usuario ve fuera de la web se nombra como alli', () => {
   it('«Vincular» es el boton de la app Space Eye, en espanol', () => {
     expect(PT_SPACEEYES['spaceeyes.alta.tel.vincular']).toBe('Vincular')
