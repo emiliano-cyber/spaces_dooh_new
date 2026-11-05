@@ -1321,7 +1321,13 @@ describe('lote L5 · CUENTA Y SHELL en PORTUGUES', () => {
       const crudo = await p.pintar('pt')
       vi.unstubAllGlobals()
       const dic = await diccionariosDelLote()
-      expect(culpablesEnItaliano(crudo, dic, { ignorar: [...DATOS_IT, ...espanolPendienteDeOtrosLotes()] })).toEqual([])
+      // Lote L3 (05/11): «Pantalla digital» es el tipo de medio de la fila
+      // (`comercial.tipo-medio.pantalla-digital`, lote L2, aun en espanol). Lo
+      // apartaba `espanolPendienteDeOtrosLotes()` porque `inventario.tipo.pantalla-digital`
+      // decia lo mismo y tampoco tenia portugues; L3 ya la tradujo («Tela digital»), y un
+      // trozo que es el espanol de una clave traducida no se aparta solo. Se quita
+      // cuando L2 traduzca su tipo de medio.
+      expect(culpablesEnItaliano(crudo, dic, { ignorar: [...DATOS_IT, 'Pantalla digital', ...espanolPendienteDeOtrosLotes()] })).toEqual([])
       expect(huellasEnPortugues(crudo)).toEqual([])
     })
   }
