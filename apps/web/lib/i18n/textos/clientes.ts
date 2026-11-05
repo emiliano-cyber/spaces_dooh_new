@@ -760,7 +760,7 @@ export const PT_CLIENTES: Record<ClaveClientes, string> = {
   'clientes.lista.de': '{n} de {total}',
   'clientes.lista.cliente.uno': 'cliente',
   'clientes.lista.cliente.otros': 'clientes',
-  'clientes.lista.buscar': 'Pesquisar cliente',
+  'clientes.lista.buscar': 'Buscar cliente',
   'clientes.lista.buscar.ejemplo': 'Nome, RFC ou razão social…',
   'clientes.lista.tipo': 'Tipo de cliente',
   'clientes.lista.tipo.todos': 'Diretos e agências',

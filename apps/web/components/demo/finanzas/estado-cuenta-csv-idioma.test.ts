@@ -193,7 +193,8 @@ describe('estado de cuenta en CSV · en portugues, para una Excel brasilena', ()
   })
   it('sin una palabra de espanol ni de ingles fuera de los datos', () => {
     const csv = csvEstadoCuenta(datos, 'Acme', () => 'Acme', false, 'pt')
-    expect(csv).not.toMatch(/Estado|Facturado|Cobrado|Vencido|Fecha|Folio|Cargo|Abono|Pago |Factura|Septiembre|\d{4}-\d{2}-\d{2}/)
+    // «Vencido» tambien es portugues («Vencido até …», validacion del L4, H1): no se busca.
+    expect(csv).not.toMatch(/Estado|Facturado|Cobrado|Vencido al|Fecha|Folio|Cargo|Abono|Pago |Factura|Septiembre|\d{4}-\d{2}-\d{2}/)
     expect(csv).not.toMatch(/Account|Period,|Opening|Invoiced|Collected|Closing|Overdue|Date|Transaction|Invoice|Charge|Payment|Balance|September|Sep \d/)
   })
   it('ningun importe con punto decimal ni separador «,» de campos', () => {

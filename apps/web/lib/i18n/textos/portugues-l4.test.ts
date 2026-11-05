@@ -51,7 +51,6 @@ export const COGNADOS_PT_L4 = new Set<string>([
   'campanas.etapa.reservada',                          // "Reservada"
   'campanas.etapa.confirmada',                         // "Confirmada"
   'campanas.etapa.publicada',                          // "Publicada"
-  'campanas.creatividad.validada',                     // "Validada"
   'campanas.reserva.confirmada',                       // "Confirmada"
   'campanas.reserva.cancelada',                        // "Cancelada"
   'campanas.ot.bloqueada',                             // "Bloqueada"
@@ -125,6 +124,7 @@ export const COGNADOS_PT_L4 = new Set<string>([
   'clientes.lista.de',                                 // "{n} de {total}"
   'clientes.lista.cliente.uno',                        // "cliente"
   'clientes.lista.cliente.otros',                      // "clientes"
+  'clientes.lista.buscar',                             // "Buscar cliente" (validacion L4, H8: el verbo de toda la app)
   'clientes.lista.tipo',                               // "Tipo de cliente"
   'clientes.col.cliente',                              // "Cliente"
   'clientes.col.rfc',                                  // "RFC"

@@ -779,7 +779,7 @@ export const PT_FINANZAS: Record<ClaveFinanzas, string> = {
   'finanzas.estado-cuenta.facturado': '+ Faturado',
   'finanzas.estado-cuenta.cobrado': '− Recebido',
   'finanzas.estado-cuenta.saldo-cierre': '= Saldo final',
-  'finanzas.estado-cuenta.vencido-al': 'Em atraso até {fecha}',
+  'finanzas.estado-cuenta.vencido-al': 'Vencido até {fecha}',
   'finanzas.estado-cuenta.vacio': 'Nenhuma fatura nem pagamento em {periodo}.',
   'finanzas.estado-cuenta.vacio-rango': 'Nenhuma fatura nem pagamento de {desde} a {hasta}.',
   'finanzas.estado-cuenta.col.fecha': 'Data',
@@ -790,7 +790,7 @@ export const PT_FINANZAS: Record<ClaveFinanzas, string> = {
   'finanzas.estado-cuenta.factura': 'Fatura',
   'finanzas.estado-cuenta.pago': 'Pagamento recebido',
   'finanzas.estado-cuenta.aproximada.title':
-    'Pagamento anterior ao registro de datas no sistema: leva a data da sua fatura',
+    'Pagamento anterior ao registro de datas no sistema: leva a data da fatura correspondente',
   'finanzas.estado-cuenta.aproximada': 'data aproximada',
   'finanzas.csv.periodo': 'Período',
   'finanzas.csv.saldo-cierre': 'Saldo final',
@@ -805,18 +805,18 @@ export const PT_FINANZAS: Record<ClaveFinanzas, string> = {
   'finanzas.periodo.por-cobrar': 'A receber no fechamento',
   'finanzas.periodo.al-inicio': 'no início: {monto}',
   'finanzas.periodo.vencido': 'Em atraso',
-  'finanzas.periodo.vencido.sub.uno': '{n} fatura até {fecha}',
-  'finanzas.periodo.vencido.sub.otros': '{n} faturas até {fecha}',
+  'finanzas.periodo.vencido.sub.uno': '{n} fatura vencida até {fecha}',
+  'finanzas.periodo.vencido.sub.otros': '{n} faturas vencidas até {fecha}',
   'finanzas.periodo.facturado': 'Faturado',
   'finanzas.periodo.facturas.uno': '{n} fatura',
   'finanzas.periodo.facturas.otros': '{n} faturas',
   'finanzas.periodo.cobrado': 'Recebido',
   'finanzas.periodo.cobrado.sub': 'pagamentos recebidos no período',
   'finanzas.periodo.renta': 'Aluguel a locadores',
-  'finanzas.periodo.renta.pagada': 'Pago {monto}',
+  'finanzas.periodo.renta.pagada': 'Quitado {monto}',
   'finanzas.periodo.renta.por-pagar': 'A pagar no período {monto}',
   'finanzas.periodo.sin-fecha':
-    '{monto} do recebido são pagamentos de antes de o sistema registrar a data de cada pagamento: receberam a data da sua fatura, então o mês deles é aproximado.',
+    '{monto} do recebido são pagamentos de antes de o sistema registrar a data de cada pagamento: receberam a data da fatura correspondente, então o mês deles é aproximado.',
 
   // ── Comprobante de una factura (el papel: `papeles-portugues.ts`) ──
   'finanzas.comprobante.titulo': 'Comprovante {folio}',
@@ -831,5 +831,5 @@ export const PT_FINANZAS: Record<ClaveFinanzas, string> = {
   'finanzas.comprobante.no-cuadra':
     'Os valores deste comprovante não batem: o subtotal mais o IVA não dá o total. Revise-o antes de entregá-lo.',
   'finanzas.comprobante.aviso':
-    'Comprovante de pagamento. NÃO é um CFDI carimbado perante o SAT: o carimbo fiscal é emitido à parte e este documento não substitui o comprovante fiscal.',
+    'Comprovante de pagamento. NÃO é um CFDI timbrado pelo SAT: o timbrado é emitido à parte e este documento não substitui o comprovante fiscal.',
 }

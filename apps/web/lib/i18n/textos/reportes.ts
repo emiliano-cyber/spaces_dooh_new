@@ -854,15 +854,15 @@ export const PT_REPORTES: Record<ClaveReportes, string> = {
   'reportes.nota.ot.intro':
     'O custo de operação vem de duas fontes, e elas NÃO são a mesma coisa: o que cada visita custou de verdade, quando alguém o registrou na ordem de serviço, e uma ESTIMATIVA por tipo de ordem — a de Configurações — quando não. A estimativa cobra igual um serviço de serralheria de {caro} e um de {barato}.',
   'reportes.nota.ot.estimacion.uno':
-    '{estimadas} da {total} visita do período entra com a estimativa por tipo ({estimado}) e {reales} com o custo real ({capturado}). Essa parte do custo — e a margem que sai dela — é uma estimativa, não uma medição: registrar o custo na ordem de serviço a substitui.',
+    '{estimadas} de {total} visita do período entra com a estimativa por tipo ({estimado}) e {reales} com o custo real ({capturado}). Essa parte do custo — e a margem que sai dela — é uma estimativa, não uma medição: registrar o custo na ordem de serviço a substitui.',
   'reportes.nota.ot.estimacion.una-de-varias':
     '{estimadas} das {total} visitas do período entra com a estimativa por tipo ({estimado}) e {reales} com o custo real ({capturado}). Essa parte do custo — e a margem que sai dela — é uma estimativa, não uma medição: registrar o custo na ordem de serviço a substitui.',
   'reportes.nota.ot.estimacion.otros':
     '{estimadas} das {total} visitas do período entram com a estimativa por tipo ({estimado}) e {reales} com o custo real ({capturado}). Essa parte do custo — e a margem que sai dela — é uma estimativa, não uma medição: registrar o custo na ordem de serviço a substitui.',
   'reportes.nota.ot.reales.uno':
-    'A única visita do período está com o custo REAL registrado ({capturado}): aqui não há nenhuma estimativa, o custo de operação que você vê é o que foi pago.',
+    'A única visita do período está com o custo REAL registrado ({capturado}): aqui não há nenhuma estimativa, o custo de operação que você vê é o que foi desembolsado.',
   'reportes.nota.ot.reales.otros':
-    'As {total} visitas do período estão com o custo REAL registrado ({capturado}): aqui não há nenhuma estimativa, o custo de operação que você vê é o que foi pago.',
+    'As {total} visitas do período estão com o custo REAL registrado ({capturado}): aqui não há nenhuma estimativa, o custo de operação que você vê é o que foi desembolsado.',
   'reportes.nota.m2.ninguna':
     'Nenhum ponto foi excluído: todos os que tiveram movimento são estáticos e têm as medidas registradas.',
   'reportes.nota.m2.fuera': 'Ficaram fora do ranking: {partes}.',
@@ -882,7 +882,7 @@ export const PT_REPORTES: Record<ClaveReportes, string> = {
   'reportes.nota.tarifa.intro':
     'A diferença entre a tarifa de tabela e o líquido é o desconto comercial MAIS a comissão da agência: os dois são congelados juntos na proposta e o dado não os separa por ponto.',
   'reportes.nota.tarifa.sin-tarifa.uno':
-    '{sin} da {total} reserva do período não tem tarifa de tabela com que comparar ({ingreso} de receita): ou nasceu no Comercial — onde o preço registrado JÁ É o de tabela — ou o preço dela não coincide com o líquido que a proposta congelou. Essas linhas saem com um traço e não com zero: um zero diria que a tarifa inteira foi dada de presente.',
+    '{sin} de {total} reserva do período não tem tarifa de tabela com que comparar ({ingreso} de receita): ou nasceu no Comercial — onde o preço registrado JÁ É o de tabela — ou o preço dela não coincide com o líquido que a proposta congelou. Essas linhas saem com um traço e não com zero: um zero diria que a tarifa inteira foi dada de presente.',
   'reportes.nota.tarifa.sin-tarifa.una-de-varias':
     '{sin} das {total} reservas do período não tem tarifa de tabela com que comparar ({ingreso} de receita): ou nasceu no Comercial — onde o preço registrado JÁ É o de tabela — ou o preço dela não coincide com o líquido que a proposta congelou. Essas linhas saem com um traço e não com zero: um zero diria que a tarifa inteira foi dada de presente.',
   'reportes.nota.tarifa.sin-tarifa.otros':
@@ -894,7 +894,7 @@ export const PT_REPORTES: Record<ClaveReportes, string> = {
   'reportes.nota.vendedor.historicas':
     '{n} de propostas anteriores a 2026-09-28, quando ainda não se registrava quem as fazia: esse dado NÃO PODE SER RECUPERADO — o histórico guarda o nome da proposta, não o seu identificador —, então essas vendas ficam sem vendedor para sempre',
   'reportes.nota.vendedor.sin-vendedor.uno':
-    '{sin} da {total} reserva do período sai em “Sem vendedor” ({ingreso} de receita): {causas}.',
+    '{sin} de {total} reserva do período sai em “Sem vendedor” ({ingreso} de receita): {causas}.',
   'reportes.nota.vendedor.sin-vendedor.una-de-varias':
     '{sin} das {total} reservas do período sai em “Sem vendedor” ({ingreso} de receita): {causas}.',
   'reportes.nota.vendedor.sin-vendedor.otros':
@@ -903,7 +903,7 @@ export const PT_REPORTES: Record<ClaveReportes, string> = {
     'Essas linhas saem com um traço e não com zero: um zero em “Desconto e comissão” afirmaria que nenhum foi concedido.',
   'reportes.nota.luz.sin-esperados': 'Não há contas de luz previstas neste período.',
   'reportes.nota.luz.completa.uno':
-    'Não falta nenhuma conta: a {esperados} conta prevista do período está registrada, então o custo de energia está completo.',
+    'Não falta nenhuma conta: a conta prevista do período está registrada ({esperados} no total), então o custo de energia está completo.',
   'reportes.nota.luz.completa.otros':
     'Não falta nenhuma conta: as {esperados} contas do período estão registradas, então o custo de energia está completo.',
   'reportes.nota.luz.faltan.uno':

@@ -1467,7 +1467,7 @@ export const PT_CAMPANAS: Record<ClaveCampanas, string> = {
   'campanas.validacion-pub.aprobada': 'Publicação aprovada',
   'campanas.validacion-pub.rechazada': 'Publicação recusada',
   'campanas.creatividad.pendiente': 'Pendente',
-  'campanas.creatividad.validada': 'Validada',
+  'campanas.creatividad.validada': 'Aprovada',
   'campanas.creatividad.rechazada': 'Recusada',
   'campanas.reserva.tentativa': 'Provisória',
   'campanas.reserva.confirmada': 'Confirmada',
@@ -1540,8 +1540,8 @@ export const PT_CAMPANAS: Record<ClaveCampanas, string> = {
 
   // ── Indicadores del listado ──
   'campanas.kpi.activas': 'Ativas',
-  'campanas.kpi.activas.sub.uno': '{n} confirmada para começar',
-  'campanas.kpi.activas.sub.otros': '{n} confirmadas para começar',
+  'campanas.kpi.activas.sub.uno': '{n} confirmada, ainda por começar',
+  'campanas.kpi.activas.sub.otros': '{n} confirmadas, ainda por começar',
   'campanas.kpi.por-validar': 'Publicação a validar',
   'campanas.kpi.por-validar.sub': 'enviadas para publicação',
   'campanas.kpi.listas': 'Prontas para faturar',
@@ -1704,7 +1704,7 @@ export const PT_CAMPANAS: Record<ClaveCampanas, string> = {
   // ── Galeria de evidencias (tambien papel: el portal) ──
   'campanas.evidencia.vacia': 'Ainda sem fotos',
   'campanas.evidencia.vacia.texto': 'As fotos de comprovação são enviadas ao encerrar a OS no celular.',
-  'campanas.evidencia.alt': 'comprovação',
+  'campanas.evidencia.alt': 'foto de comprovação',
   'campanas.evidencia.foto': 'foto',
   'campanas.evidencia.tomada': 'Data de criação da imagem',
   'campanas.evidencia.subida': 'Data de envio',
@@ -1833,7 +1833,7 @@ export const PT_CAMPANAS: Record<ClaveCampanas, string> = {
   'campanas.validacion.no-bajar': 'Não foi possível remover o criativo',
   'campanas.validacion.titulo': 'Validação da publicação',
   'campanas.validacion.enviada': 'Enviada para publicação / CMS',
-  'campanas.validacion.anuncios': 'Anúncios carregados ({validadas}/{total} validados)',
+  'campanas.validacion.anuncios': 'Anúncios carregados ({validadas}/{total} aprovados)',
   'campanas.validacion.informacion': 'Informações dos anúncios',
   'campanas.validacion.retirado.title': 'Retirado; a arte continua no DOOHmain (remova-a no painel de lá)',
   'campanas.validacion.retirado': 'Retirado',
@@ -1857,7 +1857,7 @@ export const PT_CAMPANAS: Record<ClaveCampanas, string> = {
   'campanas.validacion.bajar.titulo': 'Remover criativo',
   'campanas.validacion.bajar.si': 'Sim, remover',
   'campanas.validacion.bajar.texto':
-    'Tem certeza de que quer remover {nombre}? Se estava publicado, a campanha dele é encerrada, mas {arte}(a API não permite): ficará marcado como “pendente no DOOHmain”.',
+    'Tem certeza de que quer remover {nombre}? Se estava publicado, a campanha dele é encerrada, mas {arte} (a API não permite): ficará marcado como “pendente no DOOHmain”.',
   'campanas.validacion.bajar.arte': 'a arte não pode ser removida do DOOHmain',
   'campanas.validacion.aprobar.titulo': 'Aprovar e publicar no DOOHmain',
   'campanas.validacion.aprobar.si': 'Sim, publicar',
