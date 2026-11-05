@@ -428,8 +428,11 @@ const DISTINTOS_A_PROPOSITO_PT: Record<string, string> = {
   Vencida: 'la cobranza vencida («Vencida») frente a la OS fuera de plazo («Atrasada», glosario comun: OT vencida → OS atrasada)',
   Vencidas: 'lo mismo que «Vencida», en plural: cobranzas «Vencidas», OS «Atrasadas»',
   // Formas de la frase.
-  a: 'entre dos FECHAS va «a» («1 de dez. a 5 de dez.»); entre dos HORAS (DOOHmain, Space Eyes), «às» («das 6h às 22h»), como el italiano «–»/«alle»',
-  '{desde} a {hasta}': 'lo mismo que «a»: un rango de fechas («{desde} a {hasta}») frente al horario de DOOHmain («{desde} às {hasta}»)',
+  // Validacion de la costura (H3): dos claves de horas de DOOHmain decian
+  // «a»; desde entonces TODAS las de horas dicen «às» (lo fija la prueba
+  // «entre dos horas» de abajo, con su lista `ENTRE_HORAS`).
+  a: 'entre dos FECHAS va «a» (el selector de periodo: «1 de dez. a 5 de dez.»); entre dos HORAS va «às» («De 06:00 às 22:00»: el horario individual de DOOHmain en la ficha de campaña y el editor de Space Eyes), como el italiano «–»/«alle»',
+  '{desde} a {hasta}': 'lo mismo que «a»: un rango de FECHAS («{desde} a {hasta}», periodo, playlogs, revision del contrato) frente a un rango de HORAS de DOOHmain («{desde} às {hasta}»)',
   Siguiente: 'el boton de un asistente por pasos («Avançar», el de las interfaces brasileñas) frente a la pagina o la foto siguiente («Próxima»)',
   Fin: 'el termino de un CONTRATO de locacion («Término», como lo dice el contrato) frente al fin de una reserva, junto a «Início» («Fim»)',
   Operación: 'la familia de ajustes que lleva al modulo («Operações», como el menu) frente al costo de operar un ponto («Operação»)',
@@ -479,6 +482,35 @@ describe('costura del portugues · los lotes dicen lo mismo de la misma manera',
       .map(([k]) => k)
     expect(malas).toEqual([])
     expect(PESO_QUE_NO_ES_DINERO_PT.filter((f) => /\bpesos\b|centav|preço|valor/i.test(f))).toEqual([])
+  })
+
+  // Validacion de la costura (H1, H2): la comparacion de arriba solo ve el
+  // MISMO espanol. «Tarifa publicada ({unidad})» no es «Tarifa publicada», y
+  // el titulo «Grade de programação» convivia con «horário de exibição» en el
+  // mismo panel. Por PALABRA del glosario: si el espanol dice el termino, el
+  // portugues dice el suyo, y el termino descartado no sale en ningun sitio.
+  const GLOSARIO_POR_PALABRA: Array<[string, RegExp, RegExp, RegExp]> = [
+    ['tarifa publicada / de lista → tarifa / preço de tabela', /tarifa publicada|tarifa de lista|precio de lista/i, /\bde tabela\b/i, /tarifa publicada/i],
+    ['horario de transmisión → grade de programação', /horario de transmisi[óo]n/i, /grade de programação/i, /horário de (exibição|veiculação|transmissão)/i],
+  ]
+  it('el glosario por PALABRA: el termino del espanol lleva el suyo, y el descartado no sale', () => {
+    const ES_D = DICCIONARIOS.es as Record<string, string>
+    const malas: string[] = []
+    for (const [k, v] of Object.entries(PT_PARCIAL as Record<string, string>)) {
+      for (const [nombre, es, pt, descartado] of GLOSARIO_POR_PALABRA) {
+        if (es.test(ES_D[k] ?? '') && !pt.test(v)) malas.push(`${k} · ${nombre}: «${v}»`)
+        if (descartado.test(v)) malas.push(`${k} · descartado (${nombre}): «${v}»`)
+      }
+    }
+    expect(malas).toEqual([])
+  })
+
+  // H3: entre dos HORAS va siempre «às» (DOOHmain en la ficha y en la
+  // programacion, Space Eyes); entre dos FECHAS, «a» (ver `a` arriba).
+  const ENTRE_HORAS = ['campanas.doohmain.horario.a', 'campanas.comun.rango-horas', 'compartidos.doohmain.horario', 'spaceeyes.pconfig.editor.a']
+  it('entre dos horas, «às», en todas las claves de rango horario', () => {
+    const PT = PT_PARCIAL as Record<string, string>
+    expect(ENTRE_HORAS.filter((k) => !/(^|[\s}])às($|[\s{])/.test(PT[k] ?? ''))).toEqual([])
   })
 
   it('«Ex.:» para un ejemplo (glosario del L2), nunca «p. ex.»', () => {

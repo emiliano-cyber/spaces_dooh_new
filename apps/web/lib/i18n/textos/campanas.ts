@@ -1436,7 +1436,7 @@ export const PT_CAMPANAS: Record<ClaveCampanas, string> = {
   'campanas.comun.subiendo': 'Enviando…',
   'campanas.comun.contrato-supera': 'O contrato excede {mb} MB',
   'campanas.comun.leer-archivo': 'Não foi possível ler o arquivo',
-  'campanas.comun.rango-horas': '{inicio} a {fin}',
+  'campanas.comun.rango-horas': '{inicio} às {fin}',
   'campanas.comun.error': 'Erro',
 
   // ── Estados comerciales ──
@@ -1727,7 +1727,7 @@ export const PT_CAMPANAS: Record<ClaveCampanas, string> = {
   'campanas.extensiones.hecha': '{nombre} estendida',
 
   // ── Horario de exibicion ──
-  'campanas.horario.no-leer': 'Não foi possível ler o horário de exibição',
+  'campanas.horario.no-leer': 'Não foi possível ler a grade de programação',
   'campanas.horario.no-programar': 'Não foi possível programar',
   'campanas.horario.otra-franja': 'outra faixa horária',
   'campanas.horario.todo-el-dia': 'O dia todo',
@@ -1737,7 +1737,7 @@ export const PT_CAMPANAS: Record<ClaveCampanas, string> = {
   'campanas.horario.dada-de-baja': ' (desativada)',
   'campanas.horario.sin-franja': 'Sem faixa programada',
   'campanas.horario.sin-permiso':
-    'Só o gerente de vendas, o diretor comercial e a diretoria podem mudar o horário de exibição.',
+    'Só o gerente de vendas, o diretor comercial e a diretoria podem mudar a grade de programação.',
   'campanas.horario.franja': 'Faixa de exibição',
 
   // ── Listas de la Grafica y de OS de la ficha ──
@@ -1795,7 +1795,7 @@ export const PT_CAMPANAS: Record<ClaveCampanas, string> = {
   'campanas.doohmain.horario-campana': 'Horário da campanha:',
   'campanas.doohmain.horario.titulo': 'Horário desta campanha no DOOHmain',
   'campanas.doohmain.horario.de': 'De',
-  'campanas.doohmain.horario.a': 'a',
+  'campanas.doohmain.horario.a': 'às',
   'campanas.doohmain.horario.inicio': 'Hora de início',
   'campanas.doohmain.horario.fin': 'Hora de término',
   'campanas.doohmain.horario.dias': 'Dias da semana',

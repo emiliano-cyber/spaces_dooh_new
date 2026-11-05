@@ -221,7 +221,7 @@ export const PT_SERVIDOR: Record<ClaveServidor, string> = {
   'servidor.ubicacion.minutos': 'Os minutos e os segundos vão de 0 a 59',
   'servidor.ubicacion.orden': 'Primeiro vem a latitude (N ou S) e depois a longitude (E ou O)',
   'servidor.franja.aviso':
-    'Foi vendido como {vendida} ({pantallas}) e está programado em “{programada}”. O preço e o que foi contratado não mudam; confirme com o cliente que o horário de veiculação é o combinado.',
+    'Foi vendido como {vendida} ({pantallas}) e está programado em “{programada}”. O preço e o que foi contratado não mudam; confirme com o cliente que a grade de programação é a combinada.',
   'servidor.franja.vendida': '“{nombre}”',
   'servidor.franja.otra': 'outra faixa horária',
   'servidor.franja.pantallas.uno': '{n} tela',

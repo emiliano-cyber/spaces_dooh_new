@@ -77,7 +77,6 @@ export const COGNADOS_PT_L2 = new Set<string>([
   'comercial.ficha.iluminado', // "Iluminado"
   'comercial.ficha.total-slots', // "Total de slots"
   'comercial.ficha.slots-hora', // "Slots por hora"
-  'comercial.ficha.tarifa-publicada', // "Tarifa publicada ({unidad})"
   'comercial.ficha.renovacion.automatica', // "Automática"
   'comercial.ficha.renovacion.manual', // "Manual"
   'comercial.ficha.proximo', // "Próximo:"
@@ -95,7 +94,6 @@ export const COGNADOS_PT_L2 = new Set<string>([
   'comercial.alta.tipo', // "Tipo / formato"
   'comercial.alta.latitud', // "Latitude" (= ingles)
   'comercial.alta.longitud', // "Longitude" (= ingles)
-  'comercial.alta.tarifa', // "Tarifa publicada ({simbolo})"
   'comercial.reserva.tipo.dooh', // "Digital"
   'comercial.reserva.tipo.hibrida', // "Híbrida"
   'comercial.reserva.slots', // " · {n} slots"

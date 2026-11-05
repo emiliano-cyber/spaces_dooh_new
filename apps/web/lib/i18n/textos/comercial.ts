@@ -1884,7 +1884,7 @@ export const PT_COMERCIAL: Record<ClaveComercial, string> = {
   'comercial.ficha.id-doohmain': 'ID no DOOHmain',
   'comercial.ficha.en-network': 'Na Network',
   'comercial.ficha.datos-comerciales': 'Dados comerciais',
-  'comercial.ficha.tarifa-publicada': 'Tarifa publicada ({unidad})',
+  'comercial.ficha.tarifa-publicada': 'Tarifa de tabela ({unidad})',
   'comercial.ficha.renta-mensual': 'Aluguel ao locador (mensal)',
   'comercial.ficha.propia-sin-renta': 'Próprio: sem aluguel',
   'comercial.ficha.sin-contrato-activo': 'Sem contrato ativo',
@@ -1897,7 +1897,7 @@ export const PT_COMERCIAL: Record<ClaveComercial, string> = {
   'comercial.ficha.margen': 'Margem',
   'comercial.ficha.tarifas-unidad': 'Tarifas por unidade',
   'comercial.ficha.tarifas-unidad.vacio':
-    'Sem tarifas por unidade. O ponto só é vendido com a tarifa publicada acima; para cotar por spot, por hora ou em mídia programática, adicione-as aqui.',
+    'Sem tarifas por unidade. O ponto só é vendido com a tarifa de tabela acima; para cotar por spot, por hora ou em mídia programática, adicione-as aqui.',
   'comercial.ficha.tarifas-franja': 'Tarifas por faixa horária',
   'comercial.ficha.tarifas-franja.vacio':
     'Sem tabela de preços: este ponto é vendido com as tarifas acima em qualquer horário e em qualquer época do ano. Adicione uma só se o horário nobre ou uma temporada tiverem preço diferente.',
@@ -1972,7 +1972,7 @@ export const PT_COMERCIAL: Record<ClaveComercial, string> = {
   'comercial.editar.sin-definir': '— Não definido —',
   'comercial.editar.alcaldia': 'Bairro / região',
   'comercial.editar.estructura-ej': 'monoposte, mupi…',
-  'comercial.editar.tarifa': 'Tarifa publicada (mensal)',
+  'comercial.editar.tarifa': 'Tarifa de tabela (mensal)',
   'comercial.editar.arrendador': 'Locador',
   'comercial.editar.sin-asignar': '— Não atribuído —',
   'comercial.editar.renta.ayuda':
@@ -2022,7 +2022,7 @@ export const PT_COMERCIAL: Record<ClaveComercial, string> = {
   'comercial.alta.caracteristicas': 'Características do espaço',
   'comercial.alta.tipo-contenido': 'Tipo de conteúdo',
   'comercial.alta.iluminacion': 'Tem iluminação',
-  'comercial.alta.tarifa': 'Tarifa publicada ({simbolo})',
+  'comercial.alta.tarifa': 'Tarifa de tabela ({simbolo})',
   'comercial.alta.regla': 'Regra de comercialização',
   'comercial.alta.network': 'Compartilhar na Network (inventário não vendido)',
 

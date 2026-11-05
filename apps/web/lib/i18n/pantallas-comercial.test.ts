@@ -1511,7 +1511,7 @@ const PORTUGUES: Record<string, string[]> = {
   'ficha de una pantalla propia en pausa legal, con incidencia': [
     'Ponto não reservável (status: Ocupado)', 'Pausado por situação legal', ' · desde 1 de out. de 2026', 'Ocorrência ativa',
   ],
-  'ficha de una pantalla digital con contrato': ['Tarifa publicada (mensal)', 'MX$ 20.000,00 · 67%', 'CPS · custo por inserção'],
+  'ficha de una pantalla digital con contrato': ['Tarifa de tabela (mensal)', 'MX$ 20.000,00 · 67%', 'CPS · custo por inserção'],
   'reservar dos pantallas digitales sin cupo': [
     '2 pontos selecionados', '2 pontos já atingiram seu limite de clientes', ' — limite de 1 cliente nessas datas (Bebidas Sur)',
     '2 dos pontos escolhidos têm seu próprio número de slots, que prevalece.', 'Pré-reservar',
