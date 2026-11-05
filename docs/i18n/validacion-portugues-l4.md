@@ -199,3 +199,76 @@ Opinión; decide el dueño.
 | H6–H10 | retoque | «carimbado», «sua fatura», Pesquisar/Buscar, CEP/código postal, validada/aprovada |
 | MV3, MV4 | prueba | «libre» y el tuteo «Revisa» no los vigila nada |
 | Costura | — | 3 claves de papel (gana el lote), 2 rojas y un conflicto del diario al fusionar con `integra/portugues` |
+
+## Segunda vuelta (05/11, `097660f5`)
+
+Revalidado sobre los tres commits del traductor (`fa631579` pruebas en rojo,
+`31e183df` correcciones, `097660f5` revisión, tablero y diario), encima de
+`159e786a`.
+
+### Veredicto final: VERDE
+
+| Medición | Resultado |
+|---|---|
+| `cd apps/web && npm run typecheck` | limpio |
+| `npx vitest run --testTimeout=60000` | **420 archivos, 9235 en verde + 1 omitida, 0 rojas** (+13: las pruebas de los hallazgos y las guardias nuevas) |
+| `ES_/EN_/IT_` de los cinco ámbitos, HEAD contra `72b33050` | **`cmp` idénticos** (214 400 bytes); `diccionario.ts`, `errores-servidor.ts` e `idiomas.ts`, 0 líneas de diff; fuera de `textos/` solo cambia (desde la base) `estado-cuenta-csv.ts`, el mismo de la primera vuelta |
+| La línea española tocada por el reemplazo masivo | `campanas.ts:80` `ES_CAMPANAS['campanas.creatividad.validada']` = **«Validada»**, como en la base; el único cambio de esa clave entre `159e786a` y HEAD es el PT (`:1470`, «Aprovada»). Lo confirma el `cmp` de arriba |
+| Árbol | limpio al terminar |
+
+### Los hallazgos, uno por uno
+
+| # | Ahora | Veredicto |
+|---|---|---|
+| H1 | «Vencido até {fecha}», «{n} fatura vencida até {fecha}» / «{n} faturas vencidas até {fecha}». En el CSV: «Vencido até 30 de set. de 2026 (MX$);6600». La prueba del CSV ya no puede buscar «Vencido» como palabra española (también es portuguesa) y busca «Vencido al»: correcto | cerrado |
+| H2 | «…mas {arte} (a API não permite)…» | cerrado |
+| H3 | «{estimadas} de {total} visita», «{sin} de {total} reserva» (los tres `.uno`); prueba: ningún «da {total}» en reportes | cerrado |
+| H4 | «a conta prevista do período está registrada ({esperados} no total)» | cerrado |
+| H5 | «{n} confirmada(s), ainda por começar» | cerrado |
+| H6 | «NÃO é um CFDI timbrado pelo SAT: o timbrado é emitido à parte…» | cerrado |
+| H7 | «da fatura correspondente» en `aproximada.title` y `periodo.sin-fecha` | cerrado |
+| H8 | «Buscar cliente»; prueba: ningún «pesquis» en el lote. Ahora es igual al español y entra en `COGNADOS_PT_L4`, con su porqué (y `creatividad.validada`, que ya no lo es, sale) | cerrado |
+| H9 | se queda «CEP fiscal» + «Código postal inválido (5 dígitos)» | **de acuerdo**: la etiqueta es la del glosario común y la de `admin.razones.cp` (L5), y el mensaje es el gemelo del catálogo del servidor; cambiar uno solo rompe otra coherencia. Va a la costura, en los tres sitios a la vez |
+| H10 | `creatividad.validada` = «Aprovada», «({validadas}/{total} aprovados)», como «Criativo aprovado» | cerrado |
+
+Sin «pago»: «Quitado {monto}» (`finanzas.periodo.renta.pagada`, el aluguel:
+masculino, junto a «A pagar no período») y «o custo de operação que você vê é
+o que foi desembolsado» (`reportes.nota.ot.reales.*`). Los dos se leen bien y
+dicen lo mismo que el español. `campanas.evidencia.alt` = «foto de comprovação»,
+como proponía §4.
+
+### Las guardias nuevas
+
+- **Palabras solo españolas** (`PALABRA_ESPANOLA` de la estática y
+  `PALABRAS_SOLO_ESPANOL` del barrido): + «libre/libres», «cobro», «alta» y
+  «pago». Prueban que muerden («Nada fica libre», «Está pago», «Alta do
+  cliente», «o cobro») y que no muerden «Livre hoje», «pagamento», «altura»,
+  «{sin}», «sinal». Pasadas a mano por los `PT_*` del L5 (admin, cuenta,
+  compartidos, shell, notificaciones, servidor): solo coinciden nombres de
+  clave y huecos (`{libres}`), ningún texto; no hay falsos positivos hoy. Ojo
+  para el futuro: «alta» y «pago» son también portugués («em alta», «está
+  pago»); si la costura extiende la guardia a todo el portugués, que lo haga
+  sabiéndolo.
+- **`TUTEO_L4`**: imperativos de 2.ª con mayúscula (orden) o con enclítico
+  («revisa-o», «ajusta-os»). Prueba de que muerde (6 casos) y de que no muerde
+  «Revise-o», «Use o filtro», «a lista completa», «Revisão», «usado»,
+  «Verifique», «Ajuste-os», «Remover», «Usuário». Sin falsos positivos en el
+  lote ni en los textos del L5 revisados.
+
+### Mutantes (contra las siete pruebas del lote; restaurados, `git status` limpio)
+
+| # | Mutante | Resultado |
+|---|---|---|
+| MV3 | «Nada fica **libre**…» | **muere** (2) — antes sobrevivía |
+| MV4 | «**Revisa**-o antes de entregá-lo» | **muere** (1) — antes sobrevivía |
+| MV7 | «**Usa** “Nova agência”…» (clientes) | muere (1) |
+| MV8 | vuelve «Em atraso até {fecha}» | muere (2) |
+| MV9 | «o que foi o **cobro**» (reportes) | muere (1) |
+
+### Decisiones del dueño de hoy
+
+Título de Captación = **«Captação»** a secas y tentativa = **«Pré-reserva»**:
+las aplica la costura, no este lote (hoy siguen «Captação de pontos» y
+«Provisória/Provisórias»). Sigue pendiente para la costura lo de §5: las tres
+claves de `PT_PAPELES` (gana el lote), las dos pruebas de P3 que se ponen rojas
+al fusionar y el conflicto del diario.
