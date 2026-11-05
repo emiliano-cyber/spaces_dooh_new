@@ -165,3 +165,68 @@ Opinión; decide el dueño.
   `TODO` sí).
 - Los correos (`cuenta.correo.*`, `notificaciones.correo.*`) se leyeron pero no
   se rinden en `pt` hasta P3.
+
+## Segunda vuelta (2026-11-05) · HEAD `ed5ea201`
+
+Revisados `9f3d5bda`, `bcb3a867` y `ed5ea201` sobre `390e6e34`, contra lo que
+decía la §2 y con las decisiones del dueño (Dueño = «Titular»; ponto/tela,
+bissemana, perfil/papel, «a Network», «Captação de pontos»; `lang="pt-BR"`).
+
+### Veredicto final: VERDE
+
+Los cinco hallazgos y los trece retoques están resueltos. El tuteo tiene guardia
+y mi MV2 ya muere. es/en/it siguen idénticos a `e018b1bb`. `lang="pt-BR"` solo
+cambia el HTML portugués y no toca la sesión ni el middleware.
+
+### Mediciones
+
+| Medición | Resultado |
+|---|---|
+| `npm run typecheck` | limpio |
+| `npx vitest run` | **419 archivos, 8864 en verde + 1 omitida, 0 rojas** (esta vez la semilla también pasó) |
+| `DICCIONARIOS.es/.en/.it` + `traducirError(es/en/it)` (mismo volcado de la §1) | **`cmp` idéntico al de `e018b1bb`** |
+| `I18N_VOLCAR_TODO` contra el de `2c6dcac9` | 4825 → 4825 archivos; **32 distintos, todos portugueses** (estados `…en_PORTUGUES…` y el `lang` de `pantallas.test.ts`); `_italiano.txt` ordenado idéntico. `<html lang>`: es 12, en 8, it 4 igual que antes; `pt` 3 → `pt-BR` 3. La única roja es la semilla de siempre |
+| `langDelHtml` (`idiomas.ts:209`) | lo usan solo `app/layout.tsx:101` y `app/global-error.tsx:43`; devuelve el idioma tal cual salvo `pt` → `pt-BR`. `global-error` lo relee con `normalizarIdioma` (`pt-BR` → `pt`, probado). **0 líneas** cambiadas en `middleware.ts` y `lib/server/` |
+| Árbol | limpio al terminar |
+
+### Los hallazgos, uno por uno
+
+| # | Estado | Cómo quedó |
+|---|---|---|
+| 1 | ✔ | «(E ou O)» en `servidor.ts` y en el catálogo; una prueba exige que digan lo mismo |
+| 2 | ✔ | «Pontos sem coordenadas cadastradas: {faltan} de {n}. Os endereços estão na lista de pontos.» en las dos formas, declaradas invariables. En el HTML: «…: 1 de 2. Os endereços…» |
+| 3 | ✔ | «como aparece na Constancia de Situación Fiscal» |
+| 4 | ✔ | «E-mail do Titular» |
+| 5 | ✔ | «não é da sua empresa» |
+| 6, 7, 10, 11 | ✔ | «Altere-a nesse contrato antes», «cancele o contrato anterior ou deixe-o vencer», «maiores que 0», «ainda faltam dados: $1» |
+| 8 | ✔ | `bloqueoClientePt` devuelve `SIN_ITALIANO` con una pieza desconocida: «…2 campañas y 3 órdenes…» sale **entero en español**, y una prueba lo fija |
+| 9 | ✔ | «livre(s)», a su manera: es correcto y se entiende con 0, 1 y n |
+| 12 | ✔ | «Código postal inválido (5 dígitos)», igual al español (el portugués también lo dice así) y declarado cognado. Bien resuelto: no promete el CEP brasileño de 8 cifras |
+| 13 | ✔ | filtro «Programático» en masculino, como «Programáticos/Tradicionais» y los pontos. Declarado cognado (es igual al español) |
+| 14–18 | ✔ | «pode pular o resto», «de quanto dinheiro se pode abrir mão», «valor padrão», rayas con espacios, «Limpar todas» |
+
+**«Titular» y sus choques.** No queda ningún «Proprietário» como rol en el
+portugués del lote: los italianos son de otra lengua, y la prueba nueva lo exige
+sobre la base, el catálogo y los patrones. «sem proprietário» pasó a «sem
+locador» y «o operador proprietário» a «o operador a que pertencem»: los dos se
+leen bien. «Visão de Titular», «Antes o Titular ficava isento…» y «a senha… que o
+Titular definiu» se entienden. **Queda «o proprietário» en `FALTA_REVISION_PT`
+(`errores-servidor.ts:2294`)**, y está **bien**: ahí es el dueño del terreno de
+un prospect («o proprietário: um locador existente ou o nome e o telefone do
+contato»), no el rol. La guardia no lo ve porque no mira las tablas de huecos;
+no hace falta cambiarlo, pero si algún día se quiere una guardia completa, que
+lo declare como excepción.
+
+### Mutantes de la segunda vuelta (unitarias, restaurados)
+
+| # | Mutante | Resultado |
+|---|---|---|
+| MV2 | «Tenta de novo» | **muere** (antes sobrevivía) |
+| MV8 | `bloqueoClientePt` vuelve a `return pieza` | muere |
+| MV9 | `langDelHtml` devuelve `pt` | muere (3) |
+| MV10 | `servidor.ts` vuelve a «(L ou O)» | muere |
+
+La guardia de tuteo (`TUTEO` en `textos/portugues-l5.test.ts`) mira todo
+`PT_PARCIAL`, el catálogo y los patrones, deja pasar el hueco `{tu}` y trae su
+prueba de que muerde. No cubre `CAMPO_PT`, `FALTA_FIRMA_PT` ni las tablas de
+huecos (son sustantivos, sin riesgo de tuteo).
