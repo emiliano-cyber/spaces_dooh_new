@@ -21,6 +21,8 @@ archivos:
   - docs/i18n/revision-portugues-l5.md
   - apps/web/lib/i18n/textos/portugues-l5.test.ts
   - apps/web/lib/test/barrido-portugues.ts
+  - docs/i18n/revision-portugues-l2.md
+  - apps/web/lib/i18n/textos/portugues-l2.test.ts
 ---
 
 # La versión en portugués (Brasil), ola por ola
@@ -85,6 +87,7 @@ toca **solo sus archivos** de `textos/` (y el L5, además, la base de
 
 | Lote | Rama | Estado | Cobertura de sus filas |
 |---|---|---|---|
+| **L2** | `feat/portugues-l2-comercial` | **Hecho, sin validar** (05/11) | **1201/1201, 0 pendientes** (comercial 502 · codigos 59 · propuestas 446 · catalogos 194) |
 | **L5** | `feat/portugues-l5-armazon` | **Validación ÁMBAR, corregida; pendiente de revalidar** (05/11) | **1346/1346, 0 pendientes** (base 119 · compartidos 113 · shell 59 · cuenta 125 · admin 542 · notificaciones 47 · servidor 32 · errores 205 + 30 + 12 + 62) |
 
 ### Lote L5 · Armazón, cuenta, administración, compartidos y servidor
@@ -121,6 +124,42 @@ pendiente de revalidar** (revisión §11). Revisión clave por clave en
   captura (`compartidos.cifra.*`), que hoy dicen la verdad mexicana y
   reescribirá `feat/portugues-cifras` con el texto que deja propuesto la
   revisión §3.
+
+### Lote L2 · Comercial y propuestas
+
+Rama `feat/portugues-l2-comercial` (sale de `integra/portugues`, `72b33050`).
+**Hecho, sin validar.** Revisión clave por clave en
+`docs/i18n/revision-portugues-l2.md`.
+
+- **1201 claves, 0 pendientes**: los cuatro `PT_*` (`comercial`, `codigos`,
+  `propuestas`, `catalogos`) ya son `Record`. Ningún archivo de la aplicación
+  cambió: el código del lote ya pasaba el idioma a cada cifra (arreglos del
+  italiano L2).
+- **Pruebas:** estática `textos/portugues-l2.test.ts` (rojo primero, 7/20;
+  149 cognados declarados, glosario de 31 pares, comisión = comissão), 63
+  estados portugueses en `pantallas-comercial`, `-propuestas` y `-catalogos`
+  (barrido + `huellasEnPortugues` + frases esperadas) y los estados de cifras
+  con decimales y miles. **12/12 mutantes muertos.**
+- **es/en/it idénticos:** `DICCIONARIOS` y `traducirError` (`cmp`) y volcado
+  de toda la suite: 0 HTML distintos de es/en/it.
+- **Espejo** sobre las tres pruebas: de 21 estados / 228 huellas a 15 / 103,
+  todas explicadas (ejemplos de captura del alta, P2; y los papeles del ADR
+  0049 con la instancia fija en es/en).
+- **Costura con P3** (`papeles-portugues.ts`): 48 claves iguales y 11
+  distintas, con su porqué en la revisión §4 («Aceita em {fecha}», *telas* en
+  vez de *pontos*, «Nº» en vez de «Ref. interna», espectacular/valla al revés).
+
+Glosario que este lote fija (lo que no está en §2 bis): comisión →
+**comissão** · neto → **líquido**, «neto para el medio» → **líquido para o
+veículo** · precio/tarifa de lista → **preço de tabela** · espectacular →
+**Painel**, valla → **Outdoor** · tramo / escalón / escala plana → **patamar /
+degrau / escala não progressiva** · horario de transmisión → **grade de
+programação** · tentativa → **provisória** · se compone → **se aplica em
+cascata** · reparto / a prorrata → **rateio / proporcionalmente** · prime →
+**horário nobre** · plaza → **praça** · tablero de propuestas → **resumo** (no
+*painel*) · vigencia de código o propuesta → **validade** · Próximo / Agotado
+(código) → **Em breve / Esgotado** · unipolar → **monoposte** · dueño del
+espacio que se negocia → **dono** (nunca *proprietário*) · Ej. → **Ex.:**.
 
 > [!tip] El glosario se fija ANTES de repartir
 > Como en el italiano: `compartidos` (L5) fija las palabras que usan todos
@@ -274,7 +313,7 @@ a `IDIOMAS`, añade `--idioma pt` y escribe los papeles.
 ## 4 · Antes de encender `IDIOMA_PORTUGUES`
 
 - [ ] Los cinco lotes en **VERDE**, con su tipo `PT_<AMBITO>` ya en `Record` completo
-- [ ] `coberturaPortugues()` con **0 pendientes** en todas las filas (hoy, 4597 con L5 hecho; eran 5937)
+- [ ] `coberturaPortugues()` con **0 pendientes** en todas las filas (hoy, 4597 con L5 hecho; 3396 en la rama del L2, que lleva L5 y L2; eran 5937)
 - [ ] El espejo (`I18N_VOLCAR_PT`) sin hallazgos de formato (hoy, §5)
 - [ ] La costura extendida al portugués, en verde
 - [x] P1 y P2 contestadas por el dueño (05/11)
