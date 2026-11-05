@@ -310,6 +310,9 @@ const GLOSARIO: [string, RegExp, RegExp][] = [
   ['liga → link', /\bliga\b/i, /\blink\b/i],
   ['correo → e-mail', /\bcorreo\b/i, /e-mail/i],
   ['rotaciones/h → loops/h', /rotaciones\/h/, /loops\/h/],
+  // Validacion del L2 (H6): la valla es el outdoor brasileño (la rama P3 la
+  // llamaba «Painel», que es el espectacular).
+  ['valla → outdoor', /\bvalla\b/i, /outdoor/i],
 ]
 
 // Clave → por que no lleva el termino del glosario.
@@ -344,6 +347,58 @@ describe('portugues L2 · el glosario, obedecido', () => {
   it('y muerde: una frase que traduce «propuesta» por «oferta» cae', () => {
     const [, es, pt] = GLOSARIO[0]
     expect(es.test('Nueva propuesta') && !pt.test('Nova oferta')).toBe(true)
+  })
+})
+
+// ─── Validacion del L2 (H6): el SENTIDO de las reglas de precio ─────────────
+// «20% e 20% deixam o cliente pagando 64%, não 60%» al reves («60%, não 64%»)
+// o «não só sobre as que passam» sin el «não» pasaban todas las guardias: el
+// texto seguia siendo portugues. Dos guardias baratas:
+//
+//   · las CIFRAS de cada texto, en el mismo orden que en el espanol (sin los
+//     huecos). Compara solo los digitos: «51,2 %» y «51,2%» son la misma
+//     secuencia;
+//   · si el espanol NIEGA (no, nunca, ni, sin, ningun, nada, tampoco), el
+//     portugues tambien niega.
+const cifras = (s: string) => (sinHuecos(s).match(/\d+/g) ?? []).join(' ')
+// Clave → por que sus cifras no son las del espanol.
+const CIFRAS_DISTINTAS: Record<string, string> = {
+  'propuestas.ficha.mapa.sin-coords.uno': '«Ninguna de las 1 pantalla» → «O único ponto»: el «1» del español es el plural forzado, no un dato',
+}
+
+const NIEGA_ES = /(?:^|[^\p{L}])(no|nunca|ni|sin|ningún|ninguna|ninguno|nada|tampoco|nadie)(?=$|[^\p{L}])/iu
+const NIEGA_PT = /(?:^|[^\p{L}])(não|nunca|nem|sem|nenhum|nenhuma|nada|ninguém|tampouco)(?=$|[^\p{L}])/iu
+// Clave → por que el portugues no lleva negacion aunque el espanol si.
+const SIN_NEGACION: Record<string, string> = {
+  'comercial.comun.no-disponible': '«No disponible» → «Indisponível»: niega el prefijo',
+  'comercial.pagina.vacio.no-disponible': '«no disponible» → «indisponível»: niega el prefijo',
+  'comercial.ficha.pausada.nota': '«No disponible comercialmente…» → «Indisponível para venda…»: niega el prefijo',
+  'catalogos.motivo.franja.hora': '«Hora no válida» → «Hora inválida»: niega el prefijo',
+  'catalogos.motivo.temporada.fecha': '«Fecha no válida» → «Data inválida»: niega el prefijo',
+}
+
+describe('portugues L2 · el sentido de las reglas (validacion, H6)', () => {
+  it('las cifras de cada texto son las del espanol, en el mismo orden', () => {
+    const malas = todas().filter((x) => !(x.k in CIFRAS_DISTINTAS) && cifras(x.pt) !== cifras(x.es))
+    expect(malas.map((x) => `${x.k}: «${cifras(x.es)}» → «${cifras(x.pt)}»`)).toEqual([])
+  })
+  it('si el espanol niega, el portugues tambien', () => {
+    const malas = todas().filter((x) => !(x.k in SIN_NEGACION) && NIEGA_ES.test(sinHuecos(x.es)) && !NIEGA_PT.test(sinHuecos(x.pt)))
+    expect(malas.map((x) => `${x.k}: ${x.pt}`)).toEqual([])
+  })
+  it('las excepciones declaradas siguen siendo excepciones', () => {
+    const t = Object.fromEntries(todas().map((x) => [x.k, x]))
+    expect(Object.keys(CIFRAS_DISTINTAS).filter((k) => !t[k] || cifras(t[k].pt) === cifras(t[k].es))).toEqual([])
+    expect(
+      Object.keys(SIN_NEGACION).filter((k) => !t[k] || !NIEGA_ES.test(sinHuecos(t[k].es)) || NIEGA_PT.test(sinHuecos(t[k].pt))),
+    ).toEqual([])
+  })
+  it('y las dos MUERDEN', () => {
+    expect(cifras('20% e 20% deixam o cliente pagando 60%, não 64%')).not.toBe(cifras('un 20 % y un 20 % dejan al cliente pagando el 64 %, no el 60 %'))
+    expect(cifras('pagando 64%, não 60%')).toBe(cifras('pagando el 64 %, no el 60 %'))
+    expect(NIEGA_PT.test('O desconto é aplicado sobre TODAS as unidades, só sobre as que passam do patamar.')).toBe(false)
+    expect(NIEGA_PT.test('não só sobre as que passam')).toBe(true)
+    expect(NIEGA_ES.test('no solo sobre las que pasan')).toBe(true)
   })
 })
 
