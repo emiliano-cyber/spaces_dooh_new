@@ -21,6 +21,9 @@ archivos:
   - docs/i18n/revision-portugues-l5.md
   - apps/web/lib/i18n/textos/portugues-l5.test.ts
   - apps/web/lib/test/barrido-portugues.ts
+  - docs/i18n/revision-portugues-l4.md
+  - apps/web/lib/i18n/textos/portugues-l4.test.ts
+  - apps/web/lib/test/barrido-portugues-l4.ts
 ---
 
 # La versión en portugués (Brasil), ola por ola
@@ -86,6 +89,7 @@ toca **solo sus archivos** de `textos/` (y el L5, además, la base de
 | Lote | Rama | Estado | Cobertura de sus filas |
 |---|---|---|---|
 | **L5** | `feat/portugues-l5-armazon` | **Validación ÁMBAR, corregida; pendiente de revalidar** (05/11) | **1346/1346, 0 pendientes** (base 119 · compartidos 113 · shell 59 · cuenta 125 · admin 542 · notificaciones 47 · servidor 32 · errores 205 + 30 + 12 + 62) |
+| **L4** | `feat/portugues-l4-campanas` | **Hecho, sin validar** (05/11) | **1082/1082, 0 pendientes** (campanas 396 · finanzas 170 · clientes 220 · reportes 148 · inicio 148) |
 
 ### Lote L5 · Armazón, cuenta, administración, compartidos y servidor
 
@@ -121,6 +125,50 @@ pendiente de revalidar** (revisión §11). Revisión clave por clave en
   captura (`compartidos.cifra.*`), que hoy dicen la verdad mexicana y
   reescribirá `feat/portugues-cifras` con el texto que deja propuesto la
   revisión §3.
+
+### Lote L4 · Campañas, finanzas, clientes, reportes y Dashboard
+
+Rama `feat/portugues-l4-campanas` (sale de `integra/portugues`, `72b33050`).
+**Hecho, sin validar.** Revisión clave por clave en
+`docs/i18n/revision-portugues-l4.md`.
+
+- **1082 claves**: los cinco `PT_*` del lote ya son `Record`. Lo que falta del
+  portugués baja a 3515 pendientes (de L1–L3), medido en esta rama.
+- **El CSV del estado de cuenta** sale en portugués con «;» y coma decimal,
+  como el italiano (H4 de la validación de la ola 0); es/en/it byte a byte.
+- **Pruebas:** estática `textos/portugues-l4.test.ts` (rojo primero, 10/37:
+  copias, plurales, huecos, fechas con preposición, palabras que solo existen
+  en español y el glosario común: OS, PC, ocorrência, Titular); estados
+  portugueses en las cuatro `pantallas-*` del lote con el barrido del L5 y una
+  guardia nueva de palabras españolas sueltas (`lib/test/barrido-portugues-l4.ts`).
+- **es/en/it idénticos** (diccionarios byte a byte y volcado de toda la suite:
+  0 HTML distintos). **Espejo:** 0 huellas en las pantallas del lote.
+- **Diseño del Dashboard intacto:** solo textos; la instantánea española, en
+  verde.
+
+Glosario propio (lo que §2 bis no traía): ingreso → **receita** · margen bruto
+/ neto → **margem bruta / líquido** · tarifa publicada o de lista → **tarifa de
+tabela** · cuota → **parcela** («{n} parcelas, duas por mês»; mensais,
+bimestrais…) · al corriente → **Em dia** · cargo / abono del extrato →
+**Débito / Crédito** · folio de una factura → **Nº da fatura** · nombre
+comercial → **nome fantasia** · tasa de cierre → **taxa de fechamento** · hueco
+→ **espaço livre** · tentativa → **Provisória** · el medio → **veículo** ·
+reporte de cumplimiento → **relatório de veiculação** · reproducción →
+**exibição** · enviar al dominio → **enviar para publicação** · reanudar /
+bajar → **retomar / remover** · bitácora → **histórico** · embudo → **funil** ·
+giro → **ramo de atividade** · dueño del terreno → **dono do terreno** (no
+*proprietário*) · incidencia / accidente → **ocorrência / acidente** ·
+DOOHmain, masculino («no DOOHmain»).
+
+> [!warning] Para la costura del L4
+> - `textos/papeles-portugues.ts` (P3) no está en esta rama: el texto de los
+>   papeles del lote se copió de allí, salvo `campanas.evidencia.vacia.texto`
+>   y `campanas.evidencia.alt` («comprovação», el glosario común; el papel dice
+>   «evidências») y `finanzas.comun.folio` («Nº da fatura»; el papel, «Número»).
+> - `clientes.captacion.falta.dueno` dice «o dono do terreno», y su gemelo del
+>   servidor (`FALTA_REVISION_PT`, L5) «o proprietário».
+> - `campanas.candado.monto-ilegible` dice la verdad mexicana de hoy: la tarea
+>   roja `feat/portugues-cifras` lo cambia (texto en la revisión, §3).
 
 > [!tip] El glosario se fija ANTES de repartir
 > Como en el italiano: `compartidos` (L5) fija las palabras que usan todos
