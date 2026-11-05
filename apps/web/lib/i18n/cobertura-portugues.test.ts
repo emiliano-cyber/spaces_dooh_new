@@ -1,3 +1,4 @@
+import { PT_PAPELES } from './textos/papeles-portugues'
 import { describe, it, expect } from 'vitest'
 import { CLAVES, DICCIONARIOS, AMBITOS_PORTUGUES, PT_PARCIAL, conCaidaAlEspanol, traducir } from './diccionario'
 import { CATALOGO_ERRORES_PT, PATRONES_ERROR } from './errores-servidor'
@@ -59,9 +60,16 @@ describe('cobertura del portugues', () => {
     expect(clavesBasePortugues()).toContain('idioma.pt')
   })
 
-  it('en la ola 0 solo esta el selector; los ambitos y el servidor, vacios', () => {
+  it('ola 0: el selector; P3 (05/11): las claves de los PAPELES, y nada mas', () => {
     expect(filas[0].traducidas).toBe(6)
-    for (const f of filas.slice(1)) expect(f.traducidas, f.ambito).toBe(0)
+    // Lo traducido de cada ambito es exactamente lo que P3 escribio para los
+    // papeles (`textos/papeles-portugues.ts`); el resto lo traducen los lotes.
+    const dePapel = (ambito: string) => Object.keys(PT_PAPELES).filter((k) => k.split('.')[0] === ambito).length
+    for (const f of filas.slice(1)) {
+      if (f.ambito.startsWith('errores')) expect(f.traducidas, f.ambito).toBe(0)
+      else expect(f.traducidas, f.ambito).toBe(dePapel(f.ambito))
+    }
+    expect(Object.keys(PT_PAPELES).length).toBeGreaterThan(150)
   })
 
   it('el portugues escrito esta bien formado', () => {
