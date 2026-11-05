@@ -3666,8 +3666,11 @@ const PORTUGUES: Record<string, string[]> = {
     'abaixo de 20%', 'de todo o parque de dispositivos', 'On-line · 1', 'Pedem atenção · 3', 'Atualização manual · 2',
     'Todas as empresas', 'Buscar dispositivo ou ponto', 'Ainda sem capturas', 'sem ponto atribuído',
     'Para atualizar, precisa de uma visita', 'Para atualizar, precisa de uma confirmação no celular', 'sem dados',
-    'Rede móvel', 'há 2 min', 'há 5 h', 'há 30 min', 'há 4 semanas', 'ON-LINE', 'SEM COMUNICAÇÃO', 'AGUARDANDO PAREAMENTO',
+    'Rede móvel', 'há 2 min', 'há 5 h', 'há 30 min', 'há 4 semanas', 'ON-LINE', 'SEM COMUNICAÇÃO', 'AGUARDANDO VINCULAÇÃO',
   ],
+  // Validacion L1 (H1, H2): «o app» de Brasil y el rotulo que concuerda con
+  // los estados femeninos (Ativa · Desativada).
+  'equipo · android atrasado, editar y actualizar': ['Estado da tela', 'Versão do app', 'Reiniciar o app ou instalar a versão publicada', 'Precisa de uma confirmação no celular'],
   'ficha · prueba de campaña, dice de cuál': [' · Campanha · Dessea', 'Ponto associado', 'Temp. do dispositivo'],
   'galeria · prueba de campaña con su nombre': ['Campanha · Dessea · arte-a.jpeg', 'Não verificada'],
   'creativos · detectados sin foto, con su motivo': [
@@ -3704,7 +3707,7 @@ const PORTUGUES: Record<string, string[]> = {
   'verificacion · resultados con paginas': ['SSIM 0,812', 'OCR Não', 'Correspondência OCR'],
   'alta · telefono con codigo y lista': [
     // «Vincular» es el boton de la app Android, que solo esta en espanol.
-    'Na app, escolha ', 'Vincular', 'Códigos de pareamento', 'Vale uma única vez · vence: 2 de nov. de 2026, 13:00',
+    'No app, escolha ', 'Vincular', 'Códigos de vinculação', 'Vale uma única vez · vence: 2 de nov. de 2026, 13:00',
     'Válido até 2 de nov. de 2026, 13:00', '3 de 3 dispositivos · esgotado',
   ],
   'vivo · aplicando y abriendo': ['Encerra em ', 'Aplicando o novo enquadramento…', 'só o Titular pode fazer'],

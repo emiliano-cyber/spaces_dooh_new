@@ -3499,7 +3499,7 @@ export const PT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.senal.debil': 'fraco',
   'spaceeyes.senal.movil': 'Rede móvel',
   'spaceeyes.conexion.en-linea': 'On-line',
-  'spaceeyes.conexion.pendiente': 'Aguardando pareamento',
+  'spaceeyes.conexion.pendiente': 'Aguardando vinculação',
   'spaceeyes.conexion.sin': 'Sem comunicação',
   'spaceeyes.visor.completo': 'Abrir em tamanho real',
 
@@ -3671,7 +3671,7 @@ export const PT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.ficha.captura-del': 'Captura: {fecha}',
   'spaceeyes.ficha.energia': 'Energia',
   'spaceeyes.ficha.cargando': 'carregando',
-  'spaceeyes.ficha.sin-cargar': 'sem carregar',
+  'spaceeyes.ficha.sin-cargar': 'não está carregando',
   'spaceeyes.ficha.temp-bateria': 'Temp. da bateria',
   'spaceeyes.ficha.temp-equipo': 'Temp. do dispositivo',
   'spaceeyes.ficha.conexion': 'Conexão',
@@ -3748,7 +3748,7 @@ export const PT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.pyc.donde': 'Onde',
   'spaceeyes.pyc.cerrada': 'Fechada',
   'spaceeyes.pyc.sin-vigilar':
-    'Este dispositivo não está monitorando a tela. Isso é ativado no Space Eye (precisa da app 0.15 ou posterior).',
+    'Este dispositivo não está monitorando a tela. Isso é ativado no Space Eye (precisa do app 0.15 ou posterior).',
   'spaceeyes.pyc.sin-datos': 'O Space Eye não tem dados de tela deste dispositivo.',
   'spaceeyes.pyc.creativos': 'Criativos detectados',
   'spaceeyes.pyc.creativos.texto':
@@ -3791,7 +3791,7 @@ export const PT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.creativos.continuo': 'Monitorando sem parar',
   'spaceeyes.creativos.vigilar': 'Monitorar a tela',
   'spaceeyes.creativos.no-sabe':
-    'Este dispositivo ainda não sabe monitorar a tela: os celulares precisam da app 0.15.0 ou posterior, e o agente de PC não tem esse recurso.',
+    'Este dispositivo ainda não sabe monitorar a tela: os celulares precisam do app 0.15.0 ou posterior, e o agente de PC não tem esse recurso.',
   'spaceeyes.creativos.sin-marcar':
     'Falta marcar a tela (em “Tela e falhas”): sem isso o dispositivo não reconhece criativos, porque o fundo os confunde entre si.',
   'spaceeyes.creativos.aprendiendo': 'Aprendendo o loop até {fin}: nesse prazo não tira fotos.',
@@ -3834,7 +3834,7 @@ export const PT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.pconfig.apagada': 'Monitoramento desligado',
   'spaceeyes.pconfig.vigilar': 'Monitorar falhas',
   'spaceeyes.pconfig.no-sabe':
-    'O monitoramento de falhas precisa da app 0.15.0 ou posterior no celular, ou do agente 0.7.0 na Raspberry. O agente de PC ainda não tem esse recurso.',
+    'O monitoramento de falhas precisa do app 0.15.0 ou posterior no celular, ou do agente 0.7.0 na Raspberry. O agente de PC ainda não tem esse recurso.',
   'spaceeyes.pconfig.sin-marcar.aviso':
     'Falta marcar onde a tela está na foto: sem isso o dispositivo não monitora falhas nem criativos.',
   'spaceeyes.pconfig.pantalla': 'Tela',
@@ -3873,7 +3873,7 @@ export const PT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.pconfig.aprendiendo': 'Aprendendo a tela até {fin}: nesse prazo não avisa de falhas.',
   'spaceeyes.pconfig.primera-vuelta': 'Aprendendo com a primeira volta: a próxima já monitora.',
   'spaceeyes.pconfig.camara-bloqueada':
-    'O Android não deixa a app usar a câmera em segundo plano, então ela não está verificando a tela. Abra a app Space Eye no celular uma vez e isso se resolve sozinho. Acontece depois de reiniciar o celular, a menos que a app seja a administradora do aparelho.',
+    'O Android não deixa o app usar a câmera em segundo plano, então ele não está verificando a tela. Abra o app Space Eye no celular uma vez e isso se resolve sozinho. Acontece depois de reiniciar o celular, a menos que o app seja o administrador do aparelho.',
   'spaceeyes.pconfig.quietos':
     'Gabinetes que nunca mudam (não são verificados): {lista}. Costumam estar cobertos por algo; se não houver nada na frente, confira: podem estar apagados há algum tempo.',
   'spaceeyes.pconfig.confirmar.titulo': 'O enquadramento da tela mudou',
@@ -3896,16 +3896,16 @@ export const PT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.pconfig.revision': '{cuando} · tela {pantalla}{camara} ({vistazos}, {cambios}).{corte}',
 
   // ── La administracion de un equipo (`EquipoAdmin`) y como se actualiza (`lib/space-eyes-actualizacion.ts`). «Pide un toque» → alguien tiene que confirmar en el celular ──
-  'spaceeyes.actualizacion.sola': 'Atualiza sozinho.',
-  'spaceeyes.actualizacion.kiosco': 'Atualiza sozinho (modo quiosque).',
-  'spaceeyes.actualizacion.sin-tocar': 'Atualiza sozinho, sem mexer no celular.',
+  'spaceeyes.actualizacion.sola': 'Se atualiza sozinho.',
+  'spaceeyes.actualizacion.kiosco': 'Se atualiza sozinho (modo quiosque).',
+  'spaceeyes.actualizacion.sin-tocar': 'Se atualiza sozinho, sem mexer no celular.',
   'spaceeyes.actualizacion.android-viejo':
     'Precisa de uma confirmação no celular a cada atualização: tem Android 11 ou anterior.',
   'spaceeyes.actualizacion.sin-instalar-apps':
     'Precisa de uma confirmação: no celular, “Instalar apps desconhecidos” está desativado para o Space Eye.',
   'spaceeyes.actualizacion.otro-dueno': 'Precisa de uma confirmação: outra loja gerencia as atualizações dele.',
   'spaceeyes.actualizacion.proxima':
-    'A próxima atualização precisa de uma confirmação no celular; depois, atualiza sozinho.',
+    'A próxima atualização precisa de uma confirmação no celular; depois, se atualiza sozinho.',
   'spaceeyes.actualizacion.visita': 'Precisa de uma visita: esta versão não pode ser atualizada a distância.',
   'spaceeyes.comun.sin-permiso': 'Você não tem permissão para isto.',
   'spaceeyes.comun.nombre': 'Nome',
@@ -3941,7 +3941,7 @@ export const PT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.admin.codigo': 'Código do painel',
   'spaceeyes.admin.direccion': 'Endereço',
   'spaceeyes.admin.aparato': 'Aparelho',
-  'spaceeyes.admin.version-app': 'Versão da app',
+  'spaceeyes.admin.version-app': 'Versão do app',
   'spaceeyes.admin.salud': 'Conexão e saúde',
   'spaceeyes.admin.red': 'Rede',
   'spaceeyes.admin.operador': 'Operadora',
@@ -3958,19 +3958,19 @@ export const PT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.admin.coordenadas-mal': 'A latitude vai de −90 a 90 e a longitude de −180 a 180.',
   'spaceeyes.admin.coordenadas':
     'Deixe em branco se não souber. Servem para localizar o ponto e para calcular a luz do local, que é o que decide em que horários a foto sai limpa e em que horários sai com linhas.',
-  'spaceeyes.admin.estado-pantalla': 'Estado do ponto',
+  'spaceeyes.admin.estado-pantalla': 'Estado da tela',
   'spaceeyes.admin.estado-ayuda':
-    'Manutenção e desativada deixam o ponto fora das programações: não recebe fotos e deixa de gastar dados, sem apagar nada. Em operação e ativa, hoje, funcionam igual.',
+    'Manutenção e desativada deixam a tela fora das programações: não recebe fotos e deixa de gastar dados, sem apagar nada. Em operação e ativa, hoje, funcionam igual.',
   'spaceeyes.admin.actualizar.pc':
     'Será instalado o agente publicado neste PC. O agente confere a assinatura do arquivo antes de substituí-lo e, se o programa novo não iniciar, volta sozinho ao anterior.',
   'spaceeyes.admin.actualizar.pi':
     'Será instalado o agente publicado nesta Raspberry. Ele confere a assinatura e o testa antes de substituir qualquer coisa; se a versão nova não iniciar, volta sozinha à anterior. A identidade do dispositivo e as fotos pendentes são mantidas.',
   'spaceeyes.admin.actualizar.version':
-    'A versão {version} será instalada neste dispositivo. Vai levar uns dois minutos e a app vai reiniciar sozinha.',
+    'A versão {version} será instalada neste dispositivo. Vai levar uns dois minutos e o app vai reiniciar sozinho.',
   'spaceeyes.admin.actualizar.publicada':
-    'A versão publicada será instalada neste dispositivo. Vai levar uns dois minutos e a app vai reiniciar sozinha.',
+    'A versão publicada será instalada neste dispositivo. Vai levar uns dois minutos e o app vai reiniciar sozinho.',
   'spaceeyes.admin.actualizar.de-todos-modos': '{como} Enviar mesmo assim?',
-  'spaceeyes.admin.orden.reiniciar': 'Comando enviado: a app reinicia no dispositivo.',
+  'spaceeyes.admin.orden.reiniciar': 'Comando enviado: o app reinicia no dispositivo.',
   'spaceeyes.admin.orden.equipo': 'Comando enviado: a Raspberry reinicia e volta a se comunicar em um ou dois minutos.',
   'spaceeyes.admin.orden.actualizar': 'Atualização enviada; o dispositivo vai reiniciar ao terminar.',
   'spaceeyes.admin.orden.confirmar': 'Comando enviado: falta confirmar a instalação no dispositivo.',
@@ -3979,15 +3979,15 @@ export const PT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.admin.motivo.pi': 'Não há agente de Raspberry publicado no servidor.',
   'spaceeyes.admin.orden.error': 'Não foi possível enviar o comando: {motivo}',
   'spaceeyes.admin.programa': 'Software do dispositivo',
-  'spaceeyes.admin.programa.texto': 'Reiniciar a app ou instalar a versão publicada, sem ir ao local.',
+  'spaceeyes.admin.programa.texto': 'Reiniciar o app ou instalar a versão publicada, sem ir ao local.',
   'spaceeyes.admin.programa.texto-pi':
-    'Reiniciar a app ou o dispositivo, ou instalar a versão publicada, sem ir ao local.',
+    'Reiniciar o app ou o dispositivo, ou instalar a versão publicada, sem ir ao local.',
   'spaceeyes.admin.instalada': 'Instalada',
   'spaceeyes.admin.publicada': 'Publicada',
   'spaceeyes.admin.sin-numero': 'sem número',
   'spaceeyes.admin.nada-publicado': 'nada publicado',
   'spaceeyes.admin.nueva': 'Há uma versão nova: {version}.',
-  'spaceeyes.admin.se-instala-sola': 'Instala sozinha, sem mexer no dispositivo.',
+  'spaceeyes.admin.se-instala-sola': 'Se instala sozinha, sem mexer no dispositivo.',
   'spaceeyes.admin.al-dia': 'Está com a versão publicada.',
   'spaceeyes.admin.actualizaciones': 'Atualizações: {como}',
   'spaceeyes.admin.boton.actualizar': 'Atualizar app',
@@ -3999,7 +3999,7 @@ export const PT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
     'O aplicativo é reiniciado no dispositivo. Ele deixa de se comunicar por alguns segundos e volta sozinho.',
   'spaceeyes.admin.reiniciar-pi.titulo': 'Reiniciar a Raspberry',
   'spaceeyes.admin.reiniciar-pi.texto':
-    'A Raspberry inteira é reiniciada, não só a app: é o que destrava uma câmera ou uma rede que travou. Ela deixa de se comunicar por um ou dois minutos e volta sozinha.',
+    'A Raspberry inteira é reiniciada, não só o app: é o que destrava uma câmera ou uma rede que travou. Ela deixa de se comunicar por um ou dois minutos e volta sozinha.',
   'spaceeyes.admin.actualizar.titulo': 'Atualizar o software do dispositivo',
   'spaceeyes.admin.actualizar.boton': 'Atualizar',
   'spaceeyes.admin.ajustes.guardados': 'Ajustes salvos: valem para todas as fotos do dispositivo.',
@@ -4043,7 +4043,7 @@ export const PT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.admin.solo-dueno':
     'Estes ajustes mudam o que a câmera vê em todas as fotos: só o Titular pode alterá-los.',
   'spaceeyes.admin.probar.texto': '“Testar” salva os ajustes e pede uma foto para ver como ficaram.',
-  'spaceeyes.admin.prueba.datos': 'Cada teste consome uma foto de dados. Em dispositivos com chip, use com moderação.',
+  'spaceeyes.admin.prueba.datos': 'Cada teste consome os dados de uma foto. Em dispositivos com chip, use com moderação.',
   'spaceeyes.admin.registros': 'Logs do dispositivo',
   'spaceeyes.admin.registros.texto': 'O que o dispositivo informa sobre si mesmo, para diagnosticá-lo em campo.',
   'spaceeyes.admin.registros.error': 'Não foi possível ler os logs: {error}',
@@ -4089,7 +4089,7 @@ export const PT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
     'Este PC roda o agente v1.0. Atualize-o e a visualização ao vivo liga sozinha. Enquanto isso, use “Foto” para ver o local.',
   'spaceeyes.vivo.p2p': 'Este dispositivo transmite ponto a ponto',
   'spaceeyes.vivo.p2p.texto':
-    'A versão dele não passa o vídeo pelo servidor de mídia, e daqui só é possível ver por esse caminho. Atualize a app do dispositivo para vê-lo ao vivo.',
+    'A versão dele não passa o vídeo pelo servidor de mídia, e daqui só é possível ver por esse caminho. Atualize o app do dispositivo para vê-lo ao vivo.',
   'spaceeyes.vivo.conectando.equipo': 'Conectando ao dispositivo…',
   'spaceeyes.vivo.conectando.texto':
     'Pode levar alguns segundos enquanto a câmera inicia. Não é preciso clicar de novo.',
@@ -4295,7 +4295,7 @@ export const PT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.campanas.anunciante-ej': 'Ex.: Natura',
   'spaceeyes.campanas.inicio': 'Data de início',
   'spaceeyes.campanas.fin': 'Data de término',
-  'spaceeyes.campanas.equipos': 'Dispositivos onde esta campanha está',
+  'spaceeyes.campanas.equipos': 'Dispositivos desta campanha',
   'spaceeyes.campanas.sin-equipos': 'Não há dispositivos',
   'spaceeyes.campanas.leyendo-asignados': 'Lendo os dispositivos atribuídos…',
   'spaceeyes.campanas.seleccionados.uno': '{n} selecionado',
@@ -4467,7 +4467,7 @@ export const PT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.graficas.pct': '{n}%',
   'spaceeyes.graficas.muestras': 'Amostras',
   'spaceeyes.graficas.consumo': 'Consumo de dados (chip / Wi-Fi)',
-  'spaceeyes.graficas.consumo.sin': 'Sem dados de consumo (exige a app v0.7.0 no dispositivo).',
+  'spaceeyes.graficas.consumo.sin': 'Sem dados de consumo (exige o app v0.7.0 no dispositivo).',
   'spaceeyes.graficas.movil-mb': 'Rede móvel (MB)',
   'spaceeyes.graficas.consumo.caption': 'Consumo de dados por período',
   'spaceeyes.graficas.temperatura': 'Temperatura (CPU / bateria)',
@@ -4525,9 +4525,9 @@ export const PT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
 
   // ── Agregar un dispositivo (`AltaDispositivo`): codigos de pareamento. El nombre del .zip, el comando y el boton «Vincular» de la app no se traducen ──
   'spaceeyes.alta.tipo.telefono': 'Celular Android',
-  'spaceeyes.alta.tipo.telefono.detalle': 'É pareado lendo um QR',
+  'spaceeyes.alta.tipo.telefono.detalle': 'É vinculado lendo um QR',
   'spaceeyes.alta.tipo.raspberry': 'Raspberry Pi',
-  'spaceeyes.alta.tipo.raspberry.detalle': 'Instala sozinha a partir do microSD',
+  'spaceeyes.alta.tipo.raspberry.detalle': 'Se instala sozinha a partir do microSD',
   'spaceeyes.alta.tipo.pc': 'PC com câmera IP',
   'spaceeyes.alta.tipo.pc.detalle': 'Com um código no instalador',
   'spaceeyes.alta.nombre.telefono': 'Celular',
@@ -4553,21 +4553,21 @@ export const PT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.alta.dias.uno': '{n} dia',
   'spaceeyes.alta.dias.otros': '{n} dias',
   'spaceeyes.alta.lote.qr':
-    'Um único QR para os {n}: cada dispositivo entra separadamente. O dispositivo número {siguiente} já não consegue entrar, e você pode cancelar o QR a qualquer momento.',
+    'Um único QR para os {n}: cada dispositivo entra separadamente. O dispositivo número {siguiente} não consegue mais entrar, e você pode cancelar o QR a qualquer momento.',
   'spaceeyes.alta.lote.archivo':
-    'Um único arquivo para os {n}: cada dispositivo entra separadamente. O dispositivo número {siguiente} já não consegue entrar, e você pode cancelar o arquivo a qualquer momento.',
+    'Um único arquivo para os {n}: cada dispositivo entra separadamente. O dispositivo número {siguiente} não consegue mais entrar, e você pode cancelar o arquivo a qualquer momento.',
   'spaceeyes.alta.lote.codigo':
-    'Um único código para os {n}: cada dispositivo entra separadamente. O dispositivo número {siguiente} já não consegue entrar, e você pode cancelar o código a qualquer momento.',
+    'Um único código para os {n}: cada dispositivo entra separadamente. O dispositivo número {siguiente} não consegue mais entrar, e você pode cancelar o código a qualquer momento.',
   'spaceeyes.alta.uno-solo': 'Só um: o código vale uma vez.',
-  'spaceeyes.alta.tel.1': 'Instale a app {app} no celular{enlace}.',
-  'spaceeyes.alta.tel.descargar': 'baixar a app {version}',
+  'spaceeyes.alta.tel.1': 'Instale o app {app} no celular{enlace}.',
+  'spaceeyes.alta.tel.descargar': 'baixar o app {version}',
   'spaceeyes.alta.tel.2': 'Gere o código e deixe-o aberto ao lado do celular.',
-  'spaceeyes.alta.tel.3': 'Na app, escolha {vincular} e escaneie o QR. Se a câmera não o ler, digite o código.',
+  'spaceeyes.alta.tel.3': 'No app, escolha {vincular} e escaneie o QR. Se a câmera não o ler, digite o código.',
   'spaceeyes.alta.tel.vincular': 'Vincular',
   'spaceeyes.alta.tel.4': 'O celular aparece em Dispositivos em alguns segundos. Lá você dá a ele o nome do local.',
-  'spaceeyes.alta.tel.escanea': 'Escaneie pela app Space Eye',
+  'spaceeyes.alta.tel.escanea': 'Escaneie pelo app Space Eye',
   'spaceeyes.alta.tel.qr': 'O QR vai aparecer aqui',
-  'spaceeyes.alta.pi.sola': 'Instala sozinha (recomendado)',
+  'spaceeyes.alta.pi.sola': 'Se instala sozinha (recomendado)',
   'spaceeyes.alta.pi.encendida': 'Já está ligada',
   'spaceeyes.alta.pi.nombre': 'Nome do local (opcional)',
   'spaceeyes.alta.pi.nombre.vacio': 'Deixe em branco para várias',
@@ -4604,7 +4604,7 @@ export const PT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.alta.pc.servidor': 'Endereço do servidor da sua empresa (o assistente pede): {servidor}',
   'spaceeyes.alta.sin-direccion.pc':
     'Falta configurar o endereço público do Space Eye desta empresa (ficou apontando para o próprio servidor): peça-o a quem o administra antes de executar o assistente.',
-  'spaceeyes.alta.codigos': 'Códigos de pareamento',
+  'spaceeyes.alta.codigos': 'Códigos de vinculação',
   'spaceeyes.alta.codigos.texto': 'Os dos últimos 30 dias. Se um ainda válido não for mais usado, cancele-o.',
   'spaceeyes.alta.codigos.vacio': 'Ainda não foi gerado nenhum.',
   'spaceeyes.alta.col.codigo': 'Código',

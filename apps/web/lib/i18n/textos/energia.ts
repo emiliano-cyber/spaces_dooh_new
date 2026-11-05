@@ -595,7 +595,7 @@ export const PT_ENERGIA: Record<ClaveEnergia, string> = {
   'energia.cobertura.faltan':
     'Faltam {faltan} de {esperados} contas do período. Enquanto faltarem, o relatório de rentabilidade soma só o registrado e mostra um custo de energia MENOR que o real, sem avisar nada: um mês sem conta não é um mês sem consumo.',
   'energia.borrado.confirmacion':
-    'A conta do medidor {medidor}, referente a {mes}, de {monto}, será excluída. Não é possível desfazer: esse mês volta a contar como uma lacuna e, até você registrá-lo de novo, o relatório de rentabilidade vai mostrar um custo de energia menor que o real.',
+    'A conta do medidor {medidor}, referente a {mes}, de {monto}, será excluída. Não é possível desfazer: esse mês volta a contar como uma lacuna e, até você registrá-la de novo, o relatório de rentabilidade vai mostrar um custo de energia menor que o real.',
 
   // ── components/demo/energia/recibos.ts ──
   'energia.lectura.punto': 'Escolha a que imóvel ou ponto esta conta corresponde',
@@ -607,7 +607,7 @@ export const PT_ENERGIA: Record<ClaveEnergia, string> = {
   'energia.lectura.desajuste.otros': '{n} não conferem com o número de meses que você declarou ({esperados})',
   'energia.lectura.cubre.uno': '{base}: o número de meses do calendário que ela abrange é {unico}',
   'energia.lectura.cubre.otros': '{base}: o número de meses do calendário que essas {n} abrangem é {unico}',
-  'energia.lectura.sin-predio': '{n} sem imóvel: escolha você',
+  'energia.lectura.sin-predio': '{n} sem imóvel: escolha manualmente',
   'energia.lectura.sin-cifra': '{n} com um número que não foi possível ler',
   'energia.lectura.repetidos': '{n} com o mês já registrado: salvar de novo DUPLICA o custo',
   'energia.lectura.alerta': 'Arquivos lidos: {leidos} de {total}; linhas: {filas}. Revise antes de confirmar: {pegas}.',
@@ -624,7 +624,7 @@ export const PT_ENERGIA: Record<ClaveEnergia, string> = {
   'energia.leido.medidor': 'medidor nº {n}',
   'energia.leido.periodo': 'período {desde} → {hasta}',
   'energia.leido.pdf-dice': 'o PDF diz {kwh} kWh',
-  'energia.leido.facturacion': 'faturamento {monto}',
+  'energia.leido.facturacion': 'valor faturado {monto}',
   'energia.leido.alumbrado': 'iluminação pública (DAP) {monto}',
   'energia.leido.total': 'Total da conta {monto} (inclui débitos anteriores e pagamentos)',
 }

@@ -535,12 +535,12 @@ const PORTUGUES: Record<string, string[]> = {
   'energia · periodo sin inicio': ['Falta o mês de início'],
   'energia · confirmar el borrado de un recibo': [
     'Excluir a conta',
-    'A conta do medidor M-1, referente a jan. de 2026, de MX$ 3.400,50, será excluída. Não é possível desfazer: esse mês volta a contar como uma lacuna e, até você registrá-lo de novo, o relatório de rentabilidade vai mostrar um custo de energia menor que o real.',
+    'A conta do medidor M-1, referente a jan. de 2026, de MX$ 3.400,50, será excluída. Não é possível desfazer: esse mês volta a contar como uma lacuna e, até você registrá-la de novo, o relatório de rentabilidade vai mostrar um custo de energia menor que o real.',
   ],
   'energia · recibos leidos con pegas': [
-    'Arquivos lidos: 2 de 3; linhas: 2. Revise antes de confirmar: 1 arquivo não é uma conta de luz da CFE; 2 não conferem com o número de meses que você declarou (1): o número de meses do calendário que essas 2 abrangem é 3; 1 sem imóvel: escolha você; 1 com um número que não foi possível ler; 1 com o mês já registrado: salvar de novo DUPLICA o custo.',
+    'Arquivos lidos: 2 de 3; linhas: 2. Revise antes de confirmar: 1 arquivo não é uma conta de luz da CFE; 2 não conferem com o número de meses que você declarou (1): o número de meses do calendário que essas 2 abrangem é 3; 1 sem imóvel: escolha manualmente; 1 com um número que não foi possível ler; 1 com o mês já registrado: salvar de novo DUPLICA o custo.',
     '>Mês<', '>Dias<', '— escolha —', 'placeholder="digite"',
-    'nº de serviço 123456789012 · medidor nº AB12 · PDBT · período 2025-11-10 → 2026-01-09 · o PDF diz 1.500 kWh · faturamento MX$ 4.000,00 · iluminação pública (DAP) MX$ 200,00 · Total da conta MX$ 9.000,00 (inclui débitos anteriores e pagamentos)',
+    'nº de serviço 123456789012 · medidor nº AB12 · PDBT · período 2025-11-10 → 2026-01-09 · o PDF diz 1.500 kWh · valor faturado MX$ 4.000,00 · iluminação pública (DAP) MX$ 200,00 · Total da conta MX$ 9.000,00 (inclui débitos anteriores e pagamentos)',
     'Você declarou 1 mês e esta conta abrange 3. Foi rateada conforme o PDF.',
     'Já existe uma registrada para 2026-01: 1.200 kWh por MX$ 3.400,50. Salvar outra vez DUPLICA o custo desse mês.',
     'Escolha a que imóvel ou ponto esta conta corresponde',
