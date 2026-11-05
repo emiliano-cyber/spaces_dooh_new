@@ -41,10 +41,13 @@ describe('catalogos fuera de textos/ · portugues = espanol mientras falte (los 
     for (const l of CHECKLIST_OT_POR_OMISION) expect(etiquetaDePuntoOT(l, 'pt')).toBe(etiquetaDePuntoOT(l, 'es'))
   })
 
-  it('nombres y lugares de falla de Space Eyes', () => {
-    expect(dondeDeFallaEnIdioma('Gabinete 3 (fila 1, columna 2)', 'pt')).toBe('Gabinete 3 (fila 1, columna 2)')
+  // Lote L1 (05/11): la igualdad con el espanol se rompe a proposito.
+  it('nombres y lugares de falla de Space Eyes (lote L1: en portugues)', () => {
+    expect(dondeDeFallaEnIdioma('Gabinete 3 (fila 1, columna 2)', 'pt')).toBe('Gabinete 3 (linha 1, coluna 2)')
+    expect(dondeDeFallaEnIdioma('Gabinetes 1, 2 (2 de 8)', 'pt')).toBe('Gabinetes 1, 2 (2 de 8)')
+    expect(dondeDeFallaEnIdioma(ES['spaceeyes.fallas.donde.toda'], 'pt')).toBe('A tela inteira')
     const nombre = ES['spaceeyes.fallas.nombre.zona-apagada']
-    expect(nombreDeFallaEnIdioma(nombre, 'pt')).toBe(nombre)
+    expect(nombreDeFallaEnIdioma(nombre, 'pt')).toBe('Possível gabinete apagado')
   })
 
   it('la campanita (lote L5): el texto en portugues, el saldo con el formato portugues', () => {
@@ -68,9 +71,9 @@ describe('catalogos fuera de textos/ · portugues = espanol mientras falte (los 
     expect(textoDeItem({ tipo: 'nuevo', texto: 'Hola', en: 'Hello', it: 'Ciao' } as never, 'pt')).toBe('Hola')
   })
 
-  it('el «hace» de Space Eyes se quita tambien en portugues (cae al espanol)', () => {
+  it('el «há» de Space Eyes se quita tambien en portugues (lote L1)', () => {
     const iso = new Date(Date.now() - 5 * 60_000).toISOString()
-    expect(haceSinPrefijo(iso, 'pt')).toBe(haceSinPrefijo(iso, 'es'))
-    expect(haceSinPrefijo(iso, 'pt')).not.toMatch(/^hace /)
+    expect(haceSinPrefijo(iso, 'pt')).toBe('5 min')
+    expect(haceSinPrefijo(iso, 'pt')).not.toMatch(/^(?:há|hace) /)
   })
 })

@@ -472,11 +472,159 @@ export const IT_ENERGIA: Record<ClaveEnergia, string> = {
   'energia.leido.total': 'Totale della bolletta {monto} (include arretrati e pagamenti)',
 }
 
-// ─── PORTUGUES (pt-BR) · ola 0 (2026-11-05) ─────────────────────────────────
-// PARCIAL a proposito: lo rellena el lote de traduccion de este ambito
-// (`vault/03-Frontend/portugues-olas.md`). Mientras falte una clave, la
-// pantalla la pinta en ESPANOL (decision del dueno del 05/11; `diccionario.ts`,
-// `DICCIONARIOS.pt`) y la prueba de cobertura (`cobertura-portugues.test.ts`)
-// la cuenta como pendiente. Cuando el lote termine, el tipo pasa a
-// `Record<ClaveEnergia, string>` y `tsc` vuelve a exigir cada clave.
-export const PT_ENERGIA: Partial<Record<ClaveEnergia, string>> = {}
+// ─── PORTUGUES (pt-BR) · lote L1 «Space Eyes y luz» (2026-11-05) ────────────
+// COMPLETO: el tipo es `Record<ClaveEnergia, string>` y `tsc` exige cada clave.
+// Traducido desde el ESPANOL, con el glosario comun (`portugues-olas.md` §2
+// bis) y el del lote (subseccion «Lote L1»): recibo de luz → conta de luz ·
+// predio → imóvel · pantalla → ponto · pantalla suelta → ponto avulso ·
+// punto de medicion → unidade consumidora (la UC de las contas brasilenas; no
+// «ponto», que es la pantalla del inventario) · medidor → medidor · capturar →
+// registrar · hueco → lacuna · tanda → lote · renglon → linha · reporte de
+// rentabilidad → relatório de rentabilidade · adeudos → débitos anteriores.
+// Lo que el usuario ve EN EL PAPEL de la CFE se nombra como alli: la CFE, y el
+// «DAP» (derecho de alumbrado publico) junto a su nombre en portugues.
+export const PT_ENERGIA: Record<ClaveEnergia, string> = {
+  // ── La pagina ──
+  'energia.descripcion': 'Uma conta por imóvel e por mês. É rateada entre os pontos dele do mesmo jeito que o aluguel.',
+  'energia.error.cargar': 'Não foi possível carregar os registros de consumo',
+  'energia.error.contactar': 'Não foi possível contatar o servidor. Verifique a conexão e tente de novo.',
+  'energia.error.guardar-recibo': 'Não foi possível salvar a conta',
+  'energia.error.borrar-recibo': 'Não foi possível excluir a conta',
+  'energia.capturar': 'Registrar uma conta',
+  'energia.cargando-puntos': 'Carregando as unidades consumidoras…',
+  'energia.sin-donde-abajo': 'Ainda não há onde registrar: o motivo está abaixo.',
+  'energia.cobertura.titulo': 'O que está registrado e o que falta',
+  'energia.meses.uno': '{n} mês',
+  'energia.meses.otros': '{n} meses',
+  'energia.puntos.uno': '{n} unidade consumidora',
+  'energia.puntos.otros': '{n} unidades consumidoras',
+  'energia.resumen': '{meses} · {puntos}',
+  'energia.vacio.error': 'Não foi possível carregar os registros',
+  'energia.vacio.periodo': 'Revise o período',
+  'energia.vacio.sin-puntos': 'Ainda não há onde registrar',
+  'energia.vacio.sin-puntos-detalle':
+    'Uma conta de luz pertence a um imóvel com pontos, ou a um ponto sem imóvel. Cadastre o inventário e esta página se preenche sozinha.',
+
+  // ── Indicadores ──
+  'energia.kpi.capturados': 'Contas registradas',
+  'energia.kpi.no-cargar': 'não foi possível carregar',
+  'energia.kpi.faltan': 'Faltam',
+  'energia.kpi.importe': 'Valor do período',
+  'energia.kpi.kwh': 'kWh do período',
+  'energia.kpi.de': '{a} de {b}',
+  'energia.kpi.del-periodo': 'do período',
+  'energia.kpi.menos-luz': 'o relatório mostra menos energia que a real',
+  'energia.kpi.completa': 'registro completo',
+  'energia.kpi.solo-capturado': 'só o registrado',
+  'energia.kpi.sin-pantalla.uno': 'só o registrado · {n} conta sem ponto',
+  'energia.kpi.sin-pantalla.otros': 'só o registrado · {n} contas sem ponto',
+
+  // ── Formulario y rejilla ──
+  'energia.predio-o-pantalla': 'Imóvel ou ponto',
+  'energia.opcion.pantallas.uno': ' · {n} ponto',
+  'energia.opcion.pantallas.otros': ' · {n} pontos',
+  'energia.opcion.suelta': ' · ponto avulso',
+  'energia.mes-recibo': 'Mês da conta',
+  'energia.medidor': 'Medidor',
+  'energia.importe': 'Valor',
+  'energia.guardar-recibo': 'Salvar conta',
+  'energia.rejilla.faltan': 'Faltam',
+  'energia.rejilla.pantallas.uno': '{n} ponto',
+  'energia.rejilla.pantallas.otros': '{n} pontos',
+  'energia.rejilla.suelta': 'Ponto avulso',
+  'energia.rejilla.hueco': 'Nenhuma conta registrada: não é consumo zero, é um dado que falta',
+  'energia.rejilla.borrar-este': 'Excluir esta conta',
+  'energia.rejilla.borrar-aria': 'Excluir a conta do medidor {medidor}',
+  'energia.rejilla.borrar': 'Excluir a conta',
+  'energia.sin-numero': 'sem número',
+
+  // ── Subir PDF ──
+  'energia.subir.error-leer': 'Não foi possível ler os arquivos',
+  'energia.subir.no-guardar': 'Não foi possível salvar',
+  'energia.subir.no-contactar': 'Não foi possível contatar o servidor',
+  'energia.subir.pregunta': '1 · Quantos meses do calendário cada conta deste lote abrange?',
+  'energia.subir.elige-antes': '— escolha antes de enviar —',
+  'energia.subir.opcion.1': '1 mês do calendário — um período curto, dentro de um único mês',
+  'energia.subir.opcion.2': '2 meses do calendário — o normal numa conta MENSAL',
+  'energia.subir.opcion.3': '3 meses do calendário — o normal numa conta BIMESTRAL',
+  'energia.subir.opcion.4': '4 meses do calendário — um período longo ou atrasado',
+  'energia.subir.explica':
+    'Contam-se os meses do calendário que o período {toca}, não quanto ele dura. Uma conta mensal começa no meio do mês, então quase sempre abrange {dos}; uma bimestral, {tres}. Se você misturar mensais e bimestrais no mesmo lote, muitas sairão marcadas: envie-as separadamente.',
+  'energia.subir.toca': 'abrange',
+  'energia.subir.dos': 'dois',
+  'energia.subir.tres': 'três',
+  'energia.subir.leyendo': 'Lendo…',
+  'energia.subir.subir': '2 · Enviar o PDF da conta',
+  'energia.subir.elige-arriba': 'Escolha acima quantos meses você espera antes de enviar os arquivos.',
+  'energia.subir.se-leen': 'Eles são lidos no servidor e nada é salvo: confira cada linha com a conta e confirme.',
+  'energia.subir.col.mes': 'Mês',
+  'energia.subir.col.dias': 'Dias',
+  'energia.subir.elige': '— escolha —',
+  'energia.subir.escribelo': 'digite',
+  'energia.subir.guardado': 'Salvo',
+  'energia.subir.guardando': 'Salvando…',
+  'energia.subir.guardar': 'Salvar',
+  'energia.subir.declaraste.uno': 'Você declarou {n} mês e esta conta abrange {pdf}. Foi rateada conforme o PDF.',
+  'energia.subir.declaraste.otros': 'Você declarou {n} meses e esta conta abrange {pdf}. Foi rateada conforme o PDF.',
+  'energia.subir.ya-capturado': 'Já existe uma registrada para {mes}: {kwh} kWh por {monto}. Salvar outra vez DUPLICA o custo desse mês.',
+
+  // ── components/demo/energia/captura.ts ──
+  'energia.motivo.falta-inicio': 'Falta o mês de início',
+  'energia.motivo.falta-fin': 'Falta o mês de fim',
+  'energia.motivo.formato': 'Use datas no formato AAAA-MM-DD',
+  'energia.motivo.orden': 'O mês de fim não pode ser anterior ao de início',
+  'energia.motivo.punto': 'Escolha a que imóvel ou ponto a conta corresponde',
+  'energia.motivo.mes': 'Escolha o mês da conta',
+  'energia.motivo.kwh.falta': 'Informe os kWh da conta',
+  'energia.motivo.importe.falta': 'Informe o valor da conta',
+  'energia.motivo.kwh.numero': 'os kWh precisam ser um número',
+  'energia.motivo.importe.numero': 'o valor precisa ser um número',
+  'energia.motivo.kwh.mayor': 'os kWh precisam ser maiores que zero',
+  'energia.motivo.importe.mayor': 'o valor precisa ser maior que zero',
+  'energia.motivo.futuro': 'Esse mês ainda não terminou: não pode haver conta',
+  'energia.cobertura.huerfanos.uno':
+    '{n} conta registrada de {monto} não chega a nenhum ponto, porque o imóvel dela não tem nenhum cadastrado. Esse dinheiro não aparece no relatório de rentabilidade.',
+  'energia.cobertura.huerfanos.otros':
+    '{n} contas registradas de {monto} não chegam a nenhum ponto, porque o imóvel delas não tem nenhum cadastrado. Esse dinheiro não aparece no relatório de rentabilidade.',
+  'energia.cobertura.sin-puntos':
+    'Ainda não há onde registrar contas: é preciso pelo menos um imóvel com pontos, ou um ponto sem imóvel.',
+  'energia.cobertura.completa.uno':
+    'Registro completo: o período tem {n} conta e ela está lá. O custo de energia do relatório de rentabilidade é o total real.',
+  'energia.cobertura.completa.otros':
+    'Registro completo: as {n} contas do período estão lá. O custo de energia do relatório de rentabilidade é o total real.',
+  'energia.cobertura.faltan':
+    'Faltam {faltan} de {esperados} contas do período. Enquanto faltarem, o relatório de rentabilidade soma só o registrado e mostra um custo de energia MENOR que o real, sem avisar nada: um mês sem conta não é um mês sem consumo.',
+  'energia.borrado.confirmacion':
+    'A conta do medidor {medidor}, referente a {mes}, de {monto}, será excluída. Não é possível desfazer: esse mês volta a contar como uma lacuna e, até você registrá-lo de novo, o relatório de rentabilidade vai mostrar um custo de energia menor que o real.',
+
+  // ── components/demo/energia/recibos.ts ──
+  'energia.lectura.punto': 'Escolha a que imóvel ou ponto esta conta corresponde',
+  'energia.lectura.kwh.falta': 'Digite os kWh: não foi possível lê-los do PDF',
+  'energia.lectura.importe.falta': 'Digite o valor: não foi possível lê-lo do PDF',
+  'energia.lectura.no-recibo.uno': '{n} arquivo não é uma conta de luz da CFE',
+  'energia.lectura.no-recibo.otros': '{n} arquivos não são contas de luz da CFE',
+  'energia.lectura.desajuste.uno': '{n} não confere com o número de meses que você declarou ({esperados})',
+  'energia.lectura.desajuste.otros': '{n} não conferem com o número de meses que você declarou ({esperados})',
+  'energia.lectura.cubre.uno': '{base}: o número de meses do calendário que ela abrange é {unico}',
+  'energia.lectura.cubre.otros': '{base}: o número de meses do calendário que essas {n} abrangem é {unico}',
+  'energia.lectura.sin-predio': '{n} sem imóvel: escolha você',
+  'energia.lectura.sin-cifra': '{n} com um número que não foi possível ler',
+  'energia.lectura.repetidos': '{n} com o mês já registrado: salvar de novo DUPLICA o custo',
+  'energia.lectura.alerta': 'Arquivos lidos: {leidos} de {total}; linhas: {filas}. Revise antes de confirmar: {pegas}.',
+  'energia.lectura.ninguno': 'Estes arquivos não geraram nenhuma linha.',
+  'energia.lectura.ok.uno':
+    '{total} {archivos} foi lido e gera {filas} {renglones}. Confira com a conta e confirme: nada é salvo até você clicar em salvar.',
+  'energia.lectura.ok.otros':
+    'Os {total} {archivos} foram lidos e geram {filas} {renglones}. Confira com as contas e confirme: nada é salvo até você clicar em salvar.',
+  'energia.lectura.archivo.uno': 'arquivo',
+  'energia.lectura.archivo.otros': 'arquivos',
+  'energia.lectura.renglon.uno': 'linha',
+  'energia.lectura.renglon.otros': 'linhas',
+  'energia.leido.servicio': 'nº de serviço {n}',
+  'energia.leido.medidor': 'medidor nº {n}',
+  'energia.leido.periodo': 'período {desde} → {hasta}',
+  'energia.leido.pdf-dice': 'o PDF diz {kwh} kWh',
+  'energia.leido.facturacion': 'faturamento {monto}',
+  'energia.leido.alumbrado': 'iluminação pública (DAP) {monto}',
+  'energia.leido.total': 'Total da conta {monto} (inclui débitos anteriores e pagamentos)',
+}

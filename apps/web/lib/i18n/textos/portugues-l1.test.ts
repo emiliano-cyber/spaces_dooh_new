@@ -34,64 +34,130 @@ const AMBITOS: ReadonlyArray<readonly [string, Dic, Dic, DicP]> = [
 
 // Iguales al espanol o al ingles A PROPOSITO.
 export const COGNADOS_PT_L1 = new Set<string>([
-  // Cifras con unidad, nombres de producto, siglas.
-  'spaceeyes.demo.estado.temperatura.v', // «38 °C»
-  'spaceeyes.demo.estado.datos.v', // «312 MB»
-  'spaceeyes.alta.tipo.raspberry', // «Raspberry Pi»
-  'spaceeyes.alta.nombre.raspberry', // «Raspberry»
-  'spaceeyes.alta.nombre.pc', // «PC»
-  'spaceeyes.graficas.pct', // «{n}%»: sin espacio (D4), como el ingles
-  'spaceeyes.graficas.nd', // «n/d»
-  'energia.resumen', // solo huecos
-  'energia.kpi.de', // «{a} de {b}»
-  // El boton «Vincular» de la app Android, que solo esta en espanol (dueno,
-  // 02/11): se nombra como en la app. Y el «No» del Raspberry Pi Imager, que
-  // en la version que se usa sale en ingles.
-  'spaceeyes.alta.tel.vincular', // «Vincular»
-  'spaceeyes.alta.pi.1.no', // «No»
-  // Palabras que en portugues se escriben igual que en espanol.
+  // Leidos uno por uno (05/11): en portugues se escriben igual que en espanol
+  // (Fotos, Comparar, Ampliar, Nitidez, Obturador, Pausar, Próxima foto…) o
+  // que en ingles (Latitude, Total, Normal). Y a proposito, aunque no sean
+  // portugues: cifras con unidad («38 °C», «312 MB», «{n}%»), nombres de
+  // producto (Raspberry Pi, PC), el boton «Vincular» de la app Android, que
+  // solo esta en espanol (dueno, 02/11), y el «No» del Raspberry Pi Imager,
+  // que sale en ingles.
+  'spaceeyes.hace.nunca', // «nunca»
+  'spaceeyes.demo.anuncio.b1', // «OFERTA»
   'spaceeyes.demo.estado.temperatura', // «Temperatura»
-  'spaceeyes.demo.aviso.demo', // «demo»: igual al ingles
-  'spaceeyes.balance.fluorescent', // «Fluorescente»
-  'spaceeyes.vivo.balance.incandescent', // «Incandescente»
-  'spaceeyes.vivo.foto', // «Foto»
-  'spaceeyes.vivo.lente', // «Lente»
-  'spaceeyes.vivo.iniciar', // «Iniciar»
-  'spaceeyes.vivo.conectando', // «Conectando…»
-  'spaceeyes.vivo.aplicando', // «Aplicando…»
-  'spaceeyes.fallas.zona', // «Zona»
-  'spaceeyes.graficas.dispositivo', // «Dispositivo»
-  'spaceeyes.graficas.total', // «Total»
-  'spaceeyes.texto.centro', // «Centro»
-  'spaceeyes.texto.normal', // «Normal»
-  'spaceeyes.texto.sombra', // «Sombra»
-  'spaceeyes.galeria.origen.manual', // «Manual»
-  'spaceeyes.galeria.verif.verified', // «Verificada»
+  'spaceeyes.demo.estado.temperatura.v', // «38 °C» (=en)
+  'spaceeyes.demo.estado.datos.v', // «312 MB» (=en)
+  'spaceeyes.lista.kpi.ultima', // «Última captura»
+  'spaceeyes.lista.filtro.todos', // «Todos · {n}»
+  'spaceeyes.lista.empresa', // «Empresa»
+  'spaceeyes.lista.alt-captura', // «Última captura de {nombre}»
   'spaceeyes.comun.modelo', // «Modelo»
+  'spaceeyes.ficha.tab.fotos', // «Fotos»
+  'spaceeyes.ficha.comparar', // «Comparar»
+  'spaceeyes.ficha.barra.captura', // «Última captura {valor}»
+  'spaceeyes.ficha.ampliar', // «Ampliar»
+  'spaceeyes.ficha.ampliar-sello', // «Ampliar: {sello}»
+  'spaceeyes.historial.hora', // «Hora»
   'spaceeyes.comun.estado', // «Estado»
-  'spaceeyes.comun.editar', // «Editar»
-  'spaceeyes.comun.descartar', // «Descartar»
-  'spaceeyes.comun.anterior', // «Anterior»
-  'spaceeyes.comun.opcional', // «(opcional)»
-  'spaceeyes.admin.operador', // «Operador»
-  'spaceeyes.admin.estado-region', // «Estado»
+  'spaceeyes.falla.detectada', // «Detectada»
+  'spaceeyes.pyc.gabinetes', // «{n} gabinetes»
+  'spaceeyes.pyc.apagada', // «Apagada»
+  'spaceeyes.creativos.descartando', // «Descartando…»
+  'spaceeyes.pconfig.aprendizaje.30', // «30 minutos»
+  'spaceeyes.pconfig.aprendizaje.120', // «2 horas»
+  'spaceeyes.pconfig.aprendizaje.360', // «6 horas»
+  'spaceeyes.pconfig.aprendizaje.1440', // «24 horas»
+  'spaceeyes.pconfig.gabinetes', // «{n} gabinetes {medida}»
+  'spaceeyes.pconfig.revision.apagada', // «apagada»
+  'spaceeyes.pconfig.revision.congelada', // «congelada»
+  'spaceeyes.balance.cloudy', // «Nublado»
+  'spaceeyes.balance.fluorescent', // «Fluorescente»
+  'spaceeyes.admin.control.centro-x', // «Centro horizontal»
+  'spaceeyes.admin.control.centro-y', // «Centro vertical»
   'spaceeyes.admin.control.contraste', // «Contraste»
-  'spaceeyes.admin.mostrar', // «Mostrar»
+  'spaceeyes.admin.control.nitidez', // «Nitidez»
+  'spaceeyes.admin.medicion.matrix', // «Por zonas»
+  'spaceeyes.admin.balance.auto', // «Automático»
+  'spaceeyes.admin.estado-region', // «Estado»
+  'spaceeyes.admin.latitud', // «Latitude» (=en)
+  'spaceeyes.admin.longitud', // «Longitude» (=en)
   'spaceeyes.admin.instalada', // «Instalada»
   'spaceeyes.admin.publicada', // «Publicada»
+  'spaceeyes.admin.nada-publicado', // «nada publicado»
+  'spaceeyes.admin.boton.reiniciar', // «Reiniciar app»
   'spaceeyes.admin.reiniciar.boton', // «Reiniciar»
+  'spaceeyes.admin.ocultar', // «Ocultar»
+  'spaceeyes.admin.mostrar', // «Mostrar»
+  'spaceeyes.admin.obturador', // «Obturador»
+  'spaceeyes.admin.azul', // «Azul»
+  'spaceeyes.comun.descartar', // «Descartar»
+  'spaceeyes.vivo.balance.incandescent', // «Incandescente»
+  'spaceeyes.vivo.foto', // «Foto»
+  'spaceeyes.vivo.iniciar', // «Iniciar»
+  'spaceeyes.vivo.conectando', // «Conectando…»
+  'spaceeyes.vivo.lente', // «Lente»
+  'spaceeyes.vivo.lente.normal', // «Lente normal»
+  'spaceeyes.vivo.ver-nitido', // «Ver nítido»
+  'spaceeyes.vivo.aplicando', // «Aplicando…»
+  'spaceeyes.comun.anterior', // «Anterior»
+  'spaceeyes.comun.pagina', // «Página {pagina}»
+  'spaceeyes.comun.pagina-de', // «Página {pagina} de {paginas}»
+  'spaceeyes.galeria.origen.manual', // «Manual» (=en)
+  'spaceeyes.galeria.origen.scheduled', // «Programada»
+  'spaceeyes.galeria.verif.running', // «Verificando»
+  'spaceeyes.galeria.verif.verified', // «Verificada»
+  'spaceeyes.galeria.preparando', // «Preparando…»
+  'spaceeyes.galeria.total.otros', // «{n} fotos»
+  'spaceeyes.galeria.filtradas', // «Fotos filtradas»
+  'spaceeyes.galeria.alt', // «Foto {id} de {nombre}»
+  'spaceeyes.galeria.foto-de', // «Foto de {nombre}»
+  'spaceeyes.galeria.anterior', // «Foto anterior»
+  'spaceeyes.comun.opcional', // «(opcional)»
+  'spaceeyes.fallas.filtro.todas', // «Todas»
+  'spaceeyes.fallas.donde.gabinetes.otros', // «Gabinetes {lista}»
+  'spaceeyes.fallas.donde.de', // « ({n} de {total})»
+  'spaceeyes.fallas.zona', // «Zona»
+  'spaceeyes.comun.editar', // «Editar»
   'spaceeyes.campanas.anunciante', // «Anunciante»
+  'spaceeyes.prog.destino.grupo', // «Grupo: {nombre}»
+  'spaceeyes.prog.estado.pausada', // «Pausada»
+  'spaceeyes.prog.linea.otros', // «Próxima: {proxima} · {n} fotos {semana}»
+  'spaceeyes.prog.pausar', // «Pausar»
+  'spaceeyes.prog.proxima-foto', // «Próxima foto»
+  'spaceeyes.prog.aplicar-a', // «Aplicar a»
   'spaceeyes.verif.resultado', // «Resultado»
-  'spaceeyes.alta.copiar', // «Copiar»
+  'spaceeyes.verif.pagina-anterior', // «Página anterior»
+  'spaceeyes.graficas.semana', // «Semana»
+  'spaceeyes.graficas.periodo.custom', // «Personalizado»
+  'spaceeyes.graficas.total', // «Total» (=en)
+  'spaceeyes.graficas.exportar', // «Exportar CSV»
+  'spaceeyes.graficas.dispositivo', // «Dispositivo»
+  'spaceeyes.graficas.aplicar', // «Aplicar»
+  'spaceeyes.graficas.nd', // «n/d»
+  'spaceeyes.graficas.pct', // «{n}%» (=en)
+  'spaceeyes.texto.capturando', // «Capturando…»
+  'spaceeyes.texto.normal', // «Normal» (=en)
+  'spaceeyes.texto.centro', // «Centro»
+  'spaceeyes.texto.sombra', // «Sombra»
+  'spaceeyes.alta.tipo.raspberry', // «Raspberry Pi» (=en)
+  'spaceeyes.alta.nombre.raspberry', // «Raspberry» (=en)
+  'spaceeyes.alta.nombre.pc', // «PC» (=en)
   'spaceeyes.alta.copiado', // «Copiado»
-  'spaceeyes.alta.estado.cancelado', // «Cancelado»
-  'spaceeyes.alta.estado.vencido', // «Vencido»
-  'spaceeyes.alta.estado.usado', // «Usado»
+  'spaceeyes.alta.copiar', // «Copiar»
+  'spaceeyes.alta.copiar-comando', // «Copiar comando»
+  'spaceeyes.alta.tel.vincular', // «Vincular» (=en)
+  'spaceeyes.alta.pi.1.no', // «No» (=en)
+  'spaceeyes.alta.col.codigo', // «Código»
   'spaceeyes.alta.lote.cancelado', // « · cancelado»
   'spaceeyes.alta.lote.vencido', // « · vencido»
+  'spaceeyes.alta.usado-por', // «Usado · {nombre}»
+  'spaceeyes.alta.estado.vencido', // «Vencido»
+  'spaceeyes.alta.estado.cancelado', // «Cancelado»
+  'spaceeyes.alta.estado.usado', // «Usado»
+  'energia.meses.otros', // «{n} meses»
+  'energia.resumen', // «{meses} · {puntos}» (=en)
+  'energia.kpi.de', // «{a} de {b}»
   'energia.medidor', // «Medidor»
 ])
-
 // Singular igual al plural A PROPOSITO (frase que no depende de la cifra).
 const PLURALES_INVARIABLES = new Set<string>([])
 
@@ -106,6 +172,8 @@ describe('portugues L1 · el diccionario entero, sin depender de lo que se rinde
   for (const [ambito, es, en, pt] of AMBITOS) {
     const claves = Object.keys(es)
     const entradas = () => claves.map((k) => [k, pt[k] ?? ''] as const)
+    // Sin los huecos: «{pantalla}» o «{toca}» son nombres de variable, no texto.
+    const textos = () => entradas().map(([k, v]) => [k, v.replace(/\{\w+\}/g, '')] as const)
 
     it(`${ambito} · cada clave tiene portugues, y ninguna sobra`, () => {
       expect(claves.filter((k) => typeof pt[k] !== 'string' || pt[k] === '')).toEqual([])
@@ -146,14 +214,14 @@ describe('portugues L1 · el diccionario entero, sin depender de lo que se rinde
     })
 
     it(`${ambito} · en la web se clica: nunca «toque/toca/aperte/pressione»`, () => {
-      expect(entradas().filter(([, v]) => /\b(?:toque|toca|tocar|aperte|pressione)\b/i.test(v)).map(([k]) => k)).toEqual([])
+      expect(textos().filter(([, v]) => /\b(?:toque|toca|tocar|aperte|pressione)\b/i.test(v)).map(([k]) => k)).toEqual([])
     })
 
     it(`${ambito} · glosario: Titular, nunca Dono/Proprietário; nada de palabras espanolas sueltas`, () => {
-      expect(entradas().filter(([, v]) => /\bDono\b|propriet[áa]ri/i.test(v)).map(([k]) => k)).toEqual([])
+      expect(textos().filter(([, v]) => /\bDono\b|propriet[áa]ri/i.test(v)).map(([k]) => k)).toEqual([])
       // Restos espanoles frecuentes que no son portugues.
       const RESTOS = /\b(?:pantalla|equipo|falla|gabinetes? de|recibo|predio|renglón|guardar|eliminar|también|todavía|después|aquí|ningún)\b/i
-      expect(entradas().filter(([, v]) => RESTOS.test(v)).map(([k]) => k)).toEqual([])
+      expect(textos().filter(([, v]) => RESTOS.test(v)).map(([k]) => k)).toEqual([])
     })
   }
 

@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest'
 import { huellasDeFormatoEspanol } from './guardias-ingles'
 import { huellasEnItaliano } from './guardias-italiano'
+import { huellasEnPortugues } from './guardias-portugues'
+import { culpablesEnItaliano } from '../test/barrido-italiano'
+import { espanolPendienteDeOtrosLotes } from '../test/barrido-portugues'
 import { createElement, type ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -3610,4 +3613,185 @@ describe('lote SPACE EYES · barrido italiano con el diccionario entero', () => 
     }
     expect(culpables).toEqual([])
   }, 60_000)
+})
+
+// ═══ PORTUGUES · lote L1 (2026-11-05) ═══════════════════════════════════════
+// Las MISMAS pantallas, rendidas en `pt`. Lo que falta del portugues cae al
+// ESPANOL (decision del dueno), y eso no se ve: una frase sin traducir es
+// identica a la de la version espanola. Lo que se exige:
+//   (a) ninguna frase espanola de la lista de cada pantalla (salvo COMUNES_PT,
+//       lo que en portugues se dice igual) y, donde la hay, el portugues de
+//       `PORTUGUES` letra por letra;
+//   (b) ningun formato espanol ni ingles (`guardias-portugues.ts`), quitada la
+//       marca de la foto, que es la evidencia y sigue en es-MX;
+//   (c) el barrido: ningun trozo espanol NI INGLES del diccionario del lote en
+//       el HTML portugues. Lo de otros lotes que aun cae al espanol (el
+//       veredicto `comercial.eye.*` de L2) se aparta con
+//       `espanolPendienteDeOtrosLotes`, que no esconde nada de este lote.
+const COMUNES_PT = new Set<string>([
+  ...COMUNES,
+  // Se escriben igual en portugues (leidas una por una, como los cognados de
+  // `textos/portugues-l1.test.ts`).
+  'Zona', 'Temperatura', 'Centro', 'Fluorescente', 'Dispositivo', 'Usado', 'PC', 'Foto', 'n/d', 'Total', 'Normal',
+  'Manual', 'Estado', 'Descartar', 'nunca', 'Nublado', 'Modelo', 'Fotos', 'Editar', 'Detectada', 'Cancelar',
+  'Anterior', '(opcional)', 'Última captura', 'Última captura ', 'nada publicado', 'Visto ', 'Verificando',
+  'Ver nítido', 'Vencido', 'Todas', 'Sombra', 'Semana', 'Resultado', 'Reiniciar', 'Reiniciar app',
+  'Página anterior', 'Publicada', 'Próxima: ', 'Próxima foto', 'Programada', 'Por zonas', 'Personalizado',
+  'Pausar', 'Pausada', 'Ocultar', 'Obturador', 'OFERTA', 'Nitidez', 'Mostrar', 'Lente', 'Lente normal',
+  'Instalada', 'Iniciar', 'Incandescente', 'Hora', 'Fotos filtradas', 'Exportar CSV', 'Empresa', 'Código',
+  'Copiar', 'Copiar comando', 'Contraste', 'Conectando…', 'Comparar', 'Centro vertical', 'Centro horizontal',
+  'Capturando…', 'Cancelado', 'Azul', 'Automático', 'Aplicar', 'Aplicar a', 'Aplicando…', 'Apagada',
+  'Anunciante', 'Ampliar', '6 horas', '30 minutos', '24 horas', '2 horas', '15 gabinetes', ' gabinetes ',
+  ' fotos', ' fotos ',
+  // Con datos de la prueba dentro, igual en portugues.
+  'Todos · 4', 'Página 2', 'Página 1 de 3', 'Foto de Reforma 222', 'Última captura de Reforma 222 · Cara A',
+  'Grupo: Norte', 'Gabinetes 4, 9 (2 de 15)', 'Gabinetes 2, 5, 8 (3 de 15)',
+  // De OTRO lote (L2): el veredicto de la foto (`comercial.eye.*`) cae al
+  // espanol hasta que L2 lo traduzca.
+  'Anuncio correcto · confianza 93%',
+  'No coincide con la creatividad · 41%',
+])
+
+// Datos que manda el servidor o la prueba (no son del diccionario).
+// El veredicto de la foto es de L2 (`comercial.eye.*`) y cae al espanol: su
+// « · confianza {pct}» es un trozo corto que `espanolPendienteDeOtrosLotes` no
+// aparta, y choca con el de `spaceeyes.pyc.detectada`. Se quita la frase
+// entera de L2, no el trozo suelto.
+const DATOS_PT: string[] = ['Anuncio correcto · confianza']
+
+const PORTUGUES: Record<string, string[]> = {
+  'lista · con equipos': [
+    'Os dispositivos que monitoram seus pontos: o que estão vendo e como estão.',
+    'Atualizar', 'Adicionar dispositivo', 'de 4 dispositivos', 'Sem comunicação', 'há mais de 10 min', 'Bateria crítica',
+    'abaixo de 20%', 'de todo o parque de dispositivos', 'On-line · 1', 'Pedem atenção · 3', 'Atualização manual · 2',
+    'Todas as empresas', 'Buscar dispositivo ou ponto', 'Ainda sem capturas', 'sem ponto atribuído',
+    'Para atualizar, precisa de uma visita', 'Para atualizar, precisa de uma confirmação no celular', 'sem dados',
+    'Rede móvel', 'há 2 min', 'há 5 h', 'há 30 min', 'há 4 semanas', 'ON-LINE', 'SEM COMUNICAÇÃO', 'AGUARDANDO PAREAMENTO',
+  ],
+  'ficha · prueba de campaña, dice de cuál': [' · Campanha · Dessea', 'Ponto associado', 'Temp. do dispositivo'],
+  'galeria · prueba de campaña con su nombre': ['Campanha · Dessea · arte-a.jpeg', 'Não verificada'],
+  'creativos · detectados sin foto, con su motivo': [
+    '5 detectados sem foto: 1 com envio que falhou, 1 depois do limite diário de fotos, 2 aguardando o envio agrupado, 1 do aprendizado do loop',
+    'A cada meia hora', 'A cada duas horas', 'Agrupadas a cada doze horas', 'Contínuo (avisa em até um minuto)',
+  ],
+  // «{hace}» ya trae el «há»: la plantilla no lo repite. El contador va en su
+  // propio nodo (`interpolarNodos`); el «<» detras exige que la frase acabe ahi.
+  'pantalla y creativos · con fallas y creativos': [
+    'Detectada: 2 de nov. de 2026, 10:30 · confiança ', '42</span> vezes · última vez há 5 min<', 'Ligada das ',
+  ],
+  'pantalla y creativos · donde de cada falla, como lo manda el servidor (ola 7)': [
+    'Gabinete 8 (linha 2, coluna 3)', 'A tela inteira', 'Possível gabinete apagado',
+    'Vários gabinetes congelados ou tampados',
+  ],
+  'pantalla config · vigilando con la ultima revision': [
+    'tela apagada · a câmera se mexeu (10 olhadas, 2 trocas de anúncio). A volta foi interrompida (visualização ao vivo ou uma foto): foram usadas 4 de 10 olhadas.',
+    'só o Titular pode fazer isso.',
+  ],
+  'fallas · abiertas, historial y descartar': [
+    'Falhas de tela',
+    'O que cada dispositivo detectou por conta própria ao verificar a tela. Atualiza a cada minuto.',
+    'Abertas', 'Resolvidas', 'Não eram falha', 'Falha detectada', 'Gabinete 4 (linha 1, coluna 4)',
+    'Câmera (é preciso marcar a tela de novo)', 'O dispositivo não vai avisar de novo sobre esta zona durante 7 dias.',
+  ],
+  'programacion · lista': [
+    'Programação de fotos',
+    'As fotos são tiradas sozinhas, num horário imprevisível dentro das faixas que você definir.',
+    'Nova programação', 'Campanha: Verano', '08:00-10:00 (aleatório)', 'Sem faixas', 'A cada 2 h', 'A cada 45 min',
+    'Início: 1 de dez. de 2026', 'Vencida: 1 de out. de 2026', 'Não dispara antes de: 1 de dez. de 2026',
+    'Não dispara: vencida', 'Não calculada', ' (em 30 min)', ' (em 5 h)', ' (na fila)', '(3 nesta semana)', 'Aplica-se a',
+  ],
+  // El SSIM con coma, no «0.812».
+  'verificacion · resultados con paginas': ['SSIM 0,812', 'OCR Não', 'Correspondência OCR'],
+  'alta · telefono con codigo y lista': [
+    // «Vincular» es el boton de la app Android, que solo esta en espanol.
+    'Na app, escolha ', 'Vincular', 'Códigos de pareamento', 'Vale uma única vez · vence: 2 de nov. de 2026, 13:00',
+    'Válido até 2 de nov. de 2026, 13:00', '3 de 3 dispositivos · esgotado',
+  ],
+  'vivo · aplicando y abriendo': ['Encerra em ', 'Aplicando o novo enquadramento…', 'só o Titular pode fazer'],
+  'demo · la demostracion': [
+    'EXEMPLO', 'SUA MARCA', 'Ilustração de um painel de exemplo', 'Cidade de exemplo',
+    'Seus pontos, vistos do local, sem ir até lá', 'Comprovação de veiculação', 'Falhas antes do cliente',
+    'Menos visitas ao local', 'O que esteve no ar', 'On-line · Rede móvel, sinal bom', '92% · carregando',
+    'Solicitar ativação', 'Quer isso para os seus pontos?',
+  ],
+  'sin respuesta': [
+    'O serviço de câmeras não está respondendo no momento', 'Tentar de novo',
+    'Se continuar assim por mais de uma hora, avise o suporte em Configurações › Configurações da empresa › Suporte.',
+  ],
+  'solicitudes de activacion · con y sin pendientes': [
+    'Solicitações de ativação do Space Eyes', '2 pendentes', ' · chamado T-0012', 'Copiar comando', 'painel de chamados',
+    'Nenhuma pendente',
+  ],
+}
+
+describe('lote SPACE EYES · en PORTUGUES no queda ninguna frase espanola y sale el portugues', () => {
+  for (const p of PANTALLAS) {
+    it(p.nombre, async () => {
+      const crudo = await p.pintar('pt')
+      volcar(`pt:${p.nombre}`, crudo)
+      const html = texto(crudo)
+      const quedan = p.espanol.filter((f) => aparece(html, f) && !COMUNES_PT.has(f))
+      expect(quedan).toEqual([])
+      const faltan = (PORTUGUES[p.nombre] ?? []).filter((f) => !html.includes(f))
+      expect(faltan).toEqual([])
+      // Una plantilla que repite lo que ya trae su hueco («há há 5 min»).
+      expect(html).not.toMatch(/\bhá há\b/)
+    })
+  }
+
+  it('galeria · un total de 1234 fotos sale «1.234», no «1,234»', async () => {
+    const C = await galeria()
+    forzar(esNull, FOTOS)
+    forzar(esCero, 1234)
+    forzar(esTrue, false)
+    forzar(esArregloVacio, [{ id: 1, name: 'Reforma 222' }])
+    const html = texto(pintar('pt', el(C)))
+    expect(html).toContain('1.234')
+    expect(html).not.toContain('1,234')
+  })
+
+  it('cada pantalla de `PORTUGUES` existe (un nombre mal escrito no prueba nada)', () => {
+    const nombres = new Set(PANTALLAS.map((p) => p.nombre))
+    expect(Object.keys(PORTUGUES).filter((n) => !nombres.has(n))).toEqual([])
+  })
+})
+
+describe('lote SPACE EYES · en PORTUGUES ningun formato espanol ni ingles', () => {
+  for (const p of PANTALLAS) {
+    it(p.nombre, async () => {
+      const crudo = (await p.pintar('pt')).replace(MARCA, '')
+      // «0,812» (el SSIM) es una cifra portuguesa con tres decimales; la
+      // guardia la toma por un millar ingles, que nunca empieza por «0,». Y
+      // «0.15» / «1.0» son VERSIONES («app 0.15», «agente v1.0»), no cifras.
+      expect(huellasEnPortugues(crudo, { permitidos: [/^0,\d{3}$/, /^0\.15$/, /^1\.0$/] })).toEqual([])
+    })
+  }
+
+  it('la marca de la foto SI sigue en es-MX en portugues (es la evidencia)', async () => {
+    const p = PANTALLAS.find((x) => x.nombre === 'texto · con foto, capturando y sin guardar')!
+    forzado.cola = []
+    const marca = (await p.pintar('pt')).match(MARCA)?.[0] ?? ''
+    expect(marca).toMatch(/<div>\d{2}\/\d{2}\/\d{4}<\/div>/)
+    expect(marca).toMatch(/[ap]\.\s?m\./)
+  })
+})
+
+describe('lote SPACE EYES · barrido portugues con el diccionario entero', () => {
+  it('ningun trozo espanol ni ingles del diccionario del lote aparece en las pantallas en portugues', async () => {
+    const { ES_SPACEEYES, EN_SPACEEYES, PT_SPACEEYES } = await import('./textos/spaceeyes')
+    const culpables: string[] = []
+    for (const p of PANTALLAS) {
+      forzado.cola = []
+      sesion.puede = true
+      nav.params = { id: '7' }
+      const crudo = (await p.pintar('pt')).replace(MARCA, '')
+      culpables.push(
+        ...culpablesEnItaliano(crudo, { es: ES_SPACEEYES, en: EN_SPACEEYES, it: PT_SPACEEYES }, {
+          minimo: 6,
+          ignorar: [...DATOS_PT, ...espanolPendienteDeOtrosLotes()],
+        }).map((c) => `${p.nombre} · ${c}`),
+      )
+    }
+    expect(culpables).toEqual([])
+  }, 120_000)
 })
