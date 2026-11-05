@@ -72,7 +72,7 @@ export default function DisponibilidadPage() {
   }, [disp])
 
   return (
-    <div className="w-full space-y-4 p-6">
+    <div className="w-full space-y-4">
       {/* Encabezado */}
       <div className="flex items-center gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">

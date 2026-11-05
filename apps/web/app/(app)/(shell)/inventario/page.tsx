@@ -63,7 +63,7 @@ export default function AgregarInventarioPage() {
   const rol = sesion?.usuario.rol
   if (sesion && rol !== 'DUENO' && rol !== 'ADMINISTRADOR') {
     return (
-      <div className="w-full p-6">
+      <div className="w-full">
         <h1 className="text-2xl text-ink">Inventario</h1>
         <p className="mt-2 text-[13px] text-muted">
           Esta sección es exclusiva del Dueño y del administrador.
@@ -87,7 +87,7 @@ export default function AgregarInventarioPage() {
   }
 
   return (
-    <div className="w-full space-y-4 p-6">
+    <div className="w-full space-y-4">
       <div className="flex items-center gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
           <PackagePlus className="h-5 w-5" strokeWidth={1.75} />
