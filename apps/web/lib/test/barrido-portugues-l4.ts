@@ -33,7 +33,7 @@ export const PALABRAS_SOLO_ESPANOL = [
   'según', 'fecha', 'fechas', 'pantalla', 'pantallas', 'campaña', 'campañas', 'factura', 'facturas', 'cobranza',
   'renta', 'monto', 'reporte', 'reportes', 'sitio', 'sitios', 'guardar', 'borrar', 'nuevo', 'nueva', 'días', 'año',
   'sin', 'cuota', 'cuotas', 'arrendador', 'predio', 'propuesta', 'propuestas', 'también', 'aún', 'quitar', 'agregar',
-  'eliminar', 'subir', 'bajar', 'cargando', 'guardando', 'cerrar', 'movimiento',
+  'eliminar', 'subir', 'bajar', 'cargando', 'guardando', 'cerrar', 'movimiento', 'libre', 'libres', 'cobro',
 ]
 
 /** Las palabras que solo existen en espanol, con su contexto, en el texto legible de un HTML portugues. */

@@ -169,7 +169,7 @@ describe('estado de cuenta en CSV · en portugues, para una Excel brasilena', ()
         'Faturado (MX$);23200',
         'Recebido (MX$);5000,5',
         'Saldo final (MX$);29800',
-        'Em atraso até 30 de set. de 2026 (MX$);6600',
+        'Vencido até 30 de set. de 2026 (MX$);6600',
         '',
         'Data;Movimento;Nº da fatura;Cliente;Débito (MX$);Crédito (MX$);Saldo (MX$)',
         '10 de set. de 2026;Fatura;F2;Acme;23200;;34800',

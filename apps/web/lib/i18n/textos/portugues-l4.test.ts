@@ -203,15 +203,27 @@ const HUECO_FECHA = '\\{(?:fecha|fin|desde|inicio|hasta|vence|corte|cuando|dia)\
 const PREPOSICION_ANTE_FECHA = new RegExp(`(?:^|\\s)(?:em|no|na|do|da|ao|à|pelo|pela|dia)\\s+${HUECO_FECHA}`, 'i')
 
 // Palabras que existen en espanol y NO en portugues (las comunes a los dos
-// —«desde», «está», «tarifa», «vencida», «pago»— no estan).
+// —«desde», «está», «tarifa», «vencida»— no estan). Validacion del L4 (MV3):
+// «libre/libres», «cobro» y «alta» (el alta de un cliente); y «pago»: el
+// participio portugues existe, pero al lado de «pagamento» suele ser el
+// sustantivo espanol colado, asi que el lote escribe «quitado» / «desembolsado».
 const SOLO_ESPANOL = [
   'y', 'el', 'los', 'las', 'del', 'pero', 'hay', 'aquí', 'están', 'todavía', 'ningún', 'ninguna', 'hasta', 'cuando',
   'según', 'fecha', 'fechas', 'pantalla', 'pantallas', 'campaña', 'campañas', 'factura', 'facturas', 'cobranza',
   'renta', 'rentas', 'monto', 'montos', 'reporte', 'reportes', 'sitio', 'sitios', 'guardar', 'borrar', 'nuevo', 'nueva',
   'días', 'año', 'años', 'sin', 'cuota', 'cuotas', 'arrendador', 'predio', 'propuesta', 'propuestas', 'llave',
   'también', 'aún', 'quitar', 'agregar', 'eliminar', 'subir', 'bajar', 'cargando', 'guardando', 'cerrar',
+  'libre', 'libres', 'pago', 'cobro', 'alta',
 ]
 const PALABRA_ESPANOLA = new RegExp(`(?:^|[^\\p{L}{])(${SOLO_ESPANOL.join('|')})(?=$|[^\\p{L}}])`, 'iu')
+
+// Validacion del L4 (MV4): el tuteo de los imperativos que el lote usa en 3.a
+// persona («Revise», «Use», «Complete», «Verifique», «Ajuste»). El TUTEO del L5
+// solo mira «Tenta/Escolhe/Digita/Clica». Con mayuscula (una orden) o con un
+// pronombre enclitico («revisa-o»); «a lista completa», «Revisão» o «usado»
+// no son tuteo.
+const TUTEO_L4 =
+  /(?:^|[^\p{L}])(?:(?:Revisa|Usa|Completa|Verifica|Ajusta)(?=$|[^\p{L}-])|(?:[Rr]evisa|[Uu]sa|[Cc]ompleta|[Vv]erifica|[Aa]justa)-(?:o|a|os|as|lhe|lhes|se)(?=$|[^\p{L}]))/u
 
 // El glosario comun, donde una palabra lo delata.
 const GLOSARIO: ReadonlyArray<readonly [RegExp, string]> = [
@@ -260,6 +272,10 @@ describe('portugues L4 · el diccionario entero, sin depender de lo que se rinde
       ).toEqual([])
     })
 
+    it(`${ambito} · el registro es «você»: ningun imperativo de 2.a persona`, () => {
+      expect(claves.filter((k) => TUTEO_L4.test(pt[k] ?? '')).map((k) => `${k}: ${pt[k]}`)).toEqual([])
+    })
+
     it(`${ambito} · el glosario comun`, () => {
       const malas = claves.flatMap((k) =>
         GLOSARIO.filter(([re]) => re.test(pt[k] ?? '')).map(([, regla]) => `${k} · ${regla}: ${pt[k]}`),
@@ -281,8 +297,14 @@ describe('portugues L4 · el diccionario entero, sin depender de lo que se rinde
       expect(PREPOSICION_ANTE_FECHA.test(s), s).toBe(false)
     for (const s of ['Nenhuma campaña', 'Sem dados y sem {n}', 'Fatura sin pagar', 'Data da factura'])
       expect(PALABRA_ESPANOLA.test(s), s).toBe(true)
-    for (const s of ['Nenhuma campanha', 'Desde {desde}', 'Tarifa vencida', 'Está pago', '{sin}', 'sinal'])
+    for (const s of ['Nada fica libre', 'Está pago', 'Alta do cliente', 'o cobro'])
+      expect(PALABRA_ESPANOLA.test(s), s).toBe(true)
+    for (const s of ['Nenhuma campanha', 'Desde {desde}', 'Tarifa vencida', 'Livre hoje', 'pagamento', 'altura', '{sin}', 'sinal'])
       expect(PALABRA_ESPANOLA.test(s), s).toBe(false)
+    for (const s of ['Revisa-o antes de entregá-lo.', 'Usa o filtro', 'Completa o RFC', 'Verifica a conexão', 'Ajusta-os se quiser', 'e revisa-o'])
+      expect(TUTEO_L4.test(s), s).toBe(true)
+    for (const s of ['Revise-o antes', 'Use o filtro', 'Complete o RFC', 'a lista completa', 'Revisão', 'usado', 'Verifique a conexão', 'Ajuste-os', 'Remover', 'Usuário'])
+      expect(TUTEO_L4.test(s), s).toBe(false)
     const regla = (s: string) => GLOSARIO.filter(([re]) => re.test(s)).length
     for (const s of ['OT vencida', 'Número de OC', 'Sitio bloqueado por incidente', 'Visão de Proprietário', '«x»'])
       expect(regla(s), s).toBeGreaterThan(0)
@@ -301,5 +323,43 @@ describe('portugues L4 · la guardia de palabras espanolas sueltas en el HTML', 
     expect(palabrasEspanolasEnPortugues('<p title="Nenhuma campaña">x</p>')).toHaveLength(1)
     expect(palabrasEspanolasEnPortugues('<p>Sem movimento neste período · Buscar · Tarifa vencida</p>')).toEqual([])
     expect(palabrasEspanolasEnPortugues('<p>Medios del Norte SA</p>', ['Medios del Norte SA'])).toEqual([])
+  })
+})
+
+// ─── Validacion del lote (AMBAR leve, 05/11) ────────────────────────────────
+describe('portugues L4 · los hallazgos del validador', () => {
+  it('H1 · lo vencido es «al corte», no «hasta»: «Vencido até» y «faturas vencidas até»', () => {
+    expect(PT_FINANZAS['finanzas.estado-cuenta.vencido-al']).toBe('Vencido até {fecha}')
+    expect(PT_FINANZAS['finanzas.periodo.vencido.sub.uno']).toBe('{n} fatura vencida até {fecha}')
+    expect(PT_FINANZAS['finanzas.periodo.vencido.sub.otros']).toBe('{n} faturas vencidas até {fecha}')
+    expect(Object.values(PT_FINANZAS).filter((v) => /Em atraso até/.test(v))).toEqual([])
+  })
+  it('H2 · el hueco {arte} no se pega al parentesis', () => {
+    expect(PT_CAMPANAS['campanas.validacion.bajar.texto']).toContain('{arte} (a API')
+  })
+  it('H3 · ningun «da {total}» en los .uno de reportes («1 da 1 visita»)', () => {
+    expect(Object.entries(PT_REPORTES).filter(([, v]) => /\bda \{total\}/.test(v)).map(([k]) => k)).toEqual([])
+  })
+  it('H4 y H5 · la conta prevista sin «a 1 conta»; «ainda por começar»', () => {
+    expect(PT_REPORTES['reportes.nota.luz.completa.uno']).not.toMatch(/a \{esperados\} conta/)
+    expect(PT_CAMPANAS['campanas.kpi.activas.sub.uno']).toBe('{n} confirmada, ainda por começar')
+    expect(PT_CAMPANAS['campanas.kpi.activas.sub.otros']).toBe('{n} confirmadas, ainda por começar')
+  })
+  it('H6 · «timbrado» (el termino mexicano), no «carimbado»', () => {
+    expect(PT_FINANZAS['finanzas.comprobante.aviso']).toContain('timbrado')
+    expect(Object.values(PT_FINANZAS).filter((v) => /carimb/i.test(v))).toEqual([])
+  })
+  it('H7 · «da fatura correspondente», no «da sua fatura»', () => {
+    const todo = [...Object.values(PT_FINANZAS), ...Object.values(PT_REPORTES)]
+    expect(todo.filter((v) => /sua fatura/.test(v))).toEqual([])
+  })
+  it('H8 · un solo verbo para buscar: «Buscar», nunca «Pesquisar»', () => {
+    const todo = [...Object.values(PT_CAMPANAS), ...Object.values(PT_CLIENTES), ...Object.values(PT_FINANZAS)]
+    expect(todo.filter((v) => /pesquis/i.test(v))).toEqual([])
+  })
+  it('H10 · el criativo validado se dice «Aprovado/Aprovada» en todo el lote', () => {
+    expect(PT_CAMPANAS['campanas.creatividad.validada']).toBe('Aprovada')
+    expect(PT_CAMPANAS['campanas.etapa.creativo-validado']).toBe('Criativo aprovado')
+    expect(PT_CAMPANAS['campanas.validacion.anuncios']).toContain('aprovados')
   })
 })
