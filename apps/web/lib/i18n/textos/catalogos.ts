@@ -950,9 +950,9 @@ export const PT_CATALOGOS: Record<ClaveCatalogos, string> = {
   'catalogos.tarifas.titulo': 'Tarifas por faixa horária e temporada',
   'catalogos.tarifas.guardando': 'Salvando…',
   'catalogos.tarifas.guardar': 'Salvar tarifas',
-  // P2: a captura ainda e mexicana (ver `compartidos.cifra.*`).
+  // P2 (05/11): a captura e brasileira (ver `compartidos.cifra.*`).
   'catalogos.tarifas.invalida':
-    'Há uma tarifa em vermelho que não dá para entender: a vírgula separa os milhares e o ponto, os decimais ({ejemplo}).',
+    'Há uma tarifa em vermelho que não dá para entender: o ponto separa os milhares e a vírgula, os decimais ({ejemplo}).',
   'catalogos.tarifas.sin-catalogo':
     'Esta organização ainda não tem faixas horárias nem temporadas. Elas são definidas uma única vez em {pantalla} e valem para todo o inventário.',
   'catalogos.tarifas.dispersa':

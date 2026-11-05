@@ -669,15 +669,18 @@ export const PT_COMPARTIDOS: Record<ClaveCompartidos, string> = {
   'compartidos.candado.confirmar': 'Confirmar',
   'compartidos.plegar.minimizar': 'Recolher {titulo}',
   'compartidos.plegar.expandir': 'Expandir {titulo}',
-  // P2: hasta `feat/portugues-cifras` (ROJA) el portugues se teclea A LA
-  // MEXICANA (`comaDecimal('pt') === false`); estos avisos dicen ESO, que es
-  // la verdad de hoy. Esa tarea los reescribe a la brasilena.
-  'compartidos.cifra.forma': 'Digite só algarismos: a vírgula separa os milhares e o ponto, os decimais. Exemplo: {ejemplo}',
-  'compartidos.cifra.comas': 'As vírgulas vão a cada três algarismos, como em {ejemplo}. Se queria decimais, use ponto: {decimal}',
-  'compartidos.cifra.europeo': 'Aqui o ponto é decimal e a vírgula separa os milhares: digite {ejemplo}',
-  'compartidos.cifra.puntos': 'Só pode haver um ponto, o dos decimais. Para os milhares, use vírgula: {ejemplo}',
+  // P2 (decision del dueno del 05/11, `feat/portugues-cifras`): el portugues
+  // se teclea A LA BRASILENA, punto de millar y coma decimal, como el
+  // italiano (`comaDecimal('pt') === true`). Los ejemplos llegan por hueco ya
+  // con los signos brasilenos. «comas» y «puntos» son los nombres INTERNOS de
+  // las reglas (las de es-MX con los signos intercambiados): en portugues,
+  // «comas» habla de los pontos de millar y «puntos» de la virgula decimal.
+  'compartidos.cifra.forma': 'Digite só algarismos: o ponto separa os milhares e a vírgula, os decimais. Exemplo: {ejemplo}',
+  'compartidos.cifra.comas': 'Os pontos vão a cada três algarismos, como em {ejemplo}. Se queria decimais, use vírgula: {decimal}',
+  'compartidos.cifra.europeo': 'Aqui a vírgula é decimal e o ponto separa os milhares: digite {ejemplo}',
+  'compartidos.cifra.puntos': 'Só pode haver uma vírgula, a dos decimais. Para os milhares, use ponto: {ejemplo}',
   'compartidos.cifra.vacia': 'Digite um número',
-  'compartidos.cifra.punto-decimal': 'Aqui o ponto é decimal: “{texto}” seria {decimal}. Para {miles}, digite {sinComas} ou {miles}',
+  'compartidos.cifra.punto-decimal': 'Em português, a vírgula é decimal: “{texto}” seria {decimal}. Para {miles}, digite {sinComas} ou {miles}',
   'compartidos.cifra.enteras': 'Só números inteiros, sem decimais',
   'compartidos.cifra.max-decimales.uno': 'No máximo {n} casa decimal',
   'compartidos.cifra.max-decimales.otros': 'No máximo {n} casas decimais',

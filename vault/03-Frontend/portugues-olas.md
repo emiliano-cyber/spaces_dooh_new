@@ -36,6 +36,9 @@ archivos:
   - apps/web/lib/i18n/textos/costura.test.ts
   - apps/web/lib/i18n/papeles-portugues.test.ts
   - docs/i18n/revision-portugues-costura.md
+  - apps/web/lib/captura-cifra.ts
+  - apps/web/lib/captura-cifra.portugues.test.ts
+  - apps/web/components/demo/ui/EntradaCifra.tsx
 ---
 
 # La versión en portugués (Brasil), ola por ola
@@ -60,6 +63,9 @@ se repiten.
 > - **Sobre la v0.12.6** (05/11): `feat/portugues-con-main` sale de
 >   `integra/portugues` (`bb990350`) y trae `origin/main` (`34f36a54`, la
 >   v0.12.6 publicada). Ver §2 quater.
+> - **La tarea roja P2** (las cifras a la brasileña, 05/11) vive en
+>   **`feat/portugues-cifras`**, que sale de `integra/portugues` (`a97c171d`).
+>   Ver §2 quinquies.
 > - No se ha empujado nada ni hay PR.
 
 > [!warning] El portugués está APAGADO
@@ -78,7 +84,7 @@ se repiten.
 | D3 | **Mientras falte una clave en portugués, se pinta en ESPAÑOL** (no en inglés como el italiano). Lo mismo los errores del servidor: un mensaje sale entero en portugués o entero en español, nunca a medias | **Decidido**. La caída vive en un solo sitio: `conCaidaAlEspanol(ES, PT)` (`diccionario.ts`); en el servidor, `errorEnTablas(TABLAS_PT, …) ?? mensaje` (`errores-servidor.ts`) |
 | D4 | Fechas «1 de dez. de 2026» (la corta de pt-BR), cifras «1.160,5», porcentaje «55,0%», trimestre «T1 2026» | **Decidido** (05/11). En `FORMATO_IDIOMA.pt` |
 | P1 | **Dólar de una instancia USD en portugués: «US$ 1.160,00»** | **Decidido** (05/11) |
-| P2 | **¿Se teclean las cifras a la brasileña («1.500,50»)?** Hoy, a la mexicana (`separadorDecimal: '.'`), porque es una decisión de dinero (ZONA ROJA) que el dueño tomó para el italiano (P-L2-1, 04/11) y no para el portugués, y porque los avisos de captura caen al español («la coma separa miles»): con coma decimal mentirían | **Decidido (05/11): A LA BRASILEÑA.** Tarea ROJA aparte (`feat/portugues-cifras`), como la del italiano del 04/11 |
+| P2 | **¿Se teclean las cifras a la brasileña («1.500,50»)?** Hoy, a la mexicana (`separadorDecimal: '.'`), porque es una decisión de dinero (ZONA ROJA) que el dueño tomó para el italiano (P-L2-1, 04/11) y no para el portugués, y porque los avisos de captura caen al español («la coma separa miles»): con coma decimal mentirían | **Decidido (05/11): A LA BRASILEÑA. Hecho el 05/11, sin validar**: `feat/portugues-cifras` (§2 quinquies). `separadorDecimal: ','`; el portugués hereda la captura del italiano |
 | P3 | **Los papeles en portugués** (contrato de ejemplo, constancia, propuesta impresa, `/p`, portal, comprobante, correos) en una instancia `pt` | **Aprobada (05/11, «Sí, igual que italiano») y hecha, sin validar**: `feat/portugues-documentos` (§3). Adenda al ADR 0049 |
 | P4 | Glosario: ¿los anglicismos del sector se quedan en inglés como en italiano (spot, loop, DOOH, «loops/h»)? | **Decidido (05/11): se quedan en inglés** (spot, loop, DOOH, CPM, «loops/h»), como en italiano |
 
@@ -482,11 +488,13 @@ Si choca con un glosario de lote, gana esto.
 
 ### Captura de cifras (P2)
 
-El dueño decidió teclear **a la brasileña**, en una tarea ROJA aparte
-(`feat/portugues-cifras`). Hasta que llegue, `CampoCifra` lee el portugués **a
-la mexicana**, y los avisos `compartidos.cifra.*` del portugués dicen **eso**
-(que hoy es la verdad). Esa tarea los reescribe; el texto brasileño propuesto
-está en `docs/i18n/revision-portugues-l5.md`.
+El dueño decidió teclear **a la brasileña**, y la tarea ROJA
+`feat/portugues-cifras` lo hizo el 05/11 (§2 quinquies): `CampoCifra` lee el
+portugués con punto de millar y coma decimal, y los avisos dicen **eso**:
+«o ponto separa os milhares e a vírgula, os decimais». El texto es el
+propuesto en `docs/i18n/revision-portugues-l5.md` §3, salvo `punto-decimal`,
+que dice «Em português, a vírgula é decimal» (y no «No Brasil»): la regla es
+del idioma, como el «In italiano» del italiano, y la instancia está en México.
 
 ## 2 ter · La costura (05/11)
 
@@ -551,6 +559,8 @@ pruebas del CI y el mutante de `pruebas-provision.sh`).
   Esa tarea decide si el portugués hereda eso o se le da el «a medias» en
   espejo; y las pruebas de D18 (`captura-cifra.d18.test.ts`,
   `cifras-d18.test.ts`) solo recorren es/en/it: tendrá que añadirles `pt`.
+  **Resuelto en §2 quinquies**: hereda el del italiano, y las dos pruebas ya
+  recorren `pt`.
 - **Medido**: typecheck limpio; `vitest --testTimeout=60000` **433 archivos,
   10100 en verde + 1 omitida, 0 rojas**; `coberturaPortugues()` 0 pendientes;
   `DICCIONARIOS.es/.en/.it` y `traducirError` es/en/it contra `origin/main`:
@@ -560,6 +570,79 @@ pruebas del CI y el mutante de `pruebas-provision.sh`).
   `cifras-formularios`) contra `origin/main`: 5444 → 6434 HTML, **0 distintos
   y 0 desaparecidos**; los 990 nuevos son de pruebas del portugués (981 en
   `_portugues.txt`); `_italiano.txt` ordenado, idéntico.
+
+## 2 quinquies · P2: las cifras se teclean a la brasileña (05/11)
+
+**Hecha en `feat/portugues-cifras`, sin validar.** Tarea ROJA (dinero),
+aprobada por el dueño el 05/11. Sale de `integra/portugues` (`a97c171d`).
+
+- **El cambio es un dato**: `FORMATO_IDIOMA.pt.separadorDecimal = ','`. Nada en
+  `lib/captura-cifra.ts`, `CampoCifra` ni `EntradaCifra` pregunta por el
+  italiano: todo lee `comaDecimal()`. Con eso el portugués lee, pinta y manda
+  como el italiano: «1.500,50» → 1500.5, «12,9» m → 12.9, «55,5» % → 55.5; en
+  `EntradaCifra` (medidas, caras, porcentajes) pasa a ser un `CampoCifra`, y lo
+  ilegible bloquea el envío (`cifraIlegible`). **El servidor recibe la misma
+  cifra que en es/en/it.**
+- **Lo ambiguo se rechaza, no se adivina**: «1,500» en dinero no es mil
+  quinientos («Em português, a vírgula é decimal: “1,500” seria 1,5. Para
+  1.500, digite 1500 ou 1.500»; con 3 decimales vale 1,5); «1,500.50» pegado
+  (a la mexicana) se rechaza con «Aqui a vírgula é decimal e o ponto separa os
+  milhares: digite 2.500,50»; «12.9» y «2.5» tecleados se quedan y se rechazan.
+- **D18 en portugués: hereda EXACTAMENTE el del italiano** (B77, B87). Criterio:
+  es el mismo sistema de separadores, y separarlos sería tener dos reglas para
+  el mismo texto. El punto de millar de la persona se queda; `cifraAMedias` es
+  `false`, así que «1.», «1.5» y «1.50» camino de «1.500» **avisan en el
+  acto**, como en italiano (y no como en es/en, que esperan a salir del campo).
+  Medido: barrido de las 78 120 secuencias de hasta 6 teclas sobre «1 5 0 . ,»
+  (desde vacío y desde «1.500», cursor al final y al principio): **cada tecla
+  da en pt lo mismo que en it** (texto, cursor, `comasPropias`, lectura y «a
+  medias»).
+- **Textos reescritos** (13 claves, solo `pt`): `compartidos.cifra.forma /
+  comas / europeo / puntos / punto-decimal`, `campanas.candado.monto-ilegible`,
+  `comercial.tarifas.no-se-entiende`, `catalogos.tarifas.invalida` e
+  `inventario.tabla.cifra-ilegible / renta.ilegible / tarifa.ilegible /
+  wizard.renta-ilegible / carga.precio-m2-ilegible` («(65,50)»). El encargo
+  nombraba los cinco de `compartidos` y el candado; los siete de inventario,
+  comercial y catálogos decían lo mismo («a vírgula separa os milhares») y
+  habrían mentido igual. Los ejemplos van por `ejemploCifra`: «Ex.: 12,9»,
+  «Ex.: 7,2», «212.500,50».
+
+> [!warning] Propuesta para el dueño (NO aplicada: cambiaría el italiano publicado)
+> **El italiano avisa a destiempo, y en un formulario concreto se traga el
+> punto.** En `CampoCifra`, con `cifraAMedias` en `false`, teclear «1.500»
+> pinta el aviso rojo en «1.», «1.5» y «1.50» y lo quita en «1.500». Peor: en
+> un campo cuyo formulario se queda con el último valor válido —la **cantidad
+> manual de una línea de Propuestas** (`propuestas/page.tsx:1591`)—, el campo
+> se repinta con ese valor en cada paso inválido y **el punto desaparece**:
+> «1.5000» tecleado acaba en «15.000» y se guarda 15000, en vez de rechazarse
+> (B87 vuelve por ese camino). Medido con el arnés de `cifras-d18.test.ts`:
+> `it` y `pt` dan «1 → 1 → 15 → 150 → 1.500 → 15.000»; `es`, con su «a medias»,
+> da «1 → 1, → 1,5 → 1,50 → 1,500 → 1,500» y no manda nada.
+> **Propuesta:** dar al italiano y al portugués el «a medias» en espejo (lo
+> que acaba en un grupo de millar incompleto: «1.», «1.5», «12.50») —una línea
+> en `cifraAMedias`—. Cambia el italiano: el aviso sale al salir del campo o
+> con Enter, como en es/en, y la cantidad de Propuestas deja de tragarse el
+> punto. Lo decide el dueño; si dice que sí, se cambian los dos a la vez.
+
+- **Medido** (en este árbol): typecheck limpio; `vitest --testTimeout=60000`
+  **434 archivos, 10153 en verde + 1 omitida**; build limpio.
+  `DICCIONARIOS.es/.en/.it` y `traducirError` es/en/it contra `a97c171d`:
+  `cmp` idénticos. Huellas: la de es/en de siempre (con D18) y, nueva, la del
+  **italiano** con motivos incluidos (`58b30641…`, calculada en `a97c171d`); el
+  portugués da los números del italiano en las 116 000 filas. Barrido de
+  150 000 secuencias tecleadas por idioma (teclas, retroceso, suprimir,
+  pegar; cuatro juegos de opciones; todas las funciones públicas) contra la
+  función congelada de `a97c171d`: **es, en, it: 778 020 pasos, 0 distintos**.
+  Volcado `I18N_VOLCAR_TODO` (sin `cifras-formularios` ni `middleware`):
+  6434 → 6644 HTML, **0 distintos y 0 desaparecidos en es/en/it**; 77
+  distintos y 210 nuevos, todos de portugués; `_italiano.txt` idéntico.
+  Espejo `I18N_VOLCAR_PT`: **184 huellas en 33 estados → 160 en 21**; las
+  **24 de captura (P2) a 0**; quedan las de papeles y el firmante (§5).
+  Mutantes: **13/13 mueren** contra las unitarias.
+  **E2e no corridas**: no había Postgres en el 5433. El cambio no toca
+  servidor, API, base ni sesión: los formularios mandan las mismas cifras, y
+  eso lo miden `cifras-formularios.test.ts` y `cifras-d18.test.ts` contra la
+  API simulada.
 
 ## 3 · P3: la base sabe portugués, y los papeles también (05/11)
 
@@ -615,11 +698,11 @@ base como un 500. Desde P3:
 
 - [x] Los cinco lotes en **VERDE**, con su tipo `PT_<AMBITO>` ya en `Record` completo (05/11)
 - [x] `coberturaPortugues()` con **0 pendientes** en todas las filas: **5943/5943** en la costura (eran 5937 pendientes en la ola 0). Lo exige `cobertura-portugues.test.ts`
-- [ ] El espejo (`I18N_VOLCAR_PT`) sin hallazgos de formato: quedan **184 huellas en 33 estados**, todas de P2 (captura a la mexicana) o de papeles en el idioma de la instancia (§5)
+- [ ] El espejo (`I18N_VOLCAR_PT`) sin hallazgos de formato: quedan **160 huellas en 21 estados** (05/11, tras P2), todas de papeles en el idioma de la instancia y del navegador del firmante (§5); las 24 de P2, a 0
 - [x] La costura extendida al portugués, en verde (`costura.test.ts`, §2 ter)
 - [x] P1 y P2 contestadas por el dueño (05/11)
 - [x] La tarea roja P3 (05/11, `feat/portugues-documentos`), validada VERDE
-- [ ] **La tarea roja de cifras** (`feat/portugues-cifras`, P2): teclear a la brasileña y reescribir `compartidos.cifra.*` y `campanas.candado.monto-ilegible`
+- [x] **La tarea roja de cifras** (`feat/portugues-cifras`, P2): teclear a la brasileña y reescribir `compartidos.cifra.*`, `campanas.candado.monto-ilegible` y los demás avisos de captura (05/11, §2 quinquies; falta validarla)
 - [x] **Validar la costura**: VERDE (`docs/i18n/validacion-portugues-costura.md`); sus hallazgos H1–H4 cerrados en la misma rama (`854d470c`, `937f9eb7`)
 - [ ] Llevar `feat/portugues-costura` a `integra/portugues`
 - [ ] El recorrido en el navegador, pantalla por pantalla, con su validador
@@ -654,8 +737,13 @@ estados**, de cuatro clases y ninguna de un texto traducido:
 |---|---:|---:|---|
 | Documento imprimible de la propuesta (`pantallas-propuestas`) | 3 | 79 | Papel en el idioma de la INSTANCIA (ADR 0049), fijado por el simulacro; el espejo no lo cambia |
 | Documento del contrato (`pantallas-inventario-arrendadores`) | 14 | 77 | Ídem: el contrato es es/en/it en esas pruebas |
-| Ejemplos de captura del alta de ponto (`pantallas-comercial`) | 12 | 24 | «Ex.: 12.9», «Ex.: 7.2»: la captura sigue a la mexicana hasta `feat/portugues-cifras` (P2) |
+| Ejemplos de captura del alta de ponto (`pantallas-comercial`) | 12 | 24 | «Ex.: 12.9», «Ex.: 7.2»: la captura sigue a la mexicana hasta `feat/portugues-cifras` (P2). **A 0 desde P2** (05/11): «Ex.: 12,9» |
 | Navegador del firmante | 4 | 4 | «Mozilla/5.0»: un dato |
+
+**Medido tras P2 (05/11, `feat/portugues-cifras`): 160 huellas en 21
+estados**: las dos clases de papeles y el firmante, sin cambios; las 24 de
+captura desaparecen y `PERMITIDOS_PT` de `pantallas-comercial.test.ts` queda
+vacío.
 
 > [!warning] El espejo de TODA la suite se cuelga en `cifras-formularios.test.ts`
 > Como el italiano (diario del 05/11): con el espejo, ese archivo no termina.

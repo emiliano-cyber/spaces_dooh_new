@@ -5,6 +5,22 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-05 · Portugués: las cifras se escriben a la brasileña (sin publicar)
+
+El dueño lo decidió el 05/11. El portugués sigue apagado: nadie lo ve todavía. En español,
+inglés e italiano no cambia nada, ni una cifra ni un texto.
+
+- **En portugués, las cifras se escriben como en Brasil**: punto para los miles y coma para
+  los decimales («1.500,50», «12,9 m», «55,5 %»), igual que en italiano. Lo que se guarda es
+  exactamente la misma cantidad que en los demás idiomas.
+- **Lo que se puede leer de dos maneras no se adivina**: «1,500» en un importe se rechaza
+  (podría ser uno y medio o mil quinientos) y el aviso explica cómo escribirlo; lo mismo
+  con un importe pegado a la mexicana, «1,500.50».
+- Los avisos y los ejemplos de los campos ya lo dicen así: «o ponto separa os milhares e a
+  vírgula, os decimais», «Ex.: 12,9».
+
+---
+
 ## 2026-11-05 · Portugués: los papeles de un servidor en portugués (sin publicar)
 
 El dueño lo aprobó el 05/11 («Sí, igual que italiano»). En un servidor en español, inglés o

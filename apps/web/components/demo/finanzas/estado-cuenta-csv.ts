@@ -53,8 +53,8 @@ export function csvEstadoCuenta(
   //  · En PORTUGUES (lote L4, 2026-11-05; H4 de la validacion de la ola 0),
   //    lo mismo que en italiano: una Excel brasilena tambien espera «;» y coma
   //    decimal. No se lee de `comaDecimal()` (`lib/captura-cifra.ts`): esa es
-  //    la CAPTURA de cifras, que en portugues sigue a la mexicana hasta la
-  //    tarea roja P2; esto es el archivo que abre la Excel de quien lo baja.
+  //    la CAPTURA de cifras (a la brasilena desde P2, 05/11, y coinciden por
+  //    eso, no por diseno); esto es el archivo que abre la Excel de quien lo baja.
   const t = (k: ClaveTexto, v?: Record<string, string>) => traducir(idioma, k, v)
   const es = idioma === 'es'
   const excelConComa = idioma === 'it' || idioma === 'pt'
