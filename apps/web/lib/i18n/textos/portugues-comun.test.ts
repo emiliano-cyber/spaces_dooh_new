@@ -137,6 +137,22 @@ const EXCEPCIONES: Record<string, string> = {
     'espanol',
 }
 
+// Cada regla por su nombre, para que una excepcion diga cual se salta.
+const REGLAS: Record<string, (v: string) => boolean> = {
+  portugal: (v) => PT_DE_PORTUGAL.test(sinHuecos(v)),
+  tuteo: (v) => TUTEO.test(v),
+  espanol: (v) => PALABRA_ESPANOLA.test(v),
+  fecha: fechaConPreposicion,
+}
+
+/** Las excepciones que sobran: la clave no existe, la regla no existe o su texto ya no la dispara. */
+function excepcionesSobrantes(excepciones: Record<string, string>, todo: Array<[string, string]>): string[] {
+  const valor = new Map(todo)
+  return Object.entries(excepciones)
+    .filter(([k, regla]) => !valor.has(k) || !REGLAS[regla] || !REGLAS[regla](valor.get(k)!))
+    .map(([k, regla]) => `${k} (${regla})`)
+}
+
 describe('portugues · guardias comunes sobre TODO el portugues (costura)', () => {
   const malas = (regla: (v: string) => boolean, nombre: string) =>
     todoElPortugues()
@@ -158,9 +174,18 @@ describe('portugues · guardias comunes sobre TODO el portugues (costura)', () =
   it('ninguna fecha en hueco con preposicion delante', () => {
     expect(malas(fechaConPreposicion, 'fecha')).toEqual([])
   })
-  it('las excepciones declaradas existen y de verdad se saltan su regla', () => {
-    const claves = new Set(todoElPortugues().map(([k]) => k))
-    expect(Object.keys(EXCEPCIONES).filter((k) => !claves.has(k))).toEqual([])
+  // Validacion de la costura (H4): antes solo se miraba que la clave
+  // existiera. Si su texto se corrige y deja de disparar la regla, la
+  // excepcion sobra y apartaria esa clave de la guardia en silencio.
+  it('las excepciones declaradas existen y SIGUEN disparando su regla (si una sobra, se quita)', () => {
+    expect(excepcionesSobrantes(EXCEPCIONES, todoElPortugues())).toEqual([])
+  })
+  it('y esa comprobacion muerde: una excepcion cuyo texto ya no dispara su regla sobra', () => {
+    const todo: Array<[string, string]> = [['a', 'Usa o filtro'], ['b', 'Use o filtro']]
+    expect(excepcionesSobrantes({ a: 'tuteo' }, todo)).toEqual([])
+    expect(excepcionesSobrantes({ b: 'tuteo', a: 'fecha', c: 'tuteo', ...{ a2: 'x' } }, [...todo, ['a2', 'Usa']])).toEqual([
+      'b (tuteo)', 'a (fecha)', 'c (tuteo)', 'a2 (x)',
+    ])
   })
 
   it('y las guardias MUERDEN (y dejan pasar el portugues de Brasil)', () => {
