@@ -38,7 +38,7 @@ function pinta(idioma: Idioma, Componente: typeof Modal | typeof Sheet): string 
     createElement(
       ProveedorIdioma,
       { idioma } as never,
-      createElement(Componente, { open: true, onOpenChange: () => {}, title: 'Título', children: 'cuerpo' }),
+      createElement(Componente as never, { open: true, onOpenChange: () => {}, title: 'Título' }, 'cuerpo'),
     ),
   )
 }

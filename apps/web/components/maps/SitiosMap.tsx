@@ -91,6 +91,8 @@ export default function SitiosMap({ sitios, onSitioClick, height = '400px' }: Pr
         mapRef.current = null
       }
     }
+    // El mapa se crea una vez por montaje; MapLibre lee el locale al crearlo (B70).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Update markers when sitios changes
