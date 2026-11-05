@@ -1515,7 +1515,7 @@ const PORTUGUES: Record<string, string[]> = {
   'ficha de una pantalla digital con contrato': ['Tarifa publicada (mensal)', 'MX$ 20.000,00 · 67%', 'CPS · custo por inserção'],
   'reservar dos pantallas digitales sin cupo': [
     '2 pontos selecionados', '2 pontos já atingiram seu limite de clientes', ' — limite de 1 cliente nessas datas (Bebidas Sur)',
-    '2 dos pontos escolhidos têm seu próprio número de slots, que prevalece.', 'Reservar (provisória)',
+    '2 dos pontos escolhidos têm seu próprio número de slots, que prevalece.', 'Pré-reservar',
   ],
   'reservar una pantalla con slots propios': [
     '1 ponto selecionado', 'Pantalla Reforma tem 8 slots próprios, que prevalecem sobre este número.',

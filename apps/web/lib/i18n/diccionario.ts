@@ -824,7 +824,7 @@ const PT_BASE: Partial<Record<ClaveTexto, string>> = {
   'nav.comercial': 'Comercial',
   'nav.disponibilidad': 'Disponibilidade',
   'nav.propuestas': 'Propostas',
-  'nav.captacion': 'Captação de pontos',
+  'nav.captacion': 'Captação',
   'nav.comercial-opex': 'Negociação de locações',
   'nav.franjas-y-temporadas': 'Faixas horárias e temporadas',
   'nav.descuentos-por-volumen': 'Descontos por volume',

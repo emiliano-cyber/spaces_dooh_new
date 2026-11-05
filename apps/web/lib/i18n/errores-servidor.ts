@@ -1521,7 +1521,9 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
     'Sua organização já tem razões sociais cadastradas, então o questionário já foi respondido. Para alterá-las, use a página de Configurações.',
   'Las tarifas por unidad se guardan en su propia ruta (PATCH /api/sitios/:id/modalidades), que siempre pide la contraseña.':
     'As tarifas por unidade são salvas no próprio endpoint (PATCH /api/sitios/:id/modalidades), que sempre pede a senha.',
-  'Código postal inválido (5 dígitos)': 'Código postal inválido (5 dígitos)',
+  // Costura (05/11): «CEP», como el rotulo «CEP fiscal»; «(5 dígitos)» dice
+  // que es el codigo mexicano. Gemelo de `clientes.form.cp-invalido`.
+  'Código postal inválido (5 dígitos)': 'CEP inválido (5 dígitos)',
   'Teléfono inválido. Escribe 10 dígitos (p. ej. 55 1234 5678)':
     'Telefone inválido. Digite 10 dígitos (ex.: 55 1234 5678)',
   'Correo inválido. Usa el formato ejemplo@correo.com': 'E-mail inválido. Use o formato exemplo@email.com',
@@ -2294,7 +2296,9 @@ export const FALTA_REVISION_PT: Record<string, string> = {
   'un teléfono o un correo de contacto': 'um telefone ou um e-mail de contato',
   'la dirección': 'o endereço',
   'el dueño: un arrendador existente o el nombre y teléfono del contacto':
-    'o proprietário: um locador existente ou o nome e o telefone do contato',
+    // Costura (05/11): igual que `clientes.captacion.falta.dueno`, que arma
+    // el mismo texto en el cliente; «proprietário» chocaba con el rol Titular.
+    'o dono do terreno: um locador existente ou o nome e o telefone do contato',
 }
 
 function bloqueoClientePt(v: string): string {

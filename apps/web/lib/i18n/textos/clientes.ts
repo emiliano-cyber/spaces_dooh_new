@@ -744,7 +744,7 @@ export const IT_CLIENTES: Record<ClaveClientes, string> = {
 
 // ─── PORTUGUES (pt-BR) · lote L4 (2026-11-05) ───────────────────────────────
 // Glosario comun en `vault/03-Frontend/portugues-olas.md` §2 bis (prospect ·
-// locador · imóvel · ponto · Captação de pontos · razão social · CEP fiscal ·
+// locador · imóvel · ponto · Captação · razão social · CEP fiscal ·
 // regime tributário · uso do CFDI). Lo propio: bitácora → histórico · embudo →
 // funil · giro → ramo de atividade · azotea → telhado · dueño del terreno →
 // dono do terreno (no «proprietário»: es el rol, Titular, y la guardia del L5
@@ -803,7 +803,7 @@ export const PT_CLIENTES: Record<ClaveClientes, string> = {
 
   // ── Clientes · alta y edicion ──
   'clientes.form.rfc-invalido': 'RFC inválido. Formato do SAT (p. ex. XAXX010101000)',
-  'clientes.form.cp-invalido': 'Código postal inválido (5 dígitos)',
+  'clientes.form.cp-invalido': 'CEP inválido (5 dígitos)',
   'clientes.form.telefono-invalido': 'Telefone inválido. Digite 10 dígitos (p. ex. 55 1234 5678)',
   'clientes.form.revisa': 'Revise os campos marcados.',
   'clientes.form.no-se-pudo-guardar': 'Não foi possível salvar',
@@ -887,7 +887,7 @@ export const PT_CLIENTES: Record<ClaveClientes, string> = {
   'clientes.comisiones.directo-sin-comision': 'Direto · sem comissão',
 
   // ── Captacion ──
-  'clientes.captacion.titulo': 'Captação de pontos',
+  'clientes.captacion.titulo': 'Captação',
   'clientes.captacion.subtitulo':
     'Clientes, locadores, imóveis e pontos que estão sendo trabalhados, cada um com seu histórico. Quando um está pronto, é enviado para revisão e, ao ser aprovado, é cadastrado.',
   'clientes.captacion.vista.curso': 'Em andamento',

@@ -530,7 +530,7 @@ export const IT_INICIO: Record<ClaveInicio, string> = {
 // del lote, en su subseccion. Del Dashboard: ingreso → receita · devengar →
 // receita reconhecida · tasa de cierre → taxa de fechamento · cuota → parcela
 // · nombre comercial → nome fantasia (el termino brasileno) · hueco → espaço
-// livre · tentativa → provisória · incidencia → ocorrência. EL DISENO ESTA
+// livre · tentativa → pré-reserva · incidencia → ocorrência. EL DISENO ESTA
 // APROBADO: aqui solo cambian textos.
 export const PT_INICIO: Record<ClaveInicio, string> = {
   // ── Encabezado e indicadores ──
@@ -643,7 +643,7 @@ export const PT_INICIO: Record<ClaveInicio, string> = {
   'inicio.leyenda.en-propuesta': 'Em proposta',
 
   // ── La grafica de tentativas ──
-  'inicio.grafica.tentativas': 'Provisórias',
+  'inicio.grafica.tentativas': 'Pré-reservas',
   'inicio.grafica.confirmadas': 'Confirmadas',
 
   // ── Las alertas que arma `construirAlertas` (lib/data/derive.ts) ──

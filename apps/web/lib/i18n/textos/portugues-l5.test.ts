@@ -183,7 +183,6 @@ const PLURALES_INVARIABLES = new Set<string>([
 // Mensajes del servidor que en portugues se escriben igual que en espanol o ingles.
 const COGNADOS_SERVIDOR = new Set<string>([
   'CURP inválida',
-  'Código postal inválido (5 dígitos)', // el CP es mexicano: no es el CEP de 8 cifras (validacion, retoque 12)
   'RFC inválido',
   'RFC',
   'Cliente',
@@ -272,7 +271,12 @@ describe('portugues · regla comun: el registro es «voce», nunca «tu»', () =
 describe('portugues L5 · los hallazgos del validador (ambar, 05/11)', () => {
   it('Dueno = «Titular», y «proprietário» no aparece en ningun texto del lote', () => {
     expect(PT_ADMIN['admin.rol.dueno']).toBe('Titular')
-    const todo = [...Object.values(PT_BASE_PARCIAL), ...Object.values(CATALOGO_ERRORES_PT), ...PATRONES_ERROR.map((p) => p.pt)]
+    // Costura (05/11): tambien las tablas de huecos (`FALTA_REVISION_PT` decia
+    // «o proprietário»; ahora «o dono do terreno», como el cliente).
+    const todo = [
+      ...Object.values(PT_BASE_PARCIAL), ...Object.values(CATALOGO_ERRORES_PT), ...PATRONES_ERROR.map((p) => p.pt),
+      ...Object.values(FALTA_REVISION_PT), ...Object.values(ETAPA_PT), ...Object.values(PERIODICIDAD_PT),
+    ]
     expect(todo.filter((v) => /propriet[áa]ri/i.test(v ?? ''))).toEqual([])
   })
   it('la longitud se escribe «E ou O», que es lo que acepta el interprete (interpretar-ubicacion.ts)', () => {

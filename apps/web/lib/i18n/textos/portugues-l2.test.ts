@@ -306,7 +306,8 @@ const GLOSARIO: [string, RegExp, RegExp][] = [
   ['Administración → Configurações', /Administración/, /Configurações/],
   ['Arrendadores (modulo) → Locadores', /Arrendadores/, /Locadores/],
   ['Reportes (modulo) → Relatórios', /Reportes/, /Relatórios/],
-  ['tentativa → provisória', /tentativ/i, /provisóri/i],
+  // Costura (05/11), decision del dueno: «Pré-reserva» (era «provisória»).
+  ['tentativa → pré-reserva', /tentativ/i, /pré-reserv/i],
   ['liga → link', /\bliga\b/i, /\blink\b/i],
   ['correo → e-mail', /\bcorreo\b/i, /e-mail/i],
   ['rotaciones/h → loops/h', /rotaciones\/h/, /loops\/h/],

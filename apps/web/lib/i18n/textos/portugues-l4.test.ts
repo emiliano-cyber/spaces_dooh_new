@@ -131,7 +131,6 @@ export const COGNADOS_PT_L4 = new Set<string>([
   'clientes.col.tipo',                                 // "Tipo"
   'clientes.editar.nombre',                            // "Editar {nombre}"
   'clientes.editar',                                   // "Editar cliente"
-  'clientes.form.cp-invalido',                         // "Código postal inválido (5 dígitos)"
   'clientes.form.tipo',                                // "Tipo"
   'clientes.form.iva',                                 // "IVA (%)"
   'clientes.pipeline.titulo',                          // "Pipeline"

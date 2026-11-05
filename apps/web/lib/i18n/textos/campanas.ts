@@ -1470,7 +1470,7 @@ export const PT_CAMPANAS: Record<ClaveCampanas, string> = {
   'campanas.creatividad.pendiente': 'Pendente',
   'campanas.creatividad.validada': 'Aprovada',
   'campanas.creatividad.rechazada': 'Recusada',
-  'campanas.reserva.tentativa': 'Provisória',
+  'campanas.reserva.tentativa': 'Pré-reserva',
   'campanas.reserva.confirmada': 'Confirmada',
   'campanas.reserva.cancelada': 'Cancelada',
   'campanas.ot.pendiente': 'Pendente',
