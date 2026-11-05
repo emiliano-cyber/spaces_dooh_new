@@ -2197,8 +2197,9 @@ inglés de que «el texto legal del contrato no se traduce»: ahora se redacta e
 el idioma de los documentos de la instancia. Rama `feat/idioma-instancia`,
 [ADR 0049](../../docs/adr/0049-el-idioma-de-los-documentos-es-de-la-instancia.md).
 
-- **Dónde vive:** `tenants.idioma_documentos` (`es` | `en` | `it`, DEFAULT
-  `es`), al lado de la moneda y con sus mismas reglas: se elige en el bootstrap
+- **Dónde vive:** `tenants.idioma_documentos` (`es` | `en` | `it` | `pt` —el
+  portugués desde el 05/11, P3: `20261105_idioma_portugues.sql`, ver
+  [[portugues-olas]] §3—, DEFAULT `es`), al lado de la moneda y con sus mismas reglas: se elige en el bootstrap
   (`idiomaDocumentos`, `provision-instancia.sh --idioma`), lo heredan las demás
   organizaciones y la base impide cambiarlo
   (`20261103_idioma_documentos_por_instancia.sql`). Todas las instancias que ya

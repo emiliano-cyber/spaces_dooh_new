@@ -71,8 +71,9 @@ export const SIN_TRADUCIR: readonly string[] = []
 // Postgres, de zod y de las constantes compartidas.
 export const CATALOGO_ERRORES: Record<string, string> = {
   // ADR 0049 (03/11) · el idioma de los DOCUMENTOS se elige al crear la instancia y no se cambia.
-  'El idioma de los documentos debe ser es, en o it':
-    'The document language must be es, en or it',
+  // P3 del portugues (05/11): el mensaje nombra ahora `pt`.
+  'El idioma de los documentos debe ser es, en, it o pt':
+    'The document language must be es, en, it or pt',
   'El idioma de los documentos de la instancia ya está fijado: una organización nueva nace en el mismo que las demás':
     'The instance document language is already set: a new organization is created with the same one as the others',
   'El idioma de los documentos de la instancia solo se elige al darla de alta':
@@ -773,8 +774,8 @@ export const FALTA_FIRMA_EN: Record<string, string> = {
 // que su clave del diccionario: lo vigila `textos/costura.test.ts`.
 export const CATALOGO_ERRORES_IT: Partial<Record<string, string>> = {
   // ADR 0049 · B67, al integrar con el italiano (2026-11-04).
-  'El idioma de los documentos debe ser es, en o it':
-    'La lingua dei documenti deve essere es, en o it',
+  'El idioma de los documentos debe ser es, en, it o pt':
+    'La lingua dei documenti deve essere es, en, it o pt',
   'El idioma de los documentos de la instancia ya está fijado: una organización nueva nace en el mismo que las demás':
     'La lingua dei documenti dell’istanza è già fissata: una nuova organizzazione nasce nella stessa lingua delle altre',
   'El idioma de los documentos de la instancia solo se elige al darla de alta':

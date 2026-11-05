@@ -183,9 +183,9 @@ describe('arrendadores · el documento del contrato va en el idioma de la INSTAN
     // traduccion de pantalla.
     const doc = leer('lib/contrato-documento.ts')
     expect(doc).not.toMatch(/diccionario|traducir|servidor'/)
-    // Ola 0 del portugues (05/11): el tipo es `IdiomaEnLaBase` (es/en/it), no
-    // `Idioma`, que ya incluye el portugues de la interfaz.
-    expect(doc).toMatch(/^import type \{ IdiomaEnLaBase \} from '@\/lib\/i18n\/idiomas'$/m)
+    // P3 del portugues (05/11): vuelve a ser `Idioma` (es/en/it/pt); entre la
+    // ola 0 y P3 fue `IdiomaEnLaBase` (es/en/it).
+    expect(doc).toMatch(/^import type \{ Idioma \} from '@\/lib\/i18n\/idiomas'$/m)
   })
 
   it('el redactor: su huella se actualiza A PROPOSITO en el commit que lo cambia', () => {
@@ -206,7 +206,13 @@ describe('arrendadores · el documento del contrato va en el idioma de la INSTAN
     // (es/en/it) en vez de `Idioma`, que ya incluye `pt`— y su comentario. Ni
     // una linea de texto; los hashes de `contrato-documento-idioma.test.ts`,
     // en verde. El contrato en portugues es una tarea roja aparte.
-    expect(huella).toBe('eca3df839368a294024e587abe45f27de7d50742915890af00cac0e5336d6069')
+    // 05/11 (P3 del portugues, ROJA, aprobada por el dueno): el contrato EN
+    // PORTUGUES, en una funcion aparte (`redactarEnPortugues`), su letra, su
+    // fecha y su fila de `encabezadosDocumento`; `cifra` acepta `pt`. El texto
+    // es/en/it no se toca: sus hashes —los del ingles y el italiano, medidos
+    // sobre e018b1bb antes del cambio— estan en
+    // `lib/contrato-documento-portugues.test.ts`, en verde.
+    expect(huella).toBe('4216cbe1c367bbce86a1b4b9307e0da994fd2fd8f77e62c83ecfe444a651f2c0')
   })
 
   it('el hash de las firmas es el del documento, no el de la constancia', () => {
@@ -222,7 +228,7 @@ describe('arrendadores · el documento del contrato va en el idioma de la INSTAN
     expect(constancia).not.toMatch(/>\s*Constancia de firma electrónica\s*</)
     const pagina = leer('app/(app)/contrato/[id]/page.tsx')
     expect(pagina).toMatch(/<ConstanciaFirmas estado=\{estadoFirmas\} idioma=\{idiomaDoc\} \/>/)
-    expect(pagina).toMatch(/const idiomaDoc: IdiomaEnLaBase = doc\.idioma \?\? 'es'/)
+    expect(pagina).toMatch(/const idiomaDoc: Idioma = doc\.idioma \?\? 'es'/)
     // NEGATIVO: ya no la decide la peticion.
     expect(pagina).not.toMatch(/<ConstanciaFirmas[^>]*idiomaDeLaPeticion/)
     // …y en espanol dice lo de siempre.

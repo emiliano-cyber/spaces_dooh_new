@@ -133,38 +133,17 @@ export function idiomasActivos(
   return IDIOMAS.filter((i) => encendido[i])
 }
 
-// ─── LO QUE LA BASE ACEPTA (ola 0 del portugues, 2026-11-05) ───────────────
+// ─── LO QUE LA BASE ACEPTA ──────────────────────────────────────────────────
 //
-//  El portugues entra en la INTERFAZ antes que en la BASE. Las dos columnas
-//  que guardan un idioma tienen un CHECK `in ('es', 'en', 'it')`:
-//
-//   · `usuarios.idioma_preferido` (`20261103_usuarios_idioma_preferido.sql`)
-//   · `tenants.idioma_documentos` (`20261103_idioma_documentos_por_instancia.sql`)
-//
-//  Abrirlas a `pt` es una migracion (ZONA ROJA, tarea aparte, junto con los
-//  papeles en portugues y `--idioma pt` del aprovisionamiento). Hasta entonces
-//  quien ESCRIBE en esas columnas valida contra esta lista y no contra
-//  `IDIOMAS`: si no, un `pt` llegaria a la base y el CHECK lo tumbaria con un
-//  500 en vez del 400 legible de siempre. Leer si puede usar `IDIOMAS`: la
-//  base no puede devolver un `pt`.
-
-/** Los idiomas que caben HOY en las columnas de la base (su CHECK). */
-export const IDIOMAS_EN_LA_BASE = ['es', 'en', 'it'] as const satisfies readonly Idioma[]
-export type IdiomaEnLaBase = (typeof IDIOMAS_EN_LA_BASE)[number]
-
-export function esIdiomaEnLaBase(x: unknown): x is IdiomaEnLaBase {
-  return typeof x === 'string' && (IDIOMAS_EN_LA_BASE as readonly string[]).includes(x)
-}
-
-/**
- * Lo que «Mi cuenta → Idioma» puede GUARDAR: los encendidos que caben en la
- * base. Sin el portugues encendido es exactamente `idiomasActivos()`.
- */
-export function idiomasDeCuenta(
-  entorno: Record<string, string | undefined> = process.env,
-): Idioma[] {
-  return idiomasActivos(entorno).filter(esIdiomaEnLaBase)
-}
+//  La ola 0 del portugues (05/11) metio `pt` en la INTERFAZ antes que en la
+//  BASE, y quien escribia en `usuarios.idioma_preferido` o en
+//  `tenants.idioma_documentos` validaba contra una lista aparte
+//  (`IDIOMAS_EN_LA_BASE`, es/en/it). La tarea ROJA P3 (05/11,
+//  `20261105_idioma_portugues.sql`) abrio los dos CHECK a `pt` y esa lista se
+//  retiro: desde entonces la base acepta exactamente `IDIOMAS`, y quien
+//  escribe valida contra `IDIOMAS` (alta) o contra `idiomasActivos()`
+//  (Mi cuenta). Un quinto idioma vuelve a pedir migracion: el CHECK no se abre
+//  solo.
 
 /**
  * Lo que se acepta cuando quien llama NO pasa `permitidos` (lote L5 del

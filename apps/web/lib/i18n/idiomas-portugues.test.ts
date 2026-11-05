@@ -1,12 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import {
   IDIOMAS,
-  IDIOMAS_EN_LA_BASE,
   portuguesActivo,
   italianoActivo,
   inglesActivo,
   idiomasActivos,
-  idiomasDeCuenta,
   normalizarIdioma,
   idiomaDeCabecera,
   resolverIdioma,
@@ -20,11 +18,10 @@ import { idiomaDocumentosPedido } from '../server/idioma-alta'
 //  apagado por omision, y apagado significa que NADIE lo ve aunque su cookie o
 //  su navegador lo pidan. pt-BR (Brasil), decision del dueno del 05/11.
 //
-//  Y una regla NUEVA de esta ola: el portugues entra en la INTERFAZ antes que
-//  en la BASE. `usuarios.idioma_preferido` y `tenants.idioma_documentos` tienen
-//  un CHECK es/en/it (migraciones `20261103_*`); abrirlo es una tarea ROJA
-//  aparte. Hasta entonces, ni «Mi cuenta» ni el alta pueden mandar `pt` a la
-//  base: lo rechazarian con un 500 en vez de un mensaje.
+//  La ola 0 metio el portugues en la INTERFAZ antes que en la BASE (CHECK
+//  es/en/it). La tarea ROJA P3 (05/11, `20261105_idioma_portugues.sql`) abrio
+//  los dos CHECK: desde ahi «Mi cuenta» y el alta aceptan `pt` como los demas,
+//  y el bloque del final lo fija.
 // ============================================================================
 
 describe('IDIOMAS · el catalogo con el portugues', () => {
@@ -117,39 +114,52 @@ describe('por omision, un portugues apagado no se acepta', () => {
   }
 })
 
-// ─── LA BASE TODAVIA NO SABE PORTUGUES ──────────────────────────────────────
-describe('el portugues NO llega a la base (CHECK es/en/it, tarea roja aparte)', () => {
-  it('IDIOMAS_EN_LA_BASE son exactamente los del CHECK de las migraciones del 03/11', () => {
-    expect(IDIOMAS_EN_LA_BASE).toEqual(['es', 'en', 'it'])
+// ─── P3 (05/11) · LA BASE YA SABE PORTUGUES ─────────────────────────────────
+// `20261105_idioma_portugues.sql` abre los dos CHECK a `pt`, y la lista
+// temporal `IDIOMAS_EN_LA_BASE` desaparece: lo que se escribe en la base se
+// valida contra `IDIOMAS`, como antes de la ola 0. El interruptor sigue
+// mandando sobre la INTERFAZ: apagado, la cuenta no ofrece ni guarda `pt`.
+describe('P3 · el portugues llega a la base como los demas idiomas', () => {
+  it('la lista temporal de la ola 0 ya no existe', async () => {
+    const mod = (await import('./idiomas')) as Record<string, unknown>
+    expect(mod.IDIOMAS_EN_LA_BASE).toBeUndefined()
+    expect(mod.esIdiomaEnLaBase).toBeUndefined()
+    expect(mod.idiomasDeCuenta).toBeUndefined()
   })
 
-  it('«Mi cuenta» no ofrece guardar el portugues aunque este encendido', () => {
-    expect(idiomasDeCuenta({ IDIOMA_PORTUGUES: '1' })).toEqual(['es'])
-    expect(idiomasDeCuenta({ IDIOMA_INGLES: '1', IDIOMA_ITALIANO: '1', IDIOMA_PORTUGUES: '1' })).toEqual([
-      'es',
-      'en',
-      'it',
-    ])
-    // Y sin el portugues, lo mismo que `idiomasActivos`: nada cambia para es/en/it.
-    expect(idiomasDeCuenta({ IDIOMA_INGLES: '1', IDIOMA_ITALIANO: '1' })).toEqual(
-      idiomasActivos({ IDIOMA_INGLES: '1', IDIOMA_ITALIANO: '1' }),
-    )
+  it('encendido, «Mi cuenta» puede guardar pt; apagado, no (preferenciaDeIdioma con los activos)', () => {
+    const encendido = idiomasActivos({ IDIOMA_INGLES: '1', IDIOMA_PORTUGUES: '1' })
+    expect(preferenciaDeIdioma('pt', encendido)).toEqual({ ok: true, idioma: 'pt' })
+    const apagado = idiomasActivos({ IDIOMA_INGLES: '1', IDIOMA_ITALIANO: '1' })
+    expect(preferenciaDeIdioma('pt', apagado)).toEqual({ ok: false })
+    expect(preferenciaDeIdioma('en', apagado)).toEqual({ ok: true, idioma: 'en' })
+    expect(preferenciaDeIdioma('navegador', apagado)).toEqual({ ok: true, idioma: null })
   })
 
-  it('NEGATIVO · preferenciaDeIdioma rechaza pt con la lista de la cuenta, y lo demas como antes', () => {
-    const cuenta = idiomasDeCuenta({ IDIOMA_INGLES: '1', IDIOMA_PORTUGUES: '1' })
-    expect(preferenciaDeIdioma('pt', cuenta)).toEqual({ ok: false })
-    expect(preferenciaDeIdioma('en', cuenta)).toEqual({ ok: true, idioma: 'en' })
-    expect(preferenciaDeIdioma('navegador', cuenta)).toEqual({ ok: true, idioma: null })
+  it('H1 cerrado · con pt encendido y guardado en la cuenta, la cuenta lo impone (gana a la cookie)', () => {
+    const permitidos = idiomasActivos({ IDIOMA_PORTUGUES: '1' })
+    expect(resolverIdioma({ cuenta: 'pt', cookie: 'es', cabecera: 'es-MX', permitidos })).toBe('pt')
   })
 
-  it('NEGATIVO · el alta rechaza documentos en pt con el mensaje de siempre (400, no un 500 de la base)', () => {
-    let error: unknown = null
-    try {
-      idiomaDocumentosPedido('pt')
-    } catch (e) {
-      error = e
-    }
-    expect(error).toMatchObject({ status: 400, message: 'El idioma de los documentos debe ser es, en o it' })
+  it('NEGATIVO · apagado, una cuenta con pt guardado NO ve portugues (se ignora sin error)', () => {
+    const permitidos = idiomasActivos({})
+    expect(resolverIdioma({ cuenta: 'pt', cookie: null, cabecera: 'pt-BR', permitidos })).toBe('es')
   })
+
+  it('el alta acepta documentos en pt, sea cual sea el interruptor de la interfaz', () => {
+    expect(idiomaDocumentosPedido('pt')).toBe('pt')
+  })
+
+  it.each(['pt-BR', 'PT', 'pt_BR', 'br', 'fr', ''])(
+    'NEGATIVO · el alta rechaza %j con el 400 legible (no un 500 de la base)',
+    (valor) => {
+      let error: unknown = null
+      try {
+        idiomaDocumentosPedido(valor)
+      } catch (e) {
+        error = e
+      }
+      expect(error).toMatchObject({ status: 400, message: 'El idioma de los documentos debe ser es, en, it o pt' })
+    },
+  )
 })

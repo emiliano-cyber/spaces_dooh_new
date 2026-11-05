@@ -4,7 +4,7 @@ import 'server-only'
 // firma tambien acaba aqui. Es uno de los pocos sitios donde `qRaw` es lo
 // correcto y no el fallo R2.
 import { qRaw1 } from './db'
-import { IDIOMA_POR_OMISION, esIdiomaEnLaBase, type IdiomaEnLaBase } from '@/lib/i18n/idiomas'
+import { IDIOMAS, IDIOMA_POR_OMISION, type Idioma } from '@/lib/i18n/idiomas'
 
 // ============================================================================
 //  lib/server/idioma-instancia.ts — EN QUE IDIOMA SE REDACTAN LOS DOCUMENTOS
@@ -37,18 +37,17 @@ import { IDIOMA_POR_OMISION, esIdiomaEnLaBase, type IdiomaEnLaBase } from '@/lib
 const CLAVE = Symbol.for('space-os.idioma-documentos-instancia')
 const almacen = globalThis as unknown as { [CLAVE]?: Idioma }
 
-// Ola 0 del portugues (05/11): contra lo que la BASE acepta (CHECK es/en/it),
-// no contra `IDIOMAS`, que ya incluye el portugues de la interfaz. Asi el tipo
-// que sale de aqui es el de un papel (`IdiomaEnLaBase`) y nadie puede pedir un
-// contrato en portugues antes de que exista (tarea roja aparte).
-const esIdioma = esIdiomaEnLaBase
-type Idioma = IdiomaEnLaBase
+// Contra `IDIOMAS`: es lo que acepta el CHECK de la columna desde
+// `20261105_idioma_portugues.sql` (P3 del portugues, 05/11).
+function esIdioma(x: string): x is Idioma {
+  return (IDIOMAS as readonly string[]).includes(x)
+}
 
 /**
  * El idioma de los documentos de ESTA instancia.
  *
  * - Sin ninguna organizacion: `es`, que es en el que nacera si nadie elige.
- * - Con un valor que no es es/en/it en la base: LANZA (el CHECK lo impide).
+ * - Con un valor que no es de `IDIOMAS` en la base: LANZA (el CHECK lo impide).
  * - Si la base no contesta: LANZA (fail-closed).
  */
 export async function idiomaDeLaInstancia(): Promise<Idioma> {
@@ -59,8 +58,7 @@ export async function idiomaDeLaInstancia(): Promise<Idioma> {
   const r = await qRaw1<{ idioma_documentos: string }>(
     'select idioma_documentos from tenants order by creado_en asc limit 1',
   )
-  // El espanol siempre cabe en la base.
-  if (!r) return IDIOMA_POR_OMISION as Idioma
+  if (!r) return IDIOMA_POR_OMISION
   if (!esIdioma(r.idioma_documentos)) {
     throw new Error(
       `La instancia tiene un idioma de documentos no soportado en la base: ${JSON.stringify(r.idioma_documentos)}`,
