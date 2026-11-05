@@ -189,3 +189,72 @@ más:
 - el **género de *app*** (#1): conviene fijarlo en el §2 bis («o app») antes
   de que lo repitan L2–L4;
 - la **guarda pt-PT** (§4) en `portugues-l5.test.ts`, para todos los lotes.
+
+## Segunda vuelta · 2026-11-05 · veredicto final: VERDE
+
+El traductor corrigió el ÁMBAR en `65d9e2af` (prueba en rojo), `a8a169e1`
+(textos) y `2e9c2c88` (revisión, tablero y diario). Todo lo de abajo está
+medido en `2e9c2c88`. El dueño aprobó hoy D1–D6 tal como las propuso el
+traductor, así que esas dudas quedan cerradas.
+
+### Los hallazgos, uno por uno (diff `de3eddea..2e9c2c88`)
+
+| # | Estado | Comprobado |
+|---|---|---|
+| H1 · «a app» | **resuelto** | Cambian las 17 claves, y ninguna queda en femenino: `grep` de «a/da/na/pela app» en `spaceeyes.ts` = 0. También concuerda lo que va alrededor: «o app vai reiniciar sozinho», «o app seja o administrador do aparelho», «então ele não está verificando a tela» |
+| H2 · «Estado do ponto» | **resuelto** | «Estado da tela», y la ayuda dice «deixam a tela fora das programações». Los cuatro estados en femenino concuerdan |
+| H3 · *pareamento* | **resuelto** | «Aguardando vinculação», «É vinculado lendo um QR», «Códigos de vinculação». El botón sigue siendo «Vincular». El glosario del lote (`portugues-olas.md:160`) y la revisión dicen lo mismo |
+| #4 «sem carregar» | resuelto | «não está carregando» |
+| #5 «faturamento» | resuelto | «valor faturado {monto}». En la prueba de pantallas, la línea de la CFE se lee «… · valor faturado MX$ 4.000,00 · iluminação pública (DAP) …» |
+| #6 «escolha você» | resuelto | «escolha manualmente» |
+| #7 «uma foto de dados» | resuelto | «consome os dados de uma foto» |
+| #8 «onde esta campanha está» | resuelto | «Dispositivos desta campanha» |
+| #9 sin «se» | resuelto | «Se instala sozinha», «Se atualiza sozinho» (7 claves) |
+| #10 «já não» | resuelto | «não consegue mais entrar» (3 claves) |
+| #11 «registrá-lo» | resuelto | «registrá-la», y lo exige `pantallas-energia` |
+
+### La guardia `PT_DE_PORTUGAL` (`textos/portugues-l1.test.ts`)
+
+- **Muerde.** Caza «ecrã», «aplicação», «a/da/na/pela/à/uma app»,
+  «telemóvel», «ficheiro», «utilizador» y «registo», con límite de letra
+  `\p{L}`. Hay además dos guardias aparte: «já não» y «parear/pareamento».
+  Trae su propia prueba con 10 frases que tienen que caer y 12 que tienen que
+  pasar.
+- **No da falsos positivos.** Pasé la misma expresión por **todo
+  `PT_PARCIAL`**, las 2165 claves portuguesas de L5 y L1, con una prueba
+  temporal ya retirada: **0 coincidencias**. «registro», «aplicativo»,
+  «Aplicar», «aplicado», «o app», «Atualizar app» e «Instalar apps
+  desconhecidos» no cuentan.
+- **Mutantes.** Los dos que sobrevivían ahora mueren, y también todos los
+  nuevos:
+
+| # | Mutante | Resultado |
+|---|---|---|
+| MV2 | «Ecrã apagado no horário de funcionamento» | muere (1) |
+| MV8 | «Versão da aplicação» | muere (2) |
+| MV9 | «Abra a app Space Eye» | muere (1) |
+| MV10 | «{siguiente} já não consegue entrar» | muere (1) |
+| MV11 | «Estado do ponto» | muere (2) |
+| MV12 | «É pareado lendo um QR» | muere (1) |
+| MV13 | «faturamento {monto}» | muere (2) |
+
+Cada archivo se restauró byte a byte, y `git status` quedó limpio.
+
+### Medido de nuevo
+
+| Medición | Resultado |
+|---|---|
+| `npm run typecheck` | limpio |
+| `npx vitest run --testTimeout=60000` | **420 archivos, 9131 en verde + 1 omitida, 0 rojas** |
+| `DICCIONARIOS.es/.en/.it` + `traducirError(es/en/it)` + `PATRONES_ERROR`, contra el volcado de `72b33050` | **`cmp` idénticos** (1 205 085 bytes) |
+| Diff `de3eddea..2e9c2c88` | solo cambia `PT_SPACEEYES`, `PT_ENERGIA`, las tres pruebas portuguesas y la documentación. Las pruebas de pantallas solo cambian el portugués esperado y **añaden** un estado (`equipo · android atrasado`); no pierden ninguna exigencia |
+
+### Pendiente para la costura (no bloquea)
+
+- **La guardia vive solo en la estática de L1.** Conviene subirla a
+  `portugues-l5.test.ts`, sobre todo `PT_PARCIAL`, para que la cumplan L2–L4.
+  Hoy ya la cumplen los dos lotes, así que subirla no rompería nada.
+- **Fijar «o app» en el §2 bis**, antes de que lo repitan L2–L4.
+- Lo de L2 y L3 que ya anotaba la revisión, en su §8.
+
+**Veredicto final: VERDE.**
