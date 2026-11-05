@@ -136,7 +136,8 @@ describe('novedades.json · todas las entradas, en ingles y en italiano', () => 
         // Glosario (italiano-olas.md): «provvigione», nunca «commissione»;
         // «codice di negoziazione»; Impostazioni, no «Amministrazione»; tuteo.
         /commission/i.test(t) ||
-        /codice promozionale|coupon/i.test(t) ||
+        // (la nota del cambio de nombre, v0.11.9, nombra el viejo a proposito)
+        (i.donde !== 'v0.11.9 #1' && /codice promozionale|coupon/i.test(t)) ||
         /Amministrazione/.test(t) ||
         /\b(Lei|Suo|Sua|cliccare|clicchi|selezioni)\b/.test(t) ||
         /\b(campaña|propuesta|pantalla|arrendador)\b/i.test(t)
@@ -145,8 +146,11 @@ describe('novedades.json · todas las entradas, en ingles y en italiano', () => 
     expect(mal.map((i) => `${i.donde}: ${i.it}`)).toEqual([])
   })
 
-  it('italiano: sin articulo delante de una fecha escrita en cifras («il 30/10»)', () => {
-    const mal = items.filter((i) => /\b(il|al|dal|del|nel|sul|l’|all’|dall’|dell’)\s*\d{1,2}[/.]\d{1,2}/.test(i.it ?? ''))
+  // La regla de TODO el italiano (italiano-olas.md): nunca un articulo pegado
+  // a la cifra de un dia («il 5 ottobre», «dall’1»); se escribe «in data 21
+  // ottobre», «dal giorno 5 ottobre».
+  it('italiano: sin articulo delante de una fecha («il 5 ottobre», «dall’1»)', () => {
+    const mal = items.filter((i) => /\b(il|al|dal|del|nel|sul)\s+\d|\b(l’|all’|dall’|dell’)\d/.test(i.it ?? ''))
     expect(mal.map((i) => `${i.donde}: ${i.it}`)).toEqual([])
   })
 })
