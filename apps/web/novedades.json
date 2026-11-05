@@ -35,9 +35,9 @@
       },
       {
         "tipo": "CORREGIDO",
-        "texto": "La vigencia de las propuestas ya no depende de la hora: entre las 6 de la tarde y la medianoche una propuesta válida «hasta hoy» se podía ver como vencida. El último día vale completo.",
-        "en": "Proposal validity no longer depends on the time of day: between 6 pm and midnight a proposal valid “until today” could show as expired. The last day now counts in full.",
-        "it": "La validità delle proposte non dipende più dall’ora: tra le 18 e mezzanotte una proposta valida «fino a oggi» poteva risultare scaduta. L’ultimo giorno ora vale per intero."
+        "texto": "La vigencia de las propuestas ya no depende de la hora: entre las 18:00 y la medianoche una propuesta válida «hasta hoy» se podía ver como vencida. El último día vale completo.",
+        "en": "Proposal validity no longer depends on the time of day: between 18:00 and midnight a proposal valid “until today” could show as expired. The last day now counts in full.",
+        "it": "La validità delle proposte non dipende più dall’ora: tra le 18:00 e mezzanotte una proposta valida «fino a oggi» poteva risultare scaduta. L’ultimo giorno ora vale per intero."
       },
       {
         "tipo": "AJUSTADO",
