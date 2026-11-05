@@ -1318,7 +1318,7 @@ function redactarEnPortugues(
     `localizado em ${v(espacio.direccion)}${espacio.predio ? `, dentro do imóvel denominado «${espacio.predio}»` : ''}`
 
   add('OBJETO', [
-    `O LOCADOR dá em locação ao LOCATÁRIO, que o recebe a sua inteira satisfação, o espaço identificado como ` +
+    `O LOCADOR dá em locação ao LOCATÁRIO, que o recebe à sua inteira satisfação, o espaço identificado como ` +
       `${descripcion}, com uma superfície útil de ${medidas} (doravante, «ESPAÇO»).`,
     // «a» + «a instalação» pide crase («à instalação»): el uso por omisión va
     // escrito ya contraído, y uno escrito por una persona (dato) se presenta

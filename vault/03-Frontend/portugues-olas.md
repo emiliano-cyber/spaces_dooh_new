@@ -140,6 +140,14 @@ base como un 500. Desde P3:
 - **Firmas:** ningún hash cambia. Los del inglés y el italiano no estaban
   fijados en ninguna prueba: se midieron sobre `e018b1bb` antes del cambio y
   quedan en `contrato-documento-portugues.test.ts`.
+- **Validación (05/11): VERDE** (`docs/i18n/validacion-portugues-documentos.md`).
+  Corregido después en la misma rama: H1 (la revisión previa a la firma muestra
+  el importe como el contrato pt, «1.234.567,89 MXN»), H2 (la cabecera de la
+  migración ya no cita `deploy.yml`), H4 («à sua inteira satisfação»,
+  «certificado de conservação NOM-151»). Desde ahí el contrato pt también va
+  **fijado por hash** (`HASH_PT`). H3 queda anotado como B89 en `ABIERTOS.md`.
+  Ningún papel decía «Proprietário» por el rol Dueño («Titular», decisión del
+  dueño del 05/11): el contrato dice «proprietário ou possuidor» del inmueble.
 
 > [!warning] Lo que P3 NO tradujo (para los lotes)
 > Lo que rodea a los papeles y es INTERFAZ (la barra de la propuesta, los

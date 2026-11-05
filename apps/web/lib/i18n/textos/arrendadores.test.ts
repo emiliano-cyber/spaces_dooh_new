@@ -212,7 +212,10 @@ describe('arrendadores · el documento del contrato va en el idioma de la INSTAN
     // es/en/it no se toca: sus hashes —los del ingles y el italiano, medidos
     // sobre e018b1bb antes del cambio— estan en
     // `lib/contrato-documento-portugues.test.ts`, en verde.
-    expect(huella).toBe('4216cbe1c367bbce86a1b4b9307e0da994fd2fd8f77e62c83ecfe444a651f2c0')
+    // 05/11 (H4 de la validacion de P3): SOLO el texto portugues, «à sua
+    // inteira satisfação» (crase). Ningun contrato pt congelado todavia; los
+    // hashes es/en/it de `contrato-documento-portugues.test.ts`, en verde.
+    expect(huella).toBe('55afcb1db4d81750709dab9972fe0d90637c89d720ed7b95692585e36544c1b9')
   })
 
   it('el hash de las firmas es el del documento, no el de la constancia', () => {

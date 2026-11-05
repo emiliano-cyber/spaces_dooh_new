@@ -29,11 +29,16 @@
 --    que existen siguen en `es` (o en lo que nacieron), y sus contratos
 --    firmados se cotejan byte a byte igual que ayer.
 --  · No toca `db/schema.sql` ni los triggers del ADR 0049.
---  · Mismo NOMBRE de restricción que el original, a propósito: si la cadena
---    se reaplica entera (`deploy.yml`), la del 03/11 de `usuarios` ve que la
---    restricción existe y no la recrea con la lista corta; y la de `tenants`
---    la recrea corta, pero ESTA va detrás (orden lexicográfico) y la vuelve
---    a abrir.
+--  · Mismo NOMBRE de restricción que el original, a propósito: la del 03/11
+--    de `usuarios` comprueba el nombre en `pg_constraint`, así que si se
+--    reaplicara no recrearía la lista corta.
+--  · OJO con reaplicar a mano la del 03/11 de `tenants`
+--    (`20261103_idioma_documentos_por_instancia.sql`): suelta y vuelve a crear
+--    su CHECK corto (es/en/it), y con una organización ya en `pt` FALLA con
+--    23514 (check_violation) antes de llegar a esta. No pasa con el runner
+--    (`scripts/migrar.mjs` solo aplica las pendientes; el `deploy.yml` que
+--    reaplicaba la cadena entera se retiró el 31/08, F3.6), pero quien la
+--    reaplique a mano sobre una instancia `pt` tiene que saltarla.
 --
 --  Vuelta atrás (solo si NINGUNA fila tiene `pt`; si la hay, el ADD falla, que
 --  es lo correcto):

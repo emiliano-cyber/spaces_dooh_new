@@ -13,6 +13,9 @@ import { PT_COMERCIAL } from './textos/comercial'
 import { ConstanciaFirmas } from '@/components/demo/arrendadores/ConstanciaFirmas'
 import { asuntoCorreoReset, htmlCorreoReset, asuntoCorreoInvitacion, htmlCorreoInvitacion } from '@/lib/server/email'
 import { asuntoCorreoPropuesta, htmlCorreoPropuesta } from '@/lib/server/propuesta-correo'
+import { importeDeRevision } from '@/components/demo/arrendadores/PanelFirmas'
+import { generarContrato, documentoATexto } from '@/lib/contrato-documento'
+import { completo } from '@/lib/contrato-documento.datos-prueba'
 
 // ============================================================================
 //  P3 del portugues (05/11) · LOS PAPELES EN PORTUGUES.
@@ -67,6 +70,17 @@ describe('P3 · toda clave de papel tiene portugues escrito', () => {
     ] as ClaveTexto[]) {
       expect(PT[k], k).not.toBe(ES[k])
     }
+  })
+
+  it('H4 (validacion de P3) · «certificado de conservação NOM-151», no «constância»', () => {
+    expect(PT['arrendadores.constancia.nota']).toContain('certificado de conservação NOM-151')
+    expect(PT['arrendadores.constancia.nota']).not.toContain('constância')
+  })
+
+  it('el rol «Dueño» se dice «Titular» (dueno, 05/11): ningun papel dice «Proprietário» por el rol', () => {
+    // El contrato dice «proprietário ou possuidor» del INMUEBLE (derecho
+    // civil), no el rol de la aplicacion: ese no es el caso.
+    for (const [k, v] of Object.entries(PT_PAPELES)) expect(v, k).not.toMatch(/propriet[aá]ri/i)
   })
 
   it('las partes de la constancia son las del contrato en portugues', () => {
@@ -170,5 +184,24 @@ describe('P3 · los papeles pintados en portugues', () => {
   it('NEGATIVO · en una instancia espanola los correos siguen siendo los literales de siempre', () => {
     expect(asuntoCorreoReset('es')).toBe('Restablece tu contraseña · Space OS')
     expect(asuntoCorreoReset()).toBe('Restablece tu contraseña · Space OS')
+  })
+})
+
+// H1 de la validacion de P3 (05/11): la revision previa a enviar a firma
+// muestra el importe «como lo recita el contrato». Con la interfaz en
+// portugues salia el formato mexicano («$1,234,567.89»), que en Brasil se lee
+// al reves. El mismo arreglo que el italiano del 04/11.
+describe('P3 · H1 · la revision previa a la firma, con el importe del contrato pt', () => {
+  it('pt: «1.234.567,89 MXN», exactamente como lo dice el contrato en portugues', () => {
+    expect(importeDeRevision(1234567.89, 'MXN', 'pt')).toBe('1.234.567,89 MXN')
+    expect(importeDeRevision(6000, 'USD', 'pt')).toBe('6.000,00 USD')
+    const texto = documentoATexto(generarContrato({ ...completo, idioma: 'pt' }))
+    expect(texto).toContain(`${importeDeRevision(1234567.89, 'MXN', 'pt')} (`)
+  })
+  it('NEGATIVO · es/en/it como siempre, y sin importe no hay nada', () => {
+    expect(importeDeRevision(6000, 'MXN', 'es')).toBe('$6,000.00 MXN')
+    expect(importeDeRevision(6000, 'MXN', 'en')).toBe('$6,000.00 MXN')
+    expect(importeDeRevision(6000, 'MXN', 'it')).toBe('6.000,00 MXN')
+    expect(importeDeRevision(null, 'MXN', 'pt')).toBeNull()
   })
 })

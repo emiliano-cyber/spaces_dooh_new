@@ -235,6 +235,11 @@ describe('P3 · el contrato en PORTUGUES', () => {
     expect(doc.idioma).toBe('pt')
   })
 
+  it('H4 (validacion de P3) · crase en «à sua inteira satisfação»', () => {
+    expect(texto).toContain('que o recebe à sua inteira satisfação')
+    expect(texto).not.toContain(' a sua inteira')
+  })
+
   it('las contracciones con las partes: «ao LOCATÁRIO», «do ESPAÇO», nunca «a o»/«de o»', () => {
     expect(texto).toContain('ao LOCATÁRIO')
     expect(texto).toContain('do ESPAÇO')
@@ -290,6 +295,42 @@ describe('P3 · lo que NO depende del idioma, tambien en portugues', () => {
     expect(t).toContain('Calle Falsa 123, CDMX')
     expect(t).toContain('PEJJ800101AAA')
     expect(t).toContain('nacionalidade mexicana')
+  })
+})
+
+// El contrato PORTUGUES fijado por hash desde el 05/11, tras H4 de la
+// validacion de P3 («à sua inteira satisfação»), cuando aun no habia ningun
+// contrato pt congelado. A partir de aqui, cambiar su texto es cambiar lo que
+// se firma: se actualiza a proposito y conservando la redaccion anterior para
+// cotejar si ya hay contratos pt congelados (`hashParaCotejar`).
+const HASH_PT: Huellas = {
+  completo: '9028c240c097dd9792cee4aab0b951bc12fb3909711a716cdd01846ac0562ef5',
+  otro: 'db2b3f2cf73bcd33f9556917a1b30f948ea67cbd97aafda9848d503be7a7e1ec',
+  vacio: '192098f1b8c68c4378bb8418fb66d555cb88d77699e0993262d29a937af86514',
+  usd: 'c0fb22f57d062e8730b5d372cbf52b76dcbe86c3ab1880d1a0a2888285c81e1f',
+  huella: 'c819a11bac2a8c69a265e35e9699116482876f41853693feb9d94fd3afc1ae07',
+  periodicidad: {
+    SEMANAL: '01f51d40095f8e1807dda21de4c6c1518181c0d01d6bc757898ce7e264988fc6',
+    CATORCENAL: '4726071c2d782188ded6ddb1ecd466b42f347952d7841855e6c412da8e58d32b',
+    QUINCENAL: '24136bbbc1d33de10b43dd2b8b6405530fcc8422557b598d8f88b3270bf46dfd',
+    MENSUAL: 'bba4c26a066db7b971b984786031730d5aab514a2ad39cb79c1a7c32026f9033',
+    BIMESTRAL: '2f557db9d0d678c73f0e231aec13dd3145e431f6cf3004a2da93b84cae6e56fe',
+    TRIMESTRAL: '02960f355674e5e0149884b2257201589f1e984ee375352f966095a8e159f064',
+    SEMESTRAL: '698a05e0e6db07c64729634e06f0ac87512c924da448829f6ae08a8f5bf3e2b2',
+    ANUAL: 'db2b3f2cf73bcd33f9556917a1b30f948ea67cbd97aafda9848d503be7a7e1ec',
+  },
+}
+
+describe('P3 · el contrato en PORTUGUES, fijado por hash', () => {
+  it('completo, persona moral, todos los huecos, USD y la huella de revision', () => {
+    expect(hashDe({ ...completo, idioma: 'pt' })).toBe(HASH_PT.completo)
+    expect(hashDe({ ...otro, idioma: 'pt' })).toBe(HASH_PT.otro)
+    expect(hashDe({ ...vacio, idioma: 'pt' })).toBe(HASH_PT.vacio)
+    expect(hashDe({ ...usd, idioma: 'pt' })).toBe(HASH_PT.usd)
+    expect(hashDe({ ...completo, fechaFirma: null, idioma: 'pt' })).toBe(HASH_PT.huella)
+  })
+  it.each(Object.keys(HASH_PT.periodicidad) as Periodicidad[])('periodicidad %s', (p) => {
+    expect(hashDe({ ...otro, idioma: 'pt', terminos: { ...otro.terminos, periodicidad: p } })).toBe(HASH_PT.periodicidad[p])
   })
 })
 

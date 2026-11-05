@@ -46,7 +46,7 @@ export const PT_PAPELES: Partial<Record<ClaveTexto, string>> = {
   'arrendadores.constancia.navegador-no': 'não registrado',
   'arrendadores.constancia.sello': 'Selo do documento assinado: {hash}',
   'arrendadores.constancia.nota':
-    'Assinatura eletrônica simples. O endereço IP e o navegador são dados fornecidos pelo próprio equipamento de quem assina e são conservados como indícios; por si sós não constituem prova de identidade. Este comprovante não inclui certificado de e.firma do SAT nem constância de conservação NOM-151.',
+    'Assinatura eletrônica simples. O endereço IP e o navegador são dados fornecidos pelo próprio equipamento de quem assina e são conservados como indícios; por si sós não constituem prova de identidade. Este comprovante não inclui certificado de e.firma do SAT nem certificado de conservação NOM-151.',
 
   // ─── Propuesta imprimible (`/propuesta/[id]`, lo que se imprime) ─────────
   'propuestas.documento.qr.acepta': 'Aceite-a on-line',
