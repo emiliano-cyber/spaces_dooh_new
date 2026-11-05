@@ -313,7 +313,7 @@ archivo dentro de la pregunta.
 
 ---
 
-### D19 · Entre las 6 de la tarde y la medianoche, los cupones, las facturas y los cobros ya cuentan como si fuera mañana. ¿Se arreglan para que cuenten con el día de México, como se acaba de hacer con las propuestas?
+### D20 · Entre las 6 de la tarde y la medianoche, los cupones, las facturas y los cobros ya cuentan como si fuera mañana. ¿Se arreglan para que cuenten con el día de México, como se acaba de hacer con las propuestas?
 
 > Abierta el 2026-11-04 (noche) por el supervisor, al revisar `feat/verificacion-ajustes`.
 > Expediente: `docs/Supervision/verificacion-ajustes.md` §3 (H1, H2).
@@ -2166,7 +2166,7 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
 
 ---
 
-#### B85 · 🟠 ABIERTA (2026-11-04) · La zona horaria de g500 no está medida, el código se contradice sobre ella, y una instancia sin `TZ` cuenta en UTC sin avisar
+#### B88 · 🟠 ABIERTA (2026-11-04) · La zona horaria de g500 no está medida, el código se contradice sobre ella, y una instancia sin `TZ` cuenta en UTC sin avisar
 
 - **Qué es:** el arreglo de la vigencia (`feat/verificacion-ajustes`, B84) da por hecho «base en
   UTC, aplicación en `TZ=America/Mexico_City`». Lo escrito es la zona **del sistema**
@@ -2187,9 +2187,9 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
   arrancar o en `/api/version` cuando `TZ` falte.
 - **Quién:** el dueño o quien opere g500, para medir; el ejecutor, para el comentario y el aviso.
 - **Si no se cierra antes de fusionar:** la vigencia queda bien en la hipótesis de la plantilla y
-  sin red en la otra. Y D19 se decide sobre una premisa sin medir.
+  sin red en la otra. Y D20 se decide sobre una premisa sin medir.
 
-#### B86 · 🟡 ABIERTA (2026-11-04) · «Enviar» no tiene prueba que muerda la fecha del correo
+#### B89 · 🟡 ABIERTA (2026-11-04) · «Enviar» no tiene prueba que muerda la fecha del correo
 
 - **Qué es:** de la regla única de la vigencia, la mitad del correo de «Enviar» solo la vigila una
   guardia de texto contra `current_date`. Dos mutantes que leen el día con `toISOString()` en
@@ -2898,9 +2898,9 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
   medido.** Rojo de `22e30e5f` repetido (`4 failed | 2 passed`, el del 409 por aserción); e2e
   `11 passed` a las 22:40 de México (día local ≠ día de la base) y, con aceptar devuelto a
   `current_date` y build, `3 failed`; 5 de 7 mutantes de vigencia mueren. **Lo que deja abierto:**
-  la premisa de g500 sin medir (B85), la fecha del correo sin prueba que muerda (B86), y del
-  «resto», lo de dinero —cupones, facturas, cobros, tablero de finanzas— va a **D19**.
-- **B87 · ⚪ ABIERTA (2026-11-04) · `CLAUDE.md:42` dice 1671 enlaces y `feat/verificacion-ajustes`
+  la premisa de g500 sin medir (B88), la fecha del correo sin prueba que muerda (B89), y del
+  «resto», lo de dinero —cupones, facturas, cobros, tablero de finanzas— va a **D20**.
+- **B90 · ⚪ ABIERTA (2026-11-04) · `CLAUDE.md:42` dice 1671 enlaces y `feat/verificacion-ajustes`
   tiene 1674** (`node scripts/recuentos.mjs`: 1671 en `a91580bb`, 1674 en `aed31579`; el diario
   ya dice 1674). La rama añade tres enlaces en el diario y no tocó `CLAUDE.md`. **Cómo se cierra:**
   correr el script y poner la cifra, en esta rama antes de fusionar. **Quién:** el ejecutor. Menor.

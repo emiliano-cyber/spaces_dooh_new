@@ -23,7 +23,7 @@ del diccionario cambiados).
 va en UTC y la aplicación en `TZ=America/Mexico_City`»— **no está medida en el servidor**, y en el
 propio código hay dos comentarios que afirman lo contrario (§3, H1). El arreglo es seguro si la
 aplicación tiene `TZ` puesta, se diga lo que se diga de la base; **solo empeora las cosas en una
-instancia sin `TZ`**. Lo cierra una persona con dos comandos en g500 (B85). Lo demás es deuda menor
+instancia sin `TZ`**. Lo cierra una persona con dos comandos en g500 (B88). Lo demás es deuda menor
 o anterior a la rama.
 
 ## 1 · Lo que medí
@@ -215,7 +215,7 @@ El diario dice 1674 (bien). **`CLAUDE.md:42` sigue diciendo 1671** (H6).
   instancia sin esa línea corre en UTC **en silencio**: sus propuestas vencen a las 18:00 de México
   del último día. Antes de la rama pasaba lo mismo en la ficha; lo que cambia es que ahora también
   aceptar y el correo siguen a la aplicación, así que en una instancia **sin `TZ` y con la base en
-  hora de México** la rama empeora: antes aceptar contaba bien y ahora no. Por eso B85.
+  hora de México** la rama empeora: antes aceptar contaba bien y ahora no. Por eso B88.
 - **La e2e cambiada sigue probando lo que debe.** Sustituye `current_date ± n` por
   `vigenciaDesde(hoyDeVigencia(), n)` (`propuesta-vigencia.e2e.test.ts:69-71`) y la columna `dias`
   por `vigente_hasta - $2::date`. El servidor de pruebas hereda la `TZ` del proceso de prueba, así
@@ -230,7 +230,7 @@ de Postgres; y la `TZ` de la aplicación en `app.env` está descrita, no impresa
 `lib/server/finanzas-repo.ts:319-320` dice «El día lo pone la BASE (zona America/Mexico_City en
 producción): el reloj del servidor de la app está en UTC», y `lib/server/notificaciones-repo.ts:64-66`
 dice que la base de producción «está en America/Mexico_City». **Uno de los dos lados es falso**, y
-el arreglo de la vigencia apuesta por uno. Lo cierra B85 (dos comandos en g500).
+el arreglo de la vigencia apuesta por uno. Lo cierra B88 (dos comandos en g500).
 
 **H2 · 🟠 B84 «resto»: hay dinero con el mismo defecto de dos relojes, hoy, y no lo introdujo la
 rama.** Si la base de g500 está en UTC (H1):
@@ -249,21 +249,21 @@ rama.** Si la base de g500 está en UTC (H1):
   (`finanzas-repo.ts:503-504`, `finanzas-controller.ts:198` y `:205`,
   `propuestas-resumen-controller.ts:41`).
 Leído, no ejecutado contra una base en UTC. Las otras ~20 (campañas activas, OT, arrendadores,
-Space Eyes) son de estado y no de dinero. → D19.
+Space Eyes) son de estado y no de dinero. → D20.
 
 **H3 · 🟡 La mitad «Enviar» de la regla única no tiene prueba que muerda.** M4 y M5 sobreviven a
 las 1442 unitarias de `lib/server`: si alguien escribe el día del correo con `toISOString()`, el
 correo vuelve a prometer un día distinto del que guarda la base y nada se pone rojo. Se cierra con
 un caso en `propuesta-vigencia-hora.test.ts` que llame a `enviarPropuestaCtrl` con el reloj a las
-19:00 y compare la fecha del correo con la del `update`. Lo cierra el ejecutor; no bloquea. → B86.
+19:00 y compare la fecha del correo con la del `update`. Lo cierra el ejecutor; no bloquea. → B89.
 
-**H4 · 🟡 `TZ` ausente = UTC sin aviso.** Detalle en §2. Va en B85.
+**H4 · 🟡 `TZ` ausente = UTC sin aviso.** Detalle en §2. Va en B88.
 
 **H5 · 🔵 `npm test` rojo 2 de 3 veces por tiempo**, en `scripts/semilla-catalogo-demo.test.ts`
 (2,2 s sola, más de 5 s con la suite). Ajeno a la rama. Anotado en B62.
 
 **H6 · 🔵 `CLAUDE.md:42` dice 1671 enlaces y son 1674.** La rama añade tres (el diario) y no tocó
-`CLAUDE.md`. Un número; lo cierra el ejecutor en esta rama. → B87.
+`CLAUDE.md`. Un número; lo cierra el ejecutor en esta rama. → B90.
 
 **H7 · 🔵 Citas de la bóveda corridas — anteriores a la rama.** P. ej.
 `vault/05-Flujos/flujo-propuesta-a-campana.md:149` cita `cambiarEstatusPropuesta()` en
@@ -278,13 +278,13 @@ B70 fija la lista de los tres mapas a mano; hoy son todos (`grep "\.Map("`: `Sel
 
 ## 4 · Preguntas para el dueño
 
-**D19**, en `ABIERTOS.md` §A, literal. Resumen: ¿se unifica el «hoy» de cupones, facturas y cobros
+**D20**, en `ABIERTOS.md` §A, literal. Resumen: ¿se unifica el «hoy» de cupones, facturas y cobros
 con el día de México, como ya se hizo con las propuestas?
 
 ## 5 · Qué NO pude verificar, y por qué
 
 - **La zona horaria real de la base de g500 y la `TZ` de su aplicación.** No hay `ssh` para mí, por
-  regla. Es lo que decide si H1 y H2 son reales en producción. Comandos en B85 para una persona.
+  regla. Es lo que decide si H1 y H2 son reales en producción. Comandos en B88 para una persona.
 - **Los textos de MapLibre y sonner en un navegador.** No los miré: el intento de levantar un
   `next start` en el 3393 para pedir la página fue denegado por el sistema de permisos, y no insistí.
   Lo que sí está medido: las props llegan (`librerias.test.ts`, 9 pruebas, y 7 mutantes que mueren),
