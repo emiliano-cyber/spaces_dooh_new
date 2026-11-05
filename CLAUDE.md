@@ -799,8 +799,9 @@ al cerrarse **F2.4**, las dos el **2026-09-02**. La 5 en 6 de 8. **Quedan DOS**:
 > original y se elimina» (ADR 0024) y que apuntar `DEMO_URL` ahí «validaría la
 > máquina equivocada»— **dejó de ser cierto por decisión del dueño del 05/11**.
 > El droplet viejo de g500 (`142.93.113.106`, libre tras la mudanza de la guía 30)
-> se convierte en la DEMO, instalada como una instancia de owner en `beta`, con
-> el nombre `demo.space-os.io`. Guía para una persona:
+> se convierte en la DEMO, en `beta`, con el nombre `demo.space-os.io` y **con
+> los datos de g500 al 04/11 tal cual** (se le quita la identidad de g500, no sus
+> datos; riesgo aceptado: datos reales de un cliente en una dirección pública). Guía para una persona:
 > `docs/evidencias/31-g500-viejo-como-demo-20261105.md`, **sin correr**.
 >
 > - **Hoy** la DEMO sigue siendo el contenedor `space-os-demo` del PADRE

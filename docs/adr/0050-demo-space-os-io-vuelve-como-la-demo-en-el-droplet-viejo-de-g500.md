@@ -1,163 +1,167 @@
-# ADR 0050 — `demo.space-os.io` vuelve: es la DEMO, servida por el droplet viejo de g500
+# ADR 0050 — `demo.space-os.io` vuelve: es la DEMO, servida por el droplet viejo de g500 y con una copia de sus datos
 
 - **Fecha:** 2026-11-05
 - **Estado:** Aceptada
-- **Decide:** Emiliano (dueño), 2026-11-05
+- **Decide:** Emiliano (dueño), 2026-11-05, en dos tiempos: la máquina y el nombre
+  por la mañana; **los datos, por la tarde** (contestando las preguntas P1–P10 de
+  la guía 31)
 - **Sustituye a:** [ADR 0024](0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md)
 - **Relacionadas:** [ADR 0015](0015-demo-dentro-del-padre.md) ·
   [ADR 0017](0017-todo-se-concentra-en-el-padre.md) ·
   [ADR 0021](0021-demo-space-os-io-se-queda.md) ·
   [ADR 0022](0022-instancia-dedicada-por-owner.md) ·
   [ADR 0023](0023-el-droplet-viejo-sale-del-modelo.md) ·
+  [ADR 0037](0037-cada-instancia-elige-si-toma-la-version-nueva.md) ·
   guía `docs/evidencias/31-g500-viejo-como-demo-20261105.md` ·
   guía `docs/evidencias/30-mudar-g500-a-droplet-limpio-20261104.md`
 
 > [!important] Esto REVIERTE el 0024, y lo dice a propósito
-> El 0024 cerró el asunto con la frase «no se vuelve a preguntar ni se vuelve a
-> deducir». Este ADR no lo deduce: lo **decide el dueño** el 05/11, con dos
-> hechos nuevos que el 0024 no tenía (abajo). Lo que manda es el ADR con el
-> número más alto que trate el nombre, y desde hoy es **este**.
+> El 0024 cerró el asunto con «no se vuelve a preguntar ni se vuelve a deducir».
+> Este ADR no lo deduce: lo **decide el dueño** el 05/11, con hechos que el 0024
+> no tenía (abajo). Lo que manda sobre el nombre es, desde hoy, **este**.
+
+> [!danger] La DEMO lleva DATOS REALES DE UN CLIENTE — decidido a sabiendas
+> La base de la DEMO es **la de g500 tal como quedó el 04/11** (organización,
+> clientes, pantallas, propuestas, campañas, usuarios), y el disco conserva las
+> fotos y el MySQL de Space Eyes de g500. El dueño lo eligió («dejar la
+> información como está») frente a la alternativa recomendada de instalar de
+> cero con datos sembrados. Los riesgos están escritos abajo y al principio de
+> la guía 31.
 
 ---
 
 ## Contexto
 
 El 0024 (27/08) decidió que `demo.space-os.io` era solo la demostración
-**original** —la de la máquina de julio, `209.97.146.136`—, que no se movía a
-ninguna parte y que se eliminaría cuando naciera la primera instancia de owner.
-La DEMO de verdad, el banco de pruebas del canal `beta`, quedó dentro del PADRE
-como contenedor `space-os-demo` con el nombre nuevo `prueba.space-os.io`
-(ADR 0015/0017, conversión del 02/09).
+**original** —la máquina de julio, `209.97.146.136`— y que se eliminaría. La
+DEMO de verdad, el banco de pruebas de `beta`, quedó dentro del PADRE como
+contenedor `space-os-demo` con el nombre `prueba.space-os.io`.
 
-Dos cosas cambiaron desde entonces:
+Desde entonces:
 
-1. **Hay una máquina libre, del tamaño justo y ya pagada.** La mudanza de g500
-   del 04/11 (guía 30) dejó a g500 en el droplet nuevo `gh500` y el viejo
-   (`142.93.113.106`, NYC1, 2 GB) **apagado e intacto**, «seguro de encender»
-   (D13 de esa guía) y pensado desde el principio para reutilizarse como DEMO
-   (guía 30 §6).
-2. **La DEMO dentro del PADRE arrastra tres defectos conocidos**, todos escritos
-   en `vault/01-Arquitectura/entorno-y-despliegue.md`:
-   - **no es una instancia como las demás**: comparte máquina, roles de Postgres
-     y directorio de respaldos con el PADRE, y por eso cada guion necesita
-     `SPACE_OS_CONF=/etc/space-os/demo-instancia.env` delante (guía 12 §B: sin
-     él se respalda **la base equivocada sin error**);
-   - **su certificado no se renueva**: `prueba.space-os.io` va en el mismo
-     certificado que `space-os.io`, que se renueva por `webroot`, y el ápice ya
-     no resuelve al PADRE. **Caduca el 2026-11-29** y desde ~el 30/10 certbot
-     falla al renovarlo. Con él caducado, `promover.yml` no puede hacer su
-     smoke y **no se puede promover nada a `estable`**;
-   - lo que se valida en ella **no es lo que corre un owner**: un owner está en
-     su propio droplet, solo, con `/etc/space-os/instancia.env` y nginx de
-     `instancia.conf.tpl`. La DEMO dentro del PADRE no.
+1. **Hay una máquina libre, del tamaño justo y ya pagada.** La mudanza del 04/11
+   (guía 30) dejó a g500 en el droplet nuevo `gh500` y el viejo
+   (`142.93.113.106`, NYC1, 2 GB) **apagado e intacto**, seguro de encender
+   (D13 de esa guía).
+2. **La DEMO dentro del PADRE arrastra tres defectos conocidos**
+   (`vault/01-Arquitectura/entorno-y-despliegue.md`): comparte máquina, roles y
+   directorio de respaldos con el PADRE (por eso cada guion necesita
+   `SPACE_OS_CONF` delante); **su certificado no se renueva y caduca el
+   2026-11-29**, y con él caducado `promover.yml` no puede hacer su smoke; y no se
+   parece a la instalación de un owner.
+3. **Ese disco es la única otra copia de Space Eyes de g500**, que no tiene
+   respaldo fuera del droplet (guía 30 §7). Borrarlo para instalar de cero la
+   habría perdido.
 
 ## Decisión
 
-1. **El droplet viejo de g500 se convierte en la DEMO**, instalada **como una
-   instancia de owner más** —`provision-instancia.sh`, `/etc/space-os/instancia.env`,
-   `update.sh` por cron— con la única diferencia de que sigue el canal **`beta`**
-   (invariante 13: nada llega a un owner sin pasar antes por aquí).
-2. **Su nombre es `demo.space-os.io`**, con registro A a `142.93.113.106` en
-   Cloudflare (nube gris) y certificado propio emitido en esa máquina.
-3. **Antes de servir nada, se le quita la identidad de g500** entera: ni sus
-   secretos (`FLOTA_TOKEN`, claves de Spaces con prefijo `g500/`, DOOHmain real,
-   Google, Resend, Maps), ni su base, ni los volúmenes de Space Eyes con datos de
-   un cliente, ni el material de la mudanza. La guía 31 recomienda reinstalar el
-   disco desde cero (*Rebuild*) en vez de vaciarlo a mano.
-4. **Sus datos son de demostración**: base nueva con las semillas del
-   repositorio (`scripts/semilla-demo.mjs` y `scripts/semilla-catalogo-demo.mjs`),
-   nada copiado de g500 ni de otra base real.
-5. **`DEMO_URL` pasa a `https://demo.space-os.io/spaces-dooh`** cuando la DEMO
-   nueva corra la versión que se vaya a promover. Hasta entonces se promueve con
-   la DEMO del PADRE (la v0.12.6 se promueve así, el 05/11).
-6. **Qué pasa con `prueba.space-os.io` y el contenedor `space-os-demo` del PADRE
-   queda para decidir después** de la primera promoción con la DEMO nueva. La
-   guía 31 deja escrito cómo apagarlo de forma reversible.
+1. **El droplet viejo de g500 pasa a ser la DEMO**, con el nombre
+   **`demo.space-os.io`** (registro A a `142.93.113.106`, nube gris, certificado
+   propio emitido en esa máquina).
+2. **Se conservan los datos de g500 tal cual**: la base `spaces`, los volúmenes y
+   fotos de Space Eyes. **No se reinstala ni se vacía el disco**, y no hace falta
+   instantánea: el propio droplet es la copia.
+3. **Lo que se quita es la IDENTIDAD de g500** y todo lo que podría actuar en su
+   nombre: `INSTANCIA=g500`, `FLOTA_TOKEN`, las credenciales de Spaces y el
+   prefijo `g500/` (el respaldo pasa a `demo/`), la clave real de DOOHmain, Google,
+   Resend, Maps, las claves de los roles de Postgres (se rotan), el certificado de
+   `g500.space-os.io`, el cron apartado en la mudanza y el material de
+   `/root/g500-mudanza/`. La guía 31 lo comprueba con `grep` de los valores sin
+   imprimirlos.
+4. **La instancia pasa de `g500` a `demo` sobre la misma base**: `instancia.env` y
+   `app.env` nuevos (escritos con las mismas funciones que el alta,
+   `infra/scripts/entorno-instancia.sh`), `CANAL=beta`, nginx de
+   `instancia.conf.tpl`, `modo = automatica` en `actualizaciones_instancia`, y
+   `update.sh` la lleva de la v0.12.5 (donde quedó g500 el 04/11) a la `beta`
+   vigente, con respaldo previo.
+5. **Space Eyes no se sirve en la DEMO**: sus contenedores quedan **parados y sin
+   borrar**, con su configuración apartada, como copia.
+6. **Sin DOOHmain** (`DOOHMAIN_PUBLISH_ENABLED=0` y sin clave), **sin correo**
+   (sin Resend), **sin Google**: la DEMO no publica en pantallas reales ni escribe
+   a los clientes de g500. Español y MXN (los de g500).
+7. **`DEMO_URL` pasa a `https://demo.space-os.io/spaces-dooh`** y el secreto
+   `FLOTA_TOKEN` de GitHub al de la DEMO nueva, cuando esta corra la versión que
+   se vaya a promover. La v0.12.6 se promueve el 05/11 aún con la del PADRE.
+8. **`prueba.space-os.io` y `space-os-demo` del PADRE se mantienen hasta la
+   primera promoción validada contra la nueva**, y luego se apagan (reversible,
+   guía 31 §8).
 
 ### Lo que esto retira del 0024
 
 | | El 0024 decía | Ahora |
 |---|---|---|
 | `demo.space-os.io` | Demostración original; se eliminará | **Es la DEMO** (banco de pruebas `beta`) |
-| Máquina que lo sirve | La de julio, `209.97.146.136`, hasta eliminarlo | El droplet viejo de g500, `142.93.113.106` |
-| Certificado | No se renueva ni se reemite | **Se emite y se renueva** en esa máquina (`certbot --webroot`, como toda instancia) |
-| «La demostración de las instancias hijas será una instancia hija de verdad» | La primera de `F5.7` | **Se cumple ya**: la DEMO es una instancia instalada como las de owner |
-| `F4.3` (dominio y certificado de DEMO) | Sin objeto | Sigue **sin objeto** como tarea del plan v3 (pedía DEMO **dentro del PADRE**); el trabajo equivalente lo hace la guía 31 |
+| Máquina | La de julio, hasta eliminarlo | El droplet viejo de g500 |
+| Certificado | No se renueva ni se reemite | Se emite y se renueva en esa máquina |
+| `F4.3` | Sin objeto | Sigue sin objeto como tarea del plan v3 (pedía DEMO dentro del PADRE) |
 
 ## Alternativas consideradas
 
-### A · Dejar la DEMO en el PADRE y arreglar su certificado
+### A · Instalar de cero (*Rebuild*) con datos de demostración sembrados
 
-Dar a `prueba.space-os.io` un certificado propio, como se hizo con
-`spaceos.space-os.io` el 01/10. Barato y arregla el plazo del 29/11. **Se
-descarta** porque deja los otros dos defectos: la DEMO sigue sin parecerse a una
-instancia de owner y sigue compartiendo máquina y respaldos con el plano de
-control.
+Era la recomendación de la primera versión de la guía 31: ningún dato de cliente
+en una dirección pública y ninguna lista de borrado que acertar. **El dueño la
+descartó**: perdía la única otra copia de Space Eyes de g500, y prefiere enseñar
+el producto con datos reales.
 
-### B · Un droplet nuevo para la DEMO y destruir el viejo
+### B · Dejar la DEMO en el PADRE y darle certificado propio a `prueba.`
 
-Lo mismo que esta decisión, en una máquina limpia. **Se descarta por coste y
-porque no aporta**: si el viejo se reinstala desde cero (*Rebuild*, que conserva
-la IP), queda igual de limpio que uno nuevo.
+Arregla el plazo del 29/11, pero deja los otros dos defectos. Descartada.
 
-### C · Usar el viejo como DEMO conservando lo que tiene (base de g500 vaciada)
+### C · Un droplet nuevo para la DEMO
 
-Más rápido, pero un disco que tuvo los datos de un cliente, sus secretos y su
-base en claro (`/root/g500-mudanza/`) solo queda limpio si alguien acierta con
-la lista entera de lo que hay que borrar. La guía 31 lo admite como camino B,
-con su comprobación, pero **recomienda el *Rebuild*** por esto.
+Mismo resultado con otra factura, y sin conservar la copia. Descartada.
 
 ## Consecuencias
 
 ### Positivas
 
-- **La DEMO valida lo que corre un owner**: mismo instalador, misma
-  configuración, misma plantilla de nginx, mismo cron. Lo que falle en una
-  instancia nueva falla antes aquí.
-- **Desaparece `SPACE_OS_CONF`** de las guías de publicación: en la DEMO nueva
-  `update.sh` lee su `instancia.env` de siempre.
-- **El plazo del 29/11 deja de bloquear las promociones** en cuanto `DEMO_URL`
-  apunte al nombre nuevo.
-- **El PADRE pierde una carga** (proceso, base `spaces_demo`, cron, respaldos)
-  cuando se retire la DEMO de dentro.
+- La DEMO **se parece a una instancia de owner** (su `instancia.env`, nginx de la
+  plantilla, `update.sh` por cron) y además **con datos de verdad**: cada `beta`
+  se ensaya sobre una base con historia real, que es donde fallan las migraciones.
+- Desaparece `SPACE_OS_CONF` de las guías de publicación en cuanto se retire la
+  DEMO del PADRE.
+- El plazo del 29/11 deja de bloquear las promociones.
+- Se conserva la copia de Space Eyes de g500 sin pagar una instantánea.
 
 ### Negativas
 
-- **Una máquina más que mantener y pagar** (la que ya se pagaba apagada).
-- **Se pierde la vuelta atrás de la mudanza de g500**: el disco viejo era la
-  última copia completa fuera de `gh500`, **incluidas las fotos y el MySQL de
-  Space Eyes, que no tienen respaldo fuera del droplet** (guía 30 §7). Lo
-  pregunta la guía 31 antes de borrar.
-- **Durante la transición hay dos DEMO** (`prueba.` en el PADRE y `demo.` en el
-  viejo). Una publicación tiene que actualizar las dos hasta que se retire una.
+- **La DEMO deja de ser copia fiel de g500 en cuanto diverjan**: la primera
+  migración de `beta` que g500 aún no tenga, o lo que alguien cree en la DEMO, la
+  separa. Es una copia **al 04/11**, no un espejo.
+- **Una máquina más que mantener** (la que ya se pagaba apagada).
+- **Dos DEMO** mientras dure la transición.
 
 ### Implicaciones de seguridad
 
-- **Un disco con datos y secretos de un cliente pasa a ser una máquina pública
-  de demostración.** Es el riesgo central y lo cubre el paso 2 de la guía 31,
-  con verificación (*Rebuild*, o vaciado con `grep` de los valores de los
-  secretos sin imprimirlos).
-- **Ningún secreto de g500 se reutiliza**: la DEMO nace con claves de Postgres,
-  `BOOTSTRAP_TOKEN` y `FLOTA_TOKEN` nuevos (`provision-instancia.sh`), sin
-  credenciales de Spaces de g500, sin DOOHmain real, sin Google ni Resend de g500.
-- **La IP `142.93.113.106` fue de g500.** Cualquier lista de IP permitidas que
-  la nombre (la clave de Google Maps de servidor, si alguna la tuviera; un filtro
-  por origen en DOOHmain, si existiera) dejaría a la DEMO hablar en nombre de
-  g500. La guía 31 lo revisa.
-- **HSTS con `includeSubDomains`** en `space-os.io`: `demo.` tiene que servir
-  siempre un certificado válido o el navegador no deja ni saltarse el error.
+- **Datos reales de un cliente en una dirección pública de demostración.**
+  Cualquiera que entre a la DEMO ve clientes, importes y contratos de g500.
+- **Las cuentas de las personas de g500 siguen existiendo en la DEMO con sus
+  contraseñas.** Quien conozca la suya entra. La guía 31 propone, como paso
+  opcional, desactivarlas y crear un usuario de demostración; el Dueño con
+  `solo_google` no puede entrar porque la DEMO no tiene Google.
+- **Las ligas públicas que g500 ya mandó** (`/p/<token>`, portal) **funcionan
+  también en `demo.space-os.io`**: el token vive en la base, no en el dominio.
+- **La llave de Spaces de la DEMO alcanza el bucket entero**, también el prefijo
+  `g500/`: Spaces limita por bucket, no por prefijo (`instancia.env.example`,
+  bloque de respaldos). El prefijo `demo/` separa por convención, no por permiso.
+- **La IP `142.93.113.106` fue de g500**: cualquier lista de IP permitidas que la
+  conserve (Google, DOOHmain) se revisa en la guía 31 §2.1.
+- **Ningún secreto de g500 queda en uso**: claves de Postgres rotadas, tokens
+  nuevos, sin credenciales de terceros de g500. Lo que **sí** queda en disco, a
+  propósito y apartado, son los secretos internos de la pila de Space Eyes (la
+  copia).
 
 ## Cómo revertir
 
-- **Antes de cambiar `DEMO_URL`**: no hay nada que revertir en el flujo de
-  publicación; basta con no usar la DEMO nueva.
-- **Después**: `DEMO_URL` de vuelta a la DEMO del PADRE (si sigue viva y con
-  certificado), y el registro A de `demo` borrado o apuntado a otra parte.
-- **Lo irreversible** es el paso 2 de la guía 31: una vez reinstalado o vaciado
-  el disco, los datos de g500 que solo estuvieran ahí no vuelven.
+- **Antes de cambiar `DEMO_URL`**: no usar la DEMO nueva; nada más depende de ella.
+- **Después**: `DEMO_URL` y `FLOTA_TOKEN` de vuelta a la DEMO del PADRE (si sigue
+  viva), y el A de `demo` retirado.
+- **Quitar los datos de g500 de la DEMO** es siempre posible después (guía 31 §8.4:
+  instalar de cero con semillas), pero solo tras resolver otra copia de Space Eyes.
 
 ## Cuándo revisar
 
-Tras la **primera promoción a `estable` validada contra la DEMO nueva**: es el
-momento de decidir el destino de `prueba.space-os.io` y del contenedor
-`space-os-demo` del PADRE.
+Tras la **primera promoción a `estable` validada contra la DEMO nueva** (destino
+de `prueba.`), y **cuando Space Eyes tenga respaldo fuera del droplet**: en ese
+momento desaparece la razón principal para mantener datos reales en la DEMO.
