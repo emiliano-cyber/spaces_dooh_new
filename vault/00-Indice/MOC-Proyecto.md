@@ -156,7 +156,7 @@ cobranza.
   cuando el `=` de la consulta va percent-encoded
 - [[auditoria-cuatro-rojo-20260820]] — auditoría de los cuatro ROJO del 20/08
 - [[_plantilla-diaria]] — plantilla del diario
-- [[2026-11-05]] — **última entrada**: las notas de versión en inglés e italiano y B82 (cambiar de idioma con un diálogo de cifras abierto)
+- [[2026-11-05]] — **última entrada**: las notas de versión en inglés e italiano, B82 (cambiar de idioma con un diálogo de cifras abierto) y la rama `verificacion`, todas las ramas juntas antes de `main`
 - [[2026-11-04]] — el pulido final del italiano (B69, B72, la paginación y el barrido global del HTML italiano)
 - [[2026-11-03]] — el inglés terminado (olas 5–7), las e2e que caían por la tarde, la demo sembrada en DEMO, la semilla completa, el PDF para socios y el arranque del italiano con el idioma de la instancia para los contratos
 - [[2026-10-29]] — DOOHmain probado contra una pantalla real (pausa, estado, historial, reemplazo), sus dos defectos de estatus, y PROP-COMPLETA integrada en la v0.12.5

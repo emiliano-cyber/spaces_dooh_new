@@ -1,10 +1,17 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-11-02
+actualizado: 2026-11-05
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
+
+> [!important] 2026-11-05 · **VERIFICACION · todas las ramas juntas antes de `main`** — rama `verificacion`, desde `integra/idiomas` (`0a594a9e`) — **sin empujar**
+> Contiene: inglés e italiano completos (ADR 0048/0049, idioma por usuario, cifras y notas de versión por idioma),
+> `docs/mover-g500-2gb`, `feat/semilla-demo-completa`, `feat/space-eyes-en-hijo-existente`, `fix/space-eyes-fotos-rapidas`
+> (con sus textos en es/en/it) y `feat/space-eyes-con-mejoras` (solo documentación: su código ya estaba dentro).
+> **Fuera a propósito:** `prueba/todo-junto` (su contenido llegó a `main` con la v0.12.0) y
+> `chore/retirar-scripts-pista-archivada` (F5.5, espera a F3.6). Detalle y cifras en [[2026-11-05]].
 
 > [!important] 2026-11-02 · **MONEDA-INSTANCIA · la moneda (MXN o USD) se elige al crear la instancia y no se cambia** — rama `feat/moneda-por-instancia`, encima de `integra/ingles` (`27047bfe`) — **en REVISION, sin fusionar ni empujar** · ROJO R3 (migración) + R4 (dinero), **aprobado por el dueño el 02/11**
 > [ADR 0048](../../docs/adr/0048-la-moneda-es-de-la-instancia-y-no-se-cambia.md). Migración `20261102_moneda_inmutable_por_instancia.sql`
