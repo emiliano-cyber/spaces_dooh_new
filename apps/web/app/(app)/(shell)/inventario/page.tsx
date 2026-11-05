@@ -64,7 +64,7 @@ export default function AgregarInventarioPage() {
   if (sesion && rol !== 'DUENO' && rol !== 'ADMINISTRADOR') {
     return (
       <div className="w-full p-6">
-        <h1 className="text-lg font-semibold text-ink">Inventario</h1>
+        <h1 className="text-2xl text-ink">Inventario</h1>
         <p className="mt-2 text-[13px] text-muted">
           Esta sección es exclusiva del Dueño y del administrador.
         </p>
@@ -93,7 +93,7 @@ export default function AgregarInventarioPage() {
           <PackagePlus className="h-5 w-5" strokeWidth={1.75} />
         </span>
         <div>
-          <h1 className="text-lg font-semibold text-ink">Inventario</h1>
+          <h1 className="text-2xl text-ink">Inventario</h1>
           <p className="text-[13px] text-muted">
             Consulta el inventario completo, o agrega pantallas por carga masiva o alta manual.
           </p>

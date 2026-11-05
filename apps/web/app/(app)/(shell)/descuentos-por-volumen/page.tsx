@@ -29,8 +29,8 @@ export default function DescuentosPorVolumenPage() {
       <header className="flex items-center gap-2">
         <Layers className="h-5 w-5" />
         <div>
-          <h1 className="text-lg font-semibold">Descuentos por volumen</h1>
-          <p className="text-xs text-neutral-500">
+          <h1 className="text-2xl text-ink">Descuentos por volumen</h1>
+          <p className="mt-1 text-[13px] text-muted">
             Qué descuento gana quien compra mucho. Se captura una vez por unidad de venta y vale
             para todo el inventario.
           </p>

@@ -79,7 +79,7 @@ export default function DisponibilidadPage() {
           <CalendarRange className="h-5 w-5" strokeWidth={1.75} />
         </span>
         <div>
-          <h1 className="text-lg font-semibold text-ink">Disponibilidad</h1>
+          <h1 className="text-2xl text-ink">Disponibilidad</h1>
           <p className="text-[13px] text-muted">
             Ocupación futura por catorcena o mes. Cruza reservas vigentes (tentativas y
             confirmadas) contra el inventario para ver qué tienes libre más adelante.

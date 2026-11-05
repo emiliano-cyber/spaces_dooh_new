@@ -13,8 +13,8 @@ export default function CaptacionPage() {
       <header className="flex items-center gap-2">
         <Target className="h-5 w-5" />
         <div>
-          <h1 className="text-lg font-semibold">Captación</h1>
-          <p className="text-xs text-neutral-500">
+          <h1 className="text-2xl text-ink">Captación</h1>
+          <p className="mt-1 text-[13px] text-muted">
             Clientes, arrendadores, predios y pantallas que se están trabajando, con la bitácora de
             cada uno. Cuando uno está listo se envía a revisión, y al aprobarlo se da de alta.
           </p>

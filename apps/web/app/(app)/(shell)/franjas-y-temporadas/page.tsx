@@ -29,8 +29,8 @@ export default function FranjasYTemporadasPage() {
       <header className="flex items-center gap-2">
         <Clock className="h-5 w-5" />
         <div>
-          <h1 className="text-lg font-semibold">Franjas y temporadas</h1>
-          <p className="text-xs text-neutral-500">
+          <h1 className="text-2xl text-ink">Franjas y temporadas</h1>
+          <p className="mt-1 text-[13px] text-muted">
             Las dos dimensiones de la tarifa: la hora del día y la época del año. Se capturan una
             vez y valen para todo el inventario.
           </p>

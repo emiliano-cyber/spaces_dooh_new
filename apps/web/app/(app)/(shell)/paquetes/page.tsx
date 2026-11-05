@@ -30,8 +30,8 @@ export default function PaquetesPage() {
       <header className="flex items-center gap-2">
         <Package className="h-5 w-5" />
         <div>
-          <h1 className="text-lg font-semibold">Paquetes cerrados</h1>
-          <p className="text-xs text-neutral-500">
+          <h1 className="text-2xl text-ink">Paquetes cerrados</h1>
+          <p className="mt-1 text-[13px] text-muted">
             Un conjunto de pantallas con un precio del conjunto. Sustituye la suma de sus tarifas
             de lista; no la descuenta.
           </p>

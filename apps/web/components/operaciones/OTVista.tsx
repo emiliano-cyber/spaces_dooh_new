@@ -312,7 +312,7 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
   // ─── Piezas de contenido (reutilizadas por la vista móvil y la de escritorio) ─
   const cabecera = (
     <div>
-      <h1 className="text-lg font-semibold text-ink">{ot.descripcion}</h1>
+      <h1 className="text-2xl text-ink">{ot.descripcion}</h1>
       {campana && <p className="mt-0.5 text-[12px] text-muted">Campaña: {campana.nombre}</p>}
       {responsable !== undefined && (
         <p className="mt-0.5 text-[12px] text-muted">
