@@ -1756,7 +1756,10 @@ const ITALIANO: Record<string, string[]> = {
   'barra del documento con un faltante': ['Manca 1 dato da inserire.'],
   'documento del contrato (Server Component)': [
     // El documento sigue en espanol (decision del dueño); lo que lo rodea, en italiano.
-    'CONTRATO DE ARRENDAMIENTO', 'Firma del contratto', 'Documento congelato in data 19 ottobre 2026 alle ore 09:00.',
+    // Sin la hora a proposito: el panel pinta la hora en la zona de quien lo mira
+    // (09:00 en Mexico, 15:00 en el CI, que corre en UTC). Con la hora, la prueba
+    // pasaba en esta maquina y fallaba en el CI del PR de la v0.12.6 (05/11).
+    'CONTRATO DE ARRENDAMIENTO', 'Firma del contratto', 'Documento congelato in data 19 ottobre 2026 alle ore ',
     'In sospeso — si attende la firma di Don Pepe', 'La tua azienda (conduttrice)',
   ],
   'firma pública · expirada': ['Il link è scaduto.', 'Chiedi al mittente di inviartene uno nuovo.'],
