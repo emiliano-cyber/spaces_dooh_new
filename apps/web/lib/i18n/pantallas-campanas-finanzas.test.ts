@@ -1396,7 +1396,7 @@ describe('lote CAMPANAS y FINANZAS · en PORTUGUES', () => {
   it('frases portuguesas a la vista', async () => {
     const vistas: [string, string[]][] = [
       ['lista de campanas', ['Campanhas', 'Prontas para faturar']],
-      ['candado con el monto ilegible', ['O valor não foi entendido: a vírgula separa os milhares e o ponto, os decimais (212,500.50).']],
+      ['candado con el monto ilegible', ['O valor não foi entendido: o ponto separa os milhares e a vírgula, os decimais (212.500,50).']],
       ['generar factura en parcialidades', ['Cobrar em parcelas']],
       ['estado de cuenta sin movimientos, con un rango a mano', ['Nenhuma fatura nem pagamento de 5 de jan. de 2026 a 9 de mar. de 2026.']],
     ]

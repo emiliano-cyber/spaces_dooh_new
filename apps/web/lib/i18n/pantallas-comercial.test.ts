@@ -1492,9 +1492,9 @@ describe('lote COMERCIAL · en ITALIANO', () => {
 //  diccionario, sin el espanol pendiente de OTROS lotes), ningun formato
 //  ajeno y el portugues esperado donde hay concordancia o formato.
 // ============================================================================
-// Los ejemplos de captura del alta («Ex.: 12.9») siguen la captura MEXICANA
-// hasta la tarea roja `feat/portugues-cifras` (P2): hoy dicen la verdad.
-const PERMITIDOS_PT = [/^12\.9$/, /^7\.2$/, /^15,000\.50$/, /^212,500\.50$/]
+// Los ejemplos de captura del alta salen a la brasileña («Ex.: 12,9») desde
+// la tarea roja `feat/portugues-cifras` (P2, 05/11): ya no hay nada que permitir.
+const PERMITIDOS_PT: RegExp[] = []
 const DATOS_PT = ['Pantalla Reforma', 'Azotea Insurgentes 1420', 'Seguros Andinos', 'Campaña Navidad']
 
 const PORTUGUES: Record<string, string[]> = {
