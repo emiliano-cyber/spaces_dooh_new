@@ -3,7 +3,6 @@ import { huellasDeFormatoEspanol } from './guardias-ingles'
 import { huellasEnItaliano } from './guardias-italiano'
 import { huellasEnPortugues } from './guardias-portugues'
 import { culpablesEnItaliano } from '../test/barrido-italiano'
-import { espanolPendienteDeOtrosLotes } from '../test/barrido-portugues'
 import { createElement, type ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -3625,9 +3624,7 @@ describe('lote SPACE EYES · barrido italiano con el diccionario entero', () => 
 //   (b) ningun formato espanol ni ingles (`guardias-portugues.ts`), quitada la
 //       marca de la foto, que es la evidencia y sigue en es-MX;
 //   (c) el barrido: ningun trozo espanol NI INGLES del diccionario del lote en
-//       el HTML portugues. Lo de otros lotes que aun cae al espanol (el
-//       veredicto `comercial.eye.*` de L2) se aparta con
-//       `espanolPendienteDeOtrosLotes`, que no esconde nada de este lote.
+//       el HTML portugues.
 const COMUNES_PT = new Set<string>([
   ...COMUNES,
   // Se escriben igual en portugues (leidas una por una, como los cognados de
@@ -3646,18 +3643,12 @@ const COMUNES_PT = new Set<string>([
   // Con datos de la prueba dentro, igual en portugues.
   'Todos · 4', 'Página 2', 'Página 1 de 3', 'Foto de Reforma 222', 'Última captura de Reforma 222 · Cara A',
   'Grupo: Norte', 'Gabinetes 4, 9 (2 de 15)', 'Gabinetes 2, 5, 8 (3 de 15)',
-  // De OTRO lote (L2): el veredicto de la foto (`comercial.eye.*`) cae al
-  // espanol hasta que L2 lo traduzca.
-  'Anuncio correcto · confianza 93%',
-  'No coincide con la creatividad · 41%',
 ])
 
-// Datos que manda el servidor o la prueba (no son del diccionario).
-// El veredicto de la foto es de L2 (`comercial.eye.*`) y cae al espanol: su
-// « · confianza {pct}» es un trozo corto que `espanolPendienteDeOtrosLotes` no
-// aparta, y choca con el de `spaceeyes.pyc.detectada`. Se quita la frase
-// entera de L2, no el trozo suelto.
-const DATOS_PT: string[] = ['Anuncio correcto · confianza']
+// Datos que manda el servidor o la prueba (no son del diccionario). Hasta la
+// costura (05/11) llevaba el veredicto de la foto (`comercial.eye.*`, L2), que
+// caia al espanol; con L2 dentro sale en portugues y no se aparta nada.
+const DATOS_PT: string[] = []
 
 const PORTUGUES: Record<string, string[]> = {
   'lista · con equipos': [
@@ -3791,7 +3782,7 @@ describe('lote SPACE EYES · barrido portugues con el diccionario entero', () =>
       culpables.push(
         ...culpablesEnItaliano(crudo, { es: ES_SPACEEYES, en: EN_SPACEEYES, it: PT_SPACEEYES }, {
           minimo: 6,
-          ignorar: [...DATOS_PT, ...espanolPendienteDeOtrosLotes()],
+          ignorar: [...DATOS_PT],
         }).map((c) => `${p.nombre} · ${c}`),
       )
     }

@@ -14,8 +14,7 @@ import { huellasEnItaliano } from './guardias-italiano'
 import { fugasItaliano, legible, copiasDeOtroIdioma, IGUALES_A_PROPOSITO_L4, reglasDelItaliano, palabrasEspanolas } from '../test/barrido-italiano-l4'
 import { huellasEnPortugues } from './guardias-portugues'
 import { culpablesEnItaliano } from '../test/barrido-italiano'
-import { espanolPendienteDeOtrosLotes } from '../test/barrido-portugues'
-import { palabrasEspanolasEnPortugues, espanolPendienteDe } from '../test/barrido-portugues-l4'
+import { palabrasEspanolasEnPortugues } from '../test/barrido-portugues'
 
 // ============================================================================
 //  I18N · LOTE «CLIENTES, COMISIONES Y CAPTACION», RENDIDO EN LOS DOS IDIOMAS.
@@ -758,16 +757,13 @@ describe('lote CLIENTES · frases corregidas por la validacion del L4', () => {
 //
 // Los mismos estados en portugues, con el barrido del L5: ni una frase
 // espanola ni inglesa de Clientes ni de las etiquetas de Campañas que la
-// ficha reusa (quitando el espanol PENDIENTE de otros lotes: la etapa de
-// Comercial negociacion en Captacion), ni palabras espanolas sueltas, ni un
+// ficha reusa, ni palabras espanolas sueltas, ni un
 // formato ajeno; y el dinero con el simbolo portugues de la instancia.
 describe('lote CLIENTES · en PORTUGUES', () => {
   // Datos de prueba y el catalogo del SAT del alta (`USOS_CFDI`: el texto de
   // cada opcion ES el valor que se guarda, igual en todos los idiomas).
   const AJENOS = ['G03 · Gastos en general', 'G01 · Adquisición de mercancías', 'P01 · Por definir', 'Panaderia Sol',
-    'Azotea Reforma', 'Verano', 'Sitio', 'Personas Morales sin fines de lucro',
-    // La etapa de Comercial negociacion (L2, aun sin portugues) que pinta Captacion.
-    ...espanolPendienteDe('comercial.negociacion.etapa.')]
+    'Azotea Reforma', 'Verano', 'Sitio', 'Personas Morales sin fines de lucro']
   async function diccionarios() {
     const { PT_CLIENTES } = await import('./textos/clientes')
     const { ES_CAMPANAS, EN_CAMPANAS, PT_CAMPANAS } = await import('./textos/campanas')
@@ -782,7 +778,7 @@ describe('lote CLIENTES · en PORTUGUES', () => {
     it(`barrido y formatos · ${e.nombre}`, async () => {
       forzado.cola = []
       const crudo = (await e.pintar('pt')).replace(/ value="[^"]*"/g, '')
-      expect(culpablesEnItaliano(crudo, await diccionarios(), { minimo: 5, ignorar: [...AJENOS, ...espanolPendienteDeOtrosLotes()] })).toEqual([])
+      expect(culpablesEnItaliano(crudo, await diccionarios(), { minimo: 5, ignorar: [...AJENOS] })).toEqual([])
       expect(palabrasEspanolasEnPortugues(crudo, AJENOS)).toEqual([])
       expect(huellasEnPortugues(crudo)).toEqual([])
     })

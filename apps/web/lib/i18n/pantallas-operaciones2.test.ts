@@ -10,7 +10,6 @@ import { leerDinero } from './simbolo-en-pantalla'
 import { ES_OPERACIONES2, EN_OPERACIONES2, IT_OPERACIONES2, PT_OPERACIONES2 } from './textos/operaciones2'
 import { huellasEnPortugues } from './guardias-portugues'
 import { culpablesEnItaliano } from '../test/barrido-italiano'
-import { espanolPendienteDeOtrosLotes } from '../test/barrido-portugues'
 import { huellasEnItaliano } from './guardias-italiano'
 import { legible, fugasEnItaliano } from '../test/italiano-l3'
 
@@ -853,14 +852,8 @@ describe('lote OPERACIONES (parte 2) · barrido del diccionario contra el HTML i
 // Los mismos estados, rendidos en `pt`: ninguna huella de formato espanol o
 // ingles, ninguna frase espanola ni inglesa del lote (lo que falta del
 // portugues cae al ESPANOL y no da error: solo se ve aqui), las frases
-// portuguesas de los estados con lista y el dinero con «MX$ » delante. Lo
-// espanol de OTROS lotes aun sin traducir se aparta con
-// `espanolPendienteDeOtrosLotes()`.
-const DATOS_PT = ['Verano', 'Otoño', 'Invierno', 'Luisa Campo', 'Pantalla Reforma', 'Pantalla Sur', 'Valla Sur', 'Valla Norte', 'Cliente Uno', 'Revisar estructura',
-  // Los estados de la OT salen de Campanas (`campanas.ot.pendiente`, `campanas.ot.en-proceso`,
-  // lote L4, sin portugues aun) y dicen lo mismo que dos claves de este lote; las de
-  // este lote SI salen en portugues («Em andamento», «Pendente»): estan en las listas.
-  'Pendiente', 'En proceso']
+// portuguesas de los estados con lista y el dinero con «MX$ » delante.
+const DATOS_PT = ['Verano', 'Otoño', 'Invierno', 'Luisa Campo', 'Pantalla Reforma', 'Pantalla Sur', 'Valla Sur', 'Valla Norte', 'Cliente Uno', 'Revisar estructura']
 const PORTUGUES: Record<string, string[]> = {
   'operaciones · cargando': ['Tarefas da equipe de campo · acompanhamento em campo', 'Nova OS', 'Ordens de serviço', '>Atribuídas<', '>Em andamento<', '>Concluídas<'],
   'operaciones · con OT, aviso de SLA y filtros': [
@@ -914,7 +907,7 @@ describe('lote OPERACIONES (parte 2) · en PORTUGUES, sin formatos ajenos, sin e
       const crudo = await p.pintar('pt')
       expect(huellasEnPortugues(crudo)).toEqual([])
       const dic = { es: ES_OPERACIONES2, en: EN_OPERACIONES2, it: PT_OPERACIONES2 }
-      expect(culpablesEnItaliano(crudo, dic, { ignorar: [...DATOS_PT, ...espanolPendienteDeOtrosLotes()] })).toEqual([])
+      expect(culpablesEnItaliano(crudo, dic, { ignorar: [...DATOS_PT] })).toEqual([])
       const html = texto(crudo)
       expect((PORTUGUES[p.nombre] ?? []).filter((f) => !html.includes(f))).toEqual([])
     })

@@ -10,7 +10,6 @@ import { leerDinero } from './simbolo-en-pantalla'
 import { huellasEnItaliano } from './guardias-italiano'
 import { huellasEnPortugues } from './guardias-portugues'
 import { culpablesEnItaliano } from '../test/barrido-italiano'
-import { espanolPendienteDeOtrosLotes } from '../test/barrido-portugues'
 
 // ============================================================================
 //  I18N · CONSUMO DE LUZ (`/energia`), RENDIDO EN LOS DOS IDIOMAS.
@@ -506,9 +505,7 @@ describe('ENERGIA · barrido italiano con el diccionario entero', () => {
 // ESPANOL (decision del dueno): una frase sin traducir no se distingue de la
 // version espanola, asi que se exige:
 //   (a) el portugues esperado (`PORTUGUES`) y ninguna frase espanola;
-//   (b) el barrido del diccionario de energia: ningun trozo espanol ni ingles
-//       (lo de otros lotes que aun cae al espanol se aparta con
-//       `espanolPendienteDeOtrosLotes`, que no esconde nada de este);
+//   (b) el barrido del diccionario de energia: ningun trozo espanol ni ingles;
 //   (c) ningun formato espanol ni ingles (`guardias-portugues.ts`);
 //   (d) el dinero con el simbolo de la instancia en `pt` («MX$ », «US$ »).
 const PORTUGUES: Record<string, string[]> = {
@@ -611,7 +608,7 @@ describe('ENERGIA · barrido portugues con el diccionario entero', () => {
       culpables.push(
         ...culpablesEnItaliano(crudo, { es: ES_ENERGIA, en: EN_ENERGIA, it: PT_ENERGIA }, {
           minimo: 6,
-          ignorar: [...DATOS, ...espanolPendienteDeOtrosLotes()],
+          ignorar: [...DATOS],
         }).map((c) => `${p.nombre} · ${c}`),
       )
     }

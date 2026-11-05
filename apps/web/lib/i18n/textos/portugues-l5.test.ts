@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { DICCIONARIOS, PT_PARCIAL } from '../diccionario'
 import { clavesBasePortugues } from '../cobertura-portugues'
-import { espanolPendienteDeOtrosLotes } from '../../test/barrido-portugues'
 import { ES_SHELL, EN_SHELL, PT_SHELL } from './shell'
 import { ES_CUENTA, EN_CUENTA, PT_CUENTA } from './cuenta'
 import { ES_ADMIN, EN_ADMIN, PT_ADMIN } from './admin'
@@ -230,25 +229,10 @@ describe('portugues L5 · el diccionario entero, sin depender de lo que se rinde
   })
 })
 
-describe('el barrido de pantallas portuguesas no esconde nada del lote', () => {
-  // `espanolPendienteDeOtrosLotes()` se pasa como `ignorar` en los barridos de
-  // `pantallas-admin` y `pantallas-cuenta-shell`: si trajera un trozo del
-  // lote L5, ese trozo podria quedarse en espanol sin que nadie lo viera.
-  it('ningun trozo ignorado es el espanol de una clave del lote', () => {
-    const delLote = new Set(AMBITOS.flatMap(([, es]) => Object.values(es)))
-    expect(espanolPendienteDeOtrosLotes().filter((t) => [...delLote].some((v) => v.trim() === t))).toEqual([])
-  })
-  it('y si una clave del lote perdiera su portugues, su espanol pasaria a ignorarse (por eso lo de arriba)', () => {
-    const pt = PT_PARCIAL as Record<string, string | undefined>
-    const antes = pt['shell.carga.detalle']
-    delete pt['shell.carga.detalle']
-    try {
-      expect(espanolPendienteDeOtrosLotes()).toContain('La información no llegó del servidor. No es que no existan datos: no se pudieron leer.')
-    } finally {
-      pt['shell.carga.detalle'] = antes
-    }
-  })
-})
+// Hasta la costura (05/11) aqui se vigilaba `espanolPendienteDeOtrosLotes()`
+// (el espanol de otros lotes que los barridos apartaban). Con los cinco lotes
+// cerrados se retiro: no queda nada pendiente que apartar
+// (`cobertura-portugues.test.ts` exige 0 pendientes en todas las filas).
 
 // ─── Validacion del lote (ambar, 05/11) ─────────────────────────────────────
 // El registro es «voce» con el imperativo de 3.a persona. Ninguna prueba lo

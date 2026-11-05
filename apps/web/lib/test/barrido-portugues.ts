@@ -1,35 +1,51 @@
-import { CLAVES, DICCIONARIOS, PT_PARCIAL } from '../i18n/diccionario'
+import { textoLegible } from '../i18n/guardias-ingles'
 
 // ============================================================================
-//  lib/test/barrido-portugues.ts — LO QUE TODAVIA CAE AL ESPANOL, A PROPOSITO.
+//  lib/test/barrido-portugues.ts — LAS PALABRAS ESPANOLAS SUELTAS EN UNA
+//  PANTALLA PORTUGUESA.
 // ----------------------------------------------------------------------------
-//  Lote L5 del portugues (2026-11-05). El barrido del italiano
-//  (`culpablesEnItaliano`, `barrido-italiano.ts`) sirve tal cual para el
-//  portugues: busca en el HTML cada trozo espanol o ingles de los
-//  diccionarios del lote. Pero en portugues lo que falta cae al ESPANOL, y una
-//  pantalla del lote puede llevar texto de OTRO lote que aun no se tradujo
-//  («Ubicación de las pantallas», de propuestas, dentro de la liga publica).
-//  Ese texto contiene palabras sueltas del lote («Ubicación», «Pantalla») y el
-//  barrido las cazaria sin ser culpa del lote.
+//  El barrido por trozos del italiano (`culpablesEnItaliano`,
+//  `barrido-italiano.ts`) sirve tal cual para el portugues: busca en el HTML
+//  las frases ESPANOLAS e INGLESAS de los diccionarios de un ambito. No ve un
+//  portugues A MEDIAS («Sem movimento en este periodo»): ni el espanol ni el
+//  ingles enteros estan a la vista. Para eso, esta guardia de palabras (lote
+//  L4, 05/11; la leccion del mutante M3 del italiano L4).
 //
-//  Esto devuelve el espanol de las claves que TODAVIA no tienen portugues,
-//  troceado por sus huecos y solo los trozos largos (`minimo`), para pasarlo
-//  como `ignorar`. Se encoge solo a medida que los lotes traducen: con todo
-//  traducido, devuelve []. Los trozos cortos no se ignoran, porque esconderian
-//  una palabra suelta del lote que de verdad se quedo en espanol.
+//  En portugues hace falta otra lista que la italiana: «desde», «está»,
+//  «tarifa», «vencida», «pago», «ver» o «editar» se escriben igual en los dos
+//  idiomas y no prueban nada («buscar» tampoco: es el verbo de pt-BR). Aqui
+//  van solo las que NO existen en portugues.
+//
+//  ─── LA COSTURA (05/11) ─────────────────────────────────────────────────
+//  Hasta la costura este archivo traia `espanolPendienteDeOtrosLotes()` (L5)
+//  y `barrido-portugues-l4.ts` traia `espanolPendienteDe(prefijo)` (L4): el
+//  espanol de las claves de OTROS lotes aun sin portugues, que cada barrido
+//  apartaba con `ignorar` porque caia al espanol sin ser culpa del lote. Con
+//  los cinco lotes cerrados no queda ninguna clave sin portugues
+//  (`cobertura-portugues.test.ts` lo exige), las dos devolvian [] y se
+//  retiraron: un barrido ya no aparta nada que no sea un dato de su prueba.
+//  Los dos archivos se unificaron en este.
 // ============================================================================
 
-//  Y un trozo que TAMBIEN es el espanol de una clave ya traducida («No se pudo
-//  leer el archivo» lo dicen admin y otro lote) no se ignora: si saliera, no
-//  se sabria de cual de las dos es, y esconderlo podria tapar la del lote.
-export function espanolPendienteDeOtrosLotes(minimo = 12): string[] {
-  const es = DICCIONARIOS.es as Record<string, string>
-  const pt = PT_PARCIAL as Partial<Record<string, string>>
-  const trocear = (k: string) => es[k].split(/\{\w+\}/).map((t) => t.trim())
-  const traducidos = new Set(CLAVES.filter((k) => pt[k]).flatMap(trocear))
-  const trozos = CLAVES.filter((k) => !pt[k])
-    .flatMap(trocear)
-    .filter((t) => t.length >= minimo && !traducidos.has(t))
-  // Los largos primero: si uno contiene a otro, se quita entero.
-  return [...new Set(trozos)].sort((a, b) => b.length - a.length)
+export const PALABRAS_SOLO_ESPANOL = [
+  'y', 'el', 'los', 'las', 'del', 'pero', 'hay', 'aquí', 'están', 'todavía', 'ningún', 'ninguna', 'hasta', 'cuando',
+  'según', 'fecha', 'fechas', 'pantalla', 'pantallas', 'campaña', 'campañas', 'factura', 'facturas', 'cobranza',
+  'renta', 'monto', 'reporte', 'reportes', 'sitio', 'sitios', 'guardar', 'borrar', 'nuevo', 'nueva', 'días', 'año',
+  'sin', 'cuota', 'cuotas', 'arrendador', 'predio', 'propuesta', 'propuestas', 'también', 'aún', 'quitar', 'agregar',
+  'eliminar', 'subir', 'bajar', 'cargando', 'guardando', 'cerrar', 'movimiento', 'libre', 'libres', 'cobro',
+]
+
+/** Las palabras que solo existen en espanol, con su contexto, en el texto legible de un HTML portugues. */
+export function palabrasEspanolasEnPortugues(html: string, ajenos: readonly string[] = []): string[] {
+  let todo = textoLegible(html)
+  for (const a of ajenos) todo = todo.split(a).join('\n')
+  const vistas = new Set<string>()
+  for (const p of PALABRAS_SOLO_ESPANOL) {
+    const m = todo.match(new RegExp(`(?:^|[^\\p{L}])(${p})(?=$|[^\\p{L}])`, 'iu'))
+    if (m) {
+      const i = m.index ?? 0
+      vistas.add(`«${p}» en «${todo.slice(Math.max(0, i - 25), i + p.length + 25).replace(/\s+/g, ' ').trim()}»`)
+    }
+  }
+  return [...vistas]
 }

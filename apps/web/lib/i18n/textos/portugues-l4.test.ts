@@ -312,12 +312,12 @@ describe('portugues L4 · el diccionario entero, sin depender de lo que se rinde
   })
 })
 
-// La guardia de palabras de las pantallas (`lib/test/barrido-portugues-l4.ts`)
+// La guardia de palabras de las pantallas (`lib/test/barrido-portugues.ts`)
 // MUERDE: sin esta prueba, una guardia que no mirara nada pasaria en verde
 // (mutante M11 del lote).
 describe('portugues L4 · la guardia de palabras espanolas sueltas en el HTML', () => {
   it('ve un portugues a medias y deja pasar el portugues y los datos', async () => {
-    const { palabrasEspanolasEnPortugues } = await import('../../test/barrido-portugues-l4')
+    const { palabrasEspanolasEnPortugues } = await import('../../test/barrido-portugues')
     expect(palabrasEspanolasEnPortugues('<p>Sin movimento neste período</p>')).toHaveLength(1)
     expect(palabrasEspanolasEnPortugues('<p title="Nenhuma campaña">x</p>')).toHaveLength(1)
     expect(palabrasEspanolasEnPortugues('<p>Sem movimento neste período · Buscar · Tarifa vencida</p>')).toEqual([])

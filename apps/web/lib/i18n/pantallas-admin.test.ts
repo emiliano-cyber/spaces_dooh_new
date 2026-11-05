@@ -3,7 +3,6 @@ import { huellasDeFormatoEspanol } from './guardias-ingles'
 import { huellasEnItaliano } from './guardias-italiano'
 import { huellasEnPortugues } from './guardias-portugues'
 import { culpablesEnItaliano } from '../test/barrido-italiano'
-import { espanolPendienteDeOtrosLotes } from '../test/barrido-portugues'
 import { createElement, type ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -928,13 +927,7 @@ describe('lote L5 · ADMIN en PORTUGUES', () => {
   for (const p of PANTALLAS) {
     it(p.nombre, async () => {
       const crudo = await p.pintar('pt')
-      // Lote L3 (05/11): «Pantalla digital» es el tipo de medio de la fila
-      // (`comercial.tipo-medio.pantalla-digital`, lote L2, aun en espanol). Lo
-      // apartaba `espanolPendienteDeOtrosLotes()` porque `inventario.tipo.pantalla-digital`
-      // decia lo mismo y tampoco tenia portugues; L3 ya la tradujo («Tela digital»), y un
-      // trozo que es el espanol de una clave traducida no se aparta solo. Se quita
-      // cuando L2 traduzca su tipo de medio.
-      expect(culpablesEnItaliano(crudo, await diccionarios(), { ignorar: [...DATOS, 'Pantalla digital', ...espanolPendienteDeOtrosLotes()] })).toEqual([])
+      expect(culpablesEnItaliano(crudo, await diccionarios(), { ignorar: DATOS })).toEqual([])
       expect(huellasEnPortugues(crudo)).toEqual([])
     })
   }

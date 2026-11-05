@@ -3,7 +3,6 @@ import { huellasDeFormatoEspanol } from './guardias-ingles'
 import { huellasEnItaliano } from './guardias-italiano'
 import { huellasEnPortugues } from './guardias-portugues'
 import { culpablesEnItaliano } from '../test/barrido-italiano'
-import { espanolPendienteDeOtrosLotes } from '../test/barrido-portugues'
 import { createElement, type ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -866,7 +865,7 @@ describe('lote L2 · CATALOGOS en PORTUGUES', () => {
         mkdirSync(dir, { recursive: true })
         writeFileSync(path.join(dir, `${p.nombre.replace(/[^\w]+/g, '_')}_en_PORTUGUES.html`), crudo)
       }
-      expect(culpablesEnItaliano(crudo, await diccionarios(), { ignorar: [...DATOS_PT, ...espanolPendienteDeOtrosLotes()] })).toEqual([])
+      expect(culpablesEnItaliano(crudo, await diccionarios(), { ignorar: [...DATOS_PT] })).toEqual([])
       expect(huellasEnPortugues(crudo, { permitidos: PERMITIDOS_PT })).toEqual([])
       const html = texto(crudo)
       expect((PORTUGUES[p.nombre] ?? []).filter((f) => !html.includes(f))).toEqual([])

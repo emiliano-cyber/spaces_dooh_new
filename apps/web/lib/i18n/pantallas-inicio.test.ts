@@ -12,8 +12,7 @@ import { huellasEnItaliano } from './guardias-italiano'
 import { fugasItaliano, legible, copiasDeOtroIdioma, IGUALES_A_PROPOSITO_L4, reglasDelItaliano, palabrasEspanolas } from '../test/barrido-italiano-l4'
 import { huellasEnPortugues } from './guardias-portugues'
 import { culpablesEnItaliano } from '../test/barrido-italiano'
-import { espanolPendienteDeOtrosLotes } from '../test/barrido-portugues'
-import { palabrasEspanolasEnPortugues } from '../test/barrido-portugues-l4'
+import { palabrasEspanolasEnPortugues } from '../test/barrido-portugues'
 
 // ============================================================================
 //  I18N · EL DASHBOARD (`/inicio`), RENDIDO EN LOS DOS IDIOMAS.
@@ -561,7 +560,7 @@ describe('DASHBOARD · en PORTUGUES', () => {
     it(`barrido y formatos · ${p.nombre}`, async () => {
       forzado.cola = []
       const crudo = await p.pintar('pt')
-      expect(culpablesEnItaliano(crudo, await diccionarios(), { minimo: 5, ignorar: [...AJENOS, ...espanolPendienteDeOtrosLotes()] })).toEqual([])
+      expect(culpablesEnItaliano(crudo, await diccionarios(), { minimo: 5, ignorar: [...AJENOS] })).toEqual([])
       expect(palabrasEspanolasEnPortugues(crudo, AJENOS)).toEqual([])
       expect(huellasEnPortugues(crudo)).toEqual([])
     })

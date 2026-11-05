@@ -4,7 +4,6 @@ import { huellasDeFormatoEspanol } from './guardias-ingles'
 import { huellasEnItaliano } from './guardias-italiano'
 import { huellasEnPortugues } from './guardias-portugues'
 import { culpablesEnItaliano } from '../test/barrido-italiano'
-import { espanolPendienteDeOtrosLotes } from '../test/barrido-portugues'
 import { createElement, type ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { ProveedorIdioma } from './contexto'
@@ -1478,7 +1477,7 @@ describe('lote L2 · PROPUESTAS en PORTUGUES', () => {
     it(`${p.nombre} · sin espanol ni ingles del lote, sin formatos ajenos`, async () => {
       const crudo = await p.pintar('pt')
       volcarPt(p.nombre, crudo)
-      expect(culpablesEnItaliano(crudo, await diccionarios(), { ignorar: [...DATOS_PT, ...espanolPendienteDeOtrosLotes()] })).toEqual([])
+      expect(culpablesEnItaliano(crudo, await diccionarios(), { ignorar: [...DATOS_PT] })).toEqual([])
       expect(huellasEnPortugues(crudo)).toEqual([])
       const html = texto(crudo)
       expect((PORTUGUES[p.nombre] ?? []).filter((f) => !html.includes(f))).toEqual([])

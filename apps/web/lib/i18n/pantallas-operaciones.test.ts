@@ -10,7 +10,6 @@ import { DICCIONARIOS } from './diccionario'
 import { ES_OPERACIONES, EN_OPERACIONES, IT_OPERACIONES, PT_OPERACIONES } from './textos/operaciones'
 import { huellasEnPortugues } from './guardias-portugues'
 import { culpablesEnItaliano } from '../test/barrido-italiano'
-import { espanolPendienteDeOtrosLotes } from '../test/barrido-portugues'
 import { huellasEnItaliano } from './guardias-italiano'
 import { legible, fugasEnItaliano } from '../test/italiano-l3'
 import { MONEDAS, fijarMonedaInstancia } from './dinero'
@@ -583,16 +582,9 @@ describe('lote OPERACIONES · barrido del diccionario contra el HTML italiano', 
 //   (h) ninguna huella de formato espanol o ingles (`guardias-portugues.ts`);
 //   (i) ninguna frase espanola ni inglesa del lote (`culpablesEnItaliano` con
 //       el portugues en su sitio). En portugues la espanola es la que mas
-//       importa: lo que falta cae al ESPANOL y la pantalla no lo delata. Lo
-//       espanol de OTROS lotes aun sin traducir se aparta con
-//       `espanolPendienteDeOtrosLotes()`, que no esconde nada del lote
-//       (`portugues-l5.test.ts` lo vigila);
+//       importa: lo que falta cae al ESPANOL y la pantalla no lo delata;
 //   (j) las frases portuguesas de los estados con lista.
-const DATOS_PT = ['Verano', 'Otoño', 'Muro Reforma', 'LED Insurgentes', 'LED Sur', 'Grafica Sur', 'Frontlit 13 oz', 'Refresco Azul', 'Norte',
-  // La etapa de la orden sale de Campanas (`campanas.impresion.en-produccion`, lote L4,
-  // sin portugues aun) y dice lo mismo que el titulo del indicador de este lote, que
-  // si sale en portugues: «Em produção» esta en la lista del estado.
-  'En producción']
+const DATOS_PT = ['Verano', 'Otoño', 'Muro Reforma', 'LED Insurgentes', 'LED Sur', 'Grafica Sur', 'Frontlit 13 oz', 'Refresco Azul', 'Norte']
 const PORTUGUES: Record<string, string[]> = {
   'piezas · slots, cupo de clientes y calendario': [
     'title="2 de 6 slots livres"', 'title="2 de 3 vagas de cliente livres"', 'Limite atingido: 3 clientes.',
@@ -629,7 +621,7 @@ describe('lote OPERACIONES · en PORTUGUES, sin formatos ajenos, sin espanol del
       const crudo = await e.pintar('pt')
       expect(huellasEnPortugues(crudo)).toEqual([])
       const dic = { es: ES_OPERACIONES, en: EN_OPERACIONES, it: PT_OPERACIONES }
-      expect(culpablesEnItaliano(crudo, dic, { ignorar: [...DATOS_PT, ...espanolPendienteDeOtrosLotes()] })).toEqual([])
+      expect(culpablesEnItaliano(crudo, dic, { ignorar: [...DATOS_PT] })).toEqual([])
       const html = texto(crudo)
       expect((PORTUGUES[e.nombre] ?? []).filter((f) => !html.includes(f))).toEqual([])
     })

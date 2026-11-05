@@ -8,7 +8,6 @@ import { huellasDeFormatoEspanol } from './guardias-ingles'
 import { huellasEnItaliano } from './guardias-italiano'
 import { huellasEnPortugues } from './guardias-portugues'
 import { culpablesEnItaliano } from '../test/barrido-italiano'
-import { espanolPendienteDeOtrosLotes } from '../test/barrido-portugues'
 import { legible, fugasEnItaliano } from '../test/italiano-l3'
 import type { Idioma } from './idiomas'
 
@@ -1898,8 +1897,7 @@ describe('pulido italiano · el alt de la imagen promocional del alta manual', (
 //   (h) ninguna huella de formato espanol o ingles (`guardias-portugues.ts`);
 //   (i) ninguna frase espanola ni inglesa de `textos/inventario.ts` ni de
 //       `textos/arrendadores.ts` (lo que falta del portugues cae al ESPANOL y
-//       la pantalla no lo delata). Lo espanol de OTROS lotes aun sin traducir
-//       se aparta con `espanolPendienteDeOtrosLotes()`;
+//       la pantalla no lo delata);
 //   (j) las frases portuguesas de las pantallas con lista.
 //
 // Fuera, como en italiano: el DOCUMENTO del contrato y la CONSTANCIA de
@@ -1983,18 +1981,13 @@ const PORTUGUES: Record<string, string[]> = {
   'firma pública · recién firmado': ['Contrato assinado.', 'Você pode guardar uma cópia com Ctrl+P → “Salvar como PDF”.'],
 }
 
-// Palabras sueltas de OTROS lotes aun sin portugues que dicen lo mismo que una
-// clave de este (`espanolPendienteDeOtrosLotes()` no aparta las cortas, a proposito):
-// el tipo de medio de la fila (`comercial.tipo-medio.*`), el estatus del sitio
-// (`comercial.sitio-estatus.disponible`), el del contrato
-// (`comercial.contrato-estatus.por-vencer`) y el del pago
-// (`comercial.pago-estatus.pendiente`), todos del lote L2. Y dos datos:
-// `renta_arrendador`, el nombre de una COLUMNA de la plantilla de carga, y el
-// correo de ejemplo `contacto@arrendador.com` (escrito a mano en el alta, igual
-// en todos los idiomas).
-// Lo de este lote que dice lo mismo SI sale en portugues: «Painel», «Tela
-// digital», «Disponível», «A vencer» estan en las listas.
-const AJENOS_CORTOS_PT = ['Pantalla digital', 'Espectacular', 'Mobiliario urbano', 'Por vencer', 'Disponible', 'Pendiente', 'renta_arrendador', 'contacto@arrendador.com']
+// Dos datos que no son texto del diccionario: `renta_arrendador`, el nombre de
+// una COLUMNA de la plantilla de carga, y el correo de ejemplo
+// `contacto@arrendador.com` (escrito a mano en el alta, igual en todos los
+// idiomas). Hasta la costura (05/11) llevaba ademas seis etiquetas del L2 aun
+// en espanol (tipo de medio, estatus del sitio, del contrato y del pago); con
+// L2 dentro salen en portugues y no se aparta nada.
+const AJENOS_CORTOS_PT = ['renta_arrendador', 'contacto@arrendador.com']
 
 async function pintarEnPortugues(p: Pantalla): Promise<string> {
   forzado.cola = []
@@ -2018,7 +2011,7 @@ describe('lote INVENTARIO Y ARRENDADORES · en PORTUGUES, sin formatos ajenos, s
       const crudo = sinNavegador(await pintarEnPortugues(p))
       const sinPapel = sinLoQueEsEspanolPorDiseno(crudo).replace(/\$[\d,.]+ MXN/g, '')
       expect(huellasEnPortugues(sinPapel, { permitidos: CIFRAS_DE_CAPTURA })).toEqual([])
-      const ignorar = [...DATOS_DE_PRUEBA, ...AJENOS_CORTOS_PT, ...espanolPendienteDeOtrosLotes()]
+      const ignorar = [...DATOS_DE_PRUEBA, ...AJENOS_CORTOS_PT]
       expect(culpablesEnItaliano(sinPapel, { es: ES_INVENTARIO, en: EN_INVENTARIO, it: PT_INVENTARIO }, { ignorar })).toEqual([])
       expect(culpablesEnItaliano(sinPapel, { es: ES_ARRENDADORES, en: EN_ARRENDADORES, it: PT_ARRENDADORES }, { ignorar })).toEqual([])
       const html = texto(crudo)
