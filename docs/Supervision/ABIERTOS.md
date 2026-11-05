@@ -2636,10 +2636,13 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
   nuevo); el de sonner conserva «Notifications» y cambia «Close toast» por «Close notification»
   («toast» es jerga). La escala («km», «ft») se queda: unidades, y no se usa. Detalle y medición
   en [[idiomas-es-en]] §13. Pendiente de su validador.
-- **B71 · ⚪ ABIERTA (2026-11-04) · El botón de cerrar de los diálogos no tiene nombre
-  accesible.** Pasa en todos los idiomas: el lector de pantalla anuncia solo «botón». **Por qué:**
-  la X del `Modal` no lleva `aria-label`. Ponérselo cambia el HTML español e inglés de las pruebas
-  de pantallas. No se tocó. Menor.
+- ~~**B71 · El botón de cerrar de los diálogos no tiene nombre accesible.**~~ ✅ **CERRADA el
+  2026-11-05 en `feat/verificacion-ajustes`** (autorizada por el dueño el 05/11). La X de `Modal` y
+  de `Sheet` lleva `aria-label` y `title` con `comun.cerrar` («Cerrar» / «Close» / «Chiudi»), y los
+  dos botones de solo icono que también estaban sin nombre (quitar una tasa de IVA y un plazo de
+  cobranza en Administración) llevan `admin.iva.quitar` y `admin.plazos.quitar`. Una guardia
+  (`components/demo/ui/cerrar-accesible.test.ts`) recorre `components/` y `app/` y no deja otro.
+  Detalle en [[idiomas-es-en]] §13. Pendiente de su validador.
 - ~~**B72 · La propuesta imprimible, el contrato y el comprobante no llevan su propio `lang`
   cuando el idioma de la instancia no es el de la persona.**~~ ✅ **CERRADA el 2026-11-04 en
   `feat/italiano-pulido`** (`edea7c08` rojo, `df44ec0c` arreglo). `lib/i18n/parte-en-idioma.tsx`

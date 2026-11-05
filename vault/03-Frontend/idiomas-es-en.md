@@ -58,6 +58,8 @@ archivos:
   - docs/i18n/revision-costura.md
   - apps/web/lib/i18n/librerias.ts
   - apps/web/app/(app)/layout.tsx
+  - apps/web/components/demo/ui/Modal.tsx
+  - apps/web/components/demo/ui/Sheet.tsx
 ---
 
 # La aplicación en dos idiomas (I18N-01)
@@ -2237,7 +2239,7 @@ el idioma de los documentos de la instancia. Rama `feat/idioma-instancia`,
   `<div lang={idioma de la instancia} style="display:contents">` (WCAG 3.1.2):
   los lectores de pantalla leen el papel con la voz correcta.
 
-## 13 · Lo que pintan las librerías (B70 · 05/11)
+## 13 · Lo que pintan las librerías y los botones de solo icono (B70, B71 · 05/11)
 
 Autorizado por el dueño el 05/11: **cambia el español a propósito**, solo en
 textos que antes salían en inglés o no existían. Rama `feat/verificacion-ajustes`.
@@ -2266,6 +2268,16 @@ textos que antes salían en inglés o no existían. Rama `feat/verificacion-ajus
     palabras y ningún mapa usa. Y MapLibre lee el `locale` al crear el mapa: si
     la persona cambia de idioma sin salir de la pantalla, los controles siguen en
     el anterior hasta volver a entrar.
+- **B71 · la X de los diálogos** (`components/demo/ui/Modal.tsx`, `Sheet.tsx`)
+  era un `Dialog.Close` con solo un icono: el lector de pantalla decía «botón».
+  Lleva `aria-label` y `title` con la clave común `comun.cerrar` («Cerrar» /
+  «Close» / «Chiudi»). Los otros dos botones de solo icono sin nombre que había
+  —quitar una tasa de IVA y quitar un plazo de cobranza, en Administración—
+  llevan `admin.iva.quitar` y `admin.plazos.quitar`. Lo vigila una guardia
+  (`components/demo/ui/cerrar-accesible.test.ts`) que recorre `components/` y
+  `app/` buscando `<button>`, `<Button>` o `<Dialog.Close>` cuyo único hijo sea
+  un icono sin `aria-label`, `aria-labelledby` ni `title`.
+
 ## Enlaces
 
 - [[ingles-olas]] — el tablero de la traducción: qué lote, en qué rama, qué validador y qué falta

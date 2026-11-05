@@ -38,7 +38,7 @@ function pinta(idioma: Idioma, Componente: typeof Modal | typeof Sheet): string 
     createElement(
       ProveedorIdioma,
       { idioma } as never,
-      createElement(Componente, { open: true, onOpenChange: () => {}, title: 'Título' }, 'cuerpo'),
+      createElement(Componente, { open: true, onOpenChange: () => {}, title: 'Título', children: 'cuerpo' }),
     ),
   )
 }
@@ -47,7 +47,7 @@ function pinta(idioma: Idioma, Componente: typeof Modal | typeof Sheet): string 
 function botonCerrar(html: string): string {
   const botones = html.match(/<button\b[^>]*>(?:(?!<\/button>)[\s\S])*lucide-x(?:(?!<\/button>)[\s\S])*<\/button>/g) ?? []
   expect(botones.length, html).toBe(1)
-  return botones[0]
+  return botones[0] ?? ''
 }
 
 describe('B71 · la X de Modal y de Sheet dice que cierra', () => {

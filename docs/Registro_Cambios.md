@@ -18,6 +18,10 @@ dejar el ratón encima de un botón.
   botón de cerrar como «Close toast». Ahora dicen «Notificaciones» y «Cerrar aviso» (en
   inglés, «Notifications» y «Close notification»; en italiano, «Notifiche» y «Chiudi
   notifica»).
+- **La X que cierra las ventanas y los paneles laterales** no tenía nombre: un lector de
+  pantalla decía solo «botón». Ahora dice «Cerrar» («Close», «Chiudi»), y al dejar el ratón
+  encima aparece el mismo texto. Igual con las X para quitar una tasa de IVA o un plazo de
+  cobranza en Administración («Quitar IVA 16%», «Quitar plazo 30 días»).
 
 ---
 
