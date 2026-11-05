@@ -264,10 +264,13 @@ export const ES_ADMIN = {
   // ── Configuracion · IVA, plazos ──
   'admin.iva.titulo': 'IVA(s) con los que trabaja',
   'admin.iva.agregado': 'IVA {n}% agregado',
+  // B71 (05/11) · el nombre de la X de cada tasa y de cada plazo (boton de solo icono).
+  'admin.iva.quitar': 'Quitar IVA {n}%',
   'admin.iva.ayuda': 'Las tasas disponibles para facturar. El IVA aplicado se elige por cliente.',
   'admin.plazos.titulo': 'Plazos de cobranza (días)',
   'admin.plazos.dias': 'días',
   'admin.plazos.agregado': 'Plazo {n} días agregado',
+  'admin.plazos.quitar': 'Quitar plazo {n} días',
 
   // ── Configuracion · cupo de clientes ──
   'admin.cupo.titulo': 'Cupo de clientes por pantalla',
@@ -928,10 +931,12 @@ export const EN_ADMIN: Record<ClaveAdmin, string> = {
 
   'admin.iva.titulo': 'VAT rates you work with',
   'admin.iva.agregado': 'VAT {n}% added',
+  'admin.iva.quitar': 'Remove VAT {n}%',
   'admin.iva.ayuda': 'The rates available for invoicing. The VAT applied is chosen per client.',
   'admin.plazos.titulo': 'Payment terms (days)',
   'admin.plazos.dias': 'days',
   'admin.plazos.agregado': '{n}-day term added',
+  'admin.plazos.quitar': 'Remove {n}-day term',
 
   'admin.cupo.titulo': 'Client cap per screen',
   'admin.cupo.maximo': 'Maximum clients (default)',
@@ -1560,10 +1565,12 @@ export const IT_ADMIN: Record<ClaveAdmin, string> = {
 
   'admin.iva.titulo': 'Aliquote IVA con cui lavori',
   'admin.iva.agregado': 'IVA {n}% aggiunta',
+  'admin.iva.quitar': 'Rimuovi IVA {n}%',
   'admin.iva.ayuda': 'Le aliquote disponibili per fatturare. L’IVA applicata si sceglie per cliente.',
   'admin.plazos.titulo': 'Termini di pagamento (giorni)',
   'admin.plazos.dias': 'giorni',
   'admin.plazos.agregado': 'Termine di {n} giorni aggiunto',
+  'admin.plazos.quitar': 'Rimuovi termine di {n} giorni',
 
   'admin.cupo.titulo': 'Limite di clienti per impianto',
   'admin.cupo.maximo': 'Massimo di clienti (predefinito)',

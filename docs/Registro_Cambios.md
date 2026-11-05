@@ -5,6 +5,31 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-05 · Mapas, avisos y botones de cerrar en el idioma de cada persona, y la vigencia de las propuestas sin depender de la hora (sin publicar)
+
+Cambios que el dueño autorizó el 05/11. Los tres primeros se notan sobre todo con un lector de pantalla o al
+dejar el ratón encima de un botón.
+
+- **Los botones de los mapas** (acercar, alejar, buscar mi ubicación, créditos del mapa) y
+  el aviso de los marcadores decían «Zoom in», «Find my location», «Map marker»… en
+  inglés, también con la aplicación en español. Ahora salen en español, inglés o italiano,
+  según el idioma de quien usa la aplicación.
+- **Los avisos** que aparecen abajo a la derecha se anunciaban como «Notifications» y su
+  botón de cerrar como «Close toast». Ahora dicen «Notificaciones» y «Cerrar aviso» (en
+  inglés, «Notifications» y «Close notification»; en italiano, «Notifiche» y «Chiudi
+  notifica»).
+- **La X que cierra las ventanas y los paneles laterales** no tenía nombre: un lector de
+  pantalla decía solo «botón». Ahora dice «Cerrar» («Close», «Chiudi»), y al dejar el ratón
+  encima aparece el mismo texto. Igual con las X para quitar una tasa de IVA o un plazo de
+  cobranza en Administración («Quitar IVA 16%», «Quitar plazo 30 días»).
+- **La vigencia de las propuestas ya no depende de la hora.** Entre las 6 de la tarde y la
+  medianoche, una propuesta válida «hasta hoy» enseñaba al cliente el botón de aceptar y, al
+  pulsarlo, le decía que ya había vencido. Y una propuesta enviada a esas horas quedaba con un
+  día más de vigencia que el que decía su correo. Ahora todo cuenta con el mismo día, el de la
+  zona horaria de la empresa: el último día de vigencia vale completo, hasta la medianoche.
+
+---
+
 ## 2026-11-04 · Idiomas: el correo de «olvidé mi contraseña», «provvigione» y los contratos de ejemplo (sin publicar)
 
 Tres cambios que el dueño autorizó el 04/11. En un servidor en español no cambia nada.

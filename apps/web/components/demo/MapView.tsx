@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useTexto } from '@/lib/i18n/contexto'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { localeMapa } from '@/lib/i18n/librerias'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -139,7 +140,7 @@ export function MapView({
   // algo de rendimiento, por eso solo se enciende donde se imprime.
   imprimible?: boolean
 }) {
-  const t = useTexto()
+  const { t, idioma } = useIdioma()
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const markersRef = useRef<Map<string, maplibregl.Marker>>(new Map())
@@ -175,6 +176,8 @@ export function MapView({
       style: buildStyle(),
       center: CENTRO_POR_DEFECTO,
       zoom,
+      // B70 · los textos de los botones del mapa, en el idioma de la persona.
+      locale: localeMapa(idioma),
       attributionControl: { compact: true },
       ...(imprimible ? { canvasContextAttributes: { preserveDrawingBuffer: true } } : {}),
     })

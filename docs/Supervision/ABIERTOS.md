@@ -313,6 +313,51 @@ archivo dentro de la pregunta.
 
 ---
 
+### D20 · Entre las 6 de la tarde y la medianoche, los cupones, las facturas y los cobros ya cuentan como si fuera mañana. ¿Se arreglan para que cuenten con el día de México, como se acaba de hacer con las propuestas?
+
+> Abierta el 2026-11-04 (noche) por el supervisor, al revisar `feat/verificacion-ajustes`.
+> Expediente: `docs/Supervision/verificacion-ajustes.md` §3 (H1, H2).
+
+- **Bloquea:** nada de lo que ya está hecho. La rama de las propuestas puede fusionarse sin esta
+  respuesta. **Lo que SÍ se puede mientras:** todo; esta pregunta decide trabajo nuevo.
+- **Por qué importa:** el sistema lleva dos relojes. La pantalla usa el día de México; varias
+  cuentas de dinero usan el reloj de la base de datos, que en el servidor de g500 sigue la hora
+  universal (la de Londres en invierno): de 6 de la tarde a medianoche para ella ya es mañana.
+  Con las propuestas pasaba que el cliente veía el botón de aceptar y al pulsarlo le decían que ya
+  había vencido; eso ya se arregló. Lo mismo sigue pasando con:
+  - **los cupones:** el último día de un cupón, desde las 6 de la tarde, el panel dice «vigente»
+    pero al aplicarlo dice «venció»; y **la víspera** de que empiece, desde las 6 de la tarde, el
+    sistema **ya deja aplicarlo**: un descuento cobrable seis horas antes de lo que se configuró;
+  - **las facturas:** una factura emitida el día 30 a las 7 de la noche queda fechada el 1 del mes
+    siguiente, y cae en el reporte del mes equivocado;
+  - **los cobros** que se registran sin fecha, y **el corte del tablero de finanzas**, igual.
+  Está leído en el código, no provocado en el servidor; y la zona exacta de la base de g500 falta
+  confirmarla (una persona con acceso, dos comandos; está escrito en las advertencias).
+- **Opciones:**
+  - **(a) Arreglar todo lo de dinero ya** (cupones, facturas, cobros y el tablero de finanzas), con
+    la misma regla que las propuestas. Entre uno y dos días con sus pruebas. Quedan fuera las
+    cuentas de estado (campañas activas, órdenes de trabajo), que no mueven dinero.
+  - **(b) Solo los cupones ahora**, porque son un descuento que se le promete a alguien de fuera; lo
+    demás después. Medio día. Las facturas del último día del mes a partir de las 6 de la tarde
+    siguen cayendo en el mes siguiente hasta entonces.
+  - **(c) Poner la base de cada servidor en la hora del dueño**, sin tocar el programa. Unos minutos
+    por servidor, lo hace una persona. Arregla las treinta cuentas de golpe, pero depende de que
+    nadie se olvide al instalar un servidor nuevo, y las pruebas automáticas no lo ven (corren en
+    hora universal a propósito).
+  - **(d) Dejarlo así.** Cero días. El riesgo queda en lo que se haga entre las 6 de la tarde y la
+    medianoche.
+- **Recomendación:** **(b) ya, y (a) a continuación.** Los cupones son lo único de la lista que
+  promete dinero a un tercero y que hoy deja hacer algo antes de tiempo; es medio día y usa la misma
+  pieza que ya se probó en las propuestas. La (c) es tentadora por barata, pero es la misma clase de
+  ajuste que se pierde en silencio al reinstalar un servidor, y ya hay escrita una guía para mudar g500 a un servidor limpio.
+- **Si nadie contesta:** queda la (d). Es aceptable unas semanas porque los casos caen en una
+  franja de horas y se ven; deja de serlo en el primer cierre de mes en que se facture de noche, y
+  con el primer cupón que alguien use la víspera.
+- **Caduca:** el próximo cierre de mes, **30/11/2026**: lo facturado esa noche ya quedaría en
+  diciembre.
+
+---
+
 ### ~~D11 · La rejilla de precios deja que el precio se decida en el navegador del vendedor. Antes de meter descuentos por volumen y códigos promocionales, ¿se pasa el cálculo al servidor?~~
 
 > ✅ **CONTESTADA y CONSTRUIDA — tachada el 2026-10-29.** El dueño eligió la (a)
@@ -2121,6 +2166,58 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
 
 ---
 
+#### B88 · 🟠 ABIERTA (2026-11-04) · La zona horaria de g500 no está medida, el código se contradice sobre ella, y una instancia sin `TZ` cuenta en UTC sin avisar
+
+- **Qué es:** el arreglo de la vigencia (`feat/verificacion-ajustes`, B84) da por hecho «base en
+  UTC, aplicación en `TZ=America/Mexico_City`». Lo escrito es la zona **del sistema**
+  (`docs/evidencias/30-mudar-g500-a-droplet-limpio-20261104.md:140` y `:145`), no el
+  `show timezone` de Postgres, y la `TZ` de `app.env` está descrita, no impresa. Y el código afirma
+  lo contrario en dos sitios: `lib/server/finanzas-repo.ts:319-320` («zona America/Mexico_City en
+  producción … el reloj del servidor de la app está en UTC») y `lib/server/notificaciones-repo.ts:64-66`.
+  Uno de los dos lados es falso. Además `hoyDeVigencia()` toma la `TZ` del proceso sin comprobarla
+  (`grep process.env.TZ` en `lib/` y `app/`: solo pruebas): sin la línea de
+  `infra/env/app.env.example:186`, la instancia cuenta en UTC en silencio.
+- **Por qué es de severidad:** si g500 tuviera la base en México y la app sin `TZ`, la rama haría
+  que aceptar una propuesta y su correo pasaran a contar en UTC — **empeoraría** algo que hoy está
+  bien. Con la app en México (lo que dice la plantilla) el arreglo es correcto sea cual sea la base.
+- **Cómo se cierra:** una persona en g500 (no un agente: nada de `ssh` desde aquí):
+  `docker exec <contenedor de la app> printenv TZ` y
+  `docker exec <contenedor de la app> date`, y en la base `show timezone;`. Con la salida pegada:
+  corregir el comentario falso (`finanzas-repo.ts` o la propia rama) y, si se quiere red, un aviso al
+  arrancar o en `/api/version` cuando `TZ` falte.
+- **Quién:** el dueño o quien opere g500, para medir; el ejecutor, para el comentario y el aviso.
+- **Si no se cierra antes de fusionar:** la vigencia queda bien en la hipótesis de la plantilla y
+  sin red en la otra. Y D20 se decide sobre una premisa sin medir.
+- **2026-11-05 · H4 hecho en la rama** (`475e6403` rojo, arreglo en el commit siguiente): `hoyDeVigencia()`
+  cuenta con `Intl` y la zona EXPLÍCITA (`zonaDelNegocio()`, `lib/propuesta-vigencia.ts`): la `TZ` del
+  proceso si es válida (también con los dos puntos de glibc) y, si falta o no vale,
+  `ZONA_DEL_NEGOCIO_POR_OMISION = America/Mexico_City` con un `console.warn` una sola vez. Ya no
+  cae a UTC en silencio, y no depende de que el runtime honre `TZ` (Node en Windows no la honra
+  para `America/Los_Angeles`: medido). 6/6 mutantes. **Sigue abierta** por la medición de g500
+  (`printenv TZ`, `date` y `show timezone;`), que corre una persona, y por el comentario de
+  `finanzas-repo.ts:319-320` que se corrige con esa salida. El comentario de la rama ya no afirma
+  la zona de Postgres de g500 como medida.
+
+#### ~~B89 · «Enviar» no tiene prueba que muerda la fecha del correo~~ ✅ CERRADA el 2026-11-05 en `feat/verificacion-ajustes`
+
+- **Cerrada con** `lib/server/propuestas-envio-hora.test.ts` (`2070b34a`): llama a
+  `enviarPropuestaCtrl` con el reloj a las 19:00 de México y la base simulada comparando con el día
+  que le llega (vence hoy, sin vigencia, vencida ayer). M5 (`:65`) y M4 (`:87`) del supervisor
+  mueren, 2 rojas cada uno. Lo de abajo es el texto con que se abrió.
+
+
+- **Qué es:** de la regla única de la vigencia, la mitad del correo de «Enviar» solo la vigila una
+  guardia de texto contra `current_date`. Dos mutantes que leen el día con `toISOString()` en
+  `propuestas-envio.ts` (el de la fecha prometida, `:87`, y el de `vencida`, `:65`) **sobreviven**
+  a las 1442 unitarias de `lib/server` (`docs/Supervision/verificacion-ajustes.md` §1, M4 y M5).
+- **Cómo se cierra:** un caso en `lib/server/propuesta-vigencia-hora.test.ts` que llame a
+  `enviarPropuestaCtrl` con el reloj a las 19:00 de México y compare la fecha del correo con la del
+  `update`. Medio rato. **Quién:** el ejecutor de la rama.
+- **Si no se cierra:** el día que alguien toque ese archivo puede volver el «el correo dice un día y
+  la base otro» y nada se pone rojo.
+
+---
+
 ### B · ii — Críticas por CALENDARIO (no hay fallo silencioso; aprieta la fecha)
 
 #### B55 · 🔴 **ABIERTA (2026-10-21) · Node 22 y PHP en los servidores: la `v0.12.1` está en `estable`, pero NINGÚN servidor la tiene todavía**
@@ -2581,6 +2678,11 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
 - **Quién:** el dueño de la zona de pruebas / i18n.
 - **Si no se cierra:** un rojo que no dice nada del código. El daño real es el contrario: quien se
   acostumbra a «es la carga» deja de mirar el día que el rojo sí es suyo.
+- **2026-11-04 noche, otra vez y con OTRO archivo** (`feat/verificacion-ajustes` @ `aed31579`):
+  dos de tres corridas de `npm test` dieron `1 failed | 8672 passed` por
+  `scripts/semilla-catalogo-demo.test.ts` «el calendario se mueve con el ancla…», «Test timed out
+  in 5000ms»; la tercera, `8673 passed`. Sola: `29 passed (29)`, y esa prueba en 2197 ms. La rama no
+  toca `scripts/`. Ya no son solo las suites de pantallas: el arreglo de `lib/i18n/` no bastaría.
 
 ### B · iii — Menores, para que no se pierdan
 
@@ -2626,15 +2728,23 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
   del navegador», la regla de `resolverIdioma` (cookie > `navigator.languages` > español, entre
   los encendidos). Sin cambio de idioma sale el texto de siempre; el diccionario no cambia. 8/8
   mutantes. Pendiente de su validador.
-- **B70 · ⚪ ABIERTA (2026-11-04) · Los controles del mapa y del *toaster* salen en inglés en todos
-  los idiomas.** MapLibre pone «Zoom in», «Zoom out», «Find my location», «Map marker» y «Toggle
-  attribution»; sonner pone «Notifications alt+T». **Por qué:** son los valores por omisión de las
-  librerías. Darles el idioma (`locale` de MapLibre, `containerAriaLabel` de sonner) cambia el
-  español. No se tocó. Menor (sobre todo para lector de pantalla).
-- **B71 · ⚪ ABIERTA (2026-11-04) · El botón de cerrar de los diálogos no tiene nombre
-  accesible.** Pasa en todos los idiomas: el lector de pantalla anuncia solo «botón». **Por qué:**
-  la X del `Modal` no lleva `aria-label`. Ponérselo cambia el HTML español e inglés de las pruebas
-  de pantallas. No se tocó. Menor.
+- ~~**B70 · Los controles del mapa y del *toaster* salen en inglés en todos los idiomas.**~~ ✅
+  **CERRADA el 2026-11-05 en `feat/verificacion-ajustes`** (autorizada por el dueño el 05/11, cambia
+  el español a propósito). `lib/i18n/librerias.ts`: `localeMapa(idioma)` para el `locale` de los
+  tres `new maplibregl.Map` (`MapView`, `SelectorUbicacion` y el `SitiosMap` sin uso) y
+  `propsAvisos(idioma)` para el `Toaster` del layout de `(app)`. Claves nuevas
+  `compartidos.mapa.lib.*` (20) y `compartidos.avisos.*` (2) en es/en/it. El inglés del mapa es el
+  de MapLibre tal cual (la prueba lo lee del paquete instalado y pide clave si llega un texto
+  nuevo); el de sonner conserva «Notifications» y cambia «Close toast» por «Close notification»
+  («toast» es jerga). La escala («km», «ft») se queda: unidades, y no se usa. Detalle y medición
+  en [[idiomas-es-en]] §13. Pendiente de su validador.
+- ~~**B71 · El botón de cerrar de los diálogos no tiene nombre accesible.**~~ ✅ **CERRADA el
+  2026-11-05 en `feat/verificacion-ajustes`** (autorizada por el dueño el 05/11). La X de `Modal` y
+  de `Sheet` lleva `aria-label` y `title` con `comun.cerrar` («Cerrar» / «Close» / «Chiudi»), y los
+  dos botones de solo icono que también estaban sin nombre (quitar una tasa de IVA y un plazo de
+  cobranza en Administración) llevan `admin.iva.quitar` y `admin.plazos.quitar`. Una guardia
+  (`components/demo/ui/cerrar-accesible.test.ts`) recorre `components/` y `app/` y no deja otro.
+  Detalle en [[idiomas-es-en]] §13. Pendiente de su validador.
 - ~~**B72 · La propuesta imprimible, el contrato y el comprobante no llevan su propio `lang`
   cuando el idioma de la instancia no es el de la persona.**~~ ✅ **CERRADA el 2026-11-04 en
   `feat/italiano-pulido`** (`edea7c08` rojo, `df44ec0c` arreglo). `lib/i18n/parte-en-idioma.tsx`
@@ -2784,6 +2894,32 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
   **Cómo se cierra:** dejar de quitarlos cuando ninguna instancia corra una versión anterior a la
   que entiende `en`/`it` (la prueba «notas_disponibles» de `lib/novedades-idiomas.test.ts` se
   invierte entonces). **Quién:** quien publique, tras comprobar la versión de la flota. Menor.
+- ~~**B84 · `propuesta-vigencia.e2e` («la liga dice «vencida»…») cae en rojo entre las 18:00 y las
+  24:00 de México.**~~ ✅ **CERRADA el 2026-11-05 en `feat/verificacion-ajustes`. Era un defecto de
+  PRODUCCIÓN, no del arnés.** En g500 la base va en `Etc/UTC` y la aplicación con
+  `TZ=America/Mexico_City`: la ficha y la liga decían «vencida» con el día local de la aplicación,
+  y aceptar, el correo de «Enviar» y la vigencia al enviar usaban el `current_date` de la base.
+  Desde las 18:00 de México, una propuesta «válida hasta hoy» salía vigente en la liga con su botón
+  y aceptarla daba 409 «venció»; y la enviada a esa hora se guardaba con un día más del que decía
+  su correo. **Regla única:** el día de la vigencia es el de la zona del negocio (`hoyDeVigencia()`,
+  `lib/propuesta-vigencia.ts`), y la base lo recibe como parámetro (`propuestas-repo.ts`,
+  `propuestas-envio.ts`, sin un solo `current_date`). Prueba unitaria con la base simulada en UTC y
+  el reloj a las 19:00 de México (`lib/server/propuesta-vigencia-hora.test.ts`, 4/6 en rojo antes,
+  5/5 mutantes); la e2e pasa a usar el día del negocio en vez de `current_date`. Detalle en
+  [[comercial-propuestas-campanas]]. **Queda:** otras 30 consultas de `lib/server` usan
+  `current_date`/`now()` de la base para otras fechas (campañas, cobranza, OT…); no se revisaron
+  aquí. Pendiente de su validador.
+  **Supervisor, 04/11 noche (`docs/Supervision/verificacion-ajustes.md`): el arreglo se sostiene,
+  medido.** Rojo de `22e30e5f` repetido (`4 failed | 2 passed`, el del 409 por aserción); e2e
+  `11 passed` a las 22:40 de México (día local ≠ día de la base) y, con aceptar devuelto a
+  `current_date` y build, `3 failed`; 5 de 7 mutantes de vigencia mueren. **Lo que deja abierto:**
+  la premisa de g500 sin medir (B88), la fecha del correo sin prueba que muerda (B89), y del
+  «resto», lo de dinero —cupones, facturas, cobros, tablero de finanzas— va a **D20**.
+- ~~**B90 · `CLAUDE.md:42` dice 1671 enlaces y `feat/verificacion-ajustes`
+  tiene 1674**~~ ✅ **CERRADA el 2026-11-05**: `CLAUDE.md` lleva la cifra medida con
+  `node scripts/recuentos.mjs` al cerrar la rama (`node scripts/recuentos.mjs`: 1671 en `a91580bb`, 1674 en `aed31579`; el diario
+  ya dice 1674). La rama añade tres enlaces en el diario y no tocó `CLAUDE.md`. **Cómo se cierra:**
+  correr el script y poner la cifra, en esta rama antes de fusionar. **Quién:** el ejecutor. Menor.
 
 - **B57 · 🟠 ABIERTA (2026-10-29) · Un usuario que ya usó el sistema NO se puede
   borrar: la bitácora lo impide.** Encontrada escribiendo la prueba de P19.
