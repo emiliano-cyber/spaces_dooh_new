@@ -2754,11 +2754,34 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
   > recuento sí (1660 medido = `CLAUDE.md:42`); la entrada de la bitácora **no está hecha, está
   > aplazada** por indicación del coordinador hasta encender el italiano. Al encenderlo, esa entrada
   > es obligatoria: que nadie lea «B81 cerrada» como «bitácora escrita».
-- **B82 · ⚪ ABIERTA (2026-11-04) · Cambiar de idioma con un diálogo de cifras abierto.** En es/en
-  `EntradaCifra` guarda lo tecleado; si se cambia a italiano con «1,500» escrito, el campo pinta
-  «1.500» (medido: `textoDesdeCrudo('1,500','it')`) y el formulario manda `Number('1,500') || 0` = 0,
-  igual que habría mandado en español. No empeora nada, pero el campo enseña otra cifra. No
-  verificado si la interfaz deja cambiar de idioma con un diálogo abierto. Menor.
+- ~~**B82 · Cambiar de idioma con un diálogo de cifras abierto.**~~ ✅ **CERRADA el 2026-11-05**
+  en `feat/italiano-novedades` (`01b9c273` rojo a la vista, 2 rojas; `19938be0` arreglo), **sin
+  validar**. Al pasar a italiano, `CampoCifra` relee el crudo con `pintarCrudo`
+  (`lib/captura-cifra.ts`): canónico → como siempre («12.9» → «12,9», «1500» → «1.500»); no
+  canónico pero `Number()` lo entiende → pinta ESA cifra, que es la que se mandará («1e3» →
+  «1.000»); y si no es una cifra («1,500», «12,9» tecleados en es/en) → **lo deja como se tecleó y
+  avisa** (borde rojo + el motivo de forma italiano) hasta que se teclee de nuevo; al salir del campo
+  no lo canoniza. **Lo que se manda no cambia** (`Number('1,500') || 0` = 0, lo mismo que en es/en):
+  se eligió avisar y no bloquear, porque bloquear cambiaría lo que el formulario manda. Medido
+  **tecla a tecla** con el arnés (`lib/i18n/cifras-formularios.test.ts`, «B82», es→it y en→it) y en
+  la función pura (`captura-cifra.italiano.test.ts`); en es/en `pintarCrudo` es la identidad con
+  `textoDesdeCrudo` (8 crudos por idioma) y el volcado de toda la suite no cambia. El arnés no
+  puede montar el alta de Comercial entera con el cambio de idioma (el estado se recuerda por
+  posición y el `<input>` → `CampoCifra` corre los de después): se monta un formulario mínimo con
+  su misma forma. Sigue sin verificar si la interfaz deja cambiar de idioma con un diálogo abierto
+  (el selector está detrás del modal; el caso real es el refresco que trae otro idioma).
+  Lo que decía: en es/en `EntradaCifra` guarda lo tecleado; si se cambia a italiano con «1,500»
+  escrito, el campo pinta «1.500» (medido: `textoDesdeCrudo('1,500','it')`) y el formulario manda
+  `Number('1,500') || 0` = 0, igual que habría mandado en español. Menor.
+- **B83 · ⚪ ABIERTA (2026-11-05) · Las notas de la versión PENDIENTE salen en español en el panel
+  de Actualizaciones, aunque la interfaz esté en inglés o italiano.** Desde `feat/italiano-novedades`
+  cada item de `novedades.json` trae `en` e `it`, y el diálogo y `/novedades` los pintan. Pero
+  `notasParaVersion()` (`scripts/actualizaciones.mjs`) los **quita** de lo que escribe en
+  `notas_disponibles`, a propósito: esa columna la lee la aplicación VIEJA, que rechaza los campos
+  de item que no conoce y diría «Esta versión no trae notas» justo en la versión que las trae.
+  **Cómo se cierra:** dejar de quitarlos cuando ninguna instancia corra una versión anterior a la
+  que entiende `en`/`it` (la prueba «notas_disponibles» de `lib/novedades-idiomas.test.ts` se
+  invierte entonces). **Quién:** quien publique, tras comprobar la versión de la flota. Menor.
 
 - **B57 · 🟠 ABIERTA (2026-10-29) · Un usuario que ya usó el sistema NO se puede
   borrar: la bitácora lo impide.** Encontrada escribiendo la prueba de P19.
