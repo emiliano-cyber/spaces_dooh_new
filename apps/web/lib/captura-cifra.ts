@@ -372,6 +372,27 @@ export function formatearMientrasEscribe(
   return { texto: formateado, cursor: pos }
 }
 
+/** Lo que `CampoCifra` guarda al teclear: el texto y si lleva comas de la persona. */
+export interface TecleoCifra {
+  texto: string
+  comasPropias: boolean
+}
+
+/** D18 · PENDIENTE (rojo): hoy es el camino de siempre. */
+export function teclearCifra(
+  antes: TecleoCifra,
+  e: { nuevo: string; cursor: number; tipoEntrada?: string },
+  idioma: Idioma = 'es',
+): TecleoCifra & { cursor: number } {
+  const r = formatearMientrasEscribe({ anterior: antes.texto, ...e }, idioma)
+  return { texto: r.texto, cursor: r.cursor, comasPropias: false }
+}
+
+/** D18 · PENDIENTE (rojo): hoy nunca se calla un aviso. */
+export function cifraAMedias(_texto: string, _idioma: Idioma = 'es'): boolean {
+  return false
+}
+
 // ─── Los campos que no eran `CampoCifra` (P-L2-1, 04/11) ─────────────────────
 // `EntradaCifra` (`components/demo/ui/EntradaCifra.tsx`) es el `<input>` de
 // siempre en español e inglés y un `CampoCifra` en italiano. Estas dos son su
