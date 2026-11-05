@@ -84,14 +84,22 @@ const ESTADOS = [
   { v: 'inactive', t: 'Dada de baja' },
 ]
 
-const CONTROLES = [
-  { campo: 'centro_x', nombre: 'Centro horizontal', min: 0, max: 1, pordefecto: 0.5 },
-  { campo: 'centro_y', nombre: 'Centro vertical', min: 0, max: 1, pordefecto: 0.5 },
-  { campo: 'brillo', nombre: 'Brillo', min: -1, max: 1, pordefecto: 0 },
-  { campo: 'ev', nombre: 'Exposición', min: -3, max: 3, pordefecto: 0 },
-  { campo: 'contraste', nombre: 'Contraste', min: 0, max: 2, pordefecto: 1 },
-  { campo: 'saturacion', nombre: 'Saturación', min: 0, max: 2, pordefecto: 1 },
-  { campo: 'nitidez', nombre: 'Nitidez', min: 0, max: 2, pordefecto: 1 },
+const CONTROLES_PI = [
+  { campo: 'centro_x', nombre: 'Centro horizontal', min: 0, max: 1, paso: 0.05, pordefecto: 0.5 },
+  { campo: 'centro_y', nombre: 'Centro vertical', min: 0, max: 1, paso: 0.05, pordefecto: 0.5 },
+  { campo: 'brillo', nombre: 'Brillo', min: -1, max: 1, paso: 0.05, pordefecto: 0 },
+  { campo: 'ev', nombre: 'Exposición', min: -3, max: 3, paso: 0.05, pordefecto: 0 },
+  { campo: 'contraste', nombre: 'Contraste', min: 0, max: 2, paso: 0.05, pordefecto: 1 },
+  { campo: 'saturacion', nombre: 'Saturación', min: 0, max: 2, paso: 0.05, pordefecto: 1 },
+  { campo: 'nitidez', nombre: 'Nitidez', min: 0, max: 2, paso: 0.05, pordefecto: 1 },
+]
+
+// En el telefono la exposicion es un INDICE de compensacion, no pasos de
+// diafragma: cada aparato tiene su propio rango y su propio tamano de paso, y
+// la APK recorta lo que no alcance (`coerceIn`). Por eso va de uno en uno y sin
+// decimales.
+const CONTROLES_ANDROID = [
+  { campo: 'exposicion', nombre: 'Exposición', min: -12, max: 12, paso: 1, pordefecto: 0 },
 ]
 
 const MEDICION = [
@@ -100,7 +108,7 @@ const MEDICION = [
   { v: 'average', t: 'Todo el cuadro por igual' },
   { v: 'matrix', t: 'Por zonas' },
 ]
-const BALANCE = [
+const BALANCE_PI = [
   { v: 'auto', t: 'Automático' },
   { v: 'daylight', t: 'Luz de día' },
   { v: 'cloudy', t: 'Nublado' },
@@ -108,10 +116,86 @@ const BALANCE = [
   { v: 'fluorescent', t: 'Fluorescente' },
   { v: 'indoor', t: 'Interior' },
 ]
+// Los cinco que entiende `balanceDe()` en la APK. «Interior» no esta porque el
+// telefono no lo tiene, y el foco se llama `incandescent` y no `tungsten`:
+// mandarle la palabra de la Raspberry equivale a no mandarle nada.
+const BALANCE_ANDROID = [
+  { v: 'auto', t: 'Automático' },
+  { v: 'daylight', t: 'Luz de día' },
+  { v: 'cloudy', t: 'Nublado' },
+  { v: 'incandescent', t: 'Foco incandescente' },
+  { v: 'fluorescent', t: 'Fluorescente' },
+]
 const GIROS = [0, 90, 180, 270] as const
 
 const esPc = (v: string | null | undefined) => /^pc-agent/i.test(String(v || ''))
 const esPi = (v: string | null | undefined) => /^pi-agent/i.test(String(v || ''))
+
+// ─── Lo que cada tipo de equipo aplica DE VERDAD ─────────────────────────────
+//
+// Esto no es una preferencia de diseno: es lo que dice el codigo de cada
+// agente. Hasta que estuvo aqui, el panel le ofrecia a todos los mandos de la
+// Raspberry, y en un telefono —que son cinco de los once equipos de g500— casi
+// ninguno hacia nada. Se guardaban en la base, se mandaban en la orden y la
+// APK los tiraba sin decir palabra, asi que desde la pantalla no habia forma de
+// saber que no servian.
+//
+//   Raspberry  `pi-agent/src/camara.js` los traduce a banderas de libcamera:
+//              los aplica todos.
+//   Android    `WebRTCClient.kt`, `aplicarAjustesSitio()`: lee TRES claves y no
+//              mas — `enfoque_fijo`, `exposicion` y `balance`.
+//   PC / IP    `pc-agent/src/camera.js` no toca la camara: la configura su
+//              propio firmware, desde la web de la camara.
+//
+// Y cuidado con los nombres, que es donde estaba el enredo: lo mismo se llama
+// distinto en cada lado. Exposicion es `ev` en la Raspberry (pasos de
+// diafragma) y `exposicion` en el telefono (un indice). Balance de blancos es
+// `awb` alla y `balance` aca. No son equivalentes ni en unidad ni en nombre,
+// asi que no se puede guardar un solo numero y que lo entiendan los dos.
+type Tipo = 'pi' | 'android' | 'pc'
+
+const tipoDe = (v: string | null | undefined): Tipo => (esPi(v) ? 'pi' : esPc(v) ? 'pc' : 'android')
+
+type Capacidades = {
+  sliders: typeof CONTROLES_PI
+  balance: { campo: string; opciones: typeof BALANCE_PI } | null
+  pantallaLed: boolean
+  presets: boolean
+  // El tramo de noche, con el campo y la escala de ESTE tipo de equipo.
+  noche: { campo: string; min: number; max: number; paso: number; pordefecto: number; ayuda: string } | null
+}
+
+const CAPACIDADES: Record<Tipo, Capacidades> = {
+  pi: {
+    sliders: CONTROLES_PI,
+    balance: { campo: 'awb', opciones: BALANCE_PI },
+    pantallaLed: true,
+    presets: true,
+    noche: {
+      campo: 'ev',
+      min: -3,
+      max: 3,
+      paso: 0.1,
+      pordefecto: -0.7,
+      ayuda: 'En pasos de diafragma: −1 es la mitad de luz.',
+    },
+  },
+  android: {
+    sliders: CONTROLES_ANDROID,
+    balance: { campo: 'balance', opciones: BALANCE_ANDROID },
+    pantallaLed: false,
+    presets: false,
+    noche: {
+      campo: 'exposicion',
+      min: -12,
+      max: 12,
+      paso: 1,
+      pordefecto: -4,
+      ayuda: 'Cada paso oscurece un poco. El telefono lo recorta a lo que aguante su camara.',
+    },
+  },
+  pc: { sliders: [], balance: null, pantallaLed: false, presets: false, noche: null },
+}
 
 function mensaje(e: unknown): string {
   if (e instanceof ErrorSE && e.status === 403) return 'No tienes permiso para esto.'
@@ -128,7 +212,7 @@ function leerAjustes(v: Equipo['camera_ajustes']): Ajustes {
   }
 }
 
-type Noche = { activo: boolean; inicio: string; fin: string; brillo: number }
+type Noche = { activo: boolean; inicio: string; fin: string; valor: number }
 
 /**
  * El tramo de noche guardado, o el de siempre si no hay nada puesto.
@@ -136,15 +220,22 @@ type Noche = { activo: boolean; inicio: string; fin: string; brillo: number }
  * Las tres piezas van juntas: un perfil sin horas —o al revés— no es un tramo
  * y el servidor lo ignoraría sin decir nada. MySQL devuelve las columnas TIME
  * como «19:00:00», de ahí el recorte.
+ *
+ * El valor se lee del campo que entiende ESTE equipo (ver CAPACIDADES). Si
+ * quedó un `brillo` de antes —lo que guardaba el panel hasta ahora— se ignora
+ * a propósito: en un teléfono nunca hizo nada, y rescatarlo sería arrastrar al
+ * control nuevo el número de una escala que no es la suya.
  */
 function leerNoche(equipo: Equipo): Noche {
-  const vacio: Noche = { activo: false, inicio: '19:00', fin: '07:00', brillo: -1 }
+  const cap = CAPACIDADES[tipoDe(equipo.android_version)].noche
+  const vacio: Noche = { activo: false, inicio: '19:00', fin: '07:00', valor: cap?.pordefecto ?? 0 }
   const aj = leerAjustes(equipo.camera_ajustes_noche ?? null)
   const hora = (v: string | null | undefined) => (v ? String(v).slice(0, 5) : null)
   const ini = hora(equipo.noche_inicio)
   const fin = hora(equipo.noche_fin)
-  if (!Object.keys(aj).length || !ini || !fin) return vacio
-  return { activo: true, inicio: ini, fin, brillo: Number(aj.brillo ?? 0) }
+  if (!cap || !Object.keys(aj).length || !ini || !fin) return vacio
+  const guardado = Number(aj[cap.campo])
+  return { activo: true, inicio: ini, fin, valor: Number.isFinite(guardado) ? guardado : cap.pordefecto }
 }
 
 type Mensaje = { tipo: 'ok' | 'error'; texto: string } | null
@@ -586,6 +677,9 @@ function AjustesImagen({
   onGuardado: () => Promise<void>
 }) {
   const inicial = leerAjustes(equipo.camera_ajustes)
+  // Que mandos tiene sentido ensenar para ESTE equipo. Ver CAPACIDADES.
+  const tipo = tipoDe(equipo.android_version)
+  const cap = CAPACIDADES[tipo]
   const [abierto, setAbierto] = useState(false)
   const [aj, setAj] = useState<Ajustes>(inicial)
   const [wbManual, setWbManual] = useState(inicial.awb_rojo != null && inicial.awb_azul != null)
@@ -645,13 +739,16 @@ function AjustesImagen({
     return Object.keys(a).length ? a : null
   }
 
-  // Las tres piezas del tramo viajan juntas, y en null lo apagan.
+  // Las tres piezas del tramo viajan juntas, y en null lo apagan. El perfil
+  // declara SOLO la clave que cambia de noche: el servidor lo encima sobre el
+  // de día, así que todo lo que no se nombre aquí sigue siendo el de arriba.
   function cuerpoNoche() {
-    if (!noche.activo || !noche.inicio || !noche.fin) {
+    if (!cap.noche || !noche.activo || !noche.inicio || !noche.fin) {
       return { ajustes_noche: null, noche_inicio: null, noche_fin: null }
     }
+    const valor = cap.noche.paso >= 1 ? Math.round(noche.valor) : Number(noche.valor)
     return {
-      ajustes_noche: { brillo: Number(noche.brillo) || 0 },
+      ajustes_noche: { [cap.noche.campo]: Number.isFinite(valor) ? valor : 0 },
       noche_inicio: noche.inicio,
       noche_fin: noche.fin,
     }
@@ -783,15 +880,33 @@ function AjustesImagen({
               </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {CONTROLES.map((c) => deslizador(c.campo, c.nombre, c.min, c.max, 0.05, c.pordefecto))}
-            </div>
+            {cap.sliders.length > 0 ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {cap.sliders.map((c) => deslizador(c.campo, c.nombre, c.min, c.max, c.paso, c.pordefecto))}
+              </div>
+            ) : null}
+            {tipo !== 'pi' && (
+              <p className="text-[11px] text-muted">
+                {tipo === 'pc'
+                  ? 'Esta cámara se configura desde su propia página, no desde aquí: el agente de PC solo le pide la foto.'
+                  : 'Un teléfono solo acepta la exposición, el balance de blancos y el enfoque fijo. El resto de los ajustes son de la Raspberry: aquí no se enseñan porque no harían nada.'}
+              </p>
+            )}
 
-            {/* El brillo por horario. El mismo ajuste no sirve a las 3 de la
+            {/* La luz por horario. El mismo ajuste no sirve a las 3 de la
                 tarde y a las 9 de la noche, cuando el LED es lo único que
                 alumbra la escena: de día la foto sale bien y de noche quemada.
                 Antes había que entrar dos veces al día a mover el control a
-                mano, y no lo hacía nadie. */}
+                mano, y no lo hacía nadie.
+
+                Lo que baja de noche es la EXPOSICIÓN y no el brillo, aunque el
+                control dijera «brillo» hasta ahora. Sobre una pantalla de LED
+                el brillo suma luz a la imagen ya revelada y no devuelve un
+                canal quemado —medido en la foto del 27-ago: el 21.4% de los
+                píxeles de la pantalla tenía al menos un canal pegado en 250—.
+                Lo único que lo evita es exponer menos. Y en un teléfono el
+                brillo ni siquiera llegaba: la APK no lee esa clave. */}
+            {cap.noche && (
             <div className="border-t border-border pt-4">
               <label className="flex items-center gap-2 text-[12px] text-ink">
                 <input
@@ -800,7 +915,7 @@ function AjustesImagen({
                   disabled={!puedeEncuadrar}
                   onChange={(e) => setNoche((v) => ({ ...v, activo: e.target.checked }))}
                 />
-                Cambiar el brillo de noche automáticamente
+                Bajar la luz de noche automáticamente
               </label>
               {noche.activo && (
                 <div className="mt-3">
@@ -828,29 +943,34 @@ function AjustesImagen({
                   </div>
                   <label className="mt-3 block">
                     <span className="mb-1 flex justify-between text-[12px] text-muted">
-                      <span>Brillo en ese tramo</span>
-                      <span className="tabular-nums text-ink">{noche.brillo.toFixed(2)}</span>
+                      <span>Exposición en ese tramo</span>
+                      <span className="tabular-nums text-ink">
+                        {cap.noche.paso >= 1 ? Math.round(noche.valor) : noche.valor.toFixed(2)}
+                        {noche.valor < 0 ? ' · más oscuro' : noche.valor > 0 ? ' · más claro' : ' · igual que de día'}
+                      </span>
                     </span>
                     <input
                       type="range"
-                      min={-1}
-                      max={1}
-                      step={0.05}
+                      min={cap.noche.min}
+                      max={cap.noche.max}
+                      step={cap.noche.paso}
                       className="w-full"
-                      value={noche.brillo}
+                      value={noche.valor}
                       disabled={!puedeEncuadrar}
-                      onChange={(e) => setNoche((v) => ({ ...v, brillo: Number(e.target.value) }))}
+                      onChange={(e) => setNoche((v) => ({ ...v, valor: Number(e.target.value) }))}
                     />
                   </label>
                   <p className="mt-1 text-[11px] text-muted">
-                    Es la hora del sitio, no la del servidor, y puede cruzar la medianoche. Solo cambia el brillo: el
-                    encuadre y el balance de blancos siguen siendo los de arriba. Aplica a la vista en vivo y a todas
-                    las fotos, incluidas las programadas.
+                    {cap.noche.ayuda} Es la hora del sitio, no la del servidor, y puede cruzar la medianoche. Solo
+                    cambia la exposición: el encuadre y el balance de blancos siguen siendo los de arriba. Aplica a la
+                    vista en vivo y a todas las fotos, incluidas las programadas.
                   </p>
                 </div>
               )}
             </div>
+            )}
 
+            {cap.pantallaLed && (
             <div className="border-t border-border pt-4">
               <p className="mb-2 text-[12px] font-medium text-ink">Pantalla de LED</p>
               {deslizador('cuadros', 'Cuadros a promediar', 1, 32, 1, 1, (v) => (v > 1 ? `${v} cuadros` : 'un disparo'))}
@@ -899,67 +1019,80 @@ function AjustesImagen({
                 </>
               )}
             </div>
+            )}
 
+            {cap.balance && (
             <div className="border-t border-border pt-4">
               <label className="mb-2 block">
                 <span className="mb-1 block text-[12px] text-muted">Balance de blancos</span>
                 <select
-                  value={String(aj.awb ?? 'auto')}
+                  value={String(aj[cap.balance.campo] ?? 'auto')}
                   disabled={bloqueado}
-                  onChange={(e) => poner('awb', e.target.value)}
+                  onChange={(e) => poner(cap.balance!.campo, e.target.value)}
                   className={SELECT}
                 >
-                  {BALANCE.map((o) => (
+                  {cap.balance.opciones.map((o) => (
                     <option key={o.v} value={o.v}>
                       {o.t}
                     </option>
                   ))}
                 </select>
               </label>
-              <label className="mb-2 flex items-center gap-2 text-[12px] text-ink">
-                <input
-                  type="checkbox"
-                  checked={wbManual}
-                  disabled={bloqueado}
-                  onChange={(e) => alternarWb(e.target.checked)}
-                  className="h-4 w-4 accent-[var(--accent)]"
-                />
-                Ajustar el color a mano (necesario si las hojas salen moradas)
-              </label>
-              {wbManual && (
-                <div className="grid grid-cols-2 gap-3">
-                  {deslizador('awb_rojo', 'Rojo', 0.5, 4, 0.05, 1.5)}
-                  {deslizador('awb_azul', 'Azul', 0.5, 4, 0.05, 1.5)}
-                </div>
+              {/* Las ganancias a mano son de rpicam: el telefono solo entiende
+                  el modo, no los numeros. */}
+              {tipo === 'pi' && (
+                <>
+                  <label className="mb-2 flex items-center gap-2 text-[12px] text-ink">
+                    <input
+                      type="checkbox"
+                      checked={wbManual}
+                      disabled={bloqueado}
+                      onChange={(e) => alternarWb(e.target.checked)}
+                      className="h-4 w-4 accent-[var(--accent)]"
+                    />
+                    Ajustar el color a mano (necesario si las hojas salen moradas)
+                  </label>
+                  {wbManual && (
+                    <div className="grid grid-cols-2 gap-3">
+                      {deslizador('awb_rojo', 'Rojo', 0.5, 4, 0.05, 1.5)}
+                      {deslizador('awb_azul', 'Azul', 0.5, 4, 0.05, 1.5)}
+                    </div>
+                  )}
+                </>
               )}
             </div>
+            )}
 
             <div className="flex flex-wrap gap-2 border-t border-border pt-4">
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={bloqueado}
-                title="Promedia 16 cuadros, baja la exposición y mide la luz en la pantalla"
-                onClick={() => {
-                  setAj((a) => ({ ...a, cuadros: 16, ev: -0.7, medicion: 'spot' }))
-                  setMsg({ tipo: 'ok', texto: 'Punto de partida para pantalla aplicado. Prueba y sube o baja la exposición.' })
-                }}
-              >
-                Pantalla de LED: punto de partida
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={bloqueado}
-                title="Para cámaras sin filtro infrarrojo, donde la vegetación sale morada"
-                onClick={() => {
-                  setWbManual(true)
-                  setAj((a) => ({ ...a, awb_rojo: 1.05, awb_azul: 1.9, saturacion: 0.75, contraste: 1.1 }))
-                  setMsg({ tipo: 'ok', texto: 'Punto de partida aplicado. Prueba y afina con los deslizadores.' })
-                }}
-              >
-                Hojas moradas: punto de partida
-              </Button>
+              {cap.presets && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={bloqueado}
+                    title="Promedia 16 cuadros, baja la exposición y mide la luz en la pantalla"
+                    onClick={() => {
+                      setAj((a) => ({ ...a, cuadros: 16, ev: -0.7, medicion: 'spot' }))
+                      setMsg({ tipo: 'ok', texto: 'Punto de partida para pantalla aplicado. Prueba y sube o baja la exposición.' })
+                    }}
+                  >
+                    Pantalla de LED: punto de partida
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={bloqueado}
+                    title="Para cámaras sin filtro infrarrojo, donde la vegetación sale morada"
+                    onClick={() => {
+                      setWbManual(true)
+                      setAj((a) => ({ ...a, awb_rojo: 1.05, awb_azul: 1.9, saturacion: 0.75, contraste: 1.1 }))
+                      setMsg({ tipo: 'ok', texto: 'Punto de partida aplicado. Prueba y afina con los deslizadores.' })
+                    }}
+                  >
+                    Hojas moradas: punto de partida
+                  </Button>
+                </>
+              )}
               <Button
                 size="sm"
                 variant="ghost"
