@@ -8,7 +8,11 @@ import {
   columnasDeLaSiembra,
   vencimiento,
   USUARIOS,
+  mesesDeDesplazamiento,
 } from './semilla-catalogo-demo.mjs'
+import { pngDeArte, imagenAHtml as imagenAHtmlSemilla } from './semilla-arte-demo.mjs'
+import { pdfDeTexto } from './semilla-pdf-demo.mjs'
+import { imagenAHtml, imagenDeHtml } from '@/lib/creativo-html'
 
 // ============================================================================
 //  El CATÁLOGO de la demo, probado sin Postgres.
@@ -45,7 +49,26 @@ describe('semilla-catalogo-demo', () => {
   })
 
   it('y se niega a sembrar con un «hoy» que deja la demo contradiciéndose', () => {
-    expect(comprobarCoherencia(plan('2026-11-25')).length).toBeGreaterThan(0)
+    // Con el calendario QUIETO (meses: 0), que es lo que pasa cuando la base
+    // ya se sembró con él y `main` lo reutiliza.
+    expect(comprobarCoherencia(planCatalogo({ ancla: '2026-11-25', meses: 0 })).length).toBeGreaterThan(0)
+  })
+
+  it('el calendario se mueve con el ancla y la demo es coherente CUALQUIER día hasta 2028', () => {
+    // Nació el 2026-11-03: «CAT-CMP-020 COTIZACION ya empezada» a media hora de
+    // una demo en vivo.
+    expect(mesesDeDesplazamiento('2026-10-06')).toBe(0)
+    expect(mesesDeDesplazamiento('2026-11-03')).toBe(1)
+    expect(mesesDeDesplazamiento('2028-01-20')).toBe(15)
+    const malos: string[] = []
+    for (let t = Date.UTC(2026, 9, 1); t <= Date.UTC(2028, 11, 31); t += 86_400_000) {
+      const d = new Date(t).toISOString().slice(0, 10)
+      if (comprobarCoherencia(plan(d)).length) malos.push(d)
+    }
+    expect(malos).toEqual([])
+    const nov = plan('2026-11-03')
+    expect(nov.campanas.find((c) => c.folio === 'CAT-CMP-020')!.desde).toBe('2026-12-01')
+    expect(nov.contratos.find((k) => k.clave === 'REF-1')!.inicio).toBe('2024-02-01')
   })
 
   it('hay historia desde 2024 y contratos y campañas hasta 2028', () => {
@@ -148,18 +171,129 @@ describe('semilla-catalogo-demo', () => {
 
   it('deshacer borra solo lo de ESTA organización y solo lo CAT-, sin cascade', () => {
     for (const s of sentenciasDeshacer(plan(), TENANT)) {
-      expect(s.sql, s.etiqueta).toMatch(/^delete from \w+ where tenant_id = \$1::uuid/)
+      // Las que no borran devuelven a vacío los datos de la organización
+      // (identidad, logotipo, condiciones), y solo si siguen siendo los sembrados.
+      expect(s.sql, s.etiqueta).toMatch(
+        /^(delete from \w+\s+where tenant_id = \$1::uuid|update (config_negocio|tenants|campanas) set ([a-z_]+ = null,?\s*)+where (tenant_id|id) = \$1::uuid)/,
+      )
       expect(s.valores[0]).toBe(TENANT)
       expect(s.sql, s.etiqueta).not.toMatch(/cascade/i)
-      expect(s.sql, s.etiqueta).toMatch(/CAT-|any\(\$2::text\[\]\)/)
+      // Acotada por la marca CAT, por la lista exacta de claves del plan o por
+      // el valor exacto que se sembró.
+      expect(s.sql, s.etiqueta).toMatch(/CAT|\$2::(text|int)\[\]|= \$2::text/)
     }
   })
 
   it('deshacer cubre cada tabla en la que siembra', () => {
     const sembradas = new Set(
-      sentenciasDelCatalogo(plan(), TENANT, 'x'.repeat(12)).map((s) => /insert into (\w+)/.exec(s.sql)![1]),
+      // Solo los insert: el reparto de spots es un `update` de reservas, que
+      // ya se borran enteras.
+      sentenciasDelCatalogo(plan(), TENANT, 'x'.repeat(12))
+        .map((s) => /insert into (\w+)/.exec(s.sql)?.[1])
+        .filter((t): t is string => !!t),
     )
-    const borradas = new Set(sentenciasDeshacer(plan(), TENANT).map((s) => /delete from (\w+)/.exec(s.sql)![1]))
-    expect([...sembradas].filter((t) => !borradas.has(t))).toEqual([])
+    const borradas = new Set(
+      sentenciasDeshacer(plan(), TENANT)
+        .map((s) => /delete from (\w+)/.exec(s.sql)?.[1])
+        .filter((t): t is string => !!t),
+    )
+    // `acciones` es la única excepción, y no por elección: la bitácora es
+    // append-only por trigger y no admite DELETE.
+    expect([...sembradas].filter((t) => !borradas.has(t))).toEqual(['acciones'])
+  })
+
+  it('la bitácora de ejemplo no queda atada a los usuarios demo (si no, no se podrían borrar)', () => {
+    const s = sentenciasDelCatalogo(plan(), TENANT, 'x'.repeat(12)).filter((x) => /insert into acciones/.test(x.sql))
+    expect(s.length).toBeGreaterThan(0)
+    for (const x of s) expect(x.sql).toMatch(/\$3::text, null,/)
+    const u = sentenciasDeshacer(plan(), TENANT).find((x) => /delete from usuarios/.test(x.sql))!
+    expect(u.sql).toContain('not exists (select 1 from acciones')
+  })
+
+  // ─── Creativos (lo pidió el dueño: creativos de fijas Y de digitales) ─────
+  it('hay creativos digitales en los tres estados y arte de fijas en los cinco de imprenta', () => {
+    const p = plan()
+    expect(new Set(p.creativos.map((c) => c.estatus))).toEqual(new Set(['VALIDADA', 'PENDIENTE', 'RECHAZADA']))
+    expect(new Set(p.impresiones.map((o) => o.estatus))).toEqual(
+      new Set(['ARTE_RECIBIDO', 'VALIDADO', 'EN_PRODUCCION', 'IMPRESO', 'LISTO_MONTAJE']),
+    )
+    expect(p.creativos.some((c) => c.resolucion === '1080x1920')).toBe(true)
+    expect(p.creativos.find((c) => c.estatus === 'RECHAZADA')!.motivo).toBeTruthy()
+  })
+
+  it('ningún creativo digital cae en una campaña toda fija (el servidor lo rechaza)', () => {
+    const p = plan()
+    for (const cr of p.creativos) expect(p.campanas.find((c) => c.folio === cr.campanaFolio)!.tipo).not.toBe('OOH')
+    for (const oi of p.impresiones) expect(p.sitios.find((s) => s.clave === oi.sitio)!.digital).toBe(false)
+  })
+
+  it('las campañas al aire tienen TODOS sus spots digitales con creativo aprobado', () => {
+    const p = plan()
+    for (const c of p.campanas.filter((x) => x.estado === 'ACTIVA')) {
+      for (const r of p.reservas.filter((x) => x.campanaFolio === c.folio && x.digital)) {
+        const a = p.asignaciones.find((x) => x.campanaFolio === c.folio && x.sitio === r.sitio)
+        expect(a, `${c.folio} ${r.sitio}`).toBeDefined()
+        for (const k of a!.creativos)
+          expect(p.creativos.find((cr) => cr.nombre === k.nombre)!.estatus).toBe('VALIDADA')
+      }
+    }
+  })
+
+  it('el arte es un PNG de verdad y se guarda envuelto como lo hace la pantalla de Creativos', () => {
+    const png = pngDeArte({ ancho: 64, alto: 36, fondo: '#000000', acento: '#FFFFFF', texto: '#FFFFFF', lineas: ['DEMO'] })
+    expect([...png.subarray(0, 8)]).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    const url = `data:image/png;base64,${png.toString('base64')}`
+    // Copia literal de la función de la app: si una cambia, esto lo dice.
+    expect(imagenAHtmlSemilla(url, 'x.png')).toBe(imagenAHtml(url, 'x.png'))
+    expect(imagenDeHtml(imagenAHtmlSemilla(url, 'x.png'))).toBe(url)
+  })
+
+  it('el reparto en los spots no pisa lo que ya se cambió en la demo', () => {
+    const spots = sentenciasDelCatalogo(plan(), TENANT, 'x'.repeat(12)).filter((s) => /^update reservas/.test(s.sql))
+    expect(spots.length).toBeGreaterThan(0)
+    for (const s of spots) expect(s.sql).toContain("and r.creativos = '[]'::jsonb")
+  })
+
+  // ─── Los módulos que el catálogo no cubría (auditoría del 2026-11-03) ─────
+  it('cada módulo del menú tiene al menos un ejemplo, y en sus estados', () => {
+    const m = plan().modulos
+    expect(new Set(m.prospectos.filter((p) => ['PREDIO', 'PANTALLA'].includes(p.tipo)).map((p) => p.etapa))).toEqual(
+      new Set(['PROSPECTO', 'CONTACTADO', 'VISITA', 'NEGOCIACION', 'EN_REVISION', 'RECHAZADO', 'APROBADO', 'PERDIDO']),
+    )
+    for (const k of ['codigos', 'canjes', 'paquetes', 'franjas', 'temporadas', 'tarifas', 'escalas', 'activos', 'movimientos',
+      'incidencias', 'evidencias', 'costosOt', 'abonos', 'extensiones', 'ordenesCompra', 'notificaciones', 'acciones', 'tickets'] as const)
+      expect((m as unknown as Record<string, unknown[]>)[k].length, k).toBeGreaterThan(0)
+    expect(new Set(m.activos.map((a) => a.estado))).toEqual(new Set(['EN_ALMACEN', 'INSTALADO', 'EN_TRASLADO', 'BAJA']))
+  })
+
+  it('las fechas de los módulos se mueven con el ancla', () => {
+    const a = plan('2026-10-06').modulos
+    const b = plan('2027-03-06').modulos
+    expect(a.codigos[0].desde).not.toBe(b.codigos[0].desde)
+    expect(b.notificaciones.length).toBe(a.notificaciones.length)
+  })
+
+  it('la extensión deja la campaña terminando en su fin NUEVO', () => {
+    const p = plan()
+    for (const x of p.modulos.extensiones) {
+      const c = p.campanas.find((k) => k.folio === x.campana)!
+      expect(x.nueva).toBe(c.hasta)
+      expect(x.anterior < x.nueva).toBe(true)
+    }
+  })
+
+  it('los abonos no pasan del total del comprobante', () => {
+    const p = plan()
+    for (const a of p.modulos.abonos)
+      expect(a.monto).toBeLessThanOrEqual(p.comprobantes.find((f) => f.folio === a.factura)!.monto)
+  })
+
+  it('el PDF de los documentos es un PDF que abre (cabecera, xref y fin)', () => {
+    const t = pdfDeTexto('Prueba', ['linea con acento: campaña']).toString('latin1')
+    expect(t.startsWith('%PDF-1.4')).toBe(true)
+    expect(t.trimEnd().endsWith('%%EOF')).toBe(true)
+    const xref = Number(/startxref\n(\d+)/.exec(t)![1])
+    expect(t.slice(xref, xref + 4)).toBe('xref')
+    expect(t).toContain('campana')
   })
 })
