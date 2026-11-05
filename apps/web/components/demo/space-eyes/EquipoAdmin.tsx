@@ -154,6 +154,17 @@ const esPi = (v: string | null | undefined) => /^pi-agent/i.test(String(v || '')
 // asi que no se puede guardar un solo numero y que lo entiendan los dos.
 type Tipo = 'pi' | 'android' | 'pc'
 
+/**
+ * De que tipo es un equipo. Se mira `app_version` —«pi-agent 0.4.0»,
+ * «pc-agent 1.4.0», o un numero suelto como «0.14.0» en el telefono—, igual
+ * que hace la seccion de actualizar.
+ *
+ * NO sirve `android_version`, aunque se llame asi: ahi los agentes escriben la
+ * version del SISTEMA («Debian GNU/Linux 13 (trixie)», «Windows_NT 10.0.19045»,
+ * o «15» en un telefono), porque el backend reaprovecho el campo. Leer ese y
+ * no este dejaria a toda la flota clasificada como telefono, y una Raspberry
+ * perderia los mandos que si aplica.
+ */
 const tipoDe = (v: string | null | undefined): Tipo => (esPi(v) ? 'pi' : esPc(v) ? 'pc' : 'android')
 
 type Capacidades = {
@@ -227,7 +238,7 @@ type Noche = { activo: boolean; inicio: string; fin: string; valor: number }
  * control nuevo el número de una escala que no es la suya.
  */
 function leerNoche(equipo: Equipo): Noche {
-  const cap = CAPACIDADES[tipoDe(equipo.android_version)].noche
+  const cap = CAPACIDADES[tipoDe(equipo.app_version)].noche
   const vacio: Noche = { activo: false, inicio: '19:00', fin: '07:00', valor: cap?.pordefecto ?? 0 }
   const aj = leerAjustes(equipo.camera_ajustes_noche ?? null)
   const hora = (v: string | null | undefined) => (v ? String(v).slice(0, 5) : null)
@@ -678,7 +689,7 @@ function AjustesImagen({
 }) {
   const inicial = leerAjustes(equipo.camera_ajustes)
   // Que mandos tiene sentido ensenar para ESTE equipo. Ver CAPACIDADES.
-  const tipo = tipoDe(equipo.android_version)
+  const tipo = tipoDe(equipo.app_version)
   const cap = CAPACIDADES[tipo]
   const [abierto, setAbierto] = useState(false)
   const [aj, setAj] = useState<Ajustes>(inicial)
