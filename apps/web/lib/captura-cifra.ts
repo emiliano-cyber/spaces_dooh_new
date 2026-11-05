@@ -47,8 +47,10 @@
 //  MIENTRAS SE ESCRIBE (`teclearCifra`, D18): el campo recoloca SUS comas de
 //  millar; las que pone la persona no las toca nunca. «2,5» tecleado se queda
 //  «2,5» y se rechaza; «1,500» vale mil quinientos. A media escritura («1,»,
-//  «1,5», camino de «1,500») no se avisa (`cifraAMedias`). Lo que se entrega al formulario
-//  (`crudoDeLectura`) es la MISMA cifra en los tres idiomas: sin separadores y
+//  «1,5», camino de «1,500») no se avisa (`cifraAMedias`). En italiano, lo
+//  mismo con el punto de millar (B87, 05/11), pero avisando en el acto.
+//
+//  Lo que se entrega al formulario (`crudoDeLectura`) es la MISMA cifra en los tres idiomas: sin separadores y
 //  con punto decimal.
 // ============================================================================
 
@@ -433,24 +435,38 @@ export interface TecleoCifra {
  *     cada tres cifras», y el formulario recibe 'NaN' y no envía.
  *  5. A media escritura no se avisa: ver `cifraAMedias`.
  *
- * EN ITALIANO no cambia nada (B77 ya dejaba el punto tecleado donde caía): es
- * `formatearMientrasEscribe` tal cual y `comasPropias` siempre `false`.
+ * EN ITALIANO, la misma regla con los signos intercambiados (B87, 05/11): el
+ * PUNTO de millar que pone la persona no se recoloca, y `comasPropias` dice
+ * «lleva puntos propios». `cifraAMedias` sigue siendo `false`: su aviso sale
+ * en el acto, como desde B77.
  */
 export function teclearCifra(
   antes: TecleoCifra,
   e: { nuevo: string; cursor: number; tipoEntrada?: string },
   idioma: Idioma = 'es',
 ): TecleoCifra & { cursor: number } {
+  // B87 (supervisión de D18, 05/11): el italiano es el ESPEJO, con los
+  // signos intercambiados, como en `leerCifra`. Hasta ese día devolvía
+  // `comasPropias: false` siempre, y un punto tecleado que dejaba el texto
+  // canónico («1.500») se reagrupaba con la tecla siguiente: «1.5000»
+  // tecleado daba 15.000, pegado se rechazaba. El intercambio no cambia
+  // ninguna longitud, así que el cursor vale tal cual.
   if (comaDecimal(idioma)) {
-    const r = formatearMientrasEscribe({ anterior: antes.texto, ...e }, idioma)
-    return { texto: r.texto, cursor: r.cursor, comasPropias: false }
+    const r = teclearCifra(
+      { texto: intercambiar(antes.texto), comasPropias: antes.comasPropias },
+      { ...e, nuevo: intercambiar(e.nuevo) },
+      'es',
+    )
+    return { ...r, texto: intercambiar(r.texto) }
   }
   const r = formatearMientrasEscribe({ anterior: antes.texto, ...e, comasPropias: antes.comasPropias }, idioma)
   // La persona PUSO una coma si el cambio trae más comas de las que había y
-  // el campo no lo reformateó: una coma tecleada, o un texto pegado (o
-  // arrastrado, o escrito sobre una selección) que las trae.
+  // el campo no lo reformateó (una coma tecleada, o un texto escrito sobre una
+  // selección que las trae), o si llega PEGADA o SOLTADA: lo pegado es suyo
+  // entero aunque traiga las mismas comas que lo que reemplaza (B85: pegar
+  // «1,500» encima de «2,000» y teclear 0 daba 15,000).
   const comas = (t: string) => t.split(',').length - 1
-  const pone = comas(e.nuevo) > comas(antes.texto) && r.texto === e.nuevo
+  const pone = esPegado(e.tipoEntrada) || (comas(e.nuevo) > comas(antes.texto) && r.texto === e.nuevo)
   return { texto: r.texto, cursor: r.cursor, comasPropias: (antes.comasPropias || pone) && r.texto.includes(',') }
 }
 

@@ -326,7 +326,7 @@ archivo dentro de la pregunta.
 > **Una precisión:** «ninguna pasa de una cifra a otra» vale solo para teclear de corrido. Con
 > retroceso sí cambian (24 069 de 3 257 436 desde vacío), y es a favor del arreglo: antes el
 > retroceso tras una coma tragada borraba una cifra (143 150 casos perdían una cifra con la función
-> vieja, 0 con la nueva). Deuda nueva: **B84** (el gemelo italiano), **B85** (pegar sobre una
+> vieja, 0 con la nueva). Deuda nueva: **B87** (el gemelo italiano; el supervisor la numeró B84, número ya usado), **B85** (pegar sobre una
 > selección), **B86** (dos mutantes vivos), y la decisión **D19** (`EntradaCifra` en es/en).
 
 
@@ -2858,8 +2858,14 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
   > **2026-11-04 · supervisión de `feat/d18-aviso-al-teclear`** (`6dce3b0f` + `598a3a25`), ÁMBAR —
   > `docs/Supervision/d18-aviso-al-teclear.md`. Tres advertencias nuevas; la decisión nueva es D19.
 
-- **B84 · 🔴 por severidad, ⏳ antes de encender el italiano · ABIERTA (2026-11-04) · En italiano,
-  «1.500» tecleado y luego un «0» se vuelve «15.000» sin aviso.** **Qué es:** el gemelo exacto de lo
+- ~~**B87 · En italiano, «1.500» tecleado y luego un «0» se vuelve «15.000» sin aviso.**~~ ✅ **CERRADA el 2026-11-05** (`3a040dec` rojo a la vista; arreglo en el commit
+  siguiente de `feat/d18-aviso-al-teclear`). La rama italiana de `teclearCifra` es el espejo de la española con los signos intercambiados: un
+  punto de millar que pone la persona no se recoloca. «1.5000» y «1.2345» tecleados se quedan y se
+  rechazan, como pegados; «1.500», «1.500,50», «1500» → «1.500» igual que antes; pegar «1.500» sobre
+  «2.000» + 0 → «1.5000» rechazado. Lo único que cambia en las pruebas italianas de antes son esos
+  dos casos (`captura-cifra.d18.test.ts`). `cifraAMedias` sigue en `false` en italiano. Numerada
+  **B84** por el supervisor; ese número ya lo usaba otra rama.
+  Lo que decía la advertencia: Qué es:** el gemelo exacto de lo
   que D18 corrige en español. B77 deja el punto tecleado donde cae, pero cuando el texto vuelve a
   parecer canónico («1.500») la tecla siguiente lo regrupa. **Evidencia:** `teclearCifra(…, 'it')`
   tecla a tecla: `1 > 1. > 1.5 > 1.50 > 1.500 > 15.000` → 15000; `1.2345` → 12345; en español la
@@ -2871,8 +2877,10 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
   captura italiana (ZONA ROJA ya autorizada en B77), verificador aparte. **Si no se cierra antes del
   14/10:** la fecha pasó; lo que importa es **antes de encender el italiano** en un servidor con
   clientes: un importe tecleado así se guarda 10 veces mayor, a la vista pero sin aviso.
-- **B85 · 🟠 por severidad · ABIERTA (2026-11-04) · Pegar una cifra con comas ENCIMA de otra con
-  las mismas comas no cuenta como «coma de la persona».** **Qué es:** `teclearCifra` marca la coma
+- ~~**B85 · Pegar una cifra con comas ENCIMA de otra con las mismas comas no cuenta como «coma de la persona».**~~ ✅ **CERRADA el 2026-11-05** (`3a040dec` rojo a la vista; arreglo en el commit
+  siguiente de `feat/d18-aviso-al-teclear`). Lo pegado o soltado (`insertFromPaste`/`insertFromDrop`) con coma cuenta como de la persona siempre;
+  «2,000» → pegar «1,500» → «0» da «1,5000» rechazado (unitaria y en el campo).
+  Lo que decía la advertencia: Qué es:** `teclearCifra` marca la coma
   como de la persona solo si el cambio trae **más** comas que antes (`lib/captura-cifra.ts:453`).
   **Evidencia:** `""` → pegar «1,500» → «0» da `1,5000` rechazado; `"2,000"` → pegar «1,500» (sobre
   la selección) → «0» da `15,000` = 15000. La regla escrita en la función («tecleada, o en un texto
@@ -2882,7 +2890,11 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
   `insertFromPaste`/`insertFromDrop`, marcar como propio si el texto resultante lleva coma; prueba
   roja con «2,000» → pegar «1,500» → «0». **Quién:** el ejecutor de `feat/d18-aviso-al-teclear`.
   **Si no:** queda un camino por el que «1,500» + 0 da 15,000 sin aviso, el patrón que D18 cerró.
-- **B86 · ⚪ ABIERTA (2026-11-04) · Dos mutantes de D18 sobreviven a las unitarias.** **Qué es:**
+- ~~**B86 · Dos mutantes de D18 sobreviven a las unitarias.**~~ ✅ **CERRADA el 2026-11-05** (`3a040dec` rojo a la vista; arreglo en el commit
+  siguiente de `feat/d18-aviso-al-teclear`). Dos pruebas en `cifras-d18.test.ts`: «1,000» bajo un mínimo de 1500, salir y «0» → «1,0000»; y un
+  repintado del padre («1,500,5» → «1,500») vuelve a reagrupar («15,000»). Los dos mutantes mueren
+  (2 rojas cada uno), igual que otros seis sobre B85 y B87 (8/8).
+  Lo que decía la advertencia: Qué es:**
   M11 (salir del campo con una cifra INVÁLIDA también apaga `comasPropias`) y M13 (el repintado del
   padre deja de apagarlo) pasan las 260 pruebas de captura de cifras. El código de hoy hace lo
   correcto (`components/demo/ui/CampoCifra.tsx:206` y `:144`); nada lo protege. Con M11, un campo con

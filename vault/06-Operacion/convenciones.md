@@ -569,6 +569,12 @@ no haría nada). Al salir del campo, lo válido se pinta canónico
 >    propuesta) o acotan a 0 (la reserva), «1,000» no se podría teclear.
 >    Lo pegado avisa en el acto, como siempre.
 >
+> Lo pegado o soltado con coma cuenta como de la persona **siempre**, también
+> encima de otra cifra con las mismas comas (B85). Y en **italiano** rige lo
+> mismo con el PUNTO de millar (B87, 05/11): «1.5000» tecleado se queda y se
+> rechaza, como pegado; allí el aviso sale en el acto (`cifraAMedias` es
+> `false`).
+>
 > Lo medido, en `docs/Supervision/ABIERTOS.md` (D18): sin coma tecleada no
 > cambia nada; ninguna entrada pasa de rechazo a cifra ni de una cifra a otra.
 > Las pruebas: `captura-cifra.d18.test.ts` (tecla a tecla, cursor en medio,

@@ -1,5 +1,10 @@
 # Supervisión · D18 · aviso al teclear una coma mal puesta (es/en)
 
+
+> **2026-11-05 · renumerada:** la advertencia que este expediente llamaba **B84** es **B87**: el
+> número B84 ya lo usaba otra rama. Las tres (B85, B86, B87) se cerraron en la misma rama:
+> rojo `3a040dec`, arreglo en el commit siguiente.
+
 - **Rama:** `feat/d18-aviso-al-teclear` · worktree `.claude/worktrees/d18`
 - **Commits auditados:** `6dce3b0f` (rojo) y `598a3a25` (arreglo), sobre `verificacion` `a91580bb`
 - **Fecha:** 2026-11-04 (hora local; la rama fecha sus notas el 05/11)
@@ -10,7 +15,7 @@
 Aterriza. Lo que el dueño pidió está hecho y medido: en español e inglés, «2,5», «12,34», «1,5000» y
 «15000,50» tecleados se quedan a la vista y se rechazan igual que pegados; lo bien puesto sigue
 igual; sin una coma de la persona el campo se comporta exactamente como antes (100 000 secuencias
-al azar de hasta 20 teclas: 0 diferencias). La deuda es pequeña y está declarada abajo (B84, B85,
+al azar de hasta 20 teclas: 0 diferencias). La deuda es pequeña y está declarada abajo (B87, B85,
 B86) más una decisión nueva fuera de D18 (D19).
 
 **La que importa de verdad:** no es deuda de esta rama, es **D19**. En los campos `EntradaCifra`
@@ -223,7 +228,7 @@ D18, pero es exactamente el patrón que D18 quería cerrar («1,500» + 0 → «
 la rama. Un caso parecido y rarísimo, de antes de D18: seleccionar «,0» de «2,000» y teclear «,» se
 interpreta como un retroceso y da «200».
 
-### 3 · B84 · El gemelo italiano: «1.500» + «0» → «15.000», sin aviso
+### 3 · B87 · El gemelo italiano: «1.500» + «0» → «15.000», sin aviso
 
 Medido con `teclearCifra(…, 'it')`, tecla a tecla:
 

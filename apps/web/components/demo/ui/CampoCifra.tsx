@@ -36,7 +36,8 @@ import {
 //  y `leerCifra` decide, igual que al pegar: «2,5» se ve «2,5» y se rechaza
 //  (antes acababa en 25 sin aviso). A media escritura («1,», «1,5», camino de
 //  «1,500») no se avisa; el aviso sale al salir del campo o con Enter. La
-//  regla, en `teclearCifra` y `cifraAMedias`.
+//  regla, en `teclearCifra` y `cifraAMedias`. En italiano, lo mismo con el
+//  PUNTO de millar (B87): «1.5000» tecleado se queda y se rechaza.
 //
 //  EN ITALIANO los signos van al revés —se teclea y se ve «1.500,50»— y el
 //  padre recibe lo mismo que en español: «1500.5». Ver `lib/captura-cifra.ts`.
