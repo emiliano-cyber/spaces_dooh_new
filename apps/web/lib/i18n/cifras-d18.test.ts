@@ -369,3 +369,105 @@ describe('B87 · IT · CampoCifra suelto', () => {
     expect(f.campo('importe').props.value).toBe('1.500')
   })
 })
+
+// ─── P2 (decisión del dueño del 2026-11-05) · EN PORTUGUÉS, A LA BRASILEÑA ──
+// Los mismos tres formularios, tecleados tecla a tecla en portugués, que lee
+// con punto de millar y coma decimal y hereda el comportamiento del italiano
+// al teclear (B77, B87). Lo que llega a la API es la MISMA cifra que en es/en.
+describe('P2 · PT · los formularios de D18, tecleados a la brasileña', () => {
+  const idioma = 'pt' as const
+  async function altaComercial(tarifa: string) {
+    const f = montar(() => en(idioma, createElement(AltaSitioDialog, { open: true, onOpenChange: () => {}, onCreado: () => {} })))
+    f.teclearEn(f.elementos('input').find((e) => e.props.type === 'checkbox')!, 'true')
+    f.teclearEn(f.elementos('input').filter((e) => e.props.autoFocus)[0], 'Pantalla Uno')
+    f.teclear('Miraflores', 'Centro')
+    f.teclear(t(idioma, 'comercial.alta.direccion-mostrada'), 'Av. Siempre Viva 1')
+    const campo = t(idioma, 'comercial.comun.ej', { valor: '15000' })
+    f.teclearTeclaATecla(campo, tarifa, true)
+    const valor = String(f.campo(campo, true).props.value)
+    f.salir(campo, true)
+    const deshabilitado = f.botonDeshabilitado(t(idioma, 'comercial.alta.crear'))
+    await f.pulsar(t(idioma, 'comercial.alta.crear'), { aunqueApagado: true })
+    return { f, valor, deshabilitado, cuerpo: api.llamadas[0]?.cuerpo as Record<string, unknown> | undefined }
+  }
+
+  for (const malo of ['2.5', '12.34', '1.5000', '1,500', '1,5.00']) {
+    it(`Alta de Comercial · NEGATIVO · «${malo}» no se manda y avisa en portugués con el motivo de pegarlo`, async () => {
+      const r = await altaComercial(malo)
+      expect(api.llamadas).toHaveLength(0)
+      expect(r.deshabilitado).toBe(true)
+      expect(r.valor).toBe(malo)
+      expect(r.f.html).toContain(escapar(motivoAlPegar(r.valor, idioma)))
+    })
+  }
+  for (const [bueno, valor] of [['1.500', 1500], ['12.500,50', 12500.5], ['2,5', 2.5], ['1500', 1500], ['15000,50', 15000.5]] as const) {
+    it(`Alta de Comercial · «${bueno}» llega como ${valor}, la misma cifra que en es/en`, async () => {
+      const r = await altaComercial(bueno)
+      expect(r.cuerpo).toMatchObject({ tarifaPublicada: valor })
+      expect(r.f.html).not.toContain('role="alert"')
+    })
+  }
+
+  it('Alta manual de Inventario · «12.500,50» llega como 12500.5 y «1,500» no se manda', async () => {
+    async function alta(tarifa: string) {
+      const f = montar(() =>
+        en(idioma, createElement(NuevaPantallaForm, { open: true, onOpenChange: () => {}, onCreado: () => {}, inline: true })),
+      )
+      f.teclearEn(f.elementos('input').find((e) => e.props.type === 'checkbox')!, 'true')
+      f.teclearEn(f.elementos('input').find((e) => e.props.autoFocus)!, 'Pantalla Uno')
+      f.teclear(t(idioma, 'comercial.comun.ej', { valor: '19.4326' }), '19.4326', true)
+      f.teclear(t(idioma, 'comercial.comun.ej', { valor: '-99.1332' }), '-99.1332', true)
+      const archivo = f.elementos('input').find((e) => e.props.type === 'file')!
+      ;(archivo.props.onChange as (ev: unknown) => void)({ target: { files: [{ size: 10, name: 'a.png' }] } })
+      f.rendir()
+      const campo = t(idioma, 'comercial.comun.ej', { valor: '15000' })
+      f.teclearTeclaATecla(campo, tarifa, true)
+      f.salir(campo, true)
+      await f.pulsar(t(idioma, 'inventario.alta.guardar'), { aunqueApagado: true })
+      return { f, cuerpo: api.llamadas[0]?.cuerpo as Record<string, unknown> | undefined }
+    }
+    expect((await alta('12.500,50')).cuerpo).toMatchObject({ tarifaPublicada: 12500.5 })
+    reiniciarTienda()
+    api.llamadas.length = 0
+    const mal = await alta('1,500')
+    expect(api.llamadas).toHaveLength(0)
+    expect(mal.f.html).toContain(escapar(motivoAlPegar('1,500', idioma)))
+  })
+
+  it('Paquete cerrado (pesos enteros) · «180.000» llega como 180000; «180,00» no se manda', async () => {
+    async function paquete(precio: string) {
+      const f = montar(() => en(idioma, createElement(GestionPaquetes)), { efectos: true })
+      await f.asentar()
+      f.teclear(t(idioma, 'catalogos.paquetes.nombre.aria'), 'Paquete Uno', true)
+      for (const i of [0, 1]) f.teclearEn(f.elementos('input').filter((x) => x.props.type === 'checkbox' && !x.props['aria-label'])[i], 'true')
+      const campo = t(idioma, 'catalogos.paquetes.precio.aria')
+      f.teclearTeclaATecla(campo, precio, true)
+      f.salir(campo, true)
+      await f.pulsar(t(idioma, 'catalogos.paquetes.crear'), { aunqueApagado: true })
+      return { f, cuerpo: api.llamadas.find((l) => l.que === 'guardarPaquete')?.cuerpo as Record<string, unknown> | undefined }
+    }
+    const bien = await paquete('180000')
+    expect(bien.f.campo(t(idioma, 'catalogos.paquetes.precio.aria'), true).props.value).toBe('180.000')
+    expect(bien.cuerpo).toMatchObject({ precioCerrado: 180000 })
+    reiniciarTienda()
+    api.llamadas.length = 0
+    const mal = await paquete('180,00')
+    expect(mal.cuerpo).toBeUndefined()
+    expect(mal.f.html).toContain(escapar(motivoAlPegar('180,00', idioma, 0)))
+  })
+
+  it('CampoCifra suelto · «1.5000» tecleado se queda y se rechaza (B87), «1500» se pinta «1.500»', () => {
+    function F() {
+      const [v, setV] = useState('')
+      return createElement(CampoCifra, { valor: v, placeholder: 'importe', idioma, onCambio: (crudo) => setV(crudo) })
+    }
+    const f = montar(() => createElement(F), { efectos: true, refs: true })
+    f.teclearTeclaATecla('importe', '1.5000')
+    expect(f.campo('importe').props.value).toBe('1.5000')
+    expect(f.campo('importe').props['aria-invalid']).toBe(true)
+    reiniciarTienda()
+    const g = montar(() => createElement(F), { efectos: true, refs: true })
+    g.teclearTeclaATecla('importe', '1500')
+    expect(g.campo('importe').props.value).toBe('1.500')
+  })
+})

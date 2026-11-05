@@ -191,7 +191,7 @@ describe('AltaSitioDialog · el ancho y el alto en el idioma de la persona', () 
     f.teclearEn(textos[0], 'Pantalla Uno')
     f.teclear('Miraflores', 'Centro')
     f.teclear(t(idioma, 'comercial.alta.direccion-mostrada'), 'Av. Siempre Viva 1')
-    const decimal = idioma === 'it' ? ',' : '.'
+    const decimal = idioma === 'it' || idioma === 'pt' ? ',' : '.'
     const escribir = modo === 'pegar' ? f.teclear.bind(f) : f.teclearTeclaATecla.bind(f)
     escribir(`12${decimal}9`, ancho)
     escribir(`7${decimal}2`, alto)
@@ -246,6 +246,36 @@ describe('AltaSitioDialog · el ancho y el alto en el idioma de la persona', () 
     expect(api.llamadas).toHaveLength(0)
   })
 
+  // P2 (05/11) · el portugués, a la brasileña, como el italiano.
+  it('PORTUGUÊS · «12,9» y «1.500,50» se guardan como 12.9 y 1500.5 (pegado y tecleado)', async () => {
+    expect((await alta('pt', '12,9', '1.500,50')).cuerpo).toMatchObject({ ancho: 12.9, alto: 1500.5 })
+    reiniciarTienda()
+    api.llamadas.length = 0
+    expect((await alta('pt', '12,9', '1.500,50', 'teclear')).cuerpo).toMatchObject({ ancho: 12.9, alto: 1500.5 })
+  })
+  it('PORTUGUÊS · el campo lleva el ejemplo brasileño «Ex.: 12,9» y «Ex.: 7,2»', async () => {
+    const r = await alta('pt', '12,9', '7,2')
+    expect(r.f.html).toContain('placeholder="Ex.: 12,9"')
+    expect(r.f.html).toContain('placeholder="Ex.: 7,2"')
+    expect(r.f.html).not.toContain('Ex.: 12.9')
+  })
+  it('PORTUGUÊS · NEGATIVO: «12.9» y «2.5» tecleados no se mandan (ni 129 ni 25) y avisan', async () => {
+    const r = await alta('pt', '12.9', '2.5', 'teclear')
+    expect(r.deshabilitado).toBe(true)
+    expect(api.llamadas).toHaveLength(0)
+    expect(r.f.html).toContain('value="12.9"')
+    expect(r.f.html).toContain('role="alert"')
+  })
+  it('PORTUGUÊS · NEGATIVO: «1,500» (¿uno y medio o mil quinientos?) y «1,500.50» (a la mexicana) no se mandan', async () => {
+    for (const [ancho, alto] of [['1,500', '7,2'], ['12,9', '1,500.50']]) {
+      reiniciarTienda()
+      api.llamadas.length = 0
+      const r = await alta('pt', ancho, alto)
+      expect(r.deshabilitado, `${ancho} × ${alto}`).toBe(true)
+      expect(api.llamadas).toHaveLength(0)
+    }
+  })
+
   for (const idioma of ['es', 'en'] as const) {
     it(`${idioma.toUpperCase()} · «12.9» se guarda como 12.9, como siempre`, async () => {
       const r = await alta(idioma, '12.9', '7.2')
@@ -294,6 +324,16 @@ describe('NuevaPantallaForm · las caras y los segundos del slot', () => {
     expect(r.f.html).toContain('Solo cifre intere, senza decimali')
   })
 
+  it('PORTUGUÊS · «1.500» caras son mil quinientas; «12,9» caras no se manda', async () => {
+    expect((await alta('pt', '1.500', '20')).cuerpo).toMatchObject({ caras: 1500 })
+    reiniciarTienda()
+    api.llamadas.length = 0
+    const r = await alta('pt', '12,9', '20')
+    expect(r.deshabilitado).toBe(true)
+    expect(api.llamadas).toHaveLength(0)
+    expect(r.f.html).toContain('Só números inteiros, sem decimais')
+  })
+
   for (const idioma of ['es', 'en'] as const) {
     it(`${idioma.toUpperCase()} · «1.500» sigue siendo Number('1.500') = 1.5, como siempre`, async () => {
       const r = await alta(idioma, '1.500', '20')
@@ -326,6 +366,13 @@ describe('Imprenta · el ancho y el alto de la orden', () => {
   it('ITALIANO · NEGATIVO: «12.9» no se manda', async () => {
     const r = await orden('it', '12.9', '3')
     expect(r.cuerpo).toBeUndefined()
+  })
+
+  it('PORTUGUÊS · «12,9» × «1.500,50» se manda como 12.9 × 1500.5; «12.9» no se manda', async () => {
+    expect((await orden('pt', '12,9', '1.500,50')).cuerpo).toMatchObject({ ancho: 12.9, alto: 1500.5 })
+    reiniciarTienda()
+    api.llamadas.length = 0
+    expect((await orden('pt', '12.9', '3')).cuerpo).toBeUndefined()
   })
 
   for (const idioma of ['es', 'en'] as const) {
@@ -381,6 +428,21 @@ describe('Comisiones · el porcentaje de la agencia', () => {
     expect(mal.cuerpo).toBeUndefined()
   })
 
+  it('PORTUGUÊS · alta y fila guardan «12,5» como 12.5; «12.5» no se manda ni cuenta como cambio', async () => {
+    expect((await altaAgencia('pt', '12,5')).cuerpo).toMatchObject({ comisionAgenciaPct: 12.5 })
+    reiniciarTienda()
+    api.llamadas.length = 0
+    expect((await altaAgencia('pt', '12.5')).cuerpo).toBeUndefined()
+    reiniciarTienda()
+    api.llamadas.length = 0
+    expect((await filaAgencia('pt', '12,5')).cuerpo).toEqual(['ag1', { comisionAgenciaPct: 12.5 }])
+    reiniciarTienda()
+    api.llamadas.length = 0
+    const mal = await filaAgencia('pt', '12.5')
+    expect(mal.cambiado).toBe(false)
+    expect(mal.cuerpo).toBeUndefined()
+  })
+
   for (const idioma of ['es', 'en'] as const) {
     it(`${idioma.toUpperCase()} · alta y fila como siempre: «12.5» es 12.5 y «12,5» es 0`, async () => {
       expect((await altaAgencia(idioma, '12.5')).cuerpo).toMatchObject({ comisionAgenciaPct: 12.5 })
@@ -426,6 +488,17 @@ describe('Códigos y descuento por volumen · el porcentaje', () => {
     expect(await tramo('it', '50', '12.5')).toBeUndefined()
   })
 
+  it('PORTUGUÊS · «12,5» % se guarda como 12.5 (código y tramo desde «1.500»); «12.5» no se manda', async () => {
+    expect(await codigo('pt', '12,5')).toMatchObject({ descuentoPct: 12.5 })
+    reiniciarTienda()
+    expect(await tramo('pt', '1.500', '12,5')).toMatchObject({ desdeCantidad: 1500, descuentoPct: 12.5 })
+    reiniciarTienda()
+    api.llamadas.length = 0
+    expect(await codigo('pt', '12.5')).toBeUndefined()
+    reiniciarTienda()
+    expect(await tramo('pt', '50', '12.5')).toBeUndefined()
+  })
+
   for (const idioma of ['es', 'en'] as const) {
     it(`${idioma.toUpperCase()} · «12.5» se guarda como 12.5 y «12,5» no se manda, como siempre`, async () => {
       expect(await codigo(idioma, '12.5')).toMatchObject({ descuentoPct: 12.5 })
@@ -449,7 +522,7 @@ const pulsarAunqueApagado = async (f: ReturnType<typeof montar>, e: { props: Rec
   f.rendir()
 }
 const cifrasDe = (f: ReturnType<typeof montar>, idioma: Idioma) =>
-  f.elementos('input').filter((e) => (idioma === 'it' ? e.props.inputMode === 'decimal' || e.props.inputMode === 'numeric' : e.props.type === 'number'))
+  f.elementos('input').filter((e) => (idioma === 'it' || idioma === 'pt' ? e.props.inputMode === 'decimal' || e.props.inputMode === 'numeric' : e.props.type === 'number'))
 
 describe('B79 · Editar sitio (ancho)', () => {
   const SITIO = {
@@ -469,6 +542,12 @@ describe('B79 · Editar sitio (ancho)', () => {
   })
   it('ITALIANO · NEGATIVO: «12.9» no se manda (ni como null que borre el ancho)', async () => {
     expect(await editar('it', '12.9')).toBeUndefined()
+  })
+  it('PORTUGUÊS · «12,9» se manda como 12.9; «12.9» no se manda', async () => {
+    expect((await editar('pt', '12,9'))?.[1]).toMatchObject({ ancho: 12.9 })
+    reiniciarTienda()
+    api.llamadas.length = 0
+    expect(await editar('pt', '12.9')).toBeUndefined()
   })
   it('ESPAÑOL · «12.9» se manda como 12.9, como siempre', async () => {
     expect((await editar('es', '12.9'))?.[1]).toMatchObject({ ancho: 12.9 })
@@ -494,6 +573,12 @@ describe('B79 · Asistente de contrato (caras de una pantalla nueva en un predio
   it('ITALIANO · NEGATIVO: «12,9» caras no se manda (antes caía a 1 en silencio)', async () => {
     expect(await asistente('it', '12,9')).toBeUndefined()
   })
+  it('PORTUGUÊS · «1.500» caras se mandan como 1500; «12,9» no se manda', async () => {
+    expect((await asistente('pt', '1.500'))?.[1]).toMatchObject({ caras: 1500 })
+    reiniciarTienda()
+    api.llamadas.length = 0
+    expect(await asistente('pt', '12,9')).toBeUndefined()
+  })
   it('ESPAÑOL · «3» caras como siempre', async () => {
     expect((await asistente('es', '3'))?.[1]).toMatchObject({ caras: 3 })
   })
@@ -515,6 +600,12 @@ describe('B79 · Captación (ancho de una pantalla prospecto)', () => {
   })
   it('ITALIANO · NEGATIVO: «12.9» no se manda (ni como null)', async () => {
     expect(await prospecto('it', '12.9')).toBeUndefined()
+  })
+  it('PORTUGUÊS · «12,9» se manda como 12.9; «12.9» no se manda', async () => {
+    expect((await prospecto('pt', '12,9'))?.datos).toMatchObject({ anchoM: 12.9 })
+    reiniciarTienda()
+    api.llamadas.length = 0
+    expect(await prospecto('pt', '12.9')).toBeUndefined()
   })
   it('ESPAÑOL · «12.9» como siempre', async () => {
     expect((await prospecto('es', '12.9'))?.datos).toMatchObject({ anchoM: 12.9 })
@@ -539,6 +630,12 @@ describe('B79 · Negociación (la ficha del espacio)', () => {
   it('ITALIANO · NEGATIVO: «12.9» no se manda (antes viajaba como null y borraba el ancho)', async () => {
     expect(await ficha('it', '12.9')).toBeUndefined()
   })
+  it('PORTUGUÊS · «12,9» se manda como 12.9; «12.9» no se manda', async () => {
+    expect((await ficha('pt', '12,9'))?.[1]).toMatchObject({ anchoM: 12.9, altoM: 3 })
+    reiniciarTienda()
+    api.llamadas.length = 0
+    expect(await ficha('pt', '12.9')).toBeUndefined()
+  })
   it('ESPAÑOL · «12.9» como siempre', async () => {
     expect((await ficha('es', '12.9'))?.[1]).toMatchObject({ anchoM: 12.9 })
   })
@@ -560,6 +657,12 @@ describe('B79 · Clientes (alta de una agencia con su comisión)', () => {
   })
   it('ITALIANO · NEGATIVO: «12.5» no se manda (antes se guardaba 0)', async () => {
     expect(await cliente('it', '12.5')).toBeUndefined()
+  })
+  it('PORTUGUÊS · «12,5» % se manda como 12.5; «12.5» no se manda', async () => {
+    expect(await cliente('pt', '12,5')).toMatchObject({ comisionAgenciaPct: 12.5 })
+    reiniciarTienda()
+    api.llamadas.length = 0
+    expect(await cliente('pt', '12.5')).toBeUndefined()
   })
   it('ESPAÑOL · «12.5» como siempre, y «12,5» es 0 como siempre', async () => {
     expect(await cliente('es', '12.5')).toMatchObject({ comisionAgenciaPct: 12.5 })
@@ -656,6 +759,26 @@ describe('B82 · cambiar a italiano con cifras ya tecleadas (tecla a tecla)', ()
       expect(r.f.campo('ancho').props['aria-invalid']).toBeUndefined()
       r.enviar()
       expect(r.enviados).toEqual([1500.5])
+    })
+  }
+
+  for (const desde of ['es', 'en'] as const) {
+    it(`${desde.toUpperCase()} → PT · «12.9» se repinta «12,9» y se manda 12.9; «1,500» se deja y avisa en portugués`, () => {
+      const r = formulario()
+      r.cambiar(desde)
+      r.f.teclearTeclaATecla('ancho', '12.9')
+      r.cambiar('pt')
+      expect(r.f.campo('ancho').props.value).toBe('12,9')
+      r.enviar()
+      expect(r.enviados).toEqual([12.9])
+      reiniciarTienda()
+      const s = formulario()
+      s.cambiar(desde)
+      s.f.teclearTeclaATecla('ancho', '1,500')
+      s.cambiar('pt')
+      expect(s.f.campo('ancho').props.value).toBe('1,500')
+      expect(s.f.campo('ancho').props['aria-invalid']).toBe(true)
+      expect(s.f.html).toContain(traducir('pt', 'compartidos.cifra.forma', { ejemplo: '212.500,50' }))
     })
   }
 

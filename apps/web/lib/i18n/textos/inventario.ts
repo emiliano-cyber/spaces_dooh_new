@@ -1230,8 +1230,8 @@ export const IT_INVENTARIO: Record<ClaveInventario, string> = {
 // predio → imóvel · renta → aluguel · arrendador → locador · propia → própria
 // («pontos próprios») · alta manual / carga masiva / plantilla → cadastro
 // manual / importação em massa / modelo · Dueno → Titular. Las cifras se
-// teclean HOY a la mexicana (P2): los avisos de captura dicen eso, y los
-// reescribe la tarea roja `feat/portugues-cifras`.
+// teclean a la brasilena desde la tarea roja `feat/portugues-cifras` (P2,
+// 05/11): los avisos de captura dicen eso, con «65,50».
 export const PT_INVENTARIO: Record<ClaveInventario, string> = {
   // ── A página (`inventario/page.tsx`) ──
   'inventario.titulo': 'Inventário',
@@ -1296,7 +1296,7 @@ export const PT_INVENTARIO: Record<ClaveInventario, string> = {
   'inventario.lote.unidad.contrato': 'contrato',
   'inventario.lote.unidad.contratos': 'contratos',
   'inventario.tabla.no-archivo': 'Não foi possível gerar o arquivo. Tente filtrar para baixar menos pontos.',
-  'inventario.tabla.cifra-ilegible': 'Não foi possível entender o número: a vírgula separa os milhares e o ponto, os decimais ({ejemplo})',
+  'inventario.tabla.cifra-ilegible': 'Não foi possível entender o número: o ponto separa os milhares e a vírgula, os decimais ({ejemplo})',
   'inventario.tabla.numero-valido': 'Digite um número válido',
   'inventario.tabla.renta-negativa': 'O aluguel não pode ser negativo',
   'inventario.tabla.tarifa-negativa': 'A tarifa não pode ser negativa',
@@ -1357,7 +1357,7 @@ export const PT_INVENTARIO: Record<ClaveInventario, string> = {
   'inventario.tabla.doohmain-servidor': ' · servidor',
   'inventario.tabla.confirma': 'Confirme com sua senha',
   'inventario.tabla.confirmar-aplicar': 'Confirmar e aplicar',
-  'inventario.renta.ilegible': 'Não foi possível entender o aluguel: não foi salvo. A vírgula separa os milhares e o ponto, os decimais.',
+  'inventario.renta.ilegible': 'Não foi possível entender o aluguel: não foi salvo. O ponto separa os milhares e a vírgula, os decimais.',
   'inventario.renta.compartida-confirm':
     'Este aluguel é do contrato do imóvel e é compartilhado por {n} pontos. Alterá-lo para {monto} vale para todos. Continuar?',
   'inventario.renta.predio-actualizada': 'Aluguel do imóvel atualizado ({n} pontos)',
@@ -1367,7 +1367,7 @@ export const PT_INVENTARIO: Record<ClaveInventario, string> = {
     'Alterar o aluguel de “{nombre}” é uma alteração sensível: sua organização pede que você se identifique de novo.',
   'inventario.renta.title-compartida': 'Aluguel do contrato do imóvel — compartilhado por {n} pontos',
   'inventario.renta.title': 'Editar o aluguel pago ao locador',
-  'inventario.tarifa.ilegible': 'Não foi possível entender a tarifa: não foi salva. A vírgula separa os milhares e o ponto, os decimais.',
+  'inventario.tarifa.ilegible': 'Não foi possível entender a tarifa: não foi salva. O ponto separa os milhares e a vírgula, os decimais.',
   'inventario.tarifa.actualizada': 'Tarifa de “{nombre}” atualizada',
   'inventario.tarifa.no-actualizar': 'Não foi possível atualizar a tarifa',
   'inventario.tarifa.sensible':
@@ -1395,7 +1395,7 @@ export const PT_INVENTARIO: Record<ClaveInventario, string> = {
   'inventario.tipo.mobiliario-detalle': 'Mobiliário urbano (abrigo de ônibus/mupi/expositor em loja)',
   'inventario.tipo.puente': 'Passarela',
   'inventario.tipo.otro': 'Outro',
-  'inventario.wizard.renta-ilegible': 'Não foi possível entender o aluguel: a vírgula separa os milhares e o ponto, os decimais ({ejemplo}).',
+  'inventario.wizard.renta-ilegible': 'Não foi possível entender o aluguel: o ponto separa os milhares e a vírgula, os decimais ({ejemplo}).',
   'inventario.wizard.fin-antes': 'A data de término não pode ser anterior à de início.',
   'inventario.wizard.arrendado-hasta':
     'Esse espaço esteve locado até {fin}. O contrato novo deve começar a partir de {desde}.',
@@ -1576,7 +1576,7 @@ export const PT_INVENTARIO: Record<ClaveInventario, string> = {
   'inventario.carga.arrendadores': 'Locadores',
   'inventario.carga.precio-m2': 'Preço de impressão por m² (pontos estáticos)',
   'inventario.carga.precio-m2-ayuda': 'Este valor será aplicado a todos os pontos estáticos',
-  'inventario.carga.precio-m2-ilegible': 'Não foi possível entender o preço por m²: a vírgula separa os milhares e o ponto, os decimais (65.50).',
+  'inventario.carga.precio-m2-ilegible': 'Não foi possível entender o preço por m²: o ponto separa os milhares e a vírgula, os decimais (65,50).',
   'inventario.carga.hoja':
     'Envie o arquivo usando a planilha {hoja} do modelo. O sistema lê só essa planilha, {limpia} e {agrupa}: uma linha por modalidade de venda → um ponto com várias modalidades. Obrigatórios: nome, exibição, unidade e tarifa.',
   'inventario.carga.hoja-limpia': 'limpa automaticamente os cabeçalhos',

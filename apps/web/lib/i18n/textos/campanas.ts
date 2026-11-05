@@ -1649,10 +1649,10 @@ export const PT_CAMPANAS: Record<ClaveCampanas, string> = {
   'campanas.candado.numero': 'Número do PC do cliente',
   'campanas.candado.registrando': 'Registrando…',
   'campanas.candado.registrar': 'Registrar PC',
-  // Dice la verdad de HOY: el campo lee la cifra a la mexicana (P2; la tarea
-  // roja `feat/portugues-cifras` lo cambiara, con este aviso).
+  // El formato que el campo LEE: a la brasilena desde P2 (05/11), con su
+  // ejemplo «212.500,50».
   'campanas.candado.monto-ilegible':
-    'O valor não foi entendido: a vírgula separa os milhares e o ponto, os decimais ({ejemplo}).',
+    'O valor não foi entendido: o ponto separa os milhares e a vírgula, os decimais ({ejemplo}).',
   'campanas.candado.precargados':
     'Número, valor e data vêm preenchidos da campanha; ajuste-os se o cliente informou outros. O documento do PC é o contrato (anexado em “Dados de faturamento”).',
   'campanas.candado.se-abre': 'O faturamento é liberado quando estas condições são cumpridas.',

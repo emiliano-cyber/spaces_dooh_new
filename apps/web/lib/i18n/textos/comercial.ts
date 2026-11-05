@@ -1700,8 +1700,9 @@ export const IT_COMERCIAL: Record<ClaveComercial, string> = {
 //      dice la mídia brasileña).
 //    · dueño (de un espacio que se negocia) → «dono»: «proprietário» lo prohíbe
 //      la decisión Titular del L5 en todo el portugués.
-//    · Los avisos de captura de cifras dicen la verdad MEXICANA (la coma separa
-//      miles): la reescribe la tarea roja `feat/portugues-cifras` (P2).
+//    · Los avisos de captura de cifras dicen la verdad BRASILENA (el punto
+//      separa miles, la coma es decimal) desde la tarea roja
+//      `feat/portugues-cifras` (P2, 05/11).
 //    · Registro «você», imperativo de 3.ª persona, comillas “ ”, «20%».
 export const PT_COMERCIAL: Record<ClaveComercial, string> = {
   // ── Comunes del lote ──
@@ -1957,9 +1958,9 @@ export const PT_COMERCIAL: Record<ClaveComercial, string> = {
   'comercial.tarifas.tarifa': 'Tarifa',
   'comercial.tarifas.quitar': 'Remover',
   'comercial.tarifas.falta': 'Falta a tarifa da unidade em vermelho. Digite-a ou remova a unidade.',
-  // P2: a captura ainda e mexicana (ver `compartidos.cifra.*`).
+  // P2 (05/11): a captura e brasileira (ver `compartidos.cifra.*`).
   'comercial.tarifas.no-se-entiende':
-    'Há uma tarifa em vermelho que não dá para entender: a vírgula separa os milhares e o ponto, os decimais ({ejemplo}).',
+    'Há uma tarifa em vermelho que não dá para entender: o ponto separa os milhares e a vírgula, os decimais ({ejemplo}).',
   'comercial.tarifas.anadir-unidad': 'Adicionar unidade…',
   'comercial.tarifas.anadir': 'Adicionar',
 

@@ -94,14 +94,15 @@ describe('numeros, porcentajes y fechas en portugues', () => {
   })
 })
 
-describe('la captura de cifras en portugues: a la mexicana por ahora (pendiente del dueno)', () => {
-  // Teclear «1.500,50» es una decision de DINERO (zona roja) que el dueno tomo
-  // para el italiano el 04/11 (P-L2-1) y NO ha tomado para el portugues.
-  // Mientras tanto, lo que falta del portugues cae al ESPANOL, cuyos avisos
-  // dicen «la coma separa miles»: teclear a la brasilena los haria mentir.
-  it('el portugues teclea punto decimal, como el espanol', () => {
-    expect(FORMATO_IDIOMA.pt.separadorDecimal).toBe('.')
-    expect(comaDecimal('pt')).toBe(false)
+describe('la captura de cifras en portugues: a la brasilena (P2, decision del dueno del 05/11)', () => {
+  // Hasta el 05/11 se tecleaba a la mexicana; el dueno decidio «1.500,50»,
+  // como en italiano (P-L2-1, 04/11). La captura entera se prueba en
+  // `lib/captura-cifra.portugues.test.ts`.
+  it('el portugues teclea coma decimal, como el italiano; es y en, punto', () => {
+    expect(FORMATO_IDIOMA.pt.separadorDecimal).toBe(',')
+    expect(comaDecimal('pt')).toBe(true)
     expect(comaDecimal('it')).toBe(true)
+    expect(comaDecimal('es')).toBe(false)
+    expect(comaDecimal('en')).toBe(false)
   })
 })

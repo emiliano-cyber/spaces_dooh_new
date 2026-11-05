@@ -9,7 +9,8 @@ import { CampoCifra } from './CampoCifra'
 // ============================================================================
 //  EntradaCifra · un campo de cifra que en español e inglés es EXACTAMENTE el
 //  `<input>` de siempre y en italiano es un `CampoCifra` con los signos
-//  italianos (P-L2-1, decisión del dueño del 2026-11-04).
+//  italianos (P-L2-1, decisión del dueño del 2026-11-04). En portugués,
+//  lo mismo que en italiano (P2, 05/11): `comaDecimal()` decide, no el idioma.
 // ----------------------------------------------------------------------------
 //  Para los campos que NO eran `CampoCifra`: medidas, caras, segundos,
 //  porcentajes, cupos… Hacían `Number(texto)` sobre lo tecleado, que en

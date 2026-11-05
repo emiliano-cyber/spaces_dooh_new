@@ -121,8 +121,9 @@ archivos:
 > - `IDIOMAS = ['es','en','it','pt']`; su interruptor es `IDIOMA_PORTUGUES=1`
 >   (`portuguesActivo()`), propio. `pt-BR`, `pt-PT` y `pt` se leen como `pt`.
 > - `FORMATO_IDIOMA.pt`: locale `pt-BR`, «MX$ 1.160,00» (decisión del dueño),
->   «1 de dez. de 2026» y «55,0%» (propuesta). Las cifras se **teclean** a la
->   mexicana hasta que el dueño decida (P2 del tablero).
+>   «1 de dez. de 2026» y «55,0%». Las cifras se **teclean a la brasileña**
+>   («1.500,50») desde la tarea roja P2 (05/11, `feat/portugues-cifras`); ver
+>   el recuadro «Captura de cifras por idioma» de abajo.
 > - **Lo que falta cae al ESPAÑOL**, no al inglés: `DICCIONARIOS.pt =
 >   conCaidaAlEspanol(ES, PT)`, y `traducirError(m, 'pt')` devuelve el mensaje
 >   español entero si falta una pieza portuguesa.
@@ -130,6 +131,31 @@ archivos:
 >   `usuarios.idioma_preferido` y `tenants.idioma_documentos`): «Mi cuenta» no
 >   lo ofrece ni lo guarda (`idiomasDeCuenta()`), el alta lo rechaza, y el tipo
 >   de un papel es `IdiomaEnLaBase`. Abrirlo es una tarea ROJA aparte.
+
+> [!important] Captura de cifras por idioma (al 2026-11-05, tras P2)
+> Lo que se **teclea** en un campo de cifra (`lib/captura-cifra.ts`,
+> `CampoCifra`, `EntradaCifra`) depende de un solo dato,
+> `FORMATO_IDIOMA[idioma].separadorDecimal`, que lee `comaDecimal()`. Nada
+> pregunta «¿es italiano?».
+>
+> | Idioma | Se teclea | Al teclear (D18 / B87) | Decisión |
+> |---|---|---|---|
+> | es, en | «212,500.50» (coma de millar, punto decimal) | la coma de la persona se queda; «1,» y «1,5» no avisan hasta salir (`cifraAMedias`) | la de siempre; D18 (05/11) |
+> | it | «212.500,50» | el punto de la persona se queda; «1.» avisa en el acto | P-L2-1 (04/11), B87 |
+> | pt | «212.500,50», **igual que it** | **lo mismo que it**, tecla a tecla | P2 (05/11) |
+>
+> - **Lo que llega al servidor es la misma cifra en los cuatro**: «1500.5».
+> - En it y pt, `EntradaCifra` es un `CampoCifra` (medidas, caras, porcentajes):
+>   «12,9» m y «55,5» % se leen bien, y lo que no se entiende bloquea el envío
+>   (`cifraIlegible`). En es/en es el `<input>` de siempre (por eso D19 solo
+>   existe en es/en).
+> - Los avisos («o ponto separa os milhares e a vírgula, os decimais») y los
+>   ejemplos (`ejemploCifra`: «Ex.: 12,9») van en el idioma y con sus signos.
+> - Lo fijan: `captura-cifra.es-en.test.ts` (huellas de es/en y, desde P2, del
+>   italiano; el portugués da los números del italiano en las 116 000 filas),
+>   `captura-cifra.portugues.test.ts`, el barrido de `captura-cifra.d18.test.ts`
+>   (78 120 secuencias, cada tecla en pt = en it) y `cifras-formularios.test.ts`
+>   / `cifras-d18.test.ts` con los formularios de verdad.
 
 > [!important] 2026-11-03 · el idioma de la interfaz, también POR PERSONA (IDIOMA-USUARIO)
 > Decisión del dueño: *«el idioma de papeles y contratos es fijo al crearse la

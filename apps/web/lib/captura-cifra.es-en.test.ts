@@ -245,3 +245,41 @@ describe('captura de cifras · español e inglés, idénticos a antes', () => {
     })
   })
 })
+
+// ─── P2 (decisión del dueño del 2026-11-05) · el portugués, a la brasileña ──
+// El portugués pasa a teclear con coma decimal, el MISMO sistema que el
+// italiano. La batería de arriba lo fija así:
+//  · la huella del ITALIANO, motivos incluidos, calculada con la función de
+//    `a97c171d` (antes de P2): el italiano no puede cambiar ni un carácter;
+//  · el portugués da, entrada por entrada, los mismos números, los mismos
+//    textos pintados y los mismos rechazos que el italiano (solo el motivo
+//    va en su idioma).
+// Las huellas de es/en, arriba, tampoco cambian.
+const HUELLA_IT_DE_ANTES = '58b30641d009dc0f0b0ff57bacf38d7ba17fcc46df16bdbe6e532949401b6d53'
+
+/** El módulo con el idioma IMPUESTO en cada llamada (la batería pasa es/en a veces). */
+function soloEn(idioma: 'es' | 'it' | 'pt'): Modulo {
+  return {
+    leerCifra: (t, o) => C.leerCifra(t, { ...o, idioma }),
+    ponerComas: C.ponerComas,
+    textoDesdeCrudo: (t) => C.textoDesdeCrudo(t, idioma),
+    textoAlSalir: (t, o) => C.textoAlSalir(t, { ...o, idioma }),
+    crudoDeLectura: C.crudoDeLectura,
+    formatearMientrasEscribe: (e) => C.formatearMientrasEscribe(e, idioma),
+  }
+}
+
+describe('P2 · el italiano idéntico y el portugués, su gemelo', () => {
+  const numeros = (M: Modulo) =>
+    bateria(M).map((f) => (f && typeof f === 'object' && 'ok' in f ? ((f as C.LecturaCifra).ok ? f : 'rechazo') : f))
+
+  it('la batería en italiano da la huella de antes de P2 (motivos incluidos)', () => {
+    expect(huella(bateria(soloEn('it')))).toBe(HUELLA_IT_DE_ANTES)
+  })
+
+  it('el portugués da exactamente los números del italiano, y no los del español', () => {
+    const pt = numeros(soloEn('pt'))
+    expect(pt).toEqual(numeros(soloEn('it')))
+    expect(pt).not.toEqual(numeros(soloEn('es')))
+  })
+})
