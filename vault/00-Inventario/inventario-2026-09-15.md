@@ -571,7 +571,7 @@ proceso que da la cara a internet (`apps/flota/README.md`).
 | **PADRE** | `137.184.107.53`, sirve `space-os.io`. Se trabaja aquí. Arranca con **systemd**, no pm2 (`infra/systemd/spaces-web.service`, puerto 3000). Corre además el panel, el receptor y el ejecutor de altas |
 | **DEMO** | Dentro del PADRE, puerto **3001**. Desde el 02/09 corre **como contenedor desde la imagen del registro**, no `next start`. Sigue el canal `beta`. Su nombre es **`prueba.space-os.io`** |
 | **Instancias de cliente** | Un droplet, una base y un dominio por owner. Siguen el canal `estable`. Se actualizan solas por cron a las **04:17** |
-| `demo.space-os.io` | La demostración **original**, en la máquina vieja. **Se eliminará** (ADR 0024). No confundirla con `prueba.space-os.io` |
+| `demo.space-os.io` | La demostración **original**, en la máquina vieja. **Se eliminará** (ADR 0024). No confundirla con `prueba.space-os.io` — **sustituido el 05/11 por el [ADR 0050](../../docs/adr/0050-demo-space-os-io-vuelve-como-la-demo-en-el-droplet-viejo-de-g500.md)**: vuelve como la DEMO en el droplet viejo de g500 |
 
 ### 8.2 · Servicios systemd
 

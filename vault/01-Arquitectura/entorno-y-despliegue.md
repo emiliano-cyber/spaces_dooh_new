@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-11-04
+actualizado: 2026-11-05
 tags: [despliegue, entorno, ci, env, instancias]
 archivos:
   - apps/web/lib/test/db-e2e.ts
@@ -165,6 +165,39 @@ archivos:
 
 ---
 # Entorno y despliegue
+
+> [!important] 2026-11-05 · DEMO se muda al droplet viejo de g500, con el nombre `demo.space-os.io` (ADR 0050)
+> **Estado hoy:** la DEMO sigue siendo el contenedor `space-os-demo` **dentro del
+> PADRE** (`prueba.space-os.io`, `SPACE_OS_CONF=/etc/space-os/demo-instancia.env`),
+> y con ella se promueve la v0.12.6 el 05/11. Su certificado **caduca el 29/11 y
+> no se renueva** (aviso del 01/10, abajo).
+>
+> **El plan, decidido por el dueño el 05/11** ([ADR 0050](../../docs/adr/0050-demo-space-os-io-vuelve-como-la-demo-en-el-droplet-viejo-de-g500.md),
+> que **sustituye al 0024**: `demo.space-os.io` ya NO se elimina): el droplet viejo
+> de g500 (`142.93.113.106`, libre tras la guía 30) pasa a ser la DEMO, instalada
+> **como una instancia de owner** —`provision-instancia.sh --host`, `instancia.env`
+> con `CANAL=beta`, `update.sh` por cron— y con datos de las semillas del repo.
+> Guía para una persona: `docs/evidencias/31-g500-viejo-como-demo-20261105.md`.
+> Lo que deja escrito y conviene saber sin abrirla:
+>
+> - **Primero se le quita la identidad de g500** (secretos, dos clusters con su
+>   base, volúmenes de Space Eyes, `/root/g500-mudanza/`). Recomendado:
+>   *Rebuild* del disco con Ubuntu 24.04, que conserva la IP.
+> - **`DEMO_URL` lleva el *basePath***: `https://demo.space-os.io/spaces-dooh`
+>   (`promover.yml:250-261` prueba `$DEMO_URL/login/`). Sin `/spaces-dooh` el
+>   smoke no da 200, y el guard de caracteres **deja pasar un punto final**.
+> - **Una base recién instalada nace en `modo = aprobacion`**
+>   (`20260921_actualizaciones_instancia.sql:58`) y, leyendo el código,
+>   `update.sh` sale en «esperando-aprobacion» (`update.sh:2428`) **sin levantar
+>   el contenedor**: la guía pone `automatica` y lanza `update.sh`. **Deducido, no
+>   medido**; si se confirma, afecta también a las altas de owner con
+>   `provision-instancia.sh`.
+> - Las semillas se corren **dentro de la imagen** montando `scripts/` (la
+>   instancia no tiene Node y la imagen no las lleva a propósito). Crean la
+>   organización en **MXN** y documentos en **es**: otra moneda o idioma pide
+>   cambiar las semillas.
+> - Hasta retirar la DEMO del PADRE habrá **dos DEMO** y cada release se instala
+>   en las dos. Sin correr todavía.
 
 > [!important] 2026-11-04 · Mudar g500 a un droplet NUEVO instalado desde cero, con todos sus datos
 > Guía para una persona: `docs/evidencias/30-mudar-g500-a-droplet-limpio-20261104.md`.
@@ -390,6 +423,8 @@ archivos:
 > Su certificado (26/10) pasa a ser **caducidad natural, no plazo**.
 > **Ya no se pregunta.**
 > Contexto: [[modelo-instancias-soberanas]] · `vault/07-Agentes/diario/2026-08-27`
+>
+> ⚠️ **SUSTITUIDO el 2026-11-05 por el [ADR 0050](../../docs/adr/0050-demo-space-os-io-vuelve-como-la-demo-en-el-droplet-viejo-de-g500.md)**: `demo.space-os.io` **no se elimina**, vuelve como la DEMO en el droplet viejo de g500 (guía `docs/evidencias/31-g500-viejo-como-demo-20261105.md`, sin correr). Lo de este recuadro es historia.
 
 
 ## Local
@@ -2191,9 +2226,9 @@ empuja: ver [[modelo-instancias-soberanas]] y
 | Entorno | Qué es | Cómo corre | Base | Dominio |
 |---|---|---|---|---|
 | **PADRE** | Plano de control de AS OOH y sitio institucional. **No sirve a ningún owner** | **systemd** `spaces-web`, puerto **3000**, usuario `padre` (`infra/systemd/spaces-web.service:83`; era pm2 hasta el 28/08 — corregido aquí el 05/10) | `spaces_prod` | `space-os.io` — `infra/nginx/space-os.io.conf:133` |
-| **DEMO** | Banco de pruebas. **Contenedor** dentro del PADRE desde el 2026-09-02 ([ADR 0015](../../docs/adr/0015-demo-dentro-del-padre.md), [ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md)) | **`update.sh` + Docker**, contenedor `space-os-demo` desde `…/space-os:beta`, `--network host` con `PORT=3001` y `HOSTNAME=127.0.0.1`, cron a las 4:31. Config en `/etc/space-os/demo-instancia.env` y `demo-app.env`. La unidad systemd `spaces-demo` queda **deshabilitada como vuelta atrás**, no borrada — ver el aviso de abajo, porque `disable` **retira el symlink** | `spaces_demo`, 75 migraciones | **`prueba.space-os.io`** — nombre nuevo (31/08). `demo.space-os.io` es la demo original y **se elimina** ([ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md), que sustituye al 0021) |
+| **DEMO** | Banco de pruebas. **Contenedor** dentro del PADRE desde el 2026-09-02 ([ADR 0015](../../docs/adr/0015-demo-dentro-del-padre.md), [ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md)) | **`update.sh` + Docker**, contenedor `space-os-demo` desde `…/space-os:beta`, `--network host` con `PORT=3001` y `HOSTNAME=127.0.0.1`, cron a las 4:31. Config en `/etc/space-os/demo-instancia.env` y `demo-app.env`. La unidad systemd `spaces-demo` queda **deshabilitada como vuelta atrás**, no borrada — ver el aviso de abajo, porque `disable` **retira el symlink** | `spaces_demo`, 75 migraciones | **`prueba.space-os.io`** — nombre nuevo (31/08). ~~`demo.space-os.io` es la demo original y **se elimina** ([ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md))~~ — **sustituido el 05/11 por el [ADR 0050](../../docs/adr/0050-demo-space-os-io-vuelve-como-la-demo-en-el-droplet-viejo-de-g500.md)**: la DEMO se muda al droplet viejo de g500 con el nombre `demo.space-os.io` (guía 31, sin correr) |
 | **Instancia de un owner** | Su copia completa: droplet, base y dominio propios | Contenedor Docker, lo levanta `infra/scripts/update.sh` | La suya | El **suyo**, en **su** zona DNS — plantilla `infra/nginx/instancia.conf.tpl` |
-| **Droplet de julio** | La máquina montada a mano en julio. **Fuera del modelo** ([ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md)) | pm2 `spaces-web`, usuario `emiliano`, `/var/www/Spaces` | `spaces_prod` propia, con cinco organizaciones dentro | Hoy sigue sirviendo `demo.space-os.io`. ~~Su destino es **decisión abierta**~~ — **cerrada**: sale del modelo por el ADR 0023 (27/08) y `demo.space-os.io` se elimina por el ADR 0024; los datos de g500 sí se rescataron (ADR 0031) |
+| **Droplet de julio** | La máquina montada a mano en julio. **Fuera del modelo** ([ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md)) | pm2 `spaces-web`, usuario `emiliano`, `/var/www/Spaces` | `spaces_prod` propia, con cinco organizaciones dentro | Hoy sigue sirviendo `demo.space-os.io`. ~~Su destino es **decisión abierta**~~ — **cerrada**: sale del modelo por el ADR 0023 (27/08) y `demo.space-os.io` se elimina por el ADR 0024 (**sustituido el 05/11 por el [ADR 0050](../../docs/adr/0050-demo-space-os-io-vuelve-como-la-demo-en-el-droplet-viejo-de-g500.md)**: el nombre vuelve como la DEMO, en el droplet viejo de g500); los datos de g500 sí se rescataron (ADR 0031) |
 
 > [!warning] Dos bases distintas se llaman igual: `spaces_prod`
 > La del PADRE (`docs/Runbook_Padre_Droplet_Nuevo.md:201`, creada el 24/08) y la

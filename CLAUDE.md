@@ -22,7 +22,7 @@ Confundirlos es el error más común al llegar.
 | **Formato** | Notas enlazadas entre sí, con frontmatter | Archivos sueltos: ADR, planes, runbooks, bitácora |
 | **Se lee** | Antes de tocar código | Cuando necesitas el porqué de una decisión |
 
-En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0049**), los **planes**
+En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0050**), los **planes**
 (`docs/Plan_*.md`), los **runbooks**, las **correcciones de datos en producción**
 (`docs/datos/`, cada una con su rollback capturado antes) y la **bitácora**
 (`docs/Registro_Cambios.md`), que está escrita para quien no programa.
@@ -43,7 +43,9 @@ Al 2026-11-05 tiene **1676 enlaces internos** sobre **117 notas**, con **3
 wikilinks rotos** —los tres apuntan a ADR, que viven en `docs/` y no en la
 bóveda, así que es un choque de convención más que un enlace muerto— y
 **0 notas huérfanas**. Medido con `node scripts/recuentos.mjs` **en este
-árbol**, al cerrar el trabajo y no antes. Las
+árbol**, al cerrar el trabajo y no antes (otra vez el 05/11 al cerrar la guía 31
+y el ADR 0050, rama `docs/demo-en-g500-viejo`: sin cambio, porque enlazan con
+rutas y no con wikilinks; los ADR pasan a **50**). Las
 mediciones previas daban 1675 sobre 117 (05/11, `verificacion` antes de integrar los ajustes y D18 y de preparar la v0.12.6), 1671 sobre 117 (05/11, `verificacion` en `a91580bb`, antes de B70, B71 y la vigencia de `feat/verificacion-ajustes`), 1670 sobre 117 (05/11, `verificacion` antes de integrar `fix/space-eyes-fotos-rapidas` y `feat/space-eyes-con-mejoras` y de anotarla en el tablero), 1663 sobre 116 (05/11, `integra/idiomas` en `e6c8ca43`, antes de las notas de versión por idioma, B82 y el diario del 05/11; la cifra de 1660 que decía aquí ya no cuadraba con ese árbol), 1660 sobre 116 (04/11, con la captura de cifras por idioma), 1657 sobre 116 (04/11, `integra/idiomas` con el cierre de idiomas, antes de integrar la captura de cifras por idioma), 1656 sobre 116 (04/11, antes del cierre de idiomas), 1650 sobre 115 (04/11, `integra/idiomas` con el recorrido final del italiano, antes del pulido y su diario del 04/11), 1649 sobre 115 (04/11, antes de juntar el recorrido final del italiano), 1644 sobre 115 (04/11, `integra/idiomas` con el idioma de la instancia, antes de integrar IDIOMA-USUARIO, la preferencia de idioma por persona), 1641 sobre 115 (03/11, `feat/idioma-por-usuario` sola), 1642 sobre 115 (03/11, `feat/idioma-instancia` sola, antes de integrarla en `integra/idiomas` con B67 y B68), 1637 sobre 115 (03/11, `integra/idiomas` antes del idioma de la instancia, ADR 0049), 1631 sobre 114 (03/11, el diario del 03/11 antes de juntar la ola 0 del italiano en integra/idiomas), 1623 sobre 113 (03/11, el inglés cerrado, antes del diario del 03/11), 1622 sobre 113 (02/11, el inglés antes de la ola 5), 1620 sobre 113 (02/11, el tablero ingles-olas recien creado, antes de integrar las olas 3 y 4), 1610 sobre 112 (02/11, la integración del inglés con la moneda y el símbolo MX$, antes de la nota ingles-olas), 1609 sobre 112 (02/11, la primera vuelta del ADR 0048, antes de las correcciones del validador), 1598 sobre 112 (29/10, `integra/ingles` antes del ADR 0048 de la moneda por instancia), 1590 sobre 111 (29/10, DOOH-API y PROP-COMPLETA integradas, antes del diario del 29/10), 1589 sobre 111 (29/10, PROP-COMPLETA sola, antes de juntarla con DOOH-API), 1588 sobre 111 (29/10, DOOH-API sola), 1587 sobre 111 (29/10, la v0.12.5 integrada, antes de DOOH-API y PROP-COMPLETA), 1585 sobre 111 (29/10, el contrato de la extensión solo, antes de integrar la v0.12.5 con la ubicación y las fichas B41–B56), 1582 sobre 111 (27/10, la v0.12.4, antes de EXT-CONTRATO), 1580 sobre 111 (26/10, TENT-PROP, antes de integrar la v0.12.4 con el contrato firmado editable y la ficha de campaña), 1562 sobre 110 (23/10, el contrato firmado editable solo), 1579 sobre 111 (26/10, el rediseño de los módulos, antes de TENT-PROP), 1573 sobre 111 (26/10, DASH-REF, antes del rediseño de los módulos), 1561 sobre 110 (26/10, el ingreso y el margen del mes, antes de la nota `dashboard-inicio`), 1560 sobre 110 (22/10, la v0.12.3, antes del ingreso y el margen del mes en el Dashboard), 1559 sobre 110 (22/10, la v0.12.2 final, antes de las pantallas propias de la v0.12.3), 1558 sobre 110 (22/10, con la vista previa de DOOHmain, antes del horario individual), 1557 sobre 110 (22/10, con Comercial negociación, antes de la vista previa de DOOHmain), 1547 sobre 110 (21/10, `main` con la v0.12.0 reescrita, antes de Comercial negociación funcional), 1545 sobre 110 (21/10, el lote de seguridad antes de la bandeja de notificaciones por persona), 1544 sobre 110 (20/10, `main` con v0.12.0, antes del lote de seguridad SEG-21OCT), 1542 sobre 110 (19/10, el comprobante solo, antes de integrar la v0.12.0), 1541 sobre 110 (20/10, campos obligatorios y plegado solos), 1540 sobre 110 (14/10, antes del comprobante de cobranza), 1525 sobre 109 (13/10, v0.11.9 antes de poner la boveda al dia y del diario del 14/10), 1524 sobre 109 (13/10, v0.11.7 antes del cliente al generar la campaña), 1522 sobre 109 (13/10, la publicacion en DOOHmain antes de la pantalla por sitio), 1518 sobre 108 (12/10, v0.11.5 antes del diario del 13/10 y la publicacion en DOOHmain), 1517 sobre 108 (12/10, antes de quitar la media de los listados), 1516 sobre 108 (12/10, antes de la razón social principal), 1514 sobre 108 (11/10, la integracion de v0.11.4 antes de anotar su instalacion en g500), 1507 sobre 107 (09/10, antes de integrar las ramas de Space Eyes del 11/10), 1483 sobre 105 (08/10, la v0.11.3 antes de los diarios del 08 y 09/10 y el recuadro de CRLF), 1482 sobre 105 (08/10, Space Eyes integrado, antes del enlace del costo de OT cerrada), 1473 sobre 103 (07/10, main con v0.10.0, antes de integrar Space Eyes), 1463 sobre 102 (07/10, antes del diario del 07/10), 1461 sobre 102 (07/10, antes de los cambios de contrato), 1448 sobre 101 (06/10, antes del diario del 06/10), 1447 sobre 101 (06/10, el catalogo de la demo antes de corregir su siembra en DEMO), 1446 sobre 101 (06/10, la integracion de los riesgos y la calculadora, antes del catalogo de la demo), 1445 sobre 101 (06/10, la integracion de los riesgos del 14/10 antes de la calculadora como la HTML), 1440 sobre 101 (05/10, la boveda al dia antes del cupon, el tope vigente y nginx), 1285 sobre 100 (05/10, antes de poner la boveda al dia tras la auditoria), 1281 sobre 99 (02/10, antes del diario del 02/10), 1273 sobre 98 (01/10, antes de la calculadora de spots), 1271 sobre 98 (01/10, la tarifa calculada sin el pendiente de Google Maps), 1264 sobre 98 (01/10, antes de la tarifa calculada), 1262 sobre 98 (01/10, antes de anotar Google Maps como pendiente), 1245 sobre 97 (01/10, antes de las notas de version), 1240 sobre 96 (01/10, antes del diario del despliegue), 1238 sobre 96 (01/10, antes de corregir las pantallas digitales importadas), 1237 sobre 96 (30/09, antes del rediseno de Codigos y la regla de botones), 1231 sobre 96 (30/09, antes del cupon con aprobacion), 1229 sobre 96 (30/09, antes de acomodar OPEX), 1209 sobre 94 (30/09, antes de los dos idiomas), 1200 sobre 93 (30/09, con la franja programada, antes del diario), 1196 sobre 93 (30/09, la integracion antes de la franja programada), 1193 sobre 93 (30/09, cada rama por separado: ninguna veia los enlaces de las otras), 1189 sobre 93 (30/09, el almacen por tipo sin migracion), 1188 sobre 93 (29/09, al cerrar la captacion), 1179 sobre 92 (29/09, antes de la captacion), 1173 sobre 91 (29/09, al integrar el costo de OT), 1155 sobre 90 (29/09, los roles), 1144 sobre 89 (28/09), 1131 sobre 88 (28/09, el codigo promocional), 1121 sobre 87 (28/09, el volumen), 1109 sobre 86 (28/09, la rejilla), 1096 sobre 85 (28/09, VEND-01), 1072 sobre 84 (28/09), 1056 sobre 83 (25/09), 1045
 sobre 82 (24/09), 1148
 sobre 86 (23/09), 1101 sobre 85 (18/09), 753 sobre 57 (28/08), 606 sobre 48
@@ -762,6 +764,10 @@ al cerrarse **F2.4**, las dos el **2026-09-02**. La 5 en 6 de 8. **Quedan DOS**:
 > **F3.5 no se puede ejecutar** (`update.sh` actualiza contenedores) y **F2.4
 > tampoco** (`promover.yml:127-129` exige una `DEMO_URL` con `https`, y DEMO no
 > tiene nombre desde el ADR 0024). **Las dos se destraban con el mismo trabajo.**
+>
+> **2026-11-05:** lo del ADR 0024 ya no manda. El [ADR 0050](docs/adr/0050-demo-space-os-io-vuelve-como-la-demo-en-el-droplet-viejo-de-g500.md)
+> lo sustituye: `demo.space-os.io` **no se elimina**, vuelve como la DEMO en el
+> droplet viejo de g500. Ver el recuadro al final de esta sección.
 
 > **De las 6 que quedan, ninguna es trabajo de codigo en la maquina de desarrollo.**
 > Cuatro son de servidor (F3.5, F3.6, F5.6, F5.7), una espera la decision de DEMO
@@ -787,6 +793,23 @@ al cerrarse **F2.4**, las dos el **2026-09-02**. La 5 en 6 de 8. **Quedan DOS**:
    `DEMO_URL` y valida contra ella **antes** de promover. Apuntarla a
    `demo.space-os.io` haría que el smoke **validara la máquina equivocada**, que
    corre código del 11/08. **`F2.4` no se desbloquea con el registry.**
+
+> [!important] 2026-11-05 · `demo.space-os.io` NO se elimina: vuelve como la DEMO (ADR 0050)
+> Lo que este archivo decía hasta hoy —que `demo.space-os.io` «es la demo
+> original y se elimina» (ADR 0024) y que apuntar `DEMO_URL` ahí «validaría la
+> máquina equivocada»— **dejó de ser cierto por decisión del dueño del 05/11**.
+> El droplet viejo de g500 (`142.93.113.106`, libre tras la mudanza de la guía 30)
+> se convierte en la DEMO, instalada como una instancia de owner en `beta`, con
+> el nombre `demo.space-os.io`. Guía para una persona:
+> `docs/evidencias/31-g500-viejo-como-demo-20261105.md`, **sin correr**.
+>
+> - **Hoy** la DEMO sigue siendo el contenedor `space-os-demo` del PADRE
+>   (`prueba.space-os.io`), y con ella se promueve la v0.12.6.
+> - **`DEMO_URL` cambia a `https://demo.space-os.io/spaces-dooh`** —con el
+>   *basePath*: `promover.yml` prueba `$DEMO_URL/login/`— solo cuando la DEMO
+>   nueva corra la versión que se vaya a promover (guía 31 §6).
+> - El certificado de `prueba.space-os.io` **caduca el 29/11 y no se renueva**:
+>   si para entonces `DEMO_URL` no ha cambiado, no se puede promover.
 
 > **P4-bis quedó resuelta** el 14/08: la bandera del autoregistro salió del build
 > (`F2.6`) y cambió de polaridad — ahora **solo `AUTOREGISTRO=1` enciende**, y
