@@ -18,7 +18,6 @@ archivos:
   - apps/web/lib/server/idioma-instancia.ts
   - apps/web/components/demo/admin/IdiomaCuenta.tsx
   - apps/web/lib/contrato-documento.ts
-  - apps/web/lib/i18n/textos/papeles-portugues.ts
   - db/migrations/20261105_idioma_portugues.sql
   - infra/scripts/provision-instancia.sh
   - docs/i18n/revision-portugues-base.md
@@ -33,7 +32,10 @@ archivos:
   - apps/web/lib/i18n/textos/portugues-l2.test.ts
   - docs/i18n/revision-portugues-l4.md
   - apps/web/lib/i18n/textos/portugues-l4.test.ts
-  - apps/web/lib/test/barrido-portugues-l4.ts
+  - apps/web/lib/i18n/textos/portugues-comun.test.ts
+  - apps/web/lib/i18n/textos/costura.test.ts
+  - apps/web/lib/i18n/papeles-portugues.test.ts
+  - docs/i18n/revision-portugues-costura.md
 ---
 
 # La versión en portugués (Brasil), ola por ola
@@ -52,6 +54,9 @@ se repiten.
 >   `feat/portugues-<lote>`, saliendo de `integra/portugues`.
 > - La tarea roja P3 (los papeles y la base) vive en
 >   **`feat/portugues-documentos`**, sobre `integra/portugues` (`e018b1bb`).
+> - **La costura** (05/11) vive en **`feat/portugues-costura`**, que sale de
+>   `integra/portugues` (`2e2a62e1`: ola 0 + L5 + P3) y junta L2, L3, L4 y
+>   L1 (§2 ter).
 > - No se ha empujado nada ni hay PR.
 
 > [!warning] El portugués está APAGADO
@@ -100,11 +105,11 @@ toca **solo sus archivos** de `textos/` (y el L5, además, la base de
 
 | Lote | Rama | Estado | Cobertura de sus filas |
 |---|---|---|---|
-| **L2** | `feat/portugues-l2-comercial` | **VERDE** (05/11, `docs/i18n/validacion-portugues-l2.md`); hallazgos bajos H2–H6 corregidos; la costura con P3 (H1) va al integrar | **1201/1201, 0 pendientes** (comercial 502 · codigos 59 · propuestas 446 · catalogos 194) |
-| **L5** | `feat/portugues-l5-armazon` | **Validación ÁMBAR, corregida; pendiente de revalidar** (05/11) | **1346/1346, 0 pendientes** (base 119 · compartidos 113 · shell 59 · cuenta 125 · admin 542 · notificaciones 47 · servidor 32 · errores 205 + 30 + 12 + 62) |
-| **L3** | `feat/portugues-l3-inventario` | **Validación ÁMBAR, corregida; pendiente de revalidar** (05/11) | **1186/1186, 0 pendientes** (inventario 360 · arrendadores 444 · operaciones 177 · operaciones2 205) |
-| **L4** | `feat/portugues-l4-campanas` | **Validación ÁMBAR leve, corregida; pendiente de revalidar** (05/11) | **1082/1082, 0 pendientes** (campanas 396 · finanzas 170 · clientes 220 · reportes 148 · inicio 148) |
-| **L1** | `feat/portugues-l1-spaceeyes` | **Validación ÁMBAR leve, corregida; pendiente de revalidar** (05/11) | **1128/1128, 0 pendientes** (spaceeyes 1007 · energia 121) |
+| **L2** | `feat/portugues-l2-comercial` | **VERDE** (05/11, `docs/i18n/validacion-portugues-l2.md`); hallazgos bajos H2–H6 corregidos. **Integrado en la costura** (`6ea4fadf`) | **1201/1201, 0 pendientes** (comercial 502 · codigos 59 · propuestas 446 · catalogos 194) |
+| **L5** | `feat/portugues-l5-armazon` | **VERDE** (segunda vuelta, 05/11). Integrado en `integra/portugues` | **1346/1346, 0 pendientes** (base 119 · compartidos 113 · shell 59 · cuenta 125 · admin 542 · notificaciones 47 · servidor 32 · errores 205 + 30 + 12 + 62) |
+| **L3** | `feat/portugues-l3-inventario` | **VERDE** (segunda vuelta, 05/11). **Integrado en la costura** (`f7d1a458`) | **1186/1186, 0 pendientes** (inventario 360 · arrendadores 444 · operaciones 177 · operaciones2 205) |
+| **L4** | `feat/portugues-l4-campanas` | **VERDE** (segunda vuelta, 05/11). **Integrado en la costura** (`32d1f701`) | **1082/1082, 0 pendientes** (campanas 396 · finanzas 170 · clientes 220 · reportes 148 · inicio 148) |
+| **L1** | `feat/portugues-l1-spaceeyes` | **VERDE** (segunda vuelta, 05/11). **Integrado en la costura** (`6b0e2883`) | **1128/1128, 0 pendientes** (spaceeyes 1007 · energia 121) |
 
 ### Lote L5 · Armazón, cuenta, administración, compartidos y servidor
 
@@ -173,7 +178,7 @@ Glosario que este lote fija (lo que no está en §2 bis): comisión →
 veículo** · precio/tarifa de lista → **preço de tabela** · espectacular →
 **Painel**, valla → **Outdoor** · tramo / escalón / escala plana → **patamar /
 degrau / escala não progressiva** · horario de transmisión → **grade de
-programação** · tentativa → **provisória** · se compone → **se aplica em
+programação** · tentativa → ~~provisória~~ **Pré-reserva** (decisión del dueño, costura) · se compone → **se aplica em
 cascata** · reparto / a prorrata → **rateio / proporcionalmente** · prime →
 **horário nobre** · plaza → **praça** · tablero de propuestas → **resumo** (no
 *painel*) · vigencia de código o propuesta → **validade** · Próximo / Agotado
@@ -257,7 +262,7 @@ tabela** · cuota → **parcela** («{n} parcelas, duas por mês»; mensais,
 bimestrais…) · al corriente → **Em dia** · vencido al corte → **Vencido até {fecha}** · timbrado (CFDI) → **timbrado** · cargo / abono del extrato →
 **Débito / Crédito** · folio de una factura → **Nº da fatura** · nombre
 comercial → **nome fantasia** · tasa de cierre → **taxa de fechamento** · hueco
-→ **espaço livre** · tentativa → **Provisória** · el medio → **veículo** ·
+→ **espaço livre** · tentativa → ~~Provisória~~ **Pré-reserva** (costura) · el medio → **veículo** ·
 reporte de cumplimiento → **relatório de veiculação** · reproducción →
 **exibição** · enviar al dominio → **enviar para publicação** · reanudar /
 bajar → **retomar / remover** · bitácora → **histórico** · embudo → **funil** ·
@@ -265,7 +270,10 @@ giro → **ramo de atividade** · dueño del terreno → **dono do terreno** (no
 *proprietário*) · incidencia / accidente → **ocorrência / acidente** ·
 DOOHmain, masculino («no DOOHmain»).
 
-> [!warning] Para la costura del L4
+> [!success] Para la costura del L4 — RESUELTO en `feat/portugues-costura` (05/11)
+> Las tres claves de papel quedaron como el lote (el archivo de P3 se
+> retiró); el servidor dice «o dono do terreno»; `monto-ilegible` sigue
+> esperando a `feat/portugues-cifras`. Lo que decía:
 > - `textos/papeles-portugues.ts` (P3) no está en esta rama: el texto de los
 >   papeles del lote se copió de allí, salvo `campanas.evidencia.vacia.texto`
 >   y `campanas.evidencia.alt` («comprovação», el glosario común; el papel dice
@@ -323,8 +331,8 @@ Rama `feat/portugues-l1-spaceeyes` (sale de `integra/portugues`, `72b33050`).
 
 **Para el dueño:** revisión §7 (los conceptos del recibo de la CFE, *local*
 frente a *ponto*, *parque de dispositivos*, *unidade consumidora*). **Para la
-costura:** el veredicto de la foto (`comercial.eye.*`, L2) cae al español en
-la ficha y está declarado en la prueba hasta que L2 llegue.
+costura:** el veredicto de la foto (`comercial.eye.*`, L2) caía al español en
+la ficha; con L2 dentro sale en portugués y la costura quitó la declaración.
 
 > [!tip] El glosario se fija ANTES de repartir
 > Como en el italiano: `compartidos` (L5) fija las palabras que usan todos
@@ -333,18 +341,16 @@ la ficha y está declarado en la prueba hasta que L2 llegue.
 > glosario del italiano (`italiano-olas.md` §5–§7) sirve de lista de términos
 > a decidir: impianto/schermo, OdL, OdA, provvigione…
 
-> [!warning] Las claves de los PAPELES ya están escritas (P3, 05/11)
-> Viven aparte, en `lib/i18n/textos/papeles-portugues.ts` (169 claves de
+> [!note] Los PAPELES ya no viven aparte (costura, 05/11)
+> P3 los escribió en `lib/i18n/textos/papeles-portugues.ts` (151 claves de
 > `propuestas`, `cuenta`, `finanzas`, `arrendadores`, `notificaciones`,
-> `campanas` y `comercial`), para no pisar los archivos de los lotes. Cuentan
-> como traducidas en `coberturaPortugues()`. Si un lote traduce una de ellas,
-> **gana el lote**, pero `papeles-portugues.test.ts` exige que diga LO MISMO:
-> si difiere, rojo, y se decide en la costura cuál queda. Al cerrar los lotes,
-> esas claves se mueven a su `PT_<AMBITO>` y el archivo desaparece.
+> `campanas` y `comercial`) para no pisar a los lotes. En la costura las 151
+> estaban ya en su `PT_<AMBITO>` (138 iguales, 13 distintas por el glosario
+> común): **ganó el lote** y el archivo **se retiró**. `papeles-portugues.test.ts`
+> sigue vigilando los papeles: cada una de las 169 claves que pinta un papel
+> está en el `PT_<AMBITO>` de su ámbito, y el folio del cliente es «Nº».
 
-Después, una **costura** como la del italiano (`textos/costura.test.ts`, que hoy
-compara inglés e italiano: se extiende al portugués con el primer lote) y el
-**recorrido en el navegador**.
+Después, la **costura** (§2 ter) y el **recorrido en el navegador**.
 
 ## 2 bis · Glosario común (lote L5, 05/11) — los demás lotes lo copian
 
@@ -381,7 +387,7 @@ Brasil) · link · prospect · login no (se dice **entrar**).
 | pantalla (inventario en general: mapa, propuesta pública, Network, cupo) | **ponto** (masc.; «ponto de mídia» si hace falta) | en OOH brasileño la unidad de inventario es el *ponto*; una pantalla del inventario puede ser un espectacular |
 | pantalla digital (calculadora, loop, DOOHmain, franja) | **tela** (fem.) | «telas» es lo que dice el DOOH brasileño (elevadores, metrô) |
 | pantalla de la aplicación | **página** (o «tela» solo si no hay ambigüedad) | evita el choque con la tela DOOH |
-| espectacular | **painel** (propuesta para L3) | el *outdoor* brasileño es el de papel 9×3 |
+| espectacular · valla · muro · puente | **Painel · Outdoor · Empena · Passarela** | aprobado por el dueño (05/11): el *outdoor* brasileño es el de papel 9×3, la valla mexicana |
 | sitio (campo «Sitio» del servidor) | **Ponto** | en la app, el sitio es la unidad de inventario |
 | catorcena · Catorcenal | **bissemana / bissemanas** · **Bissemanal** | el periodo de 14 días con que se vende el outdoor en Brasil; «quinzena» sería la quincena |
 | quincenal (dos veces al mes) | **Duas vezes por mês** | «quinzenal» se confundiría con la bissemana |
@@ -398,12 +404,12 @@ Brasil) · link · prospect · login no (se dice **entrar**).
 | días | dom · seg · ter · qua · qui · sex · sáb | |
 | propuesta · campaña · cliente · agencia | **proposta · campanha · cliente · agência** | |
 | cupón / código promocional | **código de negociação** | D-P4, como el «negotiation code» inglés |
-| Folio | **Ref. interna** | decisión del dueño |
+| Folio | **Ref. interna** dentro de la app; **Nº** en lo que ve el CLIENTE (correo «Nº P-1», «Comprovante Nº {folio}») | decisión del dueño (05/11; «Nº» en los papeles, costura) |
 | arrendador · arrendataria (nuestra empresa) | **locador · locatária** | términos de la Lei do Inquilinato |
 | renta (al arrendador) | **aluguel** | |
 | contrato de arrendamiento | **contrato de locação** | |
 | predio | **imóvel** | |
-| Captación (menú) | **Captação de pontos** | buscar espacios que arrendar (como la captação de imóveis), no clientes |
+| Captación (menú y título) | **Captação** | decisión del dueño (05/11, costura): la página lleva también clientes; donde una frase hable solo de pontos puede decir «captação de pontos» |
 | Comercial negociación | **Negociação de locações** | |
 | prospecto | **prospect** (pl. prospects) | uso del sector |
 | cobranza · factura · abono | **cobrança · fatura · pagamento parcial** | un abono no es un adelanto |
@@ -442,6 +448,33 @@ Brasil) · link · prospect · login no (se dice **entrar**).
 | «No se pudo …» | **Não foi possível …** | |
 | Iniciar sesión / Entrar | **Entrar** | |
 
+### Glosario común FINAL (costura, 05/11)
+
+Lo que la costura fija para todo el portugués, encima de la tabla de arriba.
+Si choca con un glosario de lote, gana esto.
+
+| Español | pt-BR | Origen |
+|---|---|---|
+| app | **o app** (masculino; «a app» es de Portugal) | validación del L1; lo vigila `portugues-comun.test.ts` |
+| Captación (menú y título) | **Captação** | decisión del dueño (05/11) |
+| tentativa (reserva) | **Pré-reserva** · «Pré-reservas» · botón «Pré-reservar» | decisión del dueño (05/11); sustituye a «Provisória» |
+| folio en lo que ve el cliente | **Nº** («Nº P-1», «Comprovante Nº {folio}») | decisión del dueño (05/11); dentro de la app, «Ref. interna» |
+| espectacular · valla · muro · puente | **Painel · Outdoor · Empena · Passarela** | aprobado en bloque (05/11) |
+| comisión · precio/tarifa de lista · neto para el medio | **comissão · preço/tarifa de tabela · líquido para o veículo** | aprobado en bloque |
+| tramo · horario de transmisión | **patamar · grade de programação** | aprobado; la costura unificó «Horário de exibição» de Campañas |
+| nombre comercial · el medio que vende | **nome fantasia · veículo** | aprobado |
+| quincenal (cuotas) | **duas por mês** | aprobado |
+| distrito / alcaldía · etiqueta del almacén | **bairro / região · plaqueta / número de patrimônio** | aprobado |
+| licencia municipal · dictamen · permiso | **alvará municipal · laudo · licença**; «Licenças e alvarás» | aprobado; la costura unificó el Dashboard |
+| sitio físico (Space Eyes) · flota · punto de medición | **local · parque de dispositivos · unidade consumidora** | aprobado |
+| marca de la foto · tickets | **legenda · chamado** | aprobado |
+| CFE · DAP · «Buen Fin» | **tal cual** (nombres mexicanos; «Buen Fin» en los ejemplos) | aprobado |
+| CP fiscal · su error | **CEP fiscal · «CEP inválido (5 dígitos)»** | costura (H9 del L4): el rótulo y el error, en la pantalla y en el servidor |
+| dueño del terreno que se capta | **o dono do terreno** (nunca *proprietário*) | costura: pantalla y servidor iguales |
+| Ej. | **Ex.:** (nunca «p. ex.») | glosario del L2; la costura igualó los cuatro del L4 |
+| montaje · desmontaje | **instalação · desinstalação** | costura |
+| «ya no» | **não … mais** (nunca «já não», de Portugal) | validación del L1; ahora para todos |
+
 ### Captura de cifras (P2)
 
 El dueño decidió teclear **a la brasileña**, en una tarea ROJA aparte
@@ -449,6 +482,34 @@ El dueño decidió teclear **a la brasileña**, en una tarea ROJA aparte
 la mexicana**, y los avisos `compartidos.cifra.*` del portugués dicen **eso**
 (que hoy es la verdad). Esa tarea los reescribe; el texto brasileño propuesto
 está en `docs/i18n/revision-portugues-l5.md`.
+
+## 2 ter · La costura (05/11)
+
+Rama **`feat/portugues-costura`**, de `integra/portugues` (`2e2a62e1`). Revisión
+completa en `docs/i18n/revision-portugues-costura.md`.
+
+- **Integra** L2 (`6ea4fadf`), L3 (`f7d1a458`), L4 (`32d1f701`) y L1
+  (`6b0e2883`), `merge --no-ff`, uno por commit. Conflictos solo de
+  documentación (este tablero y el diario del 05/11): se conservaron todos los
+  lados.
+- **Papeles**: `papeles-portugues.ts` se retira; sus 151 claves estaban en los
+  lotes (13 distintas, gana el lote). Folio del cliente «Nº».
+- **Decisiones del dueño** aplicadas (Captação, Pré-reserva) y los **gemelos**
+  con el servidor («dono do terreno», «CEP inválido»).
+- **Cobertura total: 5943/5943, 0 pendientes** en todas las filas
+  (`cobertura-portugues.test.ts` lo exige; adiós a las pruebas de transición).
+- **Fuera las listas de español pendiente** de otros lotes
+  (`espanolPendienteDeOtrosLotes`, `espanolPendienteDe`, «Pantalla digital», el
+  veredicto de la foto, «En producción», «Pendiente / En proceso», las seis
+  etiquetas del L2): los barridos ya no apartan nada que no sea un dato.
+  `barrido-portugues-l4.ts` se unió a `barrido-portugues.ts`.
+- **Guardias comunes** (`textos/portugues-comun.test.ts`) sobre todo
+  `PT_PARCIAL` y los catálogos del servidor: Portugal, tuteo, palabras solo
+  españolas, fechas en hueco. Cazaron 4 textos (corregidos).
+- **`costura.test.ts` al portugués**: 38 divergencias; 24 claves unificadas, 20
+  textos declarados en `DISTINTOS_A_PROPOSITO_PT` con su porqué.
+- **es/en/it idénticos, medido**; espejo pt **184 huellas / 33 estados**, todas
+  explicadas (§5). 12/12 mutantes muertos.
 
 ## 3 · P3: la base sabe portugués, y los papeles también (05/11)
 
@@ -479,8 +540,8 @@ base como un 500. Desde P3:
   letra con «e» («MIL DUZENTOS E TRINTA E QUATRO PESOS 50/100 MXN»,
   «UM MILHÃO E DUZENTOS MIL», «UM MILHÃO DE PESOS», «QUATORZE»). Plantilla de
   EJEMPLO (D13, D17): el contrato que vale lo sube el cliente.
-- **Los demás papeles**: claves en `textos/papeles-portugues.ts` (ver el aviso
-  de §2).
+- **Los demás papeles**: P3 escribió sus claves en `textos/papeles-portugues.ts`;
+  la costura (05/11) las devolvió a su `PT_<AMBITO>` y retiró el archivo (§2).
 - **Firmas:** ningún hash cambia. Los del inglés y el italiano no estaban
   fijados en ninguna prueba: se midieron sobre `e018b1bb` antes del cambio y
   quedan en `contrato-documento-portugues.test.ts`.
@@ -493,7 +554,7 @@ base como un 500. Desde P3:
   Ningún papel decía «Proprietário» por el rol Dueño («Titular», decisión del
   dueño del 05/11): el contrato dice «proprietário ou possuidor» del inmueble.
 
-> [!warning] Lo que P3 NO tradujo (para los lotes)
+> [!success] Lo que P3 NO tradujo — ya lo tradujeron los lotes (costura, 05/11)
 > Lo que rodea a los papeles y es INTERFAZ (la barra de la propuesta, los
 > botones del comprobante) sigue a la persona y lo traducen sus lotes. Y dos
 > piezas que `/p` y el portal pintan y son de L5: `compartidos.mapa.*` (los
@@ -502,16 +563,14 @@ base como un 500. Desde P3:
 
 ## 4 · Antes de encender `IDIOMA_PORTUGUES`
 
-- [ ] Los cinco lotes en **VERDE**, con su tipo `PT_<AMBITO>` ya en `Record` completo
-- [ ] `coberturaPortugues()` con **0 pendientes** en todas las filas (hoy, 4597 con L5 hecho; 3396 en la rama del L2, que lleva L5 y L2; eran 5937)
-
-- [ ] `coberturaPortugues()` con **0 pendientes** en todas las filas (hoy, 3411 con L5 y L3 hechos en la rama de L3; 4597 con L5 solo; eran 5937)
-
-- [ ] `coberturaPortugues()` con **0 pendientes** en todas las filas (hoy, 3469 con L5 y L1 hechos; eran 5937)
-- [ ] El espejo (`I18N_VOLCAR_PT`) sin hallazgos de formato (hoy, §5)
-- [ ] La costura extendida al portugués, en verde
+- [x] Los cinco lotes en **VERDE**, con su tipo `PT_<AMBITO>` ya en `Record` completo (05/11)
+- [x] `coberturaPortugues()` con **0 pendientes** en todas las filas: **5943/5943** en la costura (eran 5937 pendientes en la ola 0). Lo exige `cobertura-portugues.test.ts`
+- [ ] El espejo (`I18N_VOLCAR_PT`) sin hallazgos de formato: quedan **184 huellas en 33 estados**, todas de P2 (captura a la mexicana) o de papeles en el idioma de la instancia (§5)
+- [x] La costura extendida al portugués, en verde (`costura.test.ts`, §2 ter)
 - [x] P1 y P2 contestadas por el dueño (05/11)
-- [x] La tarea roja P3 (05/11, `feat/portugues-documentos`; falta su validación)
+- [x] La tarea roja P3 (05/11, `feat/portugues-documentos`), validada VERDE
+- [ ] **La tarea roja de cifras** (`feat/portugues-cifras`, P2): teclear a la brasileña y reescribir `compartidos.cifra.*` y `campanas.candado.monto-ilegible`
+- [ ] **Validar la costura** (`feat/portugues-costura`) y llevarla a `integra/portugues`
 - [ ] El recorrido en el navegador, pantalla por pantalla, con su validador
 
 > [!danger] Lo que distingue al portugués: a medias NO SE NOTA
@@ -536,6 +595,16 @@ Por tipo: cifra con punto decimal 110, coma de millar 54, fecha en inglés 49,
 dinero sin prefijo 33, fecha larga en español 29, «a. m.» 15, dd/mm/aaaa 14,
 AM/PM 5. Es el punto de partida de cada lote: los lotes que traduzcan esos
 ámbitos rendirán sus estados en `pt` y los declararán o arreglarán.
+
+**Medido en la costura (05/11, `feat/portugues-costura`): 184 huellas en 33
+estados**, de cuatro clases y ninguna de un texto traducido:
+
+| Clase | Estados | Huellas | Por qué se queda |
+|---|---:|---:|---|
+| Documento imprimible de la propuesta (`pantallas-propuestas`) | 3 | 79 | Papel en el idioma de la INSTANCIA (ADR 0049), fijado por el simulacro; el espejo no lo cambia |
+| Documento del contrato (`pantallas-inventario-arrendadores`) | 14 | 77 | Ídem: el contrato es es/en/it en esas pruebas |
+| Ejemplos de captura del alta de ponto (`pantallas-comercial`) | 12 | 24 | «Ex.: 12.9», «Ex.: 7.2»: la captura sigue a la mexicana hasta `feat/portugues-cifras` (P2) |
+| Navegador del firmante | 4 | 4 | «Mozilla/5.0»: un dato |
 
 > [!warning] El espejo de TODA la suite se cuelga en `cifras-formularios.test.ts`
 > Como el italiano (diario del 05/11): con el espejo, ese archivo no termina.
