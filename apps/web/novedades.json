@@ -32,6 +32,10 @@
         "texto": "Space Eyes usa el mismo encabezado y los mismos margenes que el resto del sistema. Antes sus pantallas se dibujaban mas adentro y con el titulo mas chico que las de Inventario o Almacen, y se notaba al pasar de una a otra."
       },
       {
+        "tipo": "AJUSTADO",
+        "texto": "Los botones de Space Eyes usan los mismos colores que el resto del sistema: verde el que agrega algo y azul el que guarda o confirma. «Agregar dispositivo» era el unico «Agregar» de toda la aplicacion que seguia en azul, y «Fijar encuadre» era verde sin dar de alta nada."
+      },
+      {
         "tipo": "CORREGIDO",
         "texto": "Una pantalla apagada ya no entra a la galeria como si fuera un creativo nuevo."
       },
