@@ -57,6 +57,9 @@ se repiten.
 > - **La costura** (05/11) vive en **`feat/portugues-costura`**, que sale de
 >   `integra/portugues` (`2e2a62e1`: ola 0 + L5 + P3) y junta L2, L3, L4 y
 >   L1 (§2 ter).
+> - **Sobre la v0.12.6** (05/11): `feat/portugues-con-main` sale de
+>   `integra/portugues` (`bb990350`) y trae `origin/main` (`34f36a54`, la
+>   v0.12.6 publicada). Ver §2 quater.
 > - No se ha empujado nada ni hay PR.
 
 > [!warning] El portugués está APAGADO
@@ -512,6 +515,51 @@ completa en `docs/i18n/revision-portugues-costura.md`.
   textos declarados en `DISTINTOS_A_PROPOSITO_PT` con su porqué.
 - **es/en/it idénticos, medido**; espejo pt **184 huellas / 33 estados**, todas
   explicadas (§5). 12/12 mutantes muertos.
+
+## 2 quater · Sobre la v0.12.6 (05/11)
+
+Rama **`feat/portugues-con-main`**, de `integra/portugues` (`bb990350`), con
+`git merge --no-ff origin/main` (`34f36a54`, 25 commits: B70, B71, la
+vigencia de B88 H4, D18 y B85–B87, las notas de la v0.12.6, dos arreglos de
+pruebas del CI y el mutante de `pruebas-provision.sh`).
+
+- **Conflictos solo de documentación**: el diario del 05/11, la bitácora y
+  `CLAUDE.md`; se conservaron los dos lados. En la bitácora la entrada del
+  portugués va **encima** de la de la v0.12.6 (esa dice «junta todo lo que
+  está abajo», y el portugués no va en ella). `ABIERTOS.md` entró sin
+  conflicto y sin choque de números: main usa B88–B90 y el portugués solo B91.
+- **24 claves nuevas de main traducidas** (`tsc` las pedía): los controles
+  de MapLibre `compartidos.mapa.lib.*` (20: «Aumentar o zoom», «Ver em tela
+  cheia» —expresión fija, no la tela DOOH—, «roda do mouse», «Exibir como
+  globo terrestre / mapa plano»), `compartidos.avisos.*` («Notificações»,
+  «Fechar notificação») y `admin.iva.quitar` / `admin.plazos.quitar`
+  («Remover IVA de {n}%», «Remover prazo de {n} dias»). «Mapa», cognado
+  declarado. `librerias.test.ts` y `cerrar-accesible.test.ts` miran también
+  el portugués.
+- **Las notas de la v0.12.6 no llevan portugués**: `novedades-reglas.mjs` y
+  `novedades-idiomas.test.ts` no lo exigen y el formato no tiene campo `pt`
+  (cae al español). No se añadió.
+- **`compartidos.cifra.*` sin cambios**: D18 no tocó sus textos, y lo que dicen
+  del portugués (se teclea a la mexicana) sigue siendo verdad. Pero **D18 sí
+  se aplica hoy al portugués**: con `comaDecimal('pt') === false` va por el
+  camino de es/en de `teclearCifra` (la coma tecleada se queda, `cifraAMedias`
+  no avisa a medias).
+- **Lo que condiciona `feat/portugues-cifras`**: al pasar `pt` a coma decimal,
+  `teclearCifra` lo llevará por el espejo del italiano (B87: el punto de millar
+  tecleado se queda) y `cifraAMedias` devolverá `false`, o sea **aviso en el
+  acto** con «1.» o «1.5» camino de «1.500», como el italiano y no como es/en.
+  Esa tarea decide si el portugués hereda eso o se le da el «a medias» en
+  espejo; y las pruebas de D18 (`captura-cifra.d18.test.ts`,
+  `cifras-d18.test.ts`) solo recorren es/en/it: tendrá que añadirles `pt`.
+- **Medido**: typecheck limpio; `vitest --testTimeout=60000` **433 archivos,
+  10100 en verde + 1 omitida, 0 rojas**; `coberturaPortugues()` 0 pendientes;
+  `DICCIONARIOS.es/.en/.it` y `traducirError` es/en/it contra `origin/main`:
+  la única diferencia es la que `integra/portugues` ya tenía contra
+  `verificacion` (`idioma.pt` y el mensaje de P3 «es, en, it o pt»), `cmp`
+  de las dos diferencias idéntico; volcado `I18N_VOLCAR_TODO` (sin
+  `cifras-formularios`) contra `origin/main`: 5444 → 6434 HTML, **0 distintos
+  y 0 desaparecidos**; los 990 nuevos son de pruebas del portugués (981 en
+  `_portugues.txt`); `_italiano.txt` ordenado, idéntico.
 
 ## 3 · P3: la base sabe portugués, y los papeles también (05/11)
 
