@@ -78,8 +78,8 @@ El archivo es una lista, **de la versión más nueva a la más vieja**:
   `texto`. Son opcionales: una entrada sin ellas sigue valiendo y se pinta en
   español, y la release **no se para** (la puerta solo avisa, ver abajo). Se
   traducen con los glosarios de [[03-Frontend/idiomas-es-en]] (§11) y
-  [[03-Frontend/italiano-olas]] (tuteo, « », ’, sin artículo pegado a la cifra
-  de un día), y con las cifras escritas a la manera de cada idioma (2,500 /
+  [[03-Frontend/italiano-olas]] (tuteo, « », ’, fechas fijas con su artículo y la
+  elisión correcta: «dal 5 ottobre», «dall’8»), y con las cifras escritas a la manera de cada idioma (2,500 /
   2.500). `apps/web/lib/novedades-idiomas.test.ts` exige que el archivo real
   las traiga todas y vigila estilo y cifras.
 - Si el PR no trae nada que el cliente note, **no añade item** — pero la
@@ -175,7 +175,8 @@ el buzón de siempre.
   corre en la imagen NUEVA, pero `notas_disponibles` la lee la aplicación VIEJA
   —la que aún no se ha instalado encima—, y una aplicación anterior a las
   traducciones rechaza cualquier campo de item que no conozca: el dueño vería
-  «Esta versión no trae notas» justo en la versión que las trae. Coste
+  la **alarma** de `avisoSinNotas` (`actualizaciones-ui.ts`: «No llegaron las notas… Avisa a
+  soporte antes de aprobarla») justo en la versión que sí las trae. Coste
   aceptado: el panel de Actualizaciones enseña las notas pendientes **en
   español** aunque la interfaz esté en inglés o italiano; ya instalada, el
   diálogo y la página las leen traducidas de su propio `novedades.json`. Se

@@ -684,9 +684,16 @@ cambiar el español. Detalle y tabla de decisiones de traducción en
   *pagina*; «Inicio» → *la pagina iniziale*; campanita → *campanella*; pin →
   *segnaposto*; arte → *grafica*; prima → *maggiorazione*; folio de campaña →
   *rif. interno*; folio de una solicitud → *numero della richiesta*; «se
-  cuentan hacia abajo» → *si contano per difetto*; fechas en prosa sin
-  artículo pegado al día: *in data 21 ottobre*, *dal giorno 5 ottobre*,
-  *termina il giorno 4 dicembre*. Las cifras de una nota se escriben a la
+  cuentan hacia abajo» → *si contano per difetto*; fechas en prosa fija **con** su
+  artículo, como en italiano: *il 21 ottobre*, *dal 5 ottobre*, *termina il 4
+  dicembre*, *dal 1° al 31*, y con la elisión correcta ante 8, 11 y 80–89
+  (*dall’8*, *l’11*). **Precisión tras la validación (05/11):** la regla «sin
+  artículo ante fecha» de §5 y §7 es para las fechas en HUECO (`{fecha}`), donde
+  no se sabe qué cifra caerá y «il {fecha}» saldría «il 8»; en prosa fija no
+  aplica. La primera vuelta la había aplicado a la prosa («in data 21
+  ottobre», «dal giorno 5 ottobre») y el validador lo corrigió;
+  `novedades-idiomas.test.ts` vigila ahora la elisión, con su prueba de que
+  muerde. Las cifras de una nota se escriben a la
   italiana (2.500, MX$ 1.234.567,50, 7,50%), y en la nota que explica cómo se
   teclean las cifras (v0.11.3) el caso ambiguo es el espejo («2,500»).
 - **B82 cerrada.** Al cambiar de es/en a italiano con un diálogo de cifras

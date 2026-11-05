@@ -174,8 +174,11 @@ export function CampoCifra({
           emitir(r.texto)
         }}
         onBlur={(e) => {
-          // Un crudo ajeno no se canoniza al salir: en italiano «1,500» se
-          // leería 1,5 y el campo enseñaría otra cifra (B82).
+          // Con un crudo ajeno (B82) no se reformatea al salir: se queda a la
+          // vista lo tecleado en el otro idioma, junto a su aviso. Pasarlo por
+          // `textoAlSalir` lo leería con la regla italiana y, si allí es
+          // válido («1.500,50» → «1.500,5»), lo pintaría como una cifra correcta
+          // que no es la que se manda.
           if (!ajeno) setTexto(textoAlSalir(texto, opciones))
           onBlur?.(e)
         }}

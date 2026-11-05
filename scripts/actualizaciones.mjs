@@ -78,8 +78,10 @@ export function notasParaVersion(texto, version) {
     // Esta funcion corre en la imagen NUEVA, pero lo que devuelve lo guarda
     // `notas_disponibles` y lo lee la aplicacion VIEJA en el panel de
     // Actualizaciones, ANTES de instalar. Una aplicacion anterior a las
-    // traducciones rechaza cualquier campo de item que no conozca, y el dueno
-    // veria «Esta version no trae notas» justo en la version que las trae. El
+    // traducciones rechaza cualquier campo de item que no conozca
+    // (`entradaValida` → null), y el panel le ensenaria al dueno la ALARMA de
+    // `avisoSinNotas` (`actualizaciones-ui.ts`: no llegaron las notas, «Avisa a soporte
+    // antes de aprobarla») justo en la version que si las trae. El
     // panel las ensena en espanol; ya instalada, el dialogo y la pagina de
     // Novedades las leen del `novedades.json` de su imagen, traducidas.
     const items = e.items.map((i) => {

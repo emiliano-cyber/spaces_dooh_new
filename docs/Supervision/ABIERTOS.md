@@ -2778,7 +2778,9 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
   cada item de `novedades.json` trae `en` e `it`, y el diálogo y `/novedades` los pintan. Pero
   `notasParaVersion()` (`scripts/actualizaciones.mjs`) los **quita** de lo que escribe en
   `notas_disponibles`, a propósito: esa columna la lee la aplicación VIEJA, que rechaza los campos
-  de item que no conoce y diría «Esta versión no trae notas» justo en la versión que las trae.
+  de item que no conoce (`entradaValida` → `null`) y el panel enseñaría la **alarma** de
+  `avisoSinNotas` (`actualizaciones-ui.ts:130-134`, pintada en `ActualizacionesPanel.tsx:210-218`:
+  «No llegaron las notas de {version}… Avisa a soporte antes de aprobarla») justo en la versión que sí las trae.
   **Cómo se cierra:** dejar de quitarlos cuando ninguna instancia corra una versión anterior a la
   que entiende `en`/`it` (la prueba «notas_disponibles» de `lib/novedades-idiomas.test.ts` se
   invierte entonces). **Quién:** quien publique, tras comprobar la versión de la flota. Menor.

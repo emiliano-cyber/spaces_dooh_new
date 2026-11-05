@@ -77,7 +77,8 @@ describe('notas_disponibles · lo que escribe el actualizador lo tiene que enten
   // El actualizador corre en la imagen NUEVA y escribe la entrada en una
   // columna que lee la aplicacion VIEJA (el panel de Actualizaciones, antes de
   // instalar). La vieja rechaza cualquier campo que no conozca: con `en`/`it`
-  // dentro, el dueno veria «Esta version no trae notas» justo en la
+  // dentro, el dueno veria la alarma de `avisoSinNotas` («el servidor no
+  // anoto las notas, reportalo») justo en la
   // actualizacion que las trae.
   const REGLA_VIEJA = (e: EntradaNovedades) =>
     e.items.every((i) => Object.keys(i).every((k) => k === 'tipo' || k === 'texto'))
@@ -146,11 +147,25 @@ describe('novedades.json · todas las entradas, en ingles y en italiano', () => 
     expect(mal.map((i) => `${i.donde}: ${i.it}`)).toEqual([])
   })
 
-  // La regla de TODO el italiano (italiano-olas.md): nunca un articulo pegado
-  // a la cifra de un dia («il 5 ottobre», «dall’1»); se escribe «in data 21
-  // ottobre», «dal giorno 5 ottobre».
-  it('italiano: sin articulo delante de una fecha («il 5 ottobre», «dall’1»)', () => {
-    const mal = items.filter((i) => /\b(il|al|dal|del|nel|sul)\s+\d|\b(l’|all’|dall’|dell’)\d/.test(i.it ?? ''))
+  // «Sin articulo ante fecha» (italiano-olas.md) es para las fechas en HUECO
+  // ({fecha}), donde no se sabe que cifra caera. En prosa fija la fecha se
+  // escribe como en italiano, con articulo («dal 5 ottobre», «il 4 dicembre»,
+  // «dal 1° al 31»), y lo que se vigila es la ELISION: ante 8, 11 y 80–89 va
+  // «l’8», «dall’11» (nunca «il 8», «dal 11»); el primero del mes, «il 1°»;
+  // y una elision solo ante esas cifras («l’5» es un error).
+  it('italiano: el articulo ante una fecha con la elision correcta («dall’8», «l’11», «il 1°»)', () => {
+    const sinElidir = /\b(il|al|dal|del|nel|sul)\s+(8\d?|11|1)(?![\d°])/
+    const elisionMala = /\b(l|all|dall|dell|nell|sull)’(?!(8\d?|11)(?!\d))\d/
+    const mal = items.filter((i) => sinElidir.test(i.it ?? '') || elisionMala.test(i.it ?? ''))
     expect(mal.map((i) => `${i.donde}: ${i.it}`)).toEqual([])
+  })
+
+  it('la guardia de la elision muerde', () => {
+    const sinElidir = /\b(il|al|dal|del|nel|sul)\s+(8\d?|11|1)(?![\d°])/
+    const elisionMala = /\b(l|all|dall|dell|nell|sull)’(?!(8\d?|11)(?!\d))\d/
+    for (const malo of ['dal 8 ottobre', 'il 11 maggio', 'dal 1 al 31', 'l’5 ottobre', 'dall’18'])
+      expect(sinElidir.test(malo) || elisionMala.test(malo), malo).toBe(true)
+    for (const bueno of ['dal 5 ottobre', 'il 4 dicembre', 'dal 1° al 31', 'dall’8', 'l’11', 'il 18 marzo', 'il 21 ottobre'])
+      expect(sinElidir.test(bueno) || elisionMala.test(bueno), bueno).toBe(false)
   })
 })

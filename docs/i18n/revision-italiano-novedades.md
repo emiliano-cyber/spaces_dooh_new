@@ -34,14 +34,14 @@ Cada item admite dos campos **opcionales** junto a `texto` (el español, el orig
 - **Una entrada vieja sin traducciones sigue valiendo** y se pinta como siempre.
 - **Una traducción vacía o que no es texto invalida el archivo** (pintaría una viñeta en blanco). `fr` o `es` siguen siendo campos desconocidos.
 - **`verificar-novedades.mjs` no cambia de contrato:** sale con 0, 1 o 2 como antes y `release.yml` no se toca. Si a la entrada de la versión le faltan traducciones, lo dice con un `::warning::` por idioma y **sale con 0**: parar una release por una traducción sería peor que el defecto.
-- **El actualizador quita `en`/`it`** de lo que escribe en `notas_disponibles` (`scripts/actualizaciones.mjs`, `notasParaVersion`). La sonda corre con la imagen NUEVA pero la columna la lee la aplicación VIEJA, que rechaza campos de item desconocidos: el dueño habría visto «Esta versión no trae notas» justo en la versión que las trae. Consecuencia: el panel de Actualizaciones enseña la versión **pendiente** en español; ya instalada, el diálogo y `/novedades` la pintan traducida. Apuntado como **B83** en `ABIERTOS.md`.
+- **El actualizador quita `en`/`it`** de lo que escribe en `notas_disponibles` (`scripts/actualizaciones.mjs`, `notasParaVersion`). La sonda corre con la imagen NUEVA pero la columna la lee la aplicación VIEJA, que rechaza campos de item desconocidos: el panel habría enseñado al dueño la **alarma** de `avisoSinNotas` (`actualizaciones-ui.ts:130-134`: «No llegaron las notas… Avisa a soporte antes de aprobarla») justo en la versión que sí las trae. *(Corregido tras la validación: la primera redacción decía «Esta versión no trae notas», que el panel ya no pinta.)* Consecuencia: el panel de Actualizaciones enseña la versión **pendiente** en español; ya instalada, el diálogo y `/novedades` la pintan traducida. Apuntado como **B83** en `ABIERTOS.md`.
 
 ## 3 · Las traducciones (110 items, 18 versiones)
 
 Traducidas desde el español; el inglés solo como apoyo para el italiano.
 
 - **Inglés:** glosario de `idiomas-es-en.md` §11 y los nombres que ya pinta la aplicación (Settings, Lease negotiation, Negotiation codes, Bundles, “Plays (proof of play)”, “Publication review”, “Owned screen”, Activity log, Power usage, Account settings…). Comillas “ ” y apóstrofo ’. Cifras a la inglesa: 2,500 · MX$1,234,567.50 · 7.50%.
-- **Italiano:** glosario de `italiano-olas.md` §7 y §12 y los nombres del diccionario italiano (Impostazioni, Negoziazione locazioni, Codici di negoziazione, Pacchetti, «Passaggi (proof of play)», «Convalida della pubblicazione», «Impianto di proprietà», Registro attività, Consumo elettrico…). Tuteo, « » y ’, sin artículo pegado a la cifra de un día. Cifras a la italiana: 2.500 · MX$ 1.234.567,50 · 7,50%.
+- **Italiano:** glosario de `italiano-olas.md` §7 y §12 y los nombres del diccionario italiano (Impostazioni, Negoziazione locazioni, Codici di negoziazione, Pacchetti, «Passaggi (proof of play)», «Convalida della pubblicazione», «Impianto di proprietà», Registro attività, Consumo elettrico…). Tuteo, « » y ’, fechas fijas con su artículo y la elisión correcta («dal 5 ottobre», «dall’8»). Cifras a la italiana: 2.500 · MX$ 1.234.567,50 · 7,50%.
 
 Decisiones de traducción que no venían en los glosarios:
 
@@ -60,7 +60,7 @@ Decisiones de traducción que no venían en los glosarios:
 | «Por spot» (nombre viejo) | “Per spot” | «A spot» | nombre retirado; no tenía italiano |
 | «Comercial OPEX», «Códigos promocionales» (nombres viejos, v0.11.9) | “Comercial OPEX”, “Promo codes” | «Comercial OPEX», «Codici promozionali» | la nota cuenta el cambio de nombre; el viejo se nombra a propósito |
 | «Valor Real del Spot Unitario» | igual | igual | nombre propio de la calculadora HTML de referencia |
-| el 21 de octubre / desde el 5 de octubre | October 21 / from October 5 | in data 21 ottobre / dal giorno 5 ottobre | regla del italiano: sin artículo pegado al día |
+| el 21 de octubre / desde el 5 de octubre | October 21 / from October 5 | il 21 ottobre / dal 5 ottobre | prosa fija: con artículo y elisión correcta («dall’8», «l’11»). *Tras la validación: la primera vuelta escribía «in data 21 ottobre» / «dal giorno 5 ottobre», aplicando a la prosa la regla de los huecos* |
 | las cifras en una nota sobre cifras (v0.11.3) | «2,500», «“2.500” en un importe» | «2.500», «“2,500” in un importo» | la nota describe lo que ve la persona: en italiano el separador y el caso ambiguo son el espejo |
 
 ## 4 · B82 · cambiar de idioma con un diálogo de cifras abierto
@@ -91,3 +91,10 @@ Decisiones de traducción que no venían en los glosarios:
 - `vault/03-Frontend/italiano-olas.md` §14.
 - `docs/Supervision/ABIERTOS.md`: B82 cerrada, B83 nueva.
 - `vault/07-Agentes/diario/2026-11-05.md`, enlazado desde el MOC; recuentos en `CLAUDE.md`.
+
+## 7 · Menores de la validación (VERDE, `docs/i18n/validacion-italiano-novedades.md`)
+
+- **B83 bien descrita:** la aplicación vieja no diría «Esta versión no trae notas», sino la alarma de `avisoSinNotas` («No llegaron las notas… Avisa a soporte antes de aprobarla»). Corregido en `scripts/actualizaciones.mjs`, `ABIERTOS.md`, `notas-de-version.md` y la prueba.
+- **Fechas en prosa con artículo:** «il 21 ottobre», «dal 5 ottobre, 2 mesi» termina «il 4 dicembre», «non il 3», «dal 1° al 31». La prueba ya no prohíbe el artículo: exige la elisión correcta ante 8, 11 y 80–89, con otra prueba de que muerde.
+- **Frases:** «avvisa in anticipo che il precedente andrà fuori onda», «non viene addebitato», «E viene addebitato allo stesso modo», «viene creato già programmato per oggi», «ammette i centesimi», «Una volta scaduta, il cliente…»; en inglés, «the quantity is counted in plays».
+- **Comentario del `onBlur` de `CampoCifra`:** dice ahora lo que hace (no reformatear lo ajeno para no pintarlo como una cifra válida que no es la que se manda).
