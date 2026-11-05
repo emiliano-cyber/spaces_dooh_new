@@ -153,3 +153,17 @@ describe('el portugues NO llega a la base (CHECK es/en/it, tarea roja aparte)', 
     expect(error).toMatchObject({ status: 400, message: 'El idioma de los documentos debe ser es, en o it' })
   })
 })
+
+describe('el lang del <html> (H3 de la ola 0, decision del dueno 05/11)', () => {
+  it('el portugues es «pt-BR»; es, en e it, como siempre', async () => {
+    const { langDelHtml } = await import('./idiomas')
+    expect(langDelHtml('pt')).toBe('pt-BR')
+    expect(langDelHtml('es')).toBe('es')
+    expect(langDelHtml('en')).toBe('en')
+    expect(langDelHtml('it')).toBe('it')
+  })
+  it('y se lee de vuelta como portugues (la pagina de error global lo relee)', async () => {
+    const { normalizarIdioma, IDIOMAS } = await import('./idiomas')
+    expect(normalizarIdioma('pt-BR', IDIOMAS)).toBe('pt')
+  })
+})

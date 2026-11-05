@@ -455,7 +455,8 @@ describe('el portugues en el layout y el selector (ola 0, 2026-11-05)', () => {
     process.env.IDIOMA_PORTUGUES = '1'
     cabeceras.accept = 'pt-BR,pt;q=0.9,en;q=0.8'
     const html = await pintarConLayout()
-    expect(html).toMatch(/<html[^>]*lang="pt"/)
+    // H3 de la ola 0 (decision del dueno, 05/11): la etiqueta BCP 47 de Brasil.
+    expect(html).toMatch(/<html[^>]*lang="pt-BR"/)
     expect(opciones(html)).toEqual(['Español', 'Português'])
     // Desde el lote L5 (05/11) la pantalla de entrar es de la base y esta entera
     // en portugues; lo que falta de otros lotes cae al espanol

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { traducir } from '@/lib/i18n/diccionario'
-import { normalizarIdioma, IDIOMAS, IDIOMA_POR_OMISION, type Idioma } from '@/lib/i18n/idiomas'
+import { normalizarIdioma, langDelHtml, IDIOMAS, IDIOMA_POR_OMISION, type Idioma } from '@/lib/i18n/idiomas'
 
 // ============================================================================
 //  app/global-error.tsx — la pagina cuando falla el LAYOUT RAIZ.
@@ -40,7 +40,7 @@ function idiomaDelDocumento(): Idioma {
 export default function ErrorGlobal({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
   const [idioma] = useState<Idioma>(idiomaDelDocumento)
   return (
-    <html lang={idioma}>
+    <html lang={langDelHtml(idioma)}>
       <body
         style={{
           margin: 0,

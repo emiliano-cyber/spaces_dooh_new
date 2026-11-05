@@ -1327,10 +1327,10 @@ describe('lote L5 · CUENTA Y SHELL en PORTUGUES', () => {
   }
 
   it('la pagina de error global y el `_error` salen en portugues', async () => {
-    vi.stubGlobal('document', { documentElement: { lang: 'pt' } })
+    vi.stubGlobal('document', { documentElement: { lang: 'pt-BR' } })
     const { default: ErrorGlobal } = await import('../../app/global-error')
     const html = renderToStaticMarkup(createElement(ErrorGlobal, { error: new Error('x'), reset: () => {} }))
-    expect(html).toContain('<html lang="pt">')
+    expect(html).toContain('<html lang="pt-BR">')
     expect(html).toContain('O sistema não está disponível no momento')
     const { default: Err } = await import('../../pages/_error')
     expect(renderToStaticMarkup(createElement(Err, { statusCode: 404, idioma: 'pt' }))).toContain('Página não encontrada')

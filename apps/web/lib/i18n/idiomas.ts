@@ -199,6 +199,18 @@ function esIdioma(v: string): v is Idioma {
 }
 
 /**
+ * El `lang` del `<html>`. H3 de la validacion de la ola 0 del portugues
+ * (decision del dueno, 05/11): `pt` a secas no dice que variante es, y el
+ * corrector, el guionado y los lectores de pantalla la necesitan; el dueno
+ * decidio Brasil (D1). Los otros tres se quedan como siempre, a proposito:
+ * cambiarlos moveria el HTML de es/en/it. Se lee de vuelta con
+ * `normalizarIdioma` («pt-BR» → `pt`), que es lo que hace `global-error`.
+ */
+export function langDelHtml(idioma: Idioma): string {
+  return idioma === 'pt' ? 'pt-BR' : idioma
+}
+
+/**
  * Convierte una etiqueta de idioma (BCP 47) en uno de los idiomas soportados.
  *
  * Se queda con la SUBETIQUETA primaria —lo anterior al primer guion— en vez de
