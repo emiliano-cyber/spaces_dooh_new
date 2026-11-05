@@ -502,7 +502,9 @@ pantalla({
     'buena',
     'Última captura ',
     'CAPTURA SPACE EYES',
-    ' · a demanda',
+    // fix/space-eyes-fotos-rapidas: la ficha nombra el origen como la Galería
+    // («A petición»), no «a demanda»/«programada» para todo lo demás.
+    ' · A petición',
     'Ampliar',
     'Descargar',
     'Anuncio correcto · confianza 93%',
@@ -537,7 +539,7 @@ pantalla({
     'Creatives',
     'Space Eyes capture',
     'SPACE EYES CAPTURE',
-    ' · on demand',
+    ' · On demand',
     'Correct ad · confidence 93%',
     'Last connection ',
     'Power',
@@ -548,6 +550,17 @@ pantalla({
     'Reading the device screen…',
     'Reading the device…',
   ],
+})
+pantalla({
+  nombre: 'ficha · prueba de campaña, dice de cuál',
+  pintar: async (idioma) => {
+    const C = await ficha()
+    forzar(esNull, { ...DATOS_FICHA, equipo: { ...DETALLE, fotos: [FOTO_EQUIPO(0, { origen: 'campana', campana: 'Dessea' })] } })
+    forzar(esTrue, false)
+    return pintar(idioma, el(C, { id: 7 }))
+  },
+  espanol: [' · Campaña · Dessea'],
+  ingles: [' · Campaign · Dessea'],
 })
 pantalla({
   nombre: 'ficha · foto del cliente sin pantalla',
@@ -983,6 +996,33 @@ pantalla({
   ingles: [
     'Monitoring continuously',
     'The device does not report its usage yet.',
+  ],
+})
+pantalla({
+  nombre: 'creativos · detectados sin foto, con su motivo',
+  pintar: async (idioma) => {
+    const C = await creativos()
+    const SIN = { ...HALLAZGO, photo_id: null, thumbnail_path: null, storage_path: null }
+    forzar(esNull, {
+      config: { ...CFG, aprendiendo: false, cada_min: 0, envio_min: 0 },
+      fotos_hoy: 1,
+      creativos: [
+        HALLAZGO,
+        { ...SIN, id: 11, sin_foto: 'no_subio' },
+        { ...SIN, id: 12, sin_foto: 'tope_del_dia' },
+        { ...SIN, id: 13, sin_foto: 'envio_agrupado' },
+        { ...SIN, id: 14, sin_foto: 'envio_agrupado' },
+        { ...SIN, id: 15, aprendido: 1 },
+      ],
+    })
+    forzar(esNull, 'pi-agent v0.7.0')
+    return pintar(idioma, el(C, { equipoId: 7, puedeOperar: true }))
+  },
+  espanol: [
+    '5 detectados sin foto: 1 no se pudo subir, 1 se agotó el tope de fotos del día, 2 esperan el envío agrupado, 1 se aprendieron del loop',
+  ],
+  ingles: [
+    '5 detected without a photo: 1 could not be uploaded, 1 hit the daily photo cap, 2 awaiting the batched upload, 1 learned from the loop',
   ],
 })
 pantalla({
@@ -1831,6 +1871,7 @@ pantalla({
     'Creativo nuevo',
     'Falla de pantalla',
     'Al encender',
+    'Campaña',
     'Equipo',
     'Todos los equipos',
     'Ver foto de Reforma 222 en grande',
@@ -1854,6 +1895,7 @@ pantalla({
     'Photo gallery',
     'Download album',
     'All sources',
+    'Campaign',
     'On demand',
     'Screen fault',
     'At startup',
@@ -1865,6 +1907,19 @@ pantalla({
     'Page 1 of 3',
     'Next',
   ],
+})
+pantalla({
+  nombre: 'galeria · prueba de campaña con su nombre',
+  pintar: async (idioma) => {
+    const C = await galeria()
+    forzar(esNull, [FOTO_SE(1, { source: 'campana', campaign_name: 'Dessea · arte-a.jpeg' })])
+    forzar(esCero, 1)
+    forzar(esTrue, false)
+    forzar(esArregloVacio, [{ id: 1, name: 'Reforma 222' }])
+    return pintar(idioma, el(C))
+  },
+  espanol: ['Campaña · Dessea · arte-a.jpeg'],
+  ingles: ['Campaign · Dessea · arte-a.jpeg'],
 })
 pantalla({
   nombre: 'galeria · filtros sin fotos',
@@ -3403,6 +3458,12 @@ const escaparRe = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const aparece = (html: string, t: string) => new RegExp(`(^|[^\\p{L}])${escaparRe(t)}($|[^\\p{L}])`, 'u').test(html)
 
 const ITALIANO: Record<string, string[]> = {
+  'ficha · captura del equipo, pestañas cargando': [' · Su richiesta'],
+  'ficha · prueba de campaña, dice de cuál': [' · Campagna · Dessea'],
+  'galeria · prueba de campaña con su nombre': ['Campagna · Dessea · arte-a.jpeg', 'Campagna'],
+  'creativos · detectados sin foto, con su motivo': [
+    '5 rilevate senza foto: 1 con caricamento non riuscito, 1 oltre il limite giornaliero di foto, 2 in attesa dell’invio raggruppato, 1 dall’apprendimento del loop',
+  ],
   'lista · con equipos': [
     'I dispositivi che sorvegliano i tuoi impianti: cosa stanno vedendo e come stanno.',
     'Aggiorna', 'Aggiungi dispositivo', 'di 4 dispositivi', 'Non comunica', 'oltre 10 min', 'Batteria critica', 'sotto il 20%',

@@ -41,6 +41,8 @@ export interface FotoEquipo {
   ancho: number | null
   alto: number | null
   origen: string | null
+  /** El nombre de la campaña cuando `origen` es 'campana'; si no, null. */
+  campana: string | null
   verificacionEstatus: string | null
   esCorrecta: boolean | null
   score: number | null
@@ -198,6 +200,8 @@ export interface CreativosEquipo {
   fotosHoy?: number
   maxDia?: number
   creativos?: Creativo[]
+  /** Los detectados que no trajeron foto, por motivo (ver space-eyes-sin-foto). */
+  sinFoto?: Record<string, number>
 }
 
 /** Lo que el equipo detecto mal en su pantalla, y su historial. */

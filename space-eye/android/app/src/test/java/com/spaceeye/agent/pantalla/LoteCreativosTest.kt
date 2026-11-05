@@ -62,7 +62,7 @@ class LoteCreativosTest {
         assertTrue(l.debeEnviar(120))
 
         val subidas = mutableListOf<String>()
-        val e = l.enviar(6) { h, _ -> subidas.add(h); true }
+        val e = l.enviar(6) { h, _, _ -> subidas.add(h); true }
         assertEquals("salen juntas, una por creativo, en el orden en que aparecieron", listOf("hB", "hC"), subidas)
         assertEquals(LoteCreativos.Envio(2, 4, 0), e)
         assertEquals(0, indice().length())
@@ -76,7 +76,7 @@ class LoteCreativosTest {
         l.agregar("hC", byteArrayOf(2), 10.0)
         ahora += 120 * MIN
         val subidas = mutableListOf<String>()
-        val e = l.enviar(1) { h, _ -> subidas.add(h); true }
+        val e = l.enviar(1) { h, _, _ -> subidas.add(h); true }
         assertEquals("el tope diario manda: 1 foto", 1, subidas.size)
         assertEquals(1, e.quedan)
         assertEquals("la otra espera", 1, indice().length())
@@ -85,11 +85,47 @@ class LoteCreativosTest {
     }
 
     @Test
+    fun laFotoViajaConLaHoraEnQueSeVioElCreativo() {
+        // La foto sale horas despues de la deteccion, y hasta el 23-oct-2026
+        // llegaba fechada a la hora del ENVIO: en TLALPAN, que manda cada 8 h,
+        // un creativo visto a las 5 de la tarde aparecia en la galeria a las 11
+        // de la noche y no habia forma de cruzarlo con su ficha del catalogo.
+        val l = lote()
+        val visto = ahora
+        l.agregar("hB", byteArrayOf(1), 10.0)
+        ahora += 3 * MIN
+        l.agregar("hC", byteArrayOf(2), 10.0)
+        val vistoC = ahora
+        ahora += 8 * 60 * MIN
+
+        val horas = mutableMapOf<String, Long>()
+        l.enviar(6) { h, _, v -> horas[h] = v; true }
+        assertEquals("la hora en que se vio, no la del envio", visto, horas["hB"])
+        assertEquals(vistoC, horas["hC"])
+        assertTrue("y no es la del envio", horas["hB"]!! < ahora)
+    }
+
+    @Test
+    fun laMiradaMasNitidaNoCambiaLaHoraDeLaPrimeraVez() {
+        // Si el creativo se vuelve a ver mas nitido se reemplaza la foto, pero
+        // el creativo aparecio la primera vez: esa es su hora.
+        val l = lote()
+        val visto = ahora
+        l.agregar("hB", byteArrayOf(1), 10.0)
+        ahora += 20 * MIN
+        l.mejorar("hB", byteArrayOf(2), 30.0)
+        ahora += 8 * 60 * MIN
+        var hora = 0L
+        l.enviar(6) { _, _, v -> hora = v; true }
+        assertEquals(visto, hora)
+    }
+
+    @Test
     fun laQueNoSePudoSubirEspera() {
         val l = lote()
         l.agregar("hB", byteArrayOf(1), 10.0)
         ahora += 120 * MIN
-        val e = l.enviar(6) { _, _ -> false }
+        val e = l.enviar(6) { _, _, _ -> false }
         assertEquals(0, e.enviadas)
         assertTrue(l.tiene("hB"))
     }
@@ -100,7 +136,7 @@ class LoteCreativosTest {
         l.agregar("hB", byteArrayOf(1), 10.0)
         assertFalse(l.debeEnviar(480))
         assertTrue("se cambio a \"al momento\" en el panel", l.debeEnviar(0))
-        assertFalse("sin nada esperando no hay envio", lote().also { it.enviar(6) { _, _ -> true } }.debeEnviar(0))
+        assertFalse("sin nada esperando no hay envio", lote().also { it.enviar(6) { _, _, _ -> true } }.debeEnviar(0))
     }
 
     @Test

@@ -845,12 +845,16 @@ export async function listPhotos(req: Request, res: Response) {
   // 018). Se corrige AL LEER y no al guardar: asi el crudo sigue en la tabla
   // -es el unico testigo de que ese reloj esta mal- y poner el desfase en 0
   // deshace la correccion sin restaurar nada.
+  // `campaign_name`: de que campana es la prueba. La galeria sabia QUE una foto
+  // es de campana (p.source) pero no DE CUAL, y la pantalla no podia decirlo.
   let sql = `SELECT p.*,
                     DATE_ADD(p.taken_at, INTERVAL d.clock_offset_s SECOND) AS taken_at,
                     p.taken_at AS taken_at_equipo, d.clock_offset_s,
                     d.name as device_name,
-                    d.overlay_x, d.overlay_y, d.overlay_enabled, d.overlay_style
-             FROM photos p JOIN devices d ON p.device_id = d.id WHERE 1=1`;
+                    d.overlay_x, d.overlay_y, d.overlay_enabled, d.overlay_style,
+                    c.name as campaign_name
+             FROM photos p JOIN devices d ON p.device_id = d.id
+             LEFT JOIN campaigns c ON c.id = p.campaign_id WHERE 1=1`;
   const params: any[] = [];
 
   // Mismo alcance que en la lista de equipos: una foto pertenece a su equipo.

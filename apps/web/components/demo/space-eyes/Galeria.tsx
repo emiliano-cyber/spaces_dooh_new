@@ -16,6 +16,7 @@ import {
   X,
 } from 'lucide-react'
 import { cn } from '@/lib/cn'
+import { ORIGENES_FOTO, selloDeFoto } from '@/lib/space-eyes-origenes'
 import { Button } from '@/components/demo/ui/Button'
 import { ConfirmDialog } from '@/components/demo/ui/ConfirmDialog'
 import { seApi, fotoSE, textoDeError } from '@/lib/data/space-eyes-se'
@@ -57,6 +58,7 @@ interface FotoSE extends FotoConMarca {
   device_id: number
   thumbnail_path: string | null
   source: string | null
+  campaign_name: string | null
   verification_status: string | null
   is_correct: number | boolean | null
   gps_lat: number | string | null
@@ -77,15 +79,10 @@ interface Filtros {
 
 const SIN_FILTROS: Filtros = { desde: '', hasta: '', origen: '', equipo: '' }
 
-const ORIGENES: { valor: string; texto: ClaveTexto }[] = [
-  { valor: 'manual', texto: 'spaceeyes.galeria.origen.manual' },
-  { valor: 'scheduled', texto: 'spaceeyes.galeria.origen.scheduled' },
-  { valor: 'on_demand', texto: 'spaceeyes.galeria.origen.on-demand' },
-  { valor: 'creative_change', texto: 'spaceeyes.galeria.origen.creative' },
-  { valor: 'falla', texto: 'spaceeyes.galeria.origen.falla' },
-  { valor: 'boot', texto: 'spaceeyes.galeria.origen.boot' },
-]
-const TEXTO_ORIGEN: Record<string, ClaveTexto> = Object.fromEntries(ORIGENES.map((o) => [o.valor, o.texto]))
+// El catálogo vive en lib/space-eyes-origenes: aquí faltaba 'campana', así que
+// una prueba de campaña no tenía etiqueta ni se podía filtrar. Cada origen
+// trae su clave del diccionario; el nombre sale en el idioma de quien mira.
+const ORIGENES = ORIGENES_FOTO
 
 const TEXTO_VERIFICACION: Record<string, ClaveTexto> = {
   pending: 'spaceeyes.galeria.verif.pending',
@@ -327,7 +324,7 @@ export function Galeria() {
           <select value={filtros.origen} onChange={(e) => cambiarFiltro('origen', e.target.value)} className={selectCls}>
             <option value="">{t('spaceeyes.galeria.origenes')}</option>
             {ORIGENES.map((o) => (
-              <option key={o.valor} value={o.valor}>{t(o.texto)}</option>
+              <option key={o.valor} value={o.valor}>{t(o.clave)}</option>
             ))}
           </select>
         </label>
@@ -503,9 +500,9 @@ function Miniatura({ foto, onAbrir, onBorrar }: { foto: FotoSE; onAbrir: () => v
             </span>
           )}
         </button>
-        {foto.source && TEXTO_ORIGEN[foto.source] && (
-          <span className="pointer-events-none absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[10.5px] text-white backdrop-blur-sm">
-            {t(TEXTO_ORIGEN[foto.source])}
+        {selloDeFoto(foto.source, foto.campaign_name, idioma) && (
+          <span className="pointer-events-none absolute left-2 top-2 max-w-[calc(100%-1rem)] truncate rounded-full bg-black/60 px-2 py-0.5 text-[10.5px] text-white backdrop-blur-sm">
+            {selloDeFoto(foto.source, foto.campaign_name, idioma)}
           </span>
         )}
         <button

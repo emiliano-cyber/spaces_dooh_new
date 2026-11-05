@@ -27,7 +27,11 @@
           <option value="">Todas las fuentes</option>
           <option value="manual">Manual</option>
           <option value="scheduled">Programada</option>
-          <option value="on_demand">On demand</option>
+          <option value="on_demand">A peticion</option>
+          <option value="boot">Al encender</option>
+          <option value="creative_change">Creativo nuevo</option>
+          <option value="falla">Falla de pantalla</option>
+          <option value="campana">Campana</option>
         </select>
         <button @click="loadPhotos()" class="se-btn se-btn-primario">Filtrar</button>
         <button @click="downloadAlbum()" :disabled="albumDownloading"
@@ -51,6 +55,7 @@
             <div class="p-2 text-xs">
               <div class="font-medium" x-text="photo.device_name"></div>
               <div class="text-neutral-500" x-text="new Date(photo.taken_at).toLocaleString()"></div>
+              <div class="text-neutral-500" x-show="textoOrigenFoto(photo)" x-text="textoOrigenFoto(photo)"></div>
               <div class="mt-1">
                 <span :class="{
                   'text-green-600': photo.verification_status === 'verified' && photo.is_correct,
