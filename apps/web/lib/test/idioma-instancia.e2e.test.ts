@@ -282,7 +282,7 @@ describe('una instancia con documentos en INGLES: redacta, congela, firma y cote
     it('NEGATIVO · y fr, que ni existe, tambien 400', async () => {
       const r = await alta('frances-api', { idiomaDocumentos: 'fr' })
       expect(r.status).toBe(400)
-      expect(r.datos.error).toBe('El idioma de los documentos debe ser es, en o it')
+      expect(r.datos.error).toBe('El idioma de los documentos debe ser es, en, it o pt')
     })
 
     it('sin idioma nace, y hereda el de la instancia (en, no el DEFAULT es)', async () => {

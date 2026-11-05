@@ -23,16 +23,16 @@ describe('idiomaDocumentosPedido · lo que llega en el cuerpo del alta', () => {
     expect(idiomaDocumentosPedido(undefined)).toBeUndefined()
   })
 
-  it.each(['es', 'en', 'it'])('%s se acepta tal cual', (i) => {
+  it.each(['es', 'en', 'it', 'pt'])('%s se acepta tal cual', (i) => {
     expect(idiomaDocumentosPedido(i)).toBe(i)
   })
 
-  it.each(['fr', 'ES', 'En', 'es-MX', ' en', '', null, 1, {}, ['en']])(
+  it.each(['fr', 'ES', 'En', 'es-MX', ' en', '', null, 1, {}, ['en'], 'PT', 'pt-BR', 'pt_BR', 'br'])(
     'NEGATIVO · %j se rechaza con 400 y el mensaje dice cuales valen',
     (malo) => {
       expect(error(() => idiomaDocumentosPedido(malo))).toMatchObject({
         status: 400,
-        message: 'El idioma de los documentos debe ser es, en o it',
+        message: 'El idioma de los documentos debe ser es, en, it o pt',
       })
     },
   )
@@ -43,7 +43,7 @@ describe('resolverIdiomaDocumentosDeAlta · la primera elige, las demas heredan'
     expect(resolverIdiomaDocumentosDeAlta(undefined, null)).toBe('es')
   })
 
-  it.each(['en', 'it'] as const)('instancia vacia y se pide %s: nace en %s', (i) => {
+  it.each(['en', 'it', 'pt'] as const)('instancia vacia y se pide %s: nace en %s', (i) => {
     expect(resolverIdiomaDocumentosDeAlta(i, null)).toBe(i)
   })
 
@@ -53,6 +53,15 @@ describe('resolverIdiomaDocumentosDeAlta · la primera elige, las demas heredan'
 
   it('pedir el MISMO que la instancia pasa', () => {
     expect(resolverIdiomaDocumentosDeAlta('it', 'it')).toBe('it')
+    expect(resolverIdiomaDocumentosDeAlta('pt', 'pt')).toBe('pt')
+  })
+
+  it('P3 · instancia en portugues y nadie pide: hereda portugues', () => {
+    expect(resolverIdiomaDocumentosDeAlta(undefined, 'pt')).toBe('pt')
+  })
+
+  it('NEGATIVO P3 · pedir pt en una instancia espanola es el 400 de siempre', () => {
+    expect(error(() => resolverIdiomaDocumentosDeAlta('pt', 'es'))).toMatchObject({ status: 400 })
   })
 
   it('NEGATIVO · pedir otro distinto al de la instancia es un 400, no se ignora', () => {

@@ -45,7 +45,12 @@ export function clavesBasePortugues(): string[] {
 export function coberturaPortugues(): FilaCobertura[] {
   return [
     fila('base (diccionario.ts)', clavesBasePortugues(), PT_PARCIAL as Partial<Record<string, string>>),
-    ...AMBITOS_PORTUGUES.map((a) => fila(a.ambito, Object.keys(a.es), a.pt)),
+    // Contra TODO lo escrito (`PT_PARCIAL`) y no solo el `PT_<AMBITO>` del
+    // lote: desde P3 (05/11) las claves de los papeles viven aparte
+    // (`textos/papeles-portugues.ts`) y tambien cuentan como traducidas.
+    ...AMBITOS_PORTUGUES.map((a) =>
+      fila(a.ambito, Object.keys(a.es), { ...(PT_PARCIAL as Partial<Record<string, string>>), ...a.pt }),
+    ),
     fila('errores · catalogo', Object.keys(CATALOGO_ERRORES), CATALOGO_ERRORES_PT),
     fila('errores · campos', Object.keys(CAMPO_EN), CAMPO_PT),
     fila('errores · firma', Object.keys(FALTA_FIRMA_EN), FALTA_FIRMA_PT),

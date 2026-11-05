@@ -426,11 +426,27 @@ describe('F5.2 · con token configurado', () => {
     await poolTest().query('delete from propuestas where id = $1', [p.rows[0].id])
   })
 
+  it('P3 · con `idiomaDocumentos: pt` nace en portugues (portugues de Brasil, 05/11)', async () => {
+    await vaciarTenants()
+    const r = await llamarBootstrap({ token: TOKEN, cuerpoPropio: { ...cuerpo(), idiomaDocumentos: 'pt' } })
+    expect(r.datos?.error).toBeUndefined()
+    expect(r.status).toBe(201)
+    expect(await idiomas()).toEqual(['pt'])
+  })
+
+  it('NEGATIVO P3 · `pt-BR` no se adivina: 400 y NO nace nada', async () => {
+    await vaciarTenants()
+    const r = await llamarBootstrap({ token: TOKEN, cuerpoPropio: { ...cuerpo(), idiomaDocumentos: 'pt-BR' } })
+    expect(r.status).toBe(400)
+    expect(await cuantosTenants()).toBe(0)
+    expect(await cuantosUsuarios()).toBe(0)
+  })
+
   it('NEGATIVO ADR 0049 · con `idiomaDocumentos: fr` es un 400 y NO nace nada', async () => {
     await vaciarTenants()
     const r = await llamarBootstrap({ token: TOKEN, cuerpoPropio: { ...cuerpo(), idiomaDocumentos: 'fr' } })
     expect(r.status).toBe(400)
-    expect(JSON.stringify(r.datos)).toContain('es, en o it')
+    expect(JSON.stringify(r.datos)).toContain('es, en, it o pt')
     expect(await cuantosTenants()).toBe(0)
     expect(await cuantosUsuarios()).toBe(0)
   })

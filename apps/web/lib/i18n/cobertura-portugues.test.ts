@@ -1,3 +1,4 @@
+import { PT_PAPELES } from './textos/papeles-portugues'
 import { describe, it, expect } from 'vitest'
 import { CLAVES, DICCIONARIOS, AMBITOS_PORTUGUES, PT_PARCIAL, conCaidaAlEspanol, traducir } from './diccionario'
 import { CATALOGO_ERRORES_PT, PATRONES_ERROR } from './errores-servidor'
@@ -84,6 +85,18 @@ describe('cobertura del portugues', () => {
     const delLote = filas.filter((f) => FILAS_L5.includes(f.ambito))
     expect(delLote.map((f) => f.ambito).sort()).toEqual([...FILAS_L5].sort())
     for (const f of delLote) expect(f.pendientes, f.ambito).toBe(0)
+  })
+
+  it('P3 (05/11): fuera del L5, lo traducido es exactamente lo de los PAPELES', () => {
+    // Al integrar P3 con el L5 (05/11): las filas del L5 ya estan completas;
+    // en las demas solo hay lo que P3 escribio, hasta que cierre su lote.
+    // Lo traducido de cada ambito es exactamente lo que P3 escribio para los
+    // papeles (`textos/papeles-portugues.ts`); el resto lo traducen los lotes.
+    const dePapel = (ambito: string) => Object.keys(PT_PAPELES).filter((k) => k.split('.')[0] === ambito).length
+    for (const f of filas.filter((x) => !FILAS_L5.includes(x.ambito))) {
+      expect(f.traducidas, f.ambito).toBe(dePapel(f.ambito))
+    }
+    expect(Object.keys(PT_PAPELES).length).toBeGreaterThan(150)
   })
 
   it('el portugues escrito esta bien formado', () => {

@@ -155,17 +155,21 @@ describe('B69 · lo que se lee del navegador', () => {
   })
 })
 
-// Ola 0 del portugues (2026-11-05) · «Mi cuenta» NO ofrece guardar el
-// portugues aunque este encendido: `usuarios.idioma_preferido` tiene un CHECK
-// es/en/it y abrirlo es una tarea ROJA aparte. Quien quiera portugues lo
-// consigue con «Usar el idioma del navegador» o con el selector (cookie).
-describe('IdiomaCuenta · el portugues todavia no se guarda en la cuenta', () => {
-  it('encendido, no aparece como opcion; los demas, igual que antes', () => {
+// P3 del portugues (05/11) · `usuarios.idioma_preferido` ya acepta `pt`
+// (`20261105_idioma_portugues.sql`): encendido, «Mi cuenta» lo ofrece como a
+// los demas. Cierra H1 de la validacion de la ola 0. Apagado, el servidor no
+// lo manda en `disponibles` y la tarjeta no lo pinta.
+describe('IdiomaCuenta · el portugues se guarda en la cuenta (P3)', () => {
+  it('encendido, aparece como opcion, nombrado en si mismo', () => {
     const html = pintar('es', ['es', 'en', 'it', 'pt'])
-    expect(html).not.toContain('value="pt"')
-    expect(html).not.toContain('Português')
+    expect(html).toContain('value="pt"')
+    expect(html).toContain('>Português<')
     expect(html).toContain('value="navegador"')
     expect(html).toContain('>Italiano<')
-    expect(html).toBe(pintar('es', ['es', 'en', 'it']))
+  })
+  it('NEGATIVO · apagado (fuera de disponibles), no aparece', () => {
+    const html = pintar('es', ['es', 'en', 'it'])
+    expect(html).not.toContain('value="pt"')
+    expect(html).not.toContain('Português')
   })
 })

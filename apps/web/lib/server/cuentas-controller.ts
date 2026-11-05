@@ -10,7 +10,7 @@ import { crearUsuario, emailExiste } from './usuarios-repo'
 import type { Moneda } from '@/lib/i18n/dinero'
 import { monedaPedida, resolverMonedaDeAlta } from './moneda-alta'
 import { recordarMonedaDeLaInstancia } from './moneda-instancia'
-import type { Idioma, IdiomaEnLaBase } from '@/lib/i18n/idiomas'
+import type { Idioma } from '@/lib/i18n/idiomas'
 import { idiomaDocumentosPedido, resolverIdiomaDocumentosDeAlta } from './idioma-alta'
 import { recordarIdiomaDeLaInstancia } from './idioma-instancia'
 
@@ -31,7 +31,7 @@ const signupSchema = z.object({
   password: z.string().optional(),
   // ADR 0048 · MXN o USD. Solo decide en la PRIMERA organizacion de la instancia.
   moneda: z.unknown().optional(),
-  // ADR 0049 · es, en o it: el idioma de los DOCUMENTOS (contrato, constancia).
+  // ADR 0049 · es, en, it o pt (P3, 05/11): el idioma de los DOCUMENTOS (contrato, constancia).
   // Igual que la moneda: solo decide en la primera, y solo desde el bootstrap.
   idiomaDocumentos: z.unknown().optional(),
 })
@@ -73,7 +73,7 @@ export async function crearOrgConDueno(args: {
   // ADR 0048 · la moneda pedida, ya validada. Ver `resolverMonedaDeAlta`.
   moneda?: Moneda
   // ADR 0049 · el idioma de documentos pedido. Ver `resolverIdiomaDocumentosDeAlta`.
-  idiomaDocumentos?: IdiomaEnLaBase
+  idiomaDocumentos?: Idioma
 }) {
   const errPass = validarPassword(args.password)
   if (errPass) throw new AppError(errPass, 400)

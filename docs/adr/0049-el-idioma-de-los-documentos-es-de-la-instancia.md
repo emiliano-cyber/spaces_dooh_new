@@ -201,3 +201,43 @@ El supervisor dio ÁMBAR a la primera vuelta (`docs/Supervision/idioma-instancia
 > cliente sube (el PDF del contrato, `GET /api/contratos/[id]/documento`, que ya existe).
 > No se construye plantilla editable por servidor ni se cambia la plantilla compartida por
 > un cliente, así que no hay riesgo de firmas «alteradas» por cambios de cláusulas.
+
+## Adenda 2026-11-05 · P3 del portugués: `pt` es el cuarto idioma de los documentos
+
+> [!success] Aprobada por el dueño el 2026-11-05 («Sí, igual que italiano»), como tarea ROJA
+> (R3, migración; y firmas). Rama `feat/portugues-documentos`, sobre `integra/portugues`
+> (`e018b1bb`). Tablero: `vault/03-Frontend/portugues-olas.md` (P3 y §3).
+
+El punto 1 de la decisión («tres idiomas de documentos: es, en, it; otro exige otro ADR y
+traducir el contrato») se cumple con esta adenda: **cuatro**, `es`, `en`, `it` y `pt`
+(portugués de Brasil). Todo lo demás de este ADR vale igual para `pt`: es de la instancia, se
+elige en el bootstrap, se hereda, no se cambia, y la lectura es fail-closed.
+
+- **Base:** `20261105_idioma_portugues.sql` abre los dos CHECK a `pt` —`tenants.idioma_documentos`
+  y, de paso, `usuarios.idioma_preferido` (la preferencia de la interfaz, IDIOMA-USUARIO)—, con
+  los mismos nombres de restricción. No toca los triggers ni ninguna fila. Idempotente.
+- **Aplicación:** desaparece la lista temporal de la ola 0 (`IDIOMAS_EN_LA_BASE`): el alta valida
+  contra `IDIOMAS` (el 400 dice ahora «es, en, it o pt»), «Mi cuenta» contra `idiomasActivos()`
+  —con `IDIOMA_PORTUGUES` apagado nadie ve ni guarda portugués; encendido, se guarda (cierra H1
+  de la validación de la ola 0)—, y `provision-instancia.sh --idioma pt` (o `--idioma=pt`).
+  `pt-BR`, `PT` o `br` siguen siendo 400 / salida 64: la clave es `pt`, no la etiqueta.
+- **El idioma de los documentos no depende del interruptor de la interfaz.** Una instancia
+  puede nacer con papeles en portugués con `IDIOMA_PORTUGUES` apagado, igual que con el
+  italiano: los papeles los lee el cliente, la interfaz el equipo.
+- **El contrato en portugués** (`redactarEnPortugues`, en una función APARTE de la del inglés y
+  el italiano para no tocar su texto): plantilla de EJEMPLO (D13, D17), «O LOCADOR / O
+  LOCATÁRIO», contracciones escritas a mano («ao LOCATÁRIO», «do ESPAÇO»), «1.234.567,89 MXN»,
+  «1º de agosto de 2026», y la cantidad con letra con «e» entre centenas, decenas y unidades
+  («MIL DUZENTOS E TRINTA E QUATRO PESOS 50/100 MXN»; «UM MILHÃO E DUZENTOS MIL»; «UM MILHÃO DE
+  PESOS»). Encabezados, sellos y aviso del pie en `encabezadosDocumento('pt')`.
+- **Los demás papeles** (constancia, propuesta imprimible, `/p`, portal, comprobante y los
+  correos de propuesta, invitación, restablecer contraseña y el aviso diario de contratos):
+  sus claves en portugués viven en `lib/i18n/textos/papeles-portugues.ts`, aparte de los
+  `PT_<AMBITO>` de los lotes de traducción, que trabajan en paralelo. Gana el lote si traduce la
+  misma clave, y `papeles-portugues.test.ts` exige que diga lo mismo (costura).
+- **Firmas: ningún hash existente cambia.** El español lo fijaban ya 14 hashes
+  (`contrato-documento-idioma.test.ts`). El inglés y el italiano **no estaban fijados por hash en
+  ninguna prueba**: se midieron sobre `e018b1bb` ANTES de tocar `contrato-documento.ts` y quedan
+  fijados en `contrato-documento-portugues.test.ts` (completo, persona moral, huecos, USD, huella
+  de revisión y las ocho periodicidades, en los tres idiomas). `hashParaCotejar` no cambia: la
+  regla vieja de la letra sigue siendo solo del español.

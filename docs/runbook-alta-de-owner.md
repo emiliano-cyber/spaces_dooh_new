@@ -183,7 +183,7 @@ infra/scripts/provision-instancia.sh \
 > moneda se cachea por proceso). `--moneda` solo vale junto con `--bootstrap`:
 > en otra corrida el guion para con salida 64.
 
-> [!danger] `--idioma es|en|it` tambien se decide AQUÍ y es para siempre (ADR 0049, 03/11)
+> [!danger] `--idioma es|en|it|pt` tambien se decide AQUÍ y es para siempre (ADR 0049, 03/11; `pt` desde el 05/11)
 > Es el idioma de **todos los papeles** de la instancia —contrato y constancia
 > de firmas, propuesta impresa, liga y portal del cliente, comprobante de
 > cobranza y los correos (el de restablecer contraseña también, desde el
@@ -194,7 +194,11 @@ infra/scripts/provision-instancia.sh \
 > porque las firmas se cotejan regenerando el texto: en otro idioma, todas
 > aparecerían alteradas. Sin la bandera, **es**. Acepta `--idioma en` y
 > `--idioma=en`; `EN`, `es-MX` o `fr` paran el guion antes de tocar el
-> servidor, y fuera de `--bootstrap` sale con 64. **Sobre el contrato en inglés
+> servidor, y fuera de `--bootstrap` sale con 64. `--idioma pt` es el portugués
+> de Brasil (P3, 05/11); `pt-BR` o `PT` también paran el guion. El idioma de
+> los papeles no depende de `IDIOMA_PORTUGUES` (el de la interfaz): una
+> instancia puede nacer con papeles en portugués con la interfaz aún sin él.
+> **Sobre el contrato en inglés
 > e italiano (D13, contestada por el dueño el 04/11):** «Los contratos en inglés
 > e italiano son EJEMPLOS: cada cliente los irá armando según contrate la app».
 > Se puede elegir `en`/`it` para un cliente real: el contrato en esos idiomas

@@ -17,6 +17,10 @@ archivos:
   - apps/web/lib/server/idioma-alta.ts
   - apps/web/lib/server/idioma-instancia.ts
   - apps/web/components/demo/admin/IdiomaCuenta.tsx
+  - apps/web/lib/contrato-documento.ts
+  - apps/web/lib/i18n/textos/papeles-portugues.ts
+  - db/migrations/20261105_idioma_portugues.sql
+  - infra/scripts/provision-instancia.sh
   - docs/i18n/revision-portugues-base.md
   - docs/i18n/revision-portugues-l5.md
   - apps/web/lib/i18n/textos/portugues-l5.test.ts
@@ -37,6 +41,8 @@ se repiten.
 >   `verificacion` (`a7953731`, con el inglés y el italiano completos).
 > - La ola 0 vive en **`feat/portugues-base`**. Cada lote trabajará en su
 >   `feat/portugues-<lote>`, saliendo de `integra/portugues`.
+> - La tarea roja P3 (los papeles y la base) vive en
+>   **`feat/portugues-documentos`**, sobre `integra/portugues` (`e018b1bb`).
 > - No se ha empujado nada ni hay PR.
 
 > [!warning] El portugués está APAGADO
@@ -56,7 +62,7 @@ se repiten.
 | D4 | Fechas «1 de dez. de 2026» (la corta de pt-BR), cifras «1.160,5», porcentaje «55,0%», trimestre «T1 2026» | **Decidido** (05/11). En `FORMATO_IDIOMA.pt` |
 | P1 | **Dólar de una instancia USD en portugués: «US$ 1.160,00»** | **Decidido** (05/11) |
 | P2 | **¿Se teclean las cifras a la brasileña («1.500,50»)?** Hoy, a la mexicana (`separadorDecimal: '.'`), porque es una decisión de dinero (ZONA ROJA) que el dueño tomó para el italiano (P-L2-1, 04/11) y no para el portugués, y porque los avisos de captura caen al español («la coma separa miles»): con coma decimal mentirían | **Decidido (05/11): A LA BRASILEÑA.** Tarea ROJA aparte (`feat/portugues-cifras`), como la del italiano del 04/11 |
-| P3 | **Los papeles en portugués** (contrato de ejemplo, constancia, propuesta impresa, `/p`, portal, comprobante, correos) en una instancia `pt` | **Tarea ROJA aparte** (§3): migración de los dos CHECK, `--idioma pt` y el texto |
+| P3 | **Los papeles en portugués** (contrato de ejemplo, constancia, propuesta impresa, `/p`, portal, comprobante, correos) en una instancia `pt` | **Aprobada (05/11, «Sí, igual que italiano») y hecha, sin validar**: `feat/portugues-documentos` (§3). Adenda al ADR 0049 |
 | P4 | Glosario: ¿los anglicismos del sector se quedan en inglés como en italiano (spot, loop, DOOH, «loops/h»)? | **Decidido (05/11): se quedan en inglés** (spot, loop, DOOH, CPM, «loops/h»), como en italiano |
 
 ## 2 · Las olas
@@ -129,12 +135,14 @@ pendiente de revalidar** (revisión §11). Revisión clave por clave en
 > glosario del italiano (`italiano-olas.md` §5–§7) sirve de lista de términos
 > a decidir: impianto/schermo, OdL, OdA, provvigione…
 
-> [!warning] Lo que se traduce y todavía no se ve
-> Las claves de los papeles —`arrendadores.constancia.*` (13), los correos
-> (`propuestas.correo.*`, `cuenta.correo.*`, `notificaciones.correo.*`)— van en
-> el idioma de la INSTANCIA, y una instancia no puede ser `pt` hasta la tarea
-> roja (P3). Los lotes pueden traducirlas; no se verán en una pantalla hasta
-> entonces.
+> [!warning] Las claves de los PAPELES ya están escritas (P3, 05/11)
+> Viven aparte, en `lib/i18n/textos/papeles-portugues.ts` (169 claves de
+> `propuestas`, `cuenta`, `finanzas`, `arrendadores`, `notificaciones`,
+> `campanas` y `comercial`), para no pisar los archivos de los lotes. Cuentan
+> como traducidas en `coberturaPortugues()`. Si un lote traduce una de ellas,
+> **gana el lote**, pero `papeles-portugues.test.ts` exige que diga LO MISMO:
+> si difiere, rojo, y se decide en la costura cuál queda. Al cerrar los lotes,
+> esas claves se mueven a su `PT_<AMBITO>` y el archivo desaparece.
 
 Después, una **costura** como la del italiano (`textos/costura.test.ts`, que hoy
 compara inglés e italiano: se extiende al portugués con el primer lote) y el
@@ -244,32 +252,55 @@ la mexicana**, y los avisos `compartidos.cifra.*` del portugués dicen **eso**
 (que hoy es la verdad). Esa tarea los reescribe; el texto brasileño propuesto
 está en `docs/i18n/revision-portugues-l5.md`.
 
-## 3 · La base todavía no sabe portugués (dependencia de P3)
+## 3 · P3: la base sabe portugués, y los papeles también (05/11)
 
-Dos columnas guardan un idioma y las dos tienen un CHECK `in ('es','en','it')`:
-`usuarios.idioma_preferido` (`20261103_usuarios_idioma_preferido.sql`) y
-`tenants.idioma_documentos` (`20261103_idioma_documentos_por_instancia.sql`).
-Con `pt` en `IDIOMAS`, cualquiera que escribiera en ellas validando contra
-`IDIOMAS` mandaría un `pt` que el CHECK tumbaría con un **500**. La ola 0 **no
-toca la base**; en su lugar:
+**Hecha en `feat/portugues-documentos`, sin validar.** Tarea ROJA aprobada por el
+dueño el 05/11 («Sí, igual que italiano»). Adenda al ADR 0049.
 
-- `IDIOMAS_EN_LA_BASE = ['es','en','it']` y `esIdiomaEnLaBase()`
-  (`idiomas.ts`): lo que cabe hoy en esas columnas.
-- **«Mi cuenta → Idioma»** guarda contra `idiomasDeCuenta()` (los encendidos
-  que caben en la base; `idioma-controller.ts`) y la tarjeta no ofrece
-  «Português» (`IdiomaCuenta.tsx`). Un `PUT {idioma:'pt'}` da el **400** de
-  siempre. El portugués se consigue con el selector (cookie) o con «Usar el
-  idioma del navegador».
-- **El alta** (`idiomaDocumentosPedido`, `idioma-alta.ts`) rechaza
-  `idiomaDocumentos: 'pt'` con el 400 de siempre («debe ser es, en o it»).
-  `provision-instancia.sh` ya rechazaba `--idioma pt`.
-- **El tipo de un papel** es `IdiomaEnLaBase`: `contrato-documento.ts`,
-  `idiomaDeLaInstancia()` y el alta. `tsc` impide pedir un contrato en
-  portugués antes de que exista. La huella del redactor cambió solo por el tipo
-  y su comentario; los hashes españoles del contrato, en verde.
+Hasta P3, dos columnas guardaban un idioma con un CHECK `in ('es','en','it')`
+—`usuarios.idioma_preferido` y `tenants.idioma_documentos`— y la ola 0 validaba
+contra una lista corta (`IDIOMAS_EN_LA_BASE`) para que un `pt` no llegara a la
+base como un 500. Desde P3:
 
-La tarea roja P3 abre los dos CHECK (migración nueva), pasa `IDIOMAS_EN_LA_BASE`
-a `IDIOMAS`, añade `--idioma pt` y escribe los papeles.
+- **Base:** `20261105_idioma_portugues.sql` abre los dos CHECK a `pt` (mismo
+  nombre de restricción; ni triggers ni filas). Idempotente, LF.
+- **La lista temporal desaparece.** El alta (`idioma-alta.ts`) valida contra
+  `IDIOMAS` —el 400 dice «es, en, it o pt»—; `idiomaDeLaInstancia()` lee `pt`;
+  `provision-instancia.sh --idioma pt` (o `--idioma=pt`); `pt-BR` o `PT`, 400 /
+  salida 64.
+- **«Mi cuenta» guarda `pt` si está encendido** (`idiomasActivos()`), y la
+  tarjeta lo ofrece. **Cierra H1** de la validación de la ola 0: con una
+  preferencia guardada, el portugués ya se alcanza. Apagado, ni se ofrece ni se
+  guarda (400) y una preferencia `pt` guardada se ignora sin error.
+- **El idioma de los documentos no depende de `IDIOMA_PORTUGUES`**: una
+  instancia puede nacer con papeles en portugués con la interfaz apagada, como
+  con el italiano.
+- **El contrato de ejemplo en pt-BR** (`redactarEnPortugues`, aparte de la
+  función del inglés y el italiano): «O LOCADOR / O LOCATÁRIO», contracciones
+  escritas a mano, «1.234.567,89 MXN», «1º de agosto de 2026», y la cantidad con
+  letra con «e» («MIL DUZENTOS E TRINTA E QUATRO PESOS 50/100 MXN»,
+  «UM MILHÃO E DUZENTOS MIL», «UM MILHÃO DE PESOS», «QUATORZE»). Plantilla de
+  EJEMPLO (D13, D17): el contrato que vale lo sube el cliente.
+- **Los demás papeles**: claves en `textos/papeles-portugues.ts` (ver el aviso
+  de §2).
+- **Firmas:** ningún hash cambia. Los del inglés y el italiano no estaban
+  fijados en ninguna prueba: se midieron sobre `e018b1bb` antes del cambio y
+  quedan en `contrato-documento-portugues.test.ts`.
+- **Validación (05/11): VERDE** (`docs/i18n/validacion-portugues-documentos.md`).
+  Corregido después en la misma rama: H1 (la revisión previa a la firma muestra
+  el importe como el contrato pt, «1.234.567,89 MXN»), H2 (la cabecera de la
+  migración ya no cita `deploy.yml`), H4 («à sua inteira satisfação»,
+  «certificado de conservação NOM-151»). Desde ahí el contrato pt también va
+  **fijado por hash** (`HASH_PT`). H3 queda anotado como B91 en `ABIERTOS.md`.
+  Ningún papel decía «Proprietário» por el rol Dueño («Titular», decisión del
+  dueño del 05/11): el contrato dice «proprietário ou possuidor» del inmueble.
+
+> [!warning] Lo que P3 NO tradujo (para los lotes)
+> Lo que rodea a los papeles y es INTERFAZ (la barra de la propuesta, los
+> botones del comprobante) sigue a la persona y lo traducen sus lotes. Y dos
+> piezas que `/p` y el portal pintan y son de L5: `compartidos.mapa.*` (los
+> avisos del mapa) y `compartidos.asignacion.sin-asignar` (el comprobante),
+> que caen al español hasta que L5 los traduzca.
 
 ## 4 · Antes de encender `IDIOMA_PORTUGUES`
 
@@ -278,7 +309,7 @@ a `IDIOMAS`, añade `--idioma pt` y escribe los papeles.
 - [ ] El espejo (`I18N_VOLCAR_PT`) sin hallazgos de formato (hoy, §5)
 - [ ] La costura extendida al portugués, en verde
 - [x] P1 y P2 contestadas por el dueño (05/11)
-- [ ] La tarea roja P3, si las instancias `pt` van a tener papeles en portugués
+- [x] La tarea roja P3 (05/11, `feat/portugues-documentos`; falta su validación)
 - [ ] El recorrido en el navegador, pantalla por pantalla, con su validador
 
 > [!danger] Lo que distingue al portugués: a medias NO SE NOTA

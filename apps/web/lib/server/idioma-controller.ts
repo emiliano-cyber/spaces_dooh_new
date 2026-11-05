@@ -1,7 +1,7 @@
 import 'server-only'
 import { AppError } from './errores'
 import { guardarIdiomaPreferido, idiomaPreferidoPropio } from './usuarios-repo'
-import { idiomasDeCuenta, preferenciaDeIdioma, normalizarIdioma, type Idioma } from '@/lib/i18n/idiomas'
+import { idiomasActivos, preferenciaDeIdioma, normalizarIdioma, type Idioma } from '@/lib/i18n/idiomas'
 
 // ============================================================================
 //  lib/server/idioma-controller.ts — el idioma de la interfaz que la persona
@@ -12,12 +12,12 @@ import { idiomasDeCuenta, preferenciaDeIdioma, normalizarIdioma, type Idioma } f
 //  cambiar el idioma de otra persona, y es a propósito: es una preferencia, no
 //  algo que un administrador decida por nadie.
 //
-//  Ola 0 del portugues (05/11): lo que se puede elegir es `idiomasDeCuenta()`,
-//  los encendidos que CABEN en `usuarios.idioma_preferido` (CHECK es/en/it).
-//  Con el portugues encendido, la cuenta no lo ofrece ni lo guarda —un `pt`
-//  tumbaria el UPDATE con un 500—; se consigue con el navegador o el selector.
-//  Abrir la columna es una tarea ROJA aparte. Sin el portugues encendido es
-//  exactamente `idiomasActivos()`, como antes.
+//  Lo que se puede elegir son los idiomas ENCENDIDOS (`idiomasActivos()`).
+//  Entre la ola 0 del portugues y P3 (05/11) se quitaba `pt` aunque estuviera
+//  encendido, porque el CHECK de `usuarios.idioma_preferido` no lo aceptaba;
+//  con eso, una persona con una preferencia guardada no podia llegar al
+//  portugues (H1 de la validacion de la ola 0). `20261105_idioma_portugues.sql`
+//  abrio el CHECK y la restriccion se retiro.
 // ============================================================================
 
 export type RespuestaIdioma = {
@@ -28,7 +28,7 @@ export type RespuestaIdioma = {
 }
 
 export async function leerIdiomaCtrl(usuarioId: string): Promise<RespuestaIdioma> {
-  const disponibles = idiomasDeCuenta()
+  const disponibles = idiomasActivos()
   // Una preferencia de un idioma APAGADO se trata como «sin preferencia»: la
   // pantalla no lo ofrece y el servidor no lo aplica. No se borra: si vuelven a
   // encenderlo, la persona lo recupera.
@@ -37,7 +37,7 @@ export async function leerIdiomaCtrl(usuarioId: string): Promise<RespuestaIdioma
 }
 
 export async function guardarIdiomaCtrl(usuarioId: string, body: unknown): Promise<RespuestaIdioma> {
-  const disponibles = idiomasDeCuenta()
+  const disponibles = idiomasActivos()
   const valor = (body as { idioma?: unknown } | null)?.idioma
   const p = preferenciaDeIdioma(valor === undefined ? undefined : valor, disponibles)
   if (!p.ok) throw new AppError('Ese idioma no está disponible en este servidor.', 400)

@@ -5,6 +5,24 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-05 · Portugués: los papeles de un servidor en portugués (sin publicar)
+
+El dueño lo aprobó el 05/11 («Sí, igual que italiano»). En un servidor en español, inglés o
+italiano no cambia nada: los contratos ya firmados siguen igual, letra por letra.
+
+- **Un servidor nuevo puede nacer con sus papeles en portugués de Brasil**, como ya podía en
+  inglés o en italiano: el contrato de ejemplo, la constancia de firmas, la propuesta impresa,
+  la liga que recibe el cliente, el portal, el comprobante de cobro y los correos (propuesta,
+  invitación, restablecer la contraseña y el aviso diario de contratos). Se elige al darlo de
+  alta y no se cambia. El importe con letra sale como en Brasil: «MIL DUZENTOS E TRINTA E
+  QUATRO PESOS 50/100 MXN».
+- **«Mi cuenta» puede guardar el portugués** como idioma de la persona, en cuanto el portugués
+  se encienda en el servidor. Hoy sigue apagado: nadie lo ve.
+- El contrato en portugués es una **plantilla de ejemplo**, como el inglés y el italiano: el
+  contrato que vale es el que el cliente sube.
+
+---
+
 ## 2026-11-04 · Idiomas: el correo de «olvidé mi contraseña», «provvigione» y los contratos de ejemplo (sin publicar)
 
 Tres cambios que el dueño autorizó el 04/11. En un servidor en español no cambia nada.

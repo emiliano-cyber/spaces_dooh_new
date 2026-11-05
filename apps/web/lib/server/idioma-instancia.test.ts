@@ -66,7 +66,13 @@ describe('idiomaDeLaInstancia', () => {
     await expect(idiomaDeLaInstancia()).rejects.toThrow(/ECONNREFUSED/)
   })
 
-  it('NEGATIVO · un valor fuera de es/en/it en la base lanza', async () => {
+  it('P3 · una instancia en portugues se lee como tal', async () => {
+    db.fila = { idioma_documentos: 'pt' }
+    const { idiomaDeLaInstancia } = await cargar()
+    expect(await idiomaDeLaInstancia()).toBe('pt')
+  })
+
+  it('NEGATIVO · un valor fuera de es/en/it/pt en la base lanza', async () => {
     db.fila = { idioma_documentos: 'fr' }
     const { idiomaDeLaInstancia } = await cargar()
     await expect(idiomaDeLaInstancia()).rejects.toThrow(/no soportado/)
