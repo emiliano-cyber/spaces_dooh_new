@@ -144,8 +144,8 @@ export function PildoraConexion({
         estado === 'linea'
           ? 'border-[#1da85040] bg-success-soft text-[#146c39]'
           : estado === 'pendiente'
-            ? 'border-[#f59e0b40] bg-warning-soft text-[#92400e]'
-            : 'border-[#dc262640] bg-error-soft text-[#b91c1c]',
+            ? 'border-[#f59e0b40] bg-warning-soft text-[#9a6700]'
+            : 'border-[#dc262640] bg-error-soft text-[#b42318]',
         className,
       )}
     >

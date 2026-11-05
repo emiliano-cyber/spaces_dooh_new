@@ -134,7 +134,11 @@ export function ListaEquipos() {
             Actualizar
           </Button>
           <Link href="/space-eyes/nuevo">
-            <Button variant="primary" size="sm">
+            {/* Verde porque es un alta, no un guardado: la regla del dueno del
+                2026-09-30 (convenciones.md, «Color de los botones») reserva el
+                azul para asignar o aceptar y pide verde para anadir. Era el
+                unico «Agregar» de la aplicacion que seguia en azul. */}
+            <Button variant="success" size="sm">
               <Plus className="mr-1.5 h-3.5 w-3.5" />
               Agregar dispositivo
             </Button>

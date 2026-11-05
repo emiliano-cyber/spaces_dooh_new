@@ -348,7 +348,7 @@ export function AltaDispositivo() {
           </p>
         </div>
       )}
-      {error && <p className="rounded-md border border-[#dc262640] bg-error-soft p-3 text-[13px] text-[#b91c1c]">{error}</p>}
+      {error && <p className="rounded-md border border-[#dc262640] bg-error-soft p-3 text-[13px] text-[#b42318]">{error}</p>}
 
       {/* ── Teléfono ── */}
       {tipo === 'telefono' && puedeCrear && (

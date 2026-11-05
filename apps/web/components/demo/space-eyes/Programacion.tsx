@@ -185,7 +185,7 @@ function estado(s: Programa): { texto: string; clase: string } {
     return { texto: `Empieza el ${fechaCorta(f.fecha)}`, clase: 'border-warning bg-warning-soft text-ink' }
   }
   if (f?.tipo === 'vencida') {
-    return { texto: `Venció el ${fechaCorta(f.fecha)}`, clase: 'border-[#dc262640] bg-error-soft text-[#b91c1c]' }
+    return { texto: `Venció el ${fechaCorta(f.fecha)}`, clase: 'border-[#dc262640] bg-error-soft text-[#b42318]' }
   }
   return { texto: 'Activa', clase: 'border-[#1da85040] bg-success-soft text-[#146c39]' }
 }
@@ -577,7 +577,11 @@ function FormularioProgramacion({
           <Button size="sm" variant="secondary" onClick={onCancelar} disabled={guardando}>
             Cancelar
           </Button>
-          <Button size="sm" variant="primary" onClick={onGuardar} disabled={guardando}>
+          {/* El color va con la ETIQUETA, no con el formulario: «Crear …» es un
+              alta y va verde; «Guardar cambios» confirma y va azul. Es el mismo
+              criterio que «Crear usuario» en Administracion y «Crear OT» en
+              Operaciones (convenciones.md, «Color de los botones»). */}
+          <Button size="sm" variant={f.id ? 'primary' : 'success'} onClick={onGuardar} disabled={guardando}>
             {guardando ? 'Guardando…' : f.id ? 'Guardar cambios' : 'Crear programación'}
           </Button>
         </div>
@@ -741,9 +745,12 @@ function FormularioProgramacion({
                   </Button>
                 </div>
               ))}
+              {/* Los «Anadir» de dentro de un formulario van verdes en el resto
+                  de la aplicacion (Paquetes, Comercial): aqui iban en terciario
+                  y eran los unicos «Agregar» que no se veian como tales. */}
               <Button
                 size="sm"
-                variant="tertiary"
+                variant="success"
                 onClick={() => cambiar({ windows: [...f.windows, { ini: '12:00', fin: '14:00' }] })}
               >
                 <Plus className="mr-1 h-3.5 w-3.5" />
@@ -802,7 +809,7 @@ function FormularioProgramacion({
                   </Button>
                 </div>
               ))}
-              <Button size="sm" variant="tertiary" onClick={() => cambiar({ specific_times: [...f.specific_times, '12:00'] })}>
+              <Button size="sm" variant="success" onClick={() => cambiar({ specific_times: [...f.specific_times, '12:00'] })}>
                 <Plus className="mr-1 h-3.5 w-3.5" />
                 Agregar hora
               </Button>

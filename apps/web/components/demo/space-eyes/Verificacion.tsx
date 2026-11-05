@@ -164,7 +164,7 @@ export function Verificacion() {
                         'whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-semibold',
                         correcto
                           ? 'border-[#1da85040] bg-success-soft text-[#146c39]'
-                          : 'border-[#dc262640] bg-error-soft text-[#b91c1c]',
+                          : 'border-[#dc262640] bg-error-soft text-[#b42318]',
                       )}
                     >
                       {correcto ? 'Correcto' : 'Incorrecto'}
@@ -240,7 +240,7 @@ export function Verificacion() {
                           'whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-semibold',
                           correcto
                             ? 'border-[#1da85040] bg-success-soft text-[#146c39]'
-                            : 'border-[#dc262640] bg-error-soft text-[#b91c1c]',
+                            : 'border-[#dc262640] bg-error-soft text-[#b42318]',
                         )}
                       >
                         {correcto ? 'Correcto' : 'Incorrecto'}

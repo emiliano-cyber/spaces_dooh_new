@@ -490,7 +490,10 @@ export function CampanasEyes() {
           )}
 
           <div className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">
-            <Button variant="primary" onClick={guardar} disabled={guardando}>
+            {/* Verde al crear, azul al editar: el color lo decide la etiqueta
+                (convenciones.md, «Color de los botones»). El boton que abre
+                este formulario, «Nueva campana», ya era verde. */}
+            <Button variant={form.id ? 'primary' : 'success'} onClick={guardar} disabled={guardando}>
               {guardando ? 'Guardando…' : form.id ? 'Guardar cambios' : 'Crear campaña'}
             </Button>
             <Button variant="ghost" onClick={cancelar} disabled={guardando}>
