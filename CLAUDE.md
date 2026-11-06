@@ -22,7 +22,7 @@ Confundirlos es el error más común al llegar.
 | **Formato** | Notas enlazadas entre sí, con frontmatter | Archivos sueltos: ADR, planes, runbooks, bitácora |
 | **Se lee** | Antes de tocar código | Cuando necesitas el porqué de una decisión |
 
-En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0049**), los **planes**
+En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0050**), los **planes**
 (`docs/Plan_*.md`), los **runbooks**, las **correcciones de datos en producción**
 (`docs/datos/`, cada una con su rollback capturado antes) y la **bitácora**
 (`docs/Registro_Cambios.md`), que está escrita para quien no programa.
@@ -762,6 +762,10 @@ al cerrarse **F2.4**, las dos el **2026-09-02**. La 5 en 6 de 8. **Quedan DOS**:
 > **F3.5 no se puede ejecutar** (`update.sh` actualiza contenedores) y **F2.4
 > tampoco** (`promover.yml:127-129` exige una `DEMO_URL` con `https`, y DEMO no
 > tiene nombre desde el ADR 0024). **Las dos se destraban con el mismo trabajo.**
+>
+> **2026-11-05:** lo del ADR 0024 ya no manda. El [ADR 0050](docs/adr/0050-demo-space-os-io-vuelve-como-la-demo-en-el-droplet-viejo-de-g500.md)
+> lo sustituye: `demo.space-os.io` **no se elimina**, vuelve como la DEMO en el
+> droplet viejo de g500. Ver el recuadro al final de esta sección.
 
 > **De las 6 que quedan, ninguna es trabajo de codigo en la maquina de desarrollo.**
 > Cuatro son de servidor (F3.5, F3.6, F5.6, F5.7), una espera la decision de DEMO
@@ -787,6 +791,24 @@ al cerrarse **F2.4**, las dos el **2026-09-02**. La 5 en 6 de 8. **Quedan DOS**:
    `DEMO_URL` y valida contra ella **antes** de promover. Apuntarla a
    `demo.space-os.io` haría que el smoke **validara la máquina equivocada**, que
    corre código del 11/08. **`F2.4` no se desbloquea con el registry.**
+
+> [!important] 2026-11-05 · `demo.space-os.io` NO se elimina: vuelve como la DEMO (ADR 0050)
+> Lo que este archivo decía hasta hoy —que `demo.space-os.io` «es la demo
+> original y se elimina» (ADR 0024) y que apuntar `DEMO_URL` ahí «validaría la
+> máquina equivocada»— **dejó de ser cierto por decisión del dueño del 05/11**.
+> El droplet viejo de g500 (`142.93.113.106`, libre tras la mudanza de la guía 30)
+> se convierte en la DEMO, en `beta`, con el nombre `demo.space-os.io` y **con
+> los datos de g500 al 04/11 tal cual** (se le quita la identidad de g500, no sus
+> datos; riesgo aceptado: datos reales de un cliente en una dirección pública). Guía para una persona:
+> `docs/evidencias/31-g500-viejo-como-demo-20261105.md`, **sin correr**.
+>
+> - **Hoy** la DEMO sigue siendo el contenedor `space-os-demo` del PADRE
+>   (`prueba.space-os.io`), y con ella se promueve la v0.12.6.
+> - **`DEMO_URL` cambia a `https://demo.space-os.io/spaces-dooh`** —con el
+>   *basePath*: `promover.yml` prueba `$DEMO_URL/login/`— solo cuando la DEMO
+>   nueva corra la versión que se vaya a promover (guía 31 §6).
+> - El certificado de `prueba.space-os.io` **caduca el 29/11 y no se renueva**:
+>   si para entonces `DEMO_URL` no ha cambiado, no se puede promover.
 
 > **P4-bis quedó resuelta** el 14/08: la bandera del autoregistro salió del build
 > (`F2.6`) y cambió de polaridad — ahora **solo `AUTOREGISTRO=1` enciende**, y
