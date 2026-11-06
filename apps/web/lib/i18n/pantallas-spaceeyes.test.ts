@@ -3671,7 +3671,8 @@ const PORTUGUES: Record<string, string[]> = {
   // «{hace}» ya trae el «há»: la plantilla no lo repite. El contador va en su
   // propio nodo (`interpolarNodos`); el «<» detras exige que la frase acabe ahi.
   'pantalla y creativos · con fallas y creativos': [
-    'Detectada: 2 de nov. de 2026, 10:30 · confiança ', '42</span> vezes · última vez há 5 min<', 'Ligada das ',
+    // Sin la hora a proposito: se pinta en la zona de quien mira (Mexico aqui, UTC en el CI); con ella fallo el CI del PR de la v0.12.7 (06/11), como el italiano el 05/11.
+    'Detectada: 2 de nov. de 2026, ', ' · confiança ', '42</span> vezes · última vez há 5 min<', 'Ligada das ',
   ],
   'pantalla y creativos · donde de cada falla, como lo manda el servidor (ola 7)': [
     'Gabinete 8 (linha 2, coluna 3)', 'A tela inteira', 'Possível gabinete apagado',
@@ -3698,8 +3699,9 @@ const PORTUGUES: Record<string, string[]> = {
   'verificacion · resultados con paginas': ['SSIM 0,812', 'OCR Não', 'Correspondência OCR'],
   'alta · telefono con codigo y lista': [
     // «Vincular» es el boton de la app Android, que solo esta en espanol.
-    'No app, escolha ', 'Vincular', 'Códigos de vinculação', 'Vale uma única vez · vence: 2 de nov. de 2026, 13:00',
-    'Válido até 2 de nov. de 2026, 13:00', '3 de 3 dispositivos · esgotado',
+    'No app, escolha ', 'Vincular', 'Códigos de vinculação', 'Vale uma única vez · vence: 2 de nov. de 2026, ',
+    // Las dos de arriba y esta, sin la hora: misma razon que «Detectada».
+    'Válido até 2 de nov. de 2026, ', '3 de 3 dispositivos · esgotado',
   ],
   'vivo · aplicando y abriendo': ['Encerra em ', 'Aplicando o novo enquadramento…', 'só o Titular pode fazer'],
   'demo · la demostracion': [

@@ -1520,7 +1520,9 @@ const PORTUGUES: Record<string, string[]> = {
     '1 ponto selecionado', 'Pantalla Reforma tem 8 slots próprios, que prevalecem sobre este número.',
     'Um ponto já atingiu seu limite de clientes',
   ],
-  'space eye · foto correcta, en grande': ['Último sinal há 2 h', 'há 5 min', 'Anúncio correto · confiança 93%', '2 de nov. de 2026, 11:55'],
+  'space eye · foto correcta, en grande': ['Último sinal há 2 h', 'há 5 min', 'Anúncio correto · confiança 93%',
+    // Sin la hora a proposito: se pinta en la zona de quien mira (Mexico aqui, UTC en el CI); con ella fallo el CI del PR de la v0.12.7 (06/11), como el italiano el 05/11.
+    '2 de nov. de 2026, '],
   'space eye · foto que no coincide, y sin foto': ['Último sinal há 3 d', 'Último sinal há poucos segundos', 'Não corresponde ao criativo · 40%'],
   'comercial negociacion · un espacio con todo': [
     '36 meses', 'MX$ 9.000,00/mês', 'desde 15 de set. de 2026', 'mostrando os 2 com atividade mais recente, de 5',

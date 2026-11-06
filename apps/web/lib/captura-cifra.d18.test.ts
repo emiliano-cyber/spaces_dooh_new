@@ -415,5 +415,7 @@ describe('P2 · PORTUGUÉS · D18 es el del italiano', () => {
       }
     }
     expect(pasos).toBeGreaterThan(400_000)
-  })
+    // 60 s: 78 120 secuencias; en el CI paso de los 5 s por omision (PR de la
+    // v0.12.7, 06/11). Es trabajo lineal, no un cuelgue.
+  }, 60_000)
 })
