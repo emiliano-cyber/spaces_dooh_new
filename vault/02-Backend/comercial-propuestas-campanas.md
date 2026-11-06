@@ -12,6 +12,7 @@ archivos:
   - db/migrations/20261007_calculadora_spots.sql
   - apps/web/app/api/propuestas/route.ts
   - apps/web/app/(app)/(shell)/propuestas/page.tsx
+  - apps/web/lib/cantidad-propuesta.ts
   - db/migrations/20261006_precio_ajustado_por_gerente.sql
   - apps/web/lib/descuento.ts
   - apps/web/lib/server/config-repo.ts
@@ -518,6 +519,38 @@ se alarga la campaña, añadir un .1». Decisiones del dueño, el 07/10:
 - Las unidades de cantidad manual están en UNA lista, `esCantidadManual()`.
   Antes eran tres comparaciones sueltas `spot || hora`, y añadir CPM a dos de
   las tres habría derivado sus millares de las fechas en la tercera.
+
+> [!danger] 2026-11-05 · H1 · la cantidad manual se guardaba DISTINTA de la tecleada (publicado en la v0.12.6)
+> En el campo de la cantidad de una línea (spots, horas o millares de CPM),
+> «1.500» tecleado en español se guardaba como **100**; en italiano «1,500»
+> como 100, «2.5» como 25 y «1.5000» como 15 000. Sin aviso: el campo de la
+> fila va con `mostrarError={false}`. Y la cantidad multiplica la tarifa: en
+> CPM, un ×10 cobra diez veces más.
+>
+> **El mecanismo.** La página hacía `if (lectura.ok) guardar(...)`: lo que no
+> se entendía no cambiaba nada y se quedaba la ÚLTIMA CANTIDAD BUENA. Eso rompe
+> el contrato de `CampoCifra` (lo ilegible llega como `'NaN'` y el formulario
+> bloquea con él), y el campo, al ver que el formulario guardaba otra cosa,
+> **repintaba esa cifra a media escritura**: el separador desaparecía y las
+> cifras siguientes se pegaban. Lo mismo al borrar: «5 → borrar → 8» daba 18,
+> porque el vacío volvía a 1 y se repintaba.
+>
+> **El arreglo** (`lib/cantidad-propuesta.ts`): lo que no es una cantidad
+> (ilegible o vacío) se guarda TAL CUAL en `cantidadCruda` y se le devuelve al
+> campo, que entonces no repinta; `errCifras` bloquea «Crear propuesta» con
+> «la cantidad no se entiende». Cambiar la unidad o encender la calculadora
+> descarta lo ilegible, porque el campo desaparece.
+>
+> **Cómo se prueba sin DOM:** `cantidad-propuesta.test.ts` reproduce el bucle
+> campo↔formulario con las funciones REALES de `captura-cifra.ts`, en el orden
+> de `CampoCifra.tsx` (su efecto de resincronización incluido), y cuenta los
+> repintados sobre algo ilegible; más 9000 sesiones al azar en es/en/it. Si
+> cambia ese efecto, el espejo de la prueba tiene que cambiar con él.
+> Recorrido en el navegador real: «1.500» se queda en rojo con el botón
+> bloqueado, «1,500» guarda **1500.00** en `propuesta_items.cantidad`.
+>
+> **Gemelo sin arreglar:** `ReservaDialog.tsx:331` acota a 0 lo ilegible
+> (`Number(crudo) || 0`) y se repinta igual. Son slots reservados, no dinero.
 - **El folio de la campaña es el de su propuesta** (`campanas-repo.ts`,
   `generarCampanaDesdePropuesta`). No choca: `propuestas.folio` es único y una
   propuesta da una sola campaña. Una campaña creada sin propuesta conserva su

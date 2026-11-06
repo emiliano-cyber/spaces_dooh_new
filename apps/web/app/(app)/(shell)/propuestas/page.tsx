@@ -36,6 +36,7 @@ import { ElegirClienteDialog } from '@/components/demo/propuestas/ElegirClienteD
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { CRUDO_INVALIDO, cifraIlegible } from '@/lib/captura-cifra'
+import { parcheCantidad, valorCampoCantidad, cantidadIlegible } from '@/lib/cantidad-propuesta'
 import { EntradaCifra } from '@/components/demo/ui/EntradaCifra'
 import { MapView } from '@/components/demo/MapView'
 import { pinTono } from '@/components/demo/StatusBadge'
@@ -738,6 +739,9 @@ function NuevaPropuestaDialog({
   // en vez de como pendiente sin importe (ADR 0001).
   type CfgSitio = {
     unidad: Unidad; cantidadManual: number; spotsPorDia: string
+    // H1 · lo que entregó el campo de la cantidad cuando NO es una cantidad
+    // ('NaN' o ''). Ausente = vale `cantidadManual`. Ver `lib/cantidad-propuesta.ts`.
+    cantidadCruda?: string
     rentaMonto: string; rentaPeriodicidad: string; rentaArrendadorId: string
     // REJILLA-01 · la franja CONTRATADA (ADR 0039, Fase 1). Cadena vacía = sin
     // franja, que es como se ha vendido todo hasta hoy y como se sigue
@@ -1033,7 +1037,12 @@ function NuevaPropuestaDialog({
   const setCfgSitio = (id: string, patch: Partial<CfgSitio>) => {
     const s = (sitios ?? []).find((x) => x.id === id)
     const base = s ? cfgDe(s) : { unidad: 'mensual' as Unidad, cantidadManual: 1, spotsPorDia: '', rentaMonto: '', rentaPeriodicidad: 'MENSUAL', rentaArrendadorId: '', franjaId: '', tarifaManual: '', ...CALC_POR_OMISION }
-    setCfg((prev) => ({ ...prev, [id]: { ...base, ...prev[id], ...patch } }))
+    // H1 · cambiar la unidad o encender la calculadora quita (o vuelve a
+    // montar) el campo de la cantidad. Lo ilegible que tuviera se descarta y
+    // vale la última cantidad buena: si no, el campo nuevo pintaría «NaN» y
+    // `errCifras` bloquearía por un campo que ya no se ve.
+    const limpia = ('unidad' in patch || 'manual' in patch) && !('cantidadCruda' in patch) ? { cantidadCruda: undefined } : {}
+    setCfg((prev) => ({ ...prev, [id]: { ...base, ...prev[id], ...patch, ...limpia } }))
   }
 
   // PROP-COMPLETA · al DUPLICAR, cada pantalla arranca con CÓMO se contrató en
@@ -1133,6 +1142,12 @@ function NuevaPropuestaDialog({
       if (c.tarifaManual === CRUDO_INVALIDO) return t('propuestas.alta.error.tarifa', { sitio: s.nombre })
       if (c.rentaMonto === CRUDO_INVALIDO) return t('propuestas.alta.error.renta', { sitio: s.nombre })
       if (c.spotsPorDia === CRUDO_INVALIDO && !usaCalcDe(s)) return t('propuestas.alta.error.spots', { sitio: s.nombre })
+      // H1 (05/11, DINERO) · la cantidad manual que no se entiende (o vacía).
+      // Antes no llegaba aquí: el formulario se quedaba con la última buena y
+      // el campo la repintaba a media escritura («1.500» → 100).
+      if (cantidadIlegible(c) && periodosEnRango(c.unidad, fechaInicio, fechaFin) === null && !usaCalcDe(s)) {
+        return t('propuestas.alta.error.cantidad', { sitio: s.nombre })
+      }
       // P-L2-1 · en italiano los espacios, las horas y la prima van por
       // `EntradaCifra`; lo ilegible llega como 'NaN' y caería en silencio a 1
       // espacio o a prima 0. En español e inglés `cifraIlegible` es `false`.
@@ -1578,18 +1593,17 @@ function NuevaPropuestaDialog({
                           : t('propuestas.alta.salidas.otros', { n: '—' })}
                       </span>
                     ) : esManual ? (
-                      // Entera y con coma de miles (2,500 millares). Vacío
-                      // vuelve a 1, como hacía el `parseInt(...) || 1` de antes,
-                      // y lo que no se entiende no cambia nada: el campo vuelve
-                      // a enseñar la cantidad guardada (CampoCifra se resincroniza).
+                      // Entera y con coma de miles (2,500 millares). H1 (05/11):
+                      // lo que no se entiende, o el campo vacío, se guarda COMO
+                      // TAL y bloquea el botón (`errCifras`). Antes se quedaba
+                      // la última cantidad buena, el campo la repintaba a
+                      // media escritura y «1.500» acababa guardado como 100.
                       <CampoCifra
                         decimales={0}
                         mostrarError={false}
                         className="h-8 w-20 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
-                        valor={c.cantidadManual}
-                        onCambio={(_crudo, lectura) => {
-                          if (lectura.ok) setCfgSitio(s.id, { cantidadManual: Math.max(1, lectura.valor ?? 1) })
-                        }}
+                        valor={valorCampoCantidad(c)}
+                        onCambio={(_crudo, lectura) => setCfgSitio(s.id, parcheCantidad(lectura))}
                         // El «1,000» va por hueco y no escrito en el diccionario:
                         // una cifra con separador de miles ahi la rechaza la
                         // GUARDIA 2 de `dinero.test.ts`.

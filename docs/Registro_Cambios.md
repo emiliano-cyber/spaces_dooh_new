@@ -5,6 +5,25 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-05 · Propuestas: la cantidad de una línea ya no se guarda distinta de la que se teclea (sin publicar)
+
+**Corrige un fallo de la v0.12.6 que mueve dinero.** Al teclear a mano la cantidad de
+una línea de propuesta (salidas, horas o millares de CPM), una cifra con el separador
+equivocado se guardaba como otra cantidad sin avisar: «1.500» en español quedaba en
+**100**, y en italiano «1,500» en 100 y «1.5000» en 15 000. La propuesta salía con
+otro total.
+
+Ahora, si la cantidad no se entiende, se queda escrita tal como se tecleó, en rojo, y
+«Crear propuesta» no deja guardar hasta corregirla («la cantidad no se entiende»).
+También se puede borrar la cantidad y teclear otra: antes, borrar el 5 para poner un 8
+dejaba 18.
+
+**Conviene revisar** las propuestas de g500 creadas con la v0.12.6 en las que se tecleó
+a mano una cantidad grande: el campo enseñaba la cifra guardada, así que la diferencia
+se veía, pero era fácil no notarla.
+
+---
+
 ## 2026-11-05 · v0.12.6 (preparada, todavía sin publicar)
 
 Junta todo lo que está abajo marcado «sin publicar» desde el 02/11: inglés e italiano,

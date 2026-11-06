@@ -1,5 +1,17 @@
 [
   {
+    "version": "v0.12.7",
+    "fecha": "2026-11-05",
+    "items": [
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Propuestas: si la cantidad de una línea se teclea con el separador equivocado, ya no se guarda otra cantidad sin avisar. Se queda en rojo y no deja crear la propuesta hasta corregirla.",
+        "en": "Proposals: if a line quantity is typed with the wrong separator, a different quantity is no longer saved without warning. It stays in red and the proposal can’t be created until it is fixed.",
+        "it": "Proposte: se la quantità di una riga si digita con il separatore sbagliato, non si salva più un’altra quantità senza avviso. Resta in rosso e la proposta non si crea finché non si corregge."
+      }
+    ]
+  },
+  {
     "version": "v0.12.6",
     "fecha": "2026-11-05",
     "items": [
