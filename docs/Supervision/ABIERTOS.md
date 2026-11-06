@@ -126,9 +126,12 @@ esto.
 >   y en el navegador real (`propuesta_items.cantidad = 1500.00`). **Se cierra cuando la
 >   v0.12.7 esté en g500**. El dueño dijo «aún no» a publicarla (05/11). Al publicar, revisar
 >   en g500 las propuestas de la v0.12.6 con cantidades tecleadas a mano.
-> - **B93 · ABIERTA, BAJA.** `ReservaDialog.tsx:331` tiene el mismo patrón: acota a 0 lo
+> - ~~**B93 · BAJA.** `ReservaDialog.tsx:331` tiene el mismo patrón: acota a 0 lo
 >   ilegible (`Number(crudo) || 0`) y el campo lo repinta a media escritura. Son slots
->   reservados, no dinero. Sin decidir si se arregla.
+>   reservados, no dinero.~~ **ARREGLADA en la misma rama el 05/11**, a petición del dueño
+>   («arregla también el de reservas»), con `lib/slots-reserva.ts`. Rojo a la vista: 7 de 11.
+>   En el navegador real, 4 slots → `reservas.spots_reservados = 4`. Se cierra con B92, al
+>   publicar la v0.12.7.
 > - Al integrar `fix/cantidad-propuesta` en `integra/portugues`, el typecheck exige la clave
 >   `propuestas.alta.error.cantidad` en `PT_PROPUESTAS`.
 

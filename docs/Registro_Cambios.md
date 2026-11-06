@@ -18,6 +18,11 @@ Ahora, si la cantidad no se entiende, se queda escrita tal como se tecleó, en r
 También se puede borrar la cantidad y teclear otra: antes, borrar el 5 para poner un 8
 dejaba 18.
 
+**Lo mismo en «Reservar sitios»** (Comercial): los slots que se reservan en una pantalla
+digital caían a 0 si la cifra no se entendía, y el campo se comía el separador. Ahora se
+quedan en rojo y «Reservar (tentativa)» no deja seguir hasta corregirlos. Teclear más
+slots de los que hay sigue bajándolos a los disponibles, como siempre.
+
 **Conviene revisar** las propuestas de g500 creadas con la v0.12.6 en las que se tecleó
 a mano una cantidad grande: el campo enseñaba la cifra guardada, así que la diferencia
 se veía, pero era fácil no notarla.

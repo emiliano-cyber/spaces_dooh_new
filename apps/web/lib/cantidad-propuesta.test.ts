@@ -1,15 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import type { Idioma } from './i18n/idiomas'
-import {
-  leerCifra,
-  crudoDeLectura,
-  pintarCrudo,
-  teclearCifra,
-  cifraAMedias,
-  textoAlSalir,
-  type OpcionesCifra,
-} from './captura-cifra'
+import { leerCifra, type OpcionesCifra } from './captura-cifra'
 import { parcheCantidad, valorCampoCantidad, cantidadIlegible, type CantidadEnFormulario } from './cantidad-propuesta'
+import { sesionCampoCifra, azarConSemilla } from './test/sesion-campo-cifra'
 
 // ============================================================================
 //  H1 (validación de las cifras del portugués, 05/11) · DINERO, en la v0.12.6
@@ -25,85 +18,19 @@ import { parcheCantidad, valorCampoCantidad, cantidadIlegible, type CantidadEnFo
 //  guarda otra cosa, repinta ESE valor a mitad del tecleo; el separador
 //  desaparece y las cifras siguientes se pegan a lo de antes.
 //
-//  No hay DOM en las pruebas (vitest.config.ts), así que `sesion` reproduce el
-//  bucle campo↔formulario con las funciones REALES de `captura-cifra.ts`, en el
-//  orden de `CampoCifra.tsx`: `onChange` (teclearCifra → leerCifra → onCambio),
-//  y el efecto de resincronización (`:138-147`). Si ese efecto cambia, este
-//  espejo tiene que cambiar con él.
+//  Sin DOM: el bucle campo↔formulario lo reproduce `lib/test/sesion-campo-cifra.ts`
+//  con las funciones REALES de `captura-cifra.ts`.
 // ============================================================================
 
 const opcionesDe = (idioma: Idioma): OpcionesCifra => ({ decimales: 0, minimo: 0, idioma })
 
-function aCrudo(v: string | number): string {
-  return typeof v === 'number' ? String(v) : v
-}
-
-function sesion(idioma: Idioma, inicial = 1) {
-  const opc = opcionesDe(idioma)
-  let form: CantidadEnFormulario = { cantidadManual: inicial }
-  let texto = pintarCrudo(aCrudo(valorCampoCantidad(form)), idioma).texto
-  let comasPropias = false
-  let escribiendo = false
-  let ultimoEmitido = aCrudo(valorCampoCantidad(form))
-  // Cuántas veces el campo repintó a mitad de tecleo lo que guardaba el
-  // formulario EN VEZ de lo que la persona acababa de teclear.
-  let repintadosSobreIlegible = 0
-
-  const efecto = () => {
-    const crudoProp = aCrudo(valorCampoCantidad(form))
-    const aMedias = escribiendo && cifraAMedias(texto, idioma)
-    if (crudoProp !== ultimoEmitido && !aMedias) {
-      if (escribiendo && !leerCifra(texto, opc).ok) repintadosSobreIlegible++
-      ultimoEmitido = crudoProp
-      texto = pintarCrudo(crudoProp, idioma).texto
-      comasPropias = false
-    }
-  }
-  const cambio = (nuevo: string, tipoEntrada: string) => {
-    const r = teclearCifra({ texto, comasPropias }, { nuevo, cursor: nuevo.length, tipoEntrada }, idioma)
-    texto = r.texto
-    comasPropias = r.comasPropias
-    escribiendo = true
-    const lectura = leerCifra(texto, opc)
-    ultimoEmitido = crudoDeLectura(lectura)
-    form = { ...form, ...parcheCantidad(lectura) }
-    efecto()
-  }
-
-  const api = {
-    teclear(s: string) {
-      for (const ch of s) cambio(texto + ch, 'insertText')
-      return api
-    },
-    // Seleccionar todo y teclear encima: la primera tecla sustituye el texto.
-    reemplazar(s: string) {
-      const [primera, ...resto] = [...s]
-      cambio(primera, 'insertText')
-      for (const ch of resto) cambio(texto + ch, 'insertText')
-      return api
-    },
-    borrar(n = 1) {
-      for (let i = 0; i < n; i++) cambio(texto.slice(0, -1), 'deleteContentBackward')
-      return api
-    },
-    salir() {
-      texto = textoAlSalir(texto, opc)
-      escribiendo = false
-      efecto()
-      return api
-    },
-    get texto() {
-      return texto
-    },
-    get form() {
-      return form
-    },
-    get repintadosSobreIlegible() {
-      return repintadosSobreIlegible
-    },
-  }
-  return api
-}
+// El formulario de la propuesta, tal como lo conecta `propuestas/page.tsx`.
+const sesion = (idioma: Idioma, inicial = 1) =>
+  sesionCampoCifra<CantidadEnFormulario>(idioma, opcionesDe(idioma), {
+    inicial: { cantidadManual: inicial },
+    alCambiar: (form, lectura) => ({ ...form, ...parcheCantidad(lectura) }),
+    valor: valorCampoCantidad,
+  })
 
 describe('cantidad manual de la propuesta · lo tecleado es lo que se guarda, o no se guarda', () => {
   it('es · «1,500» guarda 1500 (lo que ya funcionaba)', () => {
@@ -176,15 +103,7 @@ describe('cantidad manual de la propuesta · lo tecleado es lo que se guarda, o 
   // al salir lo que se ve y lo que se guarda son la misma cifra, o el
   // formulario está bloqueado.
   it('NEGATIVO · 3000 sesiones al azar por idioma: nunca se come lo tecleado y lo guardado es lo que se ve', () => {
-    let x = 0x5eed2611
-    const azar = (n: number) => {
-      x ^= x << 13
-      x >>>= 0
-      x ^= x >>> 17
-      x ^= x << 5
-      x >>>= 0
-      return x % n
-    }
+    const azar = azarConSemilla()
     const teclas = '0123456789.,'
     for (const idioma of ['es', 'en', 'it'] as Idioma[]) {
       for (let k = 0; k < 3000; k++) {

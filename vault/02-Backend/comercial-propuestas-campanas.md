@@ -13,6 +13,8 @@ archivos:
   - apps/web/app/api/propuestas/route.ts
   - apps/web/app/(app)/(shell)/propuestas/page.tsx
   - apps/web/lib/cantidad-propuesta.ts
+  - apps/web/lib/slots-reserva.ts
+  - apps/web/components/demo/comercial/ReservaDialog.tsx
   - db/migrations/20261006_precio_ajustado_por_gerente.sql
   - apps/web/lib/descuento.ts
   - apps/web/lib/server/config-repo.ts
@@ -541,16 +543,23 @@ se alarga la campaña, añadir un .1». Decisiones del dueño, el 07/10:
 > «la cantidad no se entiende». Cambiar la unidad o encender la calculadora
 > descarta lo ilegible, porque el campo desaparece.
 >
-> **Cómo se prueba sin DOM:** `cantidad-propuesta.test.ts` reproduce el bucle
-> campo↔formulario con las funciones REALES de `captura-cifra.ts`, en el orden
-> de `CampoCifra.tsx` (su efecto de resincronización incluido), y cuenta los
-> repintados sobre algo ilegible; más 9000 sesiones al azar en es/en/it. Si
-> cambia ese efecto, el espejo de la prueba tiene que cambiar con él.
+> **Cómo se prueba sin DOM:** `lib/test/sesion-campo-cifra.ts` reproduce el
+> bucle campo↔formulario con las funciones REALES de `captura-cifra.ts`, en el
+> orden de `CampoCifra.tsx` (su efecto de resincronización incluido), y cuenta
+> los repintados sobre algo ilegible. Lo usan `cantidad-propuesta.test.ts` y
+> `slots-reserva.test.ts`, cada una con 9000 sesiones al azar en es/en/it. Si
+> cambia ese efecto, el espejo tiene que cambiar con él.
 > Recorrido en el navegador real: «1.500» se queda en rojo con el botón
 > bloqueado, «1,500» guarda **1500.00** en `propuesta_items.cantidad`.
 >
-> **Gemelo sin arreglar:** `ReservaDialog.tsx:331` acota a 0 lo ilegible
-> (`Number(crudo) || 0`) y se repinta igual. Son slots reservados, no dinero.
+> **Y su gemelo en la reserva (B93, arreglado el mismo día):** los slots por
+> pantalla digital de `ReservaDialog` caían a 0 cuando no se entendían
+> (`Number(crudo) || 0`), y el campo repintaba ese 0 a media escritura. Ahora
+> van por `lib/slots-reserva.ts` con la misma regla: lo ilegible o vacío se
+> queda a la vista y bloquea «Reservar (tentativa)» con «los slots no se
+> entienden». Lo que no cambia, a propósito: una cifra válida por encima de
+> los disponibles se acota a ellos y se ve. Recorrido en el navegador: «1.5»
+> en rojo con el botón bloqueado, y 4 → `reservas.spots_reservados = 4`.
 - **El folio de la campaña es el de su propuesta** (`campanas-repo.ts`,
   `generarCampanaDesdePropuesta`). No choca: `propuestas.folio` es único y una
   propuesta da una sola campaña. Una campaña creada sin propuesta conserva su

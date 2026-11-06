@@ -692,6 +692,7 @@ exports[`italiano L2 · instantanea > el italiano de comercial no cambia sin que
   "comercial.reserva.cliente": "Cliente",
   "comercial.reserva.cliente-ej": "Seguros Andinos",
   "comercial.reserva.de-slots": "Prenota {campo} di {disp} slot",
+  "comercial.reserva.error.slots": "{sitio}: gli slot non si capiscono. Correggili prima di prenotare.",
   "comercial.reserva.fin": "Fine",
   "comercial.reserva.inicio": "Inizio",
   "comercial.reserva.loop": "Loop di {loop} · slot di {slot} → {n} slot per loop",
