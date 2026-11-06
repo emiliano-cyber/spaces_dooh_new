@@ -5,6 +5,22 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-06 · El idioma se cambia desde el menú de la cuenta (sin publicar)
+
+Al pulsar tu nombre, arriba a la derecha, el menú trae ahora un bloque **«Idioma»**
+con los idiomas disponibles y el vigente marcado. Al elegir otro, toda la aplicación
+cambia en el momento, sin recargar, y queda **guardado en tu cuenta**: te sigue a
+cualquier computadora o teléfono.
+
+Antes solo se podía cambiar en la pantalla de entrar y en «Configuración → Idioma».
+Los dos siguen igual.
+
+**Solo aparece si el servidor tiene más de un idioma encendido.** Hoy ningún servidor
+lo tiene (todos van solo en español), así que nadie lo verá hasta que se encienda el
+inglés, el italiano o el portugués en ese servidor.
+
+---
+
 ## 2026-11-05 · Propuestas: la cantidad de una línea ya no se guarda distinta de la que se teclea (sin publicar)
 
 **Corrige un fallo de la v0.12.6 que mueve dinero.** Al teclear a mano la cantidad de

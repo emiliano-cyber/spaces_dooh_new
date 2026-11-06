@@ -60,6 +60,31 @@ export function idiomasDelNavegador(): readonly string[] {
   return navigator.languages ?? [navigator.language]
 }
 
+// ─── Guardar el idioma EN LA CUENTA, desde donde sea ────────────────────────
+//
+// La usan esta tarjeta y el menú de la cuenta de la barra superior
+// (`shell/IdiomaMenu.tsx`, 06/11). Las dos guardan en la CUENTA y no solo en la
+// cookie del navegador por la precedencia (cuenta > cookie > Accept-Language):
+// un selector que tocara solo la cookie no haría NADA a quien ya tiene un idioma
+// guardado en su cuenta — lo vería «cambiar» sin ningún efecto.
+//
+// Lanza con el mensaje del servidor (o `respaldo`) para que quien la llama lo
+// enseñe en su aviso. `pedir` se inyecta solo para las pruebas.
+export async function guardarIdiomaDeCuenta(
+  valor: Idioma | 'navegador',
+  respaldo: string,
+  pedir: typeof fetch = fetch,
+): Promise<void> {
+  const r = await pedir(`${API}/perfil/idioma/`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idioma: valor }),
+  })
+  if (r.ok) return
+  const d = await r.json().catch(() => ({}))
+  throw new Error((d as { error?: string }).error ?? respaldo)
+}
+
 // ─── «Mi cuenta → Idioma» (IDIOMA-USUARIO, 03/11) ───────────────────────────
 //
 // Decisión del dueño: «el idioma de lo demás se debe poder configurar por
@@ -101,13 +126,7 @@ export function IdiomaCuenta() {
     setPreferido(valor)
     setBusy(true)
     try {
-      const r = await fetch(`${API}/perfil/idioma/`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idioma: valor }),
-      })
-      const d = await r.json().catch(() => ({}))
-      if (!r.ok) throw new Error((d as { error?: string }).error ?? t('idioma.cuenta.error'))
+      await guardarIdiomaDeCuenta(valor, t('idioma.cuenta.error'))
       toast.success(
         avisoIdiomaGuardado(
           idiomaTrasGuardar(
