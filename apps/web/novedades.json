@@ -37,7 +37,7 @@
       },
       {
         "tipo": "AJUSTADO",
-        "texto": "Los botones de Space Eyes usan los mismos colores que el resto del sistema: verde el que agrega algo y azul el que guarda o confirma. «Agregar dispositivo» era el unico «Agregar» de toda la aplicacion que seguia en azul, y «Fijar encuadre» era verde sin dar de alta nada."
+        "texto": "Los botones de Space Eyes usan los mismos colores que el resto del sistema: verde el que agrega algo, azul el que guarda o confirma, neutro el que descarga. «Agregar dispositivo» era el unico «Agregar» de toda la aplicacion que seguia en azul; «Fijar encuadre» era verde sin dar de alta nada; «Tomar foto» y «Subir foto» pasan a verde porque anaden una foto al equipo, y las descargas de la galeria dejan el azul, como ya lo hacian las de Creativos."
       },
       {
         "tipo": "CORREGIDO",

@@ -271,8 +271,10 @@ export function AjustarTexto() {
                 ))}
               </select>
             </label>
+            {/* Verde: es el mismo «Tomar foto» de la ficha del equipo, y anade
+                una foto. Regla del dueno del 2026-09-30 (convenciones.md). */}
             <Button
-              variant="primary"
+              variant="success"
               size="md"
               onClick={() => void tomarFoto()}
               disabled={capturando || !deviceId || !puedeEditar || cargandoEquipo}

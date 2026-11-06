@@ -280,8 +280,11 @@ export function Galeria() {
             {cargando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
             Actualizar
           </Button>
+          {/* Descargar no asigna ni acepta nada: en SPACE OS las descargas van
+              en neutro (creativos, «Descargar HTML»). Se quita el azul para que
+              la galeria se lea igual que el resto. */}
           <Button
-            variant="primary"
+            variant="secondary"
             size="sm"
             onClick={() => descargarAlbum()}
             disabled={!!album || (fotos?.length ?? 0) === 0}
@@ -670,7 +673,8 @@ function Visor({
             <Button variant="secondary" size="sm" onClick={() => setGiroUsuario((g) => (g + 90) % 360)}>
               <RotateCw className="h-3.5 w-3.5" /> Rotar
             </Button>
-            <Button variant="primary" size="sm" onClick={() => descargar()} disabled={descargando || (!listo && !fallo)}>
+            {/* Neutro, como la descarga del album */}
+            <Button variant="secondary" size="sm" onClick={() => descargar()} disabled={descargando || (!listo && !fallo)}>
               {descargando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
               Descargar
             </Button>

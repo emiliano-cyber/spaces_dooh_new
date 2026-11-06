@@ -296,8 +296,12 @@ export function FichaEquipo({ id }: { id: number }) {
 
         {/* Acciones: las dos importantes, a la vista */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* Verde: tomar una foto anade una foto al equipo. Regla del dueno
+              del 2026-09-30 (convenciones.md, «Color de los botones»): azul para
+              asignar o aceptar, verde para anadir o agregar. Este boton vive
+              sobre las pestanas, asi que se ve en las cuatro. */}
           <Button
-            variant="primary"
+            variant="success"
             size="sm"
             onClick={tomarFoto}
             disabled={captura === 'pidiendo' || captura === 'esperando'}
@@ -319,8 +323,10 @@ export function FichaEquipo({ id }: { id: number }) {
             aria-hidden
             tabIndex={-1}
           />
+          {/* Verde por lo mismo, y porque «Subir» ya es verde en Creativos de
+              SPACE OS (app/(app)/(shell)/creativos/page.tsx). */}
           <Button
-            variant="secondary"
+            variant="success"
             size="sm"
             onClick={() => archivoRef.current?.click()}
             disabled={!pantalla || subiendo}
