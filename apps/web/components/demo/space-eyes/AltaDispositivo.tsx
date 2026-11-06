@@ -261,7 +261,10 @@ export function AltaDispositivo() {
 
   const botonGenerar = (
     <div>
-      <Button variant="primary" size="md" onClick={() => void generar()} disabled={trabajando}>
+      {/* Verde: el codigo es lo que da de alta al equipo, y a esta pantalla se
+          llega desde el «Agregar dispositivo» verde de la lista. Regla del dueno
+          del 2026-09-30 (convenciones.md, «Color de los botones»). */}
+      <Button variant="success" size="md" onClick={() => void generar()} disabled={trabajando}>
         {trabajando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <KeyRound className="mr-2 h-4 w-4" />}
         Generar código
       </Button>
@@ -479,7 +482,9 @@ export function AltaDispositivo() {
                   </div>
                 )}
                 <div>
-                  <Button variant="primary" size="md" onClick={() => void descargarKit()} disabled={trabajando}>
+                  {/* Neutro: descargar no da de alta ni acepta nada, igual que
+                      las descargas de la galeria y las de SPACE OS. */}
+                  <Button variant="secondary" size="md" onClick={() => void descargarKit()} disabled={trabajando}>
                     {trabajando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
                     Descargar archivo para la microSD
                   </Button>
