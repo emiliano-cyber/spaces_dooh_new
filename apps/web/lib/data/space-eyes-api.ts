@@ -190,7 +190,11 @@ export interface Creativo {
   primeraVez: string
   ultimaVez: string
   vistas: number
+  /** La del hallazgo. */
   foto: string | null
+  /** La segunda toma, si ya la hay: el mismo anuncio hoy (Space Eye 029). */
+  fotoHoy?: string | null
+  fotoHoyEn?: string | null
 }
 
 export interface CreativosEquipo {

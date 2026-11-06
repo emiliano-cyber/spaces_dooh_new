@@ -755,7 +755,15 @@ export interface SECreativo {
   ultimaVez: string
   /** Cuántas veces lo ha reconocido en su pantalla. */
   vistas: number
+  /** La del hallazgo: así se veía cuando apareció. */
   foto: string | null
+  /**
+   * La segunda toma del mismo creativo: así se ve hoy (Space Eye, migración
+   * 029). Null mientras solo haya una, y contra un Space Eye anterior.
+   */
+  fotoHoy: string | null
+  /** Cuándo se tomó esa segunda. */
+  fotoHoyEn: string | null
 }
 
 export interface SECreativosEquipo {
@@ -793,13 +801,21 @@ export async function creativosDeEquipo(id: number): Promise<SECreativosEquipo |
     maxDia: Number(d.config?.max_dia ?? 0),
     creativos: (d.creativos ?? [])
       .filter((c) => c.thumbnail_path || c.storage_path)
-      .map((c) => ({
-        id: String(c.id),
-        primeraVez: String(c.primera_vez),
-        ultimaVez: String(c.ultima_vez),
-        vistas: Number(c.vistas ?? 0),
-        foto: urlDeFoto(String(c.thumbnail_path || c.storage_path)),
-      })),
+      .map((c) => {
+        // La segunda toma puede faltar por dos motivos distintos y los dos son
+        // normales: el creativo solo se ha fotografiado una vez, o este Space
+        // Eye es anterior a la migración 029 y no manda esas columnas.
+        const hoy = c.ultima_thumbnail_path || c.ultima_storage_path
+        return {
+          id: String(c.id),
+          primeraVez: String(c.primera_vez),
+          ultimaVez: String(c.ultima_vez),
+          vistas: Number(c.vistas ?? 0),
+          foto: urlDeFoto(String(c.thumbnail_path || c.storage_path)),
+          fotoHoy: hoy ? urlDeFoto(String(hoy)) : null,
+          fotoHoyEn: c.ultima_taken_at ? String(c.ultima_taken_at) : null,
+        }
+      }),
     sinFoto: contarSinFoto(d.creativos ?? []),
   }
 }

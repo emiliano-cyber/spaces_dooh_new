@@ -201,7 +201,7 @@ function estado(s: Programa, idioma: Idioma): { texto: string; clase: string } {
   if (f?.tipo === 'vencida') {
     return {
       texto: traducir(idioma, 'spaceeyes.prog.estado.vencio', { fecha: fechaCorta(f.fecha, idioma) }),
-      clase: 'border-[#dc262640] bg-error-soft text-[#b91c1c]',
+      clase: 'border-[#dc262640] bg-error-soft text-[#b42318]',
     }
   }
   return { texto: traducir(idioma, 'spaceeyes.comun.activa'), clase: 'border-[#1da85040] bg-success-soft text-[#146c39]' }
@@ -404,13 +404,13 @@ export function Programacion() {
   const lista = programas ?? []
 
   return (
-    <div className="w-full space-y-4 p-4 sm:p-6">
+    <div className="w-full space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
           <CalendarClock className="h-5 w-5" strokeWidth={1.75} />
         </span>
         <div className="min-w-[12rem] flex-1">
-          <h1 className="text-lg font-semibold text-ink">{t('spaceeyes.prog.titulo')}</h1>
+          <h1 className="text-2xl text-ink">{t('spaceeyes.prog.titulo')}</h1>
           <p className="text-[13px] text-muted">{t('spaceeyes.prog.descripcion')}</p>
         </div>
         <div className="flex items-center gap-2">
@@ -605,7 +605,11 @@ function FormularioProgramacion({
           <Button size="sm" variant="secondary" onClick={onCancelar} disabled={guardando}>
             {t('comun.cancelar')}
           </Button>
-          <Button size="sm" variant="primary" onClick={onGuardar} disabled={guardando}>
+          {/* El color va con la ETIQUETA, no con el formulario: «Crear …» es un
+              alta y va verde; «Guardar cambios» confirma y va azul. Es el mismo
+              criterio que «Crear usuario» en Administracion y «Crear OT» en
+              Operaciones (convenciones.md, «Color de los botones»). */}
+          <Button size="sm" variant={f.id ? 'primary' : 'success'} onClick={onGuardar} disabled={guardando}>
             {guardando
               ? t('spaceeyes.comun.guardando')
               : f.id
@@ -777,9 +781,12 @@ function FormularioProgramacion({
                   </Button>
                 </div>
               ))}
+              {/* Los «Anadir» de dentro de un formulario van verdes en el resto
+                  de la aplicacion (Paquetes, Comercial): aqui iban en terciario
+                  y eran los unicos «Agregar» que no se veian como tales. */}
               <Button
                 size="sm"
-                variant="tertiary"
+                variant="success"
                 onClick={() => cambiar({ windows: [...f.windows, { ini: '12:00', fin: '14:00' }] })}
               >
                 <Plus className="mr-1 h-3.5 w-3.5" />
@@ -837,7 +844,7 @@ function FormularioProgramacion({
                   </Button>
                 </div>
               ))}
-              <Button size="sm" variant="tertiary" onClick={() => cambiar({ specific_times: [...f.specific_times, '12:00'] })}>
+              <Button size="sm" variant="success" onClick={() => cambiar({ specific_times: [...f.specific_times, '12:00'] })}>
                 <Plus className="mr-1 h-3.5 w-3.5" />
                 {t('spaceeyes.prog.hora.agregar')}
               </Button>

@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import Link from 'next/link'
 import { AlertTriangle, ArrowLeft, Camera, CameraOff, Loader2, Move, Type } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
@@ -227,18 +226,16 @@ export function AjustarTexto() {
   const sucio = !mismaMarca(marca, guardada)
 
   return (
-    <div className="w-full space-y-4 p-4 sm:p-6">
-      <Link href="/space-eyes" className="inline-flex items-center gap-1.5 text-[12px] text-muted hover:text-ink">
-        <ArrowLeft className="h-3.5 w-3.5" />
-        Space Eyes
-      </Link>
-
+    <div className="w-full space-y-4">
+      {/* Sin «‹ Space Eyes» arriba, por lo mismo que en Gráficas: es una
+          entrada del menú y ninguna otra pantalla enlaza aquí. Encima iba con
+          otra flecha que la de las demás (ArrowLeft contra ChevronLeft). */}
       <div className="flex flex-wrap items-center gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
           <Type className="h-5 w-5" strokeWidth={1.75} />
         </span>
         <div className="min-w-[12rem] flex-1">
-          <h1 className="text-lg font-semibold text-ink">{t('spaceeyes.texto.titulo')}</h1>
+          <h1 className="text-2xl text-ink">{t('spaceeyes.texto.titulo')}</h1>
           <p className="text-[13px] text-muted">
             {interpolarNodos(t('spaceeyes.texto.descripcion'), {
               marca: <b className="font-medium text-ink">{t('spaceeyes.texto.marca')}</b>,
@@ -280,8 +277,10 @@ export function AjustarTexto() {
                 ))}
               </select>
             </label>
+            {/* Verde: es el mismo «Tomar foto» de la ficha del equipo, y anade
+                una foto. Regla del dueno del 2026-09-30 (convenciones.md). */}
             <Button
-              variant="primary"
+              variant="success"
               size="md"
               onClick={() => void tomarFoto()}
               disabled={capturando || !deviceId || !puedeEditar || cargandoEquipo}

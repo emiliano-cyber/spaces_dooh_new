@@ -74,13 +74,13 @@ export function Verificacion() {
   const hayMas = lista.length === POR_PAGINA
 
   return (
-    <div className="w-full space-y-4 p-4 sm:p-6">
+    <div className="w-full space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
           <ShieldCheck className="h-5 w-5" strokeWidth={1.75} />
         </span>
         <div className="min-w-[12rem] flex-1">
-          <h1 className="text-lg font-semibold text-ink">{t('spaceeyes.verif.titulo')}</h1>
+          <h1 className="text-2xl text-ink">{t('spaceeyes.verif.titulo')}</h1>
           <p className="text-[13px] text-muted">{t('spaceeyes.verif.descripcion')}</p>
         </div>
         <Button variant="secondary" size="sm" onClick={() => void cargar()} disabled={cargando}>
@@ -171,7 +171,7 @@ export function Verificacion() {
                         'whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-semibold',
                         correcto
                           ? 'border-[#1da85040] bg-success-soft text-[#146c39]'
-                          : 'border-[#dc262640] bg-error-soft text-[#b91c1c]',
+                          : 'border-[#dc262640] bg-error-soft text-[#b42318]',
                       )}
                     >
                       {correcto ? t('spaceeyes.verif.correcto') : t('spaceeyes.verif.incorrecto')}
@@ -251,7 +251,7 @@ export function Verificacion() {
                           'whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-semibold',
                           correcto
                             ? 'border-[#1da85040] bg-success-soft text-[#146c39]'
-                            : 'border-[#dc262640] bg-error-soft text-[#b91c1c]',
+                            : 'border-[#dc262640] bg-error-soft text-[#b42318]',
                         )}
                       >
                         {correcto ? t('spaceeyes.verif.correcto') : t('spaceeyes.verif.incorrecto')}

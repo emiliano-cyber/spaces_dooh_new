@@ -8,7 +8,7 @@
 //   npm run prueba:horarios
 //
 // No toca la base de datos ni la red: son cuentas puras.
-import { proximaVentanaAleatoria, proximaHoraFija, instante } from '../src/utils/horarios';
+import { proximaVentanaAleatoria, proximaHoraFija, instante, enTramo } from '../src/utils/horarios';
 
 const TZ = 'America/Mexico_City';
 const enMx = (d: Date | null) => (d ? d.toLocaleString('es-MX', { timeZone: TZ, hour12: false }) : 'null');
@@ -69,6 +69,32 @@ console.log('\n7) Entradas invalidas no truenan');
 afirmar(proximaVentanaAleatoria([], TZ) === null, 'lista vacia -> null');
 afirmar(proximaVentanaAleatoria([{ ini: '99:99', fin: '10:00' }], TZ) === null, 'hora imposible -> null');
 afirmar(proximaHoraFija([], TZ) === null, 'sin horas -> null');
+
+console.log('\n8) Tramo de noche de los ajustes de camara (migracion 030)');
+// El tramo tipico cruza la medianoche. Las horas son de MEXICO: a las 19:00 de
+// Mexico el servidor marca la 01:00 UTC del dia siguiente, asi que juzgarlo con
+// el reloj del contenedor daria "de dia" durante toda la noche.
+const esNoche = (iso: string) => enTramo(new Date(iso), '19:00', '07:00', TZ);
+afirmar(esNoche('2026-10-30T01:30:00Z') === true, '19:30 de Mexico es de noche', '(01:30 UTC)');
+afirmar(esNoche('2026-10-30T00:59:00Z') === false, '18:59 de Mexico todavia es de dia');
+afirmar(esNoche('2026-10-30T01:00:00Z') === true, 'a las 19:00 en punto ya es de noche');
+afirmar(esNoche('2026-10-30T08:00:00Z') === true, 'las 02:00 de Mexico siguen siendo noche');
+afirmar(esNoche('2026-10-30T13:00:00Z') === false, 'a las 07:00 en punto vuelve el dia', '(fin excluido)');
+afirmar(esNoche('2026-10-30T20:00:00Z') === false, 'las 14:00 de Mexico son de dia');
+
+// Un tramo que NO cruza la medianoche se juzga igual de bien.
+afirmar(enTramo(new Date('2026-10-30T20:00:00Z'), '13:00', '16:00', TZ) === true, 'tramo normal: dentro');
+afirmar(enTramo(new Date('2026-10-30T18:00:00Z'), '13:00', '16:00', TZ) === false, 'tramo normal: fuera');
+
+// Lo que MySQL devuelve de una columna TIME lleva segundos.
+afirmar(enTramo(new Date('2026-10-30T01:30:00Z'), '19:00:00', '07:00:00', TZ) === true, 'acepta el HH:MM:SS de MySQL');
+
+// Lo que no describe ningun tramo no debe encender la noche nunca: si esto
+// fallara, un equipo mal configurado se quedaria con el brillo de noche a
+// mediodia y nadie sabria por que sus fotos salen oscuras.
+afirmar(enTramo(new Date('2026-10-30T01:30:00Z'), '19:00', '19:00', TZ) === false, 'ini igual a fin -> sin tramo');
+afirmar(enTramo(new Date('2026-10-30T01:30:00Z'), '', '07:00', TZ) === false, 'hora vacia -> sin tramo');
+afirmar(enTramo(new Date('2026-10-30T01:30:00Z'), '99:99', '07:00', TZ) === false, 'hora imposible -> sin tramo');
 
 console.log(fallos === 0 ? '\nTODO BIEN\n' : `\n${fallos} FALLAS\n`);
 process.exit(fallos === 0 ? 0 : 1);

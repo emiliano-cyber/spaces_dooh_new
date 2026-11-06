@@ -13,8 +13,8 @@ export default function SpaceEyeEquipoPage() {
   const id = Number(params?.id)
   if (!Number.isInteger(id) || id <= 0) {
     return (
-      <div className="w-full p-6">
-        <h1 className="text-lg font-semibold text-ink">{t('spaceeyes.ficha.no-encontrado')}</h1>
+      <div className="w-full">
+        <h1 className="text-2xl text-ink">{t('spaceeyes.ficha.no-encontrado')}</h1>
         <p className="mt-2 text-[13px] text-muted">{t('spaceeyes.pagina.id-invalido')}</p>
       </div>
     )

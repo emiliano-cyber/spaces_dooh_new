@@ -5,6 +5,26 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-06 · Space Eyes: ajuste de noche, ajustes por tipo de equipo y dos fotos por creativo (sin publicar)
+
+Llega a la aplicación el trabajo de Space Eyes de Jose López (rama `fix/space-eyes-fotos-rapidas`):
+
+- **Ajuste de noche.** En la ficha del equipo, «Ajustes de imagen», se puede marcar «Bajar
+  la luz de noche automáticamente» y elegir desde qué hora y hasta qué hora. En ese tramo
+  el equipo baja la exposición solo; ya no hace falta entrar dos veces al día a moverla.
+- **Cada equipo enseña solo lo que puede aplicar.** Un teléfono acepta la exposición, el
+  balance de blancos y el enfoque fijo; los demás mandos eran de la Raspberry y en un
+  teléfono no hacían nada aunque se veían. Una cámara de PC se configura desde su propia
+  página y lo dice.
+- **Dos fotos por creativo:** cómo apareció la primera vez y cómo se ve hoy, para ver de
+  un vistazo si una lona se decoloró o la pantalla perdió un módulo.
+- **El mismo aspecto que el resto del sistema:** encabezados del mismo tamaño, sin margen
+  doble, grises cálidos y botones verdes para agregar y azules para guardar.
+
+Todo llega traducido al inglés, italiano y portugués.
+
+---
+
 ## 2026-11-06 · El idioma se cambia desde el menú de la cuenta (sin publicar)
 
 Al pulsar tu nombre, arriba a la derecha, el menú trae ahora un bloque **«Idioma»**

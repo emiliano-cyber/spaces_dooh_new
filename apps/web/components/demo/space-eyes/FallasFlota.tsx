@@ -181,14 +181,14 @@ export function FallasFlota() {
   }
 
   return (
-    <div className="w-full space-y-4 p-6">
+    <div className="w-full space-y-4">
       {/* Encabezado: el mismo patrón que el listado */}
       <div className="flex flex-wrap items-center gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
           <MonitorX className="h-5 w-5" strokeWidth={1.75} />
         </span>
         <div className="min-w-[12rem] flex-1">
-          <h1 className="text-lg font-semibold text-ink">{t('spaceeyes.fallas.titulo')}</h1>
+          <h1 className="text-2xl text-ink">{t('spaceeyes.fallas.titulo')}</h1>
           <p className="text-[13px] text-muted">{t('spaceeyes.fallas.descripcion')}</p>
         </div>
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">

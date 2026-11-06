@@ -202,6 +202,10 @@ export function estado(_req: Request, res: Response) {
 const EDITABLES = [
   'name', 'address', 'billboard_code', 'notes', 'status', 'group_id', 'latitude', 'longitude',
   'camera_lens', 'camera_zoom', 'camera_ajustes', 'photo_rotation', 'stream_rotation',
+  // El perfil de noche (migracion 030) viaja con lo demas: si V1 se quedara con
+  // el valor viejo, las fotos programadas -que las dispara V1- saldrian con el
+  // ajuste de dia a medianoche. Pide que las dos pilas tengan la 030.
+  'camera_ajustes_noche', 'noche_inicio', 'noche_fin',
   'overlay_x', 'overlay_y', 'overlay_enabled', 'overlay_style',
 ];
 

@@ -14,6 +14,9 @@
     "prueba:monitoreo": "tsx scripts/prueba-monitoreo.ts",
     "prueba:agentes": "tsx scripts/prueba-agentes-de-fabrica.ts",
     "prueba:vinculaciones": "tsx scripts/prueba-vinculaciones.ts",
+    "prueba:refoto": "tsx scripts/prueba-refoto.ts",
+    "prueba:huella": "tsx scripts/prueba-huella.ts",
+    "prueba:huerfanas": "tsx scripts/prueba-huerfanas.ts",
     "script:create-admin": "tsx scripts/create-admin.ts"
   },
   "dependencies": {

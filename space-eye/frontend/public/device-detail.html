@@ -808,8 +808,20 @@
                 <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
                   <template x-for="c in creativosConFoto()" :key="c.id">
                     <div class="relative group border border-neutral-200 rounded-md overflow-hidden">
-                      <div class="aspect-[4/3] bg-neutral-100">
-                        <img :src="c.thumbnail_path" class="w-full h-full object-contain" alt="Creativo detectado">
+                      <!-- Dos tomas cuando las hay: como aparecio y como se ve
+                           hoy. Con una sola, la de siempre a lo ancho. -->
+                      <div class="aspect-[4/3] bg-neutral-100 flex">
+                        <div class="relative h-full" :class="c.ultima_thumbnail_path ? 'w-1/2 border-r border-white/60' : 'w-full'">
+                          <img :src="c.thumbnail_path" class="w-full h-full object-contain" alt="Creativo al aparecer">
+                          <span x-show="c.ultima_thumbnail_path"
+                                class="absolute bottom-0 inset-x-0 bg-black/55 text-white text-[10px] text-center py-0.5"
+                                x-text="'Apareció ' + fechaCorta(c.primera_vez)"></span>
+                        </div>
+                        <div x-show="c.ultima_thumbnail_path" class="relative w-1/2 h-full">
+                          <img :src="c.ultima_thumbnail_path" class="w-full h-full object-contain" alt="El mismo creativo hoy">
+                          <span class="absolute bottom-0 inset-x-0 bg-black/55 text-white text-[10px] text-center py-0.5"
+                                x-text="'Ahora · ' + fechaCorta(c.ultima_taken_at)"></span>
+                        </div>
                       </div>
                       <div class="px-2.5 py-2 border-t border-neutral-200">
                         <p class="text-xs">Apareció <span class="font-mono" x-text="fechaCorta(c.primera_vez)"></span></p>
@@ -1116,6 +1128,44 @@
                 <button @click="restablecerAjustes()" class="px-3 py-1.5 text-xs border border-neutral-300 rounded hover:bg-neutral-50">
                   Restablecer
                 </button>
+              </div>
+            </div>
+
+            <!-- Brillo de noche. El mismo ajuste no sirve a las 3 de la tarde y
+                 a las 9 de la noche, cuando el LED es lo unico que alumbra la
+                 escena. En vez de que alguien entre al dashboard dos veces al
+                 dia a mover el control -que no lo hace nadie-, el servidor lo
+                 cambia solo dentro del tramo (migracion 030). -->
+            <div class="pt-3 mt-3 border-t border-neutral-200">
+              <label class="flex items-center gap-2 text-xs text-neutral-600 mb-2">
+                <input type="checkbox" x-model="noche.activo">
+                Cambiar el brillo de noche automáticamente
+              </label>
+              <div x-show="noche.activo" style="display:none">
+                <div class="grid grid-cols-2 gap-3 mb-2">
+                  <div>
+                    <label class="block text-xs text-neutral-600 mb-1">Desde</label>
+                    <input type="time" x-model="noche.inicio"
+                           class="w-full px-3 py-2 border border-neutral-300 rounded text-sm">
+                  </div>
+                  <div>
+                    <label class="block text-xs text-neutral-600 mb-1">Hasta</label>
+                    <input type="time" x-model="noche.fin"
+                           class="w-full px-3 py-2 border border-neutral-300 rounded text-sm">
+                  </div>
+                </div>
+                <label class="flex justify-between text-xs text-neutral-600 mb-1">
+                  <span>Brillo en ese tramo</span>
+                  <span class="tabular-nums"
+                        x-text="(Number(noche.brillo) > 0 ? '+' : '') + Math.round(Number(noche.brillo) * 100) + '%'"></span>
+                </label>
+                <input type="range" min="-1" max="1" step="0.05" x-model="noche.brillo" class="w-full">
+                <p class="text-xs text-neutral-400 mt-1">
+                  Es la hora del sitio, no la del servidor, y puede cruzar la medianoche.
+                  Solo cambia lo que pongas aquí: el encuadre y el balance de blancos
+                  siguen siendo los de arriba. Aplica a la vista en vivo y a todas las
+                  fotos, incluidas las programadas.
+                </p>
               </div>
             </div>
 

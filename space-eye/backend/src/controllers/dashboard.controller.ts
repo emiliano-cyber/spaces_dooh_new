@@ -13,7 +13,7 @@ import {
 import { whipDe } from '../utils/relayTelefono';
 import { ordenarEquipo, publicarAEquipos, esDeV1 } from '../utils/espejo';
 import { agentePcInfo, agentePiInfo, apkInfo } from '../utils/apkInfo';
-import { proximoDisparo, ventanasValidas } from '../utils/horarios';
+import { enTramo, proximoDisparo, ventanasValidas } from '../utils/horarios';
 import { env } from '../config/env';
 import crypto from 'crypto';
 import { firmarFilas, firmar } from '../utils/firmaArchivos';
@@ -193,7 +193,20 @@ export async function controlDeCamara(req: Request, res: Response) {
     // admin. Solo quita permiso, nunca lo da, asi que no importa que viaje en
     // el cuerpo: lo peor que puede hacer un cliente con ella es no guardar.
     guardar: z.boolean().optional(),
-  }).strict();
+  }).strict().superRefine((v, ctx) => {
+    // La exposicion es un INDICE de compensacion y aqui no tenia tope: el 12
+    // de octubre entro un -12 a TLALPAN -el minimo del sensor- y se quedo
+    // puesto las 24 horas, que es la sospecha de por que acusa a su camara
+    // cada noche. Un indice fuera de este rango no existe en ninguna camara:
+    // la APK lo recortaria igual (coerceIn), pero en la base quedaria escrito
+    // un numero que nadie puede explicar. Tambien cierra la puerta a que
+    // 'exposure' llegue como texto y se guarde un NaN.
+    if (v.action !== 'exposure') return;
+    const n = Number(v.value);
+    if (!Number.isFinite(n) || !Number.isInteger(n) || n < -12 || n > 12) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['value'], message: 'exposicion fuera de rango (-12..12, entero)' });
+    }
+  });
   const parsed = schema.safeParse(req.body ?? {});
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
   const id = Number(req.params.id);
@@ -313,6 +326,12 @@ export async function setCamera(req: Request, res: Response) {
     lens: z.enum(['main', 'wide']).optional(),
     zoom: z.number().min(0).max(1).optional(),
     ajustes: ajustesSchema.nullable().optional(),
+    // Lo que cambia dentro del tramo de noche, y el tramo (migracion 030). Las
+    // horas van en hora LOCAL del sitio y pueden cruzar la medianoche. Mandar
+    // null en cualquiera de las tres apaga el tramo.
+    ajustes_noche: ajustesSchema.nullable().optional(),
+    noche_inicio: z.string().regex(/^\d{1,2}:\d{2}$/).nullable().optional(),
+    noche_fin: z.string().regex(/^\d{1,2}:\d{2}$/).nullable().optional(),
     // Giro que se aplica a la foto AL RECIBIRLA. Distinto de stream_rotation,
     // que solo gira la vista en vivo en el navegador y no toca el archivo: hay
     // un equipo con la vista en 90 cuya foto necesita 180.
@@ -330,6 +349,12 @@ export async function setCamera(req: Request, res: Response) {
     campos.push('camera_ajustes = ?');
     valores.push(d.ajustes ? JSON.stringify(d.ajustes) : null);
   }
+  if (d.ajustes_noche !== undefined) {
+    campos.push('camera_ajustes_noche = ?');
+    valores.push(d.ajustes_noche ? JSON.stringify(d.ajustes_noche) : null);
+  }
+  if (d.noche_inicio !== undefined) { campos.push('noche_inicio = ?'); valores.push(d.noche_inicio || null); }
+  if (d.noche_fin !== undefined) { campos.push('noche_fin = ?'); valores.push(d.noche_fin || null); }
   if (d.photo_rotation !== undefined) { campos.push('photo_rotation = ?'); valores.push(d.photo_rotation); }
   if (!campos.length) return res.status(400).json({ error: 'no_fields' });
 
@@ -444,10 +469,22 @@ export function appVersion(_req: Request, res: Response) {
   res.json({ ...apkInfo(), agente_pc: agentePcInfo(), agente_pi: agentePiInfo() });
 }
 
+/** Zona en que estan los sitios: lo que marca el reloj cuando se dice "las 7". */
+export const ZONA_DEL_SITIO = 'America/Mexico_City';
+
+/** Los campos JSON llegan como texto o ya parseados segun el driver. */
+function ajustesJson(valor: any): Record<string, any> | null {
+  if (!valor) return null;
+  if (typeof valor !== 'string') return valor;
+  try { return JSON.parse(valor); } catch { return null; }
+}
+
 // Lente y zoom guardados del equipo, para adjuntarlos a las ordenes de foto.
-export async function encuadreDe(deviceId: number) {
+export async function encuadreDe(deviceId: number, ahora: Date = new Date()) {
   const [rows] = await pool.query<any[]>(
-    `SELECT camera_lens, camera_zoom, camera_ajustes FROM devices WHERE id = ?`,
+    `SELECT camera_lens, camera_zoom, camera_ajustes,
+            camera_ajustes_noche, noche_inicio, noche_fin
+       FROM devices WHERE id = ?`,
     [deviceId]
   );
   const d = (rows as any[])[0];
@@ -456,9 +493,16 @@ export async function encuadreDe(deviceId: number) {
   // Los ajustes finos (color, exposicion, centro del recorte) viajan con el
   // encuadre en TODAS las ordenes de foto y de vista en vivo. Solo se mandan si
   // hay algo configurado, para no engordar cada orden sin necesidad.
-  const ajustes = typeof d.camera_ajustes === 'string'
-    ? (() => { try { return JSON.parse(d.camera_ajustes); } catch { return null; } })()
-    : d.camera_ajustes;
+  //
+  // Y dentro del tramo de noche se encima lo que ese tramo declare (migracion
+  // 030). Se ENCIMA, no sustituye: quien configura el brillo de noche no quiere
+  // perder el centro del recorte ni el balance de blancos del sitio. Por eso un
+  // perfil de noche con una sola clave cambia esa sola clave.
+  const dia = ajustesJson(d.camera_ajustes);
+  const noche = ajustesJson(d.camera_ajustes_noche);
+  const esDeNoche = !!noche && !!d.noche_inicio && !!d.noche_fin &&
+    enTramo(ahora, String(d.noche_inicio), String(d.noche_fin), ZONA_DEL_SITIO);
+  const ajustes = esDeNoche ? { ...(dia ?? {}), ...noche } : dia;
 
   return {
     camera_lens: d.camera_lens || 'main',

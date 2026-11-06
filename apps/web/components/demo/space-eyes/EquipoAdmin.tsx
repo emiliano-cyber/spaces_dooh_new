@@ -58,6 +58,11 @@ type Equipo = {
   app_actualiza_motivo?: string | null
   last_seen_at: string | null
   camera_ajustes: string | Ajustes | null
+  // El perfil de noche y su tramo (Space Eye, migración 030). El servidor
+  // encima estos ajustes sobre los de arriba dentro del tramo.
+  camera_ajustes_noche?: string | Ajustes | null
+  noche_inicio?: string | null
+  noche_fin?: string | null
   photo_rotation: number | null
 }
 type Estado = {
@@ -83,14 +88,23 @@ const ESTADOS: { v: string; t: ClaveTexto }[] = [
   { v: 'inactive', t: 'spaceeyes.admin.estado.inactive' },
 ]
 
-const CONTROLES: { campo: string; nombre: ClaveTexto; min: number; max: number; pordefecto: number }[] = [
-  { campo: 'centro_x', nombre: 'spaceeyes.admin.control.centro-x', min: 0, max: 1, pordefecto: 0.5 },
-  { campo: 'centro_y', nombre: 'spaceeyes.admin.control.centro-y', min: 0, max: 1, pordefecto: 0.5 },
-  { campo: 'brillo', nombre: 'spaceeyes.comun.brillo', min: -1, max: 1, pordefecto: 0 },
-  { campo: 'ev', nombre: 'spaceeyes.comun.exposicion', min: -3, max: 3, pordefecto: 0 },
-  { campo: 'contraste', nombre: 'spaceeyes.admin.control.contraste', min: 0, max: 2, pordefecto: 1 },
-  { campo: 'saturacion', nombre: 'spaceeyes.admin.control.saturacion', min: 0, max: 2, pordefecto: 1 },
-  { campo: 'nitidez', nombre: 'spaceeyes.admin.control.nitidez', min: 0, max: 2, pordefecto: 1 },
+type Control = { campo: string; nombre: ClaveTexto; min: number; max: number; paso: number; pordefecto: number }
+const CONTROLES_PI: Control[] = [
+  { campo: 'centro_x', nombre: 'spaceeyes.admin.control.centro-x', min: 0, max: 1, paso: 0.05, pordefecto: 0.5 },
+  { campo: 'centro_y', nombre: 'spaceeyes.admin.control.centro-y', min: 0, max: 1, paso: 0.05, pordefecto: 0.5 },
+  { campo: 'brillo', nombre: 'spaceeyes.comun.brillo', min: -1, max: 1, paso: 0.05, pordefecto: 0 },
+  { campo: 'ev', nombre: 'spaceeyes.comun.exposicion', min: -3, max: 3, paso: 0.05, pordefecto: 0 },
+  { campo: 'contraste', nombre: 'spaceeyes.admin.control.contraste', min: 0, max: 2, paso: 0.05, pordefecto: 1 },
+  { campo: 'saturacion', nombre: 'spaceeyes.admin.control.saturacion', min: 0, max: 2, paso: 0.05, pordefecto: 1 },
+  { campo: 'nitidez', nombre: 'spaceeyes.admin.control.nitidez', min: 0, max: 2, paso: 0.05, pordefecto: 1 },
+]
+
+// En el telefono la exposicion es un INDICE de compensacion, no pasos de
+// diafragma: cada aparato tiene su propio rango y su propio tamano de paso, y
+// la APK recorta lo que no alcance (`coerceIn`). Por eso va de uno en uno y sin
+// decimales.
+const CONTROLES_ANDROID: Control[] = [
+  { campo: 'exposicion', nombre: 'spaceeyes.comun.exposicion', min: -12, max: 12, paso: 1, pordefecto: 0 },
 ]
 
 const MEDICION: { v: string; t: ClaveTexto }[] = [
@@ -99,7 +113,8 @@ const MEDICION: { v: string; t: ClaveTexto }[] = [
   { v: 'average', t: 'spaceeyes.admin.medicion.average' },
   { v: 'matrix', t: 'spaceeyes.admin.medicion.matrix' },
 ]
-const BALANCE: { v: string; t: ClaveTexto }[] = [
+type Opcion = { v: string; t: ClaveTexto }
+const BALANCE_PI: Opcion[] = [
   { v: 'auto', t: 'spaceeyes.admin.balance.auto' },
   { v: 'daylight', t: 'spaceeyes.balance.daylight' },
   { v: 'cloudy', t: 'spaceeyes.balance.cloudy' },
@@ -107,10 +122,97 @@ const BALANCE: { v: string; t: ClaveTexto }[] = [
   { v: 'fluorescent', t: 'spaceeyes.balance.fluorescent' },
   { v: 'indoor', t: 'spaceeyes.admin.balance.indoor' },
 ]
+// Los cinco que entiende `balanceDe()` en la APK. «Interior» no esta porque el
+// telefono no lo tiene, y el foco se llama `incandescent` y no `tungsten`:
+// mandarle la palabra de la Raspberry equivale a no mandarle nada.
+const BALANCE_ANDROID: Opcion[] = [
+  { v: 'auto', t: 'spaceeyes.admin.balance.auto' },
+  { v: 'daylight', t: 'spaceeyes.balance.daylight' },
+  { v: 'cloudy', t: 'spaceeyes.balance.cloudy' },
+  { v: 'incandescent', t: 'spaceeyes.admin.balance.tungsten' },
+  { v: 'fluorescent', t: 'spaceeyes.balance.fluorescent' },
+]
 const GIROS = [0, 90, 180, 270] as const
 
 const esPc = (v: string | null | undefined) => /^pc-agent/i.test(String(v || ''))
 const esPi = (v: string | null | undefined) => /^pi-agent/i.test(String(v || ''))
+
+// ─── Lo que cada tipo de equipo aplica DE VERDAD ─────────────────────────────
+//
+// Esto no es una preferencia de diseno: es lo que dice el codigo de cada
+// agente. Hasta que estuvo aqui, el panel le ofrecia a todos los mandos de la
+// Raspberry, y en un telefono —que son cinco de los once equipos de g500— casi
+// ninguno hacia nada. Se guardaban en la base, se mandaban en la orden y la
+// APK los tiraba sin decir palabra, asi que desde la pantalla no habia forma de
+// saber que no servian.
+//
+//   Raspberry  `pi-agent/src/camara.js` los traduce a banderas de libcamera:
+//              los aplica todos.
+//   Android    `WebRTCClient.kt`, `aplicarAjustesSitio()`: lee TRES claves y no
+//              mas — `enfoque_fijo`, `exposicion` y `balance`.
+//   PC / IP    `pc-agent/src/camera.js` no toca la camara: la configura su
+//              propio firmware, desde la web de la camara.
+//
+// Y cuidado con los nombres, que es donde estaba el enredo: lo mismo se llama
+// distinto en cada lado. Exposicion es `ev` en la Raspberry (pasos de
+// diafragma) y `exposicion` en el telefono (un indice). Balance de blancos es
+// `awb` alla y `balance` aca. No son equivalentes ni en unidad ni en nombre,
+// asi que no se puede guardar un solo numero y que lo entiendan los dos.
+type Tipo = 'pi' | 'android' | 'pc'
+
+/**
+ * De que tipo es un equipo. Se mira `app_version` —«pi-agent 0.4.0»,
+ * «pc-agent 1.4.0», o un numero suelto como «0.14.0» en el telefono—, igual
+ * que hace la seccion de actualizar.
+ *
+ * NO sirve `android_version`, aunque se llame asi: ahi los agentes escriben la
+ * version del SISTEMA («Debian GNU/Linux 13 (trixie)», «Windows_NT 10.0.19045»,
+ * o «15» en un telefono), porque el backend reaprovecho el campo. Leer ese y
+ * no este dejaria a toda la flota clasificada como telefono, y una Raspberry
+ * perderia los mandos que si aplica.
+ */
+const tipoDe = (v: string | null | undefined): Tipo => (esPi(v) ? 'pi' : esPc(v) ? 'pc' : 'android')
+
+type Capacidades = {
+  sliders: Control[]
+  balance: { campo: string; opciones: Opcion[] } | null
+  pantallaLed: boolean
+  presets: boolean
+  // El tramo de noche, con el campo y la escala de ESTE tipo de equipo.
+  noche: { campo: string; min: number; max: number; paso: number; pordefecto: number; ayuda: ClaveTexto } | null
+}
+
+const CAPACIDADES: Record<Tipo, Capacidades> = {
+  pi: {
+    sliders: CONTROLES_PI,
+    balance: { campo: 'awb', opciones: BALANCE_PI },
+    pantallaLed: true,
+    presets: true,
+    noche: {
+      campo: 'ev',
+      min: -3,
+      max: 3,
+      paso: 0.1,
+      pordefecto: -0.7,
+      ayuda: 'spaceeyes.admin.noche.ayuda.pi',
+    },
+  },
+  android: {
+    sliders: CONTROLES_ANDROID,
+    balance: { campo: 'balance', opciones: BALANCE_ANDROID },
+    pantallaLed: false,
+    presets: false,
+    noche: {
+      campo: 'exposicion',
+      min: -12,
+      max: 12,
+      paso: 1,
+      pordefecto: -4,
+      ayuda: 'spaceeyes.admin.noche.ayuda.android',
+    },
+  },
+  pc: { sliders: [], balance: null, pantallaLed: false, presets: false, noche: null },
+}
 
 function mensaje(e: unknown, idioma: Idioma): string {
   if (e instanceof ErrorSE && e.status === 403) return traducir(idioma, 'spaceeyes.comun.sin-permiso')
@@ -125,6 +227,32 @@ function leerAjustes(v: Equipo['camera_ajustes']): Ajustes {
   } catch {
     return {}
   }
+}
+
+type Noche = { activo: boolean; inicio: string; fin: string; valor: number }
+
+/**
+ * El tramo de noche guardado, o el de siempre si no hay nada puesto.
+ *
+ * Las tres piezas van juntas: un perfil sin horas —o al revés— no es un tramo
+ * y el servidor lo ignoraría sin decir nada. MySQL devuelve las columnas TIME
+ * como «19:00:00», de ahí el recorte.
+ *
+ * El valor se lee del campo que entiende ESTE equipo (ver CAPACIDADES). Si
+ * quedó un `brillo` de antes —lo que guardaba el panel hasta ahora— se ignora
+ * a propósito: en un teléfono nunca hizo nada, y rescatarlo sería arrastrar al
+ * control nuevo el número de una escala que no es la suya.
+ */
+function leerNoche(equipo: Equipo): Noche {
+  const cap = CAPACIDADES[tipoDe(equipo.app_version)].noche
+  const vacio: Noche = { activo: false, inicio: '19:00', fin: '07:00', valor: cap?.pordefecto ?? 0 }
+  const aj = leerAjustes(equipo.camera_ajustes_noche ?? null)
+  const hora = (v: string | null | undefined) => (v ? String(v).slice(0, 5) : null)
+  const ini = hora(equipo.noche_inicio)
+  const fin = hora(equipo.noche_fin)
+  if (!cap || !Object.keys(aj).length || !ini || !fin) return vacio
+  const guardado = Number(aj[cap.campo])
+  return { activo: true, inicio: ini, fin, valor: Number.isFinite(guardado) ? guardado : cap.pordefecto }
 }
 
 type Mensaje = { tipo: 'ok' | 'error'; texto: string } | null
@@ -584,10 +712,14 @@ function AjustesImagen({
 }) {
   const { t, idioma } = useIdioma()
   const inicial = leerAjustes(equipo.camera_ajustes)
+  // Que mandos tiene sentido ensenar para ESTE equipo. Ver CAPACIDADES.
+  const tipo = tipoDe(equipo.app_version)
+  const cap = CAPACIDADES[tipo]
   const [abierto, setAbierto] = useState(false)
   const [aj, setAj] = useState<Ajustes>(inicial)
   const [wbManual, setWbManual] = useState(inicial.awb_rojo != null && inicial.awb_azul != null)
   const [expManual, setExpManual] = useState(Number(inicial.obturador) > 0)
+  const [noche, setNoche] = useState<Noche>(() => leerNoche(equipo))
   const [giro, setGiro] = useState<number>(((Number(equipo.photo_rotation) % 360) + 360) % 360 || 0)
   const [guardando, setGuardando] = useState(false)
   const [probando, setProbando] = useState(false)
@@ -642,11 +774,29 @@ function AjustesImagen({
     return Object.keys(a).length ? a : null
   }
 
+  // Las tres piezas del tramo viajan juntas, y en null lo apagan. El perfil
+  // declara SOLO la clave que cambia de noche: el servidor lo encima sobre el
+  // de día, así que todo lo que no se nombre aquí sigue siendo el de arriba.
+  function cuerpoNoche() {
+    if (!cap.noche || !noche.activo || !noche.inicio || !noche.fin) {
+      return { ajustes_noche: null, noche_inicio: null, noche_fin: null }
+    }
+    const valor = cap.noche.paso >= 1 ? Math.round(noche.valor) : Number(noche.valor)
+    return {
+      ajustes_noche: { [cap.noche.campo]: Number.isFinite(valor) ? valor : 0 },
+      noche_inicio: noche.inicio,
+      noche_fin: noche.fin,
+    }
+  }
+
   async function guardar(): Promise<boolean> {
     setGuardando(true)
     setMsg(null)
     try {
-      await seApi(`devices/${equipo.id}/camera`, { method: 'PUT', body: { ajustes: cuerpo(), photo_rotation: giro } })
+      await seApi(`devices/${equipo.id}/camera`, {
+        method: 'PUT',
+        body: { ajustes: cuerpo(), photo_rotation: giro, ...cuerpoNoche() },
+      })
       await onGuardado()
       setMsg({ tipo: 'ok', texto: t('spaceeyes.admin.ajustes.guardados') })
       return true
@@ -693,6 +843,16 @@ function AjustesImagen({
   }
 
   const bloqueado = !puedeEncuadrar
+  // Un indice de exposicion con su sentido: «−4 · más oscuro». Con `igual`
+  // el cero tambien se explica («0 · igual que de día»), que es lo que pide el
+  // tramo de noche: ahi el cero significa «no cambia nada».
+  const indice = (v: number, decimales = 0, igual = false) => {
+    const cifra = decimales ? formatNumero(v, decimales, idioma) : String(Math.round(v))
+    if (v < 0) return t('spaceeyes.admin.indice.oscuro', { n: cifra })
+    if (v > 0) return t('spaceeyes.admin.indice.claro', { n: cifra })
+    return igual ? t('spaceeyes.admin.indice.igual', { n: cifra }) : cifra
+  }
+
   const deslizador = (
     campo: string,
     nombre: string,
@@ -763,10 +923,105 @@ function AjustesImagen({
               </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {CONTROLES.map((c) => deslizador(c.campo, t(c.nombre), c.min, c.max, 0.05, c.pordefecto))}
-            </div>
+            {cap.sliders.length > 0 ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {/* Un paso entero se escribe entero: la exposicion del telefono
+                    es un indice y «0.00» le pone decimales a algo que no los
+                    tiene. */}
+                {cap.sliders.map((c) =>
+                  deslizador(
+                    c.campo,
+                    t(c.nombre),
+                    c.min,
+                    c.max,
+                    c.paso,
+                    c.pordefecto,
+                    c.paso >= 1 ? (v) => indice(v) : undefined,
+                  ),
+                )}
+              </div>
+            ) : null}
+            {tipo !== 'pi' && (
+              <p className="text-[11px] text-muted">
+                {tipo === 'pc' ? t('spaceeyes.admin.tipo.pc') : t('spaceeyes.admin.tipo.android')}
+              </p>
+            )}
 
+            {/* La luz por horario. El mismo ajuste no sirve a las 3 de la
+                tarde y a las 9 de la noche, cuando el LED es lo único que
+                alumbra la escena: de día la foto sale bien y de noche quemada.
+                Antes había que entrar dos veces al día a mover el control a
+                mano, y no lo hacía nadie.
+
+                Lo que baja de noche es la EXPOSICIÓN y no el brillo, aunque el
+                control dijera «brillo» hasta ahora. Sobre una pantalla de LED
+                el brillo suma luz a la imagen ya revelada y no devuelve un
+                canal quemado —medido en la foto del 27-ago: el 21.4% de los
+                píxeles de la pantalla tenía al menos un canal pegado en 250—.
+                Lo único que lo evita es exponer menos. Y en un teléfono el
+                brillo ni siquiera llegaba: la APK no lee esa clave. */}
+            {cap.noche && (
+            <div className="border-t border-border pt-4">
+              <label className="flex items-center gap-2 text-[12px] text-ink">
+                <input
+                  type="checkbox"
+                  checked={noche.activo}
+                  disabled={!puedeEncuadrar}
+                  onChange={(e) => setNoche((v) => ({ ...v, activo: e.target.checked }))}
+                />
+                {t('spaceeyes.admin.noche.activar')}
+              </label>
+              {noche.activo && (
+                <div className="mt-3">
+                  <div className="grid grid-cols-2 gap-4">
+                    <label className="block">
+                      <span className="mb-1 block text-[12px] text-muted">{t('spaceeyes.comun.desde')}</span>
+                      <input
+                        type="time"
+                        className={CAMPO}
+                        value={noche.inicio}
+                        disabled={!puedeEncuadrar}
+                        onChange={(e) => setNoche((v) => ({ ...v, inicio: e.target.value }))}
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1 block text-[12px] text-muted">{t('spaceeyes.comun.hasta')}</span>
+                      <input
+                        type="time"
+                        className={CAMPO}
+                        value={noche.fin}
+                        disabled={!puedeEncuadrar}
+                        onChange={(e) => setNoche((v) => ({ ...v, fin: e.target.value }))}
+                      />
+                    </label>
+                  </div>
+                  <label className="mt-3 block">
+                    <span className="mb-1 flex justify-between text-[12px] text-muted">
+                      <span>{t('spaceeyes.admin.noche.exposicion')}</span>
+                      <span className="tabular-nums text-ink">
+                        {indice(noche.valor, cap.noche.paso >= 1 ? 0 : 2, true)}
+                      </span>
+                    </span>
+                    <input
+                      type="range"
+                      min={cap.noche.min}
+                      max={cap.noche.max}
+                      step={cap.noche.paso}
+                      className="w-full"
+                      value={noche.valor}
+                      disabled={!puedeEncuadrar}
+                      onChange={(e) => setNoche((v) => ({ ...v, valor: Number(e.target.value) }))}
+                    />
+                  </label>
+                  <p className="mt-1 text-[11px] text-muted">
+                    {t(cap.noche.ayuda)} {t('spaceeyes.admin.noche.texto')}
+                  </p>
+                </div>
+              )}
+            </div>
+            )}
+
+            {cap.pantallaLed && (
             <div className="border-t border-border pt-4">
               <p className="mb-2 text-[12px] font-medium text-ink">{t('spaceeyes.admin.led')}</p>
               {deslizador('cuadros', t('spaceeyes.admin.cuadros'), 1, 32, 1, 1, (v) =>
@@ -810,67 +1065,80 @@ function AjustesImagen({
                 </>
               )}
             </div>
+            )}
 
+            {cap.balance && (
             <div className="border-t border-border pt-4">
               <label className="mb-2 block">
                 <span className="mb-1 block text-[12px] text-muted">{t('spaceeyes.comun.balance')}</span>
                 <select
-                  value={String(aj.awb ?? 'auto')}
+                  value={String(aj[cap.balance.campo] ?? 'auto')}
                   disabled={bloqueado}
-                  onChange={(e) => poner('awb', e.target.value)}
+                  onChange={(e) => poner(cap.balance!.campo, e.target.value)}
                   className={SELECT}
                 >
-                  {BALANCE.map((o) => (
+                  {cap.balance.opciones.map((o) => (
                     <option key={o.v} value={o.v}>
                       {t(o.t)}
                     </option>
                   ))}
                 </select>
               </label>
-              <label className="mb-2 flex items-center gap-2 text-[12px] text-ink">
-                <input
-                  type="checkbox"
-                  checked={wbManual}
-                  disabled={bloqueado}
-                  onChange={(e) => alternarWb(e.target.checked)}
-                  className="h-4 w-4 accent-[var(--accent)]"
-                />
-                {t('spaceeyes.admin.color-mano')}
-              </label>
-              {wbManual && (
-                <div className="grid grid-cols-2 gap-3">
-                  {deslizador('awb_rojo', t('spaceeyes.admin.rojo'), 0.5, 4, 0.05, 1.5)}
-                  {deslizador('awb_azul', t('spaceeyes.admin.azul'), 0.5, 4, 0.05, 1.5)}
-                </div>
+              {/* Las ganancias a mano son de rpicam: el telefono solo entiende
+                  el modo, no los numeros. */}
+              {tipo === 'pi' && (
+                <>
+                <label className="mb-2 flex items-center gap-2 text-[12px] text-ink">
+                  <input
+                    type="checkbox"
+                    checked={wbManual}
+                    disabled={bloqueado}
+                    onChange={(e) => alternarWb(e.target.checked)}
+                    className="h-4 w-4 accent-[var(--accent)]"
+                  />
+                  {t('spaceeyes.admin.color-mano')}
+                </label>
+                {wbManual && (
+                  <div className="grid grid-cols-2 gap-3">
+                    {deslizador('awb_rojo', t('spaceeyes.admin.rojo'), 0.5, 4, 0.05, 1.5)}
+                    {deslizador('awb_azul', t('spaceeyes.admin.azul'), 0.5, 4, 0.05, 1.5)}
+                  </div>
+                )}
+                </>
               )}
             </div>
+            )}
 
             <div className="flex flex-wrap gap-2 border-t border-border pt-4">
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={bloqueado}
-                title={t('spaceeyes.admin.receta.led.ayuda')}
-                onClick={() => {
-                  setAj((a) => ({ ...a, cuadros: 16, ev: -0.7, medicion: 'spot' }))
-                  setMsg({ tipo: 'ok', texto: t('spaceeyes.admin.receta.led.aplicada') })
-                }}
-              >
-                {t('spaceeyes.admin.receta.led')}
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={bloqueado}
-                title={t('spaceeyes.admin.receta.hojas.ayuda')}
-                onClick={() => {
-                  setWbManual(true)
-                  setAj((a) => ({ ...a, awb_rojo: 1.05, awb_azul: 1.9, saturacion: 0.75, contraste: 1.1 }))
-                  setMsg({ tipo: 'ok', texto: t('spaceeyes.admin.receta.hojas.aplicada') })
-                }}
-              >
-                {t('spaceeyes.admin.receta.hojas')}
-              </Button>
+              {cap.presets && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={bloqueado}
+                    title={t('spaceeyes.admin.receta.led.ayuda')}
+                    onClick={() => {
+                      setAj((a) => ({ ...a, cuadros: 16, ev: -0.7, medicion: 'spot' }))
+                      setMsg({ tipo: 'ok', texto: t('spaceeyes.admin.receta.led.aplicada') })
+                    }}
+                  >
+                    {t('spaceeyes.admin.receta.led')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={bloqueado}
+                    title={t('spaceeyes.admin.receta.hojas.ayuda')}
+                    onClick={() => {
+                      setWbManual(true)
+                      setAj((a) => ({ ...a, awb_rojo: 1.05, awb_azul: 1.9, saturacion: 0.75, contraste: 1.1 }))
+                      setMsg({ tipo: 'ok', texto: t('spaceeyes.admin.receta.hojas.aplicada') })
+                    }}
+                  >
+                    {t('spaceeyes.admin.receta.hojas')}
+                  </Button>
+                </>
+              )}
               <Button
                 size="sm"
                 variant="ghost"

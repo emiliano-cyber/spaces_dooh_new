@@ -275,7 +275,10 @@ export function AltaDispositivo() {
 
   const botonGenerar = (
     <div>
-      <Button variant="primary" size="md" onClick={() => void generar()} disabled={trabajando}>
+      {/* Verde: el codigo es lo que da de alta al equipo, y a esta pantalla se
+          llega desde el «Agregar dispositivo» verde de la lista. Regla del dueno
+          del 2026-09-30 (convenciones.md, «Color de los botones»). */}
+      <Button variant="success" size="md" onClick={() => void generar()} disabled={trabajando}>
         {trabajando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <KeyRound className="mr-2 h-4 w-4" />}
         {t('spaceeyes.alta.generar')}
       </Button>
@@ -293,7 +296,7 @@ export function AltaDispositivo() {
           <Eye className="h-5 w-5" strokeWidth={1.75} />
         </span>
         <div className="min-w-[12rem] flex-1">
-          <h1 className="text-lg font-semibold text-ink">{t('spaceeyes.alta.titulo')}</h1>
+          <h1 className="text-2xl text-ink">{t('spaceeyes.alta.titulo')}</h1>
           <p className="text-[13px] text-muted">{t('spaceeyes.alta.descripcion')}</p>
         </div>
       </div>
@@ -367,7 +370,7 @@ export function AltaDispositivo() {
           </p>
         </div>
       )}
-      {error && <p className="rounded-md border border-[#dc262640] bg-error-soft p-3 text-[13px] text-[#b91c1c]">{error}</p>}
+      {error && <p className="rounded-md border border-[#dc262640] bg-error-soft p-3 text-[13px] text-[#b42318]">{error}</p>}
 
       {/* ── Teléfono ── */}
       {tipo === 'telefono' && puedeCrear && (
@@ -496,7 +499,9 @@ export function AltaDispositivo() {
                   </div>
                 )}
                 <div>
-                  <Button variant="primary" size="md" onClick={() => void descargarKit()} disabled={trabajando}>
+                  {/* Neutro: descargar no da de alta ni acepta nada, igual que
+                      las descargas de la galeria y las de SPACE OS. */}
+                  <Button variant="secondary" size="md" onClick={() => void descargarKit()} disabled={trabajando}>
                     {trabajando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
                     {tr('spaceeyes.alta.pi.descargar')}
                   </Button>
