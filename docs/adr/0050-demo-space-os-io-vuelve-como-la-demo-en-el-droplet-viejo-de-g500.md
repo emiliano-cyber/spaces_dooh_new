@@ -185,3 +185,13 @@ Mismo resultado con otra factura, y sin conservar la copia. Descartada.
 Tras la **primera promoción a `estable` validada contra la DEMO nueva** (destino
 de `prueba.`), y **cuando Space Eyes tenga respaldo fuera del droplet**: en ese
 momento desaparece la razón principal para mantener datos reales en la DEMO.
+
+## Corrección del 2026-11-06, al ejecutarla
+
+El dueño cambió los puntos 3, 7 y 8 al correr la guía 31 (§9): **la DEMO
+conserva las llaves de terceros de g500** —Google, Space Eyes, correo y la llave
+de Spaces de respaldos (no hay llave nueva)— **salvo DOOHmain**, que queda sin
+clave y con `DOOHMAIN_PUBLISH_ENABLED=0`. `FLOTA_TOKEN`, claves de Postgres,
+`INSTANCIA=demo` y el certificado sí son nuevos. Y la excepción Q3 **no aplicó**:
+g500 no tenía `DO_SPACES_*`, así que la DEMO no usa el almacén de medios.
+Riesgo nuevo: la DEMO habla con el Space Eyes real de g500.

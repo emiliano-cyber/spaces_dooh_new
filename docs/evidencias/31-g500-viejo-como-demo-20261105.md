@@ -87,6 +87,13 @@
 >    - Y la llave en sí, en `app.env`, permite a quien tenga root en la DEMO
 >      borrar todo el bucket con `s3cmd`.
 
+> [!success] 2026-11-06 · CORRIDA y la DEMO sirve en `https://demo.space-os.io/spaces-dooh/`
+> v0.12.6 desde `beta`, sobre la base de g500, con `login 200` por HTTPS. **Se
+> apartó de esta guía en las llaves**: por decisión del dueño se conservaron las
+> de g500 (Google, Spaces de respaldos, Space Eyes, correo) **salvo DOOHmain**, y
+> no se creó llave nueva de Spaces (Q4 revertida). Detalle y hallazgos en
+> [§9](#9--corrida-real-del-2026-11-06).
+
 ## Qué es y qué no es esta guía
 
 **Es** el camino para que el droplet viejo de g500 —apagado e intacto desde la
@@ -792,6 +799,57 @@ conservar esta copia desaparece. Entonces: *Rebuild* del droplet con Ubuntu 24.0
 --instancia demo` y `CANAL=beta`, y las semillas de `docs/datos/20261103_base_demo_nueva.md`
 corridas dentro de la imagen. Era la primera versión de esta guía (commit
 `b8341c03`); se recupera con `git show b8341c03:docs/evidencias/31-g500-viejo-como-demo-20261105.md`.
+
+## 9 · Corrida real del 2026-11-06
+
+La corrió el dueño en la consola web del viejo (y `scp` desde su PC), pegando
+cada salida; Claude no entró al servidor (la regla de permisos sigue negando el
+`ssh`). Todo en verde salvo lo que se apartó a propósito.
+
+| Paso | Resultado |
+|---|---|
+| §1.2 | `space-os-antes-doohmain` pasado a `--restart=no`; nginx y `certbot.timer` `inactive`; los siete contenedores en `no` |
+| §0.4 `scp` | **El viejo no aceptaba la llave `g500` de la PC** (se creó para gh500): se pegó la pública por la consola y entró |
+| §1.3 | `sin CRLF` y las siete huellas idénticas |
+| §2.2 | 11 valores; **`app.env` no tenía ninguna `DO_SPACES_*`** |
+| §2.3–2.5 | contenedores de la app borrados; Space Eyes apartado en `/root/g500-eyes-copia/` (804M+236M+1.2G+4.4M); `ufw` 22/80/443; sin cron; cluster 14 `down` |
+| §2.6 | `ROLES ROTADOS`; archivos nuevos desde las plantillas |
+| §2.7 | ningún secreto retirado en uso; quedan copias viejas en `/root/respaldos/agregar-eyes-20261009-191751/` (como `g500-mudanza`, se dejan) |
+| §3.1 | `g500\|g500\|MXN`, `aprobacion\|v0.12.5\|f`, `5/13/11/11/121` |
+| §3.3 | `update=0`: respaldo `spaces_20261106_173425.dump` (18 232 233 B) y `respaldo remoto OK: s3://space-os-respaldos/demo/2026-11-06-1734.dump`; 3 migraciones; salud 200 al 2.º intento; `beta` = v0.12.6, digest `sha256:1a593a72…`; `automatica\|v0.12.6`; `5/13/11/11/124` |
+| §3.6 | `space-os-update` y `space-os-respaldo` en `/etc/cron.d` |
+| §4 | certificado `demo.space-os.io` (vence 2027-02-04); nginx de `instancia.conf.tpl` (0 restos de `__DOMINIO__`/`g500`); `login 200`; certificado de g500 borrado; `renew --dry-run` en verde; hostname `demo` |
+
+**Lo que se apartó de la guía, por decisión del dueño (06/11):**
+
+- **Llaves de g500 conservadas** en el `app.env`/`instancia.env` nuevos:
+  `EMAIL_FROM`, `GOOGLE_OAUTH`, `GOOGLE_CLIENT_ID/SECRET`, `SPACE_EYE_BASE_URL`,
+  `SPACE_EYE_KEY`, `SPACE_EYE_PROVISION_TOKEN`, `DOOHMAIN_SCREEN_MAP` y
+  **`SPACES_KEY/SECRET` de g500 para los respaldos** (no hay llave nueva: Q4
+  queda revertida). Se copiaron con un `awk` que sustituye la línea de la
+  plantilla por la de g500, sin imprimir valores.
+- **DOOHmain fuera**: `DOOHMAIN_API_KEY` vacía y `DOOHMAIN_PUBLISH_ENABLED=0`
+  (g500 lo tenía en `1`).
+- **No se cambia**: `DATABASE_URL` (claves rotadas) ni `FLOTA_TOKEN` (nuevo; con
+  el de g500 la DEMO se haría pasar por g500 ante el PADRE).
+- Se omitió §3.4 (sesiones y enlaces de restablecer) y §3.5.
+
+**Hallazgos:**
+
+1. **Q3 no aplicaba**: g500 nunca tuvo `DO_SPACES_*` (las evidencias de OT no
+   van al almacén), así que la DEMO **no** toca medios reales y el riesgo 9 del
+   ADR 0050 desaparece.
+2. **Eran 4 migraciones pendientes, no 3**: la de más es de datos
+   (`20260731_calendario_meses_cortos.sql`), que `update.sh` omite a propósito.
+3. Con las llaves de g500, **la DEMO habla con el Space Eyes real de g500** y su
+   llave de respaldos **alcanza `g500/`** (como ya pasaba con la nueva: Spaces
+   limita por bucket). Google funciona solo cuando el cliente OAuth tenga la URI
+   `https://demo.space-os.io/spaces-dooh/api/auth/google/callback/`.
+4. `log remoto NO CONFIGURADO` en cada corrida: es `LOGS_BUCKET` vacío, como
+   pide §2.6; no es fallo.
+
+**Pendiente:** §5.3 en el navegador, §6 (`DEMO_URL` y `FLOTA_TOKEN` en GitHub),
+la URI de Google, §2.1 en el panel de DO (Backups y nombre) y §8.
 
 Ver también: `docs/evidencias/30-mudar-g500-a-droplet-limpio-20261104.md` (§6 y
 D13), `infra/scripts/README.md`, `docs/runbook-alta-de-owner.md` y
