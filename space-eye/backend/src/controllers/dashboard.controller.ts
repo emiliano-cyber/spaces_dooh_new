@@ -193,7 +193,20 @@ export async function controlDeCamara(req: Request, res: Response) {
     // admin. Solo quita permiso, nunca lo da, asi que no importa que viaje en
     // el cuerpo: lo peor que puede hacer un cliente con ella es no guardar.
     guardar: z.boolean().optional(),
-  }).strict();
+  }).strict().superRefine((v, ctx) => {
+    // La exposicion es un INDICE de compensacion y aqui no tenia tope: el 12
+    // de octubre entro un -12 a TLALPAN -el minimo del sensor- y se quedo
+    // puesto las 24 horas, que es la sospecha de por que acusa a su camara
+    // cada noche. Un indice fuera de este rango no existe en ninguna camara:
+    // la APK lo recortaria igual (coerceIn), pero en la base quedaria escrito
+    // un numero que nadie puede explicar. Tambien cierra la puerta a que
+    // 'exposure' llegue como texto y se guarde un NaN.
+    if (v.action !== 'exposure') return;
+    const n = Number(v.value);
+    if (!Number.isFinite(n) || !Number.isInteger(n) || n < -12 || n > 12) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['value'], message: 'exposicion fuera de rango (-12..12, entero)' });
+    }
+  });
   const parsed = schema.safeParse(req.body ?? {});
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
   const id = Number(req.params.id);
