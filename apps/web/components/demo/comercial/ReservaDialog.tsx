@@ -6,6 +6,7 @@ import { AlertTriangle } from 'lucide-react'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { parcheSlots, valorCampoSlots, slotsIlegibles, type SlotsEnFormulario } from '@/lib/slots-reserva'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { reservarApi } from '@/lib/data/estado-api'
 import { formatNumero } from '@/lib/formato-numero'
@@ -74,8 +75,9 @@ export function ReservaDialog({
   const [fin, setFin] = useState(isoDate(37))
   const [tipo, setTipo] = useState<'AUTO' | 'DOOH' | 'OOH' | 'HIBRIDA'>('AUTO')
   // Spots a reservar por sitio digital (sitioId → cantidad). Si no hay valor,
-  // el default es reservar todos los disponibles.
-  const [spots, setSpots] = useState<Record<string, number>>({})
+  // el default es reservar todos los disponibles. B93: `cruda` guarda lo
+  // tecleado que no es una cifra (ver `lib/slots-reserva.ts`).
+  const [spots, setSpots] = useState<Record<string, SlotsEnFormulario>>({})
   const [enviando, setEnviando] = useState(false)
   const config = useConfigNegocio()
   const spotsPorLoop = config && config.spotSeg > 0 ? Math.floor(config.loopSeg / config.spotSeg) : 0
@@ -85,7 +87,7 @@ export function ReservaDialog({
     (s) => (s.totalSpots ?? 0) > 0 && s.totalSpots !== spotsPorLoop && esDigital(s),
   )
 
-  const reservedOf = (s: Sitio) => spots[s.id] ?? dispOf(s)
+  const reservedOf = (s: Sitio) => spots[s.id]?.slots ?? dispOf(s)
 
   // ─── ADR 0008 · aviso de cupo de clientes ─────────────────────────────────
   // Aquí ya se sabe PARA QUIÉN se reserva, así que se puede decir por adelantado
@@ -144,13 +146,17 @@ export function ReservaDialog({
   const spotsPorSitio: Record<string, number> = {}
   for (const s of sitios) if (esDigital(s)) spotsPorSitio[s.id] = reservedOf(s)
   const totalSpotsReservados = Object.values(spotsPorSitio).reduce((a, b) => a + b, 0)
+  // B93 · unos slots que no se entienden (o el campo vacío) no se reservan
+  // como 0 en silencio: bloquean el botón con su motivo, como en Propuestas.
+  const sitioSlotsIlegibles = sitios.find((s) => esDigital(s) && slotsIlegibles(spots[s.id]))
+  const errSlots = sitioSlotsIlegibles ? t('comercial.reserva.error.slots', { sitio: sitioSlotsIlegibles.nombre }) : null
 
   // OBLIG-01 · el cliente lo exigía ya esta pantalla (el botón no se podía
   // pulsar sin él); las fechas, el servidor (`reservas-controller.ts:15-16`).
   const ob = useObligatorios({ cliente, inicio, fin }, ['cliente', 'inicio', 'fin'])
 
   async function submit() {
-    if (!ob.validar() || sitios.length === 0) return
+    if (!ob.validar() || sitios.length === 0 || errSlots) return
     setEnviando(true)
     const camp = await reservarApi({
       clienteNombre: cliente.trim(),
@@ -195,11 +201,12 @@ export function ReservaDialog({
               </>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            {errSlots && <span className="text-[12px] text-error">{errSlots}</span>}
             <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)}>
               {t('comun.cancelar')}
             </Button>
-            <Button size="sm" onClick={submit} disabled={enviando}>
+            <Button size="sm" onClick={submit} disabled={enviando || !!errSlots}>
               {enviando ? t('comercial.reserva.reservando') : t('comercial.reserva.reservar')}
             </Button>
           </div>
@@ -323,19 +330,22 @@ export function ReservaDialog({
                     <div className="flex items-center justify-between gap-2 pl-1">
                       <span className="text-[11px] text-muted">
                         {interpolarNodos(t('comercial.reserva.de-slots'), {
-                          // La misma cuenta de siempre sobre la cifra sin comas: se
-                          // acota a [0, disp] y lo que no se entiende ('NaN') cae a
-                          // 0 — y el campo lo ENSEÑA, porque vuelve a pintarse con el
-                          // valor guardado. Nunca reserva algo distinto de lo que se ve.
+                          // Se acota a [0, disp] y el campo lo enseña. B93 (05/11):
+                          // lo que no se entiende, o vacío, ya NO cae a 0: se
+                          // guarda tal cual y bloquea «Reservar». Caer a 0 hacía
+                          // que el campo repintara ese 0 a media escritura y se
+                          // comiera el separador. Ver `lib/slots-reserva.ts`.
                           campo: (
                             <CampoCifra
                               decimales={0}
                               mostrarError={false}
-                              valor={reservados}
-                              onCambio={(crudo) => {
-                                const v = Math.max(0, Math.min(disp, Math.round(Number(crudo) || 0)))
-                                setSpots((prev) => ({ ...prev, [s.id]: v }))
-                              }}
+                              valor={valorCampoSlots({ slots: reservados, cruda: spots[s.id]?.cruda })}
+                              onCambio={(_crudo, lectura) =>
+                                setSpots((prev) => ({
+                                  ...prev,
+                                  [s.id]: { slots: prev[s.id]?.slots ?? disp, ...parcheSlots(lectura, disp) },
+                                }))
+                              }
                               className="demo-num mx-1 h-7 w-16 rounded border border-border-strong bg-surface px-2 text-right text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
                             />
                           ),

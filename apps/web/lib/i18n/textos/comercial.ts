@@ -405,6 +405,7 @@ export const ES_COMERCIAL = {
     'La reserva se rechazará completa. Quita esas pantallas, cambia las fechas, o sube su cupo desde su ficha.',
   'comercial.reserva.de-slots': 'Reserva {campo} de {disp} slots',
   'comercial.reserva.quedan': 'Quedan {n}',
+  'comercial.reserva.error.slots': '{sitio}: los slots no se entienden. Corrígelos antes de reservar.',
 
   // ── Space Eye en la ficha (`SpaceEyeVision`) ──
   'comercial.eye.sin-conexion': 'No se pudo conectar con Space Eye',
@@ -948,6 +949,7 @@ export const EN_COMERCIAL: Record<ClaveComercial, string> = {
     'The whole booking will be rejected. Remove the screen(s) above, change the dates, or raise the cap from each screen’s profile.',
   'comercial.reserva.de-slots': 'Book {campo} of {disp} slots',
   'comercial.reserva.quedan': '{n} left',
+  'comercial.reserva.error.slots': "{sitio}: the slots can’t be read. Fix them before booking.",
 
   'comercial.eye.sin-conexion': 'Could not connect to Space Eye',
   'comercial.eye.titulo': 'Artificial intelligence · Space Eye',
@@ -1502,6 +1504,7 @@ export const IT_COMERCIAL: Record<ClaveComercial, string> = {
     'L’intera prenotazione verrà rifiutata. Togli quegli impianti, cambia le date o aumenta il loro limite dalla loro scheda.',
   'comercial.reserva.de-slots': 'Prenota {campo} di {disp} slot',
   'comercial.reserva.quedan': 'Ne restano {n}',
+  'comercial.reserva.error.slots': '{sitio}: gli slot non si capiscono. Correggili prima di prenotare.',
 
   'comercial.eye.sin-conexion': 'Impossibile connettersi a Space Eye',
   'comercial.eye.titulo': 'Intelligenza artificiale · Space Eye',

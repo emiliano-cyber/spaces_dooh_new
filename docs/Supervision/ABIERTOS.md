@@ -115,6 +115,26 @@ esto.
 **Lo que abre esta auditoría:** decisiones **D11** y **D12**; advertencias **B40** a
 **B45**. La que de verdad importa de las seis es **B40**.
 
+> **2026-11-05, noche · DINERO en la v0.12.6 publicada: la cantidad manual de la propuesta (H1 de
+> `docs/i18n/validacion-portugues-cifras.md`).** Dos entradas nuevas. Se numeran desde **B92**
+> porque `integra/portugues` ya usa B91.
+>
+> - **B92 · ARREGLADA en rama, SIN PUBLICAR.** En la cantidad de una línea de propuesta,
+>   «1.500» tecleado en español se guardaba como 100 (en italiano «1,500» → 100, «1.5000» →
+>   15 000), sin aviso. Rama `fix/cantidad-propuesta` (`519a7a54`, desde `origin/main`
+>   34f36a54), con notas de la **v0.12.7**. Verificada con unitarias (rojo a la vista: 11 de 14)
+>   y en el navegador real (`propuesta_items.cantidad = 1500.00`). **Se cierra cuando la
+>   v0.12.7 esté en g500**. El dueño dijo «aún no» a publicarla (05/11). Al publicar, revisar
+>   en g500 las propuestas de la v0.12.6 con cantidades tecleadas a mano.
+> - ~~**B93 · BAJA.** `ReservaDialog.tsx:331` tiene el mismo patrón: acota a 0 lo
+>   ilegible (`Number(crudo) || 0`) y el campo lo repinta a media escritura. Son slots
+>   reservados, no dinero.~~ **ARREGLADA en la misma rama el 05/11**, a petición del dueño
+>   («arregla también el de reservas»), con `lib/slots-reserva.ts`. Rojo a la vista: 7 de 11.
+>   En el navegador real, 4 slots → `reservas.spots_reservados = 4`. Se cierra con B92, al
+>   publicar la v0.12.7.
+> - Al integrar `fix/cantidad-propuesta` en `integra/portugues`, el typecheck exige la clave
+>   `propuestas.alta.error.cantidad` en `PT_PROPUESTAS`.
+
 ---
 
 ## A · Decisiones del dueño
