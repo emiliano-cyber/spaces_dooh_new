@@ -1,11 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import Link from 'next/link'
 import {
   AlertTriangle,
   BarChart3,
-  ChevronLeft,
   Download,
   Loader2,
   RefreshCw,
@@ -311,10 +309,11 @@ export function Graficas() {
 
   return (
     <div className="w-full space-y-4">
-      <Link href="/space-eyes" className="inline-flex items-center gap-1.5 text-[12px] text-muted hover:text-ink">
-        <ChevronLeft className="h-3.5 w-3.5" /> Space Eyes
-      </Link>
-
+      {/* Sin «‹ Space Eyes» arriba: Gráficas es una entrada del menú, no una
+          pantalla a la que se entre desde el listado -nada en la aplicación
+          enlaza aquí-, y ninguna de las otras seis lo lleva. Ademas empujaba
+          el título 35 px hacia abajo, así que esta pantalla y la de Ajustar
+          texto empezaban más abajo que sus vecinas. */}
       {/* Encabezado, el mismo patrón del listado */}
       <div className="flex flex-wrap items-center gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">

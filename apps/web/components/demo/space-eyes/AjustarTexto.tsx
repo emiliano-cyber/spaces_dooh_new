@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import Link from 'next/link'
 import { AlertTriangle, ArrowLeft, Camera, CameraOff, Loader2, Move, Type } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
@@ -223,11 +222,9 @@ export function AjustarTexto() {
 
   return (
     <div className="w-full space-y-4">
-      <Link href="/space-eyes" className="inline-flex items-center gap-1.5 text-[12px] text-muted hover:text-ink">
-        <ArrowLeft className="h-3.5 w-3.5" />
-        Space Eyes
-      </Link>
-
+      {/* Sin «‹ Space Eyes» arriba, por lo mismo que en Gráficas: es una
+          entrada del menú y ninguna otra pantalla enlaza aquí. Encima iba con
+          otra flecha que la de las demás (ArrowLeft contra ChevronLeft). */}
       <div className="flex flex-wrap items-center gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
           <Type className="h-5 w-5" strokeWidth={1.75} />
