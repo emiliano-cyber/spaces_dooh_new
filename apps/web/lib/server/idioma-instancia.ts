@@ -37,15 +37,17 @@ import { IDIOMAS, IDIOMA_POR_OMISION, type Idioma } from '@/lib/i18n/idiomas'
 const CLAVE = Symbol.for('space-os.idioma-documentos-instancia')
 const almacen = globalThis as unknown as { [CLAVE]?: Idioma }
 
-function esIdioma(x: unknown): x is Idioma {
-  return typeof x === 'string' && (IDIOMAS as readonly string[]).includes(x)
+// Contra `IDIOMAS`: es lo que acepta el CHECK de la columna desde
+// `20261105_idioma_portugues.sql` (P3 del portugues, 05/11).
+function esIdioma(x: string): x is Idioma {
+  return (IDIOMAS as readonly string[]).includes(x)
 }
 
 /**
  * El idioma de los documentos de ESTA instancia.
  *
  * - Sin ninguna organizacion: `es`, que es en el que nacera si nadie elige.
- * - Con un valor que no es es/en/it en la base: LANZA (el CHECK lo impide).
+ * - Con un valor que no es de `IDIOMAS` en la base: LANZA (el CHECK lo impide).
  * - Si la base no contesta: LANZA (fail-closed).
  */
 export async function idiomaDeLaInstancia(): Promise<Idioma> {

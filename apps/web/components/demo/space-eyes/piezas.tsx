@@ -44,6 +44,9 @@ const SIN_PREFIJO_HACE: Record<Idioma, (t: string) => string> = {
   es: (t) => t.replace('hace ', ''),
   en: (t) => t.replace(/ ago$/, ''),
   it: (t) => t.replace(/ (?:fa|ago)$/, ''),
+  // Ola 0 del portugues (05/11): «há 5 min»; mientras su lote no traduzca
+  // `spaceeyes.hace.*`, la frase le llega en ESPANOL («hace 5 min»).
+  pt: (t) => t.replace(/^(?:há|hace) /, ''),
 }
 
 // Lo mismo sin el «hace» / «ago»: para un indicador que ya dice qué mide

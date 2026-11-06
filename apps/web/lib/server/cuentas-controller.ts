@@ -31,7 +31,7 @@ const signupSchema = z.object({
   password: z.string().optional(),
   // ADR 0048 · MXN o USD. Solo decide en la PRIMERA organizacion de la instancia.
   moneda: z.unknown().optional(),
-  // ADR 0049 · es, en o it: el idioma de los DOCUMENTOS (contrato, constancia).
+  // ADR 0049 · es, en, it o pt (P3, 05/11): el idioma de los DOCUMENTOS (contrato, constancia).
   // Igual que la moneda: solo decide en la primera, y solo desde el bootstrap.
   idiomaDocumentos: z.unknown().optional(),
 })

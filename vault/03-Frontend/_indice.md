@@ -42,6 +42,7 @@ Router en uso**.
 | [[idiomas-es-en]] | La aplicacion en espanol e ingles: deteccion, cambio manual, el dinero |
 | [[ingles-olas]] | El tablero de la version en ingles: olas, ramas, veredictos y pendientes |
 | [[italiano-olas]] | El tablero de la version en italiano: la ola 0 (infraestructura), los lotes propuestos y las decisiones del dueno |
+| [[portugues-olas]] | El tablero de la version en portugues (Brasil): la ola 0, la caida al espanol, lo que la base aun no acepta y los lotes propuestos |
 
 ## Los tres niveles de layout
 

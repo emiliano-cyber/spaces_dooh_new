@@ -83,6 +83,20 @@ describe('bootstrap · la unica puerta que lo elige', () => {
     expect(recordado.idioma).toBe('en')
   })
 
+  it('P3 · con `idiomaDocumentos: pt` nace en portugues, y el proceso lo recuerda', async () => {
+    await registrarCuentaCtrl({ ...SIN_PASSWORD, idiomaDocumentos: 'pt' }, BOOT)
+    expect(insertados).toEqual([{ moneda: 'MXN', idioma: 'pt' }])
+    expect(recordado.idioma).toBe('pt')
+  })
+
+  it('NEGATIVO P3 · con `idiomaDocumentos: pt-BR` es 400 y no recuerda nada', async () => {
+    await expect(registrarCuentaCtrl({ ...SIN_PASSWORD, idiomaDocumentos: 'pt-BR' }, BOOT)).rejects.toMatchObject({
+      status: 400,
+    })
+    expect(insertados).toEqual([])
+    expect(recordado.idioma).toBeNull()
+  })
+
   it('NEGATIVO · con `idiomaDocumentos: fr` es 400 y no recuerda nada', async () => {
     await expect(registrarCuentaCtrl({ ...SIN_PASSWORD, idiomaDocumentos: 'fr' }, BOOT)).rejects.toMatchObject({
       status: 400,

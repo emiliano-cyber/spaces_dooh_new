@@ -178,11 +178,13 @@ describe('arrendadores · los avisos que no se rinden usan su clave', () => {
 // ============================================================================
 describe('arrendadores · el documento del contrato va en el idioma de la INSTANCIA (ADR 0049)', () => {
   it('el redactor (`lib/contrato-documento.ts`) no usa el diccionario de la interfaz', () => {
-    // Solo importa el TIPO `Idioma`. Sus textos no son claves del diccionario:
+    // Solo importa el TIPO del idioma. Sus textos no son claves del diccionario:
     // son el texto que se sella, y no puede cambiar porque alguien retoque una
     // traduccion de pantalla.
     const doc = leer('lib/contrato-documento.ts')
     expect(doc).not.toMatch(/diccionario|traducir|servidor'/)
+    // P3 del portugues (05/11): vuelve a ser `Idioma` (es/en/it/pt); entre la
+    // ola 0 y P3 fue `IdiomaEnLaBase` (es/en/it).
     expect(doc).toMatch(/^import type \{ Idioma \} from '@\/lib\/i18n\/idiomas'$/m)
   })
 
@@ -200,7 +202,20 @@ describe('arrendadores · el documento del contrato va en el idioma de la INSTAN
     // 04/11 (cierre de idiomas, D13): SOLO comentarios —el contrato en/it es una
     // plantilla de ejemplo, ya no «requiere revision de un abogado»—. Ni una
     // linea de codigo; los hashes de `contrato-documento-idioma.test.ts`, en verde.
-    expect(huella).toBe('94b4ce172078b4af1c05294a2270c79c244cb05ec17a2ebdb110e868773e908f')
+    // 05/11 (ola 0 del portugues): SOLO el tipo del idioma —`IdiomaEnLaBase`
+    // (es/en/it) en vez de `Idioma`, que ya incluye `pt`— y su comentario. Ni
+    // una linea de texto; los hashes de `contrato-documento-idioma.test.ts`,
+    // en verde. El contrato en portugues es una tarea roja aparte.
+    // 05/11 (P3 del portugues, ROJA, aprobada por el dueno): el contrato EN
+    // PORTUGUES, en una funcion aparte (`redactarEnPortugues`), su letra, su
+    // fecha y su fila de `encabezadosDocumento`; `cifra` acepta `pt`. El texto
+    // es/en/it no se toca: sus hashes —los del ingles y el italiano, medidos
+    // sobre e018b1bb antes del cambio— estan en
+    // `lib/contrato-documento-portugues.test.ts`, en verde.
+    // 05/11 (H4 de la validacion de P3): SOLO el texto portugues, «à sua
+    // inteira satisfação» (crase). Ningun contrato pt congelado todavia; los
+    // hashes es/en/it de `contrato-documento-portugues.test.ts`, en verde.
+    expect(huella).toBe('55afcb1db4d81750709dab9972fe0d90637c89d720ed7b95692585e36544c1b9')
   })
 
   it('el hash de las firmas es el del documento, no el de la constancia', () => {

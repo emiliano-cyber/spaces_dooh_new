@@ -641,7 +641,7 @@ escenario 'B60 · --ayuda imprime la cabecera hasta donde siempre, ahora con --i
 preparar
 correr -- --ayuda
 codigo_es 0
-dice '[--idioma es|en|it]'
+dice '[--idioma es|en|it|pt]'
 dice 'SPACES_REGION                 OBLIGATORIA'
 # Ni una linea de mas: la ventana de `uso()` se corre con la cabecera.
 if grep -qF 'del bucket se lee en su URL' "$SALIDA"; then mal 'la ayuda imprime una linea de mas'; else bien; fi
@@ -675,7 +675,46 @@ escenario 'ADR 0049 · --idioma fr se para ANTES de tocar el servidor'
 preparar
 correr D_CODIGO_BOOT=201 --   --host "$IP" --dominio "$DOM" --instancia p --email a@ejemplo.com --bootstrap --idioma fr --confirmar
 codigo_es 64
-dice 'tiene que ser es, en o it'
+dice 'tiene que ser es, en, it o pt'
+no_hubo 'cuerpo-bootstrap'
+limpiar
+
+escenario 'P3 · --idioma pt (portugues de Brasil) viaja en el cuerpo del POST'
+preparar
+correr D_CODIGO_BOOT=201 --   --host "$IP" --dominio "$DOM" --instancia p --email a@ejemplo.com --bootstrap --idioma pt --confirmar
+codigo_es 0
+hubo '"idiomaDocumentos":"pt"'
+no_hubo '"idiomaDocumentos":"es"'
+dice 'idioma de los documentos: pt'
+limpiar
+
+escenario 'P3 · --idioma=pt (con igual) tambien vale'
+preparar
+correr D_CODIGO_BOOT=201 --   --host "$IP" --dominio "$DOM" --instancia p --email a@ejemplo.com --bootstrap --idioma=pt --confirmar
+codigo_es 0
+hubo '"idiomaDocumentos":"pt"'
+limpiar
+
+escenario 'P3 · --idioma pt-BR se para ANTES de tocar el servidor (la clave es pt, no la etiqueta)'
+preparar
+correr D_CODIGO_BOOT=201 --   --host "$IP" --dominio "$DOM" --instancia p --email a@ejemplo.com --bootstrap --idioma pt-BR --confirmar
+codigo_es 64
+dice 'tiene que ser es, en, it o pt'
+no_hubo 'cuerpo-bootstrap'
+limpiar
+
+escenario 'P3 · PT en mayusculas tambien se para'
+preparar
+correr D_CODIGO_BOOT=201 --   --host "$IP" --dominio "$DOM" --instancia p --email a@ejemplo.com --bootstrap --idioma PT --confirmar
+codigo_es 64
+no_hubo 'cuerpo-bootstrap'
+limpiar
+
+escenario 'P3 · --idioma pt sin --bootstrap se para, no se ignora'
+preparar
+correr -- --host "$IP" --dominio "$DOM" --instancia p --idioma pt --confirmar
+codigo_es 64
+dice 'solo vale junto con --bootstrap'
 no_hubo 'cuerpo-bootstrap'
 limpiar
 

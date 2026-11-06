@@ -693,3 +693,225 @@ export const IT_REPORTES: Record<ClaveReportes, string> = {
   'reportes.nota.luz.sin-destino.otros':
     'Inoltre, {n} bollette da {importe} non compaiono in nessuna riga, perché i loro immobili non hanno ancora impianti registrati.',
 }
+
+// ─── PORTUGUES (pt-BR) · lote L4 (2026-11-05) ───────────────────────────────
+// Glosario comun en `vault/03-Frontend/portugues-olas.md` §2 bis (ponto ·
+// imóvel · aluguel · contrato de locação · OS · energia / conta de luz). Lo
+// propio de Reportes: rentabilidad → rentabilidade · ingreso → receita ·
+// margen bruto → margem bruta · neto → líquido · tarifa publicada / de lista →
+// tarifa de tabela · desglose → detalhamento · raya → traço · cara → face ·
+// trimestre → trimestre («T1 2026», D4) · sin asignar → «Não atribuída»
+// (la razón social). Las notas del motor eligen la forma por la cifra que
+// manda (`.uno` = total 1; `.una-de-varias` = 1 de varias; `.otros`).
+export const PT_REPORTES: Record<ClaveReportes, string> = {
+  // ── La pagina ──
+  'reportes.titulo': 'Relatórios de rentabilidade',
+  'reportes.subtitulo': 'Quanto cada ponto fatura e quanto custa no período que você escolher.',
+  'reportes.indicadores': 'Indicadores do período',
+  'reportes.kpi.ingreso': 'Receita do período',
+  'reportes.kpi.costo-sub': 'Espaço {espacio} · Operação {operacion} · Energia {luz}',
+  'reportes.kpi.margen': 'Margem sobre a receita',
+  'reportes.kpi.margen-sub': 'Margem {monto}',
+  'reportes.rango': '{desde} a {hasta}',
+  'reportes.resultado': 'Resultado',
+  'reportes.periodos': '{n} {periodos}',
+  'reportes.periodos.palabra.uno': 'período',
+  'reportes.periodos.palabra.otros': 'períodos',
+  'reportes.error.titulo': 'Não foi possível calcular o relatório',
+  'reportes.error.sin-mensaje': 'Não foi possível calcular o relatório. A solicitação não foi concluída.',
+  'reportes.error.red': 'Não foi possível contatar o servidor. Verifique a conexão e tente de novo.',
+  'reportes.invalido.titulo': 'Revise o período',
+  'reportes.vacio.titulo': 'Sem movimento neste período',
+  'reportes.vacio.detalle':
+    'Entre {desde} e {hasta}, nenhum ponto registrou receita, aluguel nem ordens de serviço. Um ponto sem nada disso não aparece no relatório; tente um intervalo maior.',
+  'reportes.notas': 'Notas sobre estes números ({n})',
+  'reportes.inicial.titulo': 'Escolha um período',
+  'reportes.inicial.detalle': 'O relatório é calculado ao escolher as datas.',
+
+  // ── Los filtros ──
+  'reportes.filtro.agrupar': 'Agrupar',
+  'reportes.filtro.desde': 'De',
+  'reportes.filtro.hasta': 'Até',
+  'reportes.filtro.periodos': 'Períodos',
+  'reportes.dim.sitio': 'Por ponto',
+  'reportes.dim.sitio.ayuda':
+    'A receita e as três fontes de custo de cada ponto — espaço, operação e energia. Pior margem primeiro.',
+  'reportes.dim.trimestre': 'Por trimestre',
+  'reportes.dim.trimestre.ayuda': 'Como o negócio evolui: uma linha por trimestre civil, em ordem cronológica.',
+  'reportes.dim.operacion': 'Por operação',
+  'reportes.dim.operacion.ayuda': 'Para onde vai o dinheiro em visitas: ordens de serviço, o custo delas e as horas no ponto.',
+  'reportes.dim.m2': 'Por metro quadrado',
+  'reportes.dim.m2.ayuda': 'Que superfície estática rende. As digitais não entram: o denominador delas são spots.',
+  'reportes.dim.luz': 'Por consumo de energia',
+  'reportes.dim.luz.ayuda': 'Quais pontos consomem mais energia. A conta de luz do imóvel é rateada entre os seus pontos.',
+  'reportes.dim.entidad': 'Por razão social',
+  'reportes.dim.entidad.ayuda':
+    'Quanto cada uma das suas razões sociais fatura e quanto aluguel paga. A operação e a energia não são rateadas: nenhum dado diz de quem são.',
+  'reportes.dim.tarifa': 'Tabela vs. líquido',
+  'reportes.dim.tarifa.ayuda':
+    'Que tarifa de tabela foi oferecida e quanto entrou dela. O que foi vendido pelo Comercial não tem tarifa de tabela congelada e sai com um traço, não com zero.',
+  'reportes.dim.vendedor': 'Por vendedor',
+  'reportes.dim.vendedor.ayuda':
+    'Quanto cada pessoa vendeu e quanto desconto concedeu. O vendedor é quem cria a proposta, e isso é registrado desde 2026-09-28: o anterior sai em “Sem vendedor” e não pode ser recuperado.',
+  'reportes.gran.mes': 'Mensal',
+  'reportes.gran.trimestre': 'Trimestral',
+
+  // ── Los motivos del rango ──
+  'reportes.motivo.sin-inicio': 'Falta a data de início do relatório',
+  'reportes.motivo.sin-fin': 'Falta a data de término do relatório',
+  'reportes.motivo.formato': 'Use datas no formato AAAA-MM-DD',
+  'reportes.motivo.invertido': 'A data de término não pode ser anterior à de início',
+  'reportes.motivo.tope': 'O relatório abrange no máximo 24 meses por consulta. Reduza o intervalo de datas.',
+
+  // ── Las columnas ──
+  'reportes.col.pantalla': 'Ponto',
+  'reportes.col.trimestre': 'Trimestre',
+  'reportes.col.razon-social': 'Razão social',
+  'reportes.col.vendedor': 'Vendedor',
+  'reportes.col.ingreso': 'Receita',
+  'reportes.col.costo-espacio': 'Custo do espaço',
+  'reportes.col.costo-operacion': 'Custo de operação',
+  'reportes.col.costo-luz': 'Custo de energia',
+  'reportes.col.costo-total': 'Custo total',
+  'reportes.col.margen-bruto': 'Margem bruta',
+  'reportes.col.margen-bruto-pct': 'Margem bruta %',
+  'reportes.col.visitas': 'Visitas',
+  'reportes.col.operacion-ingreso': 'Operação / receita',
+  'reportes.col.horas': 'Horas no ponto',
+  'reportes.col.superficie': 'Superfície',
+  'reportes.col.ingreso-m2': 'Receita / m²',
+  'reportes.col.margen-m2': 'Margem bruta / m²',
+  'reportes.col.consumo': 'Consumo',
+  'reportes.col.costo-kwh': 'Custo / kWh',
+  'reportes.col.saldo-atribuido': 'Saldo atribuído',
+  'reportes.col.pct-facturacion': '% do faturamento',
+  'reportes.col.tarifa-publicada': 'Tarifa de tabela',
+  'reportes.col.neto-comparable': 'Líquido comparável',
+  'reportes.col.descuento-comision': 'Desconto e comissão',
+  'reportes.col.pct-publicada': '% sobre a tabela',
+  'reportes.desglose.periodo': 'Período',
+  'reportes.desglose.espacio': 'Espaço',
+  'reportes.desglose.operacion': 'Operação',
+  'reportes.desglose.luz': 'Energia',
+
+  // ── La tabla ──
+  'reportes.tabla.total': 'Total ({n})',
+  'reportes.tabla.desglose.ocultar': 'Ocultar o detalhamento por período',
+  'reportes.tabla.desglose.ver': 'Ver o detalhamento por período',
+  'reportes.tabla.raya.margen-pct': 'Sem receita no intervalo: não há porcentagem a calcular',
+  'reportes.tabla.raya.operacion-pct': 'Sem receita no intervalo: não há proporção a calcular',
+  'reportes.tabla.raya.horas': 'Nenhuma visita do intervalo tem os dois horários (entrada e saída) registrados',
+  'reportes.tabla.horas-de': 'de {n} {visitas}',
+  'reportes.tabla.visitas.uno': 'visita',
+  'reportes.tabla.visitas.otros': 'visitas',
+  'reportes.tabla.propia': 'própria',
+  'reportes.tabla.sin-contrato': 'sem contrato',
+
+  // ── Las filas que anade el motor con la clave vacia ──
+  'reportes.fila.sin-asignar': 'Não atribuída',
+  'reportes.fila.sin-asignar.detalle': 'Sem razão social no dado de origem',
+  'reportes.fila.sin-vendedor': 'Sem vendedor',
+  'reportes.fila.sin-vendedor.detalle': 'Campanhas do Comercial e propostas anteriores a 2026-09-28',
+
+  // ── Cuantas filas ──
+  'reportes.cuenta.pantalla.uno': '{n} ponto',
+  'reportes.cuenta.pantalla.otros': '{n} pontos',
+  'reportes.cuenta.trimestre.uno': '{n} trimestre',
+  'reportes.cuenta.trimestre.otros': '{n} trimestres',
+  'reportes.cuenta.razon-social.uno': '{n} razão social',
+  'reportes.cuenta.razon-social.otros': '{n} razões sociais',
+  'reportes.cuenta.vendedor.uno': '{n} vendedor',
+  'reportes.cuenta.vendedor.otros': '{n} vendedores',
+  'reportes.con-movimiento': '{cuenta} com movimento',
+
+  // ── Los avisos que arma la pantalla ──
+  'reportes.aviso.en-curso.uno':
+    'O período que você está vendo inclui {etiqueta}, que está EM ANDAMENTO: passou {corridos} dos seus {totales} dias. O aluguel dos espaços já correu esse {corridos} dia inteiro, mas o que foi vendido é faturado no fechamento, então a receita ainda não entrou e a margem sai pior do que vai ficar. Não compare com um trimestre encerrado.',
+  'reportes.aviso.en-curso.otros':
+    'O período que você está vendo inclui {etiqueta}, que está EM ANDAMENTO: passaram {corridos} dos seus {totales} dias. O aluguel dos espaços já correu esses {corridos} dias inteiros, mas o que foi vendido é faturado no fechamento, então a receita ainda não entrou e a margem sai pior do que vai ficar. Não compare com um trimestre encerrado.',
+  'reportes.aviso.margen-bruto':
+    'A margem deste relatório é BRUTA: é a receita menos os custos DIRETOS do ponto — o espaço, a operação e a energia. NÃO é a margem líquida, e não se chega a ela subtraindo nada do que há nesta tabela: à líquida faltariam os custos indiretos (folha de pagamento, escritório, estrutura), e este sistema não registra nenhum. Enquanto eles não forem registrados, a margem líquida do negócio não pode ser calculada aqui, e não é que esteja escondida em outra página.',
+  'reportes.aviso.m2.todas-las-caras':
+    'A superfície soma TODAS as faces de cada ponto: um de duas faces de 3 × 6 conta 36 m², não 18. É a superfície que se vende, e cada ponto entra com a das suas próprias faces.',
+  'reportes.aviso.m2.una-cara':
+    'A superfície é a de UMA face: um ponto de duas faces de 3 × 6 conta 18 m², não 36. Mede a superfície da estrutura e não a que se vende, então os pontos de várias faces ficam mais bem posicionados do que se todas fossem contadas.',
+  'reportes.aviso.sin-contrato.uno':
+    '{cuenta} não tem contrato de locação no período: o custo do espaço sai zerado porque falta o dado, não porque seja de graça, e a margem parece melhor do que é.',
+  'reportes.aviso.sin-contrato.otros':
+    '{cuenta} não têm contrato de locação no período: o custo do espaço deles sai zerado porque falta o dado, não porque seja de graça, e a margem deles parece melhor do que é.',
+  'reportes.aviso.sin-ingreso.trimestre.uno':
+    '{cuenta} sem receita no intervalo. Aparece zerado de propósito: numa série temporal, uma lacuna se lê como “faltam dados” e um zero, como “não aconteceu nada”.',
+  'reportes.aviso.sin-ingreso.trimestre.otros':
+    '{cuenta} sem receita no intervalo. Aparecem zerados de propósito: numa série temporal, uma lacuna se lê como “faltam dados” e um zero, como “não aconteceu nada”.',
+  'reportes.aviso.sin-ingreso.uno':
+    '{cuenta} teve custos sem vender nada no período, então não tem margem percentual (a coluna mostra “—”).',
+  'reportes.aviso.sin-ingreso.otros':
+    '{cuenta} tiveram custos sem vender nada no período, então não têm margem percentual (a coluna mostra “—”).',
+
+  // ── Las notas que redacta el motor ──
+  'reportes.nota.ot.sin-visitas':
+    'Não houve nenhuma visita neste período, então o custo de operação é zero porque não se foi a nenhum ponto, não porque falte registrá-lo.',
+  'reportes.nota.ot.intro':
+    'O custo de operação vem de duas fontes, e elas NÃO são a mesma coisa: o que cada visita custou de verdade, quando alguém o registrou na ordem de serviço, e uma ESTIMATIVA por tipo de ordem — a de Configurações — quando não. A estimativa cobra igual um serviço de serralheria de {caro} e um de {barato}.',
+  'reportes.nota.ot.estimacion.uno':
+    '{estimadas} de {total} visita do período entra com a estimativa por tipo ({estimado}) e {reales} com o custo real ({capturado}). Essa parte do custo — e a margem que sai dela — é uma estimativa, não uma medição: registrar o custo na ordem de serviço a substitui.',
+  'reportes.nota.ot.estimacion.una-de-varias':
+    '{estimadas} das {total} visitas do período entra com a estimativa por tipo ({estimado}) e {reales} com o custo real ({capturado}). Essa parte do custo — e a margem que sai dela — é uma estimativa, não uma medição: registrar o custo na ordem de serviço a substitui.',
+  'reportes.nota.ot.estimacion.otros':
+    '{estimadas} das {total} visitas do período entram com a estimativa por tipo ({estimado}) e {reales} com o custo real ({capturado}). Essa parte do custo — e a margem que sai dela — é uma estimativa, não uma medição: registrar o custo na ordem de serviço a substitui.',
+  'reportes.nota.ot.reales.uno':
+    'A única visita do período está com o custo REAL registrado ({capturado}): aqui não há nenhuma estimativa, o custo de operação que você vê é o que foi desembolsado.',
+  'reportes.nota.ot.reales.otros':
+    'As {total} visitas do período estão com o custo REAL registrado ({capturado}): aqui não há nenhuma estimativa, o custo de operação que você vê é o que foi desembolsado.',
+  'reportes.nota.m2.ninguna':
+    'Nenhum ponto foi excluído: todos os que tiveram movimento são estáticos e têm as medidas registradas.',
+  'reportes.nota.m2.fuera': 'Ficaram fora do ranking: {partes}.',
+  'reportes.nota.m2.digitales.uno': '{n} ponto digital ou rotativo, porque o denominador correto dele são spots e não metros',
+  'reportes.nota.m2.digitales.otros':
+    '{n} pontos digitais ou rotativos, porque o denominador correto deles são spots e não metros',
+  'reportes.nota.m2.sin-medidas.uno': '{n} estático sem largura ou altura registrada',
+  'reportes.nota.m2.sin-medidas.otros': '{n} estáticos sem largura ou altura registradas',
+  'reportes.nota.entidad.intro':
+    'A operação ({operacion}) e a energia ({luz}) NÃO são rateadas entre razões sociais: nenhum dado diz em nome de quem são pagas. Por isso esta visão não mostra margem — ela sairia melhor do que a real.',
+  'reportes.nota.entidad.sin-emisora.uno':
+    '{n} reserva do período sem comprovante com emitente: a receita dela sai em “Não atribuída”.',
+  'reportes.nota.entidad.sin-emisora.otros':
+    '{n} reservas do período sem comprovante com emitente: a receita delas sai em “Não atribuída”.',
+  'reportes.nota.entidad.sin-entidad.uno': '{n} contrato sem razão social atribuída: o aluguel dele sai em “Não atribuída”.',
+  'reportes.nota.entidad.sin-entidad.otros': '{n} contratos sem razão social atribuída: o aluguel deles sai em “Não atribuída”.',
+  'reportes.nota.tarifa.intro':
+    'A diferença entre a tarifa de tabela e o líquido é o desconto comercial MAIS a comissão da agência: os dois são congelados juntos na proposta e o dado não os separa por ponto.',
+  'reportes.nota.tarifa.sin-tarifa.uno':
+    '{sin} de {total} reserva do período não tem tarifa de tabela com que comparar ({ingreso} de receita): ou nasceu no Comercial — onde o preço registrado JÁ É o de tabela — ou o preço dela não coincide com o líquido que a proposta congelou. Essas linhas saem com um traço e não com zero: um zero diria que a tarifa inteira foi dada de presente.',
+  'reportes.nota.tarifa.sin-tarifa.una-de-varias':
+    '{sin} das {total} reservas do período não tem tarifa de tabela com que comparar ({ingreso} de receita): ou nasceu no Comercial — onde o preço registrado JÁ É o de tabela — ou o preço dela não coincide com o líquido que a proposta congelou. Essas linhas saem com um traço e não com zero: um zero diria que a tarifa inteira foi dada de presente.',
+  'reportes.nota.tarifa.sin-tarifa.otros':
+    '{sin} das {total} reservas do período não têm tarifa de tabela com que comparar ({ingreso} de receita): ou nasceram no Comercial — onde o preço registrado JÁ É o de tabela — ou o preço delas não coincide com o líquido que a proposta congelou. Essas linhas saem com um traço e não com zero: um zero diria que a tarifa inteira foi dada de presente.',
+  'reportes.nota.vendedor.intro':
+    'A diferença entre a tarifa de tabela e o líquido é o desconto comercial MAIS a comissão da agência: os dois são congelados juntos na proposta e o dado não os separa. Nem tudo é desconto concedido pelo vendedor.',
+  'reportes.nota.vendedor.sin-propuesta':
+    '{n} de campanhas criadas diretamente no Comercial, que nunca tiveram proposta e, portanto, não têm a quem ser atribuídas',
+  'reportes.nota.vendedor.historicas':
+    '{n} de propostas anteriores a 2026-09-28, quando ainda não se registrava quem as fazia: esse dado NÃO PODE SER RECUPERADO — o histórico guarda o nome da proposta, não o seu identificador —, então essas vendas ficam sem vendedor para sempre',
+  'reportes.nota.vendedor.sin-vendedor.uno':
+    '{sin} de {total} reserva do período sai em “Sem vendedor” ({ingreso} de receita): {causas}.',
+  'reportes.nota.vendedor.sin-vendedor.una-de-varias':
+    '{sin} das {total} reservas do período sai em “Sem vendedor” ({ingreso} de receita): {causas}.',
+  'reportes.nota.vendedor.sin-vendedor.otros':
+    '{sin} das {total} reservas do período saem em “Sem vendedor” ({ingreso} de receita): {causas}.',
+  'reportes.nota.vendedor.raya':
+    'Essas linhas saem com um traço e não com zero: um zero em “Desconto e comissão” afirmaria que nenhum foi concedido.',
+  'reportes.nota.luz.sin-esperados': 'Não há contas de luz previstas neste período.',
+  'reportes.nota.luz.completa.uno':
+    'Não falta nenhuma conta: a conta prevista do período está registrada ({esperados} no total), então o custo de energia está completo.',
+  'reportes.nota.luz.completa.otros':
+    'Não falta nenhuma conta: as {esperados} contas do período estão registradas, então o custo de energia está completo.',
+  'reportes.nota.luz.faltan.uno':
+    'Conta faltando: {faltantes} de {esperados} do período, então o custo de energia que você vê está INCOMPLETO e a margem sai melhor do que vai ficar. Um mês sem conta não é um mês sem consumo: é um dado que ninguém registrou ainda.',
+  'reportes.nota.luz.faltan.otros':
+    'Contas faltando: {faltantes} de {esperados} do período, então o custo de energia que você vê está INCOMPLETO e a margem sai melhor do que vai ficar. Um mês sem conta não é um mês sem consumo: é um dado que ninguém registrou ainda.',
+  'reportes.nota.luz.sin-destino.uno':
+    'Além disso, {n} conta de {importe} não aparece em nenhuma linha, porque o imóvel dela ainda não tem pontos cadastrados.',
+  'reportes.nota.luz.sin-destino.otros':
+    'Além disso, {n} contas de {importe} não aparecem em nenhuma linha, porque os imóveis delas ainda não têm pontos cadastrados.',
+}

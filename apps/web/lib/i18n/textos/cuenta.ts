@@ -507,3 +507,161 @@ export const IT_CUENTA: Record<ClaveCuenta, string> = {
   'cuenta.publica.error.nombre': 'Scrivi il tuo nome per accettare',
   'cuenta.publica.error.aceptar': 'Non è stato possibile accettare. Riprova.',
 }
+
+// ─── PORTUGUES (pt-BR) · lote L5 (2026-11-05) ────────────────────────────────
+// COMPLETO: el tipo es `Record` y `tsc` exige cada clave. Brasil, «voce»,
+// el glosario comun de `vault/03-Frontend/portugues-olas.md` (§2 bis) y lo no
+// obvio, clave por clave, en `docs/i18n/revision-portugues-l5.md`. La prueba
+// estatica es `textos/portugues-l5.test.ts`.
+export const PT_CUENTA: Record<ClaveCuenta, string> = {
+  // Los correos van en el idioma de la INSTANCIA (ADR 0049), que todavia no
+  // puede ser `pt` (P3): estan traducidos y se veran tras esa tarea.
+  'cuenta.correo.invitacion.asunto': 'Você recebeu acesso ao Space OS · escolha sua senha',
+  'cuenta.correo.invitacion.titulo': 'Você recebeu acesso ao Space OS',
+  'cuenta.correo.invitacion.cuerpo':
+    'Olá, {nombre}. Uma conta foi criada para você no Space OS. Clique no botão para escolher sua senha. Este link vence em 72 horas e só pode ser usado uma vez.',
+  'cuenta.correo.invitacion.boton': 'Escolher minha senha',
+  'cuenta.correo.invitacion.pie':
+    'Se o link venceu, peça a quem cadastrou você para enviar outro. Se o botão não funcionar, copie e cole este link:',
+  'cuenta.correo.reset.asunto': 'Redefina sua senha · Space OS',
+  'cuenta.correo.reset.titulo': 'Redefinir sua senha',
+  'cuenta.correo.reset.cuerpo':
+    'Olá, {nombre}. Recebemos uma solicitação para redefinir a senha da sua conta no Space OS. Clique no botão para escolher uma nova. Este link vence em 1 hora e só pode ser usado uma vez.',
+  'cuenta.correo.reset.boton': 'Redefinir senha',
+  'cuenta.correo.reset.pie':
+    'Se você não pediu isso, pode ignorar este e-mail; sua senha não vai mudar. Se o botão não funcionar, copie e cole este link:',
+  'cuenta.comun.enlace-invalido': 'Link inválido',
+  'cuenta.comun.ir-inicio': 'Ir para o início',
+  'cuenta.comun.nueva-contrasena': 'Nova senha',
+  'cuenta.comun.confirmar-contrasena': 'Confirmar senha',
+  'cuenta.comun.no-coinciden': 'As senhas não coincidem.',
+  'cuenta.comun.guardar-contrasena': 'Salvar senha',
+  'cuenta.comun.restablecer-contrasena': 'Redefinir senha',
+  'cuenta.codigos.titulo': 'Códigos de recuperação',
+  'cuenta.codigos.titulo.guardar': 'Guarde seus códigos de recuperação',
+  'cuenta.codigos.subtitulo': 'Sua forma de entrar de novo se um dia você perder o acesso à sua conta.',
+  'cuenta.codigos.ya-tienes':
+    'Você já tem seus códigos guardados. Se os perdeu, pode gerar outros: os anteriores deixarão de funcionar.',
+  'cuenta.codigos.generar-nuevos': 'Gerar códigos novos',
+  'cuenta.codigos.volver': 'Voltar',
+  'cuenta.codigos.teclea':
+    'Digite sua senha para confirmar. Os códigos que você tiver guardado{dejaran} assim que os novos forem gerados.',
+  'cuenta.codigos.teclea.dejaran': ' deixarão de funcionar',
+  'cuenta.codigos.tu-contrasena': 'Sua senha',
+  'cuenta.codigos.verificando': 'Verificando…',
+  'cuenta.codigos.confirmar-generar': 'Confirmar e gerar',
+  'cuenta.codigos.google':
+    'Você entra com o Google, então {sin} para usar como alternativa. Estes códigos são a única forma de entrar se um dia você perder o acesso a essa conta.',
+  'cuenta.codigos.google.sin': 'não tem senha',
+  'cuenta.codigos.una-vez': 'Cada um serve {vez}. Guarde-os onde não se percam.',
+  'cuenta.codigos.una-vez.vez': 'uma única vez',
+  'cuenta.codigos.generando': 'Gerando…',
+  'cuenta.codigos.mostrar': 'Mostrar meus códigos',
+  'cuenta.codigos.aviso':
+    '{una} Copie ou imprima antes de continuar: quando você sair desta página, eles não serão mostrados de novo.',
+  'cuenta.codigos.aviso.una': 'Eles são mostrados uma única vez.',
+  'cuenta.codigos.tus.uno': 'Seu {n} código',
+  'cuenta.codigos.tus.otros': 'Seus {n} códigos',
+  'cuenta.codigos.copiar': 'Copiar',
+  'cuenta.codigos.ya-guarde': 'Já guardei em um lugar seguro',
+  'cuenta.codigos.guardando': 'Salvando…',
+  'cuenta.codigos.continuar': 'Continuar',
+  'cuenta.codigos.copiados': 'Copiados',
+  'cuenta.codigos.no-copiados': 'Não foi possível copiar; copie à mão',
+  'cuenta.codigos.error.generar': 'Não foi possível gerar os códigos',
+  'cuenta.codigos.error.verificar': 'Não foi possível verificar a senha',
+  'cuenta.codigos.error.confirmar': 'Não foi possível confirmar',
+  'cuenta.recuperar.bienvenida': 'Boas-vindas',
+  'cuenta.recuperar.verificando': 'Verificando o link…',
+  'cuenta.recuperar.invalido': 'Link inválido ou expirado',
+  'cuenta.recuperar.invalido.bienvenida': 'O convite já foi usado ou venceu. Peça a quem cadastrou você para enviar outro.',
+  'cuenta.recuperar.invalido.restablecer': 'O link já foi usado ou venceu. Peça um novo na tela de entrada.',
+  'cuenta.recuperar.ir-login': 'Ir para a tela de entrada',
+  'cuenta.recuperar.creada': 'Senha criada',
+  'cuenta.recuperar.actualizada': 'Senha atualizada',
+  'cuenta.recuperar.listo.bienvenida': 'Agora você já pode entrar com a sua senha.',
+  'cuenta.recuperar.listo.restablecer': 'Agora você já pode entrar com a sua nova senha.',
+  'cuenta.recuperar.elige.bienvenida': 'Escolha sua senha',
+  'cuenta.recuperar.elige.restablecer': 'Escolha uma nova senha',
+  'cuenta.recuperar.regla': 'Mínimo de 8 caracteres, com pelo menos uma letra e um número.',
+  'cuenta.recuperar.guardando': 'Salvando…',
+  'cuenta.recuperar.error': 'Não foi possível redefinir a senha',
+  'cuenta.bienvenida.titulo': 'Antes de começar',
+  'cuenta.bienvenida.intro':
+    'Três perguntas sobre as razões sociais da sua empresa. Com elas o sistema sabe em nome de quem se paga um aluguel e quem emite um comprovante.',
+  'cuenta.bienvenida.error.cargar': 'Não foi possível carregar o questionário',
+  'cuenta.bienvenida.ya.uno':
+    'Sua empresa já tem uma razão social cadastrada, então este questionário já foi respondido.',
+  'cuenta.bienvenida.ya.otros':
+    'Sua empresa já tem {n} razões sociais cadastradas, então este questionário já foi respondido.',
+  'cuenta.bienvenida.sin-roles': 'sem papéis',
+  'cuenta.bienvenida.de-baja': ' (desativada)',
+  'cuenta.bienvenida.cambiar': 'Para alterá-las, adicionar outra ou desativar uma, vá para {enlace}.',
+  'cuenta.bienvenida.ir-razones': 'Ir para Razões sociais',
+  'cuenta.cuestionario.p1': 'Sua empresa tem várias razões sociais?',
+  'cuenta.cuestionario.p1.ayuda':
+    'Quase todas as empresas de mídia dividem a operação entre várias. Se você tem uma só, pode pular o resto.',
+  'cuenta.cuestionario.p2': 'A operação está na mesma razão social que comercializa ou fatura as vendas?',
+  'cuenta.cuestionario.p2.ayuda':
+    'Costumam coincidir, e por isso perguntamos: se for o seu caso, o próximo passo pede um dado a menos.',
+  'cuenta.cuestionario.p3.una': 'Informe sua razão social',
+  'cuenta.cuestionario.p3.varias': 'Informe as razões sociais de cada papel dentro da sua empresa',
+  'cuenta.cuestionario.p3.una.ayuda': 'Ela receberá todos os papéis. Depois você pode separá-los em Razões sociais.',
+  'cuenta.cuestionario.p3.varias.ayuda':
+    'Uma mesma razão social pode ter vários papéis: digite o mesmo nome e eles serão agrupados em uma só. O que você ainda não souber, deixe em branco.',
+  'cuenta.cuestionario.razon-social': 'Razão social',
+  'cuenta.cuestionario.se-crearan.uno': 'Será criada 1 razão social:',
+  'cuenta.cuestionario.se-crearan.otros': 'Serão criadas {n} razões sociais:',
+  'cuenta.cuestionario.guardando': 'Salvando…',
+  'cuenta.cuestionario.guardar': 'Salvar e continuar',
+  'cuenta.cuestionario.mas-tarde': 'Faço isso depois',
+  'cuenta.cuestionario.si': 'Sim',
+  'cuenta.cuestionario.no': 'Não',
+  'cuenta.cuestionario.contesta': 'Responda às perguntas antes de continuar.',
+  'cuenta.cuestionario.error.guardar': 'Não foi possível salvar o questionário',
+  'cuenta.cuestionario.listo': 'Pronto: {resumen}',
+  'cuenta.portal.no-corresponde': 'Este link de portal não corresponde a nenhuma campanha ativa.',
+  'cuenta.portal.subtitulo': 'Portal do cliente',
+  'cuenta.portal.seguimiento': 'Acompanhamento da campanha',
+  'cuenta.portal.avance': 'Andamento da sua campanha',
+  'cuenta.portal.ubicaciones': 'Localizações',
+  'cuenta.portal.evidencias': 'Comprovações de instalação',
+  'cuenta.portal.pie': '{org} · portal de acompanhamento',
+  'cuenta.publica.no-corresponde': 'Este link não corresponde a nenhuma proposta.',
+  'cuenta.publica.subtitulo': 'Proposta comercial',
+  'cuenta.publica.aceptada': 'Aceita',
+  'cuenta.publica.pendiente': 'Aguardando sua aprovação',
+  'cuenta.publica.vencida': 'Proposta vencida',
+  'cuenta.publica.solo-lectura': 'Somente leitura',
+  // Sin preposicion delante de la fecha (glosario).
+  'cuenta.publica.vencio-el': 'vencimento: {fecha}',
+  'cuenta.publica.valida-hasta': 'válida até {fecha}',
+  'cuenta.publica.kpi.sitios': 'Pontos',
+  'cuenta.publica.sitios': 'Pontos da proposta',
+  'cuenta.publica.sin-ubicacion': 'Localização não cadastrada',
+  // La forma la elige el TOTAL de la propuesta, no {faltan} (validacion, H2):
+  // una frase que no depende de ninguna cifra, como el ingles.
+  'cuenta.publica.mapa.parcial.uno':
+    'Pontos sem coordenadas cadastradas: {faltan} de {n}. Os endereços estão na lista de pontos.',
+  'cuenta.publica.mapa.parcial.otros':
+    'Pontos sem coordenadas cadastradas: {faltan} de {n}. Os endereços estão na lista de pontos.',
+  'cuenta.publica.mapa.ninguna':
+    'Os pontos desta proposta ainda não têm coordenadas cadastradas. Consulte o endereço de cada um na lista de pontos.',
+  'cuenta.publica.aceptada.titulo': 'Proposta aceita',
+  'cuenta.publica.aceptada.detalle': 'Aceita: {fecha}. A equipe comercial foi notificada.',
+  'cuenta.publica.aceptada.detalle-por': 'Aceita por {quien} ({fecha}). A equipe comercial foi notificada.',
+  'cuenta.publica.aceptas': 'Você aceita esta proposta?',
+  'cuenta.publica.al-aceptar.uno':
+    'Ao aceitar, você confirma o {n} ponto e o total de {total}. Sua aceitação fica registrada com data e hora.',
+  'cuenta.publica.al-aceptar.otros':
+    'Ao aceitar, você confirma os {n} pontos e o total de {total}. Sua aceitação fica registrada com data e hora.',
+  'cuenta.publica.tu-nombre': 'Seu nome e cargo',
+  'cuenta.publica.aceptando': 'Aceitando…',
+  'cuenta.publica.aceptar': 'Aceitar proposta',
+  'cuenta.publica.vencida.detalle':
+    'Esta proposta venceu ({fecha}) e não pode mais ser aceita por aqui. Peça uma atualizada a quem a enviou.',
+  'cuenta.publica.pie': 'Spaces · proposta comercial',
+  'cuenta.publica.pie.solo-lectura': ' · este link é somente leitura',
+  'cuenta.publica.error.nombre': 'Digite seu nome para aceitar',
+  'cuenta.publica.error.aceptar': 'Não foi possível aceitar. Tente de novo.',
+}

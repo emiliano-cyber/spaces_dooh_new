@@ -47,7 +47,11 @@
 // El italiano entra el 2026-11-03 (ola 0 del italiano, pedido del dueno:
 // «ahora version en italiano»). Va TERCERO a proposito: el orden de esta lista
 // es el del selector, y los dos que ya existian no se mueven.
-export const IDIOMAS = ['es', 'en', 'it'] as const
+//
+// El portugues (pt-BR) entra el 2026-11-05 (ola 0 del portugues), CUARTO por
+// el mismo motivo. `pt` y no `pt-BR`: la clave es la subetiqueta primaria
+// (`normalizarIdioma`), y el locale vive en `formato-idioma.ts`.
+export const IDIOMAS = ['es', 'en', 'it', 'pt'] as const
 export type Idioma = (typeof IDIOMAS)[number]
 
 // El espanol es el idioma ORIGINAL del producto y el unico que esta completo.
@@ -97,6 +101,21 @@ export function italianoActivo(
 }
 
 /**
+ * ¿Está ENCENDIDO el portugués (pt-BR)? APAGADO por omisión (2026-11-05), con
+ * la MISMA regla que el inglés y el italiano: solo el valor exacto `1`. Es SU
+ * interruptor: encenderlo no enciende ningún otro, ni al revés.
+ *
+ * Mientras los lotes de traducción no terminen, lo que falta se pinta en
+ * ESPAÑOL (decisión del dueño del 05/11, `diccionario.ts`), no en inglés como
+ * el italiano.
+ */
+export function portuguesActivo(
+  entorno: Record<string, string | undefined> = process.env,
+): boolean {
+  return entorno.IDIOMA_PORTUGUES === '1'
+}
+
+/**
  * Los idiomas que ESTA instancia ofrece, en el orden del selector. El español
  * siempre, y cada uno de los otros si su interruptor está encendido. Es lo
  * único que mira el resto del código (el layout raíz, `servidor.ts`,
@@ -109,9 +128,22 @@ export function idiomasActivos(
     es: true,
     en: inglesActivo(entorno),
     it: italianoActivo(entorno),
+    pt: portuguesActivo(entorno),
   }
   return IDIOMAS.filter((i) => encendido[i])
 }
+
+// ─── LO QUE LA BASE ACEPTA ──────────────────────────────────────────────────
+//
+//  La ola 0 del portugues (05/11) metio `pt` en la INTERFAZ antes que en la
+//  BASE, y quien escribia en `usuarios.idioma_preferido` o en
+//  `tenants.idioma_documentos` validaba contra una lista aparte
+//  (`IDIOMAS_EN_LA_BASE`, es/en/it). La tarea ROJA P3 (05/11,
+//  `20261105_idioma_portugues.sql`) abrio los dos CHECK a `pt` y esa lista se
+//  retiro: desde entonces la base acepta exactamente `IDIOMAS`, y quien
+//  escribe valida contra `IDIOMAS` (alta) o contra `idiomasActivos()`
+//  (Mi cuenta). Un quinto idioma vuelve a pedir migracion: el CHECK no se abre
+//  solo.
 
 /**
  * Lo que se acepta cuando quien llama NO pasa `permitidos` (lote L5 del
@@ -130,7 +162,10 @@ export function idiomasActivos(
  */
 export function idiomasPorOmision(): Idioma[] {
   const entorno = typeof process === 'undefined' ? {} : process.env
-  return IDIOMAS.filter((i) => i !== 'it' || italianoActivo(entorno))
+  // El portugues (05/11), con la regla del italiano: solo si esta encendido.
+  return IDIOMAS.filter(
+    (i) => (i !== 'it' || italianoActivo(entorno)) && (i !== 'pt' || portuguesActivo(entorno)),
+  )
 }
 
 // Mismo prefijo que `spaces_sesion` y `spaces_csrf`. NO es `httpOnly`: es una
@@ -140,6 +175,18 @@ export const COOKIE_IDIOMA = 'spaces_idioma'
 
 function esIdioma(v: string): v is Idioma {
   return (IDIOMAS as readonly string[]).includes(v)
+}
+
+/**
+ * El `lang` del `<html>`. H3 de la validacion de la ola 0 del portugues
+ * (decision del dueno, 05/11): `pt` a secas no dice que variante es, y el
+ * corrector, el guionado y los lectores de pantalla la necesitan; el dueno
+ * decidio Brasil (D1). Los otros tres se quedan como siempre, a proposito:
+ * cambiarlos moveria el HTML de es/en/it. Se lee de vuelta con
+ * `normalizarIdioma` («pt-BR» → `pt`), que es lo que hace `global-error`.
+ */
+export function langDelHtml(idioma: Idioma): string {
+  return idioma === 'pt' ? 'pt-BR' : idioma
 }
 
 /**

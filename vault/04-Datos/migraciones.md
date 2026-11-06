@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-11-03
+actualizado: 2026-11-05
 tags: [datos, migraciones, despliegue, rojo]
 archivos:
   - db/migrations/
@@ -62,7 +62,7 @@ archivos:
 > [!important] 2026-10-05 · puesta al día — ninguna de las de abajo está ya «sin fusionar»
 > Medido hoy con `node scripts/recuentos.mjs` sobre el árbol de
 > `integra/riesgos-presentacion-14-oct` (salida de `main` en `09c65ca2`):
-> **125 migraciones y 66 tablas** (04/11, `integra/idiomas` con `20261103_usuarios_idioma_preferido.sql` de IDIOMA-USUARIO, una columna y ninguna tabla) (03/11, 124, con `20261103_idioma_documentos_por_instancia.sql`, una columna y ninguna tabla) (02/11, 123, con `20261102_moneda_inmutable_por_instancia.sql`, ninguna tabla) (29/10, 122, con `20261029_propuestas_condiciones_vigencia_vendedor.sql`, cinco columnas y ninguna tabla) (29/10, 121, con `20261029_campana_extensiones.sql`, que crea `campana_extensiones`) (22/10, 117 y 64, con `20261022_campana_horario_doohmain.sql`, tres columnas en `campanas`) (22/10, 116 y 64, con `20261022_comercial_negociacion.sql`, que crea las cuatro tablas de Comercial negociación) (21/10, 115 y 60, con `20261021_notificaciones_por_usuario.sql`, que crea `notificaciones_usuario`: esta vez el 60 es una tabla de verdad) (19/10, 114 y 59, con `20261019_cobranza_abono_comprobante.sql`; antes 113) —el «60» que decía aquí el 13/10 era falso:
+> **126 migraciones y 66 tablas** (05/11, `feat/portugues-documentos` con `20261105_idioma_portugues.sql` de P3 del portugués: ninguna columna ni tabla, solo los dos CHECK) (04/11, 125, `integra/idiomas` con `20261103_usuarios_idioma_preferido.sql` de IDIOMA-USUARIO, una columna y ninguna tabla) (03/11, 124, con `20261103_idioma_documentos_por_instancia.sql`, una columna y ninguna tabla) (02/11, 123, con `20261102_moneda_inmutable_por_instancia.sql`, ninguna tabla) (29/10, 122, con `20261029_propuestas_condiciones_vigencia_vendedor.sql`, cinco columnas y ninguna tabla) (29/10, 121, con `20261029_campana_extensiones.sql`, que crea `campana_extensiones`) (22/10, 117 y 64, con `20261022_campana_horario_doohmain.sql`, tres columnas en `campanas`) (22/10, 116 y 64, con `20261022_comercial_negociacion.sql`, que crea las cuatro tablas de Comercial negociación) (21/10, 115 y 60, con `20261021_notificaciones_por_usuario.sql`, que crea `notificaciones_usuario`: esta vez el 60 es una tabla de verdad) (19/10, 114 y 59, con `20261019_cobranza_abono_comprobante.sql`; antes 113) —el «60» que decía aquí el 13/10 era falso:
 > `recuentos.mjs` contaba como tabla la palabra `if` de un comentario de
 > `20261013_doohmain_seguimiento_unicas.sql`; corregido el 14/10 quitando los
 > comentarios antes de medir— (13/10, con `20261013_sitios_pantalla_doohmain.sql`; antes 112) (13/10, con `20261013_doohmain_seguimiento_unicas.sql`; antes 111) (12/10, con `20261012_razon_social_principal.sql`; antes 110) (07/10, con `20261011_contrato_cambios_solo_insercion.sql`; antes 109) (07/10, con `20261010_contrato_cambios.sql`; antes 108 y 58) (06/10, con `20261009_propuestas_fechas_estatus.sql`; antes 107) (06/10, con `20261008_cobranza_abonos.sql`). Es el recuento vigente; los de los recuadros
@@ -73,6 +73,7 @@ archivos:
 >
 > | Migración | Decía | Entró en `main` |
 > |---|---|---|
+> | `20261105_idioma_portugues.sql` | rama `feat/portugues-documentos` (P3 del portugués), **aprobada por el dueño el 05/11** (ROJO R3, y firmas) | **Sin publicar.** Ninguna tabla ni columna: suelta y vuelve a crear, con el MISMO nombre, `usuarios_idioma_preferido_valido` y `tenants_idioma_documentos_ck` con `pt` (es/en/it/pt). No toca los triggers del ADR 0049 ni ninguna fila. Aplicada dos veces sobre una base desechable y por la e2e `idioma-portugues` |
 > | `20261103_usuarios_idioma_preferido.sql` | rama `feat/idioma-por-usuario` (IDIOMA-USUARIO), decisión del dueño del 03/11 (ROJO R3; supervisor ÁMBAR) | **Sin publicar.** Integrada en `integra/idiomas` el 04/11. Una columna, `usuarios.idioma_preferido text` nullable sin default, y su CHECK (`es`/`en`/`it`); no toca la RLS. Aplicada por la e2e sobre `spaces_idiomas_e2e` |
 > | `20261103_idioma_documentos_por_instancia.sql` | rama `feat/idioma-instancia` (ADR 0049), **aprobada por el dueño el 03/11** (ROJO R3, y firmas) | **Sin publicar.** Una columna, `tenants.idioma_documentos text not null default 'es'` —todas las organizaciones que ya existen quedan en español—, `check in ('es','en','it')` y dos triggers: no se cambia, y uno solo por instancia. No toca contratos ni firmas. Ver [[04-Datos/esquema]] (Triggers) y [[03-Frontend/idiomas-es-en]] §12 |
 > | `20261102_moneda_inmutable_por_instancia.sql` | rama `feat/moneda-por-instancia` (ADR 0048), **aprobada por el dueño el 02/11** (ROJO R3 y R4) | **Sin publicar.** Ninguna tabla ni columna. Comprueba ANTES de restringir (para con un mensaje si hay organizaciones fuera de MXN/USD o dos monedas en la base; no corrige a ciegas), alinea `config_negocio.moneda` con su organización, pone `check (moneda in ('MXN','USD'))` en `tenants` y `config_negocio` y cuatro triggers: la moneda no se cambia, una sola por instancia, y `config_negocio` la copia de su organización al nacer. Ver [[04-Datos/esquema]] (Triggers) y [[03-Frontend/idiomas-es-en]] §7 |
@@ -1444,6 +1445,33 @@ de entidades añadía en paralelo. Si la necesitas, cuéntala, no la copies.
 >
 > Runner ×2 contra base desechable: **94 aplicadas** en la primera pasada, **0**
 > en la segunda, sin divergencia de checksum. Ver [[02-Backend/costo-real-de-ot]].
+
+## `20261105_idioma_portugues.sql` — la base aprende `pt` (05/11, P3 del portugués)
+
+Aprobada por el dueño el 05/11 («Sí, igual que italiano»). Las dos columnas que
+guardan un idioma nacieron el 03/11 con `check (… in ('es','en','it'))`. Esta
+migración las abre a `pt` y nada más:
+
+- `usuarios.idioma_preferido` → `usuarios_idioma_preferido_valido` admite
+  `null`, `es`, `en`, `it` y `pt`.
+- `tenants.idioma_documentos` → `tenants_idioma_documentos_ck` admite `es`,
+  `en`, `it` y `pt`. Los dos triggers del ADR 0049 (no se cambia, uno por
+  instancia) no se tocan: no nombran idiomas.
+
+**Mismo nombre de restricción a propósito.** Si alguien reaplicara la cadena
+entera, la del 03/11 de `usuarios` ve que la restricción existe y no la recrea
+corta; la de `tenants` sí la recrea corta, pero esta va detrás (orden
+lexicográfico) y la vuelve a abrir.
+
+No cambia ninguna fila: lo que existe sigue en `es`. Imprime tres filas para
+confirmarla (cuentas fuera de es/en/it/pt = 0; organizaciones fuera = 0;
+triggers = 2). Vuelta atrás en la cabecera (solo si ninguna fila tiene `pt`).
+
+Medido el 05/11: la cadena entera (125 de esquema) sobre una base desechable
+(`spaces_pt_mig_test`) y después esta migración dos veces más: mismas
+restricciones, mismas filas, `fr` y `pt-BR` rechazados. El archivo en disco va
+en LF. Y la e2e `apps/web/lib/test/idioma-portugues.e2e.test.ts` la reaplica
+sobre la base de integración.
 
 ## `20261103_idioma_documentos_por_instancia.sql` — el idioma de los documentos de la instancia no se cambia (03/11, ADR 0049)
 

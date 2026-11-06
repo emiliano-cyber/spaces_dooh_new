@@ -32,6 +32,18 @@ import type { Moneda } from './dinero'
 //  un lector italiano ni el peso ni el dolar son su moneda local, asi que los
 //  dos llevan prefijo y ninguno es un `$` a secas que se pueda leer como el
 //  otro.
+//
+//  ─── EL PORTUGUES (pt-BR) ──────────────────────────────────────────────────
+//
+//  Decision del dueno del 2026-11-05: Brasil (`pt-BR`), y el peso como en
+//  italiano, «MX$ 1.160,00» (no se anade el real). Se reusa la posicion
+//  `delante-con-espacio`: `Intl` en pt-BR ya pone «MX$ 1.160,00», pero con un
+//  espacio U+00A0 que ningun otro idioma de la app escribe. PROPUESTA de la ola
+//  0, decidida el 05/11 (D4 de `vault/03-Frontend/portugues-olas.md`): fecha
+//  «1 de dez. de 2026» (la corta de pt-BR), cifras «1.160,5», porcentaje
+//  «55,0%», trimestre «T1 2026». El dolar, «US$ 1.160,00» (P1, 05/11). Y la
+//  captura de cifras A LA BRASILENA, «1.500,50» (P2, decision del dueno del
+//  05/11, tarea roja `feat/portugues-cifras`): `separadorDecimal`, abajo.
 // ============================================================================
 
 export interface FormatoIdioma {
@@ -64,7 +76,8 @@ export interface FormatoIdioma {
    * (`lib/captura-cifra.ts`); el de millar es el otro. Espanol e ingles: punto
    * decimal y coma de millar («212,500.50»), la regla de siempre. Italiano:
    * coma decimal y punto de millar («212.500,50»), decision del dueno del
-   * 2026-11-04 (P-L2-1).
+   * 2026-11-04 (P-L2-1). Portugues: lo mismo que el italiano, decision del
+   * dueno del 2026-11-05 (P2).
    */
   separadorDecimal: '.' | ','
 }
@@ -105,9 +118,31 @@ export const FORMATO_IDIOMA: Record<Idioma, FormatoIdioma> = {
     letraTrimestre: 'T',
     separadorDecimal: ',',
   },
+  pt: {
+    locale: 'pt-BR',
+    // pt-BR ya agrupa las cuatro cifras («1.160»), pero no pt-PT ni todas las
+    // versiones de ICU: se fuerza, como en italiano, y no depende del motor.
+    agruparSiempre: true,
+    // «1 de dez. de 2026». PROPUESTA (D4), sin decidir.
+    fechaPorOmision: { year: 'numeric', month: 'short', day: 'numeric' },
+    // MXN: decision del dueno (05/11). USD: PROVISIONAL, pendiente del dueno.
+    simbolo: { MXN: 'MX$', USD: 'US$' },
+    posicionSimbolo: 'delante-con-espacio',
+    nombreMoneda: { MXN: 'Peso mexicano (MXN)', USD: 'Dólar americano (USD)' },
+    espacioAntesDePorcentaje: false,
+    // «T1 2026» (trimestre). PROVISIONAL: lo confirma el lote de reportes.
+    letraTrimestre: 'T',
+    // A LA BRASILENA: punto de millar y coma decimal, «1.500,50» (P2, decision
+    // del dueno del 05/11). Hasta ese dia, a la mexicana. Es el MISMO sistema
+    // que el italiano y el portugues lo hereda entero (`lib/captura-cifra.ts`):
+    // lo que se acepta, se rechaza, se pinta y se manda; solo cambia el idioma
+    // del motivo. Sus avisos (`compartidos.cifra.*` y los demas «no se
+    // entiende») estan escritos en portugues, no caen al espanol.
+    separadorDecimal: ',',
+  },
 }
 
-/** El locale de `Intl` de un idioma: «es-MX», «en-US», «it-IT». */
+/** El locale de `Intl` de un idioma: «es-MX», «en-US», «it-IT», «pt-BR». */
 export function localeDe(idioma: Idioma): string {
   return FORMATO_IDIOMA[idioma].locale
 }

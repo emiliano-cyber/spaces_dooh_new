@@ -31,7 +31,7 @@ vi.mock('@radix-ui/react-dialog', async (importOriginal) => {
   }
 })
 
-const CERRAR: Record<Idioma, string> = { es: 'Cerrar', en: 'Close', it: 'Chiudi' }
+const CERRAR: Record<Idioma, string> = { es: 'Cerrar', en: 'Close', it: 'Chiudi', pt: 'Fechar' }
 
 function pinta(idioma: Idioma, Componente: typeof Modal | typeof Sheet): string {
   return renderToStaticMarkup(
@@ -52,7 +52,7 @@ function botonCerrar(html: string): string {
 
 describe('B71 · la X de Modal y de Sheet dice que cierra', () => {
   for (const [nombre, C] of [['Modal', Modal], ['Sheet', Sheet]] as const) {
-    for (const idioma of ['es', 'en', 'it'] as const) {
+    for (const idioma of ['es', 'en', 'it', 'pt'] as const) {
       it(`${nombre} en ${idioma}: aria-label y title «${CERRAR[idioma]}»`, () => {
         const b = botonCerrar(pinta(idioma, C))
         expect(b).toContain(`aria-label="${CERRAR[idioma]}"`)

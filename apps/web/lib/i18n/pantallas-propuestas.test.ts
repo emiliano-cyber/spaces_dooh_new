@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { traducir } from './diccionario'
 import { huellasDeFormatoEspanol } from './guardias-ingles'
 import { huellasEnItaliano } from './guardias-italiano'
+import { huellasEnPortugues } from './guardias-portugues'
+import { culpablesEnItaliano } from '../test/barrido-italiano'
 import { createElement, type ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { ProveedorIdioma } from './contexto'
@@ -239,8 +241,10 @@ function texto(html: string): string {
 const forzar = (si: (v: unknown) => boolean, valor: unknown) => forzado.cola.push({ si, valor })
 
 // Pinta el arbol del idioma que recibe (ver el documento imprimible abajo).
-function SegunIdioma(p: { idioma: Idioma; en: ReactElement; it: ReactElement }): ReactElement {
-  return p.idioma === 'it' ? p.it : p.en
+function SegunIdioma(p: { idioma: Idioma; en: ReactElement; it?: ReactElement; pt?: ReactElement }): ReactElement {
+  if (p.idioma === 'it' && p.it) return p.it
+  if (p.idioma === 'pt' && p.pt) return p.pt
+  return p.en
 }
 const esNull = (v: unknown) => v === null
 const esFalse = (v: unknown) => v === false
@@ -663,9 +667,14 @@ const PANTALLAS: Pantalla[] = [
       // como un idioma que no hablamos y el documento sale en espanol.
       const previo = process.env.IDIOMA_ITALIANO
       if (idioma === 'it') process.env.IDIOMA_ITALIANO = '1'
+      // Lo mismo en portugues (lote L2, 2026-11-05).
+      const previoPt = process.env.IDIOMA_PORTUGUES
+      if (idioma === 'pt') process.env.IDIOMA_PORTUGUES = '1'
       const el = await Documento({ params: { id: 'p1' } })
       if (previo === undefined) delete process.env.IDIOMA_ITALIANO
       else process.env.IDIOMA_ITALIANO = previo
+      if (previoPt === undefined) delete process.env.IDIOMA_PORTUGUES
+      else process.env.IDIOMA_PORTUGUES = previoPt
       // Italiano, lote L2 (2026-11-03): el espejo (`I18N_VOLCAR_IT`) rinde en
       // italiano el arbol que la prueba construyo en ingles, pero el texto de
       // un Server Component ya esta escrito en ese arbol —lo decidio la cookie—
@@ -682,6 +691,18 @@ const PANTALLAS: Pantalla[] = [
         if (antes === undefined) delete process.env.IDIOMA_ITALIANO
         else process.env.IDIOMA_ITALIANO = antes
         return pintar(idioma, createElement(SegunIdioma, { idioma, en: el, it: elIt }))
+      }
+      // Y el espejo portugues (`I18N_VOLCAR_PT`, lote L2 del portugues): el
+      // mismo truco con el arbol portugues. Sin el espejo no entra.
+      if (idioma === 'en' && process.env.I18N_VOLCAR_PT) {
+        const antes = process.env.IDIOMA_PORTUGUES
+        process.env.IDIOMA_PORTUGUES = '1'
+        cabeceras.cookie = 'pt'
+        const elPt = await Documento({ params: { id: 'p1' } })
+        cabeceras.cookie = idioma
+        if (antes === undefined) delete process.env.IDIOMA_PORTUGUES
+        else process.env.IDIOMA_PORTUGUES = antes
+        return pintar(idioma, createElement(SegunIdioma, { idioma, en: el, pt: elPt }))
       }
       // Las piezas de cliente del documento (la barra, el QR) leen el idioma
       // del proveedor que pone el layout raiz; aqui se pone igual.
@@ -1389,3 +1410,128 @@ describe('B79 · la prima ilegible de la calculadora para el alta en italiano', 
     expect(await alta('en', 'NaN')).not.toContain(aviso('en'))
   })
 })
+
+// ============================================================================
+//  LOTE L2 DEL PORTUGUES (2026-11-05) · las mismas pantallas, en portugues.
+//  Barrido con el diccionario (ningun trozo espanol ni ingles de
+//  `propuestas.*` ni `codigos.*`, sin el espanol pendiente de OTROS lotes),
+//  ninguna huella de formato ajeno (`guardias-portugues.ts`) y el portugues
+//  esperado donde hay concordancia o formato. El documento imprimible entra
+//  como 'pt' con el portugues encendido: es el papel de una instancia `pt`
+//  (tarea P3), que aqui sigue a la cookie.
+// ============================================================================
+const DATOS_PT = ['Pago a 30 días.', 'Campaña Navidad', 'Refrescos del Norte', 'Agencia Uno', 'Pantalla Reforma', 'VERANO20']
+
+const PORTUGUES: Record<string, string[]> = {
+  'lista de propuestas (con una fila desplegada)': [
+    '2 propostas em rascunho ou enviadas · total c/ IVA', '1 aprovada · perdido ', ' em 1 recusada',
+    'Comissão 15% · divisor 0,85', '× 0,85', 'Aprovado · 1/2 pontos', '−5%', 'Código pendente',
+  ],
+  'ficha de la propuesta': [
+    'Desconto por volume (2,5%)', 'Desconto comercial (5,00%)', 'divisor ×0,85', 'Válida até 1 de dez. de 2026',
+    'Código VERANO20 (20%) · código aguardando aprovação', 'Ref. interna: ', 'Líquido para o veículo',
+  ],
+  'documento imprimible (Server Component)': [
+    'PROPOSTA COMERCIAL', 'Válida até 1 de dez. de 2026', 'Desconto por volume (2,5%)', 'MX$ 6.612,00', 'PONTOS',
+    '1 ponto(s) sem coordenadas; o endereço está na tabela.', 'ACEITE DO CLIENTE', 'Comissão de agência (15%)',
+  ],
+  'calculadora de spots encendida': [
+    '3.240 spots/dia × 30 dias = ', '97.200 spots', 'de 8 · 6 livres', 'Loop de 4 anunciantes (2 hoje + esta linha)', '90 loops/h',
+  ],
+  'tablero de propuestas por periodo': [
+    '1 de nov. de 2026 a 30 de nov. de 2026', '50%', '2 aprovadas têm algum ponto sem contrato de locação vigente', 'Data de aprovação',
+  ],
+  'lista filtrada sin resultados': [
+    'Nenhuma proposta aprovada de Refrescos del Norte que corresponda a “xyz”. Remova o filtro para ver todas (1).',
+  ],
+  'ficha de un borrador vencido, con catalogo de paquetes': [
+    'Vencida desde 1 de dez. de 2026', 'Combo — MX$ 5.000,00 · 2 pontos', 'nenhum ponto aprovado de 2', 'divisor ×1,00',
+    'Vencida desde 1 de dez. de 2026: o link não permite mais aceitá-la.',
+  ],
+}
+
+describe('lote L2 · PROPUESTAS en PORTUGUES', () => {
+  async function diccionarios() {
+    const { ES_PROPUESTAS, EN_PROPUESTAS, PT_PROPUESTAS } = await import('./textos/propuestas')
+    const { ES_CODIGOS, EN_CODIGOS, PT_CODIGOS } = await import('./textos/codigos')
+    return {
+      es: { ...ES_PROPUESTAS, ...ES_CODIGOS } as Record<string, string>,
+      en: { ...EN_PROPUESTAS, ...EN_CODIGOS } as Record<string, string>,
+      it: { ...PT_PROPUESTAS, ...PT_CODIGOS } as Partial<Record<string, string>>,
+    }
+  }
+
+  beforeEach(() => {
+    process.env.IDIOMA_PORTUGUES = '1'
+  })
+  afterEach(() => {
+    delete process.env.IDIOMA_PORTUGUES
+  })
+
+  it('las frases portuguesas declaradas son de pantallas que existen', () => {
+    const nombres = new Set(PANTALLAS.map((p) => p.nombre))
+    expect(Object.keys(PORTUGUES).filter((n) => !nombres.has(n))).toEqual([])
+  })
+
+  for (const p of PANTALLAS) {
+    it(`${p.nombre} · sin espanol ni ingles del lote, sin formatos ajenos`, async () => {
+      const crudo = await p.pintar('pt')
+      volcarPt(p.nombre, crudo)
+      expect(culpablesEnItaliano(crudo, await diccionarios(), { ignorar: [...DATOS_PT] })).toEqual([])
+      expect(huellasEnPortugues(crudo)).toEqual([])
+      const html = texto(crudo)
+      expect((PORTUGUES[p.nombre] ?? []).filter((f) => !html.includes(f))).toEqual([])
+    })
+  }
+
+  // La leccion del italiano L2 (V2, V15): un porcentaje con decimales y
+  // conteos de cuatro cifras en el tablero. Estado SOLO portugues.
+  it('tablero · porcentaje con decimales y conteos con miles, en portugues', async () => {
+    const { TableroPropuestas } = await import('../../components/demo/propuestas/TableroPropuestas')
+    forzar(esNull, {
+      periodo: { etiqueta: 'Noviembre 2026', desde: '2026-11-01', hasta: '2026-11-30' },
+      conGanancia: true,
+      resumen: {
+        generadas: 1234, rechazadas: 1001, tasaCierre: 0.125,
+        aprobadas: { n: 1500, venta: 3000, ganancia: 1000, margenPct: 33.33, gananciaPromedio: 10, sinCosto: 0 },
+        porVendedor: [{ vendedor: 'Ana', generadas: 1234, aprobadas: 1500, rechazadas: 1001, venta: 3000, ganancia: 1000 }],
+        lista: [],
+      },
+    })
+    const html = texto(pintar('pt', createElement(TableroPropuestas)))
+    for (const f of ['12,5%', 'margem 33,3%', '>1.234<', '>1.500<', '>1.001<']) expect(html).toContain(f)
+    expect(html).not.toContain('12,5 %')
+    expect(huellasEnPortugues(html)).toEqual([])
+  })
+
+  // La liga publica que el cliente acepta (la del italiano H2): descuentos de
+  // volumen, comercial y de codigo con decimales, con la coma de pt-BR.
+  it('liga publica `/p/[id]` · descuentos con decimales, en portugues', async () => {
+    const PUB = {
+      orgNombre: 'Medios SA', orgLogoUrl: null, folio: 'P-0042', nombre: 'Propuesta Verano', estatus: 'ENVIADA',
+      aceptadoEn: null, aceptadoPor: null, version: 1, clienteNombre: null, agenciaNombre: null,
+      comisionPct: 15, descuentoPct: 7.5, descuentoMonto: 100, descuentoVolumenMonto: 50, descuentoVolumenPct: 2.5,
+      codigoTexto: 'VERANO20', codigoDescuentoMonto: 40, codigoDescuentoPct: 12.5, paquete: null,
+      divisor: 0.85, bruto: 6000, base: 5000, neto: 4250, iva: 800, total: 5800, itemsAprobados: 1,
+      vigenteHasta: '2026-12-01', vencida: false, condiciones: null,
+      items: [
+        { sitioNombre: 'Pantalla Reforma', alcaldia: 'Cuauhtémoc', ciudad: 'CDMX', estado: null, tipoMedio: 'PANTALLA_DIGITAL',
+          lat: 19.4, lng: -99.1, direccion: 'Reforma 1', fechaInicio: '2026-11-01', fechaFin: '2026-11-30', precio: 1000, aprobado: true },
+      ],
+    }
+    forzar((v) => v === undefined, PUB)
+    const { default: Pagina } = await import('../../app/(app)/p/[id]/page')
+    const crudo = pintar('pt', createElement(Pagina, { params: { id: 'p1' } }))
+    const html = texto(crudo)
+    for (const f of ['Desconto por volume (2,5%)', 'Desconto (7,5%)', 'Código VERANO20 (12,5%)', 'Tela digital']) expect(html).toContain(f)
+    expect(html).not.toMatch(/\(\d+\.\d%\)/)
+    expect(huellasEnPortugues(crudo)).toEqual([])
+  })
+})
+
+function volcarPt(nombre: string, html: string) {
+  const dir = process.env.VOLCAR_HTML
+  if (!dir) return
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(path.join(dir, `${nombre.replace(/[^\w]+/g, '_')}_en_PORTUGUES.html`), html)
+}

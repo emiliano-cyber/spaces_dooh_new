@@ -621,3 +621,216 @@ export const IT_FINANZAS: Record<ClaveFinanzas, string> = {
   'finanzas.comprobante.aviso':
     'Ricevuta di pagamento. NON è un CFDI timbrato presso il SAT: il CFDI timbrato si emette a parte e questo documento non sostituisce la fattura fiscale.',
 }
+
+// ─── PORTUGUES (pt-BR) · lote L4 (2026-11-05) ───────────────────────────────
+// Glosario comun en `vault/03-Frontend/portugues-olas.md` §2 bis (cobranca ·
+// fatura · pagamento parcial · lembrete de cobranca · extrato). Lo propio de
+// Finanzas: cuota → parcela · al corriente → em dia · cargo/abono del extrato →
+// Débito/Crédito · folio de una factura → «Nº da fatura» (como el ingles
+// «Invoice no.») · las cuotas quincenales → «duas por mês» (el glosario
+// prohibe «quinzenal»). El comprobante es un papel que ve el CLIENTE: su
+// folio es «Nº» («Comprovante Nº {folio}», decision del dueno del 05/11,
+// costura). P3 lo escribio aparte (`papeles-portugues.ts`, retirado en la
+// costura): gana el lote.
+export const PT_FINANZAS: Record<ClaveFinanzas, string> = {
+  // ── Comun ──
+  'finanzas.comun.ver-menos': 'Ver menos',
+  'finanzas.comun.ver-todas': 'Ver todas ({n})',
+  'finanzas.comun.folio': 'Nº da fatura',
+  'finanzas.comun.folio-fiscal': 'Folio fiscal (UUID do CFDI)',
+  'finanzas.comun.cliente': 'Cliente',
+  'finanzas.comun.monto': 'Valor',
+  'finanzas.comun.campana': 'Campanha',
+  'finanzas.comun.la-emite': 'Emitente',
+  'finanzas.comun.subtotal-neto': 'Subtotal (líquido)',
+  'finanzas.comun.iva-pct': 'IVA ({pct}%)',
+  'finanzas.comun.total': 'Total',
+  'finanzas.comun.dias': '{n} dias',
+  'finanzas.comun.enviando': 'Enviando…',
+  'finanzas.comun.todos-clientes': 'Todos os clientes',
+
+  // ── Semaforo de cobranza ──
+  'finanzas.cobranza.al-corriente': 'Em dia',
+  'finanzas.cobranza.por-vencer': 'A vencer',
+  'finanzas.cobranza.vencida': 'Vencida',
+  'finanzas.cobranza.pagada': 'Paga',
+
+  // ── Opciones de parcialidades ──
+  'finanzas.parcialidad.quincenal': '{n} parcelas, duas por mês',
+  'finanzas.parcialidad.mensual': '{n} parcelas mensais',
+  'finanzas.parcialidad.bimestral': '{n} parcelas bimestrais',
+  'finanzas.parcialidad.trimestral': '{n} parcelas trimestrais',
+  'finanzas.parcialidad.semestral': '{n} parcelas semestrais',
+  'finanzas.parcialidad.anual': '{n} parcelas anuais',
+
+  // ── La pastilla junto al vencimiento ──
+  'finanzas.vence.pagada': 'paga',
+  'finanzas.vence.vencida': '{n}d de atraso',
+  'finanzas.vence.dias': '{n}d',
+
+  // ── La pagina ──
+  'finanzas.titulo': 'Finanças',
+  'finanzas.subtitulo': 'Faturamento, cobrança e aluguel a locadores',
+  'finanzas.recordatorio.enviado': 'Lembrete de cobrança enviado',
+  'finanzas.recordatorio.no-enviar': 'Não foi possível enviar o lembrete',
+  'finanzas.listas.titulo': 'Prontas para faturar',
+  'finanzas.listas.vacio':
+    'Nada para faturar agora. Quando uma campanha liberar o bloqueio de faturamento (PC + fotos + relatório), ela aparecerá aqui.',
+  'finanzas.listas.iva-inc': '{monto} · IVA incl.',
+  'finanzas.listas.generar': 'Gerar fatura',
+  'finanzas.listas.requiere': 'Pronta · requer Finanças',
+  'finanzas.cobranza.titulo': 'Cobrança',
+  'finanzas.cobranza.cuotas': 'Parcelas',
+  'finanzas.cobranza.chip.vencidas': 'Vencidas',
+  'finanzas.cobranza.chip.por-vencer': 'A vencer',
+  'finanzas.cobranza.chip.al-corriente': 'Em dia',
+  'finanzas.cobranza.vacia': 'Nenhuma fatura em cobrança.',
+  'finanzas.cobranza.col.plazo': 'Prazo',
+  'finanzas.cobranza.col.vence': 'Vencimento',
+  'finanzas.cobranza.col.estatus': 'Status',
+  'finanzas.cobranza.emite': 'Emitente: {entidad}',
+  'finanzas.cobranza.cuotas-pagadas': '{pagadas} de {total} parcelas pagas',
+  'finanzas.cobranza.cuota': 'Parcela {n} de {total}',
+  'finanzas.cobranza.saldo': 'saldo {monto}',
+  'finanzas.cobranza.pagos': 'Pagamentos e comprovantes',
+  'finanzas.cobranza.registrar-pago': 'Registrar pagamento',
+  'finanzas.cobranza.recordar': 'Enviar lembrete',
+  'finanzas.cobranza.ultimo': 'Último: {fecha}',
+  'finanzas.cobranza.enviados.uno': '{n} enviado',
+  'finanzas.cobranza.enviados.otros': '{n} enviados',
+  'finanzas.facturas.titulo': 'Faturas',
+  'finanzas.facturas.chip.emitidas': 'Emitidas',
+  'finanzas.facturas.chip.pagadas': 'Pagas',
+  'finanzas.facturas.chip.anuladas': 'Canceladas',
+  'finanzas.facturas.vacio.titulo': 'Ainda não há faturas',
+  'finanzas.facturas.vacio.texto': 'Elas aparecerão aqui assim que você emitir a primeira em “Prontas para faturar”.',
+  'finanzas.facturas.col.emitida': 'Emitida',
+  'finanzas.facturas.ver': 'Ver o comprovante',
+  'finanzas.facturas.estatus.pagada': 'Paga',
+  'finanzas.facturas.estatus.anulada': 'Cancelada',
+  'finanzas.facturas.estatus.emitida': 'Emitida',
+  'finanzas.renta.titulo': 'Aluguel a pagar aos locadores',
+  'finanzas.factura.generada': 'Fatura gerada',
+
+  // ── Generar factura ──
+  'finanzas.factura.no-generar': 'Não foi possível gerar a fatura',
+  'finanzas.factura.titulo': 'Gerar fatura',
+  'finanzas.factura.confirmar': 'Confirmar e emitir',
+  'finanzas.factura.generando': 'Gerando…',
+  'finanzas.factura.emitir': 'Emitir fatura',
+  'finanzas.factura.emisora': 'Com qual das suas razões sociais ela é emitida',
+  'finanzas.factura.la-que-vende': ' — a que vende',
+  'finanzas.factura.sin-entidades':
+    'Você ainda não tem razões sociais cadastradas. Elas são cadastradas em Razões sociais; a fatura é emitida mesmo assim e fica “sem razão social”.',
+  'finanzas.factura.sin-elegir':
+    'Sem escolher, o comprovante fica “sem razão social”. Nada é inventado: há mais de uma razão social que vende, ou nenhuma está marcada.',
+  'finanzas.factura.dura.uno':
+    'Esta campanha dura {n} mês: não comporta uma divisão em parcelas iguais, então é cobrada de uma só vez.',
+  'finanzas.factura.dura.otros':
+    'Esta campanha dura {n} meses: não comporta uma divisão em parcelas iguais, então é cobrada de uma só vez.',
+  'finanzas.factura.en-cuotas': 'Cobrar em parcelas',
+  'finanzas.factura.campana-de.uno': '· campanha de {n} mês',
+  'finanzas.factura.campana-de.otros': '· campanha de {n} meses',
+  'finanzas.factura.cuotas': 'Parcelas',
+  'finanzas.factura.primer-venc': 'Primeiro vencimento',
+  'finanzas.factura.reparto': '{n} parcelas de {monto} (a última ajusta o arredondamento) · somam {total}',
+  'finanzas.factura.plazo': 'Prazo de cobrança',
+  'finanzas.factura.plazo.informativo': 'Prazo de cobrança (informativo com parcelas)',
+
+  // ── Registrar pago ──
+  'finanzas.pago.liquidada': 'Cobrança quitada',
+  'finanzas.pago.abono-registrado': 'Pagamento parcial registrado',
+  'finanzas.pago.no-registrar': 'Não foi possível registrar o pagamento',
+  'finanzas.pago.titulo': 'Registrar pagamento',
+  'finanzas.pago.subtitulo': '{folio} · saldo {saldo}',
+  'finanzas.pago.confirmar': 'Confirmar e registrar',
+  'finanzas.pago.liquidar': 'Liquidar o total',
+  'finanzas.pago.guardando': 'Salvando…',
+  'finanzas.pago.registrar-abono': 'Registrar pagamento parcial',
+  'finanzas.pago.monto': 'Valor do pagamento',
+  'finanzas.pago.fecha': 'Data do recebimento',
+  'finanzas.pago.excede': '⚠ O valor excede o saldo ({saldo}). Só o saldo pendente será aplicado.',
+  'finanzas.pago.al-cubrir': 'Ao cobrir o saldo total, a cobrança passa para {pagada} e os lembretes param.',
+  'finanzas.pago.pagada': 'Paga',
+
+  // ── Comprobante de un pago ──
+  'finanzas.comprobante-pago.tipo': 'Deve ser um PDF ou uma imagem (PNG, JPG ou WebP)',
+  'finanzas.comprobante-pago.supera': 'O arquivo excede {mb} MB',
+  'finanzas.comprobante-pago.no-leer': 'Não foi possível ler o arquivo',
+  'finanzas.comprobante-pago.titulo': 'Comprovante de pagamento',
+  'finanzas.comprobante-pago.quitar': 'Remover',
+  'finanzas.comprobante-pago.adjuntar': 'Anexar PDF ou imagem',
+  'finanzas.pagos.no-cargar': 'Não foi possível carregar os pagamentos',
+  'finanzas.pagos.no-guardar': 'Não foi possível salvar o comprovante',
+  'finanzas.pagos.titulo': 'Pagamentos recebidos',
+  'finanzas.pagos.vacio': 'Esta cobrança ainda não tem pagamentos registrados.',
+  'finanzas.pagos.sin-fecha': 'Sem data',
+  'finanzas.pagos.historico': ' · recebido antes de 8 de out. (aproximado)',
+  'finanzas.pagos.comprobante': 'Comprovante',
+  'finanzas.pagos.sin-comprobante': 'Sem comprovante',
+  'finanzas.pagos.subiendo': 'Enviando…',
+  'finanzas.pagos.reemplazar': 'Substituir',
+  'finanzas.pagos.adjuntar': 'Anexar',
+
+  // ── Estado de cuenta (extrato) ──
+  'finanzas.estado-cuenta.no-calcular': 'Não foi possível calcular o extrato',
+  'finanzas.estado-cuenta.titulo': 'Extrato',
+  'finanzas.estado-cuenta.mes': 'Mês',
+  'finanzas.estado-cuenta.saldo-inicio': 'Saldo inicial',
+  'finanzas.estado-cuenta.facturado': '+ Faturado',
+  'finanzas.estado-cuenta.cobrado': '− Recebido',
+  'finanzas.estado-cuenta.saldo-cierre': '= Saldo final',
+  'finanzas.estado-cuenta.vencido-al': 'Vencido até {fecha}',
+  'finanzas.estado-cuenta.vacio': 'Nenhuma fatura nem pagamento no período {periodo}.',
+  'finanzas.estado-cuenta.vacio-rango': 'Nenhuma fatura nem pagamento de {desde} a {hasta}.',
+  'finanzas.estado-cuenta.col.fecha': 'Data',
+  'finanzas.estado-cuenta.col.movimiento': 'Movimento',
+  'finanzas.estado-cuenta.col.cargo': 'Débito',
+  'finanzas.estado-cuenta.col.abono': 'Crédito',
+  'finanzas.estado-cuenta.col.saldo': 'Saldo',
+  'finanzas.estado-cuenta.factura': 'Fatura',
+  'finanzas.estado-cuenta.pago': 'Pagamento recebido',
+  'finanzas.estado-cuenta.aproximada.title':
+    'Pagamento anterior ao registro de datas no sistema: leva a data da fatura correspondente',
+  'finanzas.estado-cuenta.aproximada': 'data aproximada',
+  'finanzas.csv.periodo': 'Período',
+  'finanzas.csv.saldo-cierre': 'Saldo final',
+  'finanzas.csv.pago-aproximado': 'Pagamento recebido (data aproximada)',
+  'finanzas.csv.archivo': 'extrato',
+  'finanzas.csv.archivo.cliente': 'cliente',
+
+  // ── Resumen del periodo ──
+  'finanzas.periodo.no-calcular': 'Não foi possível calcular o período',
+  'finanzas.periodo.titulo': 'Resumo do período',
+  'finanzas.periodo.subtitulo': '{etiqueta} · {desde} a {hasta}',
+  'finanzas.periodo.por-cobrar': 'A receber no fechamento',
+  'finanzas.periodo.al-inicio': 'no início: {monto}',
+  'finanzas.periodo.vencido': 'Em atraso',
+  'finanzas.periodo.vencido.sub.uno': '{n} fatura vencida até {fecha}',
+  'finanzas.periodo.vencido.sub.otros': '{n} faturas vencidas até {fecha}',
+  'finanzas.periodo.facturado': 'Faturado',
+  'finanzas.periodo.facturas.uno': '{n} fatura',
+  'finanzas.periodo.facturas.otros': '{n} faturas',
+  'finanzas.periodo.cobrado': 'Recebido',
+  'finanzas.periodo.cobrado.sub': 'pagamentos recebidos no período',
+  'finanzas.periodo.renta': 'Aluguel a locadores',
+  'finanzas.periodo.renta.pagada': 'Quitado {monto}',
+  'finanzas.periodo.renta.por-pagar': 'A pagar no período {monto}',
+  'finanzas.periodo.sin-fecha':
+    '{monto} do recebido são pagamentos de antes de o sistema registrar a data de cada pagamento: receberam a data da fatura correspondente, então o mês deles é aproximado.',
+
+  // ── Comprobante de una factura (un papel que ve el cliente: folio = «Nº») ──
+  'finanzas.comprobante.titulo': 'Comprovante Nº {folio}',
+  'finanzas.comprobante.cerrar': 'Fechar',
+  'finanzas.comprobante.imprimir': 'Imprimir',
+  'finanzas.comprobante.la-recibe': 'Destinatário',
+  'finanzas.comprobante.uso': 'Uso: {uso}',
+  'finanzas.comprobante.serie': 'Série',
+  'finanzas.comprobante.fecha': 'Data de emissão',
+  'finanzas.comprobante.subtotal': 'Subtotal',
+  'finanzas.comprobante.iva': 'IVA',
+  'finanzas.comprobante.no-cuadra':
+    'Os valores deste comprovante não batem: o subtotal mais o IVA não dá o total. Revise-o antes de entregá-lo.',
+  'finanzas.comprobante.aviso':
+    'Comprovante de pagamento. NÃO é um CFDI timbrado pelo SAT: o timbrado é emitido à parte e este documento não substitui o comprovante fiscal.',
+}

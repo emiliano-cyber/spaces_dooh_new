@@ -10,6 +10,9 @@ import { leerDinero } from './simbolo-en-pantalla'
 import { ESTADO_ALERTAS as ESTADO } from './estado-alertas.fixture'
 import { huellasEnItaliano } from './guardias-italiano'
 import { fugasItaliano, legible, copiasDeOtroIdioma, IGUALES_A_PROPOSITO_L4, reglasDelItaliano, palabrasEspanolas } from '../test/barrido-italiano-l4'
+import { huellasEnPortugues } from './guardias-portugues'
+import { culpablesEnItaliano } from '../test/barrido-italiano'
+import { palabrasEspanolasEnPortugues } from '../test/barrido-portugues'
 
 // ============================================================================
 //  I18N · EL DASHBOARD (`/inicio`), RENDIDO EN LOS DOS IDIOMAS.
@@ -535,4 +538,82 @@ describe('DASHBOARD · cifras de mil o mas en italiano (validacion del L4)', () 
     expect(texto(ventas)).toContain('1.001 proposte · 1.001 inviate')
     expect(huellasEnItaliano(ventas)).toEqual([])
   })
+})
+
+// ─── PORTUGUES · lote L4 (2026-11-05) ───────────────────────────────────────
+//
+// Los mismos estados en portugues, con el barrido del L5: ninguna frase
+// espanola ni inglesa del Dashboard (en portugues la espanola es la que
+// importa: la caida no se ve), ni palabras espanolas sueltas (un portugues a
+// medias), ni una cifra, fecha o importe con formato ajeno («1.234», «MX$
+// 54.000,00»). El diseño sigue intocable: el HTML espanol congelado de arriba
+// lo vigila.
+describe('DASHBOARD · en PORTUGUES', () => {
+  const AJENOS = ['Pantalla Reforma', 'Pantalla Sur', 'Valla Norte', 'Valla Centro', 'Cliente Uno', 'Medios SA de CV', 'Medios',
+    'clausura-municipal', 'Ana Ventas', 'Verano', 'Otoño']
+  async function diccionarios() {
+    const { ES_INICIO, EN_INICIO, PT_INICIO } = await import('./textos/inicio')
+    return { es: ES_INICIO, en: EN_INICIO, it: PT_INICIO as Partial<Record<string, string>> }
+  }
+
+  for (const p of ESTADOS) {
+    it(`barrido y formatos · ${p.nombre}`, async () => {
+      forzado.cola = []
+      const crudo = await p.pintar('pt')
+      expect(culpablesEnItaliano(crudo, await diccionarios(), { minimo: 5, ignorar: [...AJENOS] })).toEqual([])
+      expect(palabrasEspanolasEnPortugues(crudo, AJENOS)).toEqual([])
+      expect(huellasEnPortugues(crudo)).toEqual([])
+    })
+  }
+
+  it('frases portuguesas a la vista, con sus cifras e importes', async () => {
+    forzado.cola = []
+    const html = texto(await ESTADOS[1].pintar('pt'))
+    const esperadas = [
+      'Razão social: Medios SA de CV · Nome fantasia: Medios', 'Receita de novembro', 'Margem de novembro',
+      'MX$ 54.000,00 · custo MX$ 26.000,00', '3 propostas aprovadas', '1.234 espaços·dia ocupados de 5.678 disponíveis',
+      'Alertas', 'Ver menos', 'Valla Centro — vence em 1 dia (MX$ 1.000,00)', 'Pantalla Sur — venceu há 13 dias',
+      'OT-1 · Pantalla Reforma — atrasada há 1 dia · sem responsável',
+    ]
+    expect(esperadas.filter((f) => !html.includes(f))).toEqual([])
+  })
+
+  it('cifras de mil o mas con el separador brasileno', async () => {
+    const Pagina = await inicio()
+    conTodo()
+    datos.m = {
+      ...M, espaciosOcupados: 1500, capacidadRed: 12000,
+      ocupacionDigitales: { sitios: 2, ocupados: 1200, capacidad: 2000 },
+      ocupacionFijas: { sitios: 3, ocupados: 1100, capacidad: 1300 },
+    }
+    datos.propuestas = Array.from({ length: 1001 }, (_, i) => propuesta(`e${i}`, 'ENVIADA'))
+    forzar((v, pila) => v === false && pila.includes('DashboardPage') && !pila.includes('useAlertasVisibles'), true)
+    forzar(enesimo('useDelMotor', esFase, 1), PNL)
+    forzar(enesimo('useDelMotor', esFase, 1), { fase: 'datos', pct: 87, conTarifa: 1200, sinTarifa: 1500 })
+    const crudo = pintar('pt', createElement(Pagina))
+    const esperadas = [
+      '1.500 de 12.000 espaços · digitais 1.200/2.000 · fixos 1.100/1.300',
+      'de 1.200 vendas com tarifa de tabela · 1.500 sem tarifa para comparar',
+    ]
+    expect(esperadas.filter((f) => !texto(crudo).includes(f))).toEqual([])
+    expect(huellasEnPortugues(crudo)).toEqual([])
+    forzado.cola = []
+    datos.finanzas = false
+    const ventas = pintar('pt', createElement(Pagina))
+    expect(texto(ventas)).toContain('1.001 propostas · 1.001 enviadas')
+    expect(huellasEnPortugues(ventas)).toEqual([])
+  })
+
+  afterEach(() => fijarMonedaInstancia('MXN'))
+  for (const moneda of MONEDAS) {
+    for (const p of ESTADOS.filter((e) => e.dinero)) {
+      it(`el dinero lleva el simbolo portugues de la instancia · ${p.nombre} · ${moneda}`, async () => {
+        forzado.cola = []
+        fijarMonedaInstancia(moneda)
+        const { importes, ajenos } = leerDinero(texto(await p.pintar('pt')), 'pt', moneda)
+        expect(importes).toBeGreaterThan(0)
+        expect(ajenos).toEqual([])
+      })
+    }
+  }
 })
