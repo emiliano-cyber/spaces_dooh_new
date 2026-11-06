@@ -404,11 +404,12 @@ function RevisionDatos({
  * contrato». En espanol y en ingles el contrato dice «$6,000.00 MXN» y aqui
  * sale igual que siempre. El contrato ITALIANO dice «6.000,00 MXN» (ADR 0049):
  * con la interfaz en italiano se mostraba el formato mexicano (recorrido del
- * 04/11), que en Italia se lee al reves.
+ * 04/11), que en Italia se lee al reves. El PORTUGUES (P3, 05/11) igual: su
+ * contrato dice «1.234.567,89 MXN» (H1 de la validacion de P3).
  */
 export function importeDeRevision(n: number | null, moneda: string, idioma: Idioma): string | null {
   if (n == null) return null
   const opciones = { minimumFractionDigits: 2, maximumFractionDigits: 2 }
-  if (idioma === 'it') return `${numeroEnIdioma(n, 'it', opciones)} ${moneda}`
+  if (idioma === 'it' || idioma === 'pt') return `${numeroEnIdioma(n, idioma, opciones)} ${moneda}`
   return `$${n.toLocaleString('es-MX', opciones)} ${moneda}`
 }

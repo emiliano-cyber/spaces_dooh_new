@@ -59,8 +59,11 @@ export default defineConfig({
     exclude: ['**/node_modules/**', '**/*.e2e.test.ts'],
     // Ola 0 del italiano (2026-11-03): el volcado de TODO el HTML rendido y el
     // espejo italiano (`lib/test/volcado-html.ts`). Solo si se pide: en un
-    // `npm test` normal no se envuelve nada.
+    // `npm test` normal no se envuelve nada. Ola 0 del portugues (2026-11-05):
+    // y su espejo, `I18N_VOLCAR_PT`.
     setupFiles:
-      process.env.I18N_VOLCAR_TODO || process.env.I18N_VOLCAR_IT ? ['lib/test/volcado-html.ts'] : [],
+      process.env.I18N_VOLCAR_TODO || process.env.I18N_VOLCAR_IT || process.env.I18N_VOLCAR_PT
+        ? ['lib/test/volcado-html.ts']
+        : [],
   },
 })

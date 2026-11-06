@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { huellasDeFormatoEspanol } from './guardias-ingles'
 import { huellasEnItaliano } from './guardias-italiano'
+import { huellasEnPortugues } from './guardias-portugues'
 import { culpablesEnItaliano } from '../test/barrido-italiano'
 import { createElement, type ReactElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
@@ -1279,3 +1280,58 @@ describe('lote L5 · CUENTA Y SHELL en ITALIANO', () => {
 // Datos de las pruebas que no son texto de la interfaz.
 // «Operación» es la etiqueta de prueba de un papel que NO es la de la migracion: es dato.
 const DATOS_IT = ['Pantalla Reforma', 'Verano Refrescos', 'Propuesta Verano', 'Pago registrado', 'Operación']
+
+// ============================================================================
+//  LOTE L5 DEL PORTUGUES (2026-11-05) · las mismas pantallas, en portugues.
+//  Con el portugues ENCENDIDO. El barrido del italiano sirve tal cual: en un
+//  HTML portugues no puede quedar una frase espanola de los diccionarios del
+//  lote (en portugues, una clave que cae al ESPANOL: no se veria a simple
+//  vista) ni una inglesa, y ningun formato ajeno (`huellasEnPortugues`).
+// ============================================================================
+describe('lote L5 · CUENTA Y SHELL en PORTUGUES', () => {
+  beforeEach(() => {
+    process.env.IDIOMA_PORTUGUES = '1'
+  })
+  afterEach(() => {
+    delete process.env.IDIOMA_PORTUGUES
+  })
+
+  async function diccionariosDelLote() {
+    const { ES_CUENTA, EN_CUENTA, PT_CUENTA } = await import('./textos/cuenta')
+    const { ES_SHELL, EN_SHELL, PT_SHELL } = await import('./textos/shell')
+    const { ES_COMPARTIDOS, EN_COMPARTIDOS, PT_COMPARTIDOS } = await import('./textos/compartidos')
+    const { ES_ADMIN, EN_ADMIN, PT_ADMIN } = await import('./textos/admin')
+    const { ES_NOTIFICACIONES, EN_NOTIFICACIONES, PT_NOTIFICACIONES } = await import('./textos/notificaciones')
+    const { DICCIONARIOS, PT_PARCIAL } = await import('./diccionario')
+    const { clavesBasePortugues } = await import('./cobertura-portugues')
+    const base = (d: Record<string, string>) => Object.fromEntries(clavesBasePortugues().map((k) => [k, d[k]]))
+    return {
+      es: { ...ES_CUENTA, ...ES_SHELL, ...ES_COMPARTIDOS, ...ES_ADMIN, ...ES_NOTIFICACIONES, ...base(DICCIONARIOS.es) },
+      en: { ...EN_CUENTA, ...EN_SHELL, ...EN_COMPARTIDOS, ...EN_ADMIN, ...EN_NOTIFICACIONES, ...base(DICCIONARIOS.en) },
+      it: {
+        ...PT_CUENTA, ...PT_SHELL, ...PT_COMPARTIDOS, ...PT_ADMIN, ...PT_NOTIFICACIONES,
+        ...base(PT_PARCIAL as Record<string, string>),
+      } as Partial<Record<string, string>>,
+    }
+  }
+
+  for (const p of PANTALLAS) {
+    it(p.nombre, async () => {
+      const crudo = await p.pintar('pt')
+      vi.unstubAllGlobals()
+      const dic = await diccionariosDelLote()
+      expect(culpablesEnItaliano(crudo, dic, { ignorar: DATOS_IT })).toEqual([])
+      expect(huellasEnPortugues(crudo)).toEqual([])
+    })
+  }
+
+  it('la pagina de error global y el `_error` salen en portugues', async () => {
+    vi.stubGlobal('document', { documentElement: { lang: 'pt-BR' } })
+    const { default: ErrorGlobal } = await import('../../app/global-error')
+    const html = renderToStaticMarkup(createElement(ErrorGlobal, { error: new Error('x'), reset: () => {} }))
+    expect(html).toContain('<html lang="pt-BR">')
+    expect(html).toContain('O sistema não está disponível no momento')
+    const { default: Err } = await import('../../pages/_error')
+    expect(renderToStaticMarkup(createElement(Err, { statusCode: 404, idioma: 'pt' }))).toContain('Página não encontrada')
+  })
+})

@@ -141,10 +141,13 @@ export function IdiomaCuenta() {
         >
           {preferido === null && <option value="">{t('comun.cargando')}</option>}
           <option value="navegador">{t('idioma.cuenta.navegador')}</option>
-          {/* Cada idioma se nombra en sí mismo, como en el selector del login. */}
+          {/* Cada idioma se nombra en sí mismo, como en el selector del login.
+              Los que manda el servidor (los encendidos). Entre la ola 0 del
+              portugués y P3 (05/11) aquí se quitaba `pt`; la base ya lo
+              acepta (`20261105_idioma_portugues.sql`). */}
           {disponibles.map((i) => (
             <option key={i} value={i}>
-              {t(`idioma.${i}` as 'idioma.es' | 'idioma.en' | 'idioma.it')}
+              {t(`idioma.${i}` as 'idioma.es' | 'idioma.en' | 'idioma.it' | 'idioma.pt')}
             </option>
           ))}
         </select>

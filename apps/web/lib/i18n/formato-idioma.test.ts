@@ -24,8 +24,8 @@ describe('FORMATO_IDIOMA · una fila por idioma', () => {
   it('cubre exactamente el catalogo', () => {
     expect(Object.keys(FORMATO_IDIOMA).sort()).toEqual([...IDIOMAS].sort())
   })
-  it('los locales: es-MX, en-US, it-IT, y LOCALE_DE_IDIOMA sale de aqui', () => {
-    expect(IDIOMAS.map(localeDe)).toEqual(['es-MX', 'en-US', 'it-IT'])
+  it('los locales: es-MX, en-US, it-IT, pt-BR, y LOCALE_DE_IDIOMA sale de aqui', () => {
+    expect(IDIOMAS.map(localeDe)).toEqual(['es-MX', 'en-US', 'it-IT', 'pt-BR'])
     for (const i of IDIOMAS) expect(LOCALE_DE_IDIOMA[i]).toBe(localeDe(i))
   })
 })

@@ -115,6 +115,26 @@ esto.
 **Lo que abre esta auditoría:** decisiones **D11** y **D12**; advertencias **B40** a
 **B45**. La que de verdad importa de las seis es **B40**.
 
+> **2026-11-05, noche · DINERO en la v0.12.6 publicada: la cantidad manual de la propuesta (H1 de
+> `docs/i18n/validacion-portugues-cifras.md`).** Dos entradas nuevas. Se numeran desde **B92**
+> porque `integra/portugues` ya usa B91.
+>
+> - **B92 · ARREGLADA en rama, SIN PUBLICAR.** En la cantidad de una línea de propuesta,
+>   «1.500» tecleado en español se guardaba como 100 (en italiano «1,500» → 100, «1.5000» →
+>   15 000), sin aviso. Rama `fix/cantidad-propuesta` (`519a7a54`, desde `origin/main`
+>   34f36a54), con notas de la **v0.12.7**. Verificada con unitarias (rojo a la vista: 11 de 14)
+>   y en el navegador real (`propuesta_items.cantidad = 1500.00`). **Se cierra cuando la
+>   v0.12.7 esté en g500**. El dueño dijo «aún no» a publicarla (05/11). Al publicar, revisar
+>   en g500 las propuestas de la v0.12.6 con cantidades tecleadas a mano.
+> - ~~**B93 · BAJA.** `ReservaDialog.tsx:331` tiene el mismo patrón: acota a 0 lo
+>   ilegible (`Number(crudo) || 0`) y el campo lo repinta a media escritura. Son slots
+>   reservados, no dinero.~~ **ARREGLADA en la misma rama el 05/11**, a petición del dueño
+>   («arregla también el de reservas»), con `lib/slots-reserva.ts`. Rojo a la vista: 7 de 11.
+>   En el navegador real, 4 slots → `reservas.spots_reservados = 4`. Se cierra con B92, al
+>   publicar la v0.12.7.
+> - Al integrar `fix/cantidad-propuesta` en `integra/portugues`, el typecheck exige la clave
+>   `propuestas.alta.error.cantidad` en `PT_PROPUESTAS`.
+
 ---
 
 ## A · Decisiones del dueño
@@ -2755,6 +2775,15 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
   toca `scripts/`. Ya no son solo las suites de pantallas: el arreglo de `lib/i18n/` no bastaría.
 
 ### B · iii — Menores, para que no se pierdan
+
+- **B91 · ⚪ ABIERTA (2026-11-05) · `numeroALetras` sin acarreo de centavos y vacía desde mil
+  millones, en los CUATRO idiomas** (H3 de `docs/i18n/validacion-portugues-documentos.md`;
+  heredado, no lo introdujo P3). `numeroALetras(1.995)` da «… 100/100» (redondea los centavos sin
+  sumar el peso) y `1 000 000 000` deja el número vacío (« MILHÕES», « MILLONES»…). Pasa igual en
+  es/en/it desde antes. **No se toca**: arreglarlo cambia el hash de los contratos congelados
+  con esos importes, y en un contrato la letra prevalece. Si se arregla, hay que conservar la
+  regla vieja para cotejar (como hizo el ADR 0048 con «PESOS … M.N.», `hashParaCotejar`).
+  Importes así (centavos que redondean a 100, rentas de mil millones) no se han visto.
 
 - ~~**B63 · `feat/idioma-por-usuario` choca al fusionar con L5 del italiano y con `feat/idioma-instancia`.**~~ ✅ **CERRADA el 2026-11-04 al fusionar en `integra/idiomas` (merge `afa2e490`).** Seis conflictos, todos aditivos: `diccionario.ts` (las dos partes), `cobertura-italiano.test.ts` (la de L5, sin recuento fijo), `CLAUDE.md`, MOC, `esquema.md` (la fila `tenants` de ADR 0049 y la de `usuarios` de esta rama) y el diario (§7.4). `idiomas.ts` se fusionó solo: `resolverIdioma` sigue usando `idiomasPorOmision()` por omisión y la cuenta entra delante. `errores-servidor.ts` ganó el italiano de «Ese idioma no está disponible en este servidor.» («Questa lingua non è disponibile su questo server.»; el inglés ya venía). Recuentos medidos con `node scripts/recuentos.mjs`: **125 migraciones**, 160 endpoints, 66 tablas.
 - ~~**B64 · Al cerrar sesión, la pantalla de entrar puede quedarse en el idioma de la cuenta que salió hasta recargar.**~~ ✅ **CERRADA el 2026-11-04 por código, no por navegador.** Se confirmó por lectura que aplicaba (`Topbar.tsx` salía con `router.push('/login')`) y se cambió a una carga completa: `components/demo/shell/salir.ts` (`cerrarSesionYSalir`: logout y `window.location.assign('/spaces-dooh/login/')`, sale aunque el logout falle). Rojo en su propio commit (`78a42ec4`) y arreglo en `1fb57e39`; `salir.test.ts` exige el orden logout → carga completa y que el Topbar no vuelva a `router.push`. **No se miró en un navegador**: queda para el recorrido del italiano (§4 de `italiano-olas`).

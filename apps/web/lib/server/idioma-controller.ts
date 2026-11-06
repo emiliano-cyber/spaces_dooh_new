@@ -11,6 +11,13 @@ import { idiomasActivos, preferenciaDeIdioma, normalizarIdioma, type Idioma } fr
 //  filtra además por el tenant de la sesión. No hay forma de pedir ni de
 //  cambiar el idioma de otra persona, y es a propósito: es una preferencia, no
 //  algo que un administrador decida por nadie.
+//
+//  Lo que se puede elegir son los idiomas ENCENDIDOS (`idiomasActivos()`).
+//  Entre la ola 0 del portugues y P3 (05/11) se quitaba `pt` aunque estuviera
+//  encendido, porque el CHECK de `usuarios.idioma_preferido` no lo aceptaba;
+//  con eso, una persona con una preferencia guardada no podia llegar al
+//  portugues (H1 de la validacion de la ola 0). `20261105_idioma_portugues.sql`
+//  abrio el CHECK y la restriccion se retiro.
 // ============================================================================
 
 export type RespuestaIdioma = {

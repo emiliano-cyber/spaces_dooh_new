@@ -332,3 +332,90 @@ describe('D18 · el ITALIANO, lo que no cambia', () => {
     expect(cifraAMedias('1,', 'it')).toBe(false)
   })
 })
+
+// ─── P2 (decisión del dueño del 2026-11-05) · D18 en PORTUGUÉS ──────────────
+// El portugués pasa a teclear a la brasileña, el mismo sistema que el
+// italiano, y HEREDA su comportamiento al teclear tal cual (B77, B87): el
+// punto de millar que pone la persona no se recoloca, y `cifraAMedias` es
+// `false`, así que «1.» o «1.5» camino de «1.500» avisan en el acto, como en
+// italiano y no como en es/en. Si eso se cambia, se cambia para los dos a la
+// vez (es el italiano publicado): queda como propuesta para el dueño.
+describe('P2 · PORTUGUÉS · D18 es el del italiano', () => {
+  const PT: OpcionesCifra = { decimales: 2, minimo: 0 }
+  it('«1.5000» y «1.2345» tecleados se quedan y se rechazan, como pegados (B87)', () => {
+    for (const t of ['1.5000', '1.2345']) {
+      const r = teclear(t, 'pt', PT)
+      expect(r.texto, t).toBe(t)
+      expect(r.crudo, t).toBe('NaN')
+      expect(r.lectura, t).toEqual(pegado(t, 'pt', PT))
+      expect(r.estado.comasPropias, t).toBe(true)
+    }
+  })
+  it('lo bien puesto: «1.500» = 1500, «1.500,50» = 1500.5, «1500» → «1.500», «15000,50» → «15.000,50», «12,9» = 12.9', () => {
+    expect(teclear('1.500', 'pt', PT).crudo).toBe('1500')
+    expect(teclear('1.500,50', 'pt', PT).crudo).toBe('1500.5')
+    expect(teclear('1500', 'pt', PT).texto).toBe('1.500')
+    expect(teclear('15000,50', 'pt', PT).texto).toBe('15.000,50')
+    expect(teclear('12,9', 'pt', PT).crudo).toBe('12.9')
+  })
+  it('NEGATIVO · «2.5» y «12.9» (punto a la mexicana) se quedan y se rechazan, no se vuelven 25 ni 129', () => {
+    for (const t of ['2.5', '12.9']) {
+      const r = teclear(t, 'pt', PT)
+      expect(r.texto, t).toBe(t)
+      expect(r.crudo, t).toBe('NaN')
+    }
+  })
+  it('NEGATIVO · «1,500» tecleado en dinero se rechaza (¿uno y medio o mil quinientos?), nunca 1500', () => {
+    const r = teclear('1,500', 'pt', PT)
+    expect(r.texto).toBe('1,500')
+    expect(r.crudo).toBe('NaN')
+    expect(teclear('1,500', 'pt', { decimales: 3, minimo: 0 }).crudo).toBe('1.5')
+  })
+  it('pegar «1.500» encima de «2.000» y teclear 0 → «1.5000», rechazado (B85)', () => {
+    const p = teclearCifra({ texto: '2.000', comasPropias: false }, { nuevo: '1.500', cursor: 5, tipoEntrada: 'insertFromPaste' }, 'pt')
+    expect(p.comasPropias).toBe(true)
+    expect(teclear('0', 'pt', PT, p).texto).toBe('1.5000')
+  })
+  it('cifraAMedias es false: «1.» y «1.5» avisan en el acto, como en italiano', () => {
+    for (const t of ['1.', '1.5', '1.50', '1,', '212.500.5']) {
+      expect(cifraAMedias(t, 'pt'), t).toBe(false)
+      expect(cifraAMedias(t, 'pt'), t).toBe(cifraAMedias(t, 'it'))
+    }
+  })
+
+  // Barrido: todas las secuencias de hasta 6 teclas sobre «1 5 0 . ,»
+  // (19 530), tecleadas desde vacío y desde «1.500» del campo, con el
+  // cursor al final y al principio. Cada paso del portugués tiene que ser
+  // el del italiano: texto, cursor, `comasPropias`, lectura y «a medias».
+  it('BARRIDO · 78 120 secuencias: cada tecla en portugués da lo mismo que en italiano', () => {
+    const teclas = ['1', '5', '0', '.', ',']
+    const secuencias: string[] = ['']
+    for (let n = 1; n <= 6; n++) for (const s of secuencias.filter((x) => x.length === n - 1)) for (const k of teclas) secuencias.push(s + k)
+    let pasos = 0
+    for (const desde of [{ texto: '', comasPropias: false }, { texto: '1.500', comasPropias: false }]) {
+      for (const alPrincipio of [false, true]) {
+        for (const s of secuencias.slice(1)) {
+          const estado: Record<'it' | 'pt', TecleoCifra> = { it: desde, pt: desde }
+          const cursor = { it: alPrincipio ? 0 : desde.texto.length, pt: alPrincipio ? 0 : desde.texto.length }
+          for (const ch of s) {
+            const r = {} as Record<'it' | 'pt', ReturnType<typeof teclearCifra>>
+            for (const i of ['it', 'pt'] as const) {
+              const nuevo = estado[i].texto.slice(0, cursor[i]) + ch + estado[i].texto.slice(cursor[i])
+              r[i] = teclearCifra(estado[i], { nuevo, cursor: cursor[i] + 1, tipoEntrada: 'insertText' }, i)
+              estado[i] = { texto: r[i].texto, comasPropias: r[i].comasPropias }
+              cursor[i] = r[i].cursor
+            }
+            pasos++
+            if (JSON.stringify(r.pt) !== JSON.stringify(r.it)) expect(r.pt, s).toEqual(r.it)
+            const lee = (i: 'it' | 'pt') => crudoDeLectura(leerCifra(r[i].texto, { ...PT, idioma: i }))
+            if (lee('pt') !== lee('it')) expect(lee('pt'), s).toBe(lee('it'))
+            if (cifraAMedias(r.pt.texto, 'pt') !== cifraAMedias(r.it.texto, 'it')) expect(s).toBe('a medias distinto')
+          }
+        }
+      }
+    }
+    expect(pasos).toBeGreaterThan(400_000)
+    // 60 s: 78 120 secuencias; en el CI paso de los 5 s por omision (PR de la
+    // v0.12.7, 06/11). Es trabajo lineal, no un cuelgue.
+  }, 60_000)
+})

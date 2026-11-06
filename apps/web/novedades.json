@@ -1,5 +1,23 @@
 [
   {
+    "version": "v0.12.7",
+    "fecha": "2026-11-06",
+    "items": [
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Propuestas: si la cantidad de una línea se teclea con el separador equivocado, ya no se guarda otra cantidad sin avisar. Se queda en rojo y no deja crear la propuesta hasta corregirla.",
+        "en": "Proposals: if a line quantity is typed with the wrong separator, a different quantity is no longer saved without warning. It stays in red and the proposal can’t be created until it is fixed.",
+        "it": "Proposte: se la quantità di una riga si digita con il separatore sbagliato, non si salva più un’altra quantità senza avviso. Resta in rosso e la proposta non si crea finché non si corregge."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Reservar sitios: si los slots de una pantalla se teclean con el separador equivocado, ya no se reservan otros sin avisar. Se quedan en rojo y no deja reservar hasta corregirlos.",
+        "en": "Book sites: if the slots of a screen are typed with the wrong separator, different ones are no longer booked without warning. They stay in red and booking is blocked until they are fixed.",
+        "it": "Prenota siti: se gli slot di uno schermo si digitano con il separatore sbagliato, non se ne prenotano più altri senza avviso. Restano in rosso e la prenotazione è bloccata finché non si correggono."
+      }
+    ]
+  },
+  {
     "version": "v0.12.6",
     "fecha": "2026-11-05",
     "items": [

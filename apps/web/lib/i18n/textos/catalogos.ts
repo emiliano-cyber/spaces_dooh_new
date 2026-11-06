@@ -782,3 +782,262 @@ export const IT_CATALOGOS: Record<ClaveCatalogos, string> = {
   'catalogos.motivo.tramo.menos-y-mas':
     'Non si può comprare di più e scontare di meno: lo scaglione da {otroDesde} dà il {otroPct}% e questo, da {n}, darebbe il {pct}%.',
 }
+
+// ─── PORTUGUES (pt-BR) · lote L2 (2026-11-05) ──────────────────────────────
+// Glosario del lote (ademas del comun, §2 bis de `portugues-olas.md`):
+// paquete cerrado → «pacote fechado» · precio cerrado → «preço fechado» · a
+// prorrata → «proporcionalmente» · reparto → «rateio» · tarifa / precio de
+// lista → «preço de tabela» (la rejilla es «tabela de preços», L5) · franja →
+// «faixa horária» · temporada → «temporada» · dar de baja → «desativar» ·
+// tramo → «patamar» · escalon → «degrau» · escala plana → «escala não
+// progressiva» · horario de transmision → «grade de programação» · se
+// compone → «se aplica em cascata». Porcentaje pegado («10%», D4). Los
+// `catalogos.motivo.*` los usan tambien `lib/paquete.ts`, `lib/rejilla.ts` y
+// `lib/volumen.ts` con el idioma de la pantalla.
+export const PT_CATALOGOS: Record<ClaveCatalogos, string> = {
+  // ── Comunes del lote ──
+  'catalogos.comun.nombre': 'Nome',
+  'catalogos.comun.desde': 'De',
+  'catalogos.comun.hasta': 'Até',
+  'catalogos.comun.estado': 'Situação',
+  'catalogos.comun.anadir': 'Adicionar',
+  'catalogos.comun.eliminar': 'Excluir',
+  'catalogos.comun.activa': 'Ativa',
+  'catalogos.comun.dada-de-baja': 'Desativada',
+  'catalogos.comun.dar-de-baja': 'Desativar',
+  'catalogos.comun.unidad': 'Unidade',
+  'catalogos.comun.franja': 'Faixa horária',
+  'catalogos.comun.temporada': 'Temporada',
+  'catalogos.comun.tarifa': 'Tarifa',
+  'catalogos.comun.todo-el-dia': 'O dia todo',
+  'catalogos.comun.todo-el-ano': 'O ano todo',
+  'catalogos.comun.no-guardar': 'Não foi possível salvar',
+  'catalogos.comun.no-eliminar': 'Não foi possível excluir',
+
+  // ── Paquetes cerrados ──
+  'catalogos.paquetes.descripcion':
+    'Um conjunto de pontos com um preço para o conjunto. Substitui a soma das tarifas de tabela; não a desconta.',
+  'catalogos.paquetes.no-leer': 'Não foi possível ler o catálogo de pacotes',
+  'catalogos.paquetes.no-guardar': 'Não foi possível salvar o pacote',
+  'catalogos.paquetes.no-cambiar': 'Não foi possível alterar o pacote',
+  'catalogos.paquetes.no-eliminar': 'Não foi possível excluir o pacote',
+  'catalogos.paquetes.cargando': 'Carregando os pacotes',
+  'catalogos.paquetes.aviso.sustituye':
+    'O preço do pacote SUBSTITUI a soma das tarifas de tabela: não a desconta, a substitui.',
+  'catalogos.paquetes.aviso.da-igual': 'Não importa quanto os pontos somem — cobra-se o preço do pacote.',
+  'catalogos.paquetes.aviso.volumen':
+    'Por isso um pacote {negrita} (o preço dele já o inclui) nem código de negociação, a menos que você marque a caixa abaixo. O desconto comercial da proposta continua sendo aplicado por cima.',
+  'catalogos.paquetes.aviso.volumen.negrita': 'não admite desconto por volume',
+  'catalogos.paquetes.aviso.quitar': 'E {negrita}: o rateio é recalculado entre os que ficam e a proposta avisa.',
+  'catalogos.paquetes.aviso.quitar.negrita': 'remover um ponto de uma proposta já cotada NÃO baixa o preço',
+  'catalogos.paquetes.lista.titulo': 'Pacotes da organização',
+  'catalogos.paquetes.lista.subtitulo': 'Rateado proporcionalmente ao preço de tabela',
+  'catalogos.paquetes.lista.explicacion':
+    'O preço é rateado entre os pontos {prorrata}, e a soma das partes dá o preço do pacote {peso}. Esse rateio é a receita que o relatório de rentabilidade atribui a cada ponto.',
+  'catalogos.paquetes.lista.explicacion.prorrata': 'proporcionalmente ao preço de tabela de cada um',
+  'catalogos.paquetes.lista.explicacion.peso': 'com exatidão',
+  'catalogos.paquetes.col.paquete': 'Pacote',
+  'catalogos.paquetes.col.pantallas': 'Pontos',
+  'catalogos.paquetes.col.precio': 'Preço fechado',
+  'catalogos.paquetes.col.codigos': 'Códigos?',
+  'catalogos.paquetes.col.en-uso': 'Em uso',
+  'catalogos.paquetes.vacio':
+    'Ainda não há nenhum. Sem pacotes, tudo é vendido pelo preço de tabela — que é exatamente como funciona hoje.',
+  'catalogos.paquetes.activo': 'Ativo',
+  'catalogos.paquetes.desactivado': 'Desativado',
+  'catalogos.paquetes.pantallas.uno': '{n} ponto',
+  'catalogos.paquetes.pantallas.otros': '{n} pontos',
+  'catalogos.paquetes.admite-codigo': 'Admite código',
+  'catalogos.paquetes.precio-final': 'Preço final',
+  'catalogos.paquetes.en-uso.title': 'Propostas que aplicam este pacote',
+  'catalogos.paquetes.en-uso': 'Em uso · {n}',
+  'catalogos.paquetes.desactivar': 'Desativar',
+  'catalogos.paquetes.activar': 'Ativar',
+  'catalogos.paquetes.desactivar.title':
+    'Desativar mantém a definição e o pacote deixa de poder ser vendido. O que já foi cotado e o que já foi aprovado não muda.',
+  'catalogos.paquetes.eliminar.title':
+    'Excluir: nenhuma venda muda, porque o preço já está copiado em cada proposta. O que se perde é saber de qual pacote ela veio.',
+  'catalogos.paquetes.nuevo': 'Novo pacote',
+  'catalogos.paquetes.nombre.aria': 'Nome do pacote',
+  'catalogos.paquetes.nombre.placeholder': 'ex.: Pacote Periférico',
+  'catalogos.paquetes.precio': 'Preço do conjunto (valor inteiro, sem centavos)',
+  'catalogos.paquetes.precio.aria': 'Preço fechado do pacote',
+  'catalogos.paquetes.precio.placeholder': 'ex.: {ejemplo}',
+  'catalogos.paquetes.admite-codigo-encima': 'Admite código de negociação por cima',
+  'catalogos.paquetes.pantallas-del-paquete': 'Pontos do pacote',
+  'catalogos.paquetes.minimo':
+    ' (mínimo 2). Uma proposta só pode aplicar este pacote se tiver {exactamente} estes pontos.',
+  'catalogos.paquetes.minimo.exactamente': 'exatamente',
+  'catalogos.paquetes.elegidas.uno': '{n} escolhido',
+  'catalogos.paquetes.elegidas.otros': '{n} escolhidos',
+  'catalogos.paquetes.de-lista': '{monto} de tabela',
+  'catalogos.paquetes.resumen.lista': 'Tabela {monto}',
+  'catalogos.paquetes.resumen.paquete': 'Pacote {monto}',
+  'catalogos.paquetes.resumen.deja-de-cobrar': 'deixa-se de cobrar {monto}',
+  'catalogos.paquetes.resumen.por-encima': 'cobra-se {monto} ACIMA da tabela',
+  'catalogos.paquetes.reparto.intro':
+    'Assim seria o rateio entre os pontos — e é isto que o relatório de rentabilidade vai atribuir a cada um:',
+  'catalogos.paquetes.reparto.pantalla': 'Ponto',
+  'catalogos.paquetes.reparto.lista': 'Tabela',
+  'catalogos.paquetes.reparto.parte': 'Parte do pacote',
+  'catalogos.paquetes.reparto.suma': 'Soma das partes {cuadra}',
+  'catalogos.paquetes.reparto.cuadra': '— bate exatamente',
+  'catalogos.paquetes.crear': 'Criar pacote',
+
+  // ── Franjas y temporadas ──
+  'catalogos.rejilla.descripcion':
+    'As duas dimensões da tarifa: a hora do dia e a época do ano. São cadastradas uma vez e valem para todo o inventário.',
+  'catalogos.rejilla.no-leer': 'Não foi possível ler o catálogo',
+  'catalogos.rejilla.no-dar-de-baja': 'Não foi possível desativar',
+  'catalogos.rejilla.cargando': 'Carregando o catálogo',
+  'catalogos.rejilla.candado.titulo': 'Confirme com sua senha',
+  'catalogos.rejilla.candado.subtitulo':
+    'Faixas horárias e temporadas são preço: sua organização pede a senha para alterá-las.',
+  'catalogos.rejilla.candado.confirmar': 'Confirmar e salvar',
+  'catalogos.rejilla.franjas.titulo': 'Faixas horárias',
+  'catalogos.rejilla.franjas.subtitulo': 'Fim exclusivo · sem sobreposição',
+  'catalogos.rejilla.franjas.explicacion':
+    'O fim é {exclusivo}: 06:00–10:00 e 10:00–14:00 se tocam e não se sobrepõem. Duas faixas horárias não podem se sobrepor — se pudessem, o preço de um spot às 09:30 dependeria de um desempate que ninguém decidiu.',
+  'catalogos.rejilla.franjas.explicacion.exclusivo': 'exclusivo',
+  'catalogos.rejilla.col.orden': 'Ordem',
+  'catalogos.rejilla.franjas.vacio':
+    'Ainda não há nenhuma. Sem faixas horárias, tudo é vendido com a tarifa base — que é exatamente como funciona hoje.',
+  'catalogos.rejilla.dar-de-baja.title': 'Desativar: deixa de ser oferecida, e o que já foi contratado continua valendo',
+  'catalogos.rejilla.franja.nombre.aria': 'Nome da faixa horária',
+  'catalogos.rejilla.franja.nombre.placeholder': 'ex.: Horário nobre',
+  'catalogos.rejilla.franja.inicio.aria': 'Hora de início',
+  'catalogos.rejilla.franja.fin.aria': 'Hora de término',
+  'catalogos.rejilla.temporadas.titulo': 'Temporadas',
+  'catalogos.rejilla.temporadas.subtitulo': 'Datas com ano · as duas pontas entram',
+  'catalogos.rejilla.temporadas.explicacion':
+    'Datas {concretas}, com ano: “Buen Fin 2026” e “Buen Fin 2027” são duas temporadas, porque as datas mudam a cada ano. As duas pontas entram. Também não podem se sobrepor: se “Dezembro” e “Buen Fin” se sobrepõem, é preciso decidir qual preço vale nesses dias.',
+  'catalogos.rejilla.temporadas.explicacion.concretas': 'específicas',
+  'catalogos.rejilla.temporadas.vacio': 'Ainda não há nenhuma.',
+  'catalogos.rejilla.temporada.nombre.aria': 'Nome da temporada',
+  'catalogos.rejilla.temporada.nombre.placeholder': 'ex.: Buen Fin 2026',
+  'catalogos.rejilla.temporada.inicio.aria': 'Data de início',
+  'catalogos.rejilla.temporada.fin.aria': 'Data de término',
+
+  // ── Horario de transmision → grade de programação ──
+  'catalogos.programacion.no-leer': 'Não foi possível ler a programação',
+  'catalogos.programacion.no-programar': 'Não foi possível programar',
+  'catalogos.programacion.cargando': 'Carregando a programação',
+  'catalogos.programacion.titulo': 'Grade de programação',
+  'catalogos.programacion.subtitulo': 'Não muda nenhum preço',
+  'catalogos.programacion.explicacion':
+    'Em qual faixa horária cada campanha {negrita}. Não muda nenhum preço: o que foi vendido já está na campanha desde a proposta. Você pode marcar várias campanhas e programá-las de uma vez; se alguma não puder, nenhuma é programada.',
+  'catalogos.programacion.explicacion.negrita': 'é veiculada',
+  'catalogos.programacion.sin-permiso':
+    'Só o gerente de vendas, o diretor comercial e a diretoria podem montar a grade de programação. Aqui você vê como ela está.',
+  'catalogos.programacion.sin-franjas':
+    'Cadastre pelo menos uma faixa horária acima para poder programar campanhas nela.',
+  'catalogos.programacion.campanas.uno': '{n} campanha',
+  'catalogos.programacion.campanas.otros': '{n} campanhas',
+  'catalogos.programacion.ninguna': 'Nenhuma campanha é veiculada nesta faixa horária.',
+  'catalogos.programacion.quitar.aria': 'Remover {campana} de {franja}',
+  'catalogos.programacion.quitar.title': 'Remover desta faixa horária (não mexe no que foi vendido)',
+  'catalogos.programacion.programar-en': 'Programar campanhas em {franja}',
+  'catalogos.programacion.marcadas.uno': ' ({n} marcada)',
+  'catalogos.programacion.marcadas.otros': ' ({n} marcadas)',
+  'catalogos.programacion.hoy-en': '(hoje em {franja})',
+  'catalogos.programacion.boton': 'Programar {n} em {franja}',
+  'catalogos.programacion.boton.vacio': 'Programar  em {franja}',
+
+  // ── Tarifas por franja y temporada de UNA pantalla ──
+  'catalogos.tarifas.no-leer': 'Não foi possível ler a tabela de preços',
+  'catalogos.tarifas.guardadas': 'Tarifas por faixa horária salvas',
+  'catalogos.tarifas.no-guardar': 'Não foi possível salvar as tarifas por faixa horária',
+  'catalogos.tarifas.titulo': 'Tarifas por faixa horária e temporada',
+  'catalogos.tarifas.guardando': 'Salvando…',
+  'catalogos.tarifas.guardar': 'Salvar tarifas',
+  // P2 (05/11): a captura e brasileira (ver `compartidos.cifra.*`).
+  'catalogos.tarifas.invalida':
+    'Há uma tarifa em vermelho que não dá para entender: o ponto separa os milhares e a vírgula, os decimais ({ejemplo}).',
+  'catalogos.tarifas.sin-catalogo':
+    'Esta organização ainda não tem faixas horárias nem temporadas. Elas são definidas uma única vez em {pantalla} e valem para todo o inventário.',
+  'catalogos.tarifas.dispersa':
+    'Só é preciso cadastrar as combinações que tenham um preço diferente. O que não estiver aqui é cobrado com a tarifa por unidade de sempre — a tabela de preços não obriga a preencher nada.',
+  'catalogos.tarifas.tarifa-de.aria': 'Tarifa de {unidad}',
+  'catalogos.tarifas.conservar': 'Manter',
+  'catalogos.tarifas.quitar': 'Remover',
+  'catalogos.tarifas.nueva.unidad.aria': 'Unidade da nova tarifa',
+  'catalogos.tarifas.nueva.unidad': 'Unidade…',
+  'catalogos.tarifas.nueva.franja.aria': 'Faixa horária da nova tarifa',
+  'catalogos.tarifas.nueva.temporada.aria': 'Temporada da nova tarifa',
+  'catalogos.tarifas.nueva.tarifa.aria': 'Tarifa da nova linha',
+
+  // ── Descuentos por volumen ──
+  'catalogos.volumen.descripcion':
+    'Que desconto ganha quem compra muito. É cadastrado uma vez por unidade de venda e vale para todo o inventário.',
+  'catalogos.volumen.no-leer': 'Não foi possível ler a escala',
+  'catalogos.volumen.cargando': 'Carregando a escala',
+  'catalogos.volumen.aviso.todas':
+    'O desconto é aplicado sobre TODAS as unidades, não só sobre as que passam do patamar.',
+  'catalogos.volumen.aviso.ejemplo':
+    '“A partir de 50 spots, 10%” quer dizer que quem compra 50 paga os 50 com 10% a menos. Consequência: quem compra 49 paga mais do que quem compra 50, e o salto pode ser maior que o preço de uma unidade.',
+  'catalogos.volumen.aviso.compone':
+    'E se {compone} sobre o desconto comercial: 20% aqui e 20% na proposta deixam o cliente pagando {pct}, não 60%.',
+  'catalogos.volumen.aviso.compone.negrita': 'aplica em cascata',
+  'catalogos.volumen.aviso.compone.pct': '64%',
+  'catalogos.volumen.tramos.titulo': 'Patamares por unidade de venda',
+  'catalogos.volumen.tramos.subtitulo': 'Cada unidade tem sua própria escala',
+  'catalogos.volumen.escala.title': 'O desconto do patamar atingido é aplicado a TODAS as unidades',
+  'catalogos.volumen.escala': 'Escala não progressiva (volume)',
+  'catalogos.volumen.explicacion':
+    'Cada unidade tem sua própria escala, porque 50 spots e 50 meses não são a mesma compra. Os patamares precisam {crecer}: comprar mais nunca pode descontar menos.',
+  'catalogos.volumen.explicacion.crecer': 'crescer',
+  'catalogos.volumen.col.a-partir': 'A partir de',
+  'catalogos.volumen.col.descuento': 'Desconto',
+  'catalogos.volumen.vacio':
+    'Ainda não há nenhum. Sem patamares, tudo é vendido pelo preço de tabela — que é exatamente como funciona hoje.',
+  'catalogos.volumen.tramos.uno': ' · {n} patamar',
+  'catalogos.volumen.tramos.otros': ' · {n} patamares',
+  'catalogos.volumen.escalon': 'Degrau {n}',
+  'catalogos.volumen.desde': 'a partir de {cantidad} {unidad}',
+  'catalogos.volumen.pct': '→ {pct}%',
+  'catalogos.volumen.eliminar.title':
+    'Excluir: deixa de ser aplicado a partir de agora. O que já foi cotado e o que já foi aprovado não muda.',
+  'catalogos.volumen.unidad.aria': 'Unidade de venda',
+  'catalogos.volumen.cantidad.aria': 'A partir de qual quantidade',
+  'catalogos.volumen.cantidad.placeholder': 'ex.: 50',
+  'catalogos.volumen.pct.aria': 'Desconto percentual',
+  'catalogos.volumen.pct.placeholder': 'ex.: 10',
+  'catalogos.volumen.anadir': 'Adicionar patamar',
+
+  // ── Motivos de rechazo (lib/paquete.ts, lib/rejilla.ts, lib/volumen.ts) ──
+  'catalogos.motivo.paquete.nombre': 'O pacote precisa de um nome.',
+  'catalogos.motivo.paquete.nombre-largo': 'O nome do pacote não pode passar de 120 caracteres.',
+  'catalogos.motivo.paquete.precio-numero': 'O preço do pacote precisa ser um número.',
+  'catalogos.motivo.paquete.precio-cero':
+    'O preço de um pacote precisa ser maior que 0: um pacote grátis não é um pacote.',
+  'catalogos.motivo.paquete.precio-entero':
+    'O preço do pacote precisa ser um valor inteiro: o rateio entre os pontos não admite centavos.',
+  'catalogos.motivo.paquete.dos-pantallas':
+    'Um pacote precisa de pelo menos 2 pontos; com um só, isso é uma tarifa e vai na ficha do ponto.',
+  'catalogos.motivo.paquete.repetida': 'Há um ponto repetido no pacote.',
+  'catalogos.motivo.franja.nombre': 'A faixa horária precisa de um nome.',
+  'catalogos.motivo.franja.hora': 'Hora inválida em “{nombre}”: escreve-se HH:MM em 24 horas, de 00:00 a 23:59.',
+  'catalogos.motivo.franja.misma-hora': 'A faixa horária “{nombre}” começa e termina na mesma hora: não cobre nada.',
+  'catalogos.motivo.franja.solape':
+    'A faixa horária “{nombre}” ({inicio}–{fin}) se sobrepõe a “{otra}” ({otraInicio}–{otraFin}).',
+  'catalogos.motivo.temporada.nombre': 'A temporada precisa de um nome.',
+  'catalogos.motivo.temporada.fecha': 'Data inválida em “{nombre}”: escreve-se AAAA-MM-DD.',
+  'catalogos.motivo.temporada.al-reves': 'A temporada “{nombre}” termina antes de começar.',
+  'catalogos.motivo.temporada.solape':
+    'A temporada “{nombre}” ({desde} a {hasta}) se sobrepõe a “{otra}” ({otraDesde} a {otraHasta}).',
+  'catalogos.motivo.tramo.unidad': 'O patamar precisa de uma unidade de venda.',
+  'catalogos.motivo.tramo.cantidad-entera': 'A quantidade a partir da qual se aplica precisa ser um número inteiro.',
+  'catalogos.motivo.tramo.sin-fracciones':
+    'A quantidade a partir da qual se aplica precisa ser um número inteiro: não se vendem frações de unidade.',
+  'catalogos.motivo.tramo.desde-dos':
+    'Um patamar de volume começa em 2 unidades ou mais; “a partir de 1” seria baixar a tabela inteira.',
+  'catalogos.motivo.tramo.pct-numero': 'O desconto precisa ser um número.',
+  'catalogos.motivo.tramo.pct-cero': 'O desconto de um patamar precisa ser maior que 0%: um patamar de 0% não faz nada.',
+  'catalogos.motivo.tramo.pct-cien': 'O desconto de um patamar não pode passar de 100%.',
+  'catalogos.motivo.tramo.mismo-umbral':
+    'Já existe um patamar a partir de {n} para esta unidade ({pct}%). Dois patamares com o mesmo limite são dois preços para a mesma compra.',
+  'catalogos.motivo.tramo.mas-y-menos':
+    'Não dá para comprar mais e descontar menos: o patamar a partir de {otroDesde} já dá {otroPct}% e este, a partir de {n}, daria {pct}%.',
+  'catalogos.motivo.tramo.menos-y-mas':
+    'Não dá para comprar mais e descontar menos: o patamar a partir de {otroDesde} dá {otroPct}% e este, a partir de {n}, daria {pct}%.',
+}

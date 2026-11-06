@@ -53,7 +53,7 @@ export function SelectorIdioma({ className = '' }: { className?: string }) {
             idioma que el servidor va a ignorar seria mentirle a quien lo elige. */}
         {disponibles.map((i) => (
           <option key={i} value={i}>
-            {t(`idioma.${i}` as 'idioma.es' | 'idioma.en' | 'idioma.it')}
+            {t(`idioma.${i}` as 'idioma.es' | 'idioma.en' | 'idioma.it' | 'idioma.pt')}
           </option>
         ))}
       </select>

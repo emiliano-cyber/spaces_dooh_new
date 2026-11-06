@@ -3,7 +3,7 @@ import { Inter, Source_Serif_4 } from 'next/font/google'
 import './globals.css'
 import { Providers } from './providers'
 import { idiomaDeLaPeticion } from '@/lib/i18n/servidor'
-import { idiomasActivos } from '@/lib/i18n/idiomas'
+import { idiomasActivos, langDelHtml } from '@/lib/i18n/idiomas'
 import { ProveedorIdioma } from '@/lib/i18n/contexto'
 import { ProveedorMoneda } from '@/lib/i18n/moneda-cliente'
 import { monedaDeLaInstancia } from '@/lib/server/moneda-instancia'
@@ -98,7 +98,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // espanol— no hay nada que elegir y el selector no se pinta.
   const disponibles = idiomasActivos()
   return (
-    <html lang={idioma} className={`${serif.variable} ${inter.variable}`}>
+    <html lang={langDelHtml(idioma)} className={`${serif.variable} ${inter.variable}`}>
       <body>
         <ProveedorMoneda moneda={moneda}>
           <ProveedorIdioma idioma={idioma} puedeElegir={disponibles.length > 1} disponibles={disponibles}>

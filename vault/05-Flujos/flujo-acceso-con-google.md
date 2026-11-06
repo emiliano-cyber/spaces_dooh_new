@@ -237,6 +237,11 @@ hiciera.
    > vieja. DEMO es `pruebas.space-os.io` desde el 31/08, y cada instancia de
    > owner lleva el suyo. La plantilla no debe traer ningún dominio quemado:
    > `infra/env/app.env.example:104` es donde vive `GOOGLE_REDIRECT_URI`.
+   >
+   > **2026-11-05:** el ADR 0024 lo sustituye el [ADR 0050](../../docs/adr/0050-demo-space-os-io-vuelve-como-la-demo-en-el-droplet-viejo-de-g500.md): `demo.space-os.io`
+   > vuelve como la DEMO, en el droplet viejo de g500. La regla de arriba no cambia:
+   > la DEMO nueva nace con `GOOGLE_OAUTH=0`, y si algún día lleva Google, su URI es
+   > la de su dominio.
 3. `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` en el
    entorno del proceso. **No hace falta recompilar.**
 

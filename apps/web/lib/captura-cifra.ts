@@ -38,6 +38,14 @@
 //  razón: «1,500» en un campo de dinero es 1,5 por la regla, pero quien lo
 //  teclea casi siempre quería mil quinientos a la inglesa.
 //
+//  EN PORTUGUÉS (pt-BR, decisión del dueño del 2026-11-05, P2) se teclea
+//  igual que en italiano: es el MISMO sistema de separadores y lo HEREDA
+//  entero, porque aquí nada pregunta «¿es italiano?» sino `comaDecimal()`
+//  (`FORMATO_IDIOMA[idioma].separadorDecimal`). Lo que el italiano acepta,
+//  rechaza, pinta y manda, el portugués también; solo el motivo va en su
+//  idioma. Lo fijan `captura-cifra.portugues.test.ts` y el barrido de
+//  `captura-cifra.d18.test.ts` (cada tecla, la del italiano).
+//
 //  Español e inglés NO pasan por el intercambio: su camino es el de antes,
 //  carácter por carácter, y lo fija `captura-cifra.es-en.test.ts` contra lo
 //  que daba la función de antes — con UNA excepción autorizada, D18 (decisión
@@ -47,11 +55,12 @@
 //  MIENTRAS SE ESCRIBE (`teclearCifra`, D18): el campo recoloca SUS comas de
 //  millar; las que pone la persona no las toca nunca. «2,5» tecleado se queda
 //  «2,5» y se rechaza; «1,500» vale mil quinientos. A media escritura («1,»,
-//  «1,5», camino de «1,500») no se avisa (`cifraAMedias`). En italiano, lo
-//  mismo con el punto de millar (B87, 05/11), pero avisando en el acto.
+//  «1,5», camino de «1,500») no se avisa (`cifraAMedias`). En italiano y en
+//  portugués, lo mismo con el punto de millar (B87, 05/11), pero avisando en
+//  el acto.
 //
-//  Lo que se entrega al formulario (`crudoDeLectura`) es la MISMA cifra en los tres idiomas: sin separadores y
-//  con punto decimal.
+//  Lo que se entrega al formulario (`crudoDeLectura`) es la MISMA cifra en los
+//  cuatro idiomas: sin separadores y con punto decimal.
 // ============================================================================
 
 import { traducir, type ClaveTexto } from './i18n/diccionario'
@@ -83,7 +92,7 @@ const MSJ_COMAS = 'Las comas van cada tres cifras, como en 212,500. Si querías 
 const MSJ_EUROPEO = 'Aquí el punto es decimal y la coma separa miles: escribe 2,500.50'
 const MSJ_PUNTOS = 'Solo puede haber un punto, y es el decimal. Para miles usa coma: 1,234,567'
 
-/** ¿Este idioma teclea coma decimal y punto de millar? Hoy, solo el italiano. */
+/** ¿Este idioma teclea coma decimal y punto de millar? Hoy, el italiano y el portugués. */
 export function comaDecimal(idioma: Idioma): boolean {
   return FORMATO_IDIOMA[idioma].separadorDecimal === ','
 }
@@ -251,7 +260,7 @@ export function textoDesdeCrudo(crudo: string, idioma: Idioma = 'es'): string {
  * lo entiende, se deja como se tecleó con `ajeno: true`, para que el campo avise
  * (`motivoCifraAjena`) en vez de enseñar una cifra que no se va a mandar.
  *
- * Solo en italiano: en español e inglés el crudo de `CampoCifra` siempre es
+ * Solo en italiano y portugués: en español e inglés el crudo de `CampoCifra` siempre es
  * suyo (lo emite él), y esto es la identidad con `textoDesdeCrudo`.
  */
 export function pintarCrudo(crudo: string, idioma: Idioma): { texto: string; ajeno: boolean } {
@@ -435,7 +444,7 @@ export interface TecleoCifra {
  *     cada tres cifras», y el formulario recibe 'NaN' y no envía.
  *  5. A media escritura no se avisa: ver `cifraAMedias`.
  *
- * EN ITALIANO, la misma regla con los signos intercambiados (B87, 05/11): el
+ * EN ITALIANO Y PORTUGUÉS, la misma regla con los signos intercambiados (B87, 05/11): el
  * PUNTO de millar que pone la persona no se recoloca, y `comasPropias` dice
  * «lleva puntos propios». `cifraAMedias` sigue siendo `false`: su aviso sale
  * en el acto, como desde B77.
@@ -482,7 +491,7 @@ export function teclearCifra(
  * espacios alrededor, como `leerCifra`. Lo que ya no puede acabar bien
  * («1,5000», «0,5», «1,,5», «1,5.0») avisa en el acto, como siempre.
  *
- * Solo español e inglés: en italiano es `false` y su aviso sale como antes.
+ * Solo español e inglés: en italiano y portugués es `false` y su aviso sale como antes.
  */
 export function cifraAMedias(texto: string, idioma: Idioma = 'es'): boolean {
   if (comaDecimal(idioma)) return false
@@ -494,12 +503,12 @@ export function cifraAMedias(texto: string, idioma: Idioma = 'es'): boolean {
 
 // ─── Los campos que no eran `CampoCifra` (P-L2-1, 04/11) ─────────────────────
 // `EntradaCifra` (`components/demo/ui/EntradaCifra.tsx`) es el `<input>` de
-// siempre en español e inglés y un `CampoCifra` en italiano. Estas dos son su
+// siempre en español e inglés y un `CampoCifra` en italiano y portugués. Estas dos son su
 // parte pura. (`crudoTecleado`, un modelo del campo que nadie llamaba, se quitó
 // el 04/11 —B80—: lo tecleado de verdad lo prueba `cifras-formularios.test.ts`.)
 
 /**
- * ¿Hay que bloquear el envío? Solo en italiano, y solo con el 'NaN' de
+ * ¿Hay que bloquear el envío? Solo en italiano y portugués, y solo con el 'NaN' de
  * `CampoCifra`: en español e inglés el formulario hace lo de siempre con lo
  * tecleado, también si alguien escribe «NaN» a mano.
  */
@@ -510,7 +519,7 @@ export function cifraIlegible(crudo: string, idioma: Idioma): boolean {
 /**
  * Una cifra de EJEMPLO de un texto de ayuda o un `placeholder`, escrita con
  * los signos de quien lee: «15,000.50» y «12.9» en español e inglés (sin
- * tocar: es la identidad), «15.000,50» y «12,9» en italiano.
+ * tocar: es la identidad), «15.000,50» y «12,9» en italiano y portugués.
  */
 export function ejemploCifra(texto: string, idioma: Idioma): string {
   return comaDecimal(idioma) ? intercambiar(texto) : texto

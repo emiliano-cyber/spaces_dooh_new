@@ -100,6 +100,9 @@ export async function listarTenants(): Promise<TenantRow[]> {
 // organizacion la elige; las demas heredan la de la instancia).
 //
 // ADR 0049: lo mismo con el idioma de los DOCUMENTOS (contrato y constancia).
+// El tipo fue `IdiomaEnLaBase` mientras el CHECK solo admitia es/en/it (H2 de
+// la ola 0 del portugues). Desde la migracion de P3 (20261105) la columna
+// admite los cuatro, `IdiomaEnLaBase` ya no existe y el tipo vuelve a `Idioma`.
 export async function crearTenant(
   nombre: string,
   slug: string,

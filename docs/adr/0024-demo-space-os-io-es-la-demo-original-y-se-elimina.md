@@ -1,9 +1,16 @@
 # ADR 0024 — `demo.space-os.io` es la demostración original, y se eliminará
 
 - **Fecha:** 2026-08-27
-- **Estado:** Aceptada
+- **Estado:** **Sustituida por [ADR 0050](0050-demo-space-os-io-vuelve-como-la-demo-en-el-droplet-viejo-de-g500.md)** (2026-11-05)
 - **Decide:** Emiliano
 - **Sustituye a:** [ADR 0021](0021-demo-space-os-io-se-queda.md)
+
+> [!danger] 2026-11-05 · SUSTITUIDA: `demo.space-os.io` NO se elimina, vuelve como la DEMO
+> El dueño decidió el 05/11 que el droplet viejo de g500 (`142.93.113.106`),
+> libre tras la mudanza de la guía 30, sea **la DEMO** en `demo.space-os.io`.
+> Ver el [ADR 0050](0050-demo-space-os-io-vuelve-como-la-demo-en-el-droplet-viejo-de-g500.md)
+> y la guía `docs/evidencias/31-g500-viejo-como-demo-20261105.md`. Lo de abajo
+> era correcto en su fecha y se conserva como historia; **no es instrucción**.
 - **Relacionadas:** [ADR 0022](0022-instancia-dedicada-por-owner.md) ·
   [ADR 0023](0023-el-droplet-viejo-sale-del-modelo.md) ·
   `docs/Plan_Instancias_Soberanas_v3.md`

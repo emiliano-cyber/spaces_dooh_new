@@ -412,3 +412,58 @@ describe('el italiano en el layout y el selector (ola 0, 2026-11-03)', () => {
     expect(opciones(html)).toEqual(['Español', 'English'])
   })
 })
+
+// ─── 2026-11-05 · el portugues, detras de IDIOMA_PORTUGUES ───────────────────
+//
+// Ola 0 del portugues. Misma regla que el italiano: el selector ofrece SOLO
+// los encendidos y el layout raiz decide con la regla de siempre. Lo que falta
+// de portugues se pinta en ESPANOL (decision del dueno del 05/11).
+describe('el portugues en el layout y el selector (ola 0, 2026-11-05)', () => {
+  async function pintarConLayout(): Promise<string> {
+    const { default: RootLayout } = await import('../../app/layout')
+    const { default: LoginPage } = await import('../../app/(app)/login/page')
+    return renderToStaticMarkup(await RootLayout({ children: createElement(LoginPage) }))
+  }
+  const opciones = (html: string) =>
+    [...(html.match(/<select[^>]*>([\s\S]*?)<\/select>/)?.[1] ?? '').matchAll(/<option[^>]*>([^<]*)</g)].map(
+      (m) => m[1],
+    )
+
+  beforeEach(() => {
+    delete process.env.IDIOMA_ITALIANO
+    delete process.env.IDIOMA_PORTUGUES
+    cabeceras.cookie = null
+    cabeceras.accept = null
+  })
+
+  it('APAGADO (omision): el selector no ofrece «Português» y ni la cookie ni el navegador lo consiguen', async () => {
+    cabeceras.cookie = 'pt'
+    cabeceras.accept = 'pt-BR,pt;q=0.9'
+    const html = await pintarConLayout()
+    expect(html).toMatch(/<html[^>]*lang="es"/)
+    expect(opciones(html)).toEqual(['Español', 'English'])
+  })
+
+  it('encendido con los otros tres: los cuatro, el portugues al final', async () => {
+    process.env.IDIOMA_ITALIANO = '1'
+    process.env.IDIOMA_PORTUGUES = '1'
+    expect(opciones(await pintarConLayout())).toEqual(['Español', 'English', 'Italiano', 'Português'])
+  })
+
+  it('encendido SOLO el portugues, con un navegador brasileno: pt, y la entrada ya en portugues (lote L5)', async () => {
+    delete process.env.IDIOMA_INGLES
+    process.env.IDIOMA_PORTUGUES = '1'
+    cabeceras.accept = 'pt-BR,pt;q=0.9,en;q=0.8'
+    const html = await pintarConLayout()
+    // H3 de la ola 0 (decision del dueno, 05/11): la etiqueta BCP 47 de Brasil.
+    expect(html).toMatch(/<html[^>]*lang="pt-BR"/)
+    expect(opciones(html)).toEqual(['Español', 'Português'])
+    // Desde el lote L5 (05/11) la pantalla de entrar es de la base y esta entera
+    // en portugues; lo que falta de otros lotes cae al espanol
+    // (`cobertura-portugues.test.ts`).
+    expect(html).toMatch(/<select[^>]*aria-label="Mudar idioma"/)
+    expect(html).toContain('Esqueceu sua senha?')
+    expect(html).not.toContain('Iniciar sesión')
+    expect(html).not.toContain('Sign in')
+  })
+})

@@ -48,8 +48,8 @@ describe('B70 · los controles del mapa (MapLibre)', () => {
     for (const k of conTexto) expect(en[k], k).toBe(omision[k])
   })
 
-  it('NEGATIVO · en espanol y en italiano no queda ni un texto en ingles', () => {
-    for (const idioma of ['es', 'it'] as const) {
+  it('NEGATIVO · en espanol, italiano y portugues no queda ni un texto en ingles', () => {
+    for (const idioma of ['es', 'it', 'pt'] as const) {
       const l = localeMapa(idioma)
       for (const k of conTexto) {
         expect(l[k], `${idioma} ${k}`).toBeTruthy()
@@ -107,6 +107,13 @@ describe('B70 · el contenedor de avisos (sonner)', () => {
     expect(propsAvisos('es').toastOptions.closeButtonAriaLabel).toBe('Cerrar aviso')
     expect(propsAvisos('en').toastOptions.closeButtonAriaLabel).toBe('Close notification')
     expect(propsAvisos('it').toastOptions.closeButtonAriaLabel).toBe('Chiudi notifica')
+  })
+
+  // Portugues (integra/portugues sobre la v0.12.6): el mismo B70 en pt-BR.
+  it('en portugues, la region y su boton de cerrar', () => {
+    expect(html('pt')).toContain('aria-label="Notificações alt+T"')
+    expect(html('pt')).not.toContain('Notifications')
+    expect(propsAvisos('pt').toastOptions.closeButtonAriaLabel).toBe('Fechar notificação')
   })
 
   it('el layout le pasa al Toaster las etiquetas del idioma de la peticion', () => {

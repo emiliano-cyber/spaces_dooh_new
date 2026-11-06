@@ -7,8 +7,8 @@ import { join, relative } from 'node:path'
 //  lib/test/volcado-html.ts — TODO EL HTML QUE RINDEN LAS PRUEBAS, A DISCO.
 // ----------------------------------------------------------------------------
 //  Ola 0 del italiano (2026-11-03). Solo entra en la corrida si se pide
-//  (`vitest.config.ts` lo anade a `setupFiles` cuando hay `I18N_VOLCAR_TODO` o
-//  `I18N_VOLCAR_IT`); en un `npm test` normal no existe.
+//  (`vitest.config.ts` lo anade a `setupFiles` cuando hay `I18N_VOLCAR_TODO`,
+//  `I18N_VOLCAR_IT` o `I18N_VOLCAR_PT`); en un `npm test` normal no existe.
 //
 //  ─── POR QUE ENVOLVER `renderToStaticMarkup` Y NO TOCAR CADA PRUEBA ────────
 //
@@ -47,6 +47,16 @@ import { join, relative } from 'node:path'
 //  Es la lista que barre `barrido-italiano.test.ts`, junto al espejo. No
 //  cambia ningun `.html` del volcado.
 //
+//  ─── EL ESPEJO PORTUGUES (ola 0 del portugues, 2026-11-05) ────────────────
+//
+//      I18N_VOLCAR_PT=<carpeta>    → <carpeta>/<archivo>/<prueba>/<n>.html
+//                                    + <carpeta>/_guardias.jsonl
+//
+//  Lo mismo con el portugues (`espejo-portugues.ts`, guardia pt-BR). Y con
+//  `I18N_VOLCAR_TODO`, los arboles rendidos con `idioma: 'pt'` en la raiz se
+//  apuntan en `<carpeta>/_portugues.txt`, como los italianos. Tampoco cambia
+//  ningun `.html` del volcado.
+//
 //  El espejo se rinde DESPUES del original, a proposito: algunas pruebas
 //  fuerzan estados que se consumen durante el render (`pantallas-admin`), y si
 //  el espejo fuera primero se los comeria. El original sale intacto.
@@ -54,6 +64,7 @@ import { join, relative } from 'node:path'
 
 const dirTodo = process.env.I18N_VOLCAR_TODO
 const dirIt = process.env.I18N_VOLCAR_IT
+const dirPt = process.env.I18N_VOLCAR_PT
 
 const contadores = new Map<string, number>()
 
@@ -86,6 +97,7 @@ vi.mock('react-dom/server', async (importOriginal) => {
   // Se importa solo si se pide el espejo: una corrida que solo vuelca no
   // carga la guardia ni la app.
   const espejoItaliano = dirIt ? (await import('./espejo-italiano')).espejoItaliano : null
+  const espejoPortugues = dirPt ? (await import('./espejo-portugues')).espejoPortugues : null
 
   function envuelto(el: Parameters<typeof original>[0], opciones?: Parameters<typeof original>[1]): string {
     const html = original(el, opciones)
@@ -95,6 +107,9 @@ vi.mock('react-dom/server', async (importOriginal) => {
       if (isValidElement(el) && (el.props as { idioma?: unknown }).idioma === 'it') {
         appendFileSync(join(dirTodo, '_italiano.txt'), `${rel}\n`)
       }
+      if (isValidElement(el) && (el.props as { idioma?: unknown }).idioma === 'pt') {
+        appendFileSync(join(dirTodo, '_portugues.txt'), `${rel}\n`)
+      }
     }
     if (dirIt && espejoItaliano) {
       const espejo = espejoItaliano(el, (e) => original(e, opciones))
@@ -103,6 +118,18 @@ vi.mock('react-dom/server', async (importOriginal) => {
         if (espejo.hallazgos.length) {
           mkdirSync(dirIt, { recursive: true })
           writeFileSync(join(dirIt, '_guardias.jsonl'), JSON.stringify({ rel, hallazgos: espejo.hallazgos }) + '\n', {
+            flag: 'a',
+          })
+        }
+      }
+    }
+    if (dirPt && espejoPortugues) {
+      const espejo = espejoPortugues(el, (e) => original(e, opciones))
+      if (espejo) {
+        escribir(dirPt, rel, espejo.html)
+        if (espejo.hallazgos.length) {
+          mkdirSync(dirPt, { recursive: true })
+          writeFileSync(join(dirPt, '_guardias.jsonl'), JSON.stringify({ rel, hallazgos: espejo.hallazgos }) + '\n', {
             flag: 'a',
           })
         }

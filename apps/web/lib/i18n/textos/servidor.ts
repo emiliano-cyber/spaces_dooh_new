@@ -187,3 +187,50 @@ export const IT_SERVIDOR: Record<ClaveServidor, string> = {
   'servidor.periodo.rango': 'L’intervallo richiede una data di inizio e una di fine (AAAA-MM-GG)',
   'servidor.periodo.cliente-invalido': 'Cliente non valido',
 }
+
+// ─── PORTUGUES (pt-BR) · lote L5 (2026-11-05) ────────────────────────────────
+// COMPLETO: el tipo es `Record` y `tsc` exige cada clave. Brasil, «voce»,
+// el glosario comun de `vault/03-Frontend/portugues-olas.md` (§2 bis) y lo no
+// obvio, clave por clave, en `docs/i18n/revision-portugues-l5.md`. La prueba
+// estatica es `textos/portugues-l5.test.ts`.
+export const PT_SERVIDOR: Record<ClaveServidor, string> = {
+  'servidor.negociacion.etapa-no-existe': 'Essa etapa da busca pelo responsável não existe',
+  'servidor.negociacion.falta-quien-firma': 'Para confirmar o responsável legal, marque primeiro qual contato assina',
+  'servidor.negociacion.quitar-quien-firma':
+    'É quem assina e o responsável legal já está confirmado: marque antes outro contato que assine, ou volte a etapa',
+  'servidor.negociacion.presupuesto': 'O mínimo do orçamento não pode ser maior que o máximo',
+  'servidor.negociacion.oferta-cerrada.aceptada': 'Essa oferta já foi aceita: faça uma nova versão',
+  'servidor.negociacion.oferta-cerrada.rechazada': 'Essa oferta já foi recusada: faça uma nova versão',
+  'servidor.negociacion.perdido': 'O espaço foi perdido: agora só aceita notas',
+  'servidor.negociacion.en-revision': 'Está em revisão: aguarde a decisão antes de alterar a ficha',
+  'servidor.horario.formato': 'Os horários vão como HH:mm, por exemplo 07:30',
+  'servidor.horario.iguales': 'O horário de início e o de término não podem ser iguais',
+  'servidor.horario.sin-dias': 'Escolha pelo menos um dia, ou nenhum para que sejam todos',
+  'servidor.horario.dia-no-existe': 'Esse dia da semana não existe',
+  'servidor.horario.dia-repetido': 'Há um dia repetido',
+  // Las coordenadas se pegan de un mapa, con punto: el ejemplo se queda como esta.
+  'servidor.ubicacion.vacio': 'Digite um endereço, cole coordenadas (19.4326, -99.1332) ou um link do Google Maps',
+  'servidor.ubicacion.otro-dominio': 'Só são aceitos links do Google Maps (google.com/maps ou maps.app.goo.gl)',
+  'servidor.ubicacion.sin-coordenadas':
+    'Esse link do Google Maps não traz coordenadas. No Google Maps, clique no lugar, copie as coordenadas que aparecem em cima e cole aqui',
+  'servidor.ubicacion.enlace-corto': 'Esse link curto não é do Google Maps, ou está faltando o final',
+  'servidor.ubicacion.latitud':
+    'A latitude vai de -90 a 90. Estão invertidas? Primeiro vem a latitude (no México, entre 14 e 33, aproximadamente)',
+  'servidor.ubicacion.longitud': 'A longitude vai de -180 a 180',
+  'servidor.ubicacion.cero': 'O ponto (0, 0) fica no mar: não é uma localização',
+  'servidor.ubicacion.minutos': 'Os minutos e os segundos vão de 0 a 59',
+  'servidor.ubicacion.orden': 'Primeiro vem a latitude (N ou S) e depois a longitude (E ou O)',
+  'servidor.franja.aviso':
+    'Foi vendido como {vendida} ({pantallas}) e está programado em “{programada}”. O preço e o que foi contratado não mudam; confirme com o cliente que a grade de programação é a combinada.',
+  'servidor.franja.vendida': '“{nombre}”',
+  'servidor.franja.otra': 'outra faixa horária',
+  'servidor.franja.pantallas.uno': '{n} tela',
+  'servidor.franja.pantallas.otros': '{n} telas',
+  'servidor.codigo.aprobar-con-pendiente':
+    'Primeiro aprove ou recuse o código de negociação: ele está aguardando aprovação e o cliente ainda não o vê.',
+  'servidor.propuesta.aprobar-en-cero':
+    'Você está prestes a aprovar uma proposta com total de {total}. Confirme explicitamente para continuar.',
+  'servidor.periodo.invalido': 'Período inválido',
+  'servidor.periodo.rango': 'O período precisa de data de início e de término (AAAA-MM-DD)',
+  'servidor.periodo.cliente-invalido': 'Cliente inválido',
+}

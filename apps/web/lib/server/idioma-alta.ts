@@ -16,6 +16,14 @@ import { IDIOMAS, IDIOMA_POR_OMISION, type Idioma } from '@/lib/i18n/idiomas'
 // No es el idioma de la INTERFAZ: ese es de cada persona (cookie, navegador,
 // preferencia), y no pasa por aqui.
 
+// Contra `IDIOMAS`, que es exactamente lo que acepta el CHECK de
+// `tenants.idioma_documentos` desde `20261105_idioma_portugues.sql` (P3 del
+// portugues, 05/11). Entre la ola 0 y P3 esto validaba contra una lista corta
+// (es/en/it) para que un `pt` no llegara al INSERT y saliera como 500.
+//
+// El idioma de los DOCUMENTOS no depende de los interruptores de la interfaz
+// (`IDIOMA_PORTUGUES`): una instancia puede nacer con papeles en portugues
+// aunque su interfaz aun no lo ofrezca, igual que con el italiano.
 function esIdiomaDocumentos(x: unknown): x is Idioma {
   return typeof x === 'string' && (IDIOMAS as readonly string[]).includes(x)
 }
@@ -23,7 +31,7 @@ function esIdiomaDocumentos(x: unknown): x is Idioma {
 /** Valida lo que llega en el cuerpo. `undefined` = no se pidio ninguno. */
 export function idiomaDocumentosPedido(valor: unknown): Idioma | undefined {
   if (valor === undefined) return undefined
-  if (!esIdiomaDocumentos(valor)) throw new AppError('El idioma de los documentos debe ser es, en o it', 400)
+  if (!esIdiomaDocumentos(valor)) throw new AppError('El idioma de los documentos debe ser es, en, it o pt', 400)
   return valor
 }
 

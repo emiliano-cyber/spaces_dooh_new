@@ -24,14 +24,21 @@
 //  · El ESPANOL es el texto de siempre, byte a byte: el camino de `es` de
 //    `generarContrato` no se tocó, y `contrato-documento-idioma.test.ts` fija
 //    los hashes medidos ANTES de este cambio.
-//  · El INGLES y el ITALIANO (`redactarEnOtroIdioma`, al final) son una
-//    traducción fiel del español, cláusula por cláusula: el mismo contrato de
-//    derecho mexicano (RFC, CFDI, Código Civil) puesto en otro idioma, no un
-//    contrato adaptado a otra jurisdicción. Son PLANTILLAS DE EJEMPLO (D13,
-//    el dueño, 04/11: «cada cliente los irá armando según contrate la app»).
+//  · El INGLES y el ITALIANO (`redactarEnOtroIdioma`) y el PORTUGUES
+//    (`redactarEnPortugues`, P3 del 05/11), al final, son una traducción fiel
+//    del español, cláusula por cláusula: el mismo contrato de derecho
+//    mexicano (RFC, CFDI, Código Civil) puesto en otro idioma, no un contrato
+//    adaptado a otra jurisdicción. Son PLANTILLAS DE EJEMPLO (D13, el dueño,
+//    04/11: «cada cliente los irá armando según contrate la app»; D17: en un
+//    servidor en/it/pt el contrato que vale es el que el cliente sube).
 // ============================================================================
 
 import type { Idioma } from '@/lib/i18n/idiomas'
+
+// El idioma de un PAPEL es el de la instancia (`tenants.idioma_documentos`):
+// es, en, it o pt. Entre la ola 0 del portugues y P3 (05/11) este tipo era
+// solo es/en/it, para que `tsc` impidiera pedir un contrato en portugues antes
+// de que existiera su texto; P3 lo escribio (`redactarEnPortugues`, al final).
 
 export type Periodicidad =
   | 'SEMANAL' | 'CATORCENAL' | 'QUINCENAL' | 'MENSUAL'
@@ -195,6 +202,7 @@ const LETRA_MONEDA: Record<string, { uno: string; varios: string; cierre: string
 export function numeroALetras(monto: number, moneda: string = 'MXN', idioma: Idioma = 'es'): string {
   if (idioma === 'en') return letrasIngles(monto, moneda)
   if (idioma === 'it') return letrasItaliano(monto, moneda)
+  if (idioma === 'pt') return letrasPortugues(monto, moneda)
   const m = LETRA_MONEDA[moneda] ?? LETRA_MONEDA.MXN
   const entero = Math.floor(Math.abs(monto))
   const centavos = Math.round((Math.abs(monto) - entero) * 100)
@@ -271,6 +279,8 @@ export function fechaEnLetra(iso: string | null, idioma: Idioma = 'es'): string 
   // es parte del texto sellado, y no puede depender de la versión de ICU.
   if (idioma === 'en') return `${MONTHS[m - 1]} ${d}, ${a}`
   if (idioma === 'it') return `${d} ${MESI[m - 1]} ${a}`
+  // pt-BR: el primer dia del mes se escribe ordinal («1º de agosto»).
+  if (idioma === 'pt') return `${d === 1 ? '1º' : d} de ${MESES_PT[m - 1]} de ${a}`
   return `${d} de ${MESES[m - 1]} de ${a}`
 }
 
@@ -337,6 +347,7 @@ export function generarContrato(args: {
   // ADR 0049 · los faltantes de arriba son INTERFAZ (la barra del documento
   // los traduce a quien mira) y son los mismos en todo idioma. Lo que sigue
   // es el TEXTO: el español se queda en este camino, intacto.
+  if (idioma === 'pt') return { ...redactarEnPortugues(args), faltantes, idioma }
   if (idioma !== 'es') return { ...redactarEnOtroIdioma(idioma, args), faltantes, idioma }
 
   const ARR = 'EL ARRENDADOR'
@@ -638,6 +649,16 @@ const ENCABEZADOS: Record<Idioma, EncabezadosDocumento> = {
       'BOZZA basata su clausole di uso comune; deve essere rivista e convalidata da un avvocato ' +
       'prima della firma.',
   },
+  pt: {
+    declaraciones: 'DECLARAÇÕES',
+    clausulas: 'CLÁUSULAS',
+    selloFirmado: 'ASSINADO ELETRONICAMENTE',
+    selloInvalidada: 'ASSINATURA INVALIDADA',
+    aviso:
+      'Documento gerado automaticamente pelo SPACE OS a partir do dossiê do contrato. É uma ' +
+      'MINUTA baseada em cláusulas de uso comum; deve ser revisada e validada por um advogado ' +
+      'antes da assinatura.',
+  },
 }
 
 export function encabezadosDocumento(idioma: Idioma): EncabezadosDocumento {
@@ -776,7 +797,7 @@ const CADA_IT: Record<Periodicidad, string> = {
 
 // Cifras escritas a mano: el texto se sella, y no puede depender de la versión
 // de ICU del servidor (ni de que `it-IT` agrupe o no las cifras de 4 dígitos).
-function cifra(n: number, decimales: number | null, idioma: 'en' | 'it'): string {
+function cifra(n: number, decimales: number | null, idioma: 'en' | 'it' | 'pt'): string {
   const [ent, dec] = (decimales == null ? String(n) : n.toFixed(decimales)).split('.')
   const miles = ent.replace(/\B(?=(\d{3})+(?!\d))/g, idioma === 'en' ? ',' : '.')
   return dec ? `${miles}${idioma === 'en' ? '.' : ','}${dec}` : miles
@@ -1144,6 +1165,308 @@ function redactarEnOtroIdioma(
       { rol: 'IL LOCATORE', nombre: nombreArr, parte: 'ARRENDADOR' },
       {
         rol: 'IL CONDUTTORE',
+        nombre: arrendatario.representanteLegal
+          ? `${v(arrendatario.razonSocial)}\nP.p. ${arrendatario.representanteLegal}`
+          : v(arrendatario.razonSocial),
+        parte: 'ARRENDATARIO',
+      },
+    ],
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  P3 DEL PORTUGUES (05/11) · EL CONTRATO EN PORTUGUES DE BRASIL
+// ────────────────────────────────────────────────────────────────────────────
+//  Aprobado por el dueño el 05/11 («Sí, igual que italiano»). Mismo criterio
+//  que el inglés y el italiano: traducción fiel del español, cláusula por
+//  cláusula y párrafo por párrafo, del MISMO contrato de derecho mexicano
+//  (RFC, CURP, CFDI, Código Civil, tribunales de la ciudad). PLANTILLA DE
+//  EJEMPLO (D13 y D17): en un servidor `pt` el contrato que vale es el que el
+//  cliente sube; este texto es un ejemplo y no lleva firma electrónica como
+//  documento definitivo.
+//
+//  Va en una función APARTE y no dentro de `redactarEnOtroIdioma` a propósito:
+//  así el texto inglés e italiano no se toca ni un byte (sus hashes están
+//  fijados en `contrato-documento-portugues.test.ts`, medidos antes de P3).
+//  Y la misma advertencia que allí: en una instancia que ya congeló contratos
+//  en portugués, cambiar este texto haría aparecer «alteradas» sus firmas;
+//  antes hay que conservar la redacción anterior para cotejar.
+//
+//  Las partes, como en italiano, NO se interpolan: el portugués contrae
+//  preposición y artículo («ao LOCATÁRIO», «do ESPAÇO», «pelo LOCATÁRIO»), y
+//  «a o LOCATÁRIO» sería un error en un contrato. Cada frase las escribe en su
+//  forma. Los nombres de las partes van en mayúsculas y el artículo en
+//  minúscula dentro de la frase («o LOCADOR»), como en los contratos
+//  brasileños.
+// ════════════════════════════════════════════════════════════════════════════
+
+const MESES_PT = [
+  'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
+]
+
+// ─── Número a letras: PORTUGUÉS (pt-BR) ─────────────────────────────────────
+// Reglas que hay que acertar (gramática normativa; la de cheques en Brasil):
+//  · «E» entre centenas, decenas y unidades: «CENTO E VINTE E TRÊS».
+//  · 100 es «CEM»; de 101 a 199, «CENTO E …».
+//  · 1 000 es «MIL», nunca «UM MIL».
+//  · Entre dos grupos (millones, millares, el resto) va «E» solo si el ÚLTIMO
+//    grupo no nulo es menor que 100 o centenas cerradas: «MIL E CEM»,
+//    «MIL E CINQUENTA», «UM MILHÃO E DUZENTOS MIL», pero
+//    «MIL DUZENTOS E TRINTA E QUATRO». Si no, van seguidos (la coma que la
+//    norma pondría ahí se omite, como en los cheques).
+//  · Millones cerrados llevan «DE» ante la moneda: «UM MILHÃO DE PESOS»,
+//    «DOIS MILHÕES DE DÓLARES».
+//  · «QUATORZE» y no «CATORZE»: las dos son correctas en Brasil; se eligió la
+//    más usada.
+const PT_UNIDADES = ['ZERO', 'UM', 'DOIS', 'TRÊS', 'QUATRO', 'CINCO', 'SEIS', 'SETE', 'OITO', 'NOVE',
+  'DEZ', 'ONZE', 'DOZE', 'TREZE', 'QUATORZE', 'QUINZE', 'DEZESSEIS', 'DEZESSETE', 'DEZOITO', 'DEZENOVE']
+const PT_DECENAS = ['', '', 'VINTE', 'TRINTA', 'QUARENTA', 'CINQUENTA', 'SESSENTA', 'SETENTA', 'OITENTA', 'NOVENTA']
+const PT_CENTENAS = ['', 'CENTO', 'DUZENTOS', 'TREZENTOS', 'QUATROCENTOS', 'QUINHENTOS',
+  'SEISCENTOS', 'SETECENTOS', 'OITOCENTOS', 'NOVECENTOS']
+
+// 1–999.
+function centenasPortugues(n: number): string {
+  if (n === 100) return 'CEM'
+  const c = Math.floor(n / 100)
+  const resto = n % 100
+  const partes: string[] = []
+  if (c) partes.push(PT_CENTENAS[c])
+  if (resto) {
+    if (resto < 20) partes.push(PT_UNIDADES[resto])
+    else {
+      const d = PT_DECENAS[Math.floor(resto / 10)]
+      const u = resto % 10
+      partes.push(u ? `${d} E ${PT_UNIDADES[u]}` : d)
+    }
+  }
+  return partes.join(' E ')
+}
+
+const PT_MONEDA: Record<string, { uno: string; varios: string; cierre: string }> = {
+  MXN: { uno: 'PESO', varios: 'PESOS', cierre: 'MXN' },
+  USD: { uno: 'DÓLAR', varios: 'DÓLARES', cierre: 'USD' },
+}
+
+function letrasPortugues(monto: number, moneda: string): string {
+  const m = PT_MONEDA[moneda] ?? PT_MONEDA.MXN
+  const entero = Math.floor(Math.abs(monto))
+  const cent = String(Math.round((Math.abs(monto) - entero) * 100)).padStart(2, '0')
+  if (entero === 0) return `ZERO ${m.varios} ${cent}/100 ${m.cierre}`
+
+  const millones = Math.floor(entero / 1_000_000)
+  const miles = Math.floor((entero % 1_000_000) / 1000)
+  const resto = entero % 1000
+
+  const grupos: { texto: string; valor: number }[] = []
+  if (millones) {
+    grupos.push({ texto: `${centenasPortugues(millones)} ${millones === 1 ? 'MILHÃO' : 'MILHÕES'}`, valor: millones })
+  }
+  if (miles) grupos.push({ texto: miles === 1 ? 'MIL' : `${centenasPortugues(miles)} MIL`, valor: miles })
+  if (resto) grupos.push({ texto: centenasPortugues(resto), valor: resto })
+
+  let palabras = grupos[0].texto
+  for (let i = 1; i < grupos.length; i++) {
+    const ultimo = i === grupos.length - 1
+    const g = grupos[i]
+    palabras += ultimo && (g.valor < 100 || g.valor % 100 === 0) ? ` E ${g.texto}` : ` ${g.texto}`
+  }
+  // Millones cerrados: «UM MILHÃO DE PESOS».
+  const de = millones > 0 && miles === 0 && resto === 0 ? ' DE' : ''
+  return `${palabras}${de} ${entero === 1 ? m.uno : m.varios} ${cent}/100 ${m.cierre}`
+}
+
+// «Cláusula» es femenino, como en español.
+const ORDINALES_PT = [
+  'PRIMEIRA', 'SEGUNDA', 'TERCEIRA', 'QUARTA', 'QUINTA', 'SEXTA', 'SÉTIMA', 'OITAVA', 'NONA', 'DÉCIMA',
+  'DÉCIMA PRIMEIRA', 'DÉCIMA SEGUNDA', 'DÉCIMA TERCEIRA', 'DÉCIMA QUARTA', 'DÉCIMA QUINTA', 'DÉCIMA SEXTA',
+  'DÉCIMA SÉTIMA', 'DÉCIMA OITAVA', 'DÉCIMA NONA', 'VIGÉSIMA',
+]
+
+const CADA_PT: Record<Periodicidad, string> = {
+  SEMANAL: 'a cada semana', CATORCENAL: 'a cada catorze dias', QUINCENAL: 'a cada quinzena', MENSUAL: 'a cada mês',
+  BIMESTRAL: 'a cada dois meses', TRIMESTRAL: 'a cada três meses', SEMESTRAL: 'a cada seis meses', ANUAL: 'a cada ano',
+}
+
+function redactarEnPortugues(
+  args: Parameters<typeof generarContrato>[0],
+): Omit<DocumentoContrato, 'faltantes' | 'idioma'> {
+  const { arrendatario, arrendador, espacio, terminos, fechaFirma } = args
+  const fecha = (iso: string | null) => fechaEnLetra(iso, 'pt')
+  const importe = (n: number | null): string => {
+    if (n == null) return FALTA
+    return `${cifra(n, 2, 'pt')} ${terminos.moneda} (${numeroALetras(n, terminos.moneda, 'pt')})`
+  }
+  const ciudad = v(terminos.ciudadFirma ?? espacio.ciudad)
+  const medidas =
+    espacio.ancho && espacio.alto
+      ? `${cifra(espacio.ancho, null, 'pt')} m de largura por ${cifra(espacio.alto, null, 'pt')} m de altura ` +
+        `(${cifra(espacio.ancho * espacio.alto, 2, 'pt')} m²)`
+      : FALTA
+  const cada = terminos.periodicidad ? CADA_PT[terminos.periodicidad] : FALTA
+  const usoPropio = terminos.usoPermitido?.trim() ? terminos.usoPermitido.trim() : null
+  const uso = v(terminos.usoPermitido ?? 'a instalação, operação e exploração comercial de uma estrutura publicitária')
+  const moral = Boolean(arrendador.razonSocial)
+  const nombreArr = v(arrendador.razonSocial ?? arrendador.nombre)
+  const clausulas: Clausula[] = []
+  const add = (titulo: string, parrafos: string[]) =>
+    clausulas.push({ ordinal: ORDINALES_PT[clausulas.length] ?? `${clausulas.length + 1}ª`, titulo, parrafos })
+  const pct = terminos.incrementoAnualPct
+
+  const descripcion =
+    `${v(espacio.nombre)}${espacio.codigo ? ` (código ${espacio.codigo})` : ''}, ` +
+    `localizado em ${v(espacio.direccion)}${espacio.predio ? `, dentro do imóvel denominado «${espacio.predio}»` : ''}`
+
+  add('OBJETO', [
+    `O LOCADOR dá em locação ao LOCATÁRIO, que o recebe à sua inteira satisfação, o espaço identificado como ` +
+      `${descripcion}, com uma superfície útil de ${medidas} (doravante, «ESPAÇO»).`,
+    // «a» + «a instalação» pide crase («à instalação»): el uso por omisión va
+    // escrito ya contraído, y uno escrito por una persona (dato) se presenta
+    // con dos puntos, que no contrae.
+    `O LOCATÁRIO destinará o ESPAÇO exclusivamente ${usoPropio ? `ao seguinte uso: ${usoPropio}` : 'à instalação, à operação e à exploração comercial de uma estrutura publicitária'}. ` +
+      `Qualquer uso diverso requer autorização prévia e por escrito do LOCADOR.`,
+  ])
+  add('VIGÊNCIA', [
+    `O presente contrato vigorará de ${fecha(terminos.fechaInicio)} a ${fecha(terminos.fechaFin)}, ` +
+      `prazo que ambas as partes reconhecem como obrigatório.`,
+    terminos.autoRenovable
+      ? `Concluído o prazo, o contrato será prorrogado automaticamente por períodos iguais, salvo se qualquer ` +
+        `das partes comunicar à outra a sua intenção de não renová-lo, por escrito e com pelo menos trinta (30) ` +
+        `dias corridos de antecedência do seu vencimento.`
+      : `O contrato NÃO se renova automaticamente. Sua continuação requer um novo acordo escrito ` +
+        `entre as partes.`,
+  ])
+  const aluguel = [
+    `O LOCATÁRIO pagará ao LOCADOR a quantia de ${importe(terminos.montoRenta)} ${cada}, a título de aluguel do ESPAÇO.`,
+    `O pagamento será efetuado ${terminos.diaPago ? `dentro dos primeiros ${terminos.diaPago} dias corridos de cada período` : 'dentro dos primeiros cinco (5) dias corridos de cada período'}, ` +
+      `mediante transferência eletrônica para a conta que o LOCADOR indicar por escrito. O LOCADOR obriga-se a ` +
+      `entregar o Comprovante Fiscal Digital por Internet (CFDI) correspondente como requisito prévio ao pagamento.`,
+  ]
+  if (pct != null) {
+    aluguel.push(
+      `O aluguel será reajustado anualmente em ${cifra(pct, null, 'pt')}% sobre o valor vigente no momento do ` +
+        `reajuste, na data de aniversário do início da vigência.`,
+    )
+  }
+  if (terminos.deposito != null && terminos.deposito > 0) {
+    aluguel.push(
+      `Na assinatura deste contrato, o LOCATÁRIO entrega ao LOCADOR a quantia de ${importe(terminos.deposito)} ` +
+        `a título de depósito caução, que será devolvida dentro dos trinta (30) dias corridos seguintes ao ` +
+        `término do contrato, após verificação do estado do ESPAÇO.`,
+    )
+  }
+  add('ALUGUEL E FORMA DE PAGAMENTO', aluguel)
+  add('OBRIGAÇÕES DO LOCATÁRIO', [
+    `a) Pagar o aluguel nos termos pactuados.`,
+    `b) Obter e manter vigentes, por sua conta e custo, as licenças, permissões e autorizações exigidas pela ` +
+      `autoridade competente para a instalação e a operação da estrutura publicitária.`,
+    `c) Manter a estrutura em condições adequadas de segurança e conservação, e responder pelos danos que sua ` +
+      `instalação, operação ou retirada causem ao ESPAÇO ou a terceiros.`,
+    `d) Contratar e manter vigente uma apólice de seguro de responsabilidade civil que cubra danos a terceiros ` +
+      `decorrentes da estrutura.`,
+    `e) Arcar com o consumo de energia elétrica demandado pela estrutura, mediante medidor independente quando ` +
+      `isso for tecnicamente possível.`,
+    `f) Retirar a estrutura e restituir o ESPAÇO nas condições em que o recebeu, salvo o desgaste pelo uso ` +
+      `normal, dentro dos quinze (15) dias corridos seguintes ao término.`,
+  ])
+  add('OBRIGAÇÕES DO LOCADOR', [
+    `a) Garantir ao LOCATÁRIO o uso pacífico do ESPAÇO durante toda a vigência.`,
+    `b) Permitir o acesso do pessoal do LOCATÁRIO para a instalação, a troca de imagem, a manutenção e a ` +
+      `retirada da estrutura, em horários razoáveis e mediante aviso prévio.`,
+    `c) Abster-se de instalar, ou de autorizar terceiros a instalar, publicidade que obstrua a visibilidade da ` +
+      `estrutura do LOCATÁRIO.`,
+    `d) Entregar o CFDI correspondente a cada pagamento de aluguel.`,
+    `e) Manter em dia os impostos e contribuições que incidam sobre o imóvel.`,
+  ])
+  add('PROPRIEDADE DA ESTRUTURA', [
+    `A estrutura publicitária, suas ancoragens, sistemas de iluminação, equipamentos eletrônicos e qualquer ` +
+      `elemento instalado pelo LOCATÁRIO são de sua propriedade exclusiva, não são considerados acessórios do ` +
+      `imóvel e poderão ser retirados livremente ao término do contrato.`,
+  ])
+  add('LICENÇAS E AUTORIZAÇÕES', [
+    `A obtenção das licenças é responsabilidade do LOCATÁRIO. Se a autoridade competente negar, revogar ou não ` +
+      `renovar a licença necessária para operar a estrutura por causa não imputável ao LOCATÁRIO, qualquer das ` +
+      `partes poderá rescindir o contrato sem responsabilidade alguma, mediante aviso por escrito, ficando o ` +
+      `LOCATÁRIO obrigado unicamente ao pagamento do aluguel vencido até essa data.`,
+  ])
+  add('CESSÃO', [
+    `Nenhuma das partes poderá ceder os direitos e obrigações decorrentes deste contrato sem o consentimento ` +
+      `prévio e por escrito da outra. Excetua-se a cessão que o LOCATÁRIO realize em favor de sociedades do seu ` +
+      `mesmo grupo, bastando aviso por escrito.`,
+  ])
+  add('RESCISÃO', [
+    `São causas de rescisão, sem necessidade de declaração judicial prévia:`,
+    `a) A falta de pagamento de dois (2) períodos consecutivos de aluguel.`,
+    `b) O uso do ESPAÇO para fim diverso do pactuado.`,
+    `c) O descumprimento de qualquer das obrigações pactuadas, se não for sanado dentro dos quinze (15) dias ` +
+      `corridos seguintes à notificação por escrito.`,
+    `A parte que rescindir deverá notificar a outra por escrito, produzindo efeitos a partir do seu recebimento.`,
+  ])
+  add('CASO FORTUITO OU FORÇA MAIOR', [
+    `Nenhuma das partes será responsável pelo descumprimento decorrente de caso fortuito ou força maior. Se o ` +
+      `evento impedir o uso do ESPAÇO por mais de sessenta (60) dias corridos, qualquer das partes poderá ` +
+      `rescindir o contrato sem responsabilidade.`,
+  ])
+  add('DOMICÍLIOS E NOTIFICAÇÕES', [
+    `Para todos os efeitos deste contrato, as partes indicam como domicílios:`,
+    `O LOCADOR: ${v(arrendador.direccion)}.`,
+    `O LOCATÁRIO: ${v(arrendatario.domicilioFiscal)}.`,
+    `Todo aviso deverá ser feito por escrito e entregue com comprovante de recebimento nos domicílios ` +
+      `indicados. Qualquer mudança deverá ser notificada com dez (10) dias corridos de antecedência; caso ` +
+      `contrário, as notificações produzirão efeitos no último domicílio conhecido.`,
+  ])
+  add('LEGISLAÇÃO APLICÁVEL E FORO', [
+    `Este contrato rege-se pelo Código Civil aplicável em ${ciudad} e demais disposições pertinentes. Para a ` +
+      `interpretação e o cumprimento deste contrato, as partes submetem-se expressamente à jurisdição dos ` +
+      `tribunais competentes de ${ciudad}, renunciando a qualquer outro foro que lhes possa corresponder em ` +
+      `razão de seus domicílios presentes ou futuros.`,
+  ])
+
+  return {
+    titulo: 'CONTRATO DE LOCAÇÃO DE ESPAÇO PUBLICITÁRIO',
+    preambulo:
+      `Contrato de locação de espaço publicitário que celebram, de um lado, ${nombreArr}, doravante ` +
+      `denominado «LOCADOR»; e, de outro, ${v(arrendatario.razonSocial)}, neste ato representada por ` +
+      `${v(arrendatario.representanteLegal)}, doravante denominada «LOCATÁRIO»; de acordo com as seguintes ` +
+      `declarações e cláusulas:`,
+    declaraciones: [
+      {
+        encabezado: 'I. Declara o LOCADOR:',
+        incisos: [
+          `a) Ser pessoa ${moral ? 'jurídica legalmente constituída' : 'física'} de nacionalidade ${v(arrendador.nacionalidad ?? 'mexicana')}, com plena capacidade jurídica para obrigar-se nos termos do presente contrato.`,
+          `b) Estar inscrito no Registro Federal de Contribuintes (RFC) sob a chave ${v(arrendador.rfc)}${arrendador.curp ? `, e possuir a Chave Única de Registro de População (CURP) ${arrendador.curp}` : ''}.`,
+          `c) Ser legítimo proprietário ou possuidor, com faculdades suficientes de disposição, do imóvel onde se localiza o ESPAÇO objeto deste contrato, e que o referido imóvel se encontra livre de ônus que impeça a locação.`,
+          `d) Indicar como seu domicílio o localizado em ${v(arrendador.direccion)}.`,
+          `e) Que é sua vontade celebrar o presente contrato nos termos aqui pactuados.`,
+        ],
+      },
+      {
+        encabezado: 'II. Declara o LOCATÁRIO:',
+        incisos: [
+          `a) Ser uma sociedade empresária legalmente constituída conforme as leis dos Estados Unidos Mexicanos, segundo consta em ${v(arrendatario.datosConstitucion)}.`,
+          `b) Que seu representante, ${v(arrendatario.representanteLegal)}, possui poderes suficientes para obrigá-la nos termos deste contrato, os quais não lhe foram revogados nem limitados de forma alguma.`,
+          `c) Estar inscrita no Registro Federal de Contribuintes (RFC) sob a chave ${v(arrendatario.rfc)}.`,
+          `d) Que seu objeto social inclui a exploração de publicidade exterior, e que necessita do ESPAÇO para ${uso}.`,
+          `e) Indicar como seu domicílio o localizado em ${v(arrendatario.domicilioFiscal)}.`,
+        ],
+      },
+      {
+        encabezado: 'III. Declaram AMBAS AS PARTES:',
+        incisos: [
+          `a) Que se reconhecem mutuamente a qualidade com que comparecem.`,
+          `b) Que na celebração do presente contrato não existe erro, dolo, má-fé, violência, lesão nem qualquer outro vício do consentimento que possa invalidá-lo.`,
+          `c) Que é sua vontade obrigar-se nos termos das seguintes:`,
+        ],
+      },
+    ],
+    clausulas,
+    lugarYFecha:
+      `Lido o presente contrato e cientes as partes de seu conteúdo e alcance legal, assinam-no em duas vias ` +
+      `em ${ciudad}, em ${fecha(fechaFirma)}.`,
+    firmas: [
+      { rol: 'O LOCADOR', nombre: nombreArr, parte: 'ARRENDADOR' },
+      {
+        rol: 'O LOCATÁRIO',
         nombre: arrendatario.representanteLegal
           ? `${v(arrendatario.razonSocial)}\nP.p. ${arrendatario.representanteLegal}`
           : v(arrendatario.razonSocial),

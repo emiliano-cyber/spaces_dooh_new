@@ -12,6 +12,9 @@ import { MONEDAS, fijarMonedaInstancia } from './dinero'
 import { leerDinero } from './simbolo-en-pantalla'
 import { huellasEnItaliano } from './guardias-italiano'
 import { fugasItaliano, legible, copiasDeOtroIdioma, IGUALES_A_PROPOSITO_L4, reglasDelItaliano, palabrasEspanolas } from '../test/barrido-italiano-l4'
+import { huellasEnPortugues } from './guardias-portugues'
+import { culpablesEnItaliano } from '../test/barrido-italiano'
+import { palabrasEspanolasEnPortugues } from '../test/barrido-portugues'
 
 // ============================================================================
 //  I18N · LOTE «CLIENTES, COMISIONES Y CAPTACION», RENDIDO EN LOS DOS IDIOMAS.
@@ -748,4 +751,59 @@ describe('lote CLIENTES · frases corregidas por la validacion del L4', () => {
     expect(traducir('it', 'clientes.filtro.ninguno', { busqueda, tipo: '', n: 5 }))
       .toBe('Nessun cliente trovato per «zzz». Rimuovi il filtro per vedere tutti i 5.')
   })
+})
+
+// ─── PORTUGUES · lote L4 (2026-11-05) ───────────────────────────────────────
+//
+// Los mismos estados en portugues, con el barrido del L5: ni una frase
+// espanola ni inglesa de Clientes ni de las etiquetas de Campañas que la
+// ficha reusa, ni palabras espanolas sueltas, ni un
+// formato ajeno; y el dinero con el simbolo portugues de la instancia.
+describe('lote CLIENTES · en PORTUGUES', () => {
+  // Datos de prueba y el catalogo del SAT del alta (`USOS_CFDI`: el texto de
+  // cada opcion ES el valor que se guarda, igual en todos los idiomas).
+  const AJENOS = ['G03 · Gastos en general', 'G01 · Adquisición de mercancías', 'P01 · Por definir', 'Panaderia Sol',
+    'Azotea Reforma', 'Verano', 'Sitio', 'Personas Morales sin fines de lucro']
+  async function diccionarios() {
+    const { PT_CLIENTES } = await import('./textos/clientes')
+    const { ES_CAMPANAS, EN_CAMPANAS, PT_CAMPANAS } = await import('./textos/campanas')
+    return {
+      es: { ...ES_CLIENTES, ...ES_CAMPANAS },
+      en: { ...EN_CLIENTES, ...EN_CAMPANAS },
+      it: { ...PT_CLIENTES, ...PT_CAMPANAS } as Partial<Record<string, string>>,
+    }
+  }
+
+  for (const e of ESTADOS) {
+    it(`barrido y formatos · ${e.nombre}`, async () => {
+      forzado.cola = []
+      const crudo = (await e.pintar('pt')).replace(/ value="[^"]*"/g, '')
+      expect(culpablesEnItaliano(crudo, await diccionarios(), { minimo: 5, ignorar: [...AJENOS] })).toEqual([])
+      expect(palabrasEspanolasEnPortugues(crudo, AJENOS)).toEqual([])
+      expect(huellasEnPortugues(crudo)).toEqual([])
+    })
+  }
+
+  it('frases portuguesas a la vista', async () => {
+    forzado.cola = []
+    const html = texto(await ESTADOS[0].pintar('pt'))
+    expect(['Clientes', 'Novo cliente', 'Lista de clientes', 'Razão social'].filter((f) => !html.includes(f))).toEqual([])
+  })
+
+  afterEach(() => fijarMonedaInstancia('MXN'))
+  const vistos: Record<string, number> = {}
+  for (const moneda of MONEDAS) {
+    ESTADOS.forEach((e) => {
+      it(`${moneda} · pt · ${e.nombre}`, async () => {
+        forzado.cola = []
+        fijarMonedaInstancia(moneda)
+        const { importes, ajenos } = leerDinero(texto(await e.pintar('pt')), 'pt', moneda)
+        vistos[moneda] = (vistos[moneda] ?? 0) + importes
+        expect(ajenos).toEqual([])
+      })
+    })
+    it(`${moneda} · pt · el arnes encontro importes que mirar`, () => {
+      expect(vistos[moneda] ?? 0).toBeGreaterThan(0)
+    })
+  }
 })

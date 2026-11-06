@@ -13,7 +13,7 @@
 #    provision-instancia.sh --host <ip|dns> --dominio <dominio> --emitir-certificado --confirmar
 #    provision-instancia.sh --host <ip|dns> --dominio <dominio> --instancia <nombre> \
 #                           --email <correo-del-dueno> --bootstrap --confirmar
-#                           [--moneda MXN|USD] [--idioma es|en|it]
+#                           [--moneda MXN|USD] [--idioma es|en|it|pt]
 #
 #  ─── La moneda (ADR 0048) ─────────────────────────────────────────────────
 #  `--moneda MXN|USD` va con `--bootstrap` y decide en que moneda trabaja la
@@ -23,7 +23,7 @@
 #  editable ahi y no lo fuera en la base seria una trampa.
 #
 #  ─── El idioma de los documentos (ADR 0049) ───────────────────────────────
-#  `--idioma es|en|it` (o `--idioma=en`) va con `--bootstrap`, igual que la
+#  `--idioma es|en|it|pt` (o `--idioma=pt`) va con `--bootstrap`, como la
 #  moneda, y decide en que idioma se redactan el CONTRATO y la constancia de
 #  firmas PARA SIEMPRE. Sin la bandera, es. NO es el idioma de la interfaz:
 #  ese lo elige cada persona en la aplicacion.
@@ -232,10 +232,11 @@ fi
 
 # ADR 0049 · el idioma de los documentos, con las MISMAS dos puertas que la
 # moneda: mal escrito se para aqui, sin ssh; y sin --bootstrap no se ignora.
-# En minusculas exactas: `EN` o `es-MX` no se adivinan.
+# En minusculas exactas: `EN`, `es-MX` o `pt-BR` no se adivinan. `pt` es el
+# portugues de Brasil (P3 del portugues, 05/11, `20261105_idioma_portugues.sql`).
 case "$IDIOMA" in
-  es|en|it) ;;
-  *) echo "provision: --idioma '$IDIOMA' no vale: tiene que ser es, en o it (en minusculas)." >&2
+  es|en|it|pt) ;;
+  *) echo "provision: --idioma '$IDIOMA' no vale: tiene que ser es, en, it o pt (en minusculas)." >&2
      echo "           Es el idioma del contrato y de la constancia de firmas, y no se puede cambiar despues (ADR 0049)." >&2
      exit "$EX_USO" ;;
 esac

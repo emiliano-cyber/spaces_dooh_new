@@ -5,6 +5,64 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-05 · Propuestas: la cantidad de una línea ya no se guarda distinta de la que se teclea (sin publicar)
+
+**Corrige un fallo de la v0.12.6 que mueve dinero.** Al teclear a mano la cantidad de
+una línea de propuesta (salidas, horas o millares de CPM), una cifra con el separador
+equivocado se guardaba como otra cantidad sin avisar: «1.500» en español quedaba en
+**100**, y en italiano «1,500» en 100 y «1.5000» en 15 000. La propuesta salía con
+otro total.
+
+Ahora, si la cantidad no se entiende, se queda escrita tal como se tecleó, en rojo, y
+«Crear propuesta» no deja guardar hasta corregirla («la cantidad no se entiende»).
+También se puede borrar la cantidad y teclear otra: antes, borrar el 5 para poner un 8
+dejaba 18.
+
+**Lo mismo en «Reservar sitios»** (Comercial): los slots que se reservan en una pantalla
+digital caían a 0 si la cifra no se entendía, y el campo se comía el separador. Ahora se
+quedan en rojo y «Reservar (tentativa)» no deja seguir hasta corregirlos. Teclear más
+slots de los que hay sigue bajándolos a los disponibles, como siempre.
+
+**Conviene revisar** las propuestas de g500 creadas con la v0.12.6 en las que se tecleó
+a mano una cantidad grande: el campo enseñaba la cifra guardada, así que la diferencia
+se veía, pero era fácil no notarla.
+
+---
+
+## 2026-11-05 · Portugués: las cifras se escriben a la brasileña (sin publicar)
+
+El dueño lo decidió el 05/11. El portugués sigue apagado: nadie lo ve todavía. En español,
+inglés e italiano no cambia nada, ni una cifra ni un texto.
+
+- **En portugués, las cifras se escriben como en Brasil**: punto para los miles y coma para
+  los decimales («1.500,50», «12,9 m», «55,5 %»), igual que en italiano. Lo que se guarda es
+  exactamente la misma cantidad que en los demás idiomas.
+- **Lo que se puede leer de dos maneras no se adivina**: «1,500» en un importe se rechaza
+  (podría ser uno y medio o mil quinientos) y el aviso explica cómo escribirlo; lo mismo
+  con un importe pegado a la mexicana, «1,500.50».
+- Los avisos y los ejemplos de los campos ya lo dicen así: «o ponto separa os milhares e a
+  vírgula, os decimais», «Ex.: 12,9».
+
+---
+
+## 2026-11-05 · Portugués: los papeles de un servidor en portugués (sin publicar)
+
+El dueño lo aprobó el 05/11 («Sí, igual que italiano»). En un servidor en español, inglés o
+italiano no cambia nada: los contratos ya firmados siguen igual, letra por letra.
+
+- **Un servidor nuevo puede nacer con sus papeles en portugués de Brasil**, como ya podía en
+  inglés o en italiano: el contrato de ejemplo, la constancia de firmas, la propuesta impresa,
+  la liga que recibe el cliente, el portal, el comprobante de cobro y los correos (propuesta,
+  invitación, restablecer la contraseña y el aviso diario de contratos). Se elige al darlo de
+  alta y no se cambia. El importe con letra sale como en Brasil: «MIL DUZENTOS E TRINTA E
+  QUATRO PESOS 50/100 MXN».
+- **«Mi cuenta» puede guardar el portugués** como idioma de la persona, en cuanto el portugués
+  se encienda en el servidor. Hoy sigue apagado: nadie lo ve.
+- El contrato en portugués es una **plantilla de ejemplo**, como el inglés y el italiano: el
+  contrato que vale es el que el cliente sube.
+
+---
+
 ## 2026-11-05 · v0.12.6 (preparada, todavía sin publicar)
 
 Junta todo lo que está abajo marcado «sin publicar» desde el 02/11: inglés e italiano,

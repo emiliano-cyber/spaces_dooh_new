@@ -18,8 +18,8 @@ import {
 // ============================================================================
 
 describe('IDIOMAS · el catalogo con el italiano', () => {
-  it('son tres, en este orden, y el italiano es el tercero', () => {
-    expect(IDIOMAS).toEqual(['es', 'en', 'it'])
+  it('el italiano es el tercero; el portugues (05/11) va detras', () => {
+    expect(IDIOMAS).toEqual(['es', 'en', 'it', 'pt'])
   })
 })
 

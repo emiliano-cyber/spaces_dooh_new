@@ -1,0 +1,751 @@
+---
+tipo: tablero
+estado: en-curso
+actualizado: 2026-11-05
+tags: [frontend, i18n, portugues, olas, agentes, dinero]
+archivos:
+  - apps/web/lib/i18n/idiomas.ts
+  - apps/web/lib/i18n/formato-idioma.ts
+  - apps/web/lib/i18n/diccionario.ts
+  - apps/web/lib/i18n/textos/
+  - apps/web/lib/i18n/cobertura-portugues.ts
+  - apps/web/lib/i18n/errores-servidor.ts
+  - apps/web/lib/i18n/guardias-portugues.ts
+  - apps/web/lib/test/volcado-html.ts
+  - apps/web/lib/test/espejo-portugues.ts
+  - apps/web/lib/server/idioma-controller.ts
+  - apps/web/lib/server/idioma-alta.ts
+  - apps/web/lib/server/idioma-instancia.ts
+  - apps/web/components/demo/admin/IdiomaCuenta.tsx
+  - apps/web/lib/contrato-documento.ts
+  - db/migrations/20261105_idioma_portugues.sql
+  - infra/scripts/provision-instancia.sh
+  - docs/i18n/revision-portugues-base.md
+  - docs/i18n/revision-portugues-l5.md
+  - docs/i18n/revision-portugues-l3.md
+  - apps/web/lib/i18n/textos/portugues-l3.test.ts
+  - docs/i18n/revision-portugues-l1.md
+  - apps/web/lib/i18n/textos/portugues-l1.test.ts
+  - apps/web/lib/i18n/textos/portugues-l5.test.ts
+  - apps/web/lib/test/barrido-portugues.ts
+  - docs/i18n/revision-portugues-l2.md
+  - apps/web/lib/i18n/textos/portugues-l2.test.ts
+  - docs/i18n/revision-portugues-l4.md
+  - apps/web/lib/i18n/textos/portugues-l4.test.ts
+  - apps/web/lib/i18n/textos/portugues-comun.test.ts
+  - apps/web/lib/i18n/textos/costura.test.ts
+  - apps/web/lib/i18n/papeles-portugues.test.ts
+  - docs/i18n/revision-portugues-costura.md
+  - apps/web/lib/captura-cifra.ts
+  - apps/web/lib/captura-cifra.portugues.test.ts
+  - apps/web/components/demo/ui/EntradaCifra.tsx
+---
+
+# La versión en portugués (Brasil), ola por ola
+
+Pedido del dueño el **2026-11-05**: la aplicación en portugués de Brasil. Esta
+nota es el **tablero**: qué está hecho, en qué rama, qué falta y qué decidió el
+dueño. La maquinaria de idiomas —la regla de la cookie, las claves, el dinero,
+los errores del servidor— está en [[idiomas-es-en]]; el método por lotes es el
+del italiano, en [[italiano-olas]], y el del inglés, en [[ingles-olas]]. Aquí no
+se repiten.
+
+> [!important] Nada de esto está en `main`
+> - La rama de integración es **`integra/portugues`**, que sale de
+>   `verificacion` (`a7953731`, con el inglés y el italiano completos).
+> - La ola 0 vive en **`feat/portugues-base`**. Cada lote trabajará en su
+>   `feat/portugues-<lote>`, saliendo de `integra/portugues`.
+> - La tarea roja P3 (los papeles y la base) vive en
+>   **`feat/portugues-documentos`**, sobre `integra/portugues` (`e018b1bb`).
+> - **La costura** (05/11) vive en **`feat/portugues-costura`**, que sale de
+>   `integra/portugues` (`2e2a62e1`: ola 0 + L5 + P3) y junta L2, L3, L4 y
+>   L1 (§2 ter).
+> - **Sobre la v0.12.6** (05/11): `feat/portugues-con-main` sale de
+>   `integra/portugues` (`bb990350`) y trae `origin/main` (`34f36a54`, la
+>   v0.12.6 publicada). Ver §2 quater.
+> - **La tarea roja P2** (las cifras a la brasileña, 05/11) vive en
+>   **`feat/portugues-cifras`**, que sale de `integra/portugues` (`a97c171d`).
+>   Ver §2 quinquies.
+> - No se ha empujado nada ni hay PR.
+
+> [!warning] El portugués está APAGADO
+> Su interruptor es **`IDIOMA_PORTUGUES=1`** —solo el valor exacto `1`—, propio
+> y separado de `IDIOMA_INGLES` e `IDIOMA_ITALIANO`: encender uno no enciende
+> otro. Apagado (la omisión), nadie ve portugués aunque su cookie o su navegador
+> (`pt-BR`, `pt-PT`, `pt`) lo pidan, y el selector no ofrece «Português». No se
+> enciende hasta cerrar los lotes y el recorrido en el navegador (§4).
+
+## 1 · Decisiones del dueño (05/11)
+
+| # | Asunto | Estado |
+|---|---|---|
+| D1 | **pt-BR (Brasil), trato «você»**. Locale `pt-BR`; la clave del idioma es `pt` | **Decidido**. `IDIOMAS = ['es','en','it','pt']` (`idiomas.ts`), etiqueta «Português» |
+| D2 | **Pesos: «MX$ 1.160,00»** —símbolo delante con espacio, separadores brasileños—, como el italiano. **No se añade el real (BRL)** | **Decidido**. `FORMATO_IDIOMA.pt` (`formato-idioma.ts`) |
+| D3 | **Mientras falte una clave en portugués, se pinta en ESPAÑOL** (no en inglés como el italiano). Lo mismo los errores del servidor: un mensaje sale entero en portugués o entero en español, nunca a medias | **Decidido**. La caída vive en un solo sitio: `conCaidaAlEspanol(ES, PT)` (`diccionario.ts`); en el servidor, `errorEnTablas(TABLAS_PT, …) ?? mensaje` (`errores-servidor.ts`) |
+| D4 | Fechas «1 de dez. de 2026» (la corta de pt-BR), cifras «1.160,5», porcentaje «55,0%», trimestre «T1 2026» | **Decidido** (05/11). En `FORMATO_IDIOMA.pt` |
+| P1 | **Dólar de una instancia USD en portugués: «US$ 1.160,00»** | **Decidido** (05/11) |
+| P2 | **¿Se teclean las cifras a la brasileña («1.500,50»)?** Hoy, a la mexicana (`separadorDecimal: '.'`), porque es una decisión de dinero (ZONA ROJA) que el dueño tomó para el italiano (P-L2-1, 04/11) y no para el portugués, y porque los avisos de captura caen al español («la coma separa miles»): con coma decimal mentirían | **Decidido (05/11): A LA BRASILEÑA. Hecho el 05/11, sin validar**: `feat/portugues-cifras` (§2 quinquies). `separadorDecimal: ','`; el portugués hereda la captura del italiano |
+| P3 | **Los papeles en portugués** (contrato de ejemplo, constancia, propuesta impresa, `/p`, portal, comprobante, correos) en una instancia `pt` | **Aprobada (05/11, «Sí, igual que italiano») y hecha, sin validar**: `feat/portugues-documentos` (§3). Adenda al ADR 0049 |
+| P4 | Glosario: ¿los anglicismos del sector se quedan en inglés como en italiano (spot, loop, DOOH, «loops/h»)? | **Decidido (05/11): se quedan en inglés** (spot, loop, DOOH, CPM, «loops/h»), como en italiano |
+
+## 2 · Las olas
+
+### Ola 0 · La infraestructura
+
+| Tarea | Rama | Veredicto | Notas |
+|---|---|---|---|
+| `pt` como cuarto idioma, formatos, caída al español, catálogos, guardia, espejo y cobertura | `feat/portugues-base` | **Hecha, sin validar** | Sin traducir la interfaz. Detalle en `docs/i18n/revision-portugues-base.md` |
+
+### Ola 1 · Los lotes de traducción (propuesta)
+
+La partición del italiano, que funcionó: **5 lotes que no se pisan**, cada uno
+toca **solo sus archivos** de `textos/` (y el L5, además, la base de
+`diccionario.ts` y los catálogos de `errores-servidor.ts`). Recuentos medidos el
+05/11 con `coberturaPortugues()` sobre `feat/portugues-base`.
+
+| Lote | Ámbitos | Claves |
+|---|---|---:|
+| **L1 · Space Eyes y luz** | `spaceeyes` 1007 · `energia` 121 | **1128** |
+| **L2 · Comercial y propuestas** | `comercial` 502 · `codigos` 59 · `propuestas` 446 · `catalogos` 194 | **1201** |
+| **L3 · Inventario, arrendadores y operaciones** | `inventario` 360 · `arrendadores` 444 · `operaciones` 177 · `operaciones2` 205 | **1186** |
+| **L4 · Campañas, finanzas, clientes, reportes y Dashboard** | `campanas` 396 · `finanzas` 170 · `clientes` 220 · `reportes` 148 · `inicio` 148 | **1082** |
+| **L5 · Armazón, cuenta, administración y servidor** | base de `diccionario.ts` 113 (de 119; el selector ya está) · `shell` 59 · `cuenta` 125 · `admin` 542 · `compartidos` 113 · `notificaciones` 47 · `servidor` 32 · errores del servidor 309 (catálogo 205, campos 30, firma 12, patrones 62) | **1340** |
+| | **Total pendiente** | **5937** |
+
+| Lote | Rama | Estado | Cobertura de sus filas |
+|---|---|---|---|
+| **L2** | `feat/portugues-l2-comercial` | **VERDE** (05/11, `docs/i18n/validacion-portugues-l2.md`); hallazgos bajos H2–H6 corregidos. **Integrado en la costura** (`6ea4fadf`) | **1201/1201, 0 pendientes** (comercial 502 · codigos 59 · propuestas 446 · catalogos 194) |
+| **L5** | `feat/portugues-l5-armazon` | **VERDE** (segunda vuelta, 05/11). Integrado en `integra/portugues` | **1346/1346, 0 pendientes** (base 119 · compartidos 113 · shell 59 · cuenta 125 · admin 542 · notificaciones 47 · servidor 32 · errores 205 + 30 + 12 + 62) |
+| **L3** | `feat/portugues-l3-inventario` | **VERDE** (segunda vuelta, 05/11). **Integrado en la costura** (`f7d1a458`) | **1186/1186, 0 pendientes** (inventario 360 · arrendadores 444 · operaciones 177 · operaciones2 205) |
+| **L4** | `feat/portugues-l4-campanas` | **VERDE** (segunda vuelta, 05/11). **Integrado en la costura** (`32d1f701`) | **1082/1082, 0 pendientes** (campanas 396 · finanzas 170 · clientes 220 · reportes 148 · inicio 148) |
+| **L1** | `feat/portugues-l1-spaceeyes` | **VERDE** (segunda vuelta, 05/11). **Integrado en la costura** (`6b0e2883`) | **1128/1128, 0 pendientes** (spaceeyes 1007 · energia 121) |
+
+### Lote L5 · Armazón, cuenta, administración, compartidos y servidor
+
+Rama `feat/portugues-l5-armazon` (sale de `integra/portugues`, `e018b1bb`).
+**Validación ÁMBAR (`docs/i18n/validacion-portugues-l5.md`), corregida el 05/11,
+pendiente de revalidar** (revisión §11). Revisión clave por clave en
+`docs/i18n/revision-portugues-l5.md`.
+
+- **Glosario común primero** (§2 bis, commit propio `30b60385`): es el encargo
+  de los otros cuatro lotes.
+- **1346 claves** (1340 nuevas): los seis `PT_*` de `textos/` del lote ya son
+  `Record`; base y catálogos del servidor, completos. Total del portugués:
+  1346 con portugués, **4597 pendientes** (de L1–L4).
+- **Errores del servidor, una diferencia con el italiano:** las tablas de
+  huecos (periodicidad, etapa, faltantes, firma) no dejan pasar lo
+  desconocido; el mensaje entero cae al español en vez de salir con español
+  dentro (`deTablaPt`).
+- **Pruebas:** estática `textos/portugues-l5.test.ts` (rojo primero, 18/36;
+  incluye la regla de fechas sobre TODO `PT_PARCIAL`), 74 estados portugueses
+  nuevos en `pantallas-admin`, `-cuenta-shell` y `-compartidos` (barrido +
+  `huellasEnPortugues`) y `lib/test/barrido-portugues.ts`, que aparta el
+  español pendiente de otros lotes sin esconder nada del lote. **14/14
+  mutantes muertos.**
+- **es/en/it idénticos:** volcado de toda la suite antes y después, 0 HTML
+  distintos de es/en/it.
+- **Espejo:** 0 huellas en las pantallas del lote; en toda la suite, las mismas
+  309 de la ola 0 (P2 y P3, ningún ámbito del lote).
+- **H2 de la ola 0 cerrado:** `crearTenant` acepta `IdiomaEnLaBase` (solo tipo,
+  JS idéntico). H1 y H3 siguen abiertos (P3 y recorrido).
+- **Para el dueño:** ver «Dudas» en la revisión (§10): *ponto/tela*,
+  *bissemana*, *perfil/papel*, *a Network* (confirmadas por el dueño el 05/11;
+  Dueño = **Titular**), y los avisos de
+  captura (`compartidos.cifra.*`), que hoy dicen la verdad mexicana y
+  reescribirá `feat/portugues-cifras` con el texto que deja propuesto la
+  revisión §3.
+
+### Lote L2 · Comercial y propuestas
+
+Rama `feat/portugues-l2-comercial` (sale de `integra/portugues`, `72b33050`).
+**Validación VERDE** (`docs/i18n/validacion-portugues-l2.md`); los hallazgos
+bajos H2–H6 corregidos en la misma rama (revisión §11): cuatro frases y dos
+guardias nuevas en la prueba estática (cifras en el orden del español y
+negación conservada) más `valla → outdoor` en el glosario. Revisión clave por
+clave en `docs/i18n/revision-portugues-l2.md`.
+
+- **1201 claves, 0 pendientes**: los cuatro `PT_*` (`comercial`, `codigos`,
+  `propuestas`, `catalogos`) ya son `Record`. Ningún archivo de la aplicación
+  cambió: el código del lote ya pasaba el idioma a cada cifra (arreglos del
+  italiano L2).
+- **Pruebas:** estática `textos/portugues-l2.test.ts` (rojo primero, 7/20;
+  149 cognados declarados, glosario de 31 pares, comisión = comissão), 63
+  estados portugueses en `pantallas-comercial`, `-propuestas` y `-catalogos`
+  (barrido + `huellasEnPortugues` + frases esperadas) y los estados de cifras
+  con decimales y miles. **12/12 mutantes muertos.**
+- **es/en/it idénticos:** `DICCIONARIOS` y `traducirError` (`cmp`) y volcado
+  de toda la suite: 0 HTML distintos de es/en/it.
+- **Espejo** sobre las tres pruebas: de 21 estados / 228 huellas a 15 / 103,
+  todas explicadas (ejemplos de captura del alta, P2; y los papeles del ADR
+  0049 con la instancia fija en es/en).
+- **Costura con P3** (`papeles-portugues.ts`): 48 claves iguales y 11
+  distintas, con su porqué en la revisión §4 («Aceita em {fecha}», *telas* en
+  vez de *pontos*, «Nº» en vez de «Ref. interna», espectacular/valla al revés).
+
+Glosario que este lote fija (lo que no está en §2 bis): comisión →
+**comissão** · neto → **líquido**, «neto para el medio» → **líquido para o
+veículo** · precio/tarifa de lista → **preço de tabela** · espectacular →
+**Painel**, valla → **Outdoor** · tramo / escalón / escala plana → **patamar /
+degrau / escala não progressiva** · horario de transmisión → **grade de
+programação** · tentativa → ~~provisória~~ **Pré-reserva** (decisión del dueño, costura) · se compone → **se aplica em
+cascata** · reparto / a prorrata → **rateio / proporcionalmente** · prime →
+**horário nobre** · plaza → **praça** · tablero de propuestas → **resumo** (no
+*painel*) · vigencia de código o propuesta → **validade** · Próximo / Agotado
+(código) → **Em breve / Esgotado** · unipolar → **monoposte** · dueño del
+espacio que se negocia → **dono** (nunca *proprietário*) · Ej. → **Ex.:**.
+
+### Lote L3 · Inventario, arrendadores y operaciones
+
+Rama `feat/portugues-l3-inventario` (sale de `integra/portugues`, `72b33050`).
+**Validación ÁMBAR (`docs/i18n/validacion-portugues-l3.md`), corregida el 05/11,
+pendiente de revalidar** (revisión §11: H1 el candado ABIERTO al cerrar la OS es
+«Faturamento liberado», no «bloqueio ativado»; H2–H6). Revisión clave por clave en
+`docs/i18n/revision-portugues-l3.md`.
+
+- **1186 claves**: `operaciones` 177, `operaciones2` 205, `inventario` 360 y
+  `arrendadores` 444 (con la constancia de firmas); los cuatro `PT_*` ya son
+  `Record`. Un solo componente tocado: el `alt` de la vista previa del alta
+  manual (`NuevaPantallaForm.tsx`) sale del diccionario también en portugués.
+- **La constancia** (`arrendadores.constancia.*`) es un papel y también la
+  escribe `papeles-portugues.ts` (P3, `feat/portugues-documentos`): aquí va
+  igual salvo `.intro` («selado em {fecha}» rompe la regla de la fecha en
+  hueco). **Para la costura.** `importeDeRevision` (`PanelFirmas.tsx`) no se
+  tocó: lo corrige la rama de los documentos.
+- **Pruebas:** estática `textos/portugues-l3.test.ts` (rojo primero, 8/22) con
+  los huecos de fecha del lote y el glosario; estados portugueses en
+  `pantallas-operaciones`, `-operaciones2` y `-inventario-arrendadores`
+  (barrido + `huellasEnPortugues` + frases), el dinero de la OT en portugués y
+  el `alt`. es/en/it idénticos (diccionarios y volcado de toda la suite);
+  12/12 mutantes muertos. Espejo: las 81 huellas de siempre (el documento del
+  contrato y «Mozilla/5.0»), ninguna del lote.
+- **Glosario propio** (además del común, §2 bis):
+
+  | Español | pt-BR | Por qué |
+  |---|---|---|
+  | pantalla (inventario) | **ponto** (masc.: «livre», «ocupado», «{n} selecionados») | §2 bis |
+  | espectacular | **Painel** | propuesta del validador del L5 |
+  | valla | **Outdoor** | el cartel de papel brasileño ES la valla mexicana (*Poster panel*) |
+  | muro · puente | **Empena · Passarela** | |
+  | artículo del almacén «Pantalla» | **Tela** | un aparato, no un ponto |
+  | propia | **própria / próprio** | |
+  | alta manual · carga masiva · plantilla | **cadastro manual · importação em massa · modelo** | |
+  | etiqueta del almacén · baja | **plaqueta / número de patrimônio · baixado** | |
+  | montaje | **instalação** | |
+  | cerrar una OS | **encerrar** | «fechar» es la ventana |
+  | candado de facturación | **bloqueio de faturamento** (cerrado: «mantêm o faturamento bloqueado»; abierto al cerrar la OS: «Faturamento liberado») | H6 del italiano: no calcar «candado»; validación H1 |
+  | sello de ubicación · fotografía comprobatoria | **carimbo de localização · foto de comprovação** | |
+  | creativo | **criativo** (masc.) | |
+  | arrendataria (nuestra) | **locatária** (en la constancia, **O LOCATÁRIO**, como P3) | |
+  | emplazamiento · cuadre · depósito | **local · conciliação · caução** | |
+  | incidencia · reportar | **ocorrência · registrar** | |
+  | licencia municipal · permiso · dictamen estructural | **alvará municipal · licença · laudo estrutural** | |
+  | folio de una licencia | **Número** | el de la autoridad, no nuestra «Ref. interna» |
+  | domicilio | **endereço** | |
+  | efectivo · tarjeta | **dinheiro · cartão** | |
+  | firma autógrafa | **assinatura de próprio punho** | |
+  | distrito / alcaldía | **Bairro / região** | |
+
+### Lote L4 · Campañas, finanzas, clientes, reportes y Dashboard
+
+Rama `feat/portugues-l4-campanas` (sale de `integra/portugues`, `72b33050`).
+**Validación ÁMBAR leve (`docs/i18n/validacion-portugues-l4.md`), corregida el 05/11, pendiente de revalidar** (revisión §11). Revisión clave por clave en
+`docs/i18n/revision-portugues-l4.md`.
+
+- **1082 claves**: los cinco `PT_*` del lote ya son `Record`. Lo que falta del
+  portugués baja a 3515 pendientes (de L1–L3), medido en esta rama.
+- **El CSV del estado de cuenta** sale en portugués con «;» y coma decimal,
+  como el italiano (H4 de la validación de la ola 0); es/en/it byte a byte.
+- **Pruebas:** estática `textos/portugues-l4.test.ts` (rojo primero, 10/37:
+  copias, plurales, huecos, fechas con preposición, palabras que solo existen
+  en español y el glosario común: OS, PC, ocorrência, Titular); estados
+  portugueses en las cuatro `pantallas-*` del lote con el barrido del L5 y una
+  guardia nueva de palabras españolas sueltas (`lib/test/barrido-portugues-l4.ts`).
+- **es/en/it idénticos** (diccionarios byte a byte y volcado de toda la suite:
+  0 HTML distintos). **Espejo:** 0 huellas en las pantallas del lote.
+- **Diseño del Dashboard intacto:** solo textos; la instantánea española, en
+  verde.
+
+Glosario propio (lo que §2 bis no traía): ingreso → **receita** · margen bruto
+/ neto → **margem bruta / líquido** · tarifa publicada o de lista → **tarifa de
+tabela** · cuota → **parcela** («{n} parcelas, duas por mês»; mensais,
+bimestrais…) · al corriente → **Em dia** · vencido al corte → **Vencido até {fecha}** · timbrado (CFDI) → **timbrado** · cargo / abono del extrato →
+**Débito / Crédito** · folio de una factura → **Nº da fatura** · nombre
+comercial → **nome fantasia** · tasa de cierre → **taxa de fechamento** · hueco
+→ **espaço livre** · tentativa → ~~Provisória~~ **Pré-reserva** (costura) · el medio → **veículo** ·
+reporte de cumplimiento → **relatório de veiculação** · reproducción →
+**exibição** · enviar al dominio → **enviar para publicação** · reanudar /
+bajar → **retomar / remover** · bitácora → **histórico** · embudo → **funil** ·
+giro → **ramo de atividade** · dueño del terreno → **dono do terreno** (no
+*proprietário*) · incidencia / accidente → **ocorrência / acidente** ·
+DOOHmain, masculino («no DOOHmain»).
+
+> [!success] Para la costura del L4 — RESUELTO en `feat/portugues-costura` (05/11)
+> Las tres claves de papel quedaron como el lote (el archivo de P3 se
+> retiró); el servidor dice «o dono do terreno»; `monto-ilegible` sigue
+> esperando a `feat/portugues-cifras`. Lo que decía:
+> - `textos/papeles-portugues.ts` (P3) no está en esta rama: el texto de los
+>   papeles del lote se copió de allí, salvo `campanas.evidencia.vacia.texto`
+>   y `campanas.evidencia.alt` («comprovação», el glosario común; el papel dice
+>   «evidências»), `finanzas.comun.folio` («Nº da fatura»; el papel, «Número») y
+>   `finanzas.comprobante.aviso` («timbrado»; el papel, «carimbado»). Gana el
+>   lote (validación §4).
+> - `clientes.captacion.falta.dueno` dice «o dono do terreno», y su gemelo del
+>   servidor (`FALTA_REVISION_PT`, L5) «o proprietário».
+> - `campanas.candado.monto-ilegible` dice la verdad mexicana de hoy: la tarea
+>   roja `feat/portugues-cifras` lo cambia (texto en la revisión, §3).
+
+### Lote L1 · Space Eyes y luz
+
+Rama `feat/portugues-l1-spaceeyes` (sale de `integra/portugues`, `72b33050`).
+**Validación ÁMBAR leve (`docs/i18n/validacion-portugues-l1.md`), corregida el
+05/11, pendiente de revalidar** (revisión §9: «o app», «Estado da tela»,
+«vinculação», guardia contra el portugués de Portugal). Revisión clave por clave en
+`docs/i18n/revision-portugues-l1.md`.
+
+- **1128 claves**: `PT_SPACEEYES` (1007) y `PT_ENERGIA` (121) ya son `Record`.
+  Total del portugués: **3469 pendientes** (de L2–L4).
+- **Sin código fuera de `textos/`**: el formato de cifras de los dos ámbitos ya
+  era genérico desde el italiano L1 («0,812», «1.234», «3,10 GB»).
+- **Pruebas:** estática `textos/portugues-l1.test.ts` (rojo primero, 7/24; 115
+  cognados declarados uno por uno), estados portugueses en
+  `pantallas-spaceeyes` (95 + galería con millar) y `pantallas-energia` (11 +
+  dinero MXN/USD) con barrido y `huellasEnPortugues`. **14/14 mutantes
+  muertos.** es/en/it idénticos (diccionarios con `cmp`, volcado de toda la
+  suite: 0 HTML distintos).
+- **Lo que se queda como en la app o el papel:** el botón «Vincular» de la app
+  Android (solo está en español), el «No» del Raspberry Pi Imager, la **CFE** y
+  la sigla **DAP** del recibo.
+
+**Glosario propio del lote** (lo que no está en §2 bis):
+
+| Español | pt-BR |
+|---|---|
+| equipo / dispositivo | **dispositivo** (el menú) |
+| la pantalla LED que mira el equipo | **tela** · la del inventario, **ponto** |
+| sitio físico del equipo | **local** («sem ir ao local») |
+| falla · recuperada | **falha · resolvida** |
+| gabinete · creativo | **gabinete · criativo** |
+| vigilancia · vista en vivo · encuadre | **monitoramento · visualização ao vivo · enquadramento** |
+| código de vinculación | **código de vinculação** (como el botón «Vincular» de la app) |
+| app | **o app** (masc.; «a app» es de Portugal) |
+| flota | **parque de dispositivos** |
+| marca de la foto | **legenda** (el menú) |
+| folio de un ticket · panel de tickets | **chamado · painel de chamados** |
+| un toque en el teléfono | **confirmação no celular** (en la web, «Clique») |
+| registros (logs) | **logs** |
+| recibo de luz · pantalla suelta | **conta de luz · ponto avulso** |
+| punto de medición | **unidade consumidora** (no choca con *ponto*) |
+| capturar · hueco · tanda · renglón | **registrar · lacuna · lote · linha** |
+| adeudos | **débitos anteriores** |
+
+**Para el dueño:** revisión §7 (los conceptos del recibo de la CFE, *local*
+frente a *ponto*, *parque de dispositivos*, *unidade consumidora*). **Para la
+costura:** el veredicto de la foto (`comercial.eye.*`, L2) caía al español en
+la ficha; con L2 dentro sale en portugués y la costura quitó la declaración.
+
+> [!tip] El glosario se fija ANTES de repartir
+> Como en el italiano: `compartidos` (L5) fija las palabras que usan todos
+> (periodos, catorcena, millar, unidades). Conviene que L5 entregue primero el
+> glosario común y que los otros cuatro lo reciban en su encargo. Y el
+> glosario del italiano (`italiano-olas.md` §5–§7) sirve de lista de términos
+> a decidir: impianto/schermo, OdL, OdA, provvigione…
+
+> [!note] Los PAPELES ya no viven aparte (costura, 05/11)
+> P3 los escribió en `lib/i18n/textos/papeles-portugues.ts` (151 claves de
+> `propuestas`, `cuenta`, `finanzas`, `arrendadores`, `notificaciones`,
+> `campanas` y `comercial`) para no pisar a los lotes. En la costura las 151
+> estaban ya en su `PT_<AMBITO>` (138 iguales, 13 distintas por el glosario
+> común): **ganó el lote** y el archivo **se retiró**. `papeles-portugues.test.ts`
+> sigue vigilando los papeles: cada una de las 169 claves que pinta un papel
+> está en el `PT_<AMBITO>` de su ámbito, y el folio del cliente es «Nº».
+
+Después, la **costura** (§2 ter) y el **recorrido en el navegador**.
+
+## 2 bis · Glosario común (lote L5, 05/11) — los demás lotes lo copian
+
+Primera entrega del lote L5 (`feat/portugues-l5-armazon`), **antes** de
+traducir: es el encargo de los otros cuatro lotes. Lo fijan `compartidos`
+(unidades, periodicidades, periodos) y el menú de la base. Si un lote necesita
+un término que aquí no está, lo decide y lo anota en su revisión; si choca con
+uno de aquí, gana este y se cambia en la costura.
+
+**Registro y forma.** pt-BR, **«você»** con el imperativo de 3.ª persona
+(«Digite», «Escolha», «Clique», «Tente de novo»); posesivo sin artículo cuando
+suena natural («sua senha», «seu e-mail»). Frases cortas, mayúscula solo al
+inicio (como el español). **Comillas curvas “ ”** (Brasil no usa « »); el
+apóstrofo casi no aparece. Cifras, dinero y fechas los pone `FORMATO_IDIOMA.pt`:
+**nunca** una cifra o símbolo de moneda en el diccionario.
+
+**Fechas en hueco: sin preposición contraída ni «em» delante.** «no {fecha}»,
+«do {fecha}», «ao {fecha}», «pelo {fecha}» y «em {fecha}» quedan prohibidos
+(el hueco puede ser «1 de dez. de 2026», «1º», un rango…). Se escribe
+«Vence: {fecha}», «até {fecha}», «a partir de {fecha}», «desde {fecha}», o
+«{desde} a {hasta}». Lo vigila `textos/portugues-l5.test.ts` sobre todo
+`PT_PARCIAL`.
+
+### Lo que se queda en inglés (D-P4)
+
+spot · loop · DOOH · CPM · CPS · «loops/h» · Roadblock · slot · Dashboard ·
+Network · DOOHmain · Space Eyes · CRM · e-mail (con guion, como se escribe en
+Brasil) · link · prospect · login no (se dice **entrar**).
+
+### Las palabras de todos
+
+| Español | pt-BR | Por qué |
+|---|---|---|
+| pantalla (inventario en general: mapa, propuesta pública, Network, cupo) | **ponto** (masc.; «ponto de mídia» si hace falta) | en OOH brasileño la unidad de inventario es el *ponto*; una pantalla del inventario puede ser un espectacular |
+| pantalla digital (calculadora, loop, DOOHmain, franja) | **tela** (fem.) | «telas» es lo que dice el DOOH brasileño (elevadores, metrô) |
+| pantalla de la aplicación | **página** (o «tela» solo si no hay ambigüedad) | evita el choque con la tela DOOH |
+| espectacular · valla · muro · puente | **Painel · Outdoor · Empena · Passarela** | aprobado por el dueño (05/11): el *outdoor* brasileño es el de papel 9×3, la valla mexicana |
+| sitio (campo «Sitio» del servidor) | **Ponto** | en la app, el sitio es la unidad de inventario |
+| catorcena · Catorcenal | **bissemana / bissemanas** · **Bissemanal** | el periodo de 14 días con que se vende el outdoor en Brasil; «quinzena» sería la quincena |
+| quincenal (dos veces al mes) | **Duas vezes por mês** | «quinzenal» se confundiría con la bissemana |
+| Diaria · Semanal · Mensual | **Diária · Semanal · Mensal** (fem.: «a tarifa mensal») | |
+| Bimestral · Trimestral · Semestral · Anual | **Bimestral · Trimestral · Semestral · Anual** | en pt-BR no son ambiguos (bimestral = cada dos meses); cognados declarados |
+| CPS · costo por salida · salida | **CPS · custo por inserção** · **inserção/inserções** | «inserção» es la salida al aire en mídia brasileña |
+| millar / millares · CPM · costo por millar | **milhar / milhares** · **CPM · custo por mil impressões** | |
+| espacios del loop | **slots do loop** («1 slot», «3 slots») | |
+| prima (Roadblock) | **acréscimo** | |
+| franja horaria · temporada · rejilla | **faixa horária** · **temporada** · **tabela de preços** | |
+| trimestre (etiqueta) | **T1 2026** (D4) | |
+| periodo del selector | Este mês · Mês passado · Este trimestre · Trimestre passado · Este ano · Período personalizado | |
+| Desde / Hasta / a | **De / Até / a** | |
+| días | dom · seg · ter · qua · qui · sex · sáb | |
+| propuesta · campaña · cliente · agencia | **proposta · campanha · cliente · agência** | |
+| cupón / código promocional | **código de negociação** | D-P4, como el «negotiation code» inglés |
+| Folio | **Ref. interna** dentro de la app; **Nº** en lo que ve el CLIENTE (correo «Nº P-1», «Comprovante Nº {folio}») | decisión del dueño (05/11; «Nº» en los papeles, costura) |
+| arrendador · arrendataria (nuestra empresa) | **locador · locatária** | términos de la Lei do Inquilinato |
+| renta (al arrendador) | **aluguel** | |
+| contrato de arrendamiento | **contrato de locação** | |
+| predio | **imóvel** | |
+| Captación (menú y título) | **Captação** | decisión del dueño (05/11, costura): la página lleva también clientes; donde una frase hable solo de pontos puede decir «captação de pontos» |
+| Comercial negociación | **Negociação de locações** | |
+| prospecto | **prospect** (pl. prospects) | uso del sector |
+| cobranza · factura · abono | **cobrança · fatura · pagamento parcial** | un abono no es un adelanto |
+| recordatorio de cobro · estado de cuenta | **lembrete de cobrança · extrato** | |
+| razón social · RFC · régimen fiscal · CP fiscal · uso de CFDI | **razão social · RFC · regime tributário · CEP fiscal · uso do CFDI** | «razão social» es el término brasileño exacto; RFC y CFDI son mexicanos y no se traducen |
+| Sin asignar (razón social) · dada de baja | **Não atribuída · desativada** (fem.) | |
+| OT (orden de trabajo) | **OS** (ordem de serviço, fem.: «Nova OS», «OS atrasada») | |
+| OC (orden de compra) | **PC** (pedido de compra, masc.) | |
+| cuadrilla · fecha compromiso · vencida (OT) · por vencer | **equipe de campo · prazo · atrasada · a vencer** | |
+| incidencia | **ocorrência** | |
+| candado de facturación | **bloqueio de faturamento** | |
+| evidencia | **comprovação** («foto de comprovação») | el *checking* de mídia |
+| creativo · arte | **criativo · arte** | |
+| imprenta (módulo y proveedor) | **Gráfica** | en Brasil la imprenta *es* la gráfica |
+| orden de impresión · prueba de color · montaje | **ordem de impressão · prova de cor · instalação** | |
+| almacén · traslado · dar de baja (almacén) | **almoxarifado · transferência · dar baixa** | |
+| dar de baja (persona, arrendador, razón social) | **desativar** | |
+| luz · recibo de luz · medidor | **energia · conta de luz · medidor** | |
+| P&L | **DRE** | |
+| Configuración (menú) | **Configurações** | |
+| Configuración de la cuenta / del negocio | **Configurações da conta / da empresa** | |
+| Contraseña · Correo | **senha · e-mail** | |
+| Equipo (personas) · Soporte | **Equipe · Suporte** | |
+| Dueño (rol) | **Titular** | decisión del dueño (05/11): «Proprietário» chocaba con el dueño de un ponto o de la red; *Titular* (de la conta) no |
+| Gerente de ventas · Director comercial · Vendedor | **Gerente de vendas · Diretor comercial · Vendedor** | |
+| Comisiones · comisión de la agencia | **Comissões · comissão da agência** | |
+| tope de descuento | **teto de desconto** | |
+| Reportes · Actividad | **Relatórios · Registro de atividades** | |
+| Finanzas · Operaciones · Inventario | **Finanças · Operações · Inventário** | |
+| Consumo de luz | **Consumo de energia** | |
+| Programático | **Programática** (la mídia); de un ponto, **Programático** (masc.) | «mídia programática» es lo que se dice en Brasil |
+| vigente · vencido | **vigente · vencido** (pago: **atrasado**) | |
+| Borrador · Enviada · Aprobada · Rechazada · En curso · Pendiente | **Rascunho · Enviada · Aprovada · Recusada · Em andamento · Pendente** | |
+| Guardar · Eliminar · Quitar · Agregar · Editar · Ver | **Salvar · Excluir · Remover · Adicionar · Editar · Ver** | el estándar de las interfaces brasileñas |
+| Guardando… · Cargando… · Creando… · Enviando… | **Salvando… · Carregando… · Criando… · Enviando…** | |
+| «No se pudo …» | **Não foi possível …** | |
+| Iniciar sesión / Entrar | **Entrar** | |
+
+### Glosario común FINAL (costura, 05/11)
+
+Lo que la costura fija para todo el portugués, encima de la tabla de arriba.
+Si choca con un glosario de lote, gana esto.
+
+| Español | pt-BR | Origen |
+|---|---|---|
+| app | **o app** (masculino; «a app» es de Portugal) | validación del L1; lo vigila `portugues-comun.test.ts` |
+| Captación (menú y título) | **Captação** | decisión del dueño (05/11) |
+| tentativa (reserva) | **Pré-reserva** · «Pré-reservas» · botón «Pré-reservar» | decisión del dueño (05/11); sustituye a «Provisória» |
+| folio en lo que ve el cliente | **Nº** («Nº P-1», «Comprovante Nº {folio}») | decisión del dueño (05/11); dentro de la app, «Ref. interna» |
+| espectacular · valla · muro · puente | **Painel · Outdoor · Empena · Passarela** | aprobado en bloque (05/11) |
+| comisión · precio/tarifa de lista · neto para el medio | **comissão · preço/tarifa de tabela · líquido para o veículo** | aprobado en bloque |
+| tramo · horario de transmisión | **patamar · grade de programação** (también en los errores del panel y en el aviso de franja del servidor) | aprobado; la costura unificó «Horário de exibição» y «horário de veiculação» (H2 de su validación) |
+| tarifa publicada / de lista | **tarifa de tabela / preço de tabela** (también en Comercial) | aprobado; H1 de la validación de la costura |
+| entre dos fechas · entre dos horas | **a** («1 de dez. a 5 de dez.») · **às** («De 06:00 às 22:00») | costura (H3 de su validación) |
+| nombre comercial · el medio que vende | **nome fantasia · veículo** | aprobado |
+| quincenal (cuotas) | **duas por mês** | aprobado |
+| distrito / alcaldía · etiqueta del almacén | **bairro / região · plaqueta / número de patrimônio** | aprobado |
+| licencia municipal · dictamen · permiso | **alvará municipal · laudo · licença**; «Licenças e alvarás» | aprobado; la costura unificó el Dashboard |
+| sitio físico (Space Eyes) · flota · punto de medición | **local · parque de dispositivos · unidade consumidora** | aprobado |
+| marca de la foto · tickets | **legenda · chamado** | aprobado |
+| CFE · DAP · «Buen Fin» | **tal cual** (nombres mexicanos; «Buen Fin» en los ejemplos) | aprobado |
+| CP fiscal · su error | **CEP fiscal · «CEP inválido (5 dígitos)»** | costura (H9 del L4): el rótulo y el error, en la pantalla y en el servidor |
+| dueño del terreno que se capta | **o dono do terreno** (nunca *proprietário*) | costura: pantalla y servidor iguales |
+| Ej. | **Ex.:** (nunca «p. ex.») | glosario del L2; la costura igualó los cuatro del L4 |
+| montaje · desmontaje | **instalação · desinstalação** | costura |
+| «ya no» | **não … mais** (nunca «já não», de Portugal) | validación del L1; ahora para todos |
+
+### Captura de cifras (P2)
+
+El dueño decidió teclear **a la brasileña**, y la tarea ROJA
+`feat/portugues-cifras` lo hizo el 05/11 (§2 quinquies): `CampoCifra` lee el
+portugués con punto de millar y coma decimal, y los avisos dicen **eso**:
+«o ponto separa os milhares e a vírgula, os decimais». El texto es el
+propuesto en `docs/i18n/revision-portugues-l5.md` §3, salvo `punto-decimal`,
+que dice «Em português, a vírgula é decimal» (y no «No Brasil»): la regla es
+del idioma, como el «In italiano» del italiano, y la instancia está en México.
+
+## 2 ter · La costura (05/11)
+
+Rama **`feat/portugues-costura`**, de `integra/portugues` (`2e2a62e1`). Revisión
+completa en `docs/i18n/revision-portugues-costura.md`.
+
+- **Integra** L2 (`6ea4fadf`), L3 (`f7d1a458`), L4 (`32d1f701`) y L1
+  (`6b0e2883`), `merge --no-ff`, uno por commit. Conflictos solo de
+  documentación (este tablero y el diario del 05/11): se conservaron todos los
+  lados.
+- **Papeles**: `papeles-portugues.ts` se retira; sus 151 claves estaban en los
+  lotes (13 distintas, gana el lote). Folio del cliente «Nº».
+- **Decisiones del dueño** aplicadas (Captação, Pré-reserva) y los **gemelos**
+  con el servidor («dono do terreno», «CEP inválido»).
+- **Cobertura total: 5943/5943, 0 pendientes** en todas las filas
+  (`cobertura-portugues.test.ts` lo exige; adiós a las pruebas de transición).
+- **Fuera las listas de español pendiente** de otros lotes
+  (`espanolPendienteDeOtrosLotes`, `espanolPendienteDe`, «Pantalla digital», el
+  veredicto de la foto, «En producción», «Pendiente / En proceso», las seis
+  etiquetas del L2): los barridos ya no apartan nada que no sea un dato.
+  `barrido-portugues-l4.ts` se unió a `barrido-portugues.ts`.
+- **Guardias comunes** (`textos/portugues-comun.test.ts`) sobre todo
+  `PT_PARCIAL` y los catálogos del servidor: Portugal, tuteo, palabras solo
+  españolas, fechas en hueco. Cazaron 4 textos (corregidos).
+- **`costura.test.ts` al portugués**: 38 divergencias; 24 claves unificadas, 20
+  textos declarados en `DISTINTOS_A_PROPOSITO_PT` con su porqué.
+- **es/en/it idénticos, medido**; espejo pt **184 huellas / 33 estados**, todas
+  explicadas (§5). 12/12 mutantes muertos.
+
+## 2 quater · Sobre la v0.12.6 (05/11)
+
+Rama **`feat/portugues-con-main`**, de `integra/portugues` (`bb990350`), con
+`git merge --no-ff origin/main` (`34f36a54`, 25 commits: B70, B71, la
+vigencia de B88 H4, D18 y B85–B87, las notas de la v0.12.6, dos arreglos de
+pruebas del CI y el mutante de `pruebas-provision.sh`).
+
+- **Conflictos solo de documentación**: el diario del 05/11, la bitácora y
+  `CLAUDE.md`; se conservaron los dos lados. En la bitácora la entrada del
+  portugués va **encima** de la de la v0.12.6 (esa dice «junta todo lo que
+  está abajo», y el portugués no va en ella). `ABIERTOS.md` entró sin
+  conflicto y sin choque de números: main usa B88–B90 y el portugués solo B91.
+- **24 claves nuevas de main traducidas** (`tsc` las pedía): los controles
+  de MapLibre `compartidos.mapa.lib.*` (20: «Aumentar o zoom», «Ver em tela
+  cheia» —expresión fija, no la tela DOOH—, «roda do mouse», «Exibir como
+  globo terrestre / mapa plano»), `compartidos.avisos.*` («Notificações»,
+  «Fechar notificação») y `admin.iva.quitar` / `admin.plazos.quitar`
+  («Remover IVA de {n}%», «Remover prazo de {n} dias»). «Mapa», cognado
+  declarado. `librerias.test.ts` y `cerrar-accesible.test.ts` miran también
+  el portugués.
+- **Las notas de la v0.12.6 no llevan portugués**: `novedades-reglas.mjs` y
+  `novedades-idiomas.test.ts` no lo exigen y el formato no tiene campo `pt`
+  (cae al español). No se añadió.
+- **`compartidos.cifra.*` sin cambios**: D18 no tocó sus textos, y lo que dicen
+  del portugués (se teclea a la mexicana) sigue siendo verdad. Pero **D18 sí
+  se aplica hoy al portugués**: con `comaDecimal('pt') === false` va por el
+  camino de es/en de `teclearCifra` (la coma tecleada se queda, `cifraAMedias`
+  no avisa a medias).
+- **Lo que condiciona `feat/portugues-cifras`**: al pasar `pt` a coma decimal,
+  `teclearCifra` lo llevará por el espejo del italiano (B87: el punto de millar
+  tecleado se queda) y `cifraAMedias` devolverá `false`, o sea **aviso en el
+  acto** con «1.» o «1.5» camino de «1.500», como el italiano y no como es/en.
+  Esa tarea decide si el portugués hereda eso o se le da el «a medias» en
+  espejo; y las pruebas de D18 (`captura-cifra.d18.test.ts`,
+  `cifras-d18.test.ts`) solo recorren es/en/it: tendrá que añadirles `pt`.
+  **Resuelto en §2 quinquies**: hereda el del italiano, y las dos pruebas ya
+  recorren `pt`.
+- **Medido**: typecheck limpio; `vitest --testTimeout=60000` **433 archivos,
+  10100 en verde + 1 omitida, 0 rojas**; `coberturaPortugues()` 0 pendientes;
+  `DICCIONARIOS.es/.en/.it` y `traducirError` es/en/it contra `origin/main`:
+  la única diferencia es la que `integra/portugues` ya tenía contra
+  `verificacion` (`idioma.pt` y el mensaje de P3 «es, en, it o pt»), `cmp`
+  de las dos diferencias idéntico; volcado `I18N_VOLCAR_TODO` (sin
+  `cifras-formularios`) contra `origin/main`: 5444 → 6434 HTML, **0 distintos
+  y 0 desaparecidos**; los 990 nuevos son de pruebas del portugués (981 en
+  `_portugues.txt`); `_italiano.txt` ordenado, idéntico.
+
+## 2 quinquies · P2: las cifras se teclean a la brasileña (05/11)
+
+**Hecha en `feat/portugues-cifras`, sin validar.** Tarea ROJA (dinero),
+aprobada por el dueño el 05/11. Sale de `integra/portugues` (`a97c171d`).
+
+- **El cambio es un dato**: `FORMATO_IDIOMA.pt.separadorDecimal = ','`. Nada en
+  `lib/captura-cifra.ts`, `CampoCifra` ni `EntradaCifra` pregunta por el
+  italiano: todo lee `comaDecimal()`. Con eso el portugués lee, pinta y manda
+  como el italiano: «1.500,50» → 1500.5, «12,9» m → 12.9, «55,5» % → 55.5; en
+  `EntradaCifra` (medidas, caras, porcentajes) pasa a ser un `CampoCifra`, y lo
+  ilegible bloquea el envío (`cifraIlegible`). **El servidor recibe la misma
+  cifra que en es/en/it.**
+- **Lo ambiguo se rechaza, no se adivina**: «1,500» en dinero no es mil
+  quinientos («Em português, a vírgula é decimal: “1,500” seria 1,5. Para
+  1.500, digite 1500 ou 1.500»; con 3 decimales vale 1,5); «1,500.50» pegado
+  (a la mexicana) se rechaza con «Aqui a vírgula é decimal e o ponto separa os
+  milhares: digite 2.500,50»; «12.9» y «2.5» tecleados se quedan y se rechazan.
+- **D18 en portugués: hereda EXACTAMENTE el del italiano** (B77, B87). Criterio:
+  es el mismo sistema de separadores, y separarlos sería tener dos reglas para
+  el mismo texto. El punto de millar de la persona se queda; `cifraAMedias` es
+  `false`, así que «1.», «1.5» y «1.50» camino de «1.500» **avisan en el
+  acto**, como en italiano (y no como en es/en, que esperan a salir del campo).
+  Medido: barrido de las 78 120 secuencias de hasta 6 teclas sobre «1 5 0 . ,»
+  (desde vacío y desde «1.500», cursor al final y al principio): **cada tecla
+  da en pt lo mismo que en it** (texto, cursor, `comasPropias`, lectura y «a
+  medias»).
+- **Textos reescritos** (13 claves, solo `pt`): `compartidos.cifra.forma /
+  comas / europeo / puntos / punto-decimal`, `campanas.candado.monto-ilegible`,
+  `comercial.tarifas.no-se-entiende`, `catalogos.tarifas.invalida` e
+  `inventario.tabla.cifra-ilegible / renta.ilegible / tarifa.ilegible /
+  wizard.renta-ilegible / carga.precio-m2-ilegible` («(65,50)»). El encargo
+  nombraba los cinco de `compartidos` y el candado; los siete de inventario,
+  comercial y catálogos decían lo mismo («a vírgula separa os milhares») y
+  habrían mentido igual. Los ejemplos van por `ejemploCifra`: «Ex.: 12,9»,
+  «Ex.: 7,2», «212.500,50».
+
+> [!warning] Propuesta para el dueño (NO aplicada: cambiaría el italiano publicado)
+> **El italiano avisa a destiempo, y en un formulario concreto se traga el
+> punto.** En `CampoCifra`, con `cifraAMedias` en `false`, teclear «1.500»
+> pinta el aviso rojo en «1.», «1.5» y «1.50» y lo quita en «1.500». Peor: en
+> un campo cuyo formulario se queda con el último valor válido —la **cantidad
+> manual de una línea de Propuestas** (`propuestas/page.tsx:1591`)—, el campo
+> se repinta con ese valor en cada paso inválido y **el punto desaparece**:
+> «1.5000» tecleado acaba en «15.000» y se guarda 15000, en vez de rechazarse
+> (B87 vuelve por ese camino). Medido con el arnés de `cifras-d18.test.ts`:
+> `it` y `pt` dan «1 → 1 → 15 → 150 → 1.500 → 15.000»; `es`, con su «a medias»,
+> da «1 → 1, → 1,5 → 1,50 → 1,500 → 1,500» y no manda nada.
+> **Propuesta:** dar al italiano y al portugués el «a medias» en espejo (lo
+> que acaba en un grupo de millar incompleto: «1.», «1.5», «12.50») —una línea
+> en `cifraAMedias`—. Cambia el italiano: el aviso sale al salir del campo o
+> con Enter, como en es/en, y la cantidad de Propuestas deja de tragarse el
+> punto. Lo decide el dueño; si dice que sí, se cambian los dos a la vez.
+
+- **Medido** (en este árbol): typecheck limpio; `vitest --testTimeout=60000`
+  **434 archivos, 10153 en verde + 1 omitida**; build limpio.
+  `DICCIONARIOS.es/.en/.it` y `traducirError` es/en/it contra `a97c171d`:
+  `cmp` idénticos. Huellas: la de es/en de siempre (con D18) y, nueva, la del
+  **italiano** con motivos incluidos (`58b30641…`, calculada en `a97c171d`); el
+  portugués da los números del italiano en las 116 000 filas. Barrido de
+  150 000 secuencias tecleadas por idioma (teclas, retroceso, suprimir,
+  pegar; cuatro juegos de opciones; todas las funciones públicas) contra la
+  función congelada de `a97c171d`: **es, en, it: 778 020 pasos, 0 distintos**.
+  Volcado `I18N_VOLCAR_TODO` (sin `cifras-formularios` ni `middleware`):
+  6434 → 6644 HTML, **0 distintos y 0 desaparecidos en es/en/it**; 77
+  distintos y 210 nuevos, todos de portugués; `_italiano.txt` idéntico.
+  Espejo `I18N_VOLCAR_PT`: **184 huellas en 33 estados → 160 en 21**; las
+  **24 de captura (P2) a 0**; quedan las de papeles y el firmante (§5).
+  Mutantes: **13/13 mueren** contra las unitarias.
+  **E2e no corridas**: no había Postgres en el 5433. El cambio no toca
+  servidor, API, base ni sesión: los formularios mandan las mismas cifras, y
+  eso lo miden `cifras-formularios.test.ts` y `cifras-d18.test.ts` contra la
+  API simulada.
+
+## 3 · P3: la base sabe portugués, y los papeles también (05/11)
+
+**Hecha en `feat/portugues-documentos`, sin validar.** Tarea ROJA aprobada por el
+dueño el 05/11 («Sí, igual que italiano»). Adenda al ADR 0049.
+
+Hasta P3, dos columnas guardaban un idioma con un CHECK `in ('es','en','it')`
+—`usuarios.idioma_preferido` y `tenants.idioma_documentos`— y la ola 0 validaba
+contra una lista corta (`IDIOMAS_EN_LA_BASE`) para que un `pt` no llegara a la
+base como un 500. Desde P3:
+
+- **Base:** `20261105_idioma_portugues.sql` abre los dos CHECK a `pt` (mismo
+  nombre de restricción; ni triggers ni filas). Idempotente, LF.
+- **La lista temporal desaparece.** El alta (`idioma-alta.ts`) valida contra
+  `IDIOMAS` —el 400 dice «es, en, it o pt»—; `idiomaDeLaInstancia()` lee `pt`;
+  `provision-instancia.sh --idioma pt` (o `--idioma=pt`); `pt-BR` o `PT`, 400 /
+  salida 64.
+- **«Mi cuenta» guarda `pt` si está encendido** (`idiomasActivos()`), y la
+  tarjeta lo ofrece. **Cierra H1** de la validación de la ola 0: con una
+  preferencia guardada, el portugués ya se alcanza. Apagado, ni se ofrece ni se
+  guarda (400) y una preferencia `pt` guardada se ignora sin error.
+- **El idioma de los documentos no depende de `IDIOMA_PORTUGUES`**: una
+  instancia puede nacer con papeles en portugués con la interfaz apagada, como
+  con el italiano.
+- **El contrato de ejemplo en pt-BR** (`redactarEnPortugues`, aparte de la
+  función del inglés y el italiano): «O LOCADOR / O LOCATÁRIO», contracciones
+  escritas a mano, «1.234.567,89 MXN», «1º de agosto de 2026», y la cantidad con
+  letra con «e» («MIL DUZENTOS E TRINTA E QUATRO PESOS 50/100 MXN»,
+  «UM MILHÃO E DUZENTOS MIL», «UM MILHÃO DE PESOS», «QUATORZE»). Plantilla de
+  EJEMPLO (D13, D17): el contrato que vale lo sube el cliente.
+- **Los demás papeles**: P3 escribió sus claves en `textos/papeles-portugues.ts`;
+  la costura (05/11) las devolvió a su `PT_<AMBITO>` y retiró el archivo (§2).
+- **Firmas:** ningún hash cambia. Los del inglés y el italiano no estaban
+  fijados en ninguna prueba: se midieron sobre `e018b1bb` antes del cambio y
+  quedan en `contrato-documento-portugues.test.ts`.
+- **Validación (05/11): VERDE** (`docs/i18n/validacion-portugues-documentos.md`).
+  Corregido después en la misma rama: H1 (la revisión previa a la firma muestra
+  el importe como el contrato pt, «1.234.567,89 MXN»), H2 (la cabecera de la
+  migración ya no cita `deploy.yml`), H4 («à sua inteira satisfação»,
+  «certificado de conservação NOM-151»). Desde ahí el contrato pt también va
+  **fijado por hash** (`HASH_PT`). H3 queda anotado como B91 en `ABIERTOS.md`.
+  Ningún papel decía «Proprietário» por el rol Dueño («Titular», decisión del
+  dueño del 05/11): el contrato dice «proprietário ou possuidor» del inmueble.
+
+> [!success] Lo que P3 NO tradujo — ya lo tradujeron los lotes (costura, 05/11)
+> Lo que rodea a los papeles y es INTERFAZ (la barra de la propuesta, los
+> botones del comprobante) sigue a la persona y lo traducen sus lotes. Y dos
+> piezas que `/p` y el portal pintan y son de L5: `compartidos.mapa.*` (los
+> avisos del mapa) y `compartidos.asignacion.sin-asignar` (el comprobante),
+> que caen al español hasta que L5 los traduzca.
+
+## 4 · Antes de encender `IDIOMA_PORTUGUES`
+
+- [x] Los cinco lotes en **VERDE**, con su tipo `PT_<AMBITO>` ya en `Record` completo (05/11)
+- [x] `coberturaPortugues()` con **0 pendientes** en todas las filas: **5943/5943** en la costura (eran 5937 pendientes en la ola 0). Lo exige `cobertura-portugues.test.ts`
+- [ ] El espejo (`I18N_VOLCAR_PT`) sin hallazgos de formato: quedan **160 huellas en 21 estados** (05/11, tras P2), todas de papeles en el idioma de la instancia y del navegador del firmante (§5); las 24 de P2, a 0
+- [x] La costura extendida al portugués, en verde (`costura.test.ts`, §2 ter)
+- [x] P1 y P2 contestadas por el dueño (05/11)
+- [x] La tarea roja P3 (05/11, `feat/portugues-documentos`), validada VERDE
+- [x] **La tarea roja de cifras** (`feat/portugues-cifras`, P2): teclear a la brasileña y reescribir `compartidos.cifra.*`, `campanas.candado.monto-ilegible` y los demás avisos de captura (05/11, §2 quinquies; falta validarla)
+- [x] **Validar la costura**: VERDE (`docs/i18n/validacion-portugues-costura.md`); sus hallazgos H1–H4 cerrados en la misma rama (`854d470c`, `937f9eb7`)
+- [ ] Llevar `feat/portugues-costura` a `integra/portugues`
+- [ ] El recorrido en el navegador, pantalla por pantalla, con su validador
+
+> [!danger] Lo que distingue al portugués: a medias NO SE NOTA
+> Con la caída al español, una pantalla sin traducir es idéntica a la de la
+> versión española. El italiano a medias se veía (salía en inglés); el
+> portugués a medias no. **La única medida es `coberturaPortugues()`**: no se
+> enciende con ninguna fila por encima de 0.
+
+## 5 · Lo que la ola 0 deja medido para los lotes
+
+El espejo portugués sobre las pruebas de pantallas (`I18N_VOLCAR_PT`, **2147
+estados**) da hoy **309 huellas de formato en 39 estados**, todos de tres
+archivos y de tres clases, ninguna de la maquinaria:
+
+| Archivo | Estados | Huellas | Clase |
+|---|---:|---:|---|
+| `pantallas-propuestas.test.ts` | 9 | 204 | El **documento imprimible** (Server Component): su idioma lo fija el simulacro de la prueba (`servidor.idioma`) y el del papel es el de la instancia; el espejo no puede cambiarlos («Nov 30, 2026», «6,612.00», «20 de octubre») |
+| `pantallas-inventario-arrendadores.test.ts` | 18 | 81 | El **documento del contrato** (papel en el idioma de la instancia, P3) y el navegador del firmante («Mozilla/5.0», un dato) |
+| `pantallas-comercial.test.ts` | 12 | 24 | Los **ejemplos de captura** del alta de pantalla («Ej. 12.9», «7.2»), que caen al español y siguen la captura a la mexicana (P2) |
+
+Por tipo: cifra con punto decimal 110, coma de millar 54, fecha en inglés 49,
+dinero sin prefijo 33, fecha larga en español 29, «a. m.» 15, dd/mm/aaaa 14,
+AM/PM 5. Es el punto de partida de cada lote: los lotes que traduzcan esos
+ámbitos rendirán sus estados en `pt` y los declararán o arreglarán.
+
+**Medido en la costura (05/11, `feat/portugues-costura`): 184 huellas en 33
+estados**, de cuatro clases y ninguna de un texto traducido:
+
+| Clase | Estados | Huellas | Por qué se queda |
+|---|---:|---:|---|
+| Documento imprimible de la propuesta (`pantallas-propuestas`) | 3 | 79 | Papel en el idioma de la INSTANCIA (ADR 0049), fijado por el simulacro; el espejo no lo cambia |
+| Documento del contrato (`pantallas-inventario-arrendadores`) | 14 | 77 | Ídem: el contrato es es/en/it en esas pruebas |
+| Ejemplos de captura del alta de ponto (`pantallas-comercial`) | 12 | 24 | «Ex.: 12.9», «Ex.: 7.2»: la captura sigue a la mexicana hasta `feat/portugues-cifras` (P2). **A 0 desde P2** (05/11): «Ex.: 12,9» |
+| Navegador del firmante | 4 | 4 | «Mozilla/5.0»: un dato |
+
+**Medido tras P2 (05/11, `feat/portugues-cifras`): 160 huellas en 21
+estados**: las dos clases de papeles y el firmante, sin cambios; las 24 de
+captura desaparecen y `PERMITIDOS_PT` de `pantallas-comercial.test.ts` queda
+vacío.
+
+> [!warning] El espejo de TODA la suite se cuelga en `cifras-formularios.test.ts`
+> Como el italiano (diario del 05/11): con el espejo, ese archivo no termina.
+> Se corre excluyéndolo (y `middleware.test.ts`):
+> `I18N_VOLCAR_PT=<carpeta> npx vitest run --exclude '**/cifras-formularios.test.ts' --exclude 'middleware.test.ts' --exclude '**/node_modules/**' --exclude '**/*.e2e.test.ts'`.

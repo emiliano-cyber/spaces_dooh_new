@@ -430,9 +430,10 @@ export function NuevaPantallaForm({
               {imagen && (
                 // Pulido del italiano (04/11): el `alt` iba escrito a mano en
                 // ingles. En italiano, del diccionario; en espanol y en ingles,
-                // el literal de siempre (cambiarlo es decision aparte).
+                // el literal de siempre (cambiarlo es decision aparte). El
+                // portugues (lote L3, 05/11), como el italiano: del diccionario.
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={imagen} alt={idioma === 'it' ? t('inventario.carga.vista-previa') : 'preview'} className="max-h-48 w-full rounded border border-border object-contain" />
+                <img src={imagen} alt={idioma === 'it' || idioma === 'pt' ? t('inventario.carga.vista-previa') : 'preview'} className="max-h-48 w-full rounded border border-border object-contain" />
               )}
               {imagenNombre && <p className="demo-num text-[11px] text-muted">{imagenNombre}</p>}
               {/* El <input> va oculto, así que el borde rojo de `[data-falta]` no

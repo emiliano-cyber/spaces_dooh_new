@@ -157,6 +157,8 @@ archivos:
 > Su certificado (26/10) pasa a ser **caducidad natural, no plazo**.
 > **Ya no se pregunta.**
 > Contexto: [[modelo-instancias-soberanas]] · `vault/07-Agentes/diario/2026-08-27`
+>
+> ⚠️ **SUSTITUIDO el 2026-11-05 por el [ADR 0050](../../docs/adr/0050-demo-space-os-io-vuelve-como-la-demo-en-el-droplet-viejo-de-g500.md)**: `demo.space-os.io` **no se elimina**, vuelve como la DEMO en el droplet viejo de g500 (guía `docs/evidencias/31-g500-viejo-como-demo-20261105.md`, sin correr). Lo de este recuadro es historia.
 
 
 > [!info] Para qué existe

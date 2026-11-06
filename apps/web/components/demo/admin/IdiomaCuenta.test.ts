@@ -154,3 +154,22 @@ describe('B69 · lo que se lee del navegador', () => {
     expect(idiomasDelNavegador()).toEqual(['it-IT'])
   })
 })
+
+// P3 del portugues (05/11) · `usuarios.idioma_preferido` ya acepta `pt`
+// (`20261105_idioma_portugues.sql`): encendido, «Mi cuenta» lo ofrece como a
+// los demas. Cierra H1 de la validacion de la ola 0. Apagado, el servidor no
+// lo manda en `disponibles` y la tarjeta no lo pinta.
+describe('IdiomaCuenta · el portugues se guarda en la cuenta (P3)', () => {
+  it('encendido, aparece como opcion, nombrado en si mismo', () => {
+    const html = pintar('es', ['es', 'en', 'it', 'pt'])
+    expect(html).toContain('value="pt"')
+    expect(html).toContain('>Português<')
+    expect(html).toContain('value="navegador"')
+    expect(html).toContain('>Italiano<')
+  })
+  it('NEGATIVO · apagado (fuera de disponibles), no aparece', () => {
+    const html = pintar('es', ['es', 'en', 'it'])
+    expect(html).not.toContain('value="pt"')
+    expect(html).not.toContain('Português')
+  })
+})
