@@ -1721,6 +1721,7 @@ export const PT_PROPUESTAS: Record<ClavePropuestas, string> = {
   'propuestas.alta.error.tarifa': '{sitio}: não dá para entender a tarifa. Corrija-a antes de salvar.',
   'propuestas.alta.error.renta': '{sitio}: não dá para entender o aluguel. Corrija-o antes de salvar.',
   'propuestas.alta.error.spots': '{sitio}: não dá para entender os spots por dia. Corrija-os antes de salvar.',
+  'propuestas.alta.error.cantidad': '{sitio}: não dá para entender a quantidade. Corrija-a antes de salvar.',
   'propuestas.alta.error.calculadora': '{sitio}: não dá para entender um número da calculadora. Corrija-o antes de salvar.',
   'propuestas.alta.error.crear': 'Não foi possível criar a proposta',
   'propuestas.alta.agregados.uno': '{sitios} adicionado',

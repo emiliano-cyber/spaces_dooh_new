@@ -2044,6 +2044,7 @@ export const PT_COMERCIAL: Record<ClaveComercial, string> = {
   'comercial.reserva.cada-uno': ' · {seg} cada',
   'comercial.reserva.reservando': 'Reservando…',
   'comercial.reserva.reservar': 'Pré-reservar',
+  'comercial.reserva.error.slots': '{sitio}: não dá para entender os slots. Corrija-os antes de pré-reservar.',
   'comercial.reserva.cliente': 'Cliente',
   'comercial.reserva.cliente-ej': 'Seguros Andinos',
   'comercial.reserva.nombre': 'Nome da campanha',
