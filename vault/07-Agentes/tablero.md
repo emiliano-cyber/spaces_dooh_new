@@ -1,10 +1,17 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-11-05
+actualizado: 2026-11-06
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
+
+> [!important] 2026-11-06, noche · **V0.12.8 · idioma en la barra + Space Eyes de Jose** — rama `integra/v0-12-8` (`bbdd0784`), desde `main` `dfa64dcf` (v0.12.7) — **sin empujar**
+> Contiene `feat/idioma-en-barra` y `origin/fix/space-eyes-fotos-rapidas` (Jose, 26 commits; 29 conflictos con la
+> traducción y el rediseño, resueltos). Typecheck, 10 187 unitarias y build en verde; **e2e no corridas**.
+> **Siguiente (lo corre el dueño):** push → PR a `main` por la web → CI verde → fusionar → etiqueta `v0.12.8`
+> SOBRE EL MERGE → release beta → DEMO → estable → servidores. Detalle en [[2026-11-06]].
+> **Zonas:** ninguna tomada; el worktree `.claude/worktrees/v0-12-7` está en `integra/v0-12-8`.
 
 > [!important] 2026-11-05 · **VERIFICACION · todas las ramas juntas antes de `main`** — rama `verificacion`, desde `integra/idiomas` (`0a594a9e`) — **sin empujar**
 > Contiene: inglés e italiano completos (ADR 0048/0049, idioma por usuario, cifras y notas de versión por idioma),
