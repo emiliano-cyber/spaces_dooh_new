@@ -55,6 +55,65 @@ const FALSA_HORAS = 18;
 const FALSAS_PARA_CALLAR = 2;
 const FALSAS_DIAS = 30;
 
+// --- Pantalla apagada: separar el apagon del anuncio oscuro ---------------------
+//
+// El aviso rapido (023) da la pantalla por apagada cuando en tres vistazos
+// seguidos -unos 45 s- se ve oscura o LISA y lo de alrededor no. Eso atrapa un
+// apagon en menos de un minuto, que es justo lo que hace falta. Pero un anuncio
+// de fondo plano -un fundido a negro, una marca sobre color liso- se ve
+// exactamente igual durante esos 45 s, y de ahi salen casi todas las falsas.
+//
+// El equipo no puede distinguirlos mirando solo ese rato. El servidor si, con
+// algo que el equipo no tiene: el HISTORIAL. Un apagon de verdad no se arregla
+// solo; espera a que alguien vaya. Un anuncio oscuro "se recupera" en cuanto
+// entra el siguiente anuncio, o sea en minutos.
+//
+// De ahi dos cosas, y ninguna necesita tocar los equipos:
+//
+//   1. El episodio que el propio equipo cierra en minutos queda anotado como lo
+//      que fue, para que el historial no parezca una pantalla que se apaga seis
+//      veces al dia.
+//   2. Si a un sitio le pasa varias veces en una semana, sus anuncios enganan al
+//      aviso rapido: se le APAGA el aviso rapido a ese equipo. La revision de
+//      siempre -dos vueltas seguidas, minutos u horas segun la frecuencia- sigue
+//      cazando el apagon de verdad; solo deja de gritar a los 45 s. Es una
+//      columna de `devices`, asi que el cambio llega al equipo en su siguiente
+//      vuelta sin que nadie instale nada.
+
+/** Por debajo de esto, lo que se apago y volvio solo era contenido, no un apagon. */
+const APAGADA_FALSA_MIN = 20;
+/** Episodios asi en la ventana antes de dejar de confiar en el aviso rapido. */
+const APAGADAS_PARA_DUDAR = 3;
+const APAGADAS_DIAS = 7;
+
+/**
+ * Se acaba de cerrar un `pantalla_apagada` que duro poco. Lo anota y, si ya van
+ * varios, le quita el aviso rapido a ese equipo.
+ */
+async function revisarApagadaCorta(deviceId: number, fallaId: number, minutos: number) {
+  const nota = `Duro ${minutos} min y el equipo la dio por recuperada solo: no fue un apagon, `
+    + 'sino contenido oscuro o liso que al aviso rapido se le parece.';
+  await pool.query(`UPDATE pantalla_fallas SET nota = ?, cerrada_por = 'servidor' WHERE id = ?`,
+    [nota, fallaId]).catch(() => null);
+
+  const [f] = await pool.query<any[]>(
+    `SELECT COUNT(*) n FROM pantalla_fallas
+      WHERE device_id = ? AND tipo = 'pantalla_apagada' AND cerrada_por = 'servidor'
+        AND recuperada_en >= NOW() - INTERVAL ? DAY`, [deviceId, APAGADAS_DIAS]);
+  const n = Number((f as any[])[0]?.n || 0);
+  if (n < APAGADAS_PARA_DUDAR) return;
+
+  const [d] = await pool.query<any[]>(`SELECT salud_aviso_rapido FROM devices WHERE id = ?`, [deviceId]);
+  const rapido = (d as any[])[0]?.salud_aviso_rapido;
+  if (rapido === 0) return; // ya estaba apagado: no se repite el aviso
+  await pool.query(`UPDATE devices SET salud_aviso_rapido = FALSE WHERE id = ?`, [deviceId]);
+  await pool.query(
+    `INSERT INTO device_logs (device_id, level, category, message) VALUES (?, 'warn', 'pantalla', ?)`,
+    [deviceId, `Aviso rapido de pantalla apagada APAGADO: ${n} falsas en ${APAGADAS_DIAS} dias. `
+      + 'Los anuncios de este sitio se le parecen a una pantalla apagada. La revision de siempre sigue activa.']
+  ).catch(() => null);
+}
+
 /** Cuanto de la foto ocupa la pantalla marcada (formula del cordon). */
 export function areaDeLaPantalla(esquinas: [number, number][]): number {
   return Math.abs(esquinas.reduce((suma, [x1, y1], i) => {
@@ -347,6 +406,19 @@ export async function reportarFalla(req: Request, res: Response) {
   await pool.query(
     `UPDATE pantalla_fallas SET estado = 'recuperada', recuperada_en = NOW(), cerrada_por = 'equipo',
        photo_recuperacion_id = ? WHERE id = ?`, [photoId, abierta.id]);
+  // Un apagon que se arregla solo en minutos no era un apagon. Se mira DESPUES
+  // de cerrarla -con `recuperada_en` ya puesto- para medir con la misma hora
+  // que ensena el historial.
+  if (e.tipo === 'pantalla_apagada') {
+    const [m] = await pool.query<any[]>(
+      `SELECT TIMESTAMPDIFF(MINUTE, detectada_en, recuperada_en) min FROM pantalla_fallas WHERE id = ?`,
+      [abierta.id]);
+    const minutos = Number((m as any[])[0]?.min ?? 0);
+    if (minutos >= 0 && minutos < APAGADA_FALSA_MIN) {
+      await revisarApagadaCorta(did, abierta.id, minutos).catch((err) =>
+        console.error('[monitoreo] no se pudo revisar la apagada corta:', err?.message));
+    }
+  }
   await avisar(did, abierta.id, 'recuperada');
   res.json({ id: abierta.id });
 }
