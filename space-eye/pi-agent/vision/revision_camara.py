@@ -38,6 +38,14 @@ VARIANTES = 4
 # Escena casi lisa: lente tapada, sin luz, o todo negro.
 SIN_IMAGEN = 5.0
 FRACCION_SIN_IMAGEN = 0.8
+# Si la pantalla ocupa mas que esto de la foto, afuera no queda nada fijo con
+# que juzgar y no se opina. Antes, en ese caso, se comparaba la foto ENTERA
+# -pantalla incluida-, y como el anuncio cambia por definicion, de noche (cuando
+# lo unico que brilla es la pantalla) casi todos los puntos salian de el: la
+# escena "se movia" sola. Le paso a TLALPAN las noches del 24, 25 y 26 de oct de
+# 2026, tres fallas de "camara movida" seguidas que se "recuperaban" solas a las
+# 8:15 de la mañana, con la luz del dia.
+CASI_TODA = 0.97
 
 
 class RevisionCamara:
@@ -78,6 +86,9 @@ class RevisionCamara:
         if sum(1 for v in vistazos if v.marco_contraste < SIN_IMAGEN) / len(vistazos) >= FRACCION_SIN_IMAGEN:
             return Camara.SIN_IMAGEN
         marco = vistazos[len(vistazos) // 2].marco
+        # Sin nada fijo alrededor no hay forma honesta de juzgar la camara.
+        if area_de_la_pantalla(geo) > CASI_TODA:
+            return Camara.INCONCLUSO
         mascara = _fuera_de_la_pantalla(marco, geo)
         actual = vision.rasgos(marco, mascara)
         if not self._refs:
@@ -92,6 +103,19 @@ class RevisionCamara:
                 corrimiento = d / marco.shape[1]
         if mejor >= PUNTOS_MOVIDA and corrimiento > MOVIDA:
             return Camara.MOVIDA
+        # No se parece a NINGUNA referencia. Un giro real deja coincidencias
+        # -la escena sigue siendo la misma, corrida: el movimiento del 28-sep
+        # dejo 14-, asi que esto es otra luz, no otro encuadre: se aprende.
+        #
+        # La variante solo se guardaba por la rama del "todo bien", asi que una
+        # escena nocturna que no coincidia con nada no se podia aprender NUNCA:
+        # la misma vuelta que la rechazaba era la que le habria dado su
+        # referencia. Esa es la razon de que TLALPAN repitiera la falla las tres
+        # noches seguidas en vez de aprenderse la primera.
+        if mejor < PUNTOS_MOVIDA:
+            if len(self._refs) < VARIANTES:
+                self._guardar(actual)
+            return Camara.INCONCLUSO
         if mejor < PUNTOS_CONFIABLES:
             return Camara.INCONCLUSO
         if mejor < VARIANTE_HASTA and len(self._refs) < VARIANTES:
@@ -103,6 +127,12 @@ class RevisionCamara:
         self._refs.append(r)
 
 
+def area_de_la_pantalla(geo):
+    """Cuanto de la foto ocupa la pantalla marcada (formula del cordon)."""
+    return abs(sum(geo.esquinas[i][0] * geo.esquinas[(i + 1) % 4][1] -
+                   geo.esquinas[(i + 1) % 4][0] * geo.esquinas[i][1] for i in range(4))) / 2
+
+
 def _fuera_de_la_pantalla(marco, geo):
     """
     Mascara de lo que esta FUERA de la pantalla (un poco agrandada, para dejar
@@ -112,18 +142,16 @@ def _fuera_de_la_pantalla(marco, geo):
     video, sus puntos se desplazaron juntos y parecio que la camara entera se
     habia movido.
 
-    Si la pantalla llena casi toda la foto (TLALPAN), afuera no queda con que
-    comparar: entonces se usa la foto entera (None).
+    Si la pantalla llena casi toda la foto, afuera no queda con que comparar;
+    ese caso lo ataja `revisar` antes de llegar aqui (CASI_TODA). Lo que NO se
+    vuelve a hacer es comparar la foto entera: la pantalla cambia de anuncio por
+    definicion y meterla en la referencia es pedirle a la camara que se mueva
+    sola.
     """
     h, w = marco.shape[:2]
     cx = sum(x for x, _ in geo.esquinas) / 4
     cy = sum(y for _, y in geo.esquinas) / 4
     puntos = [((cx + (x - cx) * 1.08) * w, (cy + (y - cy) * 1.08) * h) for x, y in geo.esquinas]
-    # Area de la pantalla (formula del cordon) sobre el area de la foto.
-    area = abs(sum(geo.esquinas[i][0] * geo.esquinas[(i + 1) % 4][1] -
-                   geo.esquinas[(i + 1) % 4][0] * geo.esquinas[i][1] for i in range(4))) / 2
-    if area > 0.8:
-        return None
     m = np.full((h, w), 255, dtype=np.uint8)
     # MatOfPoint de Java trunca las coordenadas a enteros; aqui igual.
     contorno = np.array([[int(x), int(y)] for x, y in puntos], dtype=np.int32)

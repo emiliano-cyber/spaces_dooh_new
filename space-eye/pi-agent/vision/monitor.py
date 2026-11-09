@@ -536,10 +536,24 @@ class Monitor:
                     self.avisar_apagada(v, geo, giro, aviso_cfg)
 
                 if c_cfg is not None:
+                    # Una pantalla APAGADA no tiene creativo que reconocer.
+                    #
+                    # Esto no bastaba con `huella.calcular`, que solo se niega
+                    # con contraste < 6. El detector de apagada usa una vara mas
+                    # ancha -oscura y poco variada, o lisa aunque sea clara- y
+                    # entre las dos queda un hueco: una pantalla apagada de noche
+                    # con reflejos da huella, no casa con el catalogo y entra
+                    # como CREATIVO NUEVO. Gasta una foto de datos moviles y mete
+                    # en el catalogo del sitio un anuncio que no existe.
+                    #
+                    # Se usa `medir` y no `observar`: aqui interesa ESTE vistazo,
+                    # no si ya van tres seguidos para avisar. Y se mira aunque el
+                    # aviso rapido este apagado, porque son cosas distintas.
+                    apagada, _, _, _ = self.detector_apagada.medir(v.pantalla, v.marco, geo.esquinas)
                     gris = enderezador.a_doubles(v.pantalla)
-                    h = huella.calcular(gris, v.pantalla.shape[1], v.pantalla.shape[0])
+                    h = None if apagada else huella.calcular(gris, v.pantalla.shape[1], v.pantalla.shape[0])
                     if h is None:
-                        candidata = None   # sin contraste: pantalla apagada o lente tapada
+                        candidata = None   # apagada, sin contraste, o lente tapada
                     else:
                         reconocibles += 1
                         rasgos = vision.rasgos(v.pantalla)

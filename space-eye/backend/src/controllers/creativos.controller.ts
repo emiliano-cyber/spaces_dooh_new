@@ -9,6 +9,8 @@
 // su copia local o reporta una huella que en realidad ya conociamos.
 import { Request, Response } from 'express';
 import { pool } from '../config/database';
+import { enderezarPantalla, medirPantalla, type Medida } from '../utils/enderezar';
+import { calcular } from '../utils/huella';
 import { equipoAjeno } from '../utils/dueno';
 import { z } from 'zod';
 import { firmarFilas } from '../utils/firmaArchivos';
@@ -405,6 +407,87 @@ export function tocaRefoto(c: Conocida, refotoH: number, ahora = Date.now()): bo
   // deja pasar una, que es el lado que deja la ficha completa.
   if (!c.foto_en) return true;
   return ahora - c.foto_en.getTime() >= refotoH * 3_600_000;
+}
+
+/**
+ * Aprovecha una foto CUALQUIERA del sitio para poner al dia el catalogo.
+ *
+ * EL PROBLEMA QUE RESUELVE. Desde la 029 la ficha de un creativo puede ensenar
+ * dos fotos: como aparecio y como se ve ahora. La segunda no llega nunca. La
+ * unica foto que un equipo manda de un creativo es la del hallazgo: al que ya
+ * conoce no lo vuelve a fotografiar, y `creative_refoto_h` no lo implementa
+ * ningun agente -ni la APK ni el pi-agent-. Medido en g500 el 9-nov-2026: 323
+ * creativos, 55 con su primera foto, CERO con la de ahora.
+ *
+ * POR QUE AQUI Y NO EN EL EQUIPO. Arreglarlo alla significa publicar una APK, y
+ * las que hay estan en la calle. Pero el sitio YA toma fotos por horario, y en
+ * ellas sale la misma pantalla: el servidor las endereza, les saca la huella y
+ * reconoce el anuncio sin pedir un byte mas de datos moviles. La huella del
+ * servidor casa con la del equipo casi bit a bit (npm run prueba:enderezar:
+ * mediana de 2 bits sobre fotos reales, 24 de tolerancia).
+ *
+ * LO QUE NO HACE: dar de alta un creativo. Solo refresca los que el equipo ya
+ * descubrio. Un creativo nuevo lo decide el equipo, con su catalogo y su tope
+ * diario; si el servidor diera de alta por esta via, una foto por horario
+ * tomada a mitad de una transicion entraria al catalogo como un anuncio que no
+ * existe, y de paso se saltaria el tope.
+ *
+ * Devuelve la huella del creativo refrescado, o null si no habia nada que hacer.
+ */
+export async function medirPantallaEnFoto(
+  deviceId: number,
+  jpeg: Buffer,
+): Promise<(Medida & { phash: string | null }) | null> {
+  const [filas] = await pool.query<any[]>(
+    `SELECT pantalla, stream_rotation FROM devices WHERE id = ?`, [deviceId]);
+  const d = (filas as any[])[0];
+  if (!d?.pantalla) return null;
+  let esquinas: [number, number][] | undefined;
+  try {
+    const pantalla = typeof d.pantalla === 'string' ? JSON.parse(d.pantalla) : d.pantalla;
+    esquinas = pantalla?.esquinas;
+  } catch { return null; }
+  if (!Array.isArray(esquinas) || esquinas.length !== 4) return null;
+
+  const gris = await enderezarPantalla(jpeg, esquinas, Number(d.stream_rotation) || 0);
+  if (!gris) return null;
+  // Sin huella no hay creativo: lente tapada o noche cerrada. Es la misma regla
+  // con la que el equipo decide no gastar una foto.
+  return { ...medirPantalla(gris), phash: calcular(gris.datos, gris.ancho, gris.alto) };
+}
+
+export async function reconocerEnFoto(
+  deviceId: number,
+  jpeg: Buffer,
+): Promise<{ conocida: Conocida; refoto_h: number } | null> {
+  const cfg = await configDe(deviceId);
+  if (!cfg?.vigilar) return null;
+
+  const m = await medirPantallaEnFoto(deviceId, jpeg);
+  if (!m?.phash || m.apagada) return null;
+
+  const conocida = await yaConocida(deviceId, m.phash);
+  if (!conocida) return null;
+  return { conocida, refoto_h: cfg.refoto_h };
+}
+
+/** Lo de arriba, y ademas lo guarda. Devuelve la huella refrescada, o null. */
+export async function refrescarConFoto(
+  deviceId: number,
+  jpeg: Buffer,
+  photoId: number,
+): Promise<string | null> {
+  const r = await reconocerEnFoto(deviceId, jpeg);
+  if (!r) return null;
+  const { conocida } = r;
+  if (!tocaRefoto(conocida, r.refoto_h)) return null;
+
+  await ligarFoto(deviceId, conocida.phash, photoId);
+  await pool.query(
+    `INSERT INTO device_logs (device_id, level, category, message) VALUES (?, 'info', 'creative', ?)`,
+    [deviceId, `Creativo puesto al dia con una foto del sitio (${conocida.bits} bits de diferencia)`]
+  ).catch(() => null);
+  return conocida.phash;
 }
 
 /** Se volvio a ver: solo refresca la fecha y la cuenta. */
