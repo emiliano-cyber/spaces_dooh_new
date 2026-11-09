@@ -1,7 +1,7 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-10-21
+actualizado: 2026-11-09
 tags: [backend, roles, permisos, rbac, enum, migraciones, dueno, guards, carrera]
 archivos:
   - db/migrations/20260929_roles_de_venta_enum.sql
@@ -204,7 +204,21 @@ Dueños y exige que gane exactamente una y quede uno. El mutante que quita el
 ### Un solo camino de escritura
 
 `actualizarUsuario` y `borrarUsuario` pasan los dos por `conGuardasDeDueno`, y
-`restablecerPasswordCtrl` también. Tener dos caminos de escritura sobre
+`restablecerPasswordCtrl` también.
+
+> [!important] 2026-11-09 · borrar ya tiene botón, y pide la contraseña
+> Hasta hoy el `DELETE /api/usuarios/[id]` existía pero **sin botón y sin
+> reautenticación**: una sesión de Dueño olvidada abierta bastaba para vaciar el
+> equipo por la API. Ahora Administración → Equipo trae «Eliminar» (escribir el
+> nombre para confirmar) y la ruta exige `exigirReautenticacionSiempre()`, como
+> restablecer. **El dueño decidió borrado REAL para cualquiera**, con o sin
+> historial. Para eso hizo falta `20261109_acciones_sin_fk_usuario.sql`: la FK
+> `acciones.usuario_id` era `set null` y chocaba con el trigger append-only de
+> la bitácora, así que **borrar a cualquiera con historial daba 500** desde junio.
+> Ahora la bitácora no se toca (id y nombre intactos); las demás FK siguen en
+> `cascade` o `set null`, y sus propuestas conservan `vendedor_nombre`. `borrarUsuario`
+> devuelve ahora el **nombre** (la bitácora lo registraba por id). Lo fija
+> `apps/web/lib/test/borrar-usuario.e2e.test.ts`. Tener dos caminos de escritura sobre
 `usuarios` es exactamente como se cuela mañana uno que sí cambie el rol sin
 pasar por el guard.
 

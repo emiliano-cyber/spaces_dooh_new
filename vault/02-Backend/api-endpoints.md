@@ -1,7 +1,7 @@
 ---
 tipo: referencia
 estado: verificado
-actualizado: 2026-11-03
+actualizado: 2026-11-09
 tags: [backend, api, endpoints]
 archivos:
   - apps/web/app/api/
@@ -143,7 +143,8 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 | Método | Path | Guard | Nota |
 |---|---|---|---|
 | GET·POST | `/api/usuarios` | exigir | acepta `entraConGoogle` (sin contraseña) o `invitar` (06/10, ADR 0044: enlace de 72 h; vuelve en `invitacion.enlace` solo si el correo no salió) |
-| PATCH·DELETE | `/api/usuarios/[id]` | exigir | |
+| PATCH | `/api/usuarios/[id]` | exigir | |
+| DELETE | `/api/usuarios/[id]` | **REAUTH + DESBLOQ** | Borrado real (09/11): botón «Eliminar» en Administración, con el nombre escrito como confirmación; la bitácora guarda el nombre. Ver [[roles-de-venta]] |
 | POST | `/api/usuarios/[id]/restablecer` | **REAUTH + DESBLOQ** | |
 | GET·POST | `/api/tenants` | exigir | el admin acepta `entraConGoogle` |
 | POST | `/api/tenant-activo` | exigir | Cambio de CRM del super-admin |

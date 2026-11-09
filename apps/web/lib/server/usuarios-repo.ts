@@ -304,17 +304,21 @@ export async function cerrarOtrasSesionesDeUsuario(
 // un administrador conseguiría con DELETE exactamente lo que el guard le impide
 // con PATCH, y quedarse sin Dueños se lograría borrando al último en vez de
 // desactivarlo. Un guard que se rodea cambiando de verbo HTTP no es un guard.
-export async function borrarUsuario(id: string, actorRol: string): Promise<boolean> {
+//
+// Devuelve el NOMBRE del borrado (o null): la bitácora lo necesita y después
+// del delete ya no hay fila de donde leerlo. Antes se registraba el id, y
+// «Eliminó usuario 3f2a…» no le dice nada a quien lee la bitácora.
+export async function borrarUsuario(id: string, actorRol: string): Promise<string | null> {
   const borrado = await conGuardasDeDueno(id, actorRol, { borrado: true }, async (client, tenantId) => {
-    const filas = (
-      await client.query('delete from usuarios where id = $1 and tenant_id = $2 returning id', [
+    const filas: { nombre: string }[] = (
+      await client.query('delete from usuarios where id = $1 and tenant_id = $2 returning nombre', [
         id,
         tenantId,
       ])
     ).rows
-    return filas.length > 0
+    return filas[0]?.nombre ?? null
   })
-  return borrado ?? false
+  return borrado ?? null
 }
 
 // Actualiza el propio perfil: correo y/o hash de contraseña (ya validados/hasheados
