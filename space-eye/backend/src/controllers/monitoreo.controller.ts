@@ -108,7 +108,11 @@ async function revisarApagadaCorta(deviceId: number, fallaId: number, minutos: n
   if (rapido === 0) return; // ya estaba apagado: no se repite el aviso
   await pool.query(`UPDATE devices SET salud_aviso_rapido = FALSE WHERE id = ?`, [deviceId]);
   await pool.query(
-    `INSERT INTO device_logs (device_id, level, category, message) VALUES (?, 'warn', 'pantalla', ?)`,
+    // 'warning' y no 'warn': el ENUM de la columna solo acepta debug, info,
+    // warning, error y critical. Con 'warn' el insert falla, y como va con
+    // `.catch`, fallaba EN SILENCIO: el aviso rapido se apagaba y en la bitacora
+    // no quedaba nada que lo explicara. Salio al simularlo.
+    `INSERT INTO device_logs (device_id, level, category, message) VALUES (?, 'warning', 'pantalla', ?)`,
     [deviceId, `Aviso rapido de pantalla apagada APAGADO: ${n} falsas en ${APAGADAS_DIAS} dias. `
       + 'Los anuncios de este sitio se le parecen a una pantalla apagada. La revision de siempre sigue activa.']
   ).catch(() => null);
