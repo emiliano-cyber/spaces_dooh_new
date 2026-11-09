@@ -30,6 +30,8 @@ const PERMITIDAS = [
   /^devices(\/\d+(\/(command|logs|telemetry(\/export)?|camera|overlay|stream-rotation|stream-status|camera-control|pantalla|salud|creativos(\/reaprender)?))?)?$/,
   /^photos(\/\d+)?$/,
   /^fallas(\/\d+)?$/,
+  // A quién se le avisa por correo cuando una pantalla falla.
+  /^avisos(\/prueba)?$/,
   /^creativos\/\d+$/,
   /^schedules(\/\d+)?$/,
   /^campaigns(\/\d+(\/creative)?)?$/,
@@ -107,6 +109,23 @@ const CONTROL_DEL_VISOR = /^devices\/\d+\/camera-control$/
 // primero que hay que poder contestar es quién la movió y cuándo.
 const ES_ENCUADRE_DE = /^devices\/(\d+)\//
 
+// ─── Los avisos por correo ──────────────────────────────────────────────────
+//
+// La lista de correos y la espera las cambia quien opera (`inventario.crear`):
+// poner su propio correo para enterarse de una pantalla apagada es parte del
+// trabajo de todos los días.
+//
+// La CUENTA del proveedor no. La llave de Resend es una credencial, y si
+// alguien la cambia mal la flota entera se queda sin avisos sin que nada lo
+// diga: no hay error que ver, simplemente no llega nada la noche que una
+// pantalla se apague. Eso es del Dueño, por el mismo criterio que el encuadre.
+//
+// Se reenvía con esos campos QUITADOS en vez de rechazar la petición entera,
+// por lo mismo que `CONTROL_DEL_VISOR`: quien solo agregó un correo a la lista
+// no tiene por qué chocar con un 403 por unos campos que su pantalla ni le
+// enseñó. Quitar nunca da permiso, así que no importa que viajen en el cuerpo.
+const AVISOS = /^avisos$/
+
 async function puerta(req: Request, ruta: string[]) {
   const lee = req.method === 'GET' || req.method === 'HEAD'
   const g = await exigir('inventario', lee ? 'ver' : 'crear')
@@ -137,6 +156,26 @@ async function puerta(req: Request, ruta: string[]) {
   const orden = req.method === 'POST' ? ES_ORDEN.exec(camino) : null
   let cuerpo: ArrayBuffer | undefined
   let tipo: string | null = null
+  // Si se cambió la LLAVE de correo (no el resto de los avisos), va a la
+  // bitácora: el día que dejen de llegar los avisos, lo primero que hay que
+  // poder contestar es quién tocó la cuenta y cuándo.
+  let llaveDeCorreo = false
+  if (!lee && AVISOS.test(camino)) {
+    let datos: Record<string, unknown>
+    try {
+      datos = JSON.parse(new TextDecoder().decode(await req.arrayBuffer())) as Record<string, unknown>
+    } catch {
+      return NextResponse.json({ error: 'Avisos por correo no entendidos' }, { status: 400 })
+    }
+    llaveDeCorreo =
+      puedeFijar && ((typeof datos.llave === 'string' && datos.llave.trim() !== '') || datos.borrar_llave === true)
+    if (!puedeFijar) {
+      delete datos.llave
+      delete datos.remitente
+      delete datos.borrar_llave
+    }
+    cuerpo = new TextEncoder().encode(JSON.stringify(datos)).buffer as ArrayBuffer
+  }
   // Control del visor de quien no fija el encuadre: se reenvía pidiendo que NO
   // se guarde. Se reescribe el cuerpo en vez de rechazarlo porque mover la luz
   // para ver bien es justo lo que tiene que seguir pudiendo hacer.
@@ -168,6 +207,9 @@ async function puerta(req: Request, ruta: string[]) {
     // nada, y apuntarla como hecha sería mentir en la bitácora.
     if (orden && tipo && r.ok && ACCION_DE_ORDEN[tipo]) {
       await registrarAccion(g.usuario, ACCION_DE_ORDEN[tipo], `equipo ${orden[1]}`)
+    }
+    if (llaveDeCorreo && r.ok) {
+      await registrarAccion(g.usuario, 'Cambió la llave de correo de los avisos de Space Eyes', 'avisos')
     }
     if (encuadre && r.ok) {
       await registrarAccion(

@@ -7,6 +7,7 @@ import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { seApi, fotoSE, ErrorSE } from '@/lib/data/space-eyes-se'
+import { AvisosCorreo } from './AvisosCorreo'
 import { VisorFoto, fechaHora } from './piezas'
 import { formatNumero } from '@/lib/formato-numero'
 
@@ -40,7 +41,10 @@ interface FallaSE {
   estado: Estado
   detectada_en: string
   recuperada_en: string | null
-  cerrada_por: 'equipo' | 'usuario' | null
+  // 'servidor': la cerró el propio Space Eye por no creérsela. Hoy solo pasa
+  // con «cámara movida» donde la pantalla llena la foto y no queda nada fijo
+  // afuera con que juzgar la cámara; el motivo viene en `nota`.
+  cerrada_por: 'equipo' | 'usuario' | 'servidor' | null
   nota: string | null
   detalle: { gabinetes?: number[]; total?: number } | null
   evidencia: string | null
@@ -239,6 +243,10 @@ export function FallasFlota() {
         <Indicador titulo="No eran falla" valor={cuenta('descartada')} punto="bg-border-strong" />
       </div>
 
+      {/* A quien se le avisa. Antes de las fallas: es lo que decide si alguien
+          se entera de la de esta noche. */}
+      <AvisosCorreo />
+
       {/* Abiertas: es lo que hay que atender */}
       {abiertas.length > 0 && (
         <section>
@@ -350,7 +358,7 @@ export function FallasFlota() {
                   {f.recuperada_en && (
                     <span className="tabular-nums">
                       → {fechaHora(f.recuperada_en)}
-                      {f.cerrada_por === 'usuario' ? ' · a mano' : ''}
+                      {porQuien(f)}
                     </span>
                   )}
                 </div>
@@ -408,7 +416,7 @@ export function FallasFlota() {
                     </td>
                     <td className="whitespace-nowrap px-3 py-2 tabular-nums text-muted">
                       {f.recuperada_en
-                        ? `${fechaHora(f.recuperada_en)}${f.cerrada_por === 'usuario' ? ' · a mano' : ''}`
+                        ? `${fechaHora(f.recuperada_en)}${porQuien(f)}`
                         : '—'}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2">
@@ -514,6 +522,16 @@ function DialogoCierre({
       </label>
     </Modal>
   )
+}
+
+// Quién cerró la falla, en una coletilla. 'servidor' es Space Eye descartándola
+// por no creérsela: hoy solo le pasa a «cámara movida» donde la pantalla llena
+// la foto y no queda nada fijo afuera con que juzgar la cámara. El argumento
+// viene en `nota`, y se enseña debajo del estado en el historial.
+function porQuien(f: FallaSE): string {
+  if (f.cerrada_por === 'usuario') return ' · a mano'
+  if (f.cerrada_por === 'servidor') return ' · el servidor no se la creyó'
+  return ''
 }
 
 function Dato({ titulo, children }: { titulo: string; children: React.ReactNode }) {
