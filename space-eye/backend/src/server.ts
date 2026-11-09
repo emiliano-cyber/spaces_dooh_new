@@ -63,6 +63,11 @@ async function main() {
   if (espejoActivo()) import('./workers/espejoWorker').catch(console.error);
   else import('./workers/scheduleWorker').catch(console.error);
 
+  // Los avisos por correo de las fallas de pantalla. No en modo espejo: las
+  // fallas son de V1 y las dos bases las tienen, asi que cada aviso saldria
+  // dos veces, uno de cada lado.
+  if (!espejoActivo()) import('./workers/avisosWorker').catch(console.error);
+
   server.listen(env.PORT, () => {
     console.log(`[SPACE EYE] API running on http://localhost:${env.PORT}`);
     console.log(`[SPACE EYE] Environment: ${env.NODE_ENV}`);

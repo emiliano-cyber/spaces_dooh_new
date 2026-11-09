@@ -315,14 +315,14 @@ export function CampanasEyes() {
   const lista = campanas ?? []
 
   return (
-    <div className="w-full space-y-4 p-6">
+    <div className="w-full space-y-4">
       {/* Encabezado: el mismo patrón que el listado de equipos */}
       <div className="flex flex-wrap items-center gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
           <ScanEye className="h-5 w-5" strokeWidth={1.75} />
         </span>
         <div className="min-w-[12rem] flex-1">
-          <h1 className="text-lg font-semibold text-ink">{t('spaceeyes.campanas.titulo')}</h1>
+          <h1 className="text-2xl text-ink">{t('spaceeyes.campanas.titulo')}</h1>
           <p className="text-[13px] text-muted">{t('spaceeyes.campanas.descripcion')}</p>
         </div>
         <div className="flex items-center gap-2">
@@ -510,7 +510,10 @@ export function CampanasEyes() {
           )}
 
           <div className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">
-            <Button variant="primary" onClick={guardar} disabled={guardando}>
+            {/* Verde al crear, azul al editar: el color lo decide la etiqueta
+                (convenciones.md, «Color de los botones»). El boton que abre
+                este formulario, «Nueva campana», ya era verde. */}
+            <Button variant={form.id ? 'primary' : 'success'} onClick={guardar} disabled={guardando}>
               {guardando
                 ? t('spaceeyes.comun.guardando')
                 : form.id

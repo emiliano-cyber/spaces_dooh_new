@@ -97,7 +97,12 @@ vi.mock('@/components/demo/ui/Modal', () => ({
 // Los menus desplegables de la barra superior, abiertos y en linea.
 vi.mock('@radix-ui/react-dropdown-menu', () => {
   const pasa = (p: { children?: unknown }) => createElement('div', null, p.children as never)
-  return { Root: pasa, Trigger: pasa, Portal: pasa, Content: pasa, Item: pasa }
+  // Label, RadioGroup, RadioItem e ItemIndicator: el selector de idioma del
+  // menu de la cuenta (`IdiomaMenu`, 06/11).
+  return {
+    Root: pasa, Trigger: pasa, Portal: pasa, Content: pasa, Item: pasa,
+    Label: pasa, RadioGroup: pasa, RadioItem: pasa, ItemIndicator: pasa,
+  }
 })
 vi.mock('@/components/demo/MapView', () => ({ MapView: () => createElement('div', null, '[mapa]') }))
 

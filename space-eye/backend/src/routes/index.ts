@@ -14,6 +14,7 @@ import * as telemetry from '../controllers/telemetry.controller';
 import * as users from '../controllers/users.controller';
 import * as creativos from '../controllers/creativos.controller';
 import * as monitoreo from '../controllers/monitoreo.controller';
+import * as avisos from '../controllers/avisos.controller';
 import * as vinculaciones from '../controllers/vinculaciones.controller';
 import * as campanasSpaceos from '../controllers/campanasSpaceos.controller';
 
@@ -113,6 +114,12 @@ export function createRoutes() {
   // no cambian lo que la camara ve.
   router.put('/api/devices/:id/salud', requireUser, requireRole('admin', 'operator'), monitoreo.configurarSalud);
   router.get('/api/fallas', requireUser, monitoreo.listar);
+  // A quien se le avisa por correo cuando una pantalla falla. Lo lee cualquiera
+  // que entre a Fallas -para saber si esta encendido-, pero solo un admin lo
+  // cambia: es una lista de correos que sale del servidor.
+  router.get('/api/avisos', requireUser, avisos.leer);
+  router.put('/api/avisos', requireUser, requireRole('admin'), avisos.guardar);
+  router.post('/api/avisos/prueba', requireUser, requireRole('admin'), avisos.probar);
   // Codigos de vinculacion: como entra un equipo nuevo a la empresa (021).
   router.post('/api/vinculaciones', requireUser, requireRole('admin', 'operator'), vinculaciones.crear);
   router.get('/api/vinculaciones', requireUser, requireRole('admin', 'operator'), vinculaciones.listar);

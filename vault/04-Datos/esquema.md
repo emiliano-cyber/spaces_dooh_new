@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-11-05
+actualizado: 2026-11-09
 tags: [datos, esquema, er, postgres]
 archivos:
   - db/schema.sql
@@ -592,7 +592,7 @@ erDiagram
 | `config_negocio` | fail-closed + FORCE | Una fila **por tenant**, sin DEFAULT. La crea quien da de alta la organización, o la app al primer acceso (`lib/server/config-repo.ts:59-61`). Desde el 17/09 lleva `costos_ot jsonb` —costo de mano de obra por tipo de OT, `{}` = sin configurar— con CHECK de forma; ver [[02-Backend/operaciones-y-ot]]. Desde el **28/09** lleva `tope_descuento_pct numeric(5,2) not null default 100` —el descuento máximo que esa organización autoriza en una propuesta, `100` = sin tope, que es como nace— con `check (>= 0 and <= 100)`; ver [[02-Backend/comercial-propuestas-campanas]]  **Desde el 02/11 (ADR 0048), `moneda` es espejo de `tenants.moneda`:** se copia al insertar (`trg_config_negocio_moneda_espejo`, venga lo que venga en el INSERT), `check` MXN/USD y no se puede cambiar (`trg_config_negocio_moneda_inmutable`) |
 | `folios_consecutivos` | Sin tenant_id | Contador global |
 | `schema_migrations` | Sin tenant_id | Qué migraciones corrió **esta instancia**. Ver [[migraciones]] |
-| `acciones` | fail-closed | Bitácora append-only |
+| `acciones` | fail-closed | Bitácora append-only. Desde el 09/11 `usuario_id` **no tiene FK** (`20261109_acciones_sin_fk_usuario.sql`): borrar un usuario no toca la bitácora |
 | `notificaciones` | fail-closed | Dedupe por día. **Una por empresa**: `leida` y `archivada_en` se siguen leyendo pero desde el 21/10 ya no se escriben (lo de cada persona va en la tabla de abajo). Lleva la única `(id, tenant_id)` para la FK compuesta |
 | `notificaciones_usuario` | fail-closed + FORCE | **(21/10, NOTIF-USUARIO)** Lo que UNA persona hizo con UN aviso: `leida_en`, `borrada_en` (oculta, no destruye). Clave `(notificacion_id, usuario_id)`; FK compuesta `(notificacion_id, tenant_id)` → `notificaciones` y `usuario_id` → `usuarios`, las dos `on delete cascade`; `check` de que al menos una fecha esté puesta (sin fila = sin leer y en la bandeja). Ver [[02-Backend/api-endpoints]] |
 

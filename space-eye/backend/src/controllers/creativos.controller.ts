@@ -9,6 +9,8 @@
 // su copia local o reporta una huella que en realidad ya conociamos.
 import { Request, Response } from 'express';
 import { pool } from '../config/database';
+import { enderezarPantalla, medirPantalla, type Medida } from '../utils/enderezar';
+import { calcular } from '../utils/huella';
 import { equipoAjeno } from '../utils/dueno';
 import { z } from 'zod';
 import { firmarFilas } from '../utils/firmaArchivos';
@@ -33,7 +35,7 @@ export async function configDe(deviceId: number) {
   const [filas] = await pool.query<any[]>(
     `SELECT creative_watch, creative_desde, creative_max_dia, creative_cada_min,
             creative_recorrido_seg, creative_paso_seg, creative_tolerancia, aprendizaje_min,
-            creative_envio_min
+            creative_envio_min, creative_refoto_h
      FROM devices WHERE id = ?`,
     [deviceId]
   );
@@ -59,6 +61,10 @@ export async function configDe(deviceId: number) {
     cada_min: d.creative_cada_min,
     // Cuando mandar las fotos nuevas: 0 al momento, o juntas cada N min (023).
     envio_min: Number(d.creative_envio_min ?? 0),
+    // Cada cuantas horas se acepta OTRA foto del mismo creativo, para que la
+    // ficha pueda ensenar como se ve ahora y no solo como aparecio (029).
+    // 0 = nunca: la repetida se descarta, que es lo que se hacia antes.
+    refoto_h: Number(d.creative_refoto_h ?? 24),
     recorrido_seg: d.creative_recorrido_seg,
     paso_seg: d.creative_paso_seg,
     tolerancia: d.creative_tolerancia,
@@ -136,6 +142,17 @@ export async function registrarRecorrido(
   const cfg = await configDe(deviceId);
   const tolerancia = cfg?.tolerancia ?? 24;
 
+  // A los creativos que no tienen foto se les busca una entre las que el equipo
+  // ya subio y nadie llego a usar. No cuesta datos -esas fotos estan guardadas y
+  // pagadas- y es lo unico que puede darle cara a un creativo que el equipo ya
+  // no va a volver a fotografiar, porque su ORB lo reconoce sin dudar.
+  //
+  // Va AQUI y no al final a proposito: abajo hay un `return` para los recorridos
+  // sin creativos nuevos, y esos son casi todos -TLALPAN reporta "0 nuevos" en
+  // practicamente cada vuelta-. Puesto despues, el sitio que mas lo necesita
+  // seria justo el que nunca lo ejecutaria.
+  await adoptarHuerfanas(deviceId, tolerancia).catch(() => null);
+
   // Las vistas se buscan por PARECIDO, no por igualdad. El equipo reconoce con
   // tolerancia y reporta la huella de su vistazo, que casi nunca coincide bit a
   // bit con la del catalogo; con un `IN (...)` exacto el creativo nunca se
@@ -195,6 +212,109 @@ export async function registrarRecorrido(
   }
 }
 
+/** Un creativo del catalogo que todavia no tiene imagen que ensenar. */
+export type SinFoto = { phash: string };
+/** Una foto que llego con su huella y que ningun creativo esta usando. */
+export type Huerfana = { id: number; phash: string; taken_at: string | null };
+/** A que creativo le toca cada foto rescatada. */
+export type Adopcion = { phash: string; primera: number; ultima: number | null };
+
+/**
+ * Reparte las fotos sueltas entre los creativos que no tienen ninguna.
+ *
+ * Pura y exportada a proposito: es la parte que puede equivocarse en silencio.
+ * Colgarle a un creativo la foto de OTRO anuncio seria peor que dejarlo sin
+ * foto -el dashboard ensenaria como evidencia algo que nunca estuvo en esa
+ * pantalla-, asi que cada creativo se queda con la foto MAS PARECIDA, no con la
+ * primera que pase la tolerancia, y ninguna foto se usa dos veces.
+ *
+ * De las que le tocan a un creativo, la mas vieja es `primera` (la evidencia
+ * del hallazgo, que es lo que la tarjeta ensena como "aparecio") y la mas nueva
+ * es `ultima`, que es justo el par que la 029 sabe pintar.
+ */
+export function casarHuerfanas(
+  creativos: SinFoto[], fotos: Huerfana[], tolerancia: number
+): Adopcion[] {
+  const libres = [...fotos];
+  const salida: Adopcion[] = [];
+  for (const c of creativos) {
+    const suyas = libres
+      .map((f) => ({ f, bits: distancia(c.phash, f.phash) }))
+      .filter((x) => x.bits <= tolerancia);
+    if (!suyas.length) continue;
+    // La mas parecida manda; a igualdad de bits, la mas antigua.
+    const mejor = suyas.reduce((m, x) => (x.bits < m.bits ? x : m), suyas[0]).bits;
+    const delCreativo = suyas.filter((x) => x.bits === mejor).map((x) => x.f);
+    const orden = [...delCreativo].sort((a, b) => String(a.taken_at ?? '').localeCompare(String(b.taken_at ?? '')));
+    const primera = orden[0];
+    const ultima = orden.length > 1 ? orden[orden.length - 1] : null;
+    salida.push({ phash: c.phash, primera: primera.id, ultima: ultima ? ultima.id : null });
+    for (const f of orden) {
+      const i = libres.indexOf(f);
+      if (i >= 0) libres.splice(i, 1);
+    }
+  }
+  return salida;
+}
+
+/**
+ * Le busca foto a los creativos del sitio que no tienen ninguna, entre las que
+ * ya estan guardadas sin que nadie las use.
+ *
+ * Las dos cosas se llenan por caminos distintos -la huella viaja siempre, la
+ * foto solo cuando el equipo puede tomarla- y hay tres formas de que una foto
+ * quede sin dueno: el creativo se registro mientras el equipo aprendia (y el
+ * aprendizaje no fotografia), la foto llego de una huella que el servidor ya
+ * conocia y se descarto al ligarla, o alguien volvio a marcar la pantalla y el
+ * catalogo se borro con `DELETE FROM device_creatives` (configurarPantalla),
+ * que suelta todas sus fotos de golpe. En g500, el 29-oct-2026, eran 71 de 130.
+ */
+export async function adoptarHuerfanas(deviceId: number, tolerancia: number): Promise<number> {
+  const [pendientes] = await pool.query<any[]>(
+    `SELECT phash FROM device_creatives
+      WHERE device_id = ? AND photo_id IS NULL AND descartado = 0`,
+    [deviceId]
+  );
+  if (!(pendientes as any[]).length) return 0;
+
+  // Sueltas: ni como foto del hallazgo ni como la de hoy. El tope es para que
+  // un sitio con años de fotos no se traiga la galeria entera a memoria.
+  const [sueltas] = await pool.query<any[]>(
+    `SELECT p.id, p.phash, p.taken_at
+       FROM photos p
+       LEFT JOIN device_creatives c1 ON c1.photo_id = p.id
+       LEFT JOIN device_creatives c2 ON c2.photo_id_ultima = p.id
+      WHERE p.device_id = ? AND p.source = 'creative_change' AND p.phash IS NOT NULL
+        AND c1.photo_id IS NULL AND c2.photo_id_ultima IS NULL
+      ORDER BY p.taken_at DESC
+      LIMIT 500`,
+    [deviceId]
+  );
+  if (!(sueltas as any[]).length) return 0;
+
+  const adopciones = casarHuerfanas(
+    (pendientes as any[]).map((f) => ({ phash: String(f.phash) })),
+    (sueltas as any[]).map((f) => ({ id: Number(f.id), phash: String(f.phash), taken_at: f.taken_at })),
+    tolerancia
+  );
+
+  for (const a of adopciones) {
+    await pool.query(
+      `UPDATE device_creatives
+          SET photo_id = ?, photo_id_ultima = ?, sin_foto = NULL
+        WHERE device_id = ? AND phash = ? AND photo_id IS NULL`,
+      [a.primera, a.ultima, deviceId, a.phash]
+    ).catch(() => null);
+  }
+  if (adopciones.length) {
+    await pool.query(
+      `INSERT INTO device_logs (device_id, level, category, message) VALUES (?, 'info', 'creative', ?)`,
+      [deviceId, `${adopciones.length} creativo(s) sin foto recuperaron la suya de entre las ya subidas`]
+    ).catch(() => null);
+  }
+  return adopciones.length;
+}
+
 /**
  * Esta huella, ¿ya esta en el catalogo del sitio?
  *
@@ -214,28 +334,160 @@ export async function registrarRecorrido(
  * Devuelve la huella del catalogo mas parecida dentro de la tolerancia del
  * sitio, o null si de verdad no la conociamos.
  */
+/**
+ * Un creativo del catalogo que ya conociamos, con lo que hace falta para
+ * decidir que hacer con la foto que acaba de llegar.
+ */
+export type Conocida = {
+  phash: string;
+  /** Bits de diferencia con la huella que llego (dentro de la tolerancia). */
+  bits: number;
+  /** La foto del hallazgo. Si es null, la ficha todavia no tiene ninguna. */
+  photo_id: number | null;
+  /** La ultima que aceptamos, si ya hubo mas de una. */
+  photo_id_ultima: number | null;
+  /** Cuando se tomo la mas reciente de las dos. */
+  foto_en: Date | null;
+};
+
 export async function yaConocida(
   deviceId: number,
   phash: string,
-): Promise<{ phash: string; bits: number; photo_id: number | null } | null> {
+): Promise<Conocida | null> {
   if (!HUELLA.test(phash || '')) return null;
   const h = phash.toLowerCase();
 
+  // La fecha es la de la foto MAS reciente que tengamos de ese creativo -la
+  // repetida si la hay, si no la del hallazgo-, y es lo que decide si toca
+  // refrescarla (029).
   const [filas] = await pool.query<any[]>(
-    `SELECT phash, photo_id FROM device_creatives WHERE device_id = ?`,
+    `SELECT c.phash, c.photo_id, c.photo_id_ultima,
+            COALESCE(u.taken_at, p.taken_at) AS foto_en
+       FROM device_creatives c
+       LEFT JOIN photos p ON p.id = c.photo_id
+       LEFT JOIN photos u ON u.id = c.photo_id_ultima
+      WHERE c.device_id = ?`,
     [deviceId]
   );
   const cfg = await configDe(deviceId);
   const tolerancia = cfg?.tolerancia ?? 24;
 
-  let mejor: { phash: string; bits: number; photo_id: number | null } | null = null;
+  let mejor: Conocida | null = null;
   for (const f of filas as any[]) {
     const bits = distancia(f.phash, h);
     if (bits <= tolerancia && (!mejor || bits < mejor.bits)) {
-      mejor = { phash: f.phash, bits, photo_id: f.photo_id ?? null };
+      mejor = {
+        phash: f.phash,
+        bits,
+        photo_id: f.photo_id ?? null,
+        photo_id_ultima: f.photo_id_ultima ?? null,
+        foto_en: f.foto_en ? new Date(f.foto_en) : null,
+      };
     }
   }
   return mejor;
+}
+
+/**
+ * ¿Toca aceptar OTRA foto de este creativo?
+ *
+ * La primera foto no se discute: si la ficha no tiene ninguna, esta se queda.
+ * A partir de ahi se raciona, porque cada foto son datos moviles del sitio y
+ * el equipo puede estar mandando la misma pantalla una y otra vez -es
+ * exactamente lo que hacia TLALPAN con la pantalla apagada-. Con
+ * `creative_refoto_h` horas de por medio, la ficha ensena como se ve hoy sin
+ * que eso cueste una foto por vuelta.
+ *
+ * Con refoto_h = 0 nunca se repite: el comportamiento anterior a la 029.
+ */
+export function tocaRefoto(c: Conocida, refotoH: number, ahora = Date.now()): boolean {
+  if (!c.photo_id) return true;
+  if (!(refotoH > 0)) return false;
+  // Sin fecha no sabemos cuanto hace (la foto pudo borrarse de `photos`): se
+  // deja pasar una, que es el lado que deja la ficha completa.
+  if (!c.foto_en) return true;
+  return ahora - c.foto_en.getTime() >= refotoH * 3_600_000;
+}
+
+/**
+ * Aprovecha una foto CUALQUIERA del sitio para poner al dia el catalogo.
+ *
+ * EL PROBLEMA QUE RESUELVE. Desde la 029 la ficha de un creativo puede ensenar
+ * dos fotos: como aparecio y como se ve ahora. La segunda no llega nunca. La
+ * unica foto que un equipo manda de un creativo es la del hallazgo: al que ya
+ * conoce no lo vuelve a fotografiar, y `creative_refoto_h` no lo implementa
+ * ningun agente -ni la APK ni el pi-agent-. Medido en g500 el 9-nov-2026: 323
+ * creativos, 55 con su primera foto, CERO con la de ahora.
+ *
+ * POR QUE AQUI Y NO EN EL EQUIPO. Arreglarlo alla significa publicar una APK, y
+ * las que hay estan en la calle. Pero el sitio YA toma fotos por horario, y en
+ * ellas sale la misma pantalla: el servidor las endereza, les saca la huella y
+ * reconoce el anuncio sin pedir un byte mas de datos moviles. La huella del
+ * servidor casa con la del equipo casi bit a bit (npm run prueba:enderezar:
+ * mediana de 2 bits sobre fotos reales, 24 de tolerancia).
+ *
+ * LO QUE NO HACE: dar de alta un creativo. Solo refresca los que el equipo ya
+ * descubrio. Un creativo nuevo lo decide el equipo, con su catalogo y su tope
+ * diario; si el servidor diera de alta por esta via, una foto por horario
+ * tomada a mitad de una transicion entraria al catalogo como un anuncio que no
+ * existe, y de paso se saltaria el tope.
+ *
+ * Devuelve la huella del creativo refrescado, o null si no habia nada que hacer.
+ */
+export async function medirPantallaEnFoto(
+  deviceId: number,
+  jpeg: Buffer,
+): Promise<(Medida & { phash: string | null }) | null> {
+  const [filas] = await pool.query<any[]>(
+    `SELECT pantalla, stream_rotation FROM devices WHERE id = ?`, [deviceId]);
+  const d = (filas as any[])[0];
+  if (!d?.pantalla) return null;
+  let esquinas: [number, number][] | undefined;
+  try {
+    const pantalla = typeof d.pantalla === 'string' ? JSON.parse(d.pantalla) : d.pantalla;
+    esquinas = pantalla?.esquinas;
+  } catch { return null; }
+  if (!Array.isArray(esquinas) || esquinas.length !== 4) return null;
+
+  const gris = await enderezarPantalla(jpeg, esquinas, Number(d.stream_rotation) || 0);
+  if (!gris) return null;
+  // Sin huella no hay creativo: lente tapada o noche cerrada. Es la misma regla
+  // con la que el equipo decide no gastar una foto.
+  return { ...medirPantalla(gris), phash: calcular(gris.datos, gris.ancho, gris.alto) };
+}
+
+export async function reconocerEnFoto(
+  deviceId: number,
+  jpeg: Buffer,
+): Promise<{ conocida: Conocida; refoto_h: number } | null> {
+  const cfg = await configDe(deviceId);
+  if (!cfg?.vigilar) return null;
+
+  const m = await medirPantallaEnFoto(deviceId, jpeg);
+  if (!m?.phash || m.apagada) return null;
+
+  const conocida = await yaConocida(deviceId, m.phash);
+  if (!conocida) return null;
+  return { conocida, refoto_h: cfg.refoto_h };
+}
+
+/** Lo de arriba, y ademas lo guarda. Devuelve la huella refrescada, o null. */
+export async function refrescarConFoto(
+  deviceId: number,
+  jpeg: Buffer,
+  photoId: number,
+): Promise<string | null> {
+  const r = await reconocerEnFoto(deviceId, jpeg);
+  if (!r) return null;
+  const { conocida } = r;
+  if (!tocaRefoto(conocida, r.refoto_h)) return null;
+
+  await ligarFoto(deviceId, conocida.phash, photoId);
+  await pool.query(
+    `INSERT INTO device_logs (device_id, level, category, message) VALUES (?, 'info', 'creative', ?)`,
+    [deviceId, `Creativo puesto al dia con una foto del sitio (${conocida.bits} bits de diferencia)`]
+  ).catch(() => null);
+  return conocida.phash;
 }
 
 /** Se volvio a ver: solo refresca la fecha y la cuenta. */
@@ -259,9 +511,17 @@ export async function refrescarCreativo(deviceId: number, phash: string) {
  */
 export async function ligarFoto(deviceId: number, phash: string, photoId: number) {
   if (!HUELLA.test(phash || '')) return;
+  // `photo_id` es la del hallazgo y no se pisa nunca: es la evidencia de que
+  // ese anuncio aparecio ese dia. La nueva va a `photo_id_ultima`, para que la
+  // ficha pueda ensenar las dos (029) -como aparecio y como se ve ahora-.
+  //
+  // `NULLIF` evita el caso bobo de la primera: cuando esta es la foto del
+  // hallazgo, la "ultima" seria ella misma y la ficha ensenaria dos veces la
+  // misma imagen. Mientras solo haya una, `photo_id_ultima` se queda en NULL.
   await pool.query(
     `INSERT INTO device_creatives (device_id, phash, photo_id) VALUES (?, ?, ?)
      ON DUPLICATE KEY UPDATE photo_id = IFNULL(photo_id, VALUES(photo_id)),
+       photo_id_ultima = NULLIF(VALUES(photo_id), IFNULL(photo_id, VALUES(photo_id))),
        ultima_vez = NOW(), sin_foto = NULL`,
     [deviceId, phash.toLowerCase(), photoId]
   );
@@ -273,10 +533,17 @@ export async function listarDeEquipo(req: Request, res: Response) {
   const did = Number(req.params.id);
   if (await equipoAjeno(req, did)) return res.status(404).json({ error: 'not_found' });
 
+  // Dos LEFT JOIN a `photos`: la del hallazgo y la mas reciente. Las columnas
+  // de la segunda van con prefijo `ultima_` para no pisar a las de la primera,
+  // que es lo que la ficha ya pintaba.
   const [filas] = await pool.query<any[]>(
-    `SELECT c.*, p.thumbnail_path, p.storage_path, p.taken_at
+    `SELECT c.*, p.thumbnail_path, p.storage_path, p.taken_at,
+            u.thumbnail_path AS ultima_thumbnail_path,
+            u.storage_path  AS ultima_storage_path,
+            u.taken_at      AS ultima_taken_at
      FROM device_creatives c
      LEFT JOIN photos p ON p.id = c.photo_id
+     LEFT JOIN photos u ON u.id = c.photo_id_ultima
      WHERE c.device_id = ?
      ORDER BY c.ultima_vez DESC`,
     [did]
@@ -301,6 +568,9 @@ export async function configurar(req: Request, res: Response) {
     tolerancia: z.number().int().min(0).max(128).optional(),
     // 0 = al momento; si no, juntas cada N minutos (el panel ofrece 2/4/8/12 h).
     envio_min: z.number().int().min(0).max(1440).optional(),
+    // Horas entre fotos del MISMO creativo (029). 0 = no repetir; el techo de
+    // una semana es para que nadie lo deje en un numero que no vuelve nunca.
+    refoto_h: z.number().int().min(0).max(168).optional(),
   });
 
   const parsed = schema.safeParse(req.body);
@@ -324,6 +594,7 @@ export async function configurar(req: Request, res: Response) {
   if (d.paso_seg !== undefined) { campos.push('creative_paso_seg = ?'); valores.push(d.paso_seg); }
   if (d.tolerancia !== undefined) { campos.push('creative_tolerancia = ?'); valores.push(d.tolerancia); }
   if (d.envio_min !== undefined) { campos.push('creative_envio_min = ?'); valores.push(d.envio_min); }
+  if (d.refoto_h !== undefined) { campos.push('creative_refoto_h = ?'); valores.push(d.refoto_h); }
 
   if (!campos.length) return res.status(400).json({ error: 'no_fields' });
 

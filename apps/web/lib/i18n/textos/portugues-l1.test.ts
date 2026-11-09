@@ -42,6 +42,8 @@ export const COGNADOS_PT_L1 = new Set<string>([
   // solo esta en espanol (dueno, 02/11), y el «No» del Raspberry Pi Imager,
   // que sale en ingles.
   'spaceeyes.hace.nunca', // «nunca»
+  'spaceeyes.avisos.configurar', // «Configurar» (09/11, avisos por correo)
+  'spaceeyes.avisos.espera', // «Esperar antes de mandar»: igual en pt
   'spaceeyes.demo.anuncio.b1', // «OFERTA»
   'spaceeyes.demo.estado.temperatura', // «Temperatura»
   'spaceeyes.demo.estado.temperatura.v', // «38 °C» (=en)

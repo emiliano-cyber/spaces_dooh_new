@@ -12,6 +12,7 @@ import { DesbloqueoCambios } from './DesbloqueoCambios'
 import { useNotificaciones } from '@/lib/data/client'
 import { marcarNotificacionLeidaApi, archivarTodasNotificacionesApi, borrarNotificacionApi } from '@/lib/data/estado-api'
 import { ItemNotificacion } from './ItemNotificacion'
+import { IdiomaMenu } from './IdiomaMenu'
 import { useIdioma } from '@/lib/i18n/contexto'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 
@@ -169,6 +170,8 @@ export function Topbar() {
                   <KeyRound className="h-4 w-4 text-muted" /> {t('shell.topbar.codigos')}
                 </Link>
               </DropdownMenu.Item>
+              {/* El idioma a un clic (06/11). No pinta nada con un solo idioma encendido. */}
+              <IdiomaMenu />
               <DropdownMenu.Item
                 onSelect={cerrar}
                 className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-[13px] text-ink outline-none data-[highlighted]:bg-surface-2"

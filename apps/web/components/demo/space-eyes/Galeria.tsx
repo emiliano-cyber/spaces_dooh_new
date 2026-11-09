@@ -269,14 +269,14 @@ export function Galeria() {
     'h-9 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 
   return (
-    <div className="w-full space-y-4 p-4 sm:p-6">
+    <div className="w-full space-y-4">
       {/* Encabezado, el mismo patrón que el listado de equipos */}
       <div className="flex flex-wrap items-center gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
           <Images className="h-5 w-5" strokeWidth={1.75} />
         </span>
         <div className="min-w-[12rem] flex-1">
-          <h1 className="text-lg font-semibold text-ink">{t('spaceeyes.galeria.titulo')}</h1>
+          <h1 className="text-2xl text-ink">{t('spaceeyes.galeria.titulo')}</h1>
           <p className="text-[13px] text-muted">{t('spaceeyes.galeria.descripcion')}</p>
         </div>
         <div className="flex items-center gap-2">
@@ -284,8 +284,11 @@ export function Galeria() {
             {cargando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
             {t('spaceeyes.comun.actualizar')}
           </Button>
+          {/* Descargar no asigna ni acepta nada: en SPACE OS las descargas van
+              en neutro (creativos, «Descargar HTML»). Se quita el azul para que
+              la galeria se lea igual que el resto. */}
           <Button
-            variant="primary"
+            variant="secondary"
             size="sm"
             onClick={() => descargarAlbum()}
             disabled={!!album || (fotos?.length ?? 0) === 0}
@@ -687,7 +690,8 @@ function Visor({
             <Button variant="secondary" size="sm" onClick={() => setGiroUsuario((g) => (g + 90) % 360)}>
               <RotateCw className="h-3.5 w-3.5" /> {t('spaceeyes.galeria.rotar')}
             </Button>
-            <Button variant="primary" size="sm" onClick={() => descargar()} disabled={descargando || (!listo && !fallo)}>
+            {/* Neutro, como la descarga del album */}
+            <Button variant="secondary" size="sm" onClick={() => descargar()} disabled={descargando || (!listo && !fallo)}>
               {descargando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
               {t('spaceeyes.comun.descargar')}
             </Button>

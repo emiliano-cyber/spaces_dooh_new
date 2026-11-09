@@ -638,7 +638,7 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
           <Eye className="h-4 w-4 text-muted" strokeWidth={1.8} />
           <h2 className="text-[14px] font-semibold text-ink">{t('spaceeyes.vivo.titulo')}</h2>
           {vivo ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-error-soft px-2 py-0.5 text-[11px] font-semibold text-[#b91c1c]">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-error-soft px-2 py-0.5 text-[11px] font-semibold text-[#b42318]">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-error" />
               {t('spaceeyes.vivo.en-vivo')}
             </span>
@@ -978,7 +978,12 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
                   type="button"
                   onClick={aplicarEncuadre}
                   disabled={!encuadreCambiado || reencuadrando}
-                  className={cn(ctlBoton, 'bg-[#15803d] hover:bg-[#166534] disabled:cursor-default disabled:opacity-40')}
+                  // Azul y no verde: «Fijar encuadre» guarda, no da de alta
+                  // nada, y el verde esta reservado para anadir (regla del
+                  // dueno del 2026-09-30). Ademas su vecino «Ver nitido», que
+                  // es la misma clase de accion, ya iba en azul: en la misma
+                  // barra convivian dos colores para lo mismo.
+                  className={cn(ctlBoton, 'bg-accent hover:bg-accent-hover disabled:cursor-default disabled:opacity-40')}
                   title={t('spaceeyes.vivo.fijar-encuadre.ayuda')}
                 >
                   <Check className="h-3.5 w-3.5" />

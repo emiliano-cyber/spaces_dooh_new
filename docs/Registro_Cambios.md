@@ -5,6 +5,86 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-09 · Space Eyes: aviso por correo cuando una pantalla falla, y menos falsas alarmas (sin publicar)
+
+Lo trajo Jose el 09/11 y entra en la v0.12.8.
+
+- **Aviso por correo.** En **Space Eyes → Fallas** hay una tarjeta nueva, **«Avisos por
+  correo»**. Ahí se escribe a quién se le avisa y cuántos minutos esperar antes de mandar.
+  Avisa solo de lo grave: la pantalla apagada o congelada y la cámara sin imagen. Las fallas
+  del mismo equipo salen juntas en un solo correo, así que una que se arregla sola antes de la
+  espera no molesta a nadie.
+- **La cuenta de correo la pone el Dueño** (la llave de Resend y el remitente). Quien opera el
+  inventario puede cambiar la lista de correos, pero no la cuenta. Cada cambio de la llave
+  queda en la bitácora.
+- **Todavía no sale ningún correo**: hace falta verificar el dominio del remitente en Resend y
+  poner la llave. Mientras tanto los avisos quedan escritos en el registro del servidor.
+- **Menos falsas alarmas**: la cámara ya no se acusa a sí misma de noche, una pantalla apagada
+  ya no cuenta como un creativo nuevo, y una «cámara movida» que el servidor no se cree se
+  cierra sola y lo dice en el historial.
+- Todo en español, inglés, italiano y portugués. Y una prueba nueva impide que vuelva a entrar
+  a Space Eyes texto en español escrito directo, sin traducir.
+
+---
+
+## 2026-11-09 · Eliminar usuarios desde Administración (sin publicar)
+
+En **Administración → Equipo**, cada persona tiene ahora un botón rojo **«Eliminar»**
+(menos tú: a ti mismo no te puedes eliminar).
+
+- **Se pide escribir su nombre** antes de que el botón se active, para que un clic en la
+  fila de al lado no borre a otra persona.
+- **Y después tu contraseña**, igual que al restablecer la de otro: la bitácora queda con
+  la prueba de que fuiste tú, y una sesión olvidada abierta no basta para borrar a nadie.
+- **Es definitivo.** La persona deja de poder entrar en ese momento. Lo que hizo se
+  conserva: la bitácora y sus propuestas guardan su nombre (en los reportes sale como «Ya
+  no está en la organización»), pero sus órdenes de trabajo quedan sin asignar.
+- **Antes no se podía borrar a nadie con historial**: la bitácora no se deja modificar y
+  la base lo rechazaba. Una migración separa la bitácora de la lista de usuarios para que
+  se pueda, sin tocar ni una línea de lo registrado.
+- **Si solo quieres que no entre, desactívala** con el interruptor de estatus: eso se puede
+  deshacer y no le quita nada.
+- Siguen valiendo las reglas de siempre: no se puede eliminar al último Dueño activo, y a
+  un Dueño solo lo elimina otro Dueño.
+
+---
+
+## 2026-11-06 · Space Eyes: ajuste de noche, ajustes por tipo de equipo y dos fotos por creativo (sin publicar)
+
+Llega a la aplicación el trabajo de Space Eyes de Jose López (rama `fix/space-eyes-fotos-rapidas`):
+
+- **Ajuste de noche.** En la ficha del equipo, «Ajustes de imagen», se puede marcar «Bajar
+  la luz de noche automáticamente» y elegir desde qué hora y hasta qué hora. En ese tramo
+  el equipo baja la exposición solo; ya no hace falta entrar dos veces al día a moverla.
+- **Cada equipo enseña solo lo que puede aplicar.** Un teléfono acepta la exposición, el
+  balance de blancos y el enfoque fijo; los demás mandos eran de la Raspberry y en un
+  teléfono no hacían nada aunque se veían. Una cámara de PC se configura desde su propia
+  página y lo dice.
+- **Dos fotos por creativo:** cómo apareció la primera vez y cómo se ve hoy, para ver de
+  un vistazo si una lona se decoloró o la pantalla perdió un módulo.
+- **El mismo aspecto que el resto del sistema:** encabezados del mismo tamaño, sin margen
+  doble, grises cálidos y botones verdes para agregar y azules para guardar.
+
+Todo llega traducido al inglés, italiano y portugués.
+
+---
+
+## 2026-11-06 · El idioma se cambia desde el menú de la cuenta (sin publicar)
+
+Al pulsar tu nombre, arriba a la derecha, el menú trae ahora un bloque **«Idioma»**
+con los idiomas disponibles y el vigente marcado. Al elegir otro, toda la aplicación
+cambia en el momento, sin recargar, y queda **guardado en tu cuenta**: te sigue a
+cualquier computadora o teléfono.
+
+Antes solo se podía cambiar en la pantalla de entrar y en «Configuración → Idioma».
+Los dos siguen igual.
+
+**Solo aparece si el servidor tiene más de un idioma encendido.** Hoy ningún servidor
+lo tiene (todos van solo en español), así que nadie lo verá hasta que se encienda el
+inglés, el italiano o el portugués en ese servidor.
+
+---
+
 ## 2026-11-05 · Propuestas: la cantidad de una línea ya no se guarda distinta de la que se teclea (sin publicar)
 
 **Corrige un fallo de la v0.12.6 que mueve dinero.** Al teclear a mano la cantidad de

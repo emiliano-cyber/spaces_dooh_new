@@ -227,7 +227,7 @@ export function FichaEquipo({ id }: { id: number }) {
 
   if (cargando && !datos) {
     return (
-      <div className="w-full p-5 lg:p-6">
+      <div className="w-full">
         <div className="h-8 w-64 animate-pulse rounded bg-surface-2" />
         <div className="mt-4 h-[420px] animate-pulse rounded-lg bg-surface-2" />
       </div>
@@ -236,7 +236,7 @@ export function FichaEquipo({ id }: { id: number }) {
 
   if (error || !equipo) {
     return (
-      <div className="w-full p-5 lg:p-6">
+      <div className="w-full">
         <Link href="/space-eyes" className="inline-flex items-center gap-1.5 text-[12px] text-muted hover:text-ink">
           <ChevronLeft className="h-3.5 w-3.5" /> Space Eyes
         </Link>
@@ -254,22 +254,26 @@ export function FichaEquipo({ id }: { id: number }) {
   const senal = calidadSenal(equipo.senalDbm, idioma)
 
   return (
-    <div className="mx-auto w-full max-w-[1800px] space-y-4 p-4 sm:p-6">
+    <div className="mx-auto w-full max-w-[1800px] space-y-4">
       {/* Migas */}
       <Link href="/space-eyes" className="inline-flex items-center gap-1.5 text-[12px] text-muted hover:text-ink">
         <ChevronLeft className="h-3.5 w-3.5" /> Space Eyes
       </Link>
 
-      {/* El encabezado de Inventario, exacto: icono en cuadro de 40, titulo de
-          18 px y subtitulo de 13. El nombre de un equipo no manda mas que el de
-          un modulo; antes era un serif de 24 px y se veia de otra casa. */}
+      {/* El encabezado del sistema, exacto: icono en cuadro de 40, titulo
+          `text-2xl` y subtitulo de 13 —el mismo de Almacen, Clientes o
+          Campanas—. Hasta el 3-nov-2026 era de 18 px y semibold, copiado de
+          Inventario: se veia MAS CHICO que el de cualquier otra pantalla, y el
+          dueno lo noto («veo diferente fuente en space eyes»). Space Eyes no es
+          un modulo invitado y no tiene por que pedir permiso para ocupar el
+          mismo encabezado que los demas. */}
       <div className="flex flex-wrap items-center gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
           <Eye className="h-5 w-5" strokeWidth={1.75} />
         </span>
         <div className="min-w-[14rem] flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="break-words text-lg font-semibold text-ink">{equipo.nombre}</h1>
+            <h1 className="break-words text-2xl text-ink">{equipo.nombre}</h1>
             <PildoraConexion online={enLinea} pendiente={!equipo.ultimaConexion} />
           </div>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-muted">
@@ -294,8 +298,12 @@ export function FichaEquipo({ id }: { id: number }) {
 
         {/* Acciones: las dos importantes, a la vista */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* Verde: tomar una foto anade una foto al equipo. Regla del dueno
+              del 2026-09-30 (convenciones.md, «Color de los botones»): azul para
+              asignar o aceptar, verde para anadir o agregar. Este boton vive
+              sobre las pestanas, asi que se ve en las cuatro. */}
           <Button
-            variant="primary"
+            variant="success"
             size="sm"
             onClick={tomarFoto}
             disabled={captura === 'pidiendo' || captura === 'esperando'}
@@ -321,8 +329,10 @@ export function FichaEquipo({ id }: { id: number }) {
             aria-hidden
             tabIndex={-1}
           />
+          {/* Verde por lo mismo, y porque «Subir» ya es verde en Creativos de
+              SPACE OS (app/(app)/(shell)/creativos/page.tsx). */}
           <Button
-            variant="secondary"
+            variant="success"
             size="sm"
             onClick={() => archivoRef.current?.click()}
             disabled={!pantalla || subiendo}

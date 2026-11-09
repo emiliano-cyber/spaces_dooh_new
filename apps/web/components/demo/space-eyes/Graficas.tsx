@@ -1,11 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import Link from 'next/link'
 import {
   AlertTriangle,
   BarChart3,
-  ChevronLeft,
   Download,
   Loader2,
   RefreshCw,
@@ -316,18 +314,19 @@ export function Graficas() {
   const batMin = num(datos?.resumen.battery_pct_min)
 
   return (
-    <div className="w-full space-y-4 p-6">
-      <Link href="/space-eyes" className="inline-flex items-center gap-1.5 text-[12px] text-muted hover:text-ink">
-        <ChevronLeft className="h-3.5 w-3.5" /> Space Eyes
-      </Link>
-
+    <div className="w-full space-y-4">
+      {/* Sin «‹ Space Eyes» arriba: Gráficas es una entrada del menú, no una
+          pantalla a la que se entre desde el listado -nada en la aplicación
+          enlaza aquí-, y ninguna de las otras seis lo lleva. Ademas empujaba
+          el título 35 px hacia abajo, así que esta pantalla y la de Ajustar
+          texto empezaban más abajo que sus vecinas. */}
       {/* Encabezado, el mismo patrón del listado */}
       <div className="flex flex-wrap items-center gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
           <BarChart3 className="h-5 w-5" strokeWidth={1.75} />
         </span>
         <div className="min-w-[12rem] flex-1">
-          <h1 className="text-lg font-semibold text-ink">{t('spaceeyes.graficas.titulo')}</h1>
+          <h1 className="text-2xl text-ink">{t('spaceeyes.graficas.titulo')}</h1>
           <p className="text-[13px] text-muted">{t('spaceeyes.graficas.descripcion')}</p>
         </div>
         <div className="flex items-center gap-2">

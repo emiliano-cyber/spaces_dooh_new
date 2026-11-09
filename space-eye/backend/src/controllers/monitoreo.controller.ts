@@ -27,6 +27,135 @@ import { equipoAjeno } from '../utils/dueno';
 /** Una falla descartada a mano no vuelve a sonar en este plazo. */
 const SILENCIO_DIAS = 7;
 
+// --- Camara movida: lo que el servidor NO se cree ------------------------------
+//
+// La camara se juzga comparando lo FIJO de alrededor de la pantalla -el poste,
+// el edificio- contra unas referencias guardadas. Si la pantalla llena casi toda
+// la foto no queda nada afuera, y los agentes viejos caian entonces en comparar
+// la foto ENTERA: el anuncio cambia por definicion, asi que de noche -cuando lo
+// unico que brilla es la pantalla- la escena "se movia" sola. Le paso a TLALPAN
+// las noches del 24, 25 y 26 de oct de 2026: tres "camara movida" seguidas,
+// todas recuperadas solas a las 8:15 de la manana con la luz del dia, y en sus
+// propias fotos de evidencia la pantalla se ve encendida y funcionando.
+//
+// El agente ya esta arreglado (RevisionCamara.kt y pi-agent/vision), pero el
+// arreglo solo llega cuando el equipo se actualiza, y las APK ya estan en la
+// calle. Por eso el filtro vive TAMBIEN aqui: el servidor sabe donde se marco la
+// pantalla, asi que puede medir lo mismo sin preguntarle a nadie.
+
+/** Si la pantalla ocupa mas que esto de la foto, afuera no queda con que juzgar. */
+const CAMARA_SIN_AFUERA = 0.8;
+/**
+ * Una camara movida NO se arregla sola: la mueve el viento o un golpe, y sigue
+ * movida hasta que alguien va. Un episodio que el propio equipo cierra en menos
+ * de esto es, por definicion, otra cosa (la luz, casi siempre).
+ */
+const FALSA_HORAS = 18;
+/** Episodios asi antes de dejar de creerle la camara a ese equipo, y por cuanto. */
+const FALSAS_PARA_CALLAR = 2;
+const FALSAS_DIAS = 30;
+
+// --- Pantalla apagada: separar el apagon del anuncio oscuro ---------------------
+//
+// El aviso rapido (023) da la pantalla por apagada cuando en tres vistazos
+// seguidos -unos 45 s- se ve oscura o LISA y lo de alrededor no. Eso atrapa un
+// apagon en menos de un minuto, que es justo lo que hace falta. Pero un anuncio
+// de fondo plano -un fundido a negro, una marca sobre color liso- se ve
+// exactamente igual durante esos 45 s, y de ahi salen casi todas las falsas.
+//
+// El equipo no puede distinguirlos mirando solo ese rato. El servidor si, con
+// algo que el equipo no tiene: el HISTORIAL. Un apagon de verdad no se arregla
+// solo; espera a que alguien vaya. Un anuncio oscuro "se recupera" en cuanto
+// entra el siguiente anuncio, o sea en minutos.
+//
+// De ahi dos cosas, y ninguna necesita tocar los equipos:
+//
+//   1. El episodio que el propio equipo cierra en minutos queda anotado como lo
+//      que fue, para que el historial no parezca una pantalla que se apaga seis
+//      veces al dia.
+//   2. Si a un sitio le pasa varias veces en una semana, sus anuncios enganan al
+//      aviso rapido: se le APAGA el aviso rapido a ese equipo. La revision de
+//      siempre -dos vueltas seguidas, minutos u horas segun la frecuencia- sigue
+//      cazando el apagon de verdad; solo deja de gritar a los 45 s. Es una
+//      columna de `devices`, asi que el cambio llega al equipo en su siguiente
+//      vuelta sin que nadie instale nada.
+
+/** Por debajo de esto, lo que se apago y volvio solo era contenido, no un apagon. */
+const APAGADA_FALSA_MIN = 20;
+/** Episodios asi en la ventana antes de dejar de confiar en el aviso rapido. */
+const APAGADAS_PARA_DUDAR = 3;
+const APAGADAS_DIAS = 7;
+
+/**
+ * Se acaba de cerrar un `pantalla_apagada` que duro poco. Lo anota y, si ya van
+ * varios, le quita el aviso rapido a ese equipo.
+ */
+async function revisarApagadaCorta(deviceId: number, fallaId: number, minutos: number) {
+  const nota = `Duro ${minutos} min y el equipo la dio por recuperada solo: no fue un apagon, `
+    + 'sino contenido oscuro o liso que al aviso rapido se le parece.';
+  await pool.query(`UPDATE pantalla_fallas SET nota = ?, cerrada_por = 'servidor' WHERE id = ?`,
+    [nota, fallaId]).catch(() => null);
+
+  const [f] = await pool.query<any[]>(
+    `SELECT COUNT(*) n FROM pantalla_fallas
+      WHERE device_id = ? AND tipo = 'pantalla_apagada' AND cerrada_por = 'servidor'
+        AND recuperada_en >= NOW() - INTERVAL ? DAY`, [deviceId, APAGADAS_DIAS]);
+  const n = Number((f as any[])[0]?.n || 0);
+  if (n < APAGADAS_PARA_DUDAR) return;
+
+  const [d] = await pool.query<any[]>(`SELECT salud_aviso_rapido FROM devices WHERE id = ?`, [deviceId]);
+  const rapido = (d as any[])[0]?.salud_aviso_rapido;
+  if (rapido === 0) return; // ya estaba apagado: no se repite el aviso
+  await pool.query(`UPDATE devices SET salud_aviso_rapido = FALSE WHERE id = ?`, [deviceId]);
+  await pool.query(
+    // 'warning' y no 'warn': el ENUM de la columna solo acepta debug, info,
+    // warning, error y critical. Con 'warn' el insert falla, y como va con
+    // `.catch`, fallaba EN SILENCIO: el aviso rapido se apagaba y en la bitacora
+    // no quedaba nada que lo explicara. Salio al simularlo.
+    `INSERT INTO device_logs (device_id, level, category, message) VALUES (?, 'warning', 'pantalla', ?)`,
+    [deviceId, `Aviso rapido de pantalla apagada APAGADO: ${n} falsas en ${APAGADAS_DIAS} dias. `
+      + 'Los anuncios de este sitio se le parecen a una pantalla apagada. La revision de siempre sigue activa.']
+  ).catch(() => null);
+}
+
+/** Cuanto de la foto ocupa la pantalla marcada (formula del cordon). */
+export function areaDeLaPantalla(esquinas: [number, number][]): number {
+  return Math.abs(esquinas.reduce((suma, [x1, y1], i) => {
+    const [x2, y2] = esquinas[(i + 1) % esquinas.length];
+    return suma + x1 * y2 - x2 * y1;
+  }, 0)) / 2;
+}
+
+/**
+ * Por que no creerle a este equipo que su camara se movio, o null si si se le
+ * cree. El texto se guarda como nota de la falla: quien la vea en el historial
+ * tiene que poder saber quien la descarto y con que argumento.
+ */
+async function porQueNoSeCree(deviceId: number, pantalla: any): Promise<string | null> {
+  const esquinas = pantalla?.esquinas;
+  if (Array.isArray(esquinas) && esquinas.length === 4) {
+    const area = areaDeLaPantalla(esquinas as [number, number][]);
+    if (area > CAMARA_SIN_AFUERA) {
+      return `La pantalla ocupa el ${Math.round(area * 100)}% de la foto: afuera no queda nada fijo `
+        + 'con que juzgar la camara, asi que este aviso no se sostiene.';
+    }
+  }
+  // Sin medidas que lo expliquen, el historial: si este equipo ya acuso a su
+  // camara y la "recupero" el solo un par de veces, no es la camara.
+  const [f] = await pool.query<any[]>(
+    `SELECT COUNT(*) n FROM pantalla_fallas
+      WHERE device_id = ? AND tipo = 'camara_movida' AND cerrada_por = 'equipo'
+        AND recuperada_en >= NOW() - INTERVAL ? DAY
+        AND TIMESTAMPDIFF(HOUR, detectada_en, recuperada_en) < ?`,
+    [deviceId, FALSAS_DIAS, FALSA_HORAS]);
+  const n = Number((f as any[])[0]?.n || 0);
+  if (n >= FALSAS_PARA_CALLAR) {
+    return `Este equipo ya acuso a su camara ${n} veces en ${FALSAS_DIAS} dias y el mismo se desdijo `
+      + `antes de ${FALSA_HORAS} h cada vez. Una camara movida no se endereza sola.`;
+  }
+  return null;
+}
+
 export const TIPOS = ['zona_apagada', 'zona_congelada', 'pantalla_apagada', 'pantalla_congelada', 'camara_movida', 'sin_imagen'] as const;
 
 export const NOMBRES: Record<string, string> = {
@@ -235,6 +364,24 @@ export async function reportarFalla(req: Request, res: Response) {
          AND fila <=> ? AND columna <=> ? LIMIT 1`, [did, e.tipo, fila, columna]);
     if ((ya as any[]).length) return res.json({ id: (ya as any[])[0].id, repetida: true });
 
+    // Camara movida de la que el servidor no se cree una palabra: se registra
+    // -con su evidencia, para poder revisarlo- pero nace descartada. Asi entra
+    // en `silenciadas` y el equipo deja de repetirla durante SILENCIO_DIAS, no
+    // suena en el dashboard y no manda correo a nadie de madrugada.
+    if (e.tipo === 'camara_movida') {
+      const motivo = await porQueNoSeCree(did, pantalla);
+      if (motivo) {
+        const photoId = await guardarFoto();
+        const [r] = await pool.query<any>(
+          `INSERT INTO pantalla_fallas (device_id, tipo, fila, columna, gabinete, confianza, detectada_en,
+                                        photo_id, detalle, estado, recuperada_en, cerrada_por, nota)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'descartada', NOW(), 'servidor', ?)`,
+          [did, e.tipo, fila, columna, gabinete, e.confianza, detectadaEn, photoId, e.detalle ?? null, motivo]);
+        console.warn(`[monitoreo] equipo ${did}: "camara movida" descartada por el servidor. ${motivo}`);
+        return res.json({ id: (r as any).insertId, descartada: true });
+      }
+    }
+
     const salud = await saludDe(did);
     if (salud && (await alertasDeHoy(did)) >= salud.max_dia) {
       return res.status(429).json({ error: 'tope_diario' });
@@ -263,6 +410,19 @@ export async function reportarFalla(req: Request, res: Response) {
   await pool.query(
     `UPDATE pantalla_fallas SET estado = 'recuperada', recuperada_en = NOW(), cerrada_por = 'equipo',
        photo_recuperacion_id = ? WHERE id = ?`, [photoId, abierta.id]);
+  // Un apagon que se arregla solo en minutos no era un apagon. Se mira DESPUES
+  // de cerrarla -con `recuperada_en` ya puesto- para medir con la misma hora
+  // que ensena el historial.
+  if (e.tipo === 'pantalla_apagada') {
+    const [m] = await pool.query<any[]>(
+      `SELECT TIMESTAMPDIFF(MINUTE, detectada_en, recuperada_en) min FROM pantalla_fallas WHERE id = ?`,
+      [abierta.id]);
+    const minutos = Number((m as any[])[0]?.min ?? 0);
+    if (minutos >= 0 && minutos < APAGADA_FALSA_MIN) {
+      await revisarApagadaCorta(did, abierta.id, minutos).catch((err) =>
+        console.error('[monitoreo] no se pudo revisar la apagada corta:', err?.message));
+    }
+  }
   await avisar(did, abierta.id, 'recuperada');
   res.json({ id: abierta.id });
 }

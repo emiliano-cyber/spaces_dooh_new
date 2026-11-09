@@ -242,11 +242,11 @@ export async function restablecerPasswordCtrl(id: string, actor: Actor) {
   return { usuario: u, temporal }
 }
 
-export async function borrarUsuarioCtrl(id: string, actor: Actor) {
+export async function borrarUsuarioCtrl(id: string, actor: Actor): Promise<{ nombre: string }> {
   if (id === actor.id) throw new AppError('No puedes eliminar tu propio usuario', 400)
   // 404 —no 403— cuando el usuario es de otro tenant: un 403 confirmaría que ese
   // id existe en otra organización.
-  if (!(await borrarUsuario(id, actor.rol).catch(comoAppError))) {
-    throw new AppError('No encontrado', 404)
-  }
+  const nombre = await borrarUsuario(id, actor.rol).catch(comoAppError)
+  if (nombre === null) throw new AppError('No encontrado', 404)
+  return { nombre }
 }

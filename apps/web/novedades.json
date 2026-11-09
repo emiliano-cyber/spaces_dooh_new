@@ -1,5 +1,77 @@
 [
   {
+    "version": "v0.12.8",
+    "fecha": "2026-11-06",
+    "items": [
+      {
+        "tipo": "NUEVO",
+        "texto": "Administración: cada usuario tiene un botón «Eliminar». Pide escribir su nombre y tu contraseña, y es definitivo: deja de poder entrar. La bitácora y sus propuestas conservan su nombre. Si solo quieres que no entre, desactívalo.",
+        "en": "Settings: each user has a “Delete” button. It asks you to type their name and your password, and it is permanent: they can no longer sign in. The log and their proposals keep their name. If you only want to keep them out, deactivate them.",
+        "it": "Impostazioni: ogni utente ha un pulsante «Elimina». Chiede di scrivere il suo nome e la tua password, ed è definitivo: non può più entrare. Il registro e le sue proposte conservano il suo nome. Se vuoi solo impedirgli di entrare, disattivalo."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "El idioma se cambia desde el menú de la cuenta, en la barra de arriba, sin entrar a «Mi cuenta».",
+        "en": "The language can be changed from the account menu in the top bar, without opening “My account”.",
+        "it": "La lingua si cambia dal menu dell’account, nella barra in alto, senza entrare in «Il mio account»."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Space Eyes: aviso por correo cuando una pantalla falla. En Fallas, «Avisos por correo» → «Configurar», escribes a quién se le avisa y cuánto esperar. Avisa de la pantalla apagada o congelada y de la cámara sin imagen; las fallas del mismo equipo salen juntas en un solo correo. La cuenta de correo la pone el Dueño.",
+        "en": "Space Eyes: email alert when a screen fails. In Faults, “Email alerts” → “Configure”, you enter who gets the alert and how long to wait. It covers a screen that is off or frozen and a camera with no image; faults from the same device go out together in one email. The Owner sets up the email account.",
+        "it": "Space Eyes: avviso via email quando uno schermo si guasta. In Guasti, «Avvisi via email» → «Configura», scrivi a chi avvisare e quanto aspettare. Avvisa dello schermo spento o bloccato e della telecamera senza immagine; i guasti dello stesso dispositivo escono insieme in una sola email. L’account email lo imposta il Titolare."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Space Eyes: menos falsas alarmas. La cámara ya no se acusa a sí misma de noche, una pantalla apagada ya no se registra como un creativo nuevo, y una «cámara movida» que el servidor no se cree se cierra sola y lo dice en el historial.",
+        "en": "Space Eyes: fewer false alarms. The camera no longer reports itself at night, a screen that is off is no longer logged as a new creative, and a “camera moved” fault the server does not believe closes by itself and says so in the history.",
+        "it": "Space Eyes: meno falsi allarmi. La telecamera non si autodenuncia più di notte, uno schermo spento non viene più registrato come una nuova creatività, e una «telecamera spostata» a cui il server non crede si chiude da sola e lo dice nella cronologia."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Space Eyes: la cámara de cada equipo puede tener un ajuste de día y otro de noche. En la ficha del equipo, en Ajustes de imagen, eliges desde qué hora y hasta qué hora rige el de noche, y el equipo cambia solo. Sirve donde la pantalla deslumbra al anochecer.",
+        "en": "Space Eyes: each device’s camera can have a day setting and a night setting. In the device record, under Image settings, you choose from what time and until what time the night one applies, and the device switches by itself. Useful where the screen glares after dark.",
+        "it": "Space Eyes: la fotocamera di ogni dispositivo può avere un’impostazione di giorno e una di notte. Nella scheda del dispositivo, in Impostazioni immagine, scegli da che ora e fino a che ora vale quella notturna, e il dispositivo cambia da solo. Serve dove lo schermo abbaglia al tramonto."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Space Eyes: los ajustes de imagen enseñan solo los que ese equipo puede aplicar. Un teléfono acepta la exposición, el balance de blancos y el enfoque; el resto eran de la Raspberry y no hacían nada aunque parecían funcionar.",
+        "en": "Space Eyes: image settings show only the ones that device can apply. A phone accepts exposure, white balance and focus; the rest belonged to the Raspberry and did nothing, even though they seemed to work.",
+        "it": "Space Eyes: le impostazioni immagine mostrano solo quelle che quel dispositivo può applicare. Un telefono accetta esposizione, bilanciamento del bianco e messa a fuoco; il resto era della Raspberry e non faceva nulla, anche se sembrava funzionare."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Space Eyes: cada creativo enseña dos fotos, cómo apareció la primera vez y cómo se ve hoy. Es la forma rápida de ver que una lona se decoloró o que la pantalla perdió un módulo.",
+        "en": "Space Eyes: each creative shows two photos, how it first appeared and how it looks today. It is the quick way to see that a banner has faded or a screen has lost a module.",
+        "it": "Space Eyes: ogni creatività mostra due foto, com’è comparsa la prima volta e come si vede oggi. È il modo rapido per vedere che un telone si è scolorito o che lo schermo ha perso un modulo."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Space Eyes: el plazo entre fotos del mismo creativo se ajusta equipo por equipo, para acortarlo donde hay muchos anuncios o alargarlo y gastar menos datos.",
+        "en": "Space Eyes: the interval between photos of the same creative is set device by device, to shorten it where there are many ads or lengthen it to use less data.",
+        "it": "Space Eyes: l’intervallo tra le foto della stessa creatività si regola dispositivo per dispositivo, per accorciarlo dove ci sono molti annunci o allungarlo e consumare meno dati."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Space Eyes: los creativos que estaban sin foto adoptan las que ya se habían subido, en lugar de pedirle al equipo que las vuelva a tomar. Se aplica solo, sin gastar datos.",
+        "en": "Space Eyes: creatives that had no photo now take the ones already uploaded, instead of asking the device to take them again. It happens by itself, without using data.",
+        "it": "Space Eyes: le creatività senza foto adottano quelle già caricate, invece di chiedere al dispositivo di scattarle di nuovo. Avviene da solo, senza consumare dati."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Space Eyes y varias pantallas de Comercial e Inventario usan el mismo encabezado, márgenes y colores de botón que el resto del sistema: verde el que agrega, azul el que guarda o confirma.",
+        "en": "Space Eyes and several Sales and Inventory screens use the same header, margins and button colors as the rest of the system: green to add, blue to save or confirm.",
+        "it": "Space Eyes e diverse schermate di Commerciale e Inventario usano la stessa intestazione, gli stessi margini e colori dei pulsanti del resto del sistema: verde per aggiungere, blu per salvare o confermare."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Space Eyes: los equipos dejan de acusar a su propia cámara de noche y de ver creativos donde no hay ninguno.",
+        "en": "Space Eyes: devices no longer blame their own camera at night or see creatives where there are none.",
+        "it": "Space Eyes: i dispositivi smettono di accusare la propria fotocamera di notte e di vedere creatività dove non ce ne sono."
+      }
+    ]
+  },
+  {
     "version": "v0.12.7",
     "fecha": "2026-11-06",
     "items": [

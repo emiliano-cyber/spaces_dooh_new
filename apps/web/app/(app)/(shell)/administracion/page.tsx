@@ -6,7 +6,7 @@ import { useIdioma, useTexto } from '@/lib/i18n/contexto'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 import { DICCIONARIOS, type ClaveTexto } from '@/lib/i18n/diccionario'
 import type { Idioma } from '@/lib/i18n/idiomas'
-import { CheckCircle2, Users, ShieldCheck, UserPlus, Building2, X, Plus, Check, Upload, Percent, MonitorPlay, KeyRound, Scale, AlertTriangle, Mail, FileText, CornerUpLeft, Loader2, Wrench, Save, ToggleLeft, ToggleRight, CalendarClock, ListChecks } from 'lucide-react'
+import { CheckCircle2, Users, ShieldCheck, UserPlus, Building2, X, Plus, Check, Upload, Percent, MonitorPlay, KeyRound, Scale, AlertTriangle, Mail, FileText, CornerUpLeft, Loader2, Wrench, Save, ToggleLeft, ToggleRight, CalendarClock, ListChecks, Trash2 } from 'lucide-react'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
@@ -116,6 +116,8 @@ function Usuarios({ onToast }: { onToast: (m: string) => void }) {
   const [invOpen, setInvOpen] = useState(false)
   // Usuario al que se le va a cambiar la contraseña (null = modal cerrado).
   const [passwordDe, setPasswordDe] = useState<UsuarioDemo | null>(null)
+  // Usuario que se va a eliminar (null = modal cerrado).
+  const [borrarDe, setBorrarDe] = useState<UsuarioDemo | null>(null)
 
   const cargar = useCallback(async () => setUsuarios(await listarUsuariosApi()), [])
   useEffect(() => { cargar() }, [cargar])
@@ -185,6 +187,16 @@ function Usuarios({ onToast }: { onToast: (m: string) => void }) {
       <KeyRound className="h-3.5 w-3.5 text-muted" /> {esYo ? t('admin.usuarios.cambiar-mia') : t('admin.usuarios.cambiar')}
     </button>
   )
+  // Eliminar no aparece en tu propia fila: el servidor lo rechaza con 400 y un
+  // botón que siempre falla solo enseña a desconfiar de los demás.
+  const controlEliminar = (u: UsuarioDemo, esYo: boolean) => esYo ? null : (
+    <button type="button" onClick={() => setBorrarDe(u)}
+      title={t('admin.usuarios.eliminar-a', { nombre: u.nombre })}
+      aria-label={t('admin.usuarios.eliminar-a', { nombre: u.nombre })}
+      className="m-0 inline-flex cursor-pointer items-center gap-1.5 rounded border border-error bg-surface px-2 py-1 text-[12px] text-error hover:bg-error-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+      <Trash2 className="h-3.5 w-3.5" /> {t('admin.usuarios.eliminar')}
+    </button>
+  )
   const chipTu = <Chip tono="acento" className="px-1.5 text-[10px]">{t('admin.usuarios.tu')}</Chip>
 
   return (
@@ -218,6 +230,7 @@ function Usuarios({ onToast }: { onToast: (m: string) => void }) {
                   <th className="px-4 py-2 font-medium">{t('admin.usuarios.col.rol')}</th>
                   <th className="px-4 py-2 font-medium">{t('admin.usuarios.col.estatus')}</th>
                   <th className="px-4 py-2 font-medium">{t('admin.usuarios.col.contrasena')}</th>
+                  <th className="px-4 py-2 font-medium"><span className="sr-only">{t('admin.usuarios.col.acciones')}</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -235,6 +248,7 @@ function Usuarios({ onToast }: { onToast: (m: string) => void }) {
                       <td className="px-4 py-2.5">{controlRol(u, esYo)}</td>
                       <td className="px-4 py-2.5">{controlEstatus(u, esYo)}</td>
                       <td className="px-4 py-2.5">{controlPassword(u, esYo)}</td>
+                      <td className="px-4 py-2.5 text-right">{controlEliminar(u, esYo)}</td>
                     </tr>
                   )
                 })}
@@ -261,6 +275,7 @@ function Usuarios({ onToast }: { onToast: (m: string) => void }) {
                   <div className="flex flex-wrap items-center gap-2">
                     {controlRol(u, esYo)}
                     {controlPassword(u, esYo)}
+                    {controlEliminar(u, esYo)}
                   </div>
                 </li>
               )
@@ -283,7 +298,123 @@ function Usuarios({ onToast }: { onToast: (m: string) => void }) {
           onDone={() => { onToast(passwordDe.id === yo ? t('admin.usuarios.toast.tu-contrasena') : t('admin.usuarios.toast.contrasena-de', { nombre: passwordDe.nombre })); setPasswordDe(null) }}
         />
       )}
+
+      {borrarDe && (
+        <BorrarUsuarioModal
+          usuario={borrarDe}
+          onClose={() => setBorrarDe(null)}
+          onDone={() => { onToast(t('admin.usuarios.toast.eliminado', { nombre: borrarDe.nombre })); setBorrarDe(null); cargar() }}
+        />
+      )}
     </>
+  )
+}
+
+// Eliminar a un usuario: borrado REAL e irreversible (decisión del dueño,
+// 2026-11-09). Dos frenos, a propósito distintos:
+//
+//  · Escribir su nombre. Frena el clic equivocado en la fila de al lado, que es
+//    el accidente que de verdad pasa en una tabla de personas.
+//  · Tu contraseña, cuando el servidor la pide (siempre: `DELETE` exige la
+//    reautenticación incondicional, como restablecer). Frena la sesión ajena
+//    abierta en una computadora prestada, y deja en la bitácora la prueba de
+//    quién fue.
+function BorrarUsuarioModal({
+  usuario, onClose, onDone,
+}: { usuario: UsuarioDemo; onClose: () => void; onDone: () => void }) {
+  const [escrito, setEscrito] = useState('')
+  const [reautenticando, setReautenticando] = useState(false)
+  const [passActor, setPassActor] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [enviando, setEnviando] = useState(false)
+  const t = useTexto()
+  // Sin distinguir mayúsculas ni espacios de los extremos: el freno es contra el
+  // despiste, no un examen de ortografía.
+  const coincide = escrito.trim().toLocaleLowerCase() === usuario.nombre.trim().toLocaleLowerCase()
+  const ob = useObligatorios({ passActor }, [{ campo: 'passActor', si: reautenticando }])
+
+  async function eliminar() {
+    if (!coincide) return
+    setError(null)
+    setEnviando(true)
+    try {
+      await borrarUsuarioApi(usuario.id)
+      onDone()
+    } catch (e) {
+      if (esErrorDeDesbloqueo(e)) setReautenticando(true)
+      else setError(e instanceof Error ? e.message : t('admin.borrar.error'))
+    }
+    setEnviando(false)
+  }
+
+  // Igual que en restablecer: el reintento va aquí, no en un efecto, para que un
+  // segundo «falta desbloqueo» se enseñe en vez de reintentar en bucle.
+  async function reautenticarYEliminar() {
+    if (!ob.validar()) return
+    setError(null)
+    setEnviando(true)
+    try {
+      await desbloquearApi(passActor)
+      setPassActor('')
+      await borrarUsuarioApi(usuario.id)
+      onDone()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('admin.borrar.error'))
+    }
+    setEnviando(false)
+  }
+
+  return (
+    <Modal
+      open
+      onOpenChange={(v) => !v && onClose()}
+      title={t('admin.borrar.titulo', { nombre: usuario.nombre })}
+      subtitle={usuario.email}
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" size="sm" onClick={onClose}>{t('comun.cancelar')}</Button>
+          {reautenticando ? (
+            <Button variant="dangerFill" size="sm" disabled={enviando} onClick={reautenticarYEliminar}>
+              {enviando ? t('admin.borrar.eliminando') : t('admin.borrar.confirmar-eliminar')}
+            </Button>
+          ) : (
+            <Button variant="dangerFill" size="sm" disabled={enviando || !coincide} onClick={eliminar}>
+              <Trash2 className="h-3.5 w-3.5" /> {enviando ? t('admin.borrar.eliminando') : t('admin.usuarios.eliminar')}
+            </Button>
+          )}
+        </div>
+      }
+    >
+      <div className="space-y-3">
+        {reautenticando ? (
+          <>
+            <p className="text-[13px] text-ink">
+              {interpolarNodos(t('admin.borrar.confirma-tu', { nombre: usuario.nombre }), { tu: <b>{t('admin.password.tu')}</b> })}
+            </p>
+            <Campo label={t('admin.password.tu-contrasena')} obligatorio falta={ob.falta('passActor')}>
+              <input type="password" className={inputCls} value={passActor}
+                onChange={(e) => setPassActor(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !enviando) void reautenticarYEliminar() }}
+                autoComplete="current-password" autoFocus />
+            </Campo>
+          </>
+        ) : (
+          <>
+            <p className={FRANJA_AVISO}>
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[#9a6700]" />
+              <span>{t('admin.borrar.aviso')}</span>
+            </p>
+            <Campo label={t('admin.borrar.escribe', { nombre: usuario.nombre })}>
+              <input className={inputCls} value={escrito}
+                onChange={(e) => setEscrito(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && coincide && !enviando) void eliminar() }}
+                placeholder={usuario.nombre} autoComplete="off" autoFocus />
+            </Campo>
+          </>
+        )}
+        {error && <p className="text-[12px] text-error">{error}</p>}
+      </div>
+    </Modal>
   )
 }
 

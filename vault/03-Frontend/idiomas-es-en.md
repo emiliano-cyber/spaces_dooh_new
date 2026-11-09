@@ -1,10 +1,11 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-11-05
+actualizado: 2026-11-06
 tags: [frontend, i18n, idiomas, ingles, dinero]
 archivos:
   - apps/web/components/demo/shell/salir.ts
+  - apps/web/components/demo/shell/IdiomaMenu.tsx
   - apps/web/lib/i18n/idiomas.ts
   - apps/web/lib/i18n/cobertura-portugues.ts
   - apps/web/lib/i18n/formato-idioma.ts
@@ -293,6 +294,26 @@ detección que no acertó.
 - Cada idioma se nombra **en sí mismo** («Español», «English»). Quien no
   entiende la pantalla en la que está tiene que poder reconocer el suyo.
 - **Sin bandera.** Una bandera nombra un país, no un idioma.
+
+> [!important] 2026-11-06 · los TRES sitios donde se cambia a mano
+> | Dónde | Archivo | Qué guarda |
+> |---|---|---|
+> | Pie del **login** | `components/demo/ui/SelectorIdioma.tsx` | la cookie del **navegador** (aún no hay cuenta) |
+> | **Menú de la cuenta** (barra superior, bajo el nombre) | `components/demo/shell/IdiomaMenu.tsx` | la **cuenta** |
+> | **Configuración → Idioma** | `components/demo/admin/IdiomaCuenta.tsx` | la **cuenta**, o «usar el del navegador» |
+>
+> Los dos de la cuenta pasan por la misma función, `guardarIdiomaDeCuenta()`
+> (`IdiomaCuenta.tsx`), que hace el `PUT /api/perfil/idioma`. El menú guarda en
+> la CUENTA y no en la cookie por la precedencia (cuenta > cookie >
+> navegador): si tocara solo la cookie, a quien ya tiene un idioma guardado no
+> le cambiaría nada.
+>
+> **Los tres se esconden con un solo idioma encendido**, que es lo de hoy en
+> toda la flota. Se encienden por instancia con `IDIOMA_INGLES=1`,
+> `IDIOMA_ITALIANO=1` e `IDIOMA_PORTUGUES=1` (`lib/i18n/idiomas.ts`); el
+> español va siempre. Verificado el 06/11 en el navegador con los cuatro
+> encendidos: elegir «Português» en el menú cambió la aplicación entera sin
+> recargar, enseñó «Idioma salvo» y dejó `usuarios.idioma_preferido = 'pt'`.
 
 > [!note] 2026-11-03 · YA NO SOLO POR NAVEGADOR — el recuadro de abajo es historia
 > El dueño pidió la preferencia por persona: ver IDIOMA-USUARIO arriba. La
