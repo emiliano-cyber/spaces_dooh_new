@@ -6,7 +6,7 @@ import { deviceJwt } from '../utils/jwt';
 import { z } from 'zod';
 import { versionVigilancia } from '../utils/versionVigilancia';
 import { uploadPhoto } from '../services/photoStorage.service';
-import { configDe, registrarRecorrido, ligarFoto, yaConocida, refrescarCreativo, tocaRefoto } from './creativos.controller';
+import { configDe, registrarRecorrido, ligarFoto, yaConocida, refrescarCreativo, refrescarConFoto, tocaRefoto } from './creativos.controller';
 import { registrarResumen } from './monitoreo.controller';
 import { apkInfo } from '../utils/apkInfo';
 import { redis } from '../config/redis';
@@ -451,6 +451,20 @@ export async function uploadPhotoEndpoint(req: Request, res: Response) {
       await ligarFoto(did, meta.phash, result.photo_id);
     } catch (err) {
       console.error('[creativos] no se pudo ligar la foto:', (err as any)?.message);
+    }
+  } else {
+    // Cualquier OTRA foto del sitio -la de por horario, la que pidio alguien
+    // desde el panel- tambien ensena la pantalla. El servidor la endereza, le
+    // saca la huella y, si reconoce un creativo del catalogo, la deja como su
+    // "asi se ve ahora". Es la unica forma de que esa segunda foto exista sin
+    // publicar una APK nueva, y no cuesta un solo byte de datos moviles: la
+    // foto ya estaba subida.
+    //
+    // Nunca tumba la subida ni la retrasa de verdad: es decodificar un JPEG.
+    try {
+      await refrescarConFoto(did, req.file.buffer, result.photo_id);
+    } catch (err) {
+      console.error('[creativos] no se pudo poner al dia el catalogo:', (err as any)?.message);
     }
   }
 
