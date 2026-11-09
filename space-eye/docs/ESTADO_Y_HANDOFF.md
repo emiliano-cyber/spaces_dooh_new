@@ -5,6 +5,63 @@ verifico y que sigue pendiente. Lo mas reciente primero.
 
 ---
 
+## 2026-11-06 — Las falsas "camara movida" y el aviso por correo
+
+Rama `feature/playlog-logs`. SIN DESPLEGAR: produccion (:4000) no se toco.
+
+### 1. La camara ya no se acusa sola de noche
+
+TLALPAN abria una falla de "camara movida" cada noche y se "recuperaba" sola a
+las 8:15 con la luz del dia. La causa estaba diagnosticada desde el 26-oct
+(`75fe147`) y arreglada en el telefono, pero el arreglo viaja en la APK y **las
+APK ya estan en la calle**. Ahora el filtro esta en los tres sitios:
+
+- **Raspberry** (`pi-agent/vision/revision_camara.py`): se porto el arreglo del
+  telefono. Si la pantalla ocupa mas del 97% de la foto no queda nada fijo
+  afuera y no se opina (antes se comparaba la foto ENTERA, anuncio incluido), y
+  una escena que no se parece a ninguna referencia se APRENDE en vez de
+  rechazarse para siempre. Cuatro pruebas nuevas; las 86 de vision en verde.
+  Version del agente 0.7.9 -> 0.7.10 (falta empaquetar y publicar).
+- **Servidor** (`monitoreo.controller.ts`, `porQueNoSeCree`): el backend sabe
+  donde se marco la pantalla, asi que mide lo mismo sin preguntarle a nadie. Una
+  "camara movida" de un equipo cuya pantalla ocupa mas del 80% de la foto -o que
+  ya se desdijo solo dos veces en 30 dias- nace **descartada**, con la razon
+  escrita en su nota: no suena en el tablero, no manda correo y el equipo deja
+  de repetirla 7 dias. Esto es lo que protege a los telefonos que no se pueden
+  actualizar.
+
+Lo que el servidor NO puede arreglar: mientras el telefono cree que su camara se
+movio, no analiza la pantalla EN ABSOLUTO. Eso es decision suya, local, y se
+cura solo cuando salga la APK nueva.
+
+### 2. Aviso por correo cuando una pantalla falla
+
+Migracion `031_avisos_por_correo.sql`. Por Resend con `fetch`, como SPACE OS, sin
+dependencia nueva. Sin cuenta de correo el aviso se escribe en el registro del
+servidor y el panel lo dice, asi que se puede probar todo sin cuenta.
+
+**La cuenta se cambia desde el panel**, no por codigo: llave y remitente viven en
+`avisos_correo` y mandan sobre `RESEND_API_KEY` / `EMAIL_FROM`, que quedan de
+respaldo para las instancias ya configuradas. El motivo es operativo: cambiar una
+variable de entorno obliga a entrar al droplet y reiniciar el contenedor, y quien
+opera las pantallas no es quien puede hacer eso. La llave NUNCA vuelve al
+navegador -solo sus ultimos cuatro- y mandarla vacia no la borra; para quitarla
+hay un boton aparte.
+
+- Se avisa de pantalla apagada o congelada y de camara sin imagen. Un gabinete
+  suelto no: "media pantalla apagada" son cientos y el buzon queda inservible.
+- Se agrupa `agrupar_min` (15 por omision) desde la primera falla del equipo y
+  sale UN correo con todas. De paso, una falla que se arregla sola en ese rato
+  nunca molesta a nadie.
+- `pantalla_fallas.aviso_en` marca lo ya avisado: un reinicio del backend no
+  repite los correos.
+- Se configura en el panel, en Fallas (solo admin), con boton de correo de
+  prueba. `avisosWorker` corre dentro del backend con candado de Redis, y NO en
+  modo espejo (saldria doble).
+- `npm run prueba:avisos` prueba lo que se puede probar sin levantar nada.
+
+---
+
 ## 2026-09-24 al 2026-10-01 — Monitoreo en el telefono real, rediseño, vivo para varios y V2 como espejo
 
 Rama `feature/playlog-logs`, commits `3ce38e7` a `209ca5a`. Hay TRES instancias

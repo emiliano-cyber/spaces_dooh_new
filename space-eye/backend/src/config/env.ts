@@ -111,6 +111,26 @@ const schema = z.object({
     .default('true')
     .transform((v) => !/^(0|false|no|off)$/i.test(v.trim())),
 
+  // CORREO (avisos de falla de pantalla). Mismo proveedor y mismo buzon
+  // verificado que ya usa SPACE OS para las contrasenas: Resend por su API REST,
+  // con fetch, sin dependencia nueva.
+  //
+  // ESTAS DOS SON EL RESPALDO, NO LA FUENTE. La cuenta de correo se configura
+  // en el panel (tabla avisos_correo) y es la que manda; estas solo se usan si
+  // ahi no hay nada. Cambiar una variable de entorno en una instancia significa
+  // entrar al droplet y reiniciar el contenedor, y quien opera las pantallas no
+  // es quien tiene esa llave: el dia que la empresa cambie de cuenta, los
+  // avisos se quedarian mudos hasta que alguien mas tuviera tiempo.
+  //
+  // Sin cuenta por ningun lado no se manda nada, pero tampoco revienta: en el
+  // registro queda el correo que SE HABRIA mandado y el panel lo dice en su
+  // sitio, asi que se puede probar el aviso entero sin cuenta de correo.
+  RESEND_API_KEY: z.string().default(''),
+  EMAIL_FROM: z.string().default(''),
+  // La direccion del PANEL para los enlaces del correo, si no es la misma del
+  // API (en una instancia el panel vive en /spaces-dooh/space-eyes/).
+  PANEL_BASE_URL: z.string().default(''),
+
   MEDIASOUP_LISTEN_IP: z.string().default('0.0.0.0'),
   MEDIASOUP_ANNOUNCED_IP: z.string().default('127.0.0.1'),
   MEDIASOUP_MIN_PORT: z.coerce.number().default(40000),
