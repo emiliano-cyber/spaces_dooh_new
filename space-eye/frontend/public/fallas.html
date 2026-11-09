@@ -127,7 +127,9 @@
 
               <div>
                 <label class="block text-sm font-medium mb-1">Llave de Resend</label>
-                <input type="password" x-model="llaveNueva" autocomplete="off" spellcheck="false"
+                <input type="password" x-model="llaveNueva" spellcheck="false"
+                       data-1p-ignore data-lpignore="true"
+                       autocomplete="new-password"
                        :placeholder="avisos.llave_pista ? 'Puesta: ' + avisos.llave_pista + ' — escribe otra para cambiarla' : 're_...'"
                        class="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm font-mono">
                 <p class="text-xs text-neutral-500 mt-1">Se escribe, no se lee: una vez guardada nadie vuelve
