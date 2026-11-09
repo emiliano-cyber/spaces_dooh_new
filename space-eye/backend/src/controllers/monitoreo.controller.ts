@@ -27,6 +27,72 @@ import { equipoAjeno } from '../utils/dueno';
 /** Una falla descartada a mano no vuelve a sonar en este plazo. */
 const SILENCIO_DIAS = 7;
 
+// --- Camara movida: lo que el servidor NO se cree ------------------------------
+//
+// La camara se juzga comparando lo FIJO de alrededor de la pantalla -el poste,
+// el edificio- contra unas referencias guardadas. Si la pantalla llena casi toda
+// la foto no queda nada afuera, y los agentes viejos caian entonces en comparar
+// la foto ENTERA: el anuncio cambia por definicion, asi que de noche -cuando lo
+// unico que brilla es la pantalla- la escena "se movia" sola. Le paso a TLALPAN
+// las noches del 24, 25 y 26 de oct de 2026: tres "camara movida" seguidas,
+// todas recuperadas solas a las 8:15 de la manana con la luz del dia, y en sus
+// propias fotos de evidencia la pantalla se ve encendida y funcionando.
+//
+// El agente ya esta arreglado (RevisionCamara.kt y pi-agent/vision), pero el
+// arreglo solo llega cuando el equipo se actualiza, y las APK ya estan en la
+// calle. Por eso el filtro vive TAMBIEN aqui: el servidor sabe donde se marco la
+// pantalla, asi que puede medir lo mismo sin preguntarle a nadie.
+
+/** Si la pantalla ocupa mas que esto de la foto, afuera no queda con que juzgar. */
+const CAMARA_SIN_AFUERA = 0.8;
+/**
+ * Una camara movida NO se arregla sola: la mueve el viento o un golpe, y sigue
+ * movida hasta que alguien va. Un episodio que el propio equipo cierra en menos
+ * de esto es, por definicion, otra cosa (la luz, casi siempre).
+ */
+const FALSA_HORAS = 18;
+/** Episodios asi antes de dejar de creerle la camara a ese equipo, y por cuanto. */
+const FALSAS_PARA_CALLAR = 2;
+const FALSAS_DIAS = 30;
+
+/** Cuanto de la foto ocupa la pantalla marcada (formula del cordon). */
+export function areaDeLaPantalla(esquinas: [number, number][]): number {
+  return Math.abs(esquinas.reduce((suma, [x1, y1], i) => {
+    const [x2, y2] = esquinas[(i + 1) % esquinas.length];
+    return suma + x1 * y2 - x2 * y1;
+  }, 0)) / 2;
+}
+
+/**
+ * Por que no creerle a este equipo que su camara se movio, o null si si se le
+ * cree. El texto se guarda como nota de la falla: quien la vea en el historial
+ * tiene que poder saber quien la descarto y con que argumento.
+ */
+async function porQueNoSeCree(deviceId: number, pantalla: any): Promise<string | null> {
+  const esquinas = pantalla?.esquinas;
+  if (Array.isArray(esquinas) && esquinas.length === 4) {
+    const area = areaDeLaPantalla(esquinas as [number, number][]);
+    if (area > CAMARA_SIN_AFUERA) {
+      return `La pantalla ocupa el ${Math.round(area * 100)}% de la foto: afuera no queda nada fijo `
+        + 'con que juzgar la camara, asi que este aviso no se sostiene.';
+    }
+  }
+  // Sin medidas que lo expliquen, el historial: si este equipo ya acuso a su
+  // camara y la "recupero" el solo un par de veces, no es la camara.
+  const [f] = await pool.query<any[]>(
+    `SELECT COUNT(*) n FROM pantalla_fallas
+      WHERE device_id = ? AND tipo = 'camara_movida' AND cerrada_por = 'equipo'
+        AND recuperada_en >= NOW() - INTERVAL ? DAY
+        AND TIMESTAMPDIFF(HOUR, detectada_en, recuperada_en) < ?`,
+    [deviceId, FALSAS_DIAS, FALSA_HORAS]);
+  const n = Number((f as any[])[0]?.n || 0);
+  if (n >= FALSAS_PARA_CALLAR) {
+    return `Este equipo ya acuso a su camara ${n} veces en ${FALSAS_DIAS} dias y el mismo se desdijo `
+      + `antes de ${FALSA_HORAS} h cada vez. Una camara movida no se endereza sola.`;
+  }
+  return null;
+}
+
 export const TIPOS = ['zona_apagada', 'zona_congelada', 'pantalla_apagada', 'pantalla_congelada', 'camara_movida', 'sin_imagen'] as const;
 
 export const NOMBRES: Record<string, string> = {
@@ -234,6 +300,24 @@ export async function reportarFalla(req: Request, res: Response) {
       `SELECT id FROM pantalla_fallas WHERE device_id = ? AND estado = 'abierta' AND tipo = ?
          AND fila <=> ? AND columna <=> ? LIMIT 1`, [did, e.tipo, fila, columna]);
     if ((ya as any[]).length) return res.json({ id: (ya as any[])[0].id, repetida: true });
+
+    // Camara movida de la que el servidor no se cree una palabra: se registra
+    // -con su evidencia, para poder revisarlo- pero nace descartada. Asi entra
+    // en `silenciadas` y el equipo deja de repetirla durante SILENCIO_DIAS, no
+    // suena en el dashboard y no manda correo a nadie de madrugada.
+    if (e.tipo === 'camara_movida') {
+      const motivo = await porQueNoSeCree(did, pantalla);
+      if (motivo) {
+        const photoId = await guardarFoto();
+        const [r] = await pool.query<any>(
+          `INSERT INTO pantalla_fallas (device_id, tipo, fila, columna, gabinete, confianza, detectada_en,
+                                        photo_id, detalle, estado, recuperada_en, cerrada_por, nota)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'descartada', NOW(), 'servidor', ?)`,
+          [did, e.tipo, fila, columna, gabinete, e.confianza, detectadaEn, photoId, e.detalle ?? null, motivo]);
+        console.warn(`[monitoreo] equipo ${did}: "camara movida" descartada por el servidor. ${motivo}`);
+        return res.json({ id: (r as any).insertId, descartada: true });
+      }
+    }
 
     const salud = await saludDe(did);
     if (salud && (await alertasDeHoy(did)) >= salud.max_dia) {
