@@ -5,6 +5,28 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-09 · Space Eyes: aviso por correo cuando una pantalla falla, y menos falsas alarmas (sin publicar)
+
+Lo trajo Jose el 09/11 y entra en la v0.12.8.
+
+- **Aviso por correo.** En **Space Eyes → Fallas** hay una tarjeta nueva, **«Avisos por
+  correo»**. Ahí se escribe a quién se le avisa y cuántos minutos esperar antes de mandar.
+  Avisa solo de lo grave: la pantalla apagada o congelada y la cámara sin imagen. Las fallas
+  del mismo equipo salen juntas en un solo correo, así que una que se arregla sola antes de la
+  espera no molesta a nadie.
+- **La cuenta de correo la pone el Dueño** (la llave de Resend y el remitente). Quien opera el
+  inventario puede cambiar la lista de correos, pero no la cuenta. Cada cambio de la llave
+  queda en la bitácora.
+- **Todavía no sale ningún correo**: hace falta verificar el dominio del remitente en Resend y
+  poner la llave. Mientras tanto los avisos quedan escritos en el registro del servidor.
+- **Menos falsas alarmas**: la cámara ya no se acusa a sí misma de noche, una pantalla apagada
+  ya no cuenta como un creativo nuevo, y una «cámara movida» que el servidor no se cree se
+  cierra sola y lo dice en el historial.
+- Todo en español, inglés, italiano y portugués. Y una prueba nueva impide que vuelva a entrar
+  a Space Eyes texto en español escrito directo, sin traducir.
+
+---
+
 ## 2026-11-09 · Eliminar usuarios desde Administración (sin publicar)
 
 En **Administración → Equipo**, cada persona tiene ahora un botón rojo **«Eliminar»**

@@ -14,6 +14,8 @@ archivos: []
 > **09/11:** se le suma `feat/borrar-usuarios` (botón «Eliminar» en Administración, con reautenticación, y la
 > migración ROJA `20261109_acciones_sin_fk_usuario.sql`, aprobada por el dueño). Unitarias, e2e (salvo
 > `grants-rol-app`, Docker) y navegador en verde. Detalle en [[2026-11-09]].
+> **09/11, tarde:** y la segunda tanda de Jose (`b3c9e92d`: avisos por correo, menos falsas alarmas), con su lote
+> de traducción y la prueba nueva de texto fijo en Space Eyes. 10 235 unitarias en verde. Detalle en [[2026-11-09]].
 > **Zonas:** ninguna tomada; el worktree `.claude/worktrees/v0-12-7` está en `integra/v0-12-8`.
 
 > [!important] 2026-11-05 · **VERIFICACION · todas las ramas juntas antes de `main`** — rama `verificacion`, desde `integra/idiomas` (`0a594a9e`) — **sin empujar**

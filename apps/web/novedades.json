@@ -17,6 +17,18 @@
       },
       {
         "tipo": "NUEVO",
+        "texto": "Space Eyes: aviso por correo cuando una pantalla falla. En Fallas, «Avisos por correo» → «Configurar», escribes a quién se le avisa y cuánto esperar. Avisa de la pantalla apagada o congelada y de la cámara sin imagen; las fallas del mismo equipo salen juntas en un solo correo. La cuenta de correo la pone el Dueño.",
+        "en": "Space Eyes: email alert when a screen fails. In Faults, “Email alerts” → “Configure”, you enter who gets the alert and how long to wait. It covers a screen that is off or frozen and a camera with no image; faults from the same device go out together in one email. The Owner sets up the email account.",
+        "it": "Space Eyes: avviso via email quando uno schermo si guasta. In Guasti, «Avvisi via email» → «Configura», scrivi a chi avvisare e quanto aspettare. Avvisa dello schermo spento o bloccato e della telecamera senza immagine; i guasti dello stesso dispositivo escono insieme in una sola email. L’account email lo imposta il Titolare."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Space Eyes: menos falsas alarmas. La cámara ya no se acusa a sí misma de noche, una pantalla apagada ya no se registra como un creativo nuevo, y una «cámara movida» que el servidor no se cree se cierra sola y lo dice en el historial.",
+        "en": "Space Eyes: fewer false alarms. The camera no longer reports itself at night, a screen that is off is no longer logged as a new creative, and a “camera moved” fault the server does not believe closes by itself and says so in the history.",
+        "it": "Space Eyes: meno falsi allarmi. La telecamera non si autodenuncia più di notte, uno schermo spento non viene più registrato come una nuova creatività, e una «telecamera spostata» a cui il server non crede si chiude da sola e lo dice nella cronologia."
+      },
+      {
+        "tipo": "NUEVO",
         "texto": "Space Eyes: la cámara de cada equipo puede tener un ajuste de día y otro de noche. En la ficha del equipo, en Ajustes de imagen, eliges desde qué hora y hasta qué hora rige el de noche, y el equipo cambia solo. Sirve donde la pantalla deslumbra al anochecer.",
         "en": "Space Eyes: each device’s camera can have a day setting and a night setting. In the device record, under Image settings, you choose from what time and until what time the night one applies, and the device switches by itself. Useful where the screen glares after dark.",
         "it": "Space Eyes: la fotocamera di ogni dispositivo può avere un’impostazione di giorno e una di notte. Nella scheda del dispositivo, in Impostazioni immagine, scegli da che ora e fino a che ora vale quella notturna, e il dispositivo cambia da solo. Serve dove lo schermo abbaglia al tramonto."
