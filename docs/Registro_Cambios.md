@@ -5,6 +5,28 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-09 · Eliminar usuarios desde Administración (sin publicar)
+
+En **Administración → Equipo**, cada persona tiene ahora un botón rojo **«Eliminar»**
+(menos tú: a ti mismo no te puedes eliminar).
+
+- **Se pide escribir su nombre** antes de que el botón se active, para que un clic en la
+  fila de al lado no borre a otra persona.
+- **Y después tu contraseña**, igual que al restablecer la de otro: la bitácora queda con
+  la prueba de que fuiste tú, y una sesión olvidada abierta no basta para borrar a nadie.
+- **Es definitivo.** La persona deja de poder entrar en ese momento. Lo que hizo se
+  conserva: la bitácora y sus propuestas guardan su nombre (en los reportes sale como «Ya
+  no está en la organización»), pero sus órdenes de trabajo quedan sin asignar.
+- **Antes no se podía borrar a nadie con historial**: la bitácora no se deja modificar y
+  la base lo rechazaba. Una migración separa la bitácora de la lista de usuarios para que
+  se pueda, sin tocar ni una línea de lo registrado.
+- **Si solo quieres que no entre, desactívala** con el interruptor de estatus: eso se puede
+  deshacer y no le quita nada.
+- Siguen valiendo las reglas de siempre: no se puede eliminar al último Dueño activo, y a
+  un Dueño solo lo elimina otro Dueño.
+
+---
+
 ## 2026-11-06 · Space Eyes: ajuste de noche, ajustes por tipo de equipo y dos fotos por creativo (sin publicar)
 
 Llega a la aplicación el trabajo de Space Eyes de Jose López (rama `fix/space-eyes-fotos-rapidas`):

@@ -5,6 +5,12 @@
     "items": [
       {
         "tipo": "NUEVO",
+        "texto": "Administración: cada usuario tiene un botón «Eliminar». Pide escribir su nombre y tu contraseña, y es definitivo: deja de poder entrar. La bitácora y sus propuestas conservan su nombre. Si solo quieres que no entre, desactívalo.",
+        "en": "Settings: each user has a “Delete” button. It asks you to type their name and your password, and it is permanent: they can no longer sign in. The log and their proposals keep their name. If you only want to keep them out, deactivate them.",
+        "it": "Impostazioni: ogni utente ha un pulsante «Elimina». Chiede di scrivere il suo nome e la tua password, ed è definitivo: non può più entrare. Il registro e le sue proposte conservano il suo nome. Se vuoi solo impedirgli di entrare, disattivalo."
+      },
+      {
+        "tipo": "NUEVO",
         "texto": "El idioma se cambia desde el menú de la cuenta, en la barra de arriba, sin entrar a «Mi cuenta».",
         "en": "The language can be changed from the account menu in the top bar, without opening “My account”.",
         "it": "La lingua si cambia dal menu dell’account, nella barra in alto, senza entrare in «Il mio account»."
