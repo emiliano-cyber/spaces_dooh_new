@@ -25,7 +25,7 @@
 // servidor cae dentro, reconoce lo que el equipo reconoce.
 import { readFileSync, existsSync } from 'fs';
 import { basename, join } from 'path';
-import { enderezarPantalla, girarEsquinas, type Punto } from '../src/utils/enderezar';
+import { enderezarPantalla, girarEsquinas, medirPantalla, type Gris, type Punto } from '../src/utils/enderezar';
 import { calcular, distancia, TOLERANCIA } from '../src/utils/huella';
 
 const CARPETA = process.env.FOTOS ?? '';
@@ -58,7 +58,28 @@ async function main() {
   afirmar(medio.every((p, i) => Math.abs(p[0] - esperado[i][0]) < 1e-9 && Math.abs(p[1] - esperado[i][1]) < 1e-9),
     '180 grados es el reflejo por el centro');
 
-  console.log('\n2) La huella del servidor contra la del equipo, en fotos reales');
+  console.log('\n2) Una pantalla apagada no es un creativo');
+  const lleno = (v: number): Gris => ({ datos: new Uint8Array(320 * 180).fill(v), ancho: 320, alto: 180 });
+  const franjas = (base: number, amplitud: number): Gris => {
+    const datos = new Uint8Array(320 * 180);
+    // Franjas de verdad: un patron que se promediara a cero no serviria.
+    for (let i = 0; i < datos.length; i++) datos[i] = base + (i % 2 ? amplitud : -amplitud);
+    return { datos, ancho: 320, alto: 180 };
+  };
+  afirmar(medirPantalla(lleno(12)).apagada, 'negra y lisa: apagada');
+  afirmar(medirPantalla(lleno(64)).apagada, 'gris pareja de dia (el LED apagado refleja el cielo): apagada');
+  // El hueco por el que se colaba TLALPAN: oscura CON algo de textura. La huella
+  // si se puede calcular (variacion 10 > 6), y antes eso bastaba para llamarlo
+  // creativo nuevo y gastar una foto.
+  const penumbra = franjas(25, 10);
+  afirmar(medirPantalla(penumbra).apagada, 'oscura con algo de textura: apagada (el caso de TLALPAN)');
+  afirmar(medirPantalla(penumbra).desv > 6, 'y aun asi da huella, que es por lo que se colaba');
+  // Un anuncio de verdad: la medida mas floja de las 43 fotos de g500 era
+  // brillo 45 con variacion 23.
+  afirmar(!medirPantalla(franjas(45, 23)).apagada, 'el creativo mas flojo medido en g500 NO es apagada');
+  afirmar(!medirPantalla(franjas(100, 40)).apagada, 'y un anuncio normal tampoco');
+
+  console.log('\n3) La huella del servidor contra la del equipo, en fotos reales');
   const casos: Caso[] = JSON.parse(readFileSync(join(CARPETA, 'manifiesto.json'), 'utf8'));
   let dentro = 0;
   let iguales = 0;

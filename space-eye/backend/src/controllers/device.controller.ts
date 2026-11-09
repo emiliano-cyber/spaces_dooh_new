@@ -6,7 +6,7 @@ import { deviceJwt } from '../utils/jwt';
 import { z } from 'zod';
 import { versionVigilancia } from '../utils/versionVigilancia';
 import { uploadPhoto } from '../services/photoStorage.service';
-import { configDe, registrarRecorrido, ligarFoto, yaConocida, refrescarCreativo, refrescarConFoto, tocaRefoto } from './creativos.controller';
+import { configDe, registrarRecorrido, ligarFoto, yaConocida, medirPantallaEnFoto, refrescarCreativo, refrescarConFoto, tocaRefoto } from './creativos.controller';
 import { registrarResumen } from './monitoreo.controller';
 import { apkInfo } from '../utils/apkInfo';
 import { redis } from '../config/redis';
@@ -410,6 +410,30 @@ export async function uploadPhotoEndpoint(req: Request, res: Response) {
   // se acepta es la misma pantalla una y otra vez. Quien pone el plazo es
   // `creative_refoto_h` (029); con 0, se descarta siempre, como antes.
   if (meta.source === 'creative_change' && meta.phash) {
+    // PRIMERO: ¿de verdad habia algo en la pantalla?
+    //
+    // El equipo solo descarta un creativo cuando no puede calcular la huella, y
+    // eso pasa con contraste < 6. El detector de pantalla apagada usa una vara
+    // mas ancha -oscura y poco variada, o lisa aunque sea clara-, y entre las
+    // dos queda un hueco: una pantalla apagada de noche con reflejos da huella,
+    // no casa con el catalogo y entra como CREATIVO NUEVO. Gasta una foto de
+    // datos moviles y mete en el catalogo un anuncio que no existe. Es lo que
+    // el dueno reporto de TLALPAN: "me dice creativo nuevo mientras la pantalla
+    // esta apagada".
+    //
+    // El servidor sabe medirlo porque endereza la pantalla con las esquinas que
+    // ya conoce. La foto YA se gasto -llego aqui-, pero el catalogo no se
+    // ensucia, y es lo unico que se puede salvar sin publicar una APK.
+    const medida = await medirPantallaEnFoto(did, req.file.buffer).catch(() => null);
+    if (medida?.apagada) {
+      await pool.query(
+        `INSERT INTO device_logs (device_id, level, category, message) VALUES (?, 'warning', 'creative', ?)`,
+        [did, `Creativo nuevo descartado: la pantalla se ve APAGADA (brillo ${medida.brillo.toFixed(0)}, `
+          + `variacion ${medida.desv.toFixed(0)}). No entra al catalogo.`]
+      ).catch(() => null);
+      return res.json({ ok: true, descartada: 'pantalla_apagada' });
+    }
+
     const conocida = await yaConocida(did, meta.phash).catch(() => null);
     if (conocida) {
       const cfg = await configDe(did).catch(() => null);

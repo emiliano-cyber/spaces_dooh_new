@@ -187,3 +187,45 @@ export async function enderezarPantalla(
   }
   return { datos: salida, ancho: ANCHO_PANTALLA, alto };
 }
+
+// --- ¿Esta pantalla esta apagada? ---------------------------------------------
+//
+// Los mismos numeros de apagada_rapida.py y ApagadaRapida.kt, medidos en campo:
+//
+//   · negra o casi, y sin apenas variacion -> de noche, o a la sombra;
+//   · PAREJA aunque no sea oscura -> de dia una pantalla LED apagada refleja el
+//     cielo y sale gris (brillo 64 medido en Santa Monica el 14-sep), pero
+//     queda lisa, sin contenido.
+//
+// POR QUE HACE FALTA AQUI. El agente solo descarta un creativo cuando la huella
+// no se puede calcular, y eso pasa con contraste < 6. El detector de pantalla
+// apagada usa una vara mas ancha, y entre las dos queda un hueco: brillo bajo
+// con algo de textura -una pantalla apagada de noche con reflejos, las franjas
+// del LED- da huella, no casa con el catalogo, y entra como CREATIVO NUEVO.
+// Gasta una foto de datos moviles y ensucia el catalogo del sitio. Es lo que el
+// dueno reporto de TLALPAN el 9-nov-2026: "me dice creativo nuevo mientras la
+// pantalla esta apagada".
+//
+// El margen es holgado: medidas sobre las 43 fotos del catalogo de g500, la
+// desviacion mas baja de un creativo de verdad es 22.9 y el brillo mas bajo
+// 45.2. Ningun anuncio real se acerca a estos umbrales.
+export const BRILLO_MAX = 40.0;
+export const DESVIACION_MAX = 14.0;
+export const DESVIACION_PAREJA = 6.0;
+
+export type Medida = { brillo: number; desv: number; apagada: boolean };
+
+export function medirPantalla(gris: Gris): Medida {
+  const n = gris.datos.length;
+  let suma = 0;
+  for (let i = 0; i < n; i++) suma += gris.datos[i];
+  const brillo = suma / n;
+  let acc = 0;
+  for (let i = 0; i < n; i++) { const d = gris.datos[i] - brillo; acc += d * d; }
+  const desv = Math.sqrt(acc / n);
+  return {
+    brillo,
+    desv,
+    apagada: (brillo < BRILLO_MAX && desv < DESVIACION_MAX) || desv < DESVIACION_PAREJA,
+  };
+}

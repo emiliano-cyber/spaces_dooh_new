@@ -9,7 +9,7 @@
 // su copia local o reporta una huella que en realidad ya conociamos.
 import { Request, Response } from 'express';
 import { pool } from '../config/database';
-import { enderezarPantalla } from '../utils/enderezar';
+import { enderezarPantalla, medirPantalla, type Medida } from '../utils/enderezar';
 import { calcular } from '../utils/huella';
 import { equipoAjeno } from '../utils/dueno';
 import { z } from 'zod';
@@ -434,13 +434,10 @@ export function tocaRefoto(c: Conocida, refotoH: number, ahora = Date.now()): bo
  *
  * Devuelve la huella del creativo refrescado, o null si no habia nada que hacer.
  */
-export async function reconocerEnFoto(
+export async function medirPantallaEnFoto(
   deviceId: number,
   jpeg: Buffer,
-): Promise<{ conocida: Conocida; refoto_h: number } | null> {
-  const cfg = await configDe(deviceId);
-  if (!cfg?.vigilar) return null;
-
+): Promise<(Medida & { phash: string | null }) | null> {
   const [filas] = await pool.query<any[]>(
     `SELECT pantalla, stream_rotation FROM devices WHERE id = ?`, [deviceId]);
   const d = (filas as any[])[0];
@@ -454,12 +451,22 @@ export async function reconocerEnFoto(
 
   const gris = await enderezarPantalla(jpeg, esquinas, Number(d.stream_rotation) || 0);
   if (!gris) return null;
-  // Sin huella no hay creativo: pantalla apagada, lente tapada o noche cerrada.
-  // Es la misma regla con la que el equipo decide no gastar una foto.
-  const phash = calcular(gris.datos, gris.ancho, gris.alto);
-  if (!phash) return null;
+  // Sin huella no hay creativo: lente tapada o noche cerrada. Es la misma regla
+  // con la que el equipo decide no gastar una foto.
+  return { ...medirPantalla(gris), phash: calcular(gris.datos, gris.ancho, gris.alto) };
+}
 
-  const conocida = await yaConocida(deviceId, phash);
+export async function reconocerEnFoto(
+  deviceId: number,
+  jpeg: Buffer,
+): Promise<{ conocida: Conocida; refoto_h: number } | null> {
+  const cfg = await configDe(deviceId);
+  if (!cfg?.vigilar) return null;
+
+  const m = await medirPantallaEnFoto(deviceId, jpeg);
+  if (!m?.phash || m.apagada) return null;
+
+  const conocida = await yaConocida(deviceId, m.phash);
   if (!conocida) return null;
   return { conocida, refoto_h: cfg.refoto_h };
 }
