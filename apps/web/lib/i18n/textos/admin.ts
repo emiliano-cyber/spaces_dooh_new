@@ -718,6 +718,15 @@ export const ES_ADMIN = {
   'admin.papel.codigo.licencias': 'LICENCIAS',
   'admin.papel.codigo.operacion': 'OPERACION',
   'admin.papel.codigo.ventas': 'VENTAS',
+  // ── Idiomas del servidor (IDIOMAS-SERVIDOR, 10/11) ──
+  'admin.idiomas_servidor.titulo': 'Idiomas del servidor',
+  'admin.idiomas_servidor.ayuda': 'Son de todo el servidor: los ven todas las organizaciones y la pantalla de entrar. Con más de uno, aparece el selector de idioma al entrar y en el menú de tu cuenta.',
+  'admin.idiomas_servidor.servidor': 'Usar los que digan las variables del servidor',
+  'admin.idiomas_servidor.siempre': 'siempre',
+  'admin.idiomas_servidor.parcial': 'traducción en curso',
+  'admin.idiomas_servidor.guardar': 'Guardar idiomas',
+  'admin.idiomas_servidor.guardado': 'Idiomas del servidor guardados',
+  'admin.idiomas_servidor.error': 'No se pudieron guardar los idiomas',
 } as const
 
 export type ClaveAdmin = keyof typeof ES_ADMIN
@@ -1360,6 +1369,15 @@ export const EN_ADMIN: Record<ClaveAdmin, string> = {
   'admin.papel.codigo.licencias': 'PERMITS',
   'admin.papel.codigo.operacion': 'OPERATIONS',
   'admin.papel.codigo.ventas': 'SALES',
+  // ── Idiomas del servidor (IDIOMAS-SERVIDOR, 10/11) ──
+  'admin.idiomas_servidor.titulo': 'Server languages',
+  'admin.idiomas_servidor.ayuda': 'They apply to the whole server: every organization and the sign-in page see them. With more than one, the language selector appears at sign-in and in your account menu.',
+  'admin.idiomas_servidor.servidor': 'Use the ones set in the server variables',
+  'admin.idiomas_servidor.siempre': 'always',
+  'admin.idiomas_servidor.parcial': 'translation in progress',
+  'admin.idiomas_servidor.guardar': 'Save languages',
+  'admin.idiomas_servidor.guardado': 'Server languages saved',
+  'admin.idiomas_servidor.error': 'The languages could not be saved',
 }
 
 // ─── ITALIANO · lote L5 (2026-11-03) ────────────────────────────────────────
@@ -2011,6 +2029,15 @@ export const IT_ADMIN: Record<ClaveAdmin, string> = {
   'admin.papel.codigo.licencias': 'LICENZE',
   'admin.papel.codigo.operacion': 'OPERATIVITÀ',
   'admin.papel.codigo.ventas': 'VENDITE',
+  // ── Idiomas del servidor (IDIOMAS-SERVIDOR, 10/11) ──
+  'admin.idiomas_servidor.titulo': 'Lingue del server',
+  'admin.idiomas_servidor.ayuda': 'Valgono per tutto il server: le vedono tutte le organizzazioni e la pagina di accesso. Con più di una, il selettore della lingua compare all’accesso e nel menu del tuo account.',
+  'admin.idiomas_servidor.servidor': 'Usare quelle indicate dalle variabili del server',
+  'admin.idiomas_servidor.siempre': 'sempre',
+  'admin.idiomas_servidor.parcial': 'traduzione in corso',
+  'admin.idiomas_servidor.guardar': 'Salva lingue',
+  'admin.idiomas_servidor.guardado': 'Lingue del server salvate',
+  'admin.idiomas_servidor.error': 'Impossibile salvare le lingue',
 }
 
 // ─── PORTUGUES (pt-BR) · lote L5 (2026-11-05) ────────────────────────────────
@@ -2632,4 +2659,13 @@ export const PT_ADMIN: Record<ClaveAdmin, string> = {
   'admin.papel.codigo.licencias': 'LICENÇAS',
   'admin.papel.codigo.operacion': 'OPERAÇÃO',
   'admin.papel.codigo.ventas': 'VENDAS',
+  // ── Idiomas del servidor (IDIOMAS-SERVIDOR, 10/11) ──
+  'admin.idiomas_servidor.titulo': 'Idiomas do servidor',
+  'admin.idiomas_servidor.ayuda': 'Valem para todo o servidor: todas as organizações e a tela de entrada os veem. Com mais de um, o seletor de idioma aparece na entrada e no menu da sua conta.',
+  'admin.idiomas_servidor.servidor': 'Usar os definidos nas variáveis do servidor',
+  'admin.idiomas_servidor.siempre': 'sempre ativo',
+  'admin.idiomas_servidor.parcial': 'tradução em andamento',
+  'admin.idiomas_servidor.guardar': 'Salvar idiomas',
+  'admin.idiomas_servidor.guardado': 'Idiomas do servidor salvos',
+  'admin.idiomas_servidor.error': 'Não foi possível salvar os idiomas',
 }

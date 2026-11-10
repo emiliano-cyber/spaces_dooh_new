@@ -122,8 +122,18 @@ export function portuguesActivo(
  * `pages/_error.tsx`): un cuarto idioma se añade aquí y en `IDIOMAS`.
  */
 export function idiomasActivos(
-  entorno: Record<string, string | undefined> = process.env,
+  entorno?: Record<string, string | undefined>,
 ): Idioma[] {
+  // APARIENCIA-01 (10/11): lo elegido en «Administracion → Apariencia e
+  // idiomas» MANDA sobre las variables. Lo deja aqui
+  // `lib/server/apariencia-instancia.ts` al leer la base; `null` = nadie eligio
+  // y se sigue con `IDIOMA_*` como hasta hoy. Solo cuando no se pasa `entorno`:
+  // las pruebas que pasan uno explicito siguen midiendo las variables.
+  if (entorno === undefined) {
+    const elegidos = idiomasElegidosEnLaInstancia()
+    if (elegidos) return IDIOMAS.filter((i) => elegidos.includes(i))
+  }
+  entorno ??= typeof process === 'undefined' ? {} : process.env
   const encendido: Record<Idioma, boolean> = {
     es: true,
     en: inglesActivo(entorno),
@@ -131,6 +141,26 @@ export function idiomasActivos(
     pt: portuguesActivo(entorno),
   }
   return IDIOMAS.filter((i) => encendido[i])
+}
+
+// ─── LOS IDIOMAS ELEGIDOS DESDE ADMINISTRACION (APARIENCIA-01) ──────────────
+//
+// En `globalThis` y con `Symbol.for`, como la moneda (`dinero.ts`): el layout,
+// las rutas y `_error` tienen cada uno su copia empaquetada de este modulo, y
+// todos tienen que ver la misma eleccion. Una por PROCESO = una por servidor.
+const CLAVE_IDIOMAS = Symbol.for('space-os.idiomas-elegidos-instancia')
+const almacenIdiomas = globalThis as unknown as { [CLAVE_IDIOMAS]?: Idioma[] | null }
+
+/** Lo elegido en la instancia, o `null` si manda lo de las variables. */
+export function idiomasElegidosEnLaInstancia(): Idioma[] | null {
+  return almacenIdiomas[CLAVE_IDIOMAS] ?? null
+}
+
+/** La llama `lib/server/apariencia-instancia.ts`; el espanol se garantiza aqui. */
+export function fijarIdiomasDeLaInstancia(idiomas: readonly string[] | null): void {
+  almacenIdiomas[CLAVE_IDIOMAS] = idiomas
+    ? IDIOMAS.filter((i) => i === IDIOMA_POR_OMISION || idiomas.includes(i))
+    : null
 }
 
 // ─── LO QUE LA BASE ACEPTA ──────────────────────────────────────────────────

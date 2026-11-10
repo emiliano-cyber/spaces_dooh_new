@@ -79,6 +79,9 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   'El idioma de los documentos de la instancia solo se elige al darla de alta':
     'The instance document language can only be chosen when the instance is created',
   // ADR 0048 (02/11) · la moneda de la instancia se elige al crearla y no se cambia.
+  // IDIOMAS-SERVIDOR (10/11) · los idiomas del servidor, desde Administracion.
+  'Los idiomas no son validos':
+    'The languages are not valid',
   'La moneda debe ser MXN o USD':
     'The currency must be MXN or USD',
   'La moneda de la instancia ya está fijada: una organización nueva nace en la misma que las demás':
@@ -783,6 +786,8 @@ export const CATALOGO_ERRORES_IT: Partial<Record<string, string>> = {
   // IDIOMA-USUARIO, al integrar con el italiano (2026-11-04): «Mi cuenta → Idioma».
   'Ese idioma no está disponible en este servidor.':
     'Questa lingua non è disponibile su questo server.',
+  'Los idiomas no son validos':
+    'Le lingue non sono valide',
   'La moneda debe ser MXN o USD':
     'La valuta deve essere MXN o USD',
   'La moneda de la instancia ya está fijada: una organización nueva nace en la misma que las demás':
@@ -1265,6 +1270,7 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
     'O idioma dos documentos da instância já está definido: uma organização nova nasce no mesmo idioma das demais',
   'El idioma de los documentos de la instancia solo se elige al darla de alta':
     'O idioma dos documentos da instância só é escolhido ao criá-la',
+  'Los idiomas no son validos': 'Os idiomas não são válidos',
   'La moneda debe ser MXN o USD': 'A moeda deve ser MXN ou USD',
   'La moneda de la instancia ya está fijada: una organización nueva nace en la misma que las demás':
     'A moeda da instância já está definida: uma organização nova nasce na mesma moeda das demais',

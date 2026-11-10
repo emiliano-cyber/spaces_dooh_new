@@ -34,6 +34,7 @@ import { useCandado, DialogoCandado } from '@/components/demo/ui/candado'
 import { OrganizacionesPanel } from '@/components/demo/admin/OrganizacionesPanel'
 import { ControlCambiosPanel } from '@/components/demo/admin/ControlCambiosPanel'
 import { ActualizacionesPanel } from '@/components/demo/admin/ActualizacionesPanel'
+import { IdiomasServidorPanel } from '@/components/demo/admin/IdiomasServidorPanel'
 import { TicketsPanel } from '@/components/demo/admin/TicketsPanel'
 import { Chip, TONO, FRANJA_AVISO } from '@/components/demo/admin/Chip'
 import {
@@ -1436,6 +1437,11 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
             config de la INSTANCIA (el droplet), no del negocio del tenant, y
             por eso va aparte de `ConfigNegocio` — no viaja en `guardar()`. */}
         <ActualizacionesPanel onToast={onToast} />
+
+        {/* IDIOMAS-SERVIDOR (10/11): los idiomas que ofrece ESTE servidor, con
+            un boton y sin ssh. Igual que las actualizaciones, es de la
+            instancia y no viaja en `guardar()` de ConfigNegocio. */}
+        <IdiomasServidorPanel onToast={onToast} />
 
         {/* ADR 0038: el dueño escribe una incidencia a AS OOH y ve si ya se la
             contestaron. Consume /api/tickets (T5), no ConfigNegocio. */}

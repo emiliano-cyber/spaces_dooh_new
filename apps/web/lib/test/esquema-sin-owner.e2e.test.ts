@@ -212,7 +212,11 @@ describe('el esquema base no trae la organización de nadie', () => {
     //     `campana_extensiones`, cada extension de una campana con el contrato
     //     firmado que la respalda (EXT-CONTRATO). Subido a la vez que la
     //     migracion; aqui no hay Postgres, lo confirma el CI.
-    expect(trasMigrar.tablas).toBe(66)
+    //   · 67 el 2026-11-10: `20261110_idiomas_del_servidor.sql` anade
+    //     `apariencia_instancia`, los idiomas que ofrece el servidor elegidos
+    //     con un boton desde Administracion (IDIOMAS-SERVIDOR). Subido a la vez
+    //     que la migracion.
+    expect(trasMigrar.tablas).toBe(67)
     // Lo que de verdad importa: ni las migraciones resucitan al owner.
     expect(trasMigrar.tenants).toBe(0)
   })

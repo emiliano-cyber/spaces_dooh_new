@@ -5,6 +5,18 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-10 · Los idiomas se encienden con un botón desde Administración (sin publicar)
+
+**Qué cambia para quien usa la aplicación.** En **Administración → Configuración → Idiomas del servidor**, el Dueño o un Administrador marca qué idiomas ofrece su servidor: Español (siempre), English, Italiano o Português. Al guardar, el selector de idioma aparece en la pantalla de entrar y en el menú de la cuenta, sin recargar y sin que nadie tenga que entrar al servidor.
+
+**Por qué.** En la DEMO de la v0.12.8 no aparecía ningún selector de idioma: solo se encendían editando la configuración del servidor y reiniciándolo. Ahora es un botón.
+
+**A tener en cuenta.**
+- Es para **todo el servidor**: lo ven todas las organizaciones que vivan en él.
+- Quien tenga el navegador en inglés verá la aplicación en inglés en cuanto se encienda; puede cambiarla desde el mismo selector.
+- Italiano y portugués siguen en traducción: lo que falta sale en inglés (italiano) o en español (portugués). La tarjeta lo avisa.
+- Mientras nadie toque la tarjeta, el servidor se comporta exactamente como antes.
+
 ## 2026-11-09 · Space Eyes: aviso por correo cuando una pantalla falla, y menos falsas alarmas (sin publicar)
 
 Lo trajo Jose el 09/11 y entra en la v0.12.8.

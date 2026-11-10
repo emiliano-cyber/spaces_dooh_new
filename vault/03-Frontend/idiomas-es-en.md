@@ -1,9 +1,14 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-11-06
+actualizado: 2026-11-10
 tags: [frontend, i18n, idiomas, ingles, dinero]
 archivos:
+  - apps/web/lib/server/idiomas-servidor.ts
+  - apps/web/lib/server/idiomas-servidor-controller.ts
+  - apps/web/app/api/idiomas-servidor/route.ts
+  - apps/web/components/demo/admin/IdiomasServidorPanel.tsx
+  - db/migrations/20261110_idiomas_del_servidor.sql
   - apps/web/components/demo/shell/salir.ts
   - apps/web/components/demo/shell/IdiomaMenu.tsx
   - apps/web/lib/i18n/idiomas.ts
@@ -2349,6 +2354,46 @@ textos que antes salían en inglés o no existían. Rama `feat/verificacion-ajus
   en el volcado (los pinta el navegador, o las pruebas los simulan): los fijan
   `librerias.test.ts` y `cerrar-accesible.test.ts`. `DICCIONARIOS`: 24 claves
   nuevas por idioma, 0 valores cambiados.
+
+## 14 · Los idiomas del SERVIDOR se eligen con un botón (IDIOMAS-SERVIDOR · 10/11)
+
+> [!important] Desde el 10/11 los idiomas NO hace falta encenderlos por ssh
+> **Administración → Configuración → Idiomas del servidor** (Dueño o
+> Administrador). Casillas por idioma, el español fijo, y «Usar los que digan
+> las variables del servidor» marcada por omisión. Al guardar, el selector
+> aparece (o desaparece) en el login y en el menú de la cuenta sin recargar.
+
+**Por qué.** La DEMO v0.12.8 (g500 viejo) se instaló con `app.env` escrito
+desde la plantilla, que no trae `IDIOMA_INGLES`; los tres selectores de §4 se
+escondían y el dueño «no veía el cambio manual». Encenderlo exigía editar
+`app.env` y **recrear** el contenedor (un `docker restart` no relee
+`--env-file`). Pedido del dueño: «cambiarlo con el botón», y «directamente a
+main».
+
+**Cómo funciona, sin tocar a quien ya usaba `idiomasActivos()`:**
+
+| Pieza | Qué hace |
+|---|---|
+| `apariencia_instancia` (`20261110_idiomas_del_servidor.sql`) | UNA fila, sin `tenant_id` ni RLS (describe el servidor, como `actualizaciones_instancia`). `idiomas text[]`, NULL = mandan las variables. CHECK: solo es/en/it/pt y el español siempre. Grants por columna: la app no puede insertar, borrar ni escribir `id` (medido con `spaces_app`) |
+| `lib/server/idiomas-servidor.ts` | Lee la fila una vez por proceso (`qRaw`, como `actualizaciones-repo.ts`) y la entrega a `fijarIdiomasDeLaInstancia()`. Si la base no contesta, **mandan las variables** (no fail-closed como la moneda: un idioma de más no cambia importes) |
+| `idiomasActivos()` (`lib/i18n/idiomas.ts`) | Sin argumento, **lo elegido en la base manda** sobre `IDIOMA_*`; con un entorno explícito (las pruebas) sigue midiendo solo las variables |
+| `app/layout.tsx` | `await idiomasDelServidor()` ANTES de `idiomaDeLaPeticion()` |
+| `GET`/`PUT /api/idiomas-servidor` | `exigir('administracion', 'ver'/'crear')`, como `/api/config`. Sin candado (no es dinero). Deja la acción en la bitácora |
+
+> [!warning] Es del SERVIDOR, no de la organización
+> En una instancia con varias organizaciones (la DEMO lleva la de g500 y la
+> `demo`) el Dueño de cualquiera lo cambia para todas. Es lo pedido —«para
+> cada server»— y en el modelo de instancias soberanas un servidor es un cliente.
+
+> [!note] Al encender un idioma, quien tenga el navegador en él lo ve SOLO
+> Es la precedencia de §1 (cuenta > cookie > `Accept-Language`). Verificado el
+> 10/11 en el navegador: con English encendido, el login sin sesión salió en
+> inglés en un Chrome en inglés y el selector lo devolvió a español.
+
+**La tabla se llama `apariencia_instancia` a propósito:** la paleta de colores
+por servidor está hecha y probada en la rama `feat/apariencia-e-idiomas`
+(`2f1d57f9`), aparcada por el dueño el 10/11; cuando entre, añadirá sus
+columnas aquí con una migración NUEVA (la de esa rama ya no vale tal cual).
 
 ## Enlaces
 

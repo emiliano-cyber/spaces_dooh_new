@@ -8,6 +8,7 @@ import { ProveedorIdioma } from '@/lib/i18n/contexto'
 import { ProveedorMoneda } from '@/lib/i18n/moneda-cliente'
 import { monedaDeLaInstancia } from '@/lib/server/moneda-instancia'
 import { idiomaDeLaInstancia } from '@/lib/server/idioma-instancia'
+import { idiomasDelServidor } from '@/lib/server/idiomas-servidor'
 import { ProveedorIdiomaDocumentos } from '@/lib/i18n/idioma-documentos-cliente'
 import { traducir } from '@/lib/i18n/diccionario'
 
@@ -88,6 +89,10 @@ const inter = Inter({
 // asi que el fallo no quita nada que funcionara.
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // IDIOMAS-SERVIDOR (10/11) · PRIMERO: deja fijados los idiomas elegidos en
+  // Administracion, y `idiomaDeLaPeticion()` / `idiomasActivos()` de abajo ya
+  // tienen que verlos. Sin eleccion guardada, mandan las variables `IDIOMA_*`.
+  await idiomasDelServidor()
   const idioma = idiomaDeLaPeticion()
   const moneda = await monedaDeLaInstancia()
   // ADR 0049 · el idioma de los DOCUMENTOS de la instancia, para los papeles
