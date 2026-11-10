@@ -59,13 +59,18 @@ export function AvisosCorreo() {
   const [guardando, setGuardando] = useState(false)
   const [mensaje, setMensaje] = useState<{ tono: 'ok' | 'error'; texto: string } | null>(null)
   const [quitando, setQuitando] = useState(false)
+  const [noContesta, setNoContesta] = useState(false)
 
   useEffect(() => {
-    // Si la instancia aún no tiene la migración 031, no se pinta nada y el
-    // resto de la pantalla sigue igual.
-    seApi<Avisos>('avisos')
+    // CON ESPERA MÁXIMA, y no por prudencia: un Space Eye más viejo que esta
+    // interfaz deja la petición colgada en vez de contestar que no la conoce.
+    // Sin el corte, esta promesa no se resuelve NUNCA, el `catch` no corre, y
+    // la tarjeta se esconde entera sin decir por qué. Pasó en g500 el 9 de
+    // noviembre: la interfaz estaba puesta y traducida, el servidor de esa
+    // instancia no, y la pantalla de fallas no dio ni una señal.
+    seApi<Avisos>('avisos', { esperaMax: 8000 })
       .then(setAvisos)
-      .catch(() => {})
+      .catch(() => setNoContesta(true))
   }, [])
 
   const guardar = useCallback(
@@ -146,7 +151,24 @@ export function AvisosCorreo() {
     setGuardando(false)
   }, [guardar])
 
-  if (!avisos) return null
+  // Mientras se pregunta no se pinta nada: lo normal son 200 ms y un renglón
+  // que aparece y desaparece es peor que ninguno. Si NO contesta, sí se dice,
+  // porque «no está la tarjeta» y «el servidor no la tiene» se arreglan en
+  // sitios distintos y desde la pantalla no había forma de distinguirlos.
+  if (!avisos) {
+    if (!noContesta) return null
+    return (
+      <section className="rounded-md border border-border bg-surface">
+        <div className="flex flex-wrap items-center gap-2 px-3 py-2.5">
+          <Mail className="h-4 w-4 shrink-0 text-muted" strokeWidth={1.75} />
+          <span className="text-[13px] text-ink">Avisos por correo</span>
+          <span className="min-w-0 text-[13px] text-muted">
+            · el Space Eye de esta instancia todavía no los tiene. Se encienden al actualizarlo.
+          </span>
+        </div>
+      </section>
+    )
+  }
 
   const cuantos = (avisos.destinatarios || '').split(',').filter((d) => d.trim()).length
   const resumen = !avisos.activo

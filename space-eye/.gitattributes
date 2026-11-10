@@ -5,3 +5,7 @@
 *.py text eol=lf
 pi-agent/** text eol=lf
 infra/** text eol=lf
+# ...menos el paquete ya armado del agente: es un .tar.gz, y la regla de arriba
+# lo trataba como texto y le cambiaba bytes al guardarlo. Llegaba al Dockerfile
+# con otro sha256 que el de su .json y la Raspberry lo rechazaba.
+pi-agent/dist/*.tar.gz binary

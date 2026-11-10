@@ -61,6 +61,10 @@ export const ES = {
 
   // B · Avisos por correo cuando una pantalla falla
   'spaceeyes.avisos.titulo': 'Avisos por correo',
+  // AÑADIDA EL 9-NOV, DESPUÉS DEL LOTE. Lo que se enseña cuando el Space Eye
+  // de la instancia es más viejo que esta interfaz y no sabe de avisos.
+  'spaceeyes.avisos.sin-servidor':
+    '· el Space Eye de esta instancia todavía no los tiene. Se encienden al actualizarlo.',
   'spaceeyes.avisos.apagados': 'apagados',
   'spaceeyes.avisos.sin-correos': 'encendidos, pero sin ningún correo',
   'spaceeyes.avisos.resumen': 'a {quien}, agrupados cada {min} min',
@@ -131,6 +135,8 @@ export const EN = {
     "It is the site's time, not the server's, and it may cross midnight. It only changes the exposure: the framing and the white balance stay as set above. It applies to the live view and to every photo, scheduled ones included.",
 
   'spaceeyes.avisos.titulo': 'Email alerts',
+  'spaceeyes.avisos.sin-servidor':
+    '· the Space Eye on this instance does not have them yet. They turn on when it is updated.',
   'spaceeyes.avisos.apagados': 'off',
   'spaceeyes.avisos.sin-correos': 'on, but with no address',
   'spaceeyes.avisos.resumen': 'to {quien}, grouped every {min} min',
@@ -200,6 +206,8 @@ export const IT = {
     'È l’ora del sito, non quella del server, e può oltrepassare la mezzanotte. Cambia solo l’esposizione: l’inquadratura e il bilanciamento del bianco restano quelli di sopra. Vale per la vista dal vivo e per tutte le foto, comprese quelle programmate.',
 
   'spaceeyes.avisos.titulo': 'Avvisi via email',
+  'spaceeyes.avisos.sin-servidor':
+    '· lo Space Eye di questa istanza non li ha ancora. Si attivano aggiornandolo.',
   'spaceeyes.avisos.apagados': 'spenti',
   'spaceeyes.avisos.sin-correos': 'accesi, ma senza nessun indirizzo',
   'spaceeyes.avisos.resumen': 'a {quien}, raggruppati ogni {min} min',
@@ -269,6 +277,8 @@ export const PT = {
     'É a hora do site, não a do servidor, e pode atravessar a meia-noite. Só muda a exposição: o enquadramento e o balanço de branco continuam os de cima. Vale para a vista ao vivo e para todas as fotos, incluindo as programadas.',
 
   'spaceeyes.avisos.titulo': 'Avisos por e-mail',
+  'spaceeyes.avisos.sin-servidor':
+    '· o Space Eye desta instância ainda não os tem. Ligam-se ao atualizá-lo.',
   'spaceeyes.avisos.apagados': 'desligados',
   'spaceeyes.avisos.sin-correos': 'ligados, mas sem nenhum endereço',
   'spaceeyes.avisos.resumen': 'para {quien}, agrupados a cada {min} min',
