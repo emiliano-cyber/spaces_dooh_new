@@ -9,6 +9,8 @@ archivos: []
 > [!important] 2026-11-10 · **v0.12.9 en `main`** (idiomas con un botón, `8441031e`) y **paleta al instalar** en
 > `feat/paleta-de-instalacion`, desde ese `main` — **sin empujar**. `--paleta` del alta → `PALETA=` en `app.env`;
 > sin pantalla ni migración. Unitarias, pruebas del alta y navegador en verde. Detalle en [[2026-11-10]].
+> **Espera al dueño:** elegir en `docs/diseno/probador-temas.html` (25 temas: color + fondos + menú) qué
+> entra en el código, y cómo queda «Añadir» con `verde`. Fondos y menú aún NO están implementados.
 > **Zonas:** Z-Shell y el alta (R7) tomadas por esa rama hasta que se fusione.
 
 > [!important] 2026-11-06, noche · **V0.12.8 · idioma en la barra + Space Eyes de Jose** — rama `integra/v0-12-8` (`bbdd0784`), desde `main` `dfa64dcf` (v0.12.7) — **sin empujar**

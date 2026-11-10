@@ -482,6 +482,10 @@ recrear el contenedor.
 > La regla de arriba distingue confirmar (`primary`, el color de la instancia)
 > de añadir (`success`, #15803d). Con la paleta `verde` (#12805c) las dos
 > variantes se parecen mucho. Pendiente de decisión del dueño (10/11).
+> Las tres salidas (dejarlo, «Añadir» en contorno, o «Añadir» en el color de
+> la paleta) se ven lado a lado en `docs/diseno/probador-temas.html`, junto con
+> 25 temas propuestos (color + fondos + menú lateral) que aún NO están en el
+> código: hoy `--paleta` solo cambia el color.
 
 ## Cifras: coma cada tres dígitos
 

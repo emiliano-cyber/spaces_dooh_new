@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Probador de temas · SPACE OS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #faf7f2; --surface: #fff; --surface-2: #f3eee3; --ink: #1c1612;
+    --border: #eae4d8; --border-strong: #d9d0c1; --border-input: #94876f; --muted: #6e6155;
+    --success: #1da850; --success-soft: #e6f6ec; --warning: #f59e0b; --warning-soft: #fef3e2;
+    --error: #dc2626; --error-soft: #fdecec;
+    --accent: #0a66ff; --accent-hover: #0852d6; --accent-soft: #eaf1ff; --accent-fg: #fff; --info: #0a66ff;
+    --add: #15803d; --add-hover: #166534;
+    --lat-bg: #fff; --lat-borde: #eae4d8; --lat-texto: #1c1612; --lat-grupo: #1c1612;
+    --lat-sel-bg: #eaf1ff; --lat-sel-texto: #0852d6; --lat-sel-barra: transparent; --logo-borde: transparent;
+    --serif: 'Source Serif 4', Georgia, serif; --sans: Inter, system-ui, sans-serif; --mono: ui-monospace, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #e9e5de; color: #1c1612; font: 14px/1.45 var(--sans); }
+  .layout { display: grid; grid-template-columns: 330px 1fr; height: 100vh; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; height: auto; } }
+
+  /* ── Panel de control (fijo, no se tematiza) ── */
+  .control { background: #fff; border-right: 1px solid #e4dfd5; padding: 18px 16px 40px; overflow-y: auto; color: #1c1612; }
+  .control h1 { font: 700 20px var(--serif); margin: 0 0 2px; }
+  .control .sub { color: #6e6155; font-size: 12px; margin: 0 0 14px; }
+  .control h2 { font: 600 11px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: #6e6155; margin: 18px 0 8px; }
+  .control h3 { font: 600 12px var(--sans); margin: 12px 0 6px; color: #3b322b; }
+  .seg { display: flex; gap: 3px; background: #f3eee3; padding: 3px; border-radius: 8px; }
+  .seg button { flex: 1; border: 0; background: none; padding: 6px 4px; border-radius: 6px; font: 500 12px var(--sans); cursor: pointer; color: #6e6155; }
+  .seg button.activa { background: #fff; color: #1c1612; box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+  .temas { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .tema { display: flex; flex-direction: column; gap: 6px; padding: 7px; border: 1.5px solid #e4dfd5; border-radius: 9px; background: #fff; cursor: pointer; text-align: left; font: inherit; color: inherit; }
+  .tema:hover { border-color: #b9ae9c; }
+  .tema.activa { border-color: #1c1612; box-shadow: 0 0 0 1px #1c1612; }
+  .tema .tira { display: flex; height: 22px; border-radius: 5px; overflow: hidden; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); }
+  .tema .tira span { flex: 1; }
+  .tema .tira span:first-child { flex: 1.4; }
+  .tema b { font-size: 12.5px; }
+  .tema small { font-size: 10.5px; color: #6e6155; margin-top: -4px; }
+  .propio { display: flex; gap: 8px; align-items: center; }
+  .propio input[type=color] { width: 40px; height: 34px; border: 1px solid #94876f; border-radius: 6px; padding: 2px; background: #fff; }
+  .propio input[type=text] { flex: 1; min-width: 0; height: 34px; border: 1px solid #94876f; border-radius: 6px; padding: 0 10px; font: 13px var(--mono); }
+  .acces { margin: 0; padding: 0; list-style: none; font-size: 12px; }
+  .acces li { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px dashed #eae4d8; }
+  .acces .ok { color: #146c39; font-weight: 600; }
+  .acces .no { color: #b42318; font-weight: 600; }
+  .radio { display: flex; gap: 8px; align-items: flex-start; padding: 5px 2px; cursor: pointer; font-size: 13px; }
+  .radio small { display: block; color: #6e6155; font-size: 11.5px; }
+  .comando { margin-top: 6px; background: #1c1612; color: #f3eee3; border-radius: 6px; padding: 10px; font: 12px var(--mono); white-space: pre-wrap; word-break: break-all; }
+  .nota { font-size: 11.5px; color: #6e6155; margin-top: 6px; }
+
+  /* ── Escenario ── */
+  .escenario { padding: 22px; overflow: auto; }
+  .marco { background: var(--bg); border-radius: 12px; box-shadow: 0 10px 30px rgba(28,22,18,.14); overflow: hidden; max-width: 1180px; margin: 0 auto; color: var(--ink); }
+  .app { display: grid; grid-template-columns: 224px 1fr; min-height: 660px; }
+  .lateral { background: var(--lat-bg); border-right: 1px solid var(--lat-borde); padding: 14px 10px; color: var(--lat-texto); }
+  .marca { display: flex; align-items: center; gap: 9px; padding: 2px 6px 14px; border-bottom: 1px solid var(--lat-borde); margin-bottom: 10px; }
+  .logo { width: 30px; height: 30px; border-radius: 7px; background: var(--accent); color: var(--accent-fg); display: grid; place-items: center; font: 700 13px var(--serif); box-shadow: 0 0 0 1.5px var(--logo-borde); flex: none; }
+  .marca b { font: 700 14px var(--serif); display: block; }
+  .marca span { font-size: 11px; opacity: .75; }
+  .grupo { font: 700 10.5px var(--serif); letter-spacing: .05em; text-transform: uppercase; margin: 12px 8px 4px; color: var(--lat-grupo); }
+  .item { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 6px; font-size: 13px; box-shadow: inset 3px 0 0 transparent; }
+  .item.sel { background: var(--lat-sel-bg); color: var(--lat-sel-texto); font-weight: 600; box-shadow: inset 3px 0 0 var(--lat-sel-barra); }
+  .item i { width: 14px; height: 14px; border: 1.5px solid currentColor; border-radius: 3px; opacity: .7; flex: none; }
+  .barra { display: flex; justify-content: space-between; align-items: center; padding: 10px 22px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--muted); }
+  .barra .usuario { border: 1px solid var(--border-strong); border-radius: 8px; padding: 5px 10px; background: var(--surface); color: var(--ink); }
+  .contenido { padding: 20px 22px; }
+  .cabecera { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  .cabecera h3 { font: 600 26px var(--serif); margin: 0; }
+  .cabecera p { margin: 2px 0 0; color: var(--muted); }
+  .botones { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border-radius: 6px; font: 600 13px var(--sans); border: 1px solid transparent; cursor: pointer; }
+  .btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  .btn.primary:hover { background: var(--accent-hover); }
+  .btn.success { background: var(--add); color: #fff; border-color: var(--add); }
+  .btn.success.contorno { background: var(--surface); color: var(--add); border-color: var(--add); }
+  .btn.secondary { background: var(--surface); color: var(--accent-hover); border-color: var(--border-input); }
+  .btn.tertiary { background: none; color: var(--accent); }
+  .btn.danger { background: var(--surface); color: var(--error); border-color: var(--error); }
+  .tarjetas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+  .tarjeta { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+  .tarjeta .k { color: var(--muted); font-size: 12.5px; }
+  .tarjeta .v { font: 600 22px var(--mono); margin-top: 4px; }
+  .lista { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+  .lista .tit { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 8px; }
+  .lista .tit b { font: 700 15px var(--serif); }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border-strong); font-size: 12.5px; background: var(--surface); }
+  .chip.sel { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-hover); font-weight: 600; }
+  .fila { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--border); gap: 10px; }
+  .fila:nth-child(even) { background: color-mix(in srgb, var(--surface-2) 45%, var(--surface)); }
+  .fila:last-child { border-bottom: 0; }
+  .ref { font: 12px var(--mono); color: var(--muted); }
+  .badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; padding: 1px 8px; border-radius: 999px; border: 1px solid; margin-left: 6px; }
+  .badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .badge.azul { color: var(--accent-hover); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 25%, transparent); }
+  .badge.verde { color: #146c39; background: var(--success-soft); border-color: #1da85040; }
+  .badge.ambar { color: #9a6700; background: var(--warning-soft); border-color: #f59e0b40; }
+  .badge.rojo { color: #b42318; background: var(--error-soft); border-color: #dc262640; }
+  .aviso { display: flex; gap: 10px; border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent); background: color-mix(in srgb, var(--accent) 5%, var(--surface)); border-radius: 8px; padding: 12px; font-size: 13px; margin: 14px 0; }
+  .aviso b { color: var(--info); }
+  .enlace { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+  .campo { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; }
+  .campo input { height: 36px; border: 1px solid var(--border-input); border-radius: 6px; padding: 0 10px; font: inherit; outline: none; background: var(--surface); color: var(--ink); }
+  .campo input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end; }
+
+  .doc { background: #fff; max-width: 760px; margin: 24px auto; padding: 40px 48px; box-shadow: 0 1px 3px rgba(0,0,0,.08); color: #1c1612; }
+  .doc header { display: flex; justify-content: space-between; align-items: center; padding: 16px 18px; border-radius: 8px; background: var(--lat-bg); color: var(--lat-texto); border-bottom: 3px solid var(--accent); }
+  .doc h4 { font: 700 24px var(--serif); margin: 22px 0 4px; }
+  .doc table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 13px; }
+  .doc th { text-align: left; background: var(--accent-soft); color: var(--accent-hover); padding: 8px; }
+  .doc td { padding: 8px; border-bottom: 1px solid #eae4d8; }
+  .doc .total { text-align: right; font: 600 18px var(--mono); margin-top: 12px; color: var(--accent-hover); }
+  .doc .firma { margin-top: 28px; padding: 18px; border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); background: color-mix(in srgb, var(--accent) 4%, #fff); border-radius: 8px; }
+
+  /* Comparar todas */
+  .familia { max-width: 1180px; margin: 0 auto 8px; font: 700 18px var(--serif); color: #3b322b; }
+  .rejilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 14px; max-width: 1180px; margin: 0 auto 22px; }
+  .mini { border-radius: 10px; overflow: hidden; box-shadow: 0 4px 14px rgba(28,22,18,.12); cursor: pointer; border: 2px solid transparent; display: grid; grid-template-columns: 82px 1fr; background: var(--bg); color: var(--ink); min-height: 168px; }
+  .mini:hover { border-color: #1c1612; }
+  .mini .lat { background: var(--lat-bg); border-right: 1px solid var(--lat-borde); padding: 8px 6px; display: flex; flex-direction: column; gap: 4px; color: var(--lat-texto); font-size: 10.5px; }
+  .mini .lat .logo { width: 22px; height: 22px; font-size: 10px; border-radius: 5px; margin-bottom: 4px; }
+  .mini .lat div.l { padding: 3px 5px; border-radius: 4px; }
+  .mini .lat div.l.sel { background: var(--lat-sel-bg); color: var(--lat-sel-texto); font-weight: 600; box-shadow: inset 2px 0 0 var(--lat-sel-barra); }
+  .mini .cuerpo { padding: 10px; display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+  .mini .cuerpo b { font: 700 14px var(--serif); }
+  .mini .fila2 { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+  .mini .btn { min-height: 26px; padding: 0 9px; font-size: 11.5px; }
+  .mini .chip { font-size: 11px; padding: 1px 8px; }
+  .mini .tc { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 11px; color: var(--muted); }
+  .oculto { display: none !important; }
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="control">
+    <h1>Probador de temas</h1>
+    <p class="sub">Cada tema es un <b>color principal</b>, unos <b>fondos</b> y un <b>menú lateral</b>. Abajo puedes combinarlos a mano.</p>
+
+    <h2>Vista</h2>
+    <div class="seg" id="vistas">
+      <button data-vista="app" class="activa">Aplicación</button>
+      <button data-vista="doc">Documento</button>
+      <button data-vista="todas">Comparar todos</button>
+    </div>
+
+    <div id="familias"></div>
+
+    <h2>Ajustar el tema elegido</h2>
+    <h3>Color principal</h3>
+    <div class="propio">
+      <input type="color" id="selector" value="#0a66ff">
+      <input type="text" id="hex" value="#0a66ff" maxlength="7" spellcheck="false">
+    </div>
+    <h3>Fondos</h3>
+    <div class="seg" id="seg-fondos"></div>
+    <h3>Menú lateral</h3>
+    <div class="seg" id="seg-lateral"></div>
+
+    <h2>¿Se lee bien?</h2>
+    <ul class="acces" id="acces"></ul>
+
+    <h2>Botón «Añadir»</h2>
+    <label class="radio"><input type="radio" name="add" value="hoy" checked><span>Verde relleno (como hoy)</span></label>
+    <label class="radio"><input type="radio" name="add" value="contorno"><span>Verde con contorno<small>No se confunde con el principal aunque el tema sea verde.</small></span></label>
+    <label class="radio"><input type="radio" name="add" value="paleta"><span>Del color del tema<small>Un solo color de acción; el «+» lo distingue.</small></span></label>
+
+    <h2>Para instalarlo</h2>
+    <div class="comando" id="comando"></div>
+    <p class="nota">Hoy el instalador solo entiende el color. Fondos y menú lateral son lo nuevo que habría que añadir si te gustan.</p>
+  </aside>
+
+  <main class="escenario">
+    <div id="vista-app" class="marco">
+      <div class="app">
+        <nav class="lateral">
+          <div class="marca"><div class="logo">S</div><div><b>SPACE OS</b><span>Cliente Demo</span></div></div>
+          <div class="item"><i></i>Dashboard</div>
+          <div class="grupo">Inventario</div>
+          <div class="item"><i></i>Inventario</div>
+          <div class="item"><i></i>Arrendadores</div>
+          <div class="grupo">Ventas</div>
+          <div class="item"><i></i>Clientes</div>
+          <div class="item sel"><i></i>Propuestas</div>
+          <div class="item"><i></i>Campañas</div>
+          <div class="item"><i></i>Códigos de negociación</div>
+          <div class="grupo">Operaciones</div>
+          <div class="item"><i></i>Órdenes de trabajo</div>
+          <div class="item"><i></i>Imprenta</div>
+        </nav>
+        <section>
+          <div class="barra"><span>Viendo como <b style="color:var(--ink)">Dueño</b></span><span class="usuario">Dueño DEMO ▾</span></div>
+          <div class="contenido">
+            <div class="cabecera">
+              <div><h3>Propuestas</h3><p>Cotizaciones con el método divisor (bruto / neto)</p></div>
+              <div class="botones"><button class="btn secondary">Exportar</button><button class="btn success" data-add>+ Nueva propuesta</button></div>
+            </div>
+            <div class="tarjetas">
+              <div class="tarjeta"><div class="k">En proceso</div><div class="v" style="color:#b45309">MX$ 2,260,260</div></div>
+              <div class="tarjeta"><div class="k">Enviadas, esperando</div><div class="v" style="color:var(--info)">3</div></div>
+              <div class="tarjeta"><div class="k">Ganado</div><div class="v" style="color:#15803d">MX$ 6,828,224</div></div>
+            </div>
+            <div class="lista">
+              <div class="tit"><b>Lista de propuestas</b>
+                <div class="chips"><span class="chip sel">Todas 13</span><span class="chip">Borrador 3</span><span class="chip">Enviadas 3</span><span class="chip">Aprobadas 4</span></div>
+              </div>
+              <div class="fila"><div><span class="ref">CAT-PRO-001</span><span class="badge verde">Aprobada</span><div>Refresquera del Norte 2025-11</div></div><button class="btn secondary">Abrir ↗</button></div>
+              <div class="fila"><div><span class="ref">CAT-PRO-005</span><span class="badge azul">Enviada</span><div>Banco Nacional 2027-02</div></div><button class="btn secondary">Abrir ↗</button></div>
+              <div class="fila"><div><span class="ref">CAT-PRO-007</span><span class="badge ambar">Borrador</span><span class="badge rojo">Vence hoy</span><div>Cadena de cines · <a class="enlace" href="#" onclick="return false">ver cliente</a></div></div><button class="btn secondary">Abrir ↗</button></div>
+            </div>
+            <div class="aviso"><b>ℹ</b><span>Las propuestas vencen a los 30 días. Puedes <a class="enlace" href="#" onclick="return false">cambiar la vigencia</a> en Administración.</span></div>
+            <div class="form">
+              <label class="campo">Cliente<input value="Refresquera del Norte"></label>
+              <label class="campo">Código de negociación<input placeholder="Haz clic para ver el foco"></label>
+              <div class="botones"><button class="btn tertiary">Cancelar</button><button class="btn primary">Guardar</button><button class="btn success" data-add>+ Añadir sitio</button></div>
+            </div>
+            <div class="botones" style="margin-top:14px"><button class="btn primary">Aprobar código</button><button class="btn danger">Eliminar</button></div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div id="vista-doc" class="oculto">
+      <div class="doc">
+        <header><div class="marca" style="border:0;margin:0;padding:0"><div class="logo">S</div><div><b>Cliente Demo</b><span>Propuesta comercial</span></div></div><span class="ref" style="color:inherit;opacity:.8">CAT-PRO-005 · 10/11/2026</span></header>
+        <h4>Propuesta para Banco Nacional</h4>
+        <p style="color:#6e6155;margin:0">Campaña febrero 2027 · 2 sitios · vigencia 30 días</p>
+        <table>
+          <tr><th>Sitio</th><th>Tipo</th><th>Periodo</th><th style="text-align:right">Importe</th></tr>
+          <tr><td>Periférico Sur 4021</td><td>Digital</td><td>01/02 – 28/02</td><td style="text-align:right">MX$ 420,000.00</td></tr>
+          <tr><td>Insurgentes Norte 77</td><td>Espectacular</td><td>01/02 – 28/02</td><td style="text-align:right">MX$ 380,000.00</td></tr>
+        </table>
+        <div class="total">Total con IVA: MX$ 928,000.00</div>
+        <div class="firma"><b style="font-family:var(--serif)">Aceptar la propuesta</b><p style="font-size:12px;color:#6e6155">Escribe tu nombre para aceptar.</p>
+          <label class="campo"><input placeholder="Nombre completo" style="background:#fff;color:#1c1612"></label>
+          <div style="margin-top:10px"><button class="btn primary">Aceptar y firmar</button></div></div>
+      </div>
+    </div>
+
+    <div id="vista-todas" class="oculto"></div>
+  </main>
+</div>
+
+<script>
+  // ── Fondos: cuatro familias de neutros, todas con texto AA ──
+  const FONDOS = {
+    calido: { nombre: 'Cálido', bg: '#faf7f2', surface: '#ffffff', s2: '#f3eee3', ink: '#1c1612', border: '#eae4d8', strong: '#d9d0c1', input: '#94876f', muted: '#6e6155' },
+    frio:   { nombre: 'Frío',   bg: '#f5f7fa', surface: '#ffffff', s2: '#eaeff5', ink: '#0f172a', border: '#e1e7ef', strong: '#c9d3e0', input: '#7d8aa0', muted: '#536175' },
+    neutro: { nombre: 'Neutro', bg: '#f7f7f8', surface: '#ffffff', s2: '#eeeef0', ink: '#18181b', border: '#e4e4e7', strong: '#d4d4d8', input: '#85858f', muted: '#5c5c66' },
+    salvia: { nombre: 'Salvia', bg: '#f5f8f4', surface: '#ffffff', s2: '#e9f0e7', ink: '#132017', border: '#dde6da', strong: '#c6d3c2', input: '#7f907b', muted: '#536452' },
+  }
+  const LATERALES = { claro: 'Claro', tintado: 'Tintado', oscuro: 'Oscuro' }
+
+  // ── Los temas: color + fondos + menú. Agrupados por familia ──
+  const TEMAS = [
+    ['Corporativos', [
+      ['Azul SPACE', '#0a66ff', 'calido', 'claro', 'azul'],
+      ['Azul ejecutivo', '#0059e6', 'frio', 'oscuro'],
+      ['Marino', '#1e3a8a', 'frio', 'oscuro'],
+      ['Índigo', '#4338ca', 'frio', 'tintado'],
+      ['Acero', '#2f4a68', 'frio', 'claro'],
+      ['Grafito', '#27272a', 'neutro', 'oscuro', 'grafito'],
+      ['Pizarra', '#334155', 'neutro', 'tintado'],
+    ]],
+    ['Naturales', [
+      ['Verde', '#12805c', 'salvia', 'claro', 'verde'],
+      ['Bosque', '#14532d', 'salvia', 'oscuro'],
+      ['Petróleo', '#0f766e', 'frio', 'tintado'],
+      ['Oliva', '#4d6b1f', 'salvia', 'tintado'],
+      ['Turquesa', '#0e7490', 'frio', 'claro'],
+      ['Océano', '#075985', 'frio', 'oscuro'],
+    ]],
+    ['Cálidos', [
+      ['Naranja', '#c2410c', 'calido', 'claro', 'naranja'],
+      ['Terracota', '#b3432a', 'calido', 'tintado'],
+      ['Cobre', '#9a3412', 'calido', 'oscuro'],
+      ['Ámbar oscuro', '#92400e', 'calido', 'claro'],
+      ['Vino', '#9f1239', 'calido', 'oscuro', 'vino'],
+      ['Chocolate', '#5b3a29', 'calido', 'tintado'],
+    ]],
+    ['Vivos', [
+      ['Morado', '#6d28d9', 'neutro', 'claro', 'morado'],
+      ['Uva', '#5b21b6', 'neutro', 'oscuro'],
+      ['Magenta', '#be185d', 'neutro', 'tintado'],
+      ['Ciruela', '#86198f', 'calido', 'oscuro'],
+      ['Coral', '#c2363b', 'calido', 'claro'],
+      ['Eléctrico', '#2563eb', 'neutro', 'tintado'],
+    ]],
+  ]
+
+  // ── Cuentas (las mismas que lib/apariencia.ts) ──
+  const rgb = (h) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255] }
+  const aHex = (a) => '#' + a.map((c) => Math.round(Math.min(255, Math.max(0, c))).toString(16).padStart(2, '0')).join('')
+  const lum = (h) => { const [r, g, b] = rgb(h).map((c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4 }); return 0.2126 * r + 0.7152 * g + 0.0722 * b }
+  const contraste = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05) }
+  const mezclar = (h, o, t) => { const a = rgb(h), b = rgb(o); return aHex(a.map((c, i) => c + (b[i] - c) * t)) }
+  const normal = (v) => { v = (v || '').trim().toLowerCase(); let m = /^#?([0-9a-f]{6})$/.exec(v); if (m) return '#' + m[1]; m = /^#?([0-9a-f])([0-9a-f])([0-9a-f])$/.exec(v); return m ? '#' + m[1] + m[1] + m[2] + m[2] + m[3] + m[3] : null }
+
+  function calcular(t) {
+    const f = FONDOS[t.fondos]
+    const k = {
+      accent: t.color, hover: mezclar(t.color, '#000000', 0.16), soft: mezclar(t.color, '#ffffff', 0.9),
+      bg: f.bg, surface: f.surface, s2: f.s2, ink: f.ink, border: f.border, strong: f.strong, input: f.input, muted: f.muted,
+    }
+    if (t.lateral === 'claro') {
+      Object.assign(k, { latBg: f.surface, latBorde: f.border, latTexto: f.ink, latGrupo: f.ink, selBg: k.soft, selTexto: k.hover, selBarra: 'transparent', logoBorde: 'transparent' })
+    } else if (t.lateral === 'tintado') {
+      const latBg = mezclar(t.color, '#ffffff', 0.93)
+      Object.assign(k, { latBg, latBorde: mezclar(t.color, '#ffffff', 0.82), latTexto: f.ink, latGrupo: mezclar(t.color, '#000000', 0.35), selBg: mezclar(t.color, '#ffffff', 0.8), selTexto: mezclar(t.color, '#000000', 0.3), selBarra: t.color, logoBorde: 'transparent' })
+    } else {
+      const latBg = mezclar(t.color, '#0b0b10', 0.8)
+      Object.assign(k, { latBg, latBorde: mezclar(latBg, '#ffffff', 0.08), latTexto: '#ece9f1', latGrupo: mezclar(latBg, '#ffffff', 0.62), selBg: mezclar(latBg, '#ffffff', 0.14), selTexto: '#ffffff', selBarra: mezclar(t.color, '#ffffff', 0.45), logoBorde: 'rgba(255,255,255,.35)' })
+    }
+    return k
+  }
+
+  function controles(k) {
+    return [
+      ['Botón principal (texto blanco)', contraste(k.accent, '#ffffff')],
+      ['Enlaces sobre el fondo', contraste(k.accent, k.bg)],
+      ['Texto secundario', contraste(k.muted, k.bg)],
+      ['Filtro seleccionado', contraste(k.hover, k.soft)],
+      ['Texto del menú lateral', contraste(k.latTexto, k.latBg)],
+      ['Grupos del menú', contraste(k.latGrupo, k.latBg)],
+      ['Opción activa del menú', contraste(k.selTexto, k.selBg)],
+    ]
+  }
+
+  let modoAdd = 'hoy'
+  function aplicar(el, t) {
+    const k = calcular(t), s = el.style
+    const pon = (n, v) => s.setProperty(n, v)
+    pon('--accent', k.accent); pon('--accent-hover', k.hover); pon('--accent-soft', k.soft); pon('--info', k.accent)
+    pon('--bg', k.bg); pon('--surface', k.surface); pon('--surface-2', k.s2); pon('--ink', k.ink)
+    pon('--border', k.border); pon('--border-strong', k.strong); pon('--border-input', k.input); pon('--muted', k.muted)
+    pon('--lat-bg', k.latBg); pon('--lat-borde', k.latBorde); pon('--lat-texto', k.latTexto); pon('--lat-grupo', k.latGrupo)
+    pon('--lat-sel-bg', k.selBg); pon('--lat-sel-texto', k.selTexto); pon('--lat-sel-barra', k.selBarra); pon('--logo-borde', k.logoBorde)
+    if (modoAdd === 'paleta') { pon('--add', k.accent); pon('--add-hover', k.hover) } else { pon('--add', '#15803d'); pon('--add-hover', '#166534') }
+    el.querySelectorAll('[data-add]').forEach((b) => b.classList.toggle('contorno', modoAdd === 'contorno'))
+    return k
+  }
+
+  // ── Estado ──
+  const PRIMERO = TEMAS[0][1][0]
+  let actual = { nombre: PRIMERO[0], color: PRIMERO[1], fondos: PRIMERO[2], lateral: PRIMERO[3], clave: PRIMERO[4], ajustado: false }
+
+  function render() {
+    const k = aplicar(document.documentElement, actual)
+    document.querySelectorAll('.tema').forEach((b) => b.classList.toggle('activa', !actual.ajustado && b.dataset.nombre === actual.nombre))
+    document.getElementById('selector').value = actual.color
+    document.getElementById('hex').value = actual.color
+    document.querySelectorAll('#seg-fondos button').forEach((b) => b.classList.toggle('activa', b.dataset.v === actual.fondos))
+    document.querySelectorAll('#seg-lateral button').forEach((b) => b.classList.toggle('activa', b.dataset.v === actual.lateral))
+    const ul = document.getElementById('acces'); ul.innerHTML = ''
+    let todoBien = true
+    for (const [n, c] of controles(k)) {
+      const ok = c >= 4.5; if (!ok) todoBien = false
+      ul.insertAdjacentHTML('beforeend', `<li><span>${n}</span><span class="${ok ? 'ok' : 'no'}">${c.toFixed(1)}:1 ${ok ? '✓' : '✗'}</span></li>`)
+    }
+    const cmd = document.getElementById('comando')
+    const hoy = actual.clave && !actual.ajustado && actual.fondos === 'calido' && actual.lateral === 'claro'
+    cmd.textContent = !todoBien ? 'No pasaría: hay textos que no se leen (✗ arriba).'
+      : (hoy ? (actual.clave === 'azul' ? '(sin --paleta: es el de siempre)' : `--paleta ${actual.clave}`)
+        : `--paleta '${actual.color}'\n# propuesta: --fondos ${actual.fondos} --menu ${actual.lateral}`)
+    pintarTodos()
+  }
+
+  // ── Panel: familias de temas ──
+  const contFam = document.getElementById('familias')
+  for (const [familia, temas] of TEMAS) {
+    contFam.insertAdjacentHTML('beforeend', `<h2>${familia}</h2>`)
+    const g = document.createElement('div'); g.className = 'temas'
+    for (const [nombre, color, fondos, lateral, clave] of temas) {
+      const k = calcular({ color, fondos, lateral })
+      const b = document.createElement('button'); b.className = 'tema'; b.dataset.nombre = nombre
+      b.innerHTML = `<span class="tira"><span style="background:${k.latBg}"></span><span style="background:${color}"></span><span style="background:${k.soft}"></span><span style="background:${k.bg}"></span></span><b>${nombre}</b><small>${FONDOS[fondos].nombre} · menú ${LATERALES[lateral].toLowerCase()}${clave ? ' · ya existe' : ''}</small>`
+      b.onclick = () => { actual = { nombre, color, fondos, lateral, clave, ajustado: false }; render() }
+      g.append(b)
+    }
+    contFam.append(g)
+  }
+
+  // ── Panel: ajustes ──
+  const segF = document.getElementById('seg-fondos'), segL = document.getElementById('seg-lateral')
+  for (const [v, f] of Object.entries(FONDOS)) { const b = document.createElement('button'); b.dataset.v = v; b.textContent = f.nombre; b.onclick = () => { actual = { ...actual, fondos: v, ajustado: true }; render() }; segF.append(b) }
+  for (const [v, n] of Object.entries(LATERALES)) { const b = document.createElement('button'); b.dataset.v = v; b.textContent = n; b.onclick = () => { actual = { ...actual, lateral: v, ajustado: true }; render() }; segL.append(b) }
+  const sel = document.getElementById('selector'), hex = document.getElementById('hex')
+  sel.oninput = () => { actual = { ...actual, color: sel.value, ajustado: true }; render() }
+  hex.onchange = () => { const h = normal(hex.value); if (h) { actual = { ...actual, color: h, ajustado: true }; render() } }
+  document.querySelectorAll('input[name=add]').forEach((r) => r.onchange = () => { modoAdd = r.value; render() })
+
+  document.querySelectorAll('#vistas button').forEach((b) => b.onclick = () => {
+    document.querySelectorAll('#vistas button').forEach((x) => x.classList.toggle('activa', x === b))
+    for (const v of ['app', 'doc', 'todas']) document.getElementById('vista-' + v).classList.toggle('oculto', v !== b.dataset.vista)
+  })
+
+  function pintarTodos() {
+    const cont = document.getElementById('vista-todas'); cont.innerHTML = ''
+    for (const [familia, temas] of TEMAS) {
+      cont.insertAdjacentHTML('beforeend', `<div class="familia">${familia}</div>`)
+      const r = document.createElement('div'); r.className = 'rejilla'
+      for (const [nombre, color, fondos, lateral, clave] of temas) {
+        const d = document.createElement('div'); d.className = 'mini'
+        d.innerHTML = `
+          <div class="lat"><div class="logo">S</div><div class="l">Inicio</div><div class="l sel">Propuestas</div><div class="l">Campañas</div><div class="l">Clientes</div></div>
+          <div class="cuerpo">
+            <b>${nombre}</b>
+            <div class="fila2"><button class="btn primary">Guardar</button><button class="btn success" data-add>+ Añadir</button><button class="btn secondary">Abrir</button></div>
+            <div class="fila2"><span class="chip sel">Todas 13</span><span class="chip">Borrador</span><span class="badge azul" style="margin:0">Enviada</span></div>
+            <div class="tc">${FONDOS[fondos].nombre} · menú ${LATERALES[lateral].toLowerCase()} · <a class="enlace" href="#" onclick="return false">${color}</a></div>
+          </div>`
+        aplicar(d, { color, fondos, lateral })
+        d.onclick = () => { actual = { nombre, color, fondos, lateral, clave, ajustado: false }; document.querySelector('[data-vista=app]').click(); render() }
+        r.append(d)
+      }
+      cont.append(r)
+    }
+  }
+
+  render()
+</script>
+</body>
+</html>
