@@ -518,7 +518,7 @@ export function GestionCodigos() {
 // Los chips de conteo del encabezado, con los bordes y textos del Dashboard.
 const CHIP_ESTADO: Record<EstadoDelCodigo, string> = {
   VIGENTE: 'border-[#1da85040] text-[#146c39]',
-  PROXIMO: 'border-[#0a66ff40] text-[#0a4fcc]',
+  PROXIMO: 'border-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-accent-hover',
   AGOTADO: 'border-[#f59e0b40] text-[#9a6700]',
   VENCIDO: 'border-border text-muted',
 }

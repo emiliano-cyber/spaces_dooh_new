@@ -1,10 +1,15 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-11-06
+actualizado: 2026-11-10
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
+
+> [!important] 2026-11-10 · **v0.12.9 en `main`** (idiomas con un botón, `8441031e`) y **paleta al instalar** en
+> `feat/paleta-de-instalacion`, desde ese `main` — **sin empujar**. `--paleta` del alta → `PALETA=` en `app.env`;
+> sin pantalla ni migración. Unitarias, pruebas del alta y navegador en verde. Detalle en [[2026-11-10]].
+> **Zonas:** Z-Shell y el alta (R7) tomadas por esa rama hasta que se fusione.
 
 > [!important] 2026-11-06, noche · **V0.12.8 · idioma en la barra + Space Eyes de Jose** — rama `integra/v0-12-8` (`bbdd0784`), desde `main` `dfa64dcf` (v0.12.7) — **sin empujar**
 > Contiene `feat/idioma-en-barra` y `origin/fix/space-eyes-fotos-rapidas` (Jose, 26 commits; 29 conflictos con la

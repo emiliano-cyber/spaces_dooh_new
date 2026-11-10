@@ -13,7 +13,12 @@
 #  Uso:
 #    instalar-hijo.sh --instancia <nombre> --dominio <dominio> \
 #        --licencia <dir> --contacto <correo> \
-#        [--con-eyes] [--confirmar | --dry-run]
+#        [--con-eyes] [--paleta <nombre|#rrggbb>] [--confirmar | --dry-run]
+#
+#  --paleta    el color de la instancia (PALETA-01): azul, verde, morado,
+#              naranja, vino, grafito o un #rrggbb que se lea con texto blanco
+#              (contraste 4.5:1). Queda en `app.env` como `PALETA=`. Sin la
+#              bandera, azul. No se cambia desde la aplicacion.
 #
 #  --con-eyes  la instancia nace con su Space Eye dentro (ADR 0045): las
 #              camaras de esta empresa se dan de alta en eyes.<dominio>. Pide
@@ -148,6 +153,8 @@ while [[ $# -gt 0 ]]; do
     --spaces-bucket)  bandera_retirada --spaces-bucket SPACES_BUCKET ;;
     --confirmar)      CONFIRMAR=1; shift ;;
     --con-eyes)       CON_EYES=1; shift ;;
+    --paleta)         PALETA="${2:-}"; shift 2 ;;
+    --paleta=*)       PALETA="${1#--paleta=}"; shift ;;
     --dry-run)        CONFIRMAR=0; shift ;;
     -h|--ayuda|--help) uso; exit 0 ;;
     *) echo "instalar-hijo: argumento desconocido: $1" >&2; uso >&2; exit "$EX_USO" ;;
@@ -200,6 +207,8 @@ fi
 [[ -n "$FLOTA_TOKEN" ]]   || { echo "instalar-hijo: falta FLOTA_TOKEN en el entorno (\`export FLOTA_TOKEN=...\`)" >&2; exit "$EX_USO"; }
 [[ -n "$LICENCIA_ORIGEN" ]] || { echo "instalar-hijo: falta --licencia <directorio>" >&2; exit "$EX_USO"; }
 validar_valor_seguro "FLOTA_TOKEN" "$FLOTA_TOKEN"
+# PALETA-01 · con los demas argumentos: un color ilegible para aqui.
+validar_paleta "${PALETA:-}"
 
 # `--contacto` no esta en la lista de argumentos del brief, y por eso es
 # OPCIONAL y no se exige: la prueba en seco de la tarea 2 del brief la invoca
@@ -779,6 +788,7 @@ reescribir_env_docker "$TPL_APP" \
   "BOOTSTRAP_TOKEN=$BOOTSTRAP_TOKEN" \
   "FLOTA_TOKEN=$FLOTA_TOKEN" \
   "CANAL=$CANAL" \
+  "PALETA=$PALETA_APP" \
   | escribir /etc/space-os/app.env 600
 if [[ "$CON_EYES" -eq 1 ]]; then
   eyes_env "$TPL_EYES" "$INSTANCIA" "$DOMINIO" "${IP_DROPLET:-127.0.0.1}" \

@@ -17,7 +17,7 @@ import type { ClaveTexto } from '@/lib/i18n/diccionario'
 
 export const EST: Record<EstPropuesta, { label: string; cls: string }> = {
   BORRADOR: { label: 'Borrador', cls: 'border-border text-muted' },
-  ENVIADA: { label: 'Enviada', cls: 'border-[#0a66ff40] text-info' },
+  ENVIADA: { label: 'Enviada', cls: 'border-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-info' },
   APROBADA: { label: 'Aprobada', cls: 'border-[#10b98140] text-[#0f7a55]' },
   RECHAZADA: { label: 'Rechazada', cls: 'border-[#ef444440] text-error' },
 }

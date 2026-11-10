@@ -9,6 +9,7 @@ import { ProveedorMoneda } from '@/lib/i18n/moneda-cliente'
 import { monedaDeLaInstancia } from '@/lib/server/moneda-instancia'
 import { idiomaDeLaInstancia } from '@/lib/server/idioma-instancia'
 import { idiomasDelServidor } from '@/lib/server/idiomas-servidor'
+import { cssDePaleta, leerPaleta } from '@/lib/apariencia'
 import { ProveedorIdiomaDocumentos } from '@/lib/i18n/idioma-documentos-cliente'
 import { traducir } from '@/lib/i18n/diccionario'
 
@@ -88,6 +89,8 @@ const inter = Inter({
 // hasta recargar, sin ningun error. Sin base tampoco se puede iniciar sesion,
 // asi que el fallo no quita nada que funcionara.
 
+let avisoPaletaDado = false
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // IDIOMAS-SERVIDOR (10/11) · PRIMERO: deja fijados los idiomas elegidos en
   // Administracion, y `idiomaDeLaPeticion()` / `idiomasActivos()` de abajo ya
@@ -102,9 +105,23 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // Los idiomas ENCENDIDOS (ola 0 del italiano, 2026-11-03). Con uno solo —el
   // espanol— no hay nada que elegir y el selector no se pinta.
   const disponibles = idiomasActivos()
+  // PALETA-01 (10/11) · el color de la instancia, que se elige AL INSTALAR
+  // (`--paleta` del alta → `PALETA` en `app.env`) y no desde la aplicacion.
+  // Se lee aqui, en tiempo de ejecucion y sin `NEXT_PUBLIC_`: la imagen es la
+  // misma para toda la flota y cada servidor pone su color.
+  const paleta = leerPaleta(process.env.PALETA)
+  if (!paleta.ok && !avisoPaletaDado) {
+    avisoPaletaDado = true // una vez por proceso, no en cada pagina
+    console.warn(`[paleta] ${paleta.motivo}; se usa el azul de SPACE OS`)
+  }
+  const cssPaleta = cssDePaleta(paleta.color)
   return (
     <html lang={langDelHtml(idioma)} className={`${serif.variable} ${inter.variable}`}>
       <body>
+        {/* Pintada YA en el HTML: sin parpadeo del azul al color de la
+            instancia. Vacia con la paleta de siempre. Solo admite `#rrggbb`
+            validados (`leerPaleta`): no hay texto libre que inyectar. */}
+        {cssPaleta && <style id="paleta-instancia" dangerouslySetInnerHTML={{ __html: cssPaleta }} />}
         <ProveedorMoneda moneda={moneda}>
           <ProveedorIdioma idioma={idioma} puedeElegir={disponibles.length > 1} disponibles={disponibles}>
             <ProveedorIdiomaDocumentos idioma={idiomaDocumentos}>

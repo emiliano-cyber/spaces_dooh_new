@@ -163,7 +163,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
 
       {/* Aviso: pantallas con IA / medición de audiencia */}
       {sitiosIA.length > 0 && (
-        <div className="flex items-start gap-2.5 rounded-md border border-[#0a66ff33] bg-[#0a66ff0a] p-3">
+        <div className="flex items-start gap-2.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] bg-[color-mix(in_srgb,var(--accent)_4%,transparent)] p-3">
           <Cpu className="mt-0.5 h-4 w-4 shrink-0 text-info" />
           <div className="text-[12px]">
             <div className="text-[13px] font-medium text-ink">

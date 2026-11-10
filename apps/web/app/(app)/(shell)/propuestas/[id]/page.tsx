@@ -877,7 +877,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                               <span
                                 className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium leading-none ${
                                   digital
-                                    ? 'border-[#0a66ff40] bg-accent-soft text-[#0a4fcc]'
+                                    ? 'border-[color-mix(in_srgb,var(--accent)_25%,transparent)] bg-accent-soft text-accent-hover'
                                     : 'border-border bg-surface-2 text-muted'
                                 }`}
                               >
