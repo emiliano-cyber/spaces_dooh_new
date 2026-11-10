@@ -5,7 +5,7 @@ La entrada más reciente va arriba.
 
 ---
 
-## 2026-11-10 · Los idiomas se encienden con un botón desde Administración (sin publicar)
+## 2026-11-10 · v0.12.9 · Los idiomas se encienden con un botón desde Administración
 
 **Qué cambia para quien usa la aplicación.** En **Administración → Configuración → Idiomas del servidor**, el Dueño o un Administrador marca qué idiomas ofrece su servidor: Español (siempre), English, Italiano o Português. Al guardar, el selector de idioma aparece en la pantalla de entrar y en el menú de la cuenta, sin recargar y sin que nadie tenga que entrar al servidor.
 

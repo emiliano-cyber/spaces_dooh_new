@@ -1,5 +1,17 @@
 [
   {
+    "version": "v0.12.9",
+    "fecha": "2026-11-10",
+    "items": [
+      {
+        "tipo": "NUEVO",
+        "texto": "Administración → Configuración → «Idiomas del servidor»: el Dueño o un Administrador enciende English, Italiano o Português con un botón. Con más de un idioma aparece el selector al entrar y en el menú de la cuenta, y cada quien ve la aplicación en el idioma de su navegador.",
+        "en": "Settings → Configuration → “Server languages”: the Owner or an Administrator turns on English, Italian or Portuguese with one button. With more than one language, the selector appears at sign-in and in the account menu, and everyone sees the app in their browser’s language.",
+        "it": "Impostazioni → Configurazione → «Lingue del server»: il Titolare o un Amministratore attiva inglese, italiano o portoghese con un pulsante. Con più di una lingua compare il selettore all’accesso e nel menu dell’account, e ognuno vede l’applicazione nella lingua del proprio browser."
+      }
+    ]
+  },
+  {
     "version": "v0.12.8",
     "fecha": "2026-11-06",
     "items": [
