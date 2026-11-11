@@ -6,7 +6,7 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
-> [!important] 2026-11-11 · **Network para la app nueva + eliminar usuarios solo Dueño/Administrador** — rama `feat/network-api-y-borrado`, desde `main` `8441031e` (v0.12.9) — **sin empujar**
+> [!important] 2026-11-11 · **Network para la app nueva + eliminar usuarios solo Dueño/Administrador + campos de pantalla por instancia + permisos editables** — rama `feat/network-api-y-borrado`, desde `main` `8441031e` (v0.12.9) — **sin empujar**
 > `GET /api/network/espacios` (+ foto) con `x-network-token`: las pantallas con el switch encendido, ficha pública y
 > días libres. Y el 403 al borrar para los demás roles. Typecheck, 10 256 unitarias y 4 e2e (incluida `aislamiento`)
 > en verde; la suite e2e completa no se corrió. **Zonas:** ninguna tomada. Detalle en [[2026-11-11]].

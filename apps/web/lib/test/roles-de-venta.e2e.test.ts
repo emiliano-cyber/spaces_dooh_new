@@ -432,16 +432,23 @@ describe('6 · GUARD 2 — la organización nunca se queda sin Dueño activo', (
       cuerpo: { rol: 'ADMINISTRADOR' },
     })
     expect(degradar.status).toBe(409)
-    // Desde el 2026-11-09 el DELETE exige reautenticación: sin ella daría 403 y
-    // este 409 —el del guard del último Dueño— no se llegaría a medir.
+    // Desde el 2026-11-11 eliminar es SOLO de Dueño y Administrador, aunque la
+    // matriz conceda `administracion.crear` (`puedeEliminarUsuarios`). Este
+    // director tiene el permiso por la matriz y aun así recibe 403 ANTES del
+    // guard del último Dueño. Antes de ese día aquí se medía el 409 de ese guard;
+    // ahora el 403 llega primero, y es la decisión del dueño funcionando.
     await desbloquear(c)
     const borrar = await c.pedir(`/api/usuarios/${d1}/`, { metodo: 'DELETE' })
-    expect(borrar.status).toBe(409)
+    expect(borrar.status).toBe(403)
+    expect(String(borrar.datos?.error)).toMatch(/Solo el Dueño o un Administrador/)
     expect(await duenosActivos()).toBe(1)
   })
 
   it('un Dueño YA inactivo sí se puede eliminar: no quita a nadie', async () => {
-    const c = await entrar('director')
+    // Lo elimina un DUEÑO (d1, el activo): desde el 11/11 el director no puede
+    // eliminar a nadie, aunque la matriz le dé `administracion`.
+    const c = new Cliente()
+    await c.entrar(org.usuarioEmail, PASSWORD_DEMO)
     await desbloquear(c)
     const r = await c.pedir(`/api/usuarios/${d3}/`, { metodo: 'DELETE' })
     expect(r.status).toBe(200)
