@@ -1,7 +1,7 @@
 ---
 tipo: referencia
 estado: verificado
-actualizado: 2026-11-09
+actualizado: 2026-11-11
 tags: [backend, api, endpoints]
 archivos:
   - apps/web/app/api/
@@ -395,6 +395,13 @@ Flota).
 | Método | Path | Guard | Notas |
 |---|---|---|---|
 | GET | `/api/version` | PÚBLICO / token | Sin `x-flota-token` devuelve solo `{ok}`; con él, `version`, `ultimaMigracion`, `base`, `canal` y `uptime`. **503 si la base no contesta** — es el `SALUD_URL` de `infra/scripts/update.sh`, y la anterior (`/api/auth/metodos`) daba 200 con Postgres muerto |
+
+## Network (app externa)
+
+| Método | Path | Guard | Notas |
+|---|---|---|---|
+| GET | `/api/network/espacios` | token `x-network-token` | Pantallas con el switch «En la Network» encendido: ficha pública y días libres en `?desde=&hasta=` (máx. 366 días). 401 sin token; cerrada si falta `NETWORK_TOKEN` — [[network-api]] |
+| GET | `/api/network/espacios/[id]/foto` | token `x-network-token` | Bytes de la foto principal; 404 si no existe, si el switch está apagado o si no tiene foto |
 
 > [!important] `/api/version` no dice **nada** del negocio del owner, a propósito
 > Ni organizaciones, ni usuarios, ni una cifra. El panel de flota es de AS OOH y

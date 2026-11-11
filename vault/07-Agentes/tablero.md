@@ -6,6 +6,11 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!important] 2026-11-11 · **Network para la app nueva + eliminar usuarios solo Dueño/Administrador** — rama `feat/network-api-y-borrado`, desde `main` `8441031e` (v0.12.9) — **sin empujar**
+> `GET /api/network/espacios` (+ foto) con `x-network-token`: las pantallas con el switch encendido, ficha pública y
+> días libres. Y el 403 al borrar para los demás roles. Typecheck, 10 256 unitarias y 4 e2e (incluida `aislamiento`)
+> en verde; la suite e2e completa no se corrió. **Zonas:** ninguna tomada. Detalle en [[2026-11-11]].
+
 > [!important] 2026-11-06, noche · **V0.12.8 · idioma en la barra + Space Eyes de Jose** — rama `integra/v0-12-8` (`bbdd0784`), desde `main` `dfa64dcf` (v0.12.7) — **sin empujar**
 > Contiene `feat/idioma-en-barra` y `origin/fix/space-eyes-fotos-rapidas` (Jose, 26 commits; 29 conflictos con la
 > traducción y el rediseño, resueltos). Typecheck, 10 187 unitarias y build en verde; **e2e no corridas**.

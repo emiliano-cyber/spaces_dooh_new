@@ -5,6 +5,16 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-11 · Solo el Dueño y el Administrador eliminan usuarios, y la Network se abre a la nueva app (sin publicar)
+
+**Eliminar usuarios.** El botón **Eliminar** de **Administración → Equipo** solo lo ven el Dueño y los Administradores, y el servidor rechaza a cualquier otro rol aunque en la tabla de permisos se le haya dado «crear» en Administración. Antes, conceder ese permiso a otro rol para que diera de alta gente le dejaba también borrar a cualquiera.
+
+**Network.** El interruptor **En la Network** de cada pantalla ahora sirve para algo fuera de la aplicación: la nueva app de Network podrá consultar las pantallas que lo tengan encendido, con sus datos públicos (nombre, ubicación, medidas, tarifa publicada, foto) y los días que tienen libres. Apagar el interruptor la saca de la app en la siguiente consulta.
+
+**A tener en cuenta.**
+- La app todavía no existe. Mientras no se configure su clave en el servidor, nadie puede consultar nada.
+- La app nunca ve costos, tarifas internas, notas, campañas, clientes ni precios de venta.
+
 ## 2026-11-10 · v0.12.9 · Los idiomas se encienden con un botón desde Administración
 
 **Qué cambia para quien usa la aplicación.** En **Administración → Configuración → Idiomas del servidor**, el Dueño o un Administrador marca qué idiomas ofrece su servidor: Español (siempre), English, Italiano o Português. Al guardar, el selector de idioma aparece en la pantalla de entrar y en el menú de la cuenta, sin recargar y sin que nadie tenga que entrar al servidor.
