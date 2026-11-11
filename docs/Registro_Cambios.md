@@ -15,6 +15,8 @@ La entrada más reciente va arriba.
 
 **Permisos editables.** En **Administración → Roles**, el Dueño ve el botón **«Editar permisos»** y puede conceder o quitar cada permiso a cada rol con un clic. Pide su contraseña, se guarda al momento y cada persona lo nota la próxima vez que cargue la aplicación. La columna del Dueño no se puede cambiar: siempre tiene todos. Eliminar usuarios sigue siendo solo del Dueño y el Administrador, aunque se marque otra cosa. En un servidor con varias empresas (como la demostración), los permisos no se cambian desde aquí.
 
+**Dashboard.** Las tarjetas **Alertas** y **Huecos y renovaciones**, que van una al lado de la otra, ahora tienen siempre la misma altura: ya no queda un espacio vacío debajo de la más corta. Si se pliega una, se queda pequeña.
+
 **A tener en cuenta.**
 - La app todavía no existe. Mientras no se configure su clave en el servidor, nadie puede consultar nada.
 - La app nunca ve costos, tarifas internas, notas, campañas, clientes ni precios de venta.
