@@ -126,6 +126,7 @@ cobranza.
 - [[03-Frontend/_indice|Índice de Frontend]] — mapa de la capa cliente
 - [[shell-y-navegacion]] — layouts, sidebar, topbar, guards de UI
 - [[acceso-y-sesion-ui]] — login, recuperar, autoregistro
+- [[campos-ocultos-pantalla]] — campos del alta de pantalla que cada instancia oculta al instalarse (11/11)
 - [[idiomas-es-en]] — la aplicación en español e inglés: cómo se detecta, cómo se cambia, y por qué el dinero no se mueve
 - [[ingles-olas]] — el tablero de la traducción al inglés: olas, ramas, veredictos y lo que falta
 - [[italiano-olas]] — el tablero de la versión en italiano: la ola 0, los lotes y las decisiones del dueño

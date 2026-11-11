@@ -207,6 +207,11 @@ al abrirse.
 > `GET /api/network/espacios`, con su propio token. Ficha pública y días
 > libres; nada de costos ni de campañas. Ver [[network-api]].
 
+> [!important] 2026-11-11 · cada instancia puede ocultar campos del alta
+> `PANTALLA_CAMPOS_OCULTOS` en `app.env`, elegido al instalar. Sin arrendador
+> la pantalla nace propia; sin ubicación, pendiente de verificar. Ver
+> [[03-Frontend/campos-ocultos-pantalla]].
+
 > [!note] El `select s.*` se quitó el 12/10, y sin lista a mano
 > Se dejó el 10/08 porque una lista explícita son ~48 columnas y se le puede
 > caer una. Pero el tráfico Postgres→Node que quedaba pendiente **se notó en

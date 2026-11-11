@@ -733,6 +733,32 @@ dice 'solo vale junto con --bootstrap'
 no_hubo 'cuerpo-bootstrap'
 limpiar
 
+# ============================================================================
+#  CAMPOS-PANTALLA (11/11) · cada empresa quita del alta de pantalla lo que no
+#  usa, SOLO al instalar. Acaba en app.env y update.sh no lo toca.
+# ============================================================================
+escenario 'CAMPOS-PANTALLA · sin la bandera, app.env lleva la clave VACIA (se ven todos)'
+preparar
+correr REGISTRY=registro.ejemplo/x REGISTRY_TOKEN=t CANAL=beta -- --host "$IP" --dominio "$DOM" --instancia p --confirmar
+codigo_es 0
+escrito_casa /etc/space-os/app.env '^PANTALLA_CAMPOS_OCULTOS=$'
+limpiar
+
+escenario 'CAMPOS-PANTALLA · --ocultar-campos-pantalla limpia espacios, mayusculas y repetidos'
+preparar
+correr REGISTRY=registro.ejemplo/x REGISTRY_TOKEN=t CANAL=beta -- --host "$IP" --dominio "$DOM" --instancia p --ocultar-campos-pantalla ' Ubicacion,IMAGEN,imagen ,arrendador' --confirmar
+codigo_es 0
+escrito_casa /etc/space-os/app.env '^PANTALLA_CAMPOS_OCULTOS=ubicacion,imagen,arrendador$'
+limpiar
+
+escenario 'CAMPOS-PANTALLA · un campo desconocido (o el nombre) para el alta ANTES de tocar el servidor'
+preparar
+correr REGISTRY=registro.ejemplo/x REGISTRY_TOKEN=t CANAL=beta -- --host "$IP" --dominio "$DOM" --instancia p --ocultar-campos-pantalla ubicacion,nombre --confirmar
+codigo_es 64
+dice "'nombre' no es un campo que se pueda ocultar"
+no_hubo 'app.env'
+limpiar
+
 escenario '36d · con 201 SI lo afirma, y sale bien'
 preparar
 correr D_CODIGO_BOOT=201 -- \

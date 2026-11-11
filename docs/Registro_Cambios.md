@@ -11,6 +11,8 @@ La entrada más reciente va arriba.
 
 **Network.** El interruptor **En la Network** de cada pantalla ahora sirve para algo fuera de la aplicación: la nueva app de Network podrá consultar las pantallas que lo tengan encendido, con sus datos públicos (nombre, ubicación, medidas, tarifa publicada, foto) y los días que tienen libres. Apagar el interruptor la saca de la app en la siguiente consulta.
 
+**Campos al crear una pantalla.** Cada empresa puede quitar del formulario «Nueva pantalla» (en Inventario y en Comercial) los campos que no usa: ubicación, imagen, arrendador, medidas, tarifa, etc. Todos menos el nombre. Se elige al instalar su servidor y las actualizaciones no lo cambian. Si quita el arrendador, sus pantallas se dan de alta como propias; si quita la ubicación, nacen sin coordenadas y marcadas para revisar.
+
 **A tener en cuenta.**
 - La app todavía no existe. Mientras no se configure su clave en el servidor, nadie puede consultar nada.
 - La app nunca ve costos, tarifas internas, notas, campañas, clientes ni precios de venta.
