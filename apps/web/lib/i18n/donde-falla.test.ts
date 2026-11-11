@@ -84,6 +84,12 @@ describe('nombre de una falla · el que escribe el telefono', async () => {
     for (const x of ['F-APAGADO', 'Pantalla congelada (otra)', 'zona_apagada', 'Posible gabinete apagado ', 'posible gabinete apagado'])
       expect(nombreDeFallaEnIdioma(x, 'en')).toBe(x)
   })
+  it('el gabinete apagado de ANTES del 11/11 (sin «o tapado») se sigue traduciendo', () => {
+    // Lo mandan los Space Eye sin actualizar y las fallas ya guardadas.
+    expect(nombreDeFallaEnIdioma('Posible gabinete apagado', 'en')).toBe(EN['spaceeyes.fallas.nombre.zona-apagada'])
+    expect(nombreDeFallaEnIdioma('Varios gabinetes apagados', 'it')).toBe((DICCIONARIOS.it as Record<string, string>)['spaceeyes.fallas.nombre.varios-apagados'])
+    expect(nombreDeFallaEnIdioma('Posible gabinete apagado o tapado', 'en')).toBe('Possible cabinet off or covered')
+  })
   it('el espanol de cada clave es el literal de la app (`Monitor.kt`)', () => {
     const kt = readFileSync(join(process.cwd(), '../../space-eye/android/app/src/main/java/com/spaceeye/agent/pantalla/Monitor.kt'), 'utf8')
     for (const k of claves) expect(kt, k).toContain(`"${ES[k]}"`)

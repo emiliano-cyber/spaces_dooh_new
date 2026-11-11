@@ -38,7 +38,15 @@ export function textoDeError(e: unknown, idioma: Idioma = 'es'): string | null {
   return e instanceof Error ? e.message : null
 }
 
-export async function seApi<T = any>(ruta: string, init?: { method?: string; body?: unknown; form?: FormData }): Promise<T> {
+// `esperaMax` corta a los N milisegundos. Hace falta porque una peticion puede
+// quedarse SIN RESPUESTA -no fallar: colgada- cuando el Space Eye de la
+// instancia es mas viejo que esta interfaz y no tiene esa funcion. Sin corte,
+// la promesa no se resuelve nunca, el `catch` de quien llama jamas corre, y la
+// pantalla se queda esperando en silencio para siempre (g500, 9-nov-2026).
+export async function seApi<T = any>(
+  ruta: string,
+  init?: { method?: string; body?: unknown; form?: FormData; esperaMax?: number },
+): Promise<T> {
   const [camino, consulta] = ruta.split('?')
   const url = `${BASE}/${camino.replace(/^\/+/, '')}/${consulta ? `?${consulta}` : ''}`
   const r = await fetch(url, {
@@ -46,6 +54,7 @@ export async function seApi<T = any>(ruta: string, init?: { method?: string; bod
     headers: init?.body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
     body: init?.form ?? (init?.body !== undefined ? JSON.stringify(init.body) : undefined),
     cache: 'no-store',
+    signal: init?.esperaMax ? AbortSignal.timeout(init.esperaMax) : undefined,
   })
   const texto = await r.text()
   let cuerpo: any = null

@@ -61,7 +61,7 @@ async function main() {
     // las acomoda arriba-izq, arriba-der, abajo-der, abajo-izq.
     r = await pedir('PUT', `/api/devices/${DID}/pantalla`, usuario, {
       esquinas: [[0.298, 0.957], [0.875, 0.687], [0.928, 0.193], [0.258, 0.244]],
-      filas: 4, columnas: 6, excluir: [[3, 5]], horario: { inicio: '06:00', fin: '24:00' },
+      filas: 4, columnas: 6, excluir: [[3, 5]], horario: { inicio: '00:00', fin: '24:00' },
     });
     afirmar(r.status === 200, 'marcar la pantalla', JSON.stringify(r.j));
     {
@@ -116,7 +116,7 @@ async function main() {
     r = await pedir('GET', `/api/devices/${DID}/pantalla`, usuario);
     const f = r.j.fallas?.find((x: any) => x.id === id);
     afirmar(r.j.ultimo?.vistazos === 18, 'el dashboard ve la ultima revision');
-    afirmar(f?.gabinete === 9 && f?.nombre === 'Posible gabinete apagado', 'la falla dice que gabinete (fila 2, col 3 = 9)', JSON.stringify(f));
+    afirmar(f?.gabinete === 9 && f?.nombre === 'Posible gabinete apagado o tapado', 'la falla dice que gabinete (fila 2, col 3 = 9)', JSON.stringify(f));
     afirmar(typeof f?.evidencia === 'string' && f.evidencia.includes('sig='), 'la evidencia viene firmada');
 
     r = await pedir('GET', '/api/fallas?estado=abierta', usuario);
@@ -136,7 +136,7 @@ async function main() {
     const grupo = r.j.id; creadas.push(grupo);
     r = await pedir('GET', `/api/devices/${DID}/pantalla`, usuario);
     const fg = r.j.fallas.find((x: any) => x.id === grupo);
-    afirmar(fg?.nombre === 'Varios gabinetes apagados' && fg?.detalle?.gabinetes?.length === 8 && fg.gabinete === null,
+    afirmar(fg?.nombre === 'Varios gabinetes apagados o tapados' && fg?.detalle?.gabinetes?.length === 8 && fg.gabinete === null,
       'varios gabinetes apagados llegan como una sola falla con su lista', JSON.stringify(fg && { n: fg.nombre, g: fg.detalle?.gabinetes }));
     r = await pedir('POST', '/api/device/fallas', equipo, falla({ evento: 'abrir', tipo: 'zona_apagada', confianza: '0.9' }, false));
     afirmar(r.j.id === grupo && r.j.repetida, 'el grupo tampoco se duplica');

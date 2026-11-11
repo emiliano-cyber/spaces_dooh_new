@@ -29,7 +29,8 @@ class Campanas(
     /** El JPEG de la referencia, o null (sin red, o ya no es del equipo). */
     private val descargar: (Int) -> ByteArray?,
     private val ahora: () -> Long,
-    private val zona: ZoneId = ZoneId.systemDefault(),
+    // El dia de una campana es el del sitio, no el de la zona que tenga el telefono.
+    private val zona: ZoneId = Geometria.ZONA_SITIO,
 ) {
     companion object {
         // Una referencia que no se pudo bajar se reintenta, pero no en cada vuelta.

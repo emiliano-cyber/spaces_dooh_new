@@ -1,5 +1,16 @@
 # Fusionar `fix/space-eyes-fotos-rapidas` con `main` — notas medidas
 
+> **Al día (11-nov-2026): `main` ya está fusionado DENTRO de la rama**, en
+> `8441031e` (v0.12.9). Fusionar la rama en `main` ahora entra **sin conflictos**:
+> lo de abajo es historia de la primera fusión (la del 9-nov, PR #109).
+>
+> En esa fusión se resolvió el único choque (`space-eyes-se.ts`: las funciones de
+> traducción de `main` + la espera máxima de la rama) y se dejó hecho lo que
+> quedaba pendiente: el aviso «el Space Eye de esta instancia todavía no los
+> tiene» va con `t(...)` en los cuatro idiomas, y «gabinete apagado» pasa a
+> «apagado o tapado» en el diccionario, igual que en `Monitor.kt` (los nombres
+> de antes se siguen traduciendo). 440 archivos de prueba de `apps/web` en verde.
+
 Escrito el 9-nov-2026 contra `main` en `dfa64dcf` (v0.12.7) y la rama en
 `5d20c378`. La base común es `0101ee4e`, del 26 de octubre: `main` lleva 610
 commits que la rama no tiene.
@@ -92,7 +103,7 @@ clave y por eso no está en el lote.
 - **La migración `031_avisos_por_correo.sql` se aplica sola en las instancias**
   (`update-eyes.sh` corre `dist/migrar.js` antes de cambiar de versión). En el
   `:4000` de producción **va a mano**: ahí no corre ese guion.
-- **El agente de Raspberry 0.7.10** (lleva el arreglo de la cámara) hay que
+- **El agente de Raspberry 0.7.11** (lleva el arreglo de la cámara y la hora del sitio) hay que
   publicarlo en `frontend/public/` del servidor. El manifiesto se copia **al
   final**, o los equipos rechazan la actualización.
 - **El correo no manda nada** hasta que el dominio del remitente esté verificado

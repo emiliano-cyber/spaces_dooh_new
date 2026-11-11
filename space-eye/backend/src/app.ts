@@ -86,8 +86,18 @@ export function createApp() {
   app.use(createRoutes());
 
   // SPA fallback - serve index.html for non-API routes
+  //
+  // Una ruta /api/ que no existe CONTESTA 404. Antes no contestaba nada: la
+  // peticion se quedaba abierta para siempre. Asi se escondio en g500 (9-nov-2026)
+  // la tarjeta de avisos por correo: SPACE OS ya la pedia, el Space Eye de la
+  // instancia era anterior a /api/avisos, y la pantalla esperaba en silencio sin
+  // un error que ver. Con el 404, quien llama sabe al instante que falta algo.
   app.get('*', (req, res) => {
-    if (!req.path.startsWith('/api/') && !req.path.startsWith('/socket.io/')) {
+    if (req.path.startsWith('/api/')) {
+      res.status(404).json({ error: 'ruta_no_encontrada' });
+      return;
+    }
+    if (!req.path.startsWith('/socket.io/')) {
       res.sendFile(path.join(__dirname, '../../frontend/public/index.html'));
     }
   });

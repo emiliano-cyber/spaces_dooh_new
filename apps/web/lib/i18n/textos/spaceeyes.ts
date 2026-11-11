@@ -784,13 +784,13 @@ export const ES_SPACEEYES = {
   // Ola 7 · el NOMBRE de una falla lo escribe el telefono (`Monitor.kt`, NOMBRES y
   // los dos de grupo), en espanol: la app solo esta en espanol. Al pintarlo se
   // reconoce el texto exacto (`nombreDeFallaEnIdioma`).
-  'spaceeyes.fallas.nombre.zona-apagada': 'Posible gabinete apagado',
+  'spaceeyes.fallas.nombre.zona-apagada': 'Posible gabinete apagado o tapado',
   'spaceeyes.fallas.nombre.zona-congelada': 'Posible gabinete congelado o tapado',
   'spaceeyes.fallas.nombre.pantalla-apagada': 'Pantalla apagada en horario',
   'spaceeyes.fallas.nombre.pantalla-congelada': 'Pantalla congelada (no cambia el contenido)',
   'spaceeyes.fallas.nombre.camara-movida': 'La cámara se movió: hay que volver a marcar la pantalla',
   'spaceeyes.fallas.nombre.sin-imagen': 'Sin imagen: lente tapada, o pantalla apagada de noche',
-  'spaceeyes.fallas.nombre.varios-apagados': 'Varios gabinetes apagados',
+  'spaceeyes.fallas.nombre.varios-apagados': 'Varios gabinetes apagados o tapados',
   'spaceeyes.fallas.nombre.varios-congelados': 'Varios gabinetes congelados o tapados',
   'spaceeyes.fallas.no-consultar': 'No se pudo consultar Space Eye',
   'spaceeyes.fallas.descartada': 'Falla descartada.',
@@ -1181,6 +1181,8 @@ export const ES_SPACEEYES = {
 
   // Avisos por correo y quien cerro la falla: rama de Jose del 09/11 (docs/lote-i18n-space-eyes-avisos.ts)
   'spaceeyes.avisos.titulo': 'Avisos por correo',
+  'spaceeyes.avisos.sin-servidor':
+    '· el Space Eye de esta instancia todavía no los tiene. Se encienden al actualizarlo.',
   'spaceeyes.avisos.apagados': 'apagados',
   'spaceeyes.avisos.sin-correos': 'encendidos, pero sin ningún correo',
   'spaceeyes.avisos.resumen': 'a {quien}, agrupados cada {min} min',
@@ -1978,13 +1980,13 @@ export const EN_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.fallas.donde.camara': 'Camera (the screen has to be marked again)',
   'spaceeyes.fallas.donde.sin-imagen': 'Lens covered, or screen off at night',
   'spaceeyes.fallas.donde.toda': 'The whole screen',
-  'spaceeyes.fallas.nombre.zona-apagada': 'Possible cabinet off',
+  'spaceeyes.fallas.nombre.zona-apagada': 'Possible cabinet off or covered',
   'spaceeyes.fallas.nombre.zona-congelada': 'Possible cabinet frozen or covered',
   'spaceeyes.fallas.nombre.pantalla-apagada': 'Screen off during operating hours',
   'spaceeyes.fallas.nombre.pantalla-congelada': 'Screen frozen (the content is not changing)',
   'spaceeyes.fallas.nombre.camara-movida': 'The camera moved: the screen has to be marked again',
   'spaceeyes.fallas.nombre.sin-imagen': 'No image: lens covered, or screen off at night',
-  'spaceeyes.fallas.nombre.varios-apagados': 'Several cabinets off',
+  'spaceeyes.fallas.nombre.varios-apagados': 'Several cabinets off or covered',
   'spaceeyes.fallas.nombre.varios-congelados': 'Several cabinets frozen or covered',
   'spaceeyes.fallas.no-consultar': 'Could not reach Space Eye',
   'spaceeyes.fallas.descartada': 'Fault dismissed.',
@@ -2375,6 +2377,8 @@ export const EN_SPACEEYES: Record<ClaveSpaceEyes, string> = {
 
   // Avisos por correo y quien cerro la falla: rama de Jose del 09/11 (docs/lote-i18n-space-eyes-avisos.ts)
   'spaceeyes.avisos.titulo': 'Email alerts',
+  'spaceeyes.avisos.sin-servidor':
+    '· the Space Eye on this instance does not have them yet. They turn on when it is updated.',
   'spaceeyes.avisos.apagados': 'off',
   'spaceeyes.avisos.sin-correos': 'on, but with no address',
   'spaceeyes.avisos.resumen': 'to {quien}, grouped every {min} min',
@@ -3193,13 +3197,13 @@ export const IT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.fallas.donde.camara': 'Fotocamera (bisogna segnare di nuovo lo schermo)',
   'spaceeyes.fallas.donde.sin-imagen': 'Obiettivo coperto, o schermo spento di notte',
   'spaceeyes.fallas.donde.toda': 'Tutto lo schermo',
-  'spaceeyes.fallas.nombre.zona-apagada': 'Possibile cabinet spento',
+  'spaceeyes.fallas.nombre.zona-apagada': 'Possibile cabinet spento o coperto',
   'spaceeyes.fallas.nombre.zona-congelada': 'Possibile cabinet bloccato o coperto',
   'spaceeyes.fallas.nombre.pantalla-apagada': 'Schermo spento in orario di accensione',
   'spaceeyes.fallas.nombre.pantalla-congelada': 'Schermo bloccato (il contenuto non cambia)',
   'spaceeyes.fallas.nombre.camara-movida': 'La fotocamera si è spostata: bisogna segnare di nuovo lo schermo',
   'spaceeyes.fallas.nombre.sin-imagen': 'Nessuna immagine: obiettivo coperto, o schermo spento di notte',
-  'spaceeyes.fallas.nombre.varios-apagados': 'Diversi cabinet spenti',
+  'spaceeyes.fallas.nombre.varios-apagados': 'Diversi cabinet spenti o coperti',
   'spaceeyes.fallas.nombre.varios-congelados': 'Diversi cabinet bloccati o coperti',
   'spaceeyes.fallas.no-consultar': 'Impossibile consultare Space Eye',
   'spaceeyes.fallas.descartada': 'Guasto scartato.',
@@ -3590,6 +3594,8 @@ export const IT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
 
   // Avisos por correo y quien cerro la falla: rama de Jose del 09/11 (docs/lote-i18n-space-eyes-avisos.ts)
   'spaceeyes.avisos.titulo': 'Avvisi via email',
+  'spaceeyes.avisos.sin-servidor':
+    '· lo Space Eye di questa istanza non li ha ancora. Si attivano aggiornandolo.',
   'spaceeyes.avisos.apagados': 'spenti',
   'spaceeyes.avisos.sin-correos': 'accesi, ma senza nessun indirizzo',
   'spaceeyes.avisos.resumen': 'a {quien}, raggruppati ogni {min} min',
@@ -4406,13 +4412,13 @@ export const PT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.fallas.donde.toda': 'A tela inteira',
   // Ola 7 · el NOMBRE de una falla lo escribe el telefono (`Monitor.kt`), en
   // espanol; al pintarlo se reconoce el texto exacto (`nombreDeFallaEnIdioma`).
-  'spaceeyes.fallas.nombre.zona-apagada': 'Possível gabinete apagado',
+  'spaceeyes.fallas.nombre.zona-apagada': 'Possível gabinete apagado ou tampado',
   'spaceeyes.fallas.nombre.zona-congelada': 'Possível gabinete congelado ou tampado',
   'spaceeyes.fallas.nombre.pantalla-apagada': 'Tela apagada no horário de funcionamento',
   'spaceeyes.fallas.nombre.pantalla-congelada': 'Tela congelada (o conteúdo não muda)',
   'spaceeyes.fallas.nombre.camara-movida': 'A câmera se mexeu: é preciso marcar a tela de novo',
   'spaceeyes.fallas.nombre.sin-imagen': 'Sem imagem: lente tampada, ou tela apagada à noite',
-  'spaceeyes.fallas.nombre.varios-apagados': 'Vários gabinetes apagados',
+  'spaceeyes.fallas.nombre.varios-apagados': 'Vários gabinetes apagados ou tampados',
   'spaceeyes.fallas.nombre.varios-congelados': 'Vários gabinetes congelados ou tampados',
   'spaceeyes.fallas.no-consultar': 'Não foi possível consultar o Space Eye',
   'spaceeyes.fallas.descartada': 'Falha descartada.',
@@ -4803,6 +4809,8 @@ export const PT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
 
   // Avisos por correo y quien cerro la falla: rama de Jose del 09/11 (docs/lote-i18n-space-eyes-avisos.ts)
   'spaceeyes.avisos.titulo': 'Avisos por e-mail',
+  'spaceeyes.avisos.sin-servidor':
+    '· o Space Eye desta instância ainda não os tem. Ligam-se ao atualizá-lo.',
   'spaceeyes.avisos.apagados': 'desligados',
   'spaceeyes.avisos.sin-correos': 'ligados, mas sem nenhum endereço',
   'spaceeyes.avisos.resumen': 'para {quien}, agrupados a cada {min} min',
