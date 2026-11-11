@@ -90,8 +90,16 @@ SIN_LIMITE = 2 ** 63 - 1
 # Lo que contesta el puente cuando el servidor rechazo una alerta (4xx).
 FALLA_RECHAZADA = -1
 
+# La zona del sitio, con la que se escribe el horario en el panel. Si el sistema
+# no trae la base de zonas (tzdata), se cae a la hora del sistema, como antes.
+try:
+    from zoneinfo import ZoneInfo
+    ZONA_SITIO = ZoneInfo("America/Mexico_City")
+except Exception:  # Python < 3.9 o sin tzdata
+    ZONA_SITIO = None
+
 NOMBRES = {
-    "zona_apagada": "Posible gabinete apagado",
+    "zona_apagada": "Posible gabinete apagado o tapado",
     "zona_congelada": "Posible gabinete congelado o tapado",
     "pantalla_apagada": "Pantalla apagada en horario",
     "pantalla_congelada": "Pantalla congelada (no cambia el contenido)",
@@ -116,6 +124,16 @@ class Reloj:
             time.sleep(ms / 1000.0)
 
     def hora_local(self):
+        """La hora del SITIO, no la de la zona que tenga puesta la Raspberry.
+
+        El horario se escribe en el panel en hora de Mexico. Raspberry OS viene en
+        UTC si nadie le cambia la zona (instalar-pi.sh no la toca), y entonces el
+        horario de 06:00 a 24:00 se vigilaba de 00:00 a 18:00. Al telefono de
+        AUTOPISTA le paso lo mismo con una zona puesta a mano: una «pantalla
+        apagada en horario» cada madrugada. Ver Geometria.ZONA_SITIO del APK.
+        """
+        if ZONA_SITIO is not None:
+            return datetime.datetime.now(ZONA_SITIO).time()
         return datetime.datetime.now().time()
 
     def instante(self):
@@ -721,7 +739,7 @@ class Monitor:
             zonas = [(e.fila, e.columna)] if e.fila is not None and e.columna is not None else list(e.zonas)
             grupo = bool(e.zonas) or e.clave.endswith(":varias")
             if grupo:
-                nombre = "Varios gabinetes apagados" if e.tipo == "zona_apagada" else \
+                nombre = "Varios gabinetes apagados o tapados" if e.tipo == "zona_apagada" else \
                     "Varios gabinetes congelados o tapados"
             else:
                 nombre = NOMBRES.get(e.tipo, e.tipo)

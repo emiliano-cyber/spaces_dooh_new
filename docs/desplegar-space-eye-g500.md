@@ -29,6 +29,19 @@ noten: que una pantalla apagada no entre al catálogo como creativo nuevo, el
 renglón de la bitácora del aviso rápido, la puesta al día del catálogo y el
 portero de creativos.
 
+Y las correcciones de falsas alarmas del 11 de noviembre, que salen en esta
+misma imagen:
+
+- **AUTOPISTA deja de avisar «pantalla apagada» cada madrugada.** Su teléfono
+  tiene otra zona horaria y empezaba a vigilar a las 5:00, antes del horario.
+  El servidor rechaza los avisos que llegan fuera del horario de la pantalla, y
+  la bitácora del equipo dice «el reloj no es el del sitio».
+- **Los «gabinete congelado» que vuelven solos en minutos** (era un anuncio
+  fijo) quedan anotados como contenido. Si se repiten, ese equipo pide una
+  vuelta más de confirmación antes de avisar.
+- **«Gabinetes apagados» ahora dice «apagados o tapados»**: la cámara no
+  distingue una grúa delante de un gabinete apagado.
+
 ## Pasos
 
 Todo en g500 (142.93.113.106), como root.
@@ -50,7 +63,7 @@ En la copia del repo con `fix/space-eyes-fotos-rapidas` ya fusionada y con
 **esta punta** (la que trae este documento). Lo que importa es la carpeta
 `space-eye/`.
 
-Comprueba que estén los tres archivos del agente de Raspberry 0.7.10. Van en el
+Comprueba que estén los tres archivos del agente de Raspberry 0.7.11. Van en el
 repo a propósito, aunque `dist/` esté en `.gitignore`: el Dockerfile los pide y
 sin ellos el build falla en la línea 39.
 
@@ -58,10 +71,10 @@ sin ellos el build falla en la línea 39.
 cd <repo>/space-eye
 ls -la pi-agent/dist/
 #   instalar-pi.sh
-#   space-eye-pi-agent.json      ← debe decir "version": "0.7.10"
-#   space-eye-pi-agent.tar.gz    ← 741986 bytes
+#   space-eye-pi-agent.json      ← debe decir "version": "0.7.11"
+#   space-eye-pi-agent.tar.gz    ← 742843 bytes
 sha256sum pi-agent/dist/space-eye-pi-agent.tar.gz
-#   8bca639b6f378a5aaad5f16791bc7e45860a1cb4364d1273c94864a5a3f6bb06
+#   69d92200faf01ff81554955b283e8835716fa346f08b857f18509350c80acf80
 ```
 
 ### 3. Construir la imagen
@@ -131,6 +144,12 @@ quedan, pero solo agregan: el código viejo no las usa.
 
 Lo que `update-eyes.sh` **no** respalda son las fotos (volumen
 `space-eyes_fotos`). Este cambio no las toca, pero no está de más saberlo.
+
+## Después de desplegar: la Raspberry
+
+El agente de Raspberry 0.7.11 compara el horario con la hora de México aunque
+la Raspberry esté en UTC. Ya va dentro de la imagen; la Raspberry de g500
+(#900000022) lo toma cuando se actualice desde su ficha en el panel.
 
 ## Después (no es de Emiliano)
 

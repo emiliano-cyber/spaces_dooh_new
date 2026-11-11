@@ -275,7 +275,7 @@ def test_aprende_abre_el_gabinete_apagado_y_lo_recupera(entorno):
     assert float(campos["confianza"]) >= 0.6
     assert campos["detectada_en"].endswith("Z")
     detalle = json.loads(campos["detalle"])
-    assert detalle["texto"] == "Posible gabinete apagado · Gabinete 9 (fila 2, columna 3)"
+    assert detalle["texto"] == "Posible gabinete apagado o tapado · Gabinete 9 (fila 2, columna 3)"
     assert detalle["camara"] == "OK" and detalle["vistazos"] == 12
     assert cv2.imdecode(np.frombuffer(evidencia, np.uint8), cv2.IMREAD_COLOR) is not None
     assert os.listdir(os.path.join(d, "evidencia"))
@@ -335,7 +335,7 @@ def test_varios_gabinetes_apagados_son_una_sola_alerta(entorno):
     detalle = json.loads(campos["detalle"])
     assert detalle["gabinetes"] == [1, 2, 7, 8]
     assert detalle["total"] == 24
-    assert detalle["texto"] == "Varios gabinetes apagados · Gabinetes 1, 2, 7, 8 (4 de 24)"
+    assert detalle["texto"] == "Varios gabinetes apagados o tapados · Gabinetes 1, 2, 7, 8 (4 de 24)"
 
 
 # --- Creativos ---------------------------------------------------------------

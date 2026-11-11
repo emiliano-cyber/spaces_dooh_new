@@ -79,7 +79,7 @@ class Monitor(
         private const val MINIMO_ENTRE_VUELTAS_MS = 20_000L
 
         val NOMBRES = mapOf(
-            "zona_apagada" to "Posible gabinete apagado",
+            "zona_apagada" to "Posible gabinete apagado o tapado",
             "zona_congelada" to "Posible gabinete congelado o tapado",
             "pantalla_apagada" to "Pantalla apagada en horario",
             "pantalla_congelada" to "Pantalla congelada (no cambia el contenido)",
@@ -260,7 +260,8 @@ class Monitor(
         }
         avisoSinPantalla = false
         // Fuera de horario: se vuelve a mirar el reloj cada 10 minutos.
-        if (!geo.enHorario(LocalTime.now())) return 10 * 60_000L
+        // En la hora del SITIO, no en la zona del telefono: ver Geometria.ZONA_SITIO.
+        if (!geo.enHorario(LocalTime.now(Geometria.ZONA_SITIO))) return 10 * 60_000L
         // Envio agrupado de creativos nuevos: al cumplirse el plazo, o en cuanto
         // se vuelva a "al momento" con fotos esperando.
         val envioMin = if (quiereCreativos) cCfg!!.optLong("envio_min", 0L) else 0L
@@ -545,7 +546,7 @@ class Monitor(
         for (e in eventos) {
             val zonas = if (e.fila != null && e.columna != null) listOf(e.fila to e.columna) else e.zonas
             val grupo = e.zonas.isNotEmpty() || e.clave.endsWith(":varias")
-            val nombre = if (grupo) (if (e.tipo == "zona_apagada") "Varios gabinetes apagados" else "Varios gabinetes congelados o tapados")
+            val nombre = if (grupo) (if (e.tipo == "zona_apagada") "Varios gabinetes apagados o tapados" else "Varios gabinetes congelados o tapados")
                 else NOMBRES[e.tipo] ?: e.tipo
             val gabinetes = e.zonas.map { (f, c) -> geo.numero(f, c) }.sorted()
             val donde = when {

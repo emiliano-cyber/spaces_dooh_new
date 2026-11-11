@@ -92,7 +92,7 @@ clave y por eso no está en el lote.
 - **La migración `031_avisos_por_correo.sql` se aplica sola en las instancias**
   (`update-eyes.sh` corre `dist/migrar.js` antes de cambiar de versión). En el
   `:4000` de producción **va a mano**: ahí no corre ese guion.
-- **El agente de Raspberry 0.7.10** (lleva el arreglo de la cámara) hay que
+- **El agente de Raspberry 0.7.11** (lleva el arreglo de la cámara y la hora del sitio) hay que
   publicarlo en `frontend/public/` del servidor. El manifiesto se copia **al
   final**, o los equipos rechazan la actualización.
 - **El correo no manda nada** hasta que el dominio del remitente esté verificado

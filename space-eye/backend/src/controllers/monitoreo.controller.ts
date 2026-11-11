@@ -21,6 +21,10 @@ import { firmar } from '../utils/firmaArchivos';
 import { configDe as configCreativos, fotosDeHoy as fotosCreativosDeHoy } from './creativos.controller';
 import { encuadreDe } from './dashboard.controller';
 import { horarioParaElReloj } from '../utils/relojEquipo';
+import {
+  fueraDeHorario, minutoDelSitio, hhmm, zonaFueContenido,
+  ZONAS_PARA_DUDAR, ZONAS_DIAS, CONFIRMACIONES_TOPE,
+} from '../utils/fallasFalsas';
 import { campanasDelEquipo } from './campanasSpaceos.controller';
 import { equipoAjeno } from '../utils/dueno';
 
@@ -118,6 +122,63 @@ async function revisarApagadaCorta(deviceId: number, fallaId: number, minutos: n
   ).catch(() => null);
 }
 
+/**
+ * Se acaba de cerrar una falla de gabinete que duro poco: era contenido (ver
+ * `fallasFalsas.ts`). La anota y, si ya van varias en la semana, le pide a ese
+ * equipo una confirmacion mas antes de avisar. `salud_confirmaciones` viaja en
+ * su configuracion, asi que el cambio llega sin instalar nada. No se apaga la
+ * vigilancia de gabinetes: solo se le exige que la falla aguante una vuelta mas,
+ * y lo que el anuncio fingia en 10 minutos ya no alcanza.
+ */
+async function revisarZonaCorta(deviceId: number, fallaId: number, minutos: number) {
+  const nota = `Duro ${minutos} min y el equipo la dio por recuperada solo: un gabinete que falla `
+    + 'no se arregla sin un tecnico, asi que era el contenido (una parte del anuncio que no cambia).';
+  await pool.query(`UPDATE pantalla_fallas SET nota = ?, cerrada_por = 'servidor' WHERE id = ?`,
+    [nota, fallaId]).catch(() => null);
+
+  const [f] = await pool.query<any[]>(
+    `SELECT COUNT(*) n FROM pantalla_fallas
+      WHERE device_id = ? AND tipo IN ('zona_apagada', 'zona_congelada') AND cerrada_por = 'servidor'
+        AND recuperada_en >= NOW() - INTERVAL ? DAY`, [deviceId, ZONAS_DIAS]);
+  const n = Number((f as any[])[0]?.n || 0);
+  // Cada ZONAS_PARA_DUDAR episodios, un escalon: si con una confirmacion mas
+  // siguen saliendo, se sube otra, hasta el tope.
+  if (n < ZONAS_PARA_DUDAR || n % ZONAS_PARA_DUDAR !== 0) return;
+
+  const [r] = await pool.query<any>(
+    `UPDATE devices SET salud_confirmaciones = COALESCE(salud_confirmaciones, 2) + 1
+      WHERE id = ? AND COALESCE(salud_confirmaciones, 2) < ?`, [deviceId, CONFIRMACIONES_TOPE]);
+  if (!(r as any).affectedRows) return;
+  const [d] = await pool.query<any[]>(`SELECT salud_confirmaciones c FROM devices WHERE id = ?`, [deviceId]);
+  const c = Number((d as any[])[0]?.c);
+  await pool.query(
+    `INSERT INTO device_logs (device_id, level, category, message) VALUES (?, 'warning', 'pantalla', ?)`,
+    [deviceId, `Fallas de gabinete: ahora se piden ${c} vueltas seguidas para avisar. Van ${n} en `
+      + `${ZONAS_DIAS} dias que el equipo dio por recuperadas solo en minutos: los anuncios de este sitio `
+      + 'tienen partes fijas que se le parecen a un gabinete congelado.']
+  ).catch(() => null);
+}
+
+/**
+ * Un aviso llego con hora de fuera del horario de la pantalla: el reloj del
+ * equipo no es el del sitio (ver `fallasFalsas.ts`). Se dice en la bitacora UNA
+ * vez al dia, porque es lo unico que puede arreglarlo: alguien tiene que ponerle
+ * al telefono la zona horaria de Ciudad de Mexico y la hora automatica.
+ */
+async function anotarRelojDelSitio(deviceId: number, tipo: string, cuando: Date, horario: any) {
+  const [y] = await pool.query<any[]>(
+    `SELECT 1 FROM device_logs WHERE device_id = ? AND category = 'reloj'
+       AND created_at >= NOW() - INTERVAL 20 HOUR LIMIT 1`, [deviceId]).catch(() => [[]] as any);
+  if ((y as any[]).length) return;
+  await pool.query(
+    `INSERT INTO device_logs (device_id, level, category, message) VALUES (?, 'warning', 'reloj', ?)`,
+    [deviceId, `Aviso «${NOMBRES[tipo] ?? tipo}» de las ${hhmm(minutoDelSitio(cuando))} (hora de Mexico), `
+      + `fuera del horario de la pantalla (${horario?.inicio ?? '06:00'} a ${horario?.fin ?? '24:00'}). `
+      + 'No se registro: el equipo vigila con un reloj que no es el del sitio. Hay que ponerle la zona '
+      + 'horaria de Ciudad de Mexico y la hora automatica.']
+  ).catch(() => null);
+}
+
 /** Cuanto de la foto ocupa la pantalla marcada (formula del cordon). */
 export function areaDeLaPantalla(esquinas: [number, number][]): number {
   return Math.abs(esquinas.reduce((suma, [x1, y1], i) => {
@@ -159,7 +220,9 @@ async function porQueNoSeCree(deviceId: number, pantalla: any): Promise<string |
 export const TIPOS = ['zona_apagada', 'zona_congelada', 'pantalla_apagada', 'pantalla_congelada', 'camara_movida', 'sin_imagen'] as const;
 
 export const NOMBRES: Record<string, string> = {
-  zona_apagada: 'Posible gabinete apagado',
+  // «o tapado» en los dos: desde la camara no se distingue un gabinete apagado de
+  // algo oscuro puesto delante. En AUTOPISTA (8-nov-2026) fue una grua.
+  zona_apagada: 'Posible gabinete apagado o tapado',
   zona_congelada: 'Posible gabinete congelado o tapado',
   pantalla_apagada: 'Pantalla apagada en horario',
   pantalla_congelada: 'Pantalla congelada',
@@ -364,6 +427,17 @@ export async function reportarFalla(req: Request, res: Response) {
          AND fila <=> ? AND columna <=> ? LIMIT 1`, [did, e.tipo, fila, columna]);
     if ((ya as any[]).length) return res.json({ id: (ya as any[])[0].id, repetida: true });
 
+    // Fuera del horario de la pantalla el equipo no vigila: si llega un aviso de
+    // esa hora, su reloj no es el del sitio. 422 y no 200: el telefono la olvida
+    // (FALLA_RECHAZADA) en vez de darla por abierta, y si a la hora buena la
+    // pantalla sigue mal, la vuelve a ver y ese aviso SI entra.
+    if (fueraDeHorario(detectadaEn, pantalla?.horario)) {
+      await anotarRelojDelSitio(did, e.tipo, detectadaEn, pantalla?.horario);
+      console.warn(`[monitoreo] equipo ${did}: "${e.tipo}" de las ${hhmm(minutoDelSitio(detectadaEn))}, `
+        + 'fuera del horario de la pantalla. No se registra.');
+      return res.status(422).json({ error: 'fuera_de_horario', hora_sitio: hhmm(minutoDelSitio(detectadaEn)) });
+    }
+
     // Camara movida de la que el servidor no se cree una palabra: se registra
     // -con su evidencia, para poder revisarlo- pero nace descartada. Asi entra
     // en `silenciadas` y el equipo deja de repetirla durante SILENCIO_DIAS, no
@@ -423,6 +497,16 @@ export async function reportarFalla(req: Request, res: Response) {
         console.error('[monitoreo] no se pudo revisar la apagada corta:', err?.message));
     }
   }
+  if (e.tipo === 'zona_apagada' || e.tipo === 'zona_congelada') {
+    const [m] = await pool.query<any[]>(
+      `SELECT TIMESTAMPDIFF(MINUTE, detectada_en, recuperada_en) min FROM pantalla_fallas WHERE id = ?`,
+      [abierta.id]);
+    const minutos = Number((m as any[])[0]?.min ?? -1);
+    if (zonaFueContenido(e.tipo, minutos)) {
+      await revisarZonaCorta(did, abierta.id, minutos).catch((err) =>
+        console.error('[monitoreo] no se pudo revisar el gabinete corto:', err?.message));
+    }
+  }
   await avisar(did, abierta.id, 'recuperada');
   res.json({ id: abierta.id });
 }
@@ -456,7 +540,7 @@ const SELECT_FALLAS = `
 
 /** El nombre de una falla; si abarca varios gabinetes, dice "varios". */
 export function nombreDe(tipo: string, fila: number | null) {
-  if (fila == null && tipo === 'zona_apagada') return 'Varios gabinetes apagados';
+  if (fila == null && tipo === 'zona_apagada') return 'Varios gabinetes apagados o tapados';
   if (fila == null && tipo === 'zona_congelada') return 'Varios gabinetes congelados o tapados';
   return NOMBRES[tipo] ?? tipo;
 }
