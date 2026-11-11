@@ -70,6 +70,8 @@
 //  que el mapa pinte algo con sentido.
 // ============================================================================
 import pg from 'pg'
+import { dataUrlDeArte, imagenAHtml } from './semilla-arte-demo.mjs'
+import { planModulos, sentenciasModulos, deshacerModulos } from './semilla-catalogo-modulos.mjs'
 
 // ─── Fechas de CALENDARIO, sin zona horaria ────────────────────────────────
 // La misma técnica que `semilla-demo.mjs`: `new Date('2026-07-01')` es
@@ -451,6 +453,138 @@ export const USUARIOS = [
   { rol: 'FINANZAS', nombre: 'Finanzas DEMO', cargo: 'Cuentas por cobrar', email: 'finanzas@catalogo.invalid' },
 ]
 
+// ─── Los creativos ─────────────────────────────────────────────────────────
+//
+// Dos caminos, como en la aplicación (`creativos-repo.ts:42-49`):
+//
+//  · DIGITALES → `creatividades`. Una campaña toda fija (OOH) NO recibe
+//    creatividad: el servidor lo rechaza. El arte se guarda como lo guarda la
+//    pantalla de Creativos al subir una imagen: el PNG en data URL ENVUELTO en
+//    HTML (`imagenAHtml`) en `codigo`, con `formato = 'text/html'`. Los
+//    aprobados se reparten en los spots digitales de la campaña
+//    (`reservas.creativos`), que es lo que la pantalla enseña como «asignado».
+//  · FIJAS → `ordenes_impresion`: el arte de una lona es su prueba de color
+//    (`prueba_color_url`), y la orden recorre los cinco estados de la imprenta.
+//
+// Ni una llamada a DOOHmain: un creativo aprobado aquí está aprobado EN LA
+// BASE, no publicado en ningún player.
+const COLORES = {
+  C1: ['#B71C1C', '#FFD54F'], C2: ['#0D47A1', '#90CAF9'], C3: ['#4A148C', '#E1BEE7'],
+  C4: ['#263238', '#FF7043'], C5: ['#1B5E20', '#A5D6A7'], C6: ['#311B92', '#FFEB3B'],
+  C7: ['#004D40', '#80CBC4'], C8: ['#3E2723', '#FFCC80'],
+}
+
+// Por campaña, qué creativos digitales lleva y en qué estado. Las que no salen
+// aquí siguen la regla general: un spot APROBADO si ya está al aire o terminó,
+// uno PENDIENTE si está confirmada, y nada en cotización o borrador.
+const CREATIVOS_EXTRA = {
+  // Dos aprobados rotando y uno RECHAZADO con su motivo.
+  '013': [
+    { v: 'B', estatus: 'VALIDADA', lema: 'SABOR QUE REFRESCA' },
+    { v: 'C', estatus: 'RECHAZADA', lema: 'VERSION PRELIMINAR', motivo: 'El logotipo invade el area segura y el texto legal no se lee a 50 m.' },
+  ],
+  // Al aire con su aprobado, y la versión de temporada esperando validación.
+  '014': [{ v: 'B', estatus: 'PENDIENTE', lema: 'TEMPORADA DECEMBRINA' }],
+}
+
+const IMPRESION_CONFIRMADAS = { '017': 'EN_PRODUCCION', '018': 'VALIDADO', '019': 'ARTE_RECIBIDO' }
+
+function materialDe(tipoMedio) {
+  if (tipoMedio === 'ESPECTACULAR') return 'Lona front 13 oz'
+  if (tipoMedio === 'PUENTE_PEATONAL') return 'Lona mesh microperforada'
+  if (tipoMedio === 'MOBILIARIO_URBANO') return 'Backlight translucido'
+  return 'Vinil autoadherible'
+}
+
+function planCreativos(campanas, reservas) {
+  const creativos = []
+  const asignaciones = []
+  const impresiones = []
+  for (const c of campanas) {
+    const cliente = CLIENTES.find((x) => x.clave === c.cliente)
+    const marca = cliente.nombre.replace(' DEMO', '').toUpperCase()
+    const [fondo, acento] = COLORES[c.cliente]
+    const suyas = reservas.filter((r) => r.campanaFolio === c.folio && r.estatus !== 'CANCELADA')
+
+    // ── Digitales ──
+    const digitales = suyas.filter((r) => r.digital)
+    const enFirme = ['COMPLETADA', 'LISTA_FACTURAR', 'ACTIVA'].includes(c.estado)
+    if (c.tipo !== 'OOH' && digitales.length && (enFirme || c.estado === 'CONFIRMADA')) {
+      const verticales = digitales.filter((r) => sitio(r.corto).ancho < 2)
+      const horizontales = digitales.filter((r) => sitio(r.corto).ancho >= 2)
+      const base = enFirme ? 'VALIDADA' : 'PENDIENTE'
+      const variantes = [{ v: 'A', estatus: base, lema: c.nombre.split(' · ')[1] }, ...(CREATIVOS_EXTRA[c.n] ?? [])]
+      for (const [orient, lista] of [['horizontal', horizontales], ['vertical', verticales]]) {
+        if (!lista.length) continue
+        const vertical = orient === 'vertical'
+        const resolucion = vertical ? '1080x1920' : '1920x1080'
+        const nombres = []
+        for (const va of variantes) {
+          const nombre = `${c.folio} spot ${va.v} ${resolucion}.png`
+          creativos.push({
+            campanaFolio: c.folio,
+            nombre,
+            resolucion,
+            estatus: va.estatus,
+            motivo: va.motivo ?? null,
+            arte: {
+              ancho: vertical ? 270 : 480,
+              alto: vertical ? 480 : 270,
+              fondo,
+              acento,
+              texto: '#FFFFFF',
+              lineas: [marca, va.lema, c.folio],
+            },
+          })
+          if (va.estatus === 'VALIDADA') nombres.push(nombre)
+        }
+        // Los aprobados se reparten los spots de cada pantalla; el primero se
+        // lleva el resto cuando no dividen exacto, como `repartirCreativosEnCampana`.
+        if (nombres.length)
+          for (const r of lista) {
+            const spots = r.spots ?? 1
+            asignaciones.push({
+              campanaFolio: c.folio,
+              sitio: r.sitio,
+              creativos: nombres.map((n, i) => ({
+                nombre: n,
+                veces: Math.max(1, Math.floor(spots / nombres.length) + (i < spots % nombres.length ? 1 : 0)),
+              })),
+            })
+          }
+      }
+    }
+
+    // ── Fijas: la orden de imprenta con su prueba de color ──
+    let estatusImpresion = null
+    if (enFirme) estatusImpresion = 'LISTO_MONTAJE'
+    else if (c.estado === 'CONFIRMADA') estatusImpresion = IMPRESION_CONFIRMADAS[c.n] ?? 'ARTE_RECIBIDO'
+    if (!estatusImpresion) continue
+    for (const r of suyas.filter((x) => !x.digital)) {
+      const s = sitio(r.corto)
+      const ancho = 480
+      const alto = Math.max(120, Math.round((ancho * s.alto) / s.ancho))
+      const orden = (sufijo, estatus, lema) => ({
+        folio: `CAT-OI-${c.n}-${r.corto}${sufijo}`,
+        campanaFolio: c.folio,
+        sitio: r.sitio,
+        material: materialDe(s.tipoMedio),
+        ancho: s.ancho,
+        alto: s.alto,
+        estatus,
+        proveedor: 'Impresos DEMO Gran Formato',
+        aprobada: estatus !== 'ARTE_RECIBIDO',
+        arte: { ancho, alto, fondo, acento, texto: '#FFFFFF', lineas: [marca, lema, `${s.nombre.toUpperCase()}`] },
+      })
+      impresiones.push(orden('', estatusImpresion, c.nombre.split(' · ')[1]))
+      // Una reposición de lona impresa y esperando montaje: el quinto estado de
+      // la imprenta, y un caso real (el viento rompe lonas a mitad de campaña).
+      if (c.n === '014') impresiones.push(orden('-R', 'IMPRESO', 'REPOSICION DE LONA'))
+    }
+  }
+  return { creativos, asignaciones, impresiones }
+}
+
 // ─── El plan ───────────────────────────────────────────────────────────────
 
 const sitio = (corto) => SITIOS.find((s) => s.corto === corto)
@@ -459,6 +593,33 @@ const solapan = (a1, a2, b1, b2) => nDia(a1) <= nDia(b2) && nDia(b1) <= nDia(a2)
 /** Precio de una pantalla en un rango: tarifa mensual por meses, con descuento. */
 function precioDe(corto, desde, hasta, descuento) {
   return Math.round(sitio(corto).tarifa * mesesDe(desde, hasta) * (1 - descuento / 100))
+}
+
+// ─── El calendario se mueve con el ancla ────────────────────────────────────
+//
+// Las fechas de arriba se escribieron para octubre de 2026, y el catálogo se
+// negaba a sembrar desde el 1 de noviembre («CAT-CMP-020 COTIZACION ya
+// empezada»): una cotización que empezaba el 01/11 ya no era futura. Pasó la
+// mañana de una demo en vivo, el 2026-11-03.
+//
+// Ahora todo el calendario —campañas, propuestas, contratos y recibos— se
+// corre MESES ENTEROS: los que haya entre el mes del ancla y octubre de 2026.
+// Meses y no días, para que las campañas sigan empezando el día 1 y los
+// contratos en su día de pago. Con un ancla de octubre de 2026 no se mueve
+// nada, y las pruebas fijan ese caso.
+//
+// OJO, y es lo que hace falta entender antes de tocar esto: los contratos, las
+// rentas y los recibos se reconocen por FECHA. Sembrar sobre una base que ya
+// tiene el catálogo con otro desplazamiento los DUPLICARÍA. Por eso `main`
+// lee de la base el desplazamiento con el que se sembró y lo reutiliza; para
+// moverlo hay que `--deshacer` primero.
+export const MES_DEL_CALENDARIO = '2026-10'
+export const PRIMERA_CAMPANA = { folio: 'CAT-CMP-001', desde: '2024-01-08' }
+
+export function mesesDeDesplazamiento(ancla) {
+  const [a, m] = ancla.slice(0, 7).split('-').map(Number)
+  const [a0, m0] = MES_DEL_CALENDARIO.split('-').map(Number)
+  return (a - a0) * 12 + (m - m0)
 }
 
 /**
@@ -471,8 +632,18 @@ export function planCatalogo(opciones = {}) {
   const slug = opciones.slug ?? 'demo-rentabilidad'
   const nombreOrg = opciones.nombreOrg ?? 'Organizacion DEMO Rentabilidad'
 
+  // El calendario entero se corre los meses que haya entre el ancla y el mes
+  // para el que se escribió (ver `mesesDeDesplazamiento`). Con eso una base
+  // sembrada en enero tiene campañas al aire en enero, y no las de octubre.
+  const meses = opciones.meses ?? mesesDeDesplazamiento(hoy)
+  const mv = (iso) => (iso && meses ? vencimiento(iso, meses, 'MENSUAL') : iso)
+  const contratosBase = CONTRATOS.map((k) => ({ ...k, inicio: mv(k.inicio), fin: mv(k.fin), canceladoEn: mv(k.canceladoEn) }))
+  const campanasBase = CAMPANAS.map((c) => ({ ...c, desde: mv(c.desde), hasta: mv(c.hasta) }))
+  const propuestasBase = PROPUESTAS.map((p) => ({ ...p, fecha: mv(p.fecha), desde: mv(p.desde), hasta: mv(p.hasta) }))
+  const luzDesde = mv(LUZ_DESDE)
+
   const reservas = []
-  for (const c of CAMPANAS) {
+  for (const c of campanasBase) {
     const estatus = ESTATUS_RESERVA[c.estado]
     if (!estatus) continue
     for (const p of c.pantallas) {
@@ -497,12 +668,12 @@ export function planCatalogo(opciones = {}) {
     }
   }
 
-  const campanas = CAMPANAS.map((c) => {
+  const campanas = campanasBase.map((c) => {
     const digitales = c.pantallas.filter((p) => sitio(p).digital).length
     const bruto = c.pantallas.reduce((a, p) => a + precioDe(p, c.desde, c.hasta, 0), 0)
     const neto = c.pantallas.reduce((a, p) => a + precioDe(p, c.desde, c.hasta, c.descuento), 0)
     const cliente = CLIENTES.find((x) => x.clave === c.cliente)
-    const propuesta = PROPUESTAS.find((p) => p.campanaFolio === c.folio)
+    const propuesta = propuestasBase.find((p) => p.campanaFolio === c.folio)
     return {
       ...c,
       nombre: `${cliente.nombre.replace(' DEMO', '')} · ${c.desde.slice(0, 7)}`,
@@ -518,7 +689,7 @@ export function planCatalogo(opciones = {}) {
     }
   })
 
-  const propuestas = PROPUESTAS.map((p) => {
+  const propuestas = propuestasBase.map((p) => {
     const cliente = CLIENTES.find((x) => x.clave === p.cliente)
     return {
       ...p,
@@ -597,7 +768,7 @@ export function planCatalogo(opciones = {}) {
 
   // ─── Calendario de rentas ─────────────────────────────────────────────────
   const pagos = []
-  for (const k of CONTRATOS) {
+  for (const k of contratosBase) {
     if (!k.fin || !k.renta) continue
     const fin = k.canceladoEn ?? k.fin
     const periodos = []
@@ -638,9 +809,9 @@ export function planCatalogo(opciones = {}) {
   const consumos = []
   for (const p of PREDIOS) {
     const luz = LUZ[p.clave]
-    const suyos = CONTRATOS.filter((k) => k.predio === p.clave && k.fin)
+    const suyos = contratosBase.filter((k) => k.predio === p.clave && k.fin)
     let i = 0
-    for (let mes = LUZ_DESDE; nDia(mes) <= nDia(ultimoMes); mes = vencimiento(mes, 1, 'MENSUAL'), i++) {
+    for (let mes = luzDesde; nDia(mes) <= nDia(ultimoMes); mes = vencimiento(mes, 1, 'MENSUAL'), i++) {
       const cubierto = suyos.some((k) => solapan(k.inicio, k.canceladoEn ?? k.fin, mes, masDias(vencimiento(mes, 1, 'MENSUAL'), -1)))
       if (!cubierto || luz.huecos.includes(i)) continue
       const kwh = luz.kwh + (((i * 7) % 9) - 4) * luz.paso
@@ -714,13 +885,21 @@ export function planCatalogo(opciones = {}) {
     })
   })
 
-  return {
+  const { creativos, asignaciones, impresiones } = planCreativos(campanas, reservas)
+
+  const plan = {
     organizacion: { slug, nombre: nombreOrg },
     hoy,
+    meses,
+    creativos,
+    asignaciones,
+    impresiones,
     arrendadores: ARRENDADORES,
     predios: PREDIOS,
-    sitios: SITIOS,
-    contratos: CONTRATOS,
+    // Copias: una prueba que retoca una pantalla del plan no debe ensuciar el
+    // plan siguiente (las de SITIOS son del módulo).
+    sitios: SITIOS.map((s) => ({ ...s })),
+    contratos: contratosBase,
     clientes: CLIENTES,
     propuestas,
     campanas,
@@ -731,6 +910,9 @@ export function planCatalogo(opciones = {}) {
     ordenes,
     usuarios: USUARIOS,
   }
+  // Lo de cada módulo que el catálogo no cubría (ver su cabecera). Sale del
+  // plan ya armado: usa sus pantallas, campañas, comprobantes y fechas.
+  return { ...plan, modulos: planModulos(plan) }
 }
 
 /**
@@ -1115,6 +1297,62 @@ export function sentenciasDelCatalogo(plan, T, clave, opciones = {}) {
     )
   }
 
+  // ─── Creativos digitales ──────────────────────────────────────────────────
+  // Guard por (campaña, nombre): `creatividades` no tiene clave natural única,
+  // y el nombre lleva el folio de la campaña dentro.
+  for (const cr of plan.creativos) {
+    add(
+      `creativo ${cr.nombre} (${cr.estatus})`,
+      `insert into creatividades (tenant_id, campana_id, nombre, codigo, formato, resolucion,
+                                  estatus_validacion, rechazado_motivo)
+       select $1::uuid, c.id, $2::text, $3::text, 'text/html', $4::text,
+              $5::est_validacion_crea, $6::text
+         from campanas c
+        where c.tenant_id = $1::uuid and c.folio = $7::text
+          and not exists (select 1 from creatividades x
+                           where x.tenant_id = $1::uuid and x.campana_id = c.id and x.nombre = $2::text)`,
+      [T, cr.nombre, imagenAHtml(dataUrlDeArte(cr.arte), cr.nombre), cr.resolucion, cr.estatus, cr.motivo, cr.campanaFolio],
+    )
+  }
+
+  // El reparto en los spots: SOLO si la reserva no tiene ninguno. Si alguien ya
+  // los cambió en la demo, la segunda corrida no se lo pisa.
+  for (const a of plan.asignaciones) {
+    add(
+      `spots ${a.campanaFolio} · ${a.sitio}`,
+      `update reservas r
+          set creativos = (
+            select jsonb_agg(jsonb_build_object('creatividadId', cr.id::text, 'veces', (e.el ->> 'veces')::int)
+                             order by e.orden)
+              from jsonb_array_elements($2::jsonb) with ordinality as e(el, orden)
+              join creatividades cr on cr.tenant_id = $1::uuid and cr.campana_id = r.campana_id
+                                   and cr.nombre = e.el ->> 'nombre' and cr.estatus_validacion = 'VALIDADA')
+         from campanas c, sitios s
+        where r.tenant_id = $1::uuid and c.tenant_id = $1::uuid and s.tenant_id = $1::uuid
+          and r.campana_id = c.id and r.sitio_id = s.id
+          and c.folio = $3::text and s.clave_interna = $4::text
+          and r.creativos = '[]'::jsonb`,
+      [T, JSON.stringify(a.creativos), a.campanaFolio, a.sitio],
+    )
+  }
+
+  // ─── Órdenes de imprenta (el arte de las fijas) ──────────────────────────
+  for (const oi of plan.impresiones) {
+    add(
+      `imprenta ${oi.folio} (${oi.estatus})`,
+      `insert into ordenes_impresion (tenant_id, folio, campana_id, sitio_id, material, alto, ancho,
+                                     estatus, proveedor, prueba_color_url, prueba_color_aprobada)
+       select $1::uuid, $2::text, c.id, s.id, $3::text, $4::numeric, $5::numeric,
+              $6::est_orden_impresion, $7::text, $8::text, $9::boolean
+         from campanas c
+         join sitios s on s.tenant_id = $1::uuid and s.clave_interna = $10::text
+        where c.tenant_id = $1::uuid and c.folio = $11::text
+       on conflict (folio) do nothing`,
+      [T, oi.folio, oi.material, oi.alto, oi.ancho, oi.estatus, oi.proveedor, dataUrlDeArte(oi.arte), oi.aprobada, oi.sitio, oi.campanaFolio],
+    )
+  }
+
+  out.push(...sentenciasModulos(plan, T))
   return out
 }
 
@@ -1137,6 +1375,13 @@ export function sentenciasDeshacer(plan, T) {
   const correos = plan.usuarios.map((u) => u.email.toLowerCase())
   const q = (etiqueta, sql, valores = [T]) => ({ etiqueta, sql, valores })
   return [
+    ...deshacerModulos(plan, T),
+    q('ordenes_impresion', `delete from ordenes_impresion where tenant_id = $1::uuid and folio like 'CAT-OI-%'`),
+    // Solo los creativos sembrados (su nombre empieza por el folio CAT-): uno
+    // que alguien suba en la demo no se borra aquí, y entonces el borrado de la
+    // campaña lo arrastraría por su `on delete cascade` del esquema.
+    q('creatividades', `delete from creatividades where tenant_id = $1::uuid and nombre like 'CAT-CMP-%'
+        and campana_id in (select id from campanas where tenant_id = $1::uuid and folio like 'CAT-CMP-%')`),
     q('cobranzas', `delete from cobranzas where tenant_id = $1::uuid and factura_id in
         (select id from facturas where tenant_id = $1::uuid and folio like 'CAT-FAC-%')`),
     q('facturas', `delete from facturas where tenant_id = $1::uuid and folio like 'CAT-FAC-%'`),
@@ -1162,7 +1407,12 @@ export function sentenciasDeshacer(plan, T) {
     // Los clientes de la agencia antes que la agencia: la referencian.
     q('clientes', `delete from clientes where tenant_id = $1::uuid and rfc = any($2::text[]) and agencia_id is not null`, [T, rfcs]),
     q('clientes', `delete from clientes where tenant_id = $1::uuid and rfc = any($2::text[])`, [T, rfcs]),
-    q('usuarios', `delete from usuarios where tenant_id = $1::uuid and lower(email) = any($2::text[])`, [T, correos]),
+    // Un usuario demo que ya actuó en la demo tiene filas en la bitácora, y
+    // borrarlo haría un `on delete set null` sobre `acciones` —un UPDATE que
+    // el trigger append-only prohíbe—: la transacción entera volvería atrás.
+    // Esos se quedan (activos, con su contraseña) y `deshacer` lo avisa.
+    q('usuarios', `delete from usuarios where tenant_id = $1::uuid and lower(email) = any($2::text[])
+        and not exists (select 1 from acciones a where a.usuario_id = usuarios.id)`, [T, correos]),
   ]
 }
 
@@ -1221,6 +1471,8 @@ export async function comprobarBase(cli, plan, opciones = {}) {
     ['campanas', 'campanas', 'folio', plan.campanas.map((c) => c.folio)],
     ['comprobantes', 'facturas', 'folio', plan.comprobantes.map((f) => f.folio)],
     ['ordenes', 'ordenes_trabajo', 'folio', plan.ordenes.map((o) => o.folio)],
+    ['ordenes de imprenta', 'ordenes_impresion', 'folio', plan.impresiones.map((o) => o.folio)],
+    ['ordenes de compra', 'ordenes_compra', 'folio', plan.modulos.ordenesCompra.map((o) => o.folio)],
   ]
   for (const [que, tabla, col, claves] of consultas) {
     const x = await cli.query(
@@ -1253,7 +1505,9 @@ const USO = `uso:
   --crear-org             permite crearla si no existe
   --org-nombre=<texto>    su nombre visible si hay que crearla
   --comprobar             solo LEE la base: organizacion, columnas y claves ajenas
-  --ancla=AAAA-MM-DD      el «hoy» de la semilla (por omision hoy)
+  --ancla=AAAA-MM-DD      el «hoy» de la semilla (por omision hoy). El calendario se
+                          corre los meses que haya entre ese mes y octubre de 2026
+  --meses=N               fuerza ese desplazamiento en meses (por omision, el del ancla)
   --resumen               imprime lo que sembraria y NO toca ninguna base
   --deshacer              borra lo sembrado por este script (lo CAT-) de esa organizacion`
 
@@ -1272,6 +1526,7 @@ function opcionesDeArgv(args) {
     if (k === 'org') o.slug = v
     else if (k === 'org-nombre') o.nombreOrg = v
     else if (k === 'ancla') o.ancla = v
+    else if (k === 'meses') o.meses = Number(v)
     else throw new Error(`opcion desconocida: --${k}\n\n${USO}`)
   }
   return o
@@ -1280,7 +1535,7 @@ function opcionesDeArgv(args) {
 function imprimirResumen(plan) {
   const cuenta = (lista, f) => Object.entries(lista.reduce((m, x) => ((m[f(x)] = (m[f(x)] ?? 0) + 1), m), {}))
     .map(([k, n]) => `${k} ${n}`).join(' · ')
-  console.log(`\nCATALOGO DE LA DEMO — organizacion '${plan.organizacion.slug}', hoy = ${plan.hoy}`)
+  console.log(`\nCATALOGO DE LA DEMO — organizacion '${plan.organizacion.slug}', hoy = ${plan.hoy}, calendario movido ${plan.meses} meses`)
   console.log(`  pantallas    ${plan.sitios.length}: ${cuenta(plan.sitios, (s) => (s.digital ? 'digital' : 'fija'))}`)
   console.log(`    fijas      ${cuenta(plan.sitios.filter((s) => !s.digital), (s) => s.comercial)}`)
   console.log(`    digitales  ${cuenta(plan.sitios.filter((s) => s.digital), (s) => s.comercial)}`)
@@ -1296,6 +1551,13 @@ function imprimirResumen(plan) {
   console.log(`  reservas     ${plan.reservas.length}: ${cuenta(plan.reservas, (r) => r.estatus)}`)
   console.log(`  comprobantes ${plan.comprobantes.length}: ${cuenta(plan.comprobantes, (f) => `${f.estatus}/${f.cobranza}`)}`)
   console.log(`  ordenes      ${plan.ordenes.length}: ${cuenta(plan.ordenes, (o) => o.estatus)}`)
+  console.log(`  creativos    ${plan.creativos.length} digitales: ${cuenta(plan.creativos, (c) => c.estatus)} · ${plan.asignaciones.length} spots con creativo asignado`)
+  console.log(`  imprenta     ${plan.impresiones.length} ordenes con prueba de color: ${cuenta(plan.impresiones, (o) => o.estatus)}`)
+  const md = plan.modulos
+  console.log(`  modulos      prospectos ${md.prospectos.length} (${cuenta(md.prospectos, (p) => p.etapa)})`)
+  console.log(`               codigos ${md.codigos.length} · canjes ${md.canjes.length} · paquetes ${md.paquetes.length} · franjas ${md.franjas.length} · temporadas ${md.temporadas.length} · rejilla ${md.tarifas.length} · escalas ${md.escalas.length}`)
+  console.log(`               almacen ${md.activos.length} activos / ${md.movimientos.length} movimientos · incidencias ${md.incidencias.length} · evidencias ${md.evidencias.length} · costos OT ${md.costosOt.length}`)
+  console.log(`               abonos ${md.abonos.length} · extensiones ${md.extensiones.length} · ordenes de compra ${md.ordenesCompra.length} · notificaciones ${md.notificaciones.length} · actividad ${md.acciones.length} · tickets ${md.tickets.length}`)
   console.log(`  usuarios     ${plan.usuarios.map((u) => `${u.rol} <${u.email}>`).join('\n               ')}`)
   console.log('')
 }
@@ -1365,6 +1627,31 @@ export async function main(argv = process.argv) {
       console.error('ERROR semilla-catalogo-demo: no se escribe nada:')
       for (const m of base.problemas) console.error(`  - ${m}`)
       return 1
+    }
+    // El calendario con el que YA se sembró manda (ver `mesesDeDesplazamiento`):
+    // sembrar con otro duplicaría contratos, rentas y recibos, que se
+    // reconocen por fecha.
+    if (base.tenantId) {
+      const previa = await cli.query(
+        `select to_char(fecha_inicio, 'YYYY-MM-DD') as d from campanas where tenant_id = $1::uuid and folio = $2::text`,
+        [base.tenantId, PRIMERA_CAMPANA.folio],
+      )
+      if (previa.rows.length) {
+        const ya = mesesDeDesplazamiento(previa.rows[0].d) - mesesDeDesplazamiento(PRIMERA_CAMPANA.desde)
+        if (ya !== plan.meses) {
+          plan = planCatalogo({ ...o, meses: ya })
+          const malos2 = comprobarCoherencia(plan)
+          console.log(`el catalogo ya estaba sembrado con el calendario movido ${ya} meses: se reutiliza.`)
+          if (malos2.length) {
+            console.error(
+              'ERROR semilla-catalogo-demo: con ese calendario la demo ya no es coherente hoy. ' +
+                'Para moverlo: --deshacer y volver a sembrar.',
+            )
+            for (const m of malos2) console.error(`  - ${m}`)
+            return 1
+          }
+        }
+      }
     }
     if (o.comprobar) {
       console.log('--comprobar: la base admite el catalogo. No se escribio nada.')
@@ -1445,8 +1732,14 @@ ${USO}`)
       const r = await cli.query(s.sql, s.valores)
       if (r.rowCount) borradas.push(`${s.etiqueta} ${r.rowCount}`)
     }
+    const quedan = await cli.query(
+      `select email from usuarios where tenant_id = $1::uuid and lower(email) = any($2::text[])`,
+      [T, plan.usuarios.map((u) => u.email.toLowerCase())],
+    )
     await cli.query('commit')
     console.log(`deshecho en '${plan.organizacion.slug}': ${borradas.join(' · ') || 'no habia nada del catalogo'}`)
+    console.log('la bitacora (acciones) es append-only: sus entradas de ejemplo se quedan.')
+    for (const u of quedan.rows) console.log(`AVISO: ${u.email} se queda: tiene acciones en la bitacora y borrarlo la reescribiria.`)
     return 0
   } catch (e) {
     await cli.query('rollback').catch(() => {})

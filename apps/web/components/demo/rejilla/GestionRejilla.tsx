@@ -14,6 +14,15 @@ import {
 } from '@/lib/data/rejilla-api'
 import { motivoFranjaInvalida, motivoTemporadaInvalida } from '@/lib/rejilla'
 import { Button } from '@/components/demo/ui/Button'
+import { useCandado, DialogoCandado } from '@/components/demo/ui/candado'
+import { useObligatorios } from '@/components/demo/ui/Campo'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
+import { StatusBadge } from '@/components/demo/StatusBadge'
+import { cn } from '@/lib/cn'
+import { formatFecha } from '@/lib/data/client'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
+import type { Idioma } from '@/lib/i18n/idiomas'
 
 // ============================================================================
 //  El catálogo de FRANJAS y TEMPORADAS de la organización. ADR 0039, Fase 1.
@@ -29,18 +38,40 @@ import { Button } from '@/components/demo/ui/Button'
 //  lo que hace: una franja vendida no se puede borrar
 //  (`propuesta_items_franja_fkey` es `on delete restrict`) y lo contratado sigue
 //  en pie. Llamarlo «Eliminar» prometería algo que no pasa.
+//
+//  ─── EL CANDADO DE CAMBIOS (B41, 2026-10-29) ──────────────────────────────
+//  Las seis rutas que usa esta pantalla pasan por `exigirCambioSensible`. Hasta
+//  el 29/10 los tres manejadores hacían `setError(e.message)` y punto: con
+//  `exigir_reautenticacion` encendido, el dueño veía el 403 en rojo y NINGÚN
+//  sitio donde teclear la contraseña. Era la única pantalla del producto sin
+//  salida. Los botones son de UN CLIC —no hay cuadro propio—, así que se aplica
+//  la regla de `ui/candado.tsx`: el 403 ABRE un cuadro atado a esa acción
+//  exacta (`DialogoCandado`), y confirmar REPITE esa acción, no la relee del
+//  formulario. Un fallo que no es el candado (un solape, un 500) sigue saliendo
+//  en el hueco de error de siempre, por `alFallar`.
 // ============================================================================
 
 const vacioFranja = { nombre: '', horaInicio: '', horaFin: '', orden: 0 }
 const vacioTemporada = { nombre: '', desde: '', hasta: '' }
 
 export function GestionRejilla() {
+  const { idioma, t } = useIdioma()
+  // Dentro del map de las temporadas, «t» es la temporada.
+  const tx = t
   const [franjas, setFranjas] = useState<FranjaUI[]>([])
   const [temporadas, setTemporadas] = useState<TemporadaUI[]>([])
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(true)
   const [nuevaF, setNuevaF] = useState({ ...vacioFranja })
   const [nuevaT, setNuevaT] = useState({ ...vacioTemporada })
+  // OBLIG-01 · lo que exige el servidor (`rejilla-controller.ts:41-58`). El
+  // orden no: trae 0. Las filas de alta van DENTRO de la tabla y sin etiqueta
+  // propia —la etiqueta es la cabecera de la columna—, así que no llevan
+  // `Campo`: el asterisco va en la cabecera y el rojo lo pone `globals.css`
+  // por el `data-falta` de la celda.
+  const obF = useObligatorios(nuevaF, ['nombre', 'horaInicio', 'horaFin'])
+  const obT = useObligatorios(nuevaT, ['nombre', 'desde', 'hasta'])
+  const candado = useCandado()
 
   const cargar = useCallback(async () => {
     try {
@@ -49,7 +80,7 @@ export function GestionRejilla() {
       setTemporadas(d.temporadas)
       setError(null)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo leer el catálogo')
+      setError(e instanceof Error ? e.message : t('catalogos.rejilla.no-leer'))
     } finally {
       setCargando(false)
     }
@@ -64,86 +95,137 @@ export function GestionRejilla() {
     // de baja—: si solo mirara las activas, se podría capturar una franja que se
     // solapa con una apagada y el choque saldría el día que alguien la
     // reactivara, sin saber desde cuándo.
-    const motivo = motivoFranjaInvalida({ id: '', ...nuevaF }, franjas)
-    if (motivo) return setError(motivo)
-    try {
-      await guardarFranjaApi(nuevaF)
-      setNuevaF({ ...vacioFranja })
-      await cargar()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo guardar')
-    }
+    const completos = obF.validar()
+    const motivo = motivoFranjaInvalida({ id: '', ...nuevaF }, franjas, idioma)
+    if (!completos || motivo) return setError(motivo)
+    // La franja se copia AQUÍ: si el candado pide la contraseña, lo que se
+    // repite es ESTE alta, aunque el usuario toque la fila mientras teclea.
+    const franja = { ...nuevaF }
+    setError(null)
+    await candado.ejecutar({
+      guardar: () => guardarFranjaApi(franja),
+      alLograr: () => {
+        setNuevaF({ ...vacioFranja })
+        obF.reiniciar()
+        void cargar()
+      },
+      alFallar: (m) => setError(m),
+      mensajeSiFalla: t('catalogos.comun.no-guardar'),
+    })
   }
 
   async function anadirTemporada() {
-    const motivo = motivoTemporadaInvalida({ id: '', ...nuevaT }, temporadas)
-    if (motivo) return setError(motivo)
-    try {
-      await guardarTemporadaApi(nuevaT)
-      setNuevaT({ ...vacioTemporada })
-      await cargar()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo guardar')
-    }
+    const completos = obT.validar()
+    const motivo = motivoTemporadaInvalida({ id: '', ...nuevaT }, temporadas, idioma)
+    if (!completos || motivo) return setError(motivo)
+    const temporada = { ...nuevaT }
+    setError(null)
+    await candado.ejecutar({
+      guardar: () => guardarTemporadaApi(temporada),
+      alLograr: () => {
+        setNuevaT({ ...vacioTemporada })
+        obT.reiniciar()
+        void cargar()
+      },
+      alFallar: (m) => setError(m),
+      mensajeSiFalla: t('catalogos.comun.no-guardar'),
+    })
   }
 
   async function darDeBaja(tipo: 'franja' | 'temporada', id: string) {
-    try {
-      if (tipo === 'franja') await bajaFranjaApi(id)
-      else await bajaTemporadaApi(id)
-      await cargar()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo dar de baja')
-    }
+    setError(null)
+    await candado.ejecutar({
+      guardar: () => (tipo === 'franja' ? bajaFranjaApi(id) : bajaTemporadaApi(id)),
+      alLograr: () => void cargar(),
+      alFallar: (m) => setError(m),
+      mensajeSiFalla: t('catalogos.rejilla.no-dar-de-baja'),
+    })
   }
 
-  if (cargando) return <p className="text-sm text-muted">Cargando el catálogo…</p>
+  // Esqueleto con la forma de lo que va a llegar (el aviso y las dos tablas),
+  // no un «Cargando…» en texto (rediseño del 2026-10-26).
+  if (cargando) {
+    return (
+      <div className="space-y-4" aria-busy="true" aria-label={t('catalogos.rejilla.cargando')}>
+        <div className="h-12 animate-pulse rounded-md bg-surface-2" />
+        <div className="h-40 animate-pulse rounded-md bg-surface-2" />
+        <div className="h-32 animate-pulse rounded-md bg-surface-2" />
+      </div>
+    )
+  }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Va ARRIBA del todo, antes de que nadie capture nada: el dueño tiene que
           saber qué NO hace el sistema antes de montar su tabla de precios. */}
       <AvisoFranjaCMS />
 
+      <DialogoCandado
+        candado={candado}
+        titulo={t('catalogos.rejilla.candado.titulo')}
+        subtitulo={t('catalogos.rejilla.candado.subtitulo')}
+        etiquetaConfirmar={t('catalogos.rejilla.candado.confirmar')}
+      />
+
       {error && (
-        <p role="alert" className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">
+        <p role="alert" className="rounded-md border border-error bg-error-soft px-3 py-2 text-[13px] text-error">
           {error}
         </p>
       )}
 
-      <section>
-        <h2 className="mb-1 text-sm font-semibold">Franjas horarias</h2>
-        <p className="mb-3 text-xs text-muted">
-          El fin es <b>exclusivo</b>: 06:00–10:00 y 10:00–14:00 se tocan y no se pisan. Dos franjas
-          no pueden solaparse — si pudieran, el precio de un spot a las 09:30 dependería de un
-          desempate que nadie decidió.
+      {/* PLEG-02 · cada catálogo se pliega por separado. Lo capturado a medias
+          en la fila de alta vive en el estado de ESTE componente, no en la
+          tarjeta: plegar y desplegar no lo borra.
+
+          Rediseño del 2026-10-26 · el `subtitulo` es una frase corta y la
+          explicación completa va como primera línea del contenido, en la
+          franja secundaria del Dashboard: con dos o tres renglones de
+          subtítulo el chevrón de plegar se caía debajo del texto. */}
+      <CardColapsable
+        id="franjas-y-temporadas.franjas"
+        titulo={t('catalogos.rejilla.franjas.titulo')}
+        subtitulo={t('catalogos.rejilla.franjas.subtitulo')}
+        contentClassName="space-y-3"
+      >
+        <p className={FRANJA_EXPLICACION}>
+          {interpolarNodos(t('catalogos.rejilla.franjas.explicacion'), {
+            exclusivo: <b>{t('catalogos.rejilla.franjas.explicacion.exclusivo')}</b>,
+          })}
         </p>
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full text-left text-[13px]">
           <thead>
-            <tr className="border-b text-left text-xs text-muted">
-              <th className="py-1">Nombre</th>
-              <th>Desde</th>
-              <th>Hasta</th>
-              <th>Orden</th>
-              <th />
+            <tr className={CABECERA}>
+              <th className={TH}>{t('catalogos.comun.nombre')}<Asterisco /></th>
+              <th className={TH}>{t('catalogos.comun.desde')}<Asterisco /></th>
+              <th className={TH}>{t('catalogos.comun.hasta')}<Asterisco /></th>
+              <th className={TH}>{t('catalogos.rejilla.col.orden')}</th>
+              <th className={TH}>{t('catalogos.comun.estado')}</th>
+              <th className={TH} />
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-border">
             {franjas.length === 0 && (
               <tr>
-                <td colSpan={5} className="py-3 text-muted">
-                  Todavía no hay ninguna. Sin franjas, todo se vende con la tarifa base — que es
-                  exactamente como funciona hoy.
+                <td colSpan={6} className={`${CELDA} text-muted`}>
+                  {t('catalogos.rejilla.franjas.vacio')}
                 </td>
               </tr>
             )}
             {franjas.map((f) => (
-              <tr key={f.id} className={'border-b ' + (f.activo ? '' : 'text-muted/60 line-through')}>
-                <td className="py-1.5">{f.nombre}</td>
-                <td>{f.horaInicio}</td>
-                <td>{f.horaFin}</td>
-                <td>{f.orden}</td>
-                <td className="text-right">
+              <tr key={f.id} className={f.activo ? '' : 'text-muted line-through'}>
+                <td className={cn(CELDA, f.activo && 'text-ink')}>{f.nombre}</td>
+                <td className={cn(CELDA, 'demo-num')}>{f.horaInicio}</td>
+                <td className={cn(CELDA, 'demo-num')}>{f.horaFin}</td>
+                <td className={cn(CELDA, 'demo-num')}>{f.orden}</td>
+                {/* El estado también con palabras, no solo con el tachado: el
+                    tachado es estilo y se pierde al copiar o con un lector de
+                    pantalla. La pastilla es `inline-flex`, así que el tachado
+                    de la fila no la cruza. */}
+                <td className={CELDA}>
+                  <StatusBadge tono={f.activo ? 'verde' : 'neutro'}>{f.activo ? t('catalogos.comun.activa') : t('catalogos.comun.dada-de-baja')}</StatusBadge>
+                </td>
+                <td className={cn(CELDA, 'text-right')}>
                   {f.activo && (
                     <Button
                       type="button"
@@ -151,96 +233,110 @@ export function GestionRejilla() {
                       size="sm"
                       variant="ghost"
                       className="text-error hover:text-error"
-                      title="Dar de baja: deja de ofrecerse, y lo ya contratado sigue en pie"
+                      title={t('catalogos.rejilla.dar-de-baja.title')}
                     >
-                      <Trash2 className="h-3.5 w-3.5" /> Dar de baja
+                      <Trash2 className="h-3.5 w-3.5" /> {t('catalogos.comun.dar-de-baja')}
                     </Button>
                   )}
                 </td>
               </tr>
             ))}
-            <tr>
-              <td className="py-2">
+            {/* La fila de ALTA, con fondo propio: no es una franja más del
+                catálogo y se leía como si lo fuera. */}
+            <tr className="bg-surface-2">
+              <td className={CELDA} data-falta={obF.falta('nombre') || undefined}>
                 <input
-                  aria-label="Nombre de la franja"
-                  className="w-full rounded border px-2 py-1"
-                  placeholder="Prime"
+                  aria-label={t('catalogos.rejilla.franja.nombre.aria')}
+                  className={cn(CAMPO, 'w-full min-w-[8rem]')}
+                  placeholder={t('catalogos.rejilla.franja.nombre.placeholder')}
                   value={nuevaF.nombre}
                   onChange={(e) => setNuevaF({ ...nuevaF, nombre: e.target.value })}
                 />
               </td>
-              <td>
+              <td className={CELDA} data-falta={obF.falta('horaInicio') || undefined}>
                 <input
-                  aria-label="Hora de inicio"
+                  aria-label={t('catalogos.rejilla.franja.inicio.aria')}
                   type="time"
-                  className="rounded border px-2 py-1"
+                  className={cn(CAMPO, 'demo-num')}
                   value={nuevaF.horaInicio}
                   onChange={(e) => setNuevaF({ ...nuevaF, horaInicio: e.target.value })}
                 />
               </td>
-              <td>
+              <td className={CELDA} data-falta={obF.falta('horaFin') || undefined}>
                 <input
-                  aria-label="Hora de fin"
+                  aria-label={t('catalogos.rejilla.franja.fin.aria')}
                   type="time"
-                  className="rounded border px-2 py-1"
+                  className={cn(CAMPO, 'demo-num')}
                   value={nuevaF.horaFin}
                   onChange={(e) => setNuevaF({ ...nuevaF, horaFin: e.target.value })}
                 />
               </td>
-              <td>
+              <td className={CELDA}>
                 <input
-                  aria-label="Orden"
+                  aria-label={t('catalogos.rejilla.col.orden')}
                   type="number"
-                  className="w-16 rounded border px-2 py-1"
+                  className={cn(CAMPO, 'demo-num w-16')}
                   value={nuevaF.orden}
                   onChange={(e) => setNuevaF({ ...nuevaF, orden: Number(e.target.value) })}
                 />
               </td>
-              <td className="text-right">
+              <td className={CELDA} />
+              <td className={cn(CELDA, 'text-right')}>
                 <Button
                   type="button"
                   onClick={() => void anadirFranja()}
                   size="sm"
                   variant="success"
                 >
-                  <Plus className="h-3.5 w-3.5" /> Añadir
+                  <Plus className="h-3.5 w-3.5" /> {t('catalogos.comun.anadir')}
                 </Button>
               </td>
             </tr>
           </tbody>
         </table>
-      </section>
+        </div>
+      </CardColapsable>
 
-      <section>
-        <h2 className="mb-1 text-sm font-semibold">Temporadas</h2>
-        <p className="mb-3 text-xs text-muted">
-          Fechas <b>concretas</b>, con año: «Buen Fin 2026» y «Buen Fin 2027» son dos temporadas,
-          porque las fechas cambian cada año. Ambos extremos entran. Tampoco pueden solaparse: si
-          «Diciembre» y «Buen Fin» se pisan, hay que decidir qué precio manda esos días.
+      <CardColapsable
+        id="franjas-y-temporadas.temporadas"
+        titulo={t('catalogos.rejilla.temporadas.titulo')}
+        subtitulo={t('catalogos.rejilla.temporadas.subtitulo')}
+        contentClassName="space-y-3"
+      >
+        <p className={FRANJA_EXPLICACION}>
+          {interpolarNodos(t('catalogos.rejilla.temporadas.explicacion'), {
+            concretas: <b>{t('catalogos.rejilla.temporadas.explicacion.concretas')}</b>,
+          })}
         </p>
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full text-left text-[13px]">
           <thead>
-            <tr className="border-b text-left text-xs text-muted">
-              <th className="py-1">Nombre</th>
-              <th>Desde</th>
-              <th>Hasta</th>
-              <th />
+            <tr className={CABECERA}>
+              <th className={TH}>{t('catalogos.comun.nombre')}<Asterisco /></th>
+              <th className={TH}>{t('catalogos.comun.desde')}<Asterisco /></th>
+              <th className={TH}>{t('catalogos.comun.hasta')}<Asterisco /></th>
+              <th className={TH}>{t('catalogos.comun.estado')}</th>
+              <th className={TH} />
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-border">
             {temporadas.length === 0 && (
               <tr>
-                <td colSpan={4} className="py-3 text-muted">
-                  Todavía no hay ninguna.
+                <td colSpan={5} className={`${CELDA} text-muted`}>
+                  {t('catalogos.rejilla.temporadas.vacio')}
                 </td>
               </tr>
             )}
             {temporadas.map((t) => (
-              <tr key={t.id} className={'border-b ' + (t.activo ? '' : 'text-muted/60 line-through')}>
-                <td className="py-1.5">{t.nombre}</td>
-                <td>{t.desde}</td>
-                <td>{t.hasta}</td>
-                <td className="text-right">
+              <tr key={t.id} className={t.activo ? '' : 'text-muted line-through'}>
+                <td className={cn(CELDA, t.activo && 'text-ink')}>{t.nombre}</td>
+                {/* dd/mm/aaaa como el resto de la app; llegaban en ISO. */}
+                <td className={cn(CELDA, 'demo-num whitespace-nowrap')}>{fechaCorta(t.desde, idioma)}</td>
+                <td className={cn(CELDA, 'demo-num whitespace-nowrap')}>{fechaCorta(t.hasta, idioma)}</td>
+                <td className={CELDA}>
+                  <StatusBadge tono={t.activo ? 'verde' : 'neutro'}>{t.activo ? tx('catalogos.comun.activa') : tx('catalogos.comun.dada-de-baja')}</StatusBadge>
+                </td>
+                <td className={cn(CELDA, 'text-right')}>
                   {t.activo && (
                     <Button
                       type="button"
@@ -249,54 +345,85 @@ export function GestionRejilla() {
                       variant="ghost"
                       className="text-error hover:text-error"
                     >
-                      <Trash2 className="h-3.5 w-3.5" /> Dar de baja
+                      <Trash2 className="h-3.5 w-3.5" /> {tx('catalogos.comun.dar-de-baja')}
                     </Button>
                   )}
                 </td>
               </tr>
             ))}
-            <tr>
-              <td className="py-2">
+            <tr className="bg-surface-2">
+              <td className={CELDA} data-falta={obT.falta('nombre') || undefined}>
                 <input
-                  aria-label="Nombre de la temporada"
-                  className="w-full rounded border px-2 py-1"
-                  placeholder="Buen Fin 2026"
+                  aria-label={t('catalogos.rejilla.temporada.nombre.aria')}
+                  className={cn(CAMPO, 'w-full min-w-[8rem]')}
+                  placeholder={t('catalogos.rejilla.temporada.nombre.placeholder')}
                   value={nuevaT.nombre}
                   onChange={(e) => setNuevaT({ ...nuevaT, nombre: e.target.value })}
                 />
               </td>
-              <td>
+              <td className={CELDA} data-falta={obT.falta('desde') || undefined}>
                 <input
-                  aria-label="Fecha de inicio"
+                  aria-label={t('catalogos.rejilla.temporada.inicio.aria')}
                   type="date"
-                  className="rounded border px-2 py-1"
+                  className={cn(CAMPO, 'demo-num')}
                   value={nuevaT.desde}
                   onChange={(e) => setNuevaT({ ...nuevaT, desde: e.target.value })}
                 />
               </td>
-              <td>
+              <td className={CELDA} data-falta={obT.falta('hasta') || undefined}>
                 <input
-                  aria-label="Fecha de fin"
+                  aria-label={t('catalogos.rejilla.temporada.fin.aria')}
                   type="date"
-                  className="rounded border px-2 py-1"
+                  className={cn(CAMPO, 'demo-num')}
                   value={nuevaT.hasta}
                   onChange={(e) => setNuevaT({ ...nuevaT, hasta: e.target.value })}
                 />
               </td>
-              <td className="text-right">
+              <td className={CELDA} />
+              <td className={cn(CELDA, 'text-right')}>
                 <Button
                   type="button"
                   onClick={() => void anadirTemporada()}
                   size="sm"
                   variant="success"
                 >
-                  <Plus className="h-3.5 w-3.5" /> Añadir
+                  <Plus className="h-3.5 w-3.5" /> {t('catalogos.comun.anadir')}
                 </Button>
               </td>
             </tr>
           </tbody>
         </table>
-      </section>
+        </div>
+      </CardColapsable>
     </div>
+  )
+}
+
+// Estilos comunes de tabla del rediseño del 2026-10-26 (los mismos de
+// Finanzas): cabecera en mayúsculas de 11 px, celdas con relleno, y campos del
+// alto y el borde del resto de los formularios.
+const CABECERA = 'border-b border-border text-[11px] uppercase tracking-wide text-muted'
+const CELDA = 'px-3 py-2.5'
+const TH = 'px-3 py-2 font-medium'
+const CAMPO =
+  'h-9 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink outline-none placeholder:text-muted focus-visible:ring-2 focus-visible:ring-accent'
+const FRANJA_EXPLICACION = 'rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px] text-muted'
+
+// La fecha de una temporada viene como `YYYY-MM-DD`. `formatFecha` la lee como
+// fecha LOCAL (sin el corrimiento de un día que daría `new Date(iso)` en
+// México). Si llegara vacía o en otro formato, se pinta tal cual en vez de
+// inventar una fecha.
+function fechaCorta(iso: string, idioma: Idioma = 'es'): string {
+  return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? formatFecha(iso, idioma) : iso
+}
+
+/** OBLIG-01 · el asterisco de una cabecera de columna obligatoria. */
+function Asterisco() {
+  const t = useIdioma().t
+  return (
+    <>
+      <span aria-hidden="true" className="ml-0.5 text-error">*</span>
+      <span className="sr-only">{t('compartidos.campo.obligatorio')}</span>
+    </>
   )
 }

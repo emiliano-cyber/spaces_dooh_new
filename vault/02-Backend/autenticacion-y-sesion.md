@@ -1,9 +1,11 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-06
+actualizado: 2026-11-04
 tags: [backend, auth, seguridad, rojo]
 archivos:
+  - apps/web/app/api/auth/forgot/route.ts
+  - apps/web/lib/server/correo-reset-idioma.test.ts
   - apps/web/lib/server/auth.ts
   - apps/web/lib/server/cambios.ts
   - apps/web/lib/server/cambios.test.ts
@@ -26,6 +28,13 @@ archivos:
   - db/migrations/20260819_semilla_rol_permisos.sql
   - db/migrations/20260825_sesion_metodo.sql
   - apps/web/lib/server/perfil-controller.ts
+  - apps/web/app/api/perfil/route.ts
+  - apps/web/app/api/auth/login/route.ts
+  - apps/web/lib/server/rate-limit.ts
+  - apps/web/lib/guardas-usuarios.ts
+  - apps/web/lib/server/login-limite-cuenta.test.ts
+  - apps/web/lib/server/perfil-cierra-sesiones.test.ts
+  - apps/web/lib/server/restablecer-dueno.test.ts
   - apps/web/lib/server/codigos-recuperacion.ts
   - apps/web/lib/server/codigos-recuperacion-repo.ts
   - apps/web/app/api/auth/codigo/route.ts
@@ -70,6 +79,7 @@ No hay NextAuth, ni `jose`, ni iron-session.
 | Hash de contraseña | bcrypt costo 10 | `lib/server/auth.ts:91-93` |
 | Contraseña generada (alta con Google) | `passwordAleatoria()`, cumple la política por construcción | `lib/server/auth.ts:63-66` |
 | Cookie CSRF | `spaces_csrf`, **httpOnly:false a propósito** | `lib/server/auth.ts:268-291` |
+| Cookie del idioma de la cuenta | `spaces_idioma_cuenta` = `<idioma>.<huella del token>`, httpOnly, un año. **(03/11, IDIOMA-USUARIO)** La ponen los tres sitios donde nace una sesión (login, Google, código de recuperación) y `PUT /api/perfil/idioma`; la borra el logout. Atada a la sesión por `huellaDeSesion()` (sha256 del token, 32 hex): con otra sesión no casa y se ignora. **No es una credencial** — falsificarla solo cambia el idioma propio. `auth.ts` y `middleware.ts` no cambiaron | `lib/server/idioma-cuenta.ts`, `lib/server/huella-sesion.ts` |
 | `Secure` | ON en producción salvo `COOKIE_SECURE=0` | `lib/server/auth.ts:245-253` |
 
 > [!warning] Las seis citas de arriba habían derivado hasta 21 líneas — recalculadas el 27/08
@@ -462,7 +472,7 @@ reenviarlo (`lib/csrf-client.ts:36-66`).
 >
 > **2026-10-05:** y volvieron a moverse, esta vez de archivo. La lista vivía en
 > `components/demo/shell/nav.ts`; el ADR 0040 (29/09) la mudó a `lib/roles.ts`, y
-> `nav.ts:279` solo la reexporta como `ROLES`. Las citas viejas a `nav.ts:136-141`
+> `nav.ts:310` solo la reexporta como `ROLES`. Las citas viejas a `nav.ts:136-141`
 > mandaban a una entrada del menú.
 
 ## Reautenticación para cambios sensibles (ADR 0009 + ADR 0036)
@@ -505,7 +515,7 @@ contraseña compartida — solo la propia prueba identidad. Es lo que protege
 
 > [!danger] INVARIANTE: todo usuario tiene `password_hash`
 > `cambios.ts:221-224` responde *«Tu usuario no tiene contraseña»* —desde el ADR
-> 0036, solo si **tampoco** hay compartida— y `perfil-controller.ts:82-90` exige
+> 0036, solo si **tampoco** hay compartida— y `perfil-controller.ts:85-93` exige
 > `passwordActual`. Un usuario con
 > `password_hash = null` **no puede** cambiar su correo, ni salir de
 > `debe_cambiar_password`: sigue encerrado sin salida por esas dos vías. **Desde
@@ -514,7 +524,7 @@ contraseña compartida — solo la propia prueba identidad. Es lo que protege
 > que solo acepta la propia.
 >
 > El invariante se sostiene en dos sitios: `crearUsuario()` lanza si no recibe
-> contraseña (`usuarios-repo.ts:62`), y el alta «entra con Google» **genera una
+> contraseña (`usuarios-repo.ts:78`), y el alta «entra con Google» **genera una
 > que nadie ve** en vez de dejar el campo vacío (`4206ab2`). Es la solución por
 > construcción a la restricción 4 del ADR 0012.
 >
@@ -526,7 +536,7 @@ contraseña compartida — solo la propia prueba identidad. Es lo que protege
 > contraseña que **nadie ve**, y `PATCH /api/perfil` le pedía justo esa para poder
 > cambiarla. El ADR 0018 lo resolvió, y conviene leer la excepción entera antes de
 > tocar nada de aquí: son **cuatro condiciones que van juntas**
-> (`perfil-controller.ts:36-58`: el comentario y `puedeFijarSinAnterior()`), y cada una tapa un abuso distinto.
+> (`perfil-controller.ts:37-59`: el comentario y `puedeFijarSinAnterior()`), y cada una tapa un abuso distinto.
 >
 > | Condición | Qué impide |
 > |---|---|
@@ -554,6 +564,14 @@ Restablecimiento por correo: `password_resets`, token de 256 bits, un solo uso,
 60 minutos, y **borra todas las sesiones del usuario**
 (`password-reset-repo.ts`). Está apagado en producción
 (`NEXT_PUBLIC_RECUPERAR_PASSWORD`) porque no hay correo saliente.
+
+El correo sale en el **idioma de la instancia** (ADR 0049) desde el 04/11:
+`forgot/route.ts` pasa `await idiomaDeLaInstancia()` a `asuntoCorreoReset` y
+`htmlCorreoReset` (`lib/server/email.ts`). En `es` es el literal de siempre,
+byte a byte; en/it salen de `cuenta.correo.reset.*`. La lectura del idioma va
+**dentro** del `try` del envío: si la base no contesta, lanza, el correo no sale
+(nunca en otro idioma) y la respuesta sigue siendo la genérica. Solo se lee si el
+correo existe. Lo atan `correo-reset-idioma.test.ts` y `correos-idioma.test.ts`.
 
 **Invitación de usuarios (06/10, [ADR 0044](../../docs/adr/0044-invitacion-de-usuarios-con-enlace-para-elegir-contrasena.md)).**
 La misma tabla y la misma página, con otra vigencia: `POST /api/usuarios` con
@@ -583,13 +601,43 @@ algún día se escala a varias, deja de valer.
 
 | Ruta | Límite |
 |---|---|
-| login | 10 / 5 min por IP |
+| login | 10 / 5 min por IP **+ 10 fallos / 15 min por cuenta** (21/10, ver abajo) |
 | forgot | 5 / 15 min por IP + 3 / h por correo |
 | reset | 10 / 15 min |
 | signup | 5 / h por IP |
 | google/inicio | 10 / 5 min por IP |
 | desbloquear | 5 / 5 min por usuario+IP |
 | bootstrap | 10 / h por IP (`app/api/bootstrap/route.ts:64`) — **pasarse contesta 404**, no 429 |
+
+> [!important] 2026-10-21 · SEG-21OCT — el login también limita POR CUENTA
+> El de IP no frena a quien cambia de dirección (un /64 de IPv6 son millones),
+> así que contra el correo de una persona no había tope. Cubo nuevo
+> `login:cuenta:<correo en minúsculas y sin espacios>` (`app/api/auth/login/route.ts`):
+>
+> - cuenta **solo los fallos**: se mira con `consultar()` antes de verificar y se
+>   anota con `limitar()` solo en el 401; un login correcto lo vacía (`olvidar()`);
+> - con la cuenta bloqueada **ni la contraseña correcta entra** (429 con `Retry-After`);
+> - un correo que **no existe** se bloquea igual y con el mismo texto: si no, el
+>   429 diría qué correos tienen cuenta.
+>
+> **El precio, aceptado:** quien sabe el correo de alguien puede dejarle la
+> contraseña sin servir 15 minutos. Google y los códigos de recuperación no
+> pasan por aquí. Lo fija `lib/server/login-limite-cuenta.test.ts`, contra la
+> ruta real con la base simulada.
+
+> [!important] 2026-10-21 · SEG-21OCT — dos reglas nuevas de sesión y credenciales
+> - **Cambiar la contraseña o el correo propios cierra las DEMÁS sesiones**
+>   (`perfil-controller.ts` → `cerrarOtrasSesionesDeUsuario`, `usuarios-repo.ts`).
+>   Conserva la que hizo el cambio: `/api/perfil` le pasa su token de la cookie.
+>   Hasta ese día era el único de los tres caminos de cambio de contraseña que no
+>   cerraba ninguna (el restablecimiento y el enlace de recuperación sí). El
+>   `delete` usa `token is distinct from $2`: con `<>` y un token nulo no borraría
+>   nada, sin error.
+> - **La contraseña de un Dueño solo la restablece otro Dueño** (guard 4 en
+>   `lib/guardas-usuarios.ts`; el repo lo activa cuando se escribe un
+>   `passwordHash`). Antes ningún guard saltaba, porque restablecer no quita el
+>   rol, y la respuesta trae la temporal en claro: un administrador entraba como
+>   el Dueño. Ver [[02-Backend/roles-de-venta]].
 
 ## Con la base caída: 503 con JSON, nunca un 500 vacío
 

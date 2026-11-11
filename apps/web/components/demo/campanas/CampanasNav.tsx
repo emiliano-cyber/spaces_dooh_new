@@ -6,10 +6,11 @@ import { cn } from '@/lib/cn'
 import {
   StatusBadge,
   CAMPANA_TONO,
-  CAMPANA_LABEL,
 } from '@/components/demo/StatusBadge'
 import { useCampanas } from '@/lib/data/client'
 import { useMenuCampanasPlegado } from '@/lib/campanas-menu'
+import { useTexto } from '@/lib/i18n/contexto'
+import { CLAVE_ESTADO_CAMPANA } from './etiquetas'
 import type { Campana } from '@/lib/data/types'
 
 // Menú lateral de campañas: se muestra dentro del detalle/pipeline de una
@@ -55,6 +56,7 @@ export function CampanasNavVista({
   plegado: boolean
   onAlternar: () => void
 }) {
+  const t = useTexto()
   // Más recientes arriba, igual que el listado de Campañas: al saltar entre
   // campañas desde aquí se espera el mismo orden que en la pantalla de la que
   // vienes. Antes era alfabético, que dejaba las campañas nuevas enterradas.
@@ -63,7 +65,7 @@ export function CampanasNavVista({
     (a, b) => b.creadoEn.localeCompare(a.creadoEn) || b.folio.localeCompare(a.folio),
   )
 
-  const etiqueta = plegado ? 'Mostrar el menú de campañas' : 'Ocultar el menú de campañas'
+  const etiqueta = plegado ? t('campanas.menu.mostrar') : t('campanas.menu.ocultar')
 
   return (
     <aside className={cn('lg:shrink-0', plegado ? 'lg:w-9' : 'lg:w-64')}>
@@ -81,7 +83,7 @@ export function CampanasNavVista({
               plegado && 'lg:sr-only',
             )}
           >
-            Campañas ({campanas.length})
+            {t('campanas.menu.titulo', { n: campanas.length })}
           </span>
           {/* El botón se ve en TODOS los anchos: ninguna clase responsive lo esconde. */}
           <button
@@ -94,7 +96,7 @@ export function CampanasNavVista({
             className="inline-flex shrink-0 items-center gap-1 rounded border border-border px-1.5 py-1 text-[11px] font-medium text-muted hover:bg-surface-2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info"
           >
             {/* Menos de lg el menú va ENCIMA del pipeline: se pliega hacia arriba. */}
-            <span className="lg:hidden">{plegado ? 'Mostrar' : 'Ocultar'}</span>
+            <span className="lg:hidden">{plegado ? t('campanas.menu.boton.mostrar') : t('campanas.menu.boton.ocultar')}</span>
             {plegado ? (
               <ChevronDown aria-hidden className="h-3.5 w-3.5 lg:hidden" />
             ) : (
@@ -111,7 +113,7 @@ export function CampanasNavVista({
         {/* `hidden` y no desmontar: la lista sigue existiendo para `aria-controls`. */}
         <nav
           id={ID_LISTA}
-          aria-label="Otras campañas"
+          aria-label={t('campanas.menu.otras')}
           hidden={plegado}
           className="max-h-[60vh] space-y-0.5 overflow-y-auto rounded-md border border-border bg-surface p-1 lg:max-h-[calc(100vh-6rem)]"
         >
@@ -142,7 +144,7 @@ export function CampanasNavVista({
                     {c.folio}
                   </span>
                   <StatusBadge tono={CAMPANA_TONO[c.estadoComercial]}>
-                    {CAMPANA_LABEL[c.estadoComercial]}
+                    {t(CLAVE_ESTADO_CAMPANA[c.estadoComercial])}
                   </StatusBadge>
                 </div>
               </Link>

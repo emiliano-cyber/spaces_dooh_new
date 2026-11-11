@@ -10,8 +10,10 @@ import { landingDeRol } from '@/lib/data/client'
 import { esEmailValido } from '@/lib/validacion'
 import { motivoPassword } from '@/lib/password'
 import { useIdioma } from '@/lib/i18n/contexto'
+import { avisoDeEnlaceEnviado, mensajeDeAcceso } from '@/lib/i18n/errores-acceso'
 import { SelectorIdioma } from '@/components/demo/ui/SelectorIdioma'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
+import { cambiaIdiomaAlEntrar } from '@/lib/i18n/idiomas'
 
 const inputCls =
   'h-10 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
@@ -61,7 +63,7 @@ export default function LoginPage() {
   // I18N-01. El idioma ya viene resuelto desde el servidor (layout raíz), así
   // que el primer render de esta página sale en el idioma correcto: no hay un
   // segundo pase que cambie el texto delante de quien mira.
-  const { t } = useIdioma()
+  const { t, idioma, disponibles } = useIdioma()
   const [modo, setModo] = useState<Modo>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -157,7 +159,15 @@ export default function LoginPage() {
   }
 
   async function entrar(mail: string, pass: string) {
-    const { usuario } = await apiLogin(mail.trim(), pass)
+    const { usuario, idioma: idiomaCuenta } = await apiLogin(mail.trim(), pass)
+    // La cuenta pide OTRO idioma (IDIOMA-USUARIO, 03/11): carga completa, porque
+    // `router.push` no vuelve a pintar el layout raíz, que es quien lo lleva, y
+    // la aplicación seguiría en el idioma de esta pantalla hasta recargar. Sin
+    // preferencia —o con la misma—, la navegación suave de siempre.
+    if (cambiaIdiomaAlEntrar(idiomaCuenta, idioma, disponibles)) {
+      window.location.assign(`/spaces-dooh${landingDeRol(usuario.rol)}/`)
+      return
+    }
     router.push(landingDeRol(usuario.rol))
   }
 
@@ -179,10 +189,12 @@ export default function LoginPage() {
         // OJO: `d.mensaje` lo escribe el SERVIDOR y llega en español. El texto
         // traducido es solo el respaldo de cuando no manda ninguno. Ver el
         // apartado de mensajes de servidor en el informe I18N-01.
-        setAviso((d as { mensaje?: string }).mensaje ?? t('login.aviso-generico'))
+        // Fuera del espanol (italiano e ingles), el del diccionario: ver
+        // `avisoDeEnlaceEnviado`.
+        setAviso(avisoDeEnlaceEnviado((d as { mensaje?: string }).mensaje, idioma))
         setEnlaceDev((d as { enlaceDev?: string }).enlaceDev ?? null)
       } catch (e) {
-        setError(e instanceof Error ? e.message : t('login.error.enviar-enlace'))
+        setError(e instanceof Error ? mensajeDeAcceso(e.message, idioma) : t('login.error.enviar-enlace'))
       }
       setEnviando(false)
       return
@@ -202,7 +214,9 @@ export default function LoginPage() {
       }
       await entrar(email, password)
     } catch (e) {
-      setError(e instanceof Error ? e.message : esSignup ? t('login.error.crear-cuenta') : t('login.error.iniciar-sesion'))
+      // Ola 5: el texto de las rutas de acceso llega en español (no pasan por
+      // respuestaError); se pinta en el idioma de la pantalla.
+      setError(e instanceof Error ? mensajeDeAcceso(e.message, idioma) : esSignup ? t('login.error.crear-cuenta') : t('login.error.iniciar-sesion'))
       setEnviando(false)
     }
   }

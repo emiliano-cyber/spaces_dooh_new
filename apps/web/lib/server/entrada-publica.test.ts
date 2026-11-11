@@ -52,7 +52,7 @@ vi.mock('./db', () => ({
   fijarTenant: vi.fn(async () => {}),
 }))
 vi.mock('./tenant', () => ({ tenantActual: vi.fn(async () => 't1') }))
-vi.mock('./contrato-expediente', () => ({ expedienteContrato: vi.fn(async () => null) }))
+vi.mock('./contrato-expediente', () => ({ expedienteContrato: vi.fn(async () => null), datosContrato: vi.fn(async () => null) }))
 
 const { firmarPorToken } = await import('./firmas-repo')
 const { aceptarPropuestaPublica, PropuestaError } = await import('./propuestas-repo')

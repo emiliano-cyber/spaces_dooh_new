@@ -4,8 +4,8 @@ import { exigir } from '@/lib/server/auth'
 import { q } from '@/lib/server/db'
 import { tenantActual } from '@/lib/server/tenant'
 import { registrarAccion } from '@/lib/server/acciones-repo'
-import { obtenerConfigRow, obtenerConfigAdmin } from '@/lib/server/config-repo'
-import { respuestaError, validar } from '@/lib/server/errores'
+import { obtenerConfigRow, obtenerConfigAdmin, guardarIdentidadFiscal } from '@/lib/server/config-repo'
+import { AppError, respuestaError, validar } from '@/lib/server/errores'
 import { exigirDesbloqueo, respuestaDesbloqueo } from '@/lib/server/cambios'
 import { LIMITES, uploadZod } from '@/lib/server/uploads'
 import { rfcTenant, textoTenant } from '@/lib/server/config-fiscal'
@@ -27,7 +27,11 @@ const logo = uploadZod(LIMITES.logoEmpresa.allowlist, LIMITES.logoEmpresa.maxMB)
 const configSchema = z
   .object({
     nombreTenant: z.string().trim().min(1).max(120),
-    moneda: z.string().trim().min(1).max(10),
+    // ADR 0048 · la moneda NO se cambia por aqui ni por ningun sitio: se eligio
+    // al crear la instancia. El campo se ACEPTA en el esquema solo para poder
+    // rechazarlo con un mensaje que diga por que; sin el, `.strict()` daria un
+    // «campo desconocido» que no explica nada.
+    moneda: z.unknown(),
     plazosCobranza: z.array(z.coerce.number().int().min(0).max(365)),
     // `tiposTarea` se retiró (M15): la columna `config_negocio.tipos_tarea`
     // sigue en la base pero NADIE la lee — los tipos de OT salen del enum de
@@ -58,6 +62,17 @@ const configSchema = z
       .number()
       .min(0, 'El tope de descuento no puede ser negativo')
       .max(100, 'El tope de descuento no puede pasar de 100 %'),
+    // PROP-COMPLETA (29/10) · plantilla de términos y condiciones que se COPIA
+    // a cada propuesta nueva (cambiarla no toca las ya creadas). `null` o vacía
+    // = sin condiciones. Tope generoso pero finito: viaja en cada propuesta.
+    condicionesPropuesta: z.string().max(8000, 'Las condiciones no pueden pasar de 8000 caracteres').nullable(),
+    // Días de vigencia que se le dan a una propuesta al enviarla. 30 por
+    // omisión (decisión del dueño); el CHECK de la columna exige 1–365.
+    vigenciaPropuestaDias: z.coerce
+      .number()
+      .int('La vigencia debe ser un número entero de días')
+      .min(1, 'La vigencia debe ser de al menos 1 día')
+      .max(365, 'La vigencia no puede pasar de 365 días'),
     // Correo de la organización para los avisos de OPERACIÓN (Reply-To).
     // `null` = quitarlo, igual que el logo. La cadena vacía se normaliza a null
     // más abajo: un input que se vacía manda '', y guardar '' haría que el
@@ -87,7 +102,11 @@ const configSchema = z
           .max(99_999_999, 'El costo de una orden de trabajo es demasiado grande')
           .nullable(),
       ),
-    razonSocial: z.string().trim().max(200).nullable(),
+    // La razón social ya no se escribe como texto: Identidad elige cuál de
+    // «Razones sociales» es la principal (20261012_razon_social_principal.sql).
+    // Un cliente viejo que mande `razonSocial` recibe 400 por el `.strict()`, en
+    // vez de escribir una columna que ya nadie lee.
+    entidadPrincipalId: z.string().uuid('Elige una razón social de la lista'),
     nombreComercial: z.string().trim().max(200).nullable(),
     // Datos fiscales de la parte ARRENDATARIA (los recita el contrato).
     rfc: rfcTenant,
@@ -118,6 +137,18 @@ export async function PATCH(req: Request) {
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   try {
   const b = validar(configSchema, await req.json().catch(() => ({}))) as Record<string, unknown>
+
+  // ─── ADR 0048 · LA MONEDA NO SE CAMBIA ─────────────────────────────────────
+  //
+  // Antes de guardar NADA, y sea cual sea el valor —tambien el mismo que ya
+  // tiene—: aceptar «el mismo» haria que un cliente que lo manda por costumbre
+  // funcionara hasta el dia en que mande otro, y ese dia se enteraria por un
+  // 400 en una pantalla que antes guardaba. Los importes guardados no llevan
+  // moneda propia; cambiarla los reinterpretaria sin convertirlos. La base lo
+  // impide tambien (`20261102_moneda_inmutable_por_instancia.sql`).
+  if (b.moneda !== undefined) {
+    throw new AppError('La moneda no se puede cambiar: se eligió al crear la instancia y los importes guardados no la llevan', 400)
+  }
 
   // ─── TOPE-01 · subir el techo de descuento PIDE LA CONTRASEÑA ─────────────
   //
@@ -150,11 +181,12 @@ export async function PATCH(req: Request) {
   // en las dos tablas es lo que hacía que el sidebar y Configuración dijeran
   // cosas distintas (M5).
   const map: Record<string, string> = {
-    moneda: 'moneda',
     plazosCobranza: 'plazos_cobranza',
     logoUrl: 'logo_url', ivaTasas: 'iva_tasas', loopSeg: 'loop_seg', spotSeg: 'spot_seg',
     maxClientesPantalla: 'max_clientes_pantalla',
     topeDescuentoPct: 'tope_descuento_pct',
+    condicionesPropuesta: 'condiciones_propuesta',
+    vigenciaPropuestaDias: 'vigencia_propuesta_dias',
     emailRemitente: 'email_remitente',
     costosOt: 'costos_ot',
   }
@@ -162,12 +194,23 @@ export async function PATCH(req: Request) {
   // Reply-To vacío es una cabecera rota, y el CHECK de la columna la rechaza
   // (acepta null o una dirección con forma, nada intermedio).
   if (b.emailRemitente === '') b.emailRemitente = null
+  // Igual con las condiciones: vaciar el cuadro es quitarlas, y una cadena de
+  // puros espacios se copiaría a cada propuesta como un bloque en blanco.
+  if (typeof b.condicionesPropuesta === 'string' && !b.condicionesPropuesta.trim()) b.condicionesPropuesta = null
   // El mapa de costos entra a una columna jsonb, así que viaja como texto JSON
   // y SANEADO: `sanearCostosOt` descarta las claves que no son del enum y los
   // importes no utilizables (null = «quitar este tipo»). Se sanea también aquí
   // y no solo al leer porque dejar basura entrar a la columna es arrastrarla en
   // cada respaldo y que el siguiente que lea el jsonb crudo se la crea.
   if (b.costosOt !== undefined) b.costosOt = JSON.stringify(sanearCostosOt(b.costosOt))
+  // La identidad fiscal va PRIMERO: es la única parte que puede rechazar por
+  // un dato de otra tabla (una principal ajena o dada de baja → 400), y si
+  // fuera al final, ese 400 llegaría con el resto de la petición ya guardado.
+  const identidad = await guardarIdentidadFiscal({
+    entidadPrincipalId: b.entidadPrincipalId as string | undefined,
+    rfc: b.rfc as string | null | undefined,
+  })
+
   const sets: string[] = []
   const vals: unknown[] = []
   for (const [k, col] of Object.entries(map)) {
@@ -187,8 +230,8 @@ export async function PATCH(req: Request) {
   // organización y su única fuente.
   const tenantMap: Record<string, string> = {
     nombreTenant: 'nombre',
-    razonSocial: 'razon_social', nombreComercial: 'nombre_comercial',
-    rfc: 'rfc', domicilioFiscal: 'domicilio_fiscal',
+    nombreComercial: 'nombre_comercial',
+    domicilioFiscal: 'domicilio_fiscal',
     representanteLegal: 'representante_legal', datosConstitucion: 'datos_constitucion',
   }
   const tSets: string[] = []
@@ -204,7 +247,7 @@ export async function PATCH(req: Request) {
     await q(`update tenants set ${tSets.join(', ')} where id = $${tVals.length}`, tVals)
   }
 
-  if (sets.length || tSets.length) {
+  if (sets.length || tSets.length || identidad) {
     await registrarAccion(g.usuario, 'Actualizó configuración', 'Negocio')
   }
   return NextResponse.json(await obtenerConfigAdmin())

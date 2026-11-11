@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-06
+actualizado: 2026-10-26
 tags: [frontend, login, sesion, rojo]
 archivos:
   - apps/web/app/(app)/login/page.tsx
@@ -15,6 +15,8 @@ archivos:
   - apps/web/lib/server/errores.ts
   - apps/web/components/demo/ui/SelectorIdioma.tsx
   - apps/web/middleware.ts
+  - apps/web/app/(app)/(shell)/configuracion/page.tsx
+  - apps/web/app/(app)/(shell)/codigos-recuperacion/page.tsx
 ---
 
 # Acceso y sesión (UI)
@@ -158,6 +160,17 @@ Cuando un administrador restablece una contraseña, el usuario entra con
 > (`docs/Registro_Cambios.md`, 06/08). **Si añades un corte en el servidor,
 > añade la salida en la UI en el mismo commit.**
 
+**Disposición desde el 2026-10-26 (rediseño de presentación, sin cambio de
+flujo).** En `/configuracion` el aviso de contraseña temporal va arriba a ancho
+completo, y debajo «Mi cuenta» va **primero** (antes iba después de «Empresa»),
+con una franja de solo lectura que dice tu nombre, tu rol y si entraste con
+Google o con contraseña; la tarjeta sigue sin `id` cuando la contraseña es
+temporal, para que nunca llegue plegada. `/codigos-recuperacion` dejó de ser
+HTML sin estilo: tarjeta no plegable, botones `Button`, rejilla numerada de
+códigos y avisos en franja ámbar. El flujo es idéntico —nada se genera al
+montar, el 403 con `requiereDesbloqueo` pide la contraseña en el sitio, la
+casilla «Ya los guardé» habilita «Continuar» y se recarga entera a `/inicio`—.
+
 ## La compuerta del shell, y por qué la decisión salió del `.tsx`
 
 `AuthGate.tsx` envuelve TODO lo que está dentro de `(app)/(shell)`, y decide dos
@@ -185,10 +198,10 @@ redirección y la exención de render.
 > `20260907_solo_google.sql` — «en producción todavía nadie entra con Google» —
 > y era falso para el PADRE.
 >
-> **Desbloqueo sin desplegar**: entrar con contraseña. `login/route.ts:107` abre
+> **Desbloqueo sin desplegar**: entrar con contraseña. `login/route.ts:129` abre
 > la sesión con `metodo = 'password'` y `debeGuardarCodigos()` solo mira a quien
 > entró con Google. Solo falla si la cuenta tiene `solo_google` encendido: en ese
-> caso `login/route.ts:89-105` responde **403** con `soloGoogle: true` —después
+> caso `login/route.ts:111-127` responde **403** con `soloGoogle: true` —después
 > de verificar la contraseña, para no regalar enumeración—.
 
 La decisión vive en un `.ts` y no dentro del componente por una razón concreta:

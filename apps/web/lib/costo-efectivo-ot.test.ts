@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { costoEfectivoDeOt, tieneCostoReal, COSTOS_OT_RESPALDO } from './costos-ot'
-import { dashboardMetrics, margenCampana } from './data/derive'
+import { margenCampana } from './data/derive'
+import { rentabilidadPorTrimestre } from './data/reportes'
 
 // ============================================================================
 //  OT-COSTO-01 · la regla «el costo real SUSTITUYE la estimación» se declara
@@ -69,7 +70,8 @@ function estado(costoReal: number | null): any {
     campanas: [{ id: 'C1', nombre: 'Campaña Uno', estatus: 'ACTIVA' }],
     clientes: [],
     ordenesImpresion: [],
-    ordenesTrabajo: [ot({ costoReal })],
+    // Con fecha: el motor de Reportes cobra cada OT en el mes en que se trabaja.
+    ordenesTrabajo: [ot({ costoReal, fechaCompletada: '2026-10-10' })],
     facturas: [],
     cobranzas: [],
     // `dashboardMetrics` construye además las alertas, que recorren estas
@@ -86,16 +88,34 @@ function estado(costoReal: number | null): any {
   }
 }
 
-describe('2 · el dashboard y el P&L por campaña USAN el costo capturado', () => {
-  it('el dashboard cobra el costo REAL, no la tarifa del tipo', () => {
-    // Con 12 000 capturado y la tarifa en 4 000: si el dashboard siguiera con la
-    // tarifa daría 4 000, y el reporte de rentabilidad 12 000. Dos verdades
-    // sobre la misma visita.
-    expect(dashboardMetrics(estado(12000)).costoOperacionMes).toBe(12000)
+// DASH-PERIODO (26/10) · el dashboard ya no calcula su costo de operación: se
+// lo pide al motor de Reportes. Así que hoy los sitios que calculan son DOS —el
+// P&L de la campaña y el motor de Reportes, que alimenta también el
+// dashboard— y lo que se fija aquí es que cobren lo mismo por la misma orden.
+function costoOperacionDelMes(e: any): number {
+  return rentabilidadPorTrimestre(
+    {
+      sitios: e.sitios,
+      contratos: [],
+      arrendadores: [],
+      reservas: [],
+      ordenesTrabajo: e.ordenesTrabajo,
+      costosOt: e.configNegocio.costosOt,
+    },
+    { desde: '2026-10-01', hasta: '2026-10-31', granularidad: 'mes' },
+  ).totales.costoOperacion
+}
+
+describe('2 · el reporte (y con él el dashboard) y el P&L por campaña USAN el costo capturado', () => {
+  it('el reporte del mes cobra el costo REAL, no la tarifa del tipo', () => {
+    // Con 12 000 capturado y la tarifa en 4 000: si el reporte siguiera con la
+    // tarifa daría 4 000, y el P&L de la campaña 12 000. Dos verdades sobre la
+    // misma visita.
+    expect(costoOperacionDelMes(estado(12000))).toBe(12000)
   })
 
   it('y cae a la estimación cuando no hay nada capturado', () => {
-    expect(dashboardMetrics(estado(null)).costoOperacionMes).toBe(4000)
+    expect(costoOperacionDelMes(estado(null))).toBe(4000)
   })
 
   it('el P&L de la campaña cobra el costo REAL', () => {
@@ -108,13 +128,13 @@ describe('2 · el dashboard y el P&L por campaña USAN el costo capturado', () =
 
   it('NEGATIVO · un costo capturado de CERO no vuelve a la estimación', () => {
     // El caso que un `||` rompería en los dos sitios a la vez.
-    expect(dashboardMetrics(estado(0)).costoOperacionMes).toBe(0)
+    expect(costoOperacionDelMes(estado(0))).toBe(0)
     expect(margenCampana(CAMPANA, estado(0)).costoOperacion).toBe(0)
   })
 
-  it('los DOS dan la misma cifra que el otro para la misma OT', () => {
+  it('los DOS dan la misma cifra para la misma OT', () => {
     // El invariante que este archivo existe para fijar.
     const e = estado(12000)
-    expect(dashboardMetrics(e).costoOperacionMes).toBe(margenCampana(CAMPANA, e).costoOperacion)
+    expect(costoOperacionDelMes(e)).toBe(margenCampana(CAMPANA, e).costoOperacion)
   })
 })

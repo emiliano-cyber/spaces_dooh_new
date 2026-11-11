@@ -10,6 +10,9 @@ import { tenantActual } from './tenant'
 
 const iso = (v: any) => (v instanceof Date ? v.toISOString() : v)
 
+// `leida` es la de ESA persona (NOTIF-USUARIO, 21/10): la calcula la consulta
+// como `leida_usuario`. Se cae a la columna vieja solo si alguna lectura no la
+// trae, para no pintar como «sin leer» algo que sí se leyó.
 function rowToNotif(r: any) {
   return {
     id: r.id,
@@ -18,10 +21,28 @@ function rowToNotif(r: any) {
     titulo: r.titulo,
     detalle: r.detalle ?? null,
     link: r.link ?? null,
-    leida: !!r.leida,
+    leida: !!(r.leida_usuario ?? r.leida),
     creadoEn: iso(r.creado_en),
   }
 }
+
+// ─── La bandeja es de CADA PERSONA (NOTIF-USUARIO, 21/10) ───────────────────
+//
+// La notificación es una por empresa; lo que cada quien hizo con ella vive en
+// `notificaciones_usuario` (ver `20261021_notificaciones_por_usuario.sql`).
+// Hasta ese día `leida` y `archivada_en` estaban en la fila compartida, y
+// cuando un vendedor vaciaba su panel se lo vaciaba también al Dueño.
+//
+// Las columnas viejas se siguen LEYENDO —lo archivado para todos antes de esa
+// fecha sigue oculto, lo marcado leído sigue leído— y ya no se escriben.
+//
+// `usuarioId` lo pasa la ruta desde la SESIÓN (`exigir()`), nunca del cuerpo:
+// si viniera de fuera, cualquiera borraría en la bandeja de otro.
+const VISTA_DE_USUARIO = `
+  from notificaciones n
+  left join notificaciones_usuario nu
+         on nu.notificacion_id = n.id and nu.usuario_id = $2 and nu.tenant_id = n.tenant_id`
+const LEIDA_DE_USUARIO = `(n.leida or nu.leida_en is not null) as leida_usuario`
 
 // Crea la notificación SI no se dio ya hoy la misma. «La misma» = mismo tipo,
 // mismo título, mismo detalle y mismo enlace; es decir, el mismo hecho sobre el
@@ -68,15 +89,17 @@ export async function notificar(input: {
   }
 }
 
-// Las ARCHIVADAS no se listan: es lo que hace que «Borrar todas» vacíe el panel.
-// La fila sigue en la base; lo que se pierde es el sitio en la campanita, que es
-// justo lo que el usuario quería quitarse de encima.
-export async function listarNotificaciones() {
+// Lo BORRADO por esta persona no se lista: es lo que hace que borrar una o
+// «Borrar todas» vacíe SU panel. Tampoco lo archivado para todos con el botón
+// de antes del 21/10. La fila sigue en la base; lo que se pierde es el sitio en
+// la campanita, que es justo lo que el usuario quería quitarse de encima.
+export async function listarNotificaciones(usuarioId: string) {
   const rows = await q(
-    `select * from notificaciones
-      where tenant_id = $1 and archivada_en is null
-      order by creado_en desc limit 100`,
-    [await tenantActual()],
+    `select n.*, ${LEIDA_DE_USUARIO}
+     ${VISTA_DE_USUARIO}
+      where n.tenant_id = $1 and n.archivada_en is null and nu.borrada_en is null
+      order by n.creado_en desc limit 100`,
+    [await tenantActual(), usuarioId],
   )
   return rows.map(rowToNotif)
 }
@@ -99,13 +122,15 @@ export async function listarNotificaciones() {
 // salía otra vez en cada sondeo, cada 15 s (08/10). Redondearla hacia arriba
 // tampoco sirve: se saltaría otra creada en el mismo milisegundo.
 // `notificaciones-una-vez.e2e.test.ts` lo prueba contra Postgres real.
-export async function notificacionesDesde(desde: string) {
+export async function notificacionesDesde(desde: string, usuarioId: string) {
   const rows = await q(
-    `select *, to_char(creado_en at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as marca
-       from notificaciones
-      where tenant_id = $1 and creado_en > $2::timestamptz and archivada_en is null
-      order by creado_en asc limit 20`,
-    [await tenantActual(), desde],
+    `select n.*, ${LEIDA_DE_USUARIO},
+            to_char(n.creado_en at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as marca
+     ${VISTA_DE_USUARIO}
+      where n.tenant_id = $1 and n.creado_en > $3::timestamptz
+        and n.archivada_en is null and nu.borrada_en is null
+      order by n.creado_en asc limit 20`,
+    [await tenantActual(), usuarioId, desde],
   )
   return {
     notificaciones: rows.map(rowToNotif),
@@ -113,28 +138,67 @@ export async function notificacionesDesde(desde: string) {
   }
 }
 
-export async function marcarNotificacionLeida(id: string) {
-  const rows = await q('update notificaciones set leida=true where id=$1 returning *', [id])
+// Marca UNA como leída para esta persona. El `insert … select` sale de
+// `notificaciones` acotada por id Y por tenant: si el aviso es de otra empresa
+// (o no existe) no se inserta nada y la ruta contesta 404. Hasta el 21/10 esto
+// era `update notificaciones set leida=true where id=$1`, sin tenant y para
+// todos a la vez.
+export async function marcarNotificacionLeida(id: string, usuarioId: string) {
+  const tenant = await tenantActual()
+  const hecho = await q(
+    `insert into notificaciones_usuario (tenant_id, notificacion_id, usuario_id, leida_en)
+     select n.tenant_id, n.id, $2, now()
+       from notificaciones n where n.id = $1 and n.tenant_id = $3
+     on conflict (notificacion_id, usuario_id)
+       do update set leida_en = coalesce(notificaciones_usuario.leida_en, excluded.leida_en)
+     returning notificacion_id`,
+    [id, usuarioId, tenant],
+  )
+  if (!hecho[0]) return null
+  const rows = await q(
+    `select n.*, ${LEIDA_DE_USUARIO}
+     ${VISTA_DE_USUARIO}
+      where n.tenant_id = $1 and n.id = $3`,
+    [tenant, usuarioId, id],
+  )
   return rows[0] ? rowToNotif(rows[0]) : null
 }
 
-// «Borrar todas»: las saca del panel y las da por leídas de paso. Se marca
-// `leida` además de archivar para que el contador de la campanita cuadre aunque
-// alguien liste por otra vía; archivada pero sin leer sería un estado que no
-// significa nada.
-//
-// Lleva filtro de tenant EXPLÍCITO además de la RLS. `marcarTodasLeidas`, que
-// esto sustituye, iba sin él: un `update` sin `where tenant_id` que solo acotaba
-// la política de la base. Funcionaba —la app conecta con un rol NOBYPASSRLS—,
-// pero deja el aislamiento a UNA capa en una escritura masiva, y este repo se
-// exige dos.
-export async function archivarTodasNotificaciones(): Promise<number> {
+// Borra UNA de la bandeja de esta persona: la oculta con fecha, no la destruye,
+// y la da por leída de paso (borrada sin leer sería un estado que no significa
+// nada). Misma forma que `marcarNotificacionLeida`: sin aviso de su empresa, no
+// hay fila y devuelve false. Borrar dos veces no pisa la fecha de la primera.
+export async function borrarNotificacion(id: string, usuarioId: string): Promise<boolean> {
   const rows = await q(
-    `update notificaciones
-        set archivada_en = now(), leida = true
-      where tenant_id = $1 and archivada_en is null
-      returning id`,
-    [await tenantActual()],
+    `insert into notificaciones_usuario (tenant_id, notificacion_id, usuario_id, leida_en, borrada_en)
+     select n.tenant_id, n.id, $2, now(), now()
+       from notificaciones n where n.id = $1 and n.tenant_id = $3
+     on conflict (notificacion_id, usuario_id)
+       do update set borrada_en = coalesce(notificaciones_usuario.borrada_en, excluded.borrada_en),
+                     leida_en   = coalesce(notificaciones_usuario.leida_en, excluded.leida_en)
+     returning notificacion_id`,
+    [id, usuarioId, await tenantActual()],
+  )
+  return rows.length > 0
+}
+
+// «Borrar todas»: vacía la bandeja de ESTA persona —no la de los demás— y da
+// todo por leído de paso. Solo mira lo que su panel enseña (lo no archivado
+// para todos), y no pisa la fecha de lo que ya había borrado.
+//
+// Lleva filtro de tenant EXPLÍCITO además de la RLS: una escritura masiva no se
+// sostiene en una sola capa, que es lo que este repo se exige desde el 10/08.
+export async function archivarTodasNotificaciones(usuarioId: string): Promise<number> {
+  const rows = await q(
+    `insert into notificaciones_usuario (tenant_id, notificacion_id, usuario_id, leida_en, borrada_en)
+     select n.tenant_id, n.id, $2, now(), now()
+       from notificaciones n
+      where n.tenant_id = $1 and n.archivada_en is null
+     on conflict (notificacion_id, usuario_id)
+       do update set borrada_en = coalesce(notificaciones_usuario.borrada_en, excluded.borrada_en),
+                     leida_en   = coalesce(notificaciones_usuario.leida_en, excluded.leida_en)
+     returning notificacion_id`,
+    [await tenantActual(), usuarioId],
   )
   return rows.length
 }

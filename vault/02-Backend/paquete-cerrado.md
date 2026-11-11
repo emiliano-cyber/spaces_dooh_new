@@ -1,7 +1,7 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-26
 tags: [backend, precios, paquetes, promociones, propuestas, dinero, snapshot, rls, reportes]
 archivos:
   - db/migrations/20260928_paquete_cerrado.sql
@@ -351,6 +351,24 @@ un descuento.
 - **No admite propuestas mixtas** (paquete + pantallas sueltas).
 
 ---
+
+## 10 · La pantalla, rediseñada (26/10) — solo presentación
+
+`components/demo/paquetes/GestionPaquetes.tsx`, sin tocar `repartirPaquete`,
+`motivoPaqueteInvalido`, `listaDe` ni `guardarPaqueteApi`:
+
+- **El reparto previsto es una tabla de dinero** (Pantalla · Lista · Parte del
+  paquete) con su fila de total «Suma de las partes — cuadra al peso», y arriba
+  la franja secundaria «Lista · Paquete · se deja de cobrar …» (ámbar si se
+  cobra por encima). Antes era una caja azul con una lista sin alinear.
+- **Montos** con `formatMonto` vía `montoEntero()`: el mismo redondeo a peso de
+  la pantalla de antes, sin el «.00» (el paquete no admite centavos).
+- **Lista**: chip Activo/Desactivado, «Admite código»/«Precio final», «En uso ·
+  N», y los nombres de las pantallas **a la vista** en una línea recortada (antes
+  solo en un `title`, invisible en táctil).
+- **El alta en el orden en que se piensa**: nombre y precio → pantallas (con
+  «N elegidas») → reparto previsto → «Crear paquete» al final.
+- Aviso y error con los tokens del proyecto; mismo texto.
 
 ## Enlaces
 

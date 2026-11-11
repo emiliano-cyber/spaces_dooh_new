@@ -1,8 +1,7 @@
 'use client'
 
-import { Ticket } from 'lucide-react'
-import { Card, CardContent } from '@/components/demo/ui/Card'
 import { GestionCodigos } from '@/components/demo/codigos/GestionCodigos'
+import { useTexto } from '@/lib/i18n/contexto'
 
 // ============================================================================
 //  /codigos-promocionales — «usa este código y ten un 20 % adicional».
@@ -29,23 +28,22 @@ import { GestionCodigos } from '@/components/demo/codigos/GestionCodigos'
 //  no pasa nada: sin códigos, todo se vende exactamente como hoy.
 // ============================================================================
 export default function CodigosPromocionalesPage() {
+  const t = useTexto()
   return (
-    <div className="space-y-4">
-      <header className="flex items-center gap-2">
-        <Ticket className="h-5 w-5" />
+    <div className="w-full space-y-4">
+      {/* Encabezado con la forma del Dashboard (rediseño 2026-10-26): título
+          de 2xl y subtítulo en `text-muted`, sin el icono suelto ni la paleta
+          `neutral` de Tailwind, que no son tokens del proyecto. */}
+      <header>
         <div>
-          <h1 className="text-2xl text-ink">Códigos promocionales</h1>
+          <h1 className="text-2xl text-ink">{t('codigos.pagina.titulo')}</h1>
           <p className="mt-1 text-[13px] text-muted">
-            Códigos con vencimiento y cupo que un vendedor aplica a una cotización. Los pone esta
-            empresa y no se comparten con nadie más.
+            {t('codigos.pagina.descripcion')}
           </p>
         </div>
       </header>
-      <Card>
-        <CardContent className="pt-6">
-          <GestionCodigos />
-        </CardContent>
-      </Card>
+      {/* PLEG-02 · sin tarjeta envolvente: la lista trae la suya, plegable. */}
+      <GestionCodigos />
     </div>
   )
 }

@@ -1,7 +1,7 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-29
 tags: [backend, reportes, rentabilidad, tarifas, propuestas, dinero, snapshot]
 archivos:
   - apps/web/lib/data/reportes.ts
@@ -128,6 +128,25 @@ No es teórico: `campanas-repo` construye su `netoDeSnap` como un Map por
 pantalla, así que con la pantalla repetida **gana la última** y las dos reservas
 se guardan con el neto del segundo ítem. Sin el centinela de ambigüedad las dos
 casarían con esa última entrada y la tarifa publicada saldría a la mitad.
+
+> [!important] 2026-10-29 · B42 · la llave es (pantalla, FRANJA), no la pantalla sola
+> Con la rejilla, la pantalla repetida sale sobre todo de vender **dos franjas**
+> de la misma pantalla —el prime y la madrugada—, y la llave por `sitioId` la
+> sacaba entera del reporte. Ahora `matriz()` (`lib/data/reportes.ts`, `llaveTarifa`)
+> busca por `sitioId|franjaId`: el borde (`reportes-repo.ts`) pasa
+> `porSitio[].franja.id` del snapshot como `franjaId` y `reservas.franja_id`, que
+> la reserva hereda del ítem. Dos líneas de la misma pantalla **y la misma
+> franja** (dos periodos) siguen siendo `AMBIGUA`. Pruebas:
+> `reportes.tarifa.test.ts` (tres casos B42) y `reportes-repo.franja.test.ts`.
+>
+> **Y el defecto de dinero que esto destapó, cerrado el mismo día (B56, aprobado
+> por el dueño, R4):** `campanas-repo` ya no empareja el neto por pantalla sola.
+> `lib/neto-de-linea.ts` lo hace por la línea (`porSitio[].itemId` desde el 29/10).
+> En los snapshots viejos desempata por franja y lista, y si no puede, usa el
+> cálculo de respaldo. Desde ahora cada reserva lleva el neto de SU línea. Las
+> campañas generadas antes siguen como estaban: se detectan con
+> `docs/datos/20261029_diagnostico_neto_linea_repetida.sql`. El párrafo de arriba
+> («gana la última») describe lo que pasaba hasta el 29/10.
 
 > Este caso apareció **matando mutantes**, no leyendo: la primera versión de su
 > prueba pasaba con el centinela y sin él, porque el guard del precio ya la

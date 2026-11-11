@@ -44,6 +44,8 @@ import { EquipoAdmin } from './EquipoAdmin'
 import { Tabs, TabPanel } from '@/components/demo/ui/Tabs'
 import { usePuede, useSesionCtx } from '@/components/demo/shell/SesionContext'
 import { formatNumero } from '@/lib/formato-numero'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
 
 // ============================================================================
 //  Space Eyes — la ficha de un equipo.
@@ -71,6 +73,7 @@ const SONDEO_MS = 4000
 const SONDEOS_MAX = 15
 
 export function FichaEquipo({ id }: { id: number }) {
+  const { t, idioma } = useIdioma()
   const [datos, setDatos] = useState<FichaEquipoDatos | null>(null)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -97,10 +100,10 @@ export function FichaEquipo({ id }: { id: number }) {
   const sondeo = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const traer = useCallback(async () => {
-    const d = await equipoApi(id)
+    const d = await equipoApi(id, idioma)
     setDatos(d)
     return d
-  }, [id])
+  }, [id, idioma])
 
   const sincronizar = useCallback(async () => {
     setCargando(true)
@@ -108,10 +111,10 @@ export function FichaEquipo({ id }: { id: number }) {
     try {
       await traer()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo consultar Space Eyes')
+      setError(e instanceof Error ? e.message : t('spaceeyes.comun.no-consultar'))
     }
     setCargando(false)
-  }, [traer])
+  }, [traer, t])
 
   useEffect(() => {
     void sincronizar()
@@ -142,7 +145,7 @@ export function FichaEquipo({ id }: { id: number }) {
     setCaptura('pidiendo')
     const referencia = fotos[0]?.tomadaEn ?? null
     try {
-      const r = await pedirCapturaApi(equipo.id)
+      const r = await pedirCapturaApi(equipo.id, idioma)
       if (!r.enLinea) {
         setCaptura('encolada')
         setAvisoCaptura(r.mensaje)
@@ -165,9 +168,10 @@ export function FichaEquipo({ id }: { id: number }) {
             setCaptura('llegó')
             // Se dice que llegó, y el aviso se va solo: la foto nueva ya está
             // en pantalla, así que dejarlo fijo sería ruido sobre la evidencia.
-            setAvisoCaptura('Llegó la foto: es la que estás viendo.')
+            const llego = t('spaceeyes.ficha.llego')
+            setAvisoCaptura(llego)
             setTimeout(() => {
-              setAvisoCaptura((a) => (a === 'Llegó la foto: es la que estás viendo.' ? null : a))
+              setAvisoCaptura((a) => (a === llego ? null : a))
               setCaptura((c) => (c === 'llegó' ? 'quieto' : c))
             }, 6000)
             return
@@ -178,14 +182,12 @@ export function FichaEquipo({ id }: { id: number }) {
         if (vueltas >= SONDEOS_MAX) {
           if (sondeo.current) clearInterval(sondeo.current)
           setCaptura('quieto')
-          setAvisoCaptura(
-            'La foto no ha llegado todavía. La orden sigue en pie: el equipo la subirá en cuanto pueda.',
-          )
+          setAvisoCaptura(t('spaceeyes.ficha.no-llego'))
         }
       }, SONDEO_MS)
     } catch (e) {
       setCaptura('quieto')
-      setAvisoCaptura(e instanceof Error ? e.message : 'No se pudo pedir la foto')
+      setAvisoCaptura(e instanceof Error ? e.message : t('spaceeyes.comun.no-pedir-foto'))
     }
   }
 
@@ -207,7 +209,7 @@ export function FichaEquipo({ id }: { id: number }) {
       const dataUrl = await new Promise<string>((res, rej) => {
         const r = new FileReader()
         r.onload = () => res(r.result as string)
-        r.onerror = () => rej(new Error('No se pudo leer la imagen'))
+        r.onerror = () => rej(new Error(t('spaceeyes.ficha.no-leer-imagen')))
         r.readAsDataURL(file)
       })
       // La galería actual, para no pisarla al agregar.
@@ -218,7 +220,7 @@ export function FichaEquipo({ id }: { id: number }) {
       await traer()
       setVista('cliente')
     } catch (err) {
-      setAvisoCaptura(err instanceof Error ? err.message : 'No se pudo subir la foto')
+      setAvisoCaptura(err instanceof Error ? err.message : t('spaceeyes.ficha.no-subir'))
     }
     setSubiendo(false)
   }
@@ -241,15 +243,15 @@ export function FichaEquipo({ id }: { id: number }) {
         <div className="mt-4 flex items-start gap-2 rounded-md border border-[#dc262640] bg-error-soft p-3 text-[12px]">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-error" />
           <div>
-            <div className="font-medium text-ink">No se pudo abrir el equipo</div>
-            <div className="text-muted">{error ?? 'Equipo no encontrado'}</div>
+            <div className="font-medium text-ink">{t('spaceeyes.ficha.no-abrir')}</div>
+            <div className="text-muted">{error ?? t('spaceeyes.ficha.no-encontrado')}</div>
           </div>
         </div>
       </div>
     )
   }
 
-  const senal = calidadSenal(equipo.senalDbm)
+  const senal = calidadSenal(equipo.senalDbm, idioma)
 
   return (
     <div className="mx-auto w-full max-w-[1800px] space-y-4">
@@ -286,7 +288,7 @@ export function FichaEquipo({ id }: { id: number }) {
             ) : (
               <span className="inline-flex items-center gap-1.5 italic">
                 <Monitor className="h-3.5 w-3.5" strokeWidth={1.7} />
-                sin pantalla asignada
+                {t('spaceeyes.comun.sin-pantalla')}
               </span>
             )}
             {equipo.codigoPantalla && <span className="tabular-nums">· {equipo.codigoPantalla}</span>}
@@ -311,7 +313,11 @@ export function FichaEquipo({ id }: { id: number }) {
             ) : (
               <Camera className="mr-2 h-3.5 w-3.5" />
             )}
-            {captura === 'esperando' ? 'Esperando la foto…' : captura === 'pidiendo' ? 'Pidiendo…' : 'Tomar foto'}
+            {captura === 'esperando'
+              ? t('spaceeyes.ficha.esperando')
+              : captura === 'pidiendo'
+                ? t('spaceeyes.comun.pidiendo')
+                : t('spaceeyes.comun.tomar-foto')}
           </Button>
 
           <input
@@ -330,12 +336,12 @@ export function FichaEquipo({ id }: { id: number }) {
             size="sm"
             onClick={() => archivoRef.current?.click()}
             disabled={!pantalla || subiendo}
-            title={pantalla ? undefined : 'Este equipo no tiene una pantalla asignada donde guardar la foto'}
+            title={pantalla ? undefined : t('spaceeyes.ficha.subir.sin-pantalla')}
           >
             {subiendo ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Upload className="mr-2 h-3.5 w-3.5" />}
-            Subir foto
+            {t('spaceeyes.ficha.subir')}
           </Button>
-          <Button variant="ghost" size="sm" onClick={() => void sincronizar()} aria-label="Actualizar estado">
+          <Button variant="ghost" size="sm" onClick={() => void sincronizar()} aria-label={t('spaceeyes.ficha.actualizar-estado')}>
             <RefreshCw className={cn('h-3.5 w-3.5', cargando && 'animate-spin')} />
           </Button>
         </div>
@@ -360,10 +366,10 @@ export function FichaEquipo({ id }: { id: number }) {
       <Tabs
         defaultValue="fotos"
         tabs={[
-          { value: 'fotos', label: 'Fotos' },
-          { value: 'pantalla', label: 'Pantalla y fallas' },
-          { value: 'creativos', label: 'Creativos' },
-          { value: 'equipo', label: 'Equipo' },
+          { value: 'fotos', label: t('spaceeyes.ficha.tab.fotos') },
+          { value: 'pantalla', label: t('spaceeyes.pantalla.titulo') },
+          { value: 'creativos', label: t('spaceeyes.ficha.tab.creativos') },
+          { value: 'equipo', label: t('spaceeyes.comun.equipo') },
         ]}
       >
       <TabPanel value="fotos" className="pt-4">
@@ -374,13 +380,13 @@ export function FichaEquipo({ id }: { id: number }) {
           <div className="flex flex-wrap items-center gap-2 border-b border-border p-2.5">
             <div className="flex flex-wrap gap-0.5 rounded-md border border-border bg-surface p-0.5 text-[13px]">
             <Pestana activa={vista === 'vivo'} onClick={() => setVista('vivo')} icono={<Radio className="h-3.5 w-3.5" />}>
-              En vivo
+              {t('spaceeyes.vivo.en-vivo')}
             </Pestana>
             <Pestana activa={vista === 'equipo'} onClick={() => setVista('equipo')} icono={<Camera className="h-3.5 w-3.5" />}>
-              Captura Space Eyes
+              {t('spaceeyes.ficha.captura')}
             </Pestana>
             <Pestana activa={vista === 'cliente'} onClick={() => setVista('cliente')} icono={<UserRound className="h-3.5 w-3.5" />}>
-              Foto del cliente
+              {t('spaceeyes.ficha.cliente')}
             </Pestana>
             <Pestana
               activa={vista === 'comparar'}
@@ -388,7 +394,7 @@ export function FichaEquipo({ id }: { id: number }) {
               icono={<Columns2 className="h-3.5 w-3.5" />}
               disabled={!fotoCliente || !fotoEquipo}
             >
-              Comparar
+              {t('spaceeyes.ficha.comparar')}
             </Pestana>
             </div>
           </div>
@@ -405,21 +411,21 @@ export function FichaEquipo({ id }: { id: number }) {
           ) : vista === 'comparar' ? (
             <div className="grid gap-px bg-border sm:grid-cols-2">
               <Panel
-                sello="FOTO DEL CLIENTE"
+                sello={t('spaceeyes.ficha.cliente').toUpperCase()}
                 selloClase="bg-[#7c3aed]"
                 url={fotoCliente}
-                pie="Subida a la galería de la pantalla"
+                pie={t('spaceeyes.ficha.subida')}
                 onAmpliar={setAmpliada}
-                alt={`Foto del cliente de ${equipo.nombre}`}
+                alt={t('spaceeyes.ficha.alt-cliente', { nombre: equipo.nombre })}
               />
               <Panel
-                sello="CAPTURA SPACE EYES"
+                sello={t('spaceeyes.ficha.captura').toUpperCase()}
                 selloClase="bg-accent"
                 url={fotoEquipo?.url ?? null}
                 giro={fotoEquipo?.giro ?? 0}
-                pie={fotoEquipo ? fechaHora(fotoEquipo.tomadaEn) : 'sin capturas'}
+                pie={fotoEquipo ? fechaHora(fotoEquipo.tomadaEn, idioma) : t('spaceeyes.ficha.sin-capturas-min')}
                 onAmpliar={setAmpliada}
-                alt={`Captura de Space Eyes de ${equipo.nombre}`}
+                alt={t('spaceeyes.ficha.alt-captura', { nombre: equipo.nombre })}
               />
             </div>
           ) : (
@@ -429,20 +435,20 @@ export function FichaEquipo({ id }: { id: number }) {
                   <FotoGirada
                     src={fotoEquipo.url}
                     previa={fotoEquipo.miniatura}
-                    alt={`Captura de Space Eyes de ${equipo.nombre}`}
+                    alt={t('spaceeyes.ficha.alt-captura', { nombre: equipo.nombre })}
                     giro={fotoEquipo.giro}
                   />
                 ) : (
-                  <Vacio texto="Este equipo todavía no ha subido ninguna foto." />
+                  <Vacio texto={t('spaceeyes.ficha.sin-fotos')} />
                 )
               ) : fotoCliente ? (
-                <FotoGirada src={fotoCliente} alt={`Foto del cliente de ${equipo.nombre}`} />
+                <FotoGirada src={fotoCliente} alt={t('spaceeyes.ficha.alt-cliente', { nombre: equipo.nombre })} />
               ) : (
                 <Vacio
                   texto={
                     pantalla
-                      ? 'Nadie ha subido todavía una foto de esta pantalla. Usa «Subir foto».'
-                      : 'Este equipo no tiene una pantalla asignada, así que no hay galería donde guardar la foto del cliente.'
+                      ? t('spaceeyes.ficha.cliente.vacio')
+                      : t('spaceeyes.ficha.cliente.sin-pantalla')
                   }
                 />
               )}
@@ -451,19 +457,27 @@ export function FichaEquipo({ id }: { id: number }) {
               <div className="absolute inset-x-0 top-0 flex flex-wrap items-center gap-x-4 gap-y-1.5 bg-gradient-to-b from-black/80 via-black/45 to-transparent p-3">
                 <PildoraConexion online={enLinea} pendiente={!equipo.ultimaConexion} sobreFoto />
                 <span className="text-[12px] text-white/85">
-                  Última conexión <strong className="font-semibold text-white">{hace(equipo.ultimaConexion)}</strong>
+                  {interpolarNodos(t('spaceeyes.ficha.barra.conexion'), {
+                    valor: <strong className="font-semibold text-white">{hace(equipo.ultimaConexion, idioma)}</strong>,
+                  })}
                 </span>
                 <span className="text-[12px] text-white/85">
-                  Batería <strong className="font-semibold text-white">{equipo.bateriaPct != null ? `${equipo.bateriaPct}%` : '—'}</strong>
+                  {interpolarNodos(t('spaceeyes.ficha.barra.bateria'), {
+                    valor: (
+                      <strong className="font-semibold text-white">{equipo.bateriaPct != null ? `${equipo.bateriaPct}%` : '—'}</strong>
+                    ),
+                  })}
                 </span>
                 <span className="text-[12px] text-white/85">
-                  {equipo.redOperador ?? (equipo.redTipo === 'WIFI' ? 'WiFi' : 'Red')}{' '}
+                  {equipo.redOperador ?? (equipo.redTipo === 'WIFI' ? 'WiFi' : t('spaceeyes.ficha.barra.red'))}{' '}
                   <strong className="font-semibold text-white">{senal.texto}</strong>
                   {equipo.senalDbm != null && <span className="text-white/60"> · {equipo.senalDbm} dBm</span>}
                 </span>
                 {fotoEquipo?.tomadaEn && vista === 'equipo' && (
                   <span className="ml-auto text-[12px] text-white/85">
-                    Última captura <strong className="font-semibold text-white">{hace(fotoEquipo.tomadaEn)}</strong>
+                    {interpolarNodos(t('spaceeyes.ficha.barra.captura'), {
+                      valor: <strong className="font-semibold text-white">{hace(fotoEquipo.tomadaEn, idioma)}</strong>,
+                    })}
                   </span>
                 )}
               </div>
@@ -478,17 +492,17 @@ export function FichaEquipo({ id }: { id: number }) {
                         vista === 'equipo' ? 'bg-accent' : 'bg-[#7c3aed]',
                       )}
                     >
-                      {vista === 'equipo' ? 'CAPTURA SPACE EYES' : 'FOTO DEL CLIENTE'}
+                      {(vista === 'equipo' ? t('spaceeyes.ficha.captura') : t('spaceeyes.ficha.cliente')).toUpperCase()}
                     </span>
                     <div className="mt-1.5 text-[12px] tabular-nums text-white/90">
                       {vista === 'equipo'
-                        ? `${fechaHora(fotoEquipo?.tomadaEn ?? null)}${selloDeFoto(fotoEquipo?.origen, fotoEquipo?.campana) ? ` · ${selloDeFoto(fotoEquipo?.origen, fotoEquipo?.campana)}` : ''}`
-                        : 'Subida a la galería de la pantalla'}
+                        ? `${fechaHora(fotoEquipo?.tomadaEn ?? null, idioma)}${selloDeFoto(fotoEquipo?.origen, fotoEquipo?.campana, idioma) ? ` · ${selloDeFoto(fotoEquipo?.origen, fotoEquipo?.campana, idioma)}` : ''}`
+                        : t('spaceeyes.ficha.subida')}
                     </div>
                   </div>
                   <button
                     type="button"
-                    aria-label="Ampliar"
+                    aria-label={t('spaceeyes.ficha.ampliar')}
                     onClick={() => setAmpliada(vista === 'equipo' ? (fotoEquipo?.url ?? null) : fotoCliente)}
                     className="flex h-8 w-8 items-center justify-center rounded-md border border-white/25 bg-black/45 text-white hover:bg-black/65"
                   >
@@ -498,7 +512,7 @@ export function FichaEquipo({ id }: { id: number }) {
                     <a
                       href={fotoEquipo.url}
                       download
-                      aria-label="Descargar"
+                      aria-label={t('spaceeyes.comun.descargar')}
                       className="flex h-8 w-8 items-center justify-center rounded-md border border-white/25 bg-black/45 text-white hover:bg-black/65"
                     >
                       <Download className="h-3.5 w-3.5" />
@@ -511,8 +525,8 @@ export function FichaEquipo({ id }: { id: number }) {
               {(captura === 'pidiendo' || captura === 'esperando') && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/70">
                   <Loader2 className="h-9 w-9 animate-spin text-white" strokeWidth={1.5} />
-                  <div className="text-[14px] font-medium text-white">Pidiéndole la foto al equipo…</div>
-                  <div className="text-[12px] text-white/70">Suele tardar entre 5 y 20 segundos</div>
+                  <div className="text-[14px] font-medium text-white">{t('spaceeyes.ficha.velo')}</div>
+                  <div className="text-[12px] text-white/70">{t('spaceeyes.ficha.velo.tarda')}</div>
                 </div>
               )}
             </div>
@@ -521,7 +535,7 @@ export function FichaEquipo({ id }: { id: number }) {
           {/* Veredicto de IA + capturas recientes */}
           {vista !== 'vivo' && (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border p-3">
-            {fotoEquipo ? <Veredicto foto={fotoEquipo} /> : <span className="text-[12px] text-muted">Sin capturas</span>}
+            {fotoEquipo ? <Veredicto foto={fotoEquipo} /> : <span className="text-[12px] text-muted">{t('spaceeyes.ficha.sin-capturas')}</span>}
             {fotoEquipo?.ancho && (
               <>
                 <span className="h-4 w-px bg-border" />
@@ -539,7 +553,7 @@ export function FichaEquipo({ id }: { id: number }) {
 
             {fotos.length > 1 && (
               <div className="ml-auto flex items-center gap-1.5">
-                <span className="text-[11px] text-muted">Recientes</span>
+                <span className="text-[11px] text-muted">{t('spaceeyes.ficha.recientes')}</span>
                 {fotos.slice(0, 5).map((f, i) => (
                   <button
                     key={`${f.url}-${i}`}
@@ -548,7 +562,7 @@ export function FichaEquipo({ id }: { id: number }) {
                       setFotoElegida(i)
                       setVista('equipo')
                     }}
-                    aria-label={`Captura del ${fechaHora(f.tomadaEn)}`}
+                    aria-label={t('spaceeyes.ficha.captura-del', { fecha: fechaHora(f.tomadaEn, idioma) })}
                     className={cn(
                       'relative h-9 w-14 overflow-hidden rounded border',
                       i === fotoElegida ? 'border-accent ring-1 ring-accent' : 'border-border hover:border-border-strong',
@@ -565,14 +579,14 @@ export function FichaEquipo({ id }: { id: number }) {
 
         {/* ── Lo técnico ── */}
         <div className="flex w-full shrink-0 flex-col gap-3 xl:w-[340px]">
-          <Tarjeta titulo="Energía">
+          <Tarjeta titulo={t('spaceeyes.ficha.energia')}>
             <div className="flex items-baseline gap-2">
               <span className="text-lg font-semibold leading-none text-ink">
                 {equipo.bateriaPct != null ? `${equipo.bateriaPct}%` : '—'}
               </span>
               {equipo.cargando != null && (
                 <span className={cn('text-[12px]', equipo.cargando ? 'text-success' : 'text-muted')}>
-                  {equipo.cargando ? 'cargando' : 'sin cargar'}
+                  {equipo.cargando ? t('spaceeyes.ficha.cargando') : t('spaceeyes.ficha.sin-cargar')}
                 </span>
               )}
             </div>
@@ -588,12 +602,12 @@ export function FichaEquipo({ id }: { id: number }) {
               </div>
             )}
             <div className="mt-3 flex gap-5">
-              <Dato etiqueta="Temp. batería" valor={equipo.bateriaTemp != null ? `${equipo.bateriaTemp} °C` : null} />
-              <Dato etiqueta="Temp. equipo" valor={equipo.equipoTemp != null ? `${equipo.equipoTemp} °C` : null} />
+              <Dato etiqueta={t('spaceeyes.ficha.temp-bateria')} valor={equipo.bateriaTemp != null ? `${equipo.bateriaTemp} °C` : null} />
+              <Dato etiqueta={t('spaceeyes.ficha.temp-equipo')} valor={equipo.equipoTemp != null ? `${equipo.equipoTemp} °C` : null} />
             </div>
           </Tarjeta>
 
-          <Tarjeta titulo="Conexión">
+          <Tarjeta titulo={t('spaceeyes.ficha.conexion')}>
             <div className="flex items-center gap-2.5">
               <Senal dbm={equipo.senalDbm} tipo={equipo.redTipo} operador={equipo.redOperador} className="text-[13px]" />
               <span className="text-[12px] text-muted">
@@ -604,20 +618,20 @@ export function FichaEquipo({ id }: { id: number }) {
             {equipo.datos && (equipo.datos.movilMes != null || equipo.datos.wifiMes != null) && (
               <div className="mt-3 border-t border-border pt-3">
                 <div className="flex items-baseline justify-between text-[11px]">
-                  <span className="text-muted">Datos de este mes</span>
+                  <span className="text-muted">{t('spaceeyes.ficha.datos-mes')}</span>
                   <span className="tabular-nums text-ink">
-                    {gigas((equipo.datos.movilMes ?? 0) + (equipo.datos.wifiMes ?? 0))}
+                    {gigas((equipo.datos.movilMes ?? 0) + (equipo.datos.wifiMes ?? 0), idioma)}
                   </span>
                 </div>
                 <div className="mt-2 flex gap-4 text-[11px] text-muted">
-                  <span>Móvil {gigas(equipo.datos.movilMes)}</span>
-                  <span>WiFi {gigas(equipo.datos.wifiMes)}</span>
+                  <span>{t('spaceeyes.senal.movil')} {gigas(equipo.datos.movilMes, idioma)}</span>
+                  <span>WiFi {gigas(equipo.datos.wifiMes, idioma)}</span>
                 </div>
               </div>
             )}
           </Tarjeta>
 
-          <Tarjeta titulo="Pantalla asociada">
+          <Tarjeta titulo={t('spaceeyes.ficha.pantalla')}>
             {pantalla ? (
               <div className="flex gap-3">
                 <div className="h-14 w-20 shrink-0 overflow-hidden rounded-md bg-surface-2">
@@ -630,15 +644,15 @@ export function FichaEquipo({ id }: { id: number }) {
                   <div className="truncate text-[13px] font-medium text-ink">{pantalla.nombre}</div>
                   <div className="text-[11px] tabular-nums text-muted">{equipo.codigoPantalla}</div>
                   <Link href={`/comercial?sitio=${pantalla.id}`} className="text-[12px] font-medium text-accent hover:underline">
-                    Abrir la ficha →
+                    {t('spaceeyes.ficha.abrir-ficha')}
                   </Link>
                 </div>
               </div>
             ) : (
               <p className="text-[12px] text-muted">
-                Ningún sitio de tu inventario tiene el código{' '}
-                <span className="tabular-nums text-ink">{equipo.codigoPantalla ?? '—'}</span>, así que este equipo no está
-                enlazado a una pantalla.
+                {interpolarNodos(t('spaceeyes.ficha.sin-sitio'), {
+                  codigo: <span className="tabular-nums text-ink">{equipo.codigoPantalla ?? '—'}</span>,
+                })}
               </p>
             )}
           </Tarjeta>
@@ -646,12 +660,15 @@ export function FichaEquipo({ id }: { id: number }) {
           {/* Secundario y plegado: la ficha no espera por el histórico */}
           <Historial id={equipo.id} />
 
-          <Tarjeta titulo="Detalles del equipo">
+          <Tarjeta titulo={t('spaceeyes.ficha.detalles')}>
             <dl className="flex flex-col gap-2">
-              <Fila etiqueta="Modelo" valor={[equipo.fabricante, equipo.modelo].filter(Boolean).join(' ') || null} />
-              <Fila etiqueta="Versión del agente" valor={equipo.versionApp} />
-              <Fila etiqueta="Almacenamiento libre" valor={equipo.almacenamientoLibreMb != null ? `${formatNumero(equipo.almacenamientoLibreMb)} MB` : null} />
-              <Fila etiqueta="Capturas guardadas" valor={formatNumero(fotos.length)} />
+              <Fila etiqueta={t('spaceeyes.comun.modelo')} valor={[equipo.fabricante, equipo.modelo].filter(Boolean).join(' ') || null} />
+              <Fila etiqueta={t('spaceeyes.ficha.version-agente')} valor={equipo.versionApp} />
+              <Fila
+                etiqueta={t('spaceeyes.comun.almacenamiento')}
+                valor={equipo.almacenamientoLibreMb != null ? `${formatNumero(equipo.almacenamientoLibreMb, 0, idioma)} MB` : null}
+              />
+              <Fila etiqueta={t('spaceeyes.ficha.capturas')} valor={formatNumero(fotos.length, 0, idioma)} />
             </dl>
           </Tarjeta>
         </div>
@@ -686,7 +703,7 @@ export function FichaEquipo({ id }: { id: number }) {
 
       {/* Lightbox */}
       <Modal open={!!ampliada} onOpenChange={(v) => !v && setAmpliada(null)} size="lg" title={equipo.nombre}>
-        {ampliada && <VisorFoto src={ampliada} alt={`Fotografía de ${equipo.nombre}`} />}
+        {ampliada && <VisorFoto src={ampliada} alt={t('spaceeyes.ficha.alt-fotografia', { nombre: equipo.nombre })} />}
       </Modal>
     </div>
   )
@@ -741,6 +758,7 @@ function Panel({
   alt: string
   onAmpliar: (url: string) => void
 }) {
+  const t = useIdioma().t
   return (
     <div className="bg-surface">
       <div className="flex items-center gap-2 p-2.5">
@@ -749,11 +767,11 @@ function Panel({
       </div>
       <div className="relative aspect-[4/3] max-h-[60vh] w-full bg-[#12100e]">
         {url ? (
-          <button type="button" onClick={() => onAmpliar(url)} className="relative block h-full w-full" aria-label={`Ampliar: ${sello}`}>
+          <button type="button" onClick={() => onAmpliar(url)} className="relative block h-full w-full" aria-label={t('spaceeyes.ficha.ampliar-sello', { sello })}>
             <FotoGirada src={url} alt={alt} giro={giro} />
           </button>
         ) : (
-          <Vacio texto="Sin fotografía" />
+          <Vacio texto={t('spaceeyes.ficha.sin-fotografia')} />
         )}
       </div>
     </div>
@@ -779,44 +797,52 @@ function Tarjeta({ titulo, children }: { titulo: string; children: React.ReactNo
 }
 
 function Dato({ etiqueta, valor }: { etiqueta: string; valor: string | null }) {
+  const t = useIdioma().t
   return (
     <div>
       <div className="text-[11px] text-muted">{etiqueta}</div>
-      <div className={cn('text-[13px] tabular-nums', valor ? 'text-ink' : 'text-muted')}>{valor ?? 'sin dato'}</div>
+      <div className={cn('text-[13px] tabular-nums', valor ? 'text-ink' : 'text-muted')}>{valor ?? t('spaceeyes.comun.sin-dato')}</div>
     </div>
   )
 }
 
 function Fila({ etiqueta, valor }: { etiqueta: string; valor: string | null }) {
+  const t = useIdioma().t
   return (
     <div className="flex items-baseline justify-between gap-3 text-[12px]">
       <dt className="text-muted">{etiqueta}</dt>
-      <dd className={cn('text-right', valor ? 'text-ink' : 'text-muted')}>{valor ?? 'sin dato'}</dd>
+      <dd className={cn('text-right', valor ? 'text-ink' : 'text-muted')}>{valor ?? t('spaceeyes.comun.sin-dato')}</dd>
     </div>
   )
 }
 
 // Dictamen de IA de la captura. Mismos tres estados que la ficha comercial, para
 // que una foto no signifique una cosa en una pantalla y otra en la de al lado.
+// Las MISMAS claves que la vision de Space Eye en la ficha comercial
+// (`comercial.eye.*`): una foto no puede decir una cosa en una pantalla y otra
+// en la de al lado, tampoco en ingles.
 function Veredicto({ foto }: { foto: FotoEquipo }) {
+  const t = useIdioma().t
   const pct = foto.score != null ? `${Math.round(foto.score * 100)}%` : null
   if (foto.esCorrecta === true) {
     return (
       <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[#0f7a55]">
-        <CheckCircle2 className="h-4 w-4" strokeWidth={1.8} /> Anuncio correcto{pct ? ` · confianza ${pct}` : ''}
+        <CheckCircle2 className="h-4 w-4" strokeWidth={1.8} /> {t('comercial.eye.correcto')}
+        {pct ? t('comercial.eye.confianza', { pct }) : ''}
       </span>
     )
   }
   if (foto.esCorrecta === false) {
     return (
       <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-error">
-        <XCircle className="h-4 w-4" strokeWidth={1.8} /> No coincide con la creatividad{pct ? ` · ${pct}` : ''}
+        <XCircle className="h-4 w-4" strokeWidth={1.8} /> {t('comercial.eye.no-coincide')}
+        {pct ? ` · ${pct}` : ''}
       </span>
     )
   }
   return (
     <span className="inline-flex items-center gap-1.5 text-[12px] text-muted">
-      <CircleHelp className="h-4 w-4" strokeWidth={1.8} /> Verificación de IA pendiente
+      <CircleHelp className="h-4 w-4" strokeWidth={1.8} /> {t('spaceeyes.ficha.ia-pendiente')}
     </span>
   )
 }

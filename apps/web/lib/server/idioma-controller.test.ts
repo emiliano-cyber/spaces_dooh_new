@@ -1,0 +1,107 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+
+// IDIOMA-USUARIO (03/11) · el controlador de «Mi cuenta → Idioma». La base va
+// simulada: el aislamiento de verdad lo prueba `idioma-por-usuario.e2e.test.ts`.
+
+const repo = vi.hoisted(() => ({
+  guardado: null as string | null,
+  filas: 1,
+  llamadas: [] as Array<[string, string | null]>,
+}))
+
+vi.mock('./usuarios-repo', () => ({
+  idiomaPreferidoPropio: async () => repo.guardado,
+  guardarIdiomaPreferido: async (id: string, idioma: string | null) => {
+    repo.llamadas.push([id, idioma])
+    if (repo.filas) repo.guardado = idioma
+    return repo.filas > 0
+  },
+}))
+
+import { leerIdiomaCtrl, guardarIdiomaCtrl } from './idioma-controller'
+
+beforeEach(() => {
+  repo.guardado = null
+  repo.filas = 1
+  repo.llamadas = []
+  process.env.IDIOMA_INGLES = '1'
+  delete process.env.IDIOMA_ITALIANO
+})
+afterEach(() => {
+  delete process.env.IDIOMA_INGLES
+  delete process.env.IDIOMA_ITALIANO
+})
+
+describe('leerIdiomaCtrl', () => {
+  it('sin preferencia: null, y los idiomas encendidos', async () => {
+    expect(await leerIdiomaCtrl('u1')).toEqual({ preferido: null, disponibles: ['es', 'en'] })
+  })
+  it('una preferencia ENCENDIDA se devuelve', async () => {
+    repo.guardado = 'en'
+    expect((await leerIdiomaCtrl('u1')).preferido).toBe('en')
+  })
+  it('una preferencia APAGADA se lee como null, sin error', async () => {
+    repo.guardado = 'it'
+    expect(await leerIdiomaCtrl('u1')).toEqual({ preferido: null, disponibles: ['es', 'en'] })
+  })
+})
+
+describe('guardarIdiomaCtrl', () => {
+  it('guarda un idioma encendido en la cuenta de la SESIÓN', async () => {
+    expect(await guardarIdiomaCtrl('u1', { idioma: 'en' })).toEqual({ preferido: 'en', disponibles: ['es', 'en'] })
+    expect(repo.llamadas).toEqual([['u1', 'en']])
+  })
+  it('«navegador» y null guardan null (seguir al navegador)', async () => {
+    await guardarIdiomaCtrl('u1', { idioma: 'navegador' })
+    await guardarIdiomaCtrl('u1', { idioma: null })
+    expect(repo.llamadas).toEqual([['u1', null], ['u1', null]])
+  })
+  it('un idioma APAGADO se rechaza con 400 y no toca la base', async () => {
+    await expect(guardarIdiomaCtrl('u1', { idioma: 'it' })).rejects.toMatchObject({ status: 400 })
+    expect(repo.llamadas).toEqual([])
+  })
+  it('sin campo, basura o sin cuerpo: 400 y no toca la base', async () => {
+    for (const b of [{}, { idioma: 'fr' }, { idioma: 3 }, null, 'en', { idioma: undefined }]) {
+      await expect(guardarIdiomaCtrl('u1', b), JSON.stringify(b)).rejects.toMatchObject({ status: 400 })
+    }
+    expect(repo.llamadas).toEqual([])
+  })
+  it('si la fila no es de la sesión (0 filas), 404', async () => {
+    repo.filas = 0
+    await expect(guardarIdiomaCtrl('u1', { idioma: 'en' })).rejects.toMatchObject({ status: 404 })
+  })
+})
+
+// P3 del portugues (05/11) · `20261105_idioma_portugues.sql` abre el CHECK de
+// `usuarios.idioma_preferido` a `pt`. Encendido, la cuenta lo ofrece y lo
+// guarda (cierra H1 de la validacion de la ola 0: con una preferencia guardada
+// el portugues ya se alcanza). Apagado, ni se ofrece ni se guarda.
+describe('el portugues en la cuenta (P3)', () => {
+  afterEach(() => {
+    delete process.env.IDIOMA_PORTUGUES
+  })
+
+  it('encendido · leer: «disponibles» lo incluye', async () => {
+    process.env.IDIOMA_PORTUGUES = '1'
+    expect(await leerIdiomaCtrl('u1')).toEqual({ preferido: null, disponibles: ['es', 'en', 'pt'] })
+  })
+  it('encendido · guardar pt: se guarda', async () => {
+    process.env.IDIOMA_PORTUGUES = '1'
+    expect(await guardarIdiomaCtrl('u1', { idioma: 'pt' })).toEqual({ preferido: 'pt', disponibles: ['es', 'en', 'pt'] })
+    expect(repo.llamadas).toEqual([['u1', 'pt']])
+  })
+  it('NEGATIVO · apagado: guardar pt da 400 y la base ni se toca', async () => {
+    await expect(guardarIdiomaCtrl('u1', { idioma: 'pt' })).rejects.toMatchObject({
+      status: 400,
+      message: 'Ese idioma no está disponible en este servidor.',
+    })
+    expect(repo.llamadas).toEqual([])
+  })
+  it('NEGATIVO · encendido, una etiqueta (pt-BR) o mayusculas (PT) siguen siendo 400', async () => {
+    process.env.IDIOMA_PORTUGUES = '1'
+    for (const idioma of ['pt-BR', 'PT', 'fr']) {
+      await expect(guardarIdiomaCtrl('u1', { idioma })).rejects.toMatchObject({ status: 400 })
+    }
+    expect(repo.llamadas).toEqual([])
+  })
+})

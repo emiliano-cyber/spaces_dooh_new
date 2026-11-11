@@ -1,4 +1,25 @@
 import { IDIOMA_POR_OMISION, type Idioma } from './idiomas'
+import { ES_PROPUESTAS, EN_PROPUESTAS, IT_PROPUESTAS, PT_PROPUESTAS } from './textos/propuestas'
+import { ES_COMPARTIDOS, EN_COMPARTIDOS, IT_COMPARTIDOS, PT_COMPARTIDOS } from './textos/compartidos'
+import { ES_CAMPANAS, EN_CAMPANAS, IT_CAMPANAS, PT_CAMPANAS } from './textos/campanas'
+import { ES_FINANZAS, EN_FINANZAS, IT_FINANZAS, PT_FINANZAS } from './textos/finanzas'
+import { ES_COMERCIAL, EN_COMERCIAL, IT_COMERCIAL, PT_COMERCIAL } from './textos/comercial'
+import { ES_CODIGOS, EN_CODIGOS, IT_CODIGOS, PT_CODIGOS } from './textos/codigos'
+import { ES_CATALOGOS, EN_CATALOGOS, IT_CATALOGOS, PT_CATALOGOS } from './textos/catalogos'
+import { ES_ADMIN, EN_ADMIN, IT_ADMIN, PT_ADMIN } from './textos/admin'
+import { ES_CUENTA, EN_CUENTA, IT_CUENTA, PT_CUENTA } from './textos/cuenta'
+import { ES_SHELL, EN_SHELL, IT_SHELL, PT_SHELL } from './textos/shell'
+import { ES_SERVIDOR, EN_SERVIDOR, IT_SERVIDOR, PT_SERVIDOR } from './textos/servidor'
+import { ES_CLIENTES, EN_CLIENTES, IT_CLIENTES, PT_CLIENTES } from './textos/clientes'
+import { ES_OPERACIONES, EN_OPERACIONES, IT_OPERACIONES, PT_OPERACIONES } from './textos/operaciones'
+import { ES_SPACEEYES, EN_SPACEEYES, IT_SPACEEYES, PT_SPACEEYES } from './textos/spaceeyes'
+import { ES_INVENTARIO, EN_INVENTARIO, IT_INVENTARIO, PT_INVENTARIO } from './textos/inventario'
+import { ES_ARRENDADORES, EN_ARRENDADORES, IT_ARRENDADORES, PT_ARRENDADORES } from './textos/arrendadores'
+import { ES_OPERACIONES2, EN_OPERACIONES2, IT_OPERACIONES2, PT_OPERACIONES2 } from './textos/operaciones2'
+import { ES_INICIO, EN_INICIO, IT_INICIO, PT_INICIO } from './textos/inicio'
+import { ES_ENERGIA, EN_ENERGIA, IT_ENERGIA, PT_ENERGIA } from './textos/energia'
+import { ES_REPORTES, EN_REPORTES, IT_REPORTES, PT_REPORTES } from './textos/reportes'
+import { ES_NOTIFICACIONES, EN_NOTIFICACIONES, IT_NOTIFICACIONES, PT_NOTIFICACIONES } from './textos/notificaciones'
 
 // ============================================================================
 //  lib/i18n/diccionario.ts — LOS TEXTOS, Y LA CONVENCION DE CLAVES.
@@ -71,7 +92,17 @@ const ES = {
   'idioma.etiqueta': 'Idioma',
   'idioma.es': 'Español',
   'idioma.en': 'English',
+  'idioma.it': 'Italiano',
+  'idioma.pt': 'Português',
   'idioma.cambiar': 'Cambiar idioma',
+  // «Mi cuenta → Idioma» (IDIOMA-USUARIO, 03/11): la preferencia de la CUENTA,
+  // que sigue a la persona a cualquier dispositivo.
+  'idioma.cuenta.titulo': 'Idioma',
+  'idioma.cuenta.ayuda':
+    'El idioma en que ves la aplicación, en cualquier dispositivo donde entres. Los contratos y documentos no cambian: van en el idioma de la empresa.',
+  'idioma.cuenta.navegador': 'Usar el idioma del navegador',
+  'idioma.cuenta.toast': 'Idioma guardado',
+  'idioma.cuenta.error': 'No se pudo guardar el idioma',
 
   // ── Marca (no se traduce el nombre; si el descriptivo) ──
   'marca.descriptivo': 'Gestión de espacios publicitarios',
@@ -136,6 +167,23 @@ const ES = {
   'login.error.enviar-enlace': 'No se pudo enviar el enlace',
   'login.error.crear-cuenta': 'No se pudo crear la cuenta',
   'login.error.iniciar-sesion': 'No se pudo iniciar sesión',
+  // Ola 5 · lo que SI manda el servidor de acceso (sus rutas no pasan por
+  // respuestaError) y lo que escribe lib/auth-real.ts. Literal de su origen:
+  // los traduce lib/i18n/errores-acceso.ts al pintarlos.
+  'login.error.credenciales': 'Correo o contraseña inválidos',
+  'login.error.faltan-datos': 'Correo y contraseña requeridos',
+  'login.error.sin-conexion': 'No se pudo conectar con el servidor. Revisa tu conexión e intenta de nuevo.',
+  'login.error.solo-google':
+    'Esta cuenta entra con Google. Usa el botón de Google, o un código de recuperación si perdiste el acceso a esa cuenta.',
+  'login.error.registro-apagado': 'El registro de cuentas nuevas está deshabilitado. Contacta al administrador.',
+  'login.error.recuperacion-apagada':
+    'La recuperación de contraseña está deshabilitada temporalmente. Contacta al administrador.',
+  'login.error.demasiados': 'Demasiados intentos. Espera {s}s e intenta de nuevo.',
+  'login.error.demasiados-corto': 'Demasiados intentos. Espera {s}s.',
+  // Ola 6 · los dos 400 de las rutas de acceso que la interfaz no provoca
+  // (`login` y `codigo`; `reset`). Las rutas no se tocan: zona roja.
+  'login.error.cuerpo-invalido': 'Cuerpo inválido',
+  'login.error.falta-enlace': 'Falta el enlace de restablecimiento.',
 
   // ── Validacion compartida con el servidor ──
   // Estos DUPLICAN a proposito el texto de `lib/validacion.ts` y
@@ -189,10 +237,10 @@ const ES = {
   'nav.disponibilidad': 'Disponibilidad',
   'nav.propuestas': 'Propuestas',
   'nav.captacion': 'Captación',
-  'nav.comercial-opex': 'Comercial OPEX',
+  'nav.comercial-opex': 'Comercial negociación',
   'nav.franjas-y-temporadas': 'Franjas y temporadas',
   'nav.descuentos-por-volumen': 'Descuentos por volumen',
-  'nav.codigos-promocionales': 'Codigos promocionales',
+  'nav.codigos-promocionales': 'Códigos de negociación',
   'nav.paquetes': 'Paquetes cerrados',
   'nav.creativos': 'Creativos',
   'nav.campanas': 'Campañas',
@@ -206,6 +254,37 @@ const ES = {
   'nav.razones-sociales': 'Razones sociales',
   'nav.actividad': 'Actividad',
   'nav.administracion': 'Administración',
+
+  // ── Un archivo por area (`lib/i18n/textos/`) ──
+  // Desde el lote piloto de propuestas (2026-11-02) cada area trae sus textos
+  // en su propio archivo, y aqui solo se juntan. El motivo es de integracion:
+  // los lotes los hacen agentes en ramas distintas, y si todos escribieran en
+  // este objeto cada merge seria un conflicto en las mismas lineas. Al
+  // esparcirlos AQUI, `ClaveTexto` sigue saliendo de `ES` y la regla 3 se
+  // mantiene entera: cada archivo declara su ingles como
+  // `Record<ClaveDeSuArea, string>`, asi que una clave inglesa que falte sigue
+  // siendo un error de compilacion, solo que en el archivo del area.
+  ...ES_PROPUESTAS,
+  ...ES_COMPARTIDOS,
+  ...ES_CAMPANAS,
+  ...ES_FINANZAS,
+  ...ES_COMERCIAL,
+  ...ES_CODIGOS,
+  ...ES_CATALOGOS,
+  ...ES_ADMIN,
+  ...ES_CUENTA,
+  ...ES_SHELL,
+  ...ES_SERVIDOR,
+  ...ES_CLIENTES,
+  ...ES_OPERACIONES,
+  ...ES_SPACEEYES,
+  ...ES_INVENTARIO,
+  ...ES_ARRENDADORES,
+  ...ES_OPERACIONES2,
+  ...ES_INICIO,
+  ...ES_ENERGIA,
+  ...ES_REPORTES,
+  ...ES_NOTIFICACIONES,
 } as const
 
 export type ClaveTexto = keyof typeof ES
@@ -236,7 +315,15 @@ const EN: Record<ClaveTexto, string> = {
   // Cada idioma, en si mismo. No se traducen.
   'idioma.es': 'Español',
   'idioma.en': 'English',
+  'idioma.it': 'Italiano',
+  'idioma.pt': 'Português',
   'idioma.cambiar': 'Change language',
+  'idioma.cuenta.titulo': 'Language',
+  'idioma.cuenta.ayuda':
+    'The language you see the app in, on any device you sign in from. Contracts and documents do not change: they use the company language.',
+  'idioma.cuenta.navegador': 'Use the browser language',
+  'idioma.cuenta.toast': 'Language saved',
+  'idioma.cuenta.error': 'Could not save the language',
 
   'marca.descriptivo': 'Advertising space management',
 
@@ -265,7 +352,7 @@ const EN: Record<ClaveTexto, string> = {
 
   'login.olvidaste': 'Forgot your password?',
   'login.ya-tienes-cuenta': 'Already have an account? ',
-  'login.no-tienes-cuenta': "Don't have an account? ",
+  'login.no-tienes-cuenta': 'Don’t have an account? ',
   'login.volver': '← Back to ',
   'login.volver.enlace': 'sign in',
   'login.enlace-dev': 'Link (development only):',
@@ -289,6 +376,17 @@ const EN: Record<ClaveTexto, string> = {
   'login.error.enviar-enlace': 'The link could not be sent',
   'login.error.crear-cuenta': 'The account could not be created',
   'login.error.iniciar-sesion': 'Could not sign in',
+  'login.error.credenciales': 'Incorrect email or password',
+  'login.error.faltan-datos': 'Email and password are required',
+  'login.error.sin-conexion': 'Could not reach the server. Check your connection and try again.',
+  'login.error.solo-google':
+    'This account signs in with Google. Use the Google button, or a recovery code if you lost access to that account.',
+  'login.error.registro-apagado': 'New account sign-up is disabled. Contact your administrator.',
+  'login.error.recuperacion-apagada': 'Password recovery is temporarily disabled. Contact your administrator.',
+  'login.error.demasiados': 'Too many attempts. Wait {s}s and try again.',
+  'login.error.demasiados-corto': 'Too many attempts. Wait {s}s.',
+  'login.error.cuerpo-invalido': 'Invalid request',
+  'login.error.falta-enlace': 'The reset link is missing.',
 
   'validacion.email': 'Invalid email. Use the format example@email.com',
   'password.regla': 'at least 8, with a letter and a number',
@@ -331,10 +429,10 @@ const EN: Record<ClaveTexto, string> = {
   'nav.disponibilidad': 'Availability',
   'nav.propuestas': 'Proposals',
   'nav.captacion': 'Prospecting',
-  'nav.comercial-opex': 'Commercial OPEX',
+  'nav.comercial-opex': 'Lease negotiation',
   'nav.franjas-y-temporadas': 'Dayparts and seasons',
   'nav.descuentos-por-volumen': 'Volume discounts',
-  'nav.codigos-promocionales': 'Promo codes',
+  'nav.codigos-promocionales': 'Negotiation codes',
   'nav.paquetes': 'Bundles',
   'nav.creativos': 'Creatives',
   'nav.campanas': 'Campaigns',
@@ -346,13 +444,505 @@ const EN: Record<ClaveTexto, string> = {
   'nav.comisiones': 'Commissions',
   'nav.integraciones': 'Integrations',
   'nav.razones-sociales': 'Legal entities',
-  'nav.actividad': 'Activity',
+  // «Activity log», como el titulo de la pagina (decision del orquestador,
+  // 2026-11-02, segunda vuelta del lote de administracion).
+  'nav.actividad': 'Activity log',
   'nav.administracion': 'Settings',
+
+  ...EN_PROPUESTAS,
+  ...EN_COMPARTIDOS,
+  ...EN_CAMPANAS,
+  ...EN_FINANZAS,
+  ...EN_COMERCIAL,
+  ...EN_CODIGOS,
+  ...EN_CATALOGOS,
+  ...EN_ADMIN,
+  ...EN_CUENTA,
+  ...EN_SHELL,
+  ...EN_SERVIDOR,
+  ...EN_CLIENTES,
+  ...EN_OPERACIONES,
+  ...EN_SPACEEYES,
+  ...EN_INVENTARIO,
+  ...EN_ARRENDADORES,
+  ...EN_OPERACIONES2,
+  ...EN_INICIO,
+  ...EN_ENERGIA,
+  ...EN_REPORTES,
+  ...EN_NOTIFICACIONES,
+}
+
+// ─── ITALIANO · ola 0 (2026-11-03) ──────────────────────────────────────────
+//
+// Pedido del dueno el 2026-11-03: «ahora version en italiano». Se traduce por
+// LOTES (`vault/03-Frontend/italiano-olas.md`), cada uno con su traductor y su
+// validador, igual que el ingles. Por eso, a diferencia de `EN`, este objeto es
+// PARCIAL: cada `textos/<ambito>.ts` declara su `IT_<AMBITO>` como
+// `Partial<Record<…>>` y lo rellena su lote.
+//
+// **MIENTRAS FALTE UNA CLAVE, SE PINTA EN INGLES, NO EN ESPANOL.** Decidido en
+// la ola 0 y por tres motivos:
+//   · el ingles esta COMPLETO (`tsc` lo obliga) y revisado por siete olas, asi
+//     que la caida nunca deja un hueco;
+//   · para un lector italiano el ingles de una aplicacion de trabajo es mucho
+//     mas legible que el espanol, que se le parece lo bastante para confundir
+//     («cobranza», «arrendador») y no lo bastante para entenderse;
+//   · y el glosario italiano del dueno CONSERVA los anglicismos del sector
+//     (spot, loop, DOOH), asi que la mezcla ingles/italiano es la natural.
+//
+// La caida esta AQUI y en ningun otro sitio: `DICCIONARIOS.it` es `{...EN,
+// ...IT}`, un objeto completo, y `traducir()` no sabe nada del italiano. La
+// prueba de cobertura (`cobertura-italiano.test.ts`) cuenta cuanto falta.
+//
+// Cuando los lotes terminen, `IT` pasa a `Record<ClaveTexto, string>`, la
+// caida deja de dispararse, y `tsc` vuelve a ser el que exige cada clave.
+//
+// Registro: el «tu» directo de una aplicacion de trabajo, como el espanol y el
+// ingles. Los anglicismos del sector se quedan en ingles (decision del dueno
+// del 03/11): «spot», «loop/h», «DOOH», «codice di negoziazione».
+//
+// Lote L5 (2026-11-03): la base COMPLETA —acceso, menu y lo comun—. Sigue
+// tipada `Partial` porque `ClaveTexto` incluye los ambitos de `textos/`; quien
+// exige que no falte ninguna es `cobertura-italiano.test.ts` (fila «base»).
+const IT_BASE: Partial<Record<ClaveTexto, string>> = {
+  'comun.cancelar': 'Annulla',
+  'comun.guardar': 'Salva',
+  'comun.cerrar': 'Chiudi',
+  'comun.cargando': 'Caricamento…',
+  'comun.o': 'o',
+
+  // El selector de idioma: cada idioma, en si mismo, como en ES y EN.
+  'idioma.etiqueta': 'Lingua',
+  'idioma.es': 'Español',
+  'idioma.en': 'English',
+  'idioma.it': 'Italiano',
+  'idioma.pt': 'Português',
+  'idioma.cambiar': 'Cambia lingua',
+
+  'marca.descriptivo': 'Gestione degli spazi pubblicitari',
+
+  'login.titulo.login': 'Accedi',
+  'login.titulo.signup': 'Crea account',
+  'login.titulo.forgot': 'Recupera la password',
+  'login.subtitulo.login': 'Accedi con il tuo account.',
+  'login.subtitulo.signup': 'Registra la tua organizzazione e il tuo utente. Avrai il tuo CRM.',
+  'login.subtitulo.forgot': 'Inserisci la tua email e ti invieremo un link per scegliere una nuova password.',
+
+  'login.campo.organizacion': 'Organizzazione',
+  'login.campo.nombre': 'Il tuo nome',
+  'login.campo.correo': 'Email',
+  'login.campo.password': 'Password',
+  // Ejemplos adaptados, como en ingles: «Mario Rossi» es el «Ana López» italiano.
+  'login.ejemplo.organizacion': 'Es. Media Norte',
+  'login.ejemplo.nombre': 'Es. Mario Rossi',
+  'login.ejemplo.correo': 'tu@email.it',
+
+  'login.boton.entrar': 'Accedi',
+  'login.boton.crear': 'Crea account',
+  'login.boton.enviar-enlace': 'Invia link',
+  'login.boton.entrando': 'Accesso in corso…',
+  'login.boton.creando': 'Creazione dell’account…',
+  'login.boton.enviando': 'Invio…',
+
+  'login.olvidaste': 'Hai dimenticato la password?',
+  'login.ya-tienes-cuenta': 'Hai già un account? ',
+  'login.no-tienes-cuenta': 'Non hai un account? ',
+  // Dos trozos (el segundo es el enlace): «← Torna alla» + «pagina di accesso».
+  'login.volver': '← Torna alla ',
+  'login.volver.enlace': 'pagina di accesso',
+  'login.enlace-dev': 'Link (solo in sviluppo):',
+  'login.aviso-generico': 'Se l’email è registrata, ti abbiamo inviato un link.',
+
+  'login.google.continuar': 'Continua con Google',
+  'login.google.crear': 'Crea l’azienda con Google',
+  'login.google.falta-organizacion': 'Inserisci il nome della tua organizzazione prima di continuare con Google.',
+  'login.google.error.no_disponible': 'L’accesso con Google non è disponibile in questo momento.',
+  'login.google.error.cancelado': 'Hai annullato l’accesso con Google.',
+  'login.google.error.invalido': 'Non è stato possibile completare l’accesso con Google. Riprova.',
+  'login.google.error.no_registrado':
+    'Questo account Google non è registrato. Chiedi al tuo amministratore di aggiungerti.',
+  'login.google.error.inactivo': 'Il tuo utente è disattivato. Chiedi al tuo amministratore di riattivarlo.',
+  'login.google.error.ya_vinculada':
+    'Il tuo utente ha già un altro account Google collegato. Chiedi al tuo amministratore di verificarlo.',
+  'login.google.error.generico': 'Non è stato possibile accedere con Google.',
+
+  'login.error.enviar-enlace': 'Non è stato possibile inviare il link',
+  'login.error.crear-cuenta': 'Non è stato possibile creare l’account',
+  'login.error.iniciar-sesion': 'Non è stato possibile accedere',
+  'login.error.credenciales': 'Email o password non validi',
+  'login.error.faltan-datos': 'Email e password obbligatorie',
+  'login.error.sin-conexion': 'Impossibile connettersi al server. Controlla la connessione e riprova.',
+  'login.error.solo-google':
+    'Questo account accede con Google. Usa il pulsante di Google, oppure un codice di recupero se hai perso l’accesso a quell’account.',
+  'login.error.registro-apagado': 'La registrazione di nuovi account è disattivata. Contatta l’amministratore.',
+  'login.error.recuperacion-apagada':
+    'Il recupero della password è temporaneamente disattivato. Contatta l’amministratore.',
+  'login.error.demasiados': 'Troppi tentativi. Attendi {s}s e riprova.',
+  'login.error.demasiados-corto': 'Troppi tentativi. Attendi {s}s.',
+  'login.error.cuerpo-invalido': 'Richiesta non valida',
+  'login.error.falta-enlace': 'Manca il link di reimpostazione.',
+
+  'validacion.email': 'Email non valida. Usa il formato esempio@email.com',
+  'password.regla': 'minimo 8, con una lettera e un numero',
+  'password.corta': 'La password deve avere almeno 8 caratteri',
+  'password.sin-letra': 'La password deve contenere almeno una lettera',
+  'password.sin-numero': 'La password deve contenere almeno un numero',
+  'password.con-espacios': 'La password non può contenere spazi',
+
+  'sidebar.expandir': 'Espandi menu',
+  'sidebar.colapsar': 'Comprimi menu',
+  'sidebar.logo-alt': 'logo',
+  'sidebar.abrir-portal': 'Apri il portale',
+  'sidebar.solo-portal': 'Come cliente esterno hai accesso solo al tuo portale.',
+  'sidebar.derechos': 'Tutti i diritti riservati',
+
+  // El menu, con el glosario: Comercial = Vendite, Administración = Impostazioni.
+  'nav.grupo.patrimonio': 'Inventario',
+  'nav.grupo.ojos': 'Space Eyes',
+  'nav.grupo.vender': 'Vendite',
+  'nav.grupo.entregar': 'Operazioni',
+  'nav.grupo.cobrar': 'Finanza',
+  'nav.grupo.sistema': 'Sistema',
+
+  'nav.dashboard': 'Dashboard',
+  'nav.inventario': 'Inventario',
+  'nav.arrendadores': 'Locatori',
+  'nav.network': 'Network',
+  'nav.almacen': 'Magazzino',
+  'nav.space-eyes': 'Dispositivi',
+  'nav.space-eyes-galeria': 'Galleria',
+  'nav.space-eyes-graficas': 'Grafici',
+  'nav.space-eyes-texto': 'Etichetta delle foto',
+  'nav.space-eyes-programacion': 'Programmazione',
+  'nav.space-eyes-campanas': 'Campagne',
+  'nav.space-eyes-verificacion': 'Verifica',
+  'nav.space-eyes-fallas': 'Guasti',
+  'nav.clientes': 'Clienti',
+  'nav.comercial': 'Vendite',
+  'nav.disponibilidad': 'Disponibilità',
+  'nav.propuestas': 'Proposte',
+  // Captacion es buscar espacios nuevos que arrendar, no clientes.
+  'nav.captacion': 'Acquisizione siti',
+  'nav.comercial-opex': 'Negoziazione locazioni',
+  'nav.franjas-y-temporadas': 'Fasce orarie e stagioni',
+  'nav.descuentos-por-volumen': 'Sconti per volume',
+  'nav.codigos-promocionales': 'Codici di negoziazione',
+  'nav.paquetes': 'Pacchetti',
+  'nav.creativos': 'Creatività',
+  'nav.campanas': 'Campagne',
+  'nav.imprenta': 'Stampa',
+  'nav.operaciones': 'Operazioni',
+  'nav.energia': 'Consumo elettrico',
+  'nav.finanzas': 'Finanza',
+  'nav.reportes': 'Report',
+  'nav.comisiones': 'Provvigioni',
+  'nav.integraciones': 'Integrazioni',
+  'nav.razones-sociales': 'Ragioni sociali',
+  'nav.actividad': 'Registro attività',
+  'nav.administracion': 'Impostazioni',
+  // IDIOMA-USUARIO (03/11). Revisadas al integrar en integra/idiomas (04/11) con las
+  // reglas de L5: registro «tu», apostrofo tipografico, «No se pudo …» = «Impossibile …».
+  'idioma.cuenta.titulo': 'Lingua',
+  'idioma.cuenta.ayuda':
+    'La lingua in cui vedi l’applicazione, su qualsiasi dispositivo da cui accedi. Contratti e documenti non cambiano: usano la lingua dell’azienda.',
+  'idioma.cuenta.navegador': 'Usa la lingua del browser',
+  'idioma.cuenta.toast': 'Lingua salvata',
+  'idioma.cuenta.error': 'Impossibile salvare la lingua',
+}
+
+/** Cada ambito de `textos/` con su espanol y su italiano, para la prueba de cobertura. */
+export const AMBITOS_ITALIANO: ReadonlyArray<{
+  ambito: string
+  es: Record<string, string>
+  it: Partial<Record<string, string>>
+}> = [
+  { ambito: 'propuestas', es: ES_PROPUESTAS, it: IT_PROPUESTAS },
+  { ambito: 'compartidos', es: ES_COMPARTIDOS, it: IT_COMPARTIDOS },
+  { ambito: 'campanas', es: ES_CAMPANAS, it: IT_CAMPANAS },
+  { ambito: 'finanzas', es: ES_FINANZAS, it: IT_FINANZAS },
+  { ambito: 'comercial', es: ES_COMERCIAL, it: IT_COMERCIAL },
+  { ambito: 'codigos', es: ES_CODIGOS, it: IT_CODIGOS },
+  { ambito: 'catalogos', es: ES_CATALOGOS, it: IT_CATALOGOS },
+  { ambito: 'admin', es: ES_ADMIN, it: IT_ADMIN },
+  { ambito: 'cuenta', es: ES_CUENTA, it: IT_CUENTA },
+  { ambito: 'shell', es: ES_SHELL, it: IT_SHELL },
+  { ambito: 'servidor', es: ES_SERVIDOR, it: IT_SERVIDOR },
+  { ambito: 'clientes', es: ES_CLIENTES, it: IT_CLIENTES },
+  { ambito: 'operaciones', es: ES_OPERACIONES, it: IT_OPERACIONES },
+  { ambito: 'spaceeyes', es: ES_SPACEEYES, it: IT_SPACEEYES },
+  { ambito: 'inventario', es: ES_INVENTARIO, it: IT_INVENTARIO },
+  { ambito: 'arrendadores', es: ES_ARRENDADORES, it: IT_ARRENDADORES },
+  { ambito: 'operaciones2', es: ES_OPERACIONES2, it: IT_OPERACIONES2 },
+  { ambito: 'inicio', es: ES_INICIO, it: IT_INICIO },
+  { ambito: 'energia', es: ES_ENERGIA, it: IT_ENERGIA },
+  { ambito: 'reportes', es: ES_REPORTES, it: IT_REPORTES },
+  { ambito: 'notificaciones', es: ES_NOTIFICACIONES, it: IT_NOTIFICACIONES },
+]
+
+const IT: Partial<Record<ClaveTexto, string>> = {
+  ...IT_BASE,
+  ...IT_PROPUESTAS,
+  ...IT_COMPARTIDOS,
+  ...IT_CAMPANAS,
+  ...IT_FINANZAS,
+  ...IT_COMERCIAL,
+  ...IT_CODIGOS,
+  ...IT_CATALOGOS,
+  ...IT_ADMIN,
+  ...IT_CUENTA,
+  ...IT_SHELL,
+  ...IT_SERVIDOR,
+  ...IT_CLIENTES,
+  ...IT_OPERACIONES,
+  ...IT_SPACEEYES,
+  ...IT_INVENTARIO,
+  ...IT_ARRENDADORES,
+  ...IT_OPERACIONES2,
+  ...IT_INICIO,
+  ...IT_ENERGIA,
+  ...IT_REPORTES,
+  ...IT_NOTIFICACIONES,
+}
+
+// ─── PORTUGUES (pt-BR) · ola 0 (2026-11-05) ─────────────────────────────────
+//
+// Decisiones del dueno del 05/11 (`vault/03-Frontend/portugues-olas.md`): Brasil,
+// trato «voce», y MIENTRAS FALTE UNA CLAVE SE PINTA EN ESPANOL —no en ingles
+// como el italiano—. La caida vive en un solo sitio, `conCaidaAlEspanol`
+// (abajo); `traducir()` no sabe nada del portugues.
+//
+// Ola 0: el selector de idioma (cada idioma se nombra en si mismo, como en
+// ES, EN e IT). Lote L5 (05/11): la base COMPLETA —acceso, menu, validacion
+// compartida con el servidor—; sigue `Partial` porque su tipo es
+// `ClaveTexto` (todos los ambitos) y la exige la fila «base» de la cobertura
+// y `textos/portugues-l5.test.ts`. Los demas lotes rellenan su
+// `PT_<AMBITO>` de `textos/`.
+const PT_BASE: Partial<Record<ClaveTexto, string>> = {
+  'comun.cancelar': 'Cancelar',
+  'comun.guardar': 'Salvar',
+  'comun.cerrar': 'Fechar',
+  'comun.cargando': 'Carregando…',
+  'comun.o': 'ou',
+  'idioma.etiqueta': 'Idioma',
+  'idioma.es': 'Español',
+  'idioma.en': 'English',
+  'idioma.it': 'Italiano',
+  'idioma.pt': 'Português',
+  'idioma.cambiar': 'Mudar idioma',
+  'idioma.cuenta.titulo': 'Idioma',
+  'idioma.cuenta.ayuda':
+    'O idioma em que você vê o aplicativo, em qualquer dispositivo onde entrar. Contratos e documentos não mudam: usam o idioma da empresa.',
+  'idioma.cuenta.navegador': 'Usar o idioma do navegador',
+  'idioma.cuenta.toast': 'Idioma salvo',
+  'idioma.cuenta.error': 'Não foi possível salvar o idioma',
+  'marca.descriptivo': 'Gestão de espaços publicitários',
+  'login.titulo.login': 'Entrar',
+  'login.titulo.signup': 'Criar conta',
+  'login.titulo.forgot': 'Recuperar senha',
+  'login.subtitulo.login': 'Acesse com a sua conta.',
+  'login.subtitulo.signup': 'Cadastre sua organização e seu usuário. Você terá o seu próprio CRM.',
+  'login.subtitulo.forgot': 'Digite seu e-mail e enviaremos um link para você escolher uma nova senha.',
+  'login.campo.organizacion': 'Organização',
+  'login.campo.nombre': 'Seu nome',
+  'login.campo.correo': 'E-mail',
+  'login.campo.password': 'Senha',
+  'login.ejemplo.organizacion': 'Ex.: Mídia Norte',
+  'login.ejemplo.nombre': 'Ex.: Ana Souza',
+  'login.ejemplo.correo': 'voce@email.com.br',
+  'login.boton.entrar': 'Entrar',
+  'login.boton.crear': 'Criar conta',
+  'login.boton.enviar-enlace': 'Enviar link',
+  'login.boton.entrando': 'Entrando…',
+  'login.boton.creando': 'Criando conta…',
+  'login.boton.enviando': 'Enviando…',
+  'login.olvidaste': 'Esqueceu sua senha?',
+  'login.ya-tienes-cuenta': 'Já tem uma conta? ',
+  'login.no-tienes-cuenta': 'Não tem uma conta? ',
+  'login.volver': '← Voltar para ',
+  'login.volver.enlace': 'a tela de entrada',
+  'login.enlace-dev': 'Link (só em desenvolvimento):',
+  'login.aviso-generico': 'Se o e-mail estiver cadastrado, enviamos um link para você.',
+  'login.google.continuar': 'Continuar com o Google',
+  'login.google.crear': 'Criar empresa com o Google',
+  'login.google.falta-organizacion': 'Digite o nome da sua organização antes de continuar com o Google.',
+  'login.google.error.no_disponible': 'O acesso com o Google não está disponível no momento.',
+  'login.google.error.cancelado': 'Você cancelou o acesso com o Google.',
+  'login.google.error.invalido': 'Não foi possível concluir o acesso com o Google. Tente de novo.',
+  'login.google.error.no_registrado':
+    'Essa conta do Google não está cadastrada. Peça ao seu administrador para adicionar você.',
+  'login.google.error.inactivo': 'Seu usuário está desativado. Peça ao seu administrador para reativá-lo.',
+  'login.google.error.ya_vinculada':
+    'Seu usuário já tem outra conta do Google vinculada. Peça ao seu administrador para verificá-la.',
+  'login.google.error.generico': 'Não foi possível entrar com o Google.',
+  'login.error.enviar-enlace': 'Não foi possível enviar o link',
+  'login.error.crear-cuenta': 'Não foi possível criar a conta',
+  'login.error.iniciar-sesion': 'Não foi possível entrar',
+  'login.error.credenciales': 'E-mail ou senha inválidos',
+  'login.error.faltan-datos': 'E-mail e senha obrigatórios',
+  'login.error.sin-conexion': 'Não foi possível conectar ao servidor. Verifique sua conexão e tente de novo.',
+  'login.error.solo-google':
+    'Esta conta entra com o Google. Use o botão do Google ou um código de recuperação se você perdeu o acesso a essa conta.',
+  'login.error.registro-apagado': 'O cadastro de novas contas está desativado. Fale com o administrador.',
+  'login.error.recuperacion-apagada':
+    'A recuperação de senha está desativada temporariamente. Fale com o administrador.',
+  'login.error.demasiados': 'Muitas tentativas. Aguarde {s}s e tente de novo.',
+  'login.error.demasiados-corto': 'Muitas tentativas. Aguarde {s}s.',
+  'login.error.cuerpo-invalido': 'Requisição inválida',
+  'login.error.falta-enlace': 'Falta o link de redefinição.',
+  'validacion.email': 'E-mail inválido. Use o formato exemplo@email.com',
+  'password.regla': 'mínimo 8, com letra e número',
+  'password.corta': 'A senha deve ter pelo menos 8 caracteres',
+  'password.sin-letra': 'A senha deve incluir pelo menos uma letra',
+  'password.sin-numero': 'A senha deve incluir pelo menos um número',
+  'password.con-espacios': 'A senha não pode conter espaços',
+  'sidebar.expandir': 'Expandir menu',
+  'sidebar.colapsar': 'Recolher menu',
+  'sidebar.logo-alt': 'logo',
+  'sidebar.abrir-portal': 'Abrir portal',
+  'sidebar.solo-portal': 'Como cliente externo, você só tem acesso ao seu portal.',
+  'sidebar.derechos': 'Todos os direitos reservados',
+  'nav.grupo.patrimonio': 'Inventário',
+  'nav.grupo.ojos': 'Space Eyes',
+  'nav.grupo.vender': 'Comercial',
+  'nav.grupo.entregar': 'Operações',
+  'nav.grupo.cobrar': 'Finanças',
+  'nav.grupo.sistema': 'Sistema',
+  'nav.dashboard': 'Dashboard',
+  'nav.inventario': 'Inventário',
+  'nav.arrendadores': 'Locadores',
+  'nav.network': 'Network',
+  'nav.almacen': 'Almoxarifado',
+  'nav.space-eyes': 'Dispositivos',
+  'nav.space-eyes-galeria': 'Galeria',
+  'nav.space-eyes-graficas': 'Gráficos',
+  'nav.space-eyes-texto': 'Legenda das fotos',
+  'nav.space-eyes-programacion': 'Programação',
+  'nav.space-eyes-campanas': 'Campanhas',
+  'nav.space-eyes-verificacion': 'Verificação',
+  'nav.space-eyes-fallas': 'Falhas',
+  'nav.clientes': 'Clientes',
+  'nav.comercial': 'Comercial',
+  'nav.disponibilidad': 'Disponibilidade',
+  'nav.propuestas': 'Propostas',
+  'nav.captacion': 'Captação',
+  'nav.comercial-opex': 'Negociação de locações',
+  'nav.franjas-y-temporadas': 'Faixas horárias e temporadas',
+  'nav.descuentos-por-volumen': 'Descontos por volume',
+  'nav.codigos-promocionales': 'Códigos de negociação',
+  'nav.paquetes': 'Pacotes fechados',
+  'nav.creativos': 'Criativos',
+  'nav.campanas': 'Campanhas',
+  'nav.imprenta': 'Gráfica',
+  'nav.operaciones': 'Operações',
+  'nav.energia': 'Consumo de energia',
+  'nav.finanzas': 'Finanças',
+  'nav.reportes': 'Relatórios',
+  'nav.comisiones': 'Comissões',
+  'nav.integraciones': 'Integrações',
+  'nav.razones-sociales': 'Razões sociais',
+  'nav.actividad': 'Registro de atividades',
+  'nav.administracion': 'Configurações',
+}
+
+/** Cada ambito de `textos/` con su espanol y su portugues, para la prueba de cobertura. */
+export const AMBITOS_PORTUGUES: ReadonlyArray<{
+  ambito: string
+  es: Record<string, string>
+  pt: Partial<Record<string, string>>
+}> = [
+  { ambito: 'propuestas', es: ES_PROPUESTAS, pt: PT_PROPUESTAS },
+  { ambito: 'compartidos', es: ES_COMPARTIDOS, pt: PT_COMPARTIDOS },
+  { ambito: 'campanas', es: ES_CAMPANAS, pt: PT_CAMPANAS },
+  { ambito: 'finanzas', es: ES_FINANZAS, pt: PT_FINANZAS },
+  { ambito: 'comercial', es: ES_COMERCIAL, pt: PT_COMERCIAL },
+  { ambito: 'codigos', es: ES_CODIGOS, pt: PT_CODIGOS },
+  { ambito: 'catalogos', es: ES_CATALOGOS, pt: PT_CATALOGOS },
+  { ambito: 'admin', es: ES_ADMIN, pt: PT_ADMIN },
+  { ambito: 'cuenta', es: ES_CUENTA, pt: PT_CUENTA },
+  { ambito: 'shell', es: ES_SHELL, pt: PT_SHELL },
+  { ambito: 'servidor', es: ES_SERVIDOR, pt: PT_SERVIDOR },
+  { ambito: 'clientes', es: ES_CLIENTES, pt: PT_CLIENTES },
+  { ambito: 'operaciones', es: ES_OPERACIONES, pt: PT_OPERACIONES },
+  { ambito: 'spaceeyes', es: ES_SPACEEYES, pt: PT_SPACEEYES },
+  { ambito: 'inventario', es: ES_INVENTARIO, pt: PT_INVENTARIO },
+  { ambito: 'arrendadores', es: ES_ARRENDADORES, pt: PT_ARRENDADORES },
+  { ambito: 'operaciones2', es: ES_OPERACIONES2, pt: PT_OPERACIONES2 },
+  { ambito: 'inicio', es: ES_INICIO, pt: PT_INICIO },
+  { ambito: 'energia', es: ES_ENERGIA, pt: PT_ENERGIA },
+  { ambito: 'reportes', es: ES_REPORTES, pt: PT_REPORTES },
+  { ambito: 'notificaciones', es: ES_NOTIFICACIONES, pt: PT_NOTIFICACIONES },
+]
+
+const PT: Partial<Record<ClaveTexto, string>> = {
+  ...PT_BASE,
+  // P3 (05/11) escribio los PAPELES (constancia, propuesta impresa, /p,
+  // portal, comprobante y correos) aparte, en `textos/papeles-portugues.ts`,
+  // DEBAJO de los lotes. Con los cinco lotes cerrados, la costura (05/11) vio
+  // que las 151 claves ya estaban en su `PT_<AMBITO>` (138 iguales, 13 con el
+  // glosario comun) y retiro el archivo: un solo sitio por clave. Los papeles
+  // los sigue vigilando `papeles-portugues.test.ts`.
+  ...PT_PROPUESTAS,
+  ...PT_COMPARTIDOS,
+  ...PT_CAMPANAS,
+  ...PT_FINANZAS,
+  ...PT_COMERCIAL,
+  ...PT_CODIGOS,
+  ...PT_CATALOGOS,
+  ...PT_ADMIN,
+  ...PT_CUENTA,
+  ...PT_SHELL,
+  ...PT_SERVIDOR,
+  ...PT_CLIENTES,
+  ...PT_OPERACIONES,
+  ...PT_SPACEEYES,
+  ...PT_INVENTARIO,
+  ...PT_ARRENDADORES,
+  ...PT_OPERACIONES2,
+  ...PT_INICIO,
+  ...PT_ENERGIA,
+  ...PT_REPORTES,
+  ...PT_NOTIFICACIONES,
+}
+
+/** El portugues que YA esta escrito, sin la caida al espanol. Para la cobertura y los lotes. */
+export const PT_PARCIAL: Readonly<Partial<Record<ClaveTexto, string>>> = PT
+
+/** El italiano que YA esta escrito, sin la caida al ingles. Para la cobertura y los lotes. */
+export const IT_PARCIAL: Readonly<Partial<Record<ClaveTexto, string>>> = IT
+
+/**
+ * El italiano COMPLETO que ve la pantalla: el ingles, y encima lo que ya este
+ * traducido. Una cadena vacia no cuenta como traducida —un '' de un lote a
+ * medias no borra el ingles—. Exportada para probarla sin recargar el modulo.
+ */
+export function conCaidaAlIngles(
+  en: Record<ClaveTexto, string>,
+  it: Partial<Record<ClaveTexto, string>>,
+): Record<ClaveTexto, string> {
+  const escritas = Object.entries(it).filter(([, v]) => typeof v === 'string' && v !== '')
+  return { ...en, ...(Object.fromEntries(escritas) as Partial<Record<ClaveTexto, string>>) }
+}
+
+/**
+ * El portugues COMPLETO que ve la pantalla: el ESPANOL, y encima lo que ya este
+ * traducido (decision del dueno del 05/11). Misma regla que el italiano: una
+ * cadena vacia no cuenta como traducida. Exportada para probarla.
+ */
+export function conCaidaAlEspanol(
+  es: Record<ClaveTexto, string>,
+  pt: Partial<Record<ClaveTexto, string>>,
+): Record<ClaveTexto, string> {
+  const escritas = Object.entries(pt).filter(([, v]) => typeof v === 'string' && v !== '')
+  return { ...es, ...(Object.fromEntries(escritas) as Partial<Record<ClaveTexto, string>>) }
 }
 
 export const DICCIONARIOS: Record<Idioma, Record<ClaveTexto, string>> = {
   es: ES,
   en: EN,
+  // La caida al ingles, en una linea (ver arriba).
+  it: conCaidaAlIngles(EN, IT),
+  // La caida al ESPANOL, en una linea (ver arriba).
+  pt: conCaidaAlEspanol(ES, PT),
 }
 
 export const CLAVES = Object.keys(ES) as ClaveTexto[]
@@ -374,7 +964,9 @@ export function interpolar(texto: string, valores: Record<string, string | numbe
  * El texto de una clave en un idioma.
  *
  * El respaldo al espanol no deberia poder dispararse nunca —`tsc` obliga a que
- * `EN` este completo— pero existe porque la alternativa en produccion seria
+ * `EN` este completo, el italiano que falta ya viene relleno con el ingles
+ * en `DICCIONARIOS.it` y el portugues con el espanol en `DICCIONARIOS.pt`—
+ * pero existe porque la alternativa en produccion seria
  * pintar la clave cruda («login.titulo.login») en la pantalla de alguien.
  *
  * `diccionarios` es un parametro para poder ejercer ese respaldo en una prueba

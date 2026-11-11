@@ -6,7 +6,7 @@ import { Trash2, Plus } from 'lucide-react'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
-import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
+import { CRUDO_INVALIDO, ejemploCifra } from '@/lib/captura-cifra'
 import { useCandado, PasoContrasena } from '@/components/demo/ui/candado'
 import { AvisoFranjaCMS } from './AvisoFranjaCMS'
 import {
@@ -18,6 +18,9 @@ import {
   type FilaRejillaUI,
 } from '@/lib/data/rejilla-api'
 import { UNIDADES_VENTA, motivoModalidadInvalida } from '@/lib/modalidades'
+import { etiquetaUnidad } from '@/lib/periodos'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
 
 // ============================================================================
 //  Las tarifas por FRANJA y TEMPORADA de UNA pantalla. ADR 0039, Fase 1.
@@ -57,6 +60,13 @@ export function RejillaDialog({
   open: boolean
   onClose: () => void
 }) {
+  const { idioma, t } = useIdioma()
+  // La unidad se pinta como el DATO en espanol (`capitalize` la pone en
+  // mayuscula, como siempre) y con su nombre en ingles.
+  // `programatico` es unidad de venta pero no esta en `UNIDADES` (no tiene
+  // cantidad que contar): su nombre ingles es el de Comercial.
+  const unidadVisible = (u: string) =>
+    idioma === 'es' ? u : u === 'programatico' ? t('comercial.comun.programatico') : etiquetaUnidad(u, idioma)
   const [franjas, setFranjas] = useState<FranjaUI[]>([])
   const [temporadas, setTemporadas] = useState<TemporadaUI[]>([])
   const [filas, setFilas] = useState<FilaRejillaUI[]>([])
@@ -85,7 +95,7 @@ export function RejillaDialog({
         setFilas(r)
         setTarifas(Object.fromEntries(r.map((f) => [clave(f), String(f.tarifaPublicada)])))
       })
-      .catch((e) => toast.error(e instanceof Error ? e.message : 'No se pudo leer la rejilla'))
+      .catch((e) => toast.error(e instanceof Error ? e.message : t('catalogos.tarifas.no-leer')))
       .finally(() => vivo && setCargando(false))
     return () => {
       vivo = false
@@ -93,7 +103,7 @@ export function RejillaDialog({
   }, [open, sitio.id])
 
   function etiquetaFranja(id: string | null) {
-    if (!id) return 'Todo el día'
+    if (!id) return t('catalogos.comun.todo-el-dia')
     const f = franjas.find((x) => x.id === id)
     // Si la franja se dio de baja ya no viene en el catálogo activo. Se enseña
     // el identificador antes que un hueco: una fila que no se sabe de qué franja
@@ -101,7 +111,7 @@ export function RejillaDialog({
     return f ? `${f.nombre} · ${f.horaInicio}–${f.horaFin}` : id
   }
   function etiquetaTemporada(id: string | null) {
-    if (!id) return 'Todo el año'
+    if (!id) return t('catalogos.comun.todo-el-ano')
     return temporadas.find((x) => x.id === id)?.nombre ?? id
   }
 
@@ -144,11 +154,11 @@ export function RejillaDialog({
     await candado.ejecutar({
       guardar: () => actualizarRejillaApi(sitio.id, { guardar: guardarLista, quitar: quitarLista }),
       alLograr: () => {
-        toast.success('Tarifas por franja guardadas')
+        toast.success(t('catalogos.tarifas.guardadas'))
         onClose()
       },
       alFallar: (m) => toast.error(m),
-      mensajeSiFalla: 'No se pudieron guardar las tarifas por franja',
+      mensajeSiFalla: t('catalogos.tarifas.no-guardar'),
     })
   }
 
@@ -169,12 +179,12 @@ export function RejillaDialog({
           onClose()
         }
       }}
-      title="Tarifas por franja y temporada"
+      title={t('catalogos.tarifas.titulo')}
       subtitle={sitio.nombre}
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="secondary" size="sm" onClick={onClose} disabled={candado.enviando}>
-            Cancelar
+            {t('comun.cancelar')}
           </Button>
           <Button
             size="sm"
@@ -182,10 +192,10 @@ export function RejillaDialog({
             onClick={candado.reautenticando ? () => void candado.reintentar() : () => void guardar()}
           >
             {candado.enviando
-              ? 'Guardando…'
+              ? t('catalogos.tarifas.guardando')
               : candado.reautenticando
-                ? 'Confirmar y guardar'
-                : 'Guardar tarifas'}
+                ? t('catalogos.rejilla.candado.confirmar')
+                : t('catalogos.tarifas.guardar')}
           </Button>
         </div>
       }
@@ -195,32 +205,32 @@ export function RejillaDialog({
         <AvisoFranjaCMS />
         {hayInvalida && (
           <p className="text-[11px] text-error">
-            Hay una tarifa en rojo que no se entiende: la coma separa miles y el punto, decimales (15,000.50).
+            {t('catalogos.tarifas.invalida', { ejemplo: ejemploCifra('15,000.50', idioma) })}
           </p>
         )}
 
         {sinCatalogo ? (
           <p className="rounded-md border border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">
-            Esta organización todavía no tiene franjas ni temporadas. Se declaran una sola vez en{' '}
-            <b className="text-ink">Franjas y temporadas</b>, y valen para todo el inventario.
+            {interpolarNodos(t('catalogos.tarifas.sin-catalogo'), {
+              pantalla: <b className="text-ink">{t('nav.franjas-y-temporadas')}</b>,
+            })}
           </p>
         ) : (
           <p className="text-[12px] text-muted">
-            Solo hace falta capturar las combinaciones que tengan un precio distinto. Lo que no esté
-            aquí se cobra con la tarifa por unidad de siempre — la rejilla no obliga a llenar nada.
+            {t('catalogos.tarifas.dispersa')}
           </p>
         )}
 
         {cargando ? (
-          <p className="text-[12px] text-muted">Cargando…</p>
+          <p className="text-[12px] text-muted">{t('comun.cargando')}</p>
         ) : (
           <table className="w-full text-[12px]">
             <thead>
               <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-muted">
-                <th className="py-1.5 pr-2 font-medium">Unidad</th>
-                <th className="pr-2 font-medium">Franja</th>
-                <th className="pr-2 font-medium">Temporada</th>
-                <th className="pr-2 text-right font-medium">Tarifa</th>
+                <th className="py-1.5 pr-2 font-medium">{t('catalogos.comun.unidad')}</th>
+                <th className="pr-2 font-medium">{t('catalogos.comun.franja')}</th>
+                <th className="pr-2 font-medium">{t('catalogos.comun.temporada')}</th>
+                <th className="pr-2 text-right font-medium">{t('catalogos.comun.tarifa')}</th>
                 <th />
               </tr>
             </thead>
@@ -230,23 +240,24 @@ export function RejillaDialog({
                 const fuera = quitadas.includes(k)
                 return (
                   <tr key={k} className={'border-b border-border ' + (fuera ? 'line-through opacity-50' : '')}>
-                    <td className="py-1.5 pr-2 capitalize">{f.unidad}</td>
+                    <td className="py-1.5 pr-2 capitalize">{unidadVisible(f.unidad)}</td>
                     <td className="pr-2">{etiquetaFranja(f.franjaId)}</td>
                     <td className="pr-2">{etiquetaTemporada(f.temporadaId)}</td>
                     <td className="pr-2 text-right">
                       <CampoCifra
-                        aria-label={`Tarifa de ${f.unidad}`}
+                        aria-label={t('catalogos.tarifas.tarifa-de.aria', { unidad: unidadVisible(f.unidad) })}
                         className="h-7 w-24 rounded border border-border-strong bg-surface px-2 text-right"
                         valor={tarifas[k] ?? ''}
                         disabled={fuera}
                         mostrarError={false}
+                        idioma={idioma}
                         onCambio={(crudo) => setTarifas({ ...tarifas, [k]: crudo })}
                       />
                     </td>
                     <td className="text-right">
                       <button
                         type="button"
-                        aria-label={fuera ? 'Conservar' : 'Quitar'}
+                        aria-label={fuera ? t('catalogos.tarifas.conservar') : t('catalogos.tarifas.quitar')}
                         onClick={() =>
                           setQuitadas(fuera ? quitadas.filter((x) => x !== k) : [...quitadas, k])
                         }
@@ -262,27 +273,27 @@ export function RejillaDialog({
                 <tr>
                   <td className="py-2 pr-2">
                     <select
-                      aria-label="Unidad de la nueva tarifa"
+                      aria-label={t('catalogos.tarifas.nueva.unidad.aria')}
                       className="h-7 rounded border border-border-strong bg-surface px-1"
                       value={nueva.unidad}
                       onChange={(e) => setNueva({ ...nueva, unidad: e.target.value })}
                     >
-                      <option value="">Unidad…</option>
+                      <option value="">{t('catalogos.tarifas.nueva.unidad')}</option>
                       {admitidas.map((u) => (
                         <option key={u} value={u}>
-                          {u}
+                          {unidadVisible(u)}
                         </option>
                       ))}
                     </select>
                   </td>
                   <td className="pr-2">
                     <select
-                      aria-label="Franja de la nueva tarifa"
+                      aria-label={t('catalogos.tarifas.nueva.franja.aria')}
                       className="h-7 rounded border border-border-strong bg-surface px-1"
                       value={nueva.franjaId}
                       onChange={(e) => setNueva({ ...nueva, franjaId: e.target.value })}
                     >
-                      <option value="">Todo el día</option>
+                      <option value="">{t('catalogos.comun.todo-el-dia')}</option>
                       {franjas.map((f) => (
                         <option key={f.id} value={f.id}>
                           {f.nombre} · {f.horaInicio}–{f.horaFin}
@@ -292,12 +303,12 @@ export function RejillaDialog({
                   </td>
                   <td className="pr-2">
                     <select
-                      aria-label="Temporada de la nueva tarifa"
+                      aria-label={t('catalogos.tarifas.nueva.temporada.aria')}
                       className="h-7 rounded border border-border-strong bg-surface px-1"
                       value={nueva.temporadaId}
                       onChange={(e) => setNueva({ ...nueva, temporadaId: e.target.value })}
                     >
-                      <option value="">Todo el año</option>
+                      <option value="">{t('catalogos.comun.todo-el-ano')}</option>
                       {temporadas.map((t) => (
                         <option key={t.id} value={t.id}>
                           {t.nombre}
@@ -307,10 +318,11 @@ export function RejillaDialog({
                   </td>
                   <td className="pr-2 text-right">
                     <CampoCifra
-                      aria-label="Tarifa de la nueva fila"
+                      aria-label={t('catalogos.tarifas.nueva.tarifa.aria')}
                       className="h-7 w-24 rounded border border-border-strong bg-surface px-2 text-right"
                       valor={nueva.tarifa}
                       mostrarError={false}
+                      idioma={idioma}
                       onCambio={(crudo) => setNueva({ ...nueva, tarifa: crudo })}
                     />
                   </td>

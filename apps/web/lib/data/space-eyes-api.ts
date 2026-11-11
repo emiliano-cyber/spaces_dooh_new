@@ -12,6 +12,9 @@
 //  Las rutas llevan barra final: basePath /spaces-dooh + trailingSlash.
 // ============================================================================
 
+import { traducir } from '@/lib/i18n/diccionario'
+import type { Idioma } from '@/lib/i18n/idiomas'
+
 const API = '/spaces-dooh/api/space-eyes'
 
 export interface EquipoResumen {
@@ -69,26 +72,29 @@ export interface FichaEquipoDatos {
   pantalla: { id: string; nombre: string; fotoCliente: string | null } | null
 }
 
-async function leer<T>(url: string, init?: RequestInit): Promise<T> {
+// El error que manda el servidor es un dato y va tal cual; el respaldo, cuando
+// no manda ninguno, se dice en `idioma`. `'es'` por omision, como
+// `textoDeError` de `space-eyes-se.ts` (validacion de Space Eyes, costura 2).
+async function leer<T>(url: string, init: RequestInit | undefined, idioma: Idioma): Promise<T> {
   const r = await fetch(url, init)
   if (!r.ok) {
     const d = await r.json().catch(() => ({}))
-    throw new Error((d as { error?: string }).error ?? 'No se pudo hablar con Space Eyes')
+    throw new Error((d as { error?: string }).error ?? traducir(idioma, 'spaceeyes.comun.sin-hablar'))
   }
   return r.json() as Promise<T>
 }
 
-export function listarEquiposApi(): Promise<{ disponible: boolean; motivo?: string; equipos: EquipoResumen[] }> {
-  return leer(`${API}/`, { cache: 'no-store' })
+export function listarEquiposApi(idioma: Idioma = 'es'): Promise<{ disponible: boolean; motivo?: string; equipos: EquipoResumen[] }> {
+  return leer(`${API}/`, { cache: 'no-store' }, idioma)
 }
 
-export function equipoApi(id: number): Promise<FichaEquipoDatos> {
-  return leer(`${API}/${id}/`, { cache: 'no-store' })
+export function equipoApi(id: number, idioma: Idioma = 'es'): Promise<FichaEquipoDatos> {
+  return leer(`${API}/${id}/`, { cache: 'no-store' }, idioma)
 }
 
 /** Pide una foto AHORA. `enLinea: false` no es un fallo: la orden queda encolada. */
-export function pedirCapturaApi(id: number): Promise<{ orden: number; enLinea: boolean; mensaje: string }> {
-  return leer(`${API}/${id}/captura/`, { method: 'POST' })
+export function pedirCapturaApi(id: number, idioma: Idioma = 'es'): Promise<{ orden: number; enLinea: boolean; mensaje: string }> {
+  return leer(`${API}/${id}/captura/`, { method: 'POST' }, idioma)
 }
 
 export interface PuntoTelemetria {
@@ -116,8 +122,8 @@ export interface Telemetria {
 }
 
 /** Histórico por hora. Se pide solo al abrir la tarjeta, no al pintar la ficha. */
-export function telemetriaApi(id: number, horas: 24 | 168 | 720 = 24): Promise<Telemetria> {
-  return leer(`${API}/${id}/telemetria/?horas=${horas}`, { cache: 'no-store' })
+export function telemetriaApi(id: number, horas: 24 | 168 | 720 = 24, idioma: Idioma = 'es'): Promise<Telemetria> {
+  return leer(`${API}/${id}/telemetria/?horas=${horas}`, { cache: 'no-store' }, idioma)
 }
 
 export interface Descarga {
@@ -138,8 +144,8 @@ export interface InfoAlta {
 }
 
 /** Lo que hace falta para dar de alta un equipo: instaladores y testigo. */
-export function infoAltaApi(): Promise<InfoAlta> {
-  return leer(`${API}/alta/`, { cache: 'no-store' })
+export function infoAltaApi(idioma: Idioma = 'es'): Promise<InfoAlta> {
+  return leer(`${API}/alta/`, { cache: 'no-store' }, idioma)
 }
 
 /**
@@ -147,8 +153,8 @@ export function infoAltaApi(): Promise<InfoAlta> {
  * viajara al cargar la pantalla quedaría en el historial, en cualquier captura
  * y en la consola de red de quien pase por ahí.
  */
-export function testigoDeAltaApi(): Promise<InfoAlta> {
-  return leer(`${API}/alta/?testigo=1`, { cache: 'no-store' })
+export function testigoDeAltaApi(idioma: Idioma = 'es'): Promise<InfoAlta> {
+  return leer(`${API}/alta/?testigo=1`, { cache: 'no-store' }, idioma)
 }
 
 // ─── Fallas de pantalla y creativos detectados ──────────────────────────────
@@ -203,11 +209,11 @@ export interface CreativosEquipo {
 }
 
 /** Lo que el equipo detecto mal en su pantalla, y su historial. */
-export function fallasApi(id: number): Promise<PantallaEquipo> {
-  return leer(`${API}/${id}/fallas/`, { cache: 'no-store' })
+export function fallasApi(id: number, idioma: Idioma = 'es'): Promise<PantallaEquipo> {
+  return leer(`${API}/${id}/fallas/`, { cache: 'no-store' }, idioma)
 }
 
 /** Los anuncios distintos que han pasado por la pantalla del equipo. */
-export function creativosApi(id: number): Promise<CreativosEquipo> {
-  return leer(`${API}/${id}/creativos/`, { cache: 'no-store' })
+export function creativosApi(id: number, idioma: Idioma = 'es'): Promise<CreativosEquipo> {
+  return leer(`${API}/${id}/creativos/`, { cache: 'no-store' }, idioma)
 }

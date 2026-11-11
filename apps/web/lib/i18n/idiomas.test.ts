@@ -37,8 +37,10 @@ describe('inglesActivo · el interruptor del ingles (2026-09-30)', () => {
 // ============================================================================
 
 describe('IDIOMAS · el catalogo', () => {
-  it('son exactamente dos, y el de omision es el espanol', () => {
-    expect(IDIOMAS).toEqual(['es', 'en'])
+  // Eran dos hasta el 2026-11-03 y tres hasta el 05/11; el italiano y el
+  // portugues los fijan `idiomas-italiano.test.ts` e `idiomas-portugues.test.ts`.
+  it('son exactamente cuatro, y el de omision es el espanol', () => {
+    expect(IDIOMAS).toEqual(['es', 'en', 'it', 'pt'])
     expect(IDIOMA_POR_OMISION).toBe('es')
   })
 
@@ -248,7 +250,9 @@ describe('cadenaCookieIdioma', () => {
     for (const idioma of IDIOMAS) {
       const cadena = cadenaCookieIdioma(idioma, false)
       const valor = /spaces_idioma=([^;]+)/.exec(cadena)?.[1] ?? ''
-      expect(resolverIdioma({ cookie: valor, cabecera: 'fr-FR' })).toBe(idioma)
+      // Con la lista entera (lote L5): lo que se mira es el viaje de ida y
+      // vuelta, no el interruptor del italiano, que por omision lo apaga.
+      expect(resolverIdioma({ cookie: valor, cabecera: 'fr-FR', permitidos: IDIOMAS })).toBe(idioma)
     }
   })
 })

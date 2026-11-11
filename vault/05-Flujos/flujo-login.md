@@ -1,7 +1,7 @@
 ---
 tipo: flujo
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-21
 tags: [flujo, auth, login]
 archivos:
   - apps/web/app/(app)/login/page.tsx
@@ -36,6 +36,10 @@ sequenceDiagram
     alt superó el límite
         RL-->>U: 429 + Retry-After
     end
+    RT->>RL: consultar('login:cuenta:'+correo, 10)
+    alt 10 fallos en 15 min sobre ese correo (SEG-21OCT)
+        RL-->>U: 429 + Retry-After — ni la contraseña correcta entra
+    end
     alt la base no responde
         RT-->>U: 503 + JSON legible (respuestaError)
     end
@@ -44,6 +48,7 @@ sequenceDiagram
     PG-->>RT: fila o nada
     RT->>AU: verifyPassword(plano, password_hash)
     alt inválido o inactivo
+        RT->>RL: limitar('login:cuenta:'+correo, 10, 15min) — solo los fallos
         RT-->>U: 401 «Correo o contraseña inválidos»
         Note over RT: mensaje único: no revela si el correo existe
     else válido pero usuarios.solo_google (ADR 0028 · B3)
@@ -88,14 +93,14 @@ sequenceDiagram
 
 > [!note] `crearSesion` lleva un segundo argumento desde el 25/08
 > `auth.ts:107` pide `metodo: MetodoSesion`, y el login por contraseña pasa
-> `'password'` (`login/route.ts:107`). La columna la añadió
+> `'password'` (`login/route.ts:129`). La columna la añadió
 > `20260825_sesion_metodo.sql` y existe porque **quien entró con Google no tiene
 > contraseña que reautenticar**: sin saber cómo se abrió la sesión, el desbloqueo
 > de un cambio sensible le pediría algo que no tiene. Ver
 > [[flujo-acceso-con-google]] y el ADR 0018.
 
 > [!note] 2026-10-05 · dos salidas nuevas antes de crear la sesión
-> - **`solo_google` → 403** (`login/route.ts:89-105`, commit `d6d2eec2`). Va
+> - **`solo_google` → 403** (`login/route.ts:111-127`, commit `d6d2eec2`). Va
 >   **después** de verificar la contraseña a propósito: decir «esta cuenta
 >   entra con Google» a quien no la sabe sería confirmarle que la cuenta
 >   existe. La bandera se lee aparte con `qConTenant` y no sale de
@@ -104,7 +109,7 @@ sequenceDiagram
 > - **Base caída → 503 con JSON** (commit `35f7ad1d`, 30/09). Antes la
 >   consulta lanzaba fuera de todo `try` y Next contestaba un 500 con el cuerpo
 >   vacío, que la pantalla convertía en «Unexpected end of JSON input». Ahora
->   todo lo que toca la base va dentro del `try` (`login/route.ts:40-44`) y
+>   todo lo que toca la base va dentro del `try` (`login/route.ts:60-64`) y
 >   `respuestaError` lo traduce a 503 (`errores.ts:126-144` y `:221`). No
 >   cambia nada de lo que se decide: 401 y 403 siguen igual.
 

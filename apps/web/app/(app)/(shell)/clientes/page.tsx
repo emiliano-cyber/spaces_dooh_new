@@ -1,10 +1,16 @@
 'use client'
 
-import { useState } from 'react'
-import { Plus, Pencil, Trash2, Building2, Handshake, ShieldCheck, ShieldAlert } from 'lucide-react'
-import { Card, CardContent } from '@/components/demo/ui/Card'
+import { useMemo, useState } from 'react'
+import { Plus, Pencil, Trash2, Building2, Handshake, ShieldCheck, ShieldAlert, Search } from 'lucide-react'
+import { cn } from '@/lib/cn'
+import { pipelineCliente } from '@/lib/cliente-pipeline'
+import { useCampanasResumen, usePropuestas, formatMontoCorto } from '@/lib/data/client'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
+import { EntradaCifra } from '@/components/demo/ui/EntradaCifra'
+import { cifraIlegible } from '@/lib/captura-cifra'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { useClientes, useConfigNegocio, type Cliente } from '@/lib/data/client'
 import {
@@ -15,8 +21,11 @@ import {
   type ClienteInput,
 } from '@/lib/data/estado-api'
 import { desbloquearApi, esErrorDeDesbloqueo } from '@/lib/data/cambios-api'
-import { esEmailValido, esTelefonoValido, esCpValido, EMAIL_INVALIDO, TELEFONO_INVALIDO, CP_INVALIDO } from '@/lib/validacion'
+import { esEmailValido, esTelefonoValido, esCpValido } from '@/lib/validacion'
 import { esRfcValido } from '@/lib/rfc'
+import { FichaCliente } from '@/components/demo/clientes/FichaCliente'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
 
 const inputCls =
   'h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
@@ -33,6 +42,7 @@ const USOS_CFDI = ['G03 · Gastos en general', 'G01 · Adquisición de mercancí
 
 export default function ClientesPage() {
   const clientes = useClientes()
+  const { t, idioma } = useIdioma()
   const puedeEditar = usePuede('comercial', 'crear')
   // Borrar pide MÁS que editar, y a propósito: es irreversible. El servidor
   // exige `comercial:aprobar` y además la contraseña; aquí solo se oculta el
@@ -41,17 +51,60 @@ export default function ClientesPage() {
   const [editar, setEditar] = useState<Cliente | null>(null)
   const [borrar, setBorrar] = useState<Cliente | null>(null)
   const [nuevoOpen, setNuevoOpen] = useState(false)
+  // Ficha con el pipeline y las campañas del cliente (20/10).
+  const [ver, setVer] = useState<Cliente | null>(null)
+  // Filtros de la lista (26/10): en el navegador, sobre la lista ya cargada.
+  const [busqueda, setBusqueda] = useState('')
+  const [filtroTipo, setFiltroTipo] = useState<'' | (typeof TIPOS)[number]>('')
+
+  // Lo comercial de cada cliente, a la vista (patrón HubSpot/Attio): cuánto
+  // tiene en pipeline y cuántas campañas en curso. Las MISMAS cuentas que la
+  // ficha (`pipelineCliente`, con los mismos hooks de `FichaCliente`); aquí
+  // solo se enseñan en la fila. Sin endpoint nuevo.
+  const propuestas = usePropuestas()
+  const resumenCampanas = useCampanasResumen()
+  const comercialPorCliente = useMemo(() => {
+    if (!clientes || !propuestas || !resumenCampanas) return null
+    const campanas = resumenCampanas.map((r) => r.campana)
+    return new Map(
+      clientes.map((c) => {
+        const p = pipelineCliente(c.id, propuestas, campanas)
+        const col = (e: string) => p.columnas.find((x) => x.etapa === e)
+        return [
+          c.id,
+          {
+            valorAbierto: p.valorAbierto,
+            nAbiertas: (col('BORRADOR')?.n ?? 0) + (col('ENVIADA')?.n ?? 0),
+            enCurso: col('EN_CURSO')?.n ?? 0,
+          },
+        ] as const
+      }),
+    )
+  }, [clientes, propuestas, resumenCampanas])
+
+  const filtrados = useMemo(() => {
+    const t = busqueda.trim().toLowerCase()
+    return (clientes ?? []).filter(
+      (c) =>
+        (!filtroTipo || c.tipo === filtroTipo) &&
+        (!t ||
+          c.nombre.toLowerCase().includes(t) ||
+          (c.rfc ?? '').toLowerCase().includes(t) ||
+          (c.razonSocial ?? '').toLowerCase().includes(t)),
+    )
+  }, [clientes, busqueda, filtroTipo])
+  const hayFiltro = !!busqueda.trim() || !!filtroTipo
 
   return (
     <div className="w-full space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl text-ink">Clientes</h1>
-          <p className="mt-1 text-[13px] text-muted">Catálogo de clientes y sus datos fiscales</p>
+          <h1 className="text-2xl text-ink">{t('clientes.titulo')}</h1>
+          <p className="mt-1 text-[13px] text-muted">{t('clientes.subtitulo')}</p>
         </div>
         {puedeEditar && (
           <Button variant="success" size="sm" onClick={() => setNuevoOpen(true)}>
-            <Plus className="h-3.5 w-3.5" /> Nuevo cliente
+            <Plus className="h-3.5 w-3.5" /> {t('clientes.nuevo')}
           </Button>
         )}
       </div>
@@ -59,10 +112,44 @@ export default function ClientesPage() {
       {!clientes ? (
         <div className="h-40 animate-pulse rounded-md bg-surface-2" />
       ) : clientes.length === 0 ? (
-        <p className="py-10 text-center text-[13px] text-muted">Aún no hay clientes.</p>
+        <p className="py-10 text-center text-[13px] text-muted">
+          {t('clientes.vacia')}{puedeEditar ? t('clientes.vacia.alta') : ''}
+        </p>
       ) : (
-        <Card>
-          <CardContent className="p-0">
+        <CardColapsable
+          id="clientes.lista"
+          titulo={t('clientes.lista.titulo')}
+          resumen={
+            <span className="text-[12px] text-muted">
+              {hayFiltro ? t('clientes.lista.de', { n: filtrados.length, total: clientes.length }) : clientes.length}{' '}
+              {clientes.length === 1 ? t('clientes.lista.cliente.uno') : t('clientes.lista.cliente.otros')}
+            </span>
+          }
+          contentClassName="px-0 pb-0"
+        >
+            {/* Una fila de filtros: búsqueda y tipo. */}
+            <div className="flex flex-wrap items-center gap-2 border-t border-border px-4 py-2.5">
+              <span className="relative min-w-[200px] flex-1 sm:max-w-xs">
+                <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
+                <input
+                  aria-label={t('clientes.lista.buscar')}
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                  placeholder={t('clientes.lista.buscar.ejemplo')}
+                  className="h-8 w-full rounded border border-border-strong bg-surface pl-7 pr-2.5 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                />
+              </span>
+              <select
+                aria-label={t('clientes.lista.tipo')}
+                value={filtroTipo}
+                onChange={(e) => setFiltroTipo(e.target.value as typeof filtroTipo)}
+                className="h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                <option value="">{t('clientes.lista.tipo.todos')}</option>
+                <option value="DIRECTO">{t('clientes.lista.tipo.directos')}</option>
+                <option value="AGENCIA">{t('clientes.lista.tipo.agencias')}</option>
+              </select>
+            </div>
             {/* `overflow-x-auto` es el patrón de TODAS las demás tablas de la
                 aplicación (arrendadores, almacén, campañas, finanzas…): sin él,
                 una tabla de seis columnas en una pantalla estrecha no cabe, se
@@ -73,22 +160,100 @@ export default function ClientesPage() {
               <table className="w-full text-[13px]">
               <thead>
                 <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-muted">
-                  <th className="px-4 py-2.5">Cliente</th>
-                  <th className="px-4 py-2.5">RFC</th>
-                  <th className="px-4 py-2.5">Razón social</th>
-                  <th className="px-4 py-2.5">Tipo</th>
-                  <th className="px-4 py-2.5">Contacto</th>
+                  <th className="px-4 py-2.5">{t('clientes.col.cliente')}</th>
+                  <th className="px-4 py-2.5">{t('clientes.col.rfc')}</th>
+                  <th className="px-4 py-2.5">{t('clientes.col.razon-social')}</th>
+                  <th className="px-4 py-2.5">{t('clientes.col.tipo')}</th>
+                  <th className="px-4 py-2.5 text-right">{t('clientes.col.pipeline')}</th>
+                  <th className="px-4 py-2.5 text-right">{t('clientes.col.en-curso')}</th>
+                  <th className="px-4 py-2.5">{t('clientes.col.contacto')}</th>
                   {(puedeEditar || puedeBorrar) && <th className="px-4 py-2.5" />}
                 </tr>
               </thead>
               <tbody>
-                {clientes.map((c) => (
+                {filtrados.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="px-4 py-8 text-center text-[13px] text-muted">
+                      {t('clientes.filtro.ninguno', {
+                        busqueda: busqueda.trim() ? t('clientes.filtro.con', { texto: busqueda.trim() }) : '',
+                        tipo: filtroTipo
+                          ? t(filtroTipo === 'AGENCIA' ? 'clientes.filtro.entre-agencias' : 'clientes.filtro.entre-directos')
+                          : '',
+                        n: clientes.length,
+                      })}
+                    </td>
+                  </tr>
+                )}
+                {filtrados.map((c) => {
+                  const com = comercialPorCliente?.get(c.id)
+                  return (
                   <tr key={c.id} className="border-b border-border last:border-0">
-                    <td className="px-4 py-2.5 text-ink">{c.nombre}</td>
+                    <td className="px-4 py-2.5">
+                      {/* Fondo, borde y relleno explícitos: con `preflight:
+                          false` el nombre salía sobre el gris del botón del
+                          navegador y no parecía un enlace (y es la única
+                          puerta a la ficha). */}
+                      <button
+                        type="button"
+                        onClick={() => setVer(c)}
+                        title={t('clientes.ver-ficha')}
+                        className="border-0 bg-transparent p-0 text-left font-medium text-ink hover:text-accent hover:underline"
+                      >
+                        {c.nombre}
+                      </button>
+                    </td>
                     <td className="demo-num px-4 py-2.5 text-muted">{c.rfc || '—'}</td>
                     <td className="px-4 py-2.5 text-muted">{c.razonSocial || '—'}</td>
-                    <td className="px-4 py-2.5 text-muted">{c.tipo === 'AGENCIA' ? 'Agencia' : 'Directo'}</td>
-                    <td className="px-4 py-2.5 text-muted">{c.contacto?.email || '—'}</td>
+                    <td className="px-4 py-2.5 text-muted">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {c.tipo === 'AGENCIA' ? t('clientes.tipo.agencia') : t('clientes.tipo.directo')}
+                        {/* Una agencia con negociación SIN validar no deja crear
+                            ni aprobar propuestas: se dice en la lista, no solo
+                            dentro del formulario. */}
+                        {c.tipo === 'AGENCIA' && c.tieneNegociacion && (
+                          <span
+                            className={cn(
+                              'whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px]',
+                              c.negociacionValidada
+                                ? 'border-[#10b98140] text-[#0f7a55]'
+                                : 'border-[#f59e0b40] text-[#9a6700]',
+                            )}
+                            title={
+                              c.negociacionValidada
+                                ? undefined
+                                : t('clientes.negociacion.bloquea')
+                            }
+                          >
+                            {c.negociacionValidada ? t('clientes.negociacion.validada') : t('clientes.negociacion.sin-validar')}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="demo-num px-4 py-2.5 text-right">
+                      {!com ? (
+                        <span className="text-muted">—</span>
+                      ) : com.nAbiertas === 0 ? (
+                        <span className="text-muted">—</span>
+                      ) : (
+                        <span title={t('clientes.pipeline.titulo-fila')}>
+                          <span className="text-ink">{formatMontoCorto(com.valorAbierto, idioma)}</span>
+                          <span className="text-muted"> · {com.nAbiertas}</span>
+                        </span>
+                      )}
+                    </td>
+                    <td className={cn('demo-num px-4 py-2.5 text-right', com?.enCurso ? 'text-ink' : 'text-muted')}>
+                      {com ? com.enCurso : '—'}
+                    </td>
+                    <td className="px-4 py-2.5 text-muted">
+                      {c.contacto?.email || c.contacto?.telefono ? (
+                        <>
+                          {c.contacto?.email && <div className="truncate">{c.contacto.email}</div>}
+                          {c.contacto?.telefono && <div className="demo-num text-[12px]">{c.contacto.telefono}</div>}
+                        </>
+                      ) : (
+                        <span className="text-[12px]">{t('clientes.sin-contacto')}</span>
+                      )}
+                    </td>
                     {(puedeEditar || puedeBorrar) && (
                       <td className="px-4 py-2.5 text-right">
                         <div className="inline-flex items-center gap-1.5">
@@ -96,9 +261,9 @@ export default function ClientesPage() {
                             <button
                               type="button"
                               onClick={() => setEditar(c)}
-                              aria-label={`Editar ${c.nombre}`}
-                              title="Editar cliente"
-                              className="inline-flex items-center rounded border border-border-strong px-2 py-1 text-[12px] text-ink hover:bg-surface-2"
+                              aria-label={t('clientes.editar.nombre', { nombre: c.nombre })}
+                              title={t('clientes.editar')}
+                              className="inline-flex items-center rounded border border-border-strong bg-surface px-2 py-1 text-[12px] text-ink hover:bg-surface-2"
                             >
                               <Pencil className="h-3.5 w-3.5" />
                             </button>
@@ -107,9 +272,9 @@ export default function ClientesPage() {
                             <button
                               type="button"
                               onClick={() => setBorrar(c)}
-                              aria-label={`Borrar ${c.nombre}`}
-                              title="Borrar cliente"
-                              className="inline-flex items-center gap-1 rounded border border-border-strong px-2 py-1 text-[12px] text-muted hover:border-error hover:text-error"
+                              aria-label={t('clientes.borrar.nombre', { nombre: c.nombre })}
+                              title={t('clientes.borrar')}
+                              className="inline-flex items-center gap-1 rounded border border-border-strong bg-surface px-2 py-1 text-[12px] text-muted hover:border-error hover:text-error"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -118,17 +283,18 @@ export default function ClientesPage() {
                       </td>
                     )}
                   </tr>
-                ))}
+                  )
+                })}
                 </tbody>
               </table>
             </div>
-          </CardContent>
-        </Card>
+        </CardColapsable>
       )}
 
       {nuevoOpen && <ClienteDialog onClose={() => setNuevoOpen(false)} />}
       {editar && <ClienteDialog cliente={editar} onClose={() => setEditar(null)} />}
       {borrar && <BorrarClienteDialog cliente={borrar} onClose={() => setBorrar(null)} />}
+      {ver && <FichaCliente cliente={ver} onClose={() => setVer(null)} />}
     </div>
   )
 }
@@ -151,6 +317,7 @@ export default function ClientesPage() {
 //     pasan a tomar el IVA general en vez del del cliente, o sea que **borrar
 //     un cliente le cambia el precio a sus propuestas**.
 function BorrarClienteDialog({ cliente, onClose }: { cliente: Cliente; onClose: () => void }) {
+  const { t } = useIdioma()
   const [error, setError] = useState<string | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
   const [reautenticando, setReautenticando] = useState(false)
@@ -164,7 +331,7 @@ function BorrarClienteDialog({ cliente, onClose }: { cliente: Cliente; onClose: 
     setEnviando(true)
     try {
       if (reautenticando) {
-        if (!pass) { setError('Escribe tu contraseña para confirmar.'); setEnviando(false); return }
+        if (!pass) { setError(t('compartidos.candado.falta')); setEnviando(false); return }
         await desbloquearApi(pass)
         setPass('')
         setReautenticando(false)
@@ -180,7 +347,7 @@ function BorrarClienteDialog({ cliente, onClose }: { cliente: Cliente; onClose: 
         // Tiene salida: se enseña el aviso y el boton pasa a confirmar.
         setAviso(e.message)
       } else {
-        setError(e instanceof Error ? e.message : 'No se pudo borrar el cliente')
+        setError(e instanceof Error ? e.message : t('clientes.borrar.no-se-pudo'))
       }
     }
     setEnviando(false)
@@ -190,23 +357,23 @@ function BorrarClienteDialog({ cliente, onClose }: { cliente: Cliente; onClose: 
     <Modal
       open
       onOpenChange={(v) => !v && onClose()}
-      title={`Borrar ${cliente.nombre}`}
-      subtitle="Esta acción no se puede deshacer"
+      title={t('clientes.borrar.nombre', { nombre: cliente.nombre })}
+      subtitle={t('clientes.borrar.subtitulo')}
       footer={
         <div className="flex justify-end gap-2">
-          <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
+          <Button variant="secondary" size="sm" onClick={onClose}>{t('comun.cancelar')}</Button>
           <Button variant="danger"
             size="sm"
             disabled={enviando || (reautenticando && !pass)}
             onClick={() => borrar(!!aviso)}
           >
             {enviando
-              ? 'Borrando…'
+              ? t('clientes.borrar.borrando')
               : reautenticando
-                ? 'Confirmar y borrar'
+                ? t('clientes.borrar.confirmar')
                 : aviso
-                  ? 'Borrar de todos modos'
-                  : 'Borrar'}
+                  ? t('clientes.borrar.de-todos-modos')
+                  : t('clientes.borrar.boton')}
           </Button>
         </div>
       }
@@ -215,9 +382,9 @@ function BorrarClienteDialog({ cliente, onClose }: { cliente: Cliente; onClose: 
         {reautenticando ? (
           <>
             <p className="text-muted">
-              Borrar un cliente es irreversible, así que hace falta tu contraseña.
+              {t('clientes.borrar.irreversible')}
             </p>
-            <Campo label="Tu contraseña">
+            <Campo label={t('compartidos.contrasena.etiqueta')}>
               <input
                 type="password"
                 autoComplete="current-password"
@@ -231,16 +398,18 @@ function BorrarClienteDialog({ cliente, onClose }: { cliente: Cliente; onClose: 
           </>
         ) : (
           <p className="text-muted">
-            Se borrará <span className="text-ink">{cliente.nombre}</span>
-            {cliente.rfc ? <> (<span className="demo-num">{cliente.rfc}</span>)</> : null}.
+            {interpolarNodos(t('clientes.borrar.se-borrara'), {
+              nombre: <span className="text-ink">{cliente.nombre}</span>,
+              rfc: cliente.rfc ? <> (<span className="demo-num">{cliente.rfc}</span>)</> : null,
+            })}
           </p>
         )}
 
         {aviso && (
-          <p className="rounded border border-warning/40 bg-warning/10 px-3 py-2 text-ink">{aviso}</p>
+          <p className="rounded border border-[#f59e0b40] bg-warning-soft px-3 py-2 text-ink">{aviso}</p>
         )}
         {error && (
-          <p className="rounded border border-error/40 bg-error/10 px-3 py-2 text-error">{error}</p>
+          <p className="rounded border border-[#ef444440] bg-error-soft px-3 py-2 text-error">{error}</p>
         )}
       </div>
     </Modal>
@@ -250,6 +419,7 @@ function BorrarClienteDialog({ cliente, onClose }: { cliente: Cliente; onClose: 
 // ─── Alta / edición de cliente ───────────────────────────────────────────────
 function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () => void }) {
   const editando = !!cliente
+  const { t, idioma } = useIdioma()
   const config = useConfigNegocio()
   const [nombre, setNombre] = useState(cliente?.nombre ?? '')
   const [rfc, setRfc] = useState(cliente?.rfc ?? '')
@@ -287,21 +457,38 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
   // Se comprueba con los MISMOS helpers que el servidor (@/lib/validacion,
   // @/lib/rfc). Cuando la regla vivía duplicada, la UI daba por bueno lo que la
   // API rechazaba después con un 400 sin decir qué campo era.
+  //
+  // Cada motivo se pinta DEBAJO del campo que lo causa (`Campo error=`). Antes
+  // solo existía un mensaje suelto al pie del modal, así que con dos datos malos
+  // el usuario arreglaba uno, reenviaba, y descubría el otro (M1).
+  //
+  // Los OBLIGATORIOS (OBLIG-01) van aparte, con `useObligatorios`: el nombre es
+  // lo único que exige el servidor (`clientes-controller.ts:33`). La comisión de
+  // la agencia NO: el servidor la acepta vacía y vacía se guardaba como 0 (B53).
+  const ob = useObligatorios({ nombre }, [
+    'nombre',
+  ])
   const errores = {
-    nombre: nombre.trim() ? null : 'El nombre es obligatorio',
-    rfc: esRfcValido(rfc) ? null : 'RFC inválido. Formato SAT (p. ej. XAXX010101000)',
-    cpFiscal: esCpValido(cpFiscal) ? null : CP_INVALIDO,
-    email: !email.trim() || esEmailValido(email) ? null : EMAIL_INVALIDO,
-    telefono: esTelefonoValido(telefono) ? null : TELEFONO_INVALIDO,
+    // Los mensajes de `@/lib/validacion` siguen siendo la verdad en espanol
+    // (el servidor los manda tal cual); aqui se pintan con su clave, y
+    // `textos/clientes.test.ts` exige que el espanol sea el mismo.
+    rfc: esRfcValido(rfc) ? null : t('clientes.form.rfc-invalido'),
+    cpFiscal: esCpValido(cpFiscal) ? null : t('clientes.form.cp-invalido'),
+    email: !email.trim() || esEmailValido(email) ? null : t('validacion.email'),
+    telefono: esTelefonoValido(telefono) ? null : t('clientes.form.telefono-invalido'),
   }
-  const hayErrores = Object.values(errores).some(Boolean)
+  // P-L2-1 · la comisión de la agencia en italiano («12,5») pasa por
+  // `EntradaCifra`; lo ilegible llega como 'NaN' y `Number(x) || 0` lo
+  // guardaría como CERO. En español e inglés `cifraIlegible` es `false`.
+  const hayErrores = Object.values(errores).some(Boolean) || (tipo === 'AGENCIA' && cifraIlegible(comisionAgencia, idioma))
 
   async function guardar() {
     setIntento(true)
-    if (hayErrores) {
+    const completos = ob.validar()
+    if (!completos || hayErrores) {
       // Sin esto, el submit con datos malos no hacía NADA visible y el usuario
       // se quedaba pulsando el botón.
-      setError('Revisa los campos marcados.')
+      setError(t('clientes.form.revisa'))
       return
     }
     setGuardando(true)
@@ -329,7 +516,7 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
       else await crearClienteApi(input)
       onClose()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo guardar')
+      setError(e instanceof Error ? e.message : t('clientes.form.no-se-pudo-guardar'))
       setGuardando(false)
     }
   }
@@ -339,54 +526,54 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
       open
       onOpenChange={(v) => !v && onClose()}
       size="lg"
-      title={editando ? 'Editar cliente' : 'Nuevo cliente'}
-      subtitle="Datos generales y fiscales (para facturar)"
+      title={editando ? t('clientes.editar') : t('clientes.nuevo')}
+      subtitle={t('clientes.form.subtitulo')}
       footer={
         <div className="flex items-center justify-between">
           {error ? <span className="text-[12px] text-error">{error}</span> : <span />}
           <div className="flex gap-2">
-            <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
+            <Button variant="secondary" size="sm" onClick={onClose}>{t('comun.cancelar')}</Button>
             {/* NO se deshabilita por datos inválidos a propósito: un botón muerto
                 no dice qué falta. Se deja pulsable y al pulsarlo se marcan los
                 campos. Solo se bloquea mientras se está guardando. */}
             <Button size="sm" disabled={guardando} onClick={guardar}>
-              {guardando ? 'Guardando…' : 'Guardar'}
+              {guardando ? t('propuestas.comun.guardando') : t('comun.guardar')}
             </Button>
           </div>
         </div>
       }
     >
       <div className="space-y-3">
-        <Campo label="Nombre del cliente" error={intento ? errores.nombre : null}>
+        <Campo label={t('clientes.form.nombre')} obligatorio falta={ob.falta('nombre')}>
           <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus />
         </Campo>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Campo label="Tipo">
+          <Campo label={t('clientes.form.tipo')}>
             <select className={inputCls} value={tipo} onChange={(e) => setTipo(e.target.value)}>
-              {TIPOS.map((t) => <option key={t} value={t}>{t === 'AGENCIA' ? 'Agencia' : 'Directo'}</option>)}
+              {TIPOS.map((x) => <option key={x} value={x}>{x === 'AGENCIA' ? t('clientes.tipo.agencia') : t('clientes.tipo.directo')}</option>)}
             </select>
           </Campo>
-          <Campo label="Correo de contacto" error={intento ? errores.email : null}>
-            <input className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="cuentas@cliente.com" />
+          <Campo label={t('clientes.form.correo')} error={intento ? errores.email : null}>
+            <input className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t('clientes.form.correo.ejemplo')} />
           </Campo>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Campo label="Teléfono" error={intento ? errores.telefono : null}>
+          <Campo label={t('clientes.form.telefono')} error={intento ? errores.telefono : null}>
             <input className={inputCls} value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="55 1234 5678" />
           </Campo>
           {/* La comisión es por AGENCIA; no aplica al cliente directo. */}
           {tipo === 'AGENCIA' && (
-            <Campo label="Comisión de la agencia (%)">
-              <input className={inputCls} value={comisionAgencia} onChange={(e) => setComisionAgencia(e.target.value)} placeholder="0" />
+            <Campo label={t('clientes.form.comision')}>
+              <EntradaCifra className={inputCls} valor={comisionAgencia} onCambio={setComisionAgencia} placeholder="0" decimales={2} minimo={0} maximo={100} />
             </Campo>
           )}
         </div>
-        <Campo label="IVA (%)">
+        <Campo label={t('clientes.form.iva')}>
           <select className={inputCls} value={ivaPct} onChange={(e) => setIvaPct(e.target.value)}>
             {ivaOpciones.map((t) => <option key={t} value={String(t)}>{t}%</option>)}
           </select>
           <span className="mt-1 block text-[11px] text-muted">
-            Se elige del catálogo de IVAs (Administración → Configuración). Se aplica al facturar y al presupuesto de sus campañas.
+            {t('clientes.form.iva.ayuda')}
           </span>
         </Campo>
 
@@ -394,7 +581,7 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
         {tipo === 'AGENCIA' && (
           <div className="rounded-md border border-border bg-surface-2 p-3">
             <div className="mb-2 flex items-center gap-1.5 text-[12px] font-medium text-ink">
-              <Handshake className="h-4 w-4 text-info" /> Negociación con la agencia
+              <Handshake className="h-4 w-4 text-info" /> {t('clientes.form.negociacion')}
             </div>
             <label className="flex items-center gap-2 text-[13px] text-ink">
               <input
@@ -406,17 +593,17 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
                 }}
                 className="h-4 w-4 accent-[var(--accent)]"
               />
-              ¿Hay negociación con la agencia?
+              {t('clientes.form.hay-negociacion')}
             </label>
 
             {tieneNegociacion && (
               <div className="mt-3 space-y-2.5">
-                <Campo label="Términos de la negociación">
+                <Campo label={t('clientes.form.terminos')}>
                   <textarea
                     className="min-h-[60px] w-full rounded border border-border-strong bg-surface px-3 py-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
                     value={negociacionNota}
                     onChange={(e) => setNegociacionNota(e.target.value)}
-                    placeholder="p. ej. comisión especial 18%, condiciones de pago a 60 días…"
+                    placeholder={t('clientes.form.terminos.ejemplo')}
                   />
                 </Campo>
                 <label className="flex items-start gap-2 rounded border border-border bg-surface px-3 py-2 text-[13px]">
@@ -427,20 +614,20 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
                     className="mt-0.5 h-4 w-4 accent-[var(--accent)]"
                   />
                   <span>
-                    <span className="font-medium text-ink">Negociación validada</span>
+                    <span className="font-medium text-ink">{t('clientes.negociacion.validada')}</span>
                     <span className="mt-0.5 block text-[11px] text-muted">
-                      Mientras no esté validada, no se pueden crear ni aprobar propuestas con esta agencia.
+                      {t('clientes.negociacion.bloquea')}
                     </span>
                   </span>
                 </label>
                 {!negociacionValidada && (
                   <div className="flex items-center gap-1.5 text-[11px] text-[#9a6700]">
-                    <ShieldAlert className="h-3.5 w-3.5" /> Negociación sin validar
+                    <ShieldAlert className="h-3.5 w-3.5" /> {t('clientes.negociacion.sin-validar')}
                   </div>
                 )}
                 {negociacionValidada && (
                   <div className="flex items-center gap-1.5 text-[11px] text-[#0f7a55]">
-                    <ShieldCheck className="h-3.5 w-3.5" /> Negociación validada
+                    <ShieldCheck className="h-3.5 w-3.5" /> {t('clientes.negociacion.validada')}
                   </div>
                 )}
               </div>
@@ -450,29 +637,29 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
 
         <div className="rounded-md border border-border bg-surface-2 p-3">
           <div className="mb-2 flex items-center gap-1.5 text-[12px] font-medium text-ink">
-            <Building2 className="h-4 w-4 text-info" /> Datos fiscales
+            <Building2 className="h-4 w-4 text-info" /> {t('clientes.form.fiscales')}
           </div>
           <div className="space-y-3">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Campo label="RFC" error={intento ? errores.rfc : null}>
+              <Campo label={t('clientes.col.rfc')} error={intento ? errores.rfc : null}>
                 <input className={inputCls} value={rfc} onChange={(e) => setRfc(e.target.value.toUpperCase())} placeholder="XAXX010101000" />
               </Campo>
-              <Campo label="C.P. fiscal" error={intento ? errores.cpFiscal : null}>
+              <Campo label={t('clientes.form.cp')} error={intento ? errores.cpFiscal : null}>
                 <input className={inputCls} value={cpFiscal} onChange={(e) => setCpFiscal(e.target.value)} placeholder="06700" />
               </Campo>
             </div>
-            <Campo label="Razón social">
+            <Campo label={t('clientes.col.razon-social')}>
               <input className={inputCls} value={razonSocial} onChange={(e) => setRazonSocial(e.target.value)} />
             </Campo>
-            <Campo label="Régimen fiscal">
+            <Campo label={t('clientes.form.regimen')}>
               <select className={inputCls} value={regimenFiscal} onChange={(e) => setRegimenFiscal(e.target.value)}>
-                <option value="">— Selecciona —</option>
+                <option value="">{t('clientes.form.selecciona')}</option>
                 {REGIMENES.map((r) => <option key={r} value={r}>{r}</option>)}
               </select>
             </Campo>
-            <Campo label="Uso de CFDI">
+            <Campo label={t('clientes.form.uso-cfdi')}>
               <select className={inputCls} value={usoCfdi} onChange={(e) => setUsoCfdi(e.target.value)}>
-                <option value="">— Selecciona —</option>
+                <option value="">{t('clientes.form.selecciona')}</option>
                 {USOS_CFDI.map((u) => <option key={u} value={u}>{u}</option>)}
               </select>
             </Campo>
@@ -480,18 +667,5 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
         </div>
       </div>
     </Modal>
-  )
-}
-
-// `error` pinta el motivo DEBAJO del campo que lo causa. Antes solo existía un
-// mensaje suelto al pie del modal, así que con dos datos malos el usuario
-// arreglaba uno, reenviaba, y descubría el otro (M1).
-function Campo({ label, children, error }: { label: string; children: React.ReactNode; error?: string | null }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-[12px] font-medium text-ink">{label}</span>
-      {children}
-      {error ? <span className="mt-1 block text-[11px] text-error">{error}</span> : null}
-    </label>
   )
 }

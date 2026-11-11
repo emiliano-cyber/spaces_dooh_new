@@ -21,6 +21,9 @@ import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { crearTicketApi } from '@/lib/data/tickets-api'
+import { useTexto } from '@/lib/i18n/contexto'
+import type { ClaveTexto } from '@/lib/i18n/diccionario'
+import { interpolarNodos } from '@/lib/i18n/nodos'
 
 // ============================================================================
 //  Space Eyes para una empresa que todavía no lo tiene.
@@ -37,6 +40,7 @@ import { crearTicketApi } from '@/lib/data/tickets-api'
 // ============================================================================
 
 function Ejemplo({ className }: { className?: string }) {
+  const t = useTexto()
   return (
     <span
       className={cn(
@@ -44,7 +48,7 @@ function Ejemplo({ className }: { className?: string }) {
         className,
       )}
     >
-      EJEMPLO
+      {t('spaceeyes.demo.ejemplo')}
     </span>
   )
 }
@@ -54,11 +58,18 @@ function Ejemplo({ className }: { className?: string }) {
 // evidencia real (recuadro rojo y franja con el texto).
 function Espectacular({ anuncio, falla = false, noche = false }: { anuncio: 'a' | 'b' | 'c'; falla?: boolean; noche?: boolean }) {
   const colores = { a: ['#0ea5e9', '#f59e0b'], b: ['#16a34a', '#facc15'], c: ['#db2777', '#f97316'] }[anuncio]
-  const textos = { a: ['TU MARCA', 'AQUÍ'], b: ['OFERTA', 'DE TEMPORADA'], c: ['NUEVO', 'LANZAMIENTO'] }[anuncio]
+  const t = useTexto()
+  const textos = (
+    {
+      a: ['spaceeyes.demo.anuncio.a1', 'spaceeyes.demo.anuncio.a2'],
+      b: ['spaceeyes.demo.anuncio.b1', 'spaceeyes.demo.anuncio.b2'],
+      c: ['spaceeyes.demo.anuncio.c1', 'spaceeyes.demo.anuncio.c2'],
+    } as const
+  )[anuncio].map((k) => t(k))
   const x0 = 70, y0 = 30, w = 260, h = 130, cols = 5, filas = 3
   const apagados = falla ? [[0, 3], [1, 3]] : []
   return (
-    <svg viewBox="0 0 400 225" className="h-full w-full" role="img" aria-label="Ilustración de un espectacular de ejemplo">
+    <svg viewBox="0 0 400 225" className="h-full w-full" role="img" aria-label={t('spaceeyes.demo.ilustracion')}>
       <defs>
         <linearGradient id={`cielo-${anuncio}-${noche}`} x1="0" x2="0" y1="0" y2="1">
           <stop offset="0" stopColor={noche ? '#0f172a' : '#93c5fd'} />
@@ -90,35 +101,56 @@ function Espectacular({ anuncio, falla = false, noche = false }: { anuncio: 'a' 
         <>
           <rect x={x0 - 6} y={y0 - 6} width={w + 12} height={h + 12} rx="3" fill="none" stroke="white" strokeWidth="2" />
           <rect width="400" height="22" fill="#dc2626" opacity="0.92" />
-          <text x="8" y="15" fontSize="11" fontWeight="600" fill="white">Varios gabinetes apagados · Gabinetes 4, 9 (2 de 15)</text>
+          <text x="8" y="15" fontSize="11" fontWeight="600" fill="white">{t('spaceeyes.demo.falla-franja')}</text>
         </>
       )}
     </svg>
   )
 }
 
-const EQUIPOS = [
-  { nombre: 'Av. Principal 120 · Cara A', ciudad: 'Ciudad de ejemplo', anuncio: 'a' as const, online: true, bateria: 92, senal: 'buena', hace: 'hace 2 min', red: 'Móvil' },
-  { nombre: 'Blvd. del Parque · Cara B', ciudad: 'Ciudad de ejemplo', anuncio: 'b' as const, online: true, bateria: 71, senal: 'regular', hace: 'hace 5 min', red: 'WiFi' },
-  { nombre: 'Glorieta Norte', ciudad: 'Ciudad de ejemplo', anuncio: 'c' as const, online: false, bateria: 38, senal: '—', hace: 'hace 2 h', red: 'Móvil' },
+// Todo es de ejemplo, y por eso tambien se traduce: el nombre del sitio y la
+// ciudad son parte de la ilustracion, no datos de nadie.
+const EQUIPOS: {
+  id: string
+  nombre: ClaveTexto
+  anuncio: 'a' | 'b' | 'c'
+  online: boolean
+  bateria: number
+  senal: ClaveTexto | null
+  hace: ClaveTexto
+  red: 'movil' | 'wifi'
+}[] = [
+  { id: 'a', nombre: 'spaceeyes.demo.equipo.a', anuncio: 'a', online: true, bateria: 92, senal: 'spaceeyes.senal.buena', hace: 'spaceeyes.demo.hace.2min', red: 'movil' },
+  { id: 'b', nombre: 'spaceeyes.demo.equipo.b', anuncio: 'b', online: true, bateria: 71, senal: 'spaceeyes.senal.regular', hace: 'spaceeyes.demo.hace.5min', red: 'wifi' },
+  { id: 'c', nombre: 'spaceeyes.demo.equipo.c', anuncio: 'c', online: false, bateria: 38, senal: null, hace: 'spaceeyes.demo.hace.2h', red: 'movil' },
 ]
 
-const HISTORIAL = [
-  { hora: '08:12', icono: Camera, texto: 'Foto programada tomada', tono: 'text-muted' },
-  { hora: '10:47', icono: Sparkles, texto: 'Creativo nuevo detectado en la pantalla: se guardó su foto', tono: 'text-accent' },
-  { hora: '11:05', icono: AlertTriangle, texto: 'Falla: 2 gabinetes apagados (con foto de evidencia)', tono: 'text-error' },
-  { hora: '11:40', icono: CheckCircle2, texto: 'Falla recuperada: el equipo vio la pantalla completa otra vez', tono: 'text-success' },
-  { hora: '14:00', icono: Camera, texto: 'Foto pedida desde la oficina, recibida en 9 segundos', tono: 'text-muted' },
+const HISTORIAL: { hora: string; icono: typeof Camera; texto: ClaveTexto; tono: string }[] = [
+  { hora: '08:12', icono: Camera, texto: 'spaceeyes.demo.historial.1', tono: 'text-muted' },
+  { hora: '10:47', icono: Sparkles, texto: 'spaceeyes.demo.historial.2', tono: 'text-accent' },
+  { hora: '11:05', icono: AlertTriangle, texto: 'spaceeyes.demo.historial.3', tono: 'text-error' },
+  { hora: '11:40', icono: CheckCircle2, texto: 'spaceeyes.demo.historial.4', tono: 'text-success' },
+  { hora: '14:00', icono: Camera, texto: 'spaceeyes.demo.historial.5', tono: 'text-muted' },
 ]
 
-const BENEFICIOS = [
-  { icono: ShieldCheck, titulo: 'Prueba de exhibición', texto: 'Fotos con fecha, hora y ubicación de cada anuncio al aire, listas para enviar al cliente.' },
-  { icono: AlertTriangle, titulo: 'Fallas antes que el cliente', texto: 'El equipo detecta gabinetes apagados o una pantalla congelada y avisa con la foto del problema.' },
-  { icono: Truck, titulo: 'Menos visitas al sitio', texto: 'Foto o vista en vivo desde la oficina cuando la necesites, sin mandar a nadie.' },
-  { icono: Sparkles, titulo: 'Qué estuvo al aire', texto: 'Cada creativo nuevo que aparece en la pantalla queda registrado con su foto.' },
+const BENEFICIOS: { icono: typeof Camera; titulo: ClaveTexto; texto: ClaveTexto }[] = [
+  { icono: ShieldCheck, titulo: 'spaceeyes.demo.beneficio.1.titulo', texto: 'spaceeyes.demo.beneficio.1.texto' },
+  { icono: AlertTriangle, titulo: 'spaceeyes.demo.beneficio.2.titulo', texto: 'spaceeyes.demo.beneficio.2.texto' },
+  { icono: Truck, titulo: 'spaceeyes.demo.beneficio.3.titulo', texto: 'spaceeyes.demo.beneficio.3.texto' },
+  { icono: Sparkles, titulo: 'spaceeyes.demo.beneficio.4.titulo', texto: 'spaceeyes.demo.beneficio.4.texto' },
+]
+
+const ESTADO_EJEMPLO: [ClaveTexto, ClaveTexto][] = [
+  ['spaceeyes.demo.estado.conexion', 'spaceeyes.demo.estado.conexion.v'],
+  ['spaceeyes.demo.estado.ultima', 'spaceeyes.demo.hace.2min'],
+  ['spaceeyes.demo.estado.bateria', 'spaceeyes.demo.estado.bateria.v'],
+  ['spaceeyes.demo.estado.temperatura', 'spaceeyes.demo.estado.temperatura.v'],
+  ['spaceeyes.demo.estado.datos', 'spaceeyes.demo.estado.datos.v'],
+  ['spaceeyes.demo.estado.vigilancia', 'spaceeyes.demo.estado.vigilancia.v'],
 ]
 
 export function DemoSpaceEyes() {
+  const t = useTexto()
   const puedeSolicitar = usePuede('administracion', 'crear')
   const [enviando, setEnviando] = useState(false)
   const [resultado, setResultado] = useState<'ok' | 'error' | null>(null)
@@ -130,6 +162,7 @@ export function DemoSpaceEyes() {
     setEnviando(true)
     setResultado(null)
     try {
+      // El ticket es un DATO que lee soporte en el padre: va en español siempre.
       const ticket = await crearTicketApi({
         asunto: 'Solicitud de activación de Space Eyes',
         cuerpo:
@@ -151,18 +184,17 @@ export function DemoSpaceEyes() {
       {puedeSolicitar ? (
         <Button variant="primary" size="md" onClick={() => void solicitar()} disabled={enviando || resultado === 'ok'}>
           {enviando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Eye className="mr-2 h-4 w-4" />}
-          {resultado === 'ok' ? 'Solicitud enviada' : 'Solicitar activación'}
+          {resultado === 'ok' ? t('spaceeyes.demo.enviada') : t('spaceeyes.demo.solicitar')}
         </Button>
       ) : (
-        <p className="text-[13px] text-muted">Para activarlo, pide a un administrador de tu empresa que lo solicite desde esta misma pantalla.</p>
+        <p className="text-[13px] text-muted">{t('spaceeyes.demo.sin-permiso')}</p>
       )}
       {resultado === 'ok' && (
         <p className="text-[12px] text-success">
-          Listo: recibimos tu solicitud{folio ? ` (folio ${folio})` : ''} y te contactaremos. Puedes seguirla en
-          Administración › Configuración › Soporte.
+          {folio ? t('spaceeyes.demo.listo.folio', { folio }) : t('spaceeyes.demo.listo')}
         </p>
       )}
-      {resultado === 'error' && <p className="text-[12px] text-error">No se pudo enviar la solicitud. Inténtalo de nuevo en unos minutos.</p>}
+      {resultado === 'error' && <p className="text-[12px] text-error">{t('spaceeyes.demo.error')}</p>}
     </div>
   )
 
@@ -172,7 +204,7 @@ export function DemoSpaceEyes() {
       <div className="flex items-center gap-2 rounded-md border border-[#7c3aed40] bg-[#7c3aed12] px-3 py-2 text-[12px] text-ink">
         <Ejemplo />
         <span>
-          Estás viendo una <strong>demostración</strong> con datos de ejemplo. Tu empresa todavía no tiene Space Eyes activado; ninguno de estos equipos es tuyo.
+          {interpolarNodos(t('spaceeyes.demo.aviso'), { demo: <strong>{t('spaceeyes.demo.aviso.demo')}</strong> })}
         </span>
       </div>
 
@@ -182,10 +214,11 @@ export function DemoSpaceEyes() {
           <div className="flex items-center gap-2 text-[12px] font-semibold uppercase tracking-wide text-accent">
             <Eye className="h-4 w-4" /> Space Eyes
           </div>
-          <h1 className="text-[22px] font-semibold leading-tight text-ink sm:text-[26px]">Tus pantallas, vistas desde el sitio, sin ir al sitio</h1>
+          <h1 className="text-[22px] font-semibold leading-tight text-ink sm:text-[26px]">{t('spaceeyes.demo.titulo')}</h1>
           <p className="text-[14px] leading-relaxed text-muted">
-            Un equipo pequeño junto a cada pantalla (teléfono, Raspberry o cámara IP) toma fotos de lo que está al aire, avisa
-            cuando algo falla y te deja verla en vivo desde aquí. Todo queda dentro de SPACE OS, con los permisos de tu empresa.
+            {t('spaceeyes.demo.lema.1')}
+            <br />
+            {t('spaceeyes.demo.lema.2')}
           </p>
           {accion}
         </div>
@@ -197,10 +230,10 @@ export function DemoSpaceEyes() {
 
       {/* Lista de equipos de ejemplo */}
       <section className="flex flex-col gap-3">
-        <h2 className="text-[15px] font-semibold text-ink">Así se ven tus equipos</h2>
+        <h2 className="text-[15px] font-semibold text-ink">{t('spaceeyes.demo.equipos')}</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {EQUIPOS.map((e) => (
-            <div key={e.nombre} className="overflow-hidden rounded-md border border-border bg-surface">
+            <div key={e.id} className="overflow-hidden rounded-md border border-border bg-surface">
               <div className="relative aspect-video">
                 <Espectacular anuncio={e.anuncio} noche={!e.online} />
                 <Ejemplo className="absolute right-2 top-2" />
@@ -211,29 +244,28 @@ export function DemoSpaceEyes() {
                   )}
                 >
                   <span className={cn('h-1.5 w-1.5 rounded-full', e.online ? 'bg-white' : 'bg-error')} />
-                  {e.online ? 'EN LÍNEA' : 'SIN COMUNICACIÓN'}
+                  {(e.online ? t('spaceeyes.conexion.en-linea') : t('spaceeyes.conexion.sin')).toUpperCase()}
                 </span>
                 <span className="absolute bottom-2 right-2 inline-flex items-center gap-1.5 rounded-full bg-black/60 px-2 py-0.5 text-[10.5px] text-white">
-                  <Clock className="h-3 w-3" /> {e.hace}
+                  <Clock className="h-3 w-3" /> {t(e.hace)}
                 </span>
               </div>
               <div className="flex flex-col gap-2 p-3">
-                <div className="truncate text-[13px] font-semibold text-ink">{e.nombre}</div>
+                <div className="truncate text-[13px] font-semibold text-ink">{t(e.nombre)}</div>
                 <div className="flex items-center gap-1 text-[12px] text-muted">
-                  <MapPin className="h-3 w-3" /> {e.ciudad}
+                  <MapPin className="h-3 w-3" /> {t('spaceeyes.demo.ciudad')}
                 </div>
                 <div className="flex items-center gap-4 border-t border-border pt-2 text-[12px] text-ink">
                   <span className="inline-flex items-center gap-1">
                     <Battery className="h-3.5 w-3.5 text-success" /> {e.bateria}%
                   </span>
                   <span className="inline-flex items-center gap-1">
-                    {e.red === 'WiFi' ? <Wifi className="h-3.5 w-3.5" /> : <SignalHigh className="h-3.5 w-3.5" />} {e.red} · {e.senal}
+                    {e.red === 'wifi' ? <Wifi className="h-3.5 w-3.5" /> : <SignalHigh className="h-3.5 w-3.5" />} {e.red === 'wifi' ? 'WiFi' : t('spaceeyes.senal.movil')} · {e.senal ? t(e.senal) : '—'}
                   </span>
                 </div>
                 {!e.online && (
                   <p className="text-[11.5px] text-error">
-                    Sin comunicación desde hace 2 h. Así se ve cuando un equipo deja de reportar: nunca se da por funcionando solo
-                    por estar registrado.
+                    {t('spaceeyes.demo.caido')}
                   </p>
                 )}
               </div>
@@ -244,7 +276,7 @@ export function DemoSpaceEyes() {
 
       {/* Ficha de ejemplo: foto, evidencia, metricas e historial */}
       <section className="flex flex-col gap-3">
-        <h2 className="text-[15px] font-semibold text-ink">El detalle de un equipo</h2>
+        <h2 className="text-[15px] font-semibold text-ink">{t('spaceeyes.demo.detalle')}</h2>
         <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
           <div className="grid gap-4 sm:grid-cols-2">
             <figure className="overflow-hidden rounded-md border border-border bg-surface">
@@ -253,7 +285,7 @@ export function DemoSpaceEyes() {
                 <Ejemplo className="absolute right-2 top-2" />
               </div>
               <figcaption className="flex items-center gap-2 p-2.5 text-[12px] text-muted">
-                <ImageIcon className="h-3.5 w-3.5" /> Captura · 08:12 · con fecha, hora y nombre del sitio
+                <ImageIcon className="h-3.5 w-3.5" /> {t('spaceeyes.demo.captura')}
               </figcaption>
             </figure>
             <figure className="overflow-hidden rounded-md border border-border bg-surface">
@@ -262,27 +294,20 @@ export function DemoSpaceEyes() {
                 <Ejemplo className="absolute bottom-2 right-2" />
               </div>
               <figcaption className="flex items-center gap-2 p-2.5 text-[12px] text-muted">
-                <AlertTriangle className="h-3.5 w-3.5 text-error" /> Evidencia de una falla, marcada por el propio equipo
+                <AlertTriangle className="h-3.5 w-3.5 text-error" /> {t('spaceeyes.demo.evidencia')}
               </figcaption>
             </figure>
           </div>
           <div className="flex flex-col gap-3 rounded-md border border-border bg-surface p-3 text-[12px]">
             <div className="flex items-center justify-between">
-              <span className="font-semibold text-ink">Estado del equipo</span>
+              <span className="font-semibold text-ink">{t('spaceeyes.demo.estado')}</span>
               <Ejemplo />
             </div>
             <dl className="divide-y divide-border">
-              {[
-                ['Conexión', 'En línea · Móvil, señal buena'],
-                ['Última comunicación', 'hace 2 min'],
-                ['Batería', '92 % · cargando'],
-                ['Temperatura', '38 °C'],
-                ['Datos este mes', '312 MB'],
-                ['Vigilancia de la pantalla', 'Encendida · 15 gabinetes'],
-              ].map(([k, v]) => (
+              {ESTADO_EJEMPLO.map(([k, v]) => (
                 <div key={k} className="flex justify-between gap-3 py-1.5">
-                  <dt className="text-muted">{k}</dt>
-                  <dd className="text-right text-ink">{v}</dd>
+                  <dt className="text-muted">{t(k)}</dt>
+                  <dd className="text-right text-ink">{t(v)}</dd>
                 </div>
               ))}
             </dl>
@@ -290,15 +315,15 @@ export function DemoSpaceEyes() {
         </div>
         <div className="rounded-md border border-border bg-surface p-3">
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-[13px] font-semibold text-ink">Historial y alertas de un día</span>
+            <span className="text-[13px] font-semibold text-ink">{t('spaceeyes.demo.historial')}</span>
             <Ejemplo />
           </div>
           <ol className="flex flex-col gap-2">
             {HISTORIAL.map((h) => (
-              <li key={h.hora + h.texto} className="flex items-start gap-3 text-[12.5px]">
+              <li key={h.hora} className="flex items-start gap-3 text-[12.5px]">
                 <span className="w-11 shrink-0 tabular-nums text-muted">{h.hora}</span>
                 <h.icono className={cn('mt-0.5 h-3.5 w-3.5 shrink-0', h.tono)} />
-                <span className="text-ink">{h.texto}</span>
+                <span className="text-ink">{t(h.texto)}</span>
               </li>
             ))}
           </ol>
@@ -307,13 +332,13 @@ export function DemoSpaceEyes() {
 
       {/* Beneficios */}
       <section className="flex flex-col gap-3">
-        <h2 className="text-[15px] font-semibold text-ink">Para qué le sirve a tu operación</h2>
+        <h2 className="text-[15px] font-semibold text-ink">{t('spaceeyes.demo.beneficios')}</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {BENEFICIOS.map((b) => (
             <div key={b.titulo} className="flex flex-col gap-1.5 rounded-md border border-border bg-surface p-3">
               <b.icono className="h-5 w-5 text-accent" strokeWidth={1.7} />
-              <div className="text-[13px] font-semibold text-ink">{b.titulo}</div>
-              <p className="text-[12.5px] leading-relaxed text-muted">{b.texto}</p>
+              <div className="text-[13px] font-semibold text-ink">{t(b.titulo)}</div>
+              <p className="text-[12.5px] leading-relaxed text-muted">{t(b.texto)}</p>
             </div>
           ))}
         </div>
@@ -322,9 +347,9 @@ export function DemoSpaceEyes() {
       {/* Cierre */}
       <section className="flex flex-col gap-3 rounded-md border border-border bg-surface p-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="text-[15px] font-semibold text-ink">¿Lo quieres para tus pantallas?</div>
+          <div className="text-[15px] font-semibold text-ink">{t('spaceeyes.demo.cierre')}</div>
           <p className="mt-1 text-[13px] text-muted">
-            Al activarlo, esta sección se convierte en la de tus equipos reales. No hay que configurar nada de tu empresa.
+            {t('spaceeyes.demo.cierre.texto')}
           </p>
         </div>
         {accion}

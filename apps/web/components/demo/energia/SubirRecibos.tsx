@@ -20,6 +20,8 @@ import {
   type FilaDeConfirmacion,
   type RespuestaRecibosUI,
 } from './recibos'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
 
 // ============================================================================
 //  Subir los PDF del recibo de CFE y CONFIRMAR lo que dicen.
@@ -64,6 +66,7 @@ export function SubirRecibos({
   puntos: PuntoDeMedicion[]
   onGuardado: () => void
 }) {
+  const { t, idioma } = useIdioma()
   const [estado, setEstado] = useState<Estado>('quieto')
   // Arranca en BIMESTRAL (3 meses de calendario) desde el 2026-09-30, por
   // pedido del dueño — ver `MESES_POR_OMISION`. La opción «— elige antes de
@@ -95,7 +98,7 @@ export function SubirRecibos({
       if (!r.ok) {
         setRespuesta(null)
         setFilas([])
-        setError(datos?.error ?? 'No se pudieron leer los archivos')
+        setError(datos?.error ?? t('energia.subir.error-leer'))
         return
       }
       setRespuesta(datos)
@@ -103,15 +106,15 @@ export function SubirRecibos({
     } catch {
       setRespuesta(null)
       setFilas([])
-      setError('No se pudo contactar al servidor. Revisa la conexión y vuelve a intentar.')
+      setError(t('energia.error.contactar'))
     } finally {
       setEstado('quieto')
     }
-  }, [])
+  }, [t])
 
   const guardarFila = useCallback(
     async (f: FilaDeConfirmacion) => {
-      const motivo = motivoNoConfirmable(f)
+      const motivo = motivoNoConfirmable(f, idioma)
       if (motivo) {
         setGuardadas((g) => ({ ...g, [f.clave]: motivo }))
         return
@@ -127,16 +130,16 @@ export function SubirRecibos({
           const cuerpo = (await r.json().catch(() => null)) as { error?: string } | null
           // El 409 del indice unico llega con su mensaje: capturar dos veces el
           // mismo recibo duplica el costo de la luz de ese mes sin dar error.
-          setGuardadas((g) => ({ ...g, [f.clave]: cuerpo?.error ?? 'No se pudo guardar' }))
+          setGuardadas((g) => ({ ...g, [f.clave]: cuerpo?.error ?? t('energia.subir.no-guardar') }))
           return
         }
         setGuardadas((g) => ({ ...g, [f.clave]: 'ok' }))
         onGuardado()
       } catch {
-        setGuardadas((g) => ({ ...g, [f.clave]: 'No se pudo contactar al servidor' }))
+        setGuardadas((g) => ({ ...g, [f.clave]: t('energia.subir.no-contactar') }))
       }
     },
-    [onGuardado],
+    [onGuardado, idioma, t],
   )
 
   const cambiar = (clave: string, campo: keyof FilaDeConfirmacion, valor: string) => {
@@ -147,7 +150,7 @@ export function SubirRecibos({
     })
   }
 
-  const resumen = respuesta ? resumenDeLectura(respuesta) : null
+  const resumen = respuesta ? resumenDeLectura(respuesta, idioma) : null
   const entrada =
     'h-8 w-full rounded-md border border-border bg-surface px-2 text-[13px] text-ink outline-none focus:border-ink/40'
 
@@ -161,7 +164,7 @@ export function SubirRecibos({
           className="mb-1 block text-[11px] uppercase tracking-wide text-muted"
           htmlFor="recibos-meses"
         >
-          1 · ¿Cuántos meses de calendario cubre cada recibo de esta tanda?
+          {t('energia.subir.pregunta')}
         </label>
         <select
           id="recibos-meses"
@@ -169,18 +172,19 @@ export function SubirRecibos({
           value={mesesEsperados}
           onChange={(e) => setMesesEsperados(e.target.value)}
         >
-          <option value={SIN_ELEGIR}>— elige antes de subir —</option>
+          <option value={SIN_ELEGIR}>{t('energia.subir.elige-antes')}</option>
           {OPCIONES_MESES.map((o) => (
             <option key={o.meses} value={String(o.meses)}>
-              {o.etiqueta}
+              {idioma === 'es' ? o.etiqueta : t(`energia.subir.opcion.${o.meses}` as 'energia.subir.opcion.1')}
             </option>
           ))}
         </select>
         <p className="mt-1 text-[11px] leading-snug text-muted">
-          Se cuentan los meses de calendario que <strong>toca</strong> el periodo, no lo que
-          dura. Un recibo mensual empieza a mitad de mes, así que casi siempre toca{' '}
-          <strong>dos</strong>; uno bimestral, <strong>tres</strong>. Si mezclas mensuales y
-          bimestrales en la misma tanda, muchos saldrán marcados: súbelos por separado.
+          {interpolarNodos(t('energia.subir.explica'), {
+            toca: <strong>{t('energia.subir.toca')}</strong>,
+            dos: <strong>{t('energia.subir.dos')}</strong>,
+            tres: <strong>{t('energia.subir.tres')}</strong>,
+          })}
         </p>
       </div>
 
@@ -199,7 +203,7 @@ export function SubirRecibos({
             <FileUp className="h-4 w-4" />
           )}
           <span>
-            {estado === 'leyendo' ? 'Leyendo…' : '2 · Subir PDF del recibo'}
+            {estado === 'leyendo' ? t('energia.subir.leyendo') : t('energia.subir.subir')}
           </span>
           <input
             type="file"
@@ -221,8 +225,8 @@ export function SubirRecibos({
         </label>
         <p className="text-[12px] text-muted">
           {mesesEsperados === SIN_ELEGIR
-            ? 'Elige arriba cuántos meses esperas antes de subir los archivos.'
-            : 'Se leen en el servidor y no se guarda nada: revisa cada renglón contra el recibo y confírmalo.'}
+            ? t('energia.subir.elige-arriba')
+            : t('energia.subir.se-leen')}
         </p>
       </div>
 
@@ -273,18 +277,18 @@ export function SubirRecibos({
           <table className="w-full text-[13px]">
             <thead className="bg-surface-2 text-[11px] uppercase tracking-wide text-muted">
               <tr>
-                <th className="px-2 py-2 text-left">Predio o pantalla</th>
-                <th className="px-2 py-2 text-left">Mes</th>
-                <th className="px-2 py-2 text-left">Días</th>
+                <th className="px-2 py-2 text-left">{t('energia.predio-o-pantalla')}</th>
+                <th className="px-2 py-2 text-left">{t('energia.subir.col.mes')}</th>
+                <th className="px-2 py-2 text-left">{t('energia.subir.col.dias')}</th>
                 <th className="px-2 py-2 text-left">kWh</th>
-                <th className="px-2 py-2 text-left">Importe</th>
+                <th className="px-2 py-2 text-left">{t('energia.importe')}</th>
                 <th className="px-2 py-2 text-left" />
               </tr>
             </thead>
             <tbody>
               {filas.map((f) => {
                 const estadoFila = guardadas[f.clave]
-                const motivo = motivoNoConfirmable(f)
+                const motivo = motivoNoConfirmable(f, idioma)
                 return (
                   <tr key={f.clave} className="border-t border-border align-top">
                     <td className="px-2 py-2">
@@ -297,7 +301,7 @@ export function SubirRecibos({
                             emparejo: sin ella, el primer predio de la lista
                             quedaria elegido por omision y el recibo se guardaria
                             en un predio que nadie eligio. */}
-                        <option value="">— elige —</option>
+                        <option value="">{t('energia.subir.elige')}</option>
                         {puntos.map((p) => (
                           <option key={p.clave} value={p.clave}>
                             {p.nombre}
@@ -305,7 +309,7 @@ export function SubirRecibos({
                         ))}
                       </select>
                       <p className="mt-1 text-[11px] leading-snug text-muted">
-                        {f.archivo} · {textoDeLoLeido(f.lectura)}
+                        {f.archivo} · {textoDeLoLeido(f.lectura, idioma)}
                       </p>
                       {f.lectura.avisos.map((a) => (
                         <p key={a} className="mt-1 text-[11px] leading-snug text-warning">
@@ -318,7 +322,7 @@ export function SubirRecibos({
                     <td className="px-2 py-2">
                       <CampoCifra
                         className={entrada}
-                        placeholder="escríbelo"
+                        placeholder={t('energia.subir.escribelo')}
                         valor={f.kwh}
                         onCambio={(crudo) => cambiar(f.clave, 'kwh', crudo)}
                       />
@@ -328,7 +332,7 @@ export function SubirRecibos({
                           como 'NaN' y `motivoNoConfirmable` lo para. */}
                       <CampoCifra
                         className={entrada}
-                        placeholder="escríbelo"
+                        placeholder={t('energia.subir.escribelo')}
                         valor={f.importe}
                         onCambio={(crudo) => cambiar(f.clave, 'importe', crudo)}
                       />
@@ -336,7 +340,7 @@ export function SubirRecibos({
                     <td className="whitespace-nowrap px-2 py-2">
                       {estadoFila === 'ok' ? (
                         <span className="inline-flex items-center gap-1 text-[12px] text-success">
-                          <CheckCircle2 className="h-3.5 w-3.5" /> Guardado
+                          <CheckCircle2 className="h-3.5 w-3.5" /> {t('energia.subir.guardado')}
                         </span>
                       ) : (
                         <Button
@@ -344,7 +348,7 @@ export function SubirRecibos({
                           disabled={estadoFila === 'guardando' || !!motivo}
                           onClick={() => void guardarFila(f)}
                         >
-                          {estadoFila === 'guardando' ? 'Guardando…' : 'Guardar'}
+                          {estadoFila === 'guardando' ? t('energia.subir.guardando') : t('energia.subir.guardar')}
                         </Button>
                       )}
                       {/* El duplicado se enseña con SUS CIFRAS, no con un aviso
@@ -356,16 +360,19 @@ export function SubirRecibos({
                           tiene el papel delante. */}
                       {f.coincideMeses === false ? (
                         <p className="mt-1 max-w-[16rem] text-[11px] leading-snug text-warning">
-                          Declaraste {f.mesesEsperados}{' '}
-                          {f.mesesEsperados === 1 ? 'mes' : 'meses'} y este recibo cubre{' '}
-                          {f.mesesDelPdf}. Se repartió según el PDF.
+                          {t(f.mesesEsperados === 1 ? 'energia.subir.declaraste.uno' : 'energia.subir.declaraste.otros', {
+                            n: f.mesesEsperados ?? '',
+                            pdf: f.mesesDelPdf ?? '',
+                          })}
                         </p>
                       ) : null}
                       {f.yaCapturado ? (
                         <p className="mt-1 max-w-[16rem] text-[11px] leading-snug text-warning">
-                          Ya hay uno capturado en {f.yaCapturado.periodo.slice(0, 7)}:{' '}
-                          {formatNumero(f.yaCapturado.kwh)} kWh por {formatMonto(f.yaCapturado.importe)}. Guardar otra vez
-                          DUPLICA el costo de ese mes.
+                          {t('energia.subir.ya-capturado', {
+                            mes: f.yaCapturado.periodo.slice(0, 7),
+                            kwh: formatNumero(f.yaCapturado.kwh, 0, idioma),
+                            monto: formatMonto(f.yaCapturado.importe, idioma),
+                          })}
                         </p>
                       ) : null}
                       {motivo ? (

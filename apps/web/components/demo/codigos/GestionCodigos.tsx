@@ -18,10 +18,20 @@ import {
 } from '@/lib/codigo-promocional'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
+import { EntradaCifra } from '@/components/demo/ui/EntradaCifra'
+import { useObligatorios } from '@/components/demo/ui/Campo'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { propuestasParaAsignar, vigentesParaSelector } from '@/lib/codigo-aprobacion'
-import { usePropuestas, useClientes } from '@/lib/data/client'
+import { usePropuestas, useClientes, formatFecha } from '@/lib/data/client'
+import { StatusBadge, type Tono } from '@/components/demo/StatusBadge'
 import { refrescarEstado } from '@/lib/data/estado-api'
 import { usePuede } from '@/components/demo/shell/SesionContext'
+import { useIdioma, useTexto } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
+import type { ClaveTexto } from '@/lib/i18n/diccionario'
+import type { Idioma } from '@/lib/i18n/idiomas'
+import { cifraEnEtiqueta } from '@/lib/i18n/cifra-en-etiqueta'
+import { CLAVE_ESTATUS } from '@/components/demo/propuestas/estatus'
 
 // ============================================================================
 //  Los CÓDIGOS PROMOCIONALES de la organización. ADR 0039, Fase 3.
@@ -66,18 +76,27 @@ const hoy = () => {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
 
-/** 'AAAA-MM-DD' → 'DD/MM/AAAA', como se leen las fechas en el resto de la app. */
-const fecha = (iso: string) => (/^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso.split('-').reverse().join('/') : iso)
+/** 'AAAA-MM-DD' → 'DD/MM/AAAA', como se leen las fechas en el resto de la app.
+ *  Desde el 2026-10-26 con el `formatFecha` común, que la lee como fecha LOCAL;
+ *  lo que no tenga esa forma se pinta tal cual en vez de inventar una fecha. */
+const fecha = (iso: string, idioma: Idioma) => (/^\d{4}-\d{2}-\d{2}$/.test(iso) ? formatFecha(iso, idioma) : iso)
 
-const ETIQUETA: Record<EstadoDelCodigo, { texto: string; clase: string }> = {
-  VIGENTE: { texto: 'Vigente', clase: 'border-[#10b98140] bg-[#e6f6ec] text-[#0f7a55]' },
-  PROXIMO: { texto: 'Próximo', clase: 'border-[#0a66ff33] bg-[#eef4ff] text-[#0a4fc4]' },
-  VENCIDO: { texto: 'Vencido', clase: 'border-border-strong bg-surface-2 text-muted' },
-  AGOTADO: { texto: 'Agotado', clase: 'border-[#f59e0b40] bg-[#fff7e6] text-[#9a6700]' },
+// Rediseño del 2026-10-26 · el estado con el semáforo único de la app
+// (`StatusBadge`) en vez de cuatro juegos de hex y de la paleta `neutral`.
+// Mismos textos; el estado lo sigue calculando `estadoDelCodigo`.
+const ETIQUETA: Record<EstadoDelCodigo, { texto: ClaveTexto; tono: Tono }> = {
+  VIGENTE: { texto: 'codigos.estado.vigente', tono: 'verde' },
+  PROXIMO: { texto: 'codigos.estado.proximo', tono: 'azul' },
+  VENCIDO: { texto: 'codigos.estado.vencido', tono: 'neutro' },
+  AGOTADO: { texto: 'codigos.estado.agotado', tono: 'ambar' },
 }
 
+// El orden de los chips de conteo del encabezado: lo que se puede usar hoy
+// primero.
+const ORDEN_ESTADOS: EstadoDelCodigo[] = ['VIGENTE', 'PROXIMO', 'AGOTADO', 'VENCIDO']
+
 const campo =
-  'h-9 rounded border border-[var(--border-input)] bg-surface px-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
+  'h-9 rounded border border-[var(--border-input)] bg-surface px-2 text-[13px] text-ink outline-none placeholder:text-muted focus-visible:ring-2 focus-visible:ring-accent'
 
 const vacio = {
   codigo: '',
@@ -88,10 +107,14 @@ const vacio = {
 }
 
 export function GestionCodigos() {
+  const { t, idioma } = useIdioma()
   const [codigos, setCodigos] = useState<CodigoPromocionalUI[]>([])
   const [error, setError] = useState<string | null>(null)
   const [cargando, setCargando] = useState(true)
   const [nuevo, setNuevo] = useState({ ...vacio })
+  // OBLIG-01 · lo que exige el servidor (`codigos-controller.ts:47-50`): el
+  // código, el descuento y las dos fechas. El tope de usos no: vacío = sin tope.
+  const ob = useObligatorios(nuevo, ['codigo', 'descuentoPct', 'vigenteDesde', 'vigenteHasta'])
   // El cupón cuya fila tiene abierto el selector de propuestas, y la elegida.
   const [asignando, setAsignando] = useState<string | null>(null)
   const [propuestaSel, setPropuestaSel] = useState('')
@@ -105,10 +128,12 @@ export function GestionCodigos() {
       setCodigos(await codigosApi())
       setError(null)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudieron leer los códigos')
+      setError(e instanceof Error ? e.message : t('codigos.error.leer'))
     } finally {
       setCargando(false)
     }
+    // `t` solo cambia con el idioma; meterlo volveria a pedir la lista al cambiarlo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -116,6 +141,7 @@ export function GestionCodigos() {
   }, [cargar])
 
   async function anadir() {
+    const completos = ob.validar()
     // Se manda lo TECLEADO y no un `Number(...) || 0`: ese respaldo convertiría
     // «abc» en un cupón al 0 %, que la validación rechazaría con el mensaje
     // equivocado. Quien valida es `motivoCodigoInvalido`.
@@ -130,7 +156,7 @@ export function GestionCodigos() {
         nuevo.usosMaximos.trim() === '' ? null : (nuevo.usosMaximos as unknown as number),
     }
     const motivo = motivoCodigoInvalido(candidato, codigos)
-    if (motivo) return setError(motivo)
+    if (!completos || motivo) return setError(motivo)
     try {
       await guardarCodigoApi({
         codigo: candidato.codigo,
@@ -140,10 +166,11 @@ export function GestionCodigos() {
         usosMaximos: candidato.usosMaximos == null ? null : Number(nuevo.usosMaximos),
       })
       setNuevo({ ...vacio })
+      ob.reiniciar()
       setError(null)
       await cargar()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo guardar')
+      setError(e instanceof Error ? e.message : t('codigos.error.guardar'))
     }
   }
 
@@ -152,22 +179,19 @@ export function GestionCodigos() {
       await borrarCodigoApi(id)
       await cargar()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo eliminar')
+      setError(e instanceof Error ? e.message : t('codigos.error.eliminar'))
     }
   }
 
   async function asignar(c: CodigoPromocionalUI) {
     const p = (propuestas ?? []).find((x) => x.id === propuestaSel)
-    if (!p) return setError('Elige la propuesta a la que se asigna el código')
+    if (!p) return setError(t('codigos.error.elige-propuesta'))
     setAplicando(true)
     try {
       const r = (await aplicarCodigoApi(p.id, c.codigo)) as Awaited<
         ReturnType<typeof aplicarCodigoApi>
       > & { reactivada?: boolean }
-      toast.success(
-        `Código ${c.codigo} asignado a ${p.folio}: pendiente de aprobación` +
-          (r.reactivada ? '. La propuesta vuelve a borrador.' : ''),
-      )
+      toast.success(t(r.reactivada ? 'codigos.asignado.reactivada' : 'codigos.asignado', { codigo: c.codigo, folio: p.folio }))
       setAsignando(null)
       setPropuestaSel('')
       setError(null)
@@ -177,7 +201,7 @@ export function GestionCodigos() {
     } catch (e) {
       // El mensaje del servidor TAL CUAL: distingue «venció» de «se agotó» de
       // «ya tiene otro código».
-      setError(e instanceof Error ? e.message : 'No se pudo asignar')
+      setError(e instanceof Error ? e.message : t('codigos.error.asignar'))
     } finally {
       setAplicando(false)
     }
@@ -186,55 +210,96 @@ export function GestionCodigos() {
   const usables = new Set(vigentesParaSelector(codigos, hoy()).map((c) => c.id))
   const elegibles = propuestasParaAsignar(propuestas)
   const nombreCliente = (id: string | null) =>
-    (clientes ?? []).find((x) => x.id === id)?.nombre ?? 'sin cliente'
+    (clientes ?? []).find((x) => x.id === id)?.nombre ?? t('codigos.asignar.sin-cliente')
 
-  if (cargando) return <p className="text-sm text-muted">Cargando los códigos…</p>
+  // Cuántos códigos hay en cada estado, con el MISMO `estadoDelCodigo(c, hoy())`
+  // que pinta cada fila: no hay una segunda regla que pueda divergir.
+  const porEstado: Record<EstadoDelCodigo, number> = { VIGENTE: 0, PROXIMO: 0, VENCIDO: 0, AGOTADO: 0 }
+  for (const c of codigos) porEstado[estadoDelCodigo(c, hoy())]++
+
+  // Esqueleto y no un «Cargando…» en texto (rediseño del 2026-10-26).
+  if (cargando) {
+    return (
+      <div className="space-y-4" aria-busy="true" aria-label={t('codigos.cargando')}>
+        <div className="h-16 animate-pulse rounded-md bg-surface-2" />
+        <div className="h-40 animate-pulse rounded-md bg-surface-2" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4">
       {error && (
         <p
           role="alert"
-          className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800"
+          className="rounded-md border border-error bg-error-soft px-3 py-2 text-[13px] text-error"
         >
           {error}
         </p>
       )}
 
-      <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-        <b>El uso se cuenta cuando alguien aplica el código a una cotización, no cuando se cierra
-        la venta.</b>{' '}
-        Es lo que permite decirle al cliente «sí, tu código vale» en el momento en que lo teclea,
-        en vez de descubrir al firmar que ya se había acabado. A cambio, una cotización abandonada
-        con el código puesto retiene un uso: quitarle el código, o borrarla, lo devuelve.
+      {/* La franja ámbar del proyecto (tokens del Dashboard); mismo texto. */}
+      <div className="rounded-md border border-[#f59e0b40] bg-warning-soft px-3 py-2 text-[12px] text-[#9a6700]">
+        <b>{t('codigos.aviso.uso')}</b>{' '}
+        {t('codigos.aviso.por-que')}
         <br />
-        Y se <b>compone</b> con las demás capas: un 20 % por volumen, un 20 % comercial y un 20 %
-        de código dejan al cliente pagando el <b>51,2 %</b>, no el 40 %.
+        {interpolarNodos(t('codigos.aviso.compone'), {
+          compone: <b>{t('codigos.aviso.compone.palabra')}</b>,
+          resultado: <b>{t('codigos.aviso.compone.resultado')}</b>,
+        })}
       </div>
 
-      <section>
-        <h2 className="mb-1 text-sm font-semibold">Códigos de esta empresa</h2>
-        <p className="mb-3 text-xs text-muted">
-          Las promociones las pone cada empresa: estos códigos no se comparten con nadie más. Los
-          dos extremos de la vigencia son <b>inclusivos</b> — «hasta el 30» incluye el 30. Dejar el
-          tope de usos vacío significa <b>sin tope</b>; entonces el único freno es la fecha.
+      {/* PLEG-02 · la lista se pliega; el aviso de arriba y el alta de abajo
+          no. Lo que se esté asignando en una fila vive en el estado de este
+          componente, no en la tarjeta: plegar no lo borra. */}
+      <CardColapsable
+        id="codigos-promocionales.lista"
+        titulo={t('codigos.lista.titulo')}
+        // Rediseño del 2026-10-26 · subtítulo de una frase: con dos renglones
+        // el chevrón de plegar se caía debajo del texto. La explicación entera
+        // va como primera línea del contenido.
+        subtitulo={t('codigos.lista.subtitulo')}
+        // Cuántos hay en cada estado, de un vistazo (como la lista de Shopify o
+        // las pestañas de Stripe, sin filtrar: es un conteo, no un filtro).
+        resumen={
+          codigos.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {ORDEN_ESTADOS.filter((e) => porEstado[e] > 0).map((e) => (
+                <span
+                  key={e}
+                  className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${CHIP_ESTADO[e]}`}
+                >
+                  {t(ETIQUETA_PLURAL[e])} · <span className="demo-num">{porEstado[e]}</span>
+                </span>
+              ))}
+            </div>
+          ) : null
+        }
+        contentClassName="space-y-3"
+      >
+        <p className="rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px] text-muted">
+          {interpolarNodos(t('codigos.lista.ayuda'), {
+            inclusivos: <b>{t('codigos.lista.inclusivos')}</b>,
+            sinTope: <b>{t('codigos.sin-tope')}</b>,
+          })}
         </p>
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full text-left text-[13px]">
           <thead>
-            <tr className="border-b text-left text-xs text-muted">
-              <th className="py-1.5 font-medium">Código</th>
-              <th className="font-medium">Estado</th>
-              <th className="font-medium">Descuento</th>
-              <th className="font-medium">Vigencia</th>
-              <th className="font-medium">Usos</th>
-              <th />
+            <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
+              <th className="px-3 py-2 font-medium">{t('codigos.col.codigo')}</th>
+              <th className="px-3 py-2 font-medium">{t('codigos.col.estado')}</th>
+              <th className="px-3 py-2 text-right font-medium">{t('codigos.col.descuento')}</th>
+              <th className="px-3 py-2 font-medium">{t('codigos.col.vigencia')}</th>
+              <th className="px-3 py-2 font-medium">{t('codigos.col.usos')}</th>
+              <th className="px-3 py-2" />
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-border">
             {codigos.length === 0 && (
               <tr>
-                <td colSpan={6} className="py-4 text-muted">
-                  Todavía no hay ninguno. Sin códigos, todo se vende como hoy.
+                <td colSpan={6} className="px-3 py-3 text-muted">
+                  {t('codigos.lista.vacia')}
                 </td>
               </tr>
             )}
@@ -242,33 +307,38 @@ export function GestionCodigos() {
               const estado = estadoDelCodigo(c, hoy())
               const tope = c.usosMaximos
               const fila = (
-                <tr className="border-b align-middle">
-                  <td className="py-2.5 font-mono font-medium">{c.codigo}</td>
-                  <td>
-                    <span
-                      className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${ETIQUETA[estado].clase}`}
-                    >
-                      {ETIQUETA[estado].texto}
-                    </span>
+                <tr className="align-middle">
+                  <td className="px-3 py-2.5 font-mono font-medium text-ink">{c.codigo}</td>
+                  <td className="px-3 py-2.5">
+                    <StatusBadge tono={ETIQUETA[estado].tono} className="whitespace-nowrap">
+                      {t(ETIQUETA[estado].texto)}
+                    </StatusBadge>
                   </td>
-                  <td className="font-medium">{c.descuentoPct} %</td>
-                  <td className={estado === 'VENCIDO' ? 'text-muted/60' : undefined}>
-                    {fecha(c.vigenteDesde)} → {fecha(c.vigenteHasta)}
+                  <td className="demo-num whitespace-nowrap px-3 py-2.5 text-right font-medium text-ink">{t('codigos.pct', { pct: cifraEnEtiqueta(c.descuentoPct, idioma) })}</td>
+                  <td className={`demo-num whitespace-nowrap px-3 py-2.5 ${estado === 'VENCIDO' ? 'text-muted' : 'text-ink'}`}>
+                    {fecha(c.vigenteDesde, idioma)} → {fecha(c.vigenteHasta, idioma)}
                   </td>
-                  <td>
-                    <div className="text-[13px]">
-                      {c.usos} de {tope ?? '∞'}
+                  <td className="px-3 py-2.5">
+                    {/* «sin tope» en palabras: el «∞» no lo leía nadie igual.
+                        La barra es de UN color, como las del Dashboard: el
+                        estado (agotado) ya lo dice el chip. */}
+                    <div className="demo-num whitespace-nowrap text-[13px] text-ink">
+                      {/* Sin tope, en ingles «3 (no cap)» y no «3 of no cap»; el
+                          español sigue diciendo «3 de sin tope», como siempre. */}
+                      {tope == null
+                        ? t('codigos.usos.sin-tope', { usos: cifraEnEtiqueta(c.usos, idioma) })
+                        : t('codigos.usos', { usos: cifraEnEtiqueta(c.usos, idioma), tope: cifraEnEtiqueta(tope, idioma) })}
                     </div>
                     {tope != null && tope > 0 && (
-                      <div className="mt-1 h-1 w-20 overflow-hidden rounded bg-surface-2" aria-hidden>
+                      <div className="mt-1 h-1.5 w-20 overflow-hidden rounded-full bg-surface-2" aria-hidden>
                         <div
-                          className={`h-full ${estado === 'AGOTADO' ? 'bg-[#f59e0b]' : 'bg-accent'}`}
+                          className="h-full rounded-full bg-info"
                           style={{ width: `${Math.min(100, (c.usos / tope) * 100)}%` }}
                         />
                       </div>
                     )}
                   </td>
-                  <td className="py-2 text-right">
+                  <td className="px-3 py-2 text-right">
                     <div className="inline-flex items-center gap-2">
                       {puedeAsignar && usables.has(c.id) && (
                         <Button
@@ -280,7 +350,7 @@ export function GestionCodigos() {
                           }}
                           aria-expanded={asignando === c.id}
                         >
-                          <FileText className="mr-1 h-3.5 w-3.5" /> Asignar a propuesta
+                          <FileText className="mr-1 h-3.5 w-3.5" /> {t('codigos.asignar-a-propuesta')}
                         </Button>
                       )}
                       <Button
@@ -288,9 +358,9 @@ export function GestionCodigos() {
                         variant="ghost"
                         onClick={() => void eliminar(c.id)}
                         className="text-error hover:text-error"
-                        title="Eliminar: deja de poder aplicarse. Lo ya cotizado y lo ya aprobado no se mueven, pero su cuenta de usos se pierde: si vuelves a crearlo con el mismo código, empieza de cero."
+                        title={t('codigos.eliminar.ayuda')}
                       >
-                        <Trash2 className="mr-1 h-3.5 w-3.5" /> Eliminar
+                        <Trash2 className="mr-1 h-3.5 w-3.5" /> {t('codigos.eliminar')}
                       </Button>
                     </div>
                   </td>
@@ -301,25 +371,32 @@ export function GestionCodigos() {
                 <Fragment key={c.id}>
                   {fila}
                   {asignando === c.id && (
-                    <tr className="border-b bg-surface-2/40">
+                    <tr className="bg-surface-2">
                       <td colSpan={6} className="px-3 py-3">
                         {elegibles.length === 0 ? (
-                          <p className="text-xs text-muted">
-                            No hay propuestas a las que asignarlo: solo se puede en una propuesta en
-                            borrador, enviada o rechazada, y que no lleve ya otro código.
+                          <p className="text-[12px] text-muted">
+                            {t('codigos.asignar.sin-propuestas')}
                           </p>
                         ) : (
                           <div className="flex flex-wrap items-center gap-2">
                             <select
-                              aria-label={`Propuesta para ${c.codigo}`}
-                              className={`${campo} min-w-[22rem]`}
+                              aria-label={t('codigos.asignar.propuesta-para', { codigo: c.codigo })}
+                              // En un teléfono, a todo lo ancho: con `min-w-[22rem]` fijo desbordaba.
+                              className={`${campo} w-full sm:w-auto sm:min-w-[22rem]`}
                               value={propuestaSel}
                               onChange={(e) => setPropuestaSel(e.target.value)}
                             >
-                              <option value="">Elige una propuesta…</option>
+                              <option value="">{t('codigos.asignar.elige')}</option>
                               {elegibles.map((p) => (
                                 <option key={p.id} value={p.id}>
-                                  {`${p.folio} — ${p.nombre} · ${nombreCliente(p.clienteId)} · ${p.estatus.toLowerCase()}`}
+                                  {/* El estatus en minúsculas, por la clave de Propuestas
+                                      («borrador», «enviada», «rechazada»); uno que no la
+                                      tenga se pinta como antes. */}
+                                  {`${p.folio} — ${p.nombre} · ${nombreCliente(p.clienteId)} · ${
+                                    p.estatus in CLAVE_ESTATUS
+                                      ? t(CLAVE_ESTATUS[p.estatus as keyof typeof CLAVE_ESTATUS]).toLowerCase()
+                                      : p.estatus.toLowerCase()
+                                  }`}
                                 </option>
                               ))}
                             </select>
@@ -328,18 +405,18 @@ export function GestionCodigos() {
                               onClick={() => asignar(c)}
                               disabled={!propuestaSel || aplicando}
                             >
-                              {aplicando ? 'Asignando…' : 'Asignar'}
+                              {aplicando ? t('codigos.asignar.asignando') : t('codigos.asignar.asignar')}
                             </Button>
                             <Button size="sm" variant="ghost" onClick={() => setAsignando(null)}>
-                              Cancelar
+                              {t('comun.cancelar')}
                             </Button>
-                            <p className="w-full text-xs text-muted">
-                              Consume un uso del código y queda <b>pendiente de aprobación</b>: el
-                              cliente no lo ve hasta que un administrador o gerente lo apruebe desde
-                              la propuesta.
+                            <p className="w-full text-[12px] text-muted">
+                              {interpolarNodos(t('codigos.asignar.ayuda'), {
+                                pendiente: <b>{t('codigos.asignar.pendiente')}</b>,
+                              })}
                               {elegida?.estatus === 'RECHAZADA' && (
-                                <b className="text-amber-700">
-                                  {' Esta propuesta está rechazada: asignarle el código la reactiva a borrador.'}
+                                <b className="text-[#9a6700]">
+                                  {t('codigos.asignar.rechazada')}
                                 </b>
                               )}
                             </p>
@@ -353,54 +430,62 @@ export function GestionCodigos() {
             })}
           </tbody>
         </table>
-      </section>
+        </div>
+      </CardColapsable>
 
       {/* El alta va en su propia tarjeta, como «Nuevo paquete» en Paquetes
           cerrados: antes era un renglón de campos sin etiqueta al pie de la
           tabla, y no se distinguía qué columna era cada casilla. */}
-      <section className="rounded-md border p-3">
-        <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
-          <Ticket className="h-4 w-4" /> Nuevo código
+      {/* Rediseño del 2026-10-26 · el mismo borde y relleno que las demás
+          tarjetas (tokens), sin plegar: es el alta, y se usa a la vista. */}
+      <section className="rounded-md border border-border bg-surface p-4">
+        <h3 className="mb-3 flex items-center gap-1.5 text-[14px] font-medium text-ink">
+          <Ticket className="h-4 w-4 text-muted" /> {t('codigos.nuevo.titulo')}
         </h3>
         <div className="flex flex-wrap items-end gap-3">
-          <label className="text-xs">
-            <span className="mb-0.5 block text-muted">Código</span>
+          <label className="text-xs" data-falta={ob.falta('codigo') || undefined}>
+            <EtiquetaCompacta texto={t('codigos.nuevo.codigo')} obligatorio falta={ob.falta('codigo')} />
             <input
-              aria-label="Código"
+              aria-label={t('codigos.nuevo.codigo')}
               className={`${campo} w-36 font-mono uppercase`}
               placeholder="VERANO20"
               value={nuevo.codigo}
               onChange={(e) => setNuevo({ ...nuevo, codigo: e.target.value })}
             />
           </label>
-          <label className="text-xs">
-            <span className="mb-0.5 block text-muted">Descuento (%)</span>
-            <input
-              aria-label="Descuento por ciento"
+          <label className="text-xs" data-falta={ob.falta('descuentoPct') || undefined}>
+            <EtiquetaCompacta texto={t('codigos.nuevo.descuento')} obligatorio falta={ob.falta('descuentoPct')} />
+            {/* P-L2-1 · en italiano «12,5»; lo ilegible llega como 'NaN' y lo
+                para `motivoCodigoInvalido` («tiene que ser un numero»). */}
+            <EntradaCifra
+              aria-label={t('codigos.nuevo.descuento-etiqueta')}
               type="number"
               min={0}
               max={100}
               step={0.5}
               className={`${campo} w-24`}
               placeholder="20"
-              value={nuevo.descuentoPct}
-              onChange={(e) => setNuevo({ ...nuevo, descuentoPct: e.target.value })}
+              valor={nuevo.descuentoPct}
+              onCambio={(crudo) => setNuevo({ ...nuevo, descuentoPct: crudo })}
+              decimales={2}
+              minimo={0}
+              maximo={100}
             />
           </label>
-          <label className="text-xs">
-            <span className="mb-0.5 block text-muted">Vigente desde</span>
+          <label className="text-xs" data-falta={ob.falta('vigenteDesde') || undefined}>
+            <EtiquetaCompacta texto={t('codigos.nuevo.desde')} obligatorio falta={ob.falta('vigenteDesde')} />
             <input
-              aria-label="Vigente desde"
+              aria-label={t('codigos.nuevo.desde')}
               type="date"
               className={campo}
               value={nuevo.vigenteDesde}
               onChange={(e) => setNuevo({ ...nuevo, vigenteDesde: e.target.value })}
             />
           </label>
-          <label className="text-xs">
-            <span className="mb-0.5 block text-muted">Vigente hasta</span>
+          <label className="text-xs" data-falta={ob.falta('vigenteHasta') || undefined}>
+            <EtiquetaCompacta texto={t('codigos.nuevo.hasta')} obligatorio falta={ob.falta('vigenteHasta')} />
             <input
-              aria-label="Vigente hasta"
+              aria-label={t('codigos.nuevo.hasta')}
               type="date"
               className={campo}
               value={nuevo.vigenteHasta}
@@ -408,24 +493,58 @@ export function GestionCodigos() {
             />
           </label>
           <label className="text-xs">
-            <span className="mb-0.5 block text-muted">Tope de usos</span>
+            <EtiquetaCompacta texto={t('codigos.nuevo.tope')} />
             {/* Entero, con coma de miles. Vacío sigue siendo SIN TOPE, y lo
                 que no se entiende llega como 'NaN', que `motivoCodigoInvalido`
                 rechaza («tiene que ser un numero entero»). */}
             <CampoCifra
-              aria-label="Tope de usos (vacío = sin tope)"
+              aria-label={t('codigos.nuevo.tope-etiqueta')}
               decimales={0}
               className={`${campo} w-28`}
-              placeholder="sin tope"
+              placeholder={t('codigos.sin-tope')}
               valor={nuevo.usosMaximos}
               onCambio={(crudo) => setNuevo({ ...nuevo, usosMaximos: crudo })}
             />
           </label>
           <Button size="sm" variant="success" onClick={() => anadir()} className="h-9">
-            <Plus className="mr-1 h-3.5 w-3.5" /> Añadir código
+            <Plus className="mr-1 h-3.5 w-3.5" /> {t('codigos.nuevo.anadir')}
           </Button>
         </div>
       </section>
     </div>
+  )
+}
+
+// Los chips de conteo del encabezado, con los bordes y textos del Dashboard.
+const CHIP_ESTADO: Record<EstadoDelCodigo, string> = {
+  VIGENTE: 'border-[#1da85040] text-[#146c39]',
+  PROXIMO: 'border-[#0a66ff40] text-[#0a4fcc]',
+  AGOTADO: 'border-[#f59e0b40] text-[#9a6700]',
+  VENCIDO: 'border-border text-muted',
+}
+const ETIQUETA_PLURAL: Record<EstadoDelCodigo, ClaveTexto> = {
+  VIGENTE: 'codigos.estados.vigentes',
+  PROXIMO: 'codigos.estados.proximos',
+  AGOTADO: 'codigos.estados.agotados',
+  VENCIDO: 'codigos.estados.vencidos',
+}
+
+// OBLIG-01 · la etiqueta de la fila de alta, con asterisco y en rojo si falta.
+// NO es el `Campo` compartido a propósito: la fila es `items-end` con anchos
+// fijos, y el «Falta este dato» que `Campo` pinta debajo subiría la casilla
+// que falta por encima de las demás. El borde rojo del control lo pone igual
+// `globals.css` por el `data-falta` del <label>; el motivo, el aviso de arriba.
+function EtiquetaCompacta({ texto, obligatorio = false, falta = false }: { texto: string; obligatorio?: boolean; falta?: boolean }) {
+  const t = useTexto()
+  return (
+    <span className={`mb-0.5 block ${falta ? 'text-error' : 'text-muted'}`}>
+      {texto}
+      {obligatorio && (
+        <>
+          <span aria-hidden="true" className="ml-0.5 text-error">*</span>
+          <span className="sr-only">{t('codigos.obligatorio')}</span>
+        </>
+      )}
+    </span>
   )
 }

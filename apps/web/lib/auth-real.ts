@@ -53,7 +53,9 @@ const NO_DISPONIBLE =
 export async function apiLogin(
   email: string,
   password: string,
-): Promise<{ usuario: UsuarioAuth; permisos: Permisos }> {
+  // `idioma`: la preferencia de la cuenta, si está encendida (IDIOMA-USUARIO,
+  // 03/11). La pantalla de entrar la usa para decidir si recarga.
+): Promise<{ usuario: UsuarioAuth; permisos: Permisos; idioma?: string | null }> {
   let res: Response
   try {
     res = await fetch(`${API}/login/`, {
@@ -65,7 +67,7 @@ export async function apiLogin(
     throw new Error('No se pudo conectar con el servidor. Revisa tu conexión e intenta de nuevo.')
   }
   const data = (await res.json().catch(() => null)) as
-    | ({ usuario: UsuarioAuth; permisos: Permisos } & { error?: unknown })
+    | ({ usuario: UsuarioAuth; permisos: Permisos; idioma?: string | null } & { error?: unknown })
     | null
   if (!res.ok) {
     if (data && typeof data.error === 'string') throw new Error(data.error)

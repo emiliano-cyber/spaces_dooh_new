@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-07
+actualizado: 2026-11-02
 tags: [backend, arrendadores, contratos, dinero, rojo]
 archivos:
   - apps/web/lib/server/arrendadores-repo.ts
@@ -22,6 +22,46 @@ archivos:
 ---
 
 # Arrendadores y contratos
+
+> [!important] 2026-11-02 · un contrato va en la moneda de la INSTANCIA (ADR 0048)
+> El alta (`crearContratoCtrl`) y la edición (`editarContratoCtrl`) de
+> `lib/server/arrendadores-controller.ts` rechazan con 400 una `moneda` distinta
+> de la de la instancia; sin `moneda`, el repo pone la de la instancia por SQL
+> (`coalesce($8, (select moneda from tenants …))` en `arrendadores-repo.ts`, que
+> antes decía `?? 'MXN'`). La pantalla de Cambios de contrato
+> (`CambiosContrato.tsx`) ya no deja escribir la moneda: era un texto libre que
+> aceptaba cualquier código. En el documento del contrato, la cantidad con letra
+> sigue la moneda del contrato: `DÓLARES … /100 USD` en vez de `PESOS … M.N.`
+> (`numeroALetras` en `lib/contrato-documento.ts`; en MXN el texto que se firma
+> no cambia). Ver [[03-Frontend/idiomas-es-en]] §7.
+>
+> **Lo ya firmado no cambia.** Hasta el 02/11 la letra decía «PESOS … M.N.» para
+> cualquier moneda. `firmasDeContrato` (`firmas-repo.ts`) coteja lo congelado con
+> `hashParaCotejar` (`lib/contrato-documento.ts`): la regla de hoy y, si no
+> coincide, la anterior (`letra: 'pesos-siempre'`). Así un contrato en USD
+> congelado antes no aparece con sus firmas alteradas, y un dato tocado se sigue
+> detectando. Medir antes de desplegar:
+> `select count(*) from contratos_arrendamiento where moneda='USD' and congelado_en is not null`.
+
+> [!important] v0.12.3 (SIN PUBLICAR, 22/10) · pantallas y lugares PROPIOS
+> Pedido del dueño: pantallas o lugares propios, sin renta mensual; solo luz y
+> operación. Forma aprobada: `20261022_pantallas_propias.sql` agrega `sitios.propio`
+> y `predios.propio`, y relaja `predios.arrendador_id` (CHECK: propio o con
+> arrendador). Lo que cambia:
+> - **Alta**: «Pantalla propia» en Nueva pantalla y «Son pantallas propias» en la
+>   importación: no piden arrendador ni abren contrato; el predio de un lote propio
+>   nace propio (`resolverPredioPropio`).
+> - **Venta**: `exigirContratoCompleto` (y su espejo `sitiosSinContratoCompleto`) da
+>   por cubierta a una propia; `generarCampanaDesdePropuesta` no le abre contrato.
+> - **Marcar propia una existente** (`marcarPropio`, cambio sensible con contraseña):
+>   cancela su contrato INCOMPLETO; con uno vigente/por vencer/renovado es 409.
+> - **Costo**: renta 0; su costo real son los recibos de luz y las OT, que ya no
+>   dependían del contrato. En Inventario, Comercial, propuestas y Reportes dice
+>   «Propia» en vez de «sin contrato» o «Sin arrendador»; el tablero de propuestas la
+>   cuenta con costo 0, no «sin costo».
+> **Sin verificar contra Postgres**: `lib/test/pantallas-propias.e2e.test.ts` está
+> escrita pero no se ha corrido (la v0.12.3 no se sube todavía).
+
 
 > [!danger] Módulo de dinero
 > Casi todas sus mutaciones exigen **desbloqueo** (`SENSIBLE`). Los datos
@@ -106,9 +146,34 @@ MISMA transacción que la edición, un renglón en `contrato_cambios` con:
 **Si estaba enviado a firma** (hay `documento_hash`) y nadie firmó, el cambio
 **anula el envío**: borra las firmas pendientes —con el token del arrendador— y
 descongela el texto. Antes el enlace seguía vivo y el arrendador podía firmar la
-versión vieja; la firma salía «invalidada» cuando ya no tenía arreglo. Lo
-firmado sigue sin poder cambiarse (409). Subir el **PDF** adjunto se anota pero **no** anula el envío:
+versión vieja; la firma salía «invalidada» cuando ya no tenía arreglo. Subir el **PDF** adjunto se anota pero **no** anula el envío:
 `documentoATexto` no lo recita, así que el texto que se firma no cambia.
+
+> [!danger] 23/10 · un contrato FIRMADO ya se puede cambiar (CONTRATO-FIRMADO-EDITABLE)
+> Pedido del dueño: cambiar un contrato aunque lo hayan firmado las dos partes, y
+> que la firma nueva lleve los datos ACTUALES de la empresa, revisados antes.
+> Hasta el 22/10 era 409 («haz otro contrato»). Ahora:
+> - **Editar un firmado exige motivo y sesión** (sin ellos, 400 y no se toca
+>   nada). Si el cambio toca el texto, `editarContrato` archiva la versión firmada
+>   (`archivarVersionFirmadaEnTx` en `firmas-repo.ts`) en la MISMA transacción,
+>   borra TODAS las firmas y descongela. `contrato_cambios.version_firmada` dice
+>   qué versión archivó. Adjuntar el PDF sigue sin pedir nada.
+> - **`contrato_versiones_firmadas`** (`20261023_contrato_versiones_firmadas.sql`):
+>   texto exacto, hash y evidencia de cada firma (jsonb). Solo select e insert para
+>   la aplicación, RLS forzada. `GET /api/contratos/[id]/versiones[?version=N]`.
+> - **Defecto que ya existía, arreglado:** `enviarAFirma` hacía `delete from
+>   contrato_firmas` a secas, y «Volver a enviar a firma» se llevaba la evidencia
+>   de las firmas reales. Ahora archiva antes de borrar (motivo «Reenviado a firma»).
+> - **Revisión antes de congelar:** el panel de firmas enseña los datos actuales
+>   (empresa, arrendador, espacio, términos) y manda su huella
+>   (`huellaDatosContrato`: el texto redactado SIN fecha, sellado). El POST de
+>   `enviar` la exige (400 sin ella) y `enviarAFirma` la recalcula: si los datos
+>   cambiaron mientras se revisaban, 409 y no congela. La huella va sin fecha
+>   porque la página la calcula en UTC y el congelado en hora local.
+>
+> Pruebas: `lib/test/contrato-firmado-editable.e2e.test.ts`, con firmas de
+> verdad (la interna con sesión y la del arrendador por su enlace público): 11,
+> rojas contra el código viejo y verdes con el nuevo.
 
 La pantalla es `components/demo/arrendadores/CambiosContrato.tsx`, dentro de
 `ContratoSheet`; el historial lo sirve `GET /api/contratos/[id]/cambios`

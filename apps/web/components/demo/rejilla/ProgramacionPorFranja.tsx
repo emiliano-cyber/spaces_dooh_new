@@ -11,6 +11,9 @@ import {
 } from '@/lib/data/programacion-api'
 import { etiquetaFranja } from '@/lib/franja-programada'
 import { Button } from '@/components/demo/ui/Button'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
 
 // ============================================================================
 //  «Horario de transmisión»: junto a cada franja, qué campañas salen en ella.
@@ -38,6 +41,7 @@ const NO_PROGRAMABLES = new Set(['CANCELADA', 'COMPLETADA'])
 const nombreCampana = (c: CampanaProgramacionUI) => (c.folio ? `${c.folio} · ${c.nombre}` : c.nombre)
 
 export function ProgramacionPorFranja() {
+  const { t } = useIdioma()
   const [franjas, setFranjas] = useState<FranjaProgramacionUI[]>([])
   const [campanas, setCampanas] = useState<CampanaProgramacionUI[]>([])
   const [marcadas, setMarcadas] = useState<Record<string, string[]>>({})
@@ -57,7 +61,7 @@ export function ProgramacionPorFranja() {
       setPuede(d.puedeProgramar === true)
       setError(null)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo leer la programación')
+      setError(e instanceof Error ? e.message : t('catalogos.programacion.no-leer'))
     } finally {
       setCargando(false)
     }
@@ -77,51 +81,64 @@ export function ProgramacionPorFranja() {
       despues?.()
       await cargar()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo programar')
+      setError(e instanceof Error ? e.message : t('catalogos.programacion.no-programar'))
     } finally {
       setOcupado(false)
     }
   }
 
-  if (cargando) return <p className="text-sm text-muted">Cargando la programación…</p>
+  // Esqueleto y no un «Cargando…» en texto (rediseño del 2026-10-26).
+  if (cargando) {
+    return <div className="h-32 animate-pulse rounded-md bg-surface-2" aria-busy="true" aria-label={t('catalogos.programacion.cargando')} />
+  }
 
   const activas = franjas.filter((f) => f.activo)
 
   return (
-    <section className="space-y-3">
-      <div>
-        <h2 className="mb-1 flex items-center gap-1.5 text-sm font-semibold">
-          <CalendarClock className="h-4 w-4" /> Horario de transmisión
-        </h2>
-        <p className="text-xs text-muted">
-          En qué franja <b>se transmite</b> cada campaña. No cambia ningún precio: lo vendido ya
-          está en la campaña desde la propuesta. Puedes marcar varias campañas y programarlas de
-          una vez; si alguna no se puede, no se programa ninguna.
-        </p>
-      </div>
+    // PLEG-02 · la tarjeta plegable va DENTRO del componente y no alrededor de
+    // él en la página: así plegarla no desmonta este estado (las campañas
+    // marcadas, la lectura ya hecha) y desplegarla no vuelve a pedirlo todo.
+    //
+    // Rediseño del 2026-10-26 · subtítulo de una frase y la explicación como
+    // primera línea del contenido: con tres renglones de subtítulo el chevrón
+    // de plegar se caía debajo del texto.
+    <CardColapsable
+      id="franjas-y-temporadas.programacion"
+      titulo={t('catalogos.programacion.titulo')}
+      icono={<CalendarClock className="h-4 w-4" />}
+      subtitulo={t('catalogos.programacion.subtitulo')}
+      contentClassName="space-y-3"
+    >
+      <p className="rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px] text-muted">
+        {interpolarNodos(t('catalogos.programacion.explicacion'), { negrita: <b>{t('catalogos.programacion.explicacion.negrita')}</b> })}
+      </p>
 
-      <AvisoFranjaCMS />
+      {/* COMPACTO aquí: el completo ya sale arriba, en la gestión de franjas
+          de la misma página, y dos avisos grandes iguales seguidos se leían
+          como ruido (rediseño 2026-10-26). Sigue pintado, con el mismo texto:
+          `rejilla-aviso.test.ts` exige que esta superficie lo lleve. */}
+      <AvisoFranjaCMS compacto />
 
       {!puede && (
-        <p className="text-xs text-muted">
-          Solo el gerente de ventas, el director comercial y la dirección pueden programar el
-          horario. Aquí ves cómo está.
+        <p className="text-[12px] text-muted">
+          {t('catalogos.programacion.sin-permiso')}
         </p>
       )}
 
       {error && (
-        <p role="alert" className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">
+        <p role="alert" className="rounded-md border border-error bg-error-soft px-3 py-2 text-[13px] text-error">
           {error}
         </p>
       )}
 
-      {activas.length === 0 && (
-        <p className="text-sm text-muted">
-          Da de alta al menos una franja arriba para poder programar campañas en ella.
+      {activas.length === 0 ? (
+        // Sin franjas activas no se pinta la lista: vacía dejaba una raya
+        // suelta (el borde de un `ul` sin filas).
+        <p className="text-[13px] text-muted">
+          {t('catalogos.programacion.sin-franjas')}
         </p>
-      )}
-
-      <ul className="divide-y rounded-md border">
+      ) : (
+      <ul className="divide-y divide-border rounded-md border border-border">
         {activas.map((f) => {
           const suyas = campanas.filter((c) => c.franjaProgramadaId === f.id)
           const ofrecibles = campanas.filter(
@@ -129,17 +146,24 @@ export function ProgramacionPorFranja() {
           )
           const sel = marcadas[f.id] ?? []
           return (
-            <li key={f.id} className="space-y-2 p-3">
-              <div className="text-sm font-medium">{etiquetaFranja(f)}</div>
+            <li key={f.id} className="space-y-2 px-4 py-3">
+              {/* Como las listas del Dashboard: el dato a la izquierda y la
+                  pastilla con el conteo a la derecha. */}
+              <div className="flex items-center justify-between gap-3">
+                <div className="demo-num text-[13px] font-medium text-ink">{etiquetaFranja(f)}</div>
+                <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[11px] text-muted">
+                  {t(suyas.length === 1 ? 'catalogos.programacion.campanas.uno' : 'catalogos.programacion.campanas.otros', { n: suyas.length })}
+                </span>
+              </div>
 
               {suyas.length === 0 ? (
-                <p className="text-xs text-muted">Ninguna campaña se transmite en esta franja.</p>
+                <p className="text-[12px] text-muted">{t('catalogos.programacion.ninguna')}</p>
               ) : (
                 <ul className="flex flex-wrap gap-1.5">
                   {suyas.map((c) => (
                     <li
                       key={c.id}
-                      className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs"
+                      className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[11px] text-ink"
                     >
                       {nombreCampana(c)}
                       {puede && (
@@ -147,9 +171,9 @@ export function ProgramacionPorFranja() {
                           type="button"
                           disabled={ocupado}
                           onClick={() => void operar(null, [c.id])}
-                          aria-label={`Quitar ${nombreCampana(c)} de ${f.nombre}`}
-                          title="Quitar de esta franja (no toca lo vendido)"
-                          className="text-muted hover:text-red-700 disabled:opacity-50"
+                          aria-label={t('catalogos.programacion.quitar.aria', { campana: nombreCampana(c), franja: f.nombre })}
+                          title={t('catalogos.programacion.quitar.title')}
+                          className="text-muted hover:text-error disabled:opacity-50"
                         >
                           <X className="h-3 w-3" />
                         </button>
@@ -163,7 +187,7 @@ export function ProgramacionPorFranja() {
                   <p
                     key={`${c.id}-${a.franjaContratadaId}`}
                     role="note"
-                    className="rounded border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] text-amber-900"
+                    className="rounded-md border border-[#f59e0b40] bg-warning-soft px-2 py-1 text-[11px] text-[#9a6700]"
                   >
                     {nombreCampana(c)}: {a.texto}
                   </p>
@@ -171,16 +195,16 @@ export function ProgramacionPorFranja() {
               )}
 
               {puede && ofrecibles.length > 0 && (
-                <details className="text-xs">
-                  <summary className="cursor-pointer select-none text-muted">
-                    Programar campañas en {f.nombre}
-                    {sel.length ? ` (${sel.length} marcada${sel.length === 1 ? '' : 's'})` : ''}
+                <details className="text-[12px]">
+                  <summary className="cursor-pointer select-none font-medium text-info">
+                    {t('catalogos.programacion.programar-en', { franja: f.nombre })}
+                    {sel.length ? t(sel.length === 1 ? 'catalogos.programacion.marcadas.uno' : 'catalogos.programacion.marcadas.otros', { n: sel.length }) : ''}
                   </summary>
-                  <div className="mt-2 max-h-56 space-y-1 overflow-y-auto rounded border p-2">
+                  <div className="mt-2 max-h-56 space-y-1 overflow-y-auto rounded-md border border-border bg-surface p-2">
                     {ofrecibles.map((c) => {
                       const hoy = c.franjaProgramadaId ? porId.get(c.franjaProgramadaId) : null
                       return (
-                        <label key={c.id} className="flex items-center gap-2">
+                        <label key={c.id} className="flex items-center gap-2 text-ink">
                           <input
                             type="checkbox"
                             checked={sel.includes(c.id)}
@@ -192,7 +216,7 @@ export function ProgramacionPorFranja() {
                             }
                           />
                           <span>{nombreCampana(c)}</span>
-                          {hoy && <span className="text-muted/60">(hoy en {hoy.nombre})</span>}
+                          {hoy && <span className="text-muted">{t('catalogos.programacion.hoy-en', { franja: hoy.nombre })}</span>}
                         </label>
                       )
                     })}
@@ -204,7 +228,9 @@ export function ProgramacionPorFranja() {
                     size="sm"
                     className="mt-2"
                   >
-                    Programar {sel.length || ''} en {f.nombre}
+                    {sel.length
+                      ? t('catalogos.programacion.boton', { n: sel.length, franja: f.nombre })
+                      : t('catalogos.programacion.boton.vacio', { franja: f.nombre })}
                   </Button>
                 </details>
               )}
@@ -212,6 +238,7 @@ export function ProgramacionPorFranja() {
           )
         })}
       </ul>
-    </section>
+      )}
+    </CardColapsable>
   )
 }

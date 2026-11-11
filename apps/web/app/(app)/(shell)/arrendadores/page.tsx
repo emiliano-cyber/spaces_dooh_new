@@ -1,11 +1,13 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { CheckCircle2, Plus, FileSignature, Search, X, Download, Trash2, AlertTriangle } from 'lucide-react'
+import { CheckCircle2, Plus, FileSignature, Search, X, Download, Trash2, AlertTriangle, Wallet, CalendarClock } from 'lucide-react'
 import { Card } from '@/components/demo/ui/Card'
+import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { ContratoSheet } from '@/components/demo/arrendadores/ContratoSheet'
 import { contratoSeleccionado } from '@/components/demo/arrendadores/seleccion'
@@ -15,9 +17,6 @@ import { ContratoWizard } from '@/components/demo/inventario/ContratoWizard'
 import {
   StatusBadge,
   CONTRATO_TONO,
-  CONTRATO_LABEL,
-  PAGO_TONO,
-  PAGO_LABEL,
 } from '@/components/demo/StatusBadge'
 import { cn } from '@/lib/cn'
 import { factorMensual, periodicidadLabel } from '@/lib/renta-periodicidad'
@@ -42,7 +41,6 @@ import {
   useCampanas,
   formatMonto,
   formatFecha,
-  faltaEnContratos,
   diasHasta,
   type ContratoArrendamiento,
   type MargenSitio,
@@ -52,6 +50,10 @@ import { desbloquearApi, esErrorDeDesbloqueo } from '@/lib/data/cambios-api'
 import { esRfcValido } from '@/lib/rfc'
 import { descargarContratos, ESTATUS_VIGENTES } from '@/lib/contratos-export'
 import { ConciliacionCard } from '@/components/demo/arrendadores/ConciliacionCard'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
+import { CLAVE_CONTRATO_ESTATUS } from '@/components/demo/comercial/claves'
+import { textoFaltaEnContratos } from '@/components/demo/arrendadores/etiquetas'
 
 export default function ArrendadoresPage() {
   const contratos = useContratos()
@@ -63,6 +65,7 @@ export default function ArrendadoresPage() {
   const predios = usePredios()
   const reservas = useReservas()
   const campanas = useCampanas()
+  const { idioma, t } = useIdioma()
 
   // Genera el archivo en el navegador (no hay endpoint: los datos ya estan en
   // el store). Si falla —un tenant con miles de contratos agotando memoria— se
@@ -81,11 +84,11 @@ export default function ArrendadoresPage() {
       )
       setToast(
         n === 0
-          ? 'No hay contratos vigentes que descargar'
-          : `Descargados ${n} contrato${n === 1 ? '' : 's'} vigente${n === 1 ? '' : 's'}`,
+          ? t('arrendadores.descarga.ninguno')
+          : t(n === 1 ? 'arrendadores.descarga.hecha.uno' : 'arrendadores.descarga.hecha.otros', { n }),
       )
     } catch {
-      setToast('No se pudo generar el archivo')
+      setToast(t('arrendadores.descarga.error'))
     }
   }
 
@@ -182,22 +185,22 @@ export default function ArrendadoresPage() {
   const rentaMensual = activos.reduce((s, c) => s + (c.montoMensualEquivalente ?? 0), 0)
   const contratosIncompletos = (contratos ?? []).filter((c) => c.estatus === 'INCOMPLETO')
   const incompletos = contratosIncompletos.length
-  const faltaEnIncompletos = faltaEnContratos(contratosIncompletos)
+  const faltaEnIncompletos = textoFaltaEnContratos(contratosIncompletos, t)
 
   return (
     <div className="w-full space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl text-ink">Arrendadores</h1>
-          <p className="mt-1 text-[13px] text-muted">El otro lado de la red · contratos, rentas y vencimientos</p>
+          <h1 className="text-2xl text-ink">{t('arrendadores.titulo')}</h1>
+          <p className="mt-1 text-[13px] text-muted">{t('arrendadores.subtitulo')}</p>
         </div>
         {puedeCrear && (
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="success" onClick={() => setNuevoOpen(true)}>
-              <Plus className="h-3.5 w-3.5" /> Nuevo arrendador
+              <Plus className="h-3.5 w-3.5" /> {t('arrendadores.nuevo')}
             </Button>
             <Button variant="success" size="sm" onClick={() => setContratoOpen(true)}>
-              <FileSignature className="h-3.5 w-3.5" /> Nuevo contrato
+              <FileSignature className="h-3.5 w-3.5" /> {t('arrendadores.nuevo-contrato')}
             </Button>
           </div>
         )}
@@ -211,7 +214,7 @@ export default function ArrendadoresPage() {
             <input
               value={filtro.texto}
               onChange={(e) => set({ texto: e.target.value })}
-              placeholder="Buscar arrendador, pantalla o RFC…"
+              placeholder={t('arrendadores.buscar')}
               className="h-9 w-full rounded border border-border-strong bg-surface pl-8 pr-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
             />
           </div>
@@ -220,7 +223,7 @@ export default function ArrendadoresPage() {
             onChange={(e) => set({ arrendadorId: e.target.value })}
             className="h-9 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
-            <option value="">Todos los arrendadores</option>
+            <option value="">{t('arrendadores.todos')}</option>
             {(arrendadores ?? []).map((a) => (
               <option key={a.id} value={a.id}>{a.nombre}</option>
             ))}
@@ -230,9 +233,9 @@ export default function ArrendadoresPage() {
             onChange={(e) => set({ estatus: e.target.value })}
             className="h-9 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
-            <option value="">Contratos: todos</option>
+            <option value="">{t('arrendadores.contratos-todos')}</option>
             {(['VIGENTE', 'POR_VENCER', 'VENCIDO', 'RENOVADO', 'INCOMPLETO', 'CANCELADO'] as const).map((e) => (
-              <option key={e} value={e}>{CONTRATO_LABEL[e]}</option>
+              <option key={e} value={e}>{t(CLAVE_CONTRATO_ESTATUS[e])}</option>
             ))}
           </select>
           {/* Con un filtro puesto, lo que se ve es un subconjunto: sin decirlo,
@@ -240,49 +243,247 @@ export default function ArrendadoresPage() {
           {hayFiltro(filtro) && (
             <>
               <span className="text-[12px] text-muted">
-                {contratosFiltrados?.length ?? 0} de {contratos?.length ?? 0} contratos
+                {t('arrendadores.filtrados', { n: contratosFiltrados?.length ?? 0, total: contratos?.length ?? 0 })}
               </span>
               <button
                 type="button"
                 onClick={() => setFiltro(FILTRO_VACIO)}
                 className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-[12px] text-muted hover:text-ink"
               >
-                <X className="h-3.5 w-3.5" /> Limpiar
+                <X className="h-3.5 w-3.5" /> {t('inventario.tabla.limpiar')}
               </button>
             </>
           )}
         </div>
       </Card>
 
-      {/* Resumen */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <Mini label="Arrendadores" valor={`${arrendadores?.length ?? '—'}`} />
-        <Mini label="Contratos" valor={`${contratos?.length ?? '—'}`} />
-        {/* B4: la salvedad («no incluye N contratos incompletos») estaba solo en
-            una nota al pie, así que el número se citaba fuera de contexto como si
-            fuera la renta real. Va pegada al propio KPI: quien lo lea de reojo se
-            entera igual. */}
-        <Mini
-          label="Renta mensual"
-          valor={contratos ? formatMonto(rentaMensual) : '—'}
-          nota={contratos && incompletos > 0 ? `+ ${incompletos} por capturar` : undefined}
-        />
-        <Mini label="Por vencer" valor={`${porVencer}`} tono={porVencer ? 'ambar' : undefined} />
-        <Mini label="Renta vencida" valor={`${rentaVencida}`} tono={rentaVencida ? 'rojo' : undefined} />
+      {/* Resumen — 26/10: `KPICard` en la fila de 4 del Dashboard, en vez de
+          la pieza `Mini` en 5 columnas. «Arrendadores» ya no gasta una tarjeta:
+          va en la aclaración de «Contratos». Mismas variables, cero cálculo
+          nuevo. */}
+      <CardColapsable id="arrendadores.indicadores" titulo={t('inventario.indicadores')} contentClassName="space-y-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {!contratos ? (
+          <>
+            <KPICardSkeleton />
+            <KPICardSkeleton />
+            <KPICardSkeleton />
+            <KPICardSkeleton />
+          </>
+        ) : (
+          <>
+            {/* B4: la salvedad («no incluye N contratos incompletos») estaba solo en
+                una nota al pie, así que el número se citaba fuera de contexto como si
+                fuera la renta real. Va pegada al propio KPI: quien lo lea de reojo se
+                entera igual. */}
+            <KPICard
+              label={t('arrendadores.comun.renta-mensual')}
+              value={formatMonto(rentaMensual, idioma)}
+              sub={
+                incompletos > 0
+                  ? t('arrendadores.kpi.por-capturar', { n: incompletos })
+                  : t(activos.length === 1 ? 'arrendadores.kpi.activos.uno' : 'arrendadores.kpi.activos.otros', { n: activos.length })
+              }
+              tono={incompletos > 0 ? 'ambar' : 'neutro'}
+              icon={<Wallet className="h-4 w-4" />}
+            />
+            <KPICard
+              label={t('arrendadores.comun.contratos')}
+              value={String(contratos.length)}
+              sub={t(arrendadores?.length === 1 ? 'arrendadores.kpi.de-arrendadores.uno' : 'arrendadores.kpi.de-arrendadores.otros', {
+                n: arrendadores?.length ?? '—',
+              })}
+              icon={<FileSignature className="h-4 w-4" />}
+            />
+            <KPICard
+              label={t('arrendadores.kpi.por-vencer')}
+              value={String(porVencer)}
+              sub={t('arrendadores.kpi.por-vencer.sub')}
+              tono={porVencer ? 'ambar' : 'neutro'}
+              icon={<CalendarClock className="h-4 w-4" />}
+            />
+            <KPICard
+              label={t('arrendadores.kpi.renta-vencida')}
+              value={String(rentaVencida)}
+              sub={t('arrendadores.kpi.renta-vencida.sub')}
+              tono={rentaVencida ? 'rojo' : 'neutro'}
+              icon={<AlertTriangle className="h-4 w-4" />}
+            />
+          </>
+        )}
       </div>
       {incompletos > 0 && (
         // El total de arriba NO es el definitivo mientras haya pendientes: si no
         // se dice, se lee como la renta real y se subestima el costo.
-        <p className="-mt-1 text-[12px] text-muted">
-          La renta mensual no incluye {incompletos} contrato{incompletos === 1 ? '' : 's'} incompleto
-          {incompletos === 1 ? '' : 's'}
+        // 26/10 · en la franja secundaria del Dashboard, dentro de la tarjeta.
+        <p className="rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px] text-muted">
           {/* Qué falta se DERIVA de los contratos, no se supone: la mayoría de
               los incompletos llega del alta de la pantalla ya con el importe y
               sin vigencia, y el aviso fijo pedía capturar lo que ya estaba. */}
-          {faltaEnIncompletos ? `: falta capturar ${faltaEnIncompletos}` : ''}, así que el costo real
-          es mayor.
+          {faltaEnIncompletos
+            ? t(incompletos === 1 ? 'arrendadores.incompletos.falta.uno' : 'arrendadores.incompletos.falta.otros', {
+                n: incompletos,
+                falta: faltaEnIncompletos,
+              })
+            : t(incompletos === 1 ? 'arrendadores.incompletos.uno' : 'arrendadores.incompletos.otros', { n: incompletos })}
         </p>
       )}
+      </CardColapsable>
+
+      {/* 26/10 · ORDEN POR USO, como lo ponen los referentes del sector (lo que
+          vence y lo que se debe primero, el catálogo después): Contratos →
+          Pagos de renta → Cuadre → Rentabilidad → Arrendadores → Razones
+          sociales → Por razón social. Solo se movieron bloques: mismas props y
+          mismos `id`, así que el plegado que cada persona dejó guardado se
+          conserva. */}
+
+      {/* Contratos */}
+      <CardColapsable
+        id="arrendadores.contratos"
+        titulo={t('arrendadores.contratos.titulo')}
+        contentClassName="px-0 pb-0"
+        accion={
+          // Descarga SOLO los vigentes, sin importar el filtro de pantalla: el
+          // reporte es «que tengo en curso», y un filtro visual no deberia
+          // cambiar lo que significa el archivo. Los INCOMPLETO quedan fuera a
+          // proposito (ADR 0001): todavia no son un acuerdo.
+          <button
+            onClick={descargarVigentes}
+            disabled={!contratos}
+            className="inline-flex items-center gap-1.5 rounded border border-border-strong px-2.5 py-1.5 text-[12px] font-medium text-ink hover:bg-surface-2 disabled:cursor-not-allowed disabled:text-muted"
+            title={t('arrendadores.contratos.excel-title')}
+          >
+            <Download className="h-3.5 w-3.5" /> {t('arrendadores.contratos.excel')}
+          </button>
+        }
+      >
+          {!contratosFiltrados ? (
+            <div className="space-y-2 px-4 pb-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="h-10 animate-pulse rounded bg-surface-2" />
+              ))}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-[13px]">
+                <thead>
+                  <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
+                    <th className="px-4 py-2 font-medium">{t('arrendadores.comun.arrendador')}</th>
+                    <th className="px-4 py-2 font-medium">{t('arrendadores.contratos.sitio')}</th>
+                    <th className="px-4 py-2 text-right font-medium">{t('arrendadores.comun.renta')}</th>
+                    <th className="px-4 py-2 font-medium">{t('arrendadores.comun.cada-cuando')}</th>
+                    <th className="px-4 py-2 font-medium">{t('arrendadores.comun.vence-contrato')}</th>
+                    <th className="px-4 py-2 font-medium">{t('arrendadores.comun.estatus')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {contratosFiltrados.map((c) => {
+                    // Un contrato INCOMPLETO no tiene aún arrendador, importe,
+                    // periodicidad ni fecha de fin (ADR 0001): las celdas
+                    // muestran «—» en vez de un cero o una fecha inventada.
+                    const dias = c.fechaFin ? diasHasta(c.fechaFin) : 0
+                    return (
+                      <tr
+                        key={c.id}
+                        onClick={() => {
+                          setSelId(c.id)
+                          setOpen(true)
+                        }}
+                        className="cursor-pointer border-b border-border last:border-0 hover:bg-surface-2"
+                      >
+                        <td className="px-4 py-2.5 text-ink">
+                          {c.arrendadorId ? nombreArr(c.arrendadorId) : <span className="text-muted">{t('arrendadores.comun.por-definir')}</span>}
+                        </td>
+                        <td className="px-4 py-2.5 text-muted">
+                          {sitioDe(c.sitioId)?.nombre ?? '—'}
+                          {/* Para un pendiente, la campaña que lo originó es el
+                              dato que lo hace reconocible y da la urgencia. */}
+                          {c.estatus === 'INCOMPLETO' &&
+                            (() => {
+                              const cs = campanasDelSitio(c.sitioId)
+                              if (!cs.length) return null
+                              return (
+                                <div className="mt-0.5 text-[11px] text-muted">
+                                  {t('arrendadores.contratos.vendida-en', {
+                                    lista: cs.map((x) => t('arrendadores.contratos.vendida-item', { nombre: x.nombre })).join(', '),
+                                  })}
+                                </div>
+                              )
+                            })()}
+                        </td>
+                        <td className="demo-num px-4 py-2.5 text-right text-ink">
+                          {c.montoRenta != null ? formatMonto(c.montoRenta, idioma) : <span className="text-muted">—</span>}
+                        </td>
+                        <td className="px-4 py-2.5 text-muted">{periodicidadLabel(c.periodicidad, '—', idioma)}</td>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-muted">
+                          {/* 26/10 · fecha y, a su derecha, la pastilla de días que
+                              usa el Dashboard. Antes solo POR_VENCER decía cuánto
+                              faltaba, como un «(Nd)» pegado. El texto de la
+                              pastilla lleva el significado; el color lo refuerza. */}
+                          <span className="demo-num">{c.fechaFin ? formatFecha(c.fechaFin, idioma) : '—'}</span>
+                          {c.fechaFin && (
+                            <span
+                              className={cn(
+                                'demo-num ml-2 inline-flex rounded-full border px-2 py-0.5 text-[11px]',
+                                c.estatus === 'VENCIDO'
+                                  ? 'border-error bg-error-soft text-error'
+                                  : c.estatus === 'POR_VENCER'
+                                    ? 'border-warning bg-warning-soft text-[#9a6700]'
+                                    : 'border-border text-muted',
+                              )}
+                            >
+                              {dias < 0
+                                ? t('comercial.comun.hace.dias', { n: -dias })
+                                : dias === 0
+                                  ? t('arrendadores.comun.hoy')
+                                  : t('arrendadores.comun.en-dias', { n: dias })}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <div className="flex items-center gap-2">
+                            <StatusBadge tono={CONTRATO_TONO[c.estatus]}>{t(CLAVE_CONTRATO_ESTATUS[c.estatus])}</StatusBadge>
+                            {/* El badge nombra el problema; esto lo resuelve. La
+                                fila entera ya abría el detalle, pero eso había
+                                que adivinarlo: un contrato podía quedarse meses
+                                en «Incompleto» porque nadie sabía dónde se
+                                completaba. */}
+                            {c.estatus === 'INCOMPLETO' && (
+                              <button
+                                type="button"
+                                className="rounded border border-border px-2 py-0.5 text-[11px] text-info hover:bg-surface-2"
+                                onClick={(e) => {
+                                  // La fila también abre el sheet; sin esto se
+                                  // dispararían los dos manejadores.
+                                  e.stopPropagation()
+                                  setSelId(c.id)
+                                  setOpen(true)
+                                }}
+                              >
+                                {t('arrendadores.comun.completar')}
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+      </CardColapsable>
+
+      {/* Pagos de renta (compartido con Finanzas: es a la vez contrato y
+          salida de dinero, y no debe divergir entre las dos pantallas) */}
+      <PagosRentaCard onToast={notify} contratosVisibles={contratosFiltrados} />
+
+      {/* Cuadre de renta (R3.7): qué se le debe a cada propietario, desglosado
+          por emplazamiento. Antes solo se podía saber contrato por contrato. */}
+      <ConciliacionCard contratosVisibles={contratosFiltrados} />
+
+      {/* Rentabilidad por pantalla (P&L: ingreso de reservas activas − renta) */}
+      <RentabilidadCard margenes={margenesFiltrados} filtrado={hayFiltro(filtro)} />
 
       {/* Propietarios: lista de arrendadores dados de alta (aparecen aquí aunque
           todavía no tengan contrato) */}
@@ -303,13 +504,6 @@ export default function ArrendadoresPage() {
         puedeEditar={puedeCrear}
       />
 
-      {/* Rentabilidad por pantalla (P&L: ingreso de reservas activas − renta) */}
-      <RentabilidadCard margenes={margenesFiltrados} filtrado={hayFiltro(filtro)} />
-
-      {/* Cuadre de renta (R3.7): qué se le debe a cada propietario, desglosado
-          por emplazamiento. Antes solo se podía saber contrato por contrato. */}
-      <ConciliacionCard contratosVisibles={contratosFiltrados} />
-
       {/* Consolidado por razón social (un propietario puede tener varias) */}
       <RazonesSocialesCard
         razones={razonesFiltradas ?? []}
@@ -317,125 +511,6 @@ export default function ArrendadoresPage() {
         pagos={pagosFiltrados ?? []}
         nombreArr={nombreArr}
       />
-
-      {/* Contratos */}
-      <CardColapsable
-        titulo="Contratos de arrendamiento"
-        contentClassName="px-0 pb-0"
-        accion={
-          // Descarga SOLO los vigentes, sin importar el filtro de pantalla: el
-          // reporte es «que tengo en curso», y un filtro visual no deberia
-          // cambiar lo que significa el archivo. Los INCOMPLETO quedan fuera a
-          // proposito (ADR 0001): todavia no son un acuerdo.
-          <button
-            onClick={descargarVigentes}
-            disabled={!contratos}
-            className="inline-flex items-center gap-1.5 rounded border border-border-strong px-2.5 py-1.5 text-[12px] font-medium text-ink hover:bg-surface-2 disabled:cursor-not-allowed disabled:text-muted"
-            title="Descargar los contratos vigentes en Excel"
-          >
-            <Download className="h-3.5 w-3.5" /> Vigentes en Excel
-          </button>
-        }
-      >
-          {!contratosFiltrados ? (
-            <div className="space-y-2 px-4 pb-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="h-10 animate-pulse rounded bg-surface-2" />
-              ))}
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-[13px]">
-                <thead>
-                  <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
-                    <th className="px-4 py-2 font-medium">Arrendador</th>
-                    <th className="px-4 py-2 font-medium">Sitio</th>
-                    <th className="px-4 py-2 text-right font-medium">Renta</th>
-                    <th className="px-4 py-2 font-medium">Cada cuándo</th>
-                    <th className="px-4 py-2 font-medium">Vence</th>
-                    <th className="px-4 py-2 font-medium">Estatus</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {contratosFiltrados.map((c) => {
-                    // Un contrato INCOMPLETO no tiene aún arrendador, importe,
-                    // periodicidad ni fecha de fin (ADR 0001): las celdas
-                    // muestran «—» en vez de un cero o una fecha inventada.
-                    const dias = c.fechaFin ? diasHasta(c.fechaFin) : 0
-                    return (
-                      <tr
-                        key={c.id}
-                        onClick={() => {
-                          setSelId(c.id)
-                          setOpen(true)
-                        }}
-                        className="cursor-pointer border-b border-border last:border-0 hover:bg-surface-2"
-                      >
-                        <td className="px-4 py-2.5 text-ink">
-                          {c.arrendadorId ? nombreArr(c.arrendadorId) : <span className="text-muted">Por definir</span>}
-                        </td>
-                        <td className="px-4 py-2.5 text-muted">
-                          {sitioDe(c.sitioId)?.nombre ?? '—'}
-                          {/* Para un pendiente, la campaña que lo originó es el
-                              dato que lo hace reconocible y da la urgencia. */}
-                          {c.estatus === 'INCOMPLETO' &&
-                            (() => {
-                              const cs = campanasDelSitio(c.sitioId)
-                              if (!cs.length) return null
-                              return (
-                                <div className="mt-0.5 text-[11px] text-muted">
-                                  Vendida en {cs.map((x) => `«${x.nombre}»`).join(', ')}
-                                </div>
-                              )
-                            })()}
-                        </td>
-                        <td className="demo-num px-4 py-2.5 text-right text-ink">
-                          {c.montoRenta != null ? formatMonto(c.montoRenta) : <span className="text-muted">—</span>}
-                        </td>
-                        <td className="px-4 py-2.5 text-muted">{periodicidadLabel(c.periodicidad)}</td>
-                        <td className="demo-num px-4 py-2.5 text-muted">
-                          {c.fechaFin ? formatFecha(c.fechaFin) : '—'}
-                          {c.estatus === 'POR_VENCER' && (
-                            <span className="ml-1 text-[11px] text-warning">({dias}d)</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-2.5">
-                          <div className="flex items-center gap-2">
-                            <StatusBadge tono={CONTRATO_TONO[c.estatus]}>{CONTRATO_LABEL[c.estatus]}</StatusBadge>
-                            {/* El badge nombra el problema; esto lo resuelve. La
-                                fila entera ya abría el detalle, pero eso había
-                                que adivinarlo: un contrato podía quedarse meses
-                                en «Incompleto» porque nadie sabía dónde se
-                                completaba. */}
-                            {c.estatus === 'INCOMPLETO' && (
-                              <button
-                                type="button"
-                                className="rounded border border-border px-2 py-0.5 text-[11px] text-info hover:bg-surface-2"
-                                onClick={(e) => {
-                                  // La fila también abre el sheet; sin esto se
-                                  // dispararían los dos manejadores.
-                                  e.stopPropagation()
-                                  setSelId(c.id)
-                                  setOpen(true)
-                                }}
-                              >
-                                Completar
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-      </CardColapsable>
-
-      {/* Pagos de renta (compartido con Finanzas: es a la vez contrato y
-          salida de dinero, y no debe divergir entre las dos pantallas) */}
-      <PagosRentaCard onToast={notify} contratosVisibles={contratosFiltrados} />
 
       <ContratoSheet contrato={sel} open={open} onOpenChange={setOpen} onToast={notify} />
       {nuevoOpen && (
@@ -446,13 +521,13 @@ export default function ArrendadoresPage() {
           open
           onOpenChange={(v) => !v && setContratoOpen(false)}
           size="lg"
-          title="Nuevo contrato de arrendamiento"
-          subtitle="Arrendador → contrato (fechas pasadas permitidas) → pantalla"
+          title={t('arrendadores.nuevo-contrato.titulo')}
+          subtitle={t('arrendadores.nuevo-contrato.sub')}
         >
           <ContratoWizard
             bare
             onCreado={(s) => {
-              notify(`Contrato y pantalla "${s.nombre}" creados`)
+              notify(t('inventario.toast.contrato-creado', { nombre: s.nombre }))
               setContratoOpen(false)
             }}
           />
@@ -474,6 +549,7 @@ export default function ArrendadoresPage() {
 function NuevoPropietarioDialog({ onClose, onToast }: { onClose: () => void; onToast: (m: string) => void }) {
   const inputCls =
     'h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
+  const { t } = useIdioma()
   const [nombre, setNombre] = useState('')
   const [rfc, setRfc] = useState('')
   const [telefono, setTelefono] = useState('')
@@ -501,11 +577,16 @@ function NuevoPropietarioDialog({ onClose, onToast }: { onClose: () => void; onT
   // enviar (y perder el resto del formulario de vista) es peor que verlo al
   // teclear. Misma expresión que usa el servidor: @/lib/rfc.
   const rfcMalo = rfc.trim() !== '' && !esRfcValido(rfc)
+  // OBLIG-01: el nombre es el único obligatorio (`crearSchema`,
+  // lib/server/arrendadores-controller.ts). Ya no deshabilita el botón: se
+  // pulsa, se pinta en rojo y no se manda nada.
+  const ob = useObligatorios({ nombre }, ['nombre'])
   // La razón social se guarda aparte, y sin ella el RFC fiscal no tiene dónde ir.
-  const puedeGuardar = !!nombre.trim() && !rfcMalo && !guardando
+  const puedeGuardar = !rfcMalo && !guardando
 
   async function guardar() {
     if (!puedeGuardar) return
+    if (!ob.validar()) return
     setGuardando(true)
     setError(null)
     try {
@@ -533,15 +614,15 @@ function NuevoPropietarioDialog({ onClose, onToast }: { onClose: () => void; onT
           })
         } catch (e) {
           onToast(
-            `Arrendador creado, pero su razón social no: ${
-              e instanceof Error ? e.message : 'error desconocido'
-            }. Agrégala desde su ficha.`,
+            t('arrendadores.alta.razon-fallo', {
+              error: e instanceof Error ? e.message : t('arrendadores.alta.error-desconocido'),
+            }),
           )
           onClose()
           return
         }
       }
-      onToast('Propietario agregado')
+      onToast(t('arrendadores.alta.agregado'))
       onClose()
     } catch (e) {
       // Nombre repetido: NO es un error, es una pregunta. Se pinta como aviso y
@@ -551,7 +632,7 @@ function NuevoPropietarioDialog({ onClose, onToast }: { onClose: () => void; onT
       if (e instanceof DuplicadoError && e.motivo === 'nombre') {
         setNombreRepetido(e.message)
       } else {
-        setError(e instanceof Error ? e.message : 'No se pudo guardar')
+        setError(e instanceof Error ? e.message : t('comercial.comun.no-se-pudo-guardar'))
       }
       setGuardando(false)
     }
@@ -561,46 +642,50 @@ function NuevoPropietarioDialog({ onClose, onToast }: { onClose: () => void; onT
     <Modal
       open
       onOpenChange={(v) => !v && onClose()}
-      title="Nuevo arrendador"
-      subtitle="Alta de arrendador (dueño del predio)"
+      title={t('arrendadores.nuevo')}
+      subtitle={t('arrendadores.alta.sub')}
       footer={
         <div className="flex items-center justify-between">
           {error ? <span className="text-[12px] text-error">{error}</span> : <span />}
           <div className="flex gap-2">
-            <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
+            <Button variant="secondary" size="sm" onClick={onClose}>{t('comun.cancelar')}</Button>
             <Button size="sm" disabled={!puedeGuardar} onClick={guardar}>
-              {guardando ? 'Guardando…' : nombreRepetido ? 'Crear de todos modos' : 'Guardar'}
+              {guardando ? t('comercial.comun.guardando') : nombreRepetido ? t('arrendadores.alta.crear-igual') : t('comun.guardar')}
             </Button>
           </div>
         </div>
       }
     >
       <div className="space-y-3">
-        <label className="block">
-          <span className="mb-1 block text-[12px] font-medium text-ink">Nombre / razón social</span>
+        <Campo label={t('inventario.wizard.nombre-razon')} obligatorio falta={ob.falta('nombre')}>
           <input
             className={cn(inputCls, nombreRepetido && 'border-accent')}
             value={nombre}
             onChange={(e) => { setNombre(e.target.value); setNombreRepetido(null) }}
             autoFocus
           />
-        </label>
+        </Campo>
         {nombreRepetido && (
-          <div className="flex items-start gap-2 rounded border border-accent/50 bg-[#f59e0b0d] px-3 py-2 text-[12px] text-ink">
+          <div className="flex items-start gap-2 rounded border border-warning bg-warning-soft px-3 py-2 text-[12px] text-ink">
             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#9a6700]" strokeWidth={2} />
             <span>
               {nombreRepetido}
               {' '}
               <span className="text-muted">
-                Si te equivocaste, cierra y búscalo en la lista; si de verdad es otro propietario
-                distinto, vuelve a pulsar.
+                {t('arrendadores.alta.repetido')}
               </span>
             </span>
           </div>
         )}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label className="block">
-            <span className="mb-1 block text-[12px] font-medium text-ink">RFC</span>
+          <Campo
+            label={t('inventario.wizard.rfc')}
+            error={
+              rfcMalo
+                ? t('arrendadores.alta.rfc-malo')
+                : null
+            }
+          >
             <input
               className={cn(inputCls, rfcMalo && 'border-error focus-visible:ring-error')}
               value={rfc}
@@ -608,59 +693,46 @@ function NuevoPropietarioDialog({ onClose, onToast }: { onClose: () => void; onT
               placeholder="XAXX010101000"
               aria-invalid={rfcMalo}
             />
-            {rfcMalo && (
-              <span className="mt-1 block text-[11px] text-error">
-                Formato inválido. Son 3 letras (empresa) o 4 (persona), fecha AAMMDD y
-                3 caracteres de homoclave.
-              </span>
-            )}
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-[12px] font-medium text-ink">Teléfono</span>
+          </Campo>
+          <Campo label={t('inventario.wizard.telefono')}>
             <input className={inputCls} value={telefono} onChange={(e) => setTelefono(e.target.value)} />
-          </label>
+          </Campo>
         </div>
-        <label className="block">
-          <span className="mb-1 block text-[12px] font-medium text-ink">Correo</span>
+        <Campo label={t('inventario.wizard.correo')}>
           <input className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contacto@arrendador.com" />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-[12px] font-medium text-ink">Domicilio</span>
+        </Campo>
+        <Campo label={t('arrendadores.comun.domicilio')}>
           <input
             className={inputCls}
             value={direccion}
             onChange={(e) => setDireccion(e.target.value)}
-            placeholder="Calle, número, colonia, CP, ciudad, estado"
+            placeholder={t('arrendadores.alta.domicilio-ph')}
           />
           {/* Se dice para qué sirve: es un campo que se deja en blanco por
               parecer opcional y luego bloquea el envío del contrato a firma. */}
           <span className="mt-1 block text-[11px] text-muted">
-            El contrato de arrendamiento lo necesita para las notificaciones. Sin él,
-            el documento sale con ese hueco en blanco.
+            {t('arrendadores.alta.domicilio-ayuda')}
           </span>
-        </label>
+        </Campo>
 
         {/* Datos fiscales — opcionales. Van a `arrendador_razon_social`, que es
             quien factura la renta; un arrendador puede tener varias. */}
         <div className="space-y-3 rounded-md border border-border bg-surface-2 p-3">
           <div>
-            <div className="text-[12px] font-medium text-ink">Datos fiscales (opcional)</div>
+            <div className="text-[12px] font-medium text-ink">{t('arrendadores.alta.fiscales')}</div>
             <div className="text-[11px] text-muted">
-              Es a quien se le factura la renta. Si lo dejas en blanco, el arrendador
-              queda dado de alta igual y puedes capturarlo después desde su ficha.
+              {t('arrendadores.alta.fiscales-ayuda')}
             </div>
           </div>
-          <label className="block">
-            <span className="mb-1 block text-[12px] font-medium text-ink">Razón social</span>
+          <Campo label={t('arrendadores.comun.razon-social')}>
             <input
               className={inputCls}
               value={razonSocial}
               onChange={(e) => setRazonSocial(e.target.value)}
               placeholder="Inmobiliaria Ejemplo SA de CV"
             />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-[12px] font-medium text-ink">Régimen fiscal</span>
+          </Campo>
+          <Campo label={t('arrendadores.comun.regimen')}>
             <input
               className={inputCls}
               value={regimen}
@@ -670,10 +742,10 @@ function NuevoPropietarioDialog({ onClose, onToast }: { onClose: () => void; onT
             />
             {!razonSocial.trim() && regimen.trim() === '' && (
               <span className="mt-1 block text-[11px] text-muted">
-                Se habilita al capturar la razón social: el régimen es de ella.
+                {t('arrendadores.alta.regimen-ayuda')}
               </span>
             )}
-          </label>
+          </Campo>
         </div>
       </div>
     </Modal>
@@ -691,6 +763,7 @@ function RazonesSocialesCard({
   pagos: { contratoId: string; estatus: string }[]
   nombreArr: (id: string) => string
 }) {
+  const { idioma, t } = useIdioma()
   const esActivo = (e: string) => e === 'VIGENTE' || e === 'POR_VENCER' || e === 'RENOVADO'
   // Un contrato INCOMPLETO aporta 0 al consolidado: su importe aún se desconoce
   // y `esActivo` ya lo excluye, pero el nulo tiene que ser seguro igualmente.
@@ -706,22 +779,25 @@ function RazonesSocialesCard({
     return { id: id ?? 'sin', nombre, rfc, arr: arrId ? nombreArr(arrId) : '—', total: cs.length, activos: activos.length, predios, rentaMensual, vencidos }
   }
   const filas = razones.map((rs) => filaDe(rs.id, rs.razonSocial, rs.rfc, rs.arrendadorId))
-  const sinRs = filaDe(null, 'Sin razón social', null, null)
+  const sinRs = filaDe(null, t('arrendadores.comun.sin-razon'), null, null)
   const todas = sinRs.total > 0 ? [...filas, sinRs] : filas
-  if (todas.length === 0) return null
-
+  // 26/10 · sin datos la tarjeta ya no desaparece: una sección que se esfuma no
+  // dice si está vacía o si no cargó. Se queda, con una línea que lo dice.
   return (
-    <CardColapsable titulo="Por razón social" contentClassName="px-0 pb-0">
+    <CardColapsable id="arrendadores.por-razon-social" titulo={t('arrendadores.por-razon.titulo')} contentClassName="px-0 pb-0">
+        {todas.length === 0 ? (
+          <p className="px-4 pb-4 text-[13px] text-muted">{t('arrendadores.por-razon.vacio')}</p>
+        ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-[13px]">
             <thead>
               <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
-                <th className="px-4 py-2 font-medium">Razón social</th>
-                <th className="px-4 py-2 font-medium">Arrendador</th>
-                <th className="px-4 py-2 text-center font-medium">Contratos</th>
-                <th className="px-4 py-2 text-center font-medium">Predios</th>
-                <th className="px-4 py-2 text-right font-medium">Renta mensual</th>
-                <th className="px-4 py-2 text-center font-medium">Pagos vencidos</th>
+                <th className="px-4 py-2 font-medium">{t('arrendadores.comun.razon-social')}</th>
+                <th className="px-4 py-2 font-medium">{t('arrendadores.comun.arrendador')}</th>
+                <th className="px-4 py-2 text-center font-medium">{t('arrendadores.comun.contratos')}</th>
+                <th className="px-4 py-2 text-center font-medium">{t('arrendadores.comun.predios')}</th>
+                <th className="px-4 py-2 text-right font-medium">{t('arrendadores.comun.renta-mensual')}</th>
+                <th className="px-4 py-2 text-center font-medium">{t('arrendadores.por-razon.pagos-vencidos')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -736,10 +812,10 @@ function RazonesSocialesCard({
                     <span className="text-ink">{f.activos}</span> / {f.total}
                   </td>
                   <td className="px-4 py-2.5 text-center text-muted">{f.predios}</td>
-                  <td className="demo-num px-4 py-2.5 text-right text-ink">{formatMonto(Math.round(f.rentaMensual))}</td>
+                  <td className="demo-num px-4 py-2.5 text-right text-ink">{formatMonto(Math.round(f.rentaMensual), idioma)}</td>
                   <td className="px-4 py-2.5 text-center">
                     {f.vencidos > 0 ? (
-                      <span className="inline-flex items-center rounded-full border border-[#ef444440] bg-[#ef44441a] px-2 py-0.5 text-[11px] font-medium text-error">{f.vencidos}</span>
+                      <StatusBadge tono="rojo">{f.vencidos}</StatusBadge>
                     ) : (
                       <span className="text-muted">0</span>
                     )}
@@ -749,24 +825,8 @@ function RazonesSocialesCard({
             </tbody>
           </table>
         </div>
-    </CardColapsable>
-  )
-}
-
-function Mini({ label, valor, tono, nota }: { label: string; valor: string; tono?: 'ambar' | 'rojo'; nota?: string }) {
-  return (
-    <div className="rounded-md border border-border bg-surface p-3">
-      <div className="text-[12px] text-muted">{label}</div>
-      <div
-        className={cn(
-          'demo-num mt-1 text-2xl font-semibold',
-          tono === 'rojo' ? 'text-error' : tono === 'ambar' ? 'text-warning' : 'text-ink',
         )}
-      >
-        {valor}
-      </div>
-      {nota && <div className="mt-0.5 text-[11px] text-warning">{nota}</div>}
-    </div>
+    </CardColapsable>
   )
 }
 
@@ -780,6 +840,7 @@ function RentabilidadCard({
   // «no hay pantallas»: son mensajes distintos y confundirlos desorienta.
   filtrado?: boolean
 }) {
+  const { idioma, t } = useIdioma()
   // Solo pantallas con contrato o con ingreso activo; peores márgenes primero.
   const filas = (margenes ?? [])
     .filter((m) => m.tieneContrato || m.activo)
@@ -789,8 +850,9 @@ function RentabilidadCard({
   const totalMargen = totalIngreso - totalRenta
   return (
     <CardColapsable
-      titulo="Rentabilidad por pantalla"
-      subtitulo="Margen mensual = ingreso de reservas vigentes − renta del arrendador. Las de margen negativo son candidatas a renegociar o dar de baja."
+      id="arrendadores.rentabilidad"
+      titulo={t('arrendadores.rentabilidad.titulo')}
+      subtitulo={t('arrendadores.rentabilidad.sub')}
       contentClassName="px-0 pb-0"
     >
         {!margenes ? (
@@ -800,19 +862,21 @@ function RentabilidadCard({
         ) : filas.length === 0 ? (
           <p className="px-4 pb-4 text-[13px] text-muted">
             {filtrado
-              ? 'Ninguna pantalla coincide con el filtro.'
-              : 'Sin contratos ni reservas activas todavía.'}
+              ? t('arrendadores.rentabilidad.sin-filtro')
+              : t('arrendadores.rentabilidad.vacio')}
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-[12px]">
+            {/* 26/10 · mismo cuerpo (13 px) y misma cabecera en versalitas que
+                las demás tablas del módulo. */}
+            <table className="w-full text-[13px]">
               <thead>
-                <tr className="border-b border-border text-left text-muted">
-                  <th className="px-4 py-2 font-medium">Pantalla</th>
-                  <th className="px-4 py-2 font-medium">Arrendador</th>
-                  <th className="px-4 py-2 text-right font-medium">Ingreso/mes</th>
-                  <th className="px-4 py-2 text-right font-medium">Renta/mes</th>
-                  <th className="px-4 py-2 text-right font-medium">Margen/mes</th>
+                <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-muted">
+                  <th className="px-4 py-2 font-medium">{t('arrendadores.comun.pantalla')}</th>
+                  <th className="px-4 py-2 font-medium">{t('arrendadores.comun.arrendador')}</th>
+                  <th className="px-4 py-2 text-right font-medium">{t('arrendadores.rentabilidad.ingreso')}</th>
+                  <th className="px-4 py-2 text-right font-medium">{t('arrendadores.rentabilidad.renta')}</th>
+                  <th className="px-4 py-2 text-right font-medium">{t('arrendadores.rentabilidad.margen')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -820,21 +884,21 @@ function RentabilidadCard({
                   <tr key={m.sitioId} className="border-b border-border last:border-0">
                     <td className="px-4 py-2">
                       <div className="font-medium text-ink">{m.nombre}</div>
-                      {!m.tieneContrato && <span className="text-[10px] text-muted">sin contrato de renta</span>}
+                      {!m.tieneContrato && <span className="text-[10px] text-muted">{t('arrendadores.rentabilidad.sin-contrato')}</span>}
                     </td>
                     <td className="px-4 py-2 text-muted">{m.arrendador ?? '—'}</td>
-                    <td className="demo-num px-4 py-2 text-right text-ink">{formatMonto(m.ingresoMensual)}</td>
-                    <td className="demo-num px-4 py-2 text-right text-muted">{m.rentaMensual ? formatMonto(m.rentaMensual) : '—'}</td>
+                    <td className="demo-num px-4 py-2 text-right text-ink">{formatMonto(m.ingresoMensual, idioma)}</td>
+                    <td className="demo-num px-4 py-2 text-right text-muted">{m.rentaMensual ? formatMonto(m.rentaMensual, idioma) : '—'}</td>
                     <td className={cn('demo-num px-4 py-2 text-right font-semibold', m.margenMensual < 0 ? 'text-error' : m.margenMensual > 0 ? 'text-[#0f7a55]' : 'text-muted')}>
-                      {formatMonto(m.margenMensual)}
+                      {formatMonto(m.margenMensual, idioma)}
                     </td>
                   </tr>
                 ))}
                 <tr className="bg-surface-2/40 font-medium">
-                  <td className="px-4 py-2 text-ink" colSpan={2}>Total</td>
-                  <td className="demo-num px-4 py-2 text-right text-ink">{formatMonto(totalIngreso)}</td>
-                  <td className="demo-num px-4 py-2 text-right text-muted">{formatMonto(totalRenta)}</td>
-                  <td className={cn('demo-num px-4 py-2 text-right', totalMargen < 0 ? 'text-error' : 'text-[#0f7a55]')}>{formatMonto(totalMargen)}</td>
+                  <td className="px-4 py-2 text-ink" colSpan={2}>{t('campanas.comun.total')}</td>
+                  <td className="demo-num px-4 py-2 text-right text-ink">{formatMonto(totalIngreso, idioma)}</td>
+                  <td className="demo-num px-4 py-2 text-right text-muted">{formatMonto(totalRenta, idioma)}</td>
+                  <td className={cn('demo-num px-4 py-2 text-right', totalMargen < 0 ? 'text-error' : 'text-[#0f7a55]')}>{formatMonto(totalMargen, idioma)}</td>
                 </tr>
               </tbody>
             </table>
@@ -879,6 +943,7 @@ function PropietariosCard({
   // botón a quien de todas formas recibiría un 403.
   const puedeBorrar = usePuede('arrendadores', 'aprobar')
   const [baja, setBaja] = useState<{ id: string; nombre: string } | null>(null)
+  const { t } = useIdioma()
 
   function abrir(a: { id: string; rfc: string | null; direccion: string | null }) {
     setEditando(a.id)
@@ -887,7 +952,7 @@ function PropietariosCard({
 
   async function guardar(id: string) {
     if (borrador.rfc.trim() && !esRfcValido(borrador.rfc)) {
-      onToast('El RFC no tiene un formato válido')
+      onToast(t('arrendadores.lista.rfc-malo'))
       return
     }
     setGuardando(true)
@@ -896,10 +961,10 @@ function PropietariosCard({
         rfc: borrador.rfc.trim() || null,
         direccion: borrador.direccion.trim() || null,
       })
-      onToast('Propietario actualizado')
+      onToast(t('arrendadores.lista.actualizado'))
       setEditando(null)
     } catch (e) {
-      onToast(e instanceof Error ? e.message : 'No se pudo guardar')
+      onToast(e instanceof Error ? e.message : t('comercial.comun.no-se-pudo-guardar'))
     }
     setGuardando(false)
   }
@@ -907,8 +972,9 @@ function PropietariosCard({
   return (
     <>
       <CardColapsable
-        titulo="Arrendadores"
-        subtitulo="Dueños de predio dados de alta."
+        id="arrendadores.lista"
+        titulo={t('arrendadores.titulo')}
+        subtitulo={t('arrendadores.lista.sub')}
         contentClassName="px-0 pb-0"
       >
           {!arrendadores ? (
@@ -923,23 +989,23 @@ function PropietariosCard({
                   primer mensaje, mostrado con un filtro puesto, afirma algo falso
                   y manda a dar de alta un arrendador que ya existe. */}
               {filtrado
-                ? 'Ningún arrendador coincide con el filtro.'
-                : (<>Aún no hay arrendadores. Usa <b>“Nuevo arrendador”</b> para dar de alta uno.</>)}
+                ? t('arrendadores.lista.sin-filtro')
+                : interpolarNodos(t('arrendadores.lista.vacio'), { boton: <b>{t('arrendadores.lista.vacio-boton')}</b> })}
             </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-[13px]">
                 <thead>
                   <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
-                    <th className="px-4 py-2 font-medium">Arrendador</th>
-                    <th className="px-4 py-2 font-medium">RFC</th>
+                    <th className="px-4 py-2 font-medium">{t('arrendadores.comun.arrendador')}</th>
+                    <th className="px-4 py-2 font-medium">{t('inventario.wizard.rfc')}</th>
                     {/* El domicilio se enseña porque el CONTRATO lo exige: si no
                         se ve, nadie sabe que falta hasta que el documento sale
                         con el hueco en blanco. */}
-                    <th className="px-4 py-2 font-medium">Domicilio</th>
-                    <th className="px-4 py-2 font-medium">Contacto</th>
-                    <th className="px-4 py-2 text-center font-medium">Contratos</th>
-                    <th className="px-4 py-2 text-center font-medium">Predios</th>
+                    <th className="px-4 py-2 font-medium">{t('arrendadores.comun.domicilio')}</th>
+                    <th className="px-4 py-2 font-medium">{t('arrendadores.lista.contacto')}</th>
+                    <th className="px-4 py-2 text-center font-medium">{t('arrendadores.comun.contratos')}</th>
+                    <th className="px-4 py-2 text-center font-medium">{t('arrendadores.comun.predios')}</th>
                     <th className="px-4 py-2" />
                   </tr>
                 </thead>
@@ -969,7 +1035,7 @@ function PropietariosCard({
                               placeholder="XAXX010101000"
                             />
                           ) : (
-                            a.rfc || <span className="text-accent">Falta</span>
+                            a.rfc || <StatusBadge tono="ambar">{t('arrendadores.lista.falta')}</StatusBadge>
                           )}
                         </td>
                         <td className="px-4 py-2.5 text-muted">
@@ -978,11 +1044,11 @@ function PropietariosCard({
                               className={inputMini + ' w-full min-w-[220px]'}
                               value={borrador.direccion}
                               onChange={(e) => setBorrador((b) => ({ ...b, direccion: e.target.value }))}
-                              placeholder="Calle, número, colonia, CP, ciudad"
+                              placeholder={t('arrendadores.lista.domicilio-ph')}
                               autoFocus
                             />
                           ) : (
-                            a.direccion || <span className="text-accent">Falta</span>
+                            a.direccion || <StatusBadge tono="ambar">{t('arrendadores.lista.falta')}</StatusBadge>
                           )}
                         </td>
                         <td className="px-4 py-2.5 text-muted">
@@ -994,13 +1060,13 @@ function PropietariosCard({
                         </td>
                         <td
                           className="demo-num px-4 py-2.5 text-center text-muted"
-                          title={`${activos} activo(s) de ${suyos.length}. Solo los activos impiden dar de baja.`}
+                          title={t('arrendadores.lista.activos-title', { activos, total: suyos.length })}
                         >
                           <span className="text-ink">{activos}</span> / {suyos.length}
                         </td>
                         <td
                           className="demo-num px-4 py-2.5 text-center text-muted"
-                          title="Un propietario con predios a su nombre no se puede dar de baja."
+                          title={t('arrendadores.lista.predios-title')}
                         >
                           {nPredios}
                         </td>
@@ -1010,10 +1076,10 @@ function PropietariosCard({
                               (editando === a.id ? (
                                 <>
                                   <Button size="sm" onClick={() => guardar(a.id)}>
-                                    {guardando ? 'Guardando…' : 'Guardar'}
+                                    {guardando ? t('comercial.comun.guardando') : t('comun.guardar')}
                                   </Button>
                                   <Button size="sm" variant="secondary" onClick={() => setEditando(null)}>
-                                    Cancelar
+                                    {t('comun.cancelar')}
                                   </Button>
                                 </>
                               ) : (
@@ -1022,7 +1088,7 @@ function PropietariosCard({
                                   variant={!a.rfc || !a.direccion ? 'primary' : 'secondary'}
                                   onClick={() => abrir(a)}
                                 >
-                                  {!a.rfc || !a.direccion ? 'Completar' : 'Editar'}
+                                  {!a.rfc || !a.direccion ? t('arrendadores.comun.completar') : t('comercial.comun.editar')}
                                 </Button>
                               ))}
                             {/* Fuera del `puedeCrear` a propósito: son dos permisos
@@ -1034,8 +1100,8 @@ function PropietariosCard({
                               <button
                                 type="button"
                                 onClick={() => setBaja({ id: a.id, nombre: a.nombre })}
-                                aria-label={`Dar de baja a ${a.nombre}`}
-                                title="Dar de baja"
+                                aria-label={t('arrendadores.baja.aria', { nombre: a.nombre })}
+                                title={t('arrendadores.baja.boton')}
                                 className="inline-flex items-center gap-1 rounded border border-border-strong px-2 py-1 text-[12px] text-muted hover:border-error hover:text-error"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
@@ -1095,6 +1161,7 @@ function BajaPropietarioDialog({
   const [reautenticando, setReautenticando] = useState(false)
   const [pass, setPass] = useState('')
   const [enviando, setEnviando] = useState(false)
+  const { t } = useIdioma()
 
   async function darDeBaja() {
     setError(null)
@@ -1102,7 +1169,7 @@ function BajaPropietarioDialog({
     try {
       if (reautenticando) {
         if (!pass) {
-          setError('Escribe tu contraseña para confirmar.')
+          setError(t('compartidos.candado.falta'))
           setEnviando(false)
           return
         }
@@ -1114,12 +1181,12 @@ function BajaPropietarioDialog({
         setReautenticando(false)
       }
       await borrarArrendadorApi(arrendador.id)
-      onToast('Propietario dado de baja')
+      onToast(t('arrendadores.baja.hecha'))
       onClose()
       return
     } catch (e) {
       if (esErrorDeDesbloqueo(e)) setReautenticando(true)
-      else setError(e instanceof Error ? e.message : 'No se pudo dar de baja al propietario')
+      else setError(e instanceof Error ? e.message : t('arrendadores.baja.error'))
     }
     setEnviando(false)
   }
@@ -1128,19 +1195,19 @@ function BajaPropietarioDialog({
     <Modal
       open
       onOpenChange={(v) => !v && onClose()}
-      title={`Dar de baja a ${arrendador.nombre}`}
-      subtitle="Deja de aparecer en la aplicación y no se puede reactivar desde aquí"
+      title={t('arrendadores.baja.aria', { nombre: arrendador.nombre })}
+      subtitle={t('arrendadores.baja.sub')}
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="secondary" size="sm" onClick={onClose}>
-            Cancelar
+            {t('comun.cancelar')}
           </Button>
           <Button variant="danger"
             size="sm"
             disabled={enviando || (reautenticando && !pass)}
             onClick={darDeBaja}
           >
-            {enviando ? 'Dando de baja…' : reautenticando ? 'Confirmar y dar de baja' : 'Dar de baja'}
+            {enviando ? t('arrendadores.baja.dando') : reautenticando ? t('arrendadores.baja.confirmar') : t('arrendadores.baja.boton')}
           </Button>
         </div>
       }
@@ -1149,11 +1216,10 @@ function BajaPropietarioDialog({
         {reautenticando ? (
           <>
             <p className="text-muted">
-              Dar de baja a un propietario no se puede deshacer desde la aplicación, así que hace
-              falta tu contraseña.
+              {t('arrendadores.baja.pide-clave')}
             </p>
             <label className="block">
-              <span className="mb-1 block text-[12px] text-muted">Tu contraseña</span>
+              <span className="mb-1 block text-[12px] text-muted">{t('arrendadores.baja.tu-clave')}</span>
               <input
                 type="password"
                 autoComplete="current-password"
@@ -1168,15 +1234,13 @@ function BajaPropietarioDialog({
         ) : (
           <>
             <p className="text-muted">
-              <span className="text-ink">{arrendador.nombre}</span> dejará de aparecer en
-              Arrendadores y no podrá elegirse en contratos nuevos.
+              {interpolarNodos(t('arrendadores.baja.dejara'), { nombre: <span className="text-ink">{arrendador.nombre}</span> })}
             </p>
             {/* Se dice ANTES de pulsar, no después: sus contratos y pagos
                 anteriores no se van a ningún lado, y creer lo contrario es lo
                 que hace que nadie se atreva a usar el botón. */}
             <p className="text-muted">
-              Sus contratos y pagos anteriores se conservan. Para volver a verlo hace falta
-              alguien con acceso a la base de datos.
+              {t('arrendadores.baja.conserva')}
             </p>
           </>
         )}

@@ -16,11 +16,13 @@
 //  es lo contrario de reautenticarse.
 // ============================================================================
 
+import { useTexto } from '@/lib/i18n/contexto'
+
 export function CampoContrasena({
   valor,
   onChange,
   onEnter,
-  etiqueta = 'Tu contraseña',
+  etiqueta,
   deshabilitado = false,
 }: {
   valor: string
@@ -30,9 +32,10 @@ export function CampoContrasena({
   etiqueta?: string
   deshabilitado?: boolean
 }) {
+  const t = useTexto()
   return (
     <label className="block">
-      <span className="mb-1 block text-[12px] text-muted">{etiqueta}</span>
+      <span className="mb-1 block text-[12px] text-muted">{etiqueta ?? t('compartidos.contrasena.etiqueta')}</span>
       <input
         type="password"
         autoComplete="current-password"

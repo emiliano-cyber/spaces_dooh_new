@@ -574,7 +574,7 @@ describe('7 · `ContratoWizard`: el campo va DENTRO del asistente', () => {
 // ─── 8 · la ficha de la pantalla (puntos 11 y 12) ──────────────────────────
 describe('8 · `SiteFicha`: editar y eliminar piden la clave', () => {
   it('`EditarSitioDialog` pinta el bloque DENTRO del modal que ya tenia', () => {
-    const c = cuerpoDe(FICHA, 'EditarSitioDialog', 'CampoEdit')
+    const c = cuerpoDe(FICHA, 'EditarSitioDialog', 'DatoComercial')
     expect(c).toContain('useCandado()')
     expect(c).toContain('<PasoContrasena')
     expect(c).toContain('candado.ejecutar(')
@@ -582,7 +582,7 @@ describe('8 · `SiteFicha`: editar y eliminar piden la clave', () => {
   })
 
   it('el boton de guardar de la ficha repite la accion pendiente', () => {
-    const c = cuerpoDe(FICHA, 'EditarSitioDialog', 'CampoEdit')
+    const c = cuerpoDe(FICHA, 'EditarSitioDialog', 'DatoComercial')
     expect(c).toMatch(/candado\.reautenticando\s*\?\s*\(\)\s*=>\s*void candado\.reintentar\(\)/)
     expect(c).toMatch(/candado\.reautenticando && !candado\.pass/)
   })

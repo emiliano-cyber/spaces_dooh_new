@@ -102,3 +102,22 @@ describe('3 · contar los que no trajeron foto', () => {
     expect(textoSinFoto(cuenta)).toBe('2 detectados sin foto: 1 esperan el envío agrupado, 1 se aprendieron del loop')
   })
 })
+
+describe('4 · en el idioma de quien mira (integración en verificacion)', () => {
+  it('inglés: la misma línea, con la cifra tal cual', () => {
+    expect(textoSinFoto({ no_subio: 1 }, 'en')).toBe('1 detected without a photo: 1 could not be uploaded')
+    expect(textoSinFoto({ envio_agrupado: 2, motivo_del_futuro: 1 }, 'en')).toBe(
+      '3 detected without a photo: 2 awaiting the batched upload',
+    )
+  })
+
+  it('italiano: la cifra con su millar («1.234», no «1,234»)', () => {
+    expect(textoSinFoto({ envio_agrupado: 1234 }, 'it')).toBe(
+      '1.234 rilevate senza foto: 1.234 in attesa dell’invio raggruppato',
+    )
+  })
+
+  it('el español por omisión no cambia', () => {
+    expect(textoSinFoto({ tope_del_dia: 2 })).toBe('2 detectados sin foto: 2 se agotó el tope de fotos del día')
+  })
+})

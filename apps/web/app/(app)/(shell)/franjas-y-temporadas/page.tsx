@@ -1,9 +1,8 @@
 'use client'
 
-import { Clock } from 'lucide-react'
-import { Card, CardContent } from '@/components/demo/ui/Card'
 import { GestionRejilla } from '@/components/demo/rejilla/GestionRejilla'
 import { ProgramacionPorFranja } from '@/components/demo/rejilla/ProgramacionPorFranja'
+import { useTexto } from '@/lib/i18n/contexto'
 
 // ============================================================================
 //  /franjas-y-temporadas — las dos dimensiones de la tarifa base.
@@ -24,32 +23,28 @@ import { ProgramacionPorFranja } from '@/components/demo/rejilla/ProgramacionPor
 //  exactamente como funcionaba antes de que existiera.
 // ============================================================================
 export default function FranjasYTemporadasPage() {
+  const t = useTexto()
   return (
-    <div className="space-y-4">
-      <header className="flex items-center gap-2">
-        <Clock className="h-5 w-5" />
+    <div className="w-full space-y-4">
+      {/* Encabezado con la forma del Dashboard (rediseño 2026-10-26): título
+          de 2xl y subtítulo en `text-muted`, sin el icono suelto ni la paleta
+          `neutral` de Tailwind, que no son tokens del proyecto. */}
+      <header>
         <div>
-          <h1 className="text-2xl text-ink">Franjas y temporadas</h1>
+          <h1 className="text-2xl text-ink">{t('nav.franjas-y-temporadas')}</h1>
           <p className="mt-1 text-[13px] text-muted">
-            Las dos dimensiones de la tarifa: la hora del día y la época del año. Se capturan una
-            vez y valen para todo el inventario.
+            {t('catalogos.rejilla.descripcion')}
           </p>
         </div>
       </header>
-      <Card>
-        <CardContent className="pt-6">
-          <GestionRejilla />
-        </CardContent>
-      </Card>
+      {/* PLEG-02 · sin tarjeta envolvente: cada catálogo trae la suya,
+          plegable por separado. */}
+      <GestionRejilla />
       {/* PROG-01 (2026-09-30) · junto a cada franja, qué campañas se TRANSMITEN
           en ella. Tarjeta aparte y no dentro de la tabla de precios: programar
           no cambia ningún precio, y mezclarlo con el catálogo haría creer que
           sí. Lee con `comercial.ver` y escribe con `comercial.crear`. */}
-      <Card>
-        <CardContent className="pt-6">
-          <ProgramacionPorFranja />
-        </CardContent>
-      </Card>
+      <ProgramacionPorFranja />
     </div>
   )
 }

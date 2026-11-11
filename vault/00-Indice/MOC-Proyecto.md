@@ -1,7 +1,7 @@
 ---
 tipo: moc
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-11-09
 tags: [indice, entrada]
 archivos:
   - package.json
@@ -26,11 +26,20 @@ cobranza.
 | Framework | Next.js 14.2.29, App Router | `apps/web/package.json:17` |
 | Base de datos | PostgreSQL, `pg` directo (sin ORM) | `apps/web/lib/server/db.ts:2` |
 | Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:59` (`fijarTenant`) y `:74` (`q`) |
-| Producción | **El PADRE `137.184.107.53` sirve `space-os.io`**, certificado propio hasta el **2026-11-23** con renovación automática. DEMO vive dentro de él (proceso `3001`, base `spaces_demo`) y desde el **31/08 se llama `prueba.space-os.io`** —en singular: es el `server_name` de `infra/nginx/space-os.io.conf:288`; esta celda decía `pruebas` hasta el 05/10— — nombre nuevo, no `demo.space-os.io`, que es solo la demostración ORIGINAL, la sirve la máquina vieja y **se eliminará** ([ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md), que sustituye al 0021) | `infra/nginx/space-os.io.conf:133` (`space-os.io`), `:213` (`demo.`) y `:288` (`prueba.`) · [ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md) · [ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md) · [ADR 0022](../../docs/adr/0022-instancia-dedicada-por-owner.md) |
-| Endpoints | **137** route handlers | `apps/web/app/api/**/route.ts` |
-| Tablas | **59** | [[esquema]] |
-| Migraciones | **110** | [[migraciones]] |
-| ADR | **46** (`0001`–`0046`) | `docs/adr/` · [[decisiones]] |
+| Producción | **El PADRE `137.184.107.53` sirve `space-os.io`**, certificado propio hasta el **2026-11-23** con renovación automática. DEMO vive dentro de él (proceso `3001`, base `spaces_demo`) y desde el **31/08 se llama `prueba.space-os.io`** —en singular: es el `server_name` de `infra/nginx/space-os.io.conf:288`; esta celda decía `pruebas` hasta el 05/10— — nombre nuevo. **Desde el 05/11 el plan es otro** ([ADR 0050](../../docs/adr/0050-demo-space-os-io-vuelve-como-la-demo-en-el-droplet-viejo-de-g500.md), que sustituye al 0024): la DEMO se muda al droplet viejo de g500 (`142.93.113.106`) en `beta`, con el nombre **`demo.space-os.io`** y **una copia de los datos de g500 al 04/11** (se le quita la identidad, no los datos) — guía `docs/evidencias/31-g500-viejo-como-demo-20261105.md`, sin correr. Hasta que se corra, DEMO sigue en el PADRE | `infra/nginx/space-os.io.conf:133` (`space-os.io`), `:213` (`demo.`) y `:288` (`prueba.`) · [ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md) · [ADR 0050](../../docs/adr/0050-demo-space-os-io-vuelve-como-la-demo-en-el-droplet-viejo-de-g500.md) · [ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md) · [ADR 0022](../../docs/adr/0022-instancia-dedicada-por-owner.md) |
+| Endpoints | **161** route handlers (10/11, IDIOMAS-SERVIDOR: `GET`/`PUT /api/idiomas-servidor`; 160 el 03/11, IDIOMA-USUARIO: `GET`/`PUT /api/perfil/idioma`; 159 el 02/11, medido otra vez: ADR 0048 no añade rutas; 29/10, DOOH-API: `GET /api/campanas/[id]/doohmain-estado` y `POST /api/creatividades/[id]/doohmain`, y PROP-COMPLETA: `POST /api/propuestas/[id]/enviar` y `POST /api/propuestas/[id]/items`; 155 el 23/10, con `GET /api/contratos/[id]/versiones`; 154 el 22/10, con las nueve de Comercial negociación, la vista previa de DOOHmain y el horario individual) | `apps/web/app/api/**/route.ts` |
+| Tablas | **67** (10/11, con `apariencia_instancia`, IDIOMAS-SERVIDOR; 66 el 29/10, con `campana_extensiones`, EXT-CONTRATO; 65 el 23/10, con `contrato_versiones_firmadas`; 64 el 22/10, con las cuatro de Comercial negociación) | [[esquema]] |
+| Migraciones | **128** (10/11, `feat/idiomas-desde-administracion` con `20261110_idiomas_del_servidor.sql`: los idiomas del servidor se eligen con un botón; 127 el 09/11, `feat/borrar-usuarios` con `20261109_acciones_sin_fk_usuario.sql`: la bitácora deja de colgar de `usuarios` para poder eliminarlos; 126 el 05/11, `feat/portugues-documentos` con `20261105_idioma_portugues.sql`, P3 del portugués: los dos CHECK de idioma aceptan `pt`; 125 el 04/11, `integra/idiomas` con `20261103_usuarios_idioma_preferido.sql`, IDIOMA-USUARIO: el idioma de la interfaz por persona; 124 el 03/11, con `20261103_idioma_documentos_por_instancia.sql`, ADR 0049: el idioma de los documentos de la instancia no se cambia; 123 el 02/11, con `20261102_moneda_inmutable_por_instancia.sql`, ADR 0048: la moneda de la instancia no se cambia; 122 el 29/10, con `20261029_propuestas_condiciones_vigencia_vendedor.sql`, PROP-COMPLETA; 121 con `20261029_campana_extensiones.sql`, EXT-CONTRATO; 120 el 27/10, la integracion de la v0.12.4: `20261023_contrato_versiones_firmadas.sql` y `20261026_reserva_estatus_por_omision.sql`, TENT-PROP; 118 el 22/10, con `20261022_comercial_negociacion.sql`, `_campana_horario_doohmain.sql` y `_pantallas_propias.sql`) | [[migraciones]] |
+| ADR | **50** (`0001`–`0050`; el 0050, del 05/11, devuelve `demo.space-os.io` como la DEMO en el droplet viejo de g500 y sustituye al 0024; el 0049, del 03/11, hace el idioma de los documentos —contrato y constancia— de la instancia e inmutable; el 0048, del 02/11, la moneda) | `docs/adr/` · [[decisiones]] |
+
+> [!danger] 2026-11-05 · LO DE ABAJO YA NO MANDA: el ADR 0050 sustituye al 0024
+> `demo.space-os.io` **no se elimina**: vuelve como **la DEMO**, servida por el
+> droplet viejo de g500 (`142.93.113.106`), en `beta` y **con los datos de g500
+> al 04/11 tal cual** (riesgo aceptado: datos reales de un cliente en una dirección
+> pública). Decisión del dueño del 05/11, con dos hechos que el 0024 no tenía:
+> una máquina libre tras la mudanza de g500 y el certificado de `prueba.` que
+> caduca el 29/11 sin renovarse. Guía: `docs/evidencias/31-g500-viejo-como-demo-20261105.md`.
+> El recuadro siguiente se conserva como historia.
 
 > [!success] `demo.space-os.io` SE ELIMINARÁ — cerrado el 27/08 por el ADR 0024
 > Ese nombre **no sirve más que para la demostración original** —la anterior al
@@ -87,7 +96,7 @@ cobranza.
 - [[inventario-y-sitios]] — pantallas, modalidades, importación
 - [[arrendadores-y-contratos]] — predios, contratos, rentas, firmas
 - [[comercial-propuestas-campanas]] — propuestas, reservas, campañas
-- [[02-Backend/rejilla-franja-y-temporada]] — ADR 0039 Fase 1: el precio pasa a ser `f(pantalla, unidad, franja, fecha)`; el congelado, y por qué la franja NO viaja al CMS
+- [[02-Backend/rejilla-franja-y-temporada]] — ADR 0039 Fase 1: el precio pasa a ser `f(pantalla, unidad, franja, fecha)`; el congelado, y la franja en el CMS (desde el 22/10 viaja a DOOHmain al publicar; manual en otro CMS)
 - [[02-Backend/descuento-por-volumen]] — ADR 0039 Fase 2: «compra 50 spots y pagas 40». La escala cuelga de la organización y los tramos son PLANOS; el volumen cuenta contra el tope (decisión abierta); el servidor resuelve el porcentaje, no el navegador
 - [[02-Backend/codigo-promocional]] — ADR 0039 Fase 3: «usa este código y ten un 20 % adicional». La carrera del último uso la resuelve un `for update` sobre la fila del cupón; el canje se cuenta al APLICAR, no al aprobar; el cupón NO cuenta contra el tope (decisión abierta); y borrar el cupón no mueve una propuesta aprobada
 - [[02-Backend/paquete-cerrado]] — ADR 0039 Fase 4: «estas cinco pantallas, prime, un mes: 180 000». El único escalón que SUSTITUYE el precio en vez de modificarlo; el reparto a prorrata cuadra al peso por el método del mayor resto; el paquete es precio final (ni volumen ni cupón salvo bandera, que nace apagada); sale con RAYA del reporte publicada vs neta; y borrar el paquete no mueve una propuesta aprobada
@@ -117,9 +126,13 @@ cobranza.
 - [[shell-y-navegacion]] — layouts, sidebar, topbar, guards de UI
 - [[acceso-y-sesion-ui]] — login, recuperar, autoregistro
 - [[idiomas-es-en]] — la aplicación en español e inglés: cómo se detecta, cómo se cambia, y por qué el dinero no se mueve
+- [[ingles-olas]] — el tablero de la traducción al inglés: olas, ramas, veredictos y lo que falta
+- [[italiano-olas]] — el tablero de la versión en italiano: la ola 0, los lotes y las decisiones del dueño
+- [[portugues-olas]] — el tablero de la versión en portugués (Brasil): la ola 0, la caída al español y los lotes propuestos
 - [[modulos-internos]] — las pantallas del shell (eran 22 el 31/08; el recuento de hoy está en la propia nota)
 - [[03-Frontend/pantalla-reportes]] — la pantalla de reportes de rentabilidad
-- [[03-Frontend/comercial-opex]] — Comercial OPEX: prospección de arrendadores
+- [[03-Frontend/dashboard-inicio]] — el Dashboard de inicio: de dónde sale cada número y quién lo ve
+- [[03-Frontend/comercial-opex]] — Comercial negociación (ruta `/comercial-opex`): prospección de arrendadores. Funcional desde NEG-01 (22/10), encima de Captación: ficha, visibilidad, medidas, ubicación (buscador + pin; GPS pendiente), contactos, ofertas al dueño, competencia y notas
 - [[paginas-publicas]] — portal, firma, propuesta compartible, OT móvil
 - [[estado-y-data-fetching]] — React Query, zustand, el parche de `fetch`
 
@@ -153,7 +166,12 @@ cobranza.
   cuando el `=` de la consulta va percent-encoded
 - [[auditoria-cuatro-rojo-20260820]] — auditoría de los cuatro ROJO del 20/08
 - [[_plantilla-diaria]] — plantilla del diario
-- [[2026-10-07]] — **última entrada**: las cinco ramas del 06/10 en `main`, los cambios de contrato antes de firmar, las licencias de Space Eyes para José y las notas de `v0.10.0`
+- [[2026-11-06]] — **última entrada**: la v0.12.8 integrada (idioma en la barra + Space Eyes de Jose, sin empujar); la guía 31 corrida, la DEMO sirve en `demo.space-os.io` desde el droplet viejo de g500 (con las llaves de g500 salvo DOOHmain)
+- [[2026-11-05]] — las notas de versión en inglés e italiano, B82 (cambiar de idioma con un diálogo de cifras abierto) y la rama `verificacion`, todas las ramas juntas antes de `main`
+- [[2026-11-04]] — el pulido final del italiano (B69, B72, la paginación y el barrido global del HTML italiano)
+- [[2026-11-03]] — el inglés terminado (olas 5–7), las e2e que caían por la tarde, la demo sembrada en DEMO, la semilla completa, el PDF para socios y el arranque del italiano con el idioma de la instancia para los contratos
+- [[2026-10-29]] — DOOHmain probado contra una pantalla real (pausa, estado, historial, reemplazo), sus dos defectos de estatus, y PROP-COMPLETA integrada en la v0.12.5
+- [[2026-10-07]] — las cinco ramas del 06/10 en `main`, los cambios de contrato antes de firmar, las licencias de Space Eyes para José y las notas de `v0.10.0`
 - [[2026-10-06]] — seis ramas esperando al dueño (invitación, finanzas por periodo, tablero de propuestas, Space Eyes, slots libres, descuento 0.00) y el entorno local de pruebas
 - [[2026-10-05]] — auditoría de la bóveda, cuatro riesgos y la bóveda al día para el 14/10
 - [[2026-10-02]] — el registro lleno y el PADRE en blanco

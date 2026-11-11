@@ -1,7 +1,7 @@
 ---
 tipo: preguntas
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-11-03
 tags: [preguntas, pendientes, riesgo]
 archivos:
   - apps/web/lib/server/
@@ -13,6 +13,14 @@ archivos:
 > [!success] 2026-09-30, tarde · I18N — LAS TRES CERRADAS por el dueño
 > Las tres preguntas que dejó I18N-01 tienen respuesta. **No se vuelven a
 > abrir**, y están escritas en el código donde antes decía «suposición»:
+>
+>
+> > [!important] 2026-11-03 · la 1 la AMPLIÓ el propio dueño
+> > «El idioma de papeles y contratos es fijo al crearse la app en cada server,
+> > pero el idioma de lo demás se debe poder configurar **por usuario y
+> > navegador**». Desde la rama `feat/idioma-por-usuario` la cuenta SÍ opina, y
+> > manda: `cuenta > cookie > navegador > español`. Ver
+> > [[03-Frontend/idiomas-es-en]] §1. Lo de abajo queda como historia.
 >
 > **1 · El idioma se recuerda POR DISPOSITIVO.** Lo que ya había: una cookie.
 > Quien elija inglés en su portátil seguirá viendo español en su teléfono.
@@ -58,6 +66,13 @@ archivos:
 > > propósito: se cerró la puerta de entrada, no el almacén. Medido en ese
 > > commit: ni un USD ni un PEN en la base del 5433. Las citas de arriba
 > > (`:498-501`) describen el código ANTES de ese commit y se dejan como historia.
+>
+> > [!success] Y el 2026-11-02 el «después lo moveremos» llegó — ADR 0048
+> > La moneda pasa a ser **de la instancia**: MXN o USD, elegida al crearla y
+> > **sin poder cambiarse** (la base y la API lo impiden). `MONEDA` dejó de ser
+> > una constante: `monedaInstancia()` en `lib/i18n/dinero.ts`. La pregunta de
+> > arriba queda cerrada del lado bueno: **una** moneda por instancia, nunca
+> > «la del dato». Ver [[03-Frontend/idiomas-es-en]] §7.
 
 
 > [!danger] 2026-08-24 · P1 dejó de ser una pregunta: la cerraron los hechos
@@ -180,6 +195,8 @@ archivos:
 > Su certificado (26/10) pasa a ser **caducidad natural, no plazo**.
 > **Ya no se pregunta.**
 > Contexto: [[modelo-instancias-soberanas]] · `vault/07-Agentes/diario/2026-08-27`
+>
+> ⚠️ **SUSTITUIDO el 2026-11-05 por el [ADR 0050](../../docs/adr/0050-demo-space-os-io-vuelve-como-la-demo-en-el-droplet-viejo-de-g500.md)**: `demo.space-os.io` **no se elimina**, vuelve como la DEMO en el droplet viejo de g500 (guía `docs/evidencias/31-g500-viejo-como-demo-20261105.md`, sin correr). Lo de este recuadro es historia.
 
 
 > Lo que **no** se pudo determinar leyendo el código. Cada una lleva la
@@ -326,6 +343,27 @@ reconciliar? Ya hubo una divergencia de 27 columnas
 (`20260805_objetos_solo_en_prod.sql`).
 
 ### P22 · Google Maps en Comercial OPEX y en el alta de pantallas — PENDIENTE (01/10)
+
+> [!success] 2026-10-29 · Comercial negociación DECIDIDO (UBIC-01): ADR 0041 Aceptada en esa parte
+> El dueño decidió: la ubicación se pone **por coordenadas o por calle**. Ya, sin
+> clave: pegar coordenadas o un enlace de Google Maps (también `maps.app.goo.gl`,
+> que se sigue en el servidor) pone el pin. Con la clave del owner
+> (`GOOGLE_MAPS_SERVIDOR_KEY` en su `app.env`) el buscador de calles es el de
+> Google; sin ella, OpenStreetMap. **Sigue abierto:** mapas de Google en cualquier
+> pantalla, el alta de pantallas y predios, los precios y el tope de gasto, y si
+> mostrar candidatos de Google junto a un mapa que no es de Google cumple sus
+> términos. Detalle en `vault/03-Frontend/comercial-opex.md` (la nota enlazada abajo).
+
+> [!note] 2026-10-22 · dos de las cuatro preguntas ya tienen respuesta (NEG-01, ADR 0047)
+> - **¿Quién paga?** — **cada owner**, con su propia clave en el `.env` de su
+>   instancia (el dueño, 21/10). Sin clave, la búsqueda usa OpenStreetMap.
+> - **¿Se guardan las coordenadas de Google?** — no hace falta: se guarda el punto
+>   que **confirma la persona** en el mapa, con su origen y, si viene de Google, su
+>   `place_id` (lo único que sus términos dejan guardar sin caducidad).
+> Comercial negociación ya busca direcciones —con Nominatim, por el servidor— y fija
+> el pin. Lo que sigue abierto: el **alcance** (¿también el alta de pantallas?), los
+> **precios y el tope de gasto** de Google, y enchufar Google cuando un owner traiga
+> su clave. El ADR 0041 sigue en Propuesta. Ver [[03-Frontend/comercial-opex]].
 
 **Nada construido todavía, a propósito.** El dueño preguntó el 01/10 si se puede
 usar la API de Google Maps para Comercial OPEX y los mapas, y pidió dejarlo
@@ -513,7 +551,16 @@ coincidir. **¿Se extrae a una constante compartida?**
 Habla de `apps/api` (Fastify+Prisma), `/var/www/spaces-dooh` y despliegue
 automático en cada push. **¿Se reescribe o se marca como histórico?**
 
-### P19 · El vendedor que se va, ¿se lleva su atribución? (VEND-01, 2026-09-28)
+### P19 · ~~El vendedor que se va, ¿se lleva su atribución?~~ **RESUELTA el 29/10** (VEND-01, 2026-09-28)
+
+> [!success] 2026-10-29 · decisión del dueño: **conservar el nombre**
+> `propuestas.vendedor_nombre` (`20261029_propuestas_condiciones_vigencia_vendedor.sql`)
+> se estampa al crear, de la sesión, y se rellenó para las propuestas que ya
+> tenían vendedor. Borrado el usuario, el reporte lo nombra con una fila de
+> baja (`lib/vendedor-de-baja.ts`) y el Dashboard también. Las históricas sin
+> `usuario_id` siguen en «Sin vendedor»: no se inventa. Rama
+> `feat/propuestas-completas`.
+
 
 `propuestas.usuario_id` es **`on delete set null`** —el criterio de las otras
 cinco FK hacia `usuarios`, y lo único que deja que `borrarUsuario()` siga

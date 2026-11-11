@@ -1,97 +1,66 @@
 import { describe, it, expect } from 'vitest'
 import {
   DIAS_ENFRIADO,
-  ESPACIOS,
-  ETAPAS_RESPONSABLE,
   diasSinContacto,
   enfriados,
   resumen,
-  ultimoAvance,
   espacioElegido,
   iniciales,
-  type Espacio,
+  type EspacioResumen,
 } from './comercial-opex'
 
 // ============================================================================
-//  Prospección de arrendadores · la maqueta NO tiene base, pero SÍ tiene cuentas
+//  Comercial negociación · las cuentas de la pantalla.
 // ----------------------------------------------------------------------------
-//  Es una maqueta y no hace falta probar que pinta bonito. Lo que sí hace falta
-//  probar es lo único que aquí se CALCULA: cuántos días lleva un espacio sin
+//  Nacieron en la maqueta (30/09) sobre datos de ejemplo y se quedan ahora que
+//  hay base (NEG-01, 22/10): el último contacto ya no sale de una lista escrita
+//  a mano sino de `ultimoContactoEn`, el avance más reciente que devuelve la
+//  API. Lo que se prueba es lo mismo: cuántos días lleva un espacio sin
 //  contacto y cuáles hay que retomar. Una cuenta sin prueba se equivoca en
-//  silencio, y el día que esto deje de ser maqueta la cuenta se queda.
+//  silencio.
 // ============================================================================
 
 const HOY = new Date('2026-09-30T12:00:00Z')
 
-const base = (): Espacio => ({
+const base = (o: Partial<EspacioResumen> = {}): EspacioResumen => ({
   id: 'x',
-  nombre: 'X',
-  tipo: 'Muro',
-  direccion: '',
-  estado: 'negociacion',
-  etapa: 0,
-  desde: '2026-01-01',
-  negociante: 'Quien sea',
-  medidas: '',
-  presupuesto: { min: 0, max: 0, autoriza: '' },
-  contactos: [],
-  competencia: [],
-  bitacora: [],
-  ofertas: [],
-  multimedia: [],
+  etapa: 'NEGOCIACION',
+  ultimoContactoEn: null,
+  ...o,
 })
 
 describe('1 · los días sin contacto', () => {
-  it('sale del avance MÁS RECIENTE, no del primero de la lista', () => {
-    const e = base()
-    // A propósito desordenado: si se tomara el primero, daría 300 y pico.
-    e.bitacora = [
-      { fecha: '2025-12-01', contacto: 'a', canal: 'Llamada', resumen: '', siguiente: '' },
-      { fecha: '2026-09-20', contacto: 'b', canal: 'Llamada', resumen: '', siguiente: '' },
-    ]
-    expect(ultimoAvance(e)?.fecha).toBe('2026-09-20')
-    expect(diasSinContacto(e, HOY)).toBe(10)
+  it('salen del avance más reciente', () => {
+    expect(diasSinContacto(base({ ultimoContactoEn: '2026-09-20T12:00:00Z' }), HOY)).toBe(10)
   })
 
   it('sin bitácora devuelve NULL, y null NO es cero', () => {
     // «Nunca se ha hablado» y «se habló hoy» son cosas distintas. Pintar un 0
     // donde no se sabe es el `?? 0` del mapa otra vez.
-    const e = base()
-    expect(diasSinContacto(e, HOY)).toBeNull()
-    expect(diasSinContacto(e, HOY)).not.toBe(0)
+    expect(diasSinContacto(base(), HOY)).toBeNull()
+    expect(diasSinContacto(base(), HOY)).not.toBe(0)
   })
 })
 
 describe('2 · cuáles hay que retomar', () => {
   it('uno EN NEGOCIACIÓN pasado el umbral entra', () => {
-    const e = base()
-    e.bitacora = [{ fecha: '2026-07-01', contacto: 'a', canal: 'Llamada', resumen: '', siguiente: '' }]
-    expect(enfriados([e], HOY)).toHaveLength(1)
+    expect(enfriados([base({ ultimoContactoEn: '2026-07-01T12:00:00Z' })], HOY)).toHaveLength(1)
   })
 
   it('justo EN el umbral todavía NO entra: es «más de 30», no «30 o más»', () => {
-    const e = base()
     const hace30 = new Date(HOY)
     hace30.setUTCDate(hace30.getUTCDate() - DIAS_ENFRIADO)
-    e.bitacora = [
-      { fecha: hace30.toISOString().slice(0, 10), contacto: 'a', canal: 'Llamada', resumen: '', siguiente: '' },
-    ]
+    const e = base({ ultimoContactoEn: hace30.toISOString() })
     expect(diasSinContacto(e, HOY)).toBe(DIAS_ENFRIADO)
     expect(enfriados([e], HOY)).toHaveLength(0)
   })
 
-  it('un ACTIVO no entra aunque lleve un año: está contratado, no perseguido', () => {
-    const e = base()
-    e.estado = 'activo'
-    e.bitacora = [{ fecha: '2025-01-01', contacto: 'a', canal: 'Correo', resumen: '', siguiente: '' }]
-    expect(enfriados([e], HOY)).toHaveLength(0)
+  it('un ACTIVO (aprobado) no entra aunque lleve un año: está contratado, no perseguido', () => {
+    expect(enfriados([base({ etapa: 'APROBADO', ultimoContactoEn: '2025-01-01T12:00:00Z' })], HOY)).toHaveLength(0)
   })
 
-  it('un INACTIVO tampoco: nadie lo está trabajando', () => {
-    const e = base()
-    e.estado = 'inactivo'
-    e.bitacora = [{ fecha: '2025-01-01', contacto: 'a', canal: 'Correo', resumen: '', siguiente: '' }]
-    expect(enfriados([e], HOY)).toHaveLength(0)
+  it('un INACTIVO (perdido) tampoco: nadie lo está trabajando', () => {
+    expect(enfriados([base({ etapa: 'PERDIDO', ultimoContactoEn: '2025-01-01T12:00:00Z' })], HOY)).toHaveLength(0)
   })
 
   it('uno SIN bitácora no entra: no se puede afirmar que se enfrió', () => {
@@ -99,40 +68,29 @@ describe('2 · cuáles hay que retomar', () => {
   })
 })
 
-describe('3 · los datos de la maqueta son coherentes', () => {
-  it('toda etapa cae dentro de las cinco declaradas', () => {
-    for (const e of ESPACIOS) {
-      expect(e.etapa, e.nombre).toBeGreaterThanOrEqual(0)
-      expect(e.etapa, e.nombre).toBeLessThan(ETAPAS_RESPONSABLE.length)
-    }
-  })
-
-  it('el resumen suma lo mismo que la lista', () => {
-    const r = resumen(ESPACIOS, HOY)
-    expect(r.total).toBe(ESPACIOS.length)
-    expect(r.enNegociacion + r.activos).toBeLessThanOrEqual(r.total)
-    expect(r.enfriados).toBeLessThanOrEqual(r.enNegociacion)
-  })
-
-  it('un espacio en la última etapa tiene a alguien que FIRMA', () => {
-    // La etapa 4 se llama «Responsable legal confirmado». Si ningún contacto
-    // lleva `legal`, la etapa está mintiendo.
-    for (const e of ESPACIOS.filter((x) => x.etapa === ETAPAS_RESPONSABLE.length - 1)) {
-      expect(e.contactos.some((c) => c.legal), e.nombre).toBe(true)
-    }
+describe('3 · el resumen de arriba', () => {
+  it('cuenta en seguimiento, en negociación, activos y enfriados', () => {
+    const r = resumen(
+      [
+        base({ id: 'a', ultimoContactoEn: '2026-07-01T12:00:00Z' }),
+        base({ id: 'b', etapa: 'CONTACTADO', ultimoContactoEn: '2026-09-29T12:00:00Z' }),
+        base({ id: 'c', etapa: 'APROBADO' }),
+        base({ id: 'd', etapa: 'PERDIDO' }),
+      ],
+      HOY,
+    )
+    expect(r).toEqual({ total: 4, enNegociacion: 2, activos: 1, enfriados: 1 })
   })
 })
 
-describe('espacioElegido · qué espacio se detalla (2026-09-30)', () => {
-  // La maqueta pasó a dos columnas: lista a la izquierda, detalle a la derecha.
-  // Elegir cuál ver no guarda nada; solo cambia lo que se pinta.
+describe('espacioElegido · qué espacio se detalla', () => {
+  const lista = [base({ id: 'a' }), base({ id: 'b' })]
   it('devuelve el elegido por su id', () => {
-    const otro = ESPACIOS[ESPACIOS.length - 1]
-    expect(espacioElegido(ESPACIOS, otro.id)).toBe(otro)
+    expect(espacioElegido(lista, 'b')).toBe(lista[1])
   })
   it('sin elección, o con un id que no existe, el PRIMERO — nunca una pantalla vacía', () => {
-    expect(espacioElegido(ESPACIOS, null)).toBe(ESPACIOS[0])
-    expect(espacioElegido(ESPACIOS, 'no-existe')).toBe(ESPACIOS[0])
+    expect(espacioElegido(lista, null)).toBe(lista[0])
+    expect(espacioElegido(lista, 'no-existe')).toBe(lista[0])
   })
   it('sin espacios, null', () => {
     expect(espacioElegido([], 'x')).toBeNull()

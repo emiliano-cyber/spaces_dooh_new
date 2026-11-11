@@ -4,6 +4,8 @@ import { useDemoStore } from './store'
 import type { Campana, RolDemo } from './types'
 import { esErrorDeDesbloqueo } from '@/lib/cambios-candado'
 import type { ResultadoLote } from '@/lib/cambios-lote'
+import type { RespuestaPublicacion } from '@/lib/doohmain-resultado'
+import type { VistaPreviaDoohmain } from '@/lib/server/doohmain'
 
 // ============================================================================
 //  lib/data/estado-api.ts — Estado persistido (BD) → store, y mutaciones de
@@ -11,6 +13,38 @@ import type { ResultadoLote } from '@/lib/cambios-lote'
 // ============================================================================
 
 const API = '/spaces-dooh/api'
+
+export type { VistaPreviaDoohmain }
+
+/**
+ * Lo que se le va a mandar a DOOHmain de una campaña, SIN mandarlo (22/10):
+ * pantalla, horario de la franja si la hay y reproducciones por día y en total.
+ * Solo lee; no refresca el estado.
+ */
+/** El horario INDIVIDUAL de la campaña en DOOHmain (22/10); `null` lo quita. */
+export async function fijarHorarioDoohmainApi(
+  campanaId: string,
+  horario: { horaInicio: string; horaFin: string; dias: number[] | null } | null,
+): Promise<void> {
+  const r = await fetch(`${API}/campanas/${campanaId}/horario-doohmain/`, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ horario }),
+  })
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({}))
+    throw new Error((d as { error?: string }).error ?? 'No se pudo guardar el horario')
+  }
+}
+
+export async function programacionDoohmainApi(
+  campanaId: string,
+): Promise<VistaPreviaDoohmain & { publicacionEncendida: boolean }> {
+  const r = await fetch(`${API}/campanas/${campanaId}/programacion-doohmain/`)
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error((d as { error?: string }).error ?? 'No se pudo leer lo que se mandará a DOOHmain')
+  return d
+}
 
 // Hidrata el store con lo que vive en la BD (sitios, clientes, campañas, ...).
 //
@@ -109,6 +143,12 @@ export async function archivarTodasNotificacionesApi(): Promise<void> {
   const r = await fetch(`${API}/notificaciones/archivar-todas/`, { method: 'POST' })
   if (r.ok) await refrescarEstado()
 }
+// Quita UNA de la bandeja de quien la borra (NOTIF-USUARIO, 21/10). Como las
+// otras dos, solo la bandeja de esta persona: a los demás no les cambia nada.
+export async function borrarNotificacionApi(id: string): Promise<void> {
+  const r = await fetch(`${API}/notificaciones/${id}/`, { method: 'DELETE' })
+  if (r.ok) await refrescarEstado()
+}
 
 // ─── Propuestas (método del divisor) ─────────────────────────────────────────
 export async function crearPropuestaApi(input: {
@@ -133,7 +173,7 @@ export async function crearPropuestaApi(input: {
     primaRoadblockPct?: number | null
   }[]
   notas?: string | null
-}): Promise<void> {
+}): Promise<{ id: string | null }> {
   const r = await fetch(`${API}/propuestas/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -142,11 +182,25 @@ export async function crearPropuestaApi(input: {
   const d = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(d.error ?? 'No se pudo crear la propuesta')
   await refrescarEstado()
+  // PROP-COMPLETA · el id, para abrir la copia recién duplicada.
+  return { id: typeof d.id === 'string' ? d.id : null }
 }
 
 // Error con bandera para que el UI reconfirme una aprobación en $0 (S1-2).
 export class ConfirmacionCeroError extends Error {
   requiereConfirmacionCero = true
+}
+
+// COD-03 · aprobar con el cupón PENDIENTE (409 con `codigoPendiente: true`).
+//
+// I18N (lote servidor, 2026-11-02) · esa respuesta la arma la RUTA a mano
+// (`{ error: e.message, codigoPendiente: true }`) y no pasa por
+// `respuestaError()`, así que I18N-05 no la traduce: el `error` llega siempre en
+// español. Con la bandera, la pantalla pinta su propia clave
+// (`servidor.codigo.aprobar-con-pendiente`) en el idioma de quien la lee. El
+// `message` conserva el texto del servidor, para quien lo registre.
+export class CodigoPendienteApiError extends Error {
+  codigoPendiente = true
 }
 
 export async function cambiarEstatusPropuestaApi(
@@ -162,6 +216,7 @@ export async function cambiarEstatusPropuestaApi(
   const d = await r.json().catch(() => ({}))
   if (!r.ok) {
     if (d.requiereConfirmacionCero) throw new ConfirmacionCeroError(d.error ?? 'Confirma la aprobación en $0')
+    if (d.codigoPendiente) throw new CodigoPendienteApiError(d.error ?? 'No se pudo actualizar la propuesta')
     throw new Error(d.error ?? 'No se pudo actualizar la propuesta')
   }
   await refrescarEstado()
@@ -170,7 +225,14 @@ export async function cambiarEstatusPropuestaApi(
 // Actualiza el descuento comercial / nombre / notas (renegociación → sube versión).
 export async function actualizarPropuestaApi(
   id: string,
-  input: { descuentoPct?: number; nombre?: string; notas?: string | null },
+  input: {
+    descuentoPct?: number
+    nombre?: string
+    notas?: string | null
+    // PROP-COMPLETA (29/10) · términos y vigencia de ESTA propuesta.
+    condiciones?: string | null
+    vigenteHasta?: string | null
+  },
 ): Promise<void> {
   const r = await fetch(`${API}/propuestas/${id}/`, {
     method: 'PATCH',
@@ -182,9 +244,62 @@ export async function actualizarPropuestaApi(
   await refrescarEstado()
 }
 
+// PROP-COMPLETA (29/10) · agrega sitios (misma forma que el alta) y quita uno.
+export async function agregarSitiosPropuestaApi(
+  id: string,
+  items: Parameters<typeof crearPropuestaApi>[0]['items'],
+): Promise<void> {
+  const r = await fetch(`${API}/propuestas/${id}/items/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ items }),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudieron agregar los sitios')
+  await refrescarEstado()
+}
+
+export async function quitarSitioPropuestaApi(itemId: string): Promise<void> {
+  const r = await fetch(`${API}/propuestas/items/${itemId}/`, { method: 'DELETE' })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo quitar el sitio')
+  await refrescarEstado()
+}
+
+// PROP-COMPLETA (29/10) · borra un BORRADOR (las demás dan 409).
+export async function borrarPropuestaApi(id: string): Promise<void> {
+  const r = await fetch(`${API}/propuestas/${id}/`, { method: 'DELETE' })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo borrar la propuesta')
+  await refrescarEstado()
+}
+
+// PROP-COMPLETA (29/10) · «Enviar»: manda la liga por correo y deja la
+// propuesta ENVIADA. `correo: 'no_configurado'` = solo cambió el estatus.
+export async function enviarPropuestaApi(
+  id: string,
+  input: { para: string; mensaje?: string | null },
+): Promise<{ correo: 'enviado' | 'no_configurado' }> {
+  const r = await fetch(`${API}/propuestas/${id}/enviar/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo enviar la propuesta')
+  await refrescarEstado()
+  return { correo: d.correo === 'enviado' ? 'enviado' : 'no_configurado' }
+}
+
 // Genera una campaña a partir de una propuesta aprobada (solo sitios aprobados).
-export async function generarCampanaDesdePropuestaApi(propuestaId: string): Promise<{ id: string }> {
-  const r = await fetch(`${API}/propuestas/${propuestaId}/generar-campana/`, { method: 'POST' })
+// `clienteId`: solo si la propuesta se aprobó sin cliente; el servidor lo pone
+// antes de generar.
+export async function generarCampanaDesdePropuestaApi(propuestaId: string, clienteId?: string): Promise<{ id: string }> {
+  const r = await fetch(`${API}/propuestas/${propuestaId}/generar-campana/`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(clienteId ? { clienteId } : {}),
+  })
   const d = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(d.error ?? 'No se pudo generar la campaña')
   await refrescarEstado()
@@ -581,7 +696,35 @@ export interface CambioContratoUI {
   usuarioNombre: string
   cambios: { campo: string; etiqueta: string; antes: string | null; despues: string | null }[]
   envioAnulado: boolean
+  versionFirmada: number | null
   creadoEn: string
+}
+
+// Versiones firmadas que se dejaron de usar al editar o reenviar el contrato
+// (CONTRATO-FIRMADO-EDITABLE, 23/10), de la más nueva a la más vieja.
+export interface VersionFirmadaUI {
+  version: number
+  documentoHash: string
+  congeladoEn: string | null
+  archivadoEn: string
+  motivo: string | null
+  usuarioNombre: string | null
+  firmas: { parte: 'ARRENDADOR' | 'ARRENDATARIO'; nombreFirmante: string; firmadoEn: string | null; ip: string | null }[]
+  documento?: string
+}
+
+export async function versionesFirmadasApi(contratoId: string): Promise<VersionFirmadaUI[]> {
+  const r = await fetch(`${API}/contratos/${contratoId}/versiones/`, { cache: 'no-store' })
+  const d = await r.json().catch(() => [])
+  if (!r.ok) throw new Error((d as { error?: string }).error ?? 'No se pudieron leer las versiones firmadas')
+  return d as VersionFirmadaUI[]
+}
+
+export async function versionFirmadaApi(contratoId: string, version: number): Promise<VersionFirmadaUI> {
+  const r = await fetch(`${API}/contratos/${contratoId}/versiones/?version=${version}`, { cache: 'no-store' })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error((d as { error?: string }).error ?? 'No se pudo leer la versión firmada')
+  return d as VersionFirmadaUI
 }
 
 export async function cambiosDeContratoApi(contratoId: string): Promise<CambioContratoUI[]> {
@@ -591,9 +734,10 @@ export async function cambiosDeContratoApi(contratoId: string): Promise<CambioCo
   return d as CambioContratoUI[]
 }
 
-// Cómo va la firma del contrato, reducido a lo que decide si se puede editar:
-// `firmado` (alguien ya firmó: no se cambia) y `enviado` (hay enlace vivo: si
-// se cambia, el envío se anula). Lee el mismo GET que el panel de firmas.
+// Cómo va la firma del contrato, reducido a lo que decide CÓMO se edita:
+// `firmado` (alguien ya firmó: el cambio pide motivo y archiva esa versión) y
+// `enviado` (hay enlace vivo: si se cambia, el envío se anula). Lee el mismo
+// GET que el panel de firmas.
 export async function estadoFirmaContratoApi(
   contratoId: string,
 ): Promise<{ firmado: boolean; enviado: boolean }> {
@@ -722,15 +866,57 @@ export async function generarFacturaApi(
 }
 
 // `fecha`: el DÍA en que entró el dinero, AAAA-MM-DD (ADR 0046). Ausente = hoy.
-export async function pagarCobranzaApi(cobranzaId: string, monto?: number, fecha?: string): Promise<void> {
+export async function pagarCobranzaApi(
+  cobranzaId: string,
+  monto?: number,
+  fecha?: string,
+  comprobanteUrl?: string | null,
+): Promise<void> {
   const r = await fetch(`${API}/cobranzas/${cobranzaId}/pagar/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ monto: monto ?? null, ...(fecha ? { fecha } : {}) }),
+    body: JSON.stringify({
+      monto: monto ?? null,
+      ...(fecha ? { fecha } : {}),
+      ...(comprobanteUrl ? { comprobanteUrl } : {}),
+    }),
   })
   const d = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(d.error ?? 'No se pudo registrar el pago')
   await refrescarEstado()
+}
+
+// ─── Los pagos de una cobranza y su comprobante (COB-COMP) ──────────────────
+// No viajan en el estado: se piden al abrir la lista de pagos de una cobranza.
+export interface AbonoCobranzaUI {
+  id: string
+  monto: number
+  fecha: string | null
+  origen: 'registro' | 'historico'
+  registradoPor: string | null
+  tieneComprobante: boolean
+}
+
+export async function listarAbonosApi(cobranzaId: string): Promise<AbonoCobranzaUI[]> {
+  const r = await fetch(`${API}/cobranzas/${cobranzaId}/abonos/`)
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudieron cargar los pagos')
+  return d as AbonoCobranzaUI[]
+}
+
+export async function adjuntarComprobanteAbonoApi(cobranzaId: string, abonoId: string, comprobanteUrl: string): Promise<void> {
+  const r = await fetch(`${API}/cobranzas/${cobranzaId}/abonos/${abonoId}/`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ comprobanteUrl }),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo guardar el comprobante')
+}
+
+// Liga para abrir el comprobante de un pago (se sirve por su ruta).
+export function urlComprobanteAbono(cobranzaId: string, abonoId: string): string {
+  return `${API}/cobranzas/${cobranzaId}/abonos/${abonoId}/comprobante/`
 }
 
 // Envía un recordatorio de cobro manual (notificación in-app al equipo).
@@ -963,7 +1149,7 @@ export async function validarPublicacionApi(
   campanaId: string,
   aprobar: boolean,
   motivo?: string,
-): Promise<Campana> {
+): Promise<Campana & { doohmain?: RespuestaPublicacion }> {
   const r = await fetch(`${API}/campanas/${campanaId}/validar/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -975,16 +1161,47 @@ export async function validarPublicacionApi(
   return d
 }
 
-export async function extenderCampanaApi(campanaId: string, fechaFin: string): Promise<Campana> {
+// Vuelve a mandar a DOOHmain una publicación ya aprobada. No cambia la campaña,
+// así que no hace falta refrescar el estado.
+export async function reintentarPublicacionApi(
+  campanaId: string,
+): Promise<Campana & { doohmain?: RespuestaPublicacion }> {
+  const r = await fetch(`${API}/campanas/${campanaId}/reintentar-publicacion/`, { method: 'POST' })
+  const d = await r.json()
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo volver a publicar')
+  return d
+}
+
+// EXT-CONTRATO (29/10) · extender exige el contrato firmado de la extensión
+// (PDF en data URL, como el contrato del cliente); sin él el servidor da 422.
+export async function extenderCampanaApi(campanaId: string, fechaFin: string, contratoUrl: string): Promise<Campana> {
   const r = await fetch(`${API}/campanas/${campanaId}/extender/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ fechaFin }),
+    body: JSON.stringify({ fechaFin, contratoUrl }),
   })
-  const d = await r.json()
+  const d = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(d.error ?? 'No se pudo extender')
   await refrescarEstado()
   return d
+}
+
+export interface ExtensionCampana {
+  id: string
+  folio: string
+  fechaFinAnterior: string
+  fechaFinNueva: string
+  contratoUrl: string
+  usuarioNombre: string | null
+  creadoEn: string
+}
+
+// Las extensiones de la campaña con su contrato, la más reciente primero.
+export async function extensionesCampanaApi(campanaId: string): Promise<ExtensionCampana[]> {
+  const r = await fetch(`${API}/campanas/${campanaId}/extender/`, { cache: 'no-store' })
+  const d = await r.json().catch(() => [])
+  if (!r.ok) throw new Error((d as { error?: string }).error ?? 'No se pudieron leer las extensiones')
+  return d as ExtensionCampana[]
 }
 
 // ─── Licencias y permisos ───────────────────────────────────────────────────

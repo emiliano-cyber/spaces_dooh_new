@@ -23,9 +23,13 @@ import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { infoAltaApi, type InfoAlta } from '@/lib/data/space-eyes-api'
-import { seApi, ErrorSE } from '@/lib/data/space-eyes-se'
+import { seApi, ErrorSE, textoDeError } from '@/lib/data/space-eyes-se'
 import { kitRaspberry } from '@/lib/space-eyes-kit-pi'
 import { fechaHora } from './piezas'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
+import type { Idioma } from '@/lib/i18n/idiomas'
+import { interpolarNodos } from '@/lib/i18n/nodos'
 
 // ============================================================================
 //  Agregar un dispositivo a Space Eyes, sin saber de servidores ni comandos.
@@ -67,13 +71,17 @@ interface Vinculacion {
   enlace?: string
 }
 
-const TIPOS: { id: Tipo; etiqueta: string; detalle: string; icono: typeof Smartphone }[] = [
-  { id: 'telefono', etiqueta: 'Teléfono Android', detalle: 'Se vincula escaneando un QR', icono: Smartphone },
-  { id: 'raspberry', etiqueta: 'Raspberry Pi', detalle: 'Se instala sola desde la microSD', icono: Cpu },
-  { id: 'pc', etiqueta: 'PC con cámara IP', detalle: 'Con un código en el instalador', icono: MonitorSmartphone },
+const TIPOS: { id: Tipo; etiqueta: ClaveTexto; detalle: ClaveTexto; icono: typeof Smartphone }[] = [
+  { id: 'telefono', etiqueta: 'spaceeyes.alta.tipo.telefono', detalle: 'spaceeyes.alta.tipo.telefono.detalle', icono: Smartphone },
+  { id: 'raspberry', etiqueta: 'spaceeyes.alta.tipo.raspberry', detalle: 'spaceeyes.alta.tipo.raspberry.detalle', icono: Cpu },
+  { id: 'pc', etiqueta: 'spaceeyes.alta.tipo.pc', detalle: 'spaceeyes.alta.tipo.pc.detalle', icono: MonitorSmartphone },
 ]
 
-const NOMBRE_TIPO: Record<Tipo, string> = { telefono: 'Teléfono', raspberry: 'Raspberry', pc: 'PC' }
+const NOMBRE_TIPO: Record<Tipo, ClaveTexto> = {
+  telefono: 'spaceeyes.alta.nombre.telefono',
+  raspberry: 'spaceeyes.alta.nombre.raspberry',
+  pc: 'spaceeyes.alta.nombre.pc',
+}
 
 function descargar(nombre: string, datos: Uint8Array, tipo: string) {
   const url = URL.createObjectURL(new Blob([datos as Uint8Array<ArrayBuffer>], { type: tipo }))
@@ -86,16 +94,17 @@ function descargar(nombre: string, datos: Uint8Array, tipo: string) {
   setTimeout(() => URL.revokeObjectURL(url), 5000)
 }
 
-function mensaje(e: unknown): string {
+function mensaje(e: unknown, idioma: Idioma): string {
   if (e instanceof ErrorSE) {
     const c = (e.cuerpo as { error?: string } | null)?.error
-    if (e.status === 403) return 'No tienes permiso para agregar equipos.'
-    if (c) return `No se pudo: ${c}`
+    if (e.status === 403) return traducir(idioma, 'spaceeyes.alta.error.permiso')
+    if (c) return traducir(idioma, 'spaceeyes.alta.error.no-se-pudo', { motivo: c })
   }
-  return e instanceof Error ? e.message : 'No se pudo completar'
+  return textoDeError(e, idioma) ?? traducir(idioma, 'spaceeyes.alta.error.completar')
 }
 
-function Copiar({ texto, etiqueta = 'Copiar' }: { texto: string; etiqueta?: string }) {
+function Copiar({ texto, etiqueta }: { texto: string; etiqueta?: string }) {
+  const t = useIdioma().t
   const [ok, setOk] = useState(false)
   return (
     <Button
@@ -108,7 +117,7 @@ function Copiar({ texto, etiqueta = 'Copiar' }: { texto: string; etiqueta?: stri
       }}
     >
       {ok ? <Check className="mr-1.5 h-3.5 w-3.5" /> : <Copy className="mr-1.5 h-3.5 w-3.5" />}
-      {ok ? 'Copiado' : etiqueta}
+      {ok ? t('spaceeyes.alta.copiado') : (etiqueta ?? t('spaceeyes.alta.copiar'))}
     </Button>
   )
 }
@@ -134,12 +143,14 @@ function Paso({ n, children }: { n: number; children: React.ReactNode }) {
 }
 
 function CodigoGrande({ v }: { v: Vinculacion }) {
+  const { t, idioma } = useIdioma()
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-md border border-border bg-surface-2 p-3">
       <KeyRound className="h-4 w-4 text-muted" />
       <span className="font-mono text-[22px] font-semibold tracking-[0.12em] text-ink">{v.codigo}</span>
       <span className="text-[12px] text-muted">
-        {v.usos_max > 1 ? `Sirve para ${v.usos_max} equipos` : 'Sirve una sola vez'} · vence {fechaHora(v.expira_en)}
+        {v.usos_max > 1 ? t('spaceeyes.alta.sirve.varios', { n: v.usos_max }) : t('spaceeyes.alta.sirve.una')}
+        {t('spaceeyes.alta.vence', { fecha: fechaHora(v.expira_en, idioma) })}
       </span>
       <span className="ml-auto">
         <Copiar texto={v.codigo} />
@@ -149,6 +160,9 @@ function CodigoGrande({ v }: { v: Vinculacion }) {
 }
 
 export function AltaDispositivo() {
+  // `tr` y no `t`: el listado de tipos ya usa `t` como variable del map.
+  const { t, idioma } = useIdioma()
+  const tr = t
   const puedeCrear = usePuede('inventario', 'crear')
   const [tipo, setTipo] = useState<Tipo>('telefono')
   const [info, setInfo] = useState<InfoAlta | null>(null)
@@ -207,7 +221,7 @@ export function AltaDispositivo() {
       void recargar()
       return v
     } catch (e) {
-      setError(mensaje(e))
+      setError(mensaje(e, idioma))
       return null
     } finally {
       setTrabajando(false)
@@ -216,7 +230,7 @@ export function AltaDispositivo() {
 
   async function descargarKit() {
     if (conexion === 'wifi' && !red.trim()) {
-      setError('Escribe el nombre de la red WiFi del sitio, o elige "Cable o módem".')
+      setError(t('spaceeyes.alta.error.red'))
       return
     }
     const v = await generar(nombre.trim() || undefined)
@@ -266,7 +280,7 @@ export function AltaDispositivo() {
           del 2026-09-30 (convenciones.md, «Color de los botones»). */}
       <Button variant="success" size="md" onClick={() => void generar()} disabled={trabajando}>
         {trabajando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <KeyRound className="mr-2 h-4 w-4" />}
-        Generar código
+        {t('spaceeyes.alta.generar')}
       </Button>
     </div>
   )
@@ -282,10 +296,8 @@ export function AltaDispositivo() {
           <Eye className="h-5 w-5" strokeWidth={1.75} />
         </span>
         <div className="min-w-[12rem] flex-1">
-          <h1 className="text-2xl text-ink">Agregar dispositivo</h1>
-          <p className="text-[13px] text-muted">
-            Cada equipo nuevo entra con un código de un solo uso que se genera aquí. Elige qué equipo vas a instalar.
-          </p>
+          <h1 className="text-2xl text-ink">{t('spaceeyes.alta.titulo')}</h1>
+          <p className="text-[13px] text-muted">{t('spaceeyes.alta.descripcion')}</p>
         </div>
       </div>
 
@@ -303,8 +315,8 @@ export function AltaDispositivo() {
           >
             <t.icono className={cn('h-5 w-5 shrink-0', tipo === t.id ? 'text-accent' : 'text-muted')} strokeWidth={1.7} />
             <span className="min-w-0">
-              <span className="block text-[13px] font-semibold text-ink">{t.etiqueta}</span>
-              <span className="block text-[12px] text-muted">{t.detalle}</span>
+              <span className="block text-[13px] font-semibold text-ink">{tr(t.etiqueta)}</span>
+              <span className="block text-[12px] text-muted">{tr(t.detalle)}</span>
             </span>
           </button>
         ))}
@@ -312,13 +324,13 @@ export function AltaDispositivo() {
 
       {!puedeCrear && (
         <p className="rounded-md border border-border bg-surface p-3 text-[13px] text-muted">
-          Para agregar equipos necesitas permiso de edición en Inventario. Pídeselo a un administrador de tu empresa.
+          {tr('spaceeyes.alta.sin-permiso')}
         </p>
       )}
       {puedeCrear && (
         <div className="flex flex-wrap items-end gap-3 rounded-md border border-border bg-surface p-3">
           <label className="flex flex-col gap-1 text-[12px] text-muted">
-            ¿Cuántos equipos vas a instalar?
+            {tr('spaceeyes.alta.cuantos')}
             <input
               type="number"
               min={1}
@@ -330,7 +342,7 @@ export function AltaDispositivo() {
           </label>
           {lote && (
             <label className="flex flex-col gap-1 text-[12px] text-muted">
-              El código dura
+              {tr('spaceeyes.alta.dura')}
               <select
                 value={dias}
                 onChange={(e) => setDias(Number(e.target.value))}
@@ -338,7 +350,7 @@ export function AltaDispositivo() {
               >
                 {[1, 3, 7, 14].map((d) => (
                   <option key={d} value={d}>
-                    {d === 1 ? '1 día' : `${d} días`}
+                    {tr(d === 1 ? 'spaceeyes.alta.dias.uno' : 'spaceeyes.alta.dias.otros', { n: d })}
                   </option>
                 ))}
               </select>
@@ -346,8 +358,15 @@ export function AltaDispositivo() {
           )}
           <p className="min-w-0 flex-1 text-[12px] text-muted">
             {lote
-              ? `Un solo ${tipo === 'telefono' ? 'QR' : tipo === 'raspberry' ? 'archivo' : 'código'} para los ${cuantos}: cada equipo entra por separado. Al equipo ${cuantos + 1} ya no lo deja entrar, y puedes cancelarlo en cualquier momento.`
-              : 'Uno solo: el código sirve una vez.'}
+              ? tr(
+                  tipo === 'telefono'
+                    ? 'spaceeyes.alta.lote.qr'
+                    : tipo === 'raspberry'
+                      ? 'spaceeyes.alta.lote.archivo'
+                      : 'spaceeyes.alta.lote.codigo',
+                  { n: cuantos, siguiente: cuantos + 1 },
+                )
+              : tr('spaceeyes.alta.uno-solo')}
           </p>
         </div>
       )}
@@ -358,34 +377,35 @@ export function AltaDispositivo() {
         <section className="grid gap-4 rounded-md border border-border bg-surface p-4 lg:grid-cols-[1fr_300px]">
           <ol className="flex flex-col gap-3">
             <Paso n={1}>
-              Instala la app <strong>Space Eye</strong> en el teléfono
-              {info?.apk ? (
-                <>
-                  {' '}
-                  (
-                  <a href={info.apk.url} className="text-accent hover:underline">
-                    descargar la app {info.apk.version}
-                  </a>
-                  )
-                </>
-              ) : null}
-              .
+              {interpolarNodos(tr('spaceeyes.alta.tel.1'), {
+                app: <strong>Space Eye</strong>,
+                enlace: info?.apk ? (
+                  <>
+                    {' '}
+                    (
+                    <a href={info.apk.url} className="text-accent hover:underline">
+                      {tr('spaceeyes.alta.tel.descargar', { version: info.apk.version ?? '' })}
+                    </a>
+                    )
+                  </>
+                ) : null,
+              })}
             </Paso>
-            <Paso n={2}>Genera el código y ábrelo junto al teléfono.</Paso>
+            <Paso n={2}>{tr('spaceeyes.alta.tel.2')}</Paso>
             <Paso n={3}>
-              En la app, toca <strong>Vincular</strong> y escanea el QR. Si la cámara no lo lee, escribe el código.
+              {interpolarNodos(tr('spaceeyes.alta.tel.3'), { vincular: <strong>{tr('spaceeyes.alta.tel.vincular')}</strong> })}
             </Paso>
-            <Paso n={4}>El teléfono aparece en Equipos en unos segundos. Ahí le pones el nombre del sitio.</Paso>
+            <Paso n={4}>{tr('spaceeyes.alta.tel.4')}</Paso>
             {generado ? <CodigoGrande v={generado} /> : botonGenerar}
           </ol>
           <div className="flex flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border p-3">
             {generado?.enlace ? (
               <>
                 <Qr texto={generado.enlace} />
-                <span className="text-center text-[12px] text-muted">Escanéalo desde la app Space Eye</span>
+                <span className="text-center text-[12px] text-muted">{tr('spaceeyes.alta.tel.escanea')}</span>
               </>
             ) : (
-              <span className="text-center text-[12px] text-muted">Aquí aparecerá el QR</span>
+              <span className="text-center text-[12px] text-muted">{tr('spaceeyes.alta.tel.qr')}</span>
             )}
           </div>
         </section>
@@ -397,8 +417,8 @@ export function AltaDispositivo() {
           <div className="inline-flex w-fit rounded-md border border-border bg-surface p-0.5 text-[13px]">
             {(
               [
-                ['sola', 'Se instala sola (recomendado)'],
-                ['encendida', 'Ya está encendida'],
+                ['sola', 'spaceeyes.alta.pi.sola'],
+                ['encendida', 'spaceeyes.alta.pi.encendida'],
               ] as const
             ).map(([id, txt]) => (
               <button
@@ -407,7 +427,7 @@ export function AltaDispositivo() {
                 onClick={() => setModoPi(id)}
                 className={cn('rounded px-3 py-1.5', modoPi === id ? 'bg-accent text-white' : 'text-muted hover:text-ink')}
               >
-                {txt}
+                {tr(txt)}
               </button>
             ))}
           </div>
@@ -416,28 +436,25 @@ export function AltaDispositivo() {
             <div className="grid gap-5 lg:grid-cols-2">
               <div className="flex flex-col gap-3">
                 <label className="flex flex-col gap-1 text-[12px] text-muted">
-                  Nombre del sitio (opcional)
+                  {tr('spaceeyes.alta.pi.nombre')}
                   <input
                     value={nombre}
                     onChange={(e) => setNombre(e.target.value)}
-                    placeholder={lote ? 'Déjalo vacío para varias' : 'Av. Juárez 120 · Cara A'}
+                    placeholder={lote ? tr('spaceeyes.alta.pi.nombre.vacio') : tr('spaceeyes.alta.pi.nombre.ej')}
                     maxLength={80}
                     className="rounded-md border border-border bg-surface px-3 py-2 text-[13px] text-ink"
                   />
                   {lote && (
-                    <span className="text-[11.5px]">
-                      El mismo archivo va en las {cuantos} microSD. A cada Raspberry le pones el nombre de su sitio en Equipos
-                      cuando aparezca.
-                    </span>
+                    <span className="text-[11.5px]">{tr('spaceeyes.alta.pi.mismo-archivo', { n: cuantos })}</span>
                   )}
                 </label>
                 <div className="flex flex-col gap-1 text-[12px] text-muted">
-                  ¿Cómo se conecta a internet en el sitio?
+                  {tr('spaceeyes.alta.pi.conexion')}
                   <div className="grid grid-cols-2 gap-2">
                     {(
                       [
                         ['wifi', 'WiFi', Wifi],
-                        ['cable', 'Cable o módem', Cable],
+                        ['cable', tr('spaceeyes.alta.pi.cable'), Cable],
                       ] as const
                     ).map(([id, txt, Icono]) => (
                       <button
@@ -457,7 +474,7 @@ export function AltaDispositivo() {
                 {conexion === 'wifi' && (
                   <div className="grid gap-2 sm:grid-cols-2">
                     <label className="flex flex-col gap-1 text-[12px] text-muted">
-                      Nombre de la red
+                      {tr('spaceeyes.alta.pi.red')}
                       <input
                         value={red}
                         onChange={(e) => setRed(e.target.value)}
@@ -466,7 +483,7 @@ export function AltaDispositivo() {
                       />
                     </label>
                     <label className="flex flex-col gap-1 text-[12px] text-muted">
-                      Contraseña
+                      {tr('spaceeyes.alta.pi.clave')}
                       <input
                         type="password"
                         value={clave}
@@ -477,7 +494,7 @@ export function AltaDispositivo() {
                       />
                     </label>
                     <p className="text-[11.5px] text-muted sm:col-span-2">
-                      La contraseña solo se guarda dentro del archivo que descargas; no se envía a ningún servidor.
+                      {tr('spaceeyes.alta.pi.clave.texto')}
                     </p>
                   </div>
                 )}
@@ -486,40 +503,45 @@ export function AltaDispositivo() {
                       las descargas de la galeria y las de SPACE OS. */}
                   <Button variant="secondary" size="md" onClick={() => void descargarKit()} disabled={trabajando}>
                     {trabajando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-                    Descargar archivo para la microSD
+                    {tr('spaceeyes.alta.pi.descargar')}
                   </Button>
                 </div>
                 {kitListo && generado && (
                   <p className="text-[12.5px] text-success">
-                    Listo: se descargó el archivo con el código {generado.codigo}.{' '}
+                    {tr('spaceeyes.alta.pi.listo', { codigo: generado.codigo })}{' '}
                     {generado.usos_max > 1
-                      ? `Cópialo en las ${generado.usos_max} microSD; sirve hasta para ${generado.usos_max} Raspberry.`
-                      : 'Sirve para una sola Raspberry.'}{' '}
-                    Vence {fechaHora(generado.expira_en)}.
+                      ? tr('spaceeyes.alta.pi.listo.varias', { n: generado.usos_max })
+                      : tr('spaceeyes.alta.pi.listo.una')}{' '}
+                    {tr('spaceeyes.alta.pi.listo.vence', { fecha: fechaHora(generado.expira_en, idioma) })}
                   </p>
                 )}
               </div>
               <ol className="flex flex-col gap-3">
                 <Paso n={1}>
-                  En tu computadora, graba la microSD con <strong>Raspberry Pi Imager</strong>: Raspberry Pi OS Lite (64-bit).
-                  Cuando pregunte si quieres personalizar, elige <strong>No</strong>.
+                  {interpolarNodos(tr('spaceeyes.alta.pi.1'), {
+                    imager: <strong>Raspberry Pi Imager</strong>,
+                    no: <strong>{tr('spaceeyes.alta.pi.1.no')}</strong>,
+                  })}
                 </Paso>
                 <Paso n={2}>
-                  Sin sacar la microSD, ábrela en el explorador (se llama <strong>bootfs</strong>) y copia ahí{' '}
-                  <strong>user-data</strong> y <strong>network-config</strong> del archivo descargado. Reemplaza los que trae.
+                  {interpolarNodos(tr('spaceeyes.alta.pi.2'), {
+                    bootfs: <strong>bootfs</strong>,
+                    userdata: <strong>user-data</strong>,
+                    network: <strong>network-config</strong>,
+                  })}
                 </Paso>
-                <Paso n={3}>Pon la microSD en la Raspberry, conecta la cámara, el cable o módem si se usa, y la fuente de 5V/3A.</Paso>
+                <Paso n={3}>{tr('spaceeyes.alta.pi.3')}</Paso>
                 <Paso n={4}>
-                  En 5 a 15 minutos aparece sola en <strong>Equipos</strong>. Nadie tiene que conectarse a ella.
+                  {interpolarNodos(tr('spaceeyes.alta.pi.4'), { equipos: <strong>{tr('spaceeyes.comun.equipos')}</strong> })}
                 </Paso>
               </ol>
             </div>
           ) : (
             <div className="flex flex-col gap-3">
               <ol className="flex flex-col gap-3">
-                <Paso n={1}>Genera el código.</Paso>
-                <Paso n={2}>En la Raspberry (con internet), abre una terminal y pega el comando.</Paso>
-                <Paso n={3}>Aparece en Equipos en uno o dos minutos.</Paso>
+                <Paso n={1}>{tr('spaceeyes.alta.enc.1')}</Paso>
+                <Paso n={2}>{tr('spaceeyes.alta.enc.2')}</Paso>
+                <Paso n={3}>{tr('spaceeyes.alta.enc.3')}</Paso>
               </ol>
               {!generado ? (
                 botonGenerar
@@ -532,15 +554,11 @@ export function AltaDispositivo() {
                     <div className="flex flex-col gap-2 rounded-md bg-[#12100e] p-3">
                       <code className="break-all font-mono text-[12px] text-[#e7e5e4]">{comandoPi}</code>
                       <div>
-                        <Copiar texto={comandoPi} etiqueta="Copiar comando" />
+                        <Copiar texto={comandoPi} etiqueta={tr('spaceeyes.alta.copiar-comando')} />
                       </div>
                     </div>
                   ) : (
-                    <p className="text-[12px] text-warning">
-                      Falta configurar la dirección pública de Space Eye de esta empresa (quedó apuntando al
-                      propio servidor): sin ella el comando instalaría la Raspberry contra una dirección que
-                      desde el sitio no existe.
-                    </p>
+                    <p className="text-[12px] text-warning">{tr('spaceeyes.alta.sin-direccion.pi')}</p>
                   )}
                 </>
               )}
@@ -554,33 +572,32 @@ export function AltaDispositivo() {
         <section className="flex flex-col gap-3 rounded-md border border-border bg-surface p-4">
           <ol className="flex flex-col gap-3">
             <Paso n={1}>
-              Descarga el instalador en la PC del sitio
-              {info?.agentePc ? (
-                <>
-                  {' '}
-                  (
-                  <a href={info.agentePc.url} className="text-accent hover:underline">
-                    SpaceEyeAgente {info.agentePc.version}
-                  </a>
-                  )
-                </>
-              ) : null}{' '}
-              y ábrelo.
+              {interpolarNodos(tr('spaceeyes.alta.pc.1'), {
+                enlace: info?.agentePc ? (
+                  <>
+                    {' '}
+                    (
+                    <a href={info.agentePc.url} className="text-accent hover:underline">
+                      SpaceEyeAgente {info.agentePc.version}
+                    </a>
+                    )
+                  </>
+                ) : null,
+              })}
             </Paso>
-            <Paso n={2}>Genera el código y escríbelo cuando el asistente te lo pida, junto con la cámara IP.</Paso>
-            <Paso n={3}>La PC aparece en Equipos al terminar el asistente.</Paso>
+            <Paso n={2}>{tr('spaceeyes.alta.pc.2')}</Paso>
+            <Paso n={3}>{tr('spaceeyes.alta.pc.3')}</Paso>
           </ol>
           {generado ? <CodigoGrande v={generado} /> : botonGenerar}
           {generado && servidorUtil && (
             <p className="text-[12px] text-muted">
-              Dirección del servidor de tu empresa (el asistente la pide): <span className="font-mono text-ink">{generado.servidor}</span>
+              {interpolarNodos(tr('spaceeyes.alta.pc.servidor'), {
+                servidor: <span className="font-mono text-ink">{generado.servidor}</span>,
+              })}
             </p>
           )}
           {generado && !servidorUtil && (
-            <p className="text-[12px] text-warning">
-              Falta configurar la dirección pública de Space Eye de esta empresa (quedó apuntando al
-              propio servidor): pídesela a quien lo administra antes de correr el asistente.
-            </p>
+            <p className="text-[12px] text-warning">{tr('spaceeyes.alta.sin-direccion.pc')}</p>
           )}
         </section>
       )}
@@ -589,29 +606,29 @@ export function AltaDispositivo() {
       <section className="overflow-hidden rounded-md border border-border bg-surface">
         <header className="flex items-center justify-between border-b border-border p-3">
           <div>
-            <h2 className="text-[14px] font-semibold text-ink">Códigos de vinculación</h2>
-            <p className="text-[12px] text-muted">Los de los últimos 30 días. Uno vigente que ya no vayas a usar, cancélalo.</p>
+            <h2 className="text-[14px] font-semibold text-ink">{tr('spaceeyes.alta.codigos')}</h2>
+            <p className="text-[12px] text-muted">{tr('spaceeyes.alta.codigos.texto')}</p>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => void recargar()} aria-label="Actualizar">
+          <Button variant="ghost" size="sm" onClick={() => void recargar()} aria-label={tr('spaceeyes.comun.actualizar')}>
             <RefreshCw className="h-3.5 w-3.5" />
           </Button>
         </header>
         {lista === null ? (
           <div className="flex items-center gap-2 p-3 text-[12px] text-muted">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Cargando…
+            <Loader2 className="h-3.5 w-3.5 animate-spin" /> {tr('comun.cargando')}
           </div>
         ) : lista.length === 0 ? (
-          <p className="p-3 text-[12px] text-muted">Todavía no se ha generado ninguno.</p>
+          <p className="p-3 text-[12px] text-muted">{tr('spaceeyes.alta.codigos.vacio')}</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-[12.5px]">
               <thead className="bg-surface-2 text-left text-[11px] uppercase tracking-wide text-muted">
                 <tr>
-                  <th className="px-3 py-2">Código</th>
-                  <th className="px-3 py-2">Equipo</th>
-                  <th className="hidden px-3 py-2 sm:table-cell">Sitio</th>
-                  <th className="px-3 py-2">Estado</th>
-                  <th className="hidden px-3 py-2 md:table-cell">Generó</th>
+                  <th className="px-3 py-2">{tr('spaceeyes.alta.col.codigo')}</th>
+                  <th className="px-3 py-2">{tr('spaceeyes.comun.equipo')}</th>
+                  <th className="hidden px-3 py-2 sm:table-cell">{tr('spaceeyes.admin.sitio')}</th>
+                  <th className="px-3 py-2">{tr('spaceeyes.comun.estado')}</th>
+                  <th className="hidden px-3 py-2 md:table-cell">{tr('spaceeyes.alta.col.genero')}</th>
                   <th className="px-3 py-2" />
                 </tr>
               </thead>
@@ -619,26 +636,26 @@ export function AltaDispositivo() {
                 {lista.map((v) => (
                   <tr key={v.codigo}>
                     <td className="px-3 py-2 font-mono text-ink">{v.codigo}</td>
-                    <td className="px-3 py-2 text-ink">{NOMBRE_TIPO[v.tipo]}</td>
+                    <td className="px-3 py-2 text-ink">{NOMBRE_TIPO[v.tipo] ? tr(NOMBRE_TIPO[v.tipo]) : v.tipo}</td>
                     <td className="hidden px-3 py-2 text-muted sm:table-cell">{v.nota || '—'}</td>
                     <td className="px-3 py-2">
                       {v.usos_max > 1 ? (
                         <span className={v.estado === 'vigente' ? 'text-ink' : 'text-muted'}>
-                          {v.usos} de {v.usos_max} equipos
+                          {tr('spaceeyes.alta.usos', { usos: v.usos, max: v.usos_max })}
                           {v.estado === 'vigente'
-                            ? ` · vigente hasta ${fechaHora(v.expira_en)}`
+                            ? tr('spaceeyes.alta.lote.vigente', { fecha: fechaHora(v.expira_en, idioma) })
                             : v.estado === 'agotado'
-                              ? ' · completo'
+                              ? tr('spaceeyes.alta.lote.completo')
                               : v.estado === 'cancelado'
-                                ? ' · cancelado'
-                                : ' · vencido'}
+                                ? tr('spaceeyes.alta.lote.cancelado')
+                                : tr('spaceeyes.alta.lote.vencido')}
                           {v.equipos.length > 0 && (
                             <span className="block text-[11.5px] text-muted">
                               {v.equipos.map((e, i) => (
                                 <span key={e.id}>
                                   {i > 0 && ', '}
                                   <Link href={`/space-eyes/${e.id}`} className="text-success hover:underline">
-                                    {e.nombre || `equipo ${e.id}`}
+                                    {e.nombre || tr('spaceeyes.alta.equipo-n', { id: e.id })}
                                   </Link>
                                 </span>
                               ))}
@@ -647,13 +664,17 @@ export function AltaDispositivo() {
                         </span>
                       ) : v.estado === 'usado' && v.equipo ? (
                         <Link href={`/space-eyes/${v.equipo.id}`} className="text-success hover:underline">
-                          Usado · {v.equipo.nombre || `equipo ${v.equipo.id}`}
+                          {tr('spaceeyes.alta.usado-por', { nombre: v.equipo.nombre || tr('spaceeyes.alta.equipo-n', { id: v.equipo.id }) })}
                         </Link>
                       ) : v.estado === 'vigente' ? (
-                        <span className="text-ink">Vigente hasta {fechaHora(v.expira_en)}</span>
+                        <span className="text-ink">{tr('spaceeyes.alta.vigente-hasta', { fecha: fechaHora(v.expira_en, idioma) })}</span>
                       ) : (
                         <span className="text-muted">
-                          {v.estado === 'vencido' ? 'Vencido' : v.estado === 'cancelado' ? 'Cancelado' : 'Usado'}
+                          {v.estado === 'vencido'
+                            ? tr('spaceeyes.alta.estado.vencido')
+                            : v.estado === 'cancelado'
+                              ? tr('spaceeyes.alta.estado.cancelado')
+                              : tr('spaceeyes.alta.estado.usado')}
                         </span>
                       )}
                     </td>
@@ -661,7 +682,7 @@ export function AltaDispositivo() {
                     <td className="px-3 py-2 text-right">
                       {v.estado === 'vigente' && puedeCrear && (
                         <Button variant="ghost" size="sm" onClick={() => void cancelar(v.codigo)}>
-                          <X className="mr-1 h-3.5 w-3.5" /> Cancelar
+                          <X className="mr-1 h-3.5 w-3.5" /> {tr('comun.cancelar')}
                         </Button>
                       )}
                     </td>

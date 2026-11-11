@@ -21,7 +21,9 @@ export async function GET(req: Request) {
   if (!desde || Number.isNaN(Date.parse(desde))) {
     return NextResponse.json({ notificaciones: [], marca: null })
   }
-  // El repo filtra por tenant; un usuario nunca ve las de otra organización.
+  // El repo filtra por tenant; un usuario nunca ve las de otra organización. Y
+  // por el usuario de la sesión: lo que él borró no revive como aviso
+  // emergente (NOTIF-USUARIO, 21/10).
   // `marca` es la `desde` de la siguiente pregunta (ver notificacionesDesde).
-  return NextResponse.json(await notificacionesDesde(desde))
+  return NextResponse.json(await notificacionesDesde(desde, g.usuario.id))
 }

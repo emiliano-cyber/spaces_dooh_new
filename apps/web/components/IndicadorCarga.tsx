@@ -2,6 +2,7 @@
 
 import { Loader2 } from 'lucide-react'
 import { useCargando } from '@/lib/loading-fetch'
+import { useIdioma } from '@/lib/i18n/contexto'
 
 // Indicador de carga GLOBAL: se muestra mientras haya alguna petición que muta
 // (POST/PUT/PATCH/DELETE) en vuelo. Dos piezas discretas:
@@ -10,6 +11,10 @@ import { useCargando } from '@/lib/loading-fetch'
 // No bloquea la interacción; solo da feedback de "esperando respuesta".
 export function IndicadorCarga() {
   const cargando = useCargando()
+  // «Procesando…» iba escrito a mano y se veia en espanol en italiano (recorrido
+  // del 04/11), y en ingles igual. Fuera del espanol pasa por el diccionario;
+  // en espanol, el literal de siempre.
+  const { idioma, t } = useIdioma()
   if (!cargando) return null
   return (
     <>
@@ -21,7 +26,7 @@ export function IndicadorCarga() {
       </div>
       <div className="pointer-events-none fixed bottom-3 right-3 z-[200] inline-flex items-center gap-2 rounded-full border border-border bg-surface/95 px-2.5 py-1 shadow-sm backdrop-blur">
         <Loader2 className="h-3.5 w-3.5 animate-spin text-accent" />
-        <span className="text-[11px] text-muted">Procesando…</span>
+        <span className="text-[11px] text-muted">{idioma !== 'es' ? t('shell.confirmar.procesando') : 'Procesando…'}</span>
       </div>
     </>
   )

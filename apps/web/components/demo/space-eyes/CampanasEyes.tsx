@@ -4,8 +4,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { AlertTriangle, ImageIcon, Loader2, Plus, RefreshCw, ScanEye } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
-import { ErrorSE, fotoSE, seApi } from '@/lib/data/space-eyes-se'
+import { ErrorSE, fotoSE, seApi, textoDeError } from '@/lib/data/space-eyes-se'
 import { formatNumero } from '@/lib/formato-numero'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
+import type { Idioma } from '@/lib/i18n/idiomas'
+import { localeDe } from '@/lib/i18n/formato-idioma'
 
 // ============================================================================
 //  Space Eyes — campañas de verificación.
@@ -68,26 +72,38 @@ const MAX_BYTES = 20 * 1024 * 1024
 /** Los DATE llegan como ISO completo y el <input type="date"> solo acepta YYYY-MM-DD. */
 const soloFecha = (v: string | null | undefined) => (v ? String(v).slice(0, 10) : '')
 
-function periodo(c: CampanaSE): string {
-  const f = (v: string | null) => (v ? String(v).slice(0, 10).split('-').reverse().slice(0, 2).join('/') : '—')
+// «01/11 – 30/11» en español (dia/mes, como siempre); en ingles el mes va
+// primero y con nombre, «Nov 1 – Nov 30»: «01/11» un lector de EE. UU. lo lee
+// como 11 de enero.
+function periodo(c: CampanaSE, idioma: Idioma): string {
+  const f = (v: string | null) => {
+    if (!v) return '—'
+    if (idioma !== 'es') {
+      const [a, m, d] = String(v).slice(0, 10).split('-').map(Number)
+      const fecha = new Date(Date.UTC(a, m - 1, d))
+      if (Number.isNaN(fecha.getTime())) return '—'
+      return new Intl.DateTimeFormat(localeDe(idioma), { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(fecha)
+    }
+    return String(v).slice(0, 10).split('-').reverse().slice(0, 2).join('/')
+  }
   return `${f(c.start_date)} – ${f(c.end_date)}`
 }
 
-const TEXTOS_ERROR: Record<string, string> = {
-  sin_archivo: 'No se recibió la imagen',
-  not_found: 'La campaña ya no existe',
-  invalid_input: 'Hay un dato inválido en el formulario',
-  forbidden: 'No tienes permiso para esto',
+const TEXTOS_ERROR: Record<string, ClaveTexto> = {
+  sin_archivo: 'spaceeyes.campanas.error.sin-archivo',
+  not_found: 'spaceeyes.campanas.error.not-found',
+  invalid_input: 'spaceeyes.comun.dato-invalido',
+  forbidden: 'spaceeyes.campanas.error.forbidden',
 }
 
 // El modo espejo trae su propio `mensaje`, y ErrorSE ya lo pone como message.
-function mensajeDeError(e: unknown, porDefecto: string): string {
+function mensajeDeError(e: unknown, porDefecto: string, idioma: Idioma): string {
   if (e instanceof ErrorSE) {
     const cuerpo = (e.cuerpo ?? {}) as { error?: string; mensaje?: string }
     if (cuerpo.mensaje) return cuerpo.mensaje
-    if (e.status === 403) return TEXTOS_ERROR.forbidden
-    if (cuerpo.error && TEXTOS_ERROR[cuerpo.error]) return TEXTOS_ERROR[cuerpo.error]
-    return e.message || porDefecto
+    if (e.status === 403) return traducir(idioma, TEXTOS_ERROR.forbidden)
+    if (cuerpo.error && TEXTOS_ERROR[cuerpo.error]) return traducir(idioma, TEXTOS_ERROR[cuerpo.error])
+    return textoDeError(e, idioma) || porDefecto
   }
   return e instanceof Error ? e.message : porDefecto
 }
@@ -98,6 +114,7 @@ const CAMPO =
 type Aviso = { tono: 'ok' | 'error'; texto: string } | null
 
 export function CampanasEyes() {
+  const { t, idioma } = useIdioma()
   const [campanas, setCampanas] = useState<CampanaSE[] | null>(null)
   const [equipos, setEquipos] = useState<EquipoSE[]>([])
   const [cargando, setCargando] = useState(true)
@@ -127,10 +144,10 @@ export function CampanasEyes() {
       const d = await seApi<{ campaigns: CampanaSE[] }>('campaigns')
       setCampanas(d.campaigns ?? [])
     } catch (e) {
-      setErrorCarga(mensajeDeError(e, 'No se pudieron cargar las campañas'))
+      setErrorCarga(mensajeDeError(e, t('spaceeyes.campanas.error.cargar'), idioma))
     }
     setCargando(false)
-  }, [])
+  }, [t, idioma])
 
   const cargarEquipos = useCallback(async () => {
     try {
@@ -196,7 +213,7 @@ export function CampanasEyes() {
       }
     } catch {
       if (edicionEnCurso.current === c.id) {
-        setErrorForm('No se pudieron leer los equipos asignados. Vuelve a elegirlos antes de guardar.')
+        setErrorForm(t('spaceeyes.campanas.error.asignados'))
       }
     }
     if (edicionEnCurso.current === c.id) setCargandoEquiposAsignados(false)
@@ -214,7 +231,7 @@ export function CampanasEyes() {
     e.target.value = ''
     if (!f) return
     if (f.size > MAX_BYTES) {
-      setErrorForm('La imagen pesa más de 20 MB')
+      setErrorForm(t('spaceeyes.campanas.error.pesada'))
       return
     }
     setErrorForm(null)
@@ -231,9 +248,9 @@ export function CampanasEyes() {
 
   const guardar = async () => {
     const f = form
-    if (!f.name.trim()) return setErrorForm('Ponle un nombre a la campaña')
-    if (!f.start_date || !f.end_date) return setErrorForm('Faltan las fechas de la campaña')
-    if (f.end_date < f.start_date) return setErrorForm('La fecha de fin es anterior a la de inicio')
+    if (!f.name.trim()) return setErrorForm(t('spaceeyes.campanas.error.nombre'))
+    if (!f.start_date || !f.end_date) return setErrorForm(t('spaceeyes.campanas.error.fechas'))
+    if (f.end_date < f.start_date) return setErrorForm(t('spaceeyes.campanas.error.fin-antes'))
 
     setGuardando(true)
     setErrorForm(null)
@@ -276,7 +293,9 @@ export function CampanasEyes() {
         } catch (e) {
           await cargar()
           setErrorForm(
-            `La campaña se guardó, pero la creatividad no se pudo subir: ${mensajeDeError(e, 'error desconocido')}`,
+            t('spaceeyes.campanas.error.creatividad', {
+              motivo: mensajeDeError(e, t('spaceeyes.comun.error-desconocido'), idioma),
+            }),
           )
           return
         }
@@ -284,10 +303,10 @@ export function CampanasEyes() {
 
       edicionEnCurso.current = null
       setMostrarForm(false)
-      setAviso({ tono: 'ok', texto: eraNueva ? 'Campaña creada' : 'Campaña actualizada' })
+      setAviso({ tono: 'ok', texto: eraNueva ? t('spaceeyes.campanas.creada') : t('spaceeyes.campanas.actualizada') })
       await cargar()
     } catch (e) {
-      setErrorForm(mensajeDeError(e, 'No se pudo guardar la campaña'))
+      setErrorForm(mensajeDeError(e, t('spaceeyes.campanas.error.guardar'), idioma))
     } finally {
       setGuardando(false)
     }
@@ -303,10 +322,8 @@ export function CampanasEyes() {
           <ScanEye className="h-5 w-5" strokeWidth={1.75} />
         </span>
         <div className="min-w-[12rem] flex-1">
-          <h1 className="text-2xl text-ink">Campañas de verificación</h1>
-          <p className="text-[13px] text-muted">
-            La creatividad de referencia es la imagen contra la que las cámaras comparan lo que aparece en la pantalla.
-          </p>
+          <h1 className="text-2xl text-ink">{t('spaceeyes.campanas.titulo')}</h1>
+          <p className="text-[13px] text-muted">{t('spaceeyes.campanas.descripcion')}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="secondary" size="sm" onClick={() => void cargar()} disabled={cargando}>
@@ -315,11 +332,11 @@ export function CampanasEyes() {
             ) : (
               <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
             )}
-            Actualizar
+            {t('spaceeyes.comun.actualizar')}
           </Button>
           <Button variant="success" size="sm" onClick={abrirNueva}>
             <Plus className="mr-1.5 h-3.5 w-3.5" />
-            Nueva campaña
+            {t('spaceeyes.campanas.nueva')}
           </Button>
         </div>
       </div>
@@ -339,34 +356,36 @@ export function CampanasEyes() {
       {/* ================= Formulario ================= */}
       {mostrarForm && (
         <div ref={formRef} className="scroll-mt-4 rounded-md border border-border bg-surface p-4 sm:p-5">
-          <h2 className="mb-4 text-sm font-semibold text-ink">{form.id ? 'Editar campaña' : 'Nueva campaña'}</h2>
+          <h2 className="mb-4 text-sm font-semibold text-ink">
+            {form.id ? t('spaceeyes.campanas.editar') : t('spaceeyes.campanas.nueva')}
+          </h2>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             {/* Datos */}
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <Campo etiqueta="Nombre" htmlFor="sec-nombre">
+                <Campo etiqueta={t('spaceeyes.comun.nombre')} htmlFor="sec-nombre">
                   <input
                     id="sec-nombre"
                     value={form.name}
                     onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                    placeholder="Ej. Verano 2026"
+                    placeholder={t('spaceeyes.campanas.nombre-ej')}
                     className={CAMPO}
                   />
                 </Campo>
-                <Campo etiqueta="Anunciante" htmlFor="sec-anunciante">
+                <Campo etiqueta={t('spaceeyes.campanas.anunciante')} htmlFor="sec-anunciante">
                   <input
                     id="sec-anunciante"
                     value={form.advertiser}
                     onChange={(e) => setForm((f) => ({ ...f, advertiser: e.target.value }))}
-                    placeholder="Ej. Coca-Cola"
+                    placeholder={t('spaceeyes.campanas.anunciante-ej')}
                     className={CAMPO}
                   />
                 </Campo>
               </div>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <Campo etiqueta="Fecha inicio" htmlFor="sec-inicio">
+                <Campo etiqueta={t('spaceeyes.campanas.inicio')} htmlFor="sec-inicio">
                   <input
                     id="sec-inicio"
                     type="date"
@@ -375,7 +394,7 @@ export function CampanasEyes() {
                     className={CAMPO}
                   />
                 </Campo>
-                <Campo etiqueta="Fecha fin" htmlFor="sec-fin">
+                <Campo etiqueta={t('spaceeyes.campanas.fin')} htmlFor="sec-fin">
                   <input
                     id="sec-fin"
                     type="date"
@@ -387,10 +406,10 @@ export function CampanasEyes() {
               </div>
 
               <div>
-                <div className="mb-1.5 text-[12px] font-medium text-ink">Equipos donde va esta campaña</div>
+                <div className="mb-1.5 text-[12px] font-medium text-ink">{t('spaceeyes.campanas.equipos')}</div>
                 <div className="max-h-44 divide-y divide-border overflow-y-auto rounded border border-border-strong">
                   {equipos.length === 0 ? (
-                    <p className="px-3 py-2 text-[13px] text-muted">No hay equipos</p>
+                    <p className="px-3 py-2 text-[13px] text-muted">{t('spaceeyes.campanas.sin-equipos')}</p>
                   ) : (
                     equipos.map((d) => (
                       <label
@@ -411,7 +430,11 @@ export function CampanasEyes() {
                 </div>
                 <p className="mt-1 flex items-center gap-1.5 text-[11px] text-muted">
                   {cargandoEquiposAsignados && <Loader2 className="h-3 w-3 animate-spin" />}
-                  {cargandoEquiposAsignados ? 'Leyendo equipos asignados…' : `${formatNumero(form.device_ids.length)} seleccionados`}
+                  {cargandoEquiposAsignados
+                    ? t('spaceeyes.campanas.leyendo-asignados')
+                    : t(form.device_ids.length === 1 ? 'spaceeyes.campanas.seleccionados.uno' : 'spaceeyes.campanas.seleccionados.otros', {
+                        n: formatNumero(form.device_ids.length, 0, idioma),
+                      })}
                 </p>
               </div>
 
@@ -423,17 +446,15 @@ export function CampanasEyes() {
                     onChange={(e) => setForm((f) => ({ ...f, verification_enabled: e.target.checked }))}
                     className="accent-[var(--accent)]"
                   />
-                  Verificar automáticamente las fotos contra la creatividad
+                  {t('spaceeyes.campanas.verificar')}
                 </label>
-                <p className="ml-6 mt-0.5 text-[11px] text-muted">
-                  Requiere subir la creatividad. Sin ella la verificación no puede hacer nada.
-                </p>
+                <p className="ml-6 mt-0.5 text-[11px] text-muted">{t('spaceeyes.campanas.verificar.texto')}</p>
               </div>
             </div>
 
             {/* Creatividad */}
             <div>
-              <div className="mb-1.5 text-[12px] font-medium text-ink">Creatividad de referencia</div>
+              <div className="mb-1.5 text-[12px] font-medium text-ink">{t('spaceeyes.campanas.creatividad')}</div>
               <div
                 className={cn(
                   'rounded-md border p-4 text-center',
@@ -442,12 +463,12 @@ export function CampanasEyes() {
               >
                 {vistaPrevia ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={vistaPrevia} alt="Creatividad de referencia" className="mx-auto max-h-56 rounded" />
+                  <img src={vistaPrevia} alt={t('spaceeyes.campanas.creatividad')} className="mx-auto max-h-56 rounded" />
                 ) : (
                   <div className="py-8">
                     <ImageIcon className="mx-auto mb-2 h-10 w-10 text-muted" strokeWidth={1.3} />
-                    <p className="text-[13px] text-muted">Sube la imagen del anuncio</p>
-                    <p className="mt-1 text-[11px] text-muted">JPG o PNG, hasta 20 MB</p>
+                    <p className="text-[13px] text-muted">{t('spaceeyes.campanas.sube')}</p>
+                    <p className="mt-1 text-[11px] text-muted">{t('spaceeyes.campanas.formatos')}</p>
                   </div>
                 )}
 
@@ -465,19 +486,18 @@ export function CampanasEyes() {
                   className="mt-3"
                   onClick={() => inputArchivo.current?.click()}
                 >
-                  {vistaPrevia ? 'Cambiar imagen' : 'Elegir imagen'}
+                  {vistaPrevia ? t('spaceeyes.campanas.cambiar-imagen') : t('spaceeyes.campanas.elegir-imagen')}
                 </Button>
               </div>
 
               <p className="mt-2 text-[11px] text-muted">
-                Es la imagen tal como debe verse en la pantalla. Sirve para comprobar que la campaña está al aire y, más
-                adelante, para que el sistema reconozca ese creativo entre los que rotan en el sitio.
+                {t('spaceeyes.campanas.creatividad.texto')}
               </p>
               {form.id && !archivoNuevo && creativoActual && (
-                <p className="mt-1 text-[11px] text-success">Esta campaña ya tiene creatividad guardada.</p>
+                <p className="mt-1 text-[11px] text-success">{t('spaceeyes.campanas.ya-tiene')}</p>
               )}
               {archivoNuevo && (
-                <p className="mt-1 text-[11px] text-muted">La imagen nueva se sube al guardar.</p>
+                <p className="mt-1 text-[11px] text-muted">{t('spaceeyes.campanas.se-sube')}</p>
               )}
             </div>
           </div>
@@ -494,10 +514,14 @@ export function CampanasEyes() {
                 (convenciones.md, «Color de los botones»). El boton que abre
                 este formulario, «Nueva campana», ya era verde. */}
             <Button variant={form.id ? 'primary' : 'success'} onClick={guardar} disabled={guardando}>
-              {guardando ? 'Guardando…' : form.id ? 'Guardar cambios' : 'Crear campaña'}
+              {guardando
+                ? t('spaceeyes.comun.guardando')
+                : form.id
+                  ? t('spaceeyes.comun.guardar-cambios')
+                  : t('spaceeyes.campanas.crear')}
             </Button>
             <Button variant="ghost" onClick={cancelar} disabled={guardando}>
-              Cancelar
+              {t('comun.cancelar')}
             </Button>
           </div>
         </div>
@@ -508,7 +532,7 @@ export function CampanasEyes() {
         <div className="flex items-start gap-2 rounded-md border border-[#dc262640] bg-error-soft p-3 text-[12px]">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-error" />
           <div>
-            <div className="font-medium text-ink">No se pudieron cargar las campañas</div>
+            <div className="font-medium text-ink">{t('spaceeyes.campanas.error.cargar')}</div>
             <div className="text-muted">{errorCarga}</div>
           </div>
         </div>
@@ -520,10 +544,8 @@ export function CampanasEyes() {
         </div>
       ) : lista.length === 0 ? (
         <div className="rounded-md border border-border bg-surface-2 px-3 py-10 text-center">
-          <p className="text-[13px] text-ink">No hay campañas creadas</p>
-          <p className="mt-1 text-[12px] text-muted">
-            Crea una para agrupar las fotos de un cliente y comprobar que su anuncio está al aire.
-          </p>
+          <p className="text-[13px] text-ink">{t('spaceeyes.campanas.vacio')}</p>
+          <p className="mt-1 text-[12px] text-muted">{t('spaceeyes.campanas.vacio.texto')}</p>
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
@@ -548,6 +570,7 @@ function Campo({ etiqueta, htmlFor, children }: { etiqueta: string; htmlFor: str
 }
 
 function TarjetaCampana({ campana: c, onEditar }: { campana: CampanaSE; onEditar: () => void }) {
+  const { t, idioma } = useIdioma()
   const img = fotoSE(c.creative_path)
   const verifica = !!c.verification_enabled
   return (
@@ -565,13 +588,13 @@ function TarjetaCampana({ campana: c, onEditar }: { campana: CampanaSE; onEditar
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={img}
-            alt={`Creatividad de ${c.name}`}
+            alt={t('spaceeyes.campanas.alt', { nombre: c.name })}
             className="absolute inset-0 h-full w-full object-contain"
           />
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 px-4 text-center text-warning">
             <ImageIcon className="h-5 w-5" strokeWidth={1.4} />
-            <span className="text-[12px]">Sin creatividad de referencia</span>
+            <span className="text-[12px]">{t('spaceeyes.campanas.sin-creatividad')}</span>
           </div>
         )}
       </div>
@@ -593,38 +616,38 @@ function TarjetaCampana({ campana: c, onEditar }: { campana: CampanaSE; onEditar
                 : 'border-border bg-surface-2 text-muted',
             )}
           >
-            {c.active ? 'Activa' : 'Inactiva'}
+            {c.active ? t('spaceeyes.comun.activa') : t('spaceeyes.campanas.inactiva')}
           </span>
         </div>
         <p className="mt-0.5 truncate text-[12px] text-muted">
-          {c.advertiser || 'Sin anunciante'}
-          {c.origen && <span className="text-accent"> · De Operaciones</span>}
+          {c.advertiser || t('spaceeyes.campanas.sin-anunciante')}
+          {c.origen && <span className="text-accent">{t('spaceeyes.campanas.de-operaciones')}</span>}
         </p>
 
         <div className="mt-3 grid grid-cols-3 gap-2 text-[12px]">
-          <Dato titulo="Equipos" valor={c.device_count} />
-          <Dato titulo="Fotos" valor={c.photo_count} />
-          <Dato titulo="Periodo" valor={periodo(c)} />
+          <Dato titulo={t('spaceeyes.comun.equipos')} valor={c.device_count} />
+          <Dato titulo={t('spaceeyes.ficha.tab.fotos')} valor={c.photo_count} />
+          <Dato titulo={t('spaceeyes.comun.periodo')} valor={periodo(c, idioma)} />
         </div>
 
         <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-2.5">
           {verifica && c.creative_path ? (
-            <span className="text-[12px] text-accent">Verificación activa</span>
+            <span className="text-[12px] text-accent">{t('spaceeyes.campanas.verif.activa')}</span>
           ) : verifica ? (
-            <span className="text-[12px] text-warning">Verificación sin creatividad</span>
+            <span className="text-[12px] text-warning">{t('spaceeyes.campanas.verif.sin-creatividad')}</span>
           ) : (
-            <span className="text-[12px] text-muted">Sin verificación</span>
+            <span className="text-[12px] text-muted">{t('spaceeyes.campanas.verif.sin')}</span>
           )}
           {c.origen ? (
             <span
               className="text-[12px] text-muted"
-              title="Llegó de Operaciones: se cambia allá (creativo, pantallas y fechas de sus reservas) y aquí se actualiza solo."
+              title={t('spaceeyes.campanas.operaciones.ayuda')}
             >
-              Se cambia en Operaciones
+              {t('spaceeyes.campanas.operaciones')}
             </span>
           ) : (
             <Button variant="tertiary" size="sm" onClick={onEditar}>
-              Editar
+              {t('spaceeyes.comun.editar')}
             </Button>
           )}
         </div>
@@ -634,10 +657,11 @@ function TarjetaCampana({ campana: c, onEditar }: { campana: CampanaSE; onEditar
 }
 
 function Dato({ titulo, valor }: { titulo: string; valor: number | string }) {
+  const { idioma } = useIdioma()
   return (
     <div className="min-w-0">
       <div className="text-[11px] text-muted">{titulo}</div>
-      <div className="demo-num truncate font-medium text-ink">{typeof valor === 'number' ? formatNumero(valor) : valor}</div>
+      <div className="demo-num truncate font-medium text-ink">{typeof valor === 'number' ? formatNumero(valor, 0, idioma) : valor}</div>
     </div>
   )
 }

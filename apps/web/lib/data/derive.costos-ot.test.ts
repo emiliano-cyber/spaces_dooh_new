@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { dashboardMetrics, margenCampana } from './derive'
+import { rentabilidadPorTrimestre } from './reportes'
 import { COSTOS_OT_RESPALDO } from '../costos-ot'
 
 // ============================================================================
@@ -32,29 +33,34 @@ const OTS = [
   { id: 'OT3', campanaId: 'C1', sitioId: 'S1', tipo: 'HERRERIA', estatus: 'CANCELADA' },
 ]
 
-describe('dashboardMetrics — costo de operacion por tipo de OT', () => {
+// DASH-PERIODO (26/10) · el costo de operación del dashboard ya no sale de
+// `dashboardMetrics`: lo da el motor de Reportes para el mes en curso. Se
+// prueba ahí, con la misma tabla de costos, y con fecha en cada OT porque el
+// motor la cobra en el mes en que se trabaja.
+const OTS_DEL_MES = OTS.map((o) => ({ ...o, fechaProgramada: '2026-10-10' }))
+const costoOperacionDelMes = (costosOt?: Record<string, number> | null) =>
+  rentabilidadPorTrimestre(
+    { sitios: [{ id: 'S1', nombre: 'S1' } as any], contratos: [], arrendadores: [], reservas: [], ordenesTrabajo: OTS_DEL_MES, costosOt },
+    { desde: '2026-10-01', hasta: '2026-10-31', granularidad: 'mes' },
+  ).totales.costoOperacion
+
+describe('el costo de operacion del mes (motor de Reportes) por tipo de OT', () => {
   it('sin configuracion suma el respaldo de cada tipo', () => {
-    const d = dashboardMetrics(baseState({ ordenesTrabajo: OTS }))
-    expect(d.costoOperacionMes).toBe(COSTOS_OT_RESPALDO.HERRERIA + COSTOS_OT_RESPALDO.INSPECCION)
+    expect(costoOperacionDelMes(null)).toBe(COSTOS_OT_RESPALDO.HERRERIA + COSTOS_OT_RESPALDO.INSPECCION)
   })
 
   it('el tipo configurado manda y el no configurado cae al respaldo', () => {
-    const d = dashboardMetrics(
-      baseState({
-        ordenesTrabajo: OTS,
-        configNegocio: { costosOt: { HERRERIA: 4000 } },
-      }),
-    )
-    expect(d.costoOperacionMes).toBe(4000 + COSTOS_OT_RESPALDO.INSPECCION)
+    expect(costoOperacionDelMes({ HERRERIA: 4000 })).toBe(4000 + COSTOS_OT_RESPALDO.INSPECCION)
   })
 
   it('un tenant sin fila de configuracion no revienta: cae al respaldo entero', () => {
+    expect(costoOperacionDelMes(undefined)).toBe(COSTOS_OT_RESPALDO.HERRERIA + COSTOS_OT_RESPALDO.INSPECCION)
+  })
+
+  it('dashboardMetrics sin configuracion tampoco revienta', () => {
     const sinConfig = baseState({ ordenesTrabajo: OTS })
     delete sinConfig.configNegocio
     expect(() => dashboardMetrics(sinConfig)).not.toThrow()
-    expect(dashboardMetrics(sinConfig).costoOperacionMes).toBe(
-      COSTOS_OT_RESPALDO.HERRERIA + COSTOS_OT_RESPALDO.INSPECCION,
-    )
   })
 })
 

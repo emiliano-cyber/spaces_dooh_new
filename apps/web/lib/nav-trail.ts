@@ -13,13 +13,29 @@ export function withTrail(href: string, trail: Crumb[]): string {
   return `${href}${sep}from=${encodeURIComponent(JSON.stringify(trail))}`
 }
 
+// Solo una ruta INTERNA: empieza por `/` y lo que sigue no es otra `/` ni `\`
+// (el navegador lee `/\host` como `//host`, o sea otro sitio).
+const RUTA_INTERNA = /^\/(?![/\\])/
+
 // Lee el rastro desde el valor del param `from` (string de la URL).
+//
+// El `from` viene de la URL, o sea de quien mande el enlace, y su `href` se
+// pinta como `<Link>` en «Volver» (SEG-21OCT, 21/10). Hasta ese día pasaba
+// cualquier `href`: con `javascript:alert(1)` el clic ejecutaba código con la
+// sesión de quien abría el enlace, y con `https://otro.sitio` lo mandaba fuera
+// desde un botón de la aplicación. Toda miga legítima la arma `withTrail` con
+// una ruta que empieza por `/`, así que un paso con otro `href` se descarta.
 export function parseTrail(from: string | null | undefined): Crumb[] {
   if (!from) return []
   try {
     const arr = JSON.parse(decodeURIComponent(from))
     if (Array.isArray(arr)) {
-      return arr.filter((c) => c && typeof c.label === 'string')
+      return arr.filter(
+        (c) =>
+          c &&
+          typeof c.label === 'string' &&
+          (c.href === undefined || (typeof c.href === 'string' && RUTA_INTERNA.test(c.href))),
+      )
     }
   } catch {
     /* param malformado → sin rastro */

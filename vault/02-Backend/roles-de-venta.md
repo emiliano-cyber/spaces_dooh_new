@@ -1,7 +1,7 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-10-06
+actualizado: 2026-11-09
 tags: [backend, roles, permisos, rbac, enum, migraciones, dueno, guards, carrera]
 archivos:
   - db/migrations/20260929_roles_de_venta_enum.sql
@@ -204,9 +204,38 @@ Dueños y exige que gane exactamente una y quede uno. El mutante que quita el
 ### Un solo camino de escritura
 
 `actualizarUsuario` y `borrarUsuario` pasan los dos por `conGuardasDeDueno`, y
-`restablecerPasswordCtrl` también —aunque ahí los guards nunca salten—. Tener dos
-caminos de escritura sobre `usuarios` es exactamente como se cuela mañana uno que
-sí cambie el rol sin pasar por el guard.
+`restablecerPasswordCtrl` también.
+
+> [!important] 2026-11-09 · borrar ya tiene botón, y pide la contraseña
+> Hasta hoy el `DELETE /api/usuarios/[id]` existía pero **sin botón y sin
+> reautenticación**: una sesión de Dueño olvidada abierta bastaba para vaciar el
+> equipo por la API. Ahora Administración → Equipo trae «Eliminar» (escribir el
+> nombre para confirmar) y la ruta exige `exigirReautenticacionSiempre()`, como
+> restablecer. **El dueño decidió borrado REAL para cualquiera**, con o sin
+> historial. Para eso hizo falta `20261109_acciones_sin_fk_usuario.sql`: la FK
+> `acciones.usuario_id` era `set null` y chocaba con el trigger append-only de
+> la bitácora, así que **borrar a cualquiera con historial daba 500** desde junio.
+> Ahora la bitácora no se toca (id y nombre intactos); las demás FK siguen en
+> `cascade` o `set null`, y sus propuestas conservan `vendedor_nombre`. `borrarUsuario`
+> devuelve ahora el **nombre** (la bitácora lo registraba por id). Lo fija
+> `apps/web/lib/test/borrar-usuario.e2e.test.ts`. Tener dos caminos de escritura sobre
+`usuarios` es exactamente como se cuela mañana uno que sí cambie el rol sin
+pasar por el guard.
+
+> [!danger] 2026-10-21 · SEG-21OCT — «aunque ahí los guards nunca salten» ERA el hueco
+> Hasta ese día este párrafo decía que en el restablecimiento los guards nunca
+> saltan, y era cierto: restablecer no le quita el rol a nadie, y los tres guards
+> solo miran eso. Pero la respuesta trae la temporal **en claro**, así que un
+> administrador le restablecía la contraseña a un Dueño, entraba con ella, la
+> cambiaba en `/api/perfil` y **era el Dueño**. La misma toma de cuenta que el
+> guard 3 quiso cerrar, sin fabricarse ningún aliado.
+>
+> **Guard 4** (`rechazoDelCambio`): las credenciales de un Dueño solo las toca otro
+> Dueño → **403**, aunque esté desactivado. `actualizarUsuario` lo activa con
+> `credenciales: cambios.passwordHash !== undefined`, o sea por lo que se escribe
+> y no por quién llama. Mira el **rol** y no el permiso, como el guard 3. Lo fija
+> `lib/server/restablecer-dueno.test.ts`, que además comprueba que el rechazo
+> llega **antes** del `update`.
 
 El `actorRol` es **obligatorio y sin valor por omisión**, a propósito: viene de la
 sesión del servidor, nunca del cuerpo, y que el compilador lo pida es lo único que
@@ -326,13 +355,13 @@ Detalle en [[comercial-propuestas-campanas]].
 
 > [!note] 2026-10-05 · citas medidas hoy (ningún archivo de esta nota cambió desde el 01/10)
 > `ROL_POR_OMISION` en `apps/web/lib/roles.ts:80` y `puedeVerControlCambios` en
-> `:110`; `rechazoDelCambio` en `apps/web/lib/guardas-usuarios.ts:143`;
-> `conGuardasDeDueno` en `apps/web/lib/server/usuarios-repo.ts:145`, con el
-> `for update` en `:163`, `actualizarUsuario` en `:196` y `borrarUsuario` en
-> `:269`; `crearUsuarioCtrl` en `apps/web/lib/server/usuarios-controller.ts:105`;
+> `:110`; `rechazoDelCambio` en `apps/web/lib/guardas-usuarios.ts:151`;
+> `conGuardasDeDueno` en `apps/web/lib/server/usuarios-repo.ts:161`, con el
+> `for update` en `:179`, `actualizarUsuario` en `:212` y `borrarUsuario` en
+> `:285`; `crearUsuarioCtrl` en `apps/web/lib/server/usuarios-controller.ts:105`;
 > `crearOrgConDueno` en `apps/web/lib/server/cuentas-controller.ts:46`; el
 > permiso de PRECIO-01 en `apps/web/lib/server/propuestas-controller.ts:347`; y el
-> de `operaciones.costear` en `apps/web/app/api/ot/[id]/costo/route.ts:56`
+> de `operaciones.costear` en `apps/web/app/api/ot/[id]/costo/route.ts:64`
 > (filas en `20260929_roles_operaciones_costear.sql:97-105`). Los recuentos de la
 > tabla «Qué entró» (92 filas, 27 del Dueño…) **no se volvieron a medir**: exigen
 > una base con las migraciones aplicadas.

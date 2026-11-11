@@ -243,6 +243,17 @@ export interface Sitio {
   comercializacion: Comercializacion // programático vs tradicional
   enNetwork: boolean // compartido a la Network
   cms: CMS | null // CMS que opera la pantalla
+  // Nombre de la pantalla en DOOHmain a la que se publica. null = lo decide el
+  // servidor (DOOHMAIN_SCREEN_MAP / DOOHMAIN_DEFAULT_SCREEN). Opcional: los
+  // datos de demostración del cliente no lo traen.
+  doohmainPantalla?: string | null
+  // v0.12.3 · de la organización: sin renta, sin arrendador y sin contrato. Se
+  // vende sin contrato y su costo es luz + operación.
+  propio?: boolean
+  // 22/10 · la que SE USA al publicar (ficha → mapa del servidor → por omisión)
+  // y de dónde sale. null en una pantalla de otro CMS o sin ninguna.
+  doohmainEfectiva?: string | null
+  doohmainOrigen?: 'ficha' | 'mapa' | 'servidor' | null
   predioId?: string | null // predio (inmueble) al que pertenece la pantalla (N pantallas : 1 predio)
   arrendadorId?: string | null // propietario/arrendador del inmueble (directo, sin contrato)
   /** @deprecated Fase 1: la renta vive en el contrato del predio. No usar en P&L/UI. */
@@ -580,6 +591,21 @@ export interface Propuesta {
   version: number // versión de la propuesta (sube en cada renegociación)
   notas: string | null
   creadoEn: string
+  // DASH-REF (26/10) · opcionales: la liga pública no los manda. `null` en las
+  // aprobadas antes del 09/10, cuando la fecha no se guardaba.
+  aprobadaEn?: string | null
+  rechazadaEn?: string | null
+  vendedorId?: string | null
+  // P19 (29/10) · el nombre del vendedor congelado al crear: sobrevive al
+  // borrado del usuario.
+  vendedorNombre?: string | null
+  // PROP-COMPLETA (29/10) · términos de ESTA propuesta (copiados de la
+  // plantilla al crear) y su vigencia. `vigenteHasta` se pone al enviar; null =
+  // sin vigencia (todo lo enviado antes del 29/10). `vencida` lo calcula el
+  // servidor con `lib/propuesta-vigencia.ts`.
+  condiciones?: string | null
+  vigenteHasta?: string | null
+  vencida?: boolean
   items: PropuestaItem[]
   // Calculados con el método del divisor (server-side):
   bruto: number         // Σ precio de los items (tarifa de lista)
@@ -881,6 +907,10 @@ export interface AccionLog {
 export interface ConfigNegocio {
   nombreTenant: string
   razonSocial: string | null      // razón social fiscal (encabezado del dashboard)
+  // Cuál de «Razones sociales» es la de la empresa. `razonSocial` y `rfc` se
+  // leen de esa entidad (20261012_razon_social_principal.sql); se cambia
+  // eligiendo otra, nunca escribiendo el nombre.
+  entidadPrincipalId: string | null
   nombreComercial: string | null  // nombre comercial / marca (encabezado del dashboard)
   // Datos fiscales de la empresa (parte ARRENDATARIA). Viven en `tenants`, no en
   // `config_negocio`: son POR organización. Solo los devuelve /api/config (panel
@@ -910,6 +940,10 @@ export interface ConfigNegocio {
   // /api/estado a TODOS los roles a propósito: quien vende necesita saber su
   // techo para que el formulario lo diga antes de mandar, no después.
   topeDescuentoPct: number
+  // PROP-COMPLETA (29/10) · plantilla de condiciones que se copia a cada
+  // propuesta nueva, y días de vigencia que se le dan al enviarla (30).
+  condicionesPropuesta?: string | null
+  vigenciaPropuestaDias?: number
   // Costo de mano de obra por TIPO de orden de trabajo. Objeto VACÍO = esta
   // organización no ha configurado ninguno, y entonces manda el respaldo de
   // `lib/costos-ot.ts`. Un tipo ausente cae al respaldo, nunca a 0.

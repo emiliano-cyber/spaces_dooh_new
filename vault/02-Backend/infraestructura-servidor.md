@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-21
 tags: [backend, infraestructura, transversal, rojo]
 archivos:
   - apps/web/lib/server/db.ts
@@ -152,7 +152,7 @@ Valida contra los **magic bytes** reales del contenido decodificado, no contra
 el MIME declarado en el data URL. Renombrar un `.exe` a `.jpg` se rechaza.
 Tipos posibles (`uploads.ts:19-24`): `image/jpeg`, `image/png`, `image/webp`,
 `image/svg+xml` y `application/pdf`; cada punto de subida elige su `allowlist`
-en `LIMITES` (`uploads.ts:209`). El SVG no tiene magic bytes (`:37`) y se
+en `LIMITES` (`uploads.ts:230`). El SVG no tiene magic bytes (`:37`) y se
 comprueba que el texto contenga una etiqueta `<svg` (`:147-148`). Todo rechazo
 es **422** con mensaje entendible (`uploads.ts:5-17`).
 
@@ -163,13 +163,35 @@ es **422** con mensaje entendible (`uploads.ts:5-17`).
 > [!danger] Punto único de validación
 > El hallazgo original era que 6 de 7 puntos de subida aceptaban cualquier data
 > URL de cualquier peso. Si añades un punto de subida nuevo, **tiene que pasar
-> por aquí** (`uploadZod` `:172`, `uploadOUrlZod` `:192`, `LIMITES` `:209`).
+> por aquí** (`uploadZod` `:172`, `uploadOUrlZod` `:204`, `LIMITES` `:230`).
+
+> [!important] 2026-10-21 · SEG-21OCT — `uploadOUrlZod` ya no deja pasar «cualquier cosa que no sea data URL»
+> Lo que no es un data URL tiene que ser `http(s)://…` y de 2048 caracteres como
+> mucho. Antes pasaba sin mirar, y esos campos (`contratoUrl`, `ocUrl`,
+> `documentoUrl`) se pintan como `href` de «Ver contrato»: un `javascript:…`
+> corría con la sesión de quien lo abría. Y el `data:` se compara ya sin
+> distinguir mayúsculas: un `DATA:text/html,…` se saltaba la lista blanca. Lo
+> fija `lib/server/uploads-enlaces.test.ts`.
 
 ## `notificaciones-repo.ts` — avisos in-app
 
 `notificar()` inserta solo si no existe ya una idéntica hoy (dedupe por día). El
 cron usa **la misma regla** escrita en su propia sentencia
 (`app/api/recordatorios/route.ts`) precisamente para que no diverjan.
+
+> [!important] 2026-10-21 · NOTIF-USUARIO — la bandeja es de cada persona
+> La notificación sigue siendo **una por empresa** y `notificar()` no cambia.
+> Lo que cambia es lo que cada quien hace con ella: `marcarNotificacionLeida`,
+> `borrarNotificacion` (nueva) y `archivarTodasNotificaciones` escriben en
+> `notificaciones_usuario` y reciben el `usuarioId` de la ruta, que lo saca de la
+> sesión. Las lecturas (`listarNotificaciones`, `notificacionesDesde`) hacen
+> `left join` con esa tabla para el usuario y esconden lo que **él** borró.
+> «Leída» = la leyó él **o** está marcada con la columna vieja `leida`; lo
+> archivado para todos antes del 21/10 sigue oculto. Las tres escrituras son
+> `insert … select from notificaciones where id/tenant`: si el aviso es de otra
+> empresa no se inserta nada y la ruta da 404. Lo miden
+> `notificaciones-repo.archivar.test.ts` (forma de las sentencias) y
+> `lib/test/notificaciones-por-usuario.e2e.test.ts` (aislamiento real).
 
 ## `acciones-repo.ts` — bitácora
 

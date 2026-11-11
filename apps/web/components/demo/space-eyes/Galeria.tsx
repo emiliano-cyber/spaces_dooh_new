@@ -19,7 +19,7 @@ import { cn } from '@/lib/cn'
 import { ORIGENES_FOTO, selloDeFoto } from '@/lib/space-eyes-origenes'
 import { Button } from '@/components/demo/ui/Button'
 import { ConfirmDialog } from '@/components/demo/ui/ConfirmDialog'
-import { seApi, fotoSE, ErrorSE } from '@/lib/data/space-eyes-se'
+import { seApi, fotoSE, textoDeError } from '@/lib/data/space-eyes-se'
 import {
   crearZip,
   descargarBlob,
@@ -33,6 +33,10 @@ import {
 } from '@/lib/space-eyes-marca'
 import { FotoGirada, fechaHora } from './piezas'
 import { formatNumero } from '@/lib/formato-numero'
+import { useIdioma } from '@/lib/i18n/contexto'
+import type { ClaveTexto } from '@/lib/i18n/diccionario'
+import type { Idioma } from '@/lib/i18n/idiomas'
+import { interpolarNodos } from '@/lib/i18n/nodos'
 
 // ============================================================================
 //  Space Eyes — galería de fotos.
@@ -76,22 +80,21 @@ interface Filtros {
 const SIN_FILTROS: Filtros = { desde: '', hasta: '', origen: '', equipo: '' }
 
 // El catálogo vive en lib/space-eyes-origenes: aquí faltaba 'campana', así que
-// una prueba de campaña no tenía etiqueta ni se podía filtrar.
+// una prueba de campaña no tenía etiqueta ni se podía filtrar. Cada origen
+// trae su clave del diccionario; el nombre sale en el idioma de quien mira.
 const ORIGENES = ORIGENES_FOTO
 
-const TEXTO_VERIFICACION: Record<string, string> = {
-  pending: 'Sin verificar',
-  queued: 'En cola',
-  running: 'Verificando',
-  verified: 'Verificada',
-  failed: 'Falló la verificación',
-  skipped: 'Omitida',
+const TEXTO_VERIFICACION: Record<string, ClaveTexto> = {
+  pending: 'spaceeyes.galeria.verif.pending',
+  queued: 'spaceeyes.galeria.verif.queued',
+  running: 'spaceeyes.galeria.verif.running',
+  verified: 'spaceeyes.galeria.verif.verified',
+  failed: 'spaceeyes.galeria.verif.failed',
+  skipped: 'spaceeyes.galeria.verif.skipped',
 }
 
-function mensaje(e: unknown, porOmision: string): string {
-  if (e instanceof ErrorSE) return e.message
-  if (e instanceof Error && e.message) return e.message
-  return porOmision
+function mensaje(e: unknown, porOmision: string, idioma: Idioma): string {
+  return textoDeError(e, idioma) || porOmision
 }
 
 // `to` llega como fecha sola, y en el servidor «<= 2026-10-01» es «<= las 00:00»:
@@ -108,6 +111,7 @@ function consulta(f: Filtros): string {
 type Aviso = { tipo: 'exito' | 'error' | 'info'; texto: string }
 
 export function Galeria() {
+  const { t, idioma } = useIdioma()
   const [filtros, setFiltros] = useState<Filtros>(SIN_FILTROS)
   const [listo, setListo] = useState(false) // ya se leyó ?device_id= de la URL
   const [pagina, setPagina] = useState(1)
@@ -158,10 +162,10 @@ export function Galeria() {
       setFotos(d?.photos ?? [])
       setTotal(Number(d?.total) || 0)
     } catch (e) {
-      setError(mensaje(e, 'No se pudieron consultar las fotos'))
+      setError(mensaje(e, t('spaceeyes.galeria.error'), idioma))
     }
     setCargando(false)
-  }, [filtros, pagina])
+  }, [filtros, pagina, t, idioma])
 
   useEffect(() => {
     if (listo) void cargar()
@@ -189,9 +193,9 @@ export function Galeria() {
       setTotal((t) => Math.max(0, t - 1))
       if (abierta?.id === id) setAbierta(null)
       setABorrar(null)
-      avisar('Fotografía eliminada', 'exito')
+      avisar(t('spaceeyes.galeria.eliminada'), 'exito')
     } catch (e) {
-      avisar(`No se pudo eliminar la fotografía: ${mensaje(e, 'error desconocido')}`, 'error')
+      avisar(t('spaceeyes.galeria.no-eliminar', { motivo: mensaje(e, t('spaceeyes.comun.error-desconocido'), idioma) }), 'error')
     }
     setBorrando(false)
   }
@@ -199,7 +203,7 @@ export function Galeria() {
   // Todas las fotos que coinciden con los filtros, de 100 en 100, con su marca.
   const descargarAlbum = async () => {
     if (album) return
-    setAlbum('Preparando…')
+    setAlbum(t('spaceeyes.galeria.preparando'))
     try {
       const q = consulta(filtros)
       let todas: FotoSE[] = []
@@ -210,7 +214,7 @@ export function Galeria() {
         if (lote.length < 100 || todas.length >= (Number(d?.total) || todas.length)) break
       }
       if (todas.length === 0) {
-        avisar('Sin fotos para descargar', 'info')
+        avisar(t('spaceeyes.galeria.album.vacio'), 'info')
         return
       }
       const entradas: { nombre: string; datos: Uint8Array }[] = []
@@ -238,17 +242,19 @@ export function Galeria() {
         setAlbum(`${i + 1}/${todas.length}`)
       }
       if (entradas.length === 0) {
-        avisar('No se pudo descargar ninguna foto del álbum', 'error')
+        avisar(t('spaceeyes.galeria.album.ninguna'), 'error')
         return
       }
       const zip = crearZip(entradas)
       descargarBlob(new Blob([zip as BlobPart], { type: 'application/zip' }), 'album_fotos.zip')
       avisar(
-        fallidas ? `Álbum descargado; ${fallidas} foto${fallidas === 1 ? '' : 's'} no se pudo incluir` : 'Álbum descargado',
+        fallidas
+          ? t(fallidas === 1 ? 'spaceeyes.galeria.album.parcial.uno' : 'spaceeyes.galeria.album.parcial.otros', { n: fallidas })
+          : t('spaceeyes.galeria.album.listo'),
         fallidas ? 'info' : 'exito',
       )
     } catch (e) {
-      avisar(`Error al descargar el álbum: ${mensaje(e, 'error desconocido')}`, 'error')
+      avisar(t('spaceeyes.galeria.album.error', { motivo: mensaje(e, t('spaceeyes.comun.error-desconocido'), idioma) }), 'error')
     } finally {
       setAlbum(null)
     }
@@ -270,15 +276,13 @@ export function Galeria() {
           <Images className="h-5 w-5" strokeWidth={1.75} />
         </span>
         <div className="min-w-[12rem] flex-1">
-          <h1 className="text-2xl text-ink">Galería de fotos</h1>
-          <p className="text-[13px] text-muted">
-            Todas las fotos de los equipos: programadas, pedidas a mano, de creativos nuevos y de fallas.
-          </p>
+          <h1 className="text-2xl text-ink">{t('spaceeyes.galeria.titulo')}</h1>
+          <p className="text-[13px] text-muted">{t('spaceeyes.galeria.descripcion')}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="secondary" size="sm" onClick={() => void cargar()} disabled={cargando}>
             {cargando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-            Actualizar
+            {t('spaceeyes.comun.actualizar')}
           </Button>
           {/* Descargar no asigna ni acepta nada: en SPACE OS las descargas van
               en neutro (creativos, «Descargar HTML»). Se quita el azul para que
@@ -288,10 +292,10 @@ export function Galeria() {
             size="sm"
             onClick={() => descargarAlbum()}
             disabled={!!album || (fotos?.length ?? 0) === 0}
-            title="Descarga en un .zip todas las fotos que coinciden con los filtros, con su marca"
+            title={t('spaceeyes.galeria.album.ayuda')}
           >
             {album ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-            {album ? `Descargando ${album}` : 'Descargar álbum'}
+            {album ? t('spaceeyes.galeria.descargando', { progreso: album }) : t('spaceeyes.galeria.album')}
           </Button>
         </div>
       </div>
@@ -299,7 +303,7 @@ export function Galeria() {
       {/* Filtros */}
       <div className="flex flex-wrap items-end gap-2 rounded-md border border-border bg-surface p-3">
         <label className="flex min-w-[140px] flex-1 flex-col gap-1 sm:flex-none">
-          <span className="text-[12px] text-muted">Desde</span>
+          <span className="text-[12px] text-muted">{t('spaceeyes.comun.desde')}</span>
           <input
             type="date"
             value={filtros.desde}
@@ -309,7 +313,7 @@ export function Galeria() {
           />
         </label>
         <label className="flex min-w-[140px] flex-1 flex-col gap-1 sm:flex-none">
-          <span className="text-[12px] text-muted">Hasta</span>
+          <span className="text-[12px] text-muted">{t('spaceeyes.comun.hasta')}</span>
           <input
             type="date"
             value={filtros.hasta}
@@ -319,21 +323,21 @@ export function Galeria() {
           />
         </label>
         <label className="flex min-w-[160px] flex-1 flex-col gap-1 sm:flex-none">
-          <span className="text-[12px] text-muted">Origen</span>
+          <span className="text-[12px] text-muted">{t('spaceeyes.galeria.origen')}</span>
           <select value={filtros.origen} onChange={(e) => cambiarFiltro('origen', e.target.value)} className={selectCls}>
-            <option value="">Todos los orígenes</option>
+            <option value="">{t('spaceeyes.galeria.origenes')}</option>
             {ORIGENES.map((o) => (
-              <option key={o.valor} value={o.valor}>{o.texto}</option>
+              <option key={o.valor} value={o.valor}>{t(o.clave)}</option>
             ))}
           </select>
         </label>
         <label className="flex min-w-[180px] flex-1 flex-col gap-1 sm:max-w-xs">
-          <span className="text-[12px] text-muted">Equipo</span>
+          <span className="text-[12px] text-muted">{t('spaceeyes.comun.equipo')}</span>
           <select value={filtros.equipo} onChange={(e) => cambiarFiltro('equipo', e.target.value)} className={selectCls}>
-            <option value="">Todos los equipos</option>
+            <option value="">{t('spaceeyes.comun.todos-equipos')}</option>
             {/* Si se llegó con ?device_id= de un equipo que no está en la lista */}
             {filtros.equipo && !equipos.some((x) => String(x.id) === filtros.equipo) && (
-              <option value={filtros.equipo}>Equipo {filtros.equipo}</option>
+              <option value={filtros.equipo}>{t('spaceeyes.comun.equipo-n', { id: filtros.equipo })}</option>
             )}
             {equipos.map((x) => (
               <option key={x.id} value={String(x.id)}>{x.name}</option>
@@ -343,7 +347,7 @@ export function Galeria() {
         {hayFiltros && (
           <Button variant="ghost" size="sm" className="h-9" onClick={() => { setFiltros(SIN_FILTROS); setPagina(1) }}>
             <X className="h-3.5 w-3.5" />
-            Quitar filtros
+            {t('spaceeyes.galeria.quitar-filtros')}
           </Button>
         )}
       </div>
@@ -352,10 +356,10 @@ export function Galeria() {
         <div className="flex items-start gap-2 rounded-md border border-error bg-error-soft p-3 text-[12px]">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-error" />
           <div className="min-w-0 flex-1">
-            <div className="font-medium text-ink">No se pudieron consultar las fotos</div>
+            <div className="font-medium text-ink">{t('spaceeyes.galeria.error')}</div>
             <div className="text-muted">{error}</div>
           </div>
-          <Button variant="secondary" size="sm" onClick={() => void cargar()}>Reintentar</Button>
+          <Button variant="secondary" size="sm" onClick={() => void cargar()}>{t('spaceeyes.comun.reintentar')}</Button>
         </div>
       ) : cargando && !fotos ? (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
@@ -366,7 +370,7 @@ export function Galeria() {
       ) : (fotos?.length ?? 0) === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-md border border-border bg-surface-2 px-3 py-14 text-center text-[13px] text-muted">
           <ImageOff className="h-5 w-5" strokeWidth={1.4} />
-          {hayFiltros ? 'Sin fotos para los filtros seleccionados.' : 'Todavía no hay fotos de ningún equipo.'}
+          {hayFiltros ? t('spaceeyes.galeria.vacio.filtros') : t('spaceeyes.galeria.vacio')}
         </div>
       ) : (
         <>
@@ -384,23 +388,23 @@ export function Galeria() {
           {(pagina > 1 || haySiguiente) && (
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-surface px-4 py-2.5">
               <span className="text-[12px] text-muted">
-                {totalExacto ? (
-                  <>
-                    <span className="demo-num text-ink">{formatNumero(total)}</span> fotos
-                  </>
-                ) : (
-                  'Fotos filtradas'
-                )}
+                {totalExacto
+                  ? interpolarNodos(t(total === 1 ? 'spaceeyes.galeria.total.uno' : 'spaceeyes.galeria.total.otros'), {
+                      n: <span className="demo-num text-ink">{formatNumero(total, 0, idioma)}</span>,
+                    })
+                  : t('spaceeyes.galeria.filtradas')}
               </span>
               <div className="flex items-center gap-1.5">
                 <Button variant="secondary" size="sm" disabled={pagina <= 1 || cargando} onClick={() => setPagina((p) => Math.max(1, p - 1))}>
-                  <ChevronLeft className="h-3.5 w-3.5" /> Anterior
+                  <ChevronLeft className="h-3.5 w-3.5" /> {t('spaceeyes.comun.anterior')}
                 </Button>
                 <span className="demo-num px-1 text-[12px] text-muted">
-                  Página {pagina}{totalExacto ? ` de ${paginas}` : ''}
+                  {totalExacto
+                    ? t('spaceeyes.comun.pagina-de', { pagina, paginas })
+                    : t('spaceeyes.comun.pagina', { pagina })}
                 </span>
                 <Button variant="secondary" size="sm" disabled={!haySiguiente || cargando} onClick={() => setPagina((p) => p + 1)}>
-                  Siguiente <ChevronRight className="h-3.5 w-3.5" />
+                  {t('spaceeyes.comun.siguiente')} <ChevronRight className="h-3.5 w-3.5" />
                 </Button>
               </div>
             </div>
@@ -424,13 +428,17 @@ export function Galeria() {
       <ConfirmDialog
         open={!!aBorrar}
         onOpenChange={(v) => { if (!v) setABorrar(null) }}
-        title="Eliminar fotografía"
-        confirmLabel="Eliminar"
+        title={t('spaceeyes.galeria.eliminar')}
+        confirmLabel={t('spaceeyes.comun.eliminar')}
         busy={borrando}
         onConfirm={() => void borrar()}
       >
-        <p className="text-ink">¿Eliminar esta fotografía{aBorrar?.device_name ? ` de ${aBorrar.device_name}` : ''}?</p>
-        <p className="mt-1">No se puede deshacer.</p>
+        <p className="text-ink">
+          {aBorrar?.device_name
+            ? t('spaceeyes.galeria.eliminar.pregunta.de', { nombre: aBorrar.device_name })
+            : t('spaceeyes.galeria.eliminar.pregunta')}
+        </p>
+        <p className="mt-1">{t('spaceeyes.galeria.eliminar.texto')}</p>
       </ConfirmDialog>
 
       {aviso && (
@@ -453,19 +461,21 @@ export function Galeria() {
 // ─── Una foto de la rejilla ─────────────────────────────────────────────────
 
 function Verificacion({ foto }: { foto: FotoSE }) {
+  const t = useIdioma().t
   const st = foto.verification_status ?? 'pending'
   if (st === 'verified') {
     const ok = foto.is_correct === 1 || foto.is_correct === true
     return (
       <span className={cn('font-medium', ok ? 'text-success' : 'text-error')}>
-        {ok ? 'Verificada · correcta' : 'Verificada · no coincide'}
+        {ok ? t('spaceeyes.galeria.verif.correcta') : t('spaceeyes.galeria.verif.no-coincide')}
       </span>
     )
   }
-  return <span className="text-muted">{TEXTO_VERIFICACION[st] ?? st}</span>
+  return <span className="text-muted">{TEXTO_VERIFICACION[st] ? t(TEXTO_VERIFICACION[st]) : st}</span>
 }
 
 function Miniatura({ foto, onAbrir, onBorrar }: { foto: FotoSE; onAbrir: () => void; onBorrar: () => void }) {
+  const { t, idioma } = useIdioma()
   const [rota, setRota] = useState(false)
   const src = fotoSE(foto.thumbnail_path || foto.storage_path)
   const giro = giroDeFoto(foto)
@@ -476,12 +486,12 @@ function Miniatura({ foto, onAbrir, onBorrar }: { foto: FotoSE; onAbrir: () => v
           type="button"
           onClick={onAbrir}
           className="relative block h-full w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
-          aria-label={`Ver foto de ${foto.device_name ?? 'equipo'} en grande`}
+          aria-label={t('spaceeyes.galeria.ver-grande', { nombre: foto.device_name ?? t('spaceeyes.galeria.equipo') })}
         >
           {src && !rota ? (
             <FotoGirada
               src={src}
-              alt={`Foto ${foto.id} de ${foto.device_name ?? 'equipo'}`}
+              alt={t('spaceeyes.galeria.alt', { id: foto.id, nombre: foto.device_name ?? t('spaceeyes.galeria.equipo') })}
               giro={giro}
               onError={() => setRota(true)}
               className="transition-opacity hover:opacity-90"
@@ -489,28 +499,28 @@ function Miniatura({ foto, onAbrir, onBorrar }: { foto: FotoSE; onAbrir: () => v
           ) : (
             <span className="flex h-full flex-col items-center justify-center gap-1.5 text-muted">
               <ImageOff className="h-5 w-5" strokeWidth={1.4} />
-              <span className="text-[12px]">No se pudo cargar</span>
+              <span className="text-[12px]">{t('spaceeyes.galeria.no-cargar')}</span>
             </span>
           )}
         </button>
-        {selloDeFoto(foto.source, foto.campaign_name) && (
+        {selloDeFoto(foto.source, foto.campaign_name, idioma) && (
           <span className="pointer-events-none absolute left-2 top-2 max-w-[calc(100%-1rem)] truncate rounded-full bg-black/60 px-2 py-0.5 text-[10.5px] text-white backdrop-blur-sm">
-            {selloDeFoto(foto.source, foto.campaign_name)}
+            {selloDeFoto(foto.source, foto.campaign_name, idioma)}
           </span>
         )}
         <button
           type="button"
           onClick={onBorrar}
-          title="Eliminar fotografía"
-          aria-label="Eliminar fotografía"
+          title={t('spaceeyes.galeria.eliminar')}
+          aria-label={t('spaceeyes.galeria.eliminar')}
           className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded border border-error bg-surface text-error transition-opacity hover:bg-error-soft focus-visible:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
         >
           <Trash2 className="h-4 w-4" />
         </button>
       </div>
       <div className="space-y-0.5 p-2.5 text-[12px]">
-        <div className="truncate font-medium text-ink">{foto.device_name ?? `Equipo ${foto.device_id}`}</div>
-        <div className="text-muted">{fechaHora(foto.taken_at)}</div>
+        <div className="truncate font-medium text-ink">{foto.device_name ?? t('spaceeyes.comun.equipo-n', { id: foto.device_id })}</div>
+        <div className="text-muted">{fechaHora(foto.taken_at, idioma)}</div>
         <div><Verificacion foto={foto} /></div>
       </div>
     </div>
@@ -534,6 +544,7 @@ function Visor({
   anterior?: () => void
   siguiente?: () => void
 }) {
+  const { t, idioma } = useIdioma()
   const [giroUsuario, setGiroUsuario] = useState(0)
   const [render, setRender] = useState<{ clave: string; url: string; blob: Blob } | null>(null)
   const [fallo, setFallo] = useState(false)
@@ -572,12 +583,12 @@ function Visor({
     setDescargando(true)
     try {
       const url = fotoSE(foto.storage_path)
-      if (!url) throw new Error('La foto no tiene archivo')
+      if (!url) throw new Error(t('spaceeyes.galeria.sin-archivo'))
       const blob = listo?.blob ?? (await renderizarFoto(url, giro, marcaDeFoto(foto)))
       descargarBlob(blob, nombreDescarga(foto), 4000)
-      avisar('Descargando foto…', 'exito')
+      avisar(t('spaceeyes.galeria.descargando-foto'), 'exito')
     } catch (e) {
-      avisar(`No se pudo descargar la foto: ${mensaje(e, 'error desconocido')}`, 'error')
+      avisar(t('spaceeyes.galeria.no-descargar', { motivo: mensaje(e, t('spaceeyes.comun.error-desconocido'), idioma) }), 'error')
     }
     setDescargando(false)
   }
@@ -587,7 +598,11 @@ function Visor({
       ? ` · GPS ${Number(foto.gps_lat).toFixed(5)}, ${Number(foto.gps_lng).toFixed(5)}`
       : ''
   const pie = foto
-    ? `${foto.device_name ?? ''}${foto.taken_at ? ` · ${new Date(foto.taken_at).toLocaleString('es-MX')}` : ''}${gps}`
+    ? `${foto.device_name ?? ''}${
+        foto.taken_at
+          ? ` · ${idioma !== 'es' ? fechaHora(foto.taken_at, idioma) : new Date(foto.taken_at).toLocaleString('es-MX')}`
+          : ''
+      }${gps}`
     : ''
   const miniatura = foto ? fotoSE(foto.thumbnail_path || foto.storage_path) : null
 
@@ -602,13 +617,15 @@ function Visor({
             if (e.key === 'ArrowRight' && siguiente) { e.preventDefault(); siguiente() }
           }}
         >
-          <Dialog.Title className="sr-only">Foto de {foto?.device_name ?? 'equipo'}</Dialog.Title>
+          <Dialog.Title className="sr-only">
+            {t('spaceeyes.galeria.foto-de', { nombre: foto?.device_name ?? t('spaceeyes.galeria.equipo') })}
+          </Dialog.Title>
           <Dialog.Description className="sr-only">{pie}</Dialog.Description>
 
           <div className="flex shrink-0 justify-end p-2 sm:p-3">
             <Dialog.Close
               className="flex h-10 w-10 items-center justify-center rounded text-white/80 hover:bg-white/10 hover:text-white"
-              aria-label="Cerrar"
+              aria-label={t('comun.cerrar')}
             >
               <X className="h-6 w-6" />
             </Dialog.Close>
@@ -623,7 +640,7 @@ function Visor({
               <button
                 type="button"
                 onClick={anterior}
-                aria-label="Foto anterior"
+                aria-label={t('spaceeyes.galeria.anterior')}
                 className="absolute left-1 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 text-white/80 hover:bg-black/70 hover:text-white sm:left-3"
               >
                 <ChevronLeft className="h-5 w-5" />
@@ -633,7 +650,7 @@ function Visor({
               <button
                 type="button"
                 onClick={siguiente}
-                aria-label="Foto siguiente"
+                aria-label={t('spaceeyes.galeria.siguiente')}
                 className="absolute right-1 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 text-white/80 hover:bg-black/70 hover:text-white sm:right-3"
               >
                 <ChevronRight className="h-5 w-5" />
@@ -644,13 +661,13 @@ function Visor({
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={listo.url}
-                alt={`Foto de ${foto?.device_name ?? 'equipo'}`}
+                alt={t('spaceeyes.galeria.foto-de', { nombre: foto?.device_name ?? t('spaceeyes.galeria.equipo') })}
                 className="max-h-full max-w-full cursor-default rounded object-contain"
               />
             ) : fallo ? (
               <div className="flex flex-col items-center gap-2 text-center text-[13px] text-white/80">
                 <ImageOff className="h-6 w-6" strokeWidth={1.4} />
-                No se pudo cargar la foto.
+                {t('spaceeyes.galeria.no-cargar-foto')}
               </div>
             ) : (
               <div className="relative flex items-center justify-center">
@@ -671,15 +688,15 @@ function Visor({
           <div className="flex shrink-0 flex-wrap items-center justify-center gap-2 p-3 text-[13px] text-white/80 sm:p-4">
             <span className="w-full text-center sm:w-auto">{pie}</span>
             <Button variant="secondary" size="sm" onClick={() => setGiroUsuario((g) => (g + 90) % 360)}>
-              <RotateCw className="h-3.5 w-3.5" /> Rotar
+              <RotateCw className="h-3.5 w-3.5" /> {t('spaceeyes.galeria.rotar')}
             </Button>
             {/* Neutro, como la descarga del album */}
             <Button variant="secondary" size="sm" onClick={() => descargar()} disabled={descargando || (!listo && !fallo)}>
               {descargando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-              Descargar
+              {t('spaceeyes.comun.descargar')}
             </Button>
             <Button variant="danger" size="sm" onClick={() => foto && onBorrar(foto)}>
-              <Trash2 className="h-3.5 w-3.5" /> Eliminar
+              <Trash2 className="h-3.5 w-3.5" /> {t('spaceeyes.comun.eliminar')}
             </Button>
           </div>
         </Dialog.Content>

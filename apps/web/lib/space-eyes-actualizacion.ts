@@ -10,6 +10,9 @@
 //  Raspberry y PC siempre se actualizan solas (las instala su propio agente).
 // ============================================================================
 
+import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
+import type { Idioma } from '@/lib/i18n/idiomas'
+
 export type ComoSeActualiza = {
   sola: boolean
   /** Lo que se le muestra al usuario, en una frase. */
@@ -27,48 +30,56 @@ export type EquipoParaActualizar = {
 
 const CODIGO_CON_ACTUALIZADOR = 11 // 0.10.0
 
-export function comoSeActualiza(e: EquipoParaActualizar): ComoSeActualiza {
+// El texto sale del diccionario (`spaceeyes.actualizacion.*`). `idioma` va al
+// final con 'es' por omision: el servidor (`lib/server/space-eye.ts`, que lo
+// manda en la lista de equipos) no lo pasa y sigue en español, letra por letra
+// lo de siempre (lo fija `space-eyes-actualizacion.test.ts`).
+export function comoSeActualiza(e: EquipoParaActualizar, idioma: Idioma = 'es'): ComoSeActualiza {
+  const r = (sola: boolean, clave: ClaveTexto, tono: ComoSeActualiza['tono']): ComoSeActualiza => ({
+    sola,
+    texto: traducir(idioma, clave),
+    tono,
+  })
   const v = String(e.app_version || '')
-  if (/^(pi|pc)-agent/i.test(v)) return { sola: true, texto: 'Se actualiza sola.', tono: 'ok' }
-  if (e.device_owner === 1 || e.device_owner === true)
-    return { sola: true, texto: 'Se actualiza sola (modo kiosco).', tono: 'ok' }
-  if (e.app_actualiza_sola === 1 || e.app_actualiza_sola === true)
-    return { sola: true, texto: 'Se actualiza sola, sin tocar el teléfono.', tono: 'ok' }
+  if (/^(pi|pc)-agent/i.test(v)) return r(true, 'spaceeyes.actualizacion.sola', 'ok')
+  if (e.device_owner === 1 || e.device_owner === true) return r(true, 'spaceeyes.actualizacion.kiosco', 'ok')
+  if (e.app_actualiza_sola === 1 || e.app_actualiza_sola === true) return r(true, 'spaceeyes.actualizacion.sin-tocar', 'ok')
 
   switch (e.app_actualiza_motivo) {
     case 'android_viejo':
-      return {
-        sola: false,
-        texto: 'Pide un toque en el teléfono en cada actualización: tiene Android 11 o anterior.',
-        tono: 'aviso',
-      }
+      return r(false, 'spaceeyes.actualizacion.android-viejo', 'aviso')
     case 'sin_instalar_apps':
-      return {
-        sola: false,
-        texto: 'Pide un toque: en el teléfono está apagado «Instalar apps desconocidas» para Space Eye.',
-        tono: 'aviso',
-      }
+      return r(false, 'spaceeyes.actualizacion.sin-instalar-apps', 'aviso')
     case 'otro_dueno':
-      return { sola: false, texto: 'Pide un toque: otra tienda administra sus actualizaciones.', tono: 'aviso' }
+      return r(false, 'spaceeyes.actualizacion.otro-dueno', 'aviso')
     case 'sin_permiso':
-      return {
-        sola: false,
-        texto: 'La próxima actualización pide un toque en el teléfono; después se actualiza sola.',
-        tono: 'aviso',
-      }
+      return r(false, 'spaceeyes.actualizacion.proxima', 'aviso')
   }
 
   // Versión anterior a la 0.16.4: no lo reporta.
   const codigo = Number(e.app_version_code) || 0
-  if (codigo > 0 && codigo < CODIGO_CON_ACTUALIZADOR)
-    return {
-      sola: false,
-      texto: 'Necesita una visita: esta versión no se puede actualizar a distancia.',
-      tono: 'visita',
-    }
-  return {
-    sola: false,
-    texto: 'La próxima actualización pide un toque en el teléfono; después se actualiza sola.',
-    tono: 'aviso',
-  }
+  if (codigo > 0 && codigo < CODIGO_CON_ACTUALIZADOR) return r(false, 'spaceeyes.actualizacion.visita', 'visita')
+  return r(false, 'spaceeyes.actualizacion.proxima', 'aviso')
+}
+
+// Ola 7 · el `texto` que llega en la lista de equipos lo arma el SERVIDOR, en
+// espanol (`lib/server/space-eye.ts` llama a `comoSeActualiza` sin idioma).
+// Al pintarlo se reconoce la frase del catalogo y se dice en el idioma de quien
+// mira; una frase que no sea de las de `comoSeActualiza` se pinta como llega.
+// En espanol devuelve el texto tal cual.
+const CLAVES_ACTUALIZACION: ClaveTexto[] = [
+  'spaceeyes.actualizacion.sola',
+  'spaceeyes.actualizacion.kiosco',
+  'spaceeyes.actualizacion.sin-tocar',
+  'spaceeyes.actualizacion.android-viejo',
+  'spaceeyes.actualizacion.sin-instalar-apps',
+  'spaceeyes.actualizacion.otro-dueno',
+  'spaceeyes.actualizacion.proxima',
+  'spaceeyes.actualizacion.visita',
+]
+
+export function textoDeActualizacion(texto: string, idioma: Idioma): string {
+  if (idioma === 'es') return texto
+  const clave = CLAVES_ACTUALIZACION.find((k) => traducir('es', k) === texto)
+  return clave ? traducir(idioma, clave) : texto
 }

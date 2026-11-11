@@ -20,6 +20,9 @@
 //  divergir significa cobrar un precio que nadie decidió.
 // ============================================================================
 
+import { traducir } from './i18n/diccionario'
+import type { Idioma } from './i18n/idiomas'
+
 /** Una franja horaria de la organización. `HH:MM` en 24 h, fin EXCLUSIVO. */
 export type FranjaHoraria = {
   id: string
@@ -80,9 +83,29 @@ export type TarifaResuelta = {
  * operador. Se declara aquí —y no suelto en cada pantalla— porque un texto
  * copiado en cinco sitios deja cuatro versiones viejas el día que cambie.
  */
+//
+// 22/10 · el texto CAMBIÓ porque cambió la verdad: desde ese día, al publicar en
+// DOOHmain se manda el horario de la franja (la programada de la campaña o, si
+// no hay, la contratada; `lib/doohmain-programacion.ts`). Lo que sigue sin
+// viajar —y por eso el aviso no desaparece— son las pantallas que opera OTRO
+// CMS y el horario de un anuncio que ya estaba publicado (DOOHmain no deja
+// reemplazarlo). El nombre de la constante se conserva: lo congela el snapshot
+// de cada propuesta y lo vigila `rejilla-aviso.test.ts`.
 export const AVISO_FRANJA_NO_VIAJA_AL_CMS =
-  'La franja horaria es un compromiso COMERCIAL: se cotiza y se cobra, pero NO se ' +
-  'envía al CMS. Quien opere la pantalla tiene que programarla manualmente.'
+  'La franja horaria es un compromiso comercial: se cotiza y se cobra. Al publicar en DOOHmain se envía su horario ' +
+  'a cada pantalla; en las pantallas que opera otro CMS, o si el anuncio ya estaba ' +
+  'publicado, quien opere la pantalla tiene que programarla manualmente.'
+
+/**
+ * El aviso en un idioma. La CONSTANTE de arriba se queda en espanol y es la que
+ * se congela en el snapshot de la propuesta (`propuestas-repo.ts`): un
+ * documento ya guardado no cambia de idioma porque alguien cambie el suyo.
+ * Las pantallas piden esta funcion; sin idioma devuelve la constante tal cual
+ * (lo vigilan `textos/compartidos.test.ts` y `compartidos-idioma.test.ts`).
+ */
+export function avisoFranja(idioma: Idioma = 'es'): string {
+  return idioma === 'es' ? AVISO_FRANJA_NO_VIAJA_AL_CMS : traducir(idioma, 'compartidos.franja.aviso')
+}
 
 const HORA_RE = /^([01]\d|2[0-3]):([0-5]\d)$/
 const FECHA_RE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/
@@ -136,19 +159,28 @@ function seCruzan(a: [number, number], b: [number, number]): boolean {
  * un desempate que nadie decidió — y el invariante de congelar no salva de eso,
  * congelaría un precio inexplicable.
  */
+// I18N (lote catalogos, 2026-11-02) · `idioma` es el ULTIMO parametro y vale
+// 'es' por omision: el servidor (el controlador, que es quien manda) no lo
+// pasa y sigue devolviendo el literal de siempre. La pantalla pasa el suyo; en
+// ingles el texto sale de `catalogos.motivo.*` y `textos/catalogos.test.ts`
+// ata el espanol del diccionario a estos literales.
 export function motivoFranjaInvalida(
   franja: FranjaHoraria,
   otras: FranjaHoraria[],
+  idioma: Idioma = 'es',
 ): string | null {
+  const en = idioma !== 'es'
   const nombre = String(franja.nombre ?? '').trim()
-  if (!nombre) return 'La franja necesita un nombre.'
+  if (!nombre) return en ? traducir(idioma, 'catalogos.motivo.franja.nombre') : 'La franja necesita un nombre.'
 
   const ini = minutosDeHora(franja.horaInicio)
   const fin = minutosDeHora(franja.horaFin)
   if (ini === null || fin === null) {
+    if (en) return traducir(idioma, 'catalogos.motivo.franja.hora', { nombre })
     return `Hora no válida en "${nombre}": se escribe HH:MM en 24 horas, de 00:00 a 23:59.`
   }
   if (ini === fin) {
+    if (en) return traducir(idioma, 'catalogos.motivo.franja.misma-hora', { nombre })
     return `La franja "${nombre}" empieza y termina a la misma hora: no cubre nada.`
   }
 
@@ -160,6 +192,12 @@ export function motivoFranjaInvalida(
     if (oi === null || of === null || oi === of) continue
     const suyos = tramos(oi, of)
     if (mios.some((a) => suyos.some((b) => seCruzan(a, b)))) {
+      if (en) {
+        return traducir(idioma, 'catalogos.motivo.franja.solape', {
+          nombre, inicio: franja.horaInicio, fin: franja.horaFin,
+          otra: otra.nombre, otraInicio: otra.horaInicio, otraFin: otra.horaFin,
+        })
+      }
       return `La franja "${nombre}" (${franja.horaInicio}–${franja.horaFin}) se solapa con "${otra.nombre}" (${otra.horaInicio}–${otra.horaFin}).`
     }
   }
@@ -181,16 +219,20 @@ export function motivoFranjaInvalida(
 export function motivoTemporadaInvalida(
   temporada: Temporada,
   otras: Temporada[],
+  idioma: Idioma = 'es',
 ): string | null {
+  const en = idioma !== 'es'
   const nombre = String(temporada.nombre ?? '').trim()
-  if (!nombre) return 'La temporada necesita un nombre.'
+  if (!nombre) return en ? traducir(idioma, 'catalogos.motivo.temporada.nombre') : 'La temporada necesita un nombre.'
 
   const desde = String(temporada.desde ?? '').trim()
   const hasta = String(temporada.hasta ?? '').trim()
   if (!FECHA_RE.test(desde) || !FECHA_RE.test(hasta)) {
+    if (en) return traducir(idioma, 'catalogos.motivo.temporada.fecha', { nombre })
     return `Fecha no válida en "${nombre}": se escribe AAAA-MM-DD.`
   }
   if (hasta < desde) {
+    if (en) return traducir(idioma, 'catalogos.motivo.temporada.al-reves', { nombre })
     return `La temporada "${nombre}" termina antes de empezar.`
   }
 
@@ -198,6 +240,11 @@ export function motivoTemporadaInvalida(
     if (otra.id === temporada.id) continue
     if (!FECHA_RE.test(otra.desde) || !FECHA_RE.test(otra.hasta)) continue
     if (desde <= otra.hasta && otra.desde <= hasta) {
+      if (en) {
+        return traducir(idioma, 'catalogos.motivo.temporada.solape', {
+          nombre, desde, hasta, otra: otra.nombre, otraDesde: otra.desde, otraHasta: otra.hasta,
+        })
+      }
       return `La temporada "${nombre}" (${desde} a ${hasta}) se solapa con "${otra.nombre}" (${otra.desde} a ${otra.hasta}).`
     }
   }

@@ -1,11 +1,15 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-14
 tags: [backend, entidades, fiscal, administracion, tenant, rojo]
 archivos:
   - db/migrations/20260917_entidades_fiscales.sql
   - db/migrations/20260921_corrige_acentos_catalogo_roles_entidad.sql
+  - db/migrations/20261012_razon_social_principal.sql
+  - apps/web/lib/server/config-repo.ts
+  - apps/web/app/api/config/route.ts
+  - apps/web/lib/test/razon-social-principal.e2e.test.ts
   - apps/web/lib/server/entidades-repo.ts
   - apps/web/lib/server/entidades-controller.ts
   - apps/web/app/api/entidades/route.ts
@@ -105,16 +109,16 @@ manda [[06-Operacion/convenciones]]. El SQL vive solo en el repo.
 
 | Función | Qué hace | Línea |
 |---|---|---|
-| `listarEntidades` | Solo las activas salvo `incluirInactivas` | `entidades-repo.ts:70` |
-| `obtenerEntidad` | Por id **y** tenant; `null` si es de otra organización | `:83` |
-| `rolesDeEntidad` | Los roles, acotados por tenant | `:93` |
-| `catalogoRolesEntidad` | Los roles disponibles, leídos de la base | `:106` |
-| `crearEntidad` | Entidad + roles en la **misma** transacción | `:157` |
-| `editarEntidad` | Parche por campo; los roles se **reemplazan** en bloque | `:196` |
-| `desactivarEntidad` | Baja **lógica** (`activo = false`) | `:255` |
+| `listarEntidades` | Solo las activas salvo `incluirInactivas` | `entidades-repo.ts:71` |
+| `obtenerEntidad` | Por id **y** tenant; `null` si es de otra organización | `:84` |
+| `rolesDeEntidad` | Los roles, acotados por tenant | `:94` |
+| `catalogoRolesEntidad` | Los roles disponibles, leídos de la base | `:107` |
+| `crearEntidad` | Entidad + roles en la **misma** transacción | `:158` |
+| `editarEntidad` | Parche por campo; los roles se **reemplazan** en bloque | `:198` |
+| `desactivarEntidad` | Baja **lógica** (`activo = false`) | `:259` |
 
 Los roles viajan con la entidad en la misma consulta (`ROLES_DE_LA_FILA`,
-`entidades-repo.ts:60-63`) y no en una consulta por fila: el listado las pinta
+`entidades-repo.ts:61-64`) y no en una consulta por fila: el listado las pinta
 todas y una por entidad es el N+1 clásico. Esa subconsulta lleva **su propio**
 `tenant_id`, no se apoya en que el padre ya esté acotado.
 
@@ -130,7 +134,7 @@ todas y una por entidad es el N+1 clásico. Esa subconsulta lleva **su propio**
 
 El `GET` del listado devuelve `{ entidades, catalogo }`: el catálogo de papeles
 viaja **con su etiqueta y su orden** en la misma respuesta, y se lee con
-`catalogoRolesConEtiqueta` de `bienvenida-repo.ts:54` en vez de reescribir la
+`catalogoRolesConEtiqueta` de `bienvenida-repo.ts:55` en vez de reescribir la
 consulta (`route.ts:31-53`). Este repositorio ya tuvo dos catálogos de permisos
 que divergían; lo que lo impide es que solo exista una consulta.
 
@@ -150,12 +154,12 @@ dato fiscal cambió no basta, hay que poder ver de qué a qué.
 ### La rebanada de `/api/estado`
 
 `si('administracion', () => listarEntidades({ incluirInactivas: true }))`
-(`apps/web/app/api/estado/route.ts:137`), y la clave `entidadesFiscales` viaja
-en el cuerpo (`:140`).
+(`apps/web/app/api/estado/route.ts:145`), y la clave `entidadesFiscales` viaja
+en el cuerpo (`:151`).
 
 > [!note] 2026-10-05 · `incluirInactivas` va PUESTO en la hidratación
 > Esta nota decía `listarEntidades()` a secas. Hoy la rebanada pide también las
-> dadas de baja (`estado/route.ts:130-137`): una entidad inactiva **sigue
+> dadas de baja (`estado/route.ts:133-145`): una entidad inactiva **sigue
 > nombrando** contratos y comprobantes ya emitidos, y sin ella esas pantallas
 > pintarían «sin asignar» donde sí hay dato — y el primer guardado del
 > formulario borraría la referencia sin que nadie lo pidiera. Quién se
@@ -209,6 +213,46 @@ ya aísla— y tienen que devolver cero filas
 > [!note] 2026-10-05 · los dos últimos puntos eran ciertos el 17/09
 > Se conservan tachados porque la nota se escribió el día del backend y las dos
 > cosas llegaron al día siguiente. Lo que sigue sin hacer es el timbrado.
+
+## La principal: la razón social de la empresa (12/10)
+
+Hasta el 12/10 la razón social de la organización vivía **dos veces sin
+conexión**: como texto libre en `tenants.razon_social` (Administración →
+Identidad de la empresa) y como filas de esta tabla. Agregar o renombrar una en
+«Razones sociales» no se enteraba en Identidad. El dueño pidió que estuvieran
+«espejeadas».
+
+`20261012_razon_social_principal.sql` añade **`tenants.entidad_principal_id`**,
+con FK compuesta `(entidad_principal_id, id) → entidades_fiscales (id,
+tenant_id)` y sin `on delete` (las entidades se dan de baja lógica). Desde ahí:
+
+| Qué | Cómo |
+|---|---|
+| **Leer** la razón social y el RFC de la empresa | De la entidad principal: `JOIN_PRINCIPAL` e `IDENTIDAD_TENANT` en `config-repo.ts`. Los usan Identidad, `/api/estado` (encabezado de Inicio), el contrato (`contrato-expediente.ts`) y la firma (`firmas-repo.ts`). `tenants.razon_social`/`rfc` solo cuentan si **no** hay principal |
+| **Elegir** la principal | `PATCH /api/config` con `entidadPrincipalId`. Tiene que ser de esta organización y estar activa; si no, 400. `razonSocial` ya no se acepta (400 por `.strict()`) |
+| **El RFC** de «Datos fiscales para contratos» | Se escribe **en la entidad principal** (`guardarIdentidadFiscal`), no en `tenants.rfc` |
+| **La primera** que se agrega | Pasa a ser la principal (`principalSiNoHayEnTx`), también desde el cuestionario de bienvenida |
+| **Dar de baja** la principal | 409, por `DELETE` y por `PATCH activo:false`. Primero se elige otra |
+
+**El traslado de la migración**, organización por organización y con
+`set_config('app.tenant_id')` porque la tabla tiene RLS con FORCE:
+
+- con razón social escrita → la busca en la lista sin distinguir mayúsculas ni
+  espacios de los extremos; si no está, la agrega con el RFC de la organización;
+- sin razón social y con **una** sola activa → ésa; con dos o más no adivina;
+- la elegida queda activa y hereda el RFC de la organización si le faltaba.
+
+`tenants.razon_social` y `tenants.rfc` **no se borran** (expandir y luego
+contraer). Probado en `razon-social-principal.e2e.test.ts`: espejo, elección,
+RFC, bajas, aislamiento entre organizaciones y el traslado con su
+idempotencia. Dos mutantes (quitar el candado de la baja y desviar el RFC a
+`tenants`) los cazó, con `npm run build` antes de medir.
+
+> [!warning] Lo que sigue sin hacer
+> El contrato recita la razón social **principal** aunque el contrato tenga otra
+> asignada en `contratos_arrendamiento.entidad_id`: `contrato-expediente.ts` no
+> lee esa columna, igual que antes no la leía. El domicilio, el representante
+> y los datos de constitución siguen en `tenants`, uno por organización.
 
 ## Relacionadas
 

@@ -113,6 +113,31 @@ describe('/api/estado viaja ligero', () => {
     expect(sitio.tieneFotos).toBe(true)
   })
 
+  // Desde el 12/10 «tiene fotos» se calcula con `pg_column_size` para no leer
+  // la galería (sitios-repo.listado-sin-media.test.ts). Un arreglo vacío tiene
+  // que seguir diciendo que NO (`fotos` es NOT NULL: el vacío es el único «sin
+  // fotos» posible), y `/api/sitios` igual que el estado.
+  it('tieneFotos distingue fotos de arreglo vacío, también en /api/sitios', async () => {
+    const c = new Cliente()
+    await c.entrar(a.usuarioEmail, PASSWORD_DEMO)
+    const delListado = async () => {
+      const { datos } = await c.pedir('/api/sitios/')
+      return datos.find((s: any) => s.id === a.sitioId)
+    }
+    const conFotos = await delListado()
+    expect(conFotos.tieneFotos).toBe(true)
+    expect(conFotos.fotos).toEqual([])
+
+    const fijarFotos = (fotos: string[]) =>
+      comoTenant(a.id, (q) => q(`update sitios set fotos = $1 where id = $2`, [fotos, a.sitioId]))
+    try {
+      await fijarFotos([])
+      expect((await delListado()).tieneFotos).toBe(false)
+    } finally {
+      await fijarFotos([FOTO_FALSA])
+    }
+  })
+
   it('la galería se sirve bajo demanda, y con sesión', async () => {
     const anon = new Cliente()
     const sin = await anon.pedir(`/api/sitios/${a.sitioId}/media/`)

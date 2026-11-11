@@ -39,3 +39,6 @@ scripts/*.mjs text eol=lf
 # los dos: aquel rompia una prueba, este BLOQUEA TODA MIGRACION FUTURA en la
 # maquina donde pase.
 db/migrations/*.sql text eol=lf
+
+# vitest reescribe las instantaneas con LF; sin esto git las da por cambiadas en Windows
+*.snap text eol=lf

@@ -18,13 +18,37 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { q, q1 } from './db'
 import { esPantallaDigitalSql } from './pantalla-digital-sql'
+import { franjaDeCampana, type FranjaDeCampana } from './franja-de-campana'
 import { folioBase } from '../folio-venta'
+import {
+  clienteDoohmain,
+  franjaQueViaja,
+  pantallaDoohmainEfectiva,
+  programacionDoohmain,
+  type ClienteDoohmain,
+  type Franja,
+  type ProgramacionDoohmain,
+} from '../doohmain-programacion'
 
 const pexec = promisify(execFile)
 
 const PY = process.env.DOOHMAIN_PY || 'python'
 const SDK_DIR = process.env.DOOHMAIN_SDK_DIR || process.cwd()
 const DEFAULT_SCREEN = process.env.DOOHMAIN_DEFAULT_SCREEN || null
+
+/**
+ * El id de DOOHmain que se usa para una pantalla y de dónde sale (ficha, mapa
+ * del servidor o pantalla por omisión). Lo enseña Inventario (22/10): sin
+ * esto, una pantalla publicada por el mapa salía con el campo vacío.
+ */
+export function pantallaDoohmainDe(s: { doohmain_pantalla: string | null; clave_interna: string | null }) {
+  return pantallaDoohmainEfectiva({
+    ficha: s.doohmain_pantalla,
+    clave: s.clave_interna,
+    mapa: screenMap(),
+    porOmision: DEFAULT_SCREEN,
+  })
+}
 
 function screenMap(): Record<string, string> {
   try {
@@ -47,12 +71,19 @@ export interface ResultadoPublicacion {
   // el resultado porque es la mitad de la trazabilidad: saber que algo se
   // publicó no dice cuánto se publicó, y es lo que se le factura al anunciante.
   cantDia?: number | null
+  // 22/10 · lo demás que viaja ahora: el total del periodo y, si la campaña
+  // tiene franja, su horario (`lib/doohmain-programacion.ts`).
+  cantTotal?: number | null
+  horaInicio?: string | null
+  horaFin?: string | null
   ok: boolean
   auth?: string
   mediaId?: number
   estado?: string
   error?: string
   category?: string
+  // Solo con `estado: 'otro_cms'`: el CMS que dice la ficha de la pantalla.
+  cms?: string
 }
 
 // Escribe el creativo (data URL o HTML inline) a un archivo temporal para que el
@@ -151,6 +182,7 @@ function fecha(v: any): string {
 async function ejecutarPublish(args: {
   version: string; anunciante: string; campana: string; fi: string; ff: string
   filepath: string; screen: string; list: string; cantDia?: number | null
+  programacion: ProgramacionDoohmain; cliente: ClienteDoohmain
 }): Promise<any> {
   const cli = [
     '-m', 'doohmain_sdk', 'publish',
@@ -162,6 +194,20 @@ async function ejecutarPublish(args: {
   if (args.cantDia != null && args.cantDia > 0) {
     cli.push('--cant-dia', String(args.cantDia))
   }
+  // 22/10 · lo que la API recibe y no se mandaba. Cada bandera solo si hay
+  // dato: una ausente deja a DOOHmain como hasta hoy. La franja, SOLO si la
+  // campaña tiene una (pedido del dueño).
+  const p = args.programacion
+  if (p.cantTotal != null) cli.push('--cant-total', String(p.cantTotal))
+  if (p.horaInicio && p.horaFin) cli.push('--hora-inicio', p.horaInicio, '--hora-fin', p.horaFin)
+  // Los días solo existen con el horario individual de la campaña (22/10, noche).
+  if (p.horaInicio && p.horaFin && p.dias?.length) cli.push('--dias', p.dias.join(','))
+  if (p.autoCant) cli.push('--auto-cant')
+  const c = args.cliente
+  if (c.rfc) cli.push('--cliente-rfc', c.rfc)
+  if (c.razonSocial) cli.push('--cliente-razon-social', c.razonSocial)
+  if (c.direccion) cli.push('--cliente-direccion', c.direccion)
+  if (c.tipo) cli.push('--cliente-tipo', c.tipo)
   try {
     const { stdout } = await pexec(PY, cli, { cwd: SDK_DIR, timeout: 120000 })
     return JSON.parse(stdout.trim().split('\n').pop() || '{}')
@@ -204,6 +250,18 @@ async function ejecutarSdk(cli: string[]): Promise<any> {
   }
 }
 
+// Las pantallas que la cuenta del owner ve en DOOHmain, para elegir en la ficha
+// de cada pantalla (13/10). Solo lectura (`get_screen_list`). Nunca lanza: si
+// DOOHmain no contesta, la ficha deja escribir el nombre a mano.
+export async function listarPantallasDoohmain(): Promise<{ habilitado: boolean; pantallas: string[]; error?: string }> {
+  if (!doohmainHabilitado()) return { habilitado: false, pantallas: [] }
+  const r = await ejecutarSdk(['-m', 'doohmain_sdk', 'ping'])
+  if (r?.ok === false || !Array.isArray(r?.screens)) {
+    return { habilitado: true, pantallas: [], error: r?.error ?? 'DOOHmain no respondió' }
+  }
+  return { habilitado: true, pantallas: r.screens.filter((s: unknown) => typeof s === 'string') }
+}
+
 // Reproducciones de una o varias campañas (por su `auth` de DOOHmain).
 export async function consultarStats(
   auths: string[], desde: string, hasta: string,
@@ -217,18 +275,62 @@ export async function consultarStats(
   return { ok: true, payload: r?.payload ?? r ?? {} }
 }
 
-// Métricas de una o varias pantallas.
+// Métricas de una o varias pantallas: el historial día por día de lo que sonó
+// en ellas (29/10). `details` y no `full`: sumadas no dejan ver qué pasó cada
+// día, que es lo que se pide al revisar una pantalla.
 export async function consultarMetrics(
   pantallas: string[], desde: string, hasta: string,
 ): Promise<RespuestaPlay> {
   if (!doohmainHabilitado()) return { ok: false, payload: {}, error: 'La integración con DOOHmain está apagada' }
   if (!pantallas.length) return { ok: false, payload: {}, error: 'Sin pantallas que consultar' }
   const cli = ['-m', 'doohmain_sdk', 'metrics', '--start-date', desde, '--end-date', hasta,
-               '--type', 'full', '--zoom', 'days']
+               '--type', 'details', '--zoom', 'days']
   for (const s of pantallas) cli.push('--screen', s)
   const r = await ejecutarSdk(cli)
   if (r?.ok === false) return { ok: false, payload: {}, error: r.error ?? 'DOOHmain no respondió' }
   return { ok: true, payload: r?.payload ?? r ?? {} }
+}
+
+// Cómo está cada campaña en DOOHmain (`get_campaigns`), payload crudo: lo
+// interpreta `lib/doohmain-estado.ts`, que dice «no se sabe» ante lo que no
+// reconoce. Solo lectura.
+export async function consultarCampanasDoohmain(auths: string[]): Promise<RespuestaPlay> {
+  if (!doohmainHabilitado()) return { ok: false, payload: {}, error: 'La integración con DOOHmain está apagada' }
+  if (!auths.length) return { ok: false, payload: {}, error: 'Sin campañas publicadas en DOOHmain' }
+  const cli = ['-m', 'doohmain_sdk', 'campanas']
+  for (const a of auths) cli.push('--auth', a)
+  const r = await ejecutarSdk(cli)
+  if (r?.ok === false) return { ok: false, payload: {}, error: r.error ?? 'DOOHmain no respondió' }
+  return { ok: true, payload: r?.payload ?? {} }
+}
+
+/**
+ * Pausa (`pause`) o reanuda (`active`) un creativo en DOOHmain (29/10): la
+ * única forma REVERSIBLE de bajarlo del aire, porque la API no deja quitar el
+ * arte de la lista. A diferencia de `retirarCreativoEnDoohmain`, no toca el
+ * registro del SDK: el creativo sigue publicado y se puede reanudar.
+ * Nunca lanza.
+ */
+export async function cambiarEstadoEnDoohmain(
+  creativoId: string,
+  status: 'pause' | 'active',
+): Promise<{ ok: boolean; estado?: string; error?: string; category?: string }> {
+  if (!doohmainHabilitado()) return { ok: false, error: 'La integración con DOOHmain está apagada' }
+  return ejecutarSdk(['-m', 'doohmain_sdk', 'estado', '--version', creativoId, '--status', status])
+}
+
+/**
+ * ¿Este creativo llegó a publicarse en DOOHmain? El SDK registra una campaña
+ * remota por creativo (`doohmain_remote_campaigns.version` = id del creativo).
+ * v0.12.3: el reemplazo solo exige retirar el anterior si de verdad estaba
+ * publicado; uno que nunca salió se reemplaza aunque DOOHmain no responda.
+ */
+export async function estaPublicadoEnDoohmain(creativoId: string): Promise<boolean> {
+  const r = await q1<{ n: number }>(
+    'select 1 as n from doohmain_remote_campaigns where version = $1 and auth is not null',
+    [creativoId],
+  )
+  return !!r
 }
 
 // Retira un creativo de DOOHmain (al eliminarlo o antes de reemplazarlo):
@@ -278,11 +380,29 @@ export async function retirarCreativoEnDoohmain(
 // publica su segmento digital.
 //
 // Nunca lanza: devuelve un resultado por (creativo × pantalla) publicado.
-export async function publicarCampanaEnDoohmain(campanaId: string): Promise<ResultadoPublicacion[]> {
-  const camp = await q1<any>('select id, folio, nombre, cliente_id, fecha_inicio, fecha_fin from campanas where id=$1', [campanaId])
-  if (!camp) return []
-  const cliente = await q1<any>('select nombre from clientes where id=$1', [camp.cliente_id])
-  const anunciante = cliente?.nombre ?? 'Sin cliente'
+//
+// 22/10 · lo que se lee de la base está en `leerPlan()`, y lo usan DOS: esto,
+// que publica, y `vistaPreviaDoohmain()`, que enseña en la ficha de la campaña
+// lo que se va a mandar ANTES de mandarlo. Una sola consulta para las dos: una
+// vista previa con su propia copia del SQL acabaría enseñando otra cosa.
+async function leerPlan(campanaId: string) {
+  const camp = await q1<any>(
+    `select id, folio, nombre, cliente_id, fecha_inicio, fecha_fin, tenant_id,
+            doohmain_hora_inicio, doohmain_hora_fin, doohmain_dias
+       from campanas where id=$1`,
+    [campanaId],
+  )
+  if (!camp) return null
+  const cliente = await q1<any>(
+    'select nombre, rfc, razon_social, contacto, tipo from clientes where id=$1',
+    [camp.cliente_id],
+  )
+  // Todo lo que DOOHmain recibe del cliente (22/10), no solo el nombre.
+  const datosCliente = clienteDoohmain(
+    cliente
+      ? { nombre: cliente.nombre, rfc: cliente.rfc, razonSocial: cliente.razon_social, contacto: cliente.contacto, tipo: cliente.tipo }
+      : null,
+  )
 
   // Una fila por (pantalla × creativo asignado). El `join` contra
   // `creatividades` filtra por VALIDADA aquí mismo: un creativo asignado que
@@ -292,12 +412,22 @@ export async function publicarCampanaEnDoohmain(campanaId: string): Promise<Resu
   // `veces` puede venir como texto dentro del jsonb; se castea explícitamente.
   const asignaciones = await q<any>(
     `select r.id as reserva_id, s.clave_interna, s.nombre as sitio_nombre,
+            s.doohmain_pantalla, s.cms,
             r.spots_por_dia,
+            fh.hora_inicio as franja_inicio, fh.hora_fin as franja_fin,
             cr.id as creativo_id, cr.nombre as creativo_nombre,
             cr.archivo_url, cr.codigo, cr.formato,
             (e->>'veces')::int as veces
        from reservas r
        join sitios s on s.id = r.sitio_id
+       join campanas c on c.id = r.campana_id
+       -- La franja que viaja al CMS (22/10): la PROGRAMADA de la campaña
+       -- (PROG-01, en la que se transmite) y, si no tiene, la CONTRATADA de
+       -- esta pantalla (REJILLA-01). Sin ninguna, fh sale vacío y se manda
+       -- lo de siempre.
+       left join franjas_horarias fh
+              on fh.id = coalesce(c.franja_programada_id, r.franja_id)
+             and fh.tenant_id = r.tenant_id
        cross join lateral jsonb_array_elements(
               case when jsonb_typeof(r.creativos) = 'array' then r.creativos
                    else '[]'::jsonb end) e
@@ -335,6 +465,120 @@ export async function publicarCampanaEnDoohmain(campanaId: string): Promise<Resu
       order by s.nombre`,
     [campanaId],
   )
+  // El horario INDIVIDUAL de la campaña (22/10, noche): si lo tiene, gana sobre
+  // la franja programada o contratada de cada fila (`franjaQueViaja`).
+  const individual: Franja | null =
+    camp.doohmain_hora_inicio && camp.doohmain_hora_fin
+      ? {
+          horaInicio: camp.doohmain_hora_inicio,
+          horaFin: camp.doohmain_hora_fin,
+          dias: Array.isArray(camp.doohmain_dias) ? camp.doohmain_dias.map(Number) : null,
+        }
+      : null
+  return { camp, datosCliente, asignaciones, huecos, individual }
+}
+
+// `veces` manda: es lo que el reparto decidió para ESTA pantalla.
+//
+// Pero SOLO si la reserva tiene programación diaria contratada. Cuando
+// `spots_por_dia` es null no hay cuota pactada —así están hoy todas las
+// reservas de producción—, y ahí la asignación guarda `veces: 1` como
+// simple marca de «esta pieza va aquí». Mandar ese 1 como `--cant-dia`
+// sería IMPONER un pase al día donde antes no se mandaba la bandera y el
+// CMS ponía los que cupieran: pasaríamos de la pauta completa a uno.
+//
+// O sea: sin cuota contratada, no se dicta cuota. Igual que antes.
+function cantDiaDe(a: { spots_por_dia: unknown; veces: unknown }): number | null {
+  if (a.spots_por_dia == null) return null
+  return Number.isFinite(Number(a.veces)) && Number(a.veces) > 0 ? Number(a.veces) : Number(a.spots_por_dia)
+}
+
+function programacionDe(a: any, fi: string, ff: string, individual: Franja | null): ProgramacionDoohmain {
+  return programacionDoohmain({
+    cantDia: cantDiaDe(a),
+    fechaInicio: fi,
+    fechaFin: ff,
+    franja: franjaQueViaja({
+      individual,
+      programadaOContratada:
+        a.franja_inicio && a.franja_fin ? { horaInicio: a.franja_inicio, horaFin: a.franja_fin } : null,
+    }),
+  })
+}
+
+export interface FilaVistaPrevia {
+  sitio: string
+  sitioNombre: string
+  creativoNombre: string
+  /** A qué pantalla de DOOHmain va; null si no va (otro CMS o sin pantalla). */
+  screen: string | null
+  /** `doohmain`: se publica · `otro_cms`: la opera otro CMS · `sin_pantalla`: no hay a dónde mandarla. */
+  destino: 'doohmain' | 'otro_cms' | 'sin_pantalla'
+  cms: string | null
+  programacion: ProgramacionDoohmain
+}
+
+export interface VistaPreviaDoohmain {
+  cliente: ClienteDoohmain
+  fechaInicio: string
+  fechaFin: string
+  lista: string
+  /** El horario individual de la campaña, si tiene; gana sobre las franjas. */
+  horarioIndividual: Franja | null
+  /**
+   * La franja que la campaña YA tiene (programada o contratada). Con ella no se
+   * ofrece el horario individual (23/10): `fijarHorarioDoohmainCtrl` lo rechaza.
+   */
+  franjaCampana: FranjaDeCampana | null
+  filas: FilaVistaPrevia[]
+  /** Pantallas digitales sin ningún creativo aprobado: al publicar fallan. */
+  sinCreativo: { sitio: string; sitioNombre: string }[]
+}
+
+/**
+ * Lo que se le va a mandar a DOOHmain, sin mandarlo: pantalla por pantalla, a
+ * qué pantalla de DOOHmain va, cuántas reproducciones (por día y en total) y
+ * en qué horario si la campaña tiene franja. Pedido del dueño (22/10): verlo en
+ * la campaña ANTES de subirla. No toca la red ni los archivos.
+ */
+export async function vistaPreviaDoohmain(campanaId: string): Promise<VistaPreviaDoohmain | null> {
+  const plan = await leerPlan(campanaId)
+  if (!plan) return null
+  const { camp, datosCliente, asignaciones, huecos, individual } = plan
+  const mapa = screenMap()
+  const fi = fecha(camp.fecha_inicio)
+  const ff = fecha(camp.fecha_fin)
+  return {
+    cliente: datosCliente,
+    fechaInicio: fi,
+    fechaFin: ff,
+    lista: folioBase(camp.folio),
+    horarioIndividual: individual,
+    // El tenant de la PROPIA campaña, que la RLS ya dejó leer: este módulo no
+    // importa `tenant.ts` (ver `franja-de-campana.ts`).
+    franjaCampana: await franjaDeCampana(campanaId, camp.tenant_id),
+    filas: asignaciones.map((a) => {
+      const otro = a.cms && a.cms !== 'DOOHMAIN'
+      const screen = otro ? null : (a.doohmain_pantalla ?? mapa[a.clave_interna] ?? DEFAULT_SCREEN ?? null)
+      return {
+        sitio: a.clave_interna,
+        sitioNombre: a.sitio_nombre,
+        creativoNombre: a.creativo_nombre,
+        screen,
+        destino: otro ? 'otro_cms' : screen ? 'doohmain' : 'sin_pantalla',
+        cms: a.cms ?? null,
+        programacion: programacionDe(a, fi, ff, individual),
+      }
+    }),
+    sinCreativo: huecos.map((h) => ({ sitio: h.clave_interna, sitioNombre: h.nombre })),
+  }
+}
+
+export async function publicarCampanaEnDoohmain(campanaId: string): Promise<ResultadoPublicacion[]> {
+  const plan = await leerPlan(campanaId)
+  if (!plan) return []
+  const { camp, datosCliente, asignaciones, huecos, individual } = plan
+  const anunciante = datosCliente.nombre
 
   const mapa = screenMap()
   const out: ResultadoPublicacion[] = []
@@ -353,6 +597,18 @@ export async function publicarCampanaEnDoohmain(campanaId: string): Promise<Resu
   const materiales = new Map<string, Awaited<ReturnType<typeof materializar>>>()
   try {
     for (const a of asignaciones) {
+      // La ficha dice que esta pantalla la opera OTRO CMS (13/10). Antes se
+      // mandaba igual a DOOHmain —por el mapa o por la pantalla por omisión— y
+      // el arte acababa en un reproductor que no era el suyo. No es un fallo:
+      // se reporta para que se vea por qué no salió por aquí. Sin CMS en la
+      // ficha se publica como hasta hoy.
+      if (a.cms && a.cms !== 'DOOHMAIN') {
+        out.push({
+          creativoId: a.creativo_id, creativoNombre: a.creativo_nombre, sitio: a.clave_interna,
+          screen: null, ok: true, estado: 'otro_cms', cms: a.cms,
+        })
+        continue
+      }
       let mat = materiales.get(a.creativo_id)
       if (mat === undefined) {
         mat = await materializar({
@@ -365,29 +621,23 @@ export async function publicarCampanaEnDoohmain(campanaId: string): Promise<Resu
         out.push({ creativoId: a.creativo_id, creativoNombre: a.creativo_nombre, sitio: a.clave_interna, screen: null, ok: false, error: 'creativo sin contenido subible', category: 'validation' })
         continue
       }
-      const screen = mapa[a.clave_interna] ?? DEFAULT_SCREEN
+      // La ficha manda (`sitios.doohmain_pantalla`, 13/10); el mapa y la pantalla
+      // por omisión del servidor quedan de respaldo, así que una instancia que ya
+      // los usa no cambia.
+      const screen = a.doohmain_pantalla ?? mapa[a.clave_interna] ?? DEFAULT_SCREEN
       if (!screen) {
         out.push({ creativoId: a.creativo_id, creativoNombre: a.creativo_nombre, sitio: a.clave_interna, screen: null, ok: false, error: 'sitio sin pantalla DOOHmain mapeada', category: 'validation' })
         continue
       }
-      // `veces` manda: es lo que el reparto decidió para ESTA pantalla.
-      //
-      // Pero SOLO si la reserva tiene programación diaria contratada. Cuando
-      // `spots_por_dia` es null no hay cuota pactada —así están hoy todas las
-      // reservas de producción—, y ahí la asignación guarda `veces: 1` como
-      // simple marca de «esta pieza va aquí». Mandar ese 1 como `--cant-dia`
-      // sería IMPONER un pase al día donde antes no se mandaba la bandera y el
-      // CMS ponía los que cupieran: pasaríamos de la pauta completa a uno.
-      //
-      // O sea: sin cuota contratada, no se dicta cuota. Igual que antes.
-      const cantDia = a.spots_por_dia == null
-        ? null
-        : (Number.isFinite(Number(a.veces)) && Number(a.veces) > 0
-            ? Number(a.veces)
-            : Number(a.spots_por_dia))
+      // La cuota y la franja salen de `cantDiaDe()` y `programacionDe()`, las
+      // mismas que enseña la vista previa (ver arriba el porqué de la cuota).
+      const cantDia = cantDiaDe(a)
+      const fi = fecha(camp.fecha_inicio)
+      const ff = fecha(camp.fecha_fin)
+      const programacion = programacionDe(a, fi, ff, individual)
       const r = await ejecutarPublish({
         version: a.creativo_id, anunciante, campana: camp.nombre,
-        fi: fecha(camp.fecha_inicio), ff: fecha(camp.fecha_fin),
+        fi, ff, programacion, cliente: datosCliente,
         // FOLIO-VENTA (07/10) · la lista del CMS lleva el folio SIN tramo: una
         // campaña extendida (PR-2026-0042.1) sigue siendo la misma lista en el
         // reproductor, no una nueva junto a la vieja.
@@ -396,6 +646,7 @@ export async function publicarCampanaEnDoohmain(campanaId: string): Promise<Resu
       })
       out.push({
         creativoId: a.creativo_id, creativoNombre: a.creativo_nombre, sitio: a.clave_interna, screen, cantDia,
+        cantTotal: programacion.cantTotal, horaInicio: programacion.horaInicio, horaFin: programacion.horaFin,
         ok: r.ok === true, auth: r.auth, mediaId: r.media_id, estado: r.estado,
         error: r.ok === true ? undefined : r.error, category: r.category,
       })

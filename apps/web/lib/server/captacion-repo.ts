@@ -13,6 +13,7 @@ import {
   type Etapa,
   type TipoProspecto,
 } from '@/lib/captacion'
+import type { Canal, OrigenUbicacion, Visibilidad } from '@/lib/negociacion'
 
 // ============================================================================
 //  lib/server/captacion-repo.ts — Prospectos y su bitácora.  CAP-01.
@@ -41,6 +42,9 @@ export interface Avance {
   etapaAnterior: Etapa | null
   etapaNueva: Etapa
   nota: string
+  /** NEG-01: por dónde se habló y con quién. null en los avances de antes. */
+  canal: Canal | null
+  contactoNombre: string | null
   creadoEn: string
 }
 
@@ -64,6 +68,23 @@ export interface Prospecto {
   registroId: string | null
   creadoEn: string
   actualizadoEn: string
+  // ── NEG-01 · la ficha del espacio en negociación ──────────────────────────
+  tipoEspacio: string | null
+  /** 1..5, la búsqueda de quién firma (lib/negociacion.ts). */
+  etapaResponsable: number | null
+  visibilidad: Visibilidad | null
+  anchoM: number | null
+  altoM: number | null
+  superficieM2: number | null
+  presupuestoMin: number | null
+  presupuestoMax: number | null
+  presupuestoAutoriza: string | null
+  ubicacionOrigen: OrigenUbicacion | null
+  ubicacionPlaceId: string | null
+  ubicacionFijadaPorNombre: string | null
+  ubicacionFijadaEn: string | null
+  /** El avance más reciente de la bitácora; null si no hay ninguno. */
+  ultimoContactoEn: string | null
 }
 
 // `numeric` llega como cadena y `date` como `Date` con zona: las fechas se traen
@@ -71,16 +92,24 @@ export interface Prospecto {
 const SEL = `p.id, p.tipo, p.nombre, p.contacto, p.direccion, p.lat, p.lng, p.datos,
   p.etapa, p.siguiente_paso, to_char(p.siguiente_paso_fecha,'YYYY-MM-DD') as siguiente_paso_fecha,
   p.usuario_id, v.nombre as vendedor_nombre, d.nombre as decidido_por_nombre,
-  p.decidido_en, p.motivo_rechazo, p.registro_id, p.creado_en, p.actualizado_en`
+  p.decidido_en, p.motivo_rechazo, p.registro_id, p.creado_en, p.actualizado_en,
+  p.tipo_espacio, p.etapa_responsable, p.visibilidad, p.ancho_m, p.alto_m, p.superficie_m2,
+  p.presupuesto_min, p.presupuesto_max, p.presupuesto_autoriza, p.ubicacion_origen,
+  p.ubicacion_place_id, f.nombre as ubicacion_fijada_por_nombre, p.ubicacion_fijada_en,
+  (select max(a.creado_en) from prospecto_avances a
+    where a.prospecto_id = p.id and a.tenant_id = p.tenant_id) as ultimo_contacto_en`
 
 // Los `left join` a `usuarios` van con `tenant_id` también: la RLS ya los
 // acota, pero un nombre de otra organización pegado a un prospecto sería una
 // fuga que no da error.
 const DESDE = `from prospectos p
   left join usuarios v on v.id = p.usuario_id and v.tenant_id = p.tenant_id
-  left join usuarios d on d.id = p.decidido_por and d.tenant_id = p.tenant_id`
+  left join usuarios d on d.id = p.decidido_por and d.tenant_id = p.tenant_id
+  left join usuarios f on f.id = p.ubicacion_fijada_por and f.tenant_id = p.tenant_id`
 
 const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : v == null ? null : String(v))
+// `numeric` llega como cadena: a número, y null se queda null (no 0).
+const num = (v: unknown) => (v == null ? null : Number(v))
 
 function aProspecto(r: any): Prospecto {
   return {
@@ -103,6 +132,20 @@ function aProspecto(r: any): Prospecto {
     registroId: r.registro_id ?? null,
     creadoEn: iso(r.creado_en)!,
     actualizadoEn: iso(r.actualizado_en)!,
+    tipoEspacio: r.tipo_espacio ?? null,
+    etapaResponsable: num(r.etapa_responsable),
+    visibilidad: r.visibilidad ?? null,
+    anchoM: num(r.ancho_m),
+    altoM: num(r.alto_m),
+    superficieM2: num(r.superficie_m2),
+    presupuestoMin: num(r.presupuesto_min),
+    presupuestoMax: num(r.presupuesto_max),
+    presupuestoAutoriza: r.presupuesto_autoriza ?? null,
+    ubicacionOrigen: r.ubicacion_origen ?? null,
+    ubicacionPlaceId: r.ubicacion_place_id ?? null,
+    ubicacionFijadaPorNombre: r.ubicacion_fijada_por_nombre ?? null,
+    ubicacionFijadaEn: iso(r.ubicacion_fijada_en),
+    ultimoContactoEn: iso(r.ultimo_contacto_en),
   }
 }
 
@@ -111,6 +154,8 @@ export interface FiltroProspectos {
   /** Un GRUPO de etapas: la pestaña entera, no una sola. */
   etapas?: Etapa[] | null
   tipo?: TipoProspecto | null
+  /** NEG-01: varios tipos a la vez (Comercial negociación pide PREDIO y PANTALLA). */
+  tipos?: TipoProspecto[] | null
   limite: number
   desplazamiento: number
 }
@@ -131,6 +176,10 @@ export async function listarProspectos(f: FiltroProspectos): Promise<{
   if (f.tipo) {
     params.push(f.tipo)
     donde += ` and p.tipo = $${params.length}`
+  }
+  if (f.tipos?.length) {
+    params.push(f.tipos)
+    donde += ` and p.tipo = any($${params.length}::text[])`
   }
   // Los contadores de las pestañas: por etapa, con los mismos filtros de
   // vendedor y tipo pero SIN el de etapa. Se cuentan en la base y no en el
@@ -164,7 +213,8 @@ export async function listarProspectos(f: FiltroProspectos): Promise<{
 async function leerAvances(id: string): Promise<Avance[]> {
   const tenant = await tenantActual()
   const filas = await q<any>(
-    `select a.id, u.nombre as usuario_nombre, a.etapa_anterior, a.etapa_nueva, a.nota, a.creado_en
+    `select a.id, u.nombre as usuario_nombre, a.etapa_anterior, a.etapa_nueva, a.nota, a.canal,
+            a.contacto_nombre, a.creado_en
        from prospecto_avances a
        left join usuarios u on u.id = a.usuario_id and u.tenant_id = a.tenant_id
       where a.prospecto_id = $1 and a.tenant_id = $2
@@ -177,6 +227,8 @@ async function leerAvances(id: string): Promise<Avance[]> {
     etapaAnterior: r.etapa_anterior ?? null,
     etapaNueva: r.etapa_nueva,
     nota: String(r.nota),
+    canal: r.canal ?? null,
+    contactoNombre: r.contacto_nombre ?? null,
     creadoEn: iso(r.creado_en)!,
   }))
 }
@@ -208,14 +260,24 @@ export interface ProspectoInput {
   siguientePasoFecha: string | null
 }
 
-async function insertarAvance(
+export async function insertarAvance(
   client: PoolClient,
-  a: { tenant: string | null; prospectoId: string; usuarioId: string; anterior: Etapa | null; nueva: Etapa; nota: string },
+  a: {
+    tenant: string | null
+    prospectoId: string
+    usuarioId: string
+    anterior: Etapa | null
+    nueva: Etapa
+    nota: string
+    canal?: Canal | null
+    contactoNombre?: string | null
+  },
 ) {
   await client.query(
-    `insert into prospecto_avances (tenant_id, prospecto_id, usuario_id, etapa_anterior, etapa_nueva, nota)
-     values ($1,$2,$3,$4,$5,$6)`,
-    [a.tenant, a.prospectoId, a.usuarioId, a.anterior, a.nueva, a.nota],
+    `insert into prospecto_avances (tenant_id, prospecto_id, usuario_id, etapa_anterior, etapa_nueva, nota,
+                                    canal, contacto_nombre)
+     values ($1,$2,$3,$4,$5,$6,$7,$8)`,
+    [a.tenant, a.prospectoId, a.usuarioId, a.anterior, a.nueva, a.nota, a.canal ?? null, a.contactoNombre ?? null],
   )
 }
 
@@ -243,6 +305,18 @@ export async function crearProspecto(
     )
     const id = String(rows[0].id)
     await insertarAvance(client, { tenant, prospectoId: id, usuarioId, anterior: null, nueva: 'PROSPECTO', nota })
+    // NEG-01: el contacto del alta es también el primero de la lista de
+    // contactos, igual que hizo la migración con los prospectos de antes. El
+    // `jsonb` se queda: es el que leen la regla de revisión y el alta del
+    // registro real al aprobar.
+    const c = input.contacto ?? {}
+    if (c.nombre && c.nombre.trim()) {
+      await client.query(
+        `insert into prospecto_contactos (tenant_id, prospecto_id, nombre, telefono, email, creado_por)
+         values ($1,$2,$3,$4,$5,$6)`,
+        [tenant, id, c.nombre.trim(), c.telefono || null, c.email || null, usuarioId],
+      )
+    }
     return id
   })
 }
@@ -300,7 +374,14 @@ export async function editarProspecto(
  */
 export async function registrarAvance(
   id: string,
-  a: { etapaNueva: Etapa; nota: string; siguientePaso?: string | null; siguientePasoFecha?: string | null },
+  a: {
+    etapaNueva: Etapa
+    nota: string
+    siguientePaso?: string | null
+    siguientePasoFecha?: string | null
+    canal?: Canal | null
+    contactoNombre?: string | null
+  },
   usuarioId: string,
   soloDe?: string | null,
 ): Promise<boolean> {
@@ -321,6 +402,7 @@ export async function registrarAvance(
     }
     await insertarAvance(client, {
       tenant, prospectoId: id, usuarioId, anterior: p.etapa, nueva: a.etapaNueva, nota: a.nota,
+      canal: a.canal, contactoNombre: a.contactoNombre,
     })
     // `undefined` = no lo tocó; `null` = lo borró. Por eso el `case`.
     await client.query(

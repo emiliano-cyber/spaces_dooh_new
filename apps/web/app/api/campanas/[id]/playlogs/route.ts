@@ -2,7 +2,13 @@ import { NextResponse } from 'next/server'
 import { exigir } from '@/lib/server/auth'
 import { respuestaError, AppError } from '@/lib/server/errores'
 import { registrarAccion } from '@/lib/server/acciones-repo'
-import { consultarYGuardarPlay, listarConsultasDeCampana, authsDeCampana } from '@/lib/server/playlogs-repo'
+import {
+  consultarYGuardarPlay,
+  consultarYGuardarMetricas,
+  listarConsultasDeCampana,
+  authsDeCampana,
+  pantallasDeCampana,
+} from '@/lib/server/playlogs-repo'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -24,19 +30,34 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 
 // POST /api/campanas/[id]/playlogs → pregunta a DOOHmain por las reproducciones
 // de la campaña en un rango y guarda la respuesta TAL CUAL.
-// Body: { desde: 'YYYY-MM-DD', hasta: 'YYYY-MM-DD' }
+// Body: { desde: 'YYYY-MM-DD', hasta: 'YYYY-MM-DD', tipo?: 'campana' | 'pantallas' }
 // Escritura, no lectura: dispara una llamada a DOOHmain y persiste el payload,
 // así que exige `crear` (antes bastaba con `ver`).
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   const g = await exigir('comercial', 'crear')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   try {
-    const body = (await req.json().catch(() => ({}))) as { desde?: unknown; hasta?: unknown }
+    const body = (await req.json().catch(() => ({}))) as { desde?: unknown; hasta?: unknown; tipo?: unknown }
     const fecha = (v: unknown) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null)
     const desde = fecha(body.desde)
     const hasta = fecha(body.hasta)
     if (!desde || !hasta) throw new AppError('Fechas inválidas (se espera YYYY-MM-DD)', 400)
     if (hasta < desde) throw new AppError('La fecha final no puede ser anterior a la inicial', 400)
+
+    // 29/10 · `porPantalla`: el historial de las pantallas donde se publicó
+    // (`get_metrics`). Incluye lo de otras campañas, así que no cuenta como
+    // prueba de ésta (ver `consultarYGuardarMetricas`).
+    if (body.tipo === 'pantallas') {
+      const pantallas = await pantallasDeCampana(params.id)
+      if (!pantallas.length) {
+        throw new AppError('Esta campaña no está publicada en ninguna pantalla de DOOHmain.', 409)
+      }
+      const c = await consultarYGuardarMetricas({
+        campanaId: params.id, pantallas, desde, hasta, usuarioId: g.usuario.id,
+      })
+      await registrarAccion(g.usuario, 'Consultó el historial de pantallas en DOOHmain', `${desde} a ${hasta}`)
+      return NextResponse.json(c, { status: 201 })
+    }
 
     const auths = await authsDeCampana(params.id)
     if (!auths.length) {

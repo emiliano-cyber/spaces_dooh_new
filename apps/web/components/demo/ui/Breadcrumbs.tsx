@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/cn'
+import { useTexto } from '@/lib/i18n/contexto'
 
 // Una miga de la ruta: etiqueta + destino opcional (la última no enlaza).
 export interface Crumb {
@@ -13,9 +14,10 @@ export interface Crumb {
 // Migas de pan: muestran dónde estás y por dónde llegaste. La última es la
 // posición actual (no enlaza). Las anteriores enlazan a su origen.
 export function Breadcrumbs({ items, className }: { items: Crumb[]; className?: string }) {
+  const t = useTexto()
   if (!items.length) return null
   return (
-    <nav aria-label="Ruta de navegación" className={cn('flex flex-wrap items-center gap-1 text-[12px]', className)}>
+    <nav aria-label={t('compartidos.migas.aria')} className={cn('flex flex-wrap items-center gap-1 text-[12px]', className)}>
       {items.map((c, i) => {
         const last = i === items.length - 1
         return (

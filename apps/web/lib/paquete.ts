@@ -34,6 +34,8 @@
 //  lo que el cliente aceptó, y ese peso no se puede explicar seis meses
 //  después. Ver `repartirPaquete`.
 // ============================================================================
+import { traducir, type ClaveTexto } from './i18n/diccionario'
+import type { Idioma } from './i18n/idiomas'
 
 /** Una pantalla del paquete con la parte del precio cerrado que le tocó. */
 export type SitioDelPaquete = {
@@ -254,30 +256,42 @@ export type PaqueteCandidato = {
  * el volumen y el tope de descuento de golpe. El precio de una pantalla se pone
  * en su tarifa.
  */
-export function motivoPaqueteInvalido(p: PaqueteCandidato): string | null {
+// I18N (lote catalogos, 2026-11-02) · `idioma` es el ULTIMO parametro y vale
+// 'es' por omision: el servidor (el controlador, que es quien manda) no lo
+// pasa y sigue devolviendo el literal de siempre. La pantalla pasa el suyo; en
+// ingles el texto sale de `catalogos.motivo.*` y `textos/catalogos.test.ts`
+// ata el espanol del diccionario a estos literales.
+export function motivoPaqueteInvalido(p: PaqueteCandidato, idioma: Idioma = 'es'): string | null {
+  const m = (literal: string, clave: ClaveTexto) => (idioma === 'es' ? literal : traducir(idioma, clave))
   const nombre = String(p?.nombre ?? '').trim()
-  if (!nombre) return 'El paquete necesita un nombre.'
-  if (nombre.length > 120) return 'El nombre del paquete no puede pasar de 120 caracteres.'
+  if (!nombre) return m('El paquete necesita un nombre.', 'catalogos.motivo.paquete.nombre')
+  if (nombre.length > 120) return m('El nombre del paquete no puede pasar de 120 caracteres.', 'catalogos.motivo.paquete.nombre-largo')
 
   const bruto = p?.precioCerrado
   if (typeof bruto !== 'number' && typeof bruto !== 'string') {
-    return 'El precio del paquete tiene que ser un numero.'
+    return m('El precio del paquete tiene que ser un numero.', 'catalogos.motivo.paquete.precio-numero')
   }
   const precio = Number(bruto)
-  if (!Number.isFinite(precio)) return 'El precio del paquete tiene que ser un numero.'
+  if (!Number.isFinite(precio)) return m('El precio del paquete tiene que ser un numero.', 'catalogos.motivo.paquete.precio-numero')
   if (precio <= 0) {
-    return 'El precio de un paquete tiene que ser mayor que 0: un paquete gratis no es un paquete.'
+    return m('El precio de un paquete tiene que ser mayor que 0: un paquete gratis no es un paquete.', 'catalogos.motivo.paquete.precio-cero')
   }
   if (!Number.isInteger(precio)) {
-    return 'El precio del paquete tiene que ser un numero entero de pesos: el reparto entre las pantallas no admite centavos.'
+    return m(
+      'El precio del paquete tiene que ser una cantidad entera: el reparto entre las pantallas no admite centavos.',
+      'catalogos.motivo.paquete.precio-entero',
+    )
   }
 
   const sitios = Array.isArray(p?.sitios) ? p.sitios.map(String) : []
   if (sitios.length < 2) {
-    return 'Un paquete necesita al menos 2 pantallas; con una sola, eso es una tarifa y va en la ficha de la pantalla.'
+    return m(
+      'Un paquete necesita al menos 2 pantallas; con una sola, eso es una tarifa y va en la ficha de la pantalla.',
+      'catalogos.motivo.paquete.dos-pantallas',
+    )
   }
   if (new Set(sitios).size !== sitios.length) {
-    return 'Hay una pantalla repetida en el paquete.'
+    return m('Hay una pantalla repetida en el paquete.', 'catalogos.motivo.paquete.repetida')
   }
   return null
 }

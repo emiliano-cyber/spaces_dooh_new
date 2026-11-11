@@ -76,6 +76,31 @@ describe('exigirContratoCompleto', () => {
     expect(err.message).toContain('Arrendadores')
   })
 
+  // v0.12.3 · la otra mitad de la regla de venta: si no hay arrendador al que
+  // pagarle porque la pantalla es de la organización, no hay contrato que
+  // exigir. Sin esta prueba el `return` de `propio` podía desaparecer y solo lo
+  // notaba la e2e.
+  it('deja pasar la pantalla PROPIA aunque no tenga contrato', async () => {
+    const { client } = fakeClient([[{ nombre: 'Azotea', propio: true, cubierta: false }]])
+    await expect(
+      exigirContratoCompleto(client, { tenantId: TENANT, sitioId: 'S1' }),
+    ).resolves.toBeUndefined()
+  })
+
+  it('una rentada (propio false) sin contrato sigue bloqueada', async () => {
+    const { client } = fakeClient([[{ nombre: 'Rentada', propio: false, cubierta: false }]])
+    const err = await exigirContratoCompleto(client, { tenantId: TENANT, sitioId: 'S1' }).catch((e) => e)
+    expect(err.status).toBe(409)
+  })
+
+  it('busca la pantalla SOLO dentro del tenant: la de otra organización es 404', async () => {
+    const { client, queries } = fakeClient([[]])
+    const err = await exigirContratoCompleto(client, { tenantId: TENANT, sitioId: 'S1' }).catch((e) => e)
+    expect(err.status).toBe(404)
+    expect(queries[0].sql).toContain('s.tenant_id = $2')
+    expect(queries[0].params[1]).toBe(TENANT)
+  })
+
   it('404 si la pantalla no existe en el tenant', async () => {
     const { client } = fakeClient([[]])
     const err = await exigirContratoCompleto(client, { tenantId: TENANT, sitioId: 'S1' }).catch((e) => e)

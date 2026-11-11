@@ -49,6 +49,8 @@
 // ============================================================================
 
 import { minutosDeHora, type Temporada } from './rejilla'
+import { traducir } from './i18n/diccionario'
+import type { Idioma } from './i18n/idiomas'
 import {
   centavos,
   decidirPrecioItem,
@@ -373,6 +375,8 @@ export type ResultadoCalculadora =
 
 const mal = (motivo: string) => ({ ok: false as const, status: 400 as const, motivo })
 
+// Las cifras van con el formato de siempre en los dos idiomas: es-MX y en-US
+// agrupan y separan decimales igual, y asi el espanol no cambia ni un caracter.
 const fmtH = (h: number) => Number(h).toLocaleString('es-MX', { maximumFractionDigits: 2 })
 
 /**
@@ -392,7 +396,8 @@ const fmtH = (h: number) => Number(h).toLocaleString('es-MX', { maximumFractionD
  * no muerda.
  */
 export function resolverCalculadora(e: EntradaCalculadora): ResultadoCalculadora {
-  return evaluar(e, true)
+  // El SERVIDOR: sin idioma, en espanol. Sus mensajes los traduce I18N-05.
+  return evaluar(e, true, 'es')
 }
 
 /**
@@ -401,17 +406,24 @@ export function resolverCalculadora(e: EntradaCalculadora): ResultadoCalculadora
  * función por dentro (`evaluar`) para que el aviso de la pantalla y el rechazo
  * del servidor no puedan decir cosas distintas.
  */
-export function previsualizarCalculadora(e: Omit<EntradaCalculadora, 'cantidadEnviada'>): ResultadoCalculadora {
-  return evaluar(e, false)
+//
+// I18N (lote compartidos, 2026-11-02) · `idioma` con `'es'` por omision: la
+// pantalla le pasa el suyo y el motivo de rechazo sale en ese idioma. Lo que
+// cambia es SOLO la frase; la cuenta es la misma funcion para los dos.
+export function previsualizarCalculadora(
+  e: Omit<EntradaCalculadora, 'cantidadEnviada'>,
+  idioma: Idioma = 'es',
+): ResultadoCalculadora {
+  return evaluar(e, false, idioma)
 }
 
-function evaluar(e: EntradaCalculadora, comparar: boolean): ResultadoCalculadora {
+function evaluar(e: EntradaCalculadora, comparar: boolean, idioma: Idioma): ResultadoCalculadora {
   if (!e.digital || e.unidad !== 'spot') {
-    return mal('La calculadora de spots solo aplica a pantallas digitales vendidas por spot.')
+    return mal(traducir(idioma, 'compartidos.calc.motivo.solo-digital'))
   }
   const total = Number(e.totalSpots)
   if (!Number.isInteger(total) || total <= 0) {
-    return mal('La pantalla no tiene capturado cuántos espacios tiene su loop; captúralo en su ficha antes de usar la calculadora.')
+    return mal(traducir(idioma, 'compartidos.calc.motivo.sin-loop'))
   }
   const roadblock = e.roadblock === true
 
@@ -419,45 +431,47 @@ function evaluar(e: EntradaCalculadora, comparar: boolean): ResultadoCalculadora
   if (roadblock) {
     espacios = e.espaciosComprados ?? total
     if (espacios !== total) {
-      return mal(`Un Roadblock compra los ${total} espacios del loop, no ${espacios}.`)
+      return mal(traducir(idioma, 'compartidos.calc.motivo.roadblock-todos', { total, espacios }))
     }
   } else {
     const pedidos = e.espaciosComprados
     if (pedidos == null || !Number.isInteger(pedidos) || pedidos < 1 || pedidos > total) {
-      return mal(`Los espacios del loop van de 1 a ${total}.`)
+      return mal(traducir(idioma, 'compartidos.calc.motivo.rango-espacios', { total }))
     }
     espacios = pedidos
   }
 
   const prima = e.primaRoadblockPct
   if (prima != null && (!Number.isFinite(prima) || prima < 0 || prima > 100)) {
-    return mal('La prima de Roadblock va de 0 a 100 %.')
+    return mal(traducir(idioma, 'compartidos.calc.motivo.rango-prima'))
   }
   if (!roadblock && prima != null && prima !== 0) {
-    return mal('La prima de Roadblock solo aplica a una línea marcada como Roadblock.')
+    return mal(traducir(idioma, 'compartidos.calc.motivo.prima-sin-roadblock'))
   }
 
   const horasMax = redondearHoras(e.horasMaximas)
   const horas = redondearHoras(e.horasDia ?? horasMax)
   if (!(horas > 0) || horas > horasMax) {
-    return mal(`Las horas al día van de más de 0 a ${fmtH(horasMax)}: más horas de las que transmite la pantalla serían spots que no salen.`)
+    return mal(traducir(idioma, 'compartidos.calc.motivo.horas', { max: fmtH(horasMax) }))
   }
 
   const loop = loopDeLaLinea({ totalSpots: total, ocupados: e.ocupados, espacios, roadblock })
   const cuenta = { loop, duracionSeg: e.duracionSeg, espacios, horasDia: horas, roadblock }
   const dias = Math.floor(Number(e.dias) || 0)
-  if (dias <= 0) return mal('La línea no tiene días: revisa las fechas.')
+  if (dias <= 0) return mal(traducir(idioma, 'compartidos.calc.motivo.sin-dias'))
   // ADR 0043 · las fracciones de cada día suman: un día de 0,72 spots no se
   // vende, treinta sí (21). Lo que se rechaza es un PERIODO sin un solo spot.
   const cantidad = cantidadDeSpots({ ...cuenta, dias })
   if (cantidad <= 0) {
-    return mal('Con esos espacios y esas horas no sale ni un spot al día.')
+    return mal(traducir(idioma, 'compartidos.calc.motivo.cero-spots'))
   }
   const spotsDia = cantidadDeSpots({ ...cuenta, dias: 1 })
   const spotsDiaExactos = roadblock
     ? (spotsPorHoraRoadblock(e.duracionSeg) * centesimas(horas)) / 100
     : Math.round((SEGUNDOS_POR_HORA * espacios * centesimas(horas)) / (loop * Math.round(e.duracionSeg))) / 100
 
+  // Solo la usa el servidor (`resolverCalculadora`), que no tiene idioma: esta
+  // frase se queda en espanol y no entra en el diccionario.
   if (comparar && (e.cantidadEnviada == null || Number(e.cantidadEnviada) !== cantidad)) {
     return mal(
       `La cantidad de spots no cuadra con la calculadora: con ${espacios} espacios, ${fmtH(horas)} h al día y ${dias} días son ${cantidad} spots, no ${e.cantidadEnviada ?? 'ninguna'}.`,
@@ -470,14 +484,18 @@ function evaluar(e: EntradaCalculadora, comparar: boolean): ResultadoCalculadora
       return {
         ok: false,
         status: 409,
-        motivo: `Un Roadblock necesita los ${total} espacios del loop libres, y la pantalla tiene ${libres}.`,
+        motivo: traducir(idioma, 'compartidos.calc.motivo.roadblock-libres', { total, libres }),
       }
     }
     if (espacios > libres) {
       return {
         ok: false,
         status: 409,
-        motivo: `Pides ${espacios} espacios del loop y la pantalla solo tiene ${libres} libres.`,
+        motivo: traducir(
+          idioma,
+          espacios === 1 ? 'compartidos.calc.motivo.pocos-libres.uno' : 'compartidos.calc.motivo.pocos-libres.otros',
+          { espacios, libres },
+        ),
       }
     }
   }
@@ -502,15 +520,18 @@ function evaluar(e: EntradaCalculadora, comparar: boolean): ResultadoCalculadora
  * `null` si la línea no usó la calculadora. Vive aquí y no en la página porque
  * así se prueba sin navegador.
  */
-export function etiquetaCalculadora(p: ParametrosLinea): string | null {
+export function etiquetaCalculadora(p: ParametrosLinea, idioma: Idioma = 'es'): string | null {
   if (p.espaciosComprados == null) return null
   const e = Number(p.espaciosComprados)
-  const partes = [`${e} ${e === 1 ? 'espacio' : 'espacios'} del loop`]
-  if (p.horasDia != null) partes.push(`${Number(p.horasDia)} h al día`)
+  const partes = [
+    traducir(idioma, e === 1 ? 'compartidos.calc.espacios.uno' : 'compartidos.calc.espacios.otros', { n: String(e) }),
+  ]
+  if (p.horasDia != null) partes.push(traducir(idioma, 'compartidos.calc.horas', { h: String(Number(p.horasDia)) }))
   if (p.roadblock) {
+    // «Roadblock» no se traduce (glosario).
     partes.unshift('Roadblock')
     const prima = Number(p.primaRoadblockPct ?? 0) || 0
-    if (prima > 0) partes.push(`prima ${prima} %`)
+    if (prima > 0) partes.push(traducir(idioma, 'compartidos.calc.prima', { pct: String(prima) }))
   }
   return partes.join(' · ')
 }

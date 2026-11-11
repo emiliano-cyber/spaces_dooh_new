@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { AppError, validar } from './errores'
 import {
   actualizarSitio,
+  marcarPropio,
   actualizarModalidades,
   borrarSitio,
   toggleNetwork,
@@ -38,6 +39,17 @@ const cupoSchema = z.object({
   ]),
 })
 
+// 13/10 · a qué pantalla de DOOHmain se publica. DOOHmain compara el nombre
+// exacto, así que se recorta aquí: « adv_004» fallaría al publicar, días después
+// de capturarlo. Vacío = null («lo decide el servidor»). La base repite la regla
+// (`sitios_doohmain_pantalla_ck`); esto es lo que da el mensaje legible.
+const pantallaDoohmainSchema = z.object({
+  doohmainPantalla: z
+    .union([z.null(), z.string()])
+    .transform((v) => (v == null ? null : v.trim() || null))
+    .refine((v) => v == null || v.length <= 120, 'El nombre de la pantalla en DOOHmain no puede pasar de 120 caracteres'),
+})
+
 // Las modalidades NO entran por el PATCH general, y rechazarlas es parte del
 // arreglo del 2026-09-28. Explicación larga en
 // `app/api/sitios/[id]/modalidades/route.ts`; lo corto: una modalidad es una
@@ -62,7 +74,21 @@ export async function actualizarSitioCtrl(id: string, body: unknown) {
     if (!s) throw new AppError('No encontrado', 404)
     return { sitio: s, toggled: true }
   }
+  // v0.12.3 · marcar o desmarcar la pantalla como PROPIA va por su propio camino
+  // (`marcarPropio`), porque toca los contratos: no es un campo más de la ficha.
+  if ('propio' in b) {
+    if (typeof b.propio !== 'boolean') throw new AppError('«Propia» es sí o no', 400)
+    const s = await marcarPropio(id, b.propio)
+    if (!s) throw new AppError('No encontrado', 404)
+    const { propio: _p, ...resto } = b
+    if (Object.keys(resto).length === 0) return { sitio: s, toggled: false }
+    return actualizarSitioCtrl(id, resto)
+  }
   const d = validar(updateSchema, b)
+  if ('doohmainPantalla' in d) {
+    const { doohmainPantalla } = validar(pantallaDoohmainSchema, { doohmainPantalla: d.doohmainPantalla })
+    d.doohmainPantalla = doohmainPantalla
+  }
   if ('maxClientes' in d) {
     const { maxClientes } = validar(cupoSchema, { maxClientes: d.maxClientes })
     d.maxClientes = maxClientes === '' ? null : maxClientes
@@ -168,11 +194,15 @@ export async function borrarSitioCtrl(id: string) {
 
 const importSchema = z.object({
   filas: z.array(z.any()).min(1, 'No hay filas para importar'),
-  // ADR 0002: toda pantalla nace con propietario conocido. La pertenencia al
-  // tenant se comprueba contra la BD en importarSitios(); aquí solo la forma.
+  // v0.12.3 · el lote entero son pantallas PROPIAS: sin arrendador ni contrato.
+  propio: z.boolean().default(false),
+  // ADR 0002: toda pantalla RENTADA nace con propietario conocido. La
+  // pertenencia al tenant se comprueba contra la BD en importarSitios(); aquí
+  // solo la forma. Con `propio` no se pide (abajo, el `superRefine`).
   arrendadorId: z
     .string()
-    .uuid('Elige el arrendador de las pantallas antes de importar.'),
+    .uuid('Elige el arrendador de las pantallas antes de importar.')
+    .nullish(),
   // OPCIONAL: marca que todas las pantallas del archivo están en el mismo predio.
   // Uno existente ({id}) o uno nuevo a crear ({nombre, direccion}). Sin esto, las
   // pantallas entran sueltas. La pertenencia del predio al arrendador se
@@ -194,13 +224,18 @@ const importSchema = z.object({
   imagenes: z
     .record(z.string(), uploadZod(LIMITES.fotoSitio.allowlist, LIMITES.fotoSitio.maxMB))
     .nullish(),
+}).superRefine((d, ctx) => {
+  if (!d.propio && !d.arrendadorId) {
+    ctx.addIssue({ code: 'custom', path: ['arrendadorId'], message: 'Elige el arrendador de las pantallas antes de importar.' })
+  }
 })
 
 export async function importarSitiosCtrl(body: unknown) {
   const d = validar(importSchema, body ?? {})
   return importarSitios({
     filas: d.filas,
-    arrendadorId: d.arrendadorId,
+    propio: d.propio,
+    arrendadorId: d.arrendadorId ?? null,
     predio: d.predio ?? null,
     modoDuplicado: d.modoDuplicado ?? 'ACTUALIZAR',
     precioM2: d.precioM2 ?? null,

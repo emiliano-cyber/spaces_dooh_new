@@ -19,6 +19,9 @@
 //  pago de renta AL ARRENDADOR. Enums distintos, dominios distintos.
 // ============================================================================
 
+import { traducir, type ClaveTexto } from './i18n/diccionario'
+import type { Idioma } from './i18n/idiomas'
+
 // Espejo exacto del enum `periodicidad_pago` de la BD, de mayor a menor
 // frecuencia. Es una tupla `as const` y no un array suelto porque los esquemas
 // zod de los controladores la consumen con `z.enum(...)`, que exige tupla: así
@@ -52,9 +55,17 @@ export const PERIODICIDADES: { value: PeriodicidadRenta; label: string }[] =
 
 // Etiqueta para pintar. Tolera nulos (contrato INCOMPLETO, ADR 0001) y
 // etiquetas legacy en minúscula que dejó el seed antes de la migración M3.
-export function periodicidadLabel(p: string | null | undefined, vacio = '—'): string {
+//
+// I18N (lote compartidos, 2026-11-02) · `idioma` con `'es'` por omision: la
+// tabla de arriba sigue siendo la verdad en espanol (la usan el servidor y las
+// pantallas que no pasan idioma) y `textos/compartidos.test.ts` exige que el
+// diccionario diga exactamente lo mismo. Solo el ingles sale del diccionario.
+export function periodicidadLabel(p: string | null | undefined, vacio = '—', idioma: Idioma = 'es'): string {
   if (!p) return vacio
   const k = p.toUpperCase() as PeriodicidadRenta
+  if (idioma !== 'es' && PERIODICIDAD_RENTA_LABEL[k]) {
+    return traducir(idioma, `compartidos.periodicidad.${k.toLowerCase()}` as ClaveTexto)
+  }
   return PERIODICIDAD_RENTA_LABEL[k] ?? p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()
 }
 

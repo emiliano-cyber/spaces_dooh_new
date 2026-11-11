@@ -1,7 +1,7 @@
 'use client'
 
 import { Languages } from 'lucide-react'
-import { IDIOMAS, type Idioma } from '@/lib/i18n/idiomas'
+import type { Idioma } from '@/lib/i18n/idiomas'
 import { useIdioma } from '@/lib/i18n/contexto'
 
 // ============================================================================
@@ -31,7 +31,7 @@ import { useIdioma } from '@/lib/i18n/contexto'
 // ============================================================================
 
 export function SelectorIdioma({ className = '' }: { className?: string }) {
-  const { idioma, t, cambiarIdioma, puedeElegir } = useIdioma()
+  const { idioma, t, cambiarIdioma, puedeElegir, disponibles } = useIdioma()
 
   // Con el inglés apagado (omisión desde el 2026-09-30) no se ofrece: el
   // servidor ignoraría la elección y la pantalla seguiría en español.
@@ -49,9 +49,11 @@ export function SelectorIdioma({ className = '' }: { className?: string }) {
         aria-label={t('idioma.cambiar')}
         className="cursor-pointer rounded border border-border bg-surface px-1.5 py-0.5 text-[11.5px] text-muted outline-none focus-visible:ring-2 focus-visible:ring-accent"
       >
-        {IDIOMAS.map((i) => (
+        {/* Solo los ENCENDIDOS en el servidor (ola 0 del italiano): ofrecer un
+            idioma que el servidor va a ignorar seria mentirle a quien lo elige. */}
+        {disponibles.map((i) => (
           <option key={i} value={i}>
-            {t(`idioma.${i}` as 'idioma.es' | 'idioma.en')}
+            {t(`idioma.${i}` as 'idioma.es' | 'idioma.en' | 'idioma.it' | 'idioma.pt')}
           </option>
         ))}
       </select>

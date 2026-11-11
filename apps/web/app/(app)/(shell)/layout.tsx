@@ -9,6 +9,7 @@ import { SondeoNotificaciones } from '@/components/demo/shell/SondeoNotificacion
 import { BandaLicencia } from '@/components/demo/shell/BandaLicencia'
 import { NovedadesDeVersion } from '@/components/demo/shell/NovedadesDeVersion'
 import { avisoDeLicencia } from '@/lib/licencia'
+import { idiomaDeLaPeticion } from '@/lib/i18n/servidor'
 
 const RUTA_LICENCIA = process.env.LICENCIA_JSON ?? '/etc/space-os/licencia/licencia.json'
 
@@ -96,7 +97,7 @@ export default async function ShellLayout({ children }: { children: React.ReactN
         <div className="flex h-dvh overflow-hidden">
           <Sidebar />
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-            <BandaLicencia aviso={aviso} />
+            <BandaLicencia aviso={aviso} idioma={idiomaDeLaPeticion()} />
             <Topbar />
             <main className="min-h-0 flex-1 overflow-y-auto bg-bg p-6">
               <AuthGate>{children}</AuthGate>

@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-23
 tags: [backend, inventario, sitios, amarillo]
 archivos:
   - apps/web/lib/server/sitios-repo.ts
@@ -18,6 +18,38 @@ archivos:
 ---
 
 # Inventario y sitios
+
+> [!important] v0.12.3 (SIN PUBLICAR, 22/10) · pantallas y lugares PROPIOS
+> Pedido del dueño: pantallas o lugares propios, sin renta mensual; solo luz y
+> operación. Forma aprobada: `20261022_pantallas_propias.sql` agrega `sitios.propio`
+> y `predios.propio`, y relaja `predios.arrendador_id` (CHECK: propio o con
+> arrendador). Lo que cambia:
+> - **Alta**: «Pantalla propia» en Nueva pantalla y «Son pantallas propias» en la
+>   importación: no piden arrendador ni abren contrato; el predio de un lote propio
+>   nace propio (`resolverPredioPropio`).
+> - **Venta**: `exigirContratoCompleto` (y su espejo `sitiosSinContratoCompleto`) da
+>   por cubierta a una propia; `generarCampanaDesdePropuesta` no le abre contrato.
+> - **Marcar propia una existente** (`marcarPropio`, cambio sensible con contraseña):
+>   cancela su contrato INCOMPLETO; con uno vigente/por vencer/renovado es 409.
+> - **Costo**: renta 0; su costo real son los recibos de luz y las OT, que ya no
+>   dependían del contrato. En Inventario, Comercial, propuestas y Reportes dice
+>   «Propia» en vez de «sin contrato» o «Sin arrendador»; el tablero de propuestas la
+>   cuenta con costo 0, no «sin costo».
+> **Verificado contra Postgres el 23/10**: `lib/test/pantallas-propias.e2e.test.ts`,
+> 15 en verde, incluida la venta de punta a punta por `POST /api/reservar` (propia
+> sin contrato se vende; rentada incompleta o sin contrato es 409; la de otra
+> organización no se vende ni siendo propia allá).
+>
+> **23/10 · «propia» en TODAS las altas.** Faltaba en dos:
+> - **Alta manual desde Comercial** (`components/demo/comercial/AltaSitioDialog.tsx`)
+>   siempre exigía arrendador; ahora tiene la misma casilla que Nueva pantalla.
+> - **Re-importar en modo ACTUALIZAR** pisaba los datos de la pantalla existente y se
+>   olvidaba de `propio`. Ahora un lote propio la vuelve propia con la MISMA regla
+>   que la ficha (`volverPropiaEnTx`, compartida con `marcarPropio`): cancela su
+>   pendiente; con renta vigente la fila sale como error y la pantalla queda intacta.
+>   Un lote rentado NO desmarca una propia (eso exige arrendador, desde su ficha):
+>   la actualiza y lo avisa como advertencia.
+
 
 ## Modelo
 
@@ -124,6 +156,7 @@ puro — ver [[calculadora-de-spots]].
 | El contrato nace **INCOMPLETO** y eso es a propósito | 0001 | `contratos-sitio.ts:16-19` |
 | Un solo costo por pantalla: la renta al arrendador | 0006 | `costo_compra` **no** es un costo aparte |
 | Cupo de clientes distintos por pantalla | 0008 | `sitios.max_clientes` |
+| A qué pantalla de DOOHmain se publica (13/10) | — | `sitios.doohmain_pantalla`: solo por el PATCH de la ficha (`CAMPO_COL`), **no** en `COLS`, para que alta e importación no la pisen; el controller recorta y vacío → null; `sitios_doohmain_pantalla_ck` repite la regla. Ver [[integraciones-externas]] |
 
 > [!note] Por qué el contrato se abre en el alta y no en la venta
 > El ADR 0001 lo abría al **vender**, y eso tapaba el agujero tarde: hasta la
@@ -168,11 +201,21 @@ La galería se pide a **`GET /api/sitios/[id]/media`** (permiso `network.ver`, e
 mismo con el que la rebanada viaja; `media/route.ts:31`) y la carga `SiteFicha`
 al abrirse.
 
-> [!note] Por qué el `select s.*` se quedó como estaba
-> Convertirlo en lista explícita son ~48 columnas. Cambiar un peso medido por el
-> riesgo de que a alguien se le caiga una y ese campo pase a `undefined` en todo
-> el inventario no compensa. Lo que sobraba —el peso de la RESPUESTA— se corta
-> en el mapper; el tráfico Postgres→Node sigue ahí y está anotado en el código.
+> [!note] El `select s.*` se quitó el 12/10, y sin lista a mano
+> Se dejó el 10/08 porque una lista explícita son ~48 columnas y se le puede
+> caer una. Pero el tráfico Postgres→Node que quedaba pendiente **se notó en
+> g500**: una pantalla con **10.4 MB** de fotos dejaba `/api/sitios` en 3.1 s y
+> `/api/estado` en 7 s (en local, 1069 ms contra 1 ms sin las fotos).
+>
+> Ahora `listarSitios` y `listarSitiosRed` piden
+> `columnasDeListado()` (`sitios-repo.ts`): las columnas de `sitios` leídas de
+> `pg_attribute` **menos** `fotos` e `imagen_promocional`, una vez por proceso.
+> Así una columna nueva entra sola. `tieneFotos` sale de
+> `pg_column_size(s.fotos) > 20`, que no trae el valor: un `text[]` vacío mide
+> 13 bytes en disco y uno con un elemento, 25 o más.
+>
+> Lo fijan `sitios-repo.listado-sin-media.test.ts` (el SQL no lee la media) y
+> `hidratacion-ligera.e2e.test.ts` (fotos frente a arreglo vacío).
 
 ## Estados
 

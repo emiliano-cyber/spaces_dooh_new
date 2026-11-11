@@ -179,15 +179,19 @@ describe('rentabilidadPorSitio — negativos', () => {
     expect(s1.ingreso).toBe(0)
   })
 
-  it('una reserva TENTATIVA si suma: el lugar ya esta apartado', () => {
+  // TENT-PROP (26/10): hasta hoy esta prueba decía lo contrario («una TENTATIVA
+  // sí suma: el lugar ya está apartado»). Decisión del dueño: lo tentativo es lo
+  // que está en una propuesta abierta, y solo lo confirmado es venta.
+  it('NEGATIVO · una reserva TENTATIVA heredada NO suma: solo lo confirmado es venta', () => {
     const datos = baseDatos({
       ...ESCENARIO,
       reservas: [
         { id: 'R8', sitioId: 'S1', campanaId: 'CAMP1', precio: 2800, estatus: 'TENTATIVA', fechaInicio: '2026-02-01', fechaFin: '2026-02-28' },
+        { id: 'R9', sitioId: 'S1', campanaId: 'CAMP1', precio: 1000, estatus: 'CONFIRMADA', fechaInicio: '2026-02-01', fechaFin: '2026-02-28' },
       ],
     })
     const r = rentabilidadPorSitio(datos, { ...Q1, granularidad: 'trimestre' })
-    expect(r.filas.find((f) => f.clave === 'S1')!.ingreso).toBe(2800)
+    expect(r.filas.find((f) => f.clave === 'S1')!.ingreso).toBe(1000)
   })
 
   it('una reserva FUERA del rango no aporta nada', () => {

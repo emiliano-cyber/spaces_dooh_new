@@ -184,14 +184,35 @@ export function uploadZod(allowlist: readonly TipoPermitido[], maxMB: number) {
   })
 }
 
+// Tope de una URL de documento hospedado fuera. Ningún enlace real se le acerca;
+// existe para que el campo no sea un sitio donde guardar texto sin límite.
+const MAX_URL = 2048
+
 /**
- * Igual que `uploadZod`, pero el campo también admite una URL http(s) a un
- * archivo ya hospedado (o una key de Spaces). Solo valida cuando el valor es un
- * data URL, que es el único caso en que el cliente nos manda bytes.
+ * Igual que `uploadZod`, pero el campo también admite una URL `http(s)://` a un
+ * archivo ya hospedado fuera. El data URL pasa por `validarUpload` (tipo y peso);
+ * la URL, por la forma.
+ *
+ * Lo que no es ni lo uno ni lo otro se RECHAZA (SEG-21OCT, 21/10). Hasta ese día
+ * pasaba sin mirar, y estos campos vuelven al navegador como `href` de «Ver
+ * contrato»: un `javascript:…` guardado por un vendedor corría con la sesión del
+ * Dueño al abrirlo. React 18 solo avisa en consola, y la CSP permite
+ * `'unsafe-inline'`. Y el `data:` se compara sin distinguir mayúsculas: un
+ * `DATA:text/html,…` se saltaba la lista blanca. La cadena vacía sigue pasando,
+ * como antes: es «sin documento», y un `href` vacío no ejecuta nada.
  */
 export function uploadOUrlZod(allowlist: readonly TipoPermitido[], maxMB: number, campo?: string) {
   return z.string().trim().superRefine((v, ctx) => {
-    if (!v.startsWith('data:')) return // URL/key existente: nada que validar aquí
+    if (!/^data:/i.test(v)) {
+      if (v === '') return
+      if (v.length <= MAX_URL && /^https?:\/\/[^\s/]/i.test(v)) return
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `${campo ?? 'El enlace'} debe ser un archivo subido o una dirección http(s)`,
+        params: { status: 422 },
+      })
+      return
+    }
     try {
       validarUpload({ base64: v, allowlist, maxMB, campo })
     } catch (e) {

@@ -1,7 +1,7 @@
 ---
 tipo: indice
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-26
 tags: [frontend, indice]
 archivos:
   - apps/web/app/
@@ -35,10 +35,14 @@ Router en uso**.
 | [[acceso-y-sesion-ui]] | Login, recuperar contraseña, autoregistro |
 | [[modulos-internos]] | Los 30 módulos dentro del shell (33 `page.tsx`) |
 | [[pantalla-reportes]] | El tablero de rentabilidad: el límite con el endpoint, el 501 y los vacíos |
+| [[dashboard-inicio]] | El Dashboard: el mes desde el motor de reportes, por rol, pipeline, huecos y cobranza por antigüedad |
 | [[comercial-opex]] | Prospección de arrendadores. **MAQUETA sin base**, y se solapa con Captación |
 | [[paginas-publicas]] | Portal, firma, propuesta compartible, OT móvil |
 | [[estado-y-data-fetching]] | React Query, zustand, el parche de `fetch` |
 | [[idiomas-es-en]] | La aplicacion en espanol e ingles: deteccion, cambio manual, el dinero |
+| [[ingles-olas]] | El tablero de la version en ingles: olas, ramas, veredictos y pendientes |
+| [[italiano-olas]] | El tablero de la version en italiano: la ola 0 (infraestructura), los lotes propuestos y las decisiones del dueno |
+| [[portugues-olas]] | El tablero de la version en portugues (Brasil): la ola 0, la caida al espanol, lo que la base aun no acepta y los lotes propuestos |
 
 ## Los tres niveles de layout
 

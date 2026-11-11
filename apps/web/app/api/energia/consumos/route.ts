@@ -5,6 +5,7 @@ import { exigir } from '@/lib/server/auth'
 import { crearConsumoCtrl, tableroConsumosCtrl } from '@/lib/server/energia-controller'
 import { respuestaError } from '@/lib/server/errores'
 import { registrarAccion } from '@/lib/server/acciones-repo'
+import { monedaDeLaInstancia } from '@/lib/server/moneda-instancia'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -52,6 +53,9 @@ export async function POST(req: Request) {
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   try {
     const c = await crearConsumoCtrl(await req.json().catch(() => ({})), g.usuario.id)
+    // ADR 0048 · la frase lleva importes con el simbolo de la moneda de la
+    // instancia; en servidor hay que pedirla antes de escribirla.
+    await monedaDeLaInstancia()
     await registrarAccion(
       g.usuario,
       'Capturó recibo de luz',

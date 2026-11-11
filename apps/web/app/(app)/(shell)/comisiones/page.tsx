@@ -2,13 +2,21 @@
 
 import { toast } from 'sonner'
 import { useEffect, useState } from 'react'
-import { Percent, Handshake, ShieldCheck, ShieldAlert, Building2, Users, Plus } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { Handshake, ShieldCheck, ShieldAlert, Building2, Users, Plus } from 'lucide-react'
+import { cn } from '@/lib/cn'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
+import { EmptyState } from '@/components/demo/EmptyState'
+import { StatusBadge } from '@/components/demo/StatusBadge'
+import { ChipConteo } from '@/components/demo/finanzas/ChipConteo'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
+import { EntradaCifra } from '@/components/demo/ui/EntradaCifra'
+import { cifraIlegible } from '@/lib/captura-cifra'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { useClientes, type Cliente } from '@/lib/data/client'
 import { actualizarClienteApi, crearClienteApi } from '@/lib/data/estado-api'
+import { useIdioma, useTexto } from '@/lib/i18n/contexto'
 
 const inputCls =
   'h-8 w-20 rounded border border-border-strong bg-surface px-2 text-right text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
@@ -22,57 +30,95 @@ const fieldCls =
 // cliente directo, que determina la comisión que se le aplica.
 export default function ComisionesPage() {
   const clientes = useClientes()
+  const t = useTexto()
   const puede = usePuede('comercial', 'crear')
   const [nuevaOpen, setNuevaOpen] = useState(false)
 
+  const encabezado = (
+    // Encabezado con la forma del Dashboard (rediseño 2026-10-26): sin la caja
+    // de icono, que llevaba un azul con hex suelto.
+    <div>
+      <h1 className="text-2xl text-ink">{t('clientes.comisiones.titulo')}</h1>
+      <p className="mt-1 text-[13px] text-muted">
+        {t('clientes.comisiones.subtitulo')}
+      </p>
+    </div>
+  )
+
   if (!clientes) {
-    return <div className="h-64 w-full animate-pulse rounded-md bg-surface-2" />
+    // Esqueleto con la forma de lo que va a llegar —la franja de conteos y las
+    // dos tarjetas—, no un bloque gris de 256 px sin forma.
+    return (
+      <div className="w-full space-y-4">
+        {encabezado}
+        <div className="h-6 w-80 max-w-full animate-pulse rounded bg-surface-2" />
+        <div className="h-40 w-full animate-pulse rounded-md bg-surface-2" />
+        <div className="h-40 w-full animate-pulse rounded-md bg-surface-2" />
+      </div>
+    )
   }
 
   const agencias = clientes.filter((c) => c.tipo === 'AGENCIA')
   const directos = clientes.filter((c) => c.tipo !== 'AGENCIA')
+  // Conteos para la franja de arriba. Son CONTEOS de lo que ya está en
+  // pantalla, no dinero: «sin agencia» es lo mismo que la fila pinta como
+  // «Directo» (la agencia asignada no está entre las agencias).
+  const sinValidar = agencias.filter((a) => a.tieneNegociacion && !a.negociacionValidada).length
+  const sinAgencia = directos.filter((c) => !agencias.some((a) => a.id === c.agenciaId)).length
 
   return (
     <div className="w-full space-y-4">
-      <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[#0a66ff1a] text-info">
-          <Percent className="h-5 w-5" strokeWidth={1.75} />
-        </span>
-        <div>
-          <h1 className="text-2xl text-ink">Comisiones</h1>
-          <p className="text-[13px] text-muted">
-            Ajusta la comisión por agencia y la agencia asignada a cada cliente.
-          </p>
-        </div>
+      {encabezado}
+
+      {/* Rediseño del 2026-10-26 · lo que el dueño quiere saber antes de bajar
+          a las tablas: cuántas agencias hay, cuántas negociaciones faltan por
+          validar (bloquean propuestas) y cuántos clientes no tienen agencia.
+          Chips del Dashboard y no KPI grandes: aquí no hay dinero que medir. */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <ChipConteo label={t('clientes.comisiones.chip.agencias')} n={agencias.length} />
+        <ChipConteo
+          label={t('clientes.comisiones.chip.sin-validar')}
+          n={sinValidar}
+          tono={sinValidar > 0 ? 'ambar' : 'neutro'}
+          title={t('clientes.comisiones.chip.sin-validar.ayuda')}
+        />
+        <ChipConteo label={t('clientes.comisiones.chip.sin-agencia')} n={sinAgencia} />
       </div>
 
       {/* Agencias: comisión + negociación */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-muted" />
-            <CardTitle>Agencias y su comisión</CardTitle>
-          </div>
-          {puede && (
+      {/* PLEG-02 · al plegar se desmontan las filas: un porcentaje tecleado y
+          sin guardar en una de ellas se pierde. */}
+      <CardColapsable
+        id="comisiones.agencias"
+        titulo={t('clientes.comisiones.agencias.titulo')}
+        icono={<Building2 className="h-4 w-4 text-muted" />}
+        contentClassName="px-0 pb-0"
+        accion={
+          puede && (
             <Button variant="success" size="sm" onClick={() => setNuevaOpen(true)}>
-              <Plus className="h-3.5 w-3.5" /> Nueva agencia
+              <Plus className="h-3.5 w-3.5" /> {t('clientes.comisiones.nueva')}
             </Button>
-          )}
-        </CardHeader>
-        <CardContent>
+          )
+        }
+      >
           {agencias.length === 0 ? (
-            <p className="text-[13px] text-muted">
-              Aún no hay agencias. Usa «Nueva agencia» para crear una.
-            </p>
+            <div className="px-4 pb-4">
+              <EmptyState
+                icon={Building2}
+                titulo={t('clientes.comisiones.agencias.vacia')}
+                detalle={puede ? t('clientes.comisiones.agencias.vacia.crear') : t('clientes.comisiones.agencias.vacia.esperar')}
+                className="py-8"
+              />
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-[13px]">
                 <thead>
-                  <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
-                    <th className="px-2 py-2 font-medium">Agencia</th>
-                    <th className="px-2 py-2 text-right font-medium">Comisión (%)</th>
-                    <th className="px-2 py-2 font-medium">Negociación</th>
-                    <th className="px-2 py-2 text-right font-medium">Clientes</th>
+                  <tr className={CABECERA}>
+                    <th className="px-4 py-2 font-medium">{t('clientes.comisiones.col.agencia')}</th>
+                    <th className="px-4 py-2 text-right font-medium">{t('clientes.comisiones.col.comision')}</th>
+                    <th className="px-4 py-2 font-medium">{t('clientes.comisiones.col.negociacion')}</th>
+                    <th className="px-4 py-2 text-right font-medium">{t('clientes.comisiones.col.clientes')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -88,26 +134,27 @@ export default function ComisionesPage() {
               </table>
             </div>
           )}
-        </CardContent>
-      </Card>
+      </CardColapsable>
 
       {/* Clientes directos: agencia asignada → comisión aplicada */}
-      <Card>
-        <CardHeader className="flex flex-row items-center gap-2">
-          <Users className="h-4 w-4 text-muted" />
-          <CardTitle>Clientes y su agencia</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <CardColapsable
+        id="comisiones.clientes"
+        titulo={t('clientes.comisiones.clientes.titulo')}
+        icono={<Users className="h-4 w-4 text-muted" />}
+        contentClassName="px-0 pb-0"
+      >
           {directos.length === 0 ? (
-            <p className="text-[13px] text-muted">No hay clientes directos.</p>
+            <div className="px-4 pb-4">
+              <EmptyState icon={Users} titulo={t('clientes.comisiones.clientes.vacia')} className="py-8" />
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-[13px]">
                 <thead>
-                  <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
-                    <th className="px-2 py-2 font-medium">Cliente</th>
-                    <th className="px-2 py-2 font-medium">Agencia</th>
-                    <th className="px-2 py-2 text-right font-medium">Comisión aplicada</th>
+                  <tr className={CABECERA}>
+                    <th className="px-4 py-2 font-medium">{t('clientes.comisiones.col.cliente')}</th>
+                    <th className="px-4 py-2 font-medium">{t('clientes.comisiones.col.agencia')}</th>
+                    <th className="px-4 py-2 text-right font-medium">{t('clientes.comisiones.col.aplicada')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -118,16 +165,20 @@ export default function ComisionesPage() {
               </table>
             </div>
           )}
-        </CardContent>
-      </Card>
+      </CardColapsable>
 
       {nuevaOpen && <NuevaAgenciaDialog onClose={() => setNuevaOpen(false)} />}
     </div>
   )
 }
 
+// Cabecera de tabla común (rediseño 2026-10-26), la misma de Finanzas.
+const CABECERA = 'border-b border-border text-[11px] uppercase tracking-wide text-muted'
+
 // ─── Alta de agencia (cliente tipo AGENCIA) ──────────────────────────────────
 function NuevaAgenciaDialog({ onClose }: { onClose: () => void }) {
+  const t = useTexto()
+  const { idioma } = useIdioma()
   const [nombre, setNombre] = useState('')
   const [comision, setComision] = useState('0')
   const [tieneNeg, setTieneNeg] = useState(false)
@@ -135,9 +186,17 @@ function NuevaAgenciaDialog({ onClose }: { onClose: () => void }) {
   const [nota, setNota] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // OBLIG-01 · el nombre lo exige el servidor (`clientes-controller.ts:33`); la
+  // comisión es el dato que define a una agencia, así que también se pide (un
+  // 0 vale: es una comisión de cero, no un hueco).
+  // Solo el nombre: la comisión vacía se guarda como 0, como siempre (B53).
+  const ob = useObligatorios({ nombre }, ['nombre'])
 
   async function guardar() {
-    if (!nombre.trim()) return
+    if (!ob.validar()) return
+    // P-L2-1 · en italiano lo ilegible llega como 'NaN' (el campo lo dice en
+    // rojo) y `Number(x) || 0` lo guardaría como CERO. En es/en, `false`.
+    if (cifraIlegible(comision, idioma)) return
     setGuardando(true)
     setError(null)
     try {
@@ -151,7 +210,7 @@ function NuevaAgenciaDialog({ onClose }: { onClose: () => void }) {
       })
       onClose()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo crear la agencia')
+      setError(e instanceof Error ? e.message : t('clientes.comisiones.no-se-pudo-crear'))
       setGuardando(false)
     }
   }
@@ -160,29 +219,27 @@ function NuevaAgenciaDialog({ onClose }: { onClose: () => void }) {
     <Modal
       open
       onOpenChange={(v) => !v && onClose()}
-      title="Nueva agencia"
-      subtitle="Alta de cliente tipo Agencia con su comisión"
+      title={t('clientes.comisiones.nueva')}
+      subtitle={t('clientes.comisiones.nueva.subtitulo')}
       footer={
         <div className="flex items-center justify-between">
           {error ? <span className="text-[12px] text-error">{error}</span> : <span />}
           <div className="flex gap-2">
-            <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
-            <Button variant="success" size="sm" disabled={!nombre.trim() || guardando} onClick={guardar}>
-              {guardando ? 'Guardando…' : 'Crear agencia'}
+            <Button variant="secondary" size="sm" onClick={onClose}>{t('comun.cancelar')}</Button>
+            <Button variant="success" size="sm" disabled={guardando} onClick={guardar}>
+              {guardando ? t('propuestas.comun.guardando') : t('clientes.comisiones.crear')}
             </Button>
           </div>
         </div>
       }
     >
       <div className="space-y-3">
-        <label className="block">
-          <span className="mb-1 block text-[12px] font-medium text-ink">Nombre de la agencia</span>
-          <input className={fieldCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus placeholder="p. ej. Andina Media" />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-[12px] font-medium text-ink">Comisión de la agencia (%)</span>
-          <input className={`demo-num ${fieldCls}`} value={comision} onChange={(e) => setComision(e.target.value)} placeholder="0" />
-        </label>
+        <Campo label={t('clientes.comisiones.nombre')} obligatorio falta={ob.falta('nombre')}>
+          <input className={fieldCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus placeholder={t('clientes.comisiones.nombre.ejemplo')} />
+        </Campo>
+        <Campo label={t('clientes.form.comision')}>
+          <EntradaCifra className={`demo-num ${fieldCls}`} valor={comision} onCambio={setComision} placeholder="0" decimales={2} minimo={0} maximo={100} />
+        </Campo>
 
         <div className="rounded-md border border-border bg-surface-2 p-3">
           <label className="flex items-center gap-2 text-[13px] text-ink">
@@ -192,7 +249,7 @@ function NuevaAgenciaDialog({ onClose }: { onClose: () => void }) {
               onChange={(e) => { setTieneNeg(e.target.checked); if (!e.target.checked) setNegValidada(false) }}
               className="h-4 w-4 accent-[var(--accent)]"
             />
-            ¿Hay negociación con la agencia?
+            {t('clientes.form.hay-negociacion')}
           </label>
           {tieneNeg && (
             <div className="mt-3 space-y-2.5">
@@ -200,13 +257,13 @@ function NuevaAgenciaDialog({ onClose }: { onClose: () => void }) {
                 className="min-h-[56px] w-full rounded border border-border-strong bg-surface px-3 py-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 value={nota}
                 onChange={(e) => setNota(e.target.value)}
-                placeholder="Términos negociados (comisión especial, condiciones de pago…)"
+                placeholder={t('clientes.comisiones.terminos.ejemplo')}
               />
               <label className="flex items-start gap-2 text-[13px]">
                 <input type="checkbox" checked={negValidada} onChange={(e) => setNegValidada(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[var(--accent)]" />
                 <span>
-                  <span className="font-medium text-ink">Negociación validada</span>
-                  <span className="mt-0.5 block text-[11px] text-muted">Sin validar, no se pueden crear ni aprobar propuestas con esta agencia.</span>
+                  <span className="font-medium text-ink">{t('clientes.negociacion.validada')}</span>
+                  <span className="mt-0.5 block text-[11px] text-muted">{t('clientes.comisiones.validada.ayuda')}</span>
                 </span>
               </label>
             </div>
@@ -227,50 +284,78 @@ function AgenciaRow({
   clientesAsociados: number
   puede: boolean
 }) {
+  const t = useTexto()
+  const { idioma } = useIdioma()
   const [comision, setComision] = useState(String(agencia.comisionAgenciaPct ?? 0))
   const [busy, setBusy] = useState(false)
   // Sincroniza el input si el dato cambia tras guardar/refrescar.
   useEffect(() => setComision(String(agencia.comisionAgenciaPct ?? 0)), [agencia.comisionAgenciaPct])
 
-  const cambiado = Number(comision) !== Number(agencia.comisionAgenciaPct ?? 0)
+  // P-L2-1 · en italiano lo ilegible llega como 'NaN': no cuenta como cambio
+  // (si no, «Guardar» mandaría `Number('NaN') || 0` = una comisión de CERO).
+  const cambiado = !cifraIlegible(comision, idioma) && Number(comision) !== Number(agencia.comisionAgenciaPct ?? 0)
 
   async function guardar(input: Parameters<typeof actualizarClienteApi>[1]) {
     setBusy(true)
     try {
       await actualizarClienteApi(agencia.id, input)
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'No se pudo guardar')
+      toast.error(e instanceof Error ? e.message : t('clientes.form.no-se-pudo-guardar'))
     }
     setBusy(false)
   }
 
   return (
     <tr className="hover:bg-surface-2">
-      <td className="px-2 py-2.5 font-medium text-ink">{agencia.nombre}</td>
-      <td className="px-2 py-2.5">
+      <td className="px-4 py-2.5 font-medium text-ink">{agencia.nombre}</td>
+      <td className="px-4 py-2.5">
         <div className="flex items-center justify-end gap-2">
-          <input
-            className={`demo-num ${inputCls}`}
-            value={comision}
-            disabled={!puede || busy}
-            onChange={(e) => setComision(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && cambiado) guardar({ comisionAgenciaPct: Number(comision) || 0 }) }}
-          />
-          {puede && cambiado && (
-            <Button size="sm" disabled={busy} onClick={() => guardar({ comisionAgenciaPct: Number(comision) || 0 })}>
-              {busy ? '…' : 'Guardar'}
+          {/* El «%» va pegado al campo: el número solo no decía en qué unidad
+              estaba. Es texto al lado, no parte del valor: lo que se manda
+              sigue siendo `Number(comision) || 0`. */}
+          <span className="inline-flex items-center gap-1">
+            <EntradaCifra
+              className={`demo-num ${inputCls}`}
+              valor={comision}
+              aria-label={t('clientes.comisiones.comision-de', { nombre: agencia.nombre })}
+              disabled={!puede || busy}
+              onCambio={setComision}
+              decimales={2}
+              minimo={0}
+              maximo={100}
+              onKeyDown={(e) => { if (e.key === 'Enter' && cambiado) guardar({ comisionAgenciaPct: Number(comision) || 0 }) }}
+            />
+            <span className="text-[12px] text-muted">%</span>
+          </span>
+          {/* «Guardar» RESERVA su sitio aunque no haya cambios (`invisible`):
+              antes aparecía y desaparecía y la fila entera saltaba al teclear.
+              Sigue apareciendo solo para quien puede, y solo se pulsa con un
+              cambio — igual que cuando no se pintaba. */}
+          {puede && (
+            <Button
+              size="sm"
+              disabled={busy || !cambiado}
+              aria-hidden={!cambiado}
+              tabIndex={cambiado ? undefined : -1}
+              className={cn(!cambiado && 'invisible')}
+              onClick={() => guardar({ comisionAgenciaPct: Number(comision) || 0 })}
+            >
+              {busy ? '…' : t('comun.guardar')}
             </Button>
           )}
         </div>
       </td>
-      <td className="px-2 py-2.5">
+      <td className="px-4 py-2.5">
+        {/* Rediseño del 2026-10-26 · el estado con el semáforo único de la
+            app (`StatusBadge`) en vez de texto con hex sueltos. Las acciones
+            son las mismas, a la derecha del chip. */}
         {!agencia.tieneNegociacion ? (
-          <span className="text-[12px] text-muted">Sin negociación</span>
+          <StatusBadge tono="neutro">{t('clientes.comisiones.sin-negociacion')}</StatusBadge>
         ) : agencia.negociacionValidada ? (
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 text-[12px] text-[#0f7a55]">
-              <ShieldCheck className="h-3.5 w-3.5" /> Validada
-            </span>
+            <StatusBadge tono="verde">
+              <ShieldCheck className="h-3 w-3" /> {t('clientes.comisiones.validada')}
+            </StatusBadge>
             {puede && (
               <button
                 type="button"
@@ -278,24 +363,24 @@ function AgenciaRow({
                 onClick={() => guardar({ negociacionValidada: false })}
                 className="text-[11px] text-muted hover:underline disabled:opacity-50"
               >
-                Quitar
+                {t('clientes.comisiones.quitar')}
               </button>
             )}
           </div>
         ) : (
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 text-[12px] text-[#9a6700]">
-              <ShieldAlert className="h-3.5 w-3.5" /> Sin validar
-            </span>
+            <StatusBadge tono="ambar">
+              <ShieldAlert className="h-3 w-3" /> {t('clientes.comisiones.sin-validar')}
+            </StatusBadge>
             {puede && (
               <Button size="sm" variant="primary" disabled={busy} onClick={() => guardar({ negociacionValidada: true })}>
-                <Handshake className="h-3.5 w-3.5" /> Validar
+                <Handshake className="h-3.5 w-3.5" /> {t('clientes.comisiones.validar')}
               </Button>
             )}
           </div>
         )}
       </td>
-      <td className="px-2 py-2.5 text-right text-muted">{clientesAsociados}</td>
+      <td className="demo-num px-4 py-2.5 text-right text-muted">{clientesAsociados}</td>
     </tr>
   )
 }
@@ -310,6 +395,7 @@ function ClienteRow({
   agencias: Cliente[]
   puede: boolean
 }) {
+  const t = useTexto()
   const [busy, setBusy] = useState(false)
   const agencia = agencias.find((a) => a.id === cliente.agenciaId)
 
@@ -319,15 +405,15 @@ function ClienteRow({
     try {
       await actualizarClienteApi(cliente.id, { agenciaId })
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'No se pudo asignar')
+      toast.error(e instanceof Error ? e.message : t('clientes.comisiones.no-se-pudo-asignar'))
     }
     setBusy(false)
   }
 
   return (
     <tr className="hover:bg-surface-2">
-      <td className="px-2 py-2.5 font-medium text-ink">{cliente.nombre}</td>
-      <td className="px-2 py-2.5">
+      <td className="px-4 py-2.5 font-medium text-ink">{cliente.nombre}</td>
+      <td className="px-4 py-2.5">
         {puede ? (
           <select
             className={selectCls}
@@ -335,15 +421,19 @@ function ClienteRow({
             disabled={busy || agencias.length === 0}
             onChange={(e) => asignar(e.target.value)}
           >
-            <option value="">— Selecciona agencia —</option>
+            <option value="">{t('clientes.comisiones.selecciona-agencia')}</option>
             {agencias.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
           </select>
         ) : (
-          <span className="text-muted">{agencia?.nombre ?? 'Directo'}</span>
+          <span className="text-muted">{agencia?.nombre ?? t('clientes.tipo.directo')}</span>
         )}
       </td>
-      <td className="demo-num px-2 py-2.5 text-right text-ink">
-        {agencia ? `${agencia.comisionAgenciaPct ?? 0}%` : '—'}
+      <td className="demo-num whitespace-nowrap px-4 py-2.5 text-right text-ink">
+        {/* La raya sola no decía por qué: es un cliente sin agencia, y por eso
+            no paga comisión. Misma condición de siempre (`agencia`). */}
+        {agencia ? `${agencia.comisionAgenciaPct ?? 0}%` : (
+          <span className="text-[12px] text-muted" title={t('clientes.comisiones.sin-agencia')}>{t('clientes.comisiones.directo-sin-comision')}</span>
+        )}
       </td>
     </tr>
   )

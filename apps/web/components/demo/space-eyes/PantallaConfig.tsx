@@ -5,7 +5,7 @@ import { AlertTriangle, Info, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
 import { ConfirmDialog } from '@/components/demo/ui/ConfirmDialog'
-import { seApi, fotoSE, ErrorSE } from '@/lib/data/space-eyes-se'
+import { seApi, fotoSE, ErrorSE, textoDeError } from '@/lib/data/space-eyes-se'
 import {
   HORA,
   celdaEn,
@@ -17,6 +17,10 @@ import {
   type Punto,
 } from '@/lib/space-eyes-pantalla'
 import { fechaHora } from './piezas'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
+import type { Idioma } from '@/lib/i18n/idiomas'
+import { interpolarNodos } from '@/lib/i18n/nodos'
 
 // ============================================================================
 //  PantallaConfig — la tarjeta «Pantalla y fallas» de la ficha, en su parte de
@@ -105,20 +109,20 @@ type Modo = 'esquinas' | 'excluir'
 
 const HORARIO_BASE: Horario = { inicio: '06:00', fin: '24:00' }
 
-const APRENDIZAJE = [
-  { v: 0, t: 'Solo la primera vuelta (pruebas)' },
-  { v: 30, t: '30 minutos' },
-  { v: 120, t: '2 horas' },
-  { v: 360, t: '6 horas' },
-  { v: 1440, t: '24 horas' },
+const APRENDIZAJE: { v: number; t: ClaveTexto }[] = [
+  { v: 0, t: 'spaceeyes.pconfig.aprendizaje.0' },
+  { v: 30, t: 'spaceeyes.pconfig.aprendizaje.30' },
+  { v: 120, t: 'spaceeyes.pconfig.aprendizaje.120' },
+  { v: 360, t: 'spaceeyes.pconfig.aprendizaje.360' },
+  { v: 1440, t: 'spaceeyes.pconfig.aprendizaje.1440' },
 ]
-const FRECUENCIA = [
-  { v: 5, t: 'Cada 5 min (pruebas)' },
-  { v: 15, t: 'Cada 15 min (pruebas)' },
-  { v: 30, t: 'Cada 30 min' },
-  { v: 60, t: 'Cada hora' },
-  { v: 120, t: 'Cada 2 horas' },
-  { v: 180, t: 'Cada 3 horas' },
+const FRECUENCIA: { v: number; t: ClaveTexto }[] = [
+  { v: 5, t: 'spaceeyes.pconfig.frecuencia.5' },
+  { v: 15, t: 'spaceeyes.pconfig.frecuencia.15' },
+  { v: 30, t: 'spaceeyes.frecuencia.30' },
+  { v: 60, t: 'spaceeyes.frecuencia.60' },
+  { v: 120, t: 'spaceeyes.frecuencia.120' },
+  { v: 180, t: 'spaceeyes.frecuencia.180' },
 ]
 
 const CAMPO =
@@ -135,9 +139,9 @@ function usaPantalla(version: string | null | undefined): boolean {
   return a > 0 || (a === 0 && b >= 15)
 }
 
-function mensaje(e: unknown): string {
-  if (e instanceof ErrorSE && e.status === 403) return 'No tienes permiso para cambiar esto.'
-  return e instanceof Error ? e.message : String(e)
+function mensaje(e: unknown, idioma: Idioma): string {
+  if (e instanceof ErrorSE && e.status === 403) return traducir(idioma, 'spaceeyes.comun.sin-permiso-cambiar')
+  return textoDeError(e, idioma) ?? String(e)
 }
 
 export function PantallaConfig({
@@ -151,6 +155,7 @@ export function PantallaConfig({
   puedeEncuadrar: boolean
   onCambio?: () => void
 }) {
+  const { t, idioma } = useIdioma()
   const [datos, setDatos] = useState<RespPantalla | null>(null)
   const [version, setVersion] = useState<string | null>(null)
   const [foto, setFoto] = useState<string | null>(null)
@@ -193,11 +198,11 @@ export function PantallaConfig({
           .catch(() => url)
           .then((u) => vivo && setFoto(u))
       })
-      .catch((e) => vivo && setError(mensaje(e)))
+      .catch((e) => vivo && setError(mensaje(e, idioma)))
     return () => {
       vivo = false
     }
-  }, [equipoId])
+  }, [equipoId, idioma])
 
   const sabe = usaPantalla(version)
   const pantalla = datos?.pantalla ?? null
@@ -215,7 +220,7 @@ export function PantallaConfig({
       await cargarPantalla()
       onCambio?.()
     } catch (e) {
-      setAviso({ tipo: 'error', texto: `No se pudo guardar: ${mensaje(e)}` })
+      setAviso({ tipo: 'error', texto: t('spaceeyes.comun.no-guardar', { motivo: mensaje(e, idioma) }) })
     } finally {
       setGuardandoSalud(false)
     }
@@ -347,18 +352,18 @@ export function PantallaConfig({
       onCambio?.()
       setAviso({
         tipo: 'ok',
-        texto: r?.reiniciado ? 'Pantalla guardada. El equipo vuelve a aprenderla desde cero.' : 'Pantalla guardada.',
+        texto: r?.reiniciado ? t('spaceeyes.pconfig.guardada.reinicia') : t('spaceeyes.pconfig.guardada'),
       })
     } catch (e) {
       setConfirmar(false)
-      setAviso({ tipo: 'error', texto: `No se pudo guardar la pantalla: ${mensaje(e)}` })
+      setAviso({ tipo: 'error', texto: t('spaceeyes.pconfig.no-guardar', { motivo: mensaje(e, idioma) }) })
     } finally {
       setGuardandoPant(false)
     }
   }
 
   // ─── Resúmenes ───────────────────────────────────────────────────────────
-  const resumen = useMemo(() => ultimaRevision(ultimo), [ultimo])
+  const resumen = useMemo(() => ultimaRevision(ultimo, idioma), [ultimo, idioma])
   const quietas = useMemo(() => {
     const ex = ultimo?.excluidas ?? []
     if (!ex.length || !pantalla) return ''
@@ -367,20 +372,20 @@ export function PantallaConfig({
   const finAprendizaje = useMemo(() => {
     if (!salud?.desde) return ''
     const min = Number(salud.aprendizaje_min ?? 120)
-    return fechaHora(new Date(new Date(salud.desde).getTime() + min * 60_000).toISOString())
-  }, [salud])
+    return fechaHora(new Date(new Date(salud.desde).getTime() + min * 60_000).toISOString(), idioma)
+  }, [salud, idioma])
 
   if (error) {
     return (
       <div className="rounded-md border border-border bg-surface p-3 text-[12px] text-muted">
-        No se pudo leer la pantalla del equipo: {error}
+        {t('spaceeyes.pconfig.error', { error })}
       </div>
     )
   }
   if (!datos) {
     return (
       <div className="flex items-center gap-2 rounded-md border border-border bg-surface p-3 text-[12px] text-muted">
-        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Leyendo la pantalla del equipo…
+        <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t('spaceeyes.pconfig.leyendo')}
       </div>
     )
   }
@@ -393,11 +398,8 @@ export function PantallaConfig({
     <section className="overflow-hidden rounded-md border border-border bg-surface">
       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border p-3">
         <div className="min-w-0 flex-1">
-          <h2 className="text-[14px] font-semibold text-ink">Pantalla y fallas</h2>
-          <p className="mt-0.5 text-[12px] text-muted">
-            El equipo revisa su pantalla por sí mismo y solo avisa cuando confirma una falla o cuando se arregla. No
-            manda video ni fotos mientras todo está bien.
-          </p>
+          <h2 className="text-[14px] font-semibold text-ink">{t('spaceeyes.pantalla.titulo')}</h2>
+          <p className="mt-0.5 text-[12px] text-muted">{t('spaceeyes.pconfig.descripcion')}</p>
         </div>
         <div className="flex shrink-0 items-center gap-3">
           <span
@@ -406,10 +408,14 @@ export function PantallaConfig({
               !vigilar ? 'bg-surface-2 text-muted' : aprendiendo ? 'bg-accent-soft text-accent' : 'bg-success-soft text-success',
             )}
           >
-            {!vigilar ? 'Vigilancia apagada' : aprendiendo ? 'Aprendiendo' : 'Vigilando'}
+            {!vigilar
+              ? t('spaceeyes.pconfig.apagada')
+              : aprendiendo
+                ? t('spaceeyes.vigilancia.aprendiendo')
+                : t('spaceeyes.vigilancia.vigilando')}
           </span>
           <Interruptor
-            etiqueta="Vigilar fallas"
+            etiqueta={t('spaceeyes.pconfig.vigilar')}
             activo={vigilar}
             deshabilitado={interruptorApagado}
             onCambio={(v) => guardarSalud({ vigilar: v })}
@@ -420,13 +426,12 @@ export function PantallaConfig({
       <div className="flex flex-col gap-3 p-3">
         {!sabe && (
           <Aviso tono="alerta">
-            La vigilancia de fallas necesita la app 0.15.0 o posterior en el celular, o el agente 0.7.0 en la
-            Raspberry. El agente de PC todavía no la tiene.
+            {t('spaceeyes.pconfig.no-sabe')}
           </Aviso>
         )}
         {sabe && !pantalla && (
           <Aviso tono="alerta">
-            Falta marcar dónde está la pantalla en la foto: sin eso el equipo no vigila fallas ni creativos.
+            {t('spaceeyes.pconfig.sin-marcar.aviso')}
           </Aviso>
         )}
         {aviso && <Aviso tono={aviso.tipo === 'ok' ? 'info' : 'falla'}>{aviso.texto}</Aviso>}
@@ -434,79 +439,81 @@ export function PantallaConfig({
         {/* Tres decisiones, cada una en su recuadro */}
         <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
           <div className="rounded-md border border-border p-3">
-            <p className="text-[11px] uppercase tracking-wide text-muted">Pantalla</p>
+            <p className="text-[11px] uppercase tracking-wide text-muted">{t('spaceeyes.pconfig.pantalla')}</p>
             {pantalla ? (
               <div className="mt-1.5">
                 <p className="text-[13px] text-ink">
-                  <span className="font-semibold tabular-nums">{pantalla.filas * pantalla.columnas}</span> gabinetes{' '}
-                  <span className="text-muted tabular-nums">
-                    ({pantalla.filas} × {pantalla.columnas})
-                  </span>
+                  {interpolarNodos(t('spaceeyes.pconfig.gabinetes'), {
+                    n: <span className="font-semibold tabular-nums">{pantalla.filas * pantalla.columnas}</span>,
+                    medida: (
+                      <span className="text-muted tabular-nums">
+                        ({pantalla.filas} × {pantalla.columnas})
+                      </span>
+                    ),
+                  })}
                 </p>
                 <p className="mt-0.5 text-[12px] text-muted">
-                  Encendida de <span className="tabular-nums text-ink">{pantalla.horario?.inicio || '06:00'}</span> a{' '}
-                  <span className="tabular-nums text-ink">{pantalla.horario?.fin || '24:00'}</span>
+                  {interpolarNodos(t('spaceeyes.comun.encendida'), {
+                    inicio: <span className="tabular-nums text-ink">{pantalla.horario?.inicio || '06:00'}</span>,
+                    fin: <span className="tabular-nums text-ink">{pantalla.horario?.fin || '24:00'}</span>,
+                  })}
                 </p>
               </div>
             ) : (
-              <p className="mt-1.5 text-[13px] text-muted">Sin marcar</p>
+              <p className="mt-1.5 text-[13px] text-muted">{t('spaceeyes.pconfig.sin-marcar')}</p>
             )}
             {puedeEncuadrar && !edit && (
               <Button size="sm" variant="secondary" className="mt-3" onClick={empezar}>
-                {pantalla ? 'Cambiar pantalla' : 'Marcar la pantalla'}
+                {pantalla ? t('spaceeyes.pconfig.cambiar') : t('spaceeyes.pconfig.marcar')}
               </Button>
             )}
             {!puedeEncuadrar && (
               <p className="mt-2 text-[12px] text-muted">
-                Marcar la pantalla la cambia para el equipo y borra lo que aprendió: solo lo hace el Dueño.
+                {t('spaceeyes.pconfig.solo-dueno')}
               </p>
             )}
           </div>
 
           <label
             className="block rounded-md border border-border p-3"
-            title="Antes de avisar, el equipo aprende cómo se ve la pantalla normalmente. Siempre aprende al menos su primera vuelta con la pantalla funcionando."
+            title={t('spaceeyes.pconfig.aprendizaje.ayuda')}
           >
-            <span className="block text-[11px] uppercase tracking-wide text-muted">Aprendizaje</span>
-            <span className="mb-2 mt-1.5 block text-[12px] text-muted">Cuánto observa antes de empezar a avisar.</span>
+            <span className="block text-[11px] uppercase tracking-wide text-muted">{t('spaceeyes.pconfig.aprendizaje')}</span>
+            <span className="mb-2 mt-1.5 block text-[12px] text-muted">{t('spaceeyes.pconfig.aprendizaje.texto')}</span>
             <select
               className={cn(CAMPO, 'w-full')}
               value={salud?.aprendizaje_min ?? 120}
               disabled={!puedeOperar || guardandoSalud}
               onChange={(e) => guardarSalud({ aprendizaje_min: Number(e.target.value) })}
             >
-              {opciones(APRENDIZAJE, salud?.aprendizaje_min)}
+              {opciones(APRENDIZAJE.map((o) => ({ v: o.v, t: t(o.t) })), salud?.aprendizaje_min)}
             </select>
           </label>
 
           <label className="block rounded-md border border-border p-3">
-            <span className="block text-[11px] uppercase tracking-wide text-muted">Frecuencia</span>
-            <span className="mb-2 mt-1.5 block text-[12px] text-muted">
-              Cada cuánto revisa la pantalla (dentro del horario).
-            </span>
+            <span className="block text-[11px] uppercase tracking-wide text-muted">{t('spaceeyes.comun.frecuencia')}</span>
+            <span className="mb-2 mt-1.5 block text-[12px] text-muted">{t('spaceeyes.pconfig.frecuencia.texto')}</span>
             <select
               className={cn(CAMPO, 'w-full')}
               value={salud?.cada_min ?? 60}
               disabled={!puedeOperar || !vigilar || guardandoSalud}
               onChange={(e) => guardarSalud({ cada_min: Number(e.target.value) })}
             >
-              {opciones(FRECUENCIA, salud?.cada_min)}
+              {opciones(FRECUENCIA.map((o) => ({ v: o.v, t: t(o.t) })), salud?.cada_min)}
             </select>
           </label>
         </div>
 
         <div
           className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border p-3"
-          title="Mientras mira su pantalla, si el equipo la ve entera apagada tres veces seguidas (con luz alrededor) avisa en ese momento, con su foto, sin esperar la siguiente revisión. De noche o con la lente tapada no avisa así: eso lo decide la revisión de siempre."
+          title={t('spaceeyes.pconfig.rapido.ayuda')}
         >
           <div className="min-w-0 flex-1">
-            <p className="text-[13px] text-ink">Avisar al instante si la pantalla se apaga completa</p>
-            <p className="mt-0.5 text-[12px] text-muted">
-              En menos de un minuto y una sola vez por apagón; se cierra sola cuando vuelve.
-            </p>
+            <p className="text-[13px] text-ink">{t('spaceeyes.pconfig.rapido')}</p>
+            <p className="mt-0.5 text-[12px] text-muted">{t('spaceeyes.pconfig.rapido.texto')}</p>
           </div>
           <Interruptor
-            etiqueta={salud?.aviso_rapido === false ? 'Apagado' : 'Encendido'}
+            etiqueta={salud?.aviso_rapido === false ? t('spaceeyes.comun.apagado') : t('spaceeyes.comun.encendido')}
             activo={salud?.aviso_rapido !== false}
             deshabilitado={!puedeOperar || !vigilar || guardandoSalud}
             onCambio={(v) => guardarSalud({ aviso_rapido: v })}
@@ -529,12 +536,12 @@ export function PantallaConfig({
                       modo === m ? 'bg-surface-2 font-medium text-ink' : 'text-muted hover:text-ink',
                     )}
                   >
-                    {m === 'esquinas' ? 'Esquinas' : 'Zonas tapadas'}
+                    {m === 'esquinas' ? t('spaceeyes.pconfig.esquinas') : t('spaceeyes.pconfig.zonas')}
                   </button>
                 ))}
               </div>
               <label className="inline-flex items-center gap-1.5 text-muted">
-                Filas
+                {t('spaceeyes.pconfig.filas')}
                 <input
                   type="number"
                   min={1}
@@ -545,7 +552,7 @@ export function PantallaConfig({
                 />
               </label>
               <label className="inline-flex items-center gap-1.5 text-muted">
-                Columnas
+                {t('spaceeyes.pconfig.columnas')}
                 <input
                   type="number"
                   min={1}
@@ -556,7 +563,7 @@ export function PantallaConfig({
                 />
               </label>
               <label className="inline-flex items-center gap-1.5 text-muted">
-                Encendida de
+                {t('spaceeyes.pconfig.editor.desde')}
                 <input
                   type="time"
                   value={edit.horario.inicio}
@@ -565,7 +572,7 @@ export function PantallaConfig({
                 />
               </label>
               <label className="inline-flex items-center gap-1.5 text-muted">
-                a
+                {t('spaceeyes.pconfig.editor.a')}
                 {/* Texto y no `time`: el fin puede ser 24:00, que un selector de hora no acepta. */}
                 <input
                   type="text"
@@ -577,28 +584,20 @@ export function PantallaConfig({
                 />
               </label>
             </div>
-            {!horarioOk && <p className="mb-2 text-[12px] text-error">El horario va en HH:MM, de 00:00 a 24:00.</p>}
+            {!horarioOk && <p className="mb-2 text-[12px] text-error">{t('spaceeyes.pconfig.horario-mal')}</p>}
 
             <p className="mb-2 text-[12px] text-muted">
               {modo === 'esquinas' ? (
-                <>
-                  Toca las 4 esquinas de la pantalla en orden:{' '}
-                  <span className="font-medium text-ink">
-                    arriba izquierda, arriba derecha, abajo derecha, abajo izquierda
-                  </span>
-                  . Después puedes arrastrarlas. Pon filas y columnas de gabinetes para que las líneas coincidan con las
-                  uniones. Si cambias el zoom o el lente del equipo, hay que volver a marcarla.
-                </>
+                interpolarNodos(t('spaceeyes.pconfig.ayuda.esquinas'), {
+                  orden: <span className="font-medium text-ink">{t('spaceeyes.pconfig.ayuda.orden')}</span>,
+                })
               ) : (
-                <>
-                  Toca los gabinetes que algo tapa siempre (una barda, un árbol, un poste): no se revisan. El equipo
-                  también las aprende solo en sus primeras 24 horas.
-                </>
+                t('spaceeyes.pconfig.ayuda.zonas')
               )}
             </p>
 
             {!foto ? (
-              <p className="py-4 text-[12px] text-muted">Toma primero una foto del equipo para poder marcar la pantalla.</p>
+              <p className="py-4 text-[12px] text-muted">{t('spaceeyes.pconfig.sin-foto')}</p>
             ) : (
               <div
                 className="relative inline-block max-w-full cursor-crosshair touch-none select-none"
@@ -611,7 +610,7 @@ export function PantallaConfig({
                 <img
                   ref={imgRef}
                   src={foto}
-                  alt="Última foto del equipo"
+                  alt={t('spaceeyes.pconfig.alt-foto')}
                   draggable={false}
                   className="block max-h-[65vh] max-w-full"
                 />
@@ -662,10 +661,10 @@ export function PantallaConfig({
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <Button size="sm" disabled={!sePuedeGuardar || !puedeEncuadrar} onClick={pedirGuardar}>
-                {guardandoPant ? 'Guardando…' : 'Guardar pantalla'}
+                {guardandoPant ? t('spaceeyes.comun.guardando') : t('spaceeyes.pconfig.guardar')}
               </Button>
               <Button size="sm" variant="secondary" disabled={guardandoPant} onClick={() => setEdit(null)}>
-                Cancelar
+                {t('comun.cancelar')}
               </Button>
               <Button
                 size="sm"
@@ -676,7 +675,7 @@ export function PantallaConfig({
                   setModo('esquinas')
                 }}
               >
-                Volver a empezar
+                {t('spaceeyes.pconfig.empezar')}
               </Button>
             </div>
           </div>
@@ -685,28 +684,28 @@ export function PantallaConfig({
         {/* ── Última revisión y avisos ── */}
         {vigilar && (
           <div className="flex flex-col gap-2">
-            <p className="text-[11px] uppercase tracking-wide text-muted">Última revisión</p>
+            <p className="text-[11px] uppercase tracking-wide text-muted">{t('spaceeyes.pconfig.ultima')}</p>
             <p className="text-[13px] text-ink">{resumen}</p>
             {salud?.aprendiendo && (
               <Aviso tono="info">
-                Aprendiendo la pantalla hasta <span className="font-medium">{finAprendizaje}</span>: en este plazo no
-                avisa de fallas.
+                {interpolarNodos(t('spaceeyes.pconfig.aprendiendo'), {
+                  fin: <span className="font-medium">{finAprendizaje}</span>,
+                })}
               </Aviso>
             )}
             {!salud?.aprendiendo && ultimo?.aprendiendo && (
-              <Aviso tono="info">Aprendiendo con su primera vuelta: la siguiente ya vigila.</Aviso>
+              <Aviso tono="info">{t('spaceeyes.pconfig.primera-vuelta')}</Aviso>
             )}
             {ultimo?.camara_permitida === false && (
               <Aviso tono="falla">
-                Android no le deja usar la cámara en segundo plano, así que no está revisando la pantalla. Abre la app
-                Space Eye en el celular una vez y se arregla sola. Pasa tras reiniciar el celular, salvo que la app sea
-                dueña del dispositivo.
+                {t('spaceeyes.pconfig.camara-bloqueada')}
               </Aviso>
             )}
             {quietas && (
               <Aviso tono="alerta">
-                Gabinetes que nunca cambian (no se revisan): <span className="font-medium tabular-nums">{quietas}</span>.
-                Suelen estar tapados por algo; si no hay nada delante, revísalos: podrían llevar tiempo apagados.
+                {interpolarNodos(t('spaceeyes.pconfig.quietos'), {
+                  lista: <span className="font-medium tabular-nums">{quietas}</span>,
+                })}
               </Aviso>
             )}
           </div>
@@ -716,13 +715,12 @@ export function PantallaConfig({
       <ConfirmDialog
         open={confirmar}
         onOpenChange={setConfirmar}
-        title="Cambió el encuadre de la pantalla"
-        confirmLabel="Guardar de todos modos"
+        title={t('spaceeyes.pconfig.confirmar.titulo')}
+        confirmLabel={t('spaceeyes.pconfig.confirmar.boton')}
         busy={guardandoPant}
         onConfirm={() => void guardarPantalla()}
       >
-        Cambiaron las esquinas o los gabinetes, así que el equipo olvida lo que había aprendido. Vuelve a aprender
-        antes de poder avisar de fallas.
+        {t('spaceeyes.pconfig.confirmar.texto')}
       </ConfirmDialog>
     </section>
   )
@@ -744,24 +742,38 @@ function opciones(lista: { v: number; t: string }[], actual: number | undefined)
 }
 
 // Resumen de la última vuelta, en una línea.
-function ultimaRevision(u: Ultimo | null): string {
-  if (!u) return 'El equipo todavía no ha hecho ninguna revisión.'
-  const cuando = fechaHora(u.ts || u.recibido || null)
-  const estados: Record<string, string> = {
-    OK: 'se ve bien',
-    APAGADA: 'apagada',
-    CONGELADA: 'congelada',
-    INCONCLUSO: 'no se pudo juzgar',
+function ultimaRevision(u: Ultimo | null, idioma: Idioma): string {
+  const tr = (clave: ClaveTexto, valores?: Record<string, string | number>) => traducir(idioma, clave, valores)
+  if (!u) return tr('spaceeyes.pconfig.revision.ninguna')
+  const cuando = fechaHora(u.ts || u.recibido || null, idioma)
+  const estados: Record<string, ClaveTexto> = {
+    OK: 'spaceeyes.pconfig.revision.ok',
+    APAGADA: 'spaceeyes.pconfig.revision.apagada',
+    CONGELADA: 'spaceeyes.pconfig.revision.congelada',
+    INCONCLUSO: 'spaceeyes.pconfig.revision.inconcluso',
   }
-  const pantalla = (u.pantalla && estados[u.pantalla]) || u.pantalla || 'sin dato'
-  const camara = ({ MOVIDA: ' · la cámara se movió', SIN_IMAGEN: ' · sin imagen' } as Record<string, string>)[u.camara ?? ''] ?? ''
+  const pantalla = (u.pantalla && estados[u.pantalla] && tr(estados[u.pantalla])) || u.pantalla || tr('spaceeyes.comun.sin-dato')
+  const camaras: Record<string, ClaveTexto> = {
+    MOVIDA: 'spaceeyes.pconfig.revision.movida',
+    SIN_IMAGEN: 'spaceeyes.pconfig.revision.sin-imagen',
+  }
+  const camara = camaras[u.camara ?? ''] ? tr(camaras[u.camara ?? '']) : ''
   // Si alguien abrió la vista en vivo o pidió una foto a mitad de la vuelta,
   // solo se juzgó con el tramo más largo: se dice, para que no sorprenda.
   const corte =
     u.interrumpida && u.vistazos_usados != null
-      ? ` La vuelta se interrumpió (vista en vivo o una foto): se usaron ${u.vistazos_usados} de ${u.vistazos} vistazos.`
+      ? tr('spaceeyes.pconfig.revision.corte', { usados: u.vistazos_usados, total: String(u.vistazos) })
       : ''
-  return `${cuando} · pantalla ${pantalla}${camara} (${u.vistazos ?? 0} vistazos, ${u.cambios ?? 0} cambios de anuncio).${corte}`
+  const n = u.vistazos ?? 0
+  const c = u.cambios ?? 0
+  return tr('spaceeyes.pconfig.revision', {
+    cuando,
+    pantalla,
+    camara,
+    vistazos: tr(n === 1 ? 'spaceeyes.pconfig.vistazos.uno' : 'spaceeyes.pconfig.vistazos.otros', { n }),
+    cambios: tr(c === 1 ? 'spaceeyes.pconfig.cambios.uno' : 'spaceeyes.pconfig.cambios.otros', { n: c }),
+    corte,
+  })
 }
 
 function Interruptor({

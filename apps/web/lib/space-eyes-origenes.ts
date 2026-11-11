@@ -18,21 +18,36 @@
 //  guardado —el contador de la campaña subió—; lo que faltaba era decirlo.
 //
 //  Dos listas que nombran lo mismo acaban divergiendo; por eso solo existe
-//  ESTA. Es un dato puro, sin dependencias: lo importan la Galería y la ficha.
+//  ESTA. Es un dato puro: lo importan la Galería y la ficha.
+//
+//  Los NOMBRES viven en el diccionario (`spaceeyes.galeria.origen.*`), no
+//  aquí: esta rama se escribió antes de extraer los textos, y cuando llegó a
+//  `verificacion` la Galería ya pintaba sus orígenes en tres idiomas. Aquí
+//  solo queda el catálogo —qué valores hay y con qué clave se nombran—; el
+//  `texto` en español se deriva de la clave para que las pruebas de esta
+//  lista sigan leyendo lo que ve un usuario en español.
 // ============================================================================
 
-/** Los siete orígenes del ENUM, en el orden en que se ofrecen para filtrar. */
-export const ORIGENES_FOTO: { valor: string; texto: string }[] = [
-  { valor: 'manual', texto: 'Manual' },
-  { valor: 'scheduled', texto: 'Programada' },
-  { valor: 'on_demand', texto: 'A petición' },
-  { valor: 'creative_change', texto: 'Creativo nuevo' },
-  { valor: 'campana', texto: 'Campaña' },
-  { valor: 'falla', texto: 'Falla de pantalla' },
-  { valor: 'boot', texto: 'Al encender' },
+import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
+import type { Idioma } from '@/lib/i18n/idiomas'
+
+const CATALOGO: { valor: string; clave: ClaveTexto }[] = [
+  { valor: 'manual', clave: 'spaceeyes.galeria.origen.manual' },
+  { valor: 'scheduled', clave: 'spaceeyes.galeria.origen.scheduled' },
+  { valor: 'on_demand', clave: 'spaceeyes.galeria.origen.on-demand' },
+  { valor: 'creative_change', clave: 'spaceeyes.galeria.origen.creative' },
+  { valor: 'campana', clave: 'spaceeyes.galeria.origen.campana' },
+  { valor: 'falla', clave: 'spaceeyes.galeria.origen.falla' },
+  { valor: 'boot', clave: 'spaceeyes.galeria.origen.boot' },
 ]
 
-const TEXTO = new Map(ORIGENES_FOTO.map((o) => [o.valor, o.texto]))
+/** Los siete orígenes del ENUM, en el orden en que se ofrecen para filtrar. */
+export const ORIGENES_FOTO: { valor: string; clave: ClaveTexto; texto: string }[] = CATALOGO.map((o) => ({
+  ...o,
+  texto: traducir('es', o.clave),
+}))
+
+const CLAVE = new Map(ORIGENES_FOTO.map((o) => [o.valor, o.clave]))
 
 /**
  * El nombre del origen, o `null` si no lo conocemos.
@@ -42,9 +57,10 @@ const TEXTO = new Map(ORIGENES_FOTO.map((o) => [o.valor, o.texto]))
  * pantalla es peor que no enseñar nada. Que falte la etiqueta se nota y se
  * arregla; un tecnicismo en inglés se queda ahí años.
  */
-export function textoOrigen(origen: string | null | undefined): string | null {
+export function textoOrigen(origen: string | null | undefined, idioma: Idioma = 'es'): string | null {
   if (!origen) return null
-  return TEXTO.get(origen) ?? null
+  const clave = CLAVE.get(origen)
+  return clave ? traducir(idioma, clave) : null
 }
 
 /**
@@ -58,8 +74,10 @@ export function textoOrigen(origen: string | null | undefined): string | null {
 export function selloDeFoto(
   origen: string | null | undefined,
   campana?: string | null,
+  idioma: Idioma = 'es',
 ): string | null {
-  const base = textoOrigen(origen)
+  // El nombre de la campaña es un dato del cliente: va tal cual en todo idioma.
+  const base = textoOrigen(origen, idioma)
   if (!base) return null
   if (origen === 'campana' && campana) return `${base} · ${campana}`
   return base

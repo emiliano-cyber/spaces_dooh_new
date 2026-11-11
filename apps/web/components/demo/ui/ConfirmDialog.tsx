@@ -4,6 +4,8 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { AlertTriangle } from 'lucide-react'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
+import { useTexto } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
 
 // Diálogo de confirmación en el lenguaje de la app (reemplaza a window.confirm).
 // Controlado: `open` + `onOpenChange`. `onConfirm` ejecuta la acción; `busy`
@@ -13,8 +15,8 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   children,
-  confirmLabel = 'Confirmar',
-  cancelLabel = 'Cancelar',
+  confirmLabel: confirmLabelProp,
+  cancelLabel: cancelLabelProp,
   variant = 'danger',
   busy = false,
   onConfirm,
@@ -43,6 +45,11 @@ export function ConfirmDialog({
   // Ausente = el diálogo se comporta exactamente como siempre.
   confirmDeshabilitado?: boolean
 }) {
+  // I18N (lote shell, 2026-11-02) · los rotulos por omision, en el idioma
+  // vigente; quien pasa los suyos los sigue viendo tal cual.
+  const t = useTexto()
+  const confirmLabel = confirmLabelProp ?? t('shell.confirmar.confirmar')
+  const cancelLabel = cancelLabelProp ?? t('comun.cancelar')
   const [tecleado, setTecleado] = useState('')
   // Al cerrarlo se limpia: si no, reabrirlo para OTRA pantalla llegaría con el
   // nombre de la anterior ya escrito y el botón activo — exactamente el borrado
@@ -73,7 +80,7 @@ export function ConfirmDialog({
             disabled={busy || !coincide || confirmDeshabilitado}
             onClick={onConfirm}
           >
-            {busy ? 'Procesando…' : confirmLabel}
+            {busy ? t('shell.confirmar.procesando') : confirmLabel}
           </Button>
         </div>
       }
@@ -93,7 +100,7 @@ export function ConfirmDialog({
           {confirmarEscribiendo && (
             <label className="mt-3 block">
               <span className="block text-[12px] text-ink">
-                Escribe <span className="font-medium">{confirmarEscribiendo}</span> para confirmar
+                {interpolarNodos(t('shell.confirmar.escribe'), { texto: <span className="font-medium">{confirmarEscribiendo}</span> })}
               </span>
               <input
                 value={tecleado}

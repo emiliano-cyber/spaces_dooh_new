@@ -1,7 +1,7 @@
 import 'server-only'
 import { q } from './db'
 import { tenantActual } from './tenant'
-import { consultarStats } from './doohmain'
+import { consultarStats, consultarMetrics } from './doohmain'
 
 // ============================================================================
 //  lib/server/playlogs-repo.ts — Proof of play desde DOOHmain.
@@ -17,6 +17,7 @@ export interface ConsultaPlay {
   tipo: string
   campanaId: string | null
   auths: string[]
+  pantallas: string[]
   desde: string
   hasta: string
   payload: unknown
@@ -31,6 +32,7 @@ function rowToConsulta(r: any): ConsultaPlay {
     tipo: r.tipo,
     campanaId: r.campana_id ?? null,
     auths: r.auths ?? [],
+    pantallas: r.pantallas ?? [],
     // `desde`/`hasta` son DATE: no tienen hora. Sin el recorte salen como
     // 2026-07-14T06:00:00.000Z (la medianoche de CDMX en UTC), que en pantalla
     // parece "el 14 a las 6am" y no lo es.
@@ -101,6 +103,35 @@ export async function consultarYGuardarPlay(input: {
   return rowToConsulta(rows[0])
 }
 
+// Historial por PANTALLA (`get_metrics`, 29/10). Las métricas de una pantalla
+// traen todo lo que sonó en ella, de CUALQUIER campaña: dicen que la pantalla
+// estuvo reproduciendo, no que salió esta campaña. Por eso, a diferencia de
+// `consultarYGuardarPlay`, aquí no se enciende `reporte_publicacion` aunque
+// vengan datos: no es prueba de esta campaña y no puede abrir el candado de
+// facturación.
+export async function consultarYGuardarMetricas(input: {
+  campanaId: string | null
+  pantallas: string[]
+  desde: string
+  hasta: string
+  usuarioId?: string | null
+}): Promise<ConsultaPlay> {
+  const tenantId = await tenantActual()
+  const r = await consultarMetrics(input.pantallas, input.desde, input.hasta)
+  const vacio = r.ok ? respuestaVacia(r.payload) : true
+  const rows = await q(
+    `insert into doohmain_consultas_play
+       (tenant_id, tipo, campana_id, pantallas, desde, hasta, payload, vacio, error, consultado_por)
+     values ($1,$2,$3,$4,$5::date,$6::date,$7::jsonb,$8,$9,$10) returning *`,
+    [
+      tenantId, 'metrics', input.campanaId, input.pantallas, input.desde, input.hasta,
+      JSON.stringify(r.ok ? r.payload : {}), vacio, r.ok ? null : (r.error ?? 'error'),
+      input.usuarioId ?? null,
+    ],
+  )
+  return rowToConsulta(rows[0])
+}
+
 // Últimas consultas de una campaña (la más reciente primero).
 export async function listarConsultasDeCampana(campanaId: string, limite = 10): Promise<ConsultaPlay[]> {
   const rows = await q(
@@ -129,4 +160,42 @@ export async function authsDeCampana(campanaId: string): Promise<string[]> {
     [campanaId, await tenantActual()],
   )
   return rows.map((r: any) => r.auth)
+}
+
+// Las pantallas de DOOHmain donde de verdad se publicó algo de esta campaña:
+// las que registró el SDK al hacer `create_spot`, no las que dice la ficha. El
+// mismo filtro de tenant a mano que `authsDeCampana`, y por la misma razón.
+export async function pantallasDeCampana(campanaId: string): Promise<string[]> {
+  const rows = await q(
+    `select distinct rl.screen_name
+       from creatividades c
+       join doohmain_remote_campaigns rc on rc.version = c.id::text
+       join doohmain_remote_lists rl on rl.campaign_auth = rc.auth
+      where c.campana_id = $1 and c.tenant_id = $2
+      order by rl.screen_name`,
+    [campanaId, await tenantActual()],
+  )
+  return rows.map((r: any) => r.screen_name)
+}
+
+// Cada creativo de la campaña que está publicado en DOOHmain, con su `auth` y
+// las pantallas donde está. Es la base para leer su estado y pausarlo.
+export async function creativosPublicadosDeCampana(
+  campanaId: string,
+): Promise<{ creativoId: string; nombre: string; auth: string; pantallas: string[] }[]> {
+  const rows = await q(
+    `select c.id::text as creativo_id, c.nombre, rc.auth,
+            coalesce(array_agg(distinct rl.screen_name)
+                       filter (where rl.screen_name is not null), '{}') as pantallas
+       from creatividades c
+       join doohmain_remote_campaigns rc on rc.version = c.id::text
+       left join doohmain_remote_lists rl on rl.campaign_auth = rc.auth
+      where c.campana_id = $1 and c.tenant_id = $2 and rc.auth is not null
+      group by c.id, c.nombre, rc.auth
+      order by c.nombre`,
+    [campanaId, await tenantActual()],
+  )
+  return rows.map((r: any) => ({
+    creativoId: r.creativo_id, nombre: r.nombre, auth: r.auth, pantallas: r.pantallas ?? [],
+  }))
 }

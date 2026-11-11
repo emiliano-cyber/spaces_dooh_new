@@ -1,5 +1,6 @@
 import { LayoutGrid } from 'lucide-react'
 import { cn } from '@/lib/cn'
+import { useTexto } from '@/lib/i18n/contexto'
 
 // Indicador destacado de slots de una pantalla digital. Con `disponibles` colorea
 // según cuántos quedan (verde = holgado, ámbar = pocos, rojo = lleno); sin él
@@ -13,6 +14,7 @@ export function SlotsBadge({
   total: number | null
   className?: string
 }) {
+  const t = useTexto()
   if (total == null) return null
   const disp = disponibles ?? null
   const tono =
@@ -23,11 +25,16 @@ export function SlotsBadge({
         : disp <= Math.max(1, Math.ceil(total / 3))
           ? 'pocos'
           : 'ok'
+  // Rediseño del 26/10: «lleno» y «capacidad» pasan a tokens (`text-error`,
+  // `text-info`), que se leen igual de bien sobre su tinte. El verde y el ámbar
+  // conservan su tono oscuro A PROPÓSITO: `text-success` (#1da850) y
+  // `text-warning` (#f59e0b) sobre su tinte no llegan al contraste mínimo a
+  // 12 px, y el Dashboard usa el mismo ámbar oscuro en sus pastillas.
   const estilo = {
     ok: 'border-[#1da85040] bg-success-soft text-[#146c39]',
     pocos: 'border-[#f59e0b40] bg-warning-soft text-[#9a6700]',
-    lleno: 'border-[#dc262640] bg-error-soft text-[#b42318]',
-    capacidad: 'border-accent/30 bg-accent-soft text-[#0a4fcc]',
+    lleno: 'border-[#dc262640] bg-error-soft text-error',
+    capacidad: 'border-border bg-accent-soft text-info',
   }[tono]
   return (
     <span
@@ -36,11 +43,11 @@ export function SlotsBadge({
         estilo,
         className,
       )}
-      title={disp != null ? `${disp} de ${total} slots libres` : `${total} slots`}
+      title={disp != null ? t('operaciones.slots.libres-de', { disp, total }) : t('operaciones.slots.total', { total })}
     >
       <LayoutGrid className="h-3 w-3" strokeWidth={2} />
       <span className="demo-num">{disp != null ? `${disp}/${total}` : total}</span>
-      slots
+      {t('operaciones.slots.slots')}
     </span>
   )
 }

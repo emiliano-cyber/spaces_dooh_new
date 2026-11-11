@@ -2,6 +2,7 @@
 
 import * as Dialog from '@radix-ui/react-dialog'
 import { X } from 'lucide-react'
+import { useTexto } from '@/lib/i18n/contexto'
 
 // Panel lateral derecho (drawer) plano, 1px. Para fichas de detalle.
 export function Sheet({
@@ -19,6 +20,7 @@ export function Sheet({
   children: React.ReactNode
   footer?: React.ReactNode
 }) {
+  const t = useTexto()
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
@@ -33,7 +35,12 @@ export function Sheet({
                 </Dialog.Description>
               ) : null}
             </div>
-            <Dialog.Close className="flex h-8 w-8 items-center justify-center rounded text-muted hover:bg-surface-2">
+            {/* B71 · sin nombre, el lector de pantalla anunciaba solo «botón». */}
+            <Dialog.Close
+              aria-label={t('comun.cerrar')}
+              title={t('comun.cerrar')}
+              className="flex h-8 w-8 items-center justify-center rounded text-muted hover:bg-surface-2"
+            >
               <X className="h-4 w-4" />
             </Dialog.Close>
           </div>

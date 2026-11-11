@@ -159,10 +159,15 @@ describe('2 · cambiar un contrato ya enviado a firma anula el envío', () => {
     expect((await sinSesion.pedir(`/api/firma/${TOKEN}/`)).status).toBe(404)
   })
 
-  it('si ya firmó alguien, no se cambia y no queda nada anotado', async () => {
+  // Hasta el 22/10 esto era 409 sin más: un firmado no se cambiaba. Desde el
+  // 23/10 se cambia CON MOTIVO y archivando la versión firmada; sin motivo
+  // sigue sin tocarse nada. El recorrido completo, con firmas de verdad, está
+  // en `contrato-firmado-editable.e2e.test.ts`.
+  it('si ya firmó alguien, sin motivo no se cambia y no queda nada anotado', async () => {
     await enviadoAFirma(true)
     const r = await editar({ montoRenta: 18000, propuestoPor: 'ARRENDADOR' })
-    expect(r.status).toBe(409)
+    expect(r.status).toBe(400)
+    expect(r.datos.error).toMatch(/motivo/)
     expect((await historial()).datos).toHaveLength(0)
     const f = await poolTest().query('select count(*)::int n from contrato_firmas where contrato_id=$1', [contratoId])
     expect(f.rows[0].n).toBe(2)

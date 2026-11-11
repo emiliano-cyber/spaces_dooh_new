@@ -1,0 +1,128 @@
+NODE 22 Y PHP EN LOS SERVIDORES — AVISOS DE SEGURIDAD DEL 21/10/2026
+=====================================================================
+
+Que paso:
+  - Node publico diez CVE (nodejs.org, «October 2026 security releases»). El
+    peor: CVE-2026-111497, escritura fuera de limites en el decodificador
+    Brotli que permite ejecutar codigo. Y dos saltos de la verificacion del
+    nombre en TLS (CVE-2026-105483, CVE-2026-106069).
+    Hay parche para 22.x (v22.23.4), 24.x (v24.22.1) y 26.x (v26.12.1).
+    PARA 20.x NO HAY NINGUNO: es fin de vida desde abril. Y SPACE OS corria
+    Node 20, en la imagen y en el PADRE.
+  - PHP publico dos CVE de ejecucion remota sin autenticar
+    (CVE-2026-109618 y CVE-2026-109619, CVSS 9.2), arreglados en 8.5.12,
+    8.4.27, 8.3.36 y 8.2.35. SPACE OS NO USA PHP: ni la imagen ni el
+    repositorio. Lo unico que hay que hacer es comprobar que ningun droplet lo
+    tenga instalado de antes (paso 0).
+
+Lo que ya esta en el codigo (rama fix/node-22-parches-octubre -> main):
+  - Dockerfile: las tres etapas en node:22.23.4-alpine3.23.
+  - ci.yml y release.yml en node 22, como lockfile-check.yml.
+  - apps/web/lib/imagen-node-parcheado.test.ts: falla si vuelve el 20 o una
+    etiqueta flotante.
+  - Sale como v0.12.1.
+
+Consola: estos pasos son en el SERVIDOR (bash, como root). Una linea cada vez.
+
+
+PASO 0 · EN CADA DROPLET (PADRE y g500): ¿hay PHP? ¿que Node?
+-------------------------------------------------------------
+    php -v 2>/dev/null || echo "sin php"
+    dpkg -l | grep -E '^ii +(php|libapache2-mod-php)' || echo "sin paquetes php"
+    which node; node -v 2>/dev/null; /usr/local/bin/node -v 2>/dev/null
+
+  - Si sale "sin php" y "sin paquetes php": nada que hacer con PHP.
+  - Si sale PHP: avisame antes de tocar nada. Lo primero es saber que lo usa
+    (`systemctl list-units | grep -i php`, `ls /etc/nginx/sites-enabled`). Si
+    no lo usa nada: `apt purge 'php*'`. Si algo lo usa:
+    `apt update && apt install --only-upgrade 'php*'` y comprobar que
+    `php -v` dice 8.x.y igual o mayor que la arreglada de su rama.
+
+  g500 es una instancia: la aplicacion corre DENTRO del contenedor, asi que
+  el Node del anfitrion no importa. Si g500 no tiene node instalado, mejor.
+
+
+PASO 1 · PUBLICAR v0.12.1 (lo hace Claude cuando el CI pase)
+------------------------------------------------------------
+release.yml -> beta, y promover.yml -> estable. Claude te dice el digest.
+Despues, en g500: Administracion > Actualizaciones > v0.12.1 > Instalar.
+DEMO la toma sola con su cron.
+
+Para ver que Node lleva la imagen en g500, ya instalada:
+    docker exec $(docker ps --format '{{.Names}}' | grep -m1 -E 'web|space-os') node -v
+  -> tiene que decir v22.23.4
+
+
+PASO 2 · EL PADRE (no corre desde la imagen: hay que cambiarle el Node)
+-----------------------------------------------------------------------
+El PADRE tiene DOS instalaciones de Node y hay que cambiar las DOS
+(infra/systemd/flota-reporte.service:48-54):
+   root (nvm)            /root/.nvm/versions/node/v20.20.2   -> la usa npm/build
+   /usr/local/bin/node   (copia)                             -> spaces-web y flota-*
+
+a) Ver como esta hoy, y guardar la vuelta atras:
+    /usr/local/bin/node -v
+    cp -a /usr/local/bin/node /usr/local/bin/node-20.bak
+    pm2 ls 2>/dev/null || echo "sin pm2"
+
+b) Node 22.23.4 por nvm (root):
+    source /root/.nvm/nvm.sh
+    nvm install 22.23.4
+    nvm alias default 22.23.4
+    node -v                      # v22.23.4
+
+c) La copia de /usr/local/bin:
+    cp "$(nvm which 22.23.4)" /usr/local/bin/node
+    /usr/local/bin/node -v       # v22.23.4
+
+d) Reconstruir la app con el Node nuevo (los modulos nativos cambian de ABI;
+   por eso `npm ci` y no `npm install`: ademas no reescribe el lockfile):
+    cd /var/www/Spaces
+    git pull
+    npm ci
+    npm run build
+    chown -R padre:padre apps/web/.next
+    systemctl daemon-reload
+    systemctl restart spaces-web
+    systemctl restart flota-panel flota-reporte
+    systemctl list-timers flota-altas.timer --no-pager    # el timer usa el node nuevo en su proxima corrida
+
+e) Si en (a) pm2 mostro procesos vivos, reinicia su demonio con el node nuevo:
+    pm2 update
+
+f) Comprobar:
+    systemctl is-active spaces-web flota-panel flota-reporte
+    readlink -f /proc/$(systemctl show -p MainPID --value spaces-web)/exe     # /usr/local/bin/node
+    /proc/$(systemctl show -p MainPID --value spaces-web)/exe -v              # v22.23.4
+    curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:3000/spaces-dooh/api/auth/metodos/
+  -> active x3, v22.23.4 y 200. Y entrar en el PADRE desde el navegador.
+
+VUELTA ATRAS DEL PADRE (si spaces-web no levanta):
+    cp -a /usr/local/bin/node-20.bak /usr/local/bin/node
+    source /root/.nvm/nvm.sh && nvm alias default 20.20.2
+    cd /var/www/Spaces && npm ci && npm run build && chown -R padre:padre apps/web/.next
+    systemctl restart spaces-web flota-panel flota-reporte
+
+
+PASO 3 · SPACE EYE (la imagen la construye Jose)
+------------------------------------------------
+space-eye/Dockerfile.instancia y space-eye/backend/Dockerfile usan
+`node:22-slim`, etiqueta flotante: hoy ya apunta a 22.23.4. Pero una imagen
+`eyes-<version>` YA CONSTRUIDA lleva el Node del dia en que se construyo.
+Hay que reconstruirla con `docker build --pull ...` y publicarla, y luego
+`/opt/space-os/update-eyes.sh` en g500. Comprobar dentro del contenedor:
+`node -v` -> v22.23.4. Es codigo de Jose: pasarle este paso.
+
+
+PASO 4 · TU MAQUINA DE DESARROLLO (Windows)
+-------------------------------------------
+Esta en Node v24.16.0, tambien afectado. Arreglado en 24.22.1:
+    winget upgrade OpenJS.NodeJS
+    node -v      # v24.22.1 o mayor
+
+
+QUE NO ES
+---------
+- No hace falta tocar nginx ni la base.
+- No hay migraciones en v0.12.1.
+- El aviso de PHP no cambia nada en SPACE OS mientras el paso 0 salga limpio.

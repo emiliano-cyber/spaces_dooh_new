@@ -559,12 +559,6 @@ comprobar_dns() {
   fi
   echo "  DNS: $DOMINIO resuelve a $ip_publica (esta maquina)"
   IP_DROPLET="$ip_publica"
-  if [[ "$CON_EYES" -eq 1 ]] && ! getent hosts "eyes.$DOMINIO" 2>/dev/null | awk '{print $1}' | grep -qxF "$ip_publica"; then
-    echo "" >&2
-    echo "instalar-hijo: --con-eyes y 'eyes.$DOMINIO' no resuelve a esta maquina. Falta:" >&2
-    echo "                 A    eyes.$DOMINIO    ->    $ip_publica" >&2
-    exit "$EX_USO"
-  fi
 }
 IP_DROPLET=""
 comprobar_dns
@@ -903,7 +897,7 @@ paso "Actualizador"
 ejecutar mkdir -p /opt/space-os /var/log/space-os
 escribir /opt/space-os/update.sh 750 < "$UPDATE_SH"
 if [[ "$CON_EYES" -eq 1 ]]; then
-  ejecutar mkdir -p /opt/space-os/eyes
+  ejecutar mkdir -p /opt/space-os/eyes /etc/nginx/snippets
   while IFS=$'\t' read -r origen destino modo; do
     escribir "$destino" "$modo" < "$origen"
   done < <(eyes_archivos "$RAIZ")
@@ -951,7 +945,7 @@ if [[ "$CONFIRMAR" -eq 1 ]]; then
     echo "  la instancia ya sirve: no hay que esperar al cron de las 4:17"
     if [[ "$CON_EYES" -eq 1 ]]; then
       if /opt/space-os/update-eyes.sh; then
-        echo "  Space Eyes ya sirve en eyes.$DOMINIO"
+        echo "  Space Eyes ya sirve (los equipos entran por $DOMINIO)"
       else
         # La app ya sirve; Space Eyes lo reintenta el cron cada noche y su
         # registro dice por que.
@@ -978,10 +972,9 @@ fi
 # (arriba) ya confirmo que el dominio resuelve a esta maquina antes de llegar
 # hasta aqui.
 paso "Certificado"
-# Con --con-eyes el MISMO certificado lleva el segundo nombre: eyes.<dominio>
-# usa las mismas rutas de /etc/letsencrypt/live/<dominio>/ en instancia.conf.tpl.
+# Un solo nombre aun con --con-eyes: los equipos entran por el MISMO dominio
+# (infra/nginx/space-eyes.conf), sin subdominio aparte.
 NOMBRES_CERT=(-d "$DOMINIO")
-[[ "$CON_EYES" -eq 1 ]] && NOMBRES_CERT+=(-d "eyes.$DOMINIO")
 ejecutar certbot certonly --webroot -w /var/www/html -n --agree-tos --no-eff-email \
   -m "$CONTACTO" "${NOMBRES_CERT[@]}"
 

@@ -1,0 +1,117 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
+import { Button } from '@/components/demo/ui/Button'
+import { actualizarPropuestaApi } from '@/lib/data/estado-api'
+import { formatFecha } from '@/lib/data/client'
+import { useIdioma } from '@/lib/i18n/contexto'
+
+// ============================================================================
+//  Condiciones y vigencia de UNA propuesta (PROP-COMPLETA, decisión del dueño
+//  del 29/10).
+//
+//  · Las condiciones nacen copiadas de la plantilla de la organización
+//    (Administración) y aquí se ajustan para este cliente. Salen en el
+//    documento imprimible y en la liga pública.
+//  · La vigencia la pone el servidor al ENVIAR (hoy + los días de la
+//    organización). Aquí se puede alargar o acortar; vencida, la liga no deja
+//    aceptar, y la manera de reabrirla es poner otra fecha o volver a enviarla.
+//
+//  Ninguno de los dos cambia el precio, así que no suben la versión. Una
+//  propuesta APROBADA es inmutable y aquí solo se leen.
+// ============================================================================
+
+const cls =
+  'rounded border border-border-strong bg-surface px-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
+
+export function BloqueCondicionesVigencia({
+  propuestaId,
+  condiciones,
+  vigenteHasta,
+  vencida,
+  editable,
+}: {
+  propuestaId: string
+  condiciones: string | null
+  vigenteHasta: string | null
+  vencida: boolean
+  editable: boolean
+}) {
+  const { t, idioma } = useIdioma()
+  const [texto, setTexto] = useState(condiciones ?? '')
+  const [fecha, setFecha] = useState(vigenteHasta ?? '')
+  const [guardando, setGuardando] = useState(false)
+  // Si otro guardado (o un refresco del estado) trae valores nuevos, el
+  // formulario los recoge; lo tecleado y sin guardar se perdería igual al salir.
+  useEffect(() => setTexto(condiciones ?? ''), [condiciones])
+  useEffect(() => setFecha(vigenteHasta ?? ''), [vigenteHasta])
+
+  const cambioTexto = texto.trim() !== (condiciones ?? '').trim()
+  const cambioFecha = fecha !== (vigenteHasta ?? '')
+
+  async function guardar() {
+    setGuardando(true)
+    try {
+      await actualizarPropuestaApi(propuestaId, {
+        ...(cambioTexto ? { condiciones: texto.trim() || null } : {}),
+        ...(cambioFecha ? { vigenteHasta: fecha || null } : {}),
+      })
+      toast.success(t('propuestas.condiciones.guardadas'))
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t('propuestas.comun.error'))
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  return (
+    <div className="space-y-3 text-[13px]">
+      <div>
+        <div className="text-[12px] font-medium text-ink">{t('propuestas.condiciones.vigencia')}</div>
+        <p className="mt-0.5 text-[11px] text-muted">
+          {vigenteHasta
+            ? vencida
+              ? t('propuestas.condiciones.vencio', { fecha: formatFecha(vigenteHasta, idioma) })
+              : t('propuestas.condiciones.hasta', { fecha: formatFecha(vigenteHasta, idioma) })
+            : t('propuestas.condiciones.sin-vigencia')}
+        </p>
+        {editable && (
+          <input
+            type="date"
+            aria-label={t('propuestas.condiciones.valida-hasta')}
+            value={fecha}
+            onChange={(e) => setFecha(e.target.value)}
+            className={`mt-2 h-9 ${cls}`}
+          />
+        )}
+      </div>
+
+      <div>
+        <div className="text-[12px] font-medium text-ink">{t('propuestas.condiciones.terminos')}</div>
+        <p className="mt-0.5 text-[11px] text-muted">
+          {t('propuestas.condiciones.terminos.ayuda')}
+        </p>
+        {editable ? (
+          <textarea
+            aria-label={t('propuestas.condiciones.terminos')}
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            rows={5}
+            maxLength={8000}
+            placeholder={t('propuestas.condiciones.terminos.ejemplo')}
+            className={`mt-2 w-full py-2 ${cls}`}
+          />
+        ) : (
+          <p className="mt-2 whitespace-pre-wrap text-[12px] text-ink">{condiciones || t('propuestas.condiciones.sin-terminos')}</p>
+        )}
+      </div>
+
+      {editable && (
+        <Button size="sm" onClick={guardar} disabled={guardando || (!cambioTexto && !cambioFecha)}>
+          {guardando ? t('propuestas.comun.guardando') : t('comun.guardar')}
+        </Button>
+      )}
+    </div>
+  )
+}

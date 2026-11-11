@@ -1,7 +1,7 @@
 ---
 tipo: flujo
 estado: verificado
-actualizado: 2026-10-08
+actualizado: 2026-10-14
 tags: [flujo, operaciones, ot, evidencias]
 archivos:
   - apps/web/lib/server/ot-repo.ts
@@ -71,7 +71,7 @@ sequenceDiagram
 > [!warning] 2026-10-05 · el cierre enciende UNA llave, no dos
 > Este diagrama decía que cerrar una OT ligada a una campaña ponía
 > `fotos_comprobatorias` **y** `reporte_publicacion`. **No es así, y no lo era
-> desde el hallazgo N-5.** `cerrarOT()` (`ot-repo.ts:254`) solo toca la campaña
+> desde el hallazgo N-5.** `cerrarOT()` (`ot-repo.ts:278`) solo toca la campaña
 > si la OT es de tipo `MONTAJE_LONA` (`:306`), y entonces enciende
 > **únicamente** `fotos_comprobatorias` (`:309`). Las OT de inspección,
 > mantenimiento o desmontaje no completan evidencia de facturación.
@@ -83,13 +83,13 @@ sequenceDiagram
 > bitácora (`app/api/ot/route.ts:24`). El aviso que existe es el de OT
 > **vencidas** (`notificarOTsVencidas()`, `ot-repo.ts:68`).
 >
-> Y el cierre deja la OT en `COMPLETADA` directamente (`ot-repo.ts:275-279`),
+> Y el cierre deja la OT en `COMPLETADA` directamente (`ot-repo.ts:299-304`),
 > aunque `crearOT` la dé de alta con `requiere_revision = true` (`:243-245`).
 
 ## El costo REAL de la OT (OT-COSTO-01, 2026-09-29)
 
 `PATCH /api/ot/[id]/costo` fija o borra `ordenes_trabajo.costo_real`
-(`fijarCostoOT()`, `ot-repo.ts:117`), que sustituye la estimación por tipo en
+(`fijarCostoOT()`, `ot-repo.ts:128`), que sustituye la estimación por tipo en
 el reporte de rentabilidad (commit `525b7c8b`). **Es una ruta propia y no un
 campo de `cerrar`, a propósito** (`app/api/ot/[id]/costo/route.ts:15-30`): el
 cierre lo hace un técnico en la calle y no debe pedir la contraseña del candado

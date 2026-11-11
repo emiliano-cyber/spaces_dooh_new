@@ -40,9 +40,15 @@ const endpoints = archivos('apps/web/app/api', (e) => e === 'route.ts').length
 // ─── Migraciones y tablas ────────────────────────────────────────────────────
 const migraciones = readdirSync(join(raiz, 'db/migrations')).filter((f) => f.endsWith('.sql'))
 const CREA_TABLA = /create\s+table\s+(?:if\s+not\s+exists\s+)?(?:public\.)?([a-z_]+)/gi
+// Los comentarios se quitan ANTES de buscar. El 13/10 un comentario de
+// `20261013_doohmain_seguimiento_unicas.sql` citaba «`create table if not
+// exists`» entre comillas invertidas: el grupo opcional no casaba por la
+// comilla, la regex capturaba `if` como nombre de tabla y el recuento subió de
+// 59 a 60 sin que se creara ninguna. La cifra falsa llegó a dos notas.
+const sinComentarios = (sql) => sql.replace(/\/\*[\s\S]*?\*\//g, '').replace(/--.*$/gm, '')
 const tablas = new Set()
 for (const f of ['db/schema.sql', ...migraciones.map((m) => `db/migrations/${m}`)]) {
-  for (const m of leer(f).matchAll(CREA_TABLA)) tablas.add(m[1])
+  for (const m of sinComentarios(leer(f)).matchAll(CREA_TABLA)) tablas.add(m[1])
 }
 
 // ─── ADR ─────────────────────────────────────────────────────────────────────

@@ -8,7 +8,9 @@ import { useReadiness, useCampana } from '@/lib/data/client'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { crearOrdenCompraApi } from '@/lib/data/estado-api'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
-import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
+import { CRUDO_INVALIDO, ejemploCifra } from '@/lib/captura-cifra'
+import { useIdioma, useTexto } from '@/lib/i18n/contexto'
 
 const hoyISO = () => new Date().toISOString().slice(0, 10)
 
@@ -20,6 +22,8 @@ export function CandadoPanel({ campanaId }: { campanaId: string }) {
   const r = useReadiness(campanaId)
   const camp = useCampana(campanaId)
   const puedeOC = usePuede('comercial', 'crear')
+  const t = useTexto()
+  const { idioma } = useIdioma()
   const [enviando, setEnviando] = useState(false)
   const [numeroOc, setNumeroOc] = useState('')
   const [monto, setMonto] = useState('')
@@ -44,11 +48,16 @@ export function CandadoPanel({ campanaId }: { campanaId: string }) {
   const inp =
     'h-8 w-full rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 
+  // OBLIG-01 · el número de OC lo exige esta pantalla (el servidor lo acepta
+  // vacío, `ordenes-compra-controller.ts:42`, pero una OC sin número no se
+  // puede cotejar con la del cliente). Monto y fecha son opcionales.
+  const ob = useObligatorios({ numeroOc }, ['numeroOc'])
+
   async function registrarOC() {
     // Un monto que no se entiende llega como 'NaN' (CampoCifra). `Number` lo
     // dejaría en NaN, que JSON manda como null: la OC se registraría SIN monto
     // sin que nadie lo pidiera. Se para aquí y en el botón.
-    if (!numeroOc.trim() || monto === CRUDO_INVALIDO) return
+    if (!ob.validar() || monto === CRUDO_INVALIDO) return
     setEnviando(true)
     try {
       await crearOrdenCompraApi({
@@ -60,7 +69,7 @@ export function CandadoPanel({ campanaId }: { campanaId: string }) {
         documentoUrl: camp?.contratoUrl ?? null,
       })
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'No se pudo registrar la OC')
+      toast.error(e instanceof Error ? e.message : t('campanas.candado.no-registrar'))
     }
     setEnviando(false)
   }
@@ -69,21 +78,20 @@ export function CandadoPanel({ campanaId }: { campanaId: string }) {
 
   const abierto = r.candado
 
+  // Sin borde ni título propios: el panel SOLO se monta dentro de la sección
+  // «Candado de facturación» de la ficha, que ya pone el título y la tarjeta.
+  // Antes se leía dos veces «Candado de facturación», con un borde dentro de
+  // otro. Se queda la línea de estado, con texto y no solo con color.
   return (
-    <div
-      className={cn(
-        'rounded-md border p-4',
-        abierto ? 'border-[#10b98140] bg-[#10b9810d]' : 'border-border bg-surface',
-      )}
-    >
+    <div>
       <div className="mb-3 flex items-center gap-2">
         {abierto ? (
           <LockOpen className="h-4 w-4 text-success" strokeWidth={1.75} />
         ) : (
           <Lock className="h-4 w-4 text-muted" strokeWidth={1.75} />
         )}
-        <span className="text-[13px] font-medium text-ink">
-          {abierto ? 'Lista para facturar' : 'Candado de facturación'}
+        <span className={cn('text-[13px] font-medium', abierto ? 'text-[#0f7a55]' : 'text-muted')}>
+          {abierto ? t('campanas.comun.lista-facturar') : t('campanas.candado.cerrado')}
         </span>
       </div>
       {/* Solo las condiciones que APLICAN a esta campaña. Antes se pintaban las
@@ -91,52 +99,53 @@ export function CandadoPanel({ campanaId }: { campanaId: string }) {
           con ✗ —evidencia física que una digital no tiene— junto a un candado
           "Completo": la contradicción visual del hallazgo C3. Los segmentos son
           los mismos que decide `candadoDeSegmentos` en derive.ts. */}
-      <ul className="space-y-2">
-        <Condicion ok={r.ocRecibida} label="Orden de compra recibida" />
-        {exigeFisica && <Condicion ok={r.fotosComprobatorias} label="Fotografías comprobatorias" />}
-        {exigeDigital && <Condicion ok={r.reportePublicacion} label="Reporte de publicación" />}
+      <ul className="m-0 list-none space-y-2 p-0">
+        <Condicion ok={r.ocRecibida} label={t('campanas.candado.oc')} />
+        {exigeFisica && <Condicion ok={r.fotosComprobatorias} label={t('campanas.candado.fotos')} />}
+        {exigeDigital && <Condicion ok={r.reportePublicacion} label={t('campanas.candado.reporte')} />}
       </ul>
       {!r.ocRecibida && puedeOC && (
         <div className="mt-3 space-y-2 rounded border border-border bg-surface p-3">
-          <p className="text-[12px] font-medium text-ink">Registrar OC del cliente</p>
-          <input
-            className={inp}
-            placeholder="Número de OC del cliente *"
-            value={numeroOc}
-            onChange={(e) => setNumeroOc(e.target.value)}
-          />
+          <p className="text-[12px] font-medium text-ink">{t('campanas.candado.registrar.titulo')}</p>
+          <Campo label={t('campanas.candado.numero')} obligatorio falta={ob.falta('numeroOc')}>
+            <input className={inp} value={numeroOc} onChange={(e) => setNumeroOc(e.target.value)} />
+          </Campo>
           <div className="grid grid-cols-2 gap-2">
-            <CampoCifra
-              className={inp}
-              placeholder="Monto (opcional)"
-              valor={monto}
-              mostrarError={false}
-              onCambio={(crudo) => setMonto(crudo)}
-            />
-            <input className={inp} type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+            <Campo label={t('campanas.comun.monto')}>
+              <CampoCifra
+                className={inp}
+                valor={monto}
+                mostrarError={false}
+                onCambio={(crudo) => setMonto(crudo)}
+              />
+            </Campo>
+            <Campo label={t('campanas.comun.fecha')}>
+              <input className={inp} type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+            </Campo>
           </div>
           <button
             type="button"
-            disabled={enviando || !numeroOc.trim() || monto === CRUDO_INVALIDO}
+            disabled={enviando || monto === CRUDO_INVALIDO}
             onClick={registrarOC}
             className="w-full rounded border border-border-strong px-3 py-2 text-[12px] font-medium text-ink transition-colors duration-150 hover:bg-surface-2 disabled:opacity-50"
           >
-            {enviando ? 'Registrando…' : 'Registrar OC'}
+            {enviando ? t('campanas.candado.registrando') : t('campanas.candado.registrar')}
           </button>
           {monto === CRUDO_INVALIDO && (
             <p className="text-[11px] text-error">
-              El monto no se entiende: la coma separa miles y el punto, decimales (212,500.50).
+              {t('campanas.candado.monto-ilegible', { ejemplo: ejemploCifra('212,500.50', idioma) })}
             </p>
           )}
           <p className="text-[10px] text-muted">
-            Número, monto y fecha vienen precargados de la campaña; ajústalos si el cliente dio otros.
-            El documento de la OC es el contrato (se adjunta en “Datos de facturación”).
+            {t('campanas.candado.precargados')}
           </p>
         </div>
       )}
+      {/* Sin número fijo: decía «las tres condiciones» y solo se pintan las
+          que aplican (dos en una OOH o en una DOOH). */}
       {!abierto && (
         <p className="mt-3 text-[12px] text-muted">
-          El candado se enciende cuando se completan las tres condiciones.
+          {t('campanas.candado.se-abre')}
         </p>
       )}
     </div>

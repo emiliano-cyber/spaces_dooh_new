@@ -1,7 +1,7 @@
 ---
 tipo: referencia
 estado: verificado
-actualizado: 2026-10-06
+actualizado: 2026-11-09
 tags: [backend, api, endpoints]
 archivos:
   - apps/web/app/api/
@@ -16,20 +16,54 @@ archivos:
   - apps/web/lib/server/flota.ts
   - apps/web/app/api/auth/codigo/route.ts
   - apps/web/app/api/perfil/codigos-recuperacion/route.ts
+  - apps/web/app/api/perfil/idioma/route.ts
   - apps/web/app/api/bienvenida/route.ts
   - apps/web/app/api/captacion/
   - apps/web/app/api/codigos-promocionales/
   - apps/web/app/api/energia/
   - apps/web/app/api/paquetes/
   - apps/web/app/api/propuestas/[id]/paquete/route.ts
+  - apps/web/app/api/propuestas/[id]/enviar/route.ts
+  - apps/web/app/api/propuestas/[id]/items/route.ts
   - apps/web/app/api/rejilla/
   - apps/web/app/api/reportes/rentabilidad/route.ts
   - apps/web/app/api/sitios/[id]/modalidades/route.ts
   - apps/web/app/api/sitios/[id]/rejilla/route.ts
   - apps/web/app/api/volumen/escalas/
+  - apps/web/app/api/cobranzas/[id]/abonos/
+  - apps/web/app/api/geo/buscar/route.ts
 ---
 
-# API — los 126 endpoints
+# API — los 159 endpoints (medidos el 2026-10-29 con `recuentos.mjs`)
+
+> **2026-10-29 · dos más (DOOH-API, rama `feat/doohmain-api-completa`):**
+> `GET /api/campanas/[id]/doohmain-estado` (`comercial:ver`) — cada creativo publicado
+> de la campaña, sus pantallas de DOOHmain y su estado allí (`get_campaigns`): al
+> aire, en pausa, finalizada o `null` si no se sabe; y
+> `POST /api/creatividades/[id]/doohmain` (`comercial:crear`) — `{ accion: 'pausar' |
+> 'reanudar' }`: 400 con otra acción, 404 si no es de la organización, 409 si no está
+> publicado o la integración está apagada, 502 si DOOHmain no confirma. Y
+> `POST /api/campanas/[id]/playlogs` acepta `tipo: 'pantallas'` (historial por
+> pantalla, `get_metrics`). Ver [[integraciones-externas]]. Antes eran 155
+> (`integra/v0-12-5`).
+
+> **2026-10-22, noche · una más:** `PATCH /api/campanas/[id]/horario-doohmain`
+> (`comercial:crear`) — `{ horario: { horaInicio, horaFin, dias? } }` o
+> `{ horario: null }`: el horario INDIVIDUAL de la campaña en DOOHmain, que gana sobre
+> la franja programada y la contratada. HH:mm, distintas, días 0..6 sin repetir; 400
+> si no; 404 con id que no es uuid o de otra organización. Deja línea en Actividad.
+
+> **2026-10-22, tarde · una más:** `GET /api/campanas/[id]/programacion-doohmain`
+> (`comercial:ver`) — lo que se le va a mandar a DOOHmain SIN mandarlo: por
+> pantalla, a qué pantalla de DOOHmain va, el creativo, el horario de la franja si
+> la hay y las reproducciones por día y en total, más el cliente. Sale de la misma
+> consulta que publica (`leerPlan()` en `lib/server/doohmain.ts`). Id que no es
+> uuid o campaña de otra organización: 404.
+
+> **2026-10-22 · nueve rutas más (NEG-01, Comercial negociación):** ocho bajo
+> `/api/captacion/[id]/` —`ficha`, `contactos` y `contactos/[contactoId]`, `ofertas`
+> y `ofertas/[ofertaId]`, `competencia` y `competencia/[competidorId]`, `notas`— y
+> `GET /api/geo/buscar`. Están en la sección de captación. Antes eran 143.
 
 Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 `basePath` `/spaces-dooh` (`apps/web/next.config.mjs:145`).
@@ -95,9 +129,11 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 | GET | `/api/auth/google/inicio` | PÚBLICO | 302 a Google; 503 si apagado |
 | GET | `/api/auth/google/callback` | PÚBLICO | Canjea código, abre sesión |
 | POST | `/api/signup` | PÚBLICO | 503 salvo `AUTOREGISTRO=1` (fail-closed desde el 14/08; se lee al arrancar, no en el build) |
-| POST | `/api/bootstrap` | PÚBLICO | **De un solo uso.** 404 —nunca 401— si falta `BOOTSTRAP_TOKEN`, si no coincide, si `tenants` ya tiene algo o si se pasa de 10/h por IP. 201 solo con los tres cerrojos abiertos |
+| POST | `/api/bootstrap` | PÚBLICO | **De un solo uso.** 404 —nunca 401— si falta `BOOTSTRAP_TOKEN`, si no coincide, si `tenants` ya tiene algo o si se pasa de 10/h por IP. 201 solo con los tres cerrojos abiertos. **Desde el 02/11 (ADR 0048) el cuerpo admite `moneda: 'MXN' | 'USD'`** —la de la instancia, para siempre; sin ella MXN; cualquier otra, 400 sin crear nada (`lib/server/moneda-alta.ts`) |
 | POST | `/api/auth/codigo` | PÚBLICO | (05/10) Entrar con un **código de recuperación** (ADR 0028). Sin correo: el código identifica al usuario. **5/15min por IP**, más estricto que el login; la sesión se abre como `password`, no `google`. No está en la lista de exentos de CSRF, pero quien llega aquí no trae cookie de sesión y el middleware solo exige CSRF si la hay (`middleware.ts:134-135`) |
 | PATCH | `/api/perfil` | usuarioActual | Exige `passwordActual` |
+| GET | `/api/perfil/idioma` | usuarioActual | (03/11, IDIOMA-USUARIO) `{ preferido, disponibles }`: la preferencia de idioma de la interfaz de la PROPIA cuenta (`null` = sigue al navegador; un idioma apagado se lee como `null`) y los idiomas encendidos |
+| PUT | `/api/perfil/idioma` | usuarioActual (+ CSRF del middleware) | (03/11) `{ idioma: 'es'\|'en'\|'it'\|'navegador'\|null }`. Solo idiomas **encendidos** (400 si no). El id sale de la sesión, nunca del cuerpo. Deja la cookie `spaces_idioma_cuenta` de esta sesión al día (o la borra con `null`) para que la siguiente petición salga ya en ese idioma. Ver [[03-Frontend/idiomas-es-en]] |
 | POST | `/api/perfil/codigos-recuperacion` | usuarioActual; el **segundo** lote, además **REAUTH** | (05/10) Genera el lote y lo devuelve en claro **una vez** (`no-store`); `?ya=1` confirma que se guardaron. Resuelve con `usuarioActual()` y no con `exigir()` porque es la **salida** del corte de `exigir()` (`auth.ts:230-237`). Regenerar invalida los anteriores y va por `exigirReautenticacionSiempre()` |
 | GET | `/api/permisos` | exigir | |
 | GET | `/api/admin/permisos-matriz` | exigir | |
@@ -107,15 +143,16 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 | Método | Path | Guard | Nota |
 |---|---|---|---|
 | GET·POST | `/api/usuarios` | exigir | acepta `entraConGoogle` (sin contraseña) o `invitar` (06/10, ADR 0044: enlace de 72 h; vuelve en `invitacion.enlace` solo si el correo no salió) |
-| PATCH·DELETE | `/api/usuarios/[id]` | exigir | |
+| PATCH | `/api/usuarios/[id]` | exigir | |
+| DELETE | `/api/usuarios/[id]` | **REAUTH + DESBLOQ** | Borrado real (09/11): botón «Eliminar» en Administración, con el nombre escrito como confirmación; la bitácora guarda el nombre. Ver [[roles-de-venta]] |
 | POST | `/api/usuarios/[id]/restablecer` | **REAUTH + DESBLOQ** | |
 | GET·POST | `/api/tenants` | exigir | el admin acepta `entraConGoogle` |
 | POST | `/api/tenant-activo` | exigir | Cambio de CRM del super-admin |
 | PATCH | `/api/organizacion` | exigir | |
-| GET·PATCH | `/api/config` | exigir | |
+| GET·PATCH | `/api/config` | exigir | Desde el 12/10 el `PATCH` toma `entidadPrincipalId` (uuid de una de [[entidades-fiscales]]) y **rechaza `razonSocial`** con 400 por el `.strict()` (`config/route.ts:92-94`). **Desde el 02/11 (ADR 0048) rechaza `moneda` con 400**, sea cual sea el valor y antes de guardar nada: la moneda de la instancia no se cambia |
 | GET·PUT | `/api/cambios` | exigir | Interruptor de reautenticación |
 | POST·DELETE | `/api/cambios/desbloquear` | exigir | |
-| GET | `/api/estado` | exigir | Devuelve **todo** el tenant |
+| GET | `/api/estado` | exigir | Devuelve **todo** el tenant. Desde el 08/10 incluye `usuarios` (id, nombre, rol, activo; sin correo) para nombrar al responsable de cada OT — [[operaciones-y-ot]] |
 | GET·POST | `/api/entidades` | `administracion:ver` · `:crear` | Razones sociales **PROPIAS** del owner (17/09). `?inactivas=1` |
 | GET·PATCH·DELETE | `/api/entidades/[id]` | `administracion:ver` · `:crear` | `DELETE` es baja **lógica** (`activo = false`) |
 | GET·POST | `/api/bienvenida` | `administracion:ver` · `:crear` | (05/10) El cuestionario de las razones sociales del owner: el `POST` crea filas en `entidades_fiscales` y `entidad_roles` (201). Va **después** del alta, nunca dentro del bootstrap de un solo uso — [[cuestionario-bienvenida]] |
@@ -186,12 +223,13 @@ en `:230-237`) y **no** puede condicionarse a que la ruta
 | PATCH | `/api/arrendadores/[id]` | **SENSIBLE** |
 | DELETE | `/api/arrendadores/[id]` | **REAUTH** + `arrendadores:aprobar` |
 | POST | `/api/contratos` | **SENSIBLE** |
-| PATCH | `/api/contratos/[id]` | **SENSIBLE** (07/10) acepta `propuestoPor` (ARRENDADOR/ARRENDATARIO) y `motivo`; deja un renglón en `contrato_cambios` con el usuario de la sesión; si estaba enviado a firma, anula el envío |
+| PATCH | `/api/contratos/[id]` | **SENSIBLE** (07/10) acepta `propuestoPor` (ARRENDADOR/ARRENDATARIO) y `motivo`; deja un renglón en `contrato_cambios` con el usuario de la sesión; si estaba enviado a firma, anula el envío. **Firmado** (23/10): exige `motivo` (si no, 400) y archiva la versión firmada |
 | GET | `/api/contratos/[id]/cambios` | `arrendadores` ver (07/10): historial de cambios, del más nuevo al más viejo |
+| GET | `/api/contratos/[id]/versiones` | `arrendadores` ver (23/10): versiones firmadas archivadas; `?version=N` trae el texto exacto |
 | POST | `/api/contratos/[id]/cancelar` | **SENSIBLE** |
 | POST | `/api/contratos/[id]/renovar` | **SENSIBLE** |
 | GET | `/api/contratos/[id]/documento` | `arrendadores` **o** `finanzas` |
-| GET·POST | `/api/contratos/[id]/firma` | exigir |
+| GET·POST | `/api/contratos/[id]/firma` | exigir. GET trae `huellaDatos`; el POST `enviar` exige `huellaRevisada` (400 sin ella, 409 si los datos cambiaron) y archiva las firmas reales antes de reiniciarlas (23/10) |
 | PATCH | `/api/pagos-renta/[id]` | exigir |
 | POST | `/api/pagos-renta/[id]/pagar` | **SENSIBLE** |
 | GET | `/api/pagos-renta/[id]/adjunto/[tipo]` | exigir |
@@ -205,9 +243,13 @@ en `:230-237`) y **no** puede condicionarse a que la ruta
 | DELETE | `/api/clientes/[id]` | **REAUTH** + `comercial:aprobar` |
 | GET | `/api/propuestas/resumen` | exigir (`comercial:ver`); costo y ganancia solo con `finanzas:ver` | (06/10, PROP-PER) tablero por periodo: generadas, aprobadas, rechazadas, tasa de cierre, ganancia (venta − renta del contrato) |
 | POST | `/api/propuestas` · PATCH `/api/propuestas/[id]` | exigir (`comercial:crear`). Desde `17fbd252` (01/10) el `POST` **recalcula la tarifa** de cada línea en el servidor; un precio distinto al centavo exige además `comercial:aprobar` del rol de la sesión, o 403 y no se guarda nada |
+| POST | `/api/propuestas/[id]/items` | (29/10, PROP-COMPLETA) `comercial:crear`. Agrega sitios a una BORRADOR o ENVIADA (sube versión) con el periodo de la propuesta; cuerpo `{ items }` como el alta y la MISMA tarifa del servidor (403 si una vendedora se aparta); otro estatus → 409 |
+| DELETE | `/api/propuestas/items/[id]` | (29/10, PROP-COMPLETA) `comercial:crear`. Quita un sitio (BORRADOR o ENVIADA, sube versión); nunca el último (409); de otra organización → 404 |
+| DELETE | `/api/propuestas/[id]` | (29/10, PROP-COMPLETA, R5) `comercial:crear`. Borra un **BORRADOR** con sus líneas y su canje (devuelve el uso del cupón); otro estatus o con campaña → 409; de otra organización → 404 |
+| POST | `/api/propuestas/[id]/enviar` | (29/10, PROP-COMPLETA) `comercial:crear`. Cuerpo `{ para, mensaje? }`. Manda la liga por correo (canal de operación, copia a quien envía) y **después** deja la propuesta ENVIADA; si Resend falla, 502 y no cambia nada; sin correo configurado solo cambia el estatus (`correo: 'no_configurado'`). Vale para BORRADOR y ENVIADA (reenviar); lo demás 409 — `lib/server/propuestas-envio.ts` |
 | POST · DELETE | `/api/propuestas/[id]/paquete` | (05/10) `comercial:crear` — aplicar o quitar un paquete cerrado; el cuerpo lleva **solo** `paqueteId`, el precio lo copia el servidor bajo RLS — [[paquete-cerrado]] |
 | PATCH | `/api/propuestas/items/[id]` | exigir |
-| POST | `/api/propuestas/[id]/generar-campana` | exigir |
+| POST | `/api/propuestas/[id]/generar-campana` | exigir (`comercial:crear`). (13/10) Cuerpo opcional `{ clienteId }` (UUID, si no 400): pone el cliente a una APROBADA que no lo tenía —solo anunciante de esta organización y con el mismo IVA del snapshot; si no, 409— y genera |
 | GET · POST · DELETE | `/api/propuestas/[id]/codigo` | `comercial:ver` (leer: estado del cupón y `puedeAprobarCodigo`, COD-03) · `comercial:crear` (aplicar —nace **PENDIENTE**; en una RECHAZADA la reactiva a BORRADOR— y quitar); ver [[codigo-promocional]] |
 | POST | `/api/propuestas/[id]/codigo/decision` | `comercial:aprobar` — aprobar o rechazar (con motivo) el cupón PENDIENTE; `.strict()`; 409 si no está pendiente, 404 si es de otra organización (COD-03, 30/09) |
 | POST | `/api/reservar` | exigir |
@@ -216,12 +258,15 @@ en `:230-237`) y **no** puede condicionarse a que la ruta
 | GET | `/api/creativos/[id]/arte` | exigir |
 | POST | `/api/campanas/[id]/confirmar` | exigir |
 | POST | `/api/campanas/[id]/contrato` | exigir |
-| POST | `/api/campanas/[id]/extender` | exigir |
+| GET·POST | `/api/campanas/[id]/extender` | GET `comercial:ver` (las extensiones con su contrato) · POST `comercial:crear`, `{ fechaFin, contratoUrl }`: sin el contrato firmado de la extensión, 422 (EXT-CONTRATO, 29/10); ver [[comercial-propuestas-campanas]] |
 | POST | `/api/campanas/[id]/oc` | exigir |
 | POST | `/api/campanas/[id]/validar` | exigir |
+| POST | `/api/campanas/[id]/reintentar-publicacion` | `comercial:crear` — vuelve a mandar a DOOHmain una publicación YA aprobada, sin cambiar la campaña (13/10); ver [[integraciones-externas]] |
 | POST | `/api/campanas/[id]/creativos/repartir` | exigir |
 | POST | `/api/campanas/[id]/enviar-dominio` | exigir |
-| GET·POST | `/api/campanas/[id]/playlogs` | exigir |
+| GET·POST | `/api/campanas/[id]/playlogs` | exigir — POST con `tipo: 'pantallas'` consulta `get_metrics` de las pantallas donde se publicó (29/10) |
+| GET | `/api/campanas/[id]/doohmain-estado` | `comercial:ver` — estado de cada creativo publicado en DOOHmain (29/10) |
+| POST | `/api/creatividades/[id]/doohmain` | `comercial:crear` — pausar o reanudar en DOOHmain (29/10) |
 | POST | `/api/campanas/[id]/facturar` | **SENSIBLE** |
 | GET · PUT | `/api/campanas/franja-programada` | `comercial:ver` · `comercial:aprobar` — la franja en que **se transmite** (PROG-01, 30/09), en bloque y atómico; ver [[rejilla-franja-y-temporada]] |
 | POST | `/api/ordenes-compra` | exigir |
@@ -229,6 +274,21 @@ en `:230-237`) y **no** puede condicionarse a que la ruta
 | GET·PATCH | `/api/captacion/[id]` | (05/10) `captacion:ver` · `captacion:crear` |
 | POST | `/api/captacion/[id]/avances` | (05/10) `captacion:crear` |
 | POST | `/api/captacion/[id]/decision` | (05/10) `captacion:aprobar` — el segundo clic contesta 409: solo una petición reclama el prospecto |
+| PATCH | `/api/captacion/[id]/ficha` | (22/10, NEG-01) `captacion:crear` — tipo de espacio, búsqueda del responsable 1..5 (la 5 exige quien firme, 409), visibilidad, medidas, presupuesto y ubicación (`PIN`/`BUSCADOR`; `GPS` es 400: pendiente). Quien fija la ubicación sale de la sesión. En revisión o perdido, 409 — [[03-Frontend/comercial-opex]] |
+| POST | `/api/captacion/[id]/contactos` | (22/10) `captacion:crear` — `esLegal` marca a quien firma |
+| PATCH·DELETE | `/api/captacion/[id]/contactos/[contactoId]` | (22/10) `captacion:crear` — al único que firma en la etapa 5 no se le quita la firma ni se borra (409) |
+| POST | `/api/captacion/[id]/ofertas` | (22/10) `captacion:crear` — oferta de renta al DUEÑO; la versión la pone el servidor |
+| PATCH | `/api/captacion/[id]/ofertas/[ofertaId]` | (22/10) `captacion:crear` — solo estado y notas; aceptada y rechazada son finales (409). Sin DELETE (405) |
+| POST | `/api/captacion/[id]/competencia` | (22/10) `captacion:crear` |
+| PATCH·DELETE | `/api/captacion/[id]/competencia/[competidorId]` | (22/10) `captacion:crear` |
+| GET·POST | `/api/captacion/[id]/notas` | (22/10) `captacion:ver` · `captacion:crear` — solo se añaden; el autor sale de la sesión |
+| GET | `/api/geo/buscar` | (22/10) `captacion:ver` — `?q=` → candidatos de dirección. Pregunta a Nominatim POR EL SERVIDOR: 1/s global, 30 por persona cada 10 min, memoria 24 h; 400 si `q` < 3 letras, 429 al pasarse, 502 si el buscador falla (`lib/server/geo-buscar.ts`). **(29/10, UBIC-01)** Unas coordenadas o un enlace largo de Google Maps vuelven como UN punto sin salir a la red (`proveedor: coordenadas`/`enlace`); un enlace corto `maps.app.goo.gl` se sigue en el servidor (`lib/server/geo-enlace.ts`); otro dominio o coordenadas fuera de rango, 400. Con `GOOGLE_MAPS_SERVIDOR_KEY` las direcciones van a la Geocoding API de Google (`proveedor: google`, con `placeId`); sin ella, a Nominatim |
+
+> En TODAS las rutas de `/api/captacion/[id]/…` un espacio de otro vendedor (sin
+> `captacion:aprobar`) o de otra organización es **404, no 403**, y un id que no
+> es uuid también: `soloDe()` de `captacion-controller.ts`, con el prospecto
+> bloqueado (`negociacion-repo.ts`). `GET /api/captacion` acepta además
+> `?tipos=PREDIO,PANTALLA`.
 
 ## Precios — la cadena del ADR 0039 (05/10)
 
@@ -263,7 +323,7 @@ agrupa las cuatro pantallas en `lib/modulos.ts:77-83`.
 | GET·POST | `/api/ot` | exigir |
 | GET | `/api/ot/[id]` | exigir |
 | POST | `/api/ot/[id]/cerrar` | exigir |
-| PATCH | `/api/ot/[id]/costo` | exigirCambioSensible (`operaciones.costear`) |
+| PATCH | `/api/ot/[id]/costo` | exigirCambioSensible (`operaciones.costear`) · **409** si la OT está `COMPLETADA` (desde el 08/10; de otra organización, 404) — [[costo-real-de-ot]] |
 | PATCH | `/api/ot/[id]/checklist` | exigir (`operaciones.crear`) — un punto por petición, 2026-09-30 |
 | GET·POST | `/api/impresion` · PATCH `/api/impresion/[id]` | exigir |
 | PATCH | `/api/impresion/[id]/prueba-color` | exigir |
@@ -272,28 +332,63 @@ agrupa las cuatro pantallas en `lib/modulos.ts:77-83`.
 
 | Método | Path | Guard |
 |---|---|---|
-| POST | `/api/cobranzas/[id]/pagar` | **SENSIBLE** (06/10) acepta `fecha` (día en que entró el dinero, nunca futura); deja un renglón en `cobranza_abonos`; pagar lo ya pagado es 409 |
+| POST | `/api/cobranzas/[id]/pagar` | **SENSIBLE** (06/10) acepta `fecha` (día en que entró el dinero, nunca futura); deja un renglón en `cobranza_abonos`; pagar lo ya pagado es 409. (19/10) Acepta `comprobanteUrl` opcional (PDF/imagen, 5 MB), en el mismo renglón; inválido = 422 sin pago |
 | GET | `/api/finanzas/resumen` | exigir (`finanzas.ver`) | (06/10, ADR 0046) `?periodo=mes\|mes-anterior\|trimestre\|trimestre-anterior\|anio\|rango[&desde&hasta][&cliente]` → resumen del periodo y movimientos del estado de cuenta. Cliente ajeno = 404 |
 | POST | `/api/cobranzas/[id]/recordar` | exigir |
+| GET | `/api/cobranzas/[id]/abonos` | exigir (`finanzas.ver`) · (19/10, COB-COMP) los pagos de una cobranza con fecha, quién y `tieneComprobante`; **no** trae el archivo. Cobranza ajena = 404 |
+| PATCH | `/api/cobranzas/[id]/abonos/[abonoId]` | exigir (`finanzas.crear`) · (19/10) `{ comprobanteUrl }` adjunta o reemplaza el comprobante; cuerpo `.strict()`, no toca importe ni fecha; abono de otra cobranza = 404 |
+| GET | `/api/cobranzas/[id]/abonos/[abonoId]/comprobante` | exigir (`finanzas.ver`) · (19/10) sirve el archivo con su `Content-Type`, `no-store`; sin comprobante = 404 |
 | GET | `/api/reportes/rentabilidad` | (05/10) `finanzas:ver` — el reporte ya agregado en el servidor (`?dimension=&granularidad=&desde=&hasta=`), para no derivarlo en el navegador desde `/api/estado` — [[reportes-rentabilidad]] |
 
 ## Notificaciones e integraciones
 
 | Método | Path | Guard |
 |---|---|---|
-| GET | `/api/notificaciones/nuevas` | exigir |
-| POST | `/api/notificaciones/[id]/leer` | exigir |
-| POST | `/api/notificaciones/archivar-todas` | exigir |
+| GET | `/api/notificaciones/nuevas` | exigir — sin lo que **esta persona** borró (21/10) |
+| POST | `/api/notificaciones/[id]/leer` | exigir — leída **para quien la lee**; 404 si es de otra empresa o el id no es uuid (21/10) |
+| DELETE | `/api/notificaciones/[id]` | exigir — **(21/10, nueva)** la quita de la bandeja de quien la borra; 404 igual que `leer` |
+| POST | `/api/notificaciones/archivar-todas` | exigir — vacía la bandeja de **quien la pulsa**, no la de toda la empresa (21/10) |
+
+> [!important] 2026-10-21 · NOTIF-USUARIO — leer y borrar son de CADA PERSONA
+> Hasta ese día `leer` y `archivar-todas` escribían `leida`/`archivada_en` en
+> la fila compartida de `notificaciones`: un vendedor que vaciaba su panel se lo
+> vaciaba al Dueño. Ahora escriben en `notificaciones_usuario` (ver
+> [[04-Datos/esquema]]) con el usuario de la **sesión**, y las lecturas
+> (`/api/estado` y `nuevas`) lo filtran por persona. Lo mide
+> `lib/test/notificaciones-por-usuario.e2e.test.ts`, con dos personas de la
+> misma empresa y una de otra.
 | GET | `/api/integraciones` | exigir |
+| GET | `/api/integraciones/doohmain/pantallas` | `inventario:ver` — las pantallas que ve la cuenta de DOOHmain, para la ficha; 200 con lista vacía y el motivo si DOOHmain no contesta (13/10) |
 
 > [!warning] `leer-todas` no existe: se llama `archivar-todas`
 > Esta tabla listó `POST /api/notificaciones/leer-todas` desde el 07/08 hasta el
 > **27/08**, y esa ruta da **404** desde el 10/08 — verificado en producción ese
 > mismo día ([[2026-08-10]]). La sustituyó `archivar-todas`, que además de marcar
 > leída **archiva** (`app/api/notificaciones/archivar-todas/route.ts:8-11`); el
-> cliente la llama en `apps/web/lib/data/estado-api.ts:102`. [[manual-tecnico-2026-09-15]]
+> cliente la llama en `apps/web/lib/data/estado-api.ts:109-110`. [[manual-tecnico-2026-09-15]]
 > llevaba **trece días** señalando el error de esta nota sin que nadie lo
 > arreglara: una discrepancia anotada en otra nota no se corrige sola.
+
+## Space Eyes (ADR 0045, desde v0.11.0)
+
+Diez rutas, todas con el permiso de **inventario**: hablan con el Space Eye de
+**esta** instancia y nunca exponen su dirección ni su llave al navegador.
+Detalle en [[08-Manuales/manual-tecnico-space-eyes]].
+
+| Método | Ruta | Guard | Notas |
+|---|---|---|---|
+| GET | `/api/space-eyes` | `inventario:ver` | Lista de equipos |
+| GET | `/api/space-eyes/[id]` | `inventario:ver` | Ficha; un equipo de otro dueño responde igual que uno inexistente. GPS siempre numérico (`gpsDeFoto`) |
+| POST | `/api/space-eyes/[id]/captura` | `inventario:crear` | Pide una foto al equipo |
+| GET | `/api/space-eyes/[id]/creativos` · `/fallas` · `/telemetria` | `inventario:ver` | Pestañas de la ficha |
+| GET | `/api/space-eyes/foto` | `inventario:ver` | Sirve la foto o su miniatura con `Cache-Control: private, max-age=3600` (`foto/route.ts:76`) |
+| GET | `/api/space-eyes/descarga/[tipo]` | `inventario:ver` | Descargas (álbum, kit) |
+| GET | `/api/space-eyes/alta` | `inventario:ver`, o `:crear` si pide testigo | Códigos de vinculación |
+| GET·POST·PUT·DELETE | `/api/space-eyes/se/[...ruta]` | `inventario:ver` al leer, `:crear` al escribir; **fijar el encuadre** (`camera`, `stream-rotation` y `pantalla` de un equipo) solo el Dueño (19/10, `puedeEncuadrar`) | Pasarela al API de Space Eye con la llave de la instancia |
+
+Las **solicitudes de activación** que se ven arriba del módulo en el PADRE no
+son de aquí: vienen de `/flota/solicitudes.json`, del panel de flota (ver
+Flota).
 
 ## Flota
 

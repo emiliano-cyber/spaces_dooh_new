@@ -1,74 +1,174 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ArrowRight,
   Building2,
   Clock,
-  FileText,
-  Image as ImageIcon,
+  MapPin,
   Mail,
   MessageSquare,
+  NotebookPen,
   Phone,
+  Plus,
+  Search,
   ShieldCheck,
   Swords,
+  Trash2,
   Users,
   Wallet,
 } from 'lucide-react'
+import { Button } from '@/components/demo/ui/Button'
+import { EntradaCifra } from '@/components/demo/ui/EntradaCifra'
+import { cifraIlegible } from '@/lib/captura-cifra'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
+import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
+import { formatFecha, formatMonto } from '@/lib/data/client'
+import { Sheet } from '@/components/demo/ui/Sheet'
+import { SelectorUbicacion, type Punto } from './SelectorUbicacion'
 import {
-  DOCUMENTOS_EMPRESA,
-  ESPACIOS,
+  buscarDireccionApi,
+  borrarCompetidorApi,
+  borrarContactoApi,
+  crearCompetidorApi,
+  crearContactoApi,
+  crearNotaApi,
+  crearOfertaApi,
+  crearProspectoApi,
+  editarContactoApi,
+  editarOfertaApi,
+  fichaApi,
+  avanceApi,
+  prospectoApi,
+  prospectosApi,
+  type CandidatoDireccion,
+  type ProveedorGeo,
+  type FichaForm,
+  type Prospecto,
+  type ProspectoDetalle,
+} from '@/lib/data/captacion-api'
+import { ETAPAS_DE_TRABAJO, etapaCerrada, type Etapa } from '@/lib/captacion'
+import { diasSinContacto, espacioElegido, iniciales, resumen } from '@/lib/comercial-opex'
+import { interpretarUbicacion } from '@/lib/interpretar-ubicacion'
+import {
+  CANALES,
+  ESTADOS_OFERTA,
   ETAPAS_RESPONSABLE,
-  ETIQUETA_ESTADO,
-  diasSinContacto,
-  espacioElegido,
-  resumen,
-  ultimoAvance,
-  iniciales,
-  type Espacio,
+  VISIBILIDADES,
+  areaM2,
+  estadoEspacio,
+  motivoCambioOferta,
+  motivoEdicion,
+  motivoEtapaResponsable,
+  type Canal,
   type EstadoEspacio,
-} from '@/lib/comercial-opex'
+  type EstadoOferta,
+  type Visibilidad,
+} from '@/lib/negociacion'
+import { useIdioma, useTexto } from '@/lib/i18n/contexto'
+import type { ClaveTexto } from '@/lib/i18n/diccionario'
+import { numeroEnIdioma } from '@/lib/i18n/formato-idioma'
 
 // ============================================================================
-//  Comercial OPEX · prospección de arrendadores. MAQUETA, acomodada.
+//  Comercial negociación · prospección de arrendadores.  NEG-01.
 // ----------------------------------------------------------------------------
-//  Pedido del dueño el 2026-09-30: «acomoda de mejor manera el comercial opex».
-//  Lista de espacios a la izquierda, detalle del elegido a la derecha.
+//  Fue maqueta del 30/09 al 22/10. Ahora cada espacio es un PROSPECTO de tipo
+//  PREDIO o PANTALLA (decisión del dueño: encima de Captación, una sola
+//  bitácora) y todo se guarda: la ficha —tipo, visibilidad cercana/media/lejana,
+//  medidas, presupuesto—, la ubicación, los contactos, las ofertas al dueño, la
+//  competencia, la bitácora con canal y las notas con autor y fecha.
 //
-//  SIGUE SIENDO MAQUETA: «por ahora solo será html sin funciones». Elegir qué
-//  espacio mirar no guarda nada ni llama a la API; no hay formularios ni mapa.
-//  Las cuentas (días sin contacto, a quién retomar) siguen en
-//  `lib/comercial-opex.ts`, con pruebas.
+//  La forma es la de la maqueta: lista a la izquierda, detalle a la derecha.
+//  Las cuentas viven en `lib/comercial-opex.ts` y las reglas en
+//  `lib/negociacion.ts`, las dos con pruebas: aquí solo se pinta y se llama a la
+//  API. La pantalla usa las reglas para no ofrecer lo que el servidor negaría;
+//  el servidor las vuelve a aplicar, y lo que diga él es lo que se pinta.
 //
-//  ⚠️ `preflight` de Tailwind está DESACTIVADO en este proyecto
-//  (`tailwind.config.ts:23`), así que un <ul> o un <ol> sale con las viñetas,
-//  los números y la sangría del navegador. La primera versión de esta pantalla
-//  no lo tuvo en cuenta y el dueño lo vio: números «1. 2.» encima de la línea
-//  de tiempo y puntos sueltos fuera de los recuadros. TODA lista de aquí lleva
-//  `LISTA`; si añades una, también.
+//  La ubicación: un buscador de direcciones (por el servidor) propone un punto
+//  y la persona lo confirma o lo arrastra en el mapa. El GPS del teléfono quedó
+//  PENDIENTE por decisión del dueño (22/10).
+//
+//  ⚠️ `preflight` de Tailwind está DESACTIVADO en este proyecto, así que un
+//  <ul> o un <ol> sale con las viñetas y la sangría del navegador. TODA lista de
+//  aquí lleva `LISTA`; si añades una, también.
 // ============================================================================
 
 const LISTA = 'm-0 list-none p-0'
+const inputCls =
+  'h-9 w-full rounded border border-border-strong bg-surface px-2.5 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
+const labelCls = 'block text-[11px] font-medium text-muted'
 
-const pesos = (n: number) => '$' + n.toLocaleString('es-MX')
-const fecha = (f: string) =>
-  new Date(f + 'T00:00:00Z').toLocaleDateString('es-MX', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'UTC',
-  })
+// Montos y fechas con el formato de toda la aplicación (26/10). Antes eran
+// propios («$1,234» y «12 oct 2026»). `formatFecha` respeta el día de una
+// fecha `YYYY-MM-DD` —la arma con la hora local, sin pasar por UTC—, que es lo
+// que el `timeZone: 'UTC'` de la versión anterior cuidaba; y como estos datos
+// llegan por fetch después de montar, no hay HTML del servidor que desajustar.
+const pesos = formatMonto
+const fecha = formatFecha
+const numeroO = (v: string): number | null => (v.trim() === '' ? null : Number(v))
 
+// Chips de estado con tokens; el ámbar y el verde del texto son los oscuros que
+// ya usan las pastillas del Dashboard (los tokens no se leen a 11 px).
 const COLOR_ESTADO: Record<EstadoEspacio, string> = {
-  negociacion: 'bg-amber-50 text-amber-900 border-amber-200',
-  activo: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+  negociacion: 'bg-warning-soft text-[#9a6700] border-[#f59e0b40]',
+  activo: 'bg-success-soft text-[#0f7a55] border-[#10b98140]',
   inactivo: 'bg-surface-2 text-muted border-border',
 }
+const ETIQUETA_ESTADO: Record<EstadoEspacio, ClaveTexto> = {
+  negociacion: 'comercial.negociacion.estado.negociacion',
+  activo: 'comercial.negociacion.estado.activo',
+  inactivo: 'comercial.negociacion.estado.inactivo',
+}
 
-function Estado({ estado }: { estado: EstadoEspacio }) {
+// ─── Las etiquetas de `lib/negociacion.ts` y `lib/captacion.ts`, por clave ──
+// Esas etiquetas siguen siendo la verdad en espanol (el servidor las usa en
+// sus mensajes) y NO se tocan: aqui va la clave de traduccion de cada valor, y
+// `pantallas-comercial.test.ts` exige que el espanol del diccionario las
+// reproduzca EXACTAMENTE. Lote ingles «comercial», 2026-11-02.
+export const CLAVE_VISIBILIDAD: Record<Visibilidad, ClaveTexto> = {
+  CERCANA: 'comercial.negociacion.visibilidad.cercana',
+  MEDIA: 'comercial.negociacion.visibilidad.media',
+  LEJANA: 'comercial.negociacion.visibilidad.lejana',
+}
+export const CLAVE_CANAL: Record<Canal, ClaveTexto> = {
+  LLAMADA: 'comercial.negociacion.canal.llamada',
+  VISITA: 'comercial.negociacion.canal.visita',
+  REUNION: 'comercial.negociacion.canal.reunion',
+  CORREO: 'comercial.negociacion.canal.correo',
+  WHATSAPP: 'comercial.negociacion.canal.whatsapp',
+  OTRO: 'comercial.negociacion.canal.otro',
+}
+export const CLAVE_OFERTA: Record<EstadoOferta, ClaveTexto> = {
+  ENVIADA: 'comercial.negociacion.oferta.enviada',
+  CONTRAOFERTA: 'comercial.negociacion.oferta.contraoferta',
+  RECHAZADA: 'comercial.negociacion.oferta.rechazada',
+  ACEPTADA: 'comercial.negociacion.oferta.aceptada',
+}
+export const CLAVE_ETAPA: Record<Etapa, ClaveTexto> = {
+  PROSPECTO: 'comercial.negociacion.etapa.prospecto',
+  CONTACTADO: 'comercial.negociacion.etapa.contactado',
+  VISITA: 'comercial.negociacion.etapa.visita',
+  NEGOCIACION: 'comercial.negociacion.etapa.negociacion',
+  EN_REVISION: 'comercial.negociacion.etapa.en-revision',
+  APROBADO: 'comercial.negociacion.etapa.aprobado',
+  RECHAZADO: 'comercial.negociacion.etapa.rechazado',
+  PERDIDO: 'comercial.negociacion.etapa.perdido',
+}
+/** Las cinco de `ETAPAS_RESPONSABLE`, en el mismo orden (1..5). */
+export const CLAVE_RESPONSABLE: ClaveTexto[] = [
+  'comercial.negociacion.responsable.1',
+  'comercial.negociacion.responsable.2',
+  'comercial.negociacion.responsable.3',
+  'comercial.negociacion.responsable.4',
+  'comercial.negociacion.responsable.5',
+]
+
+function Estado({ etapa }: { etapa: Etapa }) {
+  const t = useTexto()
+  const e = estadoEspacio(etapa)
   return (
-    <span className={`inline-block shrink-0 rounded border px-1.5 py-0.5 text-[11px] font-medium ${COLOR_ESTADO[estado]}`}>
-      {ETIQUETA_ESTADO[estado]}
+    <span className={`inline-block shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium ${COLOR_ESTADO[e]}`}>
+      {t(ETIQUETA_ESTADO[e])}
     </span>
   )
 }
@@ -81,39 +181,47 @@ function Etiqueta({ children }: { children: React.ReactNode }) {
   )
 }
 
-function Antiguedad({ e, hoy }: { e: Espacio; hoy: Date }) {
-  const d = diasSinContacto(e, hoy)
+function Antiguedad({ p, hoy }: { p: Prospecto; hoy: Date }) {
+  const t = useTexto()
+  const d = diasSinContacto(p, hoy)
   // Sin bitácora NO se pinta un cero: se dice que no hay contacto.
-  if (d === null) return <span className="text-muted">Sin contacto</span>
-  const frio = e.estado === 'negociacion' && d > 30
+  // Desde el 26/10 es una pastilla a la derecha del nombre, como los días del
+  // Dashboard; en rojo solo la que se enfrió en negociación (Pipedrive «rotting»).
+  const pastilla = 'shrink-0 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px]'
+  if (d === null) return <span className={`${pastilla} border-border text-muted`}>{t('comercial.negociacion.sin-contacto')}</span>
+  const frio = estadoEspacio(p.etapa) === 'negociacion' && d > 30
   return (
-    <span className={frio ? 'font-semibold text-red-600' : 'text-muted'}>
-      {d === 0 ? 'hoy' : `hace ${d} d`}
+    <span className={`${pastilla} ${frio ? 'border-[#ef444440] font-semibold text-error' : 'border-border text-muted'}`}>
+      {d === 0 ? t('comercial.negociacion.hoy') : t('comercial.comun.hace.dias', { n: d })}
     </span>
   )
 }
 
+// Cada bloque se pliega con un clic en su encabezado; el navegador recuerda
+// cuáles dejó plegados la persona (el mismo id para todos los espacios).
 function Bloque({
+  id,
   titulo,
   icono: Icono,
   cuenta,
   children,
-  className = '',
 }: {
+  id: string
   titulo: string
   icono: typeof Users
   cuenta?: number
   children: React.ReactNode
-  className?: string
 }) {
   return (
-    <section className={`rounded-md border border-border bg-surface p-3 ${className}`}>
-      <h3 className="mb-2.5 flex items-center gap-1.5 text-[13px] font-semibold text-ink">
-        <Icono className="h-4 w-4 text-muted" strokeWidth={1.75} /> {titulo}
-        {cuenta !== undefined && <span className="font-normal text-muted">({cuenta})</span>}
-      </h3>
+    <CardColapsable
+      id={`comercial-opex.${id}`}
+      titulo={cuenta !== undefined ? `${titulo} (${cuenta})` : titulo}
+      icono={<Icono className="h-4 w-4 text-muted" strokeWidth={1.75} />}
+      headerClassName="px-3 pt-3 pb-2.5"
+      contentClassName="px-3 pb-3"
+    >
       {children}
-    </section>
+    </CardColapsable>
   )
 }
 
@@ -121,15 +229,31 @@ function Vacio({ children }: { children: React.ReactNode }) {
   return <p className="m-0 text-[13px] text-muted">{children}</p>
 }
 
-function Pasos({ etapa }: { etapa: number }) {
+type Accion = (fn: () => Promise<ProspectoDetalle>) => Promise<boolean>
+
+// ─── La búsqueda del responsable ────────────────────────────────────────────
+function Pasos({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; puede: boolean }) {
+  const { t, idioma } = useIdioma()
+  const etapa = p.etapaResponsable ?? 0
   return (
-    <ol className={`${LISTA} flex flex-wrap items-start gap-y-2`} aria-label="Búsqueda del responsable">
-      {ETAPAS_RESPONSABLE.map((nombre, i) => {
-        const hecho = i < etapa
-        const actual = i === etapa
+    <ol className={`${LISTA} flex flex-wrap items-start gap-y-2`} aria-label={t('comercial.negociacion.responsable')}>
+      {ETAPAS_RESPONSABLE.map((clave, i) => {
+        // `clave` es el texto espanol de `lib/negociacion.ts` y sirve de `key`;
+        // lo que se PINTA sale del diccionario.
+        const nombre = t(CLAVE_RESPONSABLE[i])
+        const n = i + 1
+        const hecho = n < etapa
+        const actual = n === etapa
+        const motivo = motivoEtapaResponsable(n, p.contactos, idioma)
         return (
-          <li key={nombre} className="flex items-start">
-            <div className="flex w-24 flex-col items-center text-center">
+          <li key={clave} className="flex items-start">
+            <button
+              type="button"
+              disabled={!puede || actual || !!motivo}
+              title={motivo ?? (puede ? t('comercial.negociacion.responsable.pasar', { nombre }) : undefined)}
+              onClick={() => void accion(() => fichaApi(p.id, { etapaResponsable: n }))}
+              className="flex w-24 flex-col items-center text-center disabled:cursor-default"
+            >
               <span
                 className={`flex h-6 w-6 items-center justify-center rounded-full border text-[11px] font-semibold ${
                   hecho
@@ -139,12 +263,12 @@ function Pasos({ etapa }: { etapa: number }) {
                       : 'border-border bg-surface text-muted'
                 }`}
               >
-                {hecho ? '✓' : i + 1}
+                {hecho ? '✓' : n}
               </span>
               <span className={`mt-1 text-[11px] leading-tight ${actual ? 'font-medium text-ink' : hecho ? 'text-ink' : 'text-muted'}`}>
                 {nombre}
               </span>
-            </div>
+            </button>
             {i < ETAPAS_RESPONSABLE.length - 1 && (
               <span className={`mt-3 h-0.5 w-4 shrink-0 rounded-full ${hecho ? 'bg-success' : 'bg-border'}`} />
             )}
@@ -155,26 +279,301 @@ function Pasos({ etapa }: { etapa: number }) {
   )
 }
 
-function Contactos({ s }: { s: Espacio }) {
+// ─── La ficha ───────────────────────────────────────────────────────────────
+// Exportada para `lib/i18n/cifras-formularios.test.ts` (B79): se monta sola.
+export function Ficha({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; puede: boolean }) {
+  const { t, idioma } = useIdioma()
+  const inicial = () => ({
+    tipoEspacio: p.tipoEspacio ?? '',
+    visibilidad: (p.visibilidad ?? '') as Visibilidad | '',
+    anchoM: p.anchoM?.toString() ?? '',
+    altoM: p.altoM?.toString() ?? '',
+    superficieM2: p.superficieM2?.toString() ?? '',
+    presupuestoMin: p.presupuestoMin?.toString() ?? '',
+    presupuestoMax: p.presupuestoMax?.toString() ?? '',
+    presupuestoAutoriza: p.presupuestoAutoriza ?? '',
+  })
+  const [f, setF] = useState(inicial)
+  useEffect(() => setF(inicial()), [p]) // eslint-disable-line react-hooks/exhaustive-deps
+  const area = areaM2(numeroO(f.anchoM), numeroO(f.altoM))
+  const campo = (k: keyof typeof f) => ({
+    value: f[k],
+    disabled: !puede,
+    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value }),
+  })
+  // P-L2-1 · las cifras de la ficha van por `EntradaCifra`: el mismo
+  // `type="number"` en español e inglés y, en italiano, punto de millar y coma
+  // decimal. Mismo orden de atributos que `campo` (el HTML no cambia).
+  type Cifra = 'anchoM' | 'altoM' | 'superficieM2' | 'presupuestoMin' | 'presupuestoMax'
+  const cifra = (k: Cifra) => ({
+    valor: f[k],
+    disabled: !puede,
+    onCambio: (crudo: string) => setF({ ...f, [k]: crudo }),
+  })
+  // En italiano, lo que no se entiende llega como 'NaN' y `numeroO` lo
+  // mandaría como NaN → null en JSON, BORRANDO el dato guardado. El campo ya
+  // lo dice en rojo; aquí solo no se guarda. En español e inglés, `false`.
+  const cifraMal = (['anchoM', 'altoM', 'superficieM2', 'presupuestoMin', 'presupuestoMax'] as const).some((k) =>
+    cifraIlegible(f[k], idioma),
+  )
+
+  async function guardar() {
+    if (cifraMal) return
+    const cuerpo: FichaForm = {
+      tipoEspacio: f.tipoEspacio.trim() || null,
+      visibilidad: f.visibilidad || null,
+      anchoM: numeroO(f.anchoM),
+      altoM: numeroO(f.altoM),
+      superficieM2: numeroO(f.superficieM2),
+      presupuestoMin: numeroO(f.presupuestoMin),
+      presupuestoMax: numeroO(f.presupuestoMax),
+      presupuestoAutoriza: f.presupuestoAutoriza.trim() || null,
+    }
+    await accion(() => fichaApi(p.id, cuerpo))
+  }
+
   return (
-    <Bloque titulo="Responsables y contactos" icono={Users} cuenta={s.contactos.length}>
-      {s.contactos.length === 0 ? (
-        <Vacio>Todavía no se sabe con quién hablar.</Vacio>
+    <Bloque id="ficha" titulo={t('comercial.negociacion.ficha')} icono={Building2}>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-[13px]">
+        <label className="col-span-2">
+          <span className={labelCls}>{t('comercial.negociacion.ficha.tipo')}</span>
+          <input className={inputCls} maxLength={80} placeholder={t('comercial.negociacion.ficha.tipo-ej')} {...campo('tipoEspacio')} />
+        </label>
+        <label className="col-span-2">
+          <span className={labelCls}>{t('comercial.negociacion.ficha.visibilidad')}</span>
+          <select className={inputCls} {...campo('visibilidad')}>
+            <option value="">{t('comercial.negociacion.sin-definir')}</option>
+            {VISIBILIDADES.map((v) => (
+              <option key={v} value={v}>
+                {t(CLAVE_VISIBILIDAD[v])}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span className={labelCls}>{t('comercial.comun.ancho')}</span>
+          <EntradaCifra className={inputCls} type="number" min={0} step="0.01" {...cifra('anchoM')} decimales={2} minimo={0} />
+        </label>
+        <label>
+          <span className={labelCls}>{t('comercial.comun.alto')}</span>
+          <EntradaCifra className={inputCls} type="number" min={0} step="0.01" {...cifra('altoM')} decimales={2} minimo={0} />
+        </label>
+        <div>
+          <span className={labelCls}>{t('comercial.negociacion.ficha.area')}</span>
+          <span className="block py-2 text-ink">{area == null ? '—' : `${numeroEnIdioma(area, idioma)} m²`}</span>
+        </div>
+        <label>
+          <span className={labelCls}>{t('comercial.negociacion.ficha.superficie')}</span>
+          <EntradaCifra className={inputCls} type="number" min={0} step="0.01" {...cifra('superficieM2')} decimales={2} minimo={0} />
+        </label>
+        <label>
+          <span className={labelCls}>{t('comercial.negociacion.ficha.renta-min')}</span>
+          <EntradaCifra className={inputCls} type="number" min={0} {...cifra('presupuestoMin')} decimales={2} minimo={0} />
+        </label>
+        <label>
+          <span className={labelCls}>{t('comercial.negociacion.ficha.renta-max')}</span>
+          <EntradaCifra className={inputCls} type="number" min={0} {...cifra('presupuestoMax')} decimales={2} minimo={0} />
+        </label>
+        <label className="col-span-2">
+          <span className={labelCls}>{t('comercial.negociacion.ficha.autoriza')}</span>
+          <input className={inputCls} maxLength={120} placeholder={t('comercial.negociacion.ficha.autoriza-ej')} {...campo('presupuestoAutoriza')} />
+        </label>
+      </div>
+      {puede && (
+        <div className="mt-3 flex justify-end">
+          <Button size="sm" onClick={() => void guardar()}>
+            {t('comercial.negociacion.ficha.guardar')}
+          </Button>
+        </div>
+      )}
+    </Bloque>
+  )
+}
+
+// ─── La ubicación ───────────────────────────────────────────────────────────
+function Ubicacion({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; puede: boolean }) {
+  const { t, idioma } = useIdioma()
+  const guardado: Punto | null = p.lat != null && p.lng != null ? { lat: p.lat, lng: p.lng } : null
+  const [punto, setPunto] = useState<Punto | null>(guardado)
+  const [origen, setOrigen] = useState<'PIN' | 'BUSCADOR'>('PIN')
+  // Solo con el buscador de Google; se pierde en cuanto el pin se mueve.
+  const [placeId, setPlaceId] = useState<string | null>(null)
+  const [q, setQ] = useState(p.direccion ?? '')
+  const [candidatos, setCandidatos] = useState<CandidatoDireccion[] | null>(null)
+  const [proveedor, setProveedor] = useState<ProveedorGeo | null>(null)
+  const [aviso, setAviso] = useState<string | null>(null)
+  const [nota, setNota] = useState<string | null>(null)
+  useEffect(() => {
+    setPunto(guardado)
+    setCandidatos(null)
+    setAviso(null)
+    setNota(null)
+  }, [p.id, p.lat, p.lng]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const cambiado = punto && (!guardado || punto.lat !== guardado.lat || punto.lng !== guardado.lng)
+
+  // UBIC-01 (29/10): coordenadas o un enlace de Google Maps ponen el pin
+  // directo. El origen es PIN —lo fija la persona, no un buscador— y no hay
+  // otro valor sin migración (el CHECK de `prospectos` admite PIN, BUSCADOR y
+  // GPS).
+  function ponerPin(lat: number, lng: number, deEnlace: boolean) {
+    setPunto({ lat, lng })
+    setOrigen('PIN')
+    setPlaceId(null)
+    setCandidatos(null)
+    setNota(t(deEnlace ? 'comercial.negociacion.pin.enlace' : 'comercial.negociacion.pin.coordenadas'))
+  }
+
+  async function buscar() {
+    setAviso(null)
+    setNota(null)
+    // Lo que se puede resolver sin red se resuelve aquí: unas coordenadas o un
+    // enlace largo no tienen por qué gastar el tope de búsquedas.
+    const i = interpretarUbicacion(q, idioma)
+    if (i.tipo === 'punto') return ponerPin(i.lat, i.lng, i.fuente === 'enlace')
+    if (i.tipo === 'invalido') {
+      setCandidatos(null)
+      return setAviso(i.motivo)
+    }
+    try {
+      const r = await buscarDireccionApi(q)
+      if ((r.proveedor === 'enlace' || r.proveedor === 'coordenadas') && r.resultados[0]) {
+        return ponerPin(r.resultados[0].lat, r.resultados[0].lng, r.proveedor === 'enlace')
+      }
+      setProveedor(r.proveedor)
+      setCandidatos(r.resultados)
+      if (!r.resultados.length) setAviso(t('comercial.negociacion.buscar.sin-resultados'))
+    } catch (e) {
+      setAviso(e instanceof Error ? e.message : t('comercial.negociacion.buscar.error'))
+    }
+  }
+
+  return (
+    <Bloque id="ubicacion" titulo={t('comercial.comun.ubicacion')} icono={MapPin}>
+      {puede && (
+        <form
+          className="mb-2 flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault()
+            void buscar()
+          }}
+        >
+          <input
+            aria-label={t('comercial.negociacion.buscar.etiqueta')}
+            className={inputCls}
+            value={q}
+            maxLength={2000}
+            placeholder={t('comercial.negociacion.buscar.ph')}
+            onChange={(e) => setQ(e.target.value)}
+          />
+          <Button size="sm" variant="secondary" type="submit" disabled={q.trim().length < 3}>
+            <Search className="mr-1 h-3.5 w-3.5" /> {t('comercial.negociacion.buscar.ubicar')}
+          </Button>
+        </form>
+      )}
+      {puede && !aviso && !nota && !candidatos && (
+        <p className="m-0 mb-2 text-[11px] text-muted">
+          {t('comercial.negociacion.buscar.ayuda')}
+        </p>
+      )}
+      {aviso && <p className="m-0 mb-2 text-[12px] text-[#9a6700]">{aviso}</p>}
+      {nota && <p className="m-0 mb-2 text-[12px] text-muted">{nota}</p>}
+      {candidatos && candidatos.length > 0 && (
+        <div className="mb-2">
+          <ul className={`${LISTA} divide-y divide-border rounded border border-border`}>
+            {candidatos.map((c) => (
+              <li key={`${c.lat},${c.lng}`}>
+                <button
+                  type="button"
+                  className="w-full px-2.5 py-1.5 text-left text-[12px] text-ink hover:bg-surface-2"
+                  onClick={() => {
+                    setPunto({ lat: c.lat, lng: c.lng })
+                    setOrigen('BUSCADOR')
+                    setPlaceId(c.placeId ?? null)
+                    setCandidatos(null)
+                    setNota(t('comercial.negociacion.pin.candidato'))
+                  }}
+                >
+                  {c.nombre}
+                </button>
+              </li>
+            ))}
+          </ul>
+          {/* Las dos fuentes piden que se diga de dónde salen los resultados. */}
+          <p className="m-0 mt-1 text-right text-[10px] text-muted">
+            {proveedor === 'google' ? t('comercial.negociacion.resultados.google') : t('comercial.negociacion.resultados.osm')}
+          </p>
+        </div>
+      )}
+      <SelectorUbicacion
+        punto={punto}
+        onCambio={(nuevo) => {
+          if (!puede) return
+          setPunto(nuevo)
+          setOrigen('PIN')
+          setPlaceId(null)
+        }}
+      />
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted">
+        <span>
+          {guardado
+            ? t('comercial.negociacion.ubicacion.guardada', {
+                por: p.ubicacionFijadaPorNombre
+                  ? t('comercial.negociacion.ubicacion.por', { nombre: p.ubicacionFijadaPorNombre })
+                  : '',
+                el: p.ubicacionFijadaEn ? t('comercial.negociacion.ubicacion.el', { fecha: fecha(p.ubicacionFijadaEn, idioma) }) : '',
+                origen:
+                  p.ubicacionOrigen === 'BUSCADOR'
+                    ? t('comercial.negociacion.ubicacion.buscador')
+                    : p.ubicacionOrigen === 'PIN'
+                      ? t('comercial.negociacion.ubicacion.mapa')
+                      : '',
+              })
+            : t('comercial.negociacion.ubicacion.sin')}
+          {' · '}
+          {t('comercial.negociacion.ubicacion.gps')}
+        </span>
+        {puede && cambiado && (
+          <Button
+            size="sm"
+            onClick={() =>
+              void accion(() =>
+                fichaApi(p.id, {
+                  ubicacion: { lat: punto!.lat, lng: punto!.lng, origen, placeId: origen === 'BUSCADOR' ? placeId : null },
+                }),
+              )
+            }
+          >
+            {t('comercial.negociacion.ubicacion.guardar')}
+          </Button>
+        )}
+      </div>
+    </Bloque>
+  )
+}
+
+// ─── Contactos ──────────────────────────────────────────────────────────────
+function Contactos({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; puede: boolean }) {
+  const t = useTexto()
+  const vacio = { nombre: '', papel: '', telefono: '', email: '', esLegal: false }
+  const [n, setN] = useState(vacio)
+  return (
+    <Bloque id="contactos" titulo={t('comercial.negociacion.contactos')} icono={Users} cuenta={p.contactos.length}>
+      {p.contactos.length === 0 ? (
+        <Vacio>{t('comercial.negociacion.contactos.vacio')}</Vacio>
       ) : (
         <ul className={`${LISTA} divide-y divide-border`}>
-          {s.contactos.map((c) => (
-            <li key={c.nombre} className="flex gap-3 py-2.5 first:pt-0 last:pb-0">
+          {p.contactos.map((c) => (
+            <li key={c.id} className="flex gap-3 py-2.5 first:pt-0 last:pb-0">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[11px] font-semibold text-ink">
                 {iniciales(c.nombre)}
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className="text-[13px] font-medium text-ink">{c.nombre}</span>
-                  {c.legal && (
-                    <span className="rounded bg-ink px-1.5 text-[10px] font-medium text-surface">firma</span>
-                  )}
+                  {c.esLegal && <span className="rounded bg-ink px-1.5 text-[10px] font-medium text-surface">{t('comercial.negociacion.contactos.firma-chip')}</span>}
                 </div>
-                <div className="text-[12px] text-muted">{c.papel}</div>
+                {c.papel && <div className="text-[12px] text-muted">{c.papel}</div>}
                 {(c.telefono || c.email) && (
                   <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-[12px] text-ink">
                     {c.telefono && (
@@ -190,47 +589,275 @@ function Contactos({ s }: { s: Espacio }) {
                   </div>
                 )}
               </div>
+              {puede && (
+                <div className="flex shrink-0 items-start gap-1">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => void accion(() => editarContactoApi(p.id, c.id, { esLegal: !c.esLegal }))}
+                  >
+                    {c.esLegal ? t('comercial.negociacion.contactos.no-firma') : t('comercial.negociacion.contactos.firma')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    aria-label={t('comercial.negociacion.quitar-a', { nombre: c.nombre })}
+                    onClick={() => void accion(() => borrarContactoApi(p.id, c.id))}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
             </li>
           ))}
         </ul>
+      )}
+      {puede && (
+        <form
+          className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-3"
+          onSubmit={async (e) => {
+            e.preventDefault()
+            if (await accion(() => crearContactoApi(p.id, n))) setN(vacio)
+          }}
+        >
+          <input aria-label={t('comercial.negociacion.contactos.nombre')} className={inputCls} placeholder={t('comercial.comun.nombre')} maxLength={200} value={n.nombre} onChange={(e) => setN({ ...n, nombre: e.target.value })} />
+          <input aria-label={t('comercial.negociacion.contactos.papel')} className={inputCls} placeholder={t('comercial.negociacion.contactos.papel-ph')} maxLength={80} value={n.papel} onChange={(e) => setN({ ...n, papel: e.target.value })} />
+          <input aria-label={t('comercial.comun.telefono')} className={inputCls} placeholder={t('comercial.comun.telefono')} maxLength={40} value={n.telefono} onChange={(e) => setN({ ...n, telefono: e.target.value })} />
+          <input aria-label={t('comercial.negociacion.contactos.correo')} type="email" className={inputCls} placeholder={t('comercial.negociacion.contactos.correo')} maxLength={200} value={n.email} onChange={(e) => setN({ ...n, email: e.target.value })} />
+          <label className="flex items-center gap-2 text-[12px] text-ink">
+            <input type="checkbox" checked={n.esLegal} onChange={(e) => setN({ ...n, esLegal: e.target.checked })} /> {t('comercial.negociacion.contactos.es-firma')}
+          </label>
+          <div className="flex justify-end">
+            <Button size="sm" type="submit" disabled={!n.nombre.trim()}>
+              <Plus className="mr-1 h-3.5 w-3.5" /> {t('comercial.negociacion.contactos.agregar')}
+            </Button>
+          </div>
+        </form>
       )}
     </Bloque>
   )
 }
 
-function Competencia({ s }: { s: Espacio }) {
+// ─── Ofertas al dueño ───────────────────────────────────────────────────────
+function Ofertas({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; puede: boolean }) {
+  const { t, idioma } = useIdioma()
+  const [n, setN] = useState({ importe: '', plazo: '36', notas: '' })
   return (
-    <Bloque titulo="Competencia" icono={Swords} cuenta={s.competencia.length}>
-      {s.competencia.length === 0 ? (
-        <Vacio>Sin competencia identificada.</Vacio>
+    <Bloque id="ofertas" titulo={t('comercial.negociacion.ofertas')} icono={Wallet} cuenta={p.ofertas.length}>
+      {p.ofertas.length === 0 ? (
+        <Vacio>{t('comercial.negociacion.ofertas.vacio')}</Vacio>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-[13px]">
+            <thead className="text-left text-[11px] text-muted">
+              <tr>
+                <th className="pb-1 font-medium">{t('comercial.negociacion.ofertas.version')}</th>
+                <th className="pb-1 font-medium">{t('comercial.negociacion.ofertas.fecha')}</th>
+                <th className="pb-1 font-medium">{t('comercial.negociacion.ofertas.renta')}</th>
+                <th className="pb-1 font-medium">{t('comercial.negociacion.ofertas.plazo')}</th>
+                <th className="pb-1 font-medium">{t('comercial.negociacion.ofertas.estado')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {p.ofertas.map((o) => (
+                <tr key={o.id} className="border-t border-border align-top">
+                  <td className="py-1.5 text-ink">v{o.version}</td>
+                  <td className="py-1.5 text-muted">{fecha(o.fecha, idioma)}</td>
+                  <td className="demo-num py-1.5 font-medium text-ink">{t('comercial.negociacion.ofertas.por-mes', { monto: pesos(o.importeMensual, idioma) })}</td>
+                  <td className="py-1.5 text-muted">
+                    {t(o.plazoMeses === 1 ? 'comercial.negociacion.ofertas.meses.uno' : 'comercial.negociacion.ofertas.meses.otros', { n: o.plazoMeses })}
+                  </td>
+                  <td className="py-1.5 text-ink">
+                    {puede ? (
+                      <select
+                        aria-label={t('comercial.negociacion.ofertas.estado-de', { version: o.version })}
+                        className={`${inputCls} h-7 w-36`}
+                        value={o.estado}
+                        onChange={(e) => void accion(() => editarOfertaApi(p.id, o.id, { estado: e.target.value as EstadoOferta }))}
+                      >
+                        {ESTADOS_OFERTA.map((s) => (
+                          <option key={s} value={s} disabled={!!motivoCambioOferta(o.estado, s)}>
+                            {t(CLAVE_OFERTA[s])}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      t(CLAVE_OFERTA[o.estado])
+                    )}
+                    {o.notas && <div className="text-[11px] text-muted">{o.notas}</div>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {puede && (
+        <form
+          className="mt-3 grid grid-cols-[1fr_7rem] gap-2 border-t border-border pt-3 sm:grid-cols-[10rem_7rem_1fr_auto]"
+          onSubmit={async (e) => {
+            e.preventDefault()
+            const ok = await accion(() =>
+              crearOfertaApi(p.id, { importeMensual: Number(n.importe), plazoMeses: Number(n.plazo), notas: n.notas.trim() || null }),
+            )
+            if (ok) setN({ importe: '', plazo: n.plazo, notas: '' })
+          }}
+        >
+          {/* P-L2-1 · en italiano, punto de millar y coma decimal. Lo que no se
+              entiende llega como 'NaN', y `Number('NaN') > 0` deja el botón
+              apagado: no hace falta otra guardia. */}
+          <EntradaCifra aria-label={t('comercial.negociacion.ofertas.renta-mensual')} type="number" min={1} className={inputCls} placeholder={t('comercial.negociacion.ofertas.renta-mensual')} valor={n.importe} onCambio={(crudo) => setN({ ...n, importe: crudo })} decimales={2} minimo={1} />
+          <EntradaCifra aria-label={t('comercial.negociacion.ofertas.plazo-meses')} type="number" min={1} max={240} className={inputCls} placeholder={t('comercial.negociacion.ofertas.meses-ph')} valor={n.plazo} onCambio={(crudo) => setN({ ...n, plazo: crudo })} decimales={0} minimo={1} maximo={240} />
+          <input aria-label={t('comercial.negociacion.ofertas.notas')} className={inputCls} placeholder={t('comercial.comun.notas')} maxLength={2000} value={n.notas} onChange={(e) => setN({ ...n, notas: e.target.value })} />
+          <Button size="sm" type="submit" disabled={!(Number(n.importe) > 0 && Number(n.plazo) >= 1)}>
+            <Plus className="mr-1 h-3.5 w-3.5" /> {t('comercial.negociacion.ofertas.nueva')}
+          </Button>
+        </form>
+      )}
+    </Bloque>
+  )
+}
+
+// ─── Competencia ────────────────────────────────────────────────────────────
+function Competencia({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; puede: boolean }) {
+  const { t, idioma } = useIdioma()
+  const [n, setN] = useState({ nombre: '', nota: '', desde: '' })
+  return (
+    <Bloque id="competencia" titulo={t('comercial.negociacion.competencia')} icono={Swords} cuenta={p.competencia.length}>
+      {p.competencia.length === 0 ? (
+        <Vacio>{t('comercial.negociacion.competencia.vacio')}</Vacio>
       ) : (
         <ul className={`${LISTA} space-y-2`}>
-          {s.competencia.map((c) => (
-            <li key={c.nombre} className="rounded border-l-2 border-red-300 bg-surface-2 px-2.5 py-1.5">
-              <div className="flex flex-wrap items-baseline justify-between gap-x-2">
-                <span className="text-[13px] font-medium text-ink">{c.nombre}</span>
-                <span className="text-[11px] text-muted">desde {fecha(c.desde)}</span>
+          {p.competencia.map((c) => (
+            <li key={c.id} className="flex gap-2 rounded border-l-2 border-error bg-surface-2 px-2.5 py-1.5">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-2">
+                  <span className="text-[13px] font-medium text-ink">{c.nombre}</span>
+                  {c.desde && (
+                    <span className="text-[11px] text-muted">
+                      {t('comercial.negociacion.competencia.desde', { fecha: fecha(c.desde, idioma) })}
+                    </span>
+                  )}
+                </div>
+                {c.nota && <p className="m-0 text-[12px] text-ink">{c.nota}</p>}
               </div>
-              <p className="m-0 text-[12px] text-ink">{c.nota}</p>
+              {puede && (
+                <button
+                  type="button"
+                  aria-label={t('comercial.negociacion.quitar-a', { nombre: c.nombre })}
+                  className="shrink-0 border-0 bg-transparent p-0 text-muted hover:text-error"
+                  onClick={() => void accion(() => borrarCompetidorApi(p.id, c.id))}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              )}
             </li>
           ))}
         </ul>
+      )}
+      {puede && (
+        <form
+          className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-3"
+          onSubmit={async (e) => {
+            e.preventDefault()
+            const ok = await accion(() =>
+              crearCompetidorApi(p.id, { nombre: n.nombre, nota: n.nota.trim() || null, desde: n.desde || null }),
+            )
+            if (ok) setN({ nombre: '', nota: '', desde: '' })
+          }}
+        >
+          <input aria-label={t('comercial.negociacion.competencia.competidor')} className={inputCls} placeholder={t('comercial.negociacion.competencia.quien')} maxLength={200} value={n.nombre} onChange={(e) => setN({ ...n, nombre: e.target.value })} />
+          <input aria-label={t('comercial.negociacion.competencia.desde-etiqueta')} type="date" className={inputCls} value={n.desde} onChange={(e) => setN({ ...n, desde: e.target.value })} />
+          <input aria-label={t('comercial.negociacion.competencia.ofrece')} className={`${inputCls} col-span-2`} placeholder={t('comercial.negociacion.competencia.ofrece-ph')} maxLength={2000} value={n.nota} onChange={(e) => setN({ ...n, nota: e.target.value })} />
+          <div className="col-span-2 flex justify-end">
+            <Button size="sm" type="submit" disabled={!n.nombre.trim()}>
+              <Plus className="mr-1 h-3.5 w-3.5" /> {t('comercial.negociacion.agregar')}
+            </Button>
+          </div>
+        </form>
       )}
     </Bloque>
   )
 }
 
-function Historial({ s }: { s: Espacio }) {
+// ─── Bitácora ───────────────────────────────────────────────────────────────
+function Historial({ p, accion }: { p: ProspectoDetalle; accion: Accion }) {
+  const { t, idioma } = useIdioma()
+  // A qué etapas se puede mover desde aquí: las de trabajo, revisión y perdido
+  // (aprobar y rechazar se deciden en Captación, por quien puede aprobar).
+  const etapas: Etapa[] = p.etapa === 'EN_REVISION' ? ['EN_REVISION'] : [...ETAPAS_DE_TRABAJO, 'EN_REVISION', 'PERDIDO']
+  // Un espacio RECHAZADO no puede quedarse en RECHAZADO con un avance (el
+  // servidor lo niega: rechazar no es un avance), así que arranca en la primera
+  // etapa que sí se puede elegir en vez de mandar una que dé 409.
+  const etapaInicial = etapas.includes(p.etapa) ? p.etapa : etapas[0]
+  const [n, setN] = useState<{ etapa: Etapa; canal: Canal | ''; contacto: string; nota: string; siguiente: string }>({
+    etapa: etapaInicial,
+    canal: '',
+    contacto: '',
+    nota: '',
+    siguiente: '',
+  })
+  useEffect(() => setN((x) => ({ ...x, etapa: etapaInicial })), [etapaInicial])
+  const avances = [...p.avances].reverse()
+  const cerrado = etapaCerrada(p.etapa)
   return (
-    <Bloque titulo="Historial" icono={MessageSquare} cuenta={s.bitacora.length}>
-      {s.bitacora.length === 0 ? (
-        <Vacio>Sin contactos registrados.</Vacio>
+    <Bloque id="historial" titulo={t('comercial.negociacion.historial')} icono={MessageSquare} cuenta={p.avances.length}>
+      {!cerrado && (
+        <form
+          className="mb-3 grid grid-cols-2 gap-2 border-b border-border pb-3"
+          onSubmit={async (e) => {
+            e.preventDefault()
+            const ok = await accion(() =>
+              avanceApi(p.id, {
+                etapa: n.etapa,
+                nota: n.nota,
+                canal: n.canal || null,
+                contactoNombre: n.contacto || null,
+                ...(n.siguiente.trim() ? { siguientePaso: n.siguiente.trim() } : {}),
+              }),
+            )
+            if (ok) setN({ ...n, nota: '', siguiente: '' })
+          }}
+        >
+          <select aria-label={t('comercial.negociacion.historial.canal')} className={inputCls} value={n.canal} onChange={(e) => setN({ ...n, canal: e.target.value as Canal | '' })}>
+            <option value="">{t('comercial.negociacion.historial.canal-ph')}</option>
+            {CANALES.map((c) => (
+              <option key={c} value={c}>
+                {t(CLAVE_CANAL[c])}
+              </option>
+            ))}
+          </select>
+          <select aria-label={t('comercial.negociacion.historial.con-quien')} className={inputCls} value={n.contacto} onChange={(e) => setN({ ...n, contacto: e.target.value })}>
+            <option value="">{t('comercial.negociacion.historial.con-quien-ph')}</option>
+            {p.contactos.map((c) => (
+              <option key={c.id} value={c.nombre}>
+                {c.nombre}
+              </option>
+            ))}
+          </select>
+          <input aria-label={t('comercial.negociacion.historial.que-paso')} className={`${inputCls} col-span-2`} placeholder={t('comercial.negociacion.historial.que-paso')} maxLength={2000} value={n.nota} onChange={(e) => setN({ ...n, nota: e.target.value })} />
+          <input aria-label={t('comercial.negociacion.siguiente-paso')} className={inputCls} placeholder={t('comercial.negociacion.siguiente-paso')} maxLength={300} value={n.siguiente} onChange={(e) => setN({ ...n, siguiente: e.target.value })} />
+          <select aria-label={t('comercial.negociacion.historial.etapa')} className={inputCls} value={n.etapa} onChange={(e) => setN({ ...n, etapa: e.target.value as Etapa })}>
+            {etapas.map((e) => (
+              <option key={e} value={e}>
+                {t(CLAVE_ETAPA[e])}
+              </option>
+            ))}
+          </select>
+          <div className="col-span-2 flex justify-end">
+            <Button size="sm" type="submit" disabled={!n.nota.trim()}>
+              {t('comercial.negociacion.historial.registrar')}
+            </Button>
+          </div>
+        </form>
+      )}
+      {avances.length === 0 ? (
+        <Vacio>{t('comercial.negociacion.historial.vacio')}</Vacio>
       ) : (
         <ol className={`${LISTA} relative`}>
-          {s.bitacora.map((a, i) => (
-            <li key={a.fecha + a.contacto} className="relative pb-4 pl-6 last:pb-0">
-              {/* La línea que une los puntos: no se pinta tras el último. */}
-              {i < s.bitacora.length - 1 && (
+          {avances.map((a, i) => (
+            <li key={a.id} className="relative pb-4 pl-6 last:pb-0">
+              {i < avances.length - 1 && (
                 <span className="absolute bottom-0 left-[7px] top-4 w-px bg-border" aria-hidden="true" />
               )}
               <span
@@ -240,16 +867,19 @@ function Historial({ s }: { s: Espacio }) {
                 aria-hidden="true"
               />
               <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-                <span className="font-semibold text-ink">{fecha(a.fecha)}</span>
-                <Etiqueta>{a.canal}</Etiqueta>
-                <span className="text-muted">con {a.contacto}</span>
+                <span className="font-semibold text-ink">{fecha(a.creadoEn, idioma)}</span>
+                {a.canal && <Etiqueta>{t(CLAVE_CANAL[a.canal])}</Etiqueta>}
+                {a.contactoNombre && (
+                  <span className="text-muted">{t('comercial.negociacion.historial.con', { nombre: a.contactoNombre })}</span>
+                )}
+                <span className="text-muted">· {a.usuarioNombre ?? t('comercial.negociacion.usuario-eliminado')}</span>
+                {a.etapaAnterior && a.etapaAnterior !== a.etapaNueva && (
+                  <span className="text-muted">
+                    · {t(CLAVE_ETAPA[a.etapaAnterior])} → {t(CLAVE_ETAPA[a.etapaNueva])}
+                  </span>
+                )}
               </div>
-              <p className="m-0 mt-0.5 text-[13px] text-ink">{a.resumen}</p>
-              {a.siguiente && (
-                <p className="m-0 mt-1 inline-flex items-start gap-1 text-[12px] text-muted">
-                  <ArrowRight className="mt-0.5 h-3 w-3 shrink-0" /> {a.siguiente}
-                </p>
-              )}
+              <p className="m-0 mt-0.5 whitespace-pre-wrap text-[13px] text-ink">{a.nota}</p>
             </li>
           ))}
         </ol>
@@ -258,39 +888,44 @@ function Historial({ s }: { s: Espacio }) {
   )
 }
 
-function Documentos() {
+// ─── Notas ──────────────────────────────────────────────────────────────────
+function Notas({ p, accion }: { p: ProspectoDetalle; accion: Accion }) {
+  const { t, idioma } = useIdioma()
+  const [texto, setTexto] = useState('')
   return (
-    <Bloque titulo="Documentos de la empresa" icono={FileText} cuenta={DOCUMENTOS_EMPRESA.length}>
-      <ul className={`${LISTA} divide-y divide-border`}>
-        {DOCUMENTOS_EMPRESA.map((d) => (
-          <li key={d.nombre} className="flex items-center gap-2 py-1.5 first:pt-0 last:pb-0">
-            <FileText className="h-4 w-4 shrink-0 text-muted" strokeWidth={1.5} />
-            <span className="min-w-0 flex-1 truncate text-[13px] text-ink" title={d.nombre}>
-              {d.nombre}
-            </span>
-            <Etiqueta>{d.tipo}</Etiqueta>
-            <span className="w-20 shrink-0 text-right text-[11px] text-muted">{fecha(d.actualizado)}</span>
-          </li>
-        ))}
-      </ul>
-    </Bloque>
-  )
-}
-
-function Multimedia({ s }: { s: Espacio }) {
-  return (
-    <Bloque titulo="Fotos y videos del espacio" icono={ImageIcon} cuenta={s.multimedia.length}>
-      {s.multimedia.length === 0 ? (
-        <Vacio>Sin material todavía.</Vacio>
+    <Bloque id="notas" titulo={t('comercial.negociacion.notas')} icono={NotebookPen} cuenta={p.notas.length}>
+      <form
+        className="mb-3 space-y-2"
+        onSubmit={async (e) => {
+          e.preventDefault()
+          if (await accion(() => crearNotaApi(p.id, texto))) setTexto('')
+        }}
+      >
+        <textarea
+          aria-label={t('comercial.negociacion.notas.nueva')}
+          className={`${inputCls} h-20 py-2`}
+          maxLength={4000}
+          placeholder={t('comercial.negociacion.notas.ph')}
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+        />
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] text-muted">{t('comercial.negociacion.notas.ayuda')}</span>
+          <Button size="sm" type="submit" disabled={!texto.trim()}>
+            {t('comercial.negociacion.notas.agregar')}
+          </Button>
+        </div>
+      </form>
+      {p.notas.length === 0 ? (
+        <Vacio>{t('comercial.negociacion.notas.vacio')}</Vacio>
       ) : (
-        <ul className={`${LISTA} grid grid-cols-2 gap-2 sm:grid-cols-3`}>
-          {s.multimedia.map((m) => (
-            <li
-              key={m.nombre}
-              className="flex aspect-video flex-col items-center justify-center gap-1 rounded border border-border bg-surface-2 px-2 text-center text-[11px] text-muted"
-            >
-              <span className="text-base leading-none">{m.tipo === 'video' ? '▶' : '▣'}</span>
-              {m.nombre}
+        <ul className={`${LISTA} space-y-2`}>
+          {p.notas.map((n) => (
+            <li key={n.id} className="rounded bg-surface-2 px-2.5 py-1.5">
+              <div className="text-[11px] text-muted">
+                {n.autorNombre ?? t('comercial.negociacion.usuario-eliminado')} · {fecha(n.creadoEn, idioma)}
+              </div>
+              <p className="m-0 whitespace-pre-wrap text-[13px] text-ink">{n.texto}</p>
             </li>
           ))}
         </ul>
@@ -299,153 +934,393 @@ function Multimedia({ s }: { s: Espacio }) {
   )
 }
 
-function Detalle({ s, hoy }: { s: Espacio; hoy: Date }) {
-  const u = ultimoAvance(s)
+// ─── El detalle ─────────────────────────────────────────────────────────────
+function Detalle({ p, hoy, onCambio }: { p: ProspectoDetalle; hoy: Date; onCambio: (p: ProspectoDetalle) => void }) {
+  const { t, idioma } = useIdioma()
+  const [error, setError] = useState<string | null>(null)
+  useEffect(() => setError(null), [p.id])
+  const accion: Accion = async (fn) => {
+    setError(null)
+    try {
+      onCambio(await fn())
+      return true
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('comercial.comun.no-se-pudo-guardar'))
+      return false
+    }
+  }
+  const puedeFicha = !motivoEdicion(p.etapa, 'ficha')
+  const puedeHijos = !motivoEdicion(p.etapa, 'hijos')
+  const ultimo = p.avances.length ? p.avances[p.avances.length - 1] : null
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h2 className="m-0 text-lg font-semibold text-ink">{s.nombre}</h2>
+          <h2 className="m-0 text-lg font-semibold text-ink">{p.nombre}</h2>
           <p className="m-0 text-[12px] text-muted">
-            {s.tipo} · {s.direccion} · en seguimiento desde {fecha(s.desde)}
+            {[p.tipoEspacio, p.direccion].filter(Boolean).join(' · ') || t('comercial.negociacion.sin-direccion')}
+            {t('comercial.negociacion.seguimiento-desde', { fecha: fecha(p.creadoEn, idioma) })}
+            {p.vendedorNombre ? ` · ${p.vendedorNombre}` : ''}
           </p>
         </div>
         <div className="flex items-center gap-2 text-[12px]">
-          <Estado estado={s.estado} />
+          <Estado etapa={p.etapa} />
           <span className="inline-flex items-center gap-1">
-            <Clock className="h-3.5 w-3.5 text-muted" /> <Antiguedad e={s} hoy={hoy} />
+            <Clock className="h-3.5 w-3.5 text-muted" /> <Antiguedad p={p} hoy={hoy} />
           </span>
         </div>
       </div>
 
-      <div className="rounded-md border border-border bg-surface p-3">
-        <h3 className="mb-3 flex items-center gap-1.5 text-[13px] font-semibold text-ink">
-          <ShieldCheck className="h-4 w-4 text-muted" strokeWidth={1.75} /> Búsqueda del responsable
-        </h3>
-        <div className="overflow-x-auto pb-1">
-          <Pasos etapa={s.etapa} />
-        </div>
-      </div>
+      {error && (
+        <p role="alert" className="m-0 rounded-md border border-border bg-error-soft px-3 py-2 text-[13px] text-error">
+          {error}
+        </p>
+      )}
+      {!puedeFicha && (
+        <p className="m-0 rounded-md border border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">
+          {motivoEdicion(p.etapa, 'ficha', idioma)}
+        </p>
+      )}
 
-      {u && (
-        <div className="rounded-md border border-accent/40 bg-accent-soft px-3 py-2 text-[13px]">
+      <Bloque id="responsable" titulo={t('comercial.negociacion.responsable')} icono={ShieldCheck}>
+        <div className="overflow-x-auto pb-1">
+          <Pasos p={p} accion={accion} puede={puedeFicha} />
+        </div>
+      </Bloque>
+
+      {ultimo && (
+        <div className="rounded-md border border-accent bg-accent-soft px-3 py-2 text-[13px]">
           <div className="font-medium text-ink">
-            Último contacto: {u.contacto}{' '}
+            {ultimo.contactoNombre
+              ? t('comercial.negociacion.ultimo.con', { nombre: ultimo.contactoNombre })
+              : t('comercial.negociacion.ultimo')}{' '}
             <span className="font-normal text-muted">
-              · {fecha(u.fecha)} · {u.canal}
+              · {fecha(ultimo.creadoEn, idioma)}
+              {ultimo.canal ? ` · ${t(CLAVE_CANAL[ultimo.canal])}` : ''}
             </span>
           </div>
-          <p className="m-0 mt-0.5 text-ink">{u.resumen}</p>
-          {u.siguiente && (
-            <p className="m-0 mt-1 text-ink">
-              <strong>Siguiente paso:</strong> {u.siguiente}
+          <p className="m-0 mt-0.5 text-ink">{ultimo.nota}</p>
+          {p.siguientePaso && (
+            <p className="m-0 mt-1 inline-flex items-start gap-1 text-ink">
+              <ArrowRight className="mt-0.5 h-3 w-3 shrink-0" /> <strong>{t('comercial.negociacion.siguiente-paso.etiqueta')}</strong>&nbsp;{p.siguientePaso}
             </p>
           )}
         </div>
       )}
 
-      {/* Ficha y Competencia apiladas a la izquierda: así la columna de los
-          contactos —la más larga— no deja un hueco vacío al lado. */}
       <div className="grid items-start gap-3 lg:grid-cols-2">
         <div className="space-y-3">
-          <Bloque titulo="Ficha técnica" icono={Building2}>
-            <dl className="m-0 grid grid-cols-2 gap-x-3 gap-y-2 text-[13px]">
-              {(
-                [
-                  ['Medidas', s.medidas],
-                  ['Negociante', s.negociante],
-                  ['Renta autorizada', `${pesos(s.presupuesto.min)} – ${pesos(s.presupuesto.max)}`],
-                  ['Autoriza', s.presupuesto.autoriza],
-                ] as const
-              ).map(([dt, dd]) => (
-                <div key={dt}>
-                  <dt className="text-[11px] text-muted">{dt}</dt>
-                  <dd className="m-0 text-ink">{dd}</dd>
-                </div>
-              ))}
-            </dl>
-          </Bloque>
-          <Competencia s={s} />
+          <Ficha p={p} accion={accion} puede={puedeFicha} />
+          <Competencia p={p} accion={accion} puede={puedeHijos} />
         </div>
-        <Contactos s={s} />
+        <div className="space-y-3">
+          <Contactos p={p} accion={accion} puede={puedeHijos} />
+          <Ubicacion p={p} accion={accion} puede={puedeFicha} />
+        </div>
       </div>
 
-      <Bloque titulo="Ofertas de renta al arrendador" icono={Wallet} cuenta={s.ofertas.length}>
-        {s.ofertas.length === 0 ? (
-          <Vacio>Todavía no se le ha ofrecido nada.</Vacio>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-[13px]">
-              <thead className="text-left text-[11px] text-muted">
-                <tr>
-                  <th className="pb-1 font-medium">Versión</th>
-                  <th className="pb-1 font-medium">Fecha</th>
-                  <th className="pb-1 font-medium">Renta</th>
-                  <th className="pb-1 font-medium">Plazo</th>
-                  <th className="pb-1 font-medium">Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {s.ofertas.map((o) => (
-                  <tr key={o.version} className="border-t border-border align-top">
-                    <td className="py-1.5 text-ink">v{o.version}</td>
-                    <td className="py-1.5 text-muted">{fecha(o.fecha)}</td>
-                    <td className="py-1.5 font-medium text-ink">{pesos(o.importe)}/mes</td>
-                    <td className="py-1.5 text-muted">{o.plazoMeses} meses</td>
-                    <td className="py-1.5 text-ink">
-                      {o.estado}
-                      {o.notas && <div className="text-[11px] text-muted">{o.notas}</div>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Bloque>
+      <Ofertas p={p} accion={accion} puede={puedeHijos} />
 
       <div className="grid items-start gap-3 lg:grid-cols-2">
-        <Historial s={s} />
-        <div className="space-y-3">
-          <Multimedia s={s} />
-          <Documentos />
-        </div>
+        <Historial p={p} accion={accion} />
+        <Notas p={p} accion={accion} />
       </div>
     </div>
   )
 }
 
+// ─── El alta ────────────────────────────────────────────────────────────────
+function Alta({ abierto, onCerrar, onCreado }: { abierto: boolean; onCerrar: () => void; onCreado: (p: ProspectoDetalle) => void }) {
+  const t = useTexto()
+  const vacio = { tipo: 'PREDIO' as 'PREDIO' | 'PANTALLA', nombre: '', direccion: '', contacto: '', telefono: '', nota: '' }
+  const [f, setF] = useState(vacio)
+  const [error, setError] = useState<string | null>(null)
+  async function guardar() {
+    setError(null)
+    try {
+      const p = await crearProspectoApi({
+        tipo: f.tipo,
+        nombre: f.nombre,
+        direccion: f.direccion.trim() || null,
+        contacto: { nombre: f.contacto.trim() || null, telefono: f.telefono.trim() || null },
+        datos: {},
+        siguientePaso: null,
+        siguientePasoFecha: null,
+        nota: f.nota.trim() || null,
+      })
+      setF(vacio)
+      onCreado(p)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('comercial.negociacion.alta.error'))
+    }
+  }
+  return (
+    <Sheet
+      open={abierto}
+      onOpenChange={(v) => !v && onCerrar()}
+      title={t('comercial.negociacion.nuevo')}
+      subtitle={t('comercial.negociacion.alta.subtitulo')}
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" onClick={onCerrar}>
+            {t('comun.cancelar')}
+          </Button>
+          <Button onClick={() => void guardar()} disabled={!f.nombre.trim()}>
+            {t('comun.guardar')}
+          </Button>
+        </div>
+      }
+    >
+      {error && (
+        <p role="alert" className="mb-3 rounded-md border border-border bg-error-soft px-3 py-2 text-[13px] text-error">
+          {error}
+        </p>
+      )}
+      <div className="space-y-3">
+        <label className="block">
+          <span className={labelCls}>{t('comercial.negociacion.alta.que-es')}</span>
+          <select className={inputCls} value={f.tipo} onChange={(e) => setF({ ...f, tipo: e.target.value as 'PREDIO' | 'PANTALLA' })}>
+            <option value="PREDIO">{t('comercial.negociacion.alta.predio')}</option>
+            <option value="PANTALLA">{t('comercial.negociacion.alta.pantalla')}</option>
+          </select>
+        </label>
+        <label className="block">
+          <span className={labelCls}>{t('comercial.comun.nombre')}</span>
+          <input className={inputCls} maxLength={200} placeholder={t('comercial.negociacion.alta.nombre-ej')} value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} />
+        </label>
+        <label className="block">
+          <span className={labelCls}>{t('comercial.negociacion.alta.direccion')}</span>
+          <input className={inputCls} maxLength={400} value={f.direccion} onChange={(e) => setF({ ...f, direccion: e.target.value })} />
+        </label>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block">
+            <span className={labelCls}>{t('comercial.negociacion.alta.primer-contacto')}</span>
+            <input className={inputCls} maxLength={200} placeholder={t('comercial.comun.nombre')} value={f.contacto} onChange={(e) => setF({ ...f, contacto: e.target.value })} />
+          </label>
+          <label className="block">
+            <span className={labelCls}>{t('comercial.comun.telefono')}</span>
+            <input className={inputCls} maxLength={40} value={f.telefono} onChange={(e) => setF({ ...f, telefono: e.target.value })} />
+          </label>
+        </div>
+        <label className="block">
+          <span className={labelCls}>{t('comercial.negociacion.alta.como-surgio')}</span>
+          <input className={inputCls} maxLength={2000} value={f.nota} onChange={(e) => setF({ ...f, nota: e.target.value })} />
+        </label>
+      </div>
+    </Sheet>
+  )
+}
+
+// ─── La pantalla ────────────────────────────────────────────────────────────
 export function ComercialOpex({ hoyIso }: { hoyIso: string }) {
+  const t = useTexto()
   // La fecha llega del servidor para que «hace N días» salga igual en el HTML y
   // al hidratar: calcularla dos veces podía diferir por un día a medianoche.
   const hoy = useMemo(() => new Date(hoyIso), [hoyIso])
-  const r = resumen(ESPACIOS, hoy)
+  const [espacios, setEspacios] = useState<Prospecto[] | null>(null)
+  const [total, setTotal] = useState(0)
+  const [error, setError] = useState<string | null>(null)
   const [elegido, setElegido] = useState<string | null>(null)
-  const s = espacioElegido(ESPACIOS, elegido)
+  const [detalle, setDetalle] = useState<ProspectoDetalle | null>(null)
+  const [alta, setAlta] = useState(false)
+
+  const cargar = useCallback(async () => {
+    try {
+      const r = await prospectosApi({ tipos: ['PREDIO', 'PANTALLA'], porPagina: 100 })
+      setEspacios(r.prospectos)
+      setTotal(r.total)
+      setError(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('comercial.negociacion.cargar-error'))
+    }
+    // `t` solo cambia con el idioma; meterlo volveria a pedir la lista al cambiarlo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    void cargar()
+  }, [cargar])
+
+  const s = espacios ? espacioElegido(espacios, elegido) : null
+
+  useEffect(() => {
+    if (!s) {
+      setDetalle(null)
+      return
+    }
+    let vivo = true
+    prospectoApi(s.id)
+      .then((d) => vivo && setDetalle(d))
+      .catch((e) => vivo && setError(e instanceof Error ? e.message : t('comercial.negociacion.abrir-error')))
+    return () => {
+      vivo = false
+    }
+  }, [s?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const r = resumen(espacios ?? [], hoy)
+
+  // Filtros de la lista (rediseño del 26/10). En el navegador, sobre los
+  // espacios ya cargados; no cambian el resumen de arriba ni qué espacio se
+  // detalla (`espacioElegido` sigue mirando la lista completa).
+  const [busqueda, setBusqueda] = useState('')
+  const [filtro, setFiltro] = useState<'' | EstadoEspacio | 'frios'>('')
+  const esFrio = (e: Prospecto) => {
+    const d = diasSinContacto(e, hoy)
+    return estadoEspacio(e.etapa) === 'negociacion' && d !== null && d > 30
+  }
+  const visibles = useMemo(() => {
+    const t = busqueda.trim().toLowerCase()
+    return (espacios ?? []).filter(
+      (e) =>
+        (!filtro || (filtro === 'frios' ? esFrio(e) : estadoEspacio(e.etapa) === filtro)) &&
+        (!t || e.nombre.toLowerCase().includes(t) || (e.direccion ?? '').toLowerCase().includes(t)),
+    )
+  }, [espacios, busqueda, filtro, hoy]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {(
-          [
-            ['En seguimiento', r.total, 'text-ink'],
-            ['En negociación', r.enNegociacion, 'text-ink'],
-            ['Activos', r.activos, 'text-ink'],
-            ['Sin contacto +30 días', r.enfriados, r.enfriados ? 'text-red-600' : 'text-ink'],
-          ] as const
-        ).map(([etiqueta, valor, cls]) => (
-          <div key={etiqueta} className="rounded-md border border-border bg-surface px-3 py-2">
-            <div className="text-[11px] text-muted">{etiqueta}</div>
-            <div className={`text-2xl font-semibold ${cls}`}>{valor}</div>
-          </div>
-        ))}
+    <div className="space-y-5">
+      {/* Encabezado con el patrón del Dashboard, y «Nuevo espacio» arriba a la
+          derecha como «Nuevo cliente» (antes vivía dentro de la lista). */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl text-ink">{t('comercial.negociacion.titulo')}</h1>
+          <p className="mt-1 text-[13px] text-muted">
+            {t('comercial.negociacion.descripcion')}
+          </p>
+        </div>
+        <Button size="sm" variant="success" onClick={() => setAlta(true)}>
+          <Plus className="h-3.5 w-3.5" /> {t('comercial.negociacion.nuevo')}
+        </Button>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
-        <aside className="space-y-2">
-          <h2 className="m-0 text-[13px] font-semibold text-ink">Espacios en seguimiento</h2>
-          <ul className={`${LISTA} space-y-1.5`}>
-            {ESPACIOS.map((e) => {
+      {error && (
+        <p role="alert" className="m-0 rounded-md border border-border bg-error-soft px-3 py-2 text-[13px] text-error">
+          {error}
+        </p>
+      )}
+
+      {/* El resumen como `KPICard`, con las mismas cuentas de `resumen()`. */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {espacios === null ? (
+          <>
+            <KPICardSkeleton />
+            <KPICardSkeleton />
+            <KPICardSkeleton />
+            <KPICardSkeleton />
+          </>
+        ) : (
+          <>
+            <KPICard
+              label={t('comercial.negociacion.kpi.seguimiento')}
+              value={String(r.total)}
+              sub={
+                total > espacios.length
+                  ? t('comercial.negociacion.kpi.seguimiento.parcial', { n: espacios.length, total })
+                  : t('comercial.negociacion.kpi.seguimiento.sub')
+              }
+              icon={<Building2 className="h-4 w-4" />}
+            />
+            <KPICard
+              label={t('comercial.negociacion.estado.negociacion')}
+              value={String(r.enNegociacion)}
+              sub={t('comercial.negociacion.kpi.negociacion.sub')}
+              tono={r.enNegociacion ? 'ambar' : 'neutro'}
+              icon={<Wallet className="h-4 w-4" />}
+            />
+            <KPICard
+              label={t('comercial.negociacion.kpi.activos')}
+              value={String(r.activos)}
+              sub={t('comercial.negociacion.kpi.activos.sub')}
+              tono={r.activos ? 'verde' : 'neutro'}
+              icon={<ShieldCheck className="h-4 w-4" />}
+            />
+            <KPICard
+              label={t('comercial.negociacion.kpi.frios')}
+              value={String(r.enfriados)}
+              sub={t('comercial.negociacion.kpi.frios.sub')}
+              tono={r.enfriados ? 'rojo' : 'neutro'}
+              icon={<Clock className="h-4 w-4" />}
+            />
+          </>
+        )}
+      </div>
+
+      <div className="grid items-start gap-4 lg:grid-cols-[320px_1fr]">
+        <CardColapsable
+          id="comercial-opex.espacios"
+          titulo={t('comercial.negociacion.lista')}
+          resumen={
+            espacios && (busqueda.trim() || filtro) ? (
+              <span className="text-[12px] text-muted">
+                {t('comercial.negociacion.lista.de', { n: visibles.length, total: espacios.length })}
+              </span>
+            ) : undefined
+          }
+          headerClassName="px-3 pt-3 pb-2"
+          contentClassName="px-3 pb-3"
+        >
+          {/* Filtros: búsqueda y chips de estado. «Sin contacto +30 d» es el
+              mismo criterio que la tarjeta roja de arriba: así se ve cuáles son. */}
+          {espacios && espacios.length > 0 && (
+            <div className="mb-2 space-y-2">
+              <span className="relative block">
+                <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
+                <input
+                  aria-label={t('comercial.negociacion.lista.buscar')}
+                  value={busqueda}
+                  onChange={(ev) => setBusqueda(ev.target.value)}
+                  placeholder={t('comercial.negociacion.lista.buscar-ph')}
+                  className={`${inputCls} h-8 pl-7 text-[12px]`}
+                />
+              </span>
+              <div className="flex flex-wrap gap-1" role="group" aria-label={t('comercial.negociacion.lista.estado')}>
+                {(
+                  [
+                    ['', t('comercial.negociacion.lista.todos'), espacios.length],
+                    ['negociacion', t('comercial.negociacion.estado.negociacion'), r.enNegociacion],
+                    ['activo', t('comercial.negociacion.kpi.activos'), r.activos],
+                    ['inactivo', t('comercial.negociacion.lista.inactivos'), espacios.filter((e) => estadoEspacio(e.etapa) === 'inactivo').length],
+                    ['frios', t('comercial.negociacion.lista.frios'), r.enfriados],
+                  ] as const
+                ).map(([valor, etiqueta, n]) => (
+                  <button
+                    key={valor || 'todos'}
+                    type="button"
+                    aria-pressed={filtro === valor}
+                    onClick={() => setFiltro(filtro === valor && valor ? '' : valor)}
+                    className={`rounded-full border px-2 py-0.5 text-[11px] transition-colors ${
+                      filtro === valor
+                        ? 'border-accent bg-accent-soft font-medium text-ink'
+                        : 'border-border bg-surface text-muted hover:text-ink'
+                    }`}
+                  >
+                    {etiqueta} <span className="demo-num">{n}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {espacios === null ? (
+            // Mientras carga: renglones en pulso, no una lista vacía que se
+            // confunde con «no hay nada».
+            <ul className={LISTA} aria-hidden>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <li key={i} className="border-b border-border py-2.5 last:border-0">
+                  <div className="h-3 w-40 animate-pulse rounded bg-surface-2" />
+                  <div className="mt-2 h-2.5 w-24 animate-pulse rounded bg-surface-2" />
+                </li>
+              ))}
+            </ul>
+          ) : espacios.length === 0 ? (
+            <Vacio>{t('comercial.negociacion.lista.vacia')}</Vacio>
+          ) : visibles.length === 0 ? (
+            <Vacio>{t('comercial.negociacion.lista.sin-resultados', { n: espacios.length })}</Vacio>
+          ) : (
+          // Renglones en un `divide-y` como las listas del Dashboard, no
+          // tarjetas con borde: el nombre a la izquierda y la antigüedad del
+          // último contacto como pastilla a la derecha.
+          <ul className={`${LISTA} divide-y divide-border`}>
+            {visibles.map((e) => {
               const activo = s?.id === e.id
               return (
                 <li key={e.id}>
@@ -453,31 +1328,75 @@ export function ComercialOpex({ hoyIso }: { hoyIso: string }) {
                     type="button"
                     onClick={() => setElegido(e.id)}
                     aria-current={activo ? 'true' : undefined}
-                    className={`w-full rounded-md border px-3 py-2 text-left transition-colors ${
-                      activo ? 'border-accent bg-accent-soft' : 'border-border bg-surface hover:bg-surface-2'
+                    className={`-mx-1.5 my-0.5 w-[calc(100%+0.75rem)] rounded-md border-0 px-1.5 py-2 text-left transition-colors ${
+                      activo ? 'bg-accent-soft' : 'bg-transparent hover:bg-surface-2'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <span className="text-[13px] font-medium text-ink">{e.nombre}</span>
-                      <Estado estado={e.estado} />
+                      <span className="min-w-0 truncate text-[13px] font-medium text-ink" title={e.nombre}>
+                        {e.nombre}
+                      </span>
+                      <Antiguedad p={e} hoy={hoy} />
                     </div>
                     <div className="mt-0.5 truncate text-[11px] text-muted">
-                      {e.tipo} · {e.direccion}
+                      {[e.tipoEspacio, e.direccion].filter(Boolean).join(' · ') || '—'}
                     </div>
-                    <div className="mt-1 flex items-center justify-between text-[11px]">
-                      <span className="text-muted">{e.negociante}</span>
-                      <Antiguedad e={e} hoy={hoy} />
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
+                      <Estado etapa={e.etapa} />
+                      <span className="text-muted">
+                        {e.vendedorNombre ?? '—'}
+                        {e.visibilidad ? ` · ${t(CLAVE_VISIBILIDAD[e.visibilidad])}` : ''}
+                      </span>
                     </div>
                   </button>
                 </li>
               )
             })}
           </ul>
-        </aside>
+          )}
+        </CardColapsable>
 
         {/* Un <div> y no <main>: la pantalla ya vive dentro del <main> del shell. */}
-        <div className="min-w-0">{s ? <Detalle s={s} hoy={hoy} /> : null}</div>
+        <div className="min-w-0">
+          {detalle && s && detalle.id === s.id ? (
+            <Detalle
+              p={detalle}
+              hoy={hoy}
+              onCambio={(d) => {
+                setDetalle(d)
+                void cargar()
+              }}
+            />
+          ) : error ? null : espacios === null || s ? (
+            // Cargando la lista o el detalle del elegido. Con error no: el
+            // aviso de arriba ya lo dice y un pulso eterno mentiría.
+            <div className="h-64 animate-pulse rounded-md bg-surface-2" />
+          ) : (
+            // Sin espacios: la columna derecha ya no queda en blanco.
+            <div className="rounded-md border border-border bg-surface p-8 text-center">
+              <p className="m-0 text-[13px] text-muted">
+                {t('comercial.negociacion.detalle.vacio')}
+              </p>
+              <div className="mt-3">
+                <Button size="sm" variant="success" onClick={() => setAlta(true)}>
+                  <Plus className="h-3.5 w-3.5" /> {t('comercial.negociacion.nuevo')}
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
+
+      <Alta
+        abierto={alta}
+        onCerrar={() => setAlta(false)}
+        onCreado={(p) => {
+          setAlta(false)
+          setElegido(p.id)
+          setDetalle(p)
+          void cargar()
+        }}
+      />
     </div>
   )
 }

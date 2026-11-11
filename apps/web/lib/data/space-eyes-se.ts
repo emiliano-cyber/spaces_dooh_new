@@ -3,12 +3,39 @@
 // Las rutas son las de Space Eye sin el /api inicial: seApi('devices'),
 // seApi('photos?device_id=4'), seApi('schedules', { method: 'POST', body }).
 
+import { traducir } from '@/lib/i18n/diccionario'
+import type { Idioma } from '@/lib/i18n/idiomas'
+
 const BASE = '/spaces-dooh/api/space-eyes/se'
 
 export class ErrorSE extends Error {
-  constructor(public status: number, public cuerpo: unknown, mensaje: string) {
+  constructor(
+    public status: number,
+    public cuerpo: unknown,
+    mensaje: string,
+    /** Space Eye no mandó motivo: el mensaje es el genérico «respondió N». */
+    public generico = false,
+  ) {
     super(mensaje)
   }
+}
+
+/**
+ * «Space Eye respondió 500», en el idioma de quien lo lee. `'es'` por omisión:
+ * es el texto de siempre (lote del ingles, 2026-11-02; lo cazo el validador
+ * en la pantalla inglesa, donde salia en español).
+ */
+export function textoRespondio(status: number, idioma: Idioma = 'es'): string {
+  return traducir(idioma, 'spaceeyes.comun.respondio', { status })
+}
+
+/**
+ * El texto de un error para pintarlo. Lo que mandó Space Eye (su `mensaje` o
+ * su `error`) es un dato y va tal cual; el genérico se dice en `idioma`.
+ */
+export function textoDeError(e: unknown, idioma: Idioma = 'es'): string | null {
+  if (e instanceof ErrorSE && e.generico) return textoRespondio(e.status, idioma)
+  return e instanceof Error ? e.message : null
 }
 
 // `esperaMax` corta a los N milisegundos. Hace falta porque una peticion puede
@@ -33,7 +60,8 @@ export async function seApi<T = any>(
   let cuerpo: any = null
   try { cuerpo = texto ? JSON.parse(texto) : null } catch { cuerpo = texto }
   if (!r.ok) {
-    throw new ErrorSE(r.status, cuerpo, (cuerpo && (cuerpo.mensaje || cuerpo.error)) || `Space Eye respondió ${r.status}`)
+    const delServidor = cuerpo && (cuerpo.mensaje || cuerpo.error)
+    throw new ErrorSE(r.status, cuerpo, delServidor || textoRespondio(r.status), !delServidor)
   }
   return cuerpo as T
 }
