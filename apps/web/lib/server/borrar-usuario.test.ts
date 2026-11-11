@@ -4,10 +4,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 //  Quién puede ELIMINAR un usuario — decidido por el dueño el 2026-11-11:
 //  «el dueño y administrador son los únicos que pueden eliminar perfiles».
 // ----------------------------------------------------------------------------
-//  Hasta hoy la puerta era solo `administracion.crear`, y ese permiso se edita
-//  desde la matriz de Administración: bastaba con dárselo a Finanzas para que
-//  Finanzas pudiera vaciar el equipo. Ahora el rol se comprueba en el código,
-//  aparte de la matriz, y la matriz ya no puede abrirlo.
+//  Hasta hoy la puerta era solo `administracion.crear`. Hoy ese permiso lo
+//  tienen solo Dueño y Administrador (lo fijan las migraciones; la pantalla de
+//  Permisos no lo edita), así que el comportamiento de hoy no cambia: esto lo
+//  blinda para cuando la matriz conceda ese permiso a otro rol. El rol se
+//  comprueba en el código, aparte de la matriz.
 //
 //  El caso que importa es el negativo: un rol con el permiso concedido por la
 //  matriz, y aun así rechazado ANTES de tocar la base.

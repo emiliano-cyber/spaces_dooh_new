@@ -210,8 +210,10 @@ Dueños y exige que gane exactamente una y quede uno. El mutante que quita el
 > [!important] 2026-11-11 · eliminar usuarios es SOLO de Dueño y Administrador
 > Decisión del dueño: «el dueño y administrador son los únicos que pueden
 > eliminar perfiles». Hasta hoy la única puerta del `DELETE` era
-> `administracion.crear`, que **se edita desde la matriz**: concedérselo a
-> Finanzas para que diera de alta gente le daba también el borrado real. Ahora
+> `administracion.crear`, que **hoy ya solo tienen esos dos roles**: la matriz
+> la fijan las migraciones y la pantalla de Permisos **solo la enseña** (no hay
+> ruta que escriba `rol_permisos`). O sea que **hoy no cambia quién borra**; se
+> blinda para el día en que la matriz dé ese permiso a otro rol. Ahora
 > `borrarUsuarioCtrl` exige `puedeEliminarUsuarios(rol)` (`lib/roles.ts`) —en
 > código, fuera de la matriz— y responde **403** antes de tocar la base. El botón
 > «Eliminar» de Administración → Equipo solo se pinta para esos dos roles. Lo

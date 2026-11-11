@@ -7,7 +7,7 @@ La entrada más reciente va arriba.
 
 ## 2026-11-11 · Solo el Dueño y el Administrador eliminan usuarios, y la Network se abre a la nueva app (sin publicar)
 
-**Eliminar usuarios.** El botón **Eliminar** de **Administración → Equipo** solo lo ven el Dueño y los Administradores, y el servidor rechaza a cualquier otro rol aunque en la tabla de permisos se le haya dado «crear» en Administración. Antes, conceder ese permiso a otro rol para que diera de alta gente le dejaba también borrar a cualquiera.
+**Eliminar usuarios.** El botón **Eliminar** de **Administración → Equipo** solo lo ven el Dueño y los Administradores, y el servidor rechaza a cualquier otro rol. Hoy ya eran los únicos con ese permiso, así que nada cambia en la práctica: queda asegurado para el día en que los permisos se puedan ajustar por empresa.
 
 **Network.** El interruptor **En la Network** de cada pantalla ahora sirve para algo fuera de la aplicación: la nueva app de Network podrá consultar las pantallas que lo tengan encendido, con sus datos públicos (nombre, ubicación, medidas, tarifa publicada, foto) y los días que tienen libres. Apagar el interruptor la saca de la app en la siguiente consulta.
 
