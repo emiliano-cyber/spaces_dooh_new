@@ -51,8 +51,8 @@ Pipedrive, Zoho):
 > más corta se estira hasta la otra. Una tarjeta **plegada** no se estira:
 > `CardColapsable` le pone `self-start` al cerrarse, para que no quede un
 > recuadro vacío con la altura de la vecina. Visto en el navegador: 393/393 px
-> con contenido desigual y 51 px la plegada. La fila de **Por cobrar + mapa**
-> sigue en `items-start` (no se pidió).
+> con contenido desigual y 51 px la plegada. Y la fila de **Por cobrar + mapa**,
+> igual, el mismo día y también a petición del dueño: 382/382 px.
 
 **Por rol, no con ceros.** Un rol sin `finanzas:ver` recibe vacías de
 `/api/estado` las cobranzas, las facturas y los contratos, y el motor de Reportes

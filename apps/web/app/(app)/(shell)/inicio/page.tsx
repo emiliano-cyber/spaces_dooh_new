@@ -551,8 +551,10 @@ export default function DashboardPage() {
         </CardColapsable>
       </div>
 
-      {/* Cobranza por antigüedad (solo quien ve Finanzas) + mapa */}
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
+      {/* Cobranza por antigüedad (solo quien ve Finanzas) + mapa. Misma altura
+          que la vecina (`items-stretch`, 11/11), como Alertas y Huecos: la
+          cobranza corta dejaba un hueco grande junto al mapa. */}
+      <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-3">
         {veFinanzas && (
           <CardColapsable
             id="inicio.cobranza"
