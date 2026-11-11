@@ -76,6 +76,17 @@ export interface PermisosMatriz {
   roles: { rol: string; label: string }[]
   filas: PermisoRow[]
 }
+// PERMISOS-EDITABLES (11/11): concede o quita UNA casilla. Solo el Dueño, con su
+// contraseña (el error de desbloqueo lo maneja la pantalla). Devuelve la matriz nueva.
+export async function cambiarPermisoApi(c: { rol: string; modulo: string; accion: string; permitido: boolean }): Promise<PermisosMatriz> {
+  return jsonOk(
+    await fetch(`${API}/admin/permisos-matriz/`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(c),
+    }),
+  )
+}
 export async function getPermisosMatrizApi(): Promise<PermisosMatriz | null> {
   const r = await fetch(`${API}/admin/permisos-matriz/`, { cache: 'no-store' })
   if (!r.ok) return null

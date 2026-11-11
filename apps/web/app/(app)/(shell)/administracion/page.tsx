@@ -43,6 +43,7 @@ import {
   actualizarUsuarioApi,
   borrarUsuarioApi,
   getPermisosMatrizApi,
+  cambiarPermisoApi,
   getConfigApi,
   actualizarConfigApi,
   type PermisosMatriz,
@@ -847,9 +848,28 @@ function MatrizRoles() {
   const [data, setData] = useState<PermisosMatriz | null | undefined>(undefined)
   const { t, idioma } = useIdioma()
   useEffect(() => { getPermisosMatrizApi().then(setData) }, [])
+  // PERMISOS-EDITABLES (11/11): solo el Dueño edita, con su contraseña. El
+  // servidor lo decide (`permisos-edicion.ts`); aquí solo se ofrece el botón.
+  const { sesion } = useSesionCtx()
+  const puedeEditar = sesion?.usuario.rol === 'DUENO'
+  const [editando, setEditando] = useState(false)
+  const [errorEdicion, setErrorEdicion] = useState<string | null>(null)
+  const candado = useCandado()
 
   const tiene = (modulo: string, rol: string, cap: Capacidad) =>
     !!data?.filas.some((r) => r.modulo === modulo && r.rol === rol && r.accion === cap)
+  // El catálogo de un módulo son las acciones que tiene el Dueño: las tiene
+  // todas, y el servidor rechaza cualquier otra.
+  const catalogo = (modulo: string) => CAPACIDADES.filter((c) => tiene(modulo, 'DUENO', c))
+
+  function alternar(modulo: string, rol: string, cap: Capacidad) {
+    setErrorEdicion(null)
+    const permitido = !tiene(modulo, rol, cap)
+    void candado.ejecutar({
+      guardar: async () => { setData(await cambiarPermisoApi({ rol, modulo, accion: cap, permitido })) },
+      alFallar: (m) => setErrorEdicion(m),
+    })
+  }
 
   return (
     <CardColapsable id="admin.permisos" titulo={t('admin.matriz.titulo')} contentClassName="px-0 pb-0">
@@ -862,6 +882,16 @@ function MatrizRoles() {
           ))}
           <span>{t('admin.matriz.leyenda-sin-api')}</span>
         </div>
+        {puedeEditar && data && (
+          <div className="mx-4 mb-3 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[11px] text-muted">{editando ? t('admin.matriz.ayuda-editar') : ''}</p>
+            <Button size="sm" variant={editando ? 'primary' : 'secondary'} onClick={() => { setEditando(!editando); setErrorEdicion(null) }}>
+              {editando ? <Check className="h-3.5 w-3.5" /> : <ShieldCheck className="h-3.5 w-3.5" />}{' '}
+              {editando ? t('admin.matriz.terminar') : t('admin.matriz.editar')}
+            </Button>
+          </div>
+        )}
+        {errorEdicion && <p role="alert" className="mx-4 mb-3 text-[12px] text-error">{errorEdicion}</p>}
         {data === undefined ? (
           <div className="h-32 animate-pulse rounded bg-surface-2 mx-4 mb-4" />
         ) : !data ? (
@@ -891,10 +921,41 @@ function MatrizRoles() {
                     </td>
                     {data.roles.map((r) => {
                       const caps = CAPACIDADES.filter((c) => tiene(mod.key, r.rol, c))
+                      if (editando && r.rol !== 'DUENO') {
+                        const modulo = etiquetaModulo(mod.key, mod.label, idioma, t)
+                        const rolTxt = idioma === 'es' ? r.label : rolLabel(r.rol as RolDemo, idioma)
+                        return (
+                          <td key={r.rol} className="px-3 py-2.5 text-center">
+                            <span className="inline-flex gap-0.5">
+                              {catalogo(mod.key).map((c) => {
+                                const activo = tiene(mod.key, r.rol, c)
+                                const etiqueta = t(activo ? 'admin.matriz.quitar' : 'admin.matriz.conceder', { cap: t(CLAVE_CAP[c]), modulo, rol: rolTxt })
+                                return (
+                                  <button
+                                    key={c}
+                                    type="button"
+                                    aria-pressed={activo}
+                                    title={etiqueta}
+                                    aria-label={etiqueta}
+                                    disabled={candado.enviando}
+                                    onClick={() => alternar(mod.key, r.rol, c)}
+                                    className={cn(
+                                      'm-0 inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded border text-[10px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-wait',
+                                      activo ? 'border-accent bg-accent text-white' : 'border-dashed border-border-strong bg-surface text-muted hover:bg-surface-2',
+                                    )}
+                                  >
+                                    {CAP_CORTA[c]}
+                                  </button>
+                                )
+                              })}
+                            </span>
+                          </td>
+                        )
+                      }
                       return (
                         <td key={r.rol} className="px-3 py-2.5 text-center">
                           {caps.length === 0 ? <span className="text-muted">—</span> : (
-                            <span className="inline-flex gap-0.5">{caps.map((c) => <CapChip key={c} cap={c} />)}</span>
+                            <span className="inline-flex gap-0.5" title={editando && r.rol === 'DUENO' ? t('admin.matriz.dueno-fijo') : undefined}>{caps.map((c) => <CapChip key={c} cap={c} />)}</span>
                           )}
                         </td>
                       )
@@ -905,6 +966,12 @@ function MatrizRoles() {
             </table>
           </div>
         )}
+        <DialogoCandado
+          candado={candado}
+          titulo={t('admin.matriz.editar')}
+          subtitulo={t('admin.matriz.confirma')}
+          etiquetaConfirmar={t('admin.matriz.continuar')}
+        />
     </CardColapsable>
   )
 }

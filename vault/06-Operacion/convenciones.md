@@ -657,6 +657,22 @@ metros** (`Number('12,9') || 0`), o «1.500» caras se guardaban como 1,5.
 >    «1.500,50» como 1500.5; en español e inglés llega lo de siempre, también
 >    lo malo de siempre (`Number('12,9') || 0` = 0 en el alta de Comercial).
 
+## Migraciones que tocan permisos (desde el 2026-11-11)
+
+Desde PERMISOS-EDITABLES el Dueño de cada instancia **cambia su matriz** desde
+Administración ([[02-Backend/roles-de-venta]]). Eso convierte `rol_permisos` en
+dato **del cliente**, y una migración que lo pise le deshace su configuración en
+la siguiente actualización sin que nadie lo note.
+
+> [!danger] La regla
+> Una migración nueva solo puede **añadir** las filas de un módulo o una acción
+> **que no existían** (`insert ... on conflict do nothing`). Nunca `delete`,
+> nunca `update`, y nunca volver a insertar un par que ya existía para otro rol:
+> si el Dueño lo quitó a propósito, la migración se lo devolvería.
+>
+> Si un cambio de producto exige mover permisos ya existentes, no va en una
+> migración: va en las notas de versión, para que cada Dueño lo decida.
+
 ## Nombres
 
 | Cosa | Patrón | Ejemplo |

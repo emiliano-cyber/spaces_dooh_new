@@ -5,13 +5,15 @@ La entrada más reciente va arriba.
 
 ---
 
-## 2026-11-11 · Solo el Dueño y el Administrador eliminan usuarios, y la Network se abre a la nueva app (sin publicar)
+## 2026-11-11 · Permisos editables, campos de pantalla por empresa, Network para la app nueva y eliminar usuarios solo Dueño/Admin (sin publicar)
 
 **Eliminar usuarios.** El botón **Eliminar** de **Administración → Equipo** solo lo ven el Dueño y los Administradores, y el servidor rechaza a cualquier otro rol. Hoy ya eran los únicos con ese permiso, así que nada cambia en la práctica: queda asegurado para el día en que los permisos se puedan ajustar por empresa.
 
 **Network.** El interruptor **En la Network** de cada pantalla ahora sirve para algo fuera de la aplicación: la nueva app de Network podrá consultar las pantallas que lo tengan encendido, con sus datos públicos (nombre, ubicación, medidas, tarifa publicada, foto) y los días que tienen libres. Apagar el interruptor la saca de la app en la siguiente consulta.
 
 **Campos al crear una pantalla.** Cada empresa puede quitar del formulario «Nueva pantalla» (en Inventario y en Comercial) los campos que no usa: ubicación, imagen, arrendador, medidas, tarifa, etc. Todos menos el nombre. Se elige al instalar su servidor y las actualizaciones no lo cambian. Si quita el arrendador, sus pantallas se dan de alta como propias; si quita la ubicación, nacen sin coordenadas y marcadas para revisar.
+
+**Permisos editables.** En **Administración → Roles**, el Dueño ve el botón **«Editar permisos»** y puede conceder o quitar cada permiso a cada rol con un clic. Pide su contraseña, se guarda al momento y cada persona lo nota la próxima vez que cargue la aplicación. La columna del Dueño no se puede cambiar: siempre tiene todos. Eliminar usuarios sigue siendo solo del Dueño y el Administrador, aunque se marque otra cosa. En un servidor con varias empresas (como la demostración), los permisos no se cambian desde aquí.
 
 **A tener en cuenta.**
 - La app todavía no existe. Mientras no se configure su clave en el servidor, nadie puede consultar nada.

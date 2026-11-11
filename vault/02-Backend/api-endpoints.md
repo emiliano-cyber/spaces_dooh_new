@@ -396,6 +396,12 @@ Flota).
 |---|---|---|---|
 | GET | `/api/version` | PÚBLICO / token | Sin `x-flota-token` devuelve solo `{ok}`; con él, `version`, `ultimaMigracion`, `base`, `canal` y `uptime`. **503 si la base no contesta** — es el `SALUD_URL` de `infra/scripts/update.sh`, y la anterior (`/api/auth/metodos`) daba 200 con Postgres muerto |
 
+> [!note] 2026-11-11 · `PUT /api/admin/permisos-matriz` y `GET /api/instancia/campos-pantalla`
+> El primero cambia UNA casilla de la matriz (solo el Dueño, contraseña propia,
+> 409 con varias organizaciones) — [[roles-de-venta]]. El segundo dice qué
+> campos del alta de pantalla oculta esta instancia (sesión + `inventario.ver`) —
+> [[03-Frontend/campos-ocultos-pantalla]].
+
 ## Network (app externa)
 
 | Método | Path | Guard | Notas |
