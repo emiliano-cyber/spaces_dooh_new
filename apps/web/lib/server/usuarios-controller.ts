@@ -11,7 +11,8 @@ import { crearInvitacion } from './password-reset-repo'
 import { asuntoCorreoInvitacion, emailHabilitado, enviarEmail, htmlCorreoInvitacion } from './email'
 import { idiomaDeLaInstancia } from './idioma-instancia'
 import { esEmailValido } from '@/lib/validacion'
-import { ROLES_ASIGNABLES } from '@/lib/roles'
+import { ROLES_ASIGNABLES, puedeEliminarUsuarios } from '@/lib/roles'
+import type { RolDemo } from '@/lib/data/types'
 import { rechazoDeNombrarDueno } from '@/lib/guardas-usuarios'
 import {
   listarUsuarios,
@@ -243,6 +244,12 @@ export async function restablecerPasswordCtrl(id: string, actor: Actor) {
 }
 
 export async function borrarUsuarioCtrl(id: string, actor: Actor): Promise<{ nombre: string }> {
+  // 11/11: solo Dueño y Administrador, aunque la matriz conceda
+  // `administracion.crear` a otro rol (ver `puedeEliminarUsuarios`). Va antes
+  // que todo lo demás para no tocar la base con un actor que no puede.
+  if (!puedeEliminarUsuarios(actor.rol as RolDemo)) {
+    throw new AppError('Solo el Dueño o un Administrador pueden eliminar usuarios', 403)
+  }
   if (id === actor.id) throw new AppError('No puedes eliminar tu propio usuario', 400)
   // 404 —no 403— cuando el usuario es de otro tenant: un 403 confirmaría que ese
   // id existe en otra organización.

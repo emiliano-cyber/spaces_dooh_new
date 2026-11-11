@@ -1,7 +1,7 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-11-09
+actualizado: 2026-11-11
 tags: [backend, roles, permisos, rbac, enum, migraciones, dueno, guards, carrera]
 archivos:
   - db/migrations/20260929_roles_de_venta_enum.sql
@@ -10,6 +10,7 @@ archivos:
   - apps/web/app/api/ot/[id]/costo/route.ts
   - apps/web/components/demo/admin/permisos.ts
   - apps/web/lib/roles.ts
+  - apps/web/lib/server/borrar-usuario.test.ts
   - apps/web/lib/guardas-usuarios.ts
   - apps/web/lib/server/usuarios-repo.ts
   - apps/web/lib/server/usuarios-controller.ts
@@ -205,6 +206,17 @@ Dueños y exige que gane exactamente una y quede uno. El mutante que quita el
 
 `actualizarUsuario` y `borrarUsuario` pasan los dos por `conGuardasDeDueno`, y
 `restablecerPasswordCtrl` también.
+
+> [!important] 2026-11-11 · eliminar usuarios es SOLO de Dueño y Administrador
+> Decisión del dueño: «el dueño y administrador son los únicos que pueden
+> eliminar perfiles». Hasta hoy la única puerta del `DELETE` era
+> `administracion.crear`, que **se edita desde la matriz**: concedérselo a
+> Finanzas para que diera de alta gente le daba también el borrado real. Ahora
+> `borrarUsuarioCtrl` exige `puedeEliminarUsuarios(rol)` (`lib/roles.ts`) —en
+> código, fuera de la matriz— y responde **403** antes de tocar la base. El botón
+> «Eliminar» de Administración → Equipo solo se pinta para esos dos roles. Lo
+> fija `apps/web/lib/server/borrar-usuario.test.ts`, con los seis roles que no
+> pueden como casos negativos.
 
 > [!important] 2026-11-09 · borrar ya tiene botón, y pide la contraseña
 > Hasta hoy el `DELETE /api/usuarios/[id]` existía pero **sin botón y sin

@@ -52,7 +52,7 @@ import { useActualizarConfig, useSitios, useEntidadesFiscales } from '@/lib/data
 import type { RolDemo, UsuarioDemo, ConfigNegocio } from '@/lib/data/client'
 import type { TipoOT } from '@/lib/data/types'
 import { validarPassword } from '@/lib/password'
-import { ROL_POR_OMISION } from '@/lib/roles'
+import { ROL_POR_OMISION, puedeEliminarUsuarios } from '@/lib/roles'
 
 const inputCls =
   'h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
@@ -102,6 +102,9 @@ export default function AdministracionPage() {
 function Usuarios({ onToast }: { onToast: (m: string) => void }) {
   const { sesion, refrescar } = useSesionCtx()
   const yo = sesion?.usuario.id
+  // 11/11: eliminar es solo de Dueño y Administrador (`puedeEliminarUsuarios`).
+  // El servidor lo rechaza igual; aquí solo se evita enseñar un botón que falla.
+  const puedoEliminar = puedeEliminarUsuarios(sesion?.usuario.rol)
   const { t, idioma } = useIdioma()
 
   // La sesión del shell se carga UNA vez al montar (lib/auth-real.ts). Si el
@@ -190,7 +193,7 @@ function Usuarios({ onToast }: { onToast: (m: string) => void }) {
   )
   // Eliminar no aparece en tu propia fila: el servidor lo rechaza con 400 y un
   // botón que siempre falla solo enseña a desconfiar de los demás.
-  const controlEliminar = (u: UsuarioDemo, esYo: boolean) => esYo ? null : (
+  const controlEliminar = (u: UsuarioDemo, esYo: boolean) => esYo || !puedoEliminar ? null : (
     <button type="button" onClick={() => setBorrarDe(u)}
       title={t('admin.usuarios.eliminar-a', { nombre: u.nombre })}
       aria-label={t('admin.usuarios.eliminar-a', { nombre: u.nombre })}
