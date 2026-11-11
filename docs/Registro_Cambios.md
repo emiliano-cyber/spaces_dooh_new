@@ -5,7 +5,7 @@ La entrada más reciente va arriba.
 
 ---
 
-## 2026-11-11 · Permisos editables, campos de pantalla por empresa, Network para la app nueva y eliminar usuarios solo Dueño/Admin (sin publicar)
+## 2026-11-11 · v0.12.10 · Permisos editables, campos de pantalla por empresa, Network para la app nueva, eliminar usuarios solo Dueño/Admin y menos falsas alarmas en Space Eyes
 
 **Eliminar usuarios.** El botón **Eliminar** de **Administración → Equipo** solo lo ven el Dueño y los Administradores, y el servidor rechaza a cualquier otro rol. Hoy ya eran los únicos con ese permiso, así que nada cambia en la práctica: queda asegurado para el día en que los permisos se puedan ajustar por empresa.
 
@@ -16,6 +16,8 @@ La entrada más reciente va arriba.
 **Permisos editables.** En **Administración → Roles**, el Dueño ve el botón **«Editar permisos»** y puede conceder o quitar cada permiso a cada rol con un clic. Pide su contraseña, se guarda al momento y cada persona lo nota la próxima vez que cargue la aplicación. La columna del Dueño no se puede cambiar: siempre tiene todos. Eliminar usuarios sigue siendo solo del Dueño y el Administrador, aunque se marque otra cosa. En un servidor con varias empresas (como la demostración), los permisos no se cambian desde aquí.
 
 **Dashboard.** Las tarjetas **Alertas** y **Huecos y renovaciones**, que van una al lado de la otra, ahora tienen siempre la misma altura, y lo mismo **Por cobrar por antigüedad** junto al mapa: ya no queda un espacio vacío debajo de la más corta. Si se pliega una, se queda pequeña.
+
+**Space Eyes (de Jose).** Menos falsas alarmas: un equipo con el reloj en otra zona horaria ya no avisa «pantalla apagada» cada madrugada, y un «gabinete congelado» que en realidad es un anuncio fijo deja de contar como falla. «Gabinetes apagados» ahora dice «apagados o tapados». Trae el agente de Raspberry 0.7.11. Para que los **avisos por correo** aparezcan en g500 hay que reconstruir allí el servidor de Space Eye (`docs/desplegar-space-eye-g500.md`): desplegar SPACE OS no lo actualiza.
 
 **A tener en cuenta.**
 - La app todavía no existe. Mientras no se configure su clave en el servidor, nadie puede consultar nada.
