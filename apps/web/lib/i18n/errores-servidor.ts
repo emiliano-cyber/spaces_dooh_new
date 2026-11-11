@@ -478,6 +478,9 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 2 sitios · app/api/energia/recibos/route.ts:81
   'No llego ningun archivo.':
     'No file arrived.',
+  // 1 sitio · lib/server/usuarios-controller.ts:251
+  'Solo el Dueño o un Administrador pueden eliminar usuarios':
+    'Only the Owner or an Administrator can delete users',
   // 1 sitio · lib/server/usuarios-controller.ts:240
   'No puedes eliminar tu propio usuario':
     'You cannot delete your own user',
@@ -1060,6 +1063,8 @@ export const CATALOGO_ERRORES_IT: Partial<Record<string, string>> = {
     'Non c’è nulla da salvare',
   'No llego ningun archivo.':
     'Non è arrivato nessun file.',
+  'Solo el Dueño o un Administrador pueden eliminar usuarios':
+    'Solo il Titolare o un Amministratore possono eliminare utenti',
   'No puedes eliminar tu propio usuario':
     'Non puoi eliminare il tuo utente',
   'No puedes modificar tu propio usuario. Cambia tu contraseña en Configuración.':
@@ -1449,6 +1454,8 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
   'No hay nada que actualizar.': 'Não há nada para atualizar.',
   'No hay nada que guardar': 'Não há nada para salvar',
   'No llego ningun archivo.': 'Nenhum arquivo chegou.',
+  'Solo el Dueño o un Administrador pueden eliminar usuarios':
+    'Somente o Titular ou um Administrador podem excluir usuários',
   'No puedes eliminar tu propio usuario': 'Você não pode excluir o seu próprio usuário',
   'No puedes modificar tu propio usuario. Cambia tu contraseña en Configuración.':
     'Você não pode modificar o seu próprio usuário. Altere sua senha em Configurações.',
