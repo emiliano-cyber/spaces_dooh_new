@@ -6,6 +6,14 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!important] 2026-11-12 · **AVISOS-CANAL · los avisos también por correo (Resend o Brevo) y WhatsApp sembrado** — rama `feat/avisos-por-canal`, sobre `integra/v0-12-10` (`ac5161cd`) — **sin empujar** · ROJO R3 (migración `20261112_avisos_por_canal.sql`), **aprobado por el dueño el 12/11**
+> Decisión del dueño: dejarlo en una rama aparte, sin contratar proveedor ni tocar servidores. `notificar()` reparte por
+> correo lo nuevo a quien lo enciende en Configuración → Avisos; recuperar contraseña sigue solo por correo. Typecheck,
+> 10 335 unitarias, build y e2e de base + aislamiento + notificaciones + aceptación pública en verde contra Postgres 16
+> local; sin envío real (no hay cuenta). **Zonas tomadas y liberadas:** Z12 · Docs, Z9 · Datos (la migración), y
+> `notificaciones-repo`, `propuestas-repo` (solo la aceptación pública), `lib/server/email.ts` y `docs/Registro_Cambios.md`.
+> Detalle en [[2026-11-12]] y [[02-Backend/avisos-por-canal]].
+
 > [!important] 2026-11-11 · **Network para la app nueva + eliminar usuarios solo Dueño/Administrador + campos de pantalla por instancia + permisos editables** — rama `feat/network-api-y-borrado`, desde `main` `8441031e` (v0.12.9) — **sin empujar**
 > `GET /api/network/espacios` (+ foto) con `x-network-token`: las pantallas con el switch encendido, ficha pública y
 > días libres. Y el 403 al borrar para los demás roles. Typecheck, 10 256 unitarias y 4 e2e (incluida `aislamiento`)
