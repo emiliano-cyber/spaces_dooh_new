@@ -5,6 +5,20 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-12 · El rol del Dueño ya no se cambia, Dashboard a la medida y menú plegable (sin publicar)
+
+Rama aparte, `feat/dueno-dashboard-menu`.
+
+**El rol del Dueño no lo cambia nadie.** Ni otro Dueño ni un administrador pueden pasar a un Dueño a otro rol, y nadie puede cambiar el suyo propio. En **Administración → Equipo** el rol de un Dueño se ve fijo, sin desplegable. Desactivar o eliminar a un Dueño sigue con las reglas de antes.
+
+**Dashboard a la medida.** Junto al título hay un botón **Personalizar** para marcar qué métricas ver: los indicadores del mes, la ocupación, el pipeline, las alertas, los huecos, lo que hay por cobrar y el mapa. Si ocultas una tarjeta, la de al lado ocupa todo el ancho. Se recuerda en ese navegador.
+
+**Menú plegable.** Cada sección del menú (Inventario, Comercial, Operaciones…) se puede plegar a su nombre tocando su título, y desplegar otra vez igual. Todas empiezan abiertas y se recuerda en ese navegador.
+
+**A tener en cuenta.**
+- Lo del Dashboard y el menú es por navegador: en otro equipo o navegador sale todo abierto.
+- Nada cambia hasta que alguien lo toque.
+
 ## 2026-11-11 · v0.12.10 · Permisos editables, campos de pantalla por empresa, Network para la app nueva, eliminar usuarios solo Dueño/Admin y menos falsas alarmas en Space Eyes
 
 **Eliminar usuarios.** El botón **Eliminar** de **Administración → Equipo** solo lo ven el Dueño y los Administradores, y el servidor rechaza a cualquier otro rol. Hoy ya eran los únicos con ese permiso, así que nada cambia en la práctica: queda asegurado para el día en que los permisos se puedan ajustar por empresa.

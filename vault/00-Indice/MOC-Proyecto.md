@@ -1,7 +1,7 @@
 ---
 tipo: moc
 estado: verificado
-actualizado: 2026-11-09
+actualizado: 2026-11-12
 tags: [indice, entrada]
 archivos:
   - package.json
@@ -168,7 +168,8 @@ cobranza.
   cuando el `=` de la consulta va percent-encoded
 - [[auditoria-cuatro-rojo-20260820]] — auditoría de los cuatro ROJO del 20/08
 - [[_plantilla-diaria]] — plantilla del diario
-- [[2026-11-11]] — **última entrada**: la API de Network para la app nueva, eliminar usuarios solo Dueño/Administrador, los campos del alta de pantalla por instancia (al instalar) y la matriz de permisos editable por el Dueño; rama `feat/network-api-y-borrado` sin empujar
+- [[2026-11-12]] — **última entrada**: el rol del Dueño ya no lo cambia nadie (guard 5), «Personalizar» en el Dashboard y el menú plegable por secciones, los dos por navegador; rama `feat/dueno-dashboard-menu` sin empujar
+- [[2026-11-11]] — la API de Network para la app nueva, eliminar usuarios solo Dueño/Administrador, los campos del alta de pantalla por instancia (al instalar) y la matriz de permisos editable por el Dueño; rama `feat/network-api-y-borrado` sin empujar
 - [[2026-11-06]] — la v0.12.8 integrada (idioma en la barra + Space Eyes de Jose, sin empujar); la guía 31 corrida, la DEMO sirve en `demo.space-os.io` desde el droplet viejo de g500 (con las llaves de g500 salvo DOOHmain)
 - [[2026-11-05]] — las notas de versión en inglés e italiano, B82 (cambiar de idioma con un diálogo de cifras abierto) y la rama `verificacion`, todas las ramas juntas antes de `main`
 - [[2026-11-04]] — el pulido final del italiano (B69, B72, la paginación y el barrido global del HTML italiano)

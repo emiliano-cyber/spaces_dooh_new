@@ -6,6 +6,12 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!important] 2026-11-12 · **GUARD 5 + DASH-METRICAS + MENU-CASCADA** — rama `feat/dueno-dashboard-menu`, sobre `integra/v0-12-10` (`ac5161cd`) — **sin empujar**
+> El rol de un Dueño no lo cambia nadie (403); «Personalizar» en el Dashboard y el menú plegable, los dos en localStorage.
+> 10 289 unitarias, build, `roles-de-venta` + `aislamiento` + usuarios contra Postgres 16 local, y el navegador, en verde.
+> **Zonas tomadas y liberadas:** Z1 · Auth (solo `lib/guardas-usuarios.ts`), Z10 · UI base (`Sidebar.tsx`, `inicio/page.tsx`),
+> Z12 · Docs y `docs/Registro_Cambios.md`. `nav.ts` NO se tocó. Detalle en [[2026-11-12]].
+
 > [!important] 2026-11-11 · **Network para la app nueva + eliminar usuarios solo Dueño/Administrador + campos de pantalla por instancia + permisos editables** — rama `feat/network-api-y-borrado`, desde `main` `8441031e` (v0.12.9) — **sin empujar**
 > `GET /api/network/espacios` (+ foto) con `x-network-token`: las pantallas con el switch encendido, ficha pública y
 > días libres. Y el 403 al borrar para los demás roles. Typecheck, 10 256 unitarias y 4 e2e (incluida `aislamiento`)
