@@ -19,6 +19,25 @@ Rama aparte, `feat/dueno-dashboard-menu`.
 - Lo del Dashboard y el menú es por navegador: en otro equipo o navegador sale todo abierto.
 - Nada cambia hasta que alguien lo toque.
 
+## 2026-11-12 · Avisos también por correo, y WhatsApp preparado (sin publicar)
+
+Rama aparte, `feat/avisos-por-canal`. **No se contrató ningún servicio de correo ni se tocó ningún servidor**: queda lista para cuando se decida.
+
+**Qué cambia para quien usa la aplicación.** En **Configuración** (menú de tu cuenta) hay una tarjeta nueva, **Avisos**. Ahí cada persona elige qué avisos de la campana quiere recibir también por correo: propuestas, campañas, órdenes de compra, facturas, pagos, cobranza y órdenes de trabajo. El correo llega con el nombre y el logo de la empresa, y con un botón que abre la pantalla del aviso. Incluye «Propuesta aceptada por el cliente», que llega por la liga pública.
+
+**WhatsApp, preparado pero apagado.** La tarjeta ya tiene la columna de WhatsApp (dice «Próximamente») y el campo para dejar tu número con código de país. Todavía no se manda nada por WhatsApp: hace falta una cuenta de WhatsApp Business.
+
+**Recuperar la contraseña sigue siendo solo por correo**, a la dirección de tu cuenta. Igual las invitaciones a usuarios nuevos.
+
+**Para quien instala.** El correo puede salir por **Resend** (como hasta hoy) o por **Brevo**: se elige con `EMAIL_PROVEEDOR` en el `.env` y cada uno usa su clave (`RESEND_API_KEY` o `BREVO_API_KEY`). Si no se toca nada, sigue con Resend.
+
+**A tener en cuenta.**
+- Nadie recibe correos que no haya pedido: al instalar esta versión, todos empiezan con los avisos por correo apagados.
+- Si el servidor todavía no tiene clave de correo, la tarjeta lo dice: puedes dejar elegidos tus avisos y empezarán a llegar cuando la tenga.
+- El correo diario de contratos a los Dueños no cambia.
+- Space Eye sigue mandando sus avisos por Resend, como hasta hoy.
+
+
 ## 2026-11-11 · v0.12.10 · Permisos editables, campos de pantalla por empresa, Network para la app nueva, eliminar usuarios solo Dueño/Admin y menos falsas alarmas en Space Eyes
 
 **Eliminar usuarios.** El botón **Eliminar** de **Administración → Equipo** solo lo ven el Dueño y los Administradores, y el servidor rechaza a cualquier otro rol. Hoy ya eran los únicos con ese permiso, así que nada cambia en la práctica: queda asegurado para el día en que los permisos se puedan ajustar por empresa.
