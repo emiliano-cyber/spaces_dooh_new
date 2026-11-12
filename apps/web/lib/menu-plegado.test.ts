@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { leerPlegadas, alternarPlegada, CLAVE_MENU_PLEGADO } from './menu-plegado'
+import { leerPlegadas, alternarPlegada, plegarTodas, hayDesplegadas, CLAVE_MENU_PLEGADO } from './menu-plegado'
 
 // ============================================================================
 //  MENU-CASCADA (12/11) · cada seccion del menu se pliega a su titulo, y lo
@@ -35,5 +35,16 @@ describe('alternarPlegada', () => {
 describe('la clave de localStorage', () => {
   it('lleva el prefijo de la app, como las demas preferencias', () => {
     expect(CLAVE_MENU_PLEGADO).toBe('spaces:menu-plegado')
+  })
+})
+
+describe('plegar y desplegar todas', () => {
+  it('plegarTodas deja plegadas exactamente las que se le dan', () => {
+    expect([...plegarTodas(['vender', 'cobrar'])].sort()).toEqual(['cobrar', 'vender'])
+  })
+  it('hayDesplegadas dice si queda alguna abierta (decide el boton del pie)', () => {
+    expect(hayDesplegadas(new Set(['vender']), ['vender', 'cobrar'])).toBe(true)
+    expect(hayDesplegadas(new Set(['vender', 'cobrar']), ['vender', 'cobrar'])).toBe(false)
+    expect(hayDesplegadas(new Set(), [])).toBe(false)
   })
 })
