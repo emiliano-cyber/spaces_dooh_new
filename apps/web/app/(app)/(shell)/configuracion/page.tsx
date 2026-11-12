@@ -17,6 +17,7 @@ import { rolLabel } from '@/components/demo/shell/nav'
 import { Chip, TONO } from '@/components/demo/admin/Chip'
 import Link from 'next/link'
 import { IdiomaCuenta } from '@/components/demo/admin/IdiomaCuenta'
+import { AvisosCuenta } from '@/components/demo/admin/AvisosCuenta'
 
 const API = '/spaces-dooh/api'
 const inputCls =
@@ -68,6 +69,9 @@ export default function ConfiguracionPage() {
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <CuentaCard emailActual={sesion?.usuario.email ?? ''} />
         <IdiomaCuenta />
+        {/* AVISOS-CANAL (12/11): qué avisos de la campana llegan también por
+            correo (y, sembrado, por WhatsApp). De cada cuenta, todos los roles. */}
+        <AvisosCuenta />
         {puedeEmpresa && <EmpresaCard nombreActual={config?.nombreTenant ?? ''} />}
       </div>
     </div>

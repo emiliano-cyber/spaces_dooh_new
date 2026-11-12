@@ -54,6 +54,7 @@ archivos:
   - db/migrations/20261029_propuestas_condiciones_vigencia_vendedor.sql
   - db/migrations/20261029_campana_extensiones.sql
   - db/migrations/20261026_reserva_estatus_por_omision.sql
+  - db/migrations/20261112_avisos_por_canal.sql
   - db/migrations/20261023_contrato_versiones_firmadas.sql
 ---
 
@@ -62,7 +63,7 @@ archivos:
 > [!important] 2026-10-05 · puesta al día — ninguna de las de abajo está ya «sin fusionar»
 > Medido hoy con `node scripts/recuentos.mjs` sobre el árbol de
 > `integra/riesgos-presentacion-14-oct` (salida de `main` en `09c65ca2`):
-> **127 migraciones y 66 tablas** (09/11, `feat/borrar-usuarios` con `20261109_acciones_sin_fk_usuario.sql`: ninguna tabla ni columna, solo quita una FK) (05/11, 126, `feat/portugues-documentos` con `20261105_idioma_portugues.sql` de P3 del portugués: ninguna columna ni tabla, solo los dos CHECK) (04/11, 125, `integra/idiomas` con `20261103_usuarios_idioma_preferido.sql` de IDIOMA-USUARIO, una columna y ninguna tabla) (03/11, 124, con `20261103_idioma_documentos_por_instancia.sql`, una columna y ninguna tabla) (02/11, 123, con `20261102_moneda_inmutable_por_instancia.sql`, ninguna tabla) (29/10, 122, con `20261029_propuestas_condiciones_vigencia_vendedor.sql`, cinco columnas y ninguna tabla) (29/10, 121, con `20261029_campana_extensiones.sql`, que crea `campana_extensiones`) (22/10, 117 y 64, con `20261022_campana_horario_doohmain.sql`, tres columnas en `campanas`) (22/10, 116 y 64, con `20261022_comercial_negociacion.sql`, que crea las cuatro tablas de Comercial negociación) (21/10, 115 y 60, con `20261021_notificaciones_por_usuario.sql`, que crea `notificaciones_usuario`: esta vez el 60 es una tabla de verdad) (19/10, 114 y 59, con `20261019_cobranza_abono_comprobante.sql`; antes 113) —el «60» que decía aquí el 13/10 era falso:
+> **129 migraciones y 68 tablas** (12/11, `feat/avisos-por-canal` con `20261112_avisos_por_canal.sql`: crea `avisos_usuario` y la columna `usuarios.telefono_whatsapp`) (09/11, 127, `feat/borrar-usuarios` con `20261109_acciones_sin_fk_usuario.sql`: ninguna tabla ni columna, solo quita una FK) (05/11, 126, `feat/portugues-documentos` con `20261105_idioma_portugues.sql` de P3 del portugués: ninguna columna ni tabla, solo los dos CHECK) (04/11, 125, `integra/idiomas` con `20261103_usuarios_idioma_preferido.sql` de IDIOMA-USUARIO, una columna y ninguna tabla) (03/11, 124, con `20261103_idioma_documentos_por_instancia.sql`, una columna y ninguna tabla) (02/11, 123, con `20261102_moneda_inmutable_por_instancia.sql`, ninguna tabla) (29/10, 122, con `20261029_propuestas_condiciones_vigencia_vendedor.sql`, cinco columnas y ninguna tabla) (29/10, 121, con `20261029_campana_extensiones.sql`, que crea `campana_extensiones`) (22/10, 117 y 64, con `20261022_campana_horario_doohmain.sql`, tres columnas en `campanas`) (22/10, 116 y 64, con `20261022_comercial_negociacion.sql`, que crea las cuatro tablas de Comercial negociación) (21/10, 115 y 60, con `20261021_notificaciones_por_usuario.sql`, que crea `notificaciones_usuario`: esta vez el 60 es una tabla de verdad) (19/10, 114 y 59, con `20261019_cobranza_abono_comprobante.sql`; antes 113) —el «60» que decía aquí el 13/10 era falso:
 > `recuentos.mjs` contaba como tabla la palabra `if` de un comentario de
 > `20261013_doohmain_seguimiento_unicas.sql`; corregido el 14/10 quitando los
 > comentarios antes de medir— (13/10, con `20261013_sitios_pantalla_doohmain.sql`; antes 112) (13/10, con `20261013_doohmain_seguimiento_unicas.sql`; antes 111) (12/10, con `20261012_razon_social_principal.sql`; antes 110) (07/10, con `20261011_contrato_cambios_solo_insercion.sql`; antes 109) (07/10, con `20261010_contrato_cambios.sql`; antes 108 y 58) (06/10, con `20261009_propuestas_fechas_estatus.sql`; antes 107) (06/10, con `20261008_cobranza_abonos.sql`). Es el recuento vigente; los de los recuadros
@@ -73,6 +74,7 @@ archivos:
 >
 > | Migración | Decía | Entró en `main` |
 > |---|---|---|
+> | `20261112_avisos_por_canal.sql` | rama `feat/avisos-por-canal` (AVISOS-CANAL), **aprobada por el dueño el 12/11** (ROJO R3) | **Sin publicar.** Crea `avisos_usuario` y `usuarios.telefono_whatsapp`. Probada por la e2e `avisos-canal` (15) contra Postgres 16 real, idempotencia incluida |
 > | `20261109_acciones_sin_fk_usuario.sql` | rama `feat/borrar-usuarios`, **aprobada por el dueño el 09/11** (ROJO R3 y R5) | **Sin publicar.** Quita solo la FK `acciones.usuario_id → usuarios`; la bitácora y su trigger append-only no se tocan. Probada por la e2e `borrar-usuario` (la prueba 3 daba 500 sin ella) |
 > | `20261105_idioma_portugues.sql` | rama `feat/portugues-documentos` (P3 del portugués), **aprobada por el dueño el 05/11** (ROJO R3, y firmas) | **Sin publicar.** Ninguna tabla ni columna: suelta y vuelve a crear, con el MISMO nombre, `usuarios_idioma_preferido_valido` y `tenants_idioma_documentos_ck` con `pt` (es/en/it/pt). No toca los triggers del ADR 0049 ni ninguna fila. Aplicada dos veces sobre una base desechable y por la e2e `idioma-portugues` |
 > | `20261103_usuarios_idioma_preferido.sql` | rama `feat/idioma-por-usuario` (IDIOMA-USUARIO), decisión del dueño del 03/11 (ROJO R3; supervisor ÁMBAR) | **Sin publicar.** Integrada en `integra/idiomas` el 04/11. Una columna, `usuarios.idioma_preferido text` nullable sin default, y su CHECK (`es`/`en`/`it`); no toca la RLS. Aplicada por la e2e sobre `spaces_idiomas_e2e` |
@@ -1446,6 +1448,24 @@ de entidades añadía en paralelo. Si la necesitas, cuéntala, no la copies.
 >
 > Runner ×2 contra base desechable: **94 aplicadas** en la primera pasada, **0**
 > en la segunda, sin divergencia de checksum. Ver [[02-Backend/costo-real-de-ot]].
+
+## `20261112_avisos_por_canal.sql` — los avisos también por correo, WhatsApp sembrado (12/11)
+
+Aprobada por el dueño el 12/11 (ROJO R3). `@tipo: esquema`, transaccional e
+idempotente. Crea `avisos_usuario` (qué tipo de aviso quiere cada persona por
+qué canal) con RLS fail-closed + FORCE y grants a `spaces_user`/`spaces_app`, y
+añade `usuarios.telefono_whatsapp` con un check E.164.
+
+- **Sin filas al aplicarla**: nadie empieza a recibir correos que no pidió.
+- `canal` con check (`correo`, `whatsapp`); `tipo` sin check, para que un tipo
+  nuevo no exija migración.
+- No toca `auth_usuario_por_sesion()` ni `auth_usuario_por_email()`.
+- Vuelta atrás: el código anterior ignora la tabla y la columna; no hace falta
+  deshacer nada.
+
+Probada contra Postgres 16 real por `lib/test/avisos-canal.e2e.test.ts` (15
+casos, uno corre la migración por segunda vez) y por `esquema-sin-owner`, que
+subió de 67 a 68 tablas. Ver [[02-Backend/avisos-por-canal]].
 
 ## `20261109_acciones_sin_fk_usuario.sql` — la bitácora deja de colgar de `usuarios` (09/11)
 

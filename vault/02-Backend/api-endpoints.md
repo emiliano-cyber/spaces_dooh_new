@@ -17,6 +17,7 @@ archivos:
   - apps/web/app/api/auth/codigo/route.ts
   - apps/web/app/api/perfil/codigos-recuperacion/route.ts
   - apps/web/app/api/perfil/idioma/route.ts
+  - apps/web/app/api/perfil/avisos/route.ts
   - apps/web/app/api/bienvenida/route.ts
   - apps/web/app/api/captacion/
   - apps/web/app/api/codigos-promocionales/
@@ -35,6 +36,10 @@ archivos:
 ---
 
 # API — los 159 endpoints (medidos el 2026-10-29 con `recuentos.mjs`)
+
+> **2026-11-12 · 165 (AVISOS-CANAL, rama `feat/avisos-por-canal`):** `GET` y
+> `PUT /api/perfil/avisos`, una sola ruta (`route.ts`). Medido con
+> `recuentos.mjs`.
 
 > **2026-10-29 · dos más (DOOH-API, rama `feat/doohmain-api-completa`):**
 > `GET /api/campanas/[id]/doohmain-estado` (`comercial:ver`) — cada creativo publicado
@@ -133,6 +138,8 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 | POST | `/api/auth/codigo` | PÚBLICO | (05/10) Entrar con un **código de recuperación** (ADR 0028). Sin correo: el código identifica al usuario. **5/15min por IP**, más estricto que el login; la sesión se abre como `password`, no `google`. No está en la lista de exentos de CSRF, pero quien llega aquí no trae cookie de sesión y el middleware solo exige CSRF si la hay (`middleware.ts:134-135`) |
 | PATCH | `/api/perfil` | usuarioActual | Exige `passwordActual` |
 | GET | `/api/perfil/idioma` | usuarioActual | (03/11, IDIOMA-USUARIO) `{ preferido, disponibles }`: la preferencia de idioma de la interfaz de la PROPIA cuenta (`null` = sigue al navegador; un idioma apagado se lee como `null`) y los idiomas encendidos |
+| GET | `/api/perfil/avisos` | usuarioActual | (12/11, AVISOS-CANAL) `{ tipos, activos, telefono, canales }`: qué avisos quiere la PROPIA cuenta por correo, su teléfono de WhatsApp y si cada canal está configurado (`whatsapp` siempre `sembrado`). Ver [[02-Backend/avisos-por-canal]] |
+| PUT | `/api/perfil/avisos` | usuarioActual (+ CSRF del middleware) | (12/11) `{ activos: [{tipo, canal}], telefono }`. Deja las preferencias **exactamente** como vienen (lo que falta se apaga). WhatsApp → 400 mientras esté sembrado; teléfono sin código de país → 400. El id sale de la sesión, nunca del cuerpo |
 | PUT | `/api/perfil/idioma` | usuarioActual (+ CSRF del middleware) | (03/11) `{ idioma: 'es'\|'en'\|'it'\|'navegador'\|null }`. Solo idiomas **encendidos** (400 si no). El id sale de la sesión, nunca del cuerpo. Deja la cookie `spaces_idioma_cuenta` de esta sesión al día (o la borra con `null`) para que la siguiente petición salga ya en ese idioma. Ver [[03-Frontend/idiomas-es-en]] |
 | POST | `/api/perfil/codigos-recuperacion` | usuarioActual; el **segundo** lote, además **REAUTH** | (05/10) Genera el lote y lo devuelve en claro **una vez** (`no-store`); `?ya=1` confirma que se guardaron. Resuelve con `usuarioActual()` y no con `exigir()` porque es la **salida** del corte de `exigir()` (`auth.ts:230-237`). Regenerar invalida los anteriores y va por `exigirReautenticacionSiempre()` |
 | GET | `/api/permisos` | exigir | |

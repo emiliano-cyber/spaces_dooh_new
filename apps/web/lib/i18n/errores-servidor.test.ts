@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { MSG_AVISO } from '@/lib/avisos'
 import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import {
@@ -373,6 +374,10 @@ describe('GUARDIA · ningun mensaje de error puede quedarse fuera EN SILENCIO', 
       'El punto (0, 0) está en el mar: no es una ubicación',
       'Los minutos y los segundos van de 0 a 59',
       'Primero va la latitud (N o S) y después la longitud (E u O)',
+      // AVISOS-CANAL (12/11) · `MSG_AVISO` (`lib/avisos.ts`), que viajan por
+      // variable (`AppError(v.error)`). Que no estén muertas lo vigila
+      // `avisos.test.ts` («los mensajes llegan traducidos»).
+      ...Object.values(MSG_AVISO),
     ])
     const muertas = Object.keys(CATALOGO_ERRORES).filter(
       (k) => !vivos.has(k) && !EXENTAS.has(k),

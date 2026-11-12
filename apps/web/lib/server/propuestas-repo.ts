@@ -20,6 +20,7 @@ import {
   textoQuitadoAlAceptar,
 } from '@/lib/codigo-aprobacion'
 import { quitarCanjeEnTx } from './codigos-repo'
+import { avisarPorCanales, DEPENDENCIAS_SIN_SESION } from './avisos-canales'
 import {
   AVISO_PAQUETE_PRECIO_CERRADO,
   avisoPaqueteIncompleto,
@@ -1103,19 +1104,27 @@ export async function aceptarPropuestaPublica(
     ).rows[0]
     // Notifica al equipo interno (bell) usando el tenant de la propuesta, no la
     // sesión (aquí no hay sesión). Nunca rompe la aceptación si falla.
+    const avisoAceptada = {
+      tipo: 'PROPUESTA',
+      titulo: 'Propuesta aceptada por el cliente',
+      detalle: `${p.folio} · ${p.nombre} — aceptada por ${nombre}`,
+      link: `/propuestas/${p.id}`,
+    }
     try {
       await client.query(
         `insert into notificaciones (tipo, nivel, titulo, detalle, link, tenant_id)
          values ('PROPUESTA','ok',$1,$2,$3,$4)`,
-        [
-          'Propuesta aceptada por el cliente',
-          `${p.folio} · ${p.nombre} — aceptada por ${nombre}`,
-          `/propuestas/${p.id}`,
-          p.tenant_id,
-        ],
+        [avisoAceptada.titulo, avisoAceptada.detalle, avisoAceptada.link, p.tenant_id],
       )
     } catch { /* la notificación no rompe la aceptación */ }
     await client.query('commit')
+    // AVISOS-CANAL (12/11): y por correo a quien lo encendió. DESPUÉS del
+    // commit y con su propia conexión: dentro de la transacción, una consulta
+    // que fallara la abortaría y la aceptación del cliente se perdería por un
+    // correo. El envío va suelto; aquí solo se espera la búsqueda.
+    try {
+      await avisarPorCanales(p.tenant_id, avisoAceptada, DEPENDENCIAS_SIN_SESION)
+    } catch { /* el correo no rompe la aceptación */ }
     // S0-1: congela el snapshot económico al aceptar por liga pública (inmutable).
     await congelarSnapshotEconomico(p.id, p.tenant_id)
     return {

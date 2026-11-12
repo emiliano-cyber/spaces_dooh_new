@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-11-09
+actualizado: 2026-11-12
 tags: [datos, esquema, er, postgres]
 archivos:
   - db/schema.sql
@@ -36,7 +36,7 @@ archivos:
 > [!important] 2026-10-05 · puesta al día — lo que abajo dice «pendiente» o «SIN FUSIONAR» YA ESTÁ en `main`
 > Medido hoy con `node scripts/recuentos.mjs` sobre el árbol de
 > `integra/riesgos-presentacion-14-oct` (salida de `main` en `09c65ca2`):
-> **66 tablas y 122 migraciones** (29/10, con `20261029_propuestas_condiciones_vigencia_vendedor.sql`: cinco columnas en `propuestas` y `config_negocio`, ninguna tabla) — antes **66 y 121** (29/10, con `20261029_campana_extensiones.sql`, que crea `campana_extensiones`, EXT-CONTRATO) — antes **64 tablas y 117 migraciones** (22/10, la 117 es `20261022_campana_horario_doohmain.sql`, tres columnas en `campanas` sin tabla nueva; con las cuatro de Comercial negociación
+> **68 tablas y 129 migraciones** (12/11, con `20261112_avisos_por_canal.sql`, que crea `avisos_usuario` y la columna `usuarios.telefono_whatsapp`, AVISOS-CANAL) — antes **66 tablas y 122 migraciones** (29/10, con `20261029_propuestas_condiciones_vigencia_vendedor.sql`: cinco columnas en `propuestas` y `config_negocio`, ninguna tabla) — antes **66 y 121** (29/10, con `20261029_campana_extensiones.sql`, que crea `campana_extensiones`, EXT-CONTRATO) — antes **64 tablas y 117 migraciones** (22/10, la 117 es `20261022_campana_horario_doohmain.sql`, tres columnas en `campanas` sin tabla nueva; con las cuatro de Comercial negociación
 > —`prospecto_contactos`, `prospecto_ofertas`, `prospecto_competencia`,
 > `prospecto_notas`— en `20261022_comercial_negociacion.sql`, NEG-01) — antes
 > **60 tablas y 115 migraciones** (21/10, con `notificaciones_usuario` y
@@ -595,6 +595,7 @@ erDiagram
 | `acciones` | fail-closed | Bitácora append-only. Desde el 09/11 `usuario_id` **no tiene FK** (`20261109_acciones_sin_fk_usuario.sql`): borrar un usuario no toca la bitácora |
 | `notificaciones` | fail-closed | Dedupe por día. **Una por empresa**: `leida` y `archivada_en` se siguen leyendo pero desde el 21/10 ya no se escriben (lo de cada persona va en la tabla de abajo). Lleva la única `(id, tenant_id)` para la FK compuesta |
 | `notificaciones_usuario` | fail-closed + FORCE | **(21/10, NOTIF-USUARIO)** Lo que UNA persona hizo con UN aviso: `leida_en`, `borrada_en` (oculta, no destruye). Clave `(notificacion_id, usuario_id)`; FK compuesta `(notificacion_id, tenant_id)` → `notificaciones` y `usuario_id` → `usuarios`, las dos `on delete cascade`; `check` de que al menos una fecha esté puesta (sin fila = sin leer y en la bandeja). Ver [[02-Backend/api-endpoints]] |
+| `avisos_usuario` | fail-closed + FORCE | **(12/11, AVISOS-CANAL)** Una fila = «esta persona quiere este tipo de aviso por este canal» (`correo`; `whatsapp` aceptado por el check pero **sembrado**: la app lo rechaza). Sin fila = no se manda: aplicar la migración no enciende ningún correo. PK `(usuario_id, tipo, canal)`, `usuario_id` → `usuarios` `on delete cascade`, `tipo` sin check (los valida `TIPOS_AVISO`). Con ella, `usuarios.telefono_whatsapp` (E.164, check). Ver [[02-Backend/avisos-por-canal]] |
 
 ### Inventario
 `sitios`, `sitio_modalidades`, `predios`, `incidencias`, `licencias`,

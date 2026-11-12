@@ -1,6 +1,7 @@
 import 'server-only'
 import { q } from './db'
 import { tenantActual } from './tenant'
+import { avisarPorCanales } from './avisos-canales'
 
 // ============================================================================
 //  lib/server/notificaciones-repo.ts — Centro de notificaciones por evento.
@@ -68,7 +69,8 @@ export async function notificar(input: {
   tipo: string; titulo: string; detalle?: string | null; nivel?: 'info' | 'ok' | 'warn'; link?: string | null
 }): Promise<void> {
   try {
-    await q(
+    const tenant = await tenantActual()
+    const nueva = await q<{ id: string }>(
       `insert into notificaciones (tipo, nivel, titulo, detalle, link, tenant_id)
        select $1,$2,$3,$4,$5,$6
         where not exists (
@@ -81,9 +83,24 @@ export async function notificar(input: {
              and detalle is not distinct from $4
              and link    is not distinct from $5
              and creado_en >= date_trunc('day', now())
-        )`,
-      [input.tipo, input.nivel ?? 'info', input.titulo, input.detalle ?? null, input.link ?? null, await tenantActual()],
+        )
+       returning id`,
+      [input.tipo, input.nivel ?? 'info', input.titulo, input.detalle ?? null, input.link ?? null, tenant],
     )
+    // AVISOS-CANAL (12/11): solo si se INSERTÓ. Un eco del mismo día no entra
+    // en la campana y tampoco sale por correo — si no, el doble clic que la
+    // campana ya filtra mandaría dos correos iguales a todo el que lo encendió.
+    // Espera solo la búsqueda de destinatarios; el envío va suelto
+    // (`avisos-canales.ts`), así que guardar una factura no tarda lo que tarde
+    // el proveedor de correo.
+    if (nueva.length && tenant) {
+      await avisarPorCanales(tenant, {
+        tipo: input.tipo,
+        titulo: input.titulo,
+        detalle: input.detalle ?? null,
+        link: input.link ?? null,
+      })
+    }
   } catch {
     /* las notificaciones nunca rompen la operación principal */
   }
