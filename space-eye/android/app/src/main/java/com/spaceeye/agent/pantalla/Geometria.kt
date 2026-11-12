@@ -3,6 +3,7 @@ package com.spaceeye.agent.pantalla
 
 import org.json.JSONObject
 import java.time.LocalTime
+import java.time.ZoneId
 
 /**
  * Lo que alguien marco en el dashboard sobre una foto del equipo:
@@ -26,6 +27,22 @@ class Geometria(
     val fin: LocalTime,
 ) {
     companion object {
+        /**
+         * La zona del SITIO, no la del telefono. El horario se escribe en el panel
+         * en hora de Mexico, y el servidor lo corre por lo que va atrasado o
+         * adelantado el reloj del equipo (`horarioParaElReloj`), suponiendo que
+         * el equipo lo compara en esta zona.
+         *
+         * Con `LocalTime.now()` se comparaba con la zona que tuviera puesta el
+         * telefono. El de AUTOPISTA MEX.-QRO. tiene la hora puesta a mano con otra
+         * zona: su cuenta interna va 2 h atrasada pero ensena casi la hora buena.
+         * El servidor le restaba 2 h al horario, el telefono lo comparaba con la
+         * hora que ensena, y empezaba a vigilar a las 4:00 (a las 5:00 desde que
+         * su zona cambio de horario de verano el 1-nov-2026): una «pantalla
+         * apagada en horario» cada madrugada, 22 en un mes.
+         */
+        val ZONA_SITIO: ZoneId = ZoneId.of("America/Mexico_City")
+
         /** Margen tras encender y antes de apagar: el arranque del reproductor no es una falla. */
         const val MARGEN_MIN = 10L
 
@@ -70,7 +87,7 @@ class Geometria(
         }
     }
 
-    fun enHorario(ahora: LocalTime = LocalTime.now()) = enHorario(ahora, inicio, fin)
+    fun enHorario(ahora: LocalTime = LocalTime.now(ZONA_SITIO)) = enHorario(ahora, inicio, fin)
 
     /** Numero de gabinete como lo cuenta una persona: de izquierda a derecha y de arriba abajo, desde 1. */
     fun numero(fila: Int, columna: Int) = fila * columnas + columna + 1

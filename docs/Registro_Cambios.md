@@ -5,6 +5,24 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-11 · v0.12.10 · Permisos editables, campos de pantalla por empresa, Network para la app nueva, eliminar usuarios solo Dueño/Admin y menos falsas alarmas en Space Eyes
+
+**Eliminar usuarios.** El botón **Eliminar** de **Administración → Equipo** solo lo ven el Dueño y los Administradores, y el servidor rechaza a cualquier otro rol. Hoy ya eran los únicos con ese permiso, así que nada cambia en la práctica: queda asegurado para el día en que los permisos se puedan ajustar por empresa.
+
+**Network.** El interruptor **En la Network** de cada pantalla ahora sirve para algo fuera de la aplicación: la nueva app de Network podrá consultar las pantallas que lo tengan encendido, con sus datos públicos (nombre, ubicación, medidas, tarifa publicada, foto) y los días que tienen libres. Apagar el interruptor la saca de la app en la siguiente consulta.
+
+**Campos al crear una pantalla.** Cada empresa puede quitar del formulario «Nueva pantalla» (en Inventario y en Comercial) los campos que no usa: ubicación, imagen, arrendador, medidas, tarifa, etc. Todos menos el nombre. Se elige al instalar su servidor y las actualizaciones no lo cambian. Si quita el arrendador, sus pantallas se dan de alta como propias; si quita la ubicación, nacen sin coordenadas y marcadas para revisar.
+
+**Permisos editables.** En **Administración → Roles**, el Dueño ve el botón **«Editar permisos»** y puede conceder o quitar cada permiso a cada rol con un clic. Pide su contraseña, se guarda al momento y cada persona lo nota la próxima vez que cargue la aplicación. La columna del Dueño no se puede cambiar: siempre tiene todos. Eliminar usuarios sigue siendo solo del Dueño y el Administrador, aunque se marque otra cosa. En un servidor con varias empresas (como la demostración), los permisos no se cambian desde aquí.
+
+**Dashboard.** Las tarjetas **Alertas** y **Huecos y renovaciones**, que van una al lado de la otra, ahora tienen siempre la misma altura, y lo mismo **Por cobrar por antigüedad** junto al mapa: ya no queda un espacio vacío debajo de la más corta. Si se pliega una, se queda pequeña.
+
+**Space Eyes (de Jose).** Menos falsas alarmas: un equipo con el reloj en otra zona horaria ya no avisa «pantalla apagada» cada madrugada, y un «gabinete congelado» que en realidad es un anuncio fijo deja de contar como falla. «Gabinetes apagados» ahora dice «apagados o tapados». Trae el agente de Raspberry 0.7.11. Para que los **avisos por correo** aparezcan en g500 hay que reconstruir allí el servidor de Space Eye (`docs/desplegar-space-eye-g500.md`): desplegar SPACE OS no lo actualiza.
+
+**A tener en cuenta.**
+- La app todavía no existe. Mientras no se configure su clave en el servidor, nadie puede consultar nada.
+- La app nunca ve costos, tarifas internas, notas, campañas, clientes ni precios de venta.
+
 ## 2026-11-10 · v0.12.9 · Los idiomas se encienden con un botón desde Administración
 
 **Qué cambia para quien usa la aplicación.** En **Administración → Configuración → Idiomas del servidor**, el Dueño o un Administrador marca qué idiomas ofrece su servidor: Español (siempre), English, Italiano o Português. Al guardar, el selector de idioma aparece en la pantalla de entrar y en el menú de la cuenta, sin recargar y sin que nadie tenga que entrar al servidor.

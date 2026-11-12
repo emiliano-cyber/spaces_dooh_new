@@ -478,6 +478,21 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 2 sitios · app/api/energia/recibos/route.ts:81
   'No llego ningun archivo.':
     'No file arrived.',
+  // 1 sitio · lib/server/usuarios-controller.ts:251
+  'Solo el Dueño o un Administrador pueden eliminar usuarios':
+    'Only the Owner or an Administrator can delete users',
+  'Solo el Dueño puede cambiar los permisos':
+    'Only the Owner can change permissions',
+  'Los permisos del Dueño no se cambian: siempre los tiene todos':
+    'The Owner’s permissions can’t be changed: they always have all of them',
+  'Ese rol no existe o ya no se usa':
+    'That role doesn’t exist or is no longer used',
+  'Falta decir si se concede o se quita':
+    'Say whether to grant or remove it',
+  'Ese módulo o esa acción no existen':
+    'That module or action doesn’t exist',
+  'En este servidor hay varias organizaciones y los permisos son de todo el servidor: no se cambian desde aquí':
+    'This server hosts several organizations and permissions apply to the whole server: they can’t be changed from here',
   // 1 sitio · lib/server/usuarios-controller.ts:240
   'No puedes eliminar tu propio usuario':
     'You cannot delete your own user',
@@ -1060,6 +1075,20 @@ export const CATALOGO_ERRORES_IT: Partial<Record<string, string>> = {
     'Non c’è nulla da salvare',
   'No llego ningun archivo.':
     'Non è arrivato nessun file.',
+  'Solo el Dueño o un Administrador pueden eliminar usuarios':
+    'Solo il Titolare o un Amministratore possono eliminare utenti',
+  'Solo el Dueño puede cambiar los permisos':
+    'Solo il Titolare può modificare i permessi',
+  'Los permisos del Dueño no se cambian: siempre los tiene todos':
+    'I permessi del Titolare non si modificano: li ha sempre tutti',
+  'Ese rol no existe o ya no se usa':
+    'Quel ruolo non esiste o non è più usato',
+  'Falta decir si se concede o se quita':
+    'Indica se concedere o togliere',
+  'Ese módulo o esa acción no existen':
+    'Quel modulo o quell’azione non esistono',
+  'En este servidor hay varias organizaciones y los permisos son de todo el servidor: no se cambian desde aquí':
+    'Su questo server ci sono più organizzazioni e i permessi valgono per tutto il server: non si modificano da qui',
   'No puedes eliminar tu propio usuario':
     'Non puoi eliminare il tuo utente',
   'No puedes modificar tu propio usuario. Cambia tu contraseña en Configuración.':
@@ -1449,6 +1478,20 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
   'No hay nada que actualizar.': 'Não há nada para atualizar.',
   'No hay nada que guardar': 'Não há nada para salvar',
   'No llego ningun archivo.': 'Nenhum arquivo chegou.',
+  'Solo el Dueño o un Administrador pueden eliminar usuarios':
+    'Somente o Titular ou um Administrador podem excluir usuários',
+  'Solo el Dueño puede cambiar los permisos':
+    'Somente o Titular pode alterar as permissões',
+  'Los permisos del Dueño no se cambian: siempre los tiene todos':
+    'As permissões do Titular não podem ser alteradas: ele sempre tem todas',
+  'Ese rol no existe o ya no se usa':
+    'Essa função não existe ou não é mais usada',
+  'Falta decir si se concede o se quita':
+    'Informe se deve conceder ou remover',
+  'Ese módulo o esa acción no existen':
+    'Esse módulo ou essa ação não existem',
+  'En este servidor hay varias organizaciones y los permisos son de todo el servidor: no se cambian desde aquí':
+    'Este servidor tem várias organizações e as permissões valem para todo o servidor: não podem ser alteradas aqui',
   'No puedes eliminar tu propio usuario': 'Você não pode excluir o seu próprio usuário',
   'No puedes modificar tu propio usuario. Cambia tu contraseña en Configuración.':
     'Você não pode modificar o seu próprio usuário. Altere sua senha em Configurações.',

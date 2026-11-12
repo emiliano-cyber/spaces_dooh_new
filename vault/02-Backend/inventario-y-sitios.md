@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-23
+actualizado: 2026-11-11
 tags: [backend, inventario, sitios, amarillo]
 archivos:
   - apps/web/lib/server/sitios-repo.ts
@@ -200,6 +200,17 @@ listados pasan `false` y reciben `fotos: []`, `imagenPromocional: null` y
 La galería se pide a **`GET /api/sitios/[id]/media`** (permiso `network.ver`, el
 mismo con el que la rebanada viaja; `media/route.ts:31`) y la carga `SiteFicha`
 al abrirse.
+
+> [!important] 2026-11-11 · el switch «En la Network» ya se lee desde fuera
+> `sitios.en_network` (el interruptor de la pantalla Network, `toggleNetwork`)
+> decide qué pantallas ve la nueva app de Network por
+> `GET /api/network/espacios`, con su propio token. Ficha pública y días
+> libres; nada de costos ni de campañas. Ver [[network-api]].
+
+> [!important] 2026-11-11 · cada instancia puede ocultar campos del alta
+> `PANTALLA_CAMPOS_OCULTOS` en `app.env`, elegido al instalar. Sin arrendador
+> la pantalla nace propia; sin ubicación, pendiente de verificar. Ver
+> [[03-Frontend/campos-ocultos-pantalla]].
 
 > [!note] El `select s.*` se quitó el 12/10, y sin lista a mano
 > Se dejó el 10/08 porque una lista explícita son ~48 columnas y se le puede

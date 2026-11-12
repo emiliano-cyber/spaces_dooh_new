@@ -835,7 +835,7 @@ pantalla({
     return pintar(idioma, el(C, { id: 7, onAmpliar: () => {} }))
   },
   espanol: ['Gabinete 8 (fila 2, columna 3)', 'Gabinetes 2, 5, 8 (3 de 15)', 'Toda la pantalla', 'Gabinetes 4', 'Posible gabinete apagado', 'Varios gabinetes congelados o tapados'],
-  ingles: ['Cabinet 8 (row 2, column 3)', 'Cabinets 2, 5, 8 (3 of 15)', 'The whole screen', 'Cabinet 4', 'Possible cabinet off', 'Several cabinets frozen or covered'],
+  ingles: ['Cabinet 8 (row 2, column 3)', 'Cabinets 2, 5, 8 (3 of 15)', 'The whole screen', 'Cabinet 4', 'Possible cabinet off or covered', 'Several cabinets frozen or covered'],
 })
 pantalla({
   nombre: 'pantalla y creativos · sin vigilancia',

@@ -63,7 +63,7 @@
   }
 
   const NOMBRES = {
-    zona_apagada: 'Posible gabinete apagado',
+    zona_apagada: 'Posible gabinete apagado o tapado',
     zona_congelada: 'Posible gabinete congelado o tapado',
     pantalla_apagada: 'Pantalla apagada en horario',
     pantalla_congelada: 'Pantalla congelada',

@@ -54,7 +54,7 @@ describe('catalogos fuera de textos/ · portugues = espanol mientras falte (los 
     expect(dondeDeFallaEnIdioma('Gabinetes 1, 2 (2 de 8)', 'pt')).toBe('Gabinetes 1, 2 (2 de 8)')
     expect(dondeDeFallaEnIdioma(ES['spaceeyes.fallas.donde.toda'], 'pt')).toBe('A tela inteira')
     const nombre = ES['spaceeyes.fallas.nombre.zona-apagada']
-    expect(nombreDeFallaEnIdioma(nombre, 'pt')).toBe('Possível gabinete apagado')
+    expect(nombreDeFallaEnIdioma(nombre, 'pt')).toBe('Possível gabinete apagado ou tampado')
   })
 
   it('la campanita (lote L5): el texto en portugues, el saldo con el formato portugues', () => {

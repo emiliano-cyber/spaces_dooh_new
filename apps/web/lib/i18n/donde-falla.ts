@@ -58,6 +58,11 @@ const NOMBRES_CORTOS_DEL_BACKEND: Record<string, (typeof CLAVES_NOMBRE)[number]>
   'Pantalla congelada': 'spaceeyes.fallas.nombre.pantalla-congelada',
   'Cámara movida': 'spaceeyes.fallas.nombre.camara-movida',
   'Sin imagen': 'spaceeyes.fallas.nombre.sin-imagen',
+  // Los de ANTES del 11/11/2026, cuando el gabinete apagado paso a «apagado o
+  // tapado» (la camara no distingue una grua delante de un gabinete apagado). Los
+  // siguen mandando los Space Eye sin actualizar y las fallas ya guardadas.
+  'Posible gabinete apagado': 'spaceeyes.fallas.nombre.zona-apagada',
+  'Varios gabinetes apagados': 'spaceeyes.fallas.nombre.varios-apagados',
 }
 
 export function nombreDeFallaEnIdioma(nombre: string, idioma: Idioma): string {

@@ -39,6 +39,7 @@ Router en uso**.
 | [[comercial-opex]] | Prospección de arrendadores. **MAQUETA sin base**, y se solapa con Captación |
 | [[paginas-publicas]] | Portal, firma, propuesta compartible, OT móvil |
 | [[estado-y-data-fetching]] | React Query, zustand, el parche de `fetch` |
+| [[campos-ocultos-pantalla]] | **11/11**: cada empresa quita del alta de pantalla los campos que no usa, solo al instalar (`--ocultar-campos-pantalla` → `app.env`). Qué pasa sin arrendador (nace propia) y sin ubicación (pendiente) |
 | [[idiomas-es-en]] | La aplicacion en espanol e ingles: deteccion, cambio manual, el dinero |
 | [[ingles-olas]] | El tablero de la version en ingles: olas, ramas, veredictos y pendientes |
 | [[italiano-olas]] | El tablero de la version en italiano: la ola 0 (infraestructura), los lotes propuestos y las decisiones del dueno |

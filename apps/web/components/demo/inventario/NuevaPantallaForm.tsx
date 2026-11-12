@@ -19,6 +19,8 @@ import { useIdioma, useTexto } from '@/lib/i18n/contexto'
 import { numeroEnIdioma } from '@/lib/i18n/formato-idioma'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
+import { useCamposOcultosPantalla } from '@/lib/data/campos-pantalla-api'
+import type { CampoPantalla } from '@/lib/campos-pantalla'
 
 // Formulario manual de "Nueva pantalla" con 5 tabs (Básico, Especificaciones,
 // IA/Vision, Precios, Imágenes). Crea la pantalla vía data.altaSitio.
@@ -72,9 +74,18 @@ export function NuevaPantallaForm({
   // «45,000» en italiano (lote L3 del italiano). En es y en no cambia nada.
   const { idioma } = useIdioma()
   const arrendadores = useArrendadores()
+  // CAMPOS-PANTALLA (11/11): lo que esta instancia quitó del formulario al
+  // instalarse. Un campo oculto no se pinta y deja de ser obligatorio. Mientras
+  // llega la lista se enseña todo (es lo de antes).
+  const ocultos = useCamposOcultosPantalla() ?? []
+  const ve = (c: CampoPantalla) => !ocultos.includes(c)
   const [arrendadorId, setArrendadorId] = useState('')
   // v0.12.3 · pantalla PROPIA: sin arrendador ni renta; su costo es luz + operación.
-  const [propio, setPropio] = useState(false)
+  const [propioMarcado, setPropio] = useState(false)
+  // Sin el campo «arrendador», esta empresa no renta espacios: toda pantalla
+  // que da de alta es PROPIA. Si no, el servidor pediría un arrendador que el
+  // formulario ya no deja elegir (ADR 0002).
+  const propio = propioMarcado || !ve('arrendador')
   const [renta, setRenta] = useState('')
   const [nombre, setNombre] = useState('')
   const [direccion, setDireccion] = useState('')
@@ -103,7 +114,7 @@ export function NuevaPantallaForm({
   const [imagenNombre, setImagenNombre] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
 
-  const cvInvalido = cv && !admobilizeId.trim()
+  const cvInvalido = ve('vision') && cv && !admobilizeId.trim()
   // La ubicación es obligatoria en el alta manual, y esto ANTES no era así.
   //
   // El formulario hacía `Number(lat) || 19.4326`: una pantalla sin coordenadas
@@ -116,6 +127,11 @@ export function NuevaPantallaForm({
   // sin motivo, por eso el importador pone el default pero MARCA la fila como
   // pendiente de verificación (`lib/inventario-import.ts:211-218`). Dando de
   // alta UNA pantalla tienes la dirección delante.
+  //
+  // CAMPOS-PANTALLA (11/11): si la instancia ocultó la ubicación, no se pide;
+  // la pantalla nace SIN coordenadas y marcada pendiente de verificación, como
+  // la carga masiva — nunca con un punto inventado.
+  const pideUbicacion = ve('ubicacion')
   const ubicacion = puntoUtil(lat, lng)
   // Un importe que no se entiende llega como 'NaN' (CampoCifra). Sin esto,
   // `Number(tarifa) || 0` daría de alta la pantalla con tarifa CERO, y la renta
@@ -140,14 +156,17 @@ export function NuevaPantallaForm({
     // Una pantalla propia no tiene arrendador que elegir.
     { campo: 'arrendadorId', si: !propio },
     'nombre',
-    'lat',
-    'lng',
-    'imagen',
-    { campo: 'admobilizeId', si: cv },
+    { campo: 'lat', si: pideUbicacion },
+    { campo: 'lng', si: pideUbicacion },
+    { campo: 'imagen', si: ve('imagen') },
+    { campo: 'admobilizeId', si: ve('vision') && cv },
   ])
   // Las dos coordenadas escritas pero que no son un lugar (fuera de rango, 0,0):
   // es formato, no un hueco, así que lleva su propio mensaje y sí bloquea el botón.
-  const ubicacionInvalida = !!lat.trim() && !!lng.trim() && !ubicacion
+  const ubicacionInvalida = pideUbicacion && !!lat.trim() && !!lng.trim() && !ubicacion
+  const faltaImagen = ve('imagen') && !imagen
+  const verSpecs = ve('resolucion') || ve('caras') || ve('modalidades') || ve('slots')
+  const verPrecios = ve('tarifa') || ve('precio-m2')
 
   function toggleModalidad(m: string) {
     setModalidades((prev) => (prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]))
@@ -172,7 +191,7 @@ export function NuevaPantallaForm({
 
   async function submit() {
     if (!ob.validar()) return
-    if (!ubicacion || cifraInvalida) return
+    if ((pideUbicacion && !ubicacion) || cifraInvalida) return
     setEnviando(true)
     const digital = exhibicion === 'digital'
     const s = await altaSitioApi({
@@ -191,10 +210,12 @@ export function NuevaPantallaForm({
       direccionPredio: direccion.trim(),
       direccionComercial: direccion.trim(),
       distrito: '',
-      // `ubicacion` no puede ser null aquí: `submit` sale antes sin ella. El
-      // `??` es para el compilador, no una ruta viva.
-      lat: ubicacion?.lat ?? 0,
-      lng: ubicacion?.lng ?? 0,
+      // Con la ubicación pedida, `ubicacion` no puede ser null aquí: `submit`
+      // sale antes sin ella. Oculta (CAMPOS-PANTALLA), va vacía y PENDIENTE
+      // de verificar — nunca `0`, que es un punto en el océano.
+      lat: pideUbicacion ? ubicacion?.lat ?? null : null,
+      lng: pideUbicacion ? ubicacion?.lng ?? null : null,
+      pendienteVerificacion: !pideUbicacion,
       ancho: 12.9,
       alto: 7.2,
       iluminado: true,
@@ -230,11 +251,11 @@ export function NuevaPantallaForm({
           cerrada no se ve: el pie dice en cuál está el que falta. */}
       {ob.intento && cvInvalido ? (
         <span className="text-[12px] text-error">{t('inventario.alta.falta-admobilize')}</span>
-      ) : ob.intento && !imagen ? (
+      ) : ob.intento && faltaImagen ? (
         <span className="text-[12px] text-error">{t('inventario.alta.falta-imagen')}</span>
       ) : ob.intento && (!nombre.trim() || (!propio && !arrendadorId)) ? (
         <span className="text-[12px] text-error">{t('inventario.alta.falta-basico')}</span>
-      ) : (ob.intento && !ubicacion) || ubicacionInvalida ? (
+      ) : (ob.intento && pideUbicacion && !ubicacion) || ubicacionInvalida ? (
         <span className="text-[12px] text-error">
           {t('inventario.alta.falta-ubicacion')}
         </span>
@@ -259,16 +280,18 @@ export function NuevaPantallaForm({
           defaultValue="basico"
           tabs={[
             { value: 'basico', label: t('inventario.alta.tab.basico') },
-            { value: 'specs', label: t('inventario.alta.tab.specs') },
-            { value: 'ia', label: t('inventario.alta.tab.ia') },
-            { value: 'precios', label: t('inventario.alta.tab.precios') },
-            { value: 'imagenes', label: t('inventario.alta.tab.imagenes') },
+            // CAMPOS-PANTALLA: una pestaña cuyos campos están todos ocultos no se pinta.
+            ...(verSpecs ? [{ value: 'specs', label: t('inventario.alta.tab.specs') }] : []),
+            ...(ve('vision') ? [{ value: 'ia', label: t('inventario.alta.tab.ia') }] : []),
+            ...(verPrecios ? [{ value: 'precios', label: t('inventario.alta.tab.precios') }] : []),
+            ...(ve('imagen') ? [{ value: 'imagenes', label: t('inventario.alta.tab.imagenes') }] : []),
           ]}
         >
           <TabPanel value="basico" className="space-y-3 pt-3">
             <h3 className="text-base font-semibold text-ink">{t('inventario.alta.info-basica')}</h3>
+            {ve('arrendador') && (
             <label className="flex items-start gap-2 rounded border border-border bg-surface-2 p-2 text-[13px] text-ink">
-              <input type="checkbox" className="mt-0.5" checked={propio} onChange={(e) => setPropio(e.target.checked)} />
+              <input type="checkbox" className="mt-0.5" checked={propioMarcado} onChange={(e) => setPropio(e.target.checked)} />
               <span>
                 <span className="font-medium">{t('comercial.comun.pantalla-propia')}</span>
                 <span className="block text-[11px] text-muted">
@@ -276,6 +299,7 @@ export function NuevaPantallaForm({
                 </span>
               </span>
             </label>
+            )}
             {!propio && (<>
             <Campo label={t('inventario.alta.arrendador')} obligatorio falta={ob.falta('arrendadorId')}>
               <select
@@ -308,9 +332,12 @@ export function NuevaPantallaForm({
             <Campo label={t('inventario.wizard.nombre-pantalla')} obligatorio falta={ob.falta('nombre')}>
               <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus />
             </Campo>
+            {ve('direccion') && (
             <Campo label={t('inventario.wizard.direccion')}>
               <input className={inputCls} value={direccion} onChange={(e) => setDireccion(e.target.value)} />
             </Campo>
+            )}
+            {ve('exhibicion') && (
             <Campo label={t('inventario.alta.exhibicion')}>
               <select className={inputCls} value={exhibicion} onChange={(e) => setExhibicion(e.target.value as 'fijo' | 'digital')}>
                 <option value="fijo">{t('inventario.alta.fija')}</option>
@@ -322,31 +349,44 @@ export function NuevaPantallaForm({
                   : t('inventario.alta.ayuda-fija')}
               </span>
             </Campo>
+            )}
+            {pideUbicacion && (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Campo label={t('inventario.alta.latitud')} obligatorio falta={ob.falta('lat')} error={ubicacionInvalida ? t('inventario.alta.fuera-rango') : null}><input className={inputCls} inputMode="decimal" value={lat} onChange={(e) => setLat(e.target.value)} placeholder={t('comercial.comun.ej', { valor: '19.4326' })} /></Campo>
               <Campo label={t('inventario.alta.longitud')} obligatorio falta={ob.falta('lng')}><input className={inputCls} inputMode="decimal" value={lng} onChange={(e) => setLng(e.target.value)} placeholder={t('comercial.comun.ej', { valor: '-99.1332' })} /></Campo>
             </div>
+            )}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {ve('tipo') && (
               <Campo label={t('inventario.alta.tipo-pantalla')}>
                 <select className={inputCls} value={tipoMedio} onChange={(e) => setTipoMedio(e.target.value as TipoMedio)}>
                   {TIPO_PANTALLA.map((x) => <option key={x.v} value={x.v}>{t(x.label)}</option>)}
                 </select>
               </Campo>
+              )}
+              {ve('estado') && (
               <Campo label={t('inventario.alta.estado')}>
                 <select className={inputCls} value={estado} onChange={(e) => setEstado(e.target.value as Sitio['estatusComercial'])}>
                   {ESTADOS.map((e) => <option key={e.v} value={e.v}>{t(e.label)}</option>)}
                 </select>
               </Campo>
+              )}
             </div>
           </TabPanel>
 
+          {verSpecs && (
           <TabPanel value="specs" className="space-y-3 pt-3">
             <h3 className="text-base font-semibold text-ink">{t('inventario.alta.specs')}</h3>
+            {ve('resolucion') && (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Campo label={t('inventario.alta.res-ancho')}><input className={inputCls} inputMode="numeric" value={resAncho} onChange={(e) => setResAncho(e.target.value)} placeholder={t('comercial.comun.ej', { valor: '1920' })} /></Campo>
               <Campo label={t('inventario.alta.res-alto')}><input className={inputCls} inputMode="numeric" value={resAlto} onChange={(e) => setResAlto(e.target.value)} placeholder={t('comercial.comun.ej', { valor: '1080' })} /></Campo>
             </div>
+            )}
+            {ve('caras') && (
             <Campo label={t('inventario.wizard.caras')}><EntradaCifra className={inputCls} inputMode="numeric" valor={caras} onCambio={setCaras} decimales={0} minimo={0} placeholder={t('comercial.comun.ej', { valor: '1' })} /></Campo>
+            )}
+            {ve('modalidades') && (
             <div>
               <span className="mb-1 block text-[12px] font-medium text-ink">{t('inventario.alta.modalidades')}</span>
               <div className="grid grid-cols-2 gap-1.5">
@@ -358,6 +398,8 @@ export function NuevaPantallaForm({
                 ))}
               </div>
             </div>
+            )}
+            {ve('slots') && (
             <div className="rounded-md border border-border bg-surface-2 p-3">
               <div className="mb-2 text-[12px] font-medium text-ink">{t('inventario.alta.config-slots')}</div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -366,8 +408,11 @@ export function NuevaPantallaForm({
                 <Campo label={t('inventario.alta.slots-disponibles')}><CampoCifra decimales={0} className={inputCls} valor={spotsDisp} onCambio={(crudo) => setSpotsDisp(crudo)} placeholder={t('comercial.comun.ej', { valor: '12' })} /></Campo>
               </div>
             </div>
+            )}
           </TabPanel>
+          )}
 
+          {ve('vision') && (
           <TabPanel value="ia" className="space-y-3 pt-3">
             <h3 className="text-base font-semibold text-ink">Computer Vision / AdMobilize</h3>
             <div className="rounded-md border border-[#0a66ff33] bg-[#0a66ff0a] p-3 text-[12px] text-muted">
@@ -400,10 +445,14 @@ export function NuevaPantallaForm({
               </>
             )}
           </TabPanel>
+          )}
 
+          {verPrecios && (
           <TabPanel value="precios" className="space-y-3 pt-3">
             <h3 className="text-base font-semibold text-ink">{t('inventario.alta.tab.precios')}</h3>
+            {ve('tarifa') && (
             <Campo label={t('inventario.wizard.tarifa-publicada')}><CampoCifra className={inputCls} valor={tarifa} onCambio={(crudo) => setTarifa(crudo)} placeholder={t('comercial.comun.ej', { valor: '15000' })} /></Campo>
+            )}
             {/* El costo NO se captura aquí (ADR 0006). Una pantalla tiene un solo
                 costo —la renta al arrendador— y se captura en la pestaña Básico,
                 junto a quién es ese arrendador. Tener aquí un "costo de compra"
@@ -418,11 +467,15 @@ export function NuevaPantallaForm({
                     : t('inventario.alta.costo-sin'),
               })}
             </div>
+            {ve('precio-m2') && (
             <Campo label={t('inventario.alta.precio-m2')}>
               <CampoCifra className={inputCls} valor={precioM2} onCambio={(crudo) => setPrecioM2(crudo)} placeholder={t('inventario.alta.precio-m2-ph')} />
             </Campo>
+            )}
           </TabPanel>
+          )}
 
+          {ve('imagen') && (
           <TabPanel value="imagenes" className="space-y-3 pt-3">
             <h3 className="text-base font-semibold text-ink">{t('inventario.alta.tab.imagenes')}</h3>
             <Campo label={t('inventario.alta.imagen')} obligatorio falta={ob.falta('imagen')} como="div" className="space-y-3">
@@ -449,6 +502,7 @@ export function NuevaPantallaForm({
               </label>
             </Campo>
           </TabPanel>
+          )}
         </Tabs>
       </div>
   )

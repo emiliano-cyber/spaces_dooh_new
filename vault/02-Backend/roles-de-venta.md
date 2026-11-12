@@ -1,7 +1,7 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-11-09
+actualizado: 2026-11-11
 tags: [backend, roles, permisos, rbac, enum, migraciones, dueno, guards, carrera]
 archivos:
   - db/migrations/20260929_roles_de_venta_enum.sql
@@ -10,6 +10,9 @@ archivos:
   - apps/web/app/api/ot/[id]/costo/route.ts
   - apps/web/components/demo/admin/permisos.ts
   - apps/web/lib/roles.ts
+  - apps/web/lib/server/borrar-usuario.test.ts
+  - apps/web/lib/server/permisos-edicion.ts
+  - apps/web/app/api/admin/permisos-matriz/route.ts
   - apps/web/lib/guardas-usuarios.ts
   - apps/web/lib/server/usuarios-repo.ts
   - apps/web/lib/server/usuarios-controller.ts
@@ -205,6 +208,39 @@ Dueños y exige que gane exactamente una y quede uno. El mutante que quita el
 
 `actualizarUsuario` y `borrarUsuario` pasan los dos por `conGuardasDeDueno`, y
 `restablecerPasswordCtrl` también.
+
+> [!important] 2026-11-11 · la matriz de permisos ya se EDITA desde Administración (PERMISOS-EDITABLES)
+> Decisión del dueño. Administración → Roles → «Editar permisos»: cada letra se
+> concede o se quita con un clic (`PUT /api/admin/permisos-matriz`, una casilla
+> por petición). Las guardas (`lib/server/permisos-edicion.ts`):
+> - **solo el Dueño**, y con su **contraseña propia** (`exigirReautenticacionSiempre`);
+> - **la columna del Dueño no se toca**: siempre lo tiene todo, para que nadie
+>   deje la instalación sin quien la administre;
+> - solo pares módulo/acción que **ya existen** (el catálogo son las filas del
+>   Dueño) y solo roles asignables;
+> - con **varias organizaciones en el servidor** (PADRE, DEMO) → **409**:
+>   `rol_permisos` no tiene `tenant_id` y es de todo el servidor;
+> - cada cambio queda en la bitácora («Concedió permiso» / «Quitó permiso»).
+>
+> **Eliminar usuarios no lo concede la matriz**: sigue fijo en código
+> (`puedeEliminarUsuarios`). Lo fijan `lib/server/permisos-edicion.test.ts` y
+> `lib/test/permisos-editables.e2e.test.ts` (el vendedor entra en cuanto se le
+> concede y deja de entrar en cuanto se le quita). Y desde hoy hay una regla
+> para las migraciones: ver «Migraciones que tocan permisos» en
+> [[06-Operacion/convenciones]].
+
+> [!important] 2026-11-11 · eliminar usuarios es SOLO de Dueño y Administrador
+> Decisión del dueño: «el dueño y administrador son los únicos que pueden
+> eliminar perfiles». Hasta hoy la única puerta del `DELETE` era
+> `administracion.crear`, que **hoy ya solo tienen esos dos roles**: la matriz
+> la fijan las migraciones y la pantalla de Permisos **solo la enseña** (no hay
+> ruta que escriba `rol_permisos`). O sea que **hoy no cambia quién borra**; se
+> blinda para el día en que la matriz dé ese permiso a otro rol. Ahora
+> `borrarUsuarioCtrl` exige `puedeEliminarUsuarios(rol)` (`lib/roles.ts`) —en
+> código, fuera de la matriz— y responde **403** antes de tocar la base. El botón
+> «Eliminar» de Administración → Equipo solo se pinta para esos dos roles. Lo
+> fija `apps/web/lib/server/borrar-usuario.test.ts`, con los seis roles que no
+> pueden como casos negativos.
 
 > [!important] 2026-11-09 · borrar ya tiene botón, y pide la contraseña
 > Hasta hoy el `DELETE /api/usuarios/[id]` existía pero **sin botón y sin

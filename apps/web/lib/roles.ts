@@ -123,6 +123,23 @@ export function puedeVerControlCambios(rol: RolDemo | null | undefined): boolean
 }
 
 /**
+ * ¿Puede este rol ELIMINAR usuarios? Solo Dueño y Administrador — decidido por
+ * el dueño el 2026-11-11.
+ *
+ * Va en código y NO solo en la matriz de permisos a propósito. Hasta ese día
+ * la única puerta era `administracion.crear`. HOY eso ya da Dueño y
+ * Administrador —la matriz la fijan las migraciones y la pantalla de Permisos
+ * solo la enseña—, así que esto no cambia quién borra hoy: lo blinda para el
+ * día en que una migración, o una matriz configurable por instancia, conceda
+ * `administracion.crear` a otro rol para que dé de alta gente. Ese día, sin
+ * esta línea, ese rol podría también borrar a cualquiera —un borrado REAL e
+ * irreversible—.
+ */
+export function puedeEliminarUsuarios(rol: RolDemo | null | undefined): boolean {
+  return rol === 'DUENO' || rol === 'ADMINISTRADOR'
+}
+
+/**
  * Quién puede mover lo que la cámara de un equipo de Space Eyes VE: el lente,
  * el zoom, el recorte, el color, el enfoque, la orientación fija y las cuatro
  * esquinas con las que se marca la pantalla.

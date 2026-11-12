@@ -12,6 +12,8 @@ import { altaSitioApi } from '@/lib/data/sitios-api'
 import { useIdioma, useTexto } from '@/lib/i18n/contexto'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
 import { CLAVE_TIPO_MEDIO } from '@/components/demo/comercial/claves'
+import { useCamposOcultosPantalla } from '@/lib/data/campos-pantalla-api'
+import type { CampoPantalla } from '@/lib/campos-pantalla'
 import {
   useArrendadores,
   type Sitio,
@@ -59,11 +61,19 @@ export function AltaSitioDialog({
   const t = useTexto()
   const { idioma } = useIdioma()
   const arrendadores = useArrendadores()
+  // CAMPOS-PANTALLA (11/11): lo que esta instancia quitó del alta al instalarse.
+  // Un campo oculto no se pinta y deja de ser obligatorio. Mientras llega la
+  // lista se enseña todo (es lo de antes).
+  const ocultos = useCamposOcultosPantalla() ?? []
+  const ve = (c: CampoPantalla) => !ocultos.includes(c)
   const [arrendadorId, setArrendadorId] = useState('')
   // v0.12.3 · pantalla PROPIA: sin arrendador ni renta, igual que en el alta de
   // Inventario (`NuevaPantallaForm`). Esta era la única alta que no la ofrecía,
   // así que desde Comercial una pantalla de la empresa solo podía nacer rentada.
-  const [propio, setPropio] = useState(false)
+  const [propioMarcado, setPropio] = useState(false)
+  // Sin el campo «arrendador», esta empresa no renta espacios: toda pantalla
+  // nace PROPIA, o el servidor pediría un arrendador que ya no se puede elegir.
+  const propio = propioMarcado || !ve('arrendador')
   const [nombre, setNombre] = useState('')
   const [tipoMedio, setTipoMedio] = useState<TipoMedio>('ESPECTACULAR')
   const [distrito, setDistrito] = useState('')
@@ -100,8 +110,8 @@ export function AltaSitioDialog({
     // Una pantalla propia no tiene arrendador que elegir.
     { campo: 'arrendadorId', si: !propio },
     'nombre',
-    'distrito',
-    'direccionComercial',
+    { campo: 'distrito', si: ve('distrito') },
+    { campo: 'direccionComercial', si: ve('direccion') },
   ])
 
   async function submit() {
@@ -114,8 +124,11 @@ export function AltaSitioDialog({
       distrito: distrito.trim(),
       direccionPredio: direccionPredio.trim() || direccionComercial.trim(),
       direccionComercial: direccionComercial.trim(),
-      lat: Number(lat) || -12.09,
-      lng: Number(lng) || -77.04,
+      // Con la ubicación oculta (CAMPOS-PANTALLA) va vacía y PENDIENTE de
+      // verificar, como la carga masiva. Visible, se queda como estaba.
+      ...(ve('ubicacion')
+        ? { lat: Number(lat) || -12.09, lng: Number(lng) || -77.04 }
+        : { lat: null, lng: null, pendienteVerificacion: true }),
       ancho: Number(ancho) || 0,
       alto: Number(alto) || 0,
       iluminado,
@@ -157,8 +170,9 @@ export function AltaSitioDialog({
     >
       <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
         <Seccion titulo={t('comercial.alta.identificacion')}>
+          {ve('arrendador') && (
           <label className="flex items-start gap-2 rounded border border-border bg-surface-2 p-2 text-[13px] text-ink">
-            <input type="checkbox" className="mt-0.5" checked={propio} onChange={(e) => setPropio(e.target.checked)} />
+            <input type="checkbox" className="mt-0.5" checked={propioMarcado} onChange={(e) => setPropio(e.target.checked)} />
             <span>
               <span className="font-medium">{t('comercial.comun.pantalla-propia')}</span>
               <span className="block text-[11px] text-muted">
@@ -166,6 +180,7 @@ export function AltaSitioDialog({
               </span>
             </span>
           </label>
+          )}
           {!propio && (
             <Campo label={t('comercial.alta.arrendador')} obligatorio falta={ob.falta('arrendadorId')}>
               <select className={inputCls} value={arrendadorId} onChange={(e) => setArrendadorId(e.target.value)}>
@@ -179,55 +194,77 @@ export function AltaSitioDialog({
           <Campo label={t('comercial.comun.nombre')} obligatorio falta={ob.falta('nombre')}>
             <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder={t('comercial.comun.p-ej', { valor: t('comercial.alta.nombre-ej') })} autoFocus />
           </Campo>
+          {ve('tipo') && (
           <Campo label={t('comercial.alta.tipo')}>
             <select className={inputCls} value={tipoMedio} onChange={(e) => setTipoMedio(e.target.value as TipoMedio)}>
               {TIPOS.map((tm) => <option key={tm.v} value={tm.v}>{t(tm.label)}</option>)}
             </select>
           </Campo>
+          )}
         </Seccion>
 
+        {(ve('distrito') || ve('direccion') || ve('ubicacion')) && (
         <Seccion titulo={t('comercial.comun.ubicacion')}>
+          {ve('distrito') && (
           <Campo label={t('comercial.alta.distrito')} obligatorio falta={ob.falta('distrito')}>
             <input className={inputCls} value={distrito} onChange={(e) => setDistrito(e.target.value)} placeholder={t('comercial.comun.p-ej', { valor: 'Miraflores' })} />
           </Campo>
+          )}
+          {ve('direccion') && (<>
           <Campo label={t('comercial.comun.direccion-predio')}>
             <input className={inputCls} value={direccionPredio} onChange={(e) => setDireccionPredio(e.target.value)} placeholder={t('comercial.alta.direccion-fisica')} />
           </Campo>
           <Campo label={t('comercial.comun.direccion-comercial')} obligatorio falta={ob.falta('direccionComercial')}>
             <input className={inputCls} value={direccionComercial} onChange={(e) => setDireccionComercial(e.target.value)} placeholder={t('comercial.alta.direccion-mostrada')} />
           </Campo>
+          </>)}
+          {ve('ubicacion') && (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Campo label={t('comercial.alta.latitud')}><input className={inputCls} inputMode="decimal" value={lat} onChange={(e) => setLat(e.target.value)} placeholder={t('comercial.comun.ej', { valor: '-12.0900' })} /></Campo>
             <Campo label={t('comercial.alta.longitud')}><input className={inputCls} inputMode="decimal" value={lng} onChange={(e) => setLng(e.target.value)} placeholder={t('comercial.comun.ej', { valor: '-77.0400' })} /></Campo>
           </div>
+          )}
         </Seccion>
+        )}
 
+        {(ve('medidas') || ve('iluminado') || (digital && (ve('resolucion') || ve('cms')))) && (
         <Seccion titulo={t('comercial.alta.caracteristicas')}>
+          {ve('medidas') && (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Campo label={t('comercial.comun.ancho')}><EntradaCifra className={inputCls} inputMode="decimal" valor={ancho} onCambio={setAncho} decimales={2} minimo={0} placeholder={t('comercial.comun.ej', { valor: ejemploCifra('12.9', idioma) })} /></Campo>
             <Campo label={t('comercial.comun.alto')}><EntradaCifra className={inputCls} inputMode="decimal" valor={alto} onCambio={setAlto} decimales={2} minimo={0} placeholder={t('comercial.comun.ej', { valor: ejemploCifra('7.2', idioma) })} /></Campo>
           </div>
+          )}
           {digital && (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Campo label={t('comercial.comun.resolucion-px')}><input className={inputCls} value={resolucionPx} onChange={(e) => setResolucionPx(e.target.value)} placeholder="1920x1080" /></Campo>
+              {ve('resolucion') && <Campo label={t('comercial.comun.resolucion-px')}><input className={inputCls} value={resolucionPx} onChange={(e) => setResolucionPx(e.target.value)} placeholder="1920x1080" /></Campo>}
+              {ve('cms') && (
               <Campo label={t('comercial.alta.tipo-contenido')}>
                 <select className={inputCls} value={tipoContenido} onChange={(e) => setTipoContenido(e.target.value as TipoContenido)}>
                   <option value="VIDEO">{t('comercial.comun.video')}</option>
                   <option value="IMAGEN">{t('comercial.comun.imagen')}</option>
                 </select>
               </Campo>
+              )}
             </div>
           )}
+          {ve('iluminado') && (
           <label className="flex items-center gap-2 text-[13px] text-ink">
             <input type="checkbox" checked={iluminado} onChange={(e) => setIluminado(e.target.checked)} className="h-4 w-4 accent-[var(--accent)]" />
             {t('comercial.alta.iluminacion')}
           </label>
+          )}
         </Seccion>
+        )}
 
+        {(ve('tarifa') || ve('comercializacion') || ve('network') || (digital && ve('cms'))) && (
         <Seccion titulo={t('comercial.comun.comercializacion')}>
+          {ve('tarifa') && (
           <Campo label={t('comercial.alta.tarifa', { simbolo: '$' })}>
             <CampoCifra className={inputCls} valor={tarifa} onCambio={(crudo) => setTarifa(crudo)} placeholder={t('comercial.comun.ej', { valor: '15000' })} />
           </Campo>
+          )}
+          {ve('comercializacion') && (
           <Campo label={t('comercial.alta.regla')} como="div">
             <div className="flex gap-2">
               {(['TRADICIONAL', 'PROGRAMATICO'] as Comercializacion[]).map((c) => (
@@ -245,18 +282,22 @@ export function AltaSitioDialog({
               ))}
             </div>
           </Campo>
-          {digital && (
+          )}
+          {digital && ve('cms') && (
             <Campo label="CMS">
               <select className={inputCls} value={cms} onChange={(e) => setCms(e.target.value as CMS)}>
                 {CMS_OPC.map((c) => <option key={c.v} value={c.v}>{c.clave ? t(c.label as ClaveTexto) : c.label}</option>)}
               </select>
             </Campo>
           )}
+          {ve('network') && (
           <label className="flex items-center gap-2 text-[13px] text-ink">
             <input type="checkbox" checked={enNetwork} onChange={(e) => setEnNetwork(e.target.checked)} className="h-4 w-4 accent-[var(--accent)]" />
             {t('comercial.alta.network')}
           </label>
+          )}
         </Seccion>
+        )}
       </div>
     </Modal>
   )

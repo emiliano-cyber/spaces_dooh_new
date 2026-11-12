@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-26
+actualizado: 2026-11-11
 tags: [frontend, dashboard, inicio, dinero, comercial]
 archivos:
   - apps/web/app/(app)/(shell)/inicio/page.tsx
@@ -9,6 +9,7 @@ archivos:
   - apps/web/components/demo/inicio/indicadores.ts
   - apps/web/components/demo/inicio/indicadores.test.ts
   - apps/web/lib/alertas-visibles.ts
+  - apps/web/components/demo/ui/CardColapsable.tsx
 ---
 
 # Dashboard (`/inicio`)
@@ -42,6 +43,16 @@ Pipedrive, Zoho):
 | Mapa | `tonoPinHoy` sobre las reservas | Todos |
 
 ## Las decisiones que no son de estilo
+
+> [!note] 2026-11-11 · Alertas y Huecos y renovaciones, a la MISMA altura
+> Pedido del dueño: «ambas están en el mismo nivel, hay que hacer que ocupen
+> el mismo espacio en vertical, se pierde la naturalidad al haber huecos». Su
+> fila pasó de `items-start` a `items-stretch` (`inicio/page.tsx`), así que la
+> más corta se estira hasta la otra. Una tarjeta **plegada** no se estira:
+> `CardColapsable` le pone `self-start` al cerrarse, para que no quede un
+> recuadro vacío con la altura de la vecina. Visto en el navegador: 393/393 px
+> con contenido desigual y 51 px la plegada. Y la fila de **Por cobrar + mapa**,
+> igual, el mismo día y también a petición del dueño: 382/382 px.
 
 **Por rol, no con ceros.** Un rol sin `finanzas:ver` recibe vacías de
 `/api/estado` las cobranzas, las facturas y los contratos, y el motor de Reportes

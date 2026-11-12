@@ -67,7 +67,7 @@ describe('catalogos fuera de textos/ · italiano = ingles mientras falte', () =>
     expect(dondeDeFallaEnIdioma('Gabinetes 1, 2 (2 de 8)', 'it')).toBe('Cabinet 1, 2 (2 di 8)')
     expect(dondeDeFallaEnIdioma(ES['spaceeyes.fallas.donde.toda'], 'it')).toBe('Tutto lo schermo')
     const nombre = ES['spaceeyes.fallas.nombre.zona-apagada']
-    expect(nombreDeFallaEnIdioma(nombre, 'it')).toBe('Possibile cabinet spento')
+    expect(nombreDeFallaEnIdioma(nombre, 'it')).toBe('Possibile cabinet spento o coperto')
   })
 
   // Lote L5 (2026-11-03): la campanita ya tiene italiano; el saldo sale con

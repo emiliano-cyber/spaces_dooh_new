@@ -1,5 +1,41 @@
 [
   {
+    "version": "v0.12.10",
+    "fecha": "2026-11-11",
+    "items": [
+      {
+        "tipo": "NUEVO",
+        "texto": "Administración → Roles y permisos → «Editar permisos»: el Dueño concede o quita cada permiso a cada rol con un clic. Pide su contraseña y cada persona lo nota al volver a cargar la aplicación. La columna del Dueño no se cambia: siempre lo tiene todo.",
+        "en": "Settings → Roles and permissions → “Edit permissions”: the Owner grants or removes each permission for each role with one click. It asks for their password, and each person sees the change the next time they reload the app. The Owner column cannot be changed: it always has everything.",
+        "it": "Impostazioni → Ruoli e permessi → «Modifica permessi»: il Titolare concede o toglie ogni permesso a ogni ruolo con un clic. Chiede la sua password e ognuno vede la modifica la prossima volta che ricarica l’applicazione. La colonna del Titolare non si cambia: ha sempre tutto."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Eliminar usuarios es solo del Dueño y de los Administradores, aunque a otro rol se le den los permisos de Administración.",
+        "en": "Only the Owner and Administrators can delete users, even if another role is given the Settings permissions.",
+        "it": "Eliminare utenti spetta solo al Titolare e agli Amministratori, anche se a un altro ruolo si danno i permessi di Impostazioni."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Dashboard: «Alertas» y «Huecos y renovaciones» tienen la misma altura, y lo mismo «Por cobrar por antigüedad» junto al mapa. Ya no queda un espacio vacío debajo de la más corta.",
+        "en": "Dashboard: “Alerts” and “Gaps and renewals” are the same height, and so are “Receivables by age” and the map. There is no longer an empty space under the shorter one.",
+        "it": "Dashboard: «Avvisi» e «Spazi liberi e rinnovi» hanno la stessa altezza, e così «Da incassare per anzianità» accanto alla mappa. Non resta più uno spazio vuoto sotto la più corta."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Space Eyes: menos falsas alarmas. Un equipo con el reloj en otra zona horaria ya no avisa «pantalla apagada» cada madrugada, y un «gabinete congelado» que en realidad es un anuncio fijo deja de contar como falla.",
+        "en": "Space Eyes: fewer false alarms. A device whose clock is in another time zone no longer reports “screen off” every early morning, and a “frozen cabinet” that is really a static ad no longer counts as a fault.",
+        "it": "Space Eyes: meno falsi allarmi. Un dispositivo con l’orologio in un altro fuso orario non segnala più «schermo spento» ogni notte, e un «cabinet bloccato» che in realtà è un annuncio fisso non conta più come guasto."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Space Eyes: «Gabinetes apagados» ahora dice «apagados o tapados», porque la cámara no distingue un gabinete apagado de algo que lo tapa.",
+        "en": "Space Eyes: “Cabinets off” now says “off or covered”, because the camera cannot tell an off cabinet from something blocking it.",
+        "it": "Space Eyes: «Cabinet spenti» ora dice «spenti o coperti», perché la telecamera non distingue un cabinet spento da qualcosa che lo copre."
+      }
+    ]
+  },
+  {
     "version": "v0.12.9",
     "fecha": "2026-11-10",
     "items": [

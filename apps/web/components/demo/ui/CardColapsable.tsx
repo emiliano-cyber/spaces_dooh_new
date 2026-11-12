@@ -92,7 +92,9 @@ export function CardColapsable({
     }
   }
   return (
-    <Card className={className}>
+    // Plegada no se estira: en una fila `items-stretch` (Dashboard, alertas y
+    // huecos) se quedaría como un recuadro vacío con la altura de la vecina.
+    <Card className={cn(!abierto && 'self-start', className)}>
       <CardHeader
         className={cn(
           'flex cursor-pointer select-none flex-row flex-wrap items-center justify-between gap-2',

@@ -184,3 +184,37 @@ reescribir_env_docker() {
     printf '%s\n' "$linea"
   done < "$plantilla"
 }
+
+
+# ─── Campos ocultos del alta de pantalla (CAMPOS-PANTALLA, 2026-11-11) ──────
+# Se eligen AL INSTALAR, con `--ocultar-campos-pantalla a,b,c`, y acaban en
+# `app.env` como `PANTALLA_CAMPOS_OCULTOS=`. Decision del dueno: cada empresa
+# quita del formulario «Nueva pantalla» lo que no usa, solo en la instalacion;
+# despues es editar `app.env` y recrear el contenedor. `update.sh` no lo toca.
+#
+# La lista es la MISMA que `apps/web/lib/campos-pantalla.ts`
+# (`CAMPOS_PANTALLA`), y una prueba de alla lee esta linea. El nombre no esta:
+# identifica la pantalla y el servidor lo exige siempre.
+CAMPOS_PANTALLA="arrendador direccion exhibicion ubicacion tipo estado resolucion caras modalidades slots vision tarifa precio-m2 imagen distrito medidas iluminado comercializacion network cms"
+
+# Deja en `CAMPOS_OCULTOS_APP` la lista limpia («ubicacion,imagen») o PARA el
+# alta si trae un nombre que la aplicacion no conoce. Variable global y no
+# `$(...)`, por lo mismo que `validar_paleta`: un `exit` en una subshell no
+# pararia nada.
+validar_campos_ocultos() {
+  local v="${1,,}" c limpio=""
+  v="${v//[[:space:]]/}"
+  CAMPOS_OCULTOS_APP=""
+  [[ -z "$v" ]] && return 0
+  local IFS=','
+  for c in $v; do
+    [[ -z "$c" ]] && continue
+    if [[ " $CAMPOS_PANTALLA " != *" $c "* ]]; then
+      echo "$ENTORNO_GUION: --ocultar-campos-pantalla: '$c' no es un campo que se pueda ocultar." >&2
+      echo "  Valen: ${CAMPOS_PANTALLA// /, }. El nombre de la pantalla no se oculta nunca." >&2
+      exit "${EX_USO:-64}"
+    fi
+    [[ ",$limpio," == *",$c,"* ]] || limpio="${limpio:+$limpio,}$c"
+  done
+  CAMPOS_OCULTOS_APP="$limpio"
+}
