@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-14
+actualizado: 2026-11-12
 tags: [frontend, shell, navegacion, rbac]
 archivos:
   - apps/web/lib/host.ts
@@ -175,6 +175,22 @@ grupo vayan seguidas, que ningún grupo declarado quede vacío, que el orden en
 pantalla sea el de `GRUPOS`, y que Propuestas vaya antes que Campañas y Campañas
 antes que Finanzas. Cambiar un rótulo no pone roja ninguna prueba — es un dato
 que solo se ve mirando.
+
+### El menú en cascada (MENU-CASCADA, 12/11)
+
+Pedido del dueño: «que cada sección esté desplegada, pero si se desea ocultar el
+resto y solo dejar el nombre del submenú, guardándolo en localStorage».
+
+- El título de cada sección del `Sidebar` es un botón (`aria-expanded`) con
+  una flecha: pliega la sección a su nombre. Dashboard no tiene título y no se
+  pliega.
+- Se guarda lo **plegado** en `localStorage` (`spaces:menu-plegado`,
+  `lib/menu-plegado.ts`). Sin nada guardado todo va desplegado, como antes, y
+  una sección nueva aparece abierta.
+- Una sección plegada que contiene la pantalla actual pinta su título en azul.
+- Con el menú en modo icono no hay títulos que pulsar: se ven todos los iconos.
+- `bg-transparent` en el botón: sin él el navegador le pone su gris (visto
+  en el navegador el 12/11).
 
 ## Sesión compartida
 

@@ -3,7 +3,8 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import * as TooltipPrimitive from '@radix-ui/react-tooltip'
-import { ExternalLink, Menu, X } from 'lucide-react'
+import { ChevronDown, ExternalLink, Menu, X } from 'lucide-react'
+import { useMenuPlegado } from '@/lib/menu-plegado'
 import { cn } from '@/lib/cn'
 import { SpaceOsMark } from '@/components/demo/ui/SpaceOsMark'
 import { TOKEN_TELCO, useConfigNegocio } from '@/lib/data/client'
@@ -90,6 +91,9 @@ function SidebarContent({
   // UN solo ítem encendido: el de href más largo (ver `hrefActivo`).
   const activo = hrefActivo(here, items.map((n) => norm(n.href)))
   const esActivo = (href: string) => norm(href) === activo
+
+  // MENU-CASCADA (12/11): qué secciones van plegadas a su título, por navegador.
+  const { plegada: estaPlegada, alternar: alternarSeccion } = useMenuPlegado(GRUPOS.map((g) => g.key))
 
   return (
     <TooltipPrimitive.Provider delayDuration={150} skipDelayDuration={300}>
@@ -185,14 +189,40 @@ function SidebarContent({
                 colapsado ? (
                   <li key={`sep-${seccion.key}`} aria-hidden className="mx-2 my-1.5 border-t border-border" />
                 ) : (
+                  // MENU-CASCADA (12/11): el título es el botón que pliega la
+                  // sección a su nombre. Sigue siendo un <h2> para quien navega
+                  // por encabezados; el botón va dentro. Una sección plegada
+                  // que contiene la pantalla actual pinta el título en azul,
+                  // para que no se pierda dónde estás.
                   <li key={`tit-${seccion.key}`}>
-                    <h2 className="px-2.5 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-muted">
-                      {rotulo(`nav.grupo.${seccion.key}`, seccion.titulo)}
+                    <h2>
+                      <button
+                        type="button"
+                        onClick={() => alternarSeccion(seccion.key)}
+                        aria-label={rotulo(`nav.grupo.${seccion.key}`, seccion.titulo)}
+                        aria-expanded={!estaPlegada(seccion.key)}
+                        className={cn(
+                          // `bg-transparent`: sin él el navegador le pone a un
+                          // <button> su gris de siempre, y el título dejaba de
+                          // parecerse al rótulo que era (visto el 12/11).
+                          'flex w-full items-center justify-between gap-2 rounded bg-transparent px-2.5 pb-1 pt-3 text-left text-[10px] font-semibold uppercase tracking-wider transition-colors duration-150 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent',
+                          estaPlegada(seccion.key) && seccion.items.some((n) => esActivo(n.href)) ? 'text-accent' : 'text-muted',
+                        )}
+                      >
+                        <span className="truncate">{rotulo(`nav.grupo.${seccion.key}`, seccion.titulo)}</span>
+                        <ChevronDown
+                          className={cn('h-3 w-3 shrink-0 transition-transform duration-150', estaPlegada(seccion.key) && '-rotate-90')}
+                          strokeWidth={2}
+                          aria-hidden
+                        />
+                      </button>
                     </h2>
                   </li>
                 )
               ) : null,
-              ...seccion.items.map((n) => {
+              // Plegada: solo el título. Con el menú en modo icono no hay
+              // título que pulsar, así que ahí se ven siempre todos los iconos.
+              ...(seccion.titulo && iSeccion > 0 && !colapsado && estaPlegada(seccion.key) ? [] : seccion.items).map((n) => {
               const active = esActivo(n.href)
               const Icon = n.icon
               return (
