@@ -39,7 +39,7 @@ no se versiona configuración de la herramienta. Consecuencia práctica: la bóv
 Markdown puro y **se lee igual desde un editor, desde `cat` o desde un agente**. No
 necesitas instalar nada.
 
-Al 2026-11-12 tiene **1749 enlaces internos** sobre **125 notas**, con **3
+Al 2026-11-12 tiene **1752 enlaces internos** sobre **125 notas**, con **3
 wikilinks rotos** —los tres apuntan a ADR, que viven en `docs/` y no en la
 bóveda, así que es un choque de convención más que un enlace muerto— y
 **0 notas huérfanas**. Medido con `node scripts/recuentos.mjs` **en este

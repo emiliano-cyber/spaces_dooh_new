@@ -5,6 +5,20 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-12 · El rol del Dueño ya no se cambia, Dashboard a la medida y menú plegable (sin publicar)
+
+Rama aparte, `feat/dueno-dashboard-menu`.
+
+**El rol del Dueño no lo cambia nadie.** Ni otro Dueño ni un administrador pueden pasar a un Dueño a otro rol, y nadie puede cambiar el suyo propio. En **Administración → Equipo** el rol de un Dueño se ve fijo, sin desplegable. Desactivar o eliminar a un Dueño sigue con las reglas de antes.
+
+**Dashboard a la medida.** Junto al título hay un botón **Personalizar** para marcar qué métricas ver: los indicadores del mes, la ocupación, el pipeline, las alertas, los huecos, lo que hay por cobrar y el mapa. Si ocultas una tarjeta, la de al lado ocupa todo el ancho. Se recuerda en ese navegador.
+
+**Menú plegable.** Cada sección del menú (Inventario, Comercial, Operaciones…) se puede plegar a su nombre tocando su título, y desplegar otra vez igual. Se abre y se cierra con una animación suave; plegada, dice cuántas opciones guarda, y si estás en una de sus pantallas esa sigue a la vista. Abajo del menú hay un botón para plegar o desplegar todas de un toque. Todas empiezan abiertas y se recuerda en ese navegador.
+
+**A tener en cuenta.**
+- Lo del Dashboard y el menú es por navegador: en otro equipo o navegador sale todo abierto.
+- Nada cambia hasta que alguien lo toque.
+
 ## 2026-11-12 · Avisos también por correo, y WhatsApp preparado (sin publicar)
 
 Rama aparte, `feat/avisos-por-canal`. **No se contrató ningún servicio de correo ni se tocó ningún servidor**: queda lista para cuando se decida.
@@ -22,6 +36,7 @@ Rama aparte, `feat/avisos-por-canal`. **No se contrató ningún servicio de corr
 - Si el servidor todavía no tiene clave de correo, la tarjeta lo dice: puedes dejar elegidos tus avisos y empezarán a llegar cuando la tenga.
 - El correo diario de contratos a los Dueños no cambia.
 - Space Eye sigue mandando sus avisos por Resend, como hasta hoy.
+
 
 ## 2026-11-11 · v0.12.10 · Permisos editables, campos de pantalla por empresa, Network para la app nueva, eliminar usuarios solo Dueño/Admin y menos falsas alarmas en Space Eyes
 

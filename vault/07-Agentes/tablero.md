@@ -6,13 +6,23 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!important] 2026-11-12 · **GUARD 5 + DASH-METRICAS + MENU-CASCADA** — rama `feat/dueno-dashboard-menu`, sobre `integra/v0-12-10` (`ac5161cd`) — **sin empujar**
+> El rol de un Dueño no lo cambia nadie (403); «Personalizar» en el Dashboard y el menú en cascada (animado, con la
+> pantalla actual a la vista y plegar todo), los dos en localStorage. 10 291 unitarias, build, `roles-de-venta` +
+> `aislamiento` + usuarios contra Postgres 16 local, y Chrome, en verde. **Zonas tomadas y liberadas:** Z1 · Auth (solo
+> `lib/guardas-usuarios.ts`), Z10 · UI base (`Sidebar.tsx`, `inicio/page.tsx`, `lib/i18n/diccionario.ts`), Z12 · Docs y
+> `docs/Registro_Cambios.md`. `nav.ts` NO se tocó. Detalle en [[2026-11-12]].
+
 > [!important] 2026-11-12 · **AVISOS-CANAL · los avisos también por correo (Resend o Brevo) y WhatsApp sembrado** — rama `feat/avisos-por-canal`, sobre `integra/v0-12-10` (`ac5161cd`) — **sin empujar** · ROJO R3 (migración `20261112_avisos_por_canal.sql`), **aprobado por el dueño el 12/11**
 > Decisión del dueño: dejarlo en una rama aparte, sin contratar proveedor ni tocar servidores. `notificar()` reparte por
 > correo lo nuevo a quien lo enciende en Configuración → Avisos; recuperar contraseña sigue solo por correo. Typecheck,
 > 10 335 unitarias, build y e2e de base + aislamiento + notificaciones + aceptación pública en verde contra Postgres 16
 > local; sin envío real (no hay cuenta). **Zonas tomadas y liberadas:** Z12 · Docs, Z9 · Datos (la migración), y
 > `notificaciones-repo`, `propuestas-repo` (solo la aceptación pública), `lib/server/email.ts` y `docs/Registro_Cambios.md`.
-> Detalle en [[2026-11-12]] y [[02-Backend/avisos-por-canal]].
+> Detalle en [[2026-11-12]] y en `vault/02-Backend/avisos-por-canal.md` (solo en esa rama hasta fusionarla).
+
+> [!warning] 2026-11-12 · **La etiqueta `v0.12.10` apunta a la v0.12.9** (`8441031e`): se empujó sin fusionar el PR de
+> `integra/v0-12-10`, y `release.yml` paró sin publicar nada. La rehace el dueño tras fusionar. Ver [[2026-11-12]] §1.
 
 > [!important] 2026-11-11 · **Network para la app nueva + eliminar usuarios solo Dueño/Administrador + campos de pantalla por instancia + permisos editables** — rama `feat/network-api-y-borrado`, desde `main` `8441031e` (v0.12.9) — **sin empujar**
 > `GET /api/network/espacios` (+ foto) con `x-network-token`: las pantallas con el switch encendido, ficha pública y
