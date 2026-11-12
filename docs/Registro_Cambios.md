@@ -13,7 +13,7 @@ Rama aparte, `feat/dueno-dashboard-menu`.
 
 **Dashboard a la medida.** Junto al título hay un botón **Personalizar** para marcar qué métricas ver: los indicadores del mes, la ocupación, el pipeline, las alertas, los huecos, lo que hay por cobrar y el mapa. Si ocultas una tarjeta, la de al lado ocupa todo el ancho. Se recuerda en ese navegador.
 
-**Menú plegable.** Cada sección del menú (Inventario, Comercial, Operaciones…) se puede plegar a su nombre tocando su título, y desplegar otra vez igual. Todas empiezan abiertas y se recuerda en ese navegador.
+**Menú plegable.** Cada sección del menú (Inventario, Comercial, Operaciones…) se puede plegar a su nombre tocando su título, y desplegar otra vez igual. Se abre y se cierra con una animación suave; plegada, dice cuántas opciones guarda, y si estás en una de sus pantallas esa sigue a la vista. Abajo del menú hay un botón para plegar o desplegar todas de un toque. Todas empiezan abiertas y se recuerda en ese navegador.
 
 **A tener en cuenta.**
 - Lo del Dashboard y el menú es por navegador: en otro equipo o navegador sale todo abierto.
