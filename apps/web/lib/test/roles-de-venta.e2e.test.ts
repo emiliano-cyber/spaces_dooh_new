@@ -373,6 +373,14 @@ describe('5 · GUARD 1 — un ADMINISTRADOR no toca a ningún DUEÑO', () => {
     expect((await estadoDe(d3)).rol).toBe('DUENO')
   })
 
+  it('y desde el 12/11 ni OTRO DUEÑO le cambia el rol, aunque haya tres (guard 5)', async () => {
+    const c = await entrar('d2')
+    const r = await c.pedir(`/api/usuarios/${d3}/`, { metodo: 'PATCH', cuerpo: { rol: 'ADMINISTRADOR' } })
+    expect(r.status).toBe(403)
+    expect(String(r.datos?.error)).toMatch(/rol de un Dueño no se puede cambiar/i)
+    expect((await estadoDe(d3)).rol).toBe('DUENO')
+  })
+
   it('pero SÍ puede desactivar a un vendedor', async () => {
     // Control positivo: el administrador administra de verdad. Sin esto, los
     // tres 403 de arriba podrían venir de que no puede tocar a NADIE.
@@ -431,7 +439,10 @@ describe('6 · GUARD 2 — la organización nunca se queda sin Dueño activo', (
       metodo: 'PATCH',
       cuerpo: { rol: 'ADMINISTRADOR' },
     })
-    expect(degradar.status).toBe(409)
+    // 403 y no 409 desde el 12/11: el rol de un Dueño no lo cambia nadie
+    // (guard 5), así que ya no importa cuántos Dueños queden.
+    expect(degradar.status).toBe(403)
+    expect(String(degradar.datos?.error)).toMatch(/rol de un Dueño no se puede cambiar/i)
     // Desde el 2026-11-11 eliminar es SOLO de Dueño y Administrador, aunque la
     // matriz conceda `administracion.crear` (`puedeEliminarUsuarios`). Este
     // director tiene el permiso por la matriz y aun así recibe 403 ANTES del
