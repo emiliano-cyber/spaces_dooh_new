@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-11-11
+actualizado: 2026-11-12
 tags: [frontend, dashboard, inicio, dinero, comercial]
 archivos:
   - apps/web/app/(app)/(shell)/inicio/page.tsx
@@ -9,6 +9,7 @@ archivos:
   - apps/web/components/demo/inicio/indicadores.ts
   - apps/web/components/demo/inicio/indicadores.test.ts
   - apps/web/lib/alertas-visibles.ts
+  - apps/web/lib/metricas-visibles.ts
   - apps/web/components/demo/ui/CardColapsable.tsx
 ---
 
@@ -98,6 +99,23 @@ Reportes: le contestaba 403 y ensuciaba su consola.
 hoy: la tarifa de una digital no tiene una unidad única. Lo que sí sabe el motor
 es cuánto de la tarifa **publicada** se cobró en las ventas que nacieron de una
 propuesta, y lo dice junto a cuántas ventas lo respaldan.
+
+## Elegir qué métricas se ven (DASH-METRICAS, 12/11)
+
+Pedido del dueño: «que del dashboard se puedan elegir qué métricas ver y cuáles
+no». Botón **Personalizar** junto al título, con una casilla por bloque: los
+indicadores (ingreso, margen, pipeline abierto, tasa, ganado, ocupación de la
+red, costos del mes) y las tarjetas (ocupación, pipeline, alertas, huecos, por
+cobrar, mapa). Solo ofrece lo que el rol puede ver (DASH-REF).
+
+- Se guarda lo **oculto** en `localStorage` (`spaces:metricas-ocultas`),
+  por navegador, como las alertas. Sin nada guardado sale todo, como antes.
+- **El diseño aprobado no cambia**: se comprobó que el HTML congelado de
+  `pantallas-inicio.test.ts` es idéntico salvo el encabezado con el botón.
+- Si se oculta una tarjeta de una fila, su compañera ocupa la fila entera
+  (`anchoDeFila`); con las dos visibles, los anchos son los de siempre.
+- Probado en el navegador el 12/11 contra un build local: ocultar «Huecos» y
+  «Mapa», recargar, y «Alertas» y «Por cobrar» quedan a todo lo ancho.
 
 ## Lo que no está, y por qué
 

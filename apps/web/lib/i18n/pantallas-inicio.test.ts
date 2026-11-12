@@ -216,7 +216,7 @@ export const ESTADOS: Estado[] = [
       const Pagina = await inicio()
       conTodo()
       // En el orden de los hooks: `todasLasAlertas` va antes que los dos `useDelMotor`.
-      forzar((v, pila) => v === false && pila.includes('DashboardPage') && !pila.includes('useAlertasVisibles'), true) // todasLasAlertas
+      forzar((v, pila) => v === false && pila.includes('DashboardPage') && !pila.includes('useAlertasVisibles') && !pila.includes('useMetricasVisibles'), true) // todasLasAlertas
       forzar(enesimo('useDelMotor', esFase, 1), PNL)
       forzar(enesimo('useDelMotor', esFase, 1), { fase: 'datos', pct: 87, conTarifa: 4, sinTarifa: 2 })
       return pintar(idioma, createElement(Pagina))
@@ -520,7 +520,7 @@ describe('DASHBOARD · cifras de mil o mas en italiano (validacion del L4)', () 
       ocupacionFijas: { sitios: 3, ocupados: 1100, capacidad: 1300 },
     }
     datos.propuestas = Array.from({ length: 1001 }, (_, i) => propuesta(`e${i}`, 'ENVIADA'))
-    forzar((v, pila) => v === false && pila.includes('DashboardPage') && !pila.includes('useAlertasVisibles'), true)
+    forzar((v, pila) => v === false && pila.includes('DashboardPage') && !pila.includes('useAlertasVisibles') && !pila.includes('useMetricasVisibles'), true)
     forzar(enesimo('useDelMotor', esFase, 1), PNL)
     forzar(enesimo('useDelMotor', esFase, 1), { fase: 'datos', pct: 87, conTarifa: 1200, sinTarifa: 1500 })
     const crudo = pintar('it', createElement(Pagina))
@@ -587,7 +587,7 @@ describe('DASHBOARD · en PORTUGUES', () => {
       ocupacionFijas: { sitios: 3, ocupados: 1100, capacidad: 1300 },
     }
     datos.propuestas = Array.from({ length: 1001 }, (_, i) => propuesta(`e${i}`, 'ENVIADA'))
-    forzar((v, pila) => v === false && pila.includes('DashboardPage') && !pila.includes('useAlertasVisibles'), true)
+    forzar((v, pila) => v === false && pila.includes('DashboardPage') && !pila.includes('useAlertasVisibles') && !pila.includes('useMetricasVisibles'), true)
     forzar(enesimo('useDelMotor', esFase, 1), PNL)
     forzar(enesimo('useDelMotor', esFase, 1), { fase: 'datos', pct: 87, conTarifa: 1200, sinTarifa: 1500 })
     const crudo = pintar('pt', createElement(Pagina))
