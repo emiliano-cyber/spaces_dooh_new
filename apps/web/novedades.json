@@ -1,5 +1,41 @@
 [
   {
+    "version": "v0.12.11",
+    "fecha": "2026-11-13",
+    "items": [
+      {
+        "tipo": "NUEVO",
+        "texto": "Dashboard → «Personalizar»: cada quien marca qué indicadores y tarjetas quiere ver. Se recuerda en ese navegador; sin tocar nada sale completo, como siempre.",
+        "en": "Dashboard → “Customize”: each person picks which indicators and cards to show. It is remembered in that browser; if nothing is changed, everything shows as before.",
+        "it": "Dashboard → «Personalizza»: ognuno sceglie quali indicatori e schede vedere. Viene ricordato in quel browser; senza toccare nulla si vede tutto, come sempre."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Dashboard alineado: en cada fila la tarjeta angosta va a la izquierda, las dos tienen la misma altura, la gráfica y el mapa llenan su espacio, y si ocultas un indicador los demás se reparten el ancho. La separación entre renglones no cambia.",
+        "en": "Aligned Dashboard: in every row the narrow card is on the left, both cards are the same height, the chart and the map fill their space, and if you hide an indicator the others share the width. The spacing between rows stays the same.",
+        "it": "Dashboard allineata: in ogni riga la scheda stretta è a sinistra, le due hanno la stessa altezza, il grafico e la mappa riempiono il loro spazio e, se nascondi un indicatore, gli altri si dividono la larghezza. La distanza tra le righe non cambia."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Menú plegable: cada sección del menú se pliega a su nombre tocando su título, y abajo hay un botón para plegar o desplegar todas. Plegada, dice cuántas opciones guarda y deja a la vista la pantalla en la que estás.",
+        "en": "Collapsible menu: each menu section folds down to its name when you tap its title, and a button at the bottom folds or unfolds them all. When folded it shows how many options it holds and keeps the screen you are on visible.",
+        "it": "Menu richiudibile: ogni sezione del menu si richiude sul suo nome toccando il titolo, e in fondo c’è un pulsante per chiuderle o aprirle tutte. Chiusa, indica quante voci contiene e lascia in vista la schermata in cui ti trovi."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Configuración → «Avisos»: cada persona elige qué avisos de la campana recibe también por correo (propuestas, campañas, órdenes de compra, facturas, pagos, cobranza y órdenes de trabajo). Todos empiezan apagados, y llegan cuando el servidor tenga su cuenta de correo. WhatsApp aparece como «Próximamente».",
+        "en": "Account settings → “Notifications”: each person chooses which bell notifications they also get by email (proposals, campaigns, purchase orders, invoices, payments, collections and work orders). They all start off, and emails arrive once the server has its email account. WhatsApp shows as “Coming soon”.",
+        "it": "Impostazioni dell’account → «Notifiche»: ognuno sceglie quali avvisi della campanella ricevere anche per email (proposte, campagne, ordini di acquisto, fatture, pagamenti, incassi e ordini di lavoro). Partono tutti spenti e arrivano quando il server avrà il suo account email. WhatsApp appare come «Prossimamente»."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "El rol de un Dueño ya no lo cambia nadie, ni otro Dueño ni él mismo. En Administración → Usuarios se ve fijo.",
+        "en": "Nobody can change an Owner’s role anymore, not another Owner and not the Owner themselves. In Settings → Users it is shown as fixed.",
+        "it": "Il ruolo di un Titolare non lo cambia più nessuno, né un altro Titolare né lui stesso. In Impostazioni → Utenti appare fisso."
+      }
+    ]
+  },
+  {
     "version": "v0.12.10",
     "fecha": "2026-11-11",
     "items": [

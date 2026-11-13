@@ -5,9 +5,9 @@ La entrada más reciente va arriba.
 
 ---
 
-## 2026-11-13 · El Dashboard, alineado y sin huecos (sin publicar)
+## 2026-11-13 · v0.12.11 · El Dashboard, alineado y sin huecos
 
-Rama `feat/dueno-dashboard-menu`.
+Entra en la **v0.12.11** (`integra/v0-12-11`), junto con las dos entradas del 12/11 de abajo.
 
 - En las tres filas de tarjetas la tarjeta angosta va a la izquierda, así que la línea entre columnas queda en el mismo lugar de arriba abajo.
 - Las dos tarjetas de cada fila tienen la misma altura; la gráfica de ocupación y el mapa crecen para llenar su tarjeta en vez de dejar un espacio en blanco debajo.
@@ -16,9 +16,9 @@ Rama `feat/dueno-dashboard-menu`.
 
 ---
 
-## 2026-11-12 · El rol del Dueño ya no se cambia, Dashboard a la medida y menú plegable (sin publicar)
+## 2026-11-12 · v0.12.11 · El rol del Dueño ya no se cambia, Dashboard a la medida y menú plegable
 
-Rama aparte, `feat/dueno-dashboard-menu`.
+Entra en la v0.12.11 (rama `feat/dueno-dashboard-menu`).
 
 **El rol del Dueño no lo cambia nadie.** Ni otro Dueño ni un administrador pueden pasar a un Dueño a otro rol, y nadie puede cambiar el suyo propio. En **Administración → Equipo** el rol de un Dueño se ve fijo, sin desplegable. Desactivar o eliminar a un Dueño sigue con las reglas de antes.
 
@@ -30,9 +30,9 @@ Rama aparte, `feat/dueno-dashboard-menu`.
 - Lo del Dashboard y el menú es por navegador: en otro equipo o navegador sale todo abierto.
 - Nada cambia hasta que alguien lo toque.
 
-## 2026-11-12 · Avisos también por correo, y WhatsApp preparado (sin publicar)
+## 2026-11-12 · v0.12.11 · Avisos también por correo, y WhatsApp preparado
 
-Rama aparte, `feat/avisos-por-canal`. **No se contrató ningún servicio de correo ni se tocó ningún servidor**: queda lista para cuando se decida.
+Entra en la v0.12.11 (rama `feat/avisos-por-canal`). **No se contrató ningún servicio de correo ni se tocó ningún servidor**: queda lista para cuando se decida.
 
 **Qué cambia para quien usa la aplicación.** En **Configuración** (menú de tu cuenta) hay una tarjeta nueva, **Avisos**. Ahí cada persona elige qué avisos de la campana quiere recibir también por correo: propuestas, campañas, órdenes de compra, facturas, pagos, cobranza y órdenes de trabajo. El correo llega con el nombre y el logo de la empresa, y con un botón que abre la pantalla del aviso. Incluye «Propuesta aceptada por el cliente», que llega por la liga pública.
 

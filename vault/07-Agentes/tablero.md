@@ -6,6 +6,9 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!important] 2026-11-13 · **v0.12.11 = `integra/v0-12-11`** — `feat/dueno-dashboard-menu` + `feat/avisos-por-canal`, sin la paleta — **sin empujar**
+> Desde `origin/main` `fccfd92a`; notas en `novedades.json`. Push, PR, etiqueta y promoción los hace el dueño. Detalle en [[2026-11-13]] §3.
+
 > [!important] 2026-11-13 · **DASH-ALINEADO** — rama `feat/dueno-dashboard-menu` — **sin empujar**
 > El Dashboard sin huecos: la angosta a la izquierda en las tres filas, misma altura por fila, gráfica y mapa que
 > llenan su tarjeta e indicadores con tantas columnas como se ven. Unitarias en verde; **sin navegador todavía**.
