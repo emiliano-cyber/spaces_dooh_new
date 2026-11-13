@@ -42,6 +42,10 @@ export const ES_NOTIFICACIONES = {
   'notificaciones.correo.resumen.vencido.otros': '{n} vencidos',
   'notificaciones.correo.resumen.por-vencer': '{n} por vencer',
   'notificaciones.correo.resumen.sin-capturar': '{n} sin capturar',
+  // ── AVISOS-CANAL (12/11) · el correo de UN aviso (`lib/server/correo-aviso.ts`) ──
+  'notificaciones.correo.aviso.boton': 'Abrir en Space OS',
+  'notificaciones.correo.aviso.pie':
+    '{org} · Te llega porque activaste este aviso por correo en Configuración → Avisos. Desde ahí lo apagas.',
   // ── Propuestas (`app/api/propuestas/[id]/route.ts`, `propuestas-repo.ts`) ──
   'notificaciones.propuesta.aprobada': 'Propuesta aprobada',
   'notificaciones.propuesta.rechazada': 'Propuesta rechazada',
@@ -108,6 +112,9 @@ export const EN_NOTIFICACIONES: Record<keyof typeof ES_NOTIFICACIONES, string> =
   'notificaciones.correo.resumen.vencido.otros': '{n} expired',
   'notificaciones.correo.resumen.por-vencer': '{n} due soon',
   'notificaciones.correo.resumen.sin-capturar': '{n} not entered',
+  'notificaciones.correo.aviso.boton': 'Open in Space OS',
+  'notificaciones.correo.aviso.pie':
+    '{org} · You get this because you turned on this email notification in Account settings → Notifications. You can turn it off there.',
   'notificaciones.propuesta.aprobada': 'Proposal approved',
   'notificaciones.propuesta.rechazada': 'Proposal rejected',
   'notificaciones.propuesta.aceptada': 'Proposal accepted by the client',
@@ -175,6 +182,9 @@ export const IT_NOTIFICACIONES: Record<keyof typeof ES_NOTIFICACIONES, string> =
   'notificaciones.correo.resumen.vencido.otros': '{n} scaduti',
   'notificaciones.correo.resumen.por-vencer': '{n} in scadenza',
   'notificaciones.correo.resumen.sin-capturar': '{n} da inserire',
+  'notificaciones.correo.aviso.boton': 'Apri in Space OS',
+  'notificaciones.correo.aviso.pie':
+    '{org} · Lo ricevi perché hai attivato questa notifica via email in Impostazioni dell’account → Notifiche. Da lì puoi disattivarla.',
 
   'notificaciones.propuesta.aprobada': 'Proposta approvata',
   'notificaciones.propuesta.rechazada': 'Proposta rifiutata',
@@ -245,6 +255,9 @@ export const PT_NOTIFICACIONES: Record<keyof typeof ES_NOTIFICACIONES, string> =
   'notificaciones.correo.resumen.vencido.otros': '{n} vencidos',
   'notificaciones.correo.resumen.por-vencer': '{n} a vencer',
   'notificaciones.correo.resumen.sin-capturar': '{n} sem cadastro',
+  'notificaciones.correo.aviso.boton': 'Abrir no Space OS',
+  'notificaciones.correo.aviso.pie':
+    '{org} · Você recebe isto porque ativou este aviso por e-mail em Configurações da conta → Avisos. Lá você pode desativá-lo.',
   'notificaciones.propuesta.aprobada': 'Proposta aprovada',
   'notificaciones.propuesta.rechazada': 'Proposta recusada',
   'notificaciones.propuesta.aceptada': 'Proposta aceita pelo cliente',

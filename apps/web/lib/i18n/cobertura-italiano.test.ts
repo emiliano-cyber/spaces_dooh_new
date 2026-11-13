@@ -127,6 +127,8 @@ describe('lote L5 · el italiano que coincide con otro idioma, solo el declarado
     'cuenta.cuestionario.no', 'admin.modulo.dashboard', 'admin.modulo.network', 'admin.usuarios.equipo',
     'admin.usuarios.col.contrasena', 'admin.alta.correo', 'admin.alta.contrasena', 'admin.logo.campo',
     'admin.cuenta.correo', 'admin.network.no',
+    // AVISOS-CANAL (12/11): «Email» es como lo dice el italiano, igual que admin.cuenta.correo.
+    'cuenta.avisos.col.correo',
     // «Programmatic»: anglicismo del sector, como en Comercial (costura final, 2026-11-04).
     'admin.network.programatico',
   ]

@@ -75,6 +75,8 @@ export const COGNADOS_PT_L5 = new Set<string>([
   'idioma.it',                                       // "Italiano"
   'idioma.pt',                                       // "Português"
   'idioma.cuenta.titulo',                            // "Idioma"
+  'cuenta.avisos.titulo',                            // "Avisos" (AVISOS-CANAL, 12/11)
+  'cuenta.avisos.col.aviso',                         // "Aviso"
   'login.boton.entrar',                              // "Entrar"
   'login.boton.entrando',                            // "Entrando…"
   'login.boton.enviando',                            // "Enviando…"
