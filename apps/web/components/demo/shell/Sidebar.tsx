@@ -3,7 +3,8 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import * as TooltipPrimitive from '@radix-ui/react-tooltip'
-import { ExternalLink, Menu, X } from 'lucide-react'
+import { ChevronDown, ChevronsDownUp, ChevronsUpDown, ExternalLink, Menu, X } from 'lucide-react'
+import { useMenuPlegado } from '@/lib/menu-plegado'
 import { cn } from '@/lib/cn'
 import { SpaceOsMark } from '@/components/demo/ui/SpaceOsMark'
 import { TOKEN_TELCO, useConfigNegocio } from '@/lib/data/client'
@@ -91,6 +92,50 @@ function SidebarContent({
   const activo = hrefActivo(here, items.map((n) => norm(n.href)))
   const esActivo = (href: string) => norm(href) === activo
 
+  // MENU-CASCADA (12/11): qué secciones van plegadas a su título, por navegador.
+  const {
+    plegada: estaPlegada,
+    alternar: alternarSeccion,
+    alternarTodas,
+    hayDesplegadas,
+    listo: menuListo,
+  } = useMenuPlegado(GRUPOS.map((g) => g.key))
+  // Las secciones con título que ve este rol: las que el botón del pie pliega.
+  const plegables = secciones.filter((g, i) => !!g.titulo && i > 0).map((g) => g.key)
+
+  // Un enlace del menú. Una sola vez para los tres sitios donde se pinta: la
+  // lista plana, el cuerpo de una sección, y la entrada actual de una sección
+  // plegada. `oculto` lo saca del tabulador; `sufijo` evita la clave repetida.
+  const itemNav = (n: (typeof items)[number], o: { oculto?: boolean; sufijo?: string } = {}) => {
+    const active = esActivo(n.href)
+    const Icon = n.icon
+    return (
+      <li key={o.sufijo ? `${n.key}-${o.sufijo}` : n.key}>
+        <Globo activo={colapsado} texto={rotulo(`nav.${n.key}`, n.label)}>
+          <Link
+            href={n.href}
+            onClick={onNavegar}
+            tabIndex={o.oculto ? -1 : undefined}
+            aria-current={active ? 'page' : undefined}
+            // Colapsado: el label sigue en el DOM como sr-only para no
+            // dejar el enlace sin nombre accesible. El globo visible lo
+            // pone <Globo>; sin `title` para no encimar el nativo.
+            className={cn(
+              'relative flex items-center rounded text-[13px] leading-none transition-colors duration-150',
+              colapsado ? 'h-9 justify-center' : 'gap-2.5 px-2.5 py-1.5',
+              active
+                ? 'bg-accent-soft font-medium text-ink before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-accent'
+                : 'text-muted hover:bg-surface-2 hover:text-ink',
+            )}
+          >
+            <Icon className={cn('h-4 w-4 shrink-0', active ? 'text-accent' : '')} strokeWidth={1.75} />
+            <span className={cn(colapsado && 'sr-only')}>{rotulo(`nav.${n.key}`, n.label)}</span>
+          </Link>
+        </Globo>
+      </li>
+    )
+  }
+
   return (
     <TooltipPrimitive.Provider delayDuration={150} skipDelayDuration={300}>
       <div
@@ -176,54 +221,85 @@ function SidebarContent({
           )
         ) : (
           <ul className="space-y-px">
-            {secciones.flatMap((seccion, iSeccion) => [
-              // Cabecera de fase. Colapsado NO cabe texto, así que se marca con
-              // una línea: la separación se conserva aunque el rótulo no quepa.
-              // La primera sección (Dashboard) no lleva ninguna de las dos: no
-              // hay nada de lo que separarla todavía.
-              seccion.titulo && iSeccion > 0 ? (
-                colapsado ? (
-                  <li key={`sep-${seccion.key}`} aria-hidden className="mx-2 my-1.5 border-t border-border" />
-                ) : (
-                  <li key={`tit-${seccion.key}`}>
-                    <h2 className="px-2.5 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-muted">
-                      {rotulo(`nav.grupo.${seccion.key}`, seccion.titulo)}
-                    </h2>
-                  </li>
-                )
-              ) : null,
-              ...seccion.items.map((n) => {
-              const active = esActivo(n.href)
-              const Icon = n.icon
-              return (
-                <li key={n.key}>
-                  <Globo activo={colapsado} texto={rotulo(`nav.${n.key}`, n.label)}>
-                  <Link
-                    href={n.href}
-                    onClick={onNavegar}
-                    aria-current={active ? 'page' : undefined}
-                    // Colapsado: el label sigue en el DOM como sr-only para no
-                    // dejar el enlace sin nombre accesible. El globo visible lo
-                    // pone <Globo>; sin `title` para no encimar el nativo.
-                    className={cn(
-                      'relative flex items-center rounded text-[13px] leading-none transition-colors duration-150',
-                      colapsado ? 'h-9 justify-center' : 'gap-2.5 px-2.5 py-1.5',
-                      active
-                        ? 'bg-accent-soft font-medium text-ink before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-accent'
-                        : 'text-muted hover:bg-surface-2 hover:text-ink',
-                    )}
-                  >
-                    <Icon
-                      className={cn('h-4 w-4 shrink-0', active ? 'text-accent' : '')}
-                      strokeWidth={1.75}
-                    />
-                    <span className={cn(colapsado && 'sr-only')}>{rotulo(`nav.${n.key}`, n.label)}</span>
-                  </Link>
-                  </Globo>
-                </li>
-              )
-              }),
-            ])}
+            {secciones.flatMap((seccion, iSeccion) => {
+              const conTitulo = !!seccion.titulo && iSeccion > 0
+              // Sin título (Dashboard) o con el menú en modo icono: lista plana
+              // como siempre. Colapsado NO cabe texto, así que la sección se
+              // marca con una línea y se ven todos los iconos.
+              if (!conTitulo || colapsado) {
+                return [
+                  conTitulo ? <li key={`sep-${seccion.key}`} aria-hidden className="mx-2 my-1.5 border-t border-border" /> : null,
+                  ...seccion.items.map((n) => itemNav(n)),
+                ]
+              }
+              const plegada = estaPlegada(seccion.key)
+              const actual = seccion.items.find((n) => esActivo(n.href))
+              const nombre = rotulo(`nav.grupo.${seccion.key}`, seccion.titulo ?? '')
+              return [
+                // MENU-CASCADA (12/11): el título es el botón que pliega la
+                // sección a su nombre. Sigue siendo un <h2> para quien navega
+                // por encabezados. Plegada, dice cuántas opciones guarda.
+                <li key={`tit-${seccion.key}`}>
+                  <h2>
+                    <button
+                      type="button"
+                      onClick={() => alternarSeccion(seccion.key)}
+                      aria-label={nombre}
+                      aria-expanded={!plegada}
+                      aria-controls={`menu-seccion-${seccion.key}`}
+                      className={cn(
+                        // `bg-transparent`: sin él el navegador le pone a un
+                        // <button> su gris de siempre (visto el 12/11).
+                        'group mt-1.5 flex w-full items-center gap-2 rounded bg-transparent px-2.5 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wider transition-colors duration-150 hover:bg-surface-2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent',
+                        plegada && actual ? 'text-accent' : 'text-muted',
+                      )}
+                    >
+                      <span className="min-w-0 flex-1 truncate">{nombre}</span>
+                      {plegada && (
+                        <span className="demo-num rounded-full bg-surface-2 px-1.5 text-[10px] font-medium normal-case tracking-normal text-muted group-hover:bg-surface">
+                          {seccion.items.length}
+                        </span>
+                      )}
+                      <ChevronDown
+                        className={cn(
+                          'h-3.5 w-3.5 shrink-0 motion-reduce:transition-none',
+                          menuListo && 'transition-transform duration-200',
+                          plegada && '-rotate-90',
+                        )}
+                        strokeWidth={2}
+                        aria-hidden
+                      />
+                    </button>
+                  </h2>
+                </li>,
+                // El cuerpo se abre y se cierra ANIMANDO la altura con el truco
+                // de `grid-template-rows: 0fr → 1fr`, que no necesita medir
+                // nada. Plegado, sus enlaces salen del orden del tabulador
+                // (`aria-hidden` + `tabIndex=-1`): invisibles pero
+                // alcanzables con el teclado sería peor que no tenerlos.
+                // La rejilla va EN el <li> y no en un <div> dentro: como
+                // `list-item`, el <li> conservaba su propia caja de línea y
+                // una sección plegada dejaba 15 px de hueco debajo (medido en
+                // el navegador el 12/11).
+                <li
+                  key={`cuerpo-${seccion.key}`}
+                  id={`menu-seccion-${seccion.key}`}
+                  aria-hidden={plegada || undefined}
+                  className={cn(
+                    'grid motion-reduce:transition-none',
+                    menuListo && 'transition-[grid-template-rows,opacity] duration-200 ease-out',
+                    plegada ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100',
+                  )}
+                >
+                  <ul className="min-h-0 space-y-px overflow-hidden">
+                    {seccion.items.map((n) => itemNav(n, { oculto: plegada }))}
+                  </ul>
+                </li>,
+                // Plegada pero con la pantalla actual dentro: esa entrada se
+                // queda a la vista bajo el título, para no perder dónde estás.
+                plegada && actual ? itemNav(actual, { sufijo: 'actual' }) : null,
+              ]
+            })}
           </ul>
         )}
       </nav>
@@ -231,11 +307,29 @@ function SidebarContent({
       {/* Pie anclado al fondo: `shrink-0` evita que el flex lo comprima cuando la
           lista de módulos es larga. El toggle de colapso vive ahora en la
           cabecera, arriba. */}
-      <div className="mt-auto shrink-0 border-t border-border">
+      <div className="mt-auto flex shrink-0 items-center justify-between gap-2 border-t border-border">
         {!colapsado && (
           <p className="px-2.5 py-1.5 text-[10px] leading-none text-muted">
             {t('sidebar.derechos')}
           </p>
+        )}
+        {/* MENU-CASCADA · plegar o desplegar todo de un toque. Si queda alguna
+            sección abierta, las pliega todas; si no, las abre. */}
+        {!colapsado && plegables.length > 0 && (
+          <Globo activo texto={hayDesplegadas(plegables) ? t('sidebar.plegar-todo') : t('sidebar.desplegar-todo')}>
+            <button
+              type="button"
+              onClick={() => alternarTodas(plegables)}
+              aria-label={hayDesplegadas(plegables) ? t('sidebar.plegar-todo') : t('sidebar.desplegar-todo')}
+              className="mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded bg-transparent text-muted transition-colors duration-150 hover:bg-surface-2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+            >
+              {hayDesplegadas(plegables) ? (
+                <ChevronsDownUp className="h-3.5 w-3.5" strokeWidth={1.75} />
+              ) : (
+                <ChevronsUpDown className="h-3.5 w-3.5" strokeWidth={1.75} />
+              )}
+            </button>
+          </Globo>
         )}
       </div>
     </TooltipPrimitive.Provider>

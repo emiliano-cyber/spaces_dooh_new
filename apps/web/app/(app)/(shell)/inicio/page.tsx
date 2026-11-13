@@ -17,6 +17,7 @@ import {
   Target,
 } from 'lucide-react'
 import { useAlertasVisibles, TIPOS_ALERTA } from '@/lib/alertas-visibles'
+import { useMetricasVisibles, anchoDeFila, columnasIndicadores, METRICAS_DASHBOARD, type MetricaDashboard } from '@/lib/metricas-visibles'
 import { formatNumero } from '@/lib/formato-numero'
 import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
 import { OcupacionChart } from '@/components/demo/charts'
@@ -152,6 +153,8 @@ export default function DashboardPage() {
   const usuarios = useUsuarios()
   const cfg = useConfigNegocio()
   const alertasCfg = useAlertasVisibles()
+  // DASH-METRICAS (12/11): qué bloques se pintan. Sin nada guardado, todos.
+  const met = useMetricasVisibles()
   const [todasLasAlertas, setTodasLasAlertas] = useState(false)
   const [todosLosHuecos, setTodosLosHuecos] = useState(false)
 
@@ -204,18 +207,41 @@ export default function DashboardPage() {
 
   const tasa = pipeline?.tasaCierre == null ? '—' : `${Math.round(pipeline.tasaCierre * 100)}%`
 
+  // DASH-METRICAS · lo que este rol PUEDE ver (DASH-REF): el menú no ofrece
+  // una métrica que su tablero nunca pinta.
+  const disponibles: MetricaDashboard[] = METRICAS_DASHBOARD.map((x) => x.id).filter((id) =>
+    veFinanzas ? id !== 'pipeline-abierto' && id !== 'tasa' : !['ingreso', 'margen', 'costos', 'cobranza'].includes(id),
+  )
+  const ve = (id: MetricaDashboard) => met.ve(id) && disponibles.includes(id)
+  const hayIndicadores = (['ingreso', 'margen', 'pipeline-abierto', 'tasa', 'ganado', 'ocupacion-red', 'costos'] as const).some(ve)
+  // Cada fila tiene una ancha y una angosta; si una se oculta, la otra se
+  // queda con la fila entera (`anchoDeFila`).
+  const fila2 = anchoDeFila(ve('grafica-ocupacion'), ve('pipeline'))
+  const fila3 = anchoDeFila(ve('huecos'), ve('alertas'))
+  const fila4 = anchoDeFila(ve('mapa'), ve('cobranza'))
+  const nadaVisible = met.listo && !disponibles.some(ve)
+  // DASH-ALINEADO (13/11): la rejilla de indicadores tiene tantas columnas como
+  // indicadores se ven; con 4 fijas, ocultar uno dejaba una casilla vacía.
+  const nIndicadores = (['ingreso', 'margen', 'pipeline-abierto', 'tasa', 'ganado', 'ocupacion-red'] as const).filter(ve).length
+
   return (
     <div className="w-full space-y-5">
-      <div>
-        <h1 className="text-2xl text-ink">{t('nav.dashboard')}</h1>
-        {subtitulo && <p className="mt-1 text-[13px] text-muted">{subtitulo}</p>}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl text-ink">{t('nav.dashboard')}</h1>
+          {subtitulo && <p className="mt-1 text-[13px] text-muted">{subtitulo}</p>}
+        </div>
+        <ConfigMetricas met={met} disponibles={disponibles} etiqueta={(id) => etiquetaMetrica(id, t, mesActual)} />
       </div>
+
+      {nadaVisible && <p className="text-[13px] text-muted">{t('inicio.todo-oculto')}</p>}
 
       {/* KPIs — 4 columnas solo desde xl (1280px). Entre 1024 y 1279 el sidebar
           se come 240px y cada tarjeta quedaba en ~235px, demasiado angosta para
           un monto de 14 caracteres en mono; ahí van 2 columnas. */}
+      {hayIndicadores && (
       <CardColapsable id="inicio.indicadores" titulo={t('inicio.indicadores')} contentClassName="space-y-3">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className={cn('grid gap-3', !m || !pipeline ? columnasIndicadores(4) : columnasIndicadores(nIndicadores))}>
         {!m || !pipeline ? (
           <>
             <KPICardSkeleton />
@@ -235,30 +261,30 @@ export default function DashboardPage() {
                 </>
               ) : pnl.fase === 'datos' ? (
                 <>
-                  <KPICard
+                  {ve('ingreso') && <KPICard
                     label={t('inicio.ingreso-de', { mes: mesActual })}
                     value={formatMonto(pnl.totales.ingreso, idioma)}
                     sub={t('inicio.ingreso-sub')}
                     tono="azul"
                     icon={<TrendingUp className="h-4 w-4" />}
-                  />
-                  <KPICard
+                  />}
+                  {ve('margen') && <KPICard
                     label={t('inicio.margen-de', { mes: mesActual })}
                     value={pnl.totales.margenBrutoPct == null ? '—' : `${pnl.totales.margenBrutoPct.toFixed(0)}%`}
                     sub={t('inicio.margen-sub', { margen: formatMonto(pnl.totales.margenBruto, idioma), costo: formatMonto(pnl.totales.costoTotal, idioma) })}
                     tono={pnl.totales.margenBrutoPct == null ? 'neutro' : margenTono(pnl.totales.margenBrutoPct)}
                     icon={<Wallet className="h-4 w-4" />}
-                  />
+                  />}
                 </>
               ) : (
                 <>
-                  <KPICard label={t('inicio.ingreso-de', { mes: mesActual })} value="—" sub={pnl.fase === 'sin-acceso' ? t('inicio.requiere-finanzas') : t('inicio.no-calcular')} icon={<TrendingUp className="h-4 w-4" />} />
-                  <KPICard label={t('inicio.margen-de', { mes: mesActual })} value="—" sub={pnl.fase === 'sin-acceso' ? t('inicio.requiere-finanzas') : t('inicio.no-calcular')} icon={<Wallet className="h-4 w-4" />} />
+                  {ve('ingreso') && <KPICard label={t('inicio.ingreso-de', { mes: mesActual })} value="—" sub={pnl.fase === 'sin-acceso' ? t('inicio.requiere-finanzas') : t('inicio.no-calcular')} icon={<TrendingUp className="h-4 w-4" />} />}
+                  {ve('margen') && <KPICard label={t('inicio.margen-de', { mes: mesActual })} value="—" sub={pnl.fase === 'sin-acceso' ? t('inicio.requiere-finanzas') : t('inicio.no-calcular')} icon={<Wallet className="h-4 w-4" />} />}
                 </>
               )
             ) : (
               <>
-                <KPICard
+                {ve('pipeline-abierto') && <KPICard
                   label={t('inicio.pipeline-abierto')}
                   value={formatMonto(pipeline.abierto.valor, idioma)}
                   sub={t('inicio.pipeline-sub', {
@@ -267,27 +293,27 @@ export default function DashboardPage() {
                   })}
                   tono="ambar"
                   icon={<Briefcase className="h-4 w-4" />}
-                />
-                <KPICard
+                />}
+                {ve('tasa') && <KPICard
                   label={t('inicio.tasa')}
                   value={tasa}
                   sub={t('inicio.tasa-sub', { n: VENTANA_TASA_DIAS })}
                   icon={<Target className="h-4 w-4" />}
-                />
+                />}
               </>
             )}
-            <KPICard
+            {ve('ganado') && <KPICard
               label={t('inicio.ganado-en', { mes: mesActual })}
               value={formatMonto(pipeline.ganadoMes.valor, idioma)}
               sub={t(pipeline.ganadoMes.n === 1 ? 'inicio.aprobadas-propuestas.uno' : 'inicio.aprobadas-propuestas.otros', { n: formatNumero(pipeline.ganadoMes.n, 0, idioma) })}
               tono="verde"
               icon={<Trophy className="h-4 w-4" />}
-            />
+            />}
             {/* % ponderado por capacidad: cada slot de una digital y cada cara
                 de una fija cuentan como un espacio. El subtítulo lleva el dato
                 crudo (espacios) y el reparto digital/fija, porque un mismo % se
                 lee muy distinto si viene de slots o de espectaculares. */}
-            <KPICard
+            {ve('ocupacion-red') && <KPICard
               label={t('inicio.ocupacion-red')}
               value={`${m.ocupacionPct.toFixed(0)}%`}
               sub={t('inicio.ocupacion-red-sub', {
@@ -300,7 +326,7 @@ export default function DashboardPage() {
               })}
               tono="azul"
               icon={<Gauge className="h-4 w-4" />}
-            />
+            />}
           </>
         )}
       </div>
@@ -310,7 +336,7 @@ export default function DashboardPage() {
           cuenta y por eso NO entra en el total ni en el margen. Detrás, las dos
           medidas del sector que el motor ya sabe dar: la renta como parte del
           ingreso y cuánto de la tarifa publicada se cobra. */}
-      {m && veFinanzas && pnl.fase === 'datos' && (
+      {m && veFinanzas && pnl.fase === 'datos' && ve('costos') && (
         <div className="space-y-1.5 rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px]">
           <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
             <span className="font-medium text-ink">{t('inicio.costos-de', { mes: mesActual })}</span>
@@ -346,13 +372,23 @@ export default function DashboardPage() {
         </div>
       )}
       </CardColapsable>
+      )}
 
       {/* Ocupación + Pipeline comercial */}
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
+      {/* DASH-ALINEADO (13/11, «que todo esté alineado para dejar el menor
+          espacio desperdiciado, manteniendo la separación entre renglones»):
+          las tres filas de tarjetas van igual — misma altura las dos de una
+          fila (`items-stretch`), la angosta a la izquierda (`anchoDeFila`) para
+          que la línea entre columnas caiga en el mismo sitio en todas, y el
+          mismo 20 px entre columnas que entre renglones (`gap-5` = `space-y-5`). */}
+      {(ve('grafica-ocupacion') || ve('pipeline')) && (
+      <div className="grid grid-cols-1 items-stretch gap-5 lg:grid-cols-3">
+        {ve('grafica-ocupacion') && (
         <CardColapsable
           id="inicio.ocupacion"
           titulo={t('inicio.ocupacion')}
-          className="lg:col-span-2"
+          className={cn('flex flex-col', fila2.ancha)}
+          contentClassName="flex flex-1 flex-col"
           subtitulo={
             serie ? (
               <>
@@ -365,15 +401,23 @@ export default function DashboardPage() {
             {!serie ? (
               <div className="h-[180px] animate-pulse rounded bg-surface-2" />
             ) : (
-              <OcupacionChart puntos={serie.puntos} />
+              // Llena lo que deje la vecina, sin bajar de los 180 px de siempre.
+              <div className="relative min-h-[180px] flex-1">
+                <div className="absolute inset-0">
+                  <OcupacionChart puntos={serie.puntos} alto="100%" />
+                </div>
+              </div>
             )}
         </CardColapsable>
+        )}
 
         {/* Sustituye a «Tentativas vs confirmadas», que comparaba propuestas
             abiertas contra el acumulado HISTÓRICO de reservas. */}
+        {ve('pipeline') && (
         <CardColapsable
           id="inicio.pipeline"
           titulo={t('inicio.pipeline')}
+          className={fila2.angosta}
           accion={
             <Link href="/propuestas" className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline">
               {t('nav.propuestas')} <ArrowRight className="h-3.5 w-3.5" />
@@ -409,14 +453,18 @@ export default function DashboardPage() {
             </div>
           )}
         </CardColapsable>
+        )}
       </div>
+      )}
 
       {/* Alertas + Huecos y renovaciones. Las dos van a la MISMA altura
           (`items-stretch`, 11/11, pedido del dueño): con `items-start` la más
           corta dejaba un hueco debajo y la fila perdía naturalidad. Una tarjeta
           plegada no se estira (`CardColapsable` le pone `self-start`). */}
-      <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-3">
-        <CardColapsable id="inicio.alertas" titulo={t('inicio.alertas')} accion={<ConfigAlertas cfg={alertasCfg} />}>
+      {(ve('alertas') || ve('huecos')) && (
+      <div className="grid grid-cols-1 items-stretch gap-5 lg:grid-cols-3">
+        {ve('alertas') && (
+        <CardColapsable id="inicio.alertas" titulo={t('inicio.alertas')} className={fila3.angosta} accion={<ConfigAlertas cfg={alertasCfg} />}>
             {(() => {
               if (!m) return <div className="h-32 animate-pulse rounded bg-surface-2" />
               // Solo los tipos encendidos, y las ROJAS primero: antes salían en
@@ -480,14 +528,16 @@ export default function DashboardPage() {
               )
             })()}
         </CardColapsable>
+        )}
 
         {/* Sustituye a «Campañas por finalizar»: no basta con saber que una
             campaña termina, hay que saber que la cara se queda VACÍA y a quién
             ofrecerle renovar. Ver `huecosProximos`. */}
+        {ve('huecos') && (
         <CardColapsable
           id="inicio.huecos"
           titulo={t('inicio.huecos')}
-          className="lg:col-span-2"
+          className={fila3.ancha}
           subtitulo={t('inicio.huecos-sub', { n: VENTANA_HUECOS_DIAS })}
         >
           {!huecos ? (
@@ -549,16 +599,20 @@ export default function DashboardPage() {
             </>
           )}
         </CardColapsable>
+        )}
       </div>
+      )}
 
       {/* Cobranza por antigüedad (solo quien ve Finanzas) + mapa. Misma altura
           que la vecina (`items-stretch`, 11/11), como Alertas y Huecos: la
           cobranza corta dejaba un hueco grande junto al mapa. */}
-      <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-3">
-        {veFinanzas && (
+      {(ve('cobranza') || ve('mapa')) && (
+      <div className="grid grid-cols-1 items-stretch gap-5 lg:grid-cols-3">
+        {ve('cobranza') && (
           <CardColapsable
             id="inicio.cobranza"
             titulo={t('inicio.por-cobrar')}
+            className={fila4.angosta}
             accion={
               <Link href="/finanzas" className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline">
                 {t('nav.finanzas')} <ArrowRight className="h-3.5 w-3.5" />
@@ -616,10 +670,12 @@ export default function DashboardPage() {
         {/* El mapa baja de 460 a 300 px: en la mañana importan más los números,
             y el detalle está en Comercial. El pin sale de lo que pasa HOY
             (`tonoPinHoy`), no del estatus guardado del sitio. */}
+        {ve('mapa') && (
         <CardColapsable
           id="inicio.mapa"
           titulo={t('inicio.mapa')}
-          className={veFinanzas ? 'lg:col-span-2' : 'lg:col-span-3'}
+          className={cn('flex flex-col', fila4.ancha)}
+          contentClassName="flex flex-1 flex-col"
           accion={
             <Link
               href="/comercial"
@@ -629,12 +685,16 @@ export default function DashboardPage() {
             </Link>
           }
         >
-            <div className="h-[300px] w-full overflow-hidden rounded border border-border">
-              {sitios ? (
-                <MapView points={puntos} zoom={10.4} />
-              ) : (
-                <div className="h-full w-full animate-pulse bg-surface-2" />
-              )}
+            {/* 300 px como mínimo; si la cobranza es más alta, el mapa crece
+                hasta su altura en vez de dejar un blanco debajo (13/11). */}
+            <div className="relative min-h-[300px] w-full flex-1">
+              <div className="absolute inset-0 overflow-hidden rounded border border-border">
+                {sitios ? (
+                  <MapView points={puntos} zoom={10.4} />
+                ) : (
+                  <div className="h-full w-full animate-pulse bg-surface-2" />
+                )}
+              </div>
             </div>
             <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] text-muted">
               <LeyendaPin color="#0a66ff" label={t('inicio.leyenda.digital')} />
@@ -644,8 +704,111 @@ export default function DashboardPage() {
               <LeyendaPin color="#f59e0b" label={t('inicio.leyenda.en-propuesta')} />
             </div>
         </CardColapsable>
+        )}
       </div>
+      )}
     </div>
+  )
+}
+
+// DASH-METRICAS · el nombre de cada métrica en el menú: el MISMO título que
+// lleva en el tablero, para que se reconozca sin pensar.
+function etiquetaMetrica(id: MetricaDashboard, t: ReturnType<typeof useIdioma>['t'], mes: string): string {
+  switch (id) {
+    case 'ingreso': return t('inicio.ingreso-de', { mes })
+    case 'margen': return t('inicio.margen-de', { mes })
+    case 'pipeline-abierto': return t('inicio.pipeline-abierto')
+    case 'tasa': return t('inicio.tasa')
+    case 'ganado': return t('inicio.ganado-en', { mes })
+    case 'ocupacion-red': return t('inicio.ocupacion-red')
+    case 'costos': return t('inicio.costos-de', { mes })
+    case 'grafica-ocupacion': return t('inicio.ocupacion')
+    case 'pipeline': return t('inicio.pipeline')
+    case 'alertas': return t('inicio.alertas')
+    case 'huecos': return t('inicio.huecos')
+    case 'cobranza': return t('inicio.por-cobrar')
+    case 'mapa': return t('inicio.mapa')
+  }
+}
+
+// DASH-METRICAS (12/11) · el menú para elegir qué métricas se ven. Misma forma
+// que `ConfigAlertas`: casillas que no cierran el menú, guardado por navegador.
+function ConfigMetricas({
+  met,
+  disponibles,
+  etiqueta,
+}: {
+  met: ReturnType<typeof useMetricasVisibles>
+  disponibles: MetricaDashboard[]
+  etiqueta: (id: MetricaDashboard) => string
+}) {
+  const t = useIdioma().t
+  const ocultas = disponibles.filter((id) => !met.ve(id)).length
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <button
+          type="button"
+          title={t('inicio.personalizar')}
+          className="relative inline-flex h-8 shrink-0 items-center gap-1.5 rounded border border-border-strong bg-white px-2.5 text-[12px] font-medium text-muted transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          <SlidersHorizontal className="h-4 w-4" strokeWidth={1.75} />
+          {t('inicio.personalizar')}
+          {met.listo && ocultas > 0 && (
+            <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 text-[10px] font-semibold text-white">
+              {ocultas}
+            </span>
+          )}
+        </button>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          align="end"
+          sideOffset={6}
+          className="z-50 max-h-[70vh] w-72 overflow-y-auto rounded-md border border-border bg-surface p-1 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"
+        >
+          <div className="px-2 py-1.5 text-[12px] font-medium text-ink">{t('inicio.metricas-a-mostrar')}</div>
+          <div className="my-1 h-px bg-border" />
+          {disponibles.map((id) => {
+            const activo = met.ve(id)
+            return (
+              <DropdownMenu.Item
+                key={id}
+                onSelect={(e) => {
+                  e.preventDefault() // no cerrar el menú al alternar
+                  met.alternar(id)
+                }}
+                className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-[13px] text-ink outline-none data-[highlighted]:bg-surface-2"
+              >
+                <span
+                  className={cn(
+                    'flex h-4 w-4 shrink-0 items-center justify-center rounded border',
+                    activo ? 'border-accent bg-accent text-white' : 'border-border-strong bg-white',
+                  )}
+                >
+                  {activo && <Check className="h-3 w-3" strokeWidth={3} />}
+                </span>
+                <span className="first-letter:uppercase">{etiqueta(id)}</span>
+              </DropdownMenu.Item>
+            )
+          })}
+          {ocultas > 0 && (
+            <>
+              <div className="my-1 h-px bg-border" />
+              <DropdownMenu.Item
+                onSelect={(e) => {
+                  e.preventDefault()
+                  met.mostrarTodas()
+                }}
+                className="cursor-pointer rounded px-2 py-1.5 text-[12px] font-medium text-info outline-none data-[highlighted]:bg-surface-2"
+              >
+                {t('inicio.mostrar-todas')}
+              </DropdownMenu.Item>
+            </>
+          )}
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
   )
 }
 

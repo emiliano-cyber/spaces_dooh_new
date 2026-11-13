@@ -124,15 +124,15 @@ describe('2 · nadie deja la organización sin ningún Dueño activo', () => {
     expect(r?.mensaje).not.toMatch(/administrador/i)
   })
 
-  it('tampoco se puede degradar', () => {
-    expect(
-      rechazoDelCambio({
-        actorRol: 'DUENO',
-        objetivo: dueno,
-        cambio: { rol: 'ADMINISTRADOR' },
-        duenosActivos: 1,
-      })?.mensaje,
-    ).toMatch(/sin ning/i)
+  it('tampoco se puede degradar (y desde el 12/11 lo para el guard 5, antes que este)', () => {
+    const r = rechazoDelCambio({
+      actorRol: 'DUENO',
+      objetivo: dueno,
+      cambio: { rol: 'ADMINISTRADOR' },
+      duenosActivos: 1,
+    })
+    expect(r?.mensaje).toMatch(/rol de un Dueño no se puede cambiar/i)
+    expect(r?.status).toBe(403)
   })
 
   it('tampoco eliminar', () => {
@@ -271,5 +271,31 @@ describe('3 · cuando los dos guards aplican, manda el del administrador', () =>
     })
     expect(r?.mensaje).toMatch(/administrador/i)
     expect(r?.status).toBe(403)
+  })
+})
+
+describe('5 · el rol de un Dueño no lo cambia NADIE (dictado del 12/11)', () => {
+  // «Que el dueño no se pueda cambiar el rol por nadie ni por él.» Su propia
+  // fila ya la cierra `actualizarUsuarioCtrl` (nadie se modifica a si mismo);
+  // aqui se cierra la de los demas, incluido otro Dueño.
+  it('otro Dueño no lo degrada, aunque haya muchos Dueños', () => {
+    const r = rechazoDelCambio({ actorRol: 'DUENO', objetivo: dueno, cambio: { rol: 'VENDEDOR' }, duenosActivos: 5 })
+    expect(r?.status).toBe(403)
+    expect(r?.mensaje).toMatch(/rol de un Dueño no se puede cambiar/i)
+  })
+  it('ni a un Dueño desactivado', () => {
+    const r = rechazoDelCambio({ actorRol: 'DUENO', objetivo: { rol: 'DUENO', activo: false }, cambio: { rol: 'ADMINISTRADOR' }, duenosActivos: 3 })
+    expect(r?.status).toBe(403)
+  })
+  it('un rol con permisos de administracion tampoco', () => {
+    const r = rechazoDelCambio({ actorRol: 'DIRECTOR_COMERCIAL', objetivo: dueno, cambio: { rol: 'VENDEDOR' }, duenosActivos: 3 })
+    expect(r?.status).toBe(403)
+    expect(r?.mensaje).toMatch(/rol de un Dueño no se puede cambiar/i)
+  })
+  it('dejarlo como DUENO no es cambiarle el rol', () => {
+    expect(rechazoDelCambio({ actorRol: 'DUENO', objetivo: dueno, cambio: { rol: 'DUENO' }, duenosActivos: 1 })).toBeNull()
+  })
+  it('lo demas sigue igual: otro Dueño SI lo puede desactivar si quedan Dueños', () => {
+    expect(rechazoDelCambio({ actorRol: 'DUENO', objetivo: dueno, cambio: { activo: false }, duenosActivos: 2 })).toBeNull()
   })
 })

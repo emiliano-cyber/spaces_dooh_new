@@ -1,7 +1,7 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-11-11
+actualizado: 2026-11-12
 tags: [backend, roles, permisos, rbac, enum, migraciones, dueno, guards, carrera]
 archivos:
   - db/migrations/20260929_roles_de_venta_enum.sql
@@ -276,6 +276,31 @@ pasar por el guard.
 El `actorRol` es **obligatorio y sin valor por omisión**, a propósito: viene de la
 sesión del servidor, nunca del cuerpo, y que el compilador lo pida es lo único que
 obliga a pensarlo a quien añada un tercer camino.
+
+## GUARD 5 · el rol de un Dueño no lo cambia NADIE (12/11)
+
+> [!important] Dictado del dueño el 2026-11-12
+> «Que el dueño no se pueda cambiar el rol por nadie ni por él.»
+
+`rechazoDelCambio` (`apps/web/lib/guardas-usuarios.ts`) rechaza con **403**
+cualquier `PATCH` que le ponga a un Dueño un rol distinto de `DUENO`, **sea
+quien sea el actor**: otro Dueño (aunque haya varios), un rol con
+`administracion` concedido por la matriz, cualquiera. Mensaje: «El rol de un
+Dueño no se puede cambiar: ni otro Dueño ni él mismo.»
+
+- **Su propia fila** ya estaba cerrada antes: `actualizarUsuarioCtrl` rechaza
+  que nadie se modifique a sí mismo (400).
+- **Orden**: después del guard 1 (al administrador se le sigue diciendo que eso
+  no es cosa suya) y antes del guard 2 (ya no depende de cuántos Dueños queden).
+- **Lo que NO cambia**: desactivar y eliminar a un Dueño siguen con los guards
+  1 y 2 (otro Dueño puede, si quedan Dueños activos). El dictado habla del rol.
+- **Cambia una respuesta**: degradar al último Dueño daba 409 («se quedaría sin
+  Dueño») y ahora da 403 por este guard. `roles-de-venta.e2e` lo mide, y suma
+  un caso: con tres Dueños, otro Dueño recibe 403.
+- La pantalla de Equipo enseña el rol del Dueño fijo, sin desplegable
+  (`administracion/page.tsx`, `controlRol`).
+- El mensaje, como los de los guards 1-4, **no está traducido** a en/it/pt:
+  viaja por variable y nunca entró en `errores-servidor.ts`. Hueco anterior.
 
 ## GUARD 3 · nadie nombra a un Dueño salvo un Dueño
 
