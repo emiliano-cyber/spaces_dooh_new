@@ -6,6 +6,10 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!important] 2026-11-13 · **Validación de ciberseguridad** de la v0.12.11 y de `feat/personalizar-dashboard` — **VERDE**
+> Sin fallas explotables; 12/12 ataques del sondeo local bloqueados. Abiertos: H1 (avisos de dinero por correo a cualquier rol,
+> decide el dueño) y H2 (dependencias: Next 14.2.29, xlsx). `docs/evidencias/seguridad-v0-12-11-y-personalizar-20261113.md`.
+
 > [!important] 2026-11-13 · **DASH-EDITAR** — rama `feat/personalizar-dashboard`, desde `main` `4462557e` (v0.12.11) — **sin empujar**
 > «Personalizar» edita sobre el propio tablero: un ojo por bloque, lo oculto atenuado en su sitio y «Listo». 10 378
 > unitarias y Chrome (1440 y 390 px) en verde. **Zonas tomadas y liberadas:** Z10 · UI base (`inicio/page.tsx`,
