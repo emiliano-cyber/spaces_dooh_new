@@ -6,6 +6,12 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!important] 2026-11-13 · **DASH-ALINEADO** — rama `feat/dueno-dashboard-menu` — **sin empujar**
+> El Dashboard sin huecos: la angosta a la izquierda en las tres filas, misma altura por fila, gráfica y mapa que
+> llenan su tarjeta e indicadores con tantas columnas como se ven. Unitarias en verde; **sin navegador todavía**.
+> **Zonas tomadas y liberadas:** Z10 · UI base (`inicio/page.tsx`, `charts.tsx`), Z12 · Docs y
+> `docs/Registro_Cambios.md`. Detalle en [[2026-11-13]].
+
 > [!important] 2026-11-12 · **GUARD 5 + DASH-METRICAS + MENU-CASCADA** — rama `feat/dueno-dashboard-menu`, sobre `integra/v0-12-10` (`ac5161cd`) — **sin empujar**
 > El rol de un Dueño no lo cambia nadie (403); «Personalizar» en el Dashboard y el menú en cascada (animado, con la
 > pantalla actual a la vista y plegar todo), los dos en localStorage. 10 291 unitarias, build, `roles-de-venta` +

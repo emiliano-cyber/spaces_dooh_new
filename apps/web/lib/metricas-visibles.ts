@@ -64,10 +64,31 @@ export function alternarOculta<T extends string>(ocultas: ReadonlySet<T>, id: T)
  * Las filas del tablero son de 3 columnas: una tarjeta ancha (2) y una angosta
  * (1). Si se oculta una, la otra se queda con la fila entera; si no, quedaría
  * un hueco del tamaño de la que falta. Pura.
+ *
+ * DASH-ALINEADO (13/11, «que todo esté alineado»): con las dos, la angosta va
+ * SIEMPRE a la izquierda en escritorio (`lg:order-first`). Antes la fila de
+ * Ocupación la tenía a la derecha y las de abajo a la izquierda, así que la
+ * línea entre columnas saltaba de 2/3 a 1/3 de una fila a otra. Se ordena con
+ * CSS y no moviendo el JSX para que en el celular (una columna) el orden de
+ * lectura siga siendo el de siempre.
  */
-export function anchoDeFila(ancha: boolean, angosta: boolean): { ancha: string; angosta: string | undefined } {
-  if (ancha && angosta) return { ancha: 'lg:col-span-2', angosta: undefined }
+export function anchoDeFila(ancha: boolean, angosta: boolean): { ancha: string; angosta: string } {
+  if (ancha && angosta) return { ancha: 'lg:col-span-2', angosta: 'lg:order-first' }
   return { ancha: 'lg:col-span-3', angosta: 'lg:col-span-3' }
+}
+
+/**
+ * DASH-ALINEADO (13/11) · las columnas de la fila de indicadores según cuántos
+ * se ven. Con una rejilla fija de 4, ocultar uno dejaba una casilla vacía a la
+ * derecha. Las clases van escritas enteras (no `grid-cols-${n}`) porque
+ * Tailwind solo genera las que encuentra literales en el código. Pura.
+ */
+export function columnasIndicadores(n: number): string {
+  if (n <= 1) return 'grid-cols-1'
+  if (n === 2) return 'grid-cols-1 sm:grid-cols-2'
+  // Tres van en una fila desde lg; entre sm y lg quedarían 2 + 1 con hueco.
+  if (n === 3) return 'grid-cols-1 lg:grid-cols-3'
+  return 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-4'
 }
 
 export interface MetricasVisibles {

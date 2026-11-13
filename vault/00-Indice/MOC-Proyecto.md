@@ -168,7 +168,8 @@ cobranza.
   cuando el `=` de la consulta va percent-encoded
 - [[auditoria-cuatro-rojo-20260820]] — auditoría de los cuatro ROJO del 20/08
 - [[_plantilla-diaria]] — plantilla del diario
-- [[2026-11-12]] — **última entrada**: la etiqueta `v0.12.10` quedó en el commit de la v0.12.9 (el PR no estaba fusionado); AVISOS-CANAL (avisos por correo con Resend o Brevo, WhatsApp sembrado, contraseña solo por correo) en `feat/avisos-por-canal`; y el rol del Dueño inmutable, «Personalizar» en el Dashboard y el menú en cascada en `feat/dueno-dashboard-menu`. Las dos sin empujar
+- [[2026-11-13]] — **última entrada**: qué falta para llevar todo a `main` (v0.12.10 ya fusionada) y DASH-ALINEADO, el Dashboard sin huecos, en `feat/dueno-dashboard-menu`
+- [[2026-11-12]] — la etiqueta `v0.12.10` quedó en el commit de la v0.12.9 (el PR no estaba fusionado); AVISOS-CANAL (avisos por correo con Resend o Brevo, WhatsApp sembrado, contraseña solo por correo) en `feat/avisos-por-canal`; y el rol del Dueño inmutable, «Personalizar» en el Dashboard y el menú en cascada en `feat/dueno-dashboard-menu`. Las dos sin empujar
 - [[2026-11-11]] — la API de Network para la app nueva, eliminar usuarios solo Dueño/Administrador, los campos del alta de pantalla por instancia (al instalar) y la matriz de permisos editable por el Dueño; rama `feat/network-api-y-borrado` sin empujar
 - [[2026-11-06]] — la v0.12.8 integrada (idioma en la barra + Space Eyes de Jose, sin empujar); la guía 31 corrida, la DEMO sirve en `demo.space-os.io` desde el droplet viejo de g500 (con las llaves de g500 salvo DOOHmain)
 - [[2026-11-05]] — las notas de versión en inglés e italiano, B82 (cambiar de idioma con un diálogo de cifras abierto) y la rama `verificacion`, todas las ramas juntas antes de `main`

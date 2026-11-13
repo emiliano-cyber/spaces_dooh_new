@@ -5,6 +5,17 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-13 · El Dashboard, alineado y sin huecos (sin publicar)
+
+Rama `feat/dueno-dashboard-menu`.
+
+- En las tres filas de tarjetas la tarjeta angosta va a la izquierda, así que la línea entre columnas queda en el mismo lugar de arriba abajo.
+- Las dos tarjetas de cada fila tienen la misma altura; la gráfica de ocupación y el mapa crecen para llenar su tarjeta en vez de dejar un espacio en blanco debajo.
+- Si ocultas un indicador con **Personalizar**, los que quedan se reparten el ancho en lugar de dejar una casilla vacía.
+- La separación entre renglones se mantiene igual, y la separación entre columnas ahora mide lo mismo.
+
+---
+
 ## 2026-11-12 · El rol del Dueño ya no se cambia, Dashboard a la medida y menú plegable (sin publicar)
 
 Rama aparte, `feat/dueno-dashboard-menu`.

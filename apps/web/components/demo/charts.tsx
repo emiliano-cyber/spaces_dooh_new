@@ -43,9 +43,13 @@ function TooltipBox({ active, payload, label, suffix, formato }: any) {
   )
 }
 
-export function OcupacionChart({ puntos }: { puntos: PuntoOcupacion[] }) {
+// `alto="100%"` (DASH-ALINEADO, 13/11): la gráfica llena la tarjeta cuando la
+// vecina de la fila es más alta, en vez de dejar un blanco debajo. Quien la usa
+// así la pone en un contenedor con altura propia (`absolute inset-0`): si el
+// alto saliera del contenido, la gráfica y su caja se empujarían una a otra.
+export function OcupacionChart({ puntos, alto = 180 }: { puntos: PuntoOcupacion[]; alto?: number | '100%' }) {
   return (
-    <ResponsiveContainer width="100%" height={180}>
+    <ResponsiveContainer width="100%" height={alto}>
       <AreaChart data={puntos} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
         <defs>
           <linearGradient id="occ" x1="0" y1="0" x2="0" y2="1">

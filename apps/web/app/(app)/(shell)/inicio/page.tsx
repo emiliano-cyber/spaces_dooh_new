@@ -17,7 +17,7 @@ import {
   Target,
 } from 'lucide-react'
 import { useAlertasVisibles, TIPOS_ALERTA } from '@/lib/alertas-visibles'
-import { useMetricasVisibles, anchoDeFila, METRICAS_DASHBOARD, type MetricaDashboard } from '@/lib/metricas-visibles'
+import { useMetricasVisibles, anchoDeFila, columnasIndicadores, METRICAS_DASHBOARD, type MetricaDashboard } from '@/lib/metricas-visibles'
 import { formatNumero } from '@/lib/formato-numero'
 import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
 import { OcupacionChart } from '@/components/demo/charts'
@@ -220,6 +220,9 @@ export default function DashboardPage() {
   const fila3 = anchoDeFila(ve('huecos'), ve('alertas'))
   const fila4 = anchoDeFila(ve('mapa'), ve('cobranza'))
   const nadaVisible = met.listo && !disponibles.some(ve)
+  // DASH-ALINEADO (13/11): la rejilla de indicadores tiene tantas columnas como
+  // indicadores se ven; con 4 fijas, ocultar uno dejaba una casilla vacía.
+  const nIndicadores = (['ingreso', 'margen', 'pipeline-abierto', 'tasa', 'ganado', 'ocupacion-red'] as const).filter(ve).length
 
   return (
     <div className="w-full space-y-5">
@@ -238,7 +241,7 @@ export default function DashboardPage() {
           un monto de 14 caracteres en mono; ahí van 2 columnas. */}
       {hayIndicadores && (
       <CardColapsable id="inicio.indicadores" titulo={t('inicio.indicadores')} contentClassName="space-y-3">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className={cn('grid gap-3', !m || !pipeline ? columnasIndicadores(4) : columnasIndicadores(nIndicadores))}>
         {!m || !pipeline ? (
           <>
             <KPICardSkeleton />
@@ -372,13 +375,20 @@ export default function DashboardPage() {
       )}
 
       {/* Ocupación + Pipeline comercial */}
+      {/* DASH-ALINEADO (13/11, «que todo esté alineado para dejar el menor
+          espacio desperdiciado, manteniendo la separación entre renglones»):
+          las tres filas de tarjetas van igual — misma altura las dos de una
+          fila (`items-stretch`), la angosta a la izquierda (`anchoDeFila`) para
+          que la línea entre columnas caiga en el mismo sitio en todas, y el
+          mismo 20 px entre columnas que entre renglones (`gap-5` = `space-y-5`). */}
       {(ve('grafica-ocupacion') || ve('pipeline')) && (
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 items-stretch gap-5 lg:grid-cols-3">
         {ve('grafica-ocupacion') && (
         <CardColapsable
           id="inicio.ocupacion"
           titulo={t('inicio.ocupacion')}
-          className={fila2.ancha}
+          className={cn('flex flex-col', fila2.ancha)}
+          contentClassName="flex flex-1 flex-col"
           subtitulo={
             serie ? (
               <>
@@ -391,7 +401,12 @@ export default function DashboardPage() {
             {!serie ? (
               <div className="h-[180px] animate-pulse rounded bg-surface-2" />
             ) : (
-              <OcupacionChart puntos={serie.puntos} />
+              // Llena lo que deje la vecina, sin bajar de los 180 px de siempre.
+              <div className="relative min-h-[180px] flex-1">
+                <div className="absolute inset-0">
+                  <OcupacionChart puntos={serie.puntos} alto="100%" />
+                </div>
+              </div>
             )}
         </CardColapsable>
         )}
@@ -447,7 +462,7 @@ export default function DashboardPage() {
           corta dejaba un hueco debajo y la fila perdía naturalidad. Una tarjeta
           plegada no se estira (`CardColapsable` le pone `self-start`). */}
       {(ve('alertas') || ve('huecos')) && (
-      <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 items-stretch gap-5 lg:grid-cols-3">
         {ve('alertas') && (
         <CardColapsable id="inicio.alertas" titulo={t('inicio.alertas')} className={fila3.angosta} accion={<ConfigAlertas cfg={alertasCfg} />}>
             {(() => {
@@ -592,7 +607,7 @@ export default function DashboardPage() {
           que la vecina (`items-stretch`, 11/11), como Alertas y Huecos: la
           cobranza corta dejaba un hueco grande junto al mapa. */}
       {(ve('cobranza') || ve('mapa')) && (
-      <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 items-stretch gap-5 lg:grid-cols-3">
         {ve('cobranza') && (
           <CardColapsable
             id="inicio.cobranza"
@@ -659,7 +674,8 @@ export default function DashboardPage() {
         <CardColapsable
           id="inicio.mapa"
           titulo={t('inicio.mapa')}
-          className={fila4.ancha}
+          className={cn('flex flex-col', fila4.ancha)}
+          contentClassName="flex flex-1 flex-col"
           accion={
             <Link
               href="/comercial"
@@ -669,12 +685,16 @@ export default function DashboardPage() {
             </Link>
           }
         >
-            <div className="h-[300px] w-full overflow-hidden rounded border border-border">
-              {sitios ? (
-                <MapView points={puntos} zoom={10.4} />
-              ) : (
-                <div className="h-full w-full animate-pulse bg-surface-2" />
-              )}
+            {/* 300 px como mínimo; si la cobranza es más alta, el mapa crece
+                hasta su altura en vez de dejar un blanco debajo (13/11). */}
+            <div className="relative min-h-[300px] w-full flex-1">
+              <div className="absolute inset-0 overflow-hidden rounded border border-border">
+                {sitios ? (
+                  <MapView points={puntos} zoom={10.4} />
+                ) : (
+                  <div className="h-full w-full animate-pulse bg-surface-2" />
+                )}
+              </div>
             </div>
             <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] text-muted">
               <LeyendaPin color="#0a66ff" label={t('inicio.leyenda.digital')} />
