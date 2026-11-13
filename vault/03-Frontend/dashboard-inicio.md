@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-11-11
+actualizado: 2026-11-13
 tags: [frontend, dashboard, inicio, dinero, comercial]
 archivos:
   - apps/web/app/(app)/(shell)/inicio/page.tsx
@@ -9,6 +9,7 @@ archivos:
   - apps/web/components/demo/inicio/indicadores.ts
   - apps/web/components/demo/inicio/indicadores.test.ts
   - apps/web/lib/alertas-visibles.ts
+  - apps/web/lib/metricas-visibles.ts
   - apps/web/components/demo/ui/CardColapsable.tsx
 ---
 
@@ -98,6 +99,48 @@ Reportes: le contestaba 403 y ensuciaba su consola.
 hoy: la tarifa de una digital no tiene una unidad única. Lo que sí sabe el motor
 es cuánto de la tarifa **publicada** se cobró en las ventas que nacieron de una
 propuesta, y lo dice junto a cuántas ventas lo respaldan.
+
+## Elegir qué métricas se ven (DASH-METRICAS, 12/11)
+
+Pedido del dueño: «que del dashboard se puedan elegir qué métricas ver y cuáles
+no». Botón **Personalizar** junto al título, con una casilla por bloque: los
+indicadores (ingreso, margen, pipeline abierto, tasa, ganado, ocupación de la
+red, costos del mes) y las tarjetas (ocupación, pipeline, alertas, huecos, por
+cobrar, mapa). Solo ofrece lo que el rol puede ver (DASH-REF).
+
+- Se guarda lo **oculto** en `localStorage` (`spaces:metricas-ocultas`),
+  por navegador, como las alertas. Sin nada guardado sale todo, como antes.
+- **El diseño aprobado no cambia**: se comprobó que el HTML congelado de
+  `pantallas-inicio.test.ts` es idéntico salvo el encabezado con el botón.
+- Si se oculta una tarjeta de una fila, su compañera ocupa la fila entera
+  (`anchoDeFila`); con las dos visibles, los anchos son los de siempre.
+- Probado en el navegador el 12/11 contra un build local: ocultar «Huecos» y
+  «Mapa», recargar, y «Alertas» y «Por cobrar» quedan a todo lo ancho.
+
+## Todo alineado, sin huecos (DASH-ALINEADO, 13/11)
+
+Pedido del dueño: «que todo esté alineado para dejar el menor espacio
+desperdiciado, pero manteniendo la separación entre cada renglón».
+
+- **La línea entre columnas cae en el mismo sitio en las tres filas.** La
+  angosta va a la izquierda en escritorio (`anchoDeFila` le da
+  `lg:order-first`). Antes Ocupación (ancha) iba a la izquierda y Pipeline a
+  la derecha, y en Alertas/Huecos y Por cobrar/Mapa al revés: la costura
+  saltaba de 2/3 a 1/3. Se ordena con CSS, no moviendo el JSX, para que en el
+  celular el orden de lectura no cambie.
+- **Las dos tarjetas de cada fila, a la misma altura**: la fila de Ocupación y
+  Pipeline pasa de `items-start` a `items-stretch`, como las otras dos desde el
+  11/11.
+- **La gráfica y el mapa llenan su tarjeta** cuando la vecina es más alta (con
+  mínimos de 180 y 300 px, los de siempre). Van en un contenedor
+  `absolute inset-0` dentro de uno `flex-1`: si su alto saliera de su propio
+  contenido, la gráfica de Recharts y su caja se empujarían una a otra.
+- **Los indicadores tienen tantas columnas como se ven** (`columnasIndicadores`):
+  con la rejilla fija de 4, ocultar uno dejaba una casilla vacía.
+- **La separación entre renglones no cambia** (`space-y-5`, 20 px); entre
+  columnas pasa de 16 a 20 px (`gap-5`) para que los dos huecos midan igual.
+- El HTML congelado de `pantallas-inicio.test.ts` cambió **solo en clases**,
+  ningún texto. **Sin probar en navegador todavía** (13/11).
 
 ## Lo que no está, y por qué
 

@@ -216,7 +216,11 @@ describe('el esquema base no trae la organización de nadie', () => {
     //     `apariencia_instancia`, los idiomas que ofrece el servidor elegidos
     //     con un boton desde Administracion (IDIOMAS-SERVIDOR). Subido a la vez
     //     que la migracion.
-    expect(trasMigrar.tablas).toBe(67)
+    //   · 68 el 2026-11-12: `20261112_avisos_por_canal.sql` anade
+    //     `avisos_usuario`, que avisos quiere cada quien por correo (y,
+    //     sembrado, por WhatsApp) (AVISOS-CANAL). Esta prueba lo delato en la
+    //     corrida de las e2e de base, con las 15 propias de la tarea en verde.
+    expect(trasMigrar.tablas).toBe(68)
     // Lo que de verdad importa: ni las migraciones resucitan al owner.
     expect(trasMigrar.tenants).toBe(0)
   })

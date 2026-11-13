@@ -153,8 +153,11 @@ function Usuarios({ onToast }: { onToast: (m: string) => void }) {
   // contraseña—, así que se escriben una sola vez aquí. Mismos manejadores y
   // mismo `esYo` en las dos: lo único que cambia entre una y otra es dónde va
   // cada control, nunca qué hace.
+  // 12/11 · el rol de un Dueño no se cambia (guard 5, `lib/guardas-usuarios.ts`):
+  // su fila enseña el rol fijo, como la propia. El servidor lo rechaza igual;
+  // esto es para no ofrecer un desplegable que siempre acabaría en error.
   const controlRol = (u: UsuarioDemo, esYo: boolean) =>
-    esYo ? (
+    esYo || u.rol === 'DUENO' ? (
       <span className="inline-flex items-center gap-1.5 text-[13px] text-ink"><ShieldCheck className="h-3.5 w-3.5 text-muted" /> {rolLabel(u.rol, idioma)}</span>
     ) : (
       <select value={u.rol} onChange={(e) => cambiarRol(u.id, e.target.value as RolDemo, u.nombre)}

@@ -463,6 +463,17 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 1 sitio · lib/server/idioma-controller.ts (IDIOMA-USUARIO, 03/11)
   'Ese idioma no está disponible en este servidor.':
     'That language is not available on this server.',
+  // AVISOS-CANAL (12/11) · lib/avisos.ts (MSG_AVISO), via avisos-controller.ts
+  'Ese tipo de aviso no existe.':
+    'That notification type does not exist.',
+  'Ese canal de aviso no existe.':
+    'That notification channel does not exist.',
+  'Los avisos por WhatsApp todavía no están disponibles en este servidor.':
+    'WhatsApp notifications are not available on this server yet.',
+  'El teléfono de WhatsApp debe llevar el código de país, por ejemplo +52 55 1234 5678.':
+    'The WhatsApp number must include the country code, for example +52 55 1234 5678.',
+  'Las preferencias de avisos no son válidas.':
+    'The notification preferences are not valid.',
   // 2 sitios · lib/server/perfil-controller.ts:78
   'No hay cambios que guardar':
     'There are no changes to save',
@@ -801,6 +812,17 @@ export const CATALOGO_ERRORES_IT: Partial<Record<string, string>> = {
   // IDIOMA-USUARIO, al integrar con el italiano (2026-11-04): «Mi cuenta → Idioma».
   'Ese idioma no está disponible en este servidor.':
     'Questa lingua non è disponibile su questo server.',
+  // AVISOS-CANAL (12/11) · Impostazioni dell’account → Notifiche.
+  'Ese tipo de aviso no existe.':
+    'Questo tipo di notifica non esiste.',
+  'Ese canal de aviso no existe.':
+    'Questo canale di notifica non esiste.',
+  'Los avisos por WhatsApp todavía no están disponibles en este servidor.':
+    'Le notifiche via WhatsApp non sono ancora disponibili su questo server.',
+  'El teléfono de WhatsApp debe llevar el código de país, por ejemplo +52 55 1234 5678.':
+    'Il numero WhatsApp deve includere il prefisso internazionale, ad esempio +52 55 1234 5678.',
+  'Las preferencias de avisos no son válidas.':
+    'Le preferenze di notifica non sono valide.',
   'Los idiomas no son validos':
     'Le lingue non sono valide',
   'La moneda debe ser MXN o USD':
@@ -1472,6 +1494,14 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
   'Esta orden de trabajo ya está cerrada: su costo ya no se puede registrar ni cambiar.':
     'Esta ordem de serviço já está fechada: o custo dela não pode mais ser registrado nem alterado.',
   'Ese idioma no está disponible en este servidor.': 'Esse idioma não está disponível neste servidor.',
+  // AVISOS-CANAL (12/11) · Configurações da conta → Avisos.
+  'Ese tipo de aviso no existe.': 'Esse tipo de aviso não existe.',
+  'Ese canal de aviso no existe.': 'Esse canal de aviso não existe.',
+  'Los avisos por WhatsApp todavía no están disponibles en este servidor.':
+    'Os avisos por WhatsApp ainda não estão disponíveis neste servidor.',
+  'El teléfono de WhatsApp debe llevar el código de país, por ejemplo +52 55 1234 5678.':
+    'O telefone do WhatsApp deve incluir o código do país, por exemplo +52 55 1234 5678.',
+  'Las preferencias de avisos no son válidas.': 'As preferências de avisos não são válidas.',
   'No hay cambios que guardar': 'Não há alterações para salvar',
   'No hay fila de actualizaciones: falta la migracion 20260921':
     'Não há linha de atualizações: falta a migração 20260921',

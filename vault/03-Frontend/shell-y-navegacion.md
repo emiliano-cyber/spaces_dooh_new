@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-14
+actualizado: 2026-11-12
 tags: [frontend, shell, navegacion, rbac]
 archivos:
   - apps/web/lib/host.ts
@@ -175,6 +175,41 @@ grupo vayan seguidas, que ningún grupo declarado quede vacío, que el orden en
 pantalla sea el de `GRUPOS`, y que Propuestas vaya antes que Campañas y Campañas
 antes que Finanzas. Cambiar un rótulo no pone roja ninguna prueba — es un dato
 que solo se ve mirando.
+
+### El menú en cascada (MENU-CASCADA, 12/11)
+
+Pedido del dueño: «que cada sección esté desplegada, pero si se desea ocultar el
+resto y solo dejar el nombre del submenú, guardándolo en localStorage».
+
+- El título de cada sección del `Sidebar` es un botón (`aria-expanded`) con
+  una flecha: pliega la sección a su nombre. Dashboard no tiene título y no se
+  pliega.
+- Se guarda lo **plegado** en `localStorage` (`spaces:menu-plegado`,
+  `lib/menu-plegado.ts`). Sin nada guardado todo va desplegado, como antes, y
+  una sección nueva aparece abierta.
+- Una sección plegada que contiene la pantalla actual pinta su título en azul
+  **y deja esa entrada a la vista** bajo el título, para no perder dónde estás.
+- Plegada, el título dice **cuántas opciones** guarda (la insignia gris).
+- Abrir y cerrar **se anima** (`grid-template-rows: 0fr → 1fr`, sin medir
+  nada; `motion-reduce` lo apaga). No se anima al cargar: quien tenía secciones
+  plegadas las vería cerrarse solas en cada página.
+- Plegados, los enlaces salen del tabulador (`tabIndex=-1` y `aria-hidden`).
+- **Pie del menú**: un botón pliega todas las secciones o, si ya lo están, las
+  despliega (`alternarTodas`).
+- Con el menú en modo icono no hay títulos que pulsar: se ven todos los iconos.
+- `bg-transparent` en el botón: sin él el navegador le pone su gris (visto
+  en el navegador el 12/11).
+
+> [!warning] Dos trampas que se vieron en el navegador el 12/11
+> - **El menú se pinta dos veces** (barra de escritorio y cajón del móvil), cada
+>   copia con su estado. Plegar en una no se veía en la otra hasta recargar. Ahora
+>   `guardar()` avisa con el evento `spaces:menu-plegado-cambio` y la otra copia
+>   adopta el conjunto. `storage` no sirve: no salta en la pestaña que escribe.
+>   Y el aviso sale FUERA del `setState`: dentro, React protestaría por actualizar
+>   un componente mientras pinta otro.
+> - **La rejilla animada va en el `<li>`**, no en un `<div>` dentro: como
+>   `list-item`, el `<li>` conservaba su caja de línea y cada sección plegada
+>   dejaba 15 px de hueco (medido: rejilla 0 px, `<li>` 15,2 px).
 
 ## Sesión compartida
 

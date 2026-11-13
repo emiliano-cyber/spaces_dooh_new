@@ -186,6 +186,21 @@ export function rechazoDelCambio(e: EntradaGuarda): { status: number; mensaje: s
     }
   }
 
+  // GUARD 5 · el ROL de un Dueño no lo cambia NADIE (dictado del 12/11: «que
+  // el dueño no se pueda cambiar el rol por nadie ni por él»). Ni otro Dueño,
+  // aunque haya muchos, ni un rol con permisos de administración concedidos.
+  // Su propia fila ya la cierra `actualizarUsuarioCtrl` (nadie se modifica a sí
+  // mismo). Va DESPUÉS del guard 1 para que al administrador se le siga
+  // diciendo que eso no es cosa suya, y ANTES del 2 porque ya no depende de
+  // cuántos Dueños queden. Desactivar y eliminar siguen con las reglas de
+  // siempre: el dictado habla del rol.
+  if (e.objetivo.rol === ROL_DUENO && e.cambio.rol !== undefined && e.cambio.rol !== ROL_DUENO) {
+    return {
+      status: 403,
+      mensaje: 'El rol de un Dueño no se puede cambiar: ni otro Dueño ni él mismo.',
+    }
+  }
+
   // GUARD 2 · solo cuenta si el objetivo ESTÁ activo: quitarle el rol a un
   // Dueño que ya estaba desactivado no reduce el número de Dueños activos, y
   // prohibirlo sería cerrar la puerta de la limpieza.

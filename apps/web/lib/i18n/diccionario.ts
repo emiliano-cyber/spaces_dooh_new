@@ -203,6 +203,9 @@ const ES = {
   'sidebar.abrir-portal': 'Abrir portal',
   'sidebar.solo-portal': 'Como cliente externo sólo tienes acceso a tu portal.',
   'sidebar.derechos': 'Derechos reservados',
+  // MENU-CASCADA (12/11) · el botón del pie del menú.
+  'sidebar.plegar-todo': 'Plegar todas las secciones',
+  'sidebar.desplegar-todo': 'Desplegar todas las secciones',
 
   // ── Menu lateral · encabezados de grupo ──
   // Las claves salen de `GRUPOS[].key` en `components/demo/shell/nav.ts`, que
@@ -401,6 +404,8 @@ const EN: Record<ClaveTexto, string> = {
   'sidebar.abrir-portal': 'Open portal',
   'sidebar.solo-portal': 'As an external client you only have access to your portal.',
   'sidebar.derechos': 'All rights reserved',
+  'sidebar.plegar-todo': 'Collapse all sections',
+  'sidebar.desplegar-todo': 'Expand all sections',
 
   'nav.grupo.patrimonio': 'Inventory',
   'nav.grupo.ojos': 'Space Eyes',
@@ -595,6 +600,8 @@ const IT_BASE: Partial<Record<ClaveTexto, string>> = {
   'sidebar.abrir-portal': 'Apri il portale',
   'sidebar.solo-portal': 'Come cliente esterno hai accesso solo al tuo portale.',
   'sidebar.derechos': 'Tutti i diritti riservati',
+  'sidebar.plegar-todo': 'Comprimi tutte le sezioni',
+  'sidebar.desplegar-todo': 'Espandi tutte le sezioni',
 
   // El menu, con el glosario: Comercial = Vendite, Administración = Impostazioni.
   'nav.grupo.patrimonio': 'Inventario',
@@ -801,6 +808,8 @@ const PT_BASE: Partial<Record<ClaveTexto, string>> = {
   'sidebar.abrir-portal': 'Abrir portal',
   'sidebar.solo-portal': 'Como cliente externo, você só tem acesso ao seu portal.',
   'sidebar.derechos': 'Todos os direitos reservados',
+  'sidebar.plegar-todo': 'Recolher todas as seções',
+  'sidebar.desplegar-todo': 'Expandir todas as seções',
   'nav.grupo.patrimonio': 'Inventário',
   'nav.grupo.ojos': 'Space Eyes',
   'nav.grupo.vender': 'Comercial',

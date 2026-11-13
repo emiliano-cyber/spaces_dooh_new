@@ -3,9 +3,10 @@ import { traducir } from '@/lib/i18n/diccionario'
 import type { Idioma } from '@/lib/i18n/idiomas'
 
 // ============================================================================
-//  lib/server/email.ts — Envío de correo transaccional vía Resend (API REST).
-//  Se usa fetch directo (sin dependencia npm) para no tocar el package-lock.
-//  Config por env: RESEND_API_KEY y EMAIL_FROM (p. ej. "Space OS
+//  lib/server/email.ts — Envío de correo transaccional vía Resend o Brevo (API
+//  REST). Se usa fetch directo (sin dependencia npm) para no tocar el package-lock.
+//  Config por env: EMAIL_PROVEEDOR (resend | brevo; vacío = resend), su llave
+//  (RESEND_API_KEY o BREVO_API_KEY) y EMAIL_FROM (p. ej. "Space OS
 //  <no-reply@pixeled.com.mx>"). Si no está configurado, emailHabilitado()=false
 //  y el llamador decide el fallback (en dev: imprimir el enlace en el log).
 //
@@ -21,12 +22,18 @@ import type { Idioma } from '@/lib/i18n/idiomas'
 // ============================================================================
 
 import { remitenteConNombre } from '@/lib/email-remitente'
+import { llaveDelProveedor, nombreDelProveedor, pedidoDeCorreo, proveedorDeCorreo } from '@/lib/correo-proveedor'
 
-const RESEND_API_KEY = process.env.RESEND_API_KEY ?? ''
+// AVISOS-CANAL (12/11): el proveedor es Resend o Brevo, por `EMAIL_PROVEEDOR`
+// (vacío = Resend, lo de siempre). La forma de cada pedido vive en
+// `lib/correo-proveedor.ts`; aquí solo se elige y se manda. Todo lo demás de
+// este archivo —canales, plantillas, escapado— es igual para los dos.
 const EMAIL_FROM = process.env.EMAIL_FROM ?? ''
+const PROVEEDOR = proveedorDeCorreo(process.env)
+const LLAVE = llaveDelProveedor(PROVEEDOR, process.env)
 
 export function emailHabilitado(): boolean {
-  return !!(RESEND_API_KEY && EMAIL_FROM)
+  return !!(PROVEEDOR && LLAVE && EMAIL_FROM)
 }
 
 // El remitente de OPERACIÓN de un tenant: el buzón de la plataforma con el
@@ -48,28 +55,21 @@ export async function enviarEmail(opts: {
   // vendedor tenga en su buzón lo que se le mandó al cliente.
   cc?: string | null
 }): Promise<void> {
-  if (!emailHabilitado()) throw new Error('email_no_configurado')
-  const r = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: opts.from || EMAIL_FROM,
-      to: opts.to,
-      subject: opts.subject,
-      html: opts.html,
-      // Se omite si no hay: mandar `reply_to: null` hace que Resend responda
-      // 422 en vez de ignorarlo.
-      ...(opts.replyTo ? { reply_to: opts.replyTo } : {}),
-      // Igual que `reply_to`: ausente si no hay, nunca `null`.
-      ...(opts.cc ? { cc: opts.cc } : {}),
-    }),
+  if (!emailHabilitado() || !PROVEEDOR) throw new Error('email_no_configurado')
+  const p = pedidoDeCorreo(PROVEEDOR, LLAVE, {
+    from: opts.from || EMAIL_FROM,
+    to: opts.to,
+    subject: opts.subject,
+    html: opts.html,
+    replyTo: opts.replyTo,
+    cc: opts.cc,
   })
+  const r = await fetch(p.url, { method: 'POST', headers: p.headers, body: p.body })
   if (!r.ok) {
+    // El cuerpo dice QUÉ está mal (dominio sin verificar, llave revocada); y el
+    // nombre del proveedor, a cuál de los dos ir a mirar.
     const detalle = await r.text().catch(() => '')
-    throw new Error(`Resend ${r.status}: ${detalle}`)
+    throw new Error(`${nombreDelProveedor(PROVEEDOR)} ${r.status}: ${detalle}`)
   }
 }
 

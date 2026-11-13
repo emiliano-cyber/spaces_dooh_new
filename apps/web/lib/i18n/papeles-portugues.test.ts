@@ -125,7 +125,8 @@ describe('P3 · la costura con los lotes (05/11)', () => {
     const porAmbito = new Map(AMBITOS_PORTUGUES.map((a) => [a.ambito, a.pt as Partial<Record<string, string>>]))
     const fuera = CLAVES_DE_PAPEL.filter((k) => !porAmbito.get(k.split('.')[0])?.[k])
     expect(fuera).toEqual([])
-    expect(CLAVES_DE_PAPEL.length).toBe(169)
+    // 171 desde AVISOS-CANAL (12/11): el boton y el pie del correo de un aviso.
+    expect(CLAVES_DE_PAPEL.length).toBe(171)
   })
 
   // Decision del dueno (05/11): en lo que ve el CLIENTE el folio es «Nº»

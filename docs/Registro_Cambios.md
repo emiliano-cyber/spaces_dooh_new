@@ -5,6 +5,50 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-13 · v0.12.11 · El Dashboard, alineado y sin huecos
+
+Entra en la **v0.12.11** (`integra/v0-12-11`), junto con las dos entradas del 12/11 de abajo.
+
+- En las tres filas de tarjetas la tarjeta angosta va a la izquierda, así que la línea entre columnas queda en el mismo lugar de arriba abajo.
+- Las dos tarjetas de cada fila tienen la misma altura; la gráfica de ocupación y el mapa crecen para llenar su tarjeta en vez de dejar un espacio en blanco debajo.
+- Si ocultas un indicador con **Personalizar**, los que quedan se reparten el ancho en lugar de dejar una casilla vacía.
+- La separación entre renglones se mantiene igual, y la separación entre columnas ahora mide lo mismo.
+
+---
+
+## 2026-11-12 · v0.12.11 · El rol del Dueño ya no se cambia, Dashboard a la medida y menú plegable
+
+Entra en la v0.12.11 (rama `feat/dueno-dashboard-menu`).
+
+**El rol del Dueño no lo cambia nadie.** Ni otro Dueño ni un administrador pueden pasar a un Dueño a otro rol, y nadie puede cambiar el suyo propio. En **Administración → Equipo** el rol de un Dueño se ve fijo, sin desplegable. Desactivar o eliminar a un Dueño sigue con las reglas de antes.
+
+**Dashboard a la medida.** Junto al título hay un botón **Personalizar** para marcar qué métricas ver: los indicadores del mes, la ocupación, el pipeline, las alertas, los huecos, lo que hay por cobrar y el mapa. Si ocultas una tarjeta, la de al lado ocupa todo el ancho. Se recuerda en ese navegador.
+
+**Menú plegable.** Cada sección del menú (Inventario, Comercial, Operaciones…) se puede plegar a su nombre tocando su título, y desplegar otra vez igual. Se abre y se cierra con una animación suave; plegada, dice cuántas opciones guarda, y si estás en una de sus pantallas esa sigue a la vista. Abajo del menú hay un botón para plegar o desplegar todas de un toque. Todas empiezan abiertas y se recuerda en ese navegador.
+
+**A tener en cuenta.**
+- Lo del Dashboard y el menú es por navegador: en otro equipo o navegador sale todo abierto.
+- Nada cambia hasta que alguien lo toque.
+
+## 2026-11-12 · v0.12.11 · Avisos también por correo, y WhatsApp preparado
+
+Entra en la v0.12.11 (rama `feat/avisos-por-canal`). **No se contrató ningún servicio de correo ni se tocó ningún servidor**: queda lista para cuando se decida.
+
+**Qué cambia para quien usa la aplicación.** En **Configuración** (menú de tu cuenta) hay una tarjeta nueva, **Avisos**. Ahí cada persona elige qué avisos de la campana quiere recibir también por correo: propuestas, campañas, órdenes de compra, facturas, pagos, cobranza y órdenes de trabajo. El correo llega con el nombre y el logo de la empresa, y con un botón que abre la pantalla del aviso. Incluye «Propuesta aceptada por el cliente», que llega por la liga pública.
+
+**WhatsApp, preparado pero apagado.** La tarjeta ya tiene la columna de WhatsApp (dice «Próximamente») y el campo para dejar tu número con código de país. Todavía no se manda nada por WhatsApp: hace falta una cuenta de WhatsApp Business.
+
+**Recuperar la contraseña sigue siendo solo por correo**, a la dirección de tu cuenta. Igual las invitaciones a usuarios nuevos.
+
+**Para quien instala.** El correo puede salir por **Resend** (como hasta hoy) o por **Brevo**: se elige con `EMAIL_PROVEEDOR` en el `.env` y cada uno usa su clave (`RESEND_API_KEY` o `BREVO_API_KEY`). Si no se toca nada, sigue con Resend.
+
+**A tener en cuenta.**
+- Nadie recibe correos que no haya pedido: al instalar esta versión, todos empiezan con los avisos por correo apagados.
+- Si el servidor todavía no tiene clave de correo, la tarjeta lo dice: puedes dejar elegidos tus avisos y empezarán a llegar cuando la tenga.
+- El correo diario de contratos a los Dueños no cambia.
+- Space Eye sigue mandando sus avisos por Resend, como hasta hoy.
+
+
 ## 2026-11-11 · v0.12.10 · Permisos editables, campos de pantalla por empresa, Network para la app nueva, eliminar usuarios solo Dueño/Admin y menos falsas alarmas en Space Eyes
 
 **Eliminar usuarios.** El botón **Eliminar** de **Administración → Equipo** solo lo ven el Dueño y los Administradores, y el servidor rechaza a cualquier otro rol. Hoy ya eran los únicos con ese permiso, así que nada cambia en la práctica: queda asegurado para el día en que los permisos se puedan ajustar por empresa.
