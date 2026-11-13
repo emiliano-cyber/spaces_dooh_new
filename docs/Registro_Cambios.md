@@ -5,6 +5,18 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-13 · «Personalizar» del Dashboard, sobre el propio tablero (sin publicar)
+
+Rama `feat/personalizar-dashboard`.
+
+- Al pulsar **Personalizar**, el Dashboard entra en modo edición: arriba aparece una franja que explica qué hacer y cuántos bloques se ven («9 de 11 visibles»).
+- Cada bloque (los indicadores, los costos del mes y las tarjetas) muestra un botón con un ojo: **Visible** u **Oculto**. Se toca y cambia.
+- Lo que ocultas se queda en su lugar, atenuado y con borde punteado, para que puedas volver a mostrarlo. Al pulsar **Listo** (o la tecla Esc) desaparece y lo demás se acomoda.
+- **Mostrar todas** devuelve el tablero completo de un toque.
+- Sigue guardándose en ese navegador, como antes.
+
+---
+
 ## 2026-11-13 · v0.12.11 · El Dashboard, alineado y sin huecos
 
 Entra en la **v0.12.11** (`integra/v0-12-11`), junto con las dos entradas del 12/11 de abajo.

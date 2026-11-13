@@ -6,6 +6,11 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!important] 2026-11-13 · **DASH-EDITAR** — rama `feat/personalizar-dashboard`, desde `main` `4462557e` (v0.12.11) — **sin empujar**
+> «Personalizar» edita sobre el propio tablero: un ojo por bloque, lo oculto atenuado en su sitio y «Listo». 10 378
+> unitarias y Chrome (1440 y 390 px) en verde. **Zonas tomadas y liberadas:** Z10 · UI base (`inicio/page.tsx`,
+> `lib/metricas-visibles.ts`, `lib/i18n/textos/inicio.ts`), Z12 · Docs y `docs/Registro_Cambios.md`. Detalle en [[2026-11-13]] §4.
+
 > [!important] 2026-11-13 · **v0.12.11 = `integra/v0-12-11`** — `feat/dueno-dashboard-menu` + `feat/avisos-por-canal`, sin la paleta — **sin empujar**
 > Desde `origin/main` `fccfd92a`; notas en `novedades.json`. Push, PR, etiqueta y promoción los hace el dueño. Detalle en [[2026-11-13]] §3.
 
