@@ -257,7 +257,7 @@ export function ReservaDialog({
             aquí mientras se reservaban pantallas de 10 y 12 — sin nada que
             dijera cuál de los dos mandaba. Ahora se avisa cuando difieren. */}
         {digitales > 0 && config && (
-          <div className="rounded-md border border-[#0a66ff33] bg-[#0a66ff0a] px-3 py-2 text-[12px] text-ink">
+          <div className="rounded-md border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] bg-[color-mix(in_srgb,var(--accent)_4%,transparent)] px-3 py-2 text-[12px] text-ink">
             {interpolarNodos(t('comercial.reserva.loop'), {
               loop: <span className="demo-num font-medium">{config.loopSeg}s</span>,
               slot: <span className="demo-num font-medium">{config.spotSeg}s</span>,

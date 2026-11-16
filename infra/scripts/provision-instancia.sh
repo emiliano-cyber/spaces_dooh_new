@@ -14,13 +14,19 @@
 #    provision-instancia.sh --host <ip|dns> --dominio <dominio> --instancia <nombre> \
 #                           --email <correo-del-dueno> --bootstrap --confirmar
 #                           [--moneda MXN|USD] [--idioma es|en|it|pt]
-#    (las corridas con --instancia aceptan ademas [--ocultar-campos-pantalla a,b,c])
+#    (las corridas con --instancia aceptan ademas [--ocultar-campos-pantalla a,b,c] [--paleta <nombre|#rrggbb>])
 #
 #  ─── Campos ocultos del alta de pantalla (CAMPOS-PANTALLA, 11/11) ─────────
 #  `--ocultar-campos-pantalla ubicacion,imagen,...` quita esos campos del
 #  formulario «Nueva pantalla» de ESTA instancia. Va en la corrida que escribe
 #  `app.env` y queda ahi como `PANTALLA_CAMPOS_OCULTOS=`. Sin la bandera, se ven
 #  todos. Valen los de `CAMPOS_PANTALLA` en entorno-instancia.sh; el nombre no.
+#
+#  ─── La paleta de color (PALETA-01, 10/11) ────────────────────────────────
+#  `--paleta azul|verde|morado|naranja|vino|grafito|#rrggbb` va en la corrida
+#  que escribe `app.env` y queda ahi como `PALETA=`. Sin la bandera, azul. Un
+#  color propio tiene que leerse con texto blanco (contraste 4.5:1) o el alta
+#  se para. No se cambia desde la aplicacion: editar `app.env` y recrear.
 #
 #  ─── La moneda (ADR 0048) ─────────────────────────────────────────────────
 #  `--moneda MXN|USD` va con `--bootstrap` y decide en que moneda trabaja la
@@ -110,6 +116,8 @@ IDIOMA="es"
 IDIOMA_DADO=0
 # CAMPOS-PANTALLA · campos del alta de pantalla que esta instancia oculta.
 CAMPOS_OCULTOS=""
+# PALETA-01 · el color de la instancia. Vacia = el azul de SPACE OS.
+PALETA=""
 # Region y tamano solo se usan con --crear-droplet. Se dejan como variables de
 # entorno y sin valor por defecto quemado: son decisiones de cuenta, no del
 # script.
@@ -213,6 +221,8 @@ while [[ $# -gt 0 ]]; do
     --idioma=*)            IDIOMA="${1#--idioma=}"; IDIOMA_DADO=1; shift ;;
     --ocultar-campos-pantalla)   CAMPOS_OCULTOS="${2:-}"; shift 2 ;;
     --ocultar-campos-pantalla=*) CAMPOS_OCULTOS="${1#--ocultar-campos-pantalla=}"; shift ;;
+    --paleta)              PALETA="${2:-}"; shift 2 ;;
+    --paleta=*)            PALETA="${1#--paleta=}"; shift ;;
     --sin-respaldo-remoto) SIN_RESPALDO_REMOTO=1; shift ;;
     --con-eyes)            CON_EYES=1; shift ;;
     -h|--ayuda|--help)     uso; exit 0 ;;
@@ -384,6 +394,8 @@ fi
 . "$ENTORNO_INSTANCIA_SH"
 # CAMPOS-PANTALLA · antes de tocar el servidor: un campo desconocido para aqui.
 validar_campos_ocultos "$CAMPOS_OCULTOS"
+# PALETA-01 · antes de tocar el servidor: un color ilegible para aqui.
+validar_paleta "$PALETA"
 if [[ "$CON_EYES" -eq 1 ]]; then
   EYES_ALTA_SH="$(dirname "${BASH_SOURCE[0]}")/eyes-alta.sh"
   [[ -f "$EYES_ALTA_SH" && -f "$RAIZ/infra/eyes/eyes.env.example" ]] || {
@@ -929,6 +941,7 @@ reescribir_env_docker "$TPL_APP" \
   "FLOTA_TOKEN=$TOKEN_FLOTA" \
   "CANAL=$CANAL" \
   "PANTALLA_CAMPOS_OCULTOS=$CAMPOS_OCULTOS_APP" \
+  "PALETA=$PALETA_APP" \
   | remoto_escribir /etc/space-os/app.env 600
 if [[ "$CON_EYES" -eq 1 ]]; then
   eyes_env "$RAIZ/infra/eyes/eyes.env.example" "$INSTANCIA" "$DOMINIO" "$HOST" \

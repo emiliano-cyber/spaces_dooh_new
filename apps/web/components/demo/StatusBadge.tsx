@@ -33,7 +33,7 @@ const TONO_STYLE: Record<Tono, { dot: string; text: string; bg: string; border: 
   verde: { dot: 'bg-success', text: 'text-[#146c39]', bg: 'bg-success-soft', border: 'border-[#1da85040]' },
   ambar: { dot: 'bg-warning', text: 'text-[#9a6700]', bg: 'bg-warning-soft', border: 'border-[#f59e0b40]' },
   rojo: { dot: 'bg-error', text: 'text-[#b42318]', bg: 'bg-error-soft', border: 'border-[#dc262640]' },
-  azul: { dot: 'bg-info', text: 'text-[#0a4fcc]', bg: 'bg-accent-soft', border: 'border-[#0a66ff40]' },
+  azul: { dot: 'bg-info', text: 'text-accent-hover', bg: 'bg-accent-soft', border: 'border-[color-mix(in_srgb,var(--accent)_25%,transparent)]' },
   neutro: { dot: 'bg-muted', text: 'text-muted', bg: 'bg-surface-2', border: 'border-border' },
 }
 

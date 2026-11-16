@@ -79,6 +79,19 @@ Entra en la v0.12.11 (rama `feat/avisos-por-canal`). **No se contrató ningún s
 - La app todavía no existe. Mientras no se configure su clave en el servidor, nadie puede consultar nada.
 - La app nunca ve costos, tarifas internas, notas, campañas, clientes ni precios de venta.
 
+---
+
+## 2026-11-10 · El color de cada servidor se elige al instalarlo (sin publicar)
+
+**Qué cambia para quien usa la aplicación.** Nada, si nadie lo pide: todo sigue en el azul de SPACE OS. Lo nuevo es que, al instalar un servidor para un cliente, se puede elegir otro color para botones, enlaces y selección: verde, morado, naranja, vino, grafito, o el color de la marca del cliente.
+
+**Por qué.** El dueño quiere que cada cliente vea su servidor con su color, pero que **no** se pueda cambiar desde la aplicación: se decide una vez, al instalar.
+
+**A tener en cuenta.**
+- Un color con el que el texto blanco no se lea (un amarillo, un azul cielo) **no se acepta**: la instalación se para y dice por qué. Así no vuelven los «botones que no se ven».
+- Cambiarlo después lo hace quien administra el servidor (una línea en la configuración y reiniciar), no un usuario.
+- No cambian los colores de verde, ámbar y rojo de los estados, ni los de los mapas y las gráficas.
+
 ## 2026-11-10 · v0.12.9 · Los idiomas se encienden con un botón desde Administración
 
 **Qué cambia para quien usa la aplicación.** En **Administración → Configuración → Idiomas del servidor**, el Dueño o un Administrador marca qué idiomas ofrece su servidor: Español (siempre), English, Italiano o Português. Al guardar, el selector de idioma aparece en la pantalla de entrar y en el menú de la cuenta, sin recargar y sin que nadie tenga que entrar al servidor.

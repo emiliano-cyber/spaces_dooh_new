@@ -436,7 +436,7 @@ export function ImportarInventarioDialog({
         )}
 
         {/* Info limpieza de encabezados */}
-        <div className="flex gap-2.5 rounded-md border border-[#0a66ff33] bg-[#0a66ff0a] p-3 text-[12px] text-muted">
+        <div className="flex gap-2.5 rounded-md border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] bg-[color-mix(in_srgb,var(--accent)_4%,transparent)] p-3 text-[12px] text-muted">
           <FileText className="mt-0.5 h-4 w-4 shrink-0 text-info" />
           <p>
             {/* «Sitios» es el NOMBRE de la hoja de la plantilla: no se traduce. */}
