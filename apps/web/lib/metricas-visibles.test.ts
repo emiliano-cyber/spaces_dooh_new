@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { METRICAS_DASHBOARD, leerOcultas, alternarOculta, anchoDeFila, columnasIndicadores } from './metricas-visibles'
+import { METRICAS_DASHBOARD, leerOcultas, alternarOculta, anchoDeFila, columnasIndicadores, seDibuja, cuentaVisibles } from './metricas-visibles'
 
 // ============================================================================
 //  DASH-METRICAS (12/11) · del Dashboard se eligen las metricas a ver.
@@ -75,5 +75,28 @@ describe('columnasIndicadores', () => {
   })
   it('con uno, a todo el ancho', () => {
     expect(columnasIndicadores(1)).toBe('grid-cols-1')
+  })
+})
+
+// DASH-EDITAR (13/11) · «Personalizar» pasa a editar sobre el propio tablero:
+// las ocultas se quedan en su sitio, atenuadas, para poder volver a mostrarlas.
+describe('seDibuja', () => {
+  it('fuera del modo edicion, una oculta no se dibuja', () => {
+    expect(seDibuja({ disponible: true, oculta: true, editando: false })).toBe(false)
+    expect(seDibuja({ disponible: true, oculta: false, editando: false })).toBe(true)
+  })
+  it('editando, la oculta SI se dibuja: si no, no habria donde tocar para recuperarla', () => {
+    expect(seDibuja({ disponible: true, oculta: true, editando: true })).toBe(true)
+  })
+  it('lo que el rol no puede ver no aparece ni editando (DASH-REF)', () => {
+    expect(seDibuja({ disponible: false, oculta: false, editando: true })).toBe(false)
+  })
+})
+
+describe('cuentaVisibles', () => {
+  it('cuenta solo entre las disponibles para el rol', () => {
+    const ocultas = new Set(['mapa', 'costos'])
+    // 'costos' no esta disponible: no resta.
+    expect(cuentaVisibles(['ingreso', 'mapa', 'huecos'], ocultas)).toEqual({ visibles: 2, total: 3 })
   })
 })

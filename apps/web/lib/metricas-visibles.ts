@@ -91,6 +91,25 @@ export function columnasIndicadores(n: number): string {
   return 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-4'
 }
 
+/**
+ * DASH-EDITAR (13/11) · si un bloque se pinta. «Personalizar» edita sobre el
+ * propio tablero: editando, las ocultas SÍ se pintan (atenuadas), porque si
+ * desaparecieran no quedaría dónde tocar para recuperarlas. Lo que el rol no
+ * puede ver (DASH-REF) no aparece nunca. Pura.
+ */
+export function seDibuja(b: { disponible: boolean; oculta: boolean; editando: boolean }): boolean {
+  if (!b.disponible) return false
+  return b.editando || !b.oculta
+}
+
+/** «9 de 11 visibles», contado solo entre lo que el rol puede ver. Pura. */
+export function cuentaVisibles(
+  disponibles: readonly string[],
+  ocultas: ReadonlySet<string>,
+): { visibles: number; total: number } {
+  return { visibles: disponibles.filter((id) => !ocultas.has(id)).length, total: disponibles.length }
+}
+
 export interface MetricasVisibles {
   ve: (id: MetricaDashboard) => boolean
   alternar: (id: MetricaDashboard) => void
