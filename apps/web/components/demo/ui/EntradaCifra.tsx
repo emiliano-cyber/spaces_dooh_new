@@ -41,9 +41,15 @@ export interface EntradaCifraProps extends AtributosInput {
   minimo: number | null
   maximo?: number
   idioma?: Idioma
+  /**
+   * D19 (decisión del dueño del 2026-11-05, opción b) · campo de PORCENTAJE o
+   * de DINERO: en español e inglés, lo que no es una cifra se avisa en el
+   * campo, y el formulario lo bloquea con `cifraMalEscrita`.
+   */
+  avisaMalEscrita?: boolean
 }
 
-const SOLO_ITALIANO = new Set(['decimales', 'minimo', 'maximo', 'idioma'])
+const SOLO_ITALIANO = new Set(['decimales', 'minimo', 'maximo', 'idioma', 'avisaMalEscrita'])
 
 export function EntradaCifra(props: EntradaCifraProps) {
   const idiomaPantalla = useIdioma().idioma
@@ -68,6 +74,7 @@ export function EntradaCifra(props: EntradaCifraProps) {
     minimo,
     maximo,
     idioma: _idioma,
+    avisaMalEscrita: _avisa,
     type: _type,
     min: _min,
     max: _max,

@@ -10,7 +10,7 @@ import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { EntradaCifra } from '@/components/demo/ui/EntradaCifra'
-import { cifraIlegible } from '@/lib/captura-cifra'
+import { cifraMalEscrita } from '@/lib/captura-cifra'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { useClientes, useConfigNegocio, type Cliente } from '@/lib/data/client'
 import {
@@ -479,8 +479,8 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
   }
   // P-L2-1 · la comisión de la agencia en italiano («12,5») pasa por
   // `EntradaCifra`; lo ilegible llega como 'NaN' y `Number(x) || 0` lo
-  // guardaría como CERO. En español e inglés `cifraIlegible` es `false`.
-  const hayErrores = Object.values(errores).some(Boolean) || (tipo === 'AGENCIA' && cifraIlegible(comisionAgencia, idioma))
+  // guardaría como CERO. D19 (05/11): en español e inglés, «12,5» igual.
+  const hayErrores = Object.values(errores).some(Boolean) || (tipo === 'AGENCIA' && cifraMalEscrita(comisionAgencia, idioma))
 
   async function guardar() {
     setIntento(true)
@@ -564,7 +564,7 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
           {/* La comisión es por AGENCIA; no aplica al cliente directo. */}
           {tipo === 'AGENCIA' && (
             <Campo label={t('clientes.form.comision')}>
-              <EntradaCifra className={inputCls} valor={comisionAgencia} onCambio={setComisionAgencia} placeholder="0" decimales={2} minimo={0} maximo={100} />
+              <EntradaCifra className={inputCls} valor={comisionAgencia} onCambio={setComisionAgencia} placeholder="0" decimales={2} minimo={0} maximo={100} avisaMalEscrita />
             </Campo>
           )}
         </div>

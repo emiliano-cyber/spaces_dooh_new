@@ -470,6 +470,7 @@ export function GestionCodigos() {
               decimales={2}
               minimo={0}
               maximo={100}
+              avisaMalEscrita
             />
           </label>
           <label className="text-xs" data-falta={ob.falta('vigenteDesde') || undefined}>

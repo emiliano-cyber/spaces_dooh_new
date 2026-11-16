@@ -12,7 +12,7 @@ import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { EntradaCifra } from '@/components/demo/ui/EntradaCifra'
-import { cifraIlegible } from '@/lib/captura-cifra'
+import { cifraMalEscrita } from '@/lib/captura-cifra'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { useClientes, type Cliente } from '@/lib/data/client'
 import { actualizarClienteApi, crearClienteApi } from '@/lib/data/estado-api'
@@ -195,8 +195,9 @@ function NuevaAgenciaDialog({ onClose }: { onClose: () => void }) {
   async function guardar() {
     if (!ob.validar()) return
     // P-L2-1 · en italiano lo ilegible llega como 'NaN' (el campo lo dice en
-    // rojo) y `Number(x) || 0` lo guardaría como CERO. En es/en, `false`.
-    if (cifraIlegible(comision, idioma)) return
+    // rojo) y `Number(x) || 0` lo guardaría como CERO. D19 (05/11): en
+    // español e inglés también, «12,5» tecleado (el campo lo avisa).
+    if (cifraMalEscrita(comision, idioma)) return
     setGuardando(true)
     setError(null)
     try {
@@ -238,7 +239,7 @@ function NuevaAgenciaDialog({ onClose }: { onClose: () => void }) {
           <input className={fieldCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus placeholder={t('clientes.comisiones.nombre.ejemplo')} />
         </Campo>
         <Campo label={t('clientes.form.comision')}>
-          <EntradaCifra className={`demo-num ${fieldCls}`} valor={comision} onCambio={setComision} placeholder="0" decimales={2} minimo={0} maximo={100} />
+          <EntradaCifra className={`demo-num ${fieldCls}`} valor={comision} onCambio={setComision} placeholder="0" decimales={2} minimo={0} maximo={100} avisaMalEscrita />
         </Campo>
 
         <div className="rounded-md border border-border bg-surface-2 p-3">
@@ -293,7 +294,8 @@ function AgenciaRow({
 
   // P-L2-1 · en italiano lo ilegible llega como 'NaN': no cuenta como cambio
   // (si no, «Guardar» mandaría `Number('NaN') || 0` = una comisión de CERO).
-  const cambiado = !cifraIlegible(comision, idioma) && Number(comision) !== Number(agencia.comisionAgenciaPct ?? 0)
+  // D19: y en español e inglés, «12,5» (Enter tampoco lo guarda).
+  const cambiado = !cifraMalEscrita(comision, idioma) && Number(comision) !== Number(agencia.comisionAgenciaPct ?? 0)
 
   async function guardar(input: Parameters<typeof actualizarClienteApi>[1]) {
     setBusy(true)
@@ -323,6 +325,7 @@ function AgenciaRow({
               decimales={2}
               minimo={0}
               maximo={100}
+              avisaMalEscrita
               onKeyDown={(e) => { if (e.key === 'Enter' && cambiado) guardar({ comisionAgenciaPct: Number(comision) || 0 }) }}
             />
             <span className="text-[12px] text-muted">%</span>

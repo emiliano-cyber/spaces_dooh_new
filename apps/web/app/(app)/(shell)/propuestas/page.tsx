@@ -35,7 +35,7 @@ import { Modal } from '@/components/demo/ui/Modal'
 import { ElegirClienteDialog } from '@/components/demo/propuestas/ElegirClienteDialog'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
-import { CRUDO_INVALIDO, cifraIlegible } from '@/lib/captura-cifra'
+import { CRUDO_INVALIDO, cifraIlegible, cifraMalEscrita } from '@/lib/captura-cifra'
 import { EntradaCifra } from '@/components/demo/ui/EntradaCifra'
 import { MapView } from '@/components/demo/MapView'
 import { pinTono } from '@/components/demo/StatusBadge'
@@ -1136,7 +1136,9 @@ function NuevaPropuestaDialog({
       // P-L2-1 · en italiano los espacios, las horas y la prima van por
       // `EntradaCifra`; lo ilegible llega como 'NaN' y caería en silencio a 1
       // espacio o a prima 0. En español e inglés `cifraIlegible` es `false`.
-      if (usaCalcDe(s) && [c.espacios, c.horasDia, c.prima].some((x) => cifraIlegible(x, idioma))) {
+      // D19 (05/11): la PRIMA es un porcentaje, y en español e inglés «12,5»
+      // tecleado también caía a 0 (`cifraMalEscrita`).
+      if (usaCalcDe(s) && ([c.espacios, c.horasDia].some((x) => cifraIlegible(x, idioma)) || cifraMalEscrita(c.prima, idioma))) {
         return t('propuestas.alta.error.calculadora', { sitio: s.nombre })
       }
     }
@@ -1409,7 +1411,7 @@ function NuevaPropuestaDialog({
                 }}
               />
             </Campo>
-            <Campo label={t('propuestas.alta.comision')}><EntradaCifra className={inputCls} valor={comision} onCambio={setComision} decimales={2} minimo={0} /></Campo>
+            <Campo label={t('propuestas.alta.comision')}><EntradaCifra className={inputCls} valor={comision} onCambio={setComision} decimales={2} minimo={0} avisaMalEscrita /></Campo>
           </div>
 
           </>
@@ -1983,6 +1985,7 @@ function CalculadoraSpotsLinea({
                 decimales={2}
                 minimo={0}
                 maximo={100}
+                avisaMalEscrita
               />
             </label>
           </div>

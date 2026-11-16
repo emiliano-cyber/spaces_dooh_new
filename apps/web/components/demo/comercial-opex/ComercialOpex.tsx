@@ -20,7 +20,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/demo/ui/Button'
 import { EntradaCifra } from '@/components/demo/ui/EntradaCifra'
-import { cifraIlegible } from '@/lib/captura-cifra'
+import { cifraIlegible, cifraMalEscrita } from '@/lib/captura-cifra'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
 import { formatFecha, formatMonto } from '@/lib/data/client'
@@ -313,9 +313,11 @@ export function Ficha({ p, accion, puede }: { p: ProspectoDetalle; accion: Accio
   // En italiano, lo que no se entiende llega como 'NaN' y `numeroO` lo
   // mandaría como NaN → null en JSON, BORRANDO el dato guardado. El campo ya
   // lo dice en rojo; aquí solo no se guarda. En español e inglés, `false`.
-  const cifraMal = (['anchoM', 'altoM', 'superficieM2', 'presupuestoMin', 'presupuestoMax'] as const).some((k) =>
-    cifraIlegible(f[k], idioma),
-  )
+  // D19 (05/11): el presupuesto es DINERO, y en español e inglés «12,5»
+  // viajaba como `numeroO('12,5')` = NaN → null, BORRANDO el guardado.
+  const cifraMal =
+    (['anchoM', 'altoM', 'superficieM2'] as const).some((k) => cifraIlegible(f[k], idioma)) ||
+    (['presupuestoMin', 'presupuestoMax'] as const).some((k) => cifraMalEscrita(f[k], idioma))
 
   async function guardar() {
     if (cifraMal) return
@@ -368,11 +370,11 @@ export function Ficha({ p, accion, puede }: { p: ProspectoDetalle; accion: Accio
         </label>
         <label>
           <span className={labelCls}>{t('comercial.negociacion.ficha.renta-min')}</span>
-          <EntradaCifra className={inputCls} type="number" min={0} {...cifra('presupuestoMin')} decimales={2} minimo={0} />
+          <EntradaCifra className={inputCls} type="number" min={0} {...cifra('presupuestoMin')} decimales={2} minimo={0} avisaMalEscrita />
         </label>
         <label>
           <span className={labelCls}>{t('comercial.negociacion.ficha.renta-max')}</span>
-          <EntradaCifra className={inputCls} type="number" min={0} {...cifra('presupuestoMax')} decimales={2} minimo={0} />
+          <EntradaCifra className={inputCls} type="number" min={0} {...cifra('presupuestoMax')} decimales={2} minimo={0} avisaMalEscrita />
         </label>
         <label className="col-span-2">
           <span className={labelCls}>{t('comercial.negociacion.ficha.autoriza')}</span>
@@ -697,6 +699,9 @@ function Ofertas({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; pu
           className="mt-3 grid grid-cols-[1fr_7rem] gap-2 border-t border-border pt-3 sm:grid-cols-[10rem_7rem_1fr_auto]"
           onSubmit={async (e) => {
             e.preventDefault()
+            // D19 (05/11): Enter envía el formulario aunque el botón esté
+            // apagado en algunos navegadores; lo mal escrito no se manda.
+            if (cifraMalEscrita(n.importe, idioma) || !(Number(n.importe) > 0 && Number(n.plazo) >= 1)) return
             const ok = await accion(() =>
               crearOfertaApi(p.id, { importeMensual: Number(n.importe), plazoMeses: Number(n.plazo), notas: n.notas.trim() || null }),
             )
@@ -706,7 +711,7 @@ function Ofertas({ p, accion, puede }: { p: ProspectoDetalle; accion: Accion; pu
           {/* P-L2-1 · en italiano, punto de millar y coma decimal. Lo que no se
               entiende llega como 'NaN', y `Number('NaN') > 0` deja el botón
               apagado: no hace falta otra guardia. */}
-          <EntradaCifra aria-label={t('comercial.negociacion.ofertas.renta-mensual')} type="number" min={1} className={inputCls} placeholder={t('comercial.negociacion.ofertas.renta-mensual')} valor={n.importe} onCambio={(crudo) => setN({ ...n, importe: crudo })} decimales={2} minimo={1} />
+          <EntradaCifra aria-label={t('comercial.negociacion.ofertas.renta-mensual')} type="number" min={1} className={inputCls} placeholder={t('comercial.negociacion.ofertas.renta-mensual')} valor={n.importe} onCambio={(crudo) => setN({ ...n, importe: crudo })} decimales={2} minimo={1} avisaMalEscrita />
           <EntradaCifra aria-label={t('comercial.negociacion.ofertas.plazo-meses')} type="number" min={1} max={240} className={inputCls} placeholder={t('comercial.negociacion.ofertas.meses-ph')} valor={n.plazo} onCambio={(crudo) => setN({ ...n, plazo: crudo })} decimales={0} minimo={1} maximo={240} />
           <input aria-label={t('comercial.negociacion.ofertas.notas')} className={inputCls} placeholder={t('comercial.comun.notas')} maxLength={2000} value={n.notas} onChange={(e) => setN({ ...n, notas: e.target.value })} />
           <Button size="sm" type="submit" disabled={!(Number(n.importe) > 0 && Number(n.plazo) >= 1)}>

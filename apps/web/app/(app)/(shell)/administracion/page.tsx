@@ -11,7 +11,7 @@ import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
 import { EntradaCifra } from '@/components/demo/ui/EntradaCifra'
-import { CRUDO_INVALIDO, cifraIlegible } from '@/lib/captura-cifra'
+import { CRUDO_INVALIDO, cifraIlegible, cifraMalEscrita } from '@/lib/captura-cifra'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { Tabs, TabPanel } from '@/components/demo/ui/Tabs'
@@ -850,6 +850,9 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
   }, [candadoTope.reautenticando, config?.topeDescuentoPct])
 
   function guardarTope() {
+    // D19 (05/11): «12,5» se queda a la vista con su aviso; antes se reponía
+    // el tope guardado con un «tope inválido».
+    if (cifraMalEscrita(topeInput, idioma)) return
     const txt = topeInput.trim()
     const v = Number(txt)
     if (txt === '' || !Number.isFinite(v) || v < 0 || v > 100) {
@@ -1108,9 +1111,11 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
                     en rojo en el campo y no se agrega ni se borra. */}
                 <EntradaCifra type="number" valor={nuevoIva} onCambio={setNuevoIva} placeholder="%"
                   className="h-8 w-20 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                  decimales={2} minimo={0} maximo={100} />
+                  decimales={2} minimo={0} maximo={100} avisaMalEscrita />
                 <Button size="sm" variant="success" onClick={() => {
-                  if (cifraIlegible(nuevoIva, idioma)) return
+                  // D19 (05/11): en español e inglés «10,5» se borraba sin
+                  // agregar nada ni decir por qué; ahora se queda y se avisa.
+                  if (cifraMalEscrita(nuevoIva, idioma)) return
                   const nx = Number(nuevoIva)
                   if (nx >= 0 && !config.ivaTasas.includes(nx)) guardar({ ivaTasas: [...config.ivaTasas, nx].sort((a, b) => a - b) }, t('admin.iva.agregado', { n: nx }))
                   setNuevoIva('')
@@ -1166,6 +1171,7 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
                   decimales={2}
                   minimo={0}
                   maximo={100}
+                  avisaMalEscrita
                 />
               </Campo>
               <Button

@@ -498,6 +498,16 @@ export function cifraAMedias(texto: string, idioma: Idioma = 'es'): boolean {
 // parte pura. (`crudoTecleado`, un modelo del campo que nadie llamaba, se quitó
 // el 04/11 —B80—: lo tecleado de verdad lo prueba `cifras-formularios.test.ts`.)
 
+/** D19 · PENDIENTE (rojo): hoy nunca hay motivo en es/en. */
+export function motivoCifraMalEscrita(_texto: string, _idioma: Idioma = 'es'): string | null {
+  return null
+}
+
+/** D19 · PENDIENTE (rojo): hoy es `cifraIlegible`. */
+export function cifraMalEscrita(crudo: string, idioma: Idioma): boolean {
+  return cifraIlegible(crudo, idioma)
+}
+
 /**
  * ¿Hay que bloquear el envío? Solo en italiano, y solo con el 'NaN' de
  * `CampoCifra`: en español e inglés el formulario hace lo de siempre con lo

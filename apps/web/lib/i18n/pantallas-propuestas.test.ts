@@ -1384,8 +1384,13 @@ describe('B79 · la prima ilegible de la calculadora para el alta en italiano', 
   it('ITALIANO · la prima que se entiende no da el aviso', async () => {
     expect(await alta('it', '12.5')).not.toContain(aviso('it'))
   })
-  it('ESPAÑOL e INGLÉS · nunca: lo de siempre', async () => {
-    expect(await alta('es', 'NaN')).not.toContain(aviso('es'))
-    expect(await alta('en', 'NaN')).not.toContain(aviso('en'))
+  // D19 (decisión del dueño del 05/11): la prima es un PORCENTAJE, y en
+  // español e inglés «12,5» también caía a 0 en silencio. Hasta ese día esta
+  // prueba fijaba lo contrario («ESPAÑOL e INGLÉS · nunca: lo de siempre»).
+  it.each(['es', 'en'] as const)('D19 · %s · una prima mal escrita («12,5») se dice y no deja crear; «12.5» no', async (idioma) => {
+    const html = await alta(idioma, '12,5')
+    expect(html).toContain(aviso(idioma))
+    expect(html).toMatch(new RegExp(`<button disabled=""[^>]*>${traducir(idioma, 'propuestas.alta.crear')}</button>`))
+    expect(await alta(idioma, '12.5')).not.toContain(aviso(idioma))
   })
 })

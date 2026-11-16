@@ -162,6 +162,7 @@ export const ES_COMPARTIDOS = {
   // El espanol es el literal del modulo; las cifras de ejemplo van por hueco.
   'compartidos.cifra.forma': 'Escribe solo cifras: la coma separa miles y el punto, decimales. Ejemplo: {ejemplo}',
   'compartidos.cifra.comas': 'Las comas van cada tres cifras, como en {ejemplo}. Si querías decimales, usa punto: {decimal}',
+  'compartidos.cifra.sin-signos': 'Escribe solo la cifra, sin comas ni signos: {ejemplo}',
   'compartidos.cifra.europeo': 'Aquí el punto es decimal y la coma separa miles: escribe {ejemplo}',
   'compartidos.cifra.puntos': 'Solo puede haber un punto, y es el decimal. Para miles usa coma: {ejemplo}',
   'compartidos.cifra.vacia': 'Escribe una cifra',
@@ -312,6 +313,7 @@ export const EN_COMPARTIDOS: Record<ClaveCompartidos, string> = {
   // ── lib/captura-cifra.ts · los motivos de CampoCifra (lote catalogos) ──
   'compartidos.cifra.forma': 'Enter digits only: the comma separates thousands and the period, decimals. Example: {ejemplo}',
   'compartidos.cifra.comas': 'Commas go every three digits, as in {ejemplo}. If you meant decimals, use a period: {decimal}',
+  'compartidos.cifra.sin-signos': 'Enter just the number, with no commas or symbols: {ejemplo}',
   'compartidos.cifra.europeo': 'Here the period is the decimal point and the comma separates thousands: enter {ejemplo}',
   'compartidos.cifra.puntos': 'There can be only one period, and it is the decimal point. For thousands use a comma: {ejemplo}',
   'compartidos.cifra.vacia': 'Enter a number',
@@ -469,6 +471,7 @@ export const IT_COMPARTIDOS: Record<ClaveCompartidos, string> = {
   // («comas» = el signo de millar mal puesto, «puntos» = mas de un decimal).
   'compartidos.cifra.forma': 'Scrivi solo cifre: il punto separa le migliaia e la virgola i decimali. Esempio: {ejemplo}',
   'compartidos.cifra.comas': 'I punti vanno ogni tre cifre, come in {ejemplo}. Se volevi i decimali, usa la virgola: {decimal}',
+  'compartidos.cifra.sin-signos': 'Scrivi solo la cifra, senza separatori né simboli: {ejemplo}',
   'compartidos.cifra.europeo': 'Qui la virgola separa i decimali e il punto le migliaia: scrivi {ejemplo}',
   'compartidos.cifra.puntos': 'Può esserci una sola virgola, quella dei decimali. Per le migliaia usa il punto: {ejemplo}',
   'compartidos.cifra.vacia': 'Inserisci una cifra',

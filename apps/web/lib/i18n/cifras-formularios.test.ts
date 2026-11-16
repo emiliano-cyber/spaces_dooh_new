@@ -382,11 +382,13 @@ describe('Comisiones · el porcentaje de la agencia', () => {
   })
 
   for (const idioma of ['es', 'en'] as const) {
-    it(`${idioma.toUpperCase()} · alta y fila como siempre: «12.5» es 12.5 y «12,5» es 0`, async () => {
+    // D19 (05/11): «12,5» ya no se guarda como 0 %: se avisa y no se manda
+    // (lo prueba entero `cifras-d19.test.ts`). Hasta ese día aquí decía «es 0».
+    it(`${idioma.toUpperCase()} · alta y fila: «12.5» es 12.5; «12,5» no se manda desde D19 (antes 0)`, async () => {
       expect((await altaAgencia(idioma, '12.5')).cuerpo).toMatchObject({ comisionAgenciaPct: 12.5 })
       reiniciarTienda()
       api.llamadas.length = 0
-      expect((await altaAgencia(idioma, '12,5')).cuerpo).toMatchObject({ comisionAgenciaPct: 0 })
+      expect((await altaAgencia(idioma, '12,5')).cuerpo).toBeUndefined()
       reiniciarTienda()
       api.llamadas.length = 0
       expect((await filaAgencia(idioma, '12.5')).cuerpo).toEqual(['ag1', { comisionAgenciaPct: 12.5 }])
@@ -561,11 +563,11 @@ describe('B79 · Clientes (alta de una agencia con su comisión)', () => {
   it('ITALIANO · NEGATIVO: «12.5» no se manda (antes se guardaba 0)', async () => {
     expect(await cliente('it', '12.5')).toBeUndefined()
   })
-  it('ESPAÑOL · «12.5» como siempre, y «12,5» es 0 como siempre', async () => {
+  it('ESPAÑOL · «12.5» como siempre; «12,5» no se manda desde D19 (antes 0)', async () => {
     expect(await cliente('es', '12.5')).toMatchObject({ comisionAgenciaPct: 12.5 })
     reiniciarTienda()
     api.llamadas.length = 0
-    expect(await cliente('es', '12,5')).toMatchObject({ comisionAgenciaPct: 0 })
+    expect(await cliente('es', '12,5')).toBeUndefined()
   })
 })
 

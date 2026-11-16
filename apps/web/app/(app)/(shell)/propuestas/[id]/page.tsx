@@ -3,6 +3,7 @@
 import { toast } from 'sonner'
 import { pctConDosDecimales } from '@/lib/descuento-comercial'
 import { cifraEnEtiqueta } from '@/lib/i18n/cifra-en-etiqueta'
+import { cifraMalEscrita } from '@/lib/captura-cifra'
 import { conteo } from '@/lib/plural'
 import { useIdioma, useTexto } from '@/lib/i18n/contexto'
 import { interpolarNodos } from '@/lib/i18n/nodos'
@@ -147,6 +148,9 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
   }, [])
 
   async function aplicarDescuento() {
+    // D19 (05/11): «12,5» se queda a la vista con su aviso en el campo, en vez
+    // de un «descuento inválido» que no dice qué está mal.
+    if (cifraMalEscrita(descInput, idioma)) return
     const d = Number(descInput)
     if (descInput.trim() === '' || isNaN(d) || d < 0) {
       toast.error(t('propuestas.ficha.descuento.invalido'))
@@ -683,6 +687,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                         onCambio={setDescInput}
                         decimales={2}
                         minimo={0}
+                        avisaMalEscrita
                         onBlur={() => { if (descInput.trim() === '') setDescInput('0.00') }}
                         className="h-9 w-24 rounded border border-border-strong bg-surface pl-3 pr-6 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
                       />

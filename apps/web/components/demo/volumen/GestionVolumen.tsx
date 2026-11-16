@@ -281,6 +281,7 @@ export function GestionVolumen() {
                   decimales={2}
                   minimo={0}
                   maximo={100}
+                  avisaMalEscrita
                 />
               </td>
               <td className="px-3 py-2.5 text-right">
