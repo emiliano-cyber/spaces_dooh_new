@@ -6,6 +6,11 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!important] 2026-11-16 · **v0.12.12 = `integra/v0-12-12`** — `feat/personalizar-dashboard` + `feat/paleta-de-instalacion`, desde `main` `4462557e`
+> Conflictos de la paleta con CAMPOS-PANTALLA en los guiones del alta: se conservan los dos. Typecheck, 10 389 unitarias,
+> build, `pruebas-provision` (60/200) e `instalar-hijo` (12/64) y e2e 1270 + novedades tras reconstruir, en verde (solo
+> `grants-rol-app` por Docker). Empujada con PR a `main`. **Zonas tomadas y liberadas:** Z12 · Docs y el alta (R7). Detalle en [[2026-11-16]].
+
 > [!important] 2026-11-13 · **Validación de ciberseguridad** de la v0.12.11 y de `feat/personalizar-dashboard` — **VERDE**
 > Sin fallas explotables; 12/12 ataques del sondeo local bloqueados. Abiertos: H1 (avisos de dinero por correo a cualquier rol,
 > decide el dueño) y H2 (dependencias: Next 14.2.29, xlsx). `docs/evidencias/seguridad-v0-12-11-y-personalizar-20261113.md`.
