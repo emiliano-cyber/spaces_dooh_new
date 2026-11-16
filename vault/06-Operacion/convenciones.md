@@ -1,7 +1,7 @@
 ---
 tipo: operacion
 estado: verificado
-actualizado: 2026-11-05
+actualizado: 2026-11-10
 tags: [convenciones, estilo, pruebas]
 archivos:
   - apps/web/components/demo/ui/Button.tsx
@@ -10,6 +10,8 @@ archivos:
   - apps/web/lib/secciones-plegadas.ts
   - apps/web/lib/campos-obligatorios.ts
   - apps/web/lib/formato-numero.ts
+  - apps/web/lib/apariencia.ts
+  - infra/scripts/entorno-instancia.sh
   - apps/web/lib/formato-numero.guardia.test.ts
   - apps/web/lib/captura-cifra.ts
   - apps/web/components/demo/ui/CampoCifra.tsx
@@ -451,6 +453,39 @@ que cambiar.
 > («Código» en Creativos, «Cambiarla / Asignar contraseña»). Los casos
 > dudosos quedaron neutros, y **al tocar una pantalla se ajustan sus botones a
 > esta tabla en el mismo cambio**.
+
+### El «azul» es el color de la INSTANCIA (PALETA-01, 2026-11-10)
+
+`--accent` deja de ser siempre #0a66ff: cada instancia elige su color **al
+instalar**, con `--paleta` en `provision-instancia.sh` o `instalar-hijo.sh`, y
+queda en `app.env` como `PALETA=`. Valores: `azul` (por omisión), `verde`,
+`morado`, `naranja`, `vino`, `grafito`, o un `#rrggbb` con contraste ≥ 4.5:1
+contra el blanco. **No se cambia desde la aplicación** (decisión del dueño, «no
+debe ser personalizable más que al inicio»): después es editar `app.env` y
+recrear el contenedor.
+
+- La lista vive en `apps/web/lib/apariencia.ts` (`PALETAS`) y en
+  `color_de_paleta()` de `infra/scripts/entorno-instancia.sh`; una unitaria lee
+  el script y falla si se separan.
+- `app/layout.tsx` inyecta `<style id="paleta-instancia">` con `--accent`,
+  `--accent-hover`, `--accent-soft`, `--accent-fg` e `--info`, derivados de UN
+  color. Con la de siempre no inyecta nada.
+- Un valor ilegible a mano en `app.env` no rompe nada: se queda el azul y el log
+  del contenedor lo dice una vez (`[paleta] …`).
+- **Por eso, en código nuevo no se escribe `#0a66ff` a mano**: `text-accent`,
+  `bg-accent-soft`, `text-accent-hover`, o un tinte con
+  `color-mix(in_srgb,var(--accent)_20%,transparent)`. Lo que se queda azul fijo
+  a propósito son los colores de DATOS (la leyenda «digital» de los mapas, las
+  series de las gráficas), que significan una categoría y no la marca.
+
+> [!warning] Con `--paleta verde`, «guardar» y «añadir» quedan casi iguales
+> La regla de arriba distingue confirmar (`primary`, el color de la instancia)
+> de añadir (`success`, #15803d). Con la paleta `verde` (#12805c) las dos
+> variantes se parecen mucho. Pendiente de decisión del dueño (10/11).
+> Las tres salidas (dejarlo, «Añadir» en contorno, o «Añadir» en el color de
+> la paleta) se ven lado a lado en `docs/diseno/probador-temas.html`, junto con
+> 25 temas propuestos (color + fondos + menú lateral) que aún NO están en el
+> código: hoy `--paleta` solo cambia el color.
 
 ## Cifras: coma cada tres dígitos
 

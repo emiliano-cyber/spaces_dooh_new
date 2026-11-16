@@ -415,7 +415,7 @@ export function NuevaPantallaForm({
           {ve('vision') && (
           <TabPanel value="ia" className="space-y-3 pt-3">
             <h3 className="text-base font-semibold text-ink">Computer Vision / AdMobilize</h3>
-            <div className="rounded-md border border-[#0a66ff33] bg-[#0a66ff0a] p-3 text-[12px] text-muted">
+            <div className="rounded-md border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] bg-[color-mix(in_srgb,var(--accent)_4%,transparent)] p-3 text-[12px] text-muted">
               {interpolarNodos(t('inventario.alta.admobilize'), { marca: <b className="text-info">AdMobilize</b> })}
             </div>
             <div className="rounded-md border border-border p-3">

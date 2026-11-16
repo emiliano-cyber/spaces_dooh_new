@@ -409,6 +409,35 @@ else mal "no dice que falta FLOTA_TOKEN: $(tail -2 "$SALIDA" | tr '\n' ' ')"; fi
 limpiar
 
 # ============================================================================
+#  PALETA-01 · el color de la instancia se elige AL INSTALAR, con --paleta
+# ============================================================================
+escenario 'PALETA · sin --paleta, PALETA vacia en app.env; con --paleta vino, vino'
+preparar
+fabricar_licencia p "$DOM"
+correr REGISTRY=registro.ejemplo/x PADRE_URL=https://padre.ejemplo.invalid FLOTA_TOKEN=t -- \
+  --instancia p --dominio "$DOM" --licencia "$LICDIR"
+codigo_es 0
+escrito_casa /etc/space-os/app.env '^PALETA=$'
+limpiar
+preparar
+fabricar_licencia p "$DOM"
+correr REGISTRY=registro.ejemplo/x PADRE_URL=https://padre.ejemplo.invalid FLOTA_TOKEN=t -- \
+  --instancia p --dominio "$DOM" --licencia "$LICDIR" --paleta vino
+codigo_es 0
+escrito_casa /etc/space-os/app.env '^PALETA=vino$'
+limpiar
+
+escenario 'PALETA · un color ilegible para el alta antes de escribir nada'
+preparar
+fabricar_licencia p "$DOM"
+correr REGISTRY=registro.ejemplo/x PADRE_URL=https://padre.ejemplo.invalid FLOTA_TOKEN=t -- \
+  --instancia p --dominio "$DOM" --licencia "$LICDIR" --paleta '#7dd3fc'
+codigo_es 64
+if grep -qF 'hace falta 4.5:1' "$SALIDA"; then bien; else mal "no dice el contraste: $(tail -2 "$SALIDA" | tr '\n' ' ')"; fi
+if [ -f "$(ruta_escrita /etc/space-os/app.env)" ]; then mal 'escribio app.env con una paleta ilegible'; else bien; fi
+limpiar
+
+# ============================================================================
 #  EYES · Space Eyes dentro de la instancia (ADR 0045), con --con-eyes
 # ----------------------------------------------------------------------------
 #  Lo que no puede fallar: que las DOS credenciales con que la app le habla a su

@@ -13,12 +13,17 @@
 #  Uso:
 #    instalar-hijo.sh --instancia <nombre> --dominio <dominio> \
 #        --licencia <dir> --contacto <correo> \
-#        [--con-eyes] [--ocultar-campos-pantalla a,b,c] [--confirmar | --dry-run]
+#        [--con-eyes] [--ocultar-campos-pantalla a,b,c] [--paleta <nombre|#rrggbb>] [--confirmar | --dry-run]
 #
 #  --ocultar-campos-pantalla  campos del formulario «Nueva pantalla» que esta
 #              empresa no usa (CAMPOS-PANTALLA, 11/11): ubicacion, imagen,
 #              arrendador... Queda en `app.env` como `PANTALLA_CAMPOS_OCULTOS=`.
 #              Sin la bandera se ven todos. No se cambia desde la aplicacion.
+#
+#  --paleta    el color de la instancia (PALETA-01): azul, verde, morado,
+#              naranja, vino, grafito o un #rrggbb que se lea con texto blanco
+#              (contraste 4.5:1). Queda en `app.env` como `PALETA=`. Sin la
+#              bandera, azul. No se cambia desde la aplicacion.
 #
 #  --con-eyes  la instancia nace con su Space Eye dentro (ADR 0045): las
 #              camaras de esta empresa se dan de alta en eyes.<dominio>. Pide
@@ -155,6 +160,8 @@ while [[ $# -gt 0 ]]; do
     --con-eyes)       CON_EYES=1; shift ;;
     --ocultar-campos-pantalla)   CAMPOS_OCULTOS="${2:-}"; shift 2 ;;
     --ocultar-campos-pantalla=*) CAMPOS_OCULTOS="${1#--ocultar-campos-pantalla=}"; shift ;;
+    --paleta)         PALETA="${2:-}"; shift 2 ;;
+    --paleta=*)       PALETA="${1#--paleta=}"; shift ;;
     --dry-run)        CONFIRMAR=0; shift ;;
     -h|--ayuda|--help) uso; exit 0 ;;
     *) echo "instalar-hijo: argumento desconocido: $1" >&2; uso >&2; exit "$EX_USO" ;;
@@ -209,6 +216,8 @@ fi
 validar_valor_seguro "FLOTA_TOKEN" "$FLOTA_TOKEN"
 # CAMPOS-PANTALLA · con los demas argumentos: un campo desconocido para aqui.
 validar_campos_ocultos "${CAMPOS_OCULTOS:-}"
+# PALETA-01 · con los demas argumentos: un color ilegible para aqui.
+validar_paleta "${PALETA:-}"
 
 # `--contacto` no esta en la lista de argumentos del brief, y por eso es
 # OPCIONAL y no se exige: la prueba en seco de la tarea 2 del brief la invoca
@@ -789,6 +798,7 @@ reescribir_env_docker "$TPL_APP" \
   "FLOTA_TOKEN=$FLOTA_TOKEN" \
   "CANAL=$CANAL" \
   "PANTALLA_CAMPOS_OCULTOS=$CAMPOS_OCULTOS_APP" \
+  "PALETA=$PALETA_APP" \
   | escribir /etc/space-os/app.env 600
 if [[ "$CON_EYES" -eq 1 ]]; then
   eyes_env "$TPL_EYES" "$INSTANCIA" "$DOMINIO" "${IP_DROPLET:-127.0.0.1}" \

@@ -759,6 +759,49 @@ dice "'nombre' no es un campo que se pueda ocultar"
 no_hubo 'app.env'
 limpiar
 
+# ============================================================================
+#  PALETA-01 · el color de la instancia se elige AL INSTALAR, con --paleta
+# ============================================================================
+escenario 'PALETA · sin --paleta, app.env lleva PALETA vacia (el azul de siempre)'
+preparar
+correr REGISTRY=registro.ejemplo/x REGISTRY_TOKEN=t -- --host "$IP" --dominio "$DOM" --instancia p --confirmar
+codigo_es 0
+escrito_casa /etc/space-os/app.env '^PALETA=$'
+limpiar
+
+escenario 'PALETA · --paleta Verde llega a app.env en minusculas'
+preparar
+correr REGISTRY=registro.ejemplo/x REGISTRY_TOKEN=t -- --host "$IP" --dominio "$DOM" --instancia p --paleta Verde --confirmar
+codigo_es 0
+escrito_casa /etc/space-os/app.env '^PALETA=verde$'
+limpiar
+
+escenario 'PALETA · --paleta=#1E3A8A (color propio legible) llega normalizado'
+preparar
+correr REGISTRY=registro.ejemplo/x REGISTRY_TOKEN=t -- --host "$IP" --dominio "$DOM" --instancia p '--paleta=#1E3A8A' --confirmar
+codigo_es 0
+escrito_casa /etc/space-os/app.env '^PALETA=#1e3a8a$'
+limpiar
+
+escenario 'PALETA · un amarillo ilegible se para ANTES de tocar el servidor, y dice el contraste'
+preparar
+correr REGISTRY=registro.ejemplo/x REGISTRY_TOKEN=t -- --host "$IP" --dominio "$DOM" --instancia p --paleta '#facc15' --confirmar
+codigo_es 64
+dice 'contraste 1.53:1'
+no_hubo '/etc/space-os/app.env'
+limpiar
+
+escenario 'PALETA · un nombre que no existe, o algo que intente colar texto, se para'
+preparar
+correr REGISTRY=registro.ejemplo/x REGISTRY_TOKEN=t -- --host "$IP" --dominio "$DOM" --instancia p --paleta 'rosa' --confirmar
+codigo_es 64
+dice 'azul, verde, morado, naranja, vino, grafito'
+no_hubo '/etc/space-os/app.env'
+correr REGISTRY=registro.ejemplo/x REGISTRY_TOKEN=t -- --host "$IP" --dominio "$DOM" --instancia p --paleta $'verde\nAUTOREGISTRO=1' --confirmar
+codigo_es 64
+no_hubo '/etc/space-os/app.env'
+limpiar
+
 escenario '36d · con 201 SI lo afirma, y sale bien'
 preparar
 correr D_CODIGO_BOOT=201 -- \

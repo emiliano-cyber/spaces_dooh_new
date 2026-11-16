@@ -5,9 +5,9 @@ La entrada más reciente va arriba.
 
 ---
 
-## 2026-11-13 · «Personalizar» del Dashboard, sobre el propio tablero (sin publicar)
+## 2026-11-13 · v0.12.12 · «Personalizar» del Dashboard, sobre el propio tablero
 
-Rama `feat/personalizar-dashboard`.
+Entra en la **v0.12.12** (`integra/v0-12-12`), junto con el color al instalar (entrada del 10/11, más abajo).
 
 - Al pulsar **Personalizar**, el Dashboard entra en modo edición: arriba aparece una franja que explica qué hacer y cuántos bloques se ven («9 de 11 visibles»).
 - Cada bloque (los indicadores, los costos del mes y las tarjetas) muestra un botón con un ojo: **Visible** u **Oculto**. Se toca y cambia.
@@ -78,6 +78,19 @@ Entra en la v0.12.11 (rama `feat/avisos-por-canal`). **No se contrató ningún s
 **A tener en cuenta.**
 - La app todavía no existe. Mientras no se configure su clave en el servidor, nadie puede consultar nada.
 - La app nunca ve costos, tarifas internas, notas, campañas, clientes ni precios de venta.
+
+---
+
+## 2026-11-10 · v0.12.12 · El color de cada servidor se elige al instalarlo
+
+**Qué cambia para quien usa la aplicación.** Nada, si nadie lo pide: todo sigue en el azul de SPACE OS. Lo nuevo es que, al instalar un servidor para un cliente, se puede elegir otro color para botones, enlaces y selección: verde, morado, naranja, vino, grafito, o el color de la marca del cliente.
+
+**Por qué.** El dueño quiere que cada cliente vea su servidor con su color, pero que **no** se pueda cambiar desde la aplicación: se decide una vez, al instalar.
+
+**A tener en cuenta.**
+- Un color con el que el texto blanco no se lea (un amarillo, un azul cielo) **no se acepta**: la instalación se para y dice por qué. Así no vuelven los «botones que no se ven».
+- Cambiarlo después lo hace quien administra el servidor (una línea en la configuración y reiniciar), no un usuario.
+- No cambian los colores de verde, ámbar y rojo de los estados, ni los de los mapas y las gráficas.
 
 ## 2026-11-10 · v0.12.9 · Los idiomas se encienden con un botón desde Administración
 

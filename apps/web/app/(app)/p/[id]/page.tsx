@@ -520,7 +520,7 @@ function Meta({ icon, label, value }: { icon?: React.ReactNode; label: string; v
 }
 
 const KPI_TONO: Record<string, string> = {
-  info: 'bg-[#0a66ff1a] text-info',
+  info: 'bg-[color-mix(in_srgb,var(--info)_10%,transparent)] text-info',
   success: 'bg-[#10b9811a] text-[#0f7a55]',
   ambar: 'bg-[#f59e0b1a] text-[#9a6700]',
   neutro: 'bg-surface-2 text-muted',

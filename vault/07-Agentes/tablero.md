@@ -1,10 +1,15 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-11-06
+actualizado: 2026-11-10
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
+
+> [!important] 2026-11-16 · **v0.12.12 = `integra/v0-12-12`** — `feat/personalizar-dashboard` + `feat/paleta-de-instalacion`, desde `main` `4462557e`
+> Conflictos de la paleta con CAMPOS-PANTALLA en los guiones del alta: se conservan los dos. Typecheck, 10 389 unitarias,
+> build, `pruebas-provision` (60/200) e `instalar-hijo` (12/64) y e2e 1270 + novedades tras reconstruir, en verde (solo
+> `grants-rol-app` por Docker). Empujada con PR a `main`. **Zonas tomadas y liberadas:** Z12 · Docs y el alta (R7). Detalle en [[2026-11-16]].
 
 > [!important] 2026-11-13 · **Validación de ciberseguridad** de la v0.12.11 y de `feat/personalizar-dashboard` — **VERDE**
 > Sin fallas explotables; 12/12 ataques del sondeo local bloqueados. Abiertos: H1 (avisos de dinero por correo a cualquier rol,
@@ -46,6 +51,13 @@ archivos: []
 > `GET /api/network/espacios` (+ foto) con `x-network-token`: las pantallas con el switch encendido, ficha pública y
 > días libres. Y el 403 al borrar para los demás roles. Typecheck, 10 256 unitarias y 4 e2e (incluida `aislamiento`)
 > en verde; la suite e2e completa no se corrió. **Zonas:** ninguna tomada. Detalle en [[2026-11-11]].
+
+> [!important] 2026-11-10 · **v0.12.9 en `main`** (idiomas con un botón, `8441031e`) y **paleta al instalar** en
+> `feat/paleta-de-instalacion`, desde ese `main` — **sin empujar**. `--paleta` del alta → `PALETA=` en `app.env`;
+> sin pantalla ni migración. Unitarias, pruebas del alta y navegador en verde. Detalle en [[2026-11-10]].
+> **Espera al dueño:** elegir en `docs/diseno/probador-temas.html` (25 temas: color + fondos + menú) qué
+> entra en el código, y cómo queda «Añadir» con `verde`. Fondos y menú aún NO están implementados.
+> **Zonas:** Z-Shell y el alta (R7) tomadas por esa rama hasta que se fusione.
 
 > [!important] 2026-11-06, noche · **V0.12.8 · idioma en la barra + Space Eyes de Jose** — rama `integra/v0-12-8` (`bbdd0784`), desde `main` `dfa64dcf` (v0.12.7) — **sin empujar**
 > Contiene `feat/idioma-en-barra` y `origin/fix/space-eyes-fotos-rapidas` (Jose, 26 commits; 29 conflictos con la

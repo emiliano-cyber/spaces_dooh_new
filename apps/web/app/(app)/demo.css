@@ -276,10 +276,10 @@
 .demo-root .doc-barra-fila { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .demo-root .doc-btn {
   display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px;
-  border-radius: 6px; background: #0a66ff; color: #fff; font-size: 13px; font-weight: 500;
+  border-radius: 6px; background: var(--accent); color: var(--accent-fg); font-size: 13px; font-weight: 500;
   border: none; cursor: pointer;
 }
-.demo-root .doc-btn:hover { background: #0a4fcc; }
+.demo-root .doc-btn:hover { background: var(--accent-hover); }
 .demo-root .doc-barra-nota { font-size: 12px; color: #6b6b6b; }
 .demo-root .doc-barra-aviso {
   display: flex; gap: 10px; padding: 12px 14px; border-radius: 6px;
@@ -428,8 +428,8 @@
   border: 1px solid #1da85040; background: #1da85014; color: #146c39; font-size: 13px;
 }
 .demo-root .doc-panel-firma {
-  margin-top: 2cm; padding: 20px; border: 1px solid #0a66ff40; border-radius: 8px;
-  background: #0a66ff08; font-family: system-ui, sans-serif; text-align: left;
+  margin-top: 2cm; padding: 20px; border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 3%, transparent); font-family: system-ui, sans-serif; text-align: left;
 }
 .demo-root .doc-panel-titulo { margin: 0 0 4px; font-size: 15px; font-weight: 600; color: #111; }
 .demo-root .doc-panel-nota { margin: 8px 0 0; font-size: 12px; color: #5a5a5a; line-height: 1.5; }
@@ -440,12 +440,12 @@
   width: 100%; height: 40px; padding: 0 12px; border: 1px solid #c9c9c9; border-radius: 6px;
   font-size: 14px; background: #fff; color: #111;
 }
-.demo-root .doc-input:focus { outline: 2px solid #0a66ff; outline-offset: -1px; }
+.demo-root .doc-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 .demo-root .doc-check {
   display: flex; gap: 10px; align-items: flex-start; margin: 14px 0 16px;
   font-size: 12.5px; color: #333; line-height: 1.55; cursor: pointer;
 }
-.demo-root .doc-check input { margin-top: 2px; width: 16px; height: 16px; accent-color: #0a66ff; }
+.demo-root .doc-check input { margin-top: 2px; width: 16px; height: 16px; accent-color: var(--accent); }
 .demo-root .doc-btn:disabled { background: #b9c7dd; cursor: not-allowed; }
 
 /* Bloque de firmas registradas, dentro del documento generado. */

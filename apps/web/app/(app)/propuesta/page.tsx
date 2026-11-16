@@ -51,7 +51,7 @@ export default function IngresarCodigoPropuestaPage() {
       <main className="flex flex-1 items-center justify-center px-4 py-10">
         <div className="w-full max-w-sm rounded-lg border border-border bg-surface p-6">
           <div className="mb-4 flex flex-col items-center text-center">
-            <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-[#0a66ff1a] text-info">
+            <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--info)_10%,transparent)] text-info">
               <KeyRound className="h-5 w-5" />
             </span>
             <h1 className="text-lg font-semibold text-ink">{t('propuestas.publica.titulo')}</h1>

@@ -21,7 +21,7 @@ export function BarraDocumentoPropuesta({ volverA }: { volverA: string }) {
     <div className="doc-no-print doc-barra">
       <div className="doc-barra-fila">
         {/* `Link` y no <a>: pone el basePath (/spaces-dooh) solo. */}
-        <Link href={volverA} className="inline-flex items-center gap-1 text-[12px] font-medium text-[#0a66ff] hover:underline">
+        <Link href={volverA} className="inline-flex items-center gap-1 text-[12px] font-medium text-accent hover:underline">
           <ArrowLeft className="h-3.5 w-3.5" /> {t('propuestas.documento.volver')}
         </Link>
         <button type="button" onClick={() => window.print()} className="doc-btn">

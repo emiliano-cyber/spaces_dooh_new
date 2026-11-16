@@ -218,3 +218,59 @@ validar_campos_ocultos() {
   done
   CAMPOS_OCULTOS_APP="$limpio"
 }
+
+# ─── La paleta de color de la instancia (PALETA-01, 2026-11-10) ─────────────
+# Se elige AL INSTALAR, con `--paleta`, y acaba en `app.env` como `PALETA=`.
+# Decision del dueno: el color no se cambia desde la aplicacion; cambiarlo
+# despues es editar `app.env` en el servidor y recrear el contenedor.
+#
+# La lista es la MISMA que `apps/web/lib/apariencia.ts` (`PALETAS`), y una
+# prueba de alla lee este archivo para que no se separen: si el alta aceptara
+# un nombre que la aplicacion no conoce, la instancia nacería azul sin avisar.
+color_de_paleta() {
+  case "$1" in
+    azul) printf '%s' '#0a66ff' ;;
+    verde) printf '%s' '#12805c' ;;
+    morado) printf '%s' '#6d28d9' ;;
+    naranja) printf '%s' '#c2410c' ;;
+    vino) printf '%s' '#9f1239' ;;
+    grafito) printf '%s' '#27272a' ;;
+    *) return 1 ;;
+  esac
+}
+
+# Deja en `PALETA_APP` el valor que se escribe en `app.env`, o PARA el alta.
+# Variable global y no `$(...)`: un `exit` dentro de una subshell solo cerraria
+# la subshell, y el alta seguiria con una paleta vacia sin decir nada.
+#
+# Un color propio se acepta solo con contraste >= 4.5:1 contra el blanco
+# (WCAG AA): es el fondo de los botones con texto blanco y el texto de los
+# enlaces. La aplicacion hace la misma cuenta y cae al azul si no se cumple;
+# aqui se rechaza ANTES, para que quien instala lo lea y no lo descubra en
+# el log del contenedor.
+validar_paleta() {
+  local v="${1,,}" hex r g b c
+  v="${v//[[:space:]]/}"
+  PALETA_APP=""
+  [[ -z "$v" ]] && return 0
+  if color_de_paleta "$v" >/dev/null; then PALETA_APP="$v"; return 0; fi
+  if [[ "$v" =~ ^#?([0-9a-f]{6})$ ]]; then
+    hex="${BASH_REMATCH[1]}"
+  elif [[ "$v" =~ ^#?([0-9a-f])([0-9a-f])([0-9a-f])$ ]]; then
+    hex="${BASH_REMATCH[1]}${BASH_REMATCH[1]}${BASH_REMATCH[2]}${BASH_REMATCH[2]}${BASH_REMATCH[3]}${BASH_REMATCH[3]}"
+  else
+    echo "$ENTORNO_GUION: --paleta '$1' no vale: tiene que ser azul, verde, morado, naranja, vino, grafito" >&2
+    echo "  o un color #rrggbb (por ejemplo #1e3a8a)." >&2
+    exit "${EX_USO:-64}"
+  fi
+  r=$((16#${hex:0:2})); g=$((16#${hex:2:2})); b=$((16#${hex:4:2}))
+  c="$(awk -v r="$r" -v g="$g" -v b="$b" '
+    function lin(x) { x = x / 255; return (x <= 0.03928) ? x / 12.92 : ((x + 0.055) / 1.055) ^ 2.4 }
+    BEGIN { l = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b); printf "%.2f", 1.05 / (l + 0.05) }')"
+  if awk -v c="$c" 'BEGIN { exit !(c < 4.5) }'; then
+    echo "$ENTORNO_GUION: --paleta '#$hex' no se lee: contraste $c:1 con el blanco y hace falta 4.5:1." >&2
+    echo "  Con ese color los botones y los enlaces quedarian ilegibles. Elige uno mas oscuro." >&2
+    exit "${EX_USO:-64}"
+  fi
+  PALETA_APP="#$hex"
+}

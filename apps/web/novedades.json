@@ -1,5 +1,23 @@
 [
   {
+    "version": "v0.12.12",
+    "fecha": "2026-11-16",
+    "items": [
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Dashboard → «Personalizar» ahora se edita sobre el propio tablero: cada bloque muestra un ojo (Visible / Oculto), lo que ocultas se queda atenuado en su lugar hasta que pulsas «Listo» (o Esc), y «Mostrar todas» lo devuelve completo.",
+        "en": "Dashboard → “Customize” now works right on the board: each block shows an eye (Visible / Hidden), what you hide stays dimmed in place until you press “Done” (or Esc), and “Show all” brings everything back.",
+        "it": "Dashboard → «Personalizza» ora si modifica direttamente sul pannello: ogni blocco mostra un occhio (Visibile / Nascosto), ciò che nascondi resta attenuato al suo posto finché premi «Fatto» (o Esc), e «Mostra tutte» lo riporta completo."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Al instalar un servidor se puede elegir su color (azul, verde, morado, naranja, vino, grafito o el de la marca del cliente). Un color con el que el texto blanco no se lea no se acepta. No se cambia desde la aplicación; sin elegir nada, todo sigue en azul.",
+        "en": "When a server is installed, its color can be chosen (blue, green, purple, orange, wine, graphite or the client’s brand color). A color that makes white text unreadable is rejected. It cannot be changed from the app; if nothing is chosen, everything stays blue.",
+        "it": "Quando si installa un server se ne può scegliere il colore (blu, verde, viola, arancione, vino, grafite o quello del marchio del cliente). Un colore con cui il testo bianco non si legge non viene accettato. Non si cambia dall’applicazione; senza scegliere nulla, tutto resta blu."
+      }
+    ]
+  },
+  {
     "version": "v0.12.11",
     "fecha": "2026-11-13",
     "items": [
