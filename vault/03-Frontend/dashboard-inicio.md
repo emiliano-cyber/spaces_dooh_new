@@ -142,6 +142,37 @@ desperdiciado, pero manteniendo la separación entre cada renglón».
 - El HTML congelado de `pantallas-inicio.test.ts` cambió **solo en clases**,
   ningún texto. **Sin probar en navegador todavía** (13/11).
 
+## Personalizar editando sobre el tablero (DASH-EDITAR, 13/11)
+
+Pedido del dueño: «mejorar el diseño de la personalización». Eligió, entre tres
+propuestas (menú pulido, panel con mapa del tablero, editar en el tablero), la de
+**editar sobre el propio tablero**. Sustituye al menú de casillas del 12/11: una
+lista de 13 nombres no decía dónde estaba cada bloque.
+
+- **«Personalizar» entra en modo edición** (`editando` en la página). Arriba,
+  una franja con la ayuda, «9 de 11 visibles» (`cuentaVisibles`) y «Mostrar
+  todas». El botón se vuelve **«Listo»** (`Button` primario); **Esc** también
+  sale.
+- **Cada bloque lleva su ojo** (`OjoBloque`, `aria-pressed`, con palabra
+  «Visible»/«Oculto» y no solo icono) **en el sitio de su acción**: los enlaces de
+  la tarjeta, la granularidad de Ocupación o el icono del indicador. En la franja
+  de costos va arriba a la derecha y «Ver por pantalla» se esconde.
+- **Lo oculto se queda en su sitio mientras se edita** (`seDibuja`): borde
+  punteado fuerte y el CONTENIDO a 40 %, no el encabezado, donde vive el ojo.
+  Atenuar la tarjeta entera apagaba también el botón que la recupera. Al pulsar
+  «Listo» desaparece, y la fila y los indicadores se reacomodan solos
+  (`anchoDeFila`, `columnasIndicadores`).
+- **Fuera del modo edición el HTML no cambia**: el único cambio en la foto
+  congelada es que el botón «Personalizar» dejó de ser un disparador de menú de
+  Radix.
+- `editando` es el TERCER `useState(false)` de la página: `pantallas-inicio.test.ts`
+  fuerza esos estados por orden. Ponerlo antes de `todasLasAlertas` hizo que
+  todas las fotos salieran en modo edición.
+- **Probado en Chrome** el 13/11 contra un build local con la semilla
+  `demo-rentabilidad`, a 1440 y a 390 px: ocultar, «Listo» (el botón dice 2 y
+  los indicadores pasan a 3 columnas), Esc y «Mostrar todas». A 390 px la ayuda
+  se aplastaba a una palabra por renglón: ahora va en su propio renglón.
+
 ## Lo que no está, y por qué
 
 - **Metas por vendedor** (meta contra real, cobertura del pipeline): es lo que

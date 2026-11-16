@@ -340,7 +340,44 @@ export const ESTADOS: Estado[] = [
     espanol: [' · 3 slots libres', 'En propuesta: PR-0001'],
     ingles: [' · 3 free slots', 'In a proposal: PR-0001'],
   },
+  {
+    // DASH-EDITAR (13/11): «Personalizar» edita sobre el tablero. `editando` es
+    // el TERCER useState(false) de la página (tras todasLasAlertas y
+    // todosLosHuecos), sin contar los de los hooks de visibilidad.
+    nombre: 'dashboard · personalizando',
+    dinero: true,
+    pintar: async (idioma) => {
+      const Pagina = await inicio()
+      conTodo()
+      let n = 0
+      forzar((v, pila) => {
+        if (v !== false || !pila.includes('DashboardPage') || pila.includes('useAlertasVisibles') || pila.includes('useMetricasVisibles')) return false
+        n += 1
+        return n === 3
+      }, true)
+      forzar(enesimo('useDelMotor', esFase, 1), PNL)
+      forzar(enesimo('useDelMotor', esFase, 1), { fase: 'datos', pct: 87, conTarifa: 4, sinTarifa: 2 })
+      return pintar(idioma, createElement(Pagina))
+    },
+    espanol: ['Personalizando el tablero', 'Toca el ojo de cada bloque para ocultarlo o mostrarlo', '>Listo<',
+      'aria-label="Ocultar «Ingreso de noviembre»"', 'aria-label="Ocultar «Tu red en el mapa»"'],
+    ingles: ['Customizing the dashboard', 'Click the eye on each block to hide or show it', '>Done<',
+      'aria-label="Hide “November revenue”"', 'aria-label="Hide “Your network on the map”"'],
+  },
 ]
+
+describe('DASHBOARD · personalizando', () => {
+  it('editando, cada bloque lleva su ojo y los enlaces de las tarjetas ceden su sitio', async () => {
+    const e = ESTADOS.find((x) => x.nombre === 'dashboard · personalizando')!
+    const html = await e.pintar('es')
+    // Un ojo por bloque que el rol puede ver: 4 indicadores con Finanzas,
+    // la franja de costos y las 6 tarjetas.
+    expect(html.match(/aria-pressed="true"/g)?.length).toBe(11)
+    expect(html).not.toContain('Ver por pantalla')
+    expect(html).not.toContain('Ver comercial')
+    expect(html).not.toContain('title="Personalizar"')
+  })
+})
 
 describe('DASHBOARD · en ESPANOL sale el texto de siempre', () => {
   ESTADOS.forEach((p, i) => {

@@ -15,11 +15,14 @@ import {
   Trophy,
   Briefcase,
   Target,
+  Eye,
+  EyeOff,
 } from 'lucide-react'
 import { useAlertasVisibles, TIPOS_ALERTA } from '@/lib/alertas-visibles'
-import { useMetricasVisibles, anchoDeFila, columnasIndicadores, METRICAS_DASHBOARD, type MetricaDashboard } from '@/lib/metricas-visibles'
+import { useMetricasVisibles, anchoDeFila, columnasIndicadores, seDibuja, cuentaVisibles, METRICAS_DASHBOARD, type MetricaDashboard } from '@/lib/metricas-visibles'
 import { formatNumero } from '@/lib/formato-numero'
 import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
+import { Button } from '@/components/demo/ui/Button'
 import { OcupacionChart } from '@/components/demo/charts'
 import { MapView, type MapPoint } from '@/components/demo/MapView'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
@@ -157,6 +160,18 @@ export default function DashboardPage() {
   const met = useMetricasVisibles()
   const [todasLasAlertas, setTodasLasAlertas] = useState(false)
   const [todosLosHuecos, setTodosLosHuecos] = useState(false)
+  // DASH-EDITAR (13/11): «Personalizar» edita sobre el propio tablero. Esc sale. Va DESPUÉS
+  // de todasLasAlertas y todosLosHuecos: `pantallas-inicio.test.ts` fuerza los
+  // useState(false) de esta página por orden.
+  const [editando, setEditando] = useState(false)
+  useEffect(() => {
+    if (!editando) return
+    const alTeclear = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setEditando(false)
+    }
+    window.addEventListener('keydown', alTeclear)
+    return () => window.removeEventListener('keydown', alTeclear)
+  }, [editando])
 
   const hoy = useMemo(() => new Date(), [])
   const mesActual = hoy.toLocaleDateString(localeDe(idioma), { month: 'long' })
@@ -212,14 +227,25 @@ export default function DashboardPage() {
   const disponibles: MetricaDashboard[] = METRICAS_DASHBOARD.map((x) => x.id).filter((id) =>
     veFinanzas ? id !== 'pipeline-abierto' && id !== 'tasa' : !['ingreso', 'margen', 'costos', 'cobranza'].includes(id),
   )
-  const ve = (id: MetricaDashboard) => met.ve(id) && disponibles.includes(id)
+  // `ve`: lo que se PINTA. Editando, también lo oculto, atenuado en su sitio
+  // (DASH-EDITAR): si desapareciera, no quedaría dónde tocar para recuperarlo.
+  const ve = (id: MetricaDashboard) => seDibuja({ disponible: disponibles.includes(id), oculta: !met.ve(id), editando })
+  const oculta = (id: MetricaDashboard) => editando && !met.ve(id)
+  const cuenta = cuentaVisibles(disponibles, new Set(disponibles.filter((id) => !met.ve(id))))
+  // Editando, la acción de cada tarjeta (sus enlaces, la granularidad…) cede su
+  // sitio al ojo: en ese modo lo único que se hace con un bloque es mostrarlo u
+  // ocultarlo, y un enlace al lado invita a salir a media edición.
+  const ojo = (id: MetricaDashboard) => (
+    <OjoBloque oculto={!met.ve(id)} nombre={etiquetaMetrica(id, t, mesActual)} onClick={() => met.alternar(id)} />
+  )
+  const acc = (id: MetricaDashboard, normal: React.ReactNode) => (editando ? ojo(id) : normal)
   const hayIndicadores = (['ingreso', 'margen', 'pipeline-abierto', 'tasa', 'ganado', 'ocupacion-red', 'costos'] as const).some(ve)
   // Cada fila tiene una ancha y una angosta; si una se oculta, la otra se
   // queda con la fila entera (`anchoDeFila`).
   const fila2 = anchoDeFila(ve('grafica-ocupacion'), ve('pipeline'))
   const fila3 = anchoDeFila(ve('huecos'), ve('alertas'))
   const fila4 = anchoDeFila(ve('mapa'), ve('cobranza'))
-  const nadaVisible = met.listo && !disponibles.some(ve)
+  const nadaVisible = met.listo && !editando && cuenta.visibles === 0
   // DASH-ALINEADO (13/11): la rejilla de indicadores tiene tantas columnas como
   // indicadores se ven; con 4 fijas, ocultar uno dejaba una casilla vacía.
   const nIndicadores = (['ingreso', 'margen', 'pipeline-abierto', 'tasa', 'ganado', 'ocupacion-red'] as const).filter(ve).length
@@ -231,8 +257,36 @@ export default function DashboardPage() {
           <h1 className="text-2xl text-ink">{t('nav.dashboard')}</h1>
           {subtitulo && <p className="mt-1 text-[13px] text-muted">{subtitulo}</p>}
         </div>
-        <ConfigMetricas met={met} disponibles={disponibles} etiqueta={(id) => etiquetaMetrica(id, t, mesActual)} />
+        {editando ? (
+          <Button size="sm" onClick={() => setEditando(false)} className="shrink-0 gap-1.5">
+            <Check className="h-4 w-4" strokeWidth={2.25} />
+            {t('inicio.listo')}
+          </Button>
+        ) : (
+          <BotonPersonalizar ocultas={met.listo ? cuenta.total - cuenta.visibles : 0} onClick={() => setEditando(true)} />
+        )}
       </div>
+
+      {editando && (
+        <div
+          role="status"
+          className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-md border border-dashed border-accent bg-accent-soft px-4 py-2.5 text-[12px]"
+        >
+          <span className="inline-flex items-center gap-1.5 font-medium text-ink">
+            <SlidersHorizontal className="h-4 w-4 text-accent" strokeWidth={1.75} />
+            {t('inicio.editando')}
+          </span>
+          {/* En el celular, la ayuda va en su propio renglón: con `flex-1` y
+              `min-w-0` se aplastaba a una palabra por línea (visto a 390 px). */}
+          <span className="w-full text-muted sm:w-auto sm:min-w-[14rem] sm:flex-1">{t('inicio.editando-ayuda')}</span>
+          <span className="demo-num shrink-0 text-ink">{t('inicio.visibles-de', { n: cuenta.visibles, total: cuenta.total })}</span>
+          {cuenta.visibles < cuenta.total && (
+            <button type="button" onClick={met.mostrarTodas} className="shrink-0 font-medium text-info hover:underline">
+              {t('inicio.mostrar-todas')}
+            </button>
+          )}
+        </div>
+      )}
 
       {nadaVisible && <p className="text-[13px] text-muted">{t('inicio.todo-oculto')}</p>}
 
@@ -266,20 +320,20 @@ export default function DashboardPage() {
                     value={formatMonto(pnl.totales.ingreso, idioma)}
                     sub={t('inicio.ingreso-sub')}
                     tono="azul"
-                    icon={<TrendingUp className="h-4 w-4" />}
+                    icon={acc('ingreso', <TrendingUp className="h-4 w-4" />)} className={oculta('ingreso') ? OCULTO_KPI : undefined}
                   />}
                   {ve('margen') && <KPICard
                     label={t('inicio.margen-de', { mes: mesActual })}
                     value={pnl.totales.margenBrutoPct == null ? '—' : `${pnl.totales.margenBrutoPct.toFixed(0)}%`}
                     sub={t('inicio.margen-sub', { margen: formatMonto(pnl.totales.margenBruto, idioma), costo: formatMonto(pnl.totales.costoTotal, idioma) })}
                     tono={pnl.totales.margenBrutoPct == null ? 'neutro' : margenTono(pnl.totales.margenBrutoPct)}
-                    icon={<Wallet className="h-4 w-4" />}
+                    icon={acc('margen', <Wallet className="h-4 w-4" />)} className={oculta('margen') ? OCULTO_KPI : undefined}
                   />}
                 </>
               ) : (
                 <>
-                  {ve('ingreso') && <KPICard label={t('inicio.ingreso-de', { mes: mesActual })} value="—" sub={pnl.fase === 'sin-acceso' ? t('inicio.requiere-finanzas') : t('inicio.no-calcular')} icon={<TrendingUp className="h-4 w-4" />} />}
-                  {ve('margen') && <KPICard label={t('inicio.margen-de', { mes: mesActual })} value="—" sub={pnl.fase === 'sin-acceso' ? t('inicio.requiere-finanzas') : t('inicio.no-calcular')} icon={<Wallet className="h-4 w-4" />} />}
+                  {ve('ingreso') && <KPICard label={t('inicio.ingreso-de', { mes: mesActual })} value="—" sub={pnl.fase === 'sin-acceso' ? t('inicio.requiere-finanzas') : t('inicio.no-calcular')} icon={acc('ingreso', <TrendingUp className="h-4 w-4" />)} className={oculta('ingreso') ? OCULTO_KPI : undefined} />}
+                  {ve('margen') && <KPICard label={t('inicio.margen-de', { mes: mesActual })} value="—" sub={pnl.fase === 'sin-acceso' ? t('inicio.requiere-finanzas') : t('inicio.no-calcular')} icon={acc('margen', <Wallet className="h-4 w-4" />)} className={oculta('margen') ? OCULTO_KPI : undefined} />}
                 </>
               )
             ) : (
@@ -292,13 +346,13 @@ export default function DashboardPage() {
                     enviadas: t(pipeline.abierto.enviadas === 1 ? 'inicio.enviadas.uno' : 'inicio.enviadas.otros', { n: formatNumero(pipeline.abierto.enviadas, 0, idioma) }),
                   })}
                   tono="ambar"
-                  icon={<Briefcase className="h-4 w-4" />}
+                  icon={acc('pipeline-abierto', <Briefcase className="h-4 w-4" />)} className={oculta('pipeline-abierto') ? OCULTO_KPI : undefined}
                 />}
                 {ve('tasa') && <KPICard
                   label={t('inicio.tasa')}
                   value={tasa}
                   sub={t('inicio.tasa-sub', { n: VENTANA_TASA_DIAS })}
-                  icon={<Target className="h-4 w-4" />}
+                  icon={acc('tasa', <Target className="h-4 w-4" />)} className={oculta('tasa') ? OCULTO_KPI : undefined}
                 />}
               </>
             )}
@@ -307,7 +361,7 @@ export default function DashboardPage() {
               value={formatMonto(pipeline.ganadoMes.valor, idioma)}
               sub={t(pipeline.ganadoMes.n === 1 ? 'inicio.aprobadas-propuestas.uno' : 'inicio.aprobadas-propuestas.otros', { n: formatNumero(pipeline.ganadoMes.n, 0, idioma) })}
               tono="verde"
-              icon={<Trophy className="h-4 w-4" />}
+              icon={acc('ganado', <Trophy className="h-4 w-4" />)} className={oculta('ganado') ? OCULTO_KPI : undefined}
             />}
             {/* % ponderado por capacidad: cada slot de una digital y cada cara
                 de una fija cuentan como un espacio. El subtítulo lleva el dato
@@ -325,7 +379,7 @@ export default function DashboardPage() {
                 fCapacidad: formatNumero(m.ocupacionFijas.capacidad, 0, idioma),
               })}
               tono="azul"
-              icon={<Gauge className="h-4 w-4" />}
+              icon={acc('ocupacion-red', <Gauge className="h-4 w-4" />)} className={oculta('ocupacion-red') ? OCULTO_KPI : undefined}
             />}
           </>
         )}
@@ -337,7 +391,8 @@ export default function DashboardPage() {
           medidas del sector que el motor ya sabe dar: la renta como parte del
           ingreso y cuánto de la tarifa publicada se cobra. */}
       {m && veFinanzas && pnl.fase === 'datos' && ve('costos') && (
-        <div className="space-y-1.5 rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px]">
+        <div className={cn('space-y-1.5 rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px]', editando && 'relative pr-32', oculta('costos') && OCULTO_FRANJA)}>
+          {editando && <span className="absolute right-2 top-1.5">{ojo('costos')}</span>}
           <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
             <span className="font-medium text-ink">{t('inicio.costos-de', { mes: mesActual })}</span>
             <CostoItem label={t('inicio.costo.renta')} valor={formatMonto(pnl.totales.costoEspacio, idioma)} />
@@ -345,9 +400,11 @@ export default function DashboardPage() {
             <CostoItem label={t('inicio.costo.luz')} valor={formatMonto(pnl.totales.costoEnergia, idioma)} />
             <CostoItem label={t('inicio.costo.total')} valor={formatMonto(pnl.totales.costoTotal, idioma)} fuerte />
             <CostoItem label={t('inicio.costo.impresion')} valor={formatMonto(m.costoImpresionMes, idioma)} />
-            <Link href={rutaReportesDelMes(hoy)} className="ml-auto text-accent hover:underline">
-              {t('inicio.ver-por-pantalla')}
-            </Link>
+            {!editando && (
+              <Link href={rutaReportesDelMes(hoy)} className="ml-auto text-accent hover:underline">
+                {t('inicio.ver-por-pantalla')}
+              </Link>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
             <span className="font-medium text-ink">{t('inicio.rendimiento')}</span>
@@ -387,7 +444,7 @@ export default function DashboardPage() {
         <CardColapsable
           id="inicio.ocupacion"
           titulo={t('inicio.ocupacion')}
-          className={cn('flex flex-col', fila2.ancha)}
+          className={cn('flex flex-col', fila2.ancha, oculta('grafica-ocupacion') && OCULTO_TARJETA)}
           contentClassName="flex flex-1 flex-col"
           subtitulo={
             serie ? (
@@ -396,7 +453,7 @@ export default function DashboardPage() {
               </>
             ) : undefined
           }
-          accion={<Segmented value={gran} onChange={setGran} />}
+          accion={acc('grafica-ocupacion', <Segmented value={gran} onChange={setGran} />)}
         >
             {!serie ? (
               <div className="h-[180px] animate-pulse rounded bg-surface-2" />
@@ -417,12 +474,13 @@ export default function DashboardPage() {
         <CardColapsable
           id="inicio.pipeline"
           titulo={t('inicio.pipeline')}
-          className={fila2.angosta}
-          accion={
+          className={cn(fila2.angosta, oculta('pipeline') && OCULTO_TARJETA)}
+          accion={acc(
+            'pipeline',
             <Link href="/propuestas" className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline">
               {t('nav.propuestas')} <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
-          }
+            </Link>,
+          )}
         >
           {!pipeline ? (
             <div className="h-[150px] animate-pulse rounded bg-surface-2" />
@@ -464,7 +522,7 @@ export default function DashboardPage() {
       {(ve('alertas') || ve('huecos')) && (
       <div className="grid grid-cols-1 items-stretch gap-5 lg:grid-cols-3">
         {ve('alertas') && (
-        <CardColapsable id="inicio.alertas" titulo={t('inicio.alertas')} className={fila3.angosta} accion={<ConfigAlertas cfg={alertasCfg} />}>
+        <CardColapsable id="inicio.alertas" titulo={t('inicio.alertas')} className={cn(fila3.angosta, oculta('alertas') && OCULTO_TARJETA)} accion={acc('alertas', <ConfigAlertas cfg={alertasCfg} />)}>
             {(() => {
               if (!m) return <div className="h-32 animate-pulse rounded bg-surface-2" />
               // Solo los tipos encendidos, y las ROJAS primero: antes salían en
@@ -537,8 +595,9 @@ export default function DashboardPage() {
         <CardColapsable
           id="inicio.huecos"
           titulo={t('inicio.huecos')}
-          className={fila3.ancha}
+          className={cn(fila3.ancha, oculta('huecos') && OCULTO_TARJETA)}
           subtitulo={t('inicio.huecos-sub', { n: VENTANA_HUECOS_DIAS })}
+          accion={editando ? ojo('huecos') : undefined}
         >
           {!huecos ? (
             <div className="h-20 animate-pulse rounded bg-surface-2" />
@@ -612,12 +671,13 @@ export default function DashboardPage() {
           <CardColapsable
             id="inicio.cobranza"
             titulo={t('inicio.por-cobrar')}
-            className={fila4.angosta}
-            accion={
+            className={cn(fila4.angosta, oculta('cobranza') && OCULTO_TARJETA)}
+            accion={acc(
+              'cobranza',
               <Link href="/finanzas" className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline">
                 {t('nav.finanzas')} <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
-            }
+              </Link>,
+            )}
           >
             {!antiguedad ? (
               <div className="h-32 animate-pulse rounded bg-surface-2" />
@@ -674,16 +734,17 @@ export default function DashboardPage() {
         <CardColapsable
           id="inicio.mapa"
           titulo={t('inicio.mapa')}
-          className={cn('flex flex-col', fila4.ancha)}
+          className={cn('flex flex-col', fila4.ancha, oculta('mapa') && OCULTO_TARJETA)}
           contentClassName="flex flex-1 flex-col"
-          accion={
+          accion={acc(
+            'mapa',
             <Link
               href="/comercial"
               className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline"
             >
               {t('inicio.ver-comercial')} <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
-          }
+            </Link>,
+          )}
         >
             {/* 300 px como mínimo; si la cobranza es más alta, el mapa crece
                 hasta su altura en vez de dejar un blanco debajo (13/11). */}
@@ -731,84 +792,58 @@ function etiquetaMetrica(id: MetricaDashboard, t: ReturnType<typeof useIdioma>['
   }
 }
 
-// DASH-METRICAS (12/11) · el menú para elegir qué métricas se ven. Misma forma
-// que `ConfigAlertas`: casillas que no cierran el menú, guardado por navegador.
-function ConfigMetricas({
-  met,
-  disponibles,
-  etiqueta,
-}: {
-  met: ReturnType<typeof useMetricasVisibles>
-  disponibles: MetricaDashboard[]
-  etiqueta: (id: MetricaDashboard) => string
-}) {
+// DASH-EDITAR (13/11) · cómo se ve un bloque oculto mientras se edita: borde
+// punteado y el CONTENIDO atenuado, pero no su encabezado, donde vive el ojo.
+// Atenuar la tarjeta entera apagaba también el botón que la vuelve a mostrar.
+const OCULTO_TARJETA = 'border-dashed border-border-strong bg-surface-2 [&>*:not(:first-child)]:opacity-40'
+const OCULTO_KPI = 'border-dashed border-border-strong bg-surface-2 [&>*:not(:first-child)]:opacity-40'
+const OCULTO_FRANJA = 'border-dashed border-border-strong [&>div]:opacity-40'
+
+// DASH-EDITAR (13/11) · el botón que entra al modo edición. Sustituye al menú
+// de casillas del 12/11: una lista de 13 nombres no decía DÓNDE estaba cada
+// bloque, y había que ir y venir entre el menú y el tablero.
+function BotonPersonalizar({ ocultas, onClick }: { ocultas: number; onClick: () => void }) {
   const t = useIdioma().t
-  const ocultas = disponibles.filter((id) => !met.ve(id)).length
   return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger asChild>
-        <button
-          type="button"
-          title={t('inicio.personalizar')}
-          className="relative inline-flex h-8 shrink-0 items-center gap-1.5 rounded border border-border-strong bg-white px-2.5 text-[12px] font-medium text-muted transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-        >
-          <SlidersHorizontal className="h-4 w-4" strokeWidth={1.75} />
-          {t('inicio.personalizar')}
-          {met.listo && ocultas > 0 && (
-            <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 text-[10px] font-semibold text-white">
-              {ocultas}
-            </span>
-          )}
-        </button>
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content
-          align="end"
-          sideOffset={6}
-          className="z-50 max-h-[70vh] w-72 overflow-y-auto rounded-md border border-border bg-surface p-1 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"
-        >
-          <div className="px-2 py-1.5 text-[12px] font-medium text-ink">{t('inicio.metricas-a-mostrar')}</div>
-          <div className="my-1 h-px bg-border" />
-          {disponibles.map((id) => {
-            const activo = met.ve(id)
-            return (
-              <DropdownMenu.Item
-                key={id}
-                onSelect={(e) => {
-                  e.preventDefault() // no cerrar el menú al alternar
-                  met.alternar(id)
-                }}
-                className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-[13px] text-ink outline-none data-[highlighted]:bg-surface-2"
-              >
-                <span
-                  className={cn(
-                    'flex h-4 w-4 shrink-0 items-center justify-center rounded border',
-                    activo ? 'border-accent bg-accent text-white' : 'border-border-strong bg-white',
-                  )}
-                >
-                  {activo && <Check className="h-3 w-3" strokeWidth={3} />}
-                </span>
-                <span className="first-letter:uppercase">{etiqueta(id)}</span>
-              </DropdownMenu.Item>
-            )
-          })}
-          {ocultas > 0 && (
-            <>
-              <div className="my-1 h-px bg-border" />
-              <DropdownMenu.Item
-                onSelect={(e) => {
-                  e.preventDefault()
-                  met.mostrarTodas()
-                }}
-                className="cursor-pointer rounded px-2 py-1.5 text-[12px] font-medium text-info outline-none data-[highlighted]:bg-surface-2"
-              >
-                {t('inicio.mostrar-todas')}
-              </DropdownMenu.Item>
-            </>
-          )}
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Root>
+    <button
+      type="button"
+      onClick={onClick}
+      title={t('inicio.personalizar')}
+      className="relative inline-flex h-8 shrink-0 items-center gap-1.5 rounded border border-border-strong bg-white px-2.5 text-[12px] font-medium text-muted transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+    >
+      <SlidersHorizontal className="h-4 w-4" strokeWidth={1.75} />
+      {t('inicio.personalizar')}
+      {ocultas > 0 && (
+        <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 text-[10px] font-semibold text-white">
+          {ocultas}
+        </span>
+      )}
+    </button>
+  )
+}
+
+// El ojo de cada bloque en modo edición. Dice su estado con palabra y no solo
+// con icono, y es un botón de verdad (`aria-pressed`) para el teclado.
+function OjoBloque({ oculto, nombre, onClick }: { oculto: boolean; nombre: string; onClick: () => void }) {
+  const t = useIdioma().t
+  const accion = t(oculto ? 'inicio.mostrar-bloque' : 'inicio.ocultar-bloque', { nombre })
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={!oculto}
+      aria-label={accion}
+      title={accion}
+      className={cn(
+        'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[12px] font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+        oculto
+          ? 'border-dashed border-border-strong bg-white text-muted hover:border-accent hover:text-accent'
+          : 'border-accent bg-white text-accent hover:bg-accent-soft',
+      )}
+    >
+      {oculto ? <EyeOff className="h-3.5 w-3.5" strokeWidth={2} /> : <Eye className="h-3.5 w-3.5" strokeWidth={2} />}
+      {t(oculto ? 'inicio.bloque-oculto' : 'inicio.bloque-visible')}
+    </button>
   )
 }
 

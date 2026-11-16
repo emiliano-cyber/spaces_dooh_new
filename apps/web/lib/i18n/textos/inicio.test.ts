@@ -35,6 +35,7 @@ describe('diccionario de INICIO · el ingles no esta en espanol', () => {
     'inicio.pipeline-sub', // solo huecos: «{propuestas} · {enviadas}»
     'inicio.costo.total', // «Total» es la misma palabra
     'inicio.leyenda.digital', // «Digital» es la misma palabra
+    'inicio.bloque-visible', // «Visible» es la misma palabra (DASH-EDITAR)
   ])
 
   it('ninguna entrada inglesa es igual a la espanola, salvo las declaradas', () => {

@@ -175,6 +175,7 @@ export const COGNADOS_PT_L4 = new Set<string>([
   'inicio.enviadas.uno',                               // "{n} enviada"
   'inicio.enviadas.otros',                             // "{n} enviadas"
   'inicio.costo.total',                                // "Total"
+  'inicio.bloque-oculto',                              // "Oculto" (DASH-EDITAR, modo edicion del Dashboard)
   'inicio.gran.semana',                                // "Semana"
   'inicio.pipeline',                                   // "Pipeline comercial"
   'inicio.alertas',                                    // "Alertas"
