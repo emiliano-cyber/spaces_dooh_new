@@ -92,3 +92,113 @@ describe('CotejoPorCliente', () => {
     })
   }
 })
+
+// ─── Fase 4 · la pantalla del CRM ───────────────────────────────────────────
+import { Oportunidades } from '@/components/demo/crm/Oportunidades'
+import { FichaOportunidad } from '@/components/demo/crm/FichaOportunidad'
+import { PestanasCrm } from '@/components/demo/crm/PestanasCrm'
+import type { FichaOportunidad as Ficha, Oportunidad, PaginaOportunidades } from '@/lib/data/oportunidades-api'
+
+const op = (o: Partial<Oportunidad> & Pick<Oportunidad, 'id' | 'etapa'>): Oportunidad => ({
+  nombre: `Oportunidad ${o.id}`,
+  prospectoId: null,
+  prospectoNombre: null,
+  clienteId: 'c1',
+  clienteNombre: 'Refrescos del Norte',
+  usuarioId: 'u1',
+  vendedorNombre: 'Ana',
+  probabilidadPct: null,
+  probabilidad: 50,
+  presupuestoMin: 100000,
+  presupuestoMax: 200000,
+  fechaInicioDeseada: '2026-12-01',
+  fechaFinDeseada: '2026-12-31',
+  fechaDecision: '2026-11-25',
+  plazas: 'Monterrey',
+  tiposMedio: ['ESPECTACULAR'],
+  objetivo: 'Lanzamiento',
+  motivoPerdida: null,
+  ganadaEn: null,
+  perdidaEn: null,
+  cotizaciones: 1,
+  ultimaActividadEn: null,
+  creadoEn: '2026-11-01T18:00:00.000Z',
+  actualizadoEn: '2026-11-02T18:00:00.000Z',
+  ...o,
+})
+
+const PAGINA: PaginaOportunidades = {
+  oportunidades: [op({ id: 'o1', etapa: 'COTIZANDO' }), op({ id: 'o2', etapa: 'CONTACTO', presupuestoMin: null, presupuestoMax: null })],
+  total: 2,
+  porEtapa: { COTIZANDO: 1, CONTACTO: 1 },
+  pagina: 1,
+  porPagina: 100,
+  veTodas: false,
+}
+
+const FICHA: Ficha = {
+  ...op({ id: 'o1', etapa: 'NEGOCIANDO' }),
+  actividades: [
+    { id: 'a1', tipo: 'ETAPA', usuarioNombre: 'Ana', nota: null, etapaAnterior: null, etapaNueva: 'CONTACTO', siguientePaso: null, siguientePasoFecha: null, creadoEn: '2026-11-01T18:00:00.000Z' },
+    { id: 'a2', tipo: 'LLAMADA', usuarioNombre: 'Ana', nota: 'Pidió precios', etapaAnterior: null, etapaNueva: null, siguientePaso: 'Mandar propuesta', siguientePasoFecha: null, creadoEn: '2026-11-02T18:00:00.000Z' },
+    { id: 'a3', tipo: 'ETAPA', usuarioNombre: 'Ana', nota: null, etapaAnterior: 'CONTACTO', etapaNueva: 'NEGOCIANDO', siguientePaso: null, siguientePasoFecha: null, creadoEn: '2026-11-04T18:00:00.000Z' },
+  ],
+  propuestas: [{ id: 'p1', folio: 'P1', nombre: 'Navidad', estatus: 'ENVIADA', version: 2, creadoEn: '2026-11-03T18:00:00.000Z' }],
+  cambios: [
+    { id: 'c1', propuestaId: 'p1', folio: 'P1', version: 2, usuarioNombre: 'Luis', origen: 'APP', accion: 'EDITAR', campo: 'descuento_pct', valorAnterior: 5, valorNuevo: 10, creadoEn: '2026-11-05T18:00:00.000Z' },
+    { id: 'c2', propuestaId: 'p1', folio: 'P1', version: 1, usuarioNombre: 'Ana', origen: 'APP', accion: 'CREAR', campo: null, valorAnterior: null, valorNuevo: {}, creadoEn: '2026-11-03T18:00:00.000Z' },
+  ],
+  avancesProspecto: [],
+}
+
+const PROP_LIGADA = prop({
+  id: 'p1',
+  oportunidadId: 'o1',
+  total: 232000,
+  items: [{ fechaInicio: '2026-12-01', fechaFin: '2026-12-31' }] as any,
+})
+
+const envolver = (idioma: Idioma, hijo: ReturnType<typeof createElement>) =>
+  renderToStaticMarkup(createElement(ProveedorIdioma, { idioma, puedeElegir: true }, hijo))
+
+const pantallas = (idioma: Idioma) => [
+  envolver(idioma, createElement(PestanasCrm, { activa: 'embudo' })),
+  envolver(idioma, createElement(Oportunidades, { vista: 'embudo', inicial: PAGINA })),
+  envolver(idioma, createElement(Oportunidades, { vista: 'oportunidades', inicial: PAGINA })),
+  envolver(idioma, createElement(FichaOportunidad, {
+    id: 'o1', inicial: FICHA, propuestasInicial: [PROP_LIGADA], ahora: new Date('2026-11-10T18:00:00.000Z'),
+  })),
+].join('\n')
+
+describe('Fase 4 · la pantalla del CRM', () => {
+  it('en español: el embudo, la lista, la ficha con su cotejo y su línea de tiempo', () => {
+    const html = pantallas('es')
+    for (const f of ['Embudo', 'Oportunidades', 'Prospectos', 'Propuestas', 'Cotizando', 'Contacto', 'Nueva oportunidad',
+      'Ves solo tus oportunidades.', 'Sin presupuesto', 'Lo que quiere el cliente', 'Días en cada etapa',
+      'Lo que pide contra lo que se le cotizó', 'Pasó a Negociando', 'Cambió el descuento', 'Creó la propuesta',
+      'Pidió precios', 'Siguiente: Mandar propuesta']) {
+      expect(html, f).toContain(f)
+    }
+    // 232 000 c/IVA contra un máximo de 200 000: 32 000 arriba, el 16 %.
+    expect(html).toContain('Arriba por $32,000.00 (16 %)')
+    expect(html).toContain('Las que pidió')
+    // Días por etapa: Contacto del 1 al 4, Negociando del 4 al 10.
+    expect(html).toMatch(/Contacto · <span class="demo-num">3<\/span>/)
+    expect(html).toMatch(/Negociando · <span class="demo-num">6<\/span>/)
+  })
+
+  const ESPANOL_F4 = [
+    ES_CRM['crm.pestana.embudo'], ES_CRM['crm.etapa.cotizando'], ES_CRM['crm.nueva'], ES_CRM['crm.solo-tuyas'],
+    ES_CRM['crm.sin-presupuesto'], ES_CRM['crm.ficha.quiere'], ES_CRM['crm.ficha.dias-etapa'], ES_CRM['crm.ficha.cotejo'],
+    'Pasó a', 'Cambió el descuento', ES_CRM['crm.accion.crear'], ES_CRM['crm.ficha.fechas.igual'], 'Arriba por',
+    ES_CRM['crm.ficha.linea'], ES_CRM['crm.ficha.actividad'],
+  ]
+
+  for (const idioma of ['en', 'it', 'pt'] as Idioma[]) {
+    it(`en ${idioma} no queda ninguna frase española de la pantalla`, () => {
+      const html = pantallas(idioma)
+      expect(ESPANOL_F4.filter((f) => html.includes(f))).toEqual([])
+      expect(html).toContain('Refrescos del Norte')
+    })
+  }
+})

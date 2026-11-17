@@ -599,6 +599,8 @@ export interface Propuesta {
   // P19 (29/10) · el nombre del vendedor congelado al crear: sobrevive al
   // borrado del usuario.
   vendedorNombre?: string | null
+  // ADR 0051 · la oportunidad del CRM a la que responde (opcional).
+  oportunidadId?: string | null
   // PROP-COMPLETA (29/10) · términos de ESTA propuesta (copiados de la
   // plantilla al crear) y su vigencia. `vigenteHasta` se pone al enviar; null =
   // sin vigencia (todo lo enviado antes del 29/10). `vencida` lo calcula el

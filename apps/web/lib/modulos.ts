@@ -31,6 +31,9 @@ export const AREAS: AreaProducto[] = [
   { clave: 'comercial', label: 'Comercial', modulo: 'comercial', apiPropia: true },
   { clave: 'clientes', label: 'Clientes', modulo: 'comercial', apiPropia: true },
   { clave: 'propuestas', label: 'Propuestas', modulo: 'comercial', apiPropia: true },
+  // ADR 0051 · el CRM (embudo, oportunidades y su ficha) cuelga de `comercial`:
+  // quien tiene `comercial.aprobar` ve las de todo el equipo.
+  { clave: 'crm', label: 'CRM', modulo: 'comercial', apiPropia: true },
   { clave: 'campanas', label: 'Campañas', modulo: 'comercial', apiPropia: true },
   { clave: 'disponibilidad', label: 'Disponibilidad', modulo: 'comercial', apiPropia: false },
   { clave: 'creativos', label: 'Creativos', modulo: 'comercial', apiPropia: false },

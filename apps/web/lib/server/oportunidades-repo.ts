@@ -233,12 +233,21 @@ async function leerActividades(id: string, tenant: string | null): Promise<Activ
   }))
 }
 
-async function leerPropuestasLigadas(id: string, tenant: string | null): Promise<PropuestaLigada[]> {
+// Las cotizaciones ligadas pasan por la MISMA regla que la lista de propuestas
+// (Fase 3, «sus propuestas el vendedor»). Quien ve todas puede ligar la
+// propuesta del vendedor B a la oportunidad del vendedor A; sin este filtro, A
+// veria en la ficha el folio y el historial campo por campo de una propuesta
+// que en Propuestas le contesta 404.
+async function leerPropuestasLigadas(
+  id: string,
+  tenant: string | null,
+  soloDe: string | null,
+): Promise<PropuestaLigada[]> {
   const filas = await q<any>(
     `select id, folio, nombre, estatus, version, creado_en from propuestas
-      where oportunidad_id = $1 and tenant_id = $2
+      where oportunidad_id = $1 and tenant_id = $2 and ($3::uuid is null or usuario_id = $3::uuid)
       order by creado_en desc`,
-    [id, tenant],
+    [id, tenant, soloDe],
   )
   return filas.map((r) => ({
     id: String(r.id),
@@ -246,6 +255,56 @@ async function leerPropuestasLigadas(id: string, tenant: string | null): Promise
     nombre: String(r.nombre),
     estatus: String(r.estatus),
     version: Number(r.version ?? 1),
+    creadoEn: iso(r.creado_en)!,
+  }))
+}
+
+export interface CambioPropuesta {
+  id: string
+  propuestaId: string
+  folio: string
+  version: number | null
+  usuarioNombre: string | null
+  origen: 'APP' | 'CLIENTE' | 'SISTEMA'
+  accion: string
+  campo: string | null
+  valorAnterior: unknown
+  valorNuevo: unknown
+  creadoEn: string
+}
+
+/**
+ * Fase 4 · el historial de las propuestas ligadas, para la línea de tiempo de
+ * la ficha. Por `oportunidad_id` de la propuesta VIVA, así que un borrador ya
+ * borrado no aparece aquí (su historial sigue en la tabla). Los últimos 300:
+ * una ficha no es el lugar para leer miles de filas.
+ */
+export async function leerCambiosDePropuestas(
+  oportunidadId: string,
+  soloDe: string | null,
+): Promise<CambioPropuesta[]> {
+  const tenant = await tenantActual()
+  const filas = await q<any>(
+    `select c.id, c.propuesta_id, c.folio, c.version, c.usuario_nombre, c.origen, c.accion, c.campo,
+            c.valor_anterior, c.valor_nuevo, c.creado_en
+       from propuesta_cambios c
+       join propuestas p on p.id = c.propuesta_id and p.tenant_id = c.tenant_id
+      where p.oportunidad_id = $1 and c.tenant_id = $2 and ($3::uuid is null or p.usuario_id = $3::uuid)
+      order by c.creado_en desc, c.id desc
+      limit 300`,
+    [oportunidadId, tenant, soloDe],
+  )
+  return filas.map((r) => ({
+    id: String(r.id),
+    propuestaId: String(r.propuesta_id),
+    folio: String(r.folio),
+    version: r.version == null ? null : Number(r.version),
+    usuarioNombre: r.usuario_nombre ?? null,
+    origen: r.origen,
+    accion: String(r.accion),
+    campo: r.campo ?? null,
+    valorAnterior: r.valor_anterior ?? null,
+    valorNuevo: r.valor_nuevo ?? null,
     creadoEn: iso(r.creado_en)!,
   }))
 }
@@ -265,7 +324,7 @@ export async function obtenerOportunidad(
   return {
     ...aOportunidad(r),
     actividades: await leerActividades(id, tenant),
-    propuestas: await leerPropuestasLigadas(id, tenant),
+    propuestas: await leerPropuestasLigadas(id, tenant, soloDe ?? null),
   }
 }
 

@@ -3,11 +3,13 @@
 - **Fecha:** 2026-11-17
 - **Estado:** **Aceptada (17/11, el dueño aprobó la forma de la migración de §1 a §4).** Es ROJO:
   R3 (migración) y R4 (toca el flujo de Propuestas, que es dinero). Las preguntas 2 y 4 se
-  contestaron el 17/11; sigue abierta la 3. **Fase 1 hecha el 17/11** (sin
+  contestaron el 17/11; siguen abiertas la 3 y la 5. **Fase 1 hecha el 17/11** (sin
   migración): `lib/crm-cotejo.ts` y la vista «Por cliente» en Propuestas. **Fase 2 hecha el 17/11**:
   `20261117_crm_oportunidades.sql`, `/api/oportunidades/**` y su e2e (ver «Cómo quedó la Fase 2»).
   **Fase 3 hecha el 17/11**, con el historial escrito por **trigger** y no desde el repo (decisión
-  del dueño; ver «Cómo quedó la Fase 3»).
+  del dueño; ver «Cómo quedó la Fase 3»). **Fase 4 terminando el 17/11** (en el commit `wip(crm)`
+  `37b5f4dd`, sin empujar): `/crm`, la ficha de la oportunidad y «CRM» en el menú (ver «Cómo quedó
+  la Fase 4»).
 - **Rama:** `feat/crm-comercial`, desde `main` `17f56561` (v0.12.13).
 - **Relacionado:** [ADR 0047](0047-comercial-negociacion-encima-de-prospectos.md) (Prospección
   encima de `prospectos`; este ADR reutiliza su tabla para el lado cliente y respeta su decisión de
@@ -213,6 +215,85 @@ en el resumen y en cada ruta por id (404); quien tiene `comercial.aprobar`, toda
 (`lib/server/propuestas-visibilidad.ts`). Las de antes de VEND-01, sin `usuario_id`, solo las ve
 quien ve todas. La liga pública no pasa por ahí.
 
+## Cómo quedó la Fase 4 (17/11)
+
+La pantalla, tal como §6 y §7, con lo que salió al hacerla:
+
+- **«CRM» toma el lugar de «Propuestas» en el menú, y `/propuestas` sigue siendo suya.** La entrada
+  `crm` (`components/demo/shell/nav.ts:202`) lleva `tambien: ['/propuestas']`, un campo nuevo de
+  `NavItem` (`nav.ts:94-105`, con `rutasDe()`). Cuenta en dos sitios, y el segundo es el que
+  importa: el `Sidebar` enciende «CRM» en `/propuestas/**` (`Sidebar.tsx:93-94`), y **la compuerta
+  de `AuthGate` empareja la ruta con todas las de cada entrada** (`AuthGate.tsx:20-28`). Sin eso,
+  `/propuestas` se habría quedado sin entrada en `NAV` y, por tanto, **sin compuerta de roles**. Los
+  roles son los mismos que tenía Propuestas (`MANDO` + `VENTA`): nadie gana ni pierde acceso. El
+  atajo del 404 cambia de clave (`lib/atajos-404.ts:43`).
+- **Área `crm` en `lib/modulos.ts:34-36`**, del módulo `comercial`: no hay permiso nuevo. El área
+  `propuestas` se queda (`modulos.ts:33`).
+- **Las cuatro pestañas son enlaces, no estado** (`components/demo/crm/PestanasCrm.tsx`): Embudo,
+  Oportunidades y Prospectos viven en `/crm?vista=…` (`app/(app)/(shell)/crm/page.tsx:23`), y
+  Propuestas lleva a `/propuestas`, que pinta las mismas pestañas arriba de su lista
+  (`propuestas/page.tsx:193`). Así no cambia ninguna dirección, ni la liga pública.
+- **Prospectos es la pantalla de Captación con el tipo fijo**: `Captacion` acepta `tipoFijo` y con
+  `"CLIENTE"` esconde el selector de tipo y da de alta clientes (`Captacion.tsx:507-512` y `:603-609`;
+  usada en `crm/page.tsx:33`). No se escribió otra pantalla de leads. Prospección (Inventario) no
+  necesitó cambio: ya pedía solo `PREDIO` y `PANTALLA` (`ComercialOpex.tsx:1129`); §7 decía
+  también `ARRENDADOR`, que no lista.
+- **La ficha une la línea de tiempo al leer** (§2), con dos campos nuevos en
+  `GET /api/oportunidades/[id]` (`oportunidades-controller.ts:126-153`): `cambios`, el historial de
+  las propuestas ligadas que escribe el trigger de la Fase 3 (`leerCambiosDePropuestas`,
+  `oportunidades-repo.ts:282`, los últimos 300, solo de propuestas vivas), y `avancesProspecto`, la
+  bitácora del lead **solo si quien mira puede ver ese prospecto con la regla de Captación**
+  (`obtenerProspecto` con `soloDe` de Captación, `:138`). El gerente que ve la oportunidad de un
+  vendedor no hereda por eso los leads; si no los ve, llega `[]`. La e2e lo prueba quitándole
+  `captacion.aprobar` al gerente.
+- **`borrarCliente` cuenta las oportunidades** (`clientes-repo.ts:251-253`, `:287` y `:297`) y el
+  desglose las nombra (`clientes-controller.ts:170-171`). Cierra el 409 genérico de la Fase 2. Su
+  traducción pidió tocar las tres funciones de bloqueo de `lib/i18n/errores-servidor.ts`
+  (`:1740-1749`, `:2148-2156`, `:2451-2461`): **«oportunidades» hace el plural en -es**, y quitarle
+  la `s` como a las demás piezas daba «oportunidade», que no se reconocía. Lo vigila
+  `lib/i18n/errores-crm.test.ts`.
+- **`lib/crm.ts` gana las cuentas de la pantalla**, calculadas al leer y sin columnas (§6):
+  `diasPorEtapa` (`:113`, de las filas `ETAPA`; volver a una etapa suma, GANADA y PERDIDA no
+  cuentan, y se cuenta con marcas de tiempo porque el navegador no conoce la zona del negocio),
+  `cotejoPresupuesto` (`:139`, debajo · dentro · encima del rango, con la diferencia contra el
+  extremo rebasado y su %), `cotejoFechas` (`:175`, días que se movió cada extremo) y
+  `agruparEmbudo` (`:196`, una columna por etapa con su total y su **ponderado** por la
+  probabilidad efectiva; el monto de referencia es el máximo, o el mínimo, `montoReferencia`, `:188`).
+  24 unitarias en `lib/crm.test.ts`.
+- **El cotizado es el total con IVA** de cada propuesta, tal como lo arma `armarPropuesta`
+  (`propuestas-repo.ts:86-87`: `total = bruto + iva`): la misma cifra que las tarjetas de Propuestas
+  y el cotejo por cliente de la Fase 1, y la ficha lo rotula «con IVA»
+  (`FichaOportunidad.tsx:37-40` y `:274-289`). Ver la pregunta 5.
+- **En el embudo una tarjeta se mueve a otra etapa abierta o a GANADA**, no a PERDIDA: perderla
+  exige el motivo, y eso se escribe en la ficha (`components/demo/crm/Oportunidades.tsx:34`).
+- **`armarPropuesta` expone `oportunidadId`** (`propuestas-repo.ts:276`), para que la ficha ofrezca
+  ligar solo las propuestas sueltas del mismo cliente y desligar las suyas
+  (`PATCH /api/propuestas/[id]` con `{ oportunidadId: null }`).
+- **Una prueba de orden del menú pasaba en falso.** `nav.test.ts` comprobaba que Propuestas fuera
+  antes que Campañas con `findIndex`; al quitar la entrada `propuestas`, `findIndex` daba **-1**, y
+  -1 es menor que cualquier posición: la prueba seguía verde sin comprobar nada. Ahora usa la clave
+  `crm` y exige además que exista (`nav.test.ts:41-50`). Y un bloque nuevo vigila que ninguna ruta
+  sea de dos entradas, para que la compuerta no dude qué roles aplicar (`nav.test.ts:309-327`).
+
+> [!success] Visto al documentar y RESUELTO el mismo día: lo ligado de otro vendedor ya no se ve
+> La ficha traía folio, nombre, estatus e historial campo por campo de **todas** las propuestas
+> ligadas, sin la regla de la Fase 3 «el vendedor solo ve las suyas». Ligar no exige que propuesta y
+> oportunidad sean del mismo vendedor (`revisarOportunidadParaLigar`), así que quien ve todo podía
+> ligar la propuesta de B a la oportunidad de A, y A leía en la ficha lo que en Propuestas le da
+> 404. Ahora `leerPropuestasLigadas` y `leerCambiosDePropuestas` reciben el `soloDe` de quien mira
+> (`oportunidades-repo.ts:241-255` y `:282-298`) y aplican el mismo filtro que la lista. **No** se
+> prohibió ligar entre vendedores: quien ve todas puede querer juntar el trabajo de dos en una
+> venta, y lo único que importaba era no enseñar lo ajeno. La e2e
+> «una propuesta de OTRO vendedor ligada a la mía…» se vio **en rojo** contra el build anterior
+> (`['CRM-M-2','CRM-M-1']`) y en verde con el arreglo.
+
+> [!success] Visto en el navegador y RESUELTO: el cotejo de fechas daba «NaN»
+> La columna «Fechas» decía «Movidas: inicio NaN, fin NaN días». `propuestas-repo` serializa las
+> fechas de los renglones como ISO completo (`iso()` → `2026-12-01T06:00:00.000Z`) y `diasEntre`
+> (`lib/crm.ts`) le pegaba `T00:00:00Z` encima. Ahora acepta los dos formatos y **redondea** en vez de
+> cortar a 10 caracteres, porque al este de UTC la medianoche local cae el día anterior en UTC. Las
+> unitarias solo probaban `AAAA-MM-DD`; la nueva, con las dos zonas, se vio en rojo con `NaN`.
+
 ## Alternativas consideradas
 
 **A · Solo una vista, sin tablas.** Es la Fase 1. No basta sola: no guarda el presupuesto, ni
@@ -258,6 +339,10 @@ cambió habría que comparar dos fotos.
    la fija cada instancia?
 4. ~~**¿Se ve el historial de cambios en la liga pública del cliente?**~~ **Contestada el 17/11:
    no, es interno.** La e2e `propuestas-por-vendedor` comprueba que la liga no lo trae.
+5. **El cotejo compara el presupuesto contra el total CON IVA** de cada cotización (Fase 4): es la
+   cifra de las tarjetas de Propuestas. Si el cliente dice su presupuesto **sin IVA**, el cotejo
+   pinta «encima» a una cotización que en realidad cabe (un 16 % de más). Cambiarlo es usar el
+   `neto` de la propuesta en `FichaOportunidad.tsx:274`, sin migración. ¿Cómo habla el cliente?
 
 ## Cómo revertir
 

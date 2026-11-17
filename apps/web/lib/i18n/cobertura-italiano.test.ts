@@ -123,6 +123,8 @@ describe('lote L5 · el italiano que coincide con otro idioma, solo el declarado
   const IGUAL_AL_INGLES = [
     // «Português» (ola 0 del portugues, 05/11): cada idioma se nombra en si mismo.
     'idioma.es', 'idioma.en', 'idioma.it', 'idioma.pt', 'login.campo.correo', 'login.campo.password', 'sidebar.logo-alt',
+    // ADR 0051 (17/11): «CRM» es una sigla, igual en todos los idiomas.
+    'nav.crm',
     'nav.grupo.ojos', 'nav.dashboard', 'nav.network', 'shell.topbar.cuenta', 'shell.candado.contrasena',
     'cuenta.cuestionario.no', 'admin.modulo.dashboard', 'admin.modulo.network', 'admin.usuarios.equipo',
     'admin.usuarios.col.contrasena', 'admin.alta.correo', 'admin.alta.contrasena', 'admin.logo.campo',

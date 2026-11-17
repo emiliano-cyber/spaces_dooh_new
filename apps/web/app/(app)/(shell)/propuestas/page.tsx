@@ -43,6 +43,7 @@ import { pinTono } from '@/components/demo/StatusBadge'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { TableroPropuestas } from '@/components/demo/propuestas/TableroPropuestas'
 import { CotejoPorCliente } from '@/components/demo/propuestas/CotejoPorCliente'
+import { PestanasCrm } from '@/components/demo/crm/PestanasCrm'
 import {
   usePropuestas,
   useFunnelPropuestas,
@@ -186,6 +187,10 @@ export default function PropuestasPage() {
           </Button>
         )}
       </div>
+
+      {/* ADR 0051 · Fase 4: Propuestas es la cuarta pestaña del CRM. La
+          dirección no cambia; solo se llega desde «CRM» en el menú. */}
+      <PestanasCrm activa="propuestas" />
 
       {/* Rediseño del 26/10: KPIs → lista → análisis. Las cuatro cifras del
           antiguo «Embudo de propuestas» suben aquí como tarjetas, con las

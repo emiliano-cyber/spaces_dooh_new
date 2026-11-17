@@ -6,6 +6,14 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!success] 2026-11-17 · **CRM-04 · Fase 4 del ADR 0051: la pantalla del CRM — HECHA, sin empujar** — rama `feat/crm-comercial` · ÁMBAR
+> `/crm` (Embudo · Oportunidades · Prospectos), la ficha `/crm/oportunidades/[id]`, pestañas en `/propuestas`, «CRM» en el menú con
+> `tambien: ['/propuestas']` (menú y compuerta de `AuthGate`), `borrarCliente` cuenta las oportunidades. Recorrida en Chrome; al
+> recorrerla salieron y se arreglaron la ficha que enseñaba propuestas de otro vendedor y el cotejo de fechas en `NaN`. Unitarias
+> completas y e2e completas en verde (salvo `grants-rol-app`, Docker). **Zonas tomadas y liberadas:** Z5, **`nav.ts`** y
+> **`lib/modulos.ts`** (alto contacto), `Sidebar.tsx`, `AuthGate.tsx`, `lib/i18n/errores-servidor.ts` y Z12 · Docs.
+> Ver [[crm-oportunidades]] y [[2026-11-17]].
+
 > [!success] 2026-11-17 · **CRM-03 · Fase 3 del ADR 0051: historial de propuestas por trigger, ligar, y el vendedor ve solo lo suyo** — rama `feat/crm-comercial` · **ROJO R1/R3/R4**, aprobado por el dueño el 17/11
 > `20261117_propuesta_cambios_por_trigger.sql`; `db.ts` fija también el autor (`app.usuario_id`/`_nombre`) junto con el tenant;
 > `oportunidadId` al crear y `PATCH { oportunidadId }`; `propuestas-visibilidad.ts` en las 8 rutas por id, `/api/estado` y el resumen.

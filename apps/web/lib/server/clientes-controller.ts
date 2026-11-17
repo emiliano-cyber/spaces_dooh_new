@@ -151,6 +151,7 @@ function motivosDeBloqueo(r: {
   facturas: number
   clientesConEstaAgencia: number
   propuestasConEstaAgencia: number
+  oportunidades?: number
 }): string[] {
   const partes: string[] = []
   const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`
@@ -166,6 +167,8 @@ function motivosDeBloqueo(r: {
       `${plural(r.propuestasConEstaAgencia, 'propuesta', 'propuestas')} que lo tienen como agencia`,
     )
   }
+  // ADR 0051 · las oportunidades del CRM, con su plural en -es.
+  if (r.oportunidades) partes.push(plural(r.oportunidades, 'oportunidad', 'oportunidades'))
   return partes
 }
 

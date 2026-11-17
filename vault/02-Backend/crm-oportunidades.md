@@ -14,9 +14,20 @@ archivos:
   - apps/web/lib/server/oportunidades-controller.ts
   - apps/web/app/api/oportunidades/
   - apps/web/lib/test/oportunidades.e2e.test.ts
+  - apps/web/lib/crm.test.ts
+  - apps/web/lib/server/clientes-repo.ts
+  - apps/web/lib/server/clientes-controller.ts
+  - apps/web/lib/i18n/errores-servidor.ts
+  - apps/web/lib/i18n/errores-crm.test.ts
+  - apps/web/lib/data/oportunidades-api.ts
+  - apps/web/app/(app)/(shell)/crm/page.tsx
+  - apps/web/app/(app)/(shell)/crm/oportunidades/[id]/page.tsx
+  - apps/web/components/demo/crm/
+  - apps/web/lib/i18n/textos/crm.ts
+  - apps/web/lib/i18n/pantallas-crm.test.ts
 ---
 
-# CRM comercial — las oportunidades (ADR 0051, Fase 2)
+# CRM comercial — las oportunidades (ADR 0051, Fases 2 a 4)
 
 Lo que un cliente **quiere** comprar —presupuesto, fechas, plazas, medios,
 objetivo— y la etapa en que va la venta. Se monta **encima** de lo que ya
@@ -27,7 +38,9 @@ las fases están en `docs/adr/0051-…md` y en [[decisiones]].
 > [!warning] Estado al 2026-11-17
 > Fases 2 y 3 hechas en `feat/crm-comercial`, **sin empujar**: la migración, la
 > API, el historial de propuestas por trigger, el ligado y la visibilidad por
-> vendedor. **No hay pantalla todavía** (es la Fase 4).
+> vendedor. **La Fase 4 —la pantalla— está terminando** en el commit `wip(crm)`
+> `37b5f4dd`: `/crm`, la ficha y «CRM» en el menú (abajo). Faltan la suite
+> unitaria y la e2e completas y el recorrido de la ficha en navegador.
 
 ## Las tablas — `20261117_crm_oportunidades.sql`
 
@@ -55,7 +68,7 @@ faltaba para poder hacer la FK compuesta hacia `clientes`.
 | Método | Ruta | Permiso | Qué hace |
 |---|---|---|---|
 | GET · POST | `/api/oportunidades` | `comercial:ver` · `comercial:crear` | Lista (filtros `etapas`, `clienteId`, página; cuenta por etapa en la base) y alta |
-| GET · PATCH | `/api/oportunidades/[id]` | `comercial:ver` · `comercial:crear` | Ficha con su línea de tiempo y sus cotizaciones; edición parcial |
+| GET · PATCH | `/api/oportunidades/[id]` | `comercial:ver` · `comercial:crear` | Ficha con su línea de tiempo y sus cotizaciones —y desde la Fase 4, `cambios` y `avancesProspecto` (abajo)—; edición parcial |
 | POST | `/api/oportunidades/[id]/etapa` | `comercial:crear` | Mueve en el embudo y deja la fila `ETAPA` en la misma transacción |
 | POST | `/api/oportunidades/[id]/actividades` | `comercial:crear` | Una actividad; `ETAPA` no se acepta a mano |
 
@@ -79,12 +92,17 @@ su ruta) y las fechas de cierre. Los esquemas son `.strict()`.
   aprueba: se lee `coalesce(cliente_id, prospectos.registro_id)`, sin que la
   aprobación de Captación tenga que saber de oportunidades.
 
-> [!warning] Borrar un cliente con oportunidades da 409 genérico
-> `oportunidades.cliente_id` es `on delete restrict`. El borrado de clientes
-> (`clientes-repo.ts`, `borrarCliente`) no las cuenta en su lista de bloqueos,
-> así que el 409 llega con el mensaje genérico «El registro está referenciado
-> por otro» en vez del desglose. La e2e comprueba que es 409 y que el cliente
-> sigue ahí, no un 500. Contarlas en el desglose queda para la Fase 4.
+> [!note] Borrar un cliente con oportunidades: 409 con el desglose (desde la Fase 4)
+> `oportunidades.cliente_id` es `on delete restrict`. Hasta la Fase 3 el
+> borrado de clientes no las contaba y el 409 llegaba con el genérico «El
+> registro está referenciado por otro». Ahora `borrarCliente` las cuenta
+> (`clientes-repo.ts:251-253`, `:287`, `:297`) y el desglose dice «el cliente
+> tiene 1 oportunidad» (`clientes-controller.ts:170-171`). En inglés, italiano
+> y portugués lo traducen las tres funciones de bloqueo de
+> `lib/i18n/errores-servidor.ts` (`:1740-1749`, `:2148-2156`, `:2451-2461`):
+> «oportunidades» hace el plural en -es y no bastaba quitar la `s`. Lo vigilan
+> `lib/i18n/errores-crm.test.ts` y la e2e (409, el desglose y el cliente sigue
+> ahí).
 
 ## Cómo se probó
 
@@ -137,6 +155,61 @@ historial** (es interno).
 Probado por `propuesta-cambios.e2e.test.ts` (17, en rojo sin la migración del
 trigger: 15 fallos) y `propuestas-por-vendedor.e2e.test.ts` (9, en rojo contra el
 build anterior: 7 fallos).
+
+## Fase 4 — la pantalla
+
+| Pantalla | Qué hay |
+|---|---|
+| `/crm` (Embudo, por omisión) | Una columna por etapa con su total y su ponderado. Una tarjeta se mueve a otra etapa abierta o a GANADA; a PERDIDA no, porque exige el motivo y eso va en la ficha (`components/demo/crm/Oportunidades.tsx:34`) |
+| `/crm?vista=oportunidades` | La lista, con chips por etapa y la columna de vendedor. «Nueva oportunidad» abre `FormOportunidad` |
+| `/crm?vista=prospectos` | Los leads de tipo cliente: la pantalla de Captación con `tipoFijo="CLIENTE"` (`crm/page.tsx:33`), sin otra pantalla de leads |
+| `/crm/oportunidades/[id]` | La ficha (`FichaOportunidad`): lo pedido, el cotejo por cotización, días en cada etapa, actividades, cambio de etapa, ligar y desligar propuestas, y la línea de tiempo unida, filtrable por persona |
+
+Todo pasa por `lib/data/oportunidades-api.ts`; el servidor ya filtra por
+vendedor, la pantalla no decide quién ve qué. El menú y las pestañas, en
+[[shell-y-navegacion]] y [[modulos-internos]].
+
+**La ficha del servidor trae dos cosas más** (`oportunidades-controller.ts:126-153`):
+
+- `cambios`: el historial de las propuestas **ligadas y vivas**, los últimos
+  300 (`leerCambiosDePropuestas`, `oportunidades-repo.ts:282`).
+- `avancesProspecto`: la bitácora del lead, **solo si quien mira puede ver ese
+  prospecto con la regla de Captación** (`:138`). Si no, `[]`: ver la
+  oportunidad de un vendedor no da permiso de leer sus leads. La e2e lo prueba
+  quitándole `captacion.aprobar` al gerente.
+
+**Las cuentas de la pantalla** (`lib/crm.ts`, calculadas al leer, 24 unitarias
+en `lib/crm.test.ts`):
+
+- `diasPorEtapa` (`:113`): de las filas `ETAPA`. Volver a una etapa **suma**;
+  GANADA y PERDIDA no cuentan días. Con marcas de tiempo, no fechas: el
+  navegador no conoce la zona del negocio.
+- `cotejoPresupuesto` (`:139`): debajo · dentro · encima del rango, con la
+  diferencia contra el extremo rebasado y su %. `cotejoFechas` (`:175`): cuántos
+  días se movió cada extremo.
+- `agruparEmbudo` (`:196`): total y **ponderado** por la probabilidad efectiva.
+  El monto de referencia es el máximo del presupuesto, o el mínimo
+  (`montoReferencia`, `:188`).
+
+> [!warning] El cotizado es el total CON IVA — pregunta abierta al dueño
+> Cada cotización entra al cotejo con el `total` de `armarPropuesta`
+> (`propuestas-repo.ts:86-87`, bruto + IVA), la cifra de las tarjetas de
+> Propuestas, y la ficha lo rotula «con IVA» (`FichaOportunidad.tsx:274-289`).
+> Si el cliente habla de presupuesto **sin IVA**, una cotización que cabe sale
+> «encima». Cambiarlo es usar el neto; es la pregunta 5 del ADR.
+
+> [!important] Lo ligado pasa por la regla de la Fase 3 (arreglado el 17/11)
+> Ligar no exige que propuesta y oportunidad sean del mismo vendedor
+> (`revisarOportunidadParaLigar`): quien ve todo puede ligar la de B a la
+> oportunidad de A. Por eso `leerPropuestasLigadas` y `leerCambiosDePropuestas`
+> reciben el `soloDe` de quien mira (`oportunidades-repo.ts:241-255` y
+> `:282-298`): A no ve en la ficha ni el folio ni el historial de la de B. Hasta
+> el arreglo sí los veía; la e2e «una propuesta de OTRO vendedor ligada a la
+> mía…» se vio en rojo. **Ojo:** el contador `cotizaciones` de la lista sigue
+> contando todas las ligadas (es un número, no el contenido).
+>
+> Y las fechas cotizadas llegan como ISO completo: `diasEntre` (`lib/crm.ts`)
+> acepta los dos formatos. Hasta el 17/11 la ficha decía «inicio NaN».
 
 Relacionado: [[api-endpoints]], [[04-Datos/esquema]], [[04-Datos/migraciones]],
 [[roles-de-venta]], [[multi-tenancy-y-rls]].

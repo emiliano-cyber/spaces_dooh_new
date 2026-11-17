@@ -40,7 +40,7 @@ export const CLAVES_ATAJOS_404 = [
   'network',        // patrimonio
   'space-eyes',     // ojos        (fase de una sola entrada)
   'clientes',       // vender
-  'propuestas',     // vender
+  'crm',            // vender (ADR 0051: antes 'propuestas')
   'campanas',       // entregar
   'operaciones',    // entregar
   'finanzas',       // cobrar

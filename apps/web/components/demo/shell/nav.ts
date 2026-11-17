@@ -14,6 +14,7 @@ import {
   Images,
   Users,
   FileText,
+  Target,
   Plug,
   Percent,
   CalendarRange,
@@ -90,6 +91,17 @@ export interface NavItem {
   icon: LucideIcon
   roles: RolDemo[]
   grupo: GrupoNav
+  /**
+   * Otras rutas que son de esta entrada (ADR 0051): la encienden en el menú
+   * y, sobre todo, pasan por la MISMA compuerta de roles en `AuthGate`. Sin
+   * esto, una ruta que dejó de tener entrada propia quedaría sin compuerta.
+   */
+  tambien?: string[]
+}
+
+/** Todas las rutas de una entrada: la suya y las de `tambien`. */
+export function rutasDe(n: Pick<NavItem, 'href' | 'tambien'>): string[] {
+  return [n.href, ...(n.tambien ?? [])]
 }
 
 // El orden de este arreglo ES el orden de las fases en el menú. `inicio` va sin
@@ -184,7 +196,10 @@ export const NAV: NavItem[] = [
   { key: 'clientes', label: 'Clientes', href: '/clientes', icon: Users, roles: [...MANDO, ...VENTA], grupo: 'vender' },
   { key: 'comercial', label: 'Comercial', href: '/comercial', icon: Map, roles: [...MANDO, ...VENTA], grupo: 'vender' },
   { key: 'disponibilidad', label: 'Disponibilidad', href: '/disponibilidad', icon: CalendarRange, roles: [...MANDO, ...VENTA], grupo: 'vender' },
-  { key: 'propuestas', label: 'Propuestas', href: '/propuestas', icon: FileText, roles: [...MANDO, ...VENTA], grupo: 'vender' },
+  // ADR 0051 · Fase 4 (17/11): «CRM» toma el lugar de «Propuestas». Propuestas
+  // es una de sus pestañas y conserva su dirección (`tambien`), con los MISMOS
+  // roles: quien abría /propuestas la sigue abriendo, y nadie más.
+  { key: 'crm', label: 'CRM', href: '/crm', tambien: ['/propuestas'], icon: Target, roles: [...MANDO, ...VENTA], grupo: 'vender' },
   // CAP-01 · la bitacora de captacion: OCULTA del menu desde el 2026-09-30.
   // Pedido del dueno: «elimina captacion por ahora u ocultalo»; se solapaba con
   // Comercial OPEX, que es la forma que prefiere. Solo se quita la ENTRADA: las

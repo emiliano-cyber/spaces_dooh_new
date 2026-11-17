@@ -272,6 +272,8 @@ function armarPropuesta(p: any, items: any[]) {
     vendedorId: p.usuario_id ?? null,
     // P19 · el nombre congelado al crear; sobrevive al borrado del usuario.
     vendedorNombre: p.vendedor_nombre ?? null,
+    // ADR 0051 · la oportunidad del CRM a la que responde, si se ligó.
+    oportunidadId: p.oportunidad_id ?? null,
     // PROP-COMPLETA (29/10) · las condiciones de ESTA propuesta y hasta cuándo
     // se puede aceptar. `vencida` sale de `lib/propuesta-vigencia.ts`, la misma
     // función que usa la liga pública para negarse a aceptar.

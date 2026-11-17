@@ -248,6 +248,9 @@ export type ResultadoBorrado =
       facturas: number
       clientesConEstaAgencia: number
       propuestasConEstaAgencia: number
+      // ADR 0051 · `oportunidades.cliente_id` es `restrict`: sin contarlas aquí,
+      // el DELETE caía en un 409 genérico sin decir qué lo impedía.
+      oportunidades: number
     }
   | { estado: 'huerfanas'; propuestas: number }
   | { estado: 'borrado'; cliente: ReturnType<typeof rowToCliente> }
@@ -280,7 +283,8 @@ export async function borrarCliente(
          (select count(*) from facturas   where cliente_id = $1 and tenant_id = $2) as facturas,
          (select count(*) from clientes   where agencia_id = $1 and tenant_id = $2) as clientes_agencia,
          (select count(*) from propuestas where agencia_id = $1 and tenant_id = $2) as propuestas_agencia,
-         (select count(*) from propuestas where cliente_id = $1 and tenant_id = $2) as propuestas_cliente`,
+         (select count(*) from propuestas where cliente_id = $1 and tenant_id = $2) as propuestas_cliente,
+         (select count(*) from oportunidades where cliente_id = $1 and tenant_id = $2) as oportunidades`,
       [id, tenant],
     )
     const n = (col: string) => Number(b.rows[0]?.[col] ?? 0)
@@ -288,14 +292,16 @@ export async function borrarCliente(
     const facturas = n('facturas')
     const clientesConEstaAgencia = n('clientes_agencia')
     const propuestasConEstaAgencia = n('propuestas_agencia')
+    const oportunidades = n('oportunidades')
 
-    if (campanas || facturas || clientesConEstaAgencia || propuestasConEstaAgencia) {
+    if (campanas || facturas || clientesConEstaAgencia || propuestasConEstaAgencia || oportunidades) {
       return {
         estado: 'bloqueado' as const,
         campanas,
         facturas,
         clientesConEstaAgencia,
         propuestasConEstaAgencia,
+        oportunidades,
       }
     }
 

@@ -448,15 +448,15 @@ describe('5 · las cotizaciones ligadas', () => {
   it('una propuesta con oportunidad_id se cuenta y se lista en la ficha', async () => {
     const o = await nueva('Con cotización')
     await poolTest().query(
-      `insert into propuestas (folio, nombre, tenant_id, cliente_id, oportunidad_id) values ('CRM-P-1', 'Primera', $1, $2, $3)`,
-      [org.id, clienteOrg, o.id],
+      `insert into propuestas (folio, nombre, tenant_id, cliente_id, oportunidad_id, usuario_id) values ('CRM-P-1', 'Primera', $1, $2, $3, $4)`,
+      [org.id, clienteOrg, o.id, idVendedor],
     )
     const d = (await vendedor.pedir(ruta(o.id))).datos
     expect(d.cotizaciones).toBe(1)
     expect(d.propuestas).toEqual([expect.objectContaining({ folio: 'CRM-P-1', estatus: 'BORRADOR', version: 1 })])
   })
 
-  it('borrar un cliente que tiene oportunidades se niega con 409, no con un 500', async () => {
+  it('borrar un cliente que tiene oportunidades se niega con 409 y lo dice (Fase 4: en el desglose)', async () => {
     const cli = await sembrarCliente('Con oportunidad', org.id)
     await nueva('Amarra al cliente', vendedor, { clienteId: cli })
     // Borrar un cliente es del Dueño o del Administrador, y pide la contraseña
@@ -465,7 +465,72 @@ describe('5 · las cotizaciones ligadas', () => {
     expect((await dueno.pedir('/api/cambios/desbloquear/', { cuerpo: { password: PASSWORD_DEMO } })).status).toBe(200)
     const r = await dueno.pedir(`/api/clientes/${cli}/`, { metodo: 'DELETE', cuerpo: {} })
     expect(r.status, JSON.stringify(r.datos)).toBe(409)
+    expect(r.datos.error).toMatch(/el cliente tiene 1 oportunidad./)
     // Y el cliente sigue ahí: el borrado entero se deshizo.
     expect((await poolTest().query('select 1 from clientes where id = $1', [cli])).rowCount).toBe(1)
+  })
+})
+
+// ───────────────────────────────────────────────────────────────────────────
+describe('6 · Fase 4 · lo que la ficha trae para su línea de tiempo', () => {
+  it('los cambios de sus propuestas ligadas (los escribe el trigger), y no los de otras', async () => {
+    const o = await nueva('Con historial')
+    const ligada = (await poolTest().query(
+      `insert into propuestas (folio, nombre, tenant_id, cliente_id, oportunidad_id, usuario_id) values ('CRM-H-1','Ligada',$1,$2,$3,$4) returning id`,
+      [org.id, clienteOrg, o.id, idVendedor],
+    )).rows[0].id
+    await poolTest().query(`insert into propuestas (folio, nombre, tenant_id, cliente_id) values ('CRM-H-2','Suelta',$1,$2)`, [org.id, clienteOrg])
+    await poolTest().query(`update propuestas set nombre = 'Ligada v2' where id = $1`, [ligada])
+    const d = (await vendedor.pedir(ruta(o.id))).datos
+    expect(d.cambios.map((c: any) => c.folio)).toEqual(['CRM-H-1', 'CRM-H-1'])
+    expect(d.cambios[0]).toMatchObject({ accion: 'EDITAR', campo: 'nombre', valorNuevo: 'Ligada v2' })
+  })
+
+  it('una propuesta de OTRO vendedor ligada a la mía no se ve en mi ficha, ni su historial (regla de la Fase 3)', async () => {
+    // Quien ve todas puede ligar la propuesta de Luis a la oportunidad de
+    // Mariana. Mariana no ve esa propuesta en Propuestas (404): tampoco puede
+    // asomarse a ella —folio, nombre, historial campo por campo— desde la ficha.
+    const o = await nueva('Mezclada')
+    const mia = (await poolTest().query(
+      `insert into propuestas (folio, nombre, tenant_id, cliente_id, oportunidad_id, usuario_id) values ('CRM-M-1','Mía',$1,$2,$3,$4) returning id`,
+      [org.id, clienteOrg, o.id, idVendedor],
+    )).rows[0].id
+    const deLuis = (await poolTest().query(
+      `insert into propuestas (folio, nombre, tenant_id, cliente_id, oportunidad_id, usuario_id) values ('CRM-M-2','De Luis',$1,$2,$3,$4) returning id`,
+      [org.id, clienteOrg, o.id, idVendedor2],
+    )).rows[0].id
+    await poolTest().query(`update propuestas set nombre = nombre || ' v2' where id = any($1::uuid[])`, [[mia, deLuis]])
+
+    const d = (await vendedor.pedir(ruta(o.id))).datos
+    expect(d.propuestas.map((p: any) => p.folio)).toEqual(['CRM-M-1'])
+    expect(new Set(d.cambios.map((c: any) => c.folio))).toEqual(new Set(['CRM-M-1']))
+    expect(JSON.stringify(d)).not.toContain('De Luis')
+
+    // Quien ve todas, ve las dos.
+    const g = (await gerente.pedir(ruta(o.id))).datos
+    expect(g.propuestas.map((p: any) => p.folio).sort()).toEqual(['CRM-M-1', 'CRM-M-2'])
+    expect(new Set(g.cambios.map((c: any) => c.folio))).toEqual(new Set(['CRM-M-1', 'CRM-M-2']))
+  })
+
+  it('la bitácora del prospecto, solo si quien mira puede ver ese prospecto', async () => {
+    const lead = await sembrarProspecto('CLIENTE', 'Lead con bitácora', org.id, idVendedor)
+    await poolTest().query(
+      `insert into prospecto_avances (tenant_id, prospecto_id, usuario_id, etapa_nueva, nota) values ($1,$2,$3,'PROSPECTO','Primer contacto')`,
+      [org.id, lead, idVendedor],
+    )
+    const o = (await vendedor.pedir('/api/oportunidades/', { cuerpo: { nombre: 'Del lead', prospectoId: lead } })).datos
+    expect(o.avancesProspecto.map((a: any) => a.nota)).toEqual(['Primer contacto'])
+    // El gerente comercial ve la oportunidad (comercial.aprobar) y también el
+    // lead (captacion.aprobar en la matriz de fábrica).
+    expect((await gerente.pedir(ruta(o.id))).datos.avancesProspecto).toHaveLength(1)
+    // Si a quien mira le quitan captacion.aprobar, ve la oportunidad pero no la bitácora del lead ajeno.
+    await poolTest().query(`delete from rol_permisos where rol = 'GERENTE_VENTAS' and modulo = 'captacion' and accion = 'aprobar'`)
+    try {
+      const d = (await gerente.pedir(ruta(o.id))).datos
+      expect(d.id).toBe(o.id)
+      expect(d.avancesProspecto).toEqual([])
+    } finally {
+      await poolTest().query(`insert into rol_permisos (rol, modulo, accion) values ('GERENTE_VENTAS','captacion','aprobar') on conflict do nothing`)
+    }
   })
 })

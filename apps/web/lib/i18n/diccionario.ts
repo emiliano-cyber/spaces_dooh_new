@@ -240,6 +240,8 @@ const ES = {
   'nav.comercial': 'Comercial',
   'nav.disponibilidad': 'Disponibilidad',
   'nav.propuestas': 'Propuestas',
+  // ADR 0051 · Fase 4: «CRM» toma el lugar de «Propuestas» en el menú.
+  'nav.crm': 'CRM',
   'nav.captacion': 'Captación',
   'nav.comercial-opex': 'Prospección',
   'nav.franjas-y-temporadas': 'Franjas y temporadas',
@@ -435,6 +437,7 @@ const EN: Record<ClaveTexto, string> = {
   'nav.comercial': 'Sales',
   'nav.disponibilidad': 'Availability',
   'nav.propuestas': 'Proposals',
+  'nav.crm': 'CRM',
   'nav.captacion': 'Prospecting',
   'nav.comercial-opex': 'Prospecting',
   'nav.franjas-y-temporadas': 'Dayparts and seasons',
@@ -631,6 +634,7 @@ const IT_BASE: Partial<Record<ClaveTexto, string>> = {
   'nav.comercial': 'Vendite',
   'nav.disponibilidad': 'Disponibilità',
   'nav.propuestas': 'Proposte',
+  'nav.crm': 'CRM',
   // Captacion es buscar espacios nuevos que arrendar, no clientes.
   'nav.captacion': 'Acquisizione siti',
   'nav.comercial-opex': 'Prospezione',
@@ -838,6 +842,7 @@ const PT_BASE: Partial<Record<ClaveTexto, string>> = {
   'nav.comercial': 'Comercial',
   'nav.disponibilidad': 'Disponibilidade',
   'nav.propuestas': 'Propostas',
+  'nav.crm': 'CRM',
   'nav.captacion': 'Captação',
   'nav.comercial-opex': 'Prospecção',
   'nav.franjas-y-temporadas': 'Faixas horárias e temporadas',

@@ -5,6 +5,30 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-17 · sin versión todavía · El CRM comercial ya tiene pantalla
+
+Es la fase 4 del CRM comercial (ADR 0051), la que faltaba para poder usarlo. Todavía no está en ninguna versión publicada.
+
+- **En el menú, dentro de Comercial, «Propuestas» se llama ahora «CRM».** La ven las mismas personas que veían Propuestas.
+- El CRM tiene cuatro pestañas arriba: **Embudo**, **Oportunidades**, **Prospectos** y **Propuestas**.
+- **Embudo**: una columna por etapa (Contacto, Necesidad, Cotizando, Negociando, Ganada y Perdida) con las oportunidades de cada una, cuánto suman y cuánto valen según su probabilidad de cerrarse. Una tarjeta se puede pasar a otra etapa desde ahí; para darla por perdida hay que abrirla, porque pide el motivo.
+- **Oportunidades**: la misma información en lista, con filtro por etapa y el vendedor de cada una. Desde las dos se da de alta una oportunidad nueva: el cliente o prospecto, cuánto quiere gastar, las fechas, las plazas, los medios y el objetivo.
+- **Prospectos**: los clientes posibles que todavía no son clientes, con sus contactos y su bitácora (lo que antes estaba en Captación, solo los de tipo cliente).
+- **Propuestas**: la pantalla de siempre, en la misma dirección. Los enlaces guardados y la liga del cliente siguen sirviendo.
+- **Al abrir una oportunidad** se ve:
+  - lo que pidió el cliente contra lo que se le ha cotizado: si cada cotización queda debajo, dentro o encima de su presupuesto, por cuánto y en qué porcentaje, y si las fechas coinciden;
+  - cuántos días lleva desde el primer contacto y cuántos pasó en cada etapa;
+  - sus llamadas, visitas, juntas, correos y notas, y se pueden anotar nuevas;
+  - todo lo que ha pasado en una sola línea de tiempo: las anotaciones, cada cambio a sus cotizaciones (quién cambió qué) y la bitácora del prospecto. Se puede filtrar por persona;
+  - las cotizaciones ligadas, y un botón para ligar otra del mismo cliente o desligarla.
+- La bitácora del prospecto solo aparece a quien tiene permiso de ver ese prospecto.
+- **Un vendedor ve solo sus oportunidades**; quien puede aprobar en Comercial ve las de todo el equipo. Y dentro de una oportunidad, el vendedor solo ve las cotizaciones que son suyas, aunque alguien le haya ligado la de un compañero.
+- **Borrar un cliente que tiene oportunidades** ya dice cuántas tiene, en vez de un mensaje genérico.
+- Está en español, inglés, italiano y portugués.
+- **A tener en cuenta:** el presupuesto se compara contra el total de cada cotización **con IVA**. Si el cliente habla de su presupuesto sin IVA, la comparación sale más alta de lo que es. Está pendiente de confirmar con el dueño.
+
+---
+
 ## 2026-11-17 · sin versión todavía · Cada vendedor ve solo sus propuestas, y cada cambio queda anotado
 
 Es la fase 3 del CRM comercial (ADR 0051). Todavía no está en ninguna versión publicada.

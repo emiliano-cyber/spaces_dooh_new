@@ -169,7 +169,7 @@ cobranza.
   cuando el `=` de la consulta va percent-encoded
 - [[auditoria-cuatro-rojo-20260820]] — auditoría de los cuatro ROJO del 20/08
 - [[_plantilla-diaria]] — plantilla del diario
-- [[2026-11-17]] — **última entrada**: el CRM comercial decidido (ADR 0051: oportunidades encima de prospectos CLIENTE y propuestas, historial campo por campo) y su Fase 1, la lista de Propuestas por cliente, en `feat/crm-comercial` sin empujar
+- [[2026-11-17]] — **última entrada**: el CRM comercial decidido (ADR 0051: oportunidades encima de prospectos CLIENTE y propuestas, historial campo por campo) y sus cuatro fases: la lista por cliente, las oportunidades en la base y la API, el historial por trigger con cada vendedor viendo lo suyo, y la pantalla `/crm` con embudo y ficha; en `feat/crm-comercial` sin empujar
 - [[2026-11-13]] — qué falta para llevar todo a `main` (v0.12.10 ya fusionada), DASH-ALINEADO (el Dashboard sin huecos) la `integra/v0-12-11` con el Dashboard, el menú y los avisos por correo, sin la paleta (ya en `main`), y DASH-EDITAR, «Personalizar» sobre el propio tablero, en `feat/personalizar-dashboard`
 - [[2026-11-12]] — la etiqueta `v0.12.10` quedó en el commit de la v0.12.9 (el PR no estaba fusionado); AVISOS-CANAL (avisos por correo con Resend o Brevo, WhatsApp sembrado, contraseña solo por correo) en `feat/avisos-por-canal`; y el rol del Dueño inmutable, «Personalizar» en el Dashboard y el menú en cascada en `feat/dueno-dashboard-menu`. Las dos sin empujar
 - [[2026-11-11]] — la API de Network para la app nueva, eliminar usuarios solo Dueño/Administrador, los campos del alta de pantalla por instancia (al instalar) y la matriz de permisos editable por el Dueño; rama `feat/network-api-y-borrado` sin empujar

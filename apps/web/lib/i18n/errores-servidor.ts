@@ -728,6 +728,7 @@ export const CAMPO_EN: Record<string, string> = {
   'Agencia': 'Agency',
   'Sitio': 'Site',
   'Spots por día': 'Spots per day',
+  'Nota': 'Note',
   'Cantidad': 'Quantity',
   'Tarifa': 'Rate',
   'Precio': 'Price',
@@ -1315,6 +1316,7 @@ export const CAMPO_IT: Partial<Record<string, string>> = {
   'Agencia': 'Agenzia',
   'Sitio': 'Sito',
   'Spots por día': 'Spot al giorno',
+  'Nota': 'Nota',
   'Cantidad': 'Quantità',
   'Tarifa': 'Tariffa',
   'Precio': 'Prezzo',
@@ -1696,6 +1698,7 @@ export const CAMPO_PT: Partial<Record<string, string>> = {
   'Agencia': 'Agência',
   'Sitio': 'Ponto',
   'Spots por día': 'Spots por dia',
+  'Nota': 'Nota',
   'Cantidad': 'Quantidade',
   'Tarifa': 'Tarifa',
   'Precio': 'Preço',
@@ -1737,14 +1740,19 @@ function bloqueoClienteEn(v: string): string {
   return v
     .split(' y ')
     .map((pieza) => {
-      const m = /^(\d+) (campañas?|facturas?|clientes?|propuestas?)( que lo tienen como agencia)?$/.exec(pieza)
+      const m = /^(\d+) (campañas?|facturas?|clientes?|propuestas?|oportunidad(?:es)?)( que lo tienen como agencia)?$/.exec(pieza)
       if (!m) return pieza
       const uno = m[1] === '1'
-      const cosa = { campaña: 'campaign', factura: 'invoice', cliente: 'client', propuesta: 'proposal' }[
-        m[2].replace(/s$/, '') as 'campaña'
-      ]
+      // ADR 0051 · «oportunidades» hace el plural en -es: no basta quitar la s.
+      const [singular, plural] = {
+        campaña: ['campaign', 'campaigns'],
+        factura: ['invoice', 'invoices'],
+        cliente: ['client', 'clients'],
+        propuesta: ['proposal', 'proposals'],
+        oportunidad: ['opportunity', 'opportunities'],
+      }[m[2].startsWith('oportunidad') ? 'oportunidad' : m[2].replace(/s$/, '') as 'campaña']
       const agencia = m[3] ? (uno ? ' that has it as its agency' : ' that have it as their agency') : ''
-      return `${m[1]} ${cosa}${uno ? '' : 's'}${agencia}`
+      return `${m[1]} ${uno ? singular : plural}${agencia}`
     })
     .join(' and ')
 }
@@ -2140,7 +2148,7 @@ function bloqueoClienteIt(v: string): string {
   return v
     .split(' y ')
     .map((pieza) => {
-      const m = /^(\d+) (campañas?|facturas?|clientes?|propuestas?)( que lo tienen como agencia)?$/.exec(pieza)
+      const m = /^(\d+) (campañas?|facturas?|clientes?|propuestas?|oportunidad(?:es)?)( que lo tienen como agencia)?$/.exec(pieza)
       if (!m) return pieza
       const uno = m[1] === '1'
       const [singular, plural] = {
@@ -2148,7 +2156,8 @@ function bloqueoClienteIt(v: string): string {
         factura: ['fattura', 'fatture'],
         cliente: ['cliente', 'clienti'],
         propuesta: ['proposta', 'proposte'],
-      }[m[2].replace(/s$/, '') as 'campaña']
+        oportunidad: ['opportunità', 'opportunità'],
+      }[m[2].startsWith('oportunidad') ? 'oportunidad' : m[2].replace(/s$/, '') as 'campaña']
       const agencia = m[3] ? (uno ? ' che lo ha come agenzia' : ' che lo hanno come agenzia') : ''
       return `${m[1]} ${uno ? singular : plural}${agencia}`
     })
@@ -2442,7 +2451,7 @@ function bloqueoClientePt(v: string): string {
   return v
     .split(' y ')
     .map((pieza) => {
-      const m = /^(\d+) (campañas?|facturas?|clientes?|propuestas?)( que lo tienen como agencia)?$/.exec(pieza)
+      const m = /^(\d+) (campañas?|facturas?|clientes?|propuestas?|oportunidad(?:es)?)( que lo tienen como agencia)?$/.exec(pieza)
       // Una pieza que no se reconoce no pasa en espanol (validacion, retoque 8):
       // deja la marca y el mensaje entero cae al espanol, como `deTablaPt`.
       if (!m) return SIN_ITALIANO
@@ -2452,7 +2461,8 @@ function bloqueoClientePt(v: string): string {
         factura: ['fatura', 'faturas'],
         cliente: ['cliente', 'clientes'],
         propuesta: ['proposta', 'propostas'],
-      }[m[2].replace(/s$/, '') as 'campaña']
+        oportunidad: ['oportunidade', 'oportunidades'],
+      }[m[2].startsWith('oportunidad') ? 'oportunidad' : m[2].replace(/s$/, '') as 'campaña']
       const agencia = m[3] ? (uno ? ' que o tem como agência' : ' que o têm como agência') : ''
       return `${m[1]} ${uno ? singular : plural}${agencia}`
     })

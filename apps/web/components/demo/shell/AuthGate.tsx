@@ -6,7 +6,7 @@ import { landingDeRol } from '@/lib/data/client'
 import { useDemoStore } from '@/lib/data/store'
 import { refrescarEstado } from '@/lib/data/estado-api'
 import { useSesionCtx } from './SesionContext'
-import { NAV } from './nav'
+import { NAV, rutasDe } from './nav'
 import { decidirPantalla, salidaObligatoria } from './compuerta'
 import { useTexto } from '@/lib/i18n/contexto'
 
@@ -19,9 +19,12 @@ import { useTexto } from '@/lib/i18n/contexto'
 // links directos (pipeline, OT, etc.), no solo el menú.
 function moduloDe(pathname: string | null) {
   const path = (pathname ?? '/').replace(/\/spaces-dooh/, '').replace(/\/$/, '') || '/'
-  const matches = NAV.filter((n) => path === n.href || path.startsWith(n.href + '/'))
-  // El href más largo gana: /demo/comercial vence a /demo (dashboard).
-  return matches.sort((a, b) => b.href.length - a.href.length)[0] ?? null
+  // ADR 0051 · cada entrada con TODAS sus rutas (`tambien`): /propuestas ya no
+  // tiene entrada propia, es de «CRM», y tiene que seguir pasando por aquí.
+  const casa = (h: string) => path === h || path.startsWith(h + '/')
+  const matches = NAV.flatMap((n) => rutasDe(n).filter(casa).map((h) => ({ n, h })))
+  // La ruta más larga gana: /demo/comercial vence a /demo (dashboard).
+  return matches.sort((a, b) => b.h.length - a.h.length)[0]?.n ?? null
 }
 
 function Cargando() {

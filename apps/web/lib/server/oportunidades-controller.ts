@@ -10,8 +10,10 @@ import {
   editarOportunidad,
   cambiarEtapa,
   registrarActividad,
+  leerCambiosDePropuestas,
   type DatosOportunidad,
 } from './oportunidades-repo'
+import { obtenerProspecto } from './captacion-repo'
 import { ETAPAS_OPORTUNIDAD, TIPOS_ACTIVIDAD_MANUAL, TIPOS_MEDIO, problemaFechas, problemaPresupuesto } from '@/lib/crm'
 
 // ============================================================================
@@ -121,10 +123,34 @@ export async function listarOportunidadesCtrl(u: UsuarioSesion, params: URLSearc
   return { ...r, pagina: f.pagina, porPagina: f.porPagina, veTodas: solo === null }
 }
 
+/**
+ * La ficha: la oportunidad, sus actividades, sus cotizaciones y —para la
+ * línea de tiempo unida (ADR 0051 §2)— los cambios de esas cotizaciones y la
+ * bitácora del prospecto del que salió. Esta última, SOLO si quien mira puede
+ * ver ese prospecto con la regla de Captación: el gerente comercial que ve la
+ * oportunidad de un vendedor no hereda por eso el permiso de leer sus leads.
+ */
 export async function obtenerOportunidadCtrl(u: UsuarioSesion, id: string) {
-  const o = await obtenerOportunidad(id, await soloDe(u))
+  const solo = await soloDe(u)
+  const o = await obtenerOportunidad(id, solo)
   if (!o) throw new AppError(NO_EXISTE, 404)
-  return o
+  const [cambios, prospecto] = await Promise.all([
+    leerCambiosDePropuestas(id, solo),
+    o.prospectoId ? obtenerProspecto(o.prospectoId, await soloDeCaptacion(u)) : null,
+  ])
+  return {
+    ...o,
+    cambios,
+    avancesProspecto: (prospecto?.avances ?? []).map((a) => ({
+      id: a.id,
+      usuarioNombre: a.usuarioNombre,
+      etapaAnterior: a.etapaAnterior,
+      etapaNueva: a.etapaNueva,
+      nota: a.nota,
+      canal: a.canal,
+      creadoEn: a.creadoEn,
+    })),
+  }
 }
 
 export async function crearOportunidadCtrl(u: UsuarioSesion, body: unknown) {
