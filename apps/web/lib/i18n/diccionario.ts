@@ -1,5 +1,6 @@
 import { IDIOMA_POR_OMISION, type Idioma } from './idiomas'
 import { ES_PROPUESTAS, EN_PROPUESTAS, IT_PROPUESTAS, PT_PROPUESTAS } from './textos/propuestas'
+import { ES_CRM, EN_CRM, IT_CRM, PT_CRM } from './textos/crm'
 import { ES_COMPARTIDOS, EN_COMPARTIDOS, IT_COMPARTIDOS, PT_COMPARTIDOS } from './textos/compartidos'
 import { ES_CAMPANAS, EN_CAMPANAS, IT_CAMPANAS, PT_CAMPANAS } from './textos/campanas'
 import { ES_FINANZAS, EN_FINANZAS, IT_FINANZAS, PT_FINANZAS } from './textos/finanzas'
@@ -268,6 +269,7 @@ const ES = {
   // `Record<ClaveDeSuArea, string>`, asi que una clave inglesa que falte sigue
   // siendo un error de compilacion, solo que en el archivo del area.
   ...ES_PROPUESTAS,
+  ...ES_CRM,
   ...ES_COMPARTIDOS,
   ...ES_CAMPANAS,
   ...ES_FINANZAS,
@@ -455,6 +457,7 @@ const EN: Record<ClaveTexto, string> = {
   'nav.administracion': 'Settings',
 
   ...EN_PROPUESTAS,
+  ...EN_CRM,
   ...EN_COMPARTIDOS,
   ...EN_CAMPANAS,
   ...EN_FINANZAS,
@@ -664,6 +667,7 @@ export const AMBITOS_ITALIANO: ReadonlyArray<{
   it: Partial<Record<string, string>>
 }> = [
   { ambito: 'propuestas', es: ES_PROPUESTAS, it: IT_PROPUESTAS },
+  { ambito: 'crm', es: ES_CRM, it: IT_CRM },
   { ambito: 'compartidos', es: ES_COMPARTIDOS, it: IT_COMPARTIDOS },
   { ambito: 'campanas', es: ES_CAMPANAS, it: IT_CAMPANAS },
   { ambito: 'finanzas', es: ES_FINANZAS, it: IT_FINANZAS },
@@ -689,6 +693,7 @@ export const AMBITOS_ITALIANO: ReadonlyArray<{
 const IT: Partial<Record<ClaveTexto, string>> = {
   ...IT_BASE,
   ...IT_PROPUESTAS,
+  ...IT_CRM,
   ...IT_COMPARTIDOS,
   ...IT_CAMPANAS,
   ...IT_FINANZAS,
@@ -860,6 +865,7 @@ export const AMBITOS_PORTUGUES: ReadonlyArray<{
   pt: Partial<Record<string, string>>
 }> = [
   { ambito: 'propuestas', es: ES_PROPUESTAS, pt: PT_PROPUESTAS },
+  { ambito: 'crm', es: ES_CRM, pt: PT_CRM },
   { ambito: 'compartidos', es: ES_COMPARTIDOS, pt: PT_COMPARTIDOS },
   { ambito: 'campanas', es: ES_CAMPANAS, pt: PT_CAMPANAS },
   { ambito: 'finanzas', es: ES_FINANZAS, pt: PT_FINANZAS },
@@ -891,6 +897,7 @@ const PT: Partial<Record<ClaveTexto, string>> = {
   // glosario comun) y retiro el archivo: un solo sitio por clave. Los papeles
   // los sigue vigilando `papeles-portugues.test.ts`.
   ...PT_PROPUESTAS,
+  ...PT_CRM,
   ...PT_COMPARTIDOS,
   ...PT_CAMPANAS,
   ...PT_FINANZAS,

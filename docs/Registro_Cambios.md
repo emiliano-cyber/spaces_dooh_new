@@ -5,6 +5,25 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-17 · sin versión todavía · Propuestas: ver la lista por cliente
+
+Es el primer paso del CRM comercial (ADR 0051). Todavía no está en ninguna versión publicada.
+
+- Arriba de la lista de propuestas aparecen dos botones: **Por propuesta** (la lista de siempre) y **Por cliente**.
+- **Por cliente** junta las cotizaciones de cada cliente en una fila y muestra:
+  - cuántas cotizaciones lleva y cuántas hay en cada estatus;
+  - cuántas veces se renegoció (las versiones de más);
+  - cuántos días llevamos negociando, contados desde la primera cotización. Si todo está cerrado, la cuenta se detiene en la última aprobación o rechazo;
+  - cuánto dinero hay en juego (borradores y enviadas) y cuánto se ganó (lo aprobado), con IVA;
+  - la tasa de cierre del cliente y quién le ha cotizado.
+- Al tocar un cliente se despliegan sus propuestas, de la más nueva a la más vieja, con un enlace a cada una.
+- Arriba aparecen primero los clientes con algo abierto. Las propuestas sin cliente se juntan en un grupo «Sin cliente».
+- El filtro de cliente sigue funcionando en esta vista. El de estatus y el buscador se esconden, porque cambiarían las cuentas.
+- Está en español, inglés, italiano y portugués.
+- **No cambia ningún dato ni ninguna cifra.** Muestra de otra forma las propuestas que ya existen.
+
+---
+
 ## 2026-11-16 · v0.12.13 · «Comercial negociación» ahora se llama «Prospección» y está en Inventario
 
 - En el menú, **Comercial negociación** pasa a llamarse **Prospección** y se mueve del grupo Comercial al grupo **Inventario**, justo debajo de **Arrendadores**.

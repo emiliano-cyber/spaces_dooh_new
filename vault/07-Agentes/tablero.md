@@ -1,10 +1,16 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-11-10
+actualizado: 2026-11-17
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
+
+> [!success] 2026-11-17 · **CRM-01 · Fase 1 del ADR 0051: la lista de Propuestas, por cliente** — rama `feat/crm-comercial`, desde `main` `17f56561` · ÁMBAR (sin migración, sin sesión, sin tenant, sin dinero)
+> Botones «Por propuesta | Por cliente» y el cotejo por cliente (`lib/crm-cotejo.ts`, `CotejoPorCliente.tsx`, textos en `textos/crm.ts`).
+> Typecheck y 10 407 unitarias en verde; sin e2e ni navegador. **Zonas tomadas y liberadas:** Z5 (solo la lista de
+> `propuestas/page.tsx`), Z12 · Docs y `docs/Registro_Cambios.md`, y `lib/i18n/diccionario.ts` solo para registrar el área. Las Fases 2–3
+> son ROJO R3 + R4 (forma de la migración aprobada por el dueño el 17/11). Detalle en [[2026-11-17]].
 
 > [!important] 2026-11-16 · **v0.12.12 = `integra/v0-12-12`** — `feat/personalizar-dashboard` + `feat/paleta-de-instalacion`, desde `main` `4462557e`
 > Conflictos de la paleta con CAMPOS-PANTALLA en los guiones del alta: se conservan los dos. Typecheck, 10 389 unitarias,
