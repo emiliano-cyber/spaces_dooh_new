@@ -30,8 +30,16 @@ vi.mock('react', async (importOriginal) => {
   return { ...real, default: { ...real, useState }, useState }
 })
 
+// El «hoy» de la prueba. Las reservas se fechan desde AQUI y no desde
+// `new Date()`: `ESTADO` se arma al cargar el archivo, ANTES de que
+// `beforeEach` congele el reloj, asi que con la fecha real la reserva de
+// `dia(-1)` caminaba con el calendario. Paso el 17/11/2026: el CI corrio a las
+// 00:36 UTC, la reserva empezo el 16/11, fuera de la ventana que se mira desde
+// el 02/11, y `diasOcupados` dio 0. Fue una bomba de tiempo desde que se
+// escribio, no un fallo del calculo.
+const HOY = new Date(2026, 10, 2, 12)
 const dia = (offset: number) => {
-  const d = new Date()
+  const d = new Date(HOY)
   d.setDate(d.getDate() + offset)
   return d.toISOString()
 }
@@ -56,7 +64,7 @@ const numeros = (s: ReturnType<typeof ocupacionSerie>) => ({
 beforeEach(() => {
   vi.useFakeTimers()
   // 02/11/2026: los buckets de mes y trimestre caen en noviembre y en T4.
-  vi.setSystemTime(new Date(2026, 10, 2, 12))
+  vi.setSystemTime(HOY)
 })
 afterEach(() => {
   vi.useRealTimers()
