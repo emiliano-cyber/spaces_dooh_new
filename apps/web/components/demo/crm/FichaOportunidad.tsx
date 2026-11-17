@@ -34,11 +34,13 @@ import { COLOR_ETAPA, claveAccion, claveActividad, claveCampo, claveEtapa, clave
 //  La ficha de una oportunidad: lo que pide el cliente, lo que se le cotizó y
 //  todo lo que ha pasado.  ADR 0051 §6, Fase 4.
 // ----------------------------------------------------------------------------
-//  EL COTEJO SE CALCULA, NO SE GUARDA. El total de cada cotización sale de la
-//  propuesta tal como la arma el servidor (`armarPropuesta`, el `total` con
-//  IVA, la misma cifra que las tarjetas de Propuestas y el cotejo por cliente
-//  de la Fase 1): una sola fuente para el dinero. Las fechas cotizadas son las
-//  de sus sitios (la primera y la última).
+//  EL COTEJO SE CALCULA, NO SE GUARDA. Cada cotización sale de la propuesta tal
+//  como la arma el servidor (`armarPropuesta`): una sola fuente para el dinero.
+//  Se coteja DOS veces, contra el `total` con IVA (la cifra de las tarjetas de
+//  Propuestas) y contra la `base` sin IVA, y se dice con qué tasa: la del
+//  cliente (`clientes.iva_pct`), o 16. Decisión del dueño del 17/11 (pregunta 5
+//  del ADR 0051). Las fechas cotizadas son las de sus sitios (la primera y la
+//  última).
 //
 //  LA LÍNEA DE TIEMPO UNE TRES COSAS al leer (§2): las actividades de la
 //  oportunidad, los cambios de sus propuestas (los escribe el trigger de la
@@ -104,6 +106,13 @@ export function FichaOportunidad({
   useEffect(cargar, [cargar])
 
   const pct = (n: number) => porcentajeEnIdioma(String(n), idioma)
+  const posicionTexto = (cp: ReturnType<typeof cotejoPresupuesto>) =>
+    cp.posicion === 'ENCIMA' || cp.posicion === 'DEBAJO'
+      ? t(cp.posicion === 'ENCIMA' ? 'crm.ficha.posicion.encima' : 'crm.ficha.posicion.debajo', {
+          monto: dinero(Math.abs(cp.diferencia ?? 0)),
+          pct: cp.pct == null ? '—' : pct(Math.abs(cp.pct)),
+        })
+      : t(cp.posicion === 'DENTRO' ? 'crm.ficha.posicion.dentro' : 'crm.ficha.posicion.sin-presupuesto')
   const porId = useMemo(() => new Map((propuestas ?? []).map((p) => [p.id, p])), [propuestas])
 
   const eventos = useMemo<Evento[]>(() => {
@@ -275,6 +284,11 @@ export function FichaOportunidad({
                 {ligadas.map(({ l, p }) => {
                   const total = p?.total ?? null
                   const cp = total == null ? null : cotejoPresupuesto(ficha.presupuestoMin, ficha.presupuestoMax, total)
+                  // Con y sin IVA (decisión del dueño, 17/11): el cliente puede
+                  // hablar de su presupuesto de las dos formas. La tasa es la
+                  // del cliente, la misma con que el servidor calculó `iva`.
+                  const sinIva = p ? cotejoPresupuesto(ficha.presupuestoMin, ficha.presupuestoMax, p.base) : null
+                  const tasa = p ? (p.ivaPct ?? (p.base > 0 ? Math.round((p.iva / p.base) * 1000) / 10 : 16)) : null
                   const r = p ? rango(p) : null
                   const cf = r ? cotejoFechas(ficha.fechaInicioDeseada, ficha.fechaFinDeseada, r.ini, r.fin) : null
                   const est = l.estatus as keyof typeof EST
@@ -288,14 +302,21 @@ export function FichaOportunidad({
                           <span className="text-muted">{t('crm.cotejo.version', { n: l.version })}</span>
                         </div>
                       </td>
-                      <td className="demo-num py-2 pr-3 text-right">{total == null ? '—' : `${dinero(total)} ${t('crm.cotejo.con-iva')}`}</td>
+                      <td className="demo-num py-2 pr-3 text-right">
+                        {total == null || p == null ? '—' : (
+                          <>
+                            <div>{dinero(total)} {t('crm.cotejo.con-iva-tasa', { pct: pct(tasa ?? 16) })}</div>
+                            <div className="text-muted">{dinero(p.base)} {t('crm.cotejo.sin-iva')}</div>
+                          </>
+                        )}
+                      </td>
                       <td className="py-2 pr-3">
-                        {cp == null ? '—' : cp.posicion === 'ENCIMA' || cp.posicion === 'DEBAJO'
-                          ? t(cp.posicion === 'ENCIMA' ? 'crm.ficha.posicion.encima' : 'crm.ficha.posicion.debajo', {
-                              monto: dinero(Math.abs(cp.diferencia ?? 0)),
-                              pct: cp.pct == null ? '—' : pct(Math.abs(cp.pct)),
-                            })
-                          : t(cp.posicion === 'DENTRO' ? 'crm.ficha.posicion.dentro' : 'crm.ficha.posicion.sin-presupuesto')}
+                        {cp == null || sinIva == null ? '—' : (
+                          <>
+                            <div>{t('crm.cotejo.con-iva')}: {posicionTexto(cp)}</div>
+                            <div className="text-muted">{t('crm.cotejo.sin-iva')}: {posicionTexto(sinIva)}</div>
+                          </>
+                        )}
                       </td>
                       <td className="py-2 pr-3">
                         {cf == null ? '—' : cf.estado === 'DISTINTO'

@@ -652,7 +652,8 @@ export interface Propuesta {
   base: number          // baseComercial − código (base de cálculo)
   divisor: number       // 1 − comisión/100
   neto: number          // base × divisor (lo que recibe el medio)
-  iva: number           // base × 16%
+  iva: number           // base × ivaPct
+  ivaPct?: number       // la tasa del cliente (clientes.iva_pct), o 16
   total: number         // base + iva (lo que paga el cliente)
   // Aprobación granular (sitio por sitio): presupuesto sobre lo aprobado.
   itemsAprobados: number
@@ -956,6 +957,8 @@ export interface ConfigNegocio {
   // dejaría al navegador calculando el costo con una tabla distinta a la del
   // servidor, que es la divergencia que se está cerrando.
   costosOt?: Partial<Record<TipoOT, number>>
+  // ADR 0051 · probabilidad por etapa ABIERTA del CRM que fijó la instancia; {} = la de fábrica.
+  crmProbabilidades?: Partial<Record<'CONTACTO' | 'NECESIDAD' | 'COTIZANDO' | 'NEGOCIANDO', number>>
 }
 
 export interface Notificacion {

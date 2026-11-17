@@ -154,7 +154,12 @@ const FICHA: Ficha = {
 const PROP_LIGADA = prop({
   id: 'p1',
   oportunidadId: 'o1',
-  total: 232000,
+  // Un cliente de la frontera, con IVA del 8 %: el cotejo usa la tasa de cada
+  // empresa, no un 16 fijo. 210 000 sin IVA + 16 800 = 226 800 con IVA.
+  base: 210000,
+  iva: 16800,
+  ivaPct: 8,
+  total: 226800,
   items: [{ fechaInicio: '2026-12-01', fechaFin: '2026-12-31' }] as any,
 })
 
@@ -179,8 +184,12 @@ describe('Fase 4 · la pantalla del CRM', () => {
       'Pidió precios', 'Siguiente: Mandar propuesta']) {
       expect(html, f).toContain(f)
     }
-    // 232 000 c/IVA contra un máximo de 200 000: 32 000 arriba, el 16 %.
-    expect(html).toContain('Arriba por $32,000.00 (16 %)')
+    // Con y sin IVA, con la tasa del cliente: 226 800 c/IVA contra un máximo
+    // de 200 000 son 26 800 arriba (13.4 %); sin IVA, 210 000, 10 000 arriba (5 %).
+    expect(html).toContain('$226,800.00 c/IVA 8 %')
+    expect(html).toContain('$210,000.00 s/IVA')
+    expect(html).toContain('c/IVA: Arriba por $26,800.00 (13.4 %)')
+    expect(html).toContain('s/IVA: Arriba por $10,000.00 (5 %)')
     expect(html).toContain('Las que pidió')
     // Días por etapa: Contacto del 1 al 4, Negociando del 4 al 10.
     expect(html).toMatch(/Contacto · <span class="demo-num">3<\/span>/)
@@ -190,7 +199,7 @@ describe('Fase 4 · la pantalla del CRM', () => {
   const ESPANOL_F4 = [
     ES_CRM['crm.pestana.embudo'], ES_CRM['crm.etapa.cotizando'], ES_CRM['crm.nueva'], ES_CRM['crm.solo-tuyas'],
     ES_CRM['crm.sin-presupuesto'], ES_CRM['crm.ficha.quiere'], ES_CRM['crm.ficha.dias-etapa'], ES_CRM['crm.ficha.cotejo'],
-    'Pasó a', 'Cambió el descuento', ES_CRM['crm.accion.crear'], ES_CRM['crm.ficha.fechas.igual'], 'Arriba por',
+    'Pasó a', 'Cambió el descuento', ES_CRM['crm.accion.crear'], ES_CRM['crm.ficha.fechas.igual'], 'Arriba por', ES_CRM['crm.cotejo.sin-iva'] + ':',
     ES_CRM['crm.ficha.linea'], ES_CRM['crm.ficha.actividad'],
   ]
 

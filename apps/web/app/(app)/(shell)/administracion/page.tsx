@@ -36,6 +36,7 @@ import { ControlCambiosPanel } from '@/components/demo/admin/ControlCambiosPanel
 import { ActualizacionesPanel } from '@/components/demo/admin/ActualizacionesPanel'
 import { IdiomasServidorPanel } from '@/components/demo/admin/IdiomasServidorPanel'
 import { TicketsPanel } from '@/components/demo/admin/TicketsPanel'
+import { ProbabilidadesCrmCard } from '@/components/demo/crm/ProbabilidadesCrm'
 import { Chip, TONO, FRANJA_AVISO } from '@/components/demo/admin/Chip'
 import {
   listarUsuariosApi,
@@ -1433,6 +1434,8 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
         </CardColapsable>
 
         <PropuestasDocumento config={config} guardar={guardar} />
+
+        <ProbabilidadesCrmCard config={config} guardar={guardar} />
       </section>
 
       <section id="admin-cfg-operacion" aria-label={t('admin.cfg.familia.operacion')} className="scroll-mt-4 space-y-4">

@@ -12,6 +12,8 @@ import {
   cotejoFechas,
   agruparEmbudo,
   montoReferencia,
+  tablaProbabilidades,
+  sanearProbabilidades,
 } from './crm'
 
 // ADR 0051 §1 y §2: las reglas de la oportunidad que NO dependen de la base.
@@ -43,6 +45,35 @@ describe('la probabilidad', () => {
   it('cerrada no hay duda: ganada es 100 y perdida 0, diga lo que diga la columna', () => {
     expect(probabilidadEfectiva('GANADA', 40)).toBe(100)
     expect(probabilidadEfectiva('PERDIDA', 90)).toBe(0)
+  })
+})
+
+describe('la probabilidad la fija cada instancia (decisión del dueño, 17/11)', () => {
+  it('lo que guardó la instancia manda en las etapas abiertas; lo que no, es el de fábrica', () => {
+    const tabla = tablaProbabilidades({ CONTACTO: 5, COTIZANDO: 40 })
+    expect(tabla).toEqual({ CONTACTO: 5, NECESIDAD: 25, COTIZANDO: 40, NEGOCIANDO: 75, GANADA: 100, PERDIDA: 0 })
+    expect(probabilidadEfectiva('CONTACTO', null, tabla)).toBe(5)
+    // La que puso el vendedor a mano sigue mandando sobre la de la instancia.
+    expect(probabilidadEfectiva('CONTACTO', 30, tabla)).toBe(30)
+  })
+
+  it('GANADA y PERDIDA no se configuran: 100 y 0 siempre', () => {
+    const tabla = tablaProbabilidades({ GANADA: 80, PERDIDA: 20 } as any)
+    expect(probabilidadEfectiva('GANADA', null, tabla)).toBe(100)
+    expect(probabilidadEfectiva('PERDIDA', null, tabla)).toBe(0)
+  })
+
+  it('el saneo tira lo que no sirve en vez de dejarlo pasar o convertirlo en 0', () => {
+    // La columna es jsonb: la puede tocar una corrección a mano, y una base sin
+    // la migración devuelve undefined. En todos los casos, la de fábrica.
+    for (const basura of [undefined, null, '[]', [], 7, 'hola']) {
+      expect(sanearProbabilidades(basura)).toEqual({})
+    }
+    expect(
+      sanearProbabilidades({ CONTACTO: '15', NECESIDAD: -1, COTIZANDO: 101, NEGOCIANDO: 33.5, GANADA: 90, OTRA: 50, PERDIDA: null }),
+    ).toEqual({ CONTACTO: 15 })
+    // El 0 es un valor de verdad («aquí no cuento nada todavía»), no «sin configurar».
+    expect(sanearProbabilidades({ CONTACTO: 0 })).toEqual({ CONTACTO: 0 })
   })
 })
 

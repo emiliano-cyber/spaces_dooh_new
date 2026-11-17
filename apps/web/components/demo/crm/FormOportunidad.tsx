@@ -81,12 +81,15 @@ export function FormOportunidad({
   onCerrar,
   ficha,
   onGuardada,
+  probabilidades,
 }: {
   abierto: boolean
   onCerrar: () => void
   /** Si viene, se edita; si no, es un alta. */
   ficha?: FichaOportunidad | null
   onGuardada: (f: FichaOportunidad) => void
+  /** La tabla de la instancia; sin ella, la de fábrica. */
+  probabilidades?: Record<EtapaOportunidad, number>
 }) {
   const { t, idioma } = useIdioma()
   const clientes = useClientes()
@@ -110,7 +113,7 @@ export function FormOportunidad({
 
   const cambia = <K extends keyof Valores>(k: K, valor: Valores[K]) => setV((x) => ({ ...x, [k]: valor }))
   const etapa: EtapaOportunidad = ficha?.etapa ?? 'CONTACTO'
-  const pctEtapa = porcentajeEnIdioma(String(PROBABILIDAD_POR_ETAPA[etapa]), idioma)
+  const pctEtapa = porcentajeEnIdioma(String((probabilidades ?? ficha?.probabilidades ?? PROBABILIDAD_POR_ETAPA)[etapa]), idioma)
 
   async function guardar() {
     const datos: DatosOportunidadForm = {

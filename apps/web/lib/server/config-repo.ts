@@ -5,6 +5,7 @@ import { tenantActual } from './tenant'
 import { sanearCostosOt } from '../costos-ot'
 import { topeDescuentoValido, TOPE_DESCUENTO_RESPALDO } from '../descuento'
 import { vigenciaDiasValida } from '../propuesta-vigencia'
+import { sanearProbabilidades, tablaProbabilidades } from '../crm'
 
 // ============================================================================
 //  lib/server/config-repo.ts — Configuración del negocio. UNA FILA POR TENANT
@@ -67,6 +68,9 @@ export function rowToConfig(r: any) {
     // que existiera el saneo (o lo que meta una corrección a mano en la base).
     // Objeto vacío = sin configurar → manda `COSTOS_OT_RESPALDO`.
     costosOt: sanearCostosOt(r.costos_ot),
+    // ADR 0051, pregunta 3 (17/11): la probabilidad por etapa del CRM la fija
+    // cada instancia. Solo lo que cambió, saneado; {} = la de fábrica.
+    crmProbabilidades: sanearProbabilidades(r.crm_probabilidades),
   }
 }
 
@@ -159,6 +163,15 @@ export function plazoPorDefecto(plazos: number[]): number {
 // Mapa VACÍO = esta organización no ha configurado nada, y entonces manda
 // `COSTOS_OT_RESPALDO` (`lib/costos-ot.ts`). Nunca se devuelve 0 por omisión:
 // un costo de 0 se suma sin que nada falle y deja el margen inflado en pantalla.
+/**
+ * La tabla de probabilidad por etapa de ESTA organización: la suya encima de la
+ * de fábrica (ADR 0051, pregunta 3). Por `obtenerConfigRow()`, con tenant, por
+ * la misma razón que `costosOtDelTenant`.
+ */
+export async function probabilidadesDelTenant() {
+  return tablaProbabilidades((await obtenerConfigRow()).crm_probabilidades)
+}
+
 export async function costosOtDelTenant() {
   return sanearCostosOt((await obtenerConfigRow()).costos_ot)
 }

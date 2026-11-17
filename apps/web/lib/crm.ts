@@ -38,12 +38,15 @@ export const TIPOS_MEDIO = [
 ] as const
 
 /**
- * La probabilidad de cierre cuando el vendedor no puso otra.
+ * La probabilidad de cierre DE FÁBRICA, cuando ni el vendedor ni la instancia
+ * pusieron otra.
  *
- * ⚠️ PROVISIONAL: es la propuesta del ADR 0051 (pregunta 3), y el dueño todavía
- * no dijo si le sirve o si la fija cada instancia. Por eso la base guarda
- * `probabilidad_pct` NULL cuando el vendedor no la toca, y esta tabla se aplica
- * al LEER: si cambia, cambian todas las oportunidades sin reescribir una fila.
+ * El dueño decidió el 17/11 (pregunta 3 del ADR 0051) que **la fija cada
+ * instancia**: Administración guarda en `config_negocio.crm_probabilidades`
+ * solo las etapas que cambió, y `tablaProbabilidades` las mezcla con estas. La
+ * base guarda `probabilidad_pct` NULL cuando el vendedor no la toca, y la tabla
+ * se aplica al LEER: cambiarla recalcula todas las oportunidades sin reescribir
+ * una fila.
  */
 export const PROBABILIDAD_POR_ETAPA: Record<EtapaOportunidad, number> = {
   CONTACTO: 10,
@@ -58,10 +61,41 @@ export function etapaOportunidadCerrada(e: EtapaOportunidad): boolean {
   return e === 'GANADA' || e === 'PERDIDA'
 }
 
+export type EtapaAbierta = (typeof ETAPAS_ABIERTAS)[number]
+export type ProbabilidadesInstancia = Partial<Record<EtapaAbierta, number>>
+
+/**
+ * Lo que guardó la instancia, saneado. Solo etapas ABIERTAS y enteros de 0 a
+ * 100; lo demás se tira. Se sanea al leer y al escribir, como `costos_ot`: la
+ * columna es jsonb, la puede tocar una corrección a mano, y una base sin la
+ * migración devuelve `undefined`. En todos esos casos, `{}` = la de fábrica.
+ * El 0 se conserva: es un valor de verdad, no «sin configurar».
+ */
+export function sanearProbabilidades(v: unknown): ProbabilidadesInstancia {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return {}
+  const fuera: ProbabilidadesInstancia = {}
+  for (const e of ETAPAS_ABIERTAS) {
+    const crudo = (v as Record<string, unknown>)[e]
+    if (crudo == null || crudo === '') continue
+    const n = Number(crudo)
+    if (Number.isInteger(n) && n >= 0 && n <= 100) fuera[e] = n
+  }
+  return fuera
+}
+
+/** La tabla completa de una instancia: lo suyo encima de la de fábrica. GANADA y PERDIDA no se tocan. */
+export function tablaProbabilidades(deLaInstancia: unknown): Record<EtapaOportunidad, number> {
+  return { ...PROBABILIDAD_POR_ETAPA, ...sanearProbabilidades(deLaInstancia) }
+}
+
 /** Cerrada no hay duda que valga: ganada es 100 y perdida 0. */
-export function probabilidadEfectiva(etapa: EtapaOportunidad, pct: number | null): number {
+export function probabilidadEfectiva(
+  etapa: EtapaOportunidad,
+  pct: number | null,
+  tabla: Record<EtapaOportunidad, number> = PROBABILIDAD_POR_ETAPA,
+): number {
   if (etapaOportunidadCerrada(etapa)) return PROBABILIDAD_POR_ETAPA[etapa]
-  return pct ?? PROBABILIDAD_POR_ETAPA[etapa]
+  return pct ?? tabla[etapa]
 }
 
 export type ProblemaEtapa = 'MISMA' | 'CERRADA' | 'SIN_MOTIVO'

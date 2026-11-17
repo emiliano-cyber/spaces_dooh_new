@@ -534,3 +534,88 @@ describe('6 · Fase 4 · lo que la ficha trae para su línea de tiempo', () => {
     }
   })
 })
+
+// ───────────────────────────────────────────────────────────────────────────
+describe('7 · la probabilidad por etapa la fija cada instancia (pregunta 3, 17/11)', () => {
+  let dueno: Cliente
+  const fijar = (c: Cliente, crmProbabilidades: Record<string, unknown>) =>
+    c.pedir('/api/config/', { metodo: 'PATCH', cuerpo: { crmProbabilidades } })
+
+  beforeAll(async () => {
+    dueno = await entrar(org.usuarioEmail)
+  })
+
+  it('sin configurar, la de fábrica; configurada, la suya, y se aplica al leer', async () => {
+    const o = await nueva('Prob. por instancia')
+    expect((await vendedor.pedir(ruta(o.id))).datos.probabilidad).toBe(10)
+
+    const r = await fijar(dueno, { CONTACTO: 5 })
+    expect(r.status, JSON.stringify(r.datos)).toBe(200)
+    expect((await dueno.pedir('/api/config/')).datos.crmProbabilidades).toEqual({ CONTACTO: 5 })
+
+    // La misma oportunidad, sin reescribirla: cambia al leer.
+    const d = (await vendedor.pedir(ruta(o.id))).datos
+    expect(d.probabilidad).toBe(5)
+    expect(d.probabilidades).toMatchObject({ CONTACTO: 5, NECESIDAD: 25, GANADA: 100, PERDIDA: 0 })
+    const lista = (await vendedor.pedir('/api/oportunidades/')).datos
+    expect(lista.probabilidades.CONTACTO).toBe(5)
+    expect(lista.oportunidades.find((x: any) => x.id === o.id).probabilidad).toBe(5)
+
+    // La que el vendedor pone a mano manda sobre la de la instancia.
+    await vendedor.pedir(ruta(o.id), { metodo: 'PATCH', cuerpo: { probabilidadPct: 33 } })
+    expect((await vendedor.pedir(ruta(o.id))).datos.probabilidad).toBe(33)
+  })
+
+  it('se FUSIONA con lo guardado, y null quita una etapa', async () => {
+    await fijar(dueno, { NEGOCIANDO: 60 })
+    expect((await dueno.pedir('/api/config/')).datos.crmProbabilidades).toEqual({ CONTACTO: 5, NEGOCIANDO: 60 })
+    await fijar(dueno, { CONTACTO: null })
+    expect((await dueno.pedir('/api/config/')).datos.crmProbabilidades).toEqual({ NEGOCIANDO: 60 })
+    // Y el 0 es un valor, no «sin configurar».
+    await fijar(dueno, { NECESIDAD: 0 })
+    expect((await dueno.pedir('/api/config/')).datos.crmProbabilidades).toEqual({ NECESIDAD: 0, NEGOCIANDO: 60 })
+  })
+
+  it('GANADA o PERDIDA, fuera de 0–100, con decimales o una etapa que no existe: 400 y no se guarda nada', async () => {
+    for (const malo of [{ GANADA: 90 }, { PERDIDA: 10 }, { COTIZANDO: 101 }, { COTIZANDO: -1 }, { COTIZANDO: 2.5 }, { OTRA: 50 }]) {
+      expect((await fijar(dueno, malo)).status, JSON.stringify(malo)).toBe(400)
+    }
+    expect((await dueno.pedir('/api/config/')).datos.crmProbabilidades).toEqual({ NECESIDAD: 0, NEGOCIANDO: 60 })
+  })
+
+  it('un vendedor no la puede cambiar', async () => {
+    expect((await fijar(vendedor, { CONTACTO: 99 })).status).toBe(403)
+  })
+
+  it('una corrección a mano con basura en la columna no rompe: cae a la de fábrica', async () => {
+    await poolTest().query(`update config_negocio set crm_probabilidades = '{"CONTACTO":"mucho","COTIZANDO":250}' where tenant_id = $1`, [org.id])
+    const lista = (await vendedor.pedir('/api/oportunidades/')).datos
+    expect(lista.probabilidades).toMatchObject({ CONTACTO: 10, COTIZANDO: 50 })
+    // El CHECK de forma impide un arreglo o un escalar.
+    await expect(
+      poolTest().query(`update config_negocio set crm_probabilidades = '[]' where tenant_id = $1`, [org.id]),
+    ).rejects.toThrow(/crm_probabilidades_objeto_ck/)
+  })
+
+  it('la de una organización no toca la de otra', async () => {
+    await fijar(dueno, { CONTACTO: 1 })
+    const r = await duenoOtra.pedir('/api/oportunidades/', { cuerpo: { nombre: 'De la otra', clienteId: clienteOtra } })
+    expect(r.status, JSON.stringify(r.datos)).toBe(201)
+    expect(r.datos.probabilidad).toBe(10)
+    expect((await duenoOtra.pedir('/api/config/')).datos.crmProbabilidades).toEqual({})
+  })
+})
+
+describe('8 · el cotejo con y sin IVA lleva la tasa de cada cliente', () => {
+  it('la propuesta expone ivaPct: la del cliente, o 16', async () => {
+    const cli = await sembrarCliente('Cliente de frontera', org.id)
+    await poolTest().query('update clientes set iva_pct = 8 where id = $1', [cli])
+    await poolTest().query(
+      `insert into propuestas (folio, nombre, tenant_id, cliente_id, usuario_id) values ('CRM-IVA-8','Frontera',$1,$2,$3),('CRM-IVA-16','Normal',$1,$4,$3)`,
+      [org.id, cli, idVendedor, clienteOrg],
+    )
+    const props = (await vendedor.pedir('/api/estado/')).datos.propuestas as any[]
+    expect(props.find((p) => p.folio === 'CRM-IVA-8').ivaPct).toBe(8)
+    expect(props.find((p) => p.folio === 'CRM-IVA-16').ivaPct).toBe(16)
+  })
+})

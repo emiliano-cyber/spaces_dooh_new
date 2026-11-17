@@ -3,6 +3,7 @@ import type { PoolClient } from 'pg'
 import { q, q1, withTenantTx } from './db'
 import { tenantActual } from './tenant'
 import { AppError } from './errores'
+import { probabilidadesDelTenant } from './config-repo'
 import {
   etapaOportunidadCerrada,
   probabilidadEfectiva,
@@ -118,7 +119,10 @@ const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : v == null ? n
 // `numeric` llega como cadena: a número, y null se queda null (no 0).
 const num = (v: unknown) => (v == null ? null : Number(v))
 
-function aOportunidad(r: any): Oportunidad {
+// `tabla`: la probabilidad por etapa de la instancia (ADR 0051, pregunta 3).
+// Se aplica al LEER, así que cambiarla en Administración recalcula todas las
+// oportunidades que no tienen una puesta a mano.
+function aOportunidad(r: any, tabla: Record<EtapaOportunidad, number>): Oportunidad {
   const etapa = r.etapa as EtapaOportunidad
   const pct = num(r.probabilidad_pct)
   return {
@@ -132,7 +136,7 @@ function aOportunidad(r: any): Oportunidad {
     vendedorNombre: r.vendedor_nombre ?? null,
     etapa,
     probabilidadPct: pct,
-    probabilidad: probabilidadEfectiva(etapa, pct),
+    probabilidad: probabilidadEfectiva(etapa, pct, tabla),
     presupuestoMin: num(r.presupuesto_min),
     presupuestoMax: num(r.presupuesto_max),
     fechaInicioDeseada: r.fecha_inicio_deseada ?? null,
@@ -164,6 +168,7 @@ export async function listarOportunidades(f: FiltroOportunidades): Promise<{
   oportunidades: Oportunidad[]
   total: number
   porEtapa: Partial<Record<EtapaOportunidad, number>>
+  probabilidades: Record<EtapaOportunidad, number>
 }> {
   const tenant = await tenantActual()
   const params: unknown[] = [tenant]
@@ -204,10 +209,14 @@ export async function listarOportunidades(f: FiltroOportunidades): Promise<{
       limit $${params.length - 1} offset $${params.length}`,
     params,
   )
+  // La tabla viaja con la página: el formulario la enseña como «si no pones
+  // otra» sin pedir la configuración, que es de Administración.
+  const tabla = await probabilidadesDelTenant()
   return {
-    oportunidades: filas.map(aOportunidad),
+    oportunidades: filas.map((r) => aOportunidad(r, tabla)),
     total: total?.n ?? 0,
     porEtapa: Object.fromEntries(conteos.map((c) => [c.etapa, c.n])),
+    probabilidades: tabla,
   }
 }
 
@@ -313,7 +322,14 @@ export async function leerCambiosDePropuestas(
 export async function obtenerOportunidad(
   id: string,
   soloDe?: string | null,
-): Promise<(Oportunidad & { actividades: Actividad[]; propuestas: PropuestaLigada[] }) | null> {
+): Promise<
+  | (Oportunidad & {
+      actividades: Actividad[]
+      propuestas: PropuestaLigada[]
+      probabilidades: Record<EtapaOportunidad, number>
+    })
+  | null
+> {
   const tenant = await tenantActual()
   const r = await q1<any>(
     `select ${SEL} ${DESDE}
@@ -321,8 +337,10 @@ export async function obtenerOportunidad(
     [id, tenant, soloDe ?? null],
   )
   if (!r) return null
+  const tabla = await probabilidadesDelTenant()
   return {
-    ...aOportunidad(r),
+    ...aOportunidad(r, tabla),
+    probabilidades: tabla,
     actividades: await leerActividades(id, tenant),
     propuestas: await leerPropuestasLigadas(id, tenant, soloDe ?? null),
   }

@@ -5,6 +5,9 @@ actualizado: 2026-11-17
 tags: [backend, crm, comercial, oportunidades, adr-0051, rojo]
 archivos:
   - db/migrations/20261117_propuesta_cambios_por_trigger.sql
+  - db/migrations/20261117_crm_probabilidad_por_etapa.sql
+  - apps/web/components/demo/crm/ProbabilidadesCrm.tsx
+  - apps/web/app/api/config/route.ts
   - apps/web/lib/server/propuestas-visibilidad.ts
   - apps/web/lib/test/propuesta-cambios.e2e.test.ts
   - apps/web/lib/test/propuestas-por-vendedor.e2e.test.ts
@@ -191,12 +194,26 @@ en `lib/crm.test.ts`):
   El monto de referencia es el máximo del presupuesto, o el mínimo
   (`montoReferencia`, `:188`).
 
-> [!warning] El cotizado es el total CON IVA — pregunta abierta al dueño
-> Cada cotización entra al cotejo con el `total` de `armarPropuesta`
-> (`propuestas-repo.ts:86-87`, bruto + IVA), la cifra de las tarjetas de
-> Propuestas, y la ficha lo rotula «con IVA» (`FichaOportunidad.tsx:274-289`).
-> Si el cliente habla de presupuesto **sin IVA**, una cotización que cabe sale
-> «encima». Cambiarlo es usar el neto; es la pregunta 5 del ADR.
+> [!important] El cotejo va CON IVA y SIN IVA, con la tasa de cada cliente
+> Decisión del dueño del 17/11 (pregunta 5 del ADR). Cada cotización se
+> coteja dos veces: contra el `total` de `armarPropuesta` (con IVA) y contra su
+> `base` (sin IVA), y la ficha dice la tasa: `ivaPct`, la del cliente
+> (`clientes.iva_pct`, p. ej. 8 % en la frontera) o 16. «Sin IVA» es la `base`,
+> **no** el `neto` (eso es lo que recibe el medio tras la comisión).
+
+## La probabilidad por etapa la fija cada instancia
+
+Decisión del dueño del 17/11 (pregunta 3), forma aprobada el mismo día.
+`config_negocio.crm_probabilidades` (`20261117_crm_probabilidad_por_etapa.sql`)
+guarda solo las etapas abiertas que la instancia cambió; `{}` = la de fábrica
+(10 · 25 · 50 · 75). GANADA es 100 y PERDIDA 0 siempre. Se edita en
+**Administración → Comercial** (`ProbabilidadesCrmCard`) con `PATCH /api/config`,
+que **fusiona** con lo guardado (`null` quita una etapa). Se aplica al leer
+(`probabilidadesDelTenant` en `oportunidades-repo.ts`), así que cambiarla
+recalcula el embudo de todas las oportunidades sin probabilidad puesta a mano;
+la lista y la ficha traen la tabla en `probabilidades`. Saneo al leer y al
+escribir en `lib/crm.ts` (`sanearProbabilidades`, `tablaProbabilidades`).
+Probado en la sección 7 de `oportunidades.e2e.test.ts`, vista en rojo.
 
 > [!important] Lo ligado pasa por la regla de la Fase 3 (arreglado el 17/11)
 > Ligar no exige que propuesta y oportunidad sean del mismo vendedor

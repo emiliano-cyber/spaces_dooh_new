@@ -294,6 +294,39 @@ La pantalla, tal como §6 y §7, con lo que salió al hacerla:
 > cortar a 10 caracteres, porque al este de UTC la medianoche local cae el día anterior en UTC. Las
 > unitarias solo probaban `AAAA-MM-DD`; la nueva, con las dos zonas, se vio en rojo con `NaN`.
 
+## Después de la Fase 4: las preguntas 3 y 5 (17/11)
+
+**El cotejo, con IVA y sin IVA, con la tasa de cada cliente** (pregunta 5). La ficha coteja cada
+cotización dos veces: contra el `total` (con IVA) y contra la `base` (sin IVA), y dice la tasa. La
+tasa es la del cliente (`clientes.iva_pct`; 8 % en la frontera), o 16 si no tiene: la misma con que
+`armarPropuesta` ya calculaba el IVA. Ahora la expone como `ivaPct` (`propuestas-repo.ts`), y la
+ficha la enseña (`FichaOportunidad.tsx`). Sin migración. «Sin IVA» es la `base` y **no** el `neto`:
+el neto es lo que recibe el medio tras la comisión de agencia, y el cliente no habla de eso. El
+cotejo por cliente de la Fase 1 sigue con IVA (son las cifras de las tarjetas).
+
+**La probabilidad por etapa, por instancia** (pregunta 3). Forma aprobada por el dueño el 17/11 (ROJO
+R3, migración):
+
+- `20261117_crm_probabilidad_por_etapa.sql`: `config_negocio.crm_probabilidades jsonb not null
+  default '{}'` con CHECK de objeto, calcada de `costos_ot`. `{}` = la de fábrica; el respaldo vive
+  solo en el código (`PROBABILIDAD_POR_ETAPA`).
+- Solo las cuatro etapas abiertas; GANADA 100 y PERDIDA 0 fijas. `sanearProbabilidades` y
+  `tablaProbabilidades` (`lib/crm.ts`) sanean al leer y al escribir: enteros de 0 a 100, el 0 vale.
+- Se edita en **Administración → Comercial** (`ProbabilidadesCrmCard`), con `PATCH /api/config`
+  (`administracion.crear`, quien ya editaba la configuración). El PATCH **fusiona** con lo guardado
+  y `null` quita una etapa: tocar Contacto no borra Negociando.
+- **Se aplica al leer** (`oportunidades-repo.ts`, `probabilidadesDelTenant`): cambiarla recalcula el
+  embudo de todas las oportunidades sin probabilidad puesta a mano. La lista y la ficha traen la
+  tabla (`probabilidades`) para que el formulario enseñe la sugerida de la instancia.
+- Los mensajes de validación de este campo, como los del tope y la vigencia de la misma ruta, no se
+  traducen: solo se alcanzan por API, porque la pantalla no deja mandar un valor fuera de rango.
+
+Probado: 3 unitarias nuevas en `lib/crm.test.ts`; en `oportunidades.e2e.test.ts` las secciones 7
+(la tabla por instancia, la fusión, los 400, el 403 del vendedor, la columna con basura, el CHECK y
+otra organización intacta) y 8 (`ivaPct` 8 y 16), **vistas en rojo** contra el build anterior (6
+fallos) y en verde (38); `pantallas-crm.test.ts` con un cliente de frontera, vista en rojo sin el
+cambio de la ficha.
+
 ## Alternativas consideradas
 
 **A · Solo una vista, sin tablas.** Es la Fase 1. No basta sola: no guarda el presupuesto, ni
@@ -335,14 +368,14 @@ cambió habría que comparar dos fotos.
 2. ~~**Hoy un vendedor ve TODAS las propuestas.** ¿Pasa a «solo las suyas»?~~ **Contestada el
    17/11: «sus propuestas el vendedor, el resto todas».** Hecho en la Fase 3, en toda la aplicación
    y no solo en la pestaña del CRM.
-3. **Probabilidad por etapa por omisión**: propuesta 10 · 25 · 50 · 75 · 100 · 0. ¿Te sirve así o
-   la fija cada instancia?
+3. ~~**Probabilidad por etapa por omisión**: propuesta 10 · 25 · 50 · 75 · 100 · 0. ¿Te sirve así o
+   la fija cada instancia?~~ **Contestada el 17/11: la fija cada instancia**, con la forma aprobada
+   el mismo día. Ver «Después de la Fase 4».
 4. ~~**¿Se ve el historial de cambios en la liga pública del cliente?**~~ **Contestada el 17/11:
    no, es interno.** La e2e `propuestas-por-vendedor` comprueba que la liga no lo trae.
-5. **El cotejo compara el presupuesto contra el total CON IVA** de cada cotización (Fase 4): es la
-   cifra de las tarjetas de Propuestas. Si el cliente dice su presupuesto **sin IVA**, el cotejo
-   pinta «encima» a una cotización que en realidad cabe (un 16 % de más). Cambiarlo es usar el
-   `neto` de la propuesta en `FichaOportunidad.tsx:274`, sin migración. ¿Cómo habla el cliente?
+5. ~~**El cotejo compara el presupuesto contra el total CON IVA** de cada cotización. ¿Cómo habla el
+   cliente?~~ **Contestada el 17/11: «con ambos y poniendo el IVA de cada empresa».** Ver «Después
+   de la Fase 4».
 
 ## Cómo revertir
 

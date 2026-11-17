@@ -335,6 +335,9 @@ function armarPropuesta(p: any, items: any[]) {
     base,
     divisor,
     neto,
+    // La tasa con que se calculó `iva`: la del cliente, o 16. El CRM coteja el
+    // presupuesto con y sin IVA y dice con qué tasa (decisión del dueño, 17/11).
+    ivaPct: ivaP,
     iva,
     total: base + iva,
     itemsAprobados: aprob.length,

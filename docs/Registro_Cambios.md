@@ -5,6 +5,19 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-17 · sin versión todavía · CRM: el presupuesto con y sin IVA, y la probabilidad la fija cada empresa
+
+Son dos decisiones del dueño sobre la pantalla del CRM. Todavía no está en ninguna versión publicada.
+
+- **Al abrir una oportunidad, cada cotización se compara con el presupuesto del cliente dos veces: con IVA y sin IVA.** Así sirve hable el cliente de su presupuesto como hable.
+- **El IVA es el de cada cliente**, el mismo con que se calcula la propuesta: si el cliente tiene 8 % (frontera), la comparación usa 8 %; si no tiene uno propio, 16 %. La pantalla dice qué tasa usó.
+- **La probabilidad de cierre de cada etapa ya no es fija: la decide cada empresa** en **Administración → Comercial → Probabilidad de cierre por etapa (CRM)**. Hay una casilla para Contacto, Necesidad, Cotizando y Negociando; si se deja vacía, se usa la sugerida (10, 25, 50 y 75 %). Ganada cuenta siempre 100 % y Perdida 0 %.
+- Al cambiarla, el embudo se recalcula para todas las oportunidades, salvo las que tienen una probabilidad puesta a mano por el vendedor: esa sigue mandando.
+- Solo la puede cambiar quien ya podía cambiar la configuración del negocio. Un vendedor no.
+- Está en español, inglés, italiano y portugués.
+
+---
+
 ## 2026-11-17 · sin versión todavía · El CRM comercial ya tiene pantalla
 
 Es la fase 4 del CRM comercial (ADR 0051), la que faltaba para poder usarlo. Todavía no está en ninguna versión publicada.
@@ -25,7 +38,7 @@ Es la fase 4 del CRM comercial (ADR 0051), la que faltaba para poder usarlo. Tod
 - **Un vendedor ve solo sus oportunidades**; quien puede aprobar en Comercial ve las de todo el equipo. Y dentro de una oportunidad, el vendedor solo ve las cotizaciones que son suyas, aunque alguien le haya ligado la de un compañero.
 - **Borrar un cliente que tiene oportunidades** ya dice cuántas tiene, en vez de un mensaje genérico.
 - Está en español, inglés, italiano y portugués.
-- **A tener en cuenta:** el presupuesto se compara contra el total de cada cotización **con IVA**. Si el cliente habla de su presupuesto sin IVA, la comparación sale más alta de lo que es. Está pendiente de confirmar con el dueño.
+- El presupuesto se compara contra cada cotización con IVA y sin IVA (ver la entrada de arriba).
 
 ---
 

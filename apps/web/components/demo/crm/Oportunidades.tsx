@@ -184,7 +184,7 @@ export function Oportunidades({
         </div>
       )}
 
-      <FormOportunidad abierto={formAbierto} onCerrar={() => setFormAbierto(false)} onGuardada={cargar} />
+      <FormOportunidad abierto={formAbierto} onCerrar={() => setFormAbierto(false)} onGuardada={cargar} probabilidades={pagina?.probabilidades} />
     </div>
   )
 }
