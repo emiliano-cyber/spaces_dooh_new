@@ -481,6 +481,41 @@ export async function cambiarEtapa(
 }
 
 /**
+ * ADR 0051 §3 · ¿se puede ligar una propuesta a esta oportunidad? La lee
+ * BLOQUEADA (`for share`) con el cliente de la transacción de quien liga, para
+ * que nadie la marque perdida en medio. Lanza el error que toca; si pasa,
+ * devuelve nada.
+ *
+ *  · tiene que existir PARA QUIEN LIGA (`soloDe`, la regla de las
+ *    oportunidades): un vendedor no cuelga su cotización de la de otro;
+ *  · una perdida ya no recibe cotizaciones (una ganada sí: una adenda);
+ *  · si las dos tienen cliente, tiene que ser el mismo. El de la oportunidad
+ *    es el que se puso o el que nació de su prospecto.
+ */
+export async function revisarOportunidadParaLigar(
+  client: PoolClient,
+  tenant: string | null,
+  oportunidadId: string,
+  clienteDePropuesta: string | null,
+  soloDe: string | null,
+): Promise<void> {
+  const { rows } = await client.query(
+    `select o.etapa, coalesce(o.cliente_id, case when p.tipo = 'CLIENTE' then p.registro_id end) as cliente_id
+       from oportunidades o
+       left join prospectos p on p.id = o.prospecto_id and p.tenant_id = o.tenant_id
+      where o.id = $1 and o.tenant_id = $2 and ($3::uuid is null or o.usuario_id = $3::uuid)
+      for share of o`,
+    [oportunidadId, tenant, soloDe],
+  )
+  const o = rows[0]
+  if (!o) throw new AppError('Esa oportunidad no existe', 404)
+  if (o.etapa === 'PERDIDA') throw new AppError('La oportunidad ya está cerrada', 409)
+  if (o.cliente_id && clienteDePropuesta && String(o.cliente_id) !== clienteDePropuesta) {
+    throw new AppError('La propuesta es de otro cliente que la oportunidad', 409)
+  }
+}
+
+/**
  * Una llamada, visita, junta, correo, WhatsApp o nota. Se puede también con la
  * oportunidad cerrada: lo que pasa después de ganar (el cliente pide otra cosa)
  * sigue siendo historia. Devuelve false si no existe para quien pregunta.

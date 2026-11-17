@@ -40,7 +40,11 @@ archivos:
 > **2026-11-17 · 169 (ADR 0051, Fase 2, rama `feat/crm-comercial`):** las cuatro
 > rutas de las oportunidades del CRM —`/api/oportunidades`, `…/[id]`,
 > `…/[id]/etapa` y `…/[id]/actividades`—. Medido con `recuentos.mjs`. Ver
-> [[crm-oportunidades]].
+> [[crm-oportunidades]]. **Fase 3, sin rutas nuevas:** `POST /api/propuestas`
+> acepta `oportunidadId`, `PATCH /api/propuestas/[id]` liga con `{ oportunidadId }`,
+> y **todas las rutas por id de `/api/propuestas/**` contestan 404 a un vendedor
+> con la propuesta de otro** (`propuestas-visibilidad.ts`); `/api/estado` y el
+> resumen le traen solo las suyas.
 
 > **2026-11-12 · 165 (AVISOS-CANAL, rama `feat/avisos-por-canal`):** `GET` y
 > `PUT /api/perfil/avisos`, una sola ruta (`route.ts`). Medido con

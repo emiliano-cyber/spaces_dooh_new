@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { siNoEsSuya } from '@/lib/server/propuestas-visibilidad'
 import { exigir } from '@/lib/server/auth'
 import { aplicarPaqueteCtrl, quitarPaqueteCtrl } from '@/lib/server/paquetes-controller'
 import { respuestaError } from '@/lib/server/errores'
@@ -41,6 +42,9 @@ export const dynamic = 'force-dynamic'
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   const g = await exigir('comercial', 'crear')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
+  // ADR 0051 · el vendedor solo toca SUS propuestas; una ajena es 404.
+  const ajena = await siNoEsSuya(g.usuario, params.id)
+  if (ajena) return ajena
   try {
     const r = await aplicarPaqueteCtrl(params.id, await req.json().catch(() => ({})))
     // ADR 0048 · el importe de la bitacora lleva el simbolo de la moneda de la
@@ -63,6 +67,9 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
   const g = await exigir('comercial', 'crear')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
+  // ADR 0051 · el vendedor solo toca SUS propuestas; una ajena es 404.
+  const ajena = await siNoEsSuya(g.usuario, params.id)
+  if (ajena) return ajena
   try {
     const r = await quitarPaqueteCtrl(params.id)
     await registrarAccion(

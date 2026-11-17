@@ -5,6 +5,21 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-17 · sin versión todavía · Cada vendedor ve solo sus propuestas, y cada cambio queda anotado
+
+Es la fase 3 del CRM comercial (ADR 0051). Todavía no está en ninguna versión publicada.
+
+- **Un vendedor ve solo las propuestas que él hizo.** Las de los demás ya no aparecen en su lista, en sus cifras ni en el resumen, y si intenta abrirlas o tocarlas le contesta que no existen.
+- Quien tiene el permiso de aprobar en Comercial sigue viendo todas, como hasta hoy. De fábrica son el Dueño, el Administrador, el Director comercial y el Gerente de ventas; se cambia en Administración → Roles.
+- Las propuestas viejas que no tienen vendedor (las de antes del 28 de septiembre) solo las ven quienes pueden aprobar.
+- **Cada cambio a una propuesta queda anotado campo por campo**: quién lo hizo, cuándo, qué había antes y qué quedó. Cuenta para el nombre, el descuento, el estatus, los sitios agregados, quitados o aprobados, el cupón, el paquete y el cliente. Si el cliente la acepta por la liga, queda anotado con el nombre que escribió.
+- Si se borra un borrador, su historial se conserva con su folio.
+- El historial es interno: el cliente no lo ve en la liga pública.
+- Una propuesta se puede ligar a una oportunidad del CRM, al crearla o después.
+- **Todavía no hay pantalla para leer el historial ni las oportunidades.** Llega en la fase 4.
+
+---
+
 ## 2026-11-17 · sin versión todavía · Propuestas: ver la lista por cliente
 
 Es el primer paso del CRM comercial (ADR 0051). Todavía no está en ninguna versión publicada.

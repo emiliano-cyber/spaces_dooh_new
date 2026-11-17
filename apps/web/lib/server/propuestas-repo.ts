@@ -20,6 +20,7 @@ import {
   textoQuitadoAlAceptar,
 } from '@/lib/codigo-aprobacion'
 import { quitarCanjeEnTx } from './codigos-repo'
+import { revisarOportunidadParaLigar } from './oportunidades-repo'
 import { avisarPorCanales, DEPENDENCIAS_SIN_SESION } from './avisos-canales'
 import {
   AVISO_PAQUETE_PRECIO_CERRADO,
@@ -1142,7 +1143,13 @@ export async function aceptarPropuestaPublica(
   }
 }
 
-export async function listarPropuestas() {
+/**
+ * ADR 0051 (decisión del dueño, 17/11) · `soloDe`: el VENDEDOR solo ve sus
+ * propuestas; quien tiene `comercial.aprobar`, todas. Igual que Captación y
+ * que las oportunidades. Las de antes de VEND-01 (sin `usuario_id`) solo las ve
+ * quien ve todas.
+ */
+export async function listarPropuestas(soloDe: string | null = null) {
   // COD-03 · el NOMBRE de quien aprobó el cupón viaja con la propuesta, para
   // que el detalle diga «Aprobado por X». Subconsulta con
   // `u.tenant_id = p.tenant_id` como segunda capa: un id de usuario de otra
@@ -1151,8 +1158,9 @@ export async function listarPropuestas() {
     `select p.*, (select iva_pct from clientes c where c.id = p.cliente_id) as cliente_iva,
             (select u.nombre from usuarios u
               where u.id = p.codigo_aprobado_por and u.tenant_id = p.tenant_id) as codigo_aprobado_por_nombre
-       from propuestas p where p.tenant_id = $1 order by p.creado_en desc`,
-    [await tenantActual()],
+       from propuestas p where p.tenant_id = $1 and ($2::uuid is null or p.usuario_id = $2::uuid)
+      order by p.creado_en desc`,
+    [await tenantActual(), soloDe],
   )
   if (!props.length) return []
   // REJILLA-01 · el nombre y el horario de la franja viajan con el ítem, para
@@ -1183,6 +1191,9 @@ export async function listarPropuestas() {
 
 export interface PropuestaInput {
   clienteId?: string | null
+  // ADR 0051 §3 · la oportunidad a la que responde. Opcional. Quién la puede
+  // usar NO viaja aquí: lo decide el controller (`soloDeOportunidad`).
+  oportunidadId?: string | null
   agenciaId?: string | null
   nombre: string
   comisionPct?: number
@@ -1299,7 +1310,10 @@ async function insertarItem(
   )
 }
 
-export async function crearPropuesta(input: PropuestaInput) {
+export async function crearPropuesta(
+  input: PropuestaInput,
+  opts: { soloDeOportunidad?: string | null } = {},
+) {
   validarRangoFechas(input.fechaInicio, input.fechaFin)
   // Gate de negociación: la agencia debe tener su negociación validada.
   const bloq = await agenciaBloqueada(input.agenciaId)
@@ -1344,11 +1358,18 @@ export async function crearPropuesta(input: PropuestaInput) {
     const plantilla =
       (await client.query('select condiciones_propuesta from config_negocio where tenant_id=$1', [tenantProp]))
         .rows[0]?.condiciones_propuesta ?? null
+    // ADR 0051 §3 · la oportunidad, revisada con ESTE cliente de transacción:
+    // existe para quien crea, no está perdida y es del mismo cliente.
+    if (input.oportunidadId) {
+      await revisarOportunidadParaLigar(
+        client, tenantProp, input.oportunidadId, input.clienteId ?? null, opts.soloDeOportunidad ?? null,
+      )
+    }
     const prop = (
       await client.query(
-        `insert into propuestas (folio, cliente_id, agencia_id, nombre, comision_pct, notas, token_publico, usuario_id, vendedor_nombre, condiciones, tenant_id)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) returning *`,
-        [await folio(), input.clienteId ?? null, input.agenciaId ?? null, input.nombre, input.comisionPct ?? 0, input.notas ?? null, tokenPublico(), vendedorId, vendedor?.nombre ?? null, plantilla, tenantProp],
+        `insert into propuestas (folio, cliente_id, agencia_id, nombre, comision_pct, notas, token_publico, usuario_id, vendedor_nombre, condiciones, tenant_id, oportunidad_id)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) returning *`,
+        [await folio(), input.clienteId ?? null, input.agenciaId ?? null, input.nombre, input.comisionPct ?? 0, input.notas ?? null, tokenPublico(), vendedorId, vendedor?.nombre ?? null, plantilla, tenantProp, input.oportunidadId ?? null],
       )
     ).rows[0]
     // Siempre asociar la agencia con el cliente: si la propuesta lleva cliente y
@@ -1439,6 +1460,28 @@ export async function borrarPropuestaBorrador(id: string): Promise<{ folio: stri
 // cuanto la propuesta deja de cuadrar con él (PAQ-01: «se avisa y el precio no
 // se mueve»). El cupón es un porcentaje y se aplica solo a la base nueva.
 const EDITABLES_SITIOS = ['BORRADOR', 'ENVIADA']
+
+/**
+ * ADR 0051 · ¿la propuesta (o la de este renglón) es de OTRO vendedor, o no
+ * existe aquí? Las rutas por `id` la usan para contestar 404 —no 403: decir
+ * «existe pero no es tuya» ya cuenta algo—. El dueño de una propuesta no
+ * cambia nunca, así que comprobarlo antes de actuar no deja carrera.
+ */
+export async function propuestaAjena(id: string, soloDe: string | null): Promise<boolean> {
+  const r = await q1(
+    'select 1 from propuestas where id=$1 and tenant_id=$2 and ($3::uuid is null or usuario_id=$3::uuid)',
+    [id, await tenantActual(), soloDe],
+  )
+  return !r
+}
+export async function renglonAjeno(itemId: string, soloDe: string | null): Promise<boolean> {
+  const r = await q1(
+    `select 1 from propuesta_items i join propuestas p on p.id = i.propuesta_id and p.tenant_id = i.tenant_id
+      where i.id=$1 and i.tenant_id=$2 and ($3::uuid is null or p.usuario_id=$3::uuid)`,
+    [itemId, await tenantActual(), soloDe],
+  )
+  return !r
+}
 
 /** El estatus y el periodo de una propuesta (el de sus líneas). */
 export async function rangoDePropuesta(
@@ -1572,6 +1615,47 @@ export async function aprobarItem(itemId: string, aprobado: boolean) {
   const p = (await q('select * from propuestas where id=$1', [propId]))[0]
   const items = await q('select * from propuesta_items where propuesta_id=$1', [propId])
   return armarPropuesta(p, items)
+}
+
+/**
+ * ADR 0051 §3 · liga (o desliga, con null) una propuesta a una oportunidad.
+ *
+ * Se puede en CUALQUIER estatus, también aprobada: no cambia el precio ni lo
+ * que el cliente firmó, solo a qué negociación pertenece. Por eso no sube la
+ * versión ni pasa por la inmutabilidad de `actualizarPropuesta`. El historial
+ * (acción LIGAR) lo escribe el trigger de `propuesta_cambios`.
+ *
+ * Devuelve false si la propuesta no existe en esta organización.
+ */
+export async function ligarPropuestaAOportunidad(
+  id: string,
+  oportunidadId: string | null,
+  soloDeOportunidad: string | null,
+): Promise<boolean> {
+  const tenant = await tenantActual()
+  const client = await pool.connect()
+  try {
+    await client.query('begin')
+    await fijarTenant(client)
+    const p = (
+      await client.query('select cliente_id from propuestas where id=$1 and tenant_id=$2 for update', [id, tenant])
+    ).rows[0]
+    if (!p) {
+      await client.query('rollback')
+      return false
+    }
+    if (oportunidadId) {
+      await revisarOportunidadParaLigar(client, tenant, oportunidadId, p.cliente_id ?? null, soloDeOportunidad)
+    }
+    await client.query('update propuestas set oportunidad_id=$3 where id=$1 and tenant_id=$2', [id, tenant, oportunidadId])
+    await client.query('commit')
+    return true
+  } catch (e) {
+    await client.query('rollback').catch(() => {})
+    throw e
+  } finally {
+    client.release()
+  }
 }
 
 /** Lo que devuelve `actualizarPropuesta`: la propuesta y qué pasó con el descuento. */

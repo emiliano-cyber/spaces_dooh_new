@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server'
+import { siNoEsSuya } from '@/lib/server/propuestas-visibilidad'
 import { z } from 'zod'
-import { AppError } from '@/lib/server/errores'
+import { AppError, respuestaError } from '@/lib/server/errores'
+import { soloDe as soloDeOportunidades } from '@/lib/server/oportunidades-controller'
 import { exigir } from '@/lib/server/auth'
 import {
   cambiarEstatusPropuesta,
   actualizarPropuesta,
   borrarPropuestaBorrador,
+  ligarPropuestaAOportunidad,
   PropuestaError,
   PropuestaCeroError,
   CodigoPendienteError,
@@ -43,7 +46,39 @@ const camposDocumento = z.object({
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   const g = await exigir('comercial', 'crear')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
+  // ADR 0051 · el vendedor solo toca SUS propuestas; una ajena es 404.
+  const ajena = await siNoEsSuya(g.usuario, params.id)
+  if (ajena) return ajena
   const body = await req.json().catch(() => ({}))
+
+  // ADR 0051 §3 · ligar o desligar la oportunidad. Va SOLO: no se mezcla con
+  // editar ni con cambiar el estatus, porque se puede en cualquier estatus
+  // (también aprobada) y las otras dos ramas no. Mezclarlas haría que una
+  // propuesta aprobada se «editara» por la puerta de ligar.
+  if (body && typeof body === 'object' && 'oportunidadId' in body) {
+    const otras = Object.keys(body).filter((k) => k !== 'oportunidadId')
+    const v = (body as { oportunidadId: unknown }).oportunidadId
+    const valido = v === null || (typeof v === 'string' && /^[0-9a-f-]{36}$/i.test(v))
+    if (otras.length || !valido) {
+      return NextResponse.json({ error: traducirError('Datos inválidos', idiomaDeLaPeticion()) }, { status: 400 })
+    }
+    try {
+      const ok = await ligarPropuestaAOportunidad(
+        params.id,
+        v as string | null,
+        await soloDeOportunidades(g.usuario),
+      )
+      if (!ok) return NextResponse.json({ error: 'Propuesta no encontrada' }, { status: 404 })
+      await registrarAccion(
+        g.usuario,
+        v ? 'Ligó la propuesta a una oportunidad' : 'Desligó la propuesta de su oportunidad',
+        params.id,
+      )
+      return NextResponse.json({ ok: true, oportunidadId: v })
+    } catch (e) {
+      return respuestaError(e)
+    }
+  }
 
   // Actualización de campos editables (descuento comercial / nombre / notas),
   // sin cambio de estatus. Sube versión si renegocia una propuesta ya enviada.
@@ -204,6 +239,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
   const g = await exigir('comercial', 'crear')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
+  // ADR 0051 · el vendedor solo toca SUS propuestas; una ajena es 404.
+  const ajena = await siNoEsSuya(g.usuario, params.id)
+  if (ajena) return ajena
   try {
     const b = await borrarPropuestaBorrador(params.id)
     if (!b) return NextResponse.json({ error: 'Propuesta no encontrada' }, { status: 404 })

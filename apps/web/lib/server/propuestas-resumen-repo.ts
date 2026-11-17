@@ -31,7 +31,11 @@ export interface ItemAprobadoResumen {
   fechaFin: string
 }
 
-export async function filasPropuestasResumen(): Promise<{
+// ADR 0051 · `soloDe` filtra las PROPUESTAS que se devuelven, no las pantallas:
+// el costo de renta de una pantalla se reparte entre todas las propuestas que la
+// usan, y quitarle al reparto las de otros vendedores cambiaría el costo de las
+// del vendedor.
+export async function filasPropuestasResumen(soloDe: string | null = null): Promise<{
   propuestas: FilaPropuestaResumen[]
   items: ItemAprobadoResumen[]
 }> {
@@ -51,8 +55,8 @@ export async function filasPropuestasResumen(): Promise<{
          -- El nombre de quien vende, con el tenant como segunda capa: un id de
          -- usuario de otra organización no le pone nombre a una de ésta.
          left join usuarios u on u.id = p.usuario_id and u.tenant_id = p.tenant_id
-        where p.tenant_id = $1`,
-      [tenant],
+        where p.tenant_id = $1 and ($2::uuid is null or p.usuario_id = $2::uuid)`,
+      [tenant, soloDe],
     ),
     // Solo las pantallas APROBADAS de cada propuesta: son las que se vendieron
     // y las que cuestan renta. Es el mismo criterio que el precio congelado.

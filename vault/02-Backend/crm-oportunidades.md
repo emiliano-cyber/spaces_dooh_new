@@ -4,6 +4,10 @@ estado: en-curso
 actualizado: 2026-11-17
 tags: [backend, crm, comercial, oportunidades, adr-0051, rojo]
 archivos:
+  - db/migrations/20261117_propuesta_cambios_por_trigger.sql
+  - apps/web/lib/server/propuestas-visibilidad.ts
+  - apps/web/lib/test/propuesta-cambios.e2e.test.ts
+  - apps/web/lib/test/propuestas-por-vendedor.e2e.test.ts
   - db/migrations/20261117_crm_oportunidades.sql
   - apps/web/lib/crm.ts
   - apps/web/lib/server/oportunidades-repo.ts
@@ -21,9 +25,9 @@ cotiza son las propuestas de [[comercial-propuestas-campanas]]. El porqué y
 las fases están en `docs/adr/0051-…md` y en [[decisiones]].
 
 > [!warning] Estado al 2026-11-17
-> Fase 2 hecha en `feat/crm-comercial`, **sin empujar**: la migración, la API y
-> su e2e. **No hay pantalla todavía** (es la Fase 4), y `propuesta_cambios`
-> existe pero **nadie la escribe** hasta la Fase 3.
+> Fases 2 y 3 hechas en `feat/crm-comercial`, **sin empujar**: la migración, la
+> API, el historial de propuestas por trigger, el ligado y la visibilidad por
+> vendedor. **No hay pantalla todavía** (es la Fase 4).
 
 ## Las tablas — `20261117_crm_oportunidades.sql`
 
@@ -31,7 +35,7 @@ las fases están en `docs/adr/0051-…md` y en [[decisiones]].
 |---|---|---|
 | `oportunidades` | El cliente o el prospecto (al menos uno), el vendedor, la etapa, la probabilidad, el presupuesto mín./máx., las fechas deseadas y de decisión, plazas, medios y objetivo | Borrarla: la que no prospera se marca `PERDIDA` con su motivo |
 | `oportunidad_actividades` | Llamadas, visitas, juntas, correos, WhatsApp, notas, y una fila `ETAPA` por cada cambio de etapa | Editarla o borrarla, ni como superusuario (trigger `crm_solo_crece`) |
-| `propuesta_cambios` | Campo por campo, quién cambió qué en cada propuesta (Fase 3) | Igual: solo crece |
+| `propuesta_cambios` | Campo por campo, quién cambió qué en cada propuesta. La escriben **triggers** (Fase 3, abajo) | Igual: solo crece |
 
 Y además `propuestas.oportunidad_id` (opcional) y `clientes_id_tenant_uq`, que
 faltaba para poder hacer la FK compuesta hacia `clientes`.
@@ -91,6 +95,48 @@ sobre todo lo que **impide**: FK con tenant, RLS, el trigger contra el
 superusuario, los grants del rol de la aplicación, el 404 entre vendedores y
 entre organizaciones en las cuatro rutas, y el borrado de un usuario con
 historia. No toca `aislamiento.e2e.test.ts`.
+
+## Fase 3 — el historial de propuestas, ligar y quién ve qué
+
+**El historial lo escribe la base.** `20261117_propuesta_cambios_por_trigger.sql`
+pone triggers `after` en `propuestas` y `propuesta_items` que comparan la fila
+vieja con la nueva columna por columna y escriben en `propuesta_cambios`. Así
+corre en la misma transacción que el cambio y **ninguna ruta puede saltárselo**,
+tampoco las de cupón y paquete. El dueño lo eligió el 17/11 en vez de escribirlo
+desde `propuestas-repo.ts`, donde cuatro funciones no usan transacción (la de
+aprobar entre ellas).
+
+| Acción | Cuándo |
+|---|---|
+| `CREAR` · `BORRAR` | Alta (UNA fila, no una por sitio) y borrado de un borrador (la historia queda, con su folio) |
+| `EDITAR` | Cualquier columna que cambie y no sea de las de abajo |
+| `ENVIAR` · `ESTATUS` · `ACEPTAR` | El estatus; `ACEPTAR` cuando el cliente acepta por la liga (origen `CLIENTE`, con su nombre) |
+| `CODIGO` · `PAQUETE` · `LIGAR` | Columnas `codigo_*`, `paquete_*` y `oportunidad_id` |
+| `AGREGAR_SITIO` · `QUITAR_SITIO` · `APROBAR_SITIO` | Los renglones, con su `item_id` |
+
+**Quién**: lo fija `db.ts` de la sesión (ver [[multi-tenancy-y-rls]]). Sin sesión,
+`SISTEMA`.
+
+> [!warning] Lo que NO registra, a propósito
+> Las columnas derivadas (`version` —va en su propia columna—, `snapshot_*`,
+> `aprobada_en`, `rechazada_en`, `aceptado_*`, ids, folio y token). Si una
+> columna nueva no debe aparecer en el historial, hay que agregarla a la lista de
+> exclusión del trigger con una migración nueva.
+
+**Ligar**: `oportunidadId` al crear la propuesta, o `PATCH /api/propuestas/[id]`
+con `{ oportunidadId }` **solo** (en cualquier estatus). 404 si la oportunidad no
+es de quien liga; 409 si está perdida o es de otro cliente.
+
+**Quién ve qué propuesta** (decisión del dueño del 17/11): el vendedor, solo las
+suyas —en `/api/estado`, en el resumen y en cada ruta por id, que contesta
+404—; quien tiene `comercial.aprobar`, todas
+(`lib/server/propuestas-visibilidad.ts`). Las de antes de VEND-01, sin vendedor,
+solo las ve quien ve todas. La liga pública no pasa por ahí, y **no trae el
+historial** (es interno).
+
+Probado por `propuesta-cambios.e2e.test.ts` (17, en rojo sin la migración del
+trigger: 15 fallos) y `propuestas-por-vendedor.e2e.test.ts` (9, en rojo contra el
+build anterior: 7 fallos).
 
 Relacionado: [[api-endpoints]], [[04-Datos/esquema]], [[04-Datos/migraciones]],
 [[roles-de-venta]], [[multi-tenancy-y-rls]].

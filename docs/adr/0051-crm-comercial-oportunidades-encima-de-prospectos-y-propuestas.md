@@ -2,10 +2,12 @@
 
 - **Fecha:** 2026-11-17
 - **Estado:** **Aceptada (17/11, el dueño aprobó la forma de la migración de §1 a §4).** Es ROJO:
-  R3 (migración) y R4 (toca el flujo de Propuestas, que es dinero). Siguen abiertas las preguntas
-  2 a 4 de abajo; ninguna cambia la forma de la migración. **Fase 1 hecha el 17/11** (sin
+  R3 (migración) y R4 (toca el flujo de Propuestas, que es dinero). Las preguntas 2 y 4 se
+  contestaron el 17/11; sigue abierta la 3. **Fase 1 hecha el 17/11** (sin
   migración): `lib/crm-cotejo.ts` y la vista «Por cliente» en Propuestas. **Fase 2 hecha el 17/11**:
   `20261117_crm_oportunidades.sql`, `/api/oportunidades/**` y su e2e (ver «Cómo quedó la Fase 2»).
+  **Fase 3 hecha el 17/11**, con el historial escrito por **trigger** y no desde el repo (decisión
+  del dueño; ver «Cómo quedó la Fase 3»).
 - **Rama:** `feat/crm-comercial`, desde `main` `17f56561` (v0.12.13).
 - **Relacionado:** [ADR 0047](0047-comercial-negociacion-encima-de-prospectos.md) (Prospección
   encima de `prospectos`; este ADR reutiliza su tabla para el lado cliente y respeta su decisión de
@@ -179,6 +181,38 @@ Tal como §1 a §5, con cuatro precisiones que salieron al hacerla:
   desglose. No rompe nada (el cliente se queda y no hay 500); contarlas queda
   para la Fase 4.
 
+## Cómo quedó la Fase 3 (17/11)
+
+**El historial lo escribe la base, no `propuestas-repo.ts`.** §4 pedía escribirlo en cada función,
+en la misma transacción que el cambio. Al hacerlo apareció que cuatro de ellas —`actualizarPropuesta`,
+`aprobarItem`, `cambiarEstatusPropuesta` y `asignarClienteAPropuestaAprobada`— no usan transacción:
+cada `q()` se guarda sola. Cumplir §4 obligaba a reescribirlas, incluida la que aprueba y congela el
+dinero. **El dueño eligió el trigger** el 17/11:
+
+- `20261117_propuesta_cambios_por_trigger.sql`: triggers `after` en `propuestas` y
+  `propuesta_items` que comparan la fila vieja con la nueva **columna por columna** (de forma genérica:
+  una columna nueva queda registrada sin tocar la migración) y escriben en `propuesta_cambios`. Al
+  correr dentro de la sentencia, es la misma transacción por construcción, y **ninguna ruta —tampoco
+  las de cupón y paquete, en otros archivos— puede saltárselo**. Eso hace innecesaria la prueba
+  «que ninguna función se olvide»; la e2e recorre las rutas y comprueba lo que queda escrito.
+- **Quién**: `lib/server/db.ts` fija `app.usuario_id` y `app.usuario_nombre` de la sesión junto con
+  `app.tenant_id`, en la misma sentencia y TRANSACTION-LOCAL. Sin sesión, el origen es SISTEMA. La
+  aceptación por la liga se reconoce por la fila (`aceptado_en` pasa a tener valor): CLIENTE, con el
+  nombre que escribió.
+- **Lo que no se registra**: los sitios que nacen con la propuesta (el alta es UNA fila CREAR) y los
+  que se van con su borrado (UNA fila BORRAR).
+- **`crm_solo_crece()`** deja pasar el borrado **solo** si la organización entera ya no existe: sin
+  eso, borrar una organización con propuestas fallaría.
+
+**Ligar** (§3): `oportunidadId` al crear (`POST /api/propuestas`) y `PATCH /api/propuestas/[id]`
+con `{ oportunidadId }` solo (cualquier estatus; mezclado con otros campos es 400). Se revisa con la
+oportunidad bloqueada: existe para quien liga (404), no está perdida y es del mismo cliente (409).
+
+**Visibilidad** (respuesta a la pregunta 2): el vendedor ve **solo sus propuestas** en `/api/estado`,
+en el resumen y en cada ruta por id (404); quien tiene `comercial.aprobar`, todas
+(`lib/server/propuestas-visibilidad.ts`). Las de antes de VEND-01, sin `usuario_id`, solo las ve
+quien ve todas. La liga pública no pasa por ahí.
+
 ## Alternativas consideradas
 
 **A · Solo una vista, sin tablas.** Es la Fase 1. No basta sola: no guarda el presupuesto, ni
@@ -199,9 +233,10 @@ cambió habría que comparar dos fotos.
 - Las propuestas de hoy no cambian de comportamiento: `oportunidad_id` es opcional.
 
 **Negativas**
-- **Cada función que muta una propuesta gana una escritura** en la misma transacción. Una función
-  que se olvide de escribir deja un hueco silencioso. Se cubre con una prueba que recorre todas las
-  rutas de escritura de `/api/propuestas/**` y exige una fila nueva en `propuesta_cambios`.
+- **Cada cambio a una propuesta escribe filas de más** (una por campo), por trigger. Aprobar una
+  propuesta con muchos sitios escribe una fila por sitio aprobado.
+- **`db.ts` fija dos GUC más por consulta** (en la misma sentencia que el tenant: ninguna ida más a
+  la base) y lee la sesión una vez por petición (`autorActual`, memoizado).
 - **Dos líneas de tiempo físicas** (`prospecto_avances` y `oportunidad_actividades`) que la
   pantalla une al leer.
 
@@ -216,13 +251,13 @@ cambió habría que comparar dos fotos.
 ## Preguntas abiertas para el dueño
 
 1. ~~**¿Se aprueba la forma de la migración de §1 a §4?**~~ **Aprobada el 17/11.**
-2. **Hoy un vendedor ve TODAS las propuestas** (`listarPropuestas` no filtra por vendedor). Con
-   «igual que Captación», ¿la pestaña Propuestas del CRM también pasa a «solo las suyas»? Es un
-   cambio de comportamiento para los vendedores actuales.
+2. ~~**Hoy un vendedor ve TODAS las propuestas.** ¿Pasa a «solo las suyas»?~~ **Contestada el
+   17/11: «sus propuestas el vendedor, el resto todas».** Hecho en la Fase 3, en toda la aplicación
+   y no solo en la pestaña del CRM.
 3. **Probabilidad por etapa por omisión**: propuesta 10 · 25 · 50 · 75 · 100 · 0. ¿Te sirve así o
    la fija cada instancia?
-4. **¿Se ve el historial de cambios en la liga pública del cliente?** La propuesta es que **no**:
-   es interno.
+4. ~~**¿Se ve el historial de cambios en la liga pública del cliente?**~~ **Contestada el 17/11:
+   no, es interno.** La e2e `propuestas-por-vendedor` comprueba que la liga no lo trae.
 
 ## Cómo revertir
 

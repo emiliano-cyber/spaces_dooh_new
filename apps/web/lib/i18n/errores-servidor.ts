@@ -614,6 +614,8 @@ export const CATALOGO_ERRORES: Record<string, string> = {
     'The opportunity is already at that stage',
   'Escribe por qué se perdió':
     'Write why it was lost',
+  'La propuesta es de otro cliente que la oportunidad':
+    'The proposal belongs to a different client than the opportunity',
   // v0.12.3 · pantallas y lugares propios.
   'El lugar elegido no existe o no es propio.':
     'The chosen location does not exist or is not owned.',
@@ -1223,6 +1225,8 @@ export const CATALOGO_ERRORES_IT: Partial<Record<string, string>> = {
     'L’opportunità è già in quella fase',
   'Escribe por qué se perdió':
     'Scrivi perché è stata persa',
+  'La propuesta es de otro cliente que la oportunidad':
+    'La proposta è di un cliente diverso da quello dell’opportunità',
   'El lugar elegido no existe o no es propio.':
     'Il luogo scelto non esiste o non è di proprietà.',
   '«Propia» es sí o no':
@@ -1617,6 +1621,7 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
   'La oportunidad ya está cerrada': 'A oportunidade já está fechada',
   'La oportunidad ya está en esa etapa': 'A oportunidade já está nessa etapa',
   'Escribe por qué se perdió': 'Escreva por que foi perdida',
+  'La propuesta es de otro cliente que la oportunidad': 'A proposta é de outro cliente que não o da oportunidade',
   'El lugar elegido no existe o no es propio.': 'O lugar escolhido não existe ou não é da sua empresa.',
   '«Propia» es sí o no': '“Próprio” é sim ou não',
   'Esta pantalla tiene un contrato de renta vigente: termínalo en Arrendadores antes de marcarla como propia.':

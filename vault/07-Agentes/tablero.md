@@ -6,6 +6,12 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!success] 2026-11-17 · **CRM-03 · Fase 3 del ADR 0051: historial de propuestas por trigger, ligar, y el vendedor ve solo lo suyo** — rama `feat/crm-comercial` · **ROJO R1/R3/R4**, aprobado por el dueño el 17/11
+> `20261117_propuesta_cambios_por_trigger.sql`; `db.ts` fija también el autor (`app.usuario_id`/`_nombre`) junto con el tenant;
+> `oportunidadId` al crear y `PATCH { oportunidadId }`; `propuestas-visibilidad.ts` en las 8 rutas por id, `/api/estado` y el resumen.
+> 17 + 9 e2e propias, vistas en rojo. **Zonas tomadas y liberadas:** Z5 (propuestas), **`lib/server/db.ts`** (alto contacto), `app/api/estado/route.ts`,
+> Z12 · Docs y `docs/Registro_Cambios.md`. No se tocó `aislamiento.e2e.test.ts`, `servidor-e2e.ts` ni `db/schema.sql`. Ver [[crm-oportunidades]].
+
 > [!success] 2026-11-17 · **CRM-02 · Fase 2 del ADR 0051: las oportunidades (migración + API)** — rama `feat/crm-comercial` · **ROJO R3**, forma aprobada por el dueño el 17/11
 > `20261117_crm_oportunidades.sql` (3 tablas, `propuestas.oportunidad_id`, `clientes_id_tenant_uq`), `lib/crm.ts`, `oportunidades-repo/controller`
 > y cuatro rutas en `/api/oportunidades/**`. 11 unitarias y 28 e2e propias (vistas en rojo sin la migración). **Zonas tomadas y liberadas:**

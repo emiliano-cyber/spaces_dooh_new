@@ -159,6 +159,10 @@ vi.mock('@/lib/server/campanas-repo', () => ({
   PropuestaCampanaError: class extends Error {},
 }))
 vi.mock('@/lib/server/acciones-repo', () => ({ registrarAccion: vi.fn() }))
+// ADR 0051 · la ruta pregunta primero si la propuesta es de quien la toca y
+// quién puede ligar oportunidades; aquí se prueba lo de después: deja pasar.
+vi.mock('@/lib/server/propuestas-visibilidad', () => ({ siNoEsSuya: async () => null }))
+vi.mock('@/lib/server/oportunidades-controller', () => ({ soloDe: async () => null }))
 vi.mock('@/lib/server/notificaciones-repo', () => ({ notificar: vi.fn() }))
 vi.mock('@/lib/server/moneda-instancia', () => ({ monedaDeLaInstancia: vi.fn() }))
 vi.mock('@/lib/i18n/servidor', () => ({ idiomaDeLaPeticion: () => idioma.actual }))

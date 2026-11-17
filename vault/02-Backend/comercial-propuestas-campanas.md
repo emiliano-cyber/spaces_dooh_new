@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-11-05
+actualizado: 2026-11-17
 tags: [backend, comercial, propuestas, campanas, amarillo, precio, extension, contrato]
 archivos:
   - apps/web/lib/server/propuestas-repo.ts
@@ -58,6 +58,12 @@ archivos:
 ---
 
 # Comercial: propuestas, reservas y campañas
+
+> [!important] 17/11 · ADR 0051, Fase 3: cada vendedor ve solo SUS propuestas
+> Quien tiene `comercial.aprobar` ve todas; el resto, solo las que llevan su
+> `usuario_id`, en la lista (`/api/estado`), en el resumen y en cada ruta por id
+> (404). Y cada cambio queda en `propuesta_cambios`, campo por campo, escrito por
+> un trigger. Detalle en [[crm-oportunidades]].
 
 ## El recorrido
 

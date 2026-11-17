@@ -34,12 +34,16 @@ const schema = z.object({
 
 // `conGanancia` lo decide la ruta con el permiso de la SESIÓN (`finanzas.ver`):
 // sin él no se lee ni un contrato.
-export async function resumenPropuestasCtrl(query: Record<string, string | undefined>, conGanancia: boolean) {
+export async function resumenPropuestasCtrl(
+  query: Record<string, string | undefined>,
+  conGanancia: boolean,
+  soloDe: string | null = null,
+) {
   const d = validar(schema, query)
   // Las lecturas no dependen unas de otras: van a la vez, no en fila.
   const [hoy, { propuestas, items }, atribucion] = await Promise.all([
     hoyDeLaBase(),
-    filasPropuestasResumen(),
+    filasPropuestasResumen(soloDe),
     conGanancia ? filasAtribucionRenta() : null,
   ])
   let periodo

@@ -157,7 +157,9 @@ describe('agregar sitios', () => {
   })
 
   it('NEGATIVO · B40 por la puerta nueva: una vendedora a 1 peso → 403 y no se agrega nada', async () => {
-    const p = await crear(ca, alfa.sitioId)
+    // ADR 0051 (17/11) · la propuesta es SUYA: la de otro ya le contesta 404
+    // antes de llegar a la regla de B40, y eso lo prueba `propuestas-por-vendedor`.
+    const p = await crear(cVend, alfa.sitioId)
     const r = await cVend.pedir(`/api/propuestas/${p.id}/items/`, {
       cuerpo: { items: [{ sitioId: otroSitioAlfa, unidad: 'mensual', tarifaUnitaria: 1 }] },
     })

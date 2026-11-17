@@ -49,6 +49,15 @@ export const tenantActual = cache(async (): Promise<string | null> => {
   return u.tenantId
 })
 
+// ADR 0051 · Fase 3 — quién hace los cambios de esta petición (memoizado). Lo
+// pasa `db.ts` a la base junto con el tenant, para que el historial de las
+// propuestas (que lo escribe un trigger) sepa quién fue. Sale de la sesión: es
+// la misma lectura que `tenantActual`, y `cache` hace que cueste una vez.
+export const autorActual = cache(async (): Promise<{ id: string; nombre: string } | null> => {
+  const u = await usuarioActual()
+  return u ? { id: u.id, nombre: u.nombre } : null
+})
+
 // ¿Esta instancia ya tiene alguna organización dentro? (F5.2)
 //
 // Es la condición que hace que el arranque sea DE UN SOLO USO: una instancia
