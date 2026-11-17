@@ -7,7 +7,7 @@ archivos: []
 ---
 
 > [!important] 2026-11-17 · **SEG-CLIENTE · seguimiento de la campaña en la liga del cliente (tipo Mercado Libre)** — rama `feat/seguimiento-campana-publica`, desde `main` `17f56561` (v0.12.13) — **sin empujar** · ROJO R2 (ruta pública por token) y R3 (migración `20261117_propuesta_imprenta_visible.sql`), **espera aprobación**
-> **Z5 · Comercial TOMADA** (liga pública, ficha de propuesta, `propuestas-repo` no se toca). La imprenta va **oculta por omisión**; la muestra el vendedor creador o un superior (decisión del dueño). Commits `66010746`, `2d98be65`, `daeea05b`, `948638b2`, `f2f9e6b0`; e2e y navegador en curso. Ver [[07-Agentes/diario/2026-11-17]].
+> **Z5 · Comercial LIBERADA** (liga pública, ficha de propuesta, `propuestas-repo` no se toca). La imprenta va **oculta por omisión**; la muestra el vendedor creador o un superior (decisión del dueño). Commits `66010746` … `3745cc41`. Revalidado sobre `3745cc41` con build limpio: e2e `seguimiento-campana` + `aislamiento` + `propuesta-vigencia` **35/36** (1 omitida, A6) y capturas `-v2` en Chrome. Ver [[07-Agentes/diario/2026-11-17]].
 >
 > [!important] 2026-11-16 · **v0.12.12 = `integra/v0-12-12`** — `feat/personalizar-dashboard` + `feat/paleta-de-instalacion`, desde `main` `4462557e`
 > Conflictos de la paleta con CAMPOS-PANTALLA en los guiones del alta: se conservan los dos. Typecheck, 10 389 unitarias,
