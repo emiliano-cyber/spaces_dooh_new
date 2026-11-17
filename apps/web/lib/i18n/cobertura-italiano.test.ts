@@ -131,6 +131,8 @@ describe('lote L5 · el italiano que coincide con otro idioma, solo el declarado
     'cuenta.avisos.col.correo',
     // «Programmatic»: anglicismo del sector, como en Comercial (costura final, 2026-11-04).
     'admin.network.programatico',
+    // «PoD» (proof of display, 17/11): el dueño renombra la Galería de Space Eyes; el sector lo dice en inglés.
+    'nav.space-eyes-galeria',
   ]
   const IGUAL_AL_ESPANOL = [
     'comun.o', 'nav.grupo.patrimonio', 'nav.grupo.sistema', 'nav.inventario', 'compartidos.periodo.aria',

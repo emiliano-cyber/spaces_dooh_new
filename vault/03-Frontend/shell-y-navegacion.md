@@ -87,7 +87,7 @@ orden de ese arreglo **es** el orden en pantalla. Al 2026-10-05 (26 entradas):
 |---|---|---|
 | `inicio` | *sin título* | Dashboard |
 | `patrimonio` | **Inventario** | Inventario · Arrendadores · **Prospección** · Network · Almacén |
-| `ojos` | **Space Eyes** | Equipos · Galería · Gráficas · Ajustar texto · Programación · Campañas · Verificación · Fallas — desde v0.11.0 (08/10, ADR 0045); fuera de la cuenta de 26 de arriba. Ajustar texto y Programación solo MANDO; el resto MANDO + VENTA. `hrefActivo()` (`nav.ts:311-321`) enciende **una sola** entrada en sus subpáginas (v0.11.5) |
+| `ojos` | **Space Eyes** | Equipos · Comprobantes (PoD; antes «Galería», 17/11) · Gráficas · Ajustar texto · Programación · Campañas · Verificación · Fallas — desde v0.11.0 (08/10, ADR 0045); fuera de la cuenta de 26 de arriba. Ajustar texto y Programación solo MANDO; el resto MANDO + VENTA. `hrefActivo()` (`nav.ts:311-321`) enciende **una sola** entrada en sus subpáginas (v0.11.5) |
 | `vender` | **Comercial** | Clientes · Comercial · Disponibilidad · Propuestas · Franjas y temporadas · Descuentos por volumen · Códigos de negociación · Paquetes cerrados |
 | `entregar` | **Operaciones** | Campañas · **Creativos** · Imprenta · Operaciones · Consumo de luz |
 | `cobrar` | **Finanzas** | Finanzas · Reportes · Comisiones |

@@ -170,7 +170,7 @@ export const NAV: NavItem[] = [
   // El resto del panel de Space Eye, dentro de SPACE OS (ADR 0045): lo que antes
   // se operaba en el dashboard propio de Space Eye vive aqui, con los mismos
   // roles. Todo habla con el Space Eye de ESTA instancia por /api/space-eyes/se.
-  { key: 'space-eyes-galeria', label: 'Galería', href: '/space-eyes/galeria', icon: Images, roles: [...MANDO, ...VENTA], grupo: 'ojos' },
+  { key: 'space-eyes-galeria', label: 'Comprobantes', href: '/space-eyes/galeria', icon: Images, roles: [...MANDO, ...VENTA], grupo: 'ojos' },
   { key: 'space-eyes-graficas', label: 'Gráficas', href: '/space-eyes/graficas', icon: LineChart, roles: [...MANDO, ...VENTA], grupo: 'ojos' },
   { key: 'space-eyes-texto', label: 'Ajustar texto', href: '/space-eyes/texto', icon: Type, roles: [...MANDO], grupo: 'ojos' },
   { key: 'space-eyes-programacion', label: 'Programación', href: '/space-eyes/programacion', icon: CalendarClock, roles: [...MANDO], grupo: 'ojos' },

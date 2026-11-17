@@ -1,11 +1,14 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-11-10
+actualizado: 2026-11-17
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!success] 2026-11-17 · **SE-PoD · la «Galería» de Space Eyes se llama «Comprobantes» (en inglés «PoD»)** — rama `feat/space-eyes-comprobantes`, desde `main` `17f56561` — **sin empujar** · VERDE (solo textos)
+> Pedido del dueño. Menú (`nav.space-eyes-galeria`, `nav.ts`) y título (`spaceeyes.galeria.titulo`); italiano «PoD» declarado igual al inglés, portugués «Comprovantes». La ruta `/space-eyes/galeria` y las claves no cambian. Zonas Space Eyes y Z12 **reclamadas y liberadas** en el mismo commit.
+>
 > [!important] 2026-11-16 · **v0.12.12 = `integra/v0-12-12`** — `feat/personalizar-dashboard` + `feat/paleta-de-instalacion`, desde `main` `4462557e`
 > Conflictos de la paleta con CAMPOS-PANTALLA en los guiones del alta: se conservan los dos. Typecheck, 10 389 unitarias,
 > build, `pruebas-provision` (60/200) e `instalar-hijo` (12/64) y e2e 1270 + novedades tras reconstruir, en verde (solo
