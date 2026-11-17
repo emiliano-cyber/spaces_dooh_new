@@ -5,6 +5,15 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-16 · «Comercial negociación» ahora se llama «Prospección» y está en Inventario (sin publicar)
+
+- En el menú, **Comercial negociación** pasa a llamarse **Prospección** y se mueve del grupo Comercial al grupo **Inventario**, justo debajo de **Arrendadores**.
+- La pantalla es la misma, con el mismo contenido y la misma dirección; solo cambian su nombre (también en el título de la página y en Administración → Roles) y su lugar en el menú.
+- La siguen viendo las mismas personas: Dueño, Administrador y los tres roles de venta.
+- En inglés se llama *Prospecting*, en italiano *Prospezione* y en portugués *Prospecção*.
+
+---
+
 ## 2026-11-13 · v0.12.12 · «Personalizar» del Dashboard, sobre el propio tablero
 
 Entra en la **v0.12.12** (`integra/v0-12-12`), junto con el color al instalar (entrada del 10/11, más abajo).

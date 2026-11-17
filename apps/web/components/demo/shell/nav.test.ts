@@ -289,8 +289,14 @@ describe('Captación, OCULTA del menú por ahora (2026-09-30)', () => {
     expect(NAV.find((n) => n.key === 'captacion')).toBeUndefined()
     expect(NAV.find((n) => n.href === '/captacion')).toBeUndefined()
   })
-  it('Comercial OPEX sigue en el grupo Comercial', () => {
-    expect(NAV.find((n) => n.key === 'comercial-opex')?.grupo).toBe('vender')
+  // Fue «Comercial negociación», en Comercial, hasta el 2026-11-16: el dueño
+  // la renombró «Prospección» y la subió a Inventario, debajo de Arrendadores.
+  it('Prospección (antes Comercial negociación) va en Inventario, justo debajo de Arrendadores', () => {
+    const i = NAV.findIndex((n) => n.key === 'comercial-opex')
+    expect(NAV[i]?.label).toBe('Prospección')
+    expect(NAV[i]?.grupo).toBe('patrimonio')
+    expect(NAV[i]?.href).toBe('/comercial-opex')
+    expect(NAV[i - 1]?.key).toBe('arrendadores')
   })
 })
 

@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-29
+actualizado: 2026-11-16
 tags: [frontend, comercial, prospeccion, arrendadores, negociacion, ubicacion]
 archivos:
   - apps/web/app/(app)/(shell)/comercial-opex/page.tsx
@@ -33,7 +33,12 @@ archivos:
   - apps/web/lib/modulos.ts
 ---
 
-# Comercial negociación · prospección de arrendadores (NEG-01)
+# Prospección (antes «Comercial negociación») · prospección de arrendadores (NEG-01)
+
+> [!note] 2026-11-16 · se llama **Prospección** y está en el grupo **Inventario**
+> Debajo de Arrendadores. Solo cambian el rótulo y el grupo del menú; la ruta
+> sigue siendo `/comercial-opex` y los permisos no cambian. Ver
+> [[03-Frontend/shell-y-navegacion]].
 
 > [!success] 2026-10-22 · deja de ser maqueta — NEG-01
 > Pedido del dueño el 21/10: *«en comercial negociación ya debemos empezarlo a hacer
