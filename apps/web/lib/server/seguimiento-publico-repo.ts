@@ -51,8 +51,8 @@ export async function leerSeguimientoPorToken(token: string): Promise<Seguimient
   const qt = <T = any>(sql: string, params: unknown[]) => qConTenant<T>(tenantId, sql, params)
 
   const p = (
-    await qt<{ id: string; aceptado_en: unknown }>(
-      `select id, aceptado_en from propuestas where token_publico = $1 and tenant_id = $2 limit 1`,
+    await qt<{ id: string; aceptado_en: unknown; imprenta_visible: boolean }>(
+      `select id, aceptado_en, imprenta_visible from propuestas where token_publico = $1 and tenant_id = $2 limit 1`,
       [token, tenantId],
     )
   )[0]
@@ -83,14 +83,19 @@ export async function leerSeguimientoPorToken(token: string): Promise<Seguimient
     ),
     // El nombre del sitio, para que el cliente sepa QUÉ lona es cuál. El join
     // repite el tenant por la misma regla de siempre.
+    // SEG-CLIENTE · el NOMBRE de la imprenta sale de la base SOLO si el vendedor
+    // (o un superior) lo encendió: oculto por omisión, decisión del dueño del
+    // 17/11. Se anula en el SELECT y no al armar la respuesta, por la regla de
+    // este archivo: lo que no se lee no se puede colar al JSON.
     qt<any>(
-      `select o.folio, s.nombre as sitio_nombre, o.proveedor, o.material, o.alto, o.ancho,
+      `select o.folio, s.nombre as sitio_nombre,
+              case when $3::boolean then o.proveedor end as proveedor, o.material, o.alto, o.ancho,
               o.estatus, o.prueba_color_aprobada, o.actualizado_en
          from ordenes_impresion o
          left join sitios s on s.id = o.sitio_id and s.tenant_id = o.tenant_id
         where o.campana_id = $1 and o.tenant_id = $2
         order by o.creado_en asc`,
-      [c.id, tenantId],
+      [c.id, tenantId, !!p.imprenta_visible],
     ),
     // Solo los MONTAJES: el mantenimiento o la herrería de un sitio no son
     // avance de la campaña del cliente.

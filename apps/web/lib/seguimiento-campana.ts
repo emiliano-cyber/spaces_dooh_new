@@ -213,3 +213,34 @@ export function armarSeguimiento(d: DatosSeguimiento, hoy: string): Seguimiento 
     proveedores: usaImprenta(tipo) ? proveedores : [],
   }
 }
+
+// ─── ¿Quién puede enseñarle al cliente el nombre de la imprenta? ────────────
+// Decisión del dueño (17/11): oculto SIEMPRE por omisión; lo enciende «el
+// vendedor que creó la propuesta o cualquiera superior». Superior es por la
+// escalera de venta del ADR 0040. Dueño y Administrador pueden siempre (el
+// Administrador «puede hacer las mismas cosas que él»). Un rol fuera de venta
+// (Operaciones, Imprenta, Finanzas) no puede nunca, aunque haya creado la
+// propuesta por algún camino viejo: es una decisión comercial.
+const RANGO_VENTA: Record<string, number> = {
+  DUENO: 4,
+  ADMINISTRADOR: 4,
+  DIRECTOR_COMERCIAL: 3,
+  GERENTE_VENTAS: 2,
+  VENDEDOR: 1,
+  COMERCIAL: 1, // retirado (ADR 0040), pero una fila vieja puede traerlo
+}
+const rangoVenta = (rol: string | null | undefined) => RANGO_VENTA[rol ?? ''] ?? 0
+
+export function puedeCambiarImprentaVisible(
+  usuario: { id: string; rol: string },
+  propuesta: { usuarioId: string | null; rolCreador: string | null },
+): boolean {
+  const mio = rangoVenta(usuario.rol)
+  if (mio === 0) return false
+  if (mio === 4) return true
+  if (propuesta.usuarioId && propuesta.usuarioId === usuario.id) return true
+  // Creador borrado o sin registrar (`usuario_id` es on delete set null): se le
+  // trata como vendedor, que es lo que era casi siempre, y decide un superior.
+  const creador = propuesta.usuarioId && propuesta.rolCreador ? rangoVenta(propuesta.rolCreador) : 1
+  return mio > creador
+}

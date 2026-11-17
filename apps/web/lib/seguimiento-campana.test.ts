@@ -130,3 +130,36 @@ describe('avanceImprenta', () => {
     expect(avanceImprenta('OTRO' as any)).toBe(0)
   })
 })
+
+import { puedeCambiarImprentaVisible } from './seguimiento-campana'
+
+describe('puedeCambiarImprentaVisible', () => {
+  const prop = (usuarioId: string | null, rolCreador: string | null) => ({ usuarioId, rolCreador })
+  it('el vendedor que la creó, sí', () => {
+    expect(puedeCambiarImprentaVisible({ id: 'v1', rol: 'VENDEDOR' }, prop('v1', 'VENDEDOR'))).toBe(true)
+  })
+  it('NEGATIVO · otro vendedor, no', () => {
+    expect(puedeCambiarImprentaVisible({ id: 'v2', rol: 'VENDEDOR' }, prop('v1', 'VENDEDOR'))).toBe(false)
+  })
+  it('un superior, sí; uno del mismo rango que no la creó, no', () => {
+    expect(puedeCambiarImprentaVisible({ id: 'g1', rol: 'GERENTE_VENTAS' }, prop('v1', 'VENDEDOR'))).toBe(true)
+    expect(puedeCambiarImprentaVisible({ id: 'g2', rol: 'GERENTE_VENTAS' }, prop('g1', 'GERENTE_VENTAS'))).toBe(false)
+    expect(puedeCambiarImprentaVisible({ id: 'd1', rol: 'DIRECTOR_COMERCIAL' }, prop('g1', 'GERENTE_VENTAS'))).toBe(true)
+  })
+  it('NEGATIVO · un vendedor no puede sobre la de su gerente', () => {
+    expect(puedeCambiarImprentaVisible({ id: 'v1', rol: 'VENDEDOR' }, prop('g1', 'GERENTE_VENTAS'))).toBe(false)
+  })
+  it('Dueño y Administrador, siempre', () => {
+    expect(puedeCambiarImprentaVisible({ id: 'x', rol: 'DUENO' }, prop('y', 'DUENO'))).toBe(true)
+    expect(puedeCambiarImprentaVisible({ id: 'x', rol: 'ADMINISTRADOR' }, prop('y', 'DIRECTOR_COMERCIAL'))).toBe(true)
+  })
+  it('NEGATIVO · roles fuera de venta, nunca (ni siendo el creador)', () => {
+    for (const rol of ['OPERACIONES', 'IMPRENTA', 'FINANZAS', 'CLIENTE']) {
+      expect(puedeCambiarImprentaVisible({ id: 'u', rol }, prop('u', rol))).toBe(false)
+    }
+  })
+  it('creador borrado: decide un superior a vendedor', () => {
+    expect(puedeCambiarImprentaVisible({ id: 'v', rol: 'VENDEDOR' }, prop(null, null))).toBe(false)
+    expect(puedeCambiarImprentaVisible({ id: 'g', rol: 'GERENTE_VENTAS' }, prop(null, null))).toBe(true)
+  })
+})
