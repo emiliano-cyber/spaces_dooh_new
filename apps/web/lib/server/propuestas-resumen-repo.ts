@@ -2,6 +2,7 @@ import 'server-only'
 import { q } from './db'
 import { tenantActual } from './tenant'
 import { PREFIJO_BAJA } from '@/lib/vendedor-de-baja'
+import type { FilaConteo } from '@/lib/propuestas-por-dia'
 
 // ============================================================================
 //  lib/server/propuestas-resumen-repo.ts — Las filas del tablero de propuestas
@@ -134,4 +135,49 @@ export async function filasAtribucionRenta(): Promise<{
       periodicidad: r.periodicidad ?? null,
     })),
   }
+}
+
+// ─── CONTEO-DIA (17/11) · creadas y aprobadas por día ──────────────────────
+//
+// EL DÍA SE CORTA EN LA ZONA DEL NEGOCIO, con `at time zone $zona`, y no con el
+// `to_char(p.creado_en, …)` de arriba, que usa la zona de la CONEXIÓN. Para un
+// tablero por mes o trimestre la diferencia es una frontera de mes; para uno
+// por DÍA son seis horas de cada día: lo creado a las 19:00 de Ciudad de México
+// se contaría mañana con la base en UTC, sin dar un solo error.
+// (`conteo-diario.e2e.test.ts` lo mide con la base de pruebas en UTC.)
+//
+// `soloUsuario` lo decide el controller con la SESIÓN, nunca la URL.
+export async function filasConteoDiario(f: {
+  zona: string
+  desde: string
+  hasta: string
+  soloUsuario: string | null
+}): Promise<FilaConteo[]> {
+  const rows = await q<any>(
+    `with p as (
+       select p.estatus::text as estatus, p.usuario_id, p.vendedor_nombre,
+              coalesce(u.nombre, p.vendedor_nombre) as vendedor,
+              (p.creado_en  at time zone $2)::date as creada,
+              (p.aprobada_en at time zone $2)::date as aprobada
+         from propuestas p
+         left join usuarios u on u.id = p.usuario_id and u.tenant_id = p.tenant_id
+        where p.tenant_id = $1
+          and ($5::uuid is null or p.usuario_id = $5::uuid)
+     )
+     select estatus, usuario_id, vendedor_nombre, vendedor,
+            to_char(creada, 'YYYY-MM-DD') as creada,
+            to_char(aprobada, 'YYYY-MM-DD') as aprobada
+       from p
+      where creada between $3::date and $4::date
+         or aprobada between $3::date and $4::date`,
+    [await tenantActual(), f.zona, f.desde, f.hasta, f.soloUsuario],
+  )
+  return rows.map((r) => ({
+    creada: r.creada,
+    aprobada: r.aprobada ?? null,
+    estatus: r.estatus,
+    // P19 · el vendedor borrado, por su nombre congelado (igual que arriba).
+    vendedorId: r.usuario_id ?? (r.vendedor_nombre ? PREFIJO_BAJA + r.vendedor_nombre : null),
+    vendedor: r.vendedor ?? null,
+  }))
 }

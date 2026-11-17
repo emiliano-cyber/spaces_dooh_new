@@ -338,4 +338,4 @@ hoy son **once** llamadas a `q()` en `apps/web/lib/server/reportes-repo.ts`, de
 [[02-Backend/reportes-dimensiones]] · [[02-Backend/reportes-rentabilidad]] ·
 [[02-Backend/comercial-propuestas-campanas]] · [[02-Backend/autenticacion-y-sesion]] ·
 [[multi-tenancy-y-rls]] · [[02-Backend/_indice]] · [[zonas-de-riesgo]] ·
-[[convenciones]] · [[MOC-Proyecto]]
+[[convenciones]] · [[MOC-Proyecto]] · [[conteo-campanas-por-dia]]
