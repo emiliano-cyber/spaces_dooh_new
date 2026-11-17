@@ -39,14 +39,18 @@ export async function crearCreatividad(input: {
   formato?: string | null
   resolucion?: string | null
 }) {
-  // Máquina de estados (server-side, inverso al guard de imprenta): una campaña
-  // FIJA (OOH) no recibe creatividad — su producción es por imprenta. Digital
-  // (DOOH) e híbrida sí. La UI ya lo refleja; esto lo enforza también vía API.
+  // IMP-CREA (17/11, decisión del dueño) · una campaña FIJA (OOH) SÍ recibe
+  // creativo: es el arte que Imprenta manda a imprimir y que ahora se ve en su
+  // pantalla, en la proporción de cada sitio. Hasta hoy se rechazaba aquí
+  // («su producción es por imprenta») y la imprenta no tenía dónde ver el arte.
+  //
+  // Lo que NO cambia: la pantalla de Creativos sigue sin enseñar campañas
+  // fijas (pedido del 30/09, `lib/creativos-digitales.ts`) —el arte de una fija
+  // se sube y se aprueba desde Imprenta— y aprobarlo no lo mete en ninguna
+  // rotación, porque `autoasignarRotacion` solo toca reservas de pantallas
+  // digitales y una OOH no tiene.
   const camp = await q1<any>('select tipo_campana from campanas where id=$1', [input.campanaId])
   if (!camp) throw new CreatividadError('Campaña no encontrada')
-  if (camp.tipo_campana === 'OOH') {
-    throw new CreatividadError('Una campaña fija (OOH) no recibe creatividad; su producción es por imprenta')
-  }
   const rows = await q(
     `insert into creatividades (campana_id, nombre, archivo_url, codigo, formato, resolucion, estatus_validacion, tenant_id)
      values ($1,$2,$3,$4,$5,$6,'PENDIENTE',$7) returning *`,

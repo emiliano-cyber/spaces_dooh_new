@@ -845,6 +845,29 @@ export interface OrdenImpresion {
   pruebaColorUrl: string | null      // prueba de color (probatorio)
   pruebaColorAprobada: boolean
   creadoEn: string
+  // IMP-CREA (17/11) · lo que Imprenta necesita sin depender de Comercial
+  // (`listarOrdenesImpresion`). Opcionales: la demo en memoria no los trae y
+  // la pantalla cae a `useCampanas`/`useSitios`/`useCreatividades`.
+  campanaNombre?: string | null
+  tipoCampana?: TipoCampana | null
+  campanaInicio?: string | null
+  campanaFin?: string | null
+  sitioNombre?: string | null
+  sitioAncho?: number | null
+  sitioAlto?: number | null
+  creativos?: CreativoDeImpresion[]
+}
+
+// El arte de la campaña de una orden de impresión, sin la fuente (la sirve
+// `/api/creativos/<id>/arte/`).
+export interface CreativoDeImpresion {
+  id: string
+  nombre: string
+  archivoUrl: string | null
+  esImagen?: boolean
+  formato: string | null
+  resolucion: string | null
+  estatusValidacion: EstValidacionCreatividad
 }
 
 // No hay modelo de facturación en Prisma.

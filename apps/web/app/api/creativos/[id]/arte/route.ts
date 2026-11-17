@@ -1,4 +1,5 @@
 import { exigir } from '@/lib/server/auth'
+import { creativoTieneOrdenImpresion } from '@/lib/server/impresion-repo'
 import { q1 } from '@/lib/server/db'
 import { decodificarDataUrl } from '@/lib/data-url'
 import { imagenDeHtml } from '@/lib/creativo-html'
@@ -26,7 +27,15 @@ export const dynamic = 'force-dynamic'
 // ============================================================================
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
-  const g = await exigir('comercial', 'ver')
+  // IMP-CREA (17/11) · Imprenta enseña el arte de las campañas que imprime.
+  // Quien no tiene `comercial.ver` pero sí `imprenta.ver` puede verlo, y SOLO
+  // si ese creativo es de una campaña con orden de impresión: no se abre el
+  // arte de toda la empresa a la imprenta, solo el que tiene que imprimir.
+  let g = await exigir('comercial', 'ver')
+  if (!g.ok && g.status === 403) {
+    const gi = await exigir('imprenta', 'ver')
+    if (gi.ok && (await creativoTieneOrdenImpresion(params.id))) g = gi
+  }
   if (!g.ok) return new Response(null, { status: g.status })
 
   const r = await q1<{ archivo_url: string | null; codigo: string | null }>(

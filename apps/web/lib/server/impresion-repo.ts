@@ -2,6 +2,7 @@ import 'server-only'
 import { q, q1 } from './db'
 import { tenantActual } from './tenant'
 import { folioDocumento } from './folios'
+import { rutaArteCreativo } from '@/lib/medios-url'
 
 // ============================================================================
 //  lib/server/impresion-repo.ts — Imprenta: órdenes de impresión (arte→montaje)
@@ -46,9 +47,83 @@ export async function aprobarPruebaColor(id: string, aprobada: boolean, url?: st
   return rows[0] ? rowToOrdenImpresion(rows[0]) : null
 }
 
+// IMP-CREA (17/11) · la orden llega con lo que Imprenta necesita para
+// priorizar y para enseñar el arte, SIN depender de los permisos de Comercial:
+// `/api/estado` solo manda campañas, sitios y creativos a quien tiene ese
+// módulo (`si('comercial', …)`), así que un rol que solo ve Imprenta se
+// quedaba sin fecha de inicio y sin arte. Va aquí, en la misma consulta del
+// módulo `imprenta`, y solo lo de las campañas que tienen orden.
+//
+// Las fechas salen como texto (`::text`): una columna `date` que llega como
+// `Date` de JS se corre un día al pintarla en México (UTC-6).
 export async function listarOrdenesImpresion() {
-  const rows = await q('select * from ordenes_impresion where tenant_id = $1 order by creado_en asc', [await tenantActual()])
-  return rows.map(rowToOrdenImpresion)
+  const tenant = await tenantActual()
+  const rows = await q(
+    `select oi.*,
+            c.nombre as campana_nombre, c.tipo_campana,
+            c.fecha_inicio::text as campana_inicio, c.fecha_fin::text as campana_fin,
+            s.nombre as sitio_nombre, s.ancho as sitio_ancho, s.alto as sitio_alto
+       from ordenes_impresion oi
+       left join campanas c on c.id = oi.campana_id and c.tenant_id = oi.tenant_id
+       left join sitios s on s.id = oi.sitio_id and s.tenant_id = oi.tenant_id
+      where oi.tenant_id = $1
+      order by oi.creado_en asc`,
+    [tenant],
+  )
+  // Los creativos de esas campañas, sin el arte (pesa ~1 MB por fila): la
+  // imagen la sirve `/api/creativos/<id>/arte/`. `es_imagen` se calcula en
+  // Postgres igual que en `listarCreatividades` (campanas-repo.ts).
+  const campanaIds = [...new Set(rows.map((r: any) => r.campana_id).filter(Boolean))]
+  const creas = campanaIds.length
+    ? await q(
+        `select id, campana_id, nombre, formato, resolucion, estatus_validacion,
+                (archivo_url like 'data:image%'
+                 or codigo ~ '<img[^>]+src="data:image/') as es_imagen
+           from creatividades
+          where tenant_id = $1 and campana_id = any($2::uuid[]) and retirado_en is null
+          order by creado_en asc`,
+        [tenant, campanaIds],
+      )
+    : []
+  return rows.map((r: any) => ({
+    ...rowToOrdenImpresion(r),
+    campanaNombre: r.campana_nombre ?? null,
+    tipoCampana: r.tipo_campana ?? null,
+    campanaInicio: r.campana_inicio ?? null,
+    campanaFin: r.campana_fin ?? null,
+    sitioNombre: r.sitio_nombre ?? null,
+    sitioAncho: r.sitio_ancho == null ? null : Number(r.sitio_ancho),
+    sitioAlto: r.sitio_alto == null ? null : Number(r.sitio_alto),
+    creativos: creas
+      .filter((cr: any) => cr.campana_id === r.campana_id)
+      .map((cr: any) => ({
+        id: cr.id,
+        nombre: cr.nombre,
+        archivoUrl: rutaArteCreativo(cr.id),
+        esImagen: cr.es_imagen === true,
+        formato: cr.formato ?? null,
+        resolucion: cr.resolucion ?? null,
+        estatusValidacion: cr.estatus_validacion,
+      })),
+  }))
+}
+
+/**
+ * ¿Este creativo es arte de una campaña que tiene orden de impresión en esta
+ * organización? Es lo que deja a un rol de Imprenta ver el arte sin darle
+ * Comercial entero (`/api/creativos/[id]/arte`).
+ */
+export async function creativoTieneOrdenImpresion(creativoId: string): Promise<boolean> {
+  if (!/^[0-9a-f-]{36}$/i.test(creativoId)) return false
+  const r = await q1<{ si: boolean }>(
+    `select exists (
+       select 1 from creatividades cr
+         join ordenes_impresion oi on oi.campana_id = cr.campana_id and oi.tenant_id = cr.tenant_id
+        where cr.id = $1 and cr.tenant_id = $2
+     ) as si`,
+    [creativoId, await tenantActual()],
+  )
+  return r?.si === true
 }
 
 export async function crearOrdenImpresion(input: {
