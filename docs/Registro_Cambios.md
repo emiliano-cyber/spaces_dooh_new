@@ -5,6 +5,22 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-17 · El cliente sigue su campaña desde la liga de la propuesta, como un pedido
+
+Rama `feat/seguimiento-campana-publica`, todavía sin publicar.
+
+- **La liga que recibe el cliente cambia cuando su propuesta ya es campaña.** Arriba ve en qué va, con un mensaje grande («Tu campaña está en imprenta», «¡Tu campaña está al aire!») y la fecha que le importa. Debajo hay una línea de seis pasos, como el rastreo de un pedido: propuesta aceptada → campaña confirmada → material → instalación → al aire → terminada.
+- **Los pasos se nombran según lo que compró.** Si son lonas, se le habla de imprenta e instalación. Si son pantallas, de la revisión de su anuncio y de su programación. Si son las dos cosas, la línea avanza cuando las dos están listas.
+- **Ve sus lonas y sus anuncios.** De las lonas ve cuántas van impresas («1 de 2 lonas impresas») y el detalle de cada una: sitio, medida, material y si la prueba de color ya está aprobada. De los anuncios ve si están en revisión, aprobados o si necesitan un ajuste. Si necesitan un ajuste, el paso se pinta en ámbar y se le dice que su asesor lo contactará. El motivo interno no se le muestra.
+- **Si la campaña ya debía arrancar y todavía no está al aire, se le avisa del retraso.** Si se cancela, se le dice sin enseñar pasos a medias.
+- **La propuesta que aceptó sigue ahí,** plegada debajo del seguimiento.
+- **El nombre de la imprenta está oculto siempre, salvo que se decida mostrarlo.** En la ficha de la propuesta hay un interruptor nuevo, **Mostrar la imprenta al cliente en la liga**, que aparece cuando la propuesta ya tiene campaña. Lo puede mover el vendedor que creó la propuesta o alguien de rango superior: gerente, director comercial, administrador o dueño. Para los demás se ve deshabilitado, con la razón.
+- **El cliente nunca ve** importes de la campaña, órdenes de compra, facturas, cobranza ni notas internas.
+- Funciona en español, inglés, italiano y portugués, y se ve bien en el celular.
+- Si la propuesta todavía no es campaña, la liga se ve exactamente igual que antes.
+
+---
+
 ## 2026-11-16 · v0.12.13 · «Comercial negociación» ahora se llama «Prospección» y está en Inventario
 
 - En el menú, **Comercial negociación** pasa a llamarse **Prospección** y se mueve del grupo Comercial al grupo **Inventario**, justo debajo de **Arrendadores**.

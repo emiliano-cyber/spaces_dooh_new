@@ -1,9 +1,14 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-11-05
+actualizado: 2026-11-17
 tags: [backend, comercial, propuestas, campanas, amarillo, precio, extension, contrato]
 archivos:
+  - apps/web/lib/seguimiento-campana.ts
+  - apps/web/lib/server/seguimiento-publico-repo.ts
+  - apps/web/lib/server/seguimiento-publico-controller.ts
+  - apps/web/lib/server/imprenta-visible-repo.ts
+  - apps/web/lib/server/imprenta-visible-controller.ts
   - apps/web/lib/server/propuestas-repo.ts
   - apps/web/lib/server/propuestas-controller.ts
   - apps/web/lib/tarifa-calculada.ts
@@ -846,6 +851,34 @@ primero el correo, después ENVIADA; un Resend caído da 502 y la propuesta no
 cambia. Sin correo configurado solo cambia el estatus y la pantalla copia la
 liga. En una ENVIADA el botón es «Reenviar» (renueva la vigencia si venció).
 Pruebas: `lib/server/propuestas-envio.test.ts` (el 502 se comprobó por mutación).
+
+## Seguimiento de la campaña en la liga del cliente (SEG-CLIENTE, 17/11)
+
+Pedido del dueño: «la ficha de la liga de la propuesta, tipo Mercado Libre:
+cuando la propuesta ya no es propuesta sino campaña, el creativo o la imprenta
+seleccionado y cómo va su avance».
+
+- **Backend en capas:** `GET /api/propuestas/publica/[id]/seguimiento` →
+  `lib/server/seguimiento-publico-controller.ts` (token, «hoy» de México) →
+  `lib/server/seguimiento-publico-repo.ts` (SQL bajo `qConTenant` con el
+  tenant que resuelve `propuesta_tenant_por_token`, y `and tenant_id` en cada
+  consulta) → regla pura `lib/seguimiento-campana.ts` (`armarSeguimiento`).
+- **Seis pasos para el cliente**, NO las 13 etapas de `ETAPAS_PIPELINE`: esas
+  incluyen OC, candado y facturación, que son estado interno de cobranza.
+  aceptada → confirmada → material (creativo validado y/o TODAS las lonas
+  impresas) → instalación (OT de montaje COMPLETADA y/o publicada en el CMS)
+  → al aire (instalada y ya en fechas) → terminada. Una línea sin huecos: el
+  primer paso sin cumplir es el actual y todo lo de después queda pendiente.
+- **Alerta**: todo el arte rechazado (el paso de material en ámbar, sin el
+  motivo). **`retrasada`**: pasó el arranque y no está al aire.
+- **La imprenta oculta por omisión**: `propuestas.imprenta_visible` (migración
+  `20261117_propuesta_imprenta_visible.sql`). El repo público anula
+  `proveedor` en el SELECT si está apagada. La enciende el vendedor creador o
+  un superior: `GET·PATCH /api/propuestas/[id]/imprenta-visible`
+  (`imprenta-visible-controller.ts` → `imprenta-visible-repo.ts`), con la
+  regla `puedeCambiarImprentaVisible` y el interruptor
+  `components/demo/propuestas/ImprentaVisibleCliente.tsx` en la ficha.
+- UI pública: [[03-Frontend/paginas-publicas]].
 
 ## Portal del cliente
 

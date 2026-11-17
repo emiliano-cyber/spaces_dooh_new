@@ -1,7 +1,7 @@
 ---
 tipo: referencia
 estado: verificado
-actualizado: 2026-11-11
+actualizado: 2026-11-17
 tags: [backend, api, endpoints]
 archivos:
   - apps/web/app/api/
@@ -25,6 +25,8 @@ archivos:
   - apps/web/app/api/paquetes/
   - apps/web/app/api/propuestas/[id]/paquete/route.ts
   - apps/web/app/api/propuestas/[id]/enviar/route.ts
+  - apps/web/app/api/propuestas/[id]/imprenta-visible/route.ts
+  - apps/web/app/api/propuestas/publica/[id]/seguimiento/route.ts
   - apps/web/app/api/propuestas/[id]/items/route.ts
   - apps/web/app/api/rejilla/
   - apps/web/app/api/reportes/rentabilidad/route.ts
@@ -253,6 +255,7 @@ en `:230-237`) y **no** puede condicionarse a que la ruta
 | POST | `/api/propuestas/[id]/items` | (29/10, PROP-COMPLETA) `comercial:crear`. Agrega sitios a una BORRADOR o ENVIADA (sube versión) con el periodo de la propuesta; cuerpo `{ items }` como el alta y la MISMA tarifa del servidor (403 si una vendedora se aparta); otro estatus → 409 |
 | DELETE | `/api/propuestas/items/[id]` | (29/10, PROP-COMPLETA) `comercial:crear`. Quita un sitio (BORRADOR o ENVIADA, sube versión); nunca el último (409); de otra organización → 404 |
 | DELETE | `/api/propuestas/[id]` | (29/10, PROP-COMPLETA, R5) `comercial:crear`. Borra un **BORRADOR** con sus líneas y su canje (devuelve el uso del cupón); otro estatus o con campaña → 409; de otra organización → 404 |
+| GET·PATCH | `/api/propuestas/[id]/imprenta-visible` | (17/11, SEG-CLIENTE) GET `comercial:ver` → `{ imprentaVisible, puedeCambiar }`; PATCH `comercial:crear` con `{ visible }`. **Oculta por omisión** (decisión del dueño): solo el vendedor que creó la propuesta (`usuario_id`) o un rol superior (ADR 0040; Dueño/Admin siempre; roles fuera de venta nunca) → si no, 403 sin escribir. Capas: `imprenta-visible-controller.ts` → `imprenta-visible-repo.ts`; regla pura `puedeCambiarImprentaVisible` en `lib/seguimiento-campana.ts` |
 | POST | `/api/propuestas/[id]/enviar` | (29/10, PROP-COMPLETA) `comercial:crear`. Cuerpo `{ para, mensaje? }`. Manda la liga por correo (canal de operación, copia a quien envía) y **después** deja la propuesta ENVIADA; si Resend falla, 502 y no cambia nada; sin correo configurado solo cambia el estatus (`correo: 'no_configurado'`). Vale para BORRADOR y ENVIADA (reenviar); lo demás 409 — `lib/server/propuestas-envio.ts` |
 | POST · DELETE | `/api/propuestas/[id]/paquete` | (05/10) `comercial:crear` — aplicar o quitar un paquete cerrado; el cuerpo lleva **solo** `paqueteId`, el precio lo copia el servidor bajo RLS — [[paquete-cerrado]] |
 | PATCH | `/api/propuestas/items/[id]` | exigir |
@@ -507,6 +510,7 @@ el 26/08 y su cerrojo real es que `tenants` esté vacía, no el token).
 | GET | `/api/portal/[token]` | `campanas.portal_token` |
 | GET·POST | `/api/firma/[token]` | token de firma del contrato |
 | GET·POST | `/api/propuestas/publica/[id]` | `propuestas.token_publico` — con el cupón **PENDIENTE** (COD-03) el GET no lo trae ni en el JSON y su total va sin él; el POST acepta **sin** cupón y devuelve el uso |
+| GET | `/api/propuestas/publica/[id]/seguimiento` | `propuestas.token_publico` — (17/11, SEG-CLIENTE) el avance de la campaña que nació de la propuesta, estilo rastreo de pedido: `{ hayCampana:false }` o `{ hayCampana:true, seguimiento }` (6 pasos, creativos, órdenes de imprenta, `retrasada`). Límite 60/min por IP. Capas: `seguimiento-publico-controller.ts` → `seguimiento-publico-repo.ts` (bajo `qConTenant` con el tenant del token, R2) → regla pura `lib/seguimiento-campana.ts`. **No lee** montos, OC, facturas, motivos de rechazo ni URLs; el `proveedor` se anula en el SELECT salvo `imprenta_visible` |
 | GET | `/api/logo/[token]` | `config_negocio.logo_token` |
 
 ## Cron
