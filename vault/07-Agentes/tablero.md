@@ -6,6 +6,13 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!important] 2026-11-17 · **IMP-CREA + IMP-PRIO** — rama `feat/imprenta-creativos-y-prioridad`, desde `origin/main` `17f56561` — **sin empujar**
+> Imprenta enseña el arte de cada orden en la proporción de su sitio (a sangre, con cuánto se recorta) y la lista va por
+> prioridad (fecha de inicio de la campaña: Atrasadas → Esta semana → 30 días → Más adelante → Sin fecha → Listas). Las
+> campañas fijas ya reciben arte (decisión del dueño). Typecheck, 10 415 unitarias y `imprenta-arte.e2e` (8/8, mutantes
+> 6/8 en rojo) en verde; **sin Chrome**. **Zonas tomadas y liberadas:** Z6 · Operaciones, Z5 · Comercial (solo
+> `crearCreatividad` y `api/creativos/[id]/arte`), Z12 · Docs y `docs/Registro_Cambios.md`. Detalle en [[2026-11-17]].
+
 > [!important] 2026-11-16 · **v0.12.12 = `integra/v0-12-12`** — `feat/personalizar-dashboard` + `feat/paleta-de-instalacion`, desde `main` `4462557e`
 > Conflictos de la paleta con CAMPOS-PANTALLA en los guiones del alta: se conservan los dos. Typecheck, 10 389 unitarias,
 > build, `pruebas-provision` (60/200) e `instalar-hijo` (12/64) y e2e 1270 + novedades tras reconstruir, en verde (solo
