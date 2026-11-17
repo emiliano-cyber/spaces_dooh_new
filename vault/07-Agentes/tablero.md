@@ -6,6 +6,12 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!success] 2026-11-17 · **CRM-02 · Fase 2 del ADR 0051: las oportunidades (migración + API)** — rama `feat/crm-comercial` · **ROJO R3**, forma aprobada por el dueño el 17/11
+> `20261117_crm_oportunidades.sql` (3 tablas, `propuestas.oportunidad_id`, `clientes_id_tenant_uq`), `lib/crm.ts`, `oportunidades-repo/controller`
+> y cuatro rutas en `/api/oportunidades/**`. 11 unitarias y 28 e2e propias (vistas en rojo sin la migración). **Zonas tomadas y liberadas:**
+> Z5 (solo archivos nuevos), Z12 · Docs, el catálogo de errores (`lib/i18n/errores-servidor.ts`) y `esquema-sin-owner.e2e.test.ts` (la cifra 68 → 71).
+> No se tocó `aislamiento.e2e.test.ts`, `servidor-e2e.ts` ni `db/schema.sql`. Ver [[crm-oportunidades]] y [[2026-11-17]].
+
 > [!success] 2026-11-17 · **CRM-01 · Fase 1 del ADR 0051: la lista de Propuestas, por cliente** — rama `feat/crm-comercial`, desde `main` `17f56561` · ÁMBAR (sin migración, sin sesión, sin tenant, sin dinero)
 > Botones «Por propuesta | Por cliente» y el cotejo por cliente (`lib/crm-cotejo.ts`, `CotejoPorCliente.tsx`, textos en `textos/crm.ts`).
 > Typecheck y 10 407 unitarias en verde; sin e2e ni navegador. **Zonas tomadas y liberadas:** Z5 (solo la lista de

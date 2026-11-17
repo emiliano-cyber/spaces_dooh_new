@@ -220,7 +220,11 @@ describe('el esquema base no trae la organización de nadie', () => {
     //     `avisos_usuario`, que avisos quiere cada quien por correo (y,
     //     sembrado, por WhatsApp) (AVISOS-CANAL). Esta prueba lo delato en la
     //     corrida de las e2e de base, con las 15 propias de la tarea en verde.
-    expect(trasMigrar.tablas).toBe(68)
+    //   · 71 el 2026-11-17: `20261117_crm_oportunidades.sql` anade TRES
+    //     --`oportunidades`, `oportunidad_actividades` y `propuesta_cambios`--,
+    //     el CRM comercial del ADR 0051 (Fase 2). Subido a la vez que la
+    //     migracion.
+    expect(trasMigrar.tablas).toBe(71)
     // Lo que de verdad importa: ni las migraciones resucitan al owner.
     expect(trasMigrar.tenants).toBe(0)
   })

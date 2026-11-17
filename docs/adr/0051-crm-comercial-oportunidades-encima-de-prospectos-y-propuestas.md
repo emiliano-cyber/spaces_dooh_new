@@ -4,7 +4,8 @@
 - **Estado:** **Aceptada (17/11, el dueño aprobó la forma de la migración de §1 a §4).** Es ROJO:
   R3 (migración) y R4 (toca el flujo de Propuestas, que es dinero). Siguen abiertas las preguntas
   2 a 4 de abajo; ninguna cambia la forma de la migración. **Fase 1 hecha el 17/11** (sin
-  migración): `lib/crm-cotejo.ts` y la vista «Por cliente» en Propuestas.
+  migración): `lib/crm-cotejo.ts` y la vista «Por cliente» en Propuestas. **Fase 2 hecha el 17/11**:
+  `20261117_crm_oportunidades.sql`, `/api/oportunidades/**` y su e2e (ver «Cómo quedó la Fase 2»).
 - **Rama:** `feat/crm-comercial`, desde `main` `17f56561` (v0.12.13).
 - **Relacionado:** [ADR 0047](0047-comercial-negociacion-encima-de-prospectos.md) (Prospección
   encima de `prospectos`; este ADR reutiliza su tabla para el lado cliente y respeta su decisión de
@@ -157,6 +158,26 @@ En la ficha de la oportunidad, sin columnas nuevas:
 | **2** | Migración + `oportunidades-repo/controller` + rutas `/api/oportunidades/**` + e2e de aislamiento | **ROJO R3** |
 | **3** | `propuesta_cambios` escrito desde `propuestas-repo.ts`, y `oportunidad_id` al crear y al editar | **ROJO R4** |
 | **4** | Pantalla CRM: menú, embudo, ficha con cotejo y línea de tiempo; Prospección filtrada; los idiomas de la instancia | ÁMBAR |
+
+## Cómo quedó la Fase 2 (17/11)
+
+Tal como §1 a §5, con cuatro precisiones que salieron al hacerla:
+
+- **La probabilidad se guarda NULL cuando el vendedor no la pone**, y la tabla
+  por etapa (`lib/crm.ts`, `PROBABILIDAD_POR_ETAPA`) se aplica **al leer**. Así la
+  pregunta 3 sigue abierta sin costo: si el dueño cambia los números, cambian
+  todas las oportunidades sin reescribir una fila.
+- **El cliente que nace al aprobar el prospecto se lee, no se copia**:
+  `coalesce(cliente_id, prospectos.registro_id)`. La aprobación de Captación no se
+  tocó; §1 decía «se rellena `cliente_id`», y leerlo da lo mismo sin abrir otra
+  zona ROJA.
+- **`oportunidad_actividades` y `propuesta_cambios` no llevan FK a `usuarios`**,
+  por la lección de `20261109_acciones_sin_fk_usuario.sql`: con `set null`, borrar un
+  usuario sería un UPDATE que el trigger rechaza. La e2e lo comprueba.
+- **Borrar un cliente con oportunidades da 409 genérico** («El registro está
+  referenciado por otro»): la FK es `restrict` y `borrarCliente` no las cuenta en su
+  desglose. No rompe nada (el cliente se queda y no hay 500); contarlas queda
+  para la Fase 4.
 
 ## Alternativas consideradas
 

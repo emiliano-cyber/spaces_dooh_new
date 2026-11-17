@@ -348,6 +348,8 @@ describe('GUARDIA · ningun mensaje de error puede quedarse fuera EN SILENCIO', 
       'Teléfono inválido. Escribe 10 dígitos (p. ej. 55 1234 5678)',
       'Código postal inválido (5 dígitos)',
       'Ese prospecto no existe',
+      // ADR 0051 · `NO_EXISTE` de `oportunidades-controller.ts`, por variable.
+      'Esa oportunidad no existe',
       'Tu organizacion ya tiene razones sociales registradas, asi que el cuestionario ya se contesto. Para cambiarlas, usa la pantalla de Administracion.',
       'Las tarifas por unidad se guardan en su propia ruta (PATCH /api/sitios/:id/modalidades), que siempre pide la contraseña.',
       // ADR 0042 · los de `lib/calculadora-spots.ts`, que viajan por variable

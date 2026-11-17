@@ -1,7 +1,7 @@
 ---
 tipo: indice
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-11-17
 tags: [backend, indice]
 archivos:
   - apps/web/app/api/
@@ -64,6 +64,7 @@ No hay servicio aparte.
 | [[recibos-cfe-pdf]] | **Subir el PDF de CFE**: las dos codificaciones del recibo, por qué el `Total` impreso NO es el costo del periodo, el reparto de un recibo bimestral en meses de calendario, y el emparejamiento con el predio **sin tocar el esquema** |
 | [[vendedor-en-propuesta]] | La octava: quién vendió y cuánto descuento concedió. El dato que faltaba, y el histórico que no se puede recuperar |
 | [[avisos-por-canal]] | **12/11**: los avisos de la campana también por correo, por **Resend o Brevo** (`EMAIL_PROVEEDOR`), a quien los enciende en Configuración → Avisos; **WhatsApp sembrado** (teléfono y columna, sin envío); recuperar contraseña **solo por correo**. Por qué solo sale lo nuevo y por qué la aceptación pública reparte después del `commit` |
+| [[crm-oportunidades]] | **ADR 0051, Fase 2** (17/11): las oportunidades del CRM comercial — lo que el cliente quiere (presupuesto, fechas, plazas, medios) y su etapa, encima de los prospectos `CLIENTE` y las propuestas. FK compuestas con tenant, la línea de tiempo **solo crece** por trigger, y el vendedor ve **lo suyo** por `comercial.aprobar` |
 | [[network-api]] | **11/11**: la API que la nueva app de Network consulta con su token — las pantallas con el switch encendido, su ficha pública y sus días libres con la regla del alta. Por qué recorre las organizaciones bajo RLS y qué datos no salen |
 | [[costo-real-de-ot]] | **OT-COSTO-01**: lo que de verdad costó cada visita, y que **SUSTITUYE** a la tarifa por tipo en vez de sumarse. Por qué la columna es nullable y sin DEFAULT; por qué el `0` no es el vacío; por qué la captura es una ruta propia con candado de dinero y no un campo de `cerrar`; y el aviso que dice **cuántas van medidas y cuántas estimadas** — el único hueco del reporte que no se ve. Trae el renombrado a **margen bruto**, y dónde queda escrito que **bruto no es neto** |
 | [[cuestionario-bienvenida]] | El cuestionario que crea las razones sociales del owner al entrar |

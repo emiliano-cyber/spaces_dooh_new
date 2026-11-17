@@ -1,7 +1,7 @@
 ---
 tipo: referencia
 estado: verificado
-actualizado: 2026-11-11
+actualizado: 2026-11-17
 tags: [backend, api, endpoints]
 archivos:
   - apps/web/app/api/
@@ -36,6 +36,11 @@ archivos:
 ---
 
 # API — los 159 endpoints (medidos el 2026-10-29 con `recuentos.mjs`)
+
+> **2026-11-17 · 169 (ADR 0051, Fase 2, rama `feat/crm-comercial`):** las cuatro
+> rutas de las oportunidades del CRM —`/api/oportunidades`, `…/[id]`,
+> `…/[id]/etapa` y `…/[id]/actividades`—. Medido con `recuentos.mjs`. Ver
+> [[crm-oportunidades]].
 
 > **2026-11-12 · 165 (AVISOS-CANAL, rama `feat/avisos-por-canal`):** `GET` y
 > `PUT /api/perfil/avisos`, una sola ruta (`route.ts`). Medido con
@@ -277,6 +282,10 @@ en `:230-237`) y **no** puede condicionarse a que la ruta
 | POST | `/api/campanas/[id]/facturar` | **SENSIBLE** |
 | GET · PUT | `/api/campanas/franja-programada` | `comercial:ver` · `comercial:aprobar` — la franja en que **se transmite** (PROG-01, 30/09), en bloque y atómico; ver [[rejilla-franja-y-temporada]] |
 | POST | `/api/ordenes-compra` | exigir |
+| GET·POST | `/api/oportunidades` | (17/11, ADR 0051) `comercial:ver` · `comercial:crear` — el vendedor ve **las suyas**; quien tiene `comercial:aprobar`, todas. Ajena = 404 — [[crm-oportunidades]] |
+| GET·PATCH | `/api/oportunidades/[id]` | (17/11) `comercial:ver` · `comercial:crear` — ficha con línea de tiempo y cotizaciones; cerrada = 409 al editar |
+| POST | `/api/oportunidades/[id]/etapa` | (17/11) `comercial:crear` — deja la fila `ETAPA` en la misma transacción; perderla exige motivo |
+| POST | `/api/oportunidades/[id]/actividades` | (17/11) `comercial:crear` — llamada, visita, junta, correo, WhatsApp o nota; solo se añade |
 | GET·POST | `/api/captacion` | (05/10) `captacion:ver` · `captacion:crear` — [[captacion]] |
 | GET·PATCH | `/api/captacion/[id]` | (05/10) `captacion:ver` · `captacion:crear` |
 | POST | `/api/captacion/[id]/avances` | (05/10) `captacion:crear` |

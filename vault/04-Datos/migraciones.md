@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-11-09
+actualizado: 2026-11-17
 tags: [datos, migraciones, despliegue, rojo]
 archivos:
   - db/migrations/
@@ -63,7 +63,7 @@ archivos:
 > [!important] 2026-10-05 · puesta al día — ninguna de las de abajo está ya «sin fusionar»
 > Medido hoy con `node scripts/recuentos.mjs` sobre el árbol de
 > `integra/riesgos-presentacion-14-oct` (salida de `main` en `09c65ca2`):
-> **129 migraciones y 68 tablas** (12/11, `feat/avisos-por-canal` con `20261112_avisos_por_canal.sql`: crea `avisos_usuario` y la columna `usuarios.telefono_whatsapp`) (09/11, 127, `feat/borrar-usuarios` con `20261109_acciones_sin_fk_usuario.sql`: ninguna tabla ni columna, solo quita una FK) (05/11, 126, `feat/portugues-documentos` con `20261105_idioma_portugues.sql` de P3 del portugués: ninguna columna ni tabla, solo los dos CHECK) (04/11, 125, `integra/idiomas` con `20261103_usuarios_idioma_preferido.sql` de IDIOMA-USUARIO, una columna y ninguna tabla) (03/11, 124, con `20261103_idioma_documentos_por_instancia.sql`, una columna y ninguna tabla) (02/11, 123, con `20261102_moneda_inmutable_por_instancia.sql`, ninguna tabla) (29/10, 122, con `20261029_propuestas_condiciones_vigencia_vendedor.sql`, cinco columnas y ninguna tabla) (29/10, 121, con `20261029_campana_extensiones.sql`, que crea `campana_extensiones`) (22/10, 117 y 64, con `20261022_campana_horario_doohmain.sql`, tres columnas en `campanas`) (22/10, 116 y 64, con `20261022_comercial_negociacion.sql`, que crea las cuatro tablas de Comercial negociación) (21/10, 115 y 60, con `20261021_notificaciones_por_usuario.sql`, que crea `notificaciones_usuario`: esta vez el 60 es una tabla de verdad) (19/10, 114 y 59, con `20261019_cobranza_abono_comprobante.sql`; antes 113) —el «60» que decía aquí el 13/10 era falso:
+> **130 migraciones y 71 tablas** (17/11, `feat/crm-comercial` con `20261117_crm_oportunidades.sql`: las tres tablas del CRM comercial, ADR 0051) (12/11, 129 y 68, `feat/avisos-por-canal` con `20261112_avisos_por_canal.sql`: crea `avisos_usuario` y la columna `usuarios.telefono_whatsapp`) (09/11, 127, `feat/borrar-usuarios` con `20261109_acciones_sin_fk_usuario.sql`: ninguna tabla ni columna, solo quita una FK) (05/11, 126, `feat/portugues-documentos` con `20261105_idioma_portugues.sql` de P3 del portugués: ninguna columna ni tabla, solo los dos CHECK) (04/11, 125, `integra/idiomas` con `20261103_usuarios_idioma_preferido.sql` de IDIOMA-USUARIO, una columna y ninguna tabla) (03/11, 124, con `20261103_idioma_documentos_por_instancia.sql`, una columna y ninguna tabla) (02/11, 123, con `20261102_moneda_inmutable_por_instancia.sql`, ninguna tabla) (29/10, 122, con `20261029_propuestas_condiciones_vigencia_vendedor.sql`, cinco columnas y ninguna tabla) (29/10, 121, con `20261029_campana_extensiones.sql`, que crea `campana_extensiones`) (22/10, 117 y 64, con `20261022_campana_horario_doohmain.sql`, tres columnas en `campanas`) (22/10, 116 y 64, con `20261022_comercial_negociacion.sql`, que crea las cuatro tablas de Comercial negociación) (21/10, 115 y 60, con `20261021_notificaciones_por_usuario.sql`, que crea `notificaciones_usuario`: esta vez el 60 es una tabla de verdad) (19/10, 114 y 59, con `20261019_cobranza_abono_comprobante.sql`; antes 113) —el «60» que decía aquí el 13/10 era falso:
 > `recuentos.mjs` contaba como tabla la palabra `if` de un comentario de
 > `20261013_doohmain_seguimiento_unicas.sql`; corregido el 14/10 quitando los
 > comentarios antes de medir— (13/10, con `20261013_sitios_pantalla_doohmain.sql`; antes 112) (13/10, con `20261013_doohmain_seguimiento_unicas.sql`; antes 111) (12/10, con `20261012_razon_social_principal.sql`; antes 110) (07/10, con `20261011_contrato_cambios_solo_insercion.sql`; antes 109) (07/10, con `20261010_contrato_cambios.sql`; antes 108 y 58) (06/10, con `20261009_propuestas_fechas_estatus.sql`; antes 107) (06/10, con `20261008_cobranza_abonos.sql`). Es el recuento vigente; los de los recuadros
@@ -74,6 +74,7 @@ archivos:
 >
 > | Migración | Decía | Entró en `main` |
 > |---|---|---|
+> | `20261117_crm_oportunidades.sql` | rama `feat/crm-comercial` (ADR 0051, Fase 2), **forma aprobada por el dueño el 17/11** (ROJO R3) | **Sin publicar.** Crea `oportunidades`, `oportunidad_actividades` y `propuesta_cambios` (las dos últimas **solo crecen**, por trigger), `propuestas.oportunidad_id` y `clientes_id_tenant_uq`. Probada por la e2e `oportunidades` (28) contra Postgres 16 real |
 > | `20261112_avisos_por_canal.sql` | rama `feat/avisos-por-canal` (AVISOS-CANAL), **aprobada por el dueño el 12/11** (ROJO R3) | **Sin publicar.** Crea `avisos_usuario` y `usuarios.telefono_whatsapp`. Probada por la e2e `avisos-canal` (15) contra Postgres 16 real, idempotencia incluida |
 > | `20261109_acciones_sin_fk_usuario.sql` | rama `feat/borrar-usuarios`, **aprobada por el dueño el 09/11** (ROJO R3 y R5) | **Sin publicar.** Quita solo la FK `acciones.usuario_id → usuarios`; la bitácora y su trigger append-only no se tocan. Probada por la e2e `borrar-usuario` (la prueba 3 daba 500 sin ella) |
 > | `20261105_idioma_portugues.sql` | rama `feat/portugues-documentos` (P3 del portugués), **aprobada por el dueño el 05/11** (ROJO R3, y firmas) | **Sin publicar.** Ninguna tabla ni columna: suelta y vuelve a crear, con el MISMO nombre, `usuarios_idioma_preferido_valido` y `tenants_idioma_documentos_ck` con `pt` (es/en/it/pt). No toca los triggers del ADR 0049 ni ninguna fila. Aplicada dos veces sobre una base desechable y por la e2e `idioma-portugues` |
@@ -1448,6 +1449,30 @@ de entidades añadía en paralelo. Si la necesitas, cuéntala, no la copies.
 >
 > Runner ×2 contra base desechable: **94 aplicadas** en la primera pasada, **0**
 > en la segunda, sin divergencia de checksum. Ver [[02-Backend/costo-real-de-ot]].
+
+## `20261117_crm_oportunidades.sql` — las oportunidades del CRM comercial (17/11)
+
+Forma aprobada por el dueño el 17/11 (ROJO R3, ADR 0051 §1 a §4). `@tipo: esquema`,
+transaccional e idempotente. **Solo agrega**:
+
+- `clientes_id_tenant_uq` — el `unique (id, tenant_id)` que `clientes` no tenía y
+  que hace falta para una FK compuesta hacia ella.
+- `oportunidades` — FK compuestas con tenant a `prospectos` y `clientes`
+  (`restrict`), CHECK de al menos uno de los dos, de etapa, de presupuesto y
+  fechas, y de motivo al perder. Sin `delete` para la app.
+- `oportunidad_actividades` y `propuesta_cambios` — **solo crecen**: trigger
+  `crm_solo_crece()` contra update y delete (también al superusuario; TRUNCATE
+  no lo dispara, a propósito) y solo `select, insert` para la app. Ninguna lleva
+  FK a `usuarios` (la lección de `20261109_acciones_sin_fk_usuario.sql`), y
+  `propuesta_cambios.propuesta_id` tampoco a `propuestas`, para sobrevivir al
+  borrado de un borrador.
+- `propuestas.oportunidad_id` — opcional, FK compuesta, `restrict`.
+
+Vuelta atrás: el código anterior no lee nada de esto. Consecuencia que se ve:
+borrar un cliente con oportunidades da **409** (antes no había nada que lo
+impidiera). Probada por `lib/test/oportunidades.e2e.test.ts` (28, en rojo sin la
+migración) y por `esquema-sin-owner`, que sube de 68 a 71 tablas. Ver
+[[02-Backend/crm-oportunidades]].
 
 ## `20261112_avisos_por_canal.sql` — los avisos también por correo, WhatsApp sembrado (12/11)
 

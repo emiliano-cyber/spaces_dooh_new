@@ -593,6 +593,27 @@ export const CATALOGO_ERRORES: Record<string, string> = {
     'The value is not valid',
   'Ese prospecto no existe':
     'That prospect does not exist',
+  // ADR 0051 · las oportunidades del CRM comercial.
+  'Esa oportunidad no existe':
+    'That opportunity does not exist',
+  'El presupuesto mínimo no puede ser mayor que el máximo':
+    'The minimum budget cannot be greater than the maximum',
+  'La fecha de inicio no puede ir después de la de fin':
+    'The start date cannot be after the end date',
+  'Elige el cliente o el prospecto':
+    'Choose the client or the prospect',
+  'Solo un prospecto de tipo cliente puede tener oportunidades':
+    'Only a client prospect can have opportunities',
+  'Ese prospecto ya es otro cliente':
+    'That prospect is already a different client',
+  'Ese cliente no existe':
+    'That client does not exist',
+  'La oportunidad ya está cerrada':
+    'The opportunity is already closed',
+  'La oportunidad ya está en esa etapa':
+    'The opportunity is already at that stage',
+  'Escribe por qué se perdió':
+    'Write why it was lost',
   // v0.12.3 · pantallas y lugares propios.
   'El lugar elegido no existe o no es propio.':
     'The chosen location does not exist or is not owned.',
@@ -1181,6 +1202,27 @@ export const CATALOGO_ERRORES_IT: Partial<Record<string, string>> = {
     'Il valore non è valido',
   'Ese prospecto no existe':
     'Questo prospect non esiste',
+  // ADR 0051 · le opportunità del CRM commerciale.
+  'Esa oportunidad no existe':
+    'Questa opportunità non esiste',
+  'El presupuesto mínimo no puede ser mayor que el máximo':
+    'Il budget minimo non può essere maggiore del massimo',
+  'La fecha de inicio no puede ir después de la de fin':
+    'La data di inizio non può essere successiva a quella di fine',
+  'Elige el cliente o el prospecto':
+    'Scegli il cliente o il prospect',
+  'Solo un prospecto de tipo cliente puede tener oportunidades':
+    'Solo un prospect di tipo cliente può avere opportunità',
+  'Ese prospecto ya es otro cliente':
+    'Questo prospect è già un altro cliente',
+  'Ese cliente no existe':
+    'Questo cliente non esiste',
+  'La oportunidad ya está cerrada':
+    'L’opportunità è già chiusa',
+  'La oportunidad ya está en esa etapa':
+    'L’opportunità è già in quella fase',
+  'Escribe por qué se perdió':
+    'Scrivi perché è stata persa',
   'El lugar elegido no existe o no es propio.':
     'Il luogo scelto non esiste o non è di proprietà.',
   '«Propia» es sí o no':
@@ -1564,6 +1606,17 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
   'El texto tiene un formato inválido': 'O texto tem um formato inválido',
   'El valor no es válido': 'O valor não é válido',
   'Ese prospecto no existe': 'Esse prospect não existe',
+  // ADR 0051 · as oportunidades do CRM comercial.
+  'Esa oportunidad no existe': 'Essa oportunidade não existe',
+  'El presupuesto mínimo no puede ser mayor que el máximo': 'O orçamento mínimo não pode ser maior que o máximo',
+  'La fecha de inicio no puede ir después de la de fin': 'A data de início não pode ser depois da data de término',
+  'Elige el cliente o el prospecto': 'Escolha o cliente ou o prospect',
+  'Solo un prospecto de tipo cliente puede tener oportunidades': 'Só um prospect do tipo cliente pode ter oportunidades',
+  'Ese prospecto ya es otro cliente': 'Esse prospect já é outro cliente',
+  'Ese cliente no existe': 'Esse cliente não existe',
+  'La oportunidad ya está cerrada': 'A oportunidade já está fechada',
+  'La oportunidad ya está en esa etapa': 'A oportunidade já está nessa etapa',
+  'Escribe por qué se perdió': 'Escreva por que foi perdida',
   'El lugar elegido no existe o no es propio.': 'O lugar escolhido não existe ou não é da sua empresa.',
   '«Propia» es sí o no': '“Próprio” é sim ou não',
   'Esta pantalla tiene un contrato de renta vigente: termínalo en Arrendadores antes de marcarla como propia.':
