@@ -55,8 +55,10 @@ describe('armarSeguimiento', () => {
       base({}, { imprenta: [oi('LISTO_MONTAJE')], montajes: [{ estatus: 'COMPLETADA', fechaCompletada: '2026-11-28T18:00:00.000Z' }] }),
       '2026-12-05',
     )
-    expect(s.pasoActual).toBe('finalizada')
-    expect(s.pasos.find((p) => p.clave === 'al_aire')).toEqual({ clave: 'al_aire', estado: 'hecho', fecha: '2026-12-01' })
+    // Corriendo: el «Ahora» en «Al aire» (con su fecha), «terminada» pendiente.
+    expect(s.pasoActual).toBe('al_aire')
+    expect(s.pasos.find((p) => p.clave === 'al_aire')).toEqual({ clave: 'al_aire', estado: 'actual', fecha: '2026-12-01' })
+    expect(s.pasos.find((p) => p.clave === 'finalizada')?.estado).toBe('pendiente')
   })
 
   it('NEGATIVO · la fecha de fin pasó pero nunca se instaló: NO dice finalizada ni al aire', () => {

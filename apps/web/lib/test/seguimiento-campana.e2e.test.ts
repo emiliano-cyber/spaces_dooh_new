@@ -262,8 +262,10 @@ describe('2 · una OOH recorre su línea por las rutas reales', () => {
     // Sin ruta que mueva una campaña al pasado: se ajusta en la base.
     await poolTest().query(`update campanas set fecha_inicio = $2::date where id = $1`, [ooh.campanaId, enDias(-3)])
     const s = (await seguimiento(ooh.token)).datos.seguimiento
-    expect(pasoDe(s, 'al_aire').estado).toBe('hecho')
-    expect(s.pasoActual).toBe('finalizada')
+    // El «Ahora» va en «Al aire» mientras corre, no en «Campaña terminada».
+    expect(pasoDe(s, 'al_aire').estado).toBe('actual')
+    expect(pasoDe(s, 'finalizada').estado).toBe('pendiente')
+    expect(s.pasoActual).toBe('al_aire')
     expect(s.mensaje).toBe('al_aire')
     expect(s.retrasada).toBe(false)
   })

@@ -254,14 +254,14 @@ const SEG_DOOH_RECHAZO = {
   pasos: PASOS_SEG('alerta'),
   creativos: [{ nombre: 'spot_30s.mp4', formato: 'MP4', resolucion: '1920x1080', estatus: 'RECHAZADA', creadoEn: null }],
 }
-// Corriendo: «al aire» hecho y «terminada» pendiente. El servidor manda
-// `mensaje: 'finalizada'` (es su `pasoActual`); el banner NO debe decir «terminó».
+// Corriendo: «al aire» es el paso actual y «terminada» pendiente; el servidor
+// manda `mensaje: 'al_aire'` y el banner NO debe decir «terminó».
 const SEG_HIBRIDA_AL_AIRE = {
   ...SEG_BASE,
   tipo: 'HIBRIDA',
-  pasoActual: 'finalizada',
-  mensaje: 'finalizada',
-  pasos: PASOS_SEG('hecho', { instalacion: 'hecho', al_aire: 'hecho', finalizada: 'actual' }),
+  pasoActual: 'al_aire',
+  mensaje: 'al_aire',
+  pasos: PASOS_SEG('hecho', { instalacion: 'hecho', al_aire: 'actual', finalizada: 'pendiente' }),
 }
 const SEG_CANCELADA = { ...SEG_BASE, tipo: 'OOH', cancelada: true, pasoActual: 'material', mensaje: 'cancelada', pasos: PASOS_SEG('actual') }
 

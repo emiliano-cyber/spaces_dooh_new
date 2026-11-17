@@ -24,7 +24,7 @@
 //    hueco; cuando llega el nombre, se dice una vez.
 // ============================================================================
 
-import { Check, AlertTriangle, CircleSlash, ChevronDown, Printer, MonitorPlay } from 'lucide-react'
+import { Check, AlertTriangle, CircleSlash, ChevronDown, Printer, MonitorPlay, Radio } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { useIdioma } from '@/lib/i18n/contexto'
 import { formatFecha } from '@/lib/data/client'
@@ -108,10 +108,10 @@ export function SeguimientoCampana({
 
   const alerta = s.pasos.some((p) => p.estado === 'alerta')
   const terminada = !s.cancelada && s.pasos.every((p) => p.estado === 'hecho')
-  // Al aire = el paso «al aire» ya está hecho y el de «terminada» no.
-  const alAire = !s.cancelada && !terminada && s.pasoActual === 'finalizada'
-  // Instalada y esperando la fecha de arranque.
-  const lista = !s.cancelada && s.pasoActual === 'al_aire'
+  // Desde `f2f9e6b0` el servidor distingue los dos casos en `mensaje`:
+  // corriendo es «al_aire» y montada esperando su fecha es «lista».
+  const alAire = !s.cancelada && !terminada && s.mensaje === 'al_aire'
+  const lista = !s.cancelada && s.mensaje === 'lista'
   // Retraso DERIVADO, sin causa inventada: ya pasó el arranque y aún no está al
   // aire. Si el paso actual es el material detenido, manda el aviso del ajuste.
   const antesDelAire = !s.cancelada && ['aceptada', 'confirmada', 'material', 'instalacion', 'al_aire'].includes(s.pasoActual)
@@ -194,6 +194,10 @@ export function SeguimientoCampana({
             <AlertTriangle className="h-5 w-5" />
           ) : terminada ? (
             <Check className="h-5 w-5" />
+          ) : alAire ? (
+            // Al aire no es imprenta ni pantalla: es «está saliendo». Antes una
+            // OOH al aire enseñaba la impresora.
+            <Radio className="h-5 w-5" />
           ) : usaImprenta && !usaCreativo ? (
             <Printer className="h-5 w-5" />
           ) : (
@@ -397,7 +401,7 @@ function Lonas({ s }: { s: Seguimiento }) {
                   : t('cuenta.seguimiento.imprenta.ver.otros', { n: num(s.imprenta.length) })}
                 <ChevronDown aria-hidden="true" className="h-4 w-4 text-muted transition-transform group-open:rotate-180" />
               </summary>
-              <ul className="divide-y divide-border border-t border-border">
+              <ul className="list-none divide-y divide-border border-t border-border">
                 {ordenadas.map((o, i) => {
                   const lista = o.estatus === 'IMPRESO' || o.estatus === 'LISTO_MONTAJE'
                   return (

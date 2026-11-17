@@ -179,7 +179,17 @@ export function armarSeguimiento(d: DatosSeguimiento, hoy: string): Seguimiento 
         : 'pendiente'
     return { clave, estado, fecha: hecho ? fechas[clave] : null }
   })
-  const pasoActual = iActual === -1 ? 'finalizada' : ORDEN[iActual]
+  // Corriendo (lo único sin cumplir es «terminada»): el «Ahora» va en «Al aire»,
+  // como el «En camino» de un pedido. Ponerlo en «Campaña terminada» —lo que
+  // salía de tomar el primer paso sin cumplir— se leía como si ya acabara; lo
+  // vio el probador en el navegador el 17/11.
+  const corriendo = iActual !== -1 && ORDEN[iActual] === 'finalizada'
+  if (corriendo) {
+    const i = ORDEN.indexOf('al_aire')
+    pasos[i] = { ...pasos[i], estado: 'actual' }
+    pasos[iActual] = { ...pasos[iActual], estado: 'pendiente' }
+  }
+  const pasoActual: ClavePaso = iActual === -1 ? 'finalizada' : corriendo ? 'al_aire' : ORDEN[iActual]
 
   const cancelada = c.estado === 'CANCELADA'
   let mensaje: string
@@ -199,7 +209,7 @@ export function armarSeguimiento(d: DatosSeguimiento, hoy: string): Seguimiento 
   // el siguiente por cumplir, así que con la campaña corriendo el actual es
   // «finalizada» (y decir «terminó» sería mentir), y con la lona montada
   // esperando su fecha es «al_aire» (y decir «está al aire» también).
-  else if (pasoActual === 'finalizada') mensaje = 'al_aire'
+  else if (corriendo) mensaje = 'al_aire'
   else if (pasoActual === 'al_aire') mensaje = 'lista'
   else mensaje = pasoActual
 
