@@ -803,7 +803,7 @@ const PANTALLAS: Pantalla[] = [
       return pintar(idioma, createElement(C, { hoyIso: HOY }))
     },
     espanol: [
-      'Comercial negociación',
+      'Prospección',
       'Prospección de arrendadores: los espacios que se están persiguiendo, quién manda en cada uno y cómo va la negociación de su renta.',
       'Nuevo espacio',
       'En seguimiento',
@@ -895,7 +895,7 @@ const PANTALLAS: Pantalla[] = [
       'Agregar nota',
       'Usuario eliminado · 01/10/2026',
     ],
-    ingles: ['Lease negotiation', 'New space', 'Spaces being tracked', 'Finding the decision-maker', 'Last contact: Sra. Carmen', 'Next step:', 'Spec sheet', 'Sep 15, 2026'],
+    ingles: ['Prospecting', 'New space', 'Spaces being tracked', 'Finding the decision-maker', 'Last contact: Sra. Carmen', 'Next step:', 'Spec sheet', 'Sep 15, 2026'],
   },
   {
     nombre: 'comercial negociacion · sin espacios, con el alta abierta',

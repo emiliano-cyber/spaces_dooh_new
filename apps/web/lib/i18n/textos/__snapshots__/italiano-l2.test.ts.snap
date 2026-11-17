@@ -618,7 +618,7 @@ exports[`italiano L2 · instantanea > el italiano de comercial no cambia sin que
   "comercial.negociacion.sin-contacto": "Nessun contatto",
   "comercial.negociacion.sin-definir": "Non definito",
   "comercial.negociacion.sin-direccion": "Senza indirizzo",
-  "comercial.negociacion.titulo": "Negoziazione locazioni",
+  "comercial.negociacion.titulo": "Prospezione",
   "comercial.negociacion.ubicacion.buscador": " · dalla ricerca",
   "comercial.negociacion.ubicacion.el": " in data {fecha}",
   "comercial.negociacion.ubicacion.gps": "GPS del telefono: in sospeso",

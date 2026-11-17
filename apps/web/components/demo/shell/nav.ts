@@ -138,6 +138,15 @@ export const NAV: NavItem[] = [
   // comercial: una pantalla no es tuya, es de alguien que te la renta, y el
   // contrato con ese alguien es lo que te deja venderla (ADR 0003).
   { key: 'arrendadores', label: 'Arrendadores', href: '/arrendadores', icon: Building2, roles: [...MANDO], grupo: 'patrimonio' },
+  // PROSPECCIÓN · fue «Comercial negociación», en el grupo Comercial, hasta el
+  // 2026-11-16. El dueño pidió llamarla «Prospección» y subirla a Inventario:
+  // lo que se prospecta son ARRENDADORES y sus espacios (NEG-01, encima de
+  // `prospectos`), o sea inventario que todavía no es tuyo. Por eso va justo
+  // debajo de Arrendadores, que es en lo que acaba un prospecto que firma.
+  // Cambian el rótulo y el grupo; la clave, la ruta y los ROLES no: sigue
+  // viéndola venta, porque su módulo es `captacion` (`lib/modulos.ts`) y
+  // quitarle la entrada a quien prospecta lo dejaría sin su pantalla.
+  { key: 'comercial-opex', label: 'Prospección', href: '/comercial-opex', icon: Handshake, roles: [...MANDO, ...VENTA], grupo: 'patrimonio' },
   { key: 'network', label: 'Network', href: '/network', icon: Network, roles: [...MANDO, ...VENTA], grupo: 'patrimonio' },
   // ALMACEN va en Inventario y no en Operaciones (decidido el 2026-09-29):
   // lo que guarda son BIENES -- lonas, herrajes, material--, y un inventario de
@@ -182,10 +191,8 @@ export const NAV: NavItem[] = [
   // tablas, la API y el modulo `captacion` de permisos siguen, asi que volver a
   // ponerla es restaurar esta linea:
   //   { key: 'captacion', label: 'Captación', href: '/captacion', icon: Target, roles: [...MANDO, ...VENTA], grupo: 'vender' },
-  // Maqueta pedida el 2026-09-30: la prospección de arrendadores. Sin base y
-  // sin formularios todavía. SE SOLAPA con Captación —que sí tiene base— y la
-  // decisión de si se construye encima de `prospectos` o aparte está abierta.
-  { key: 'comercial-opex', label: 'Comercial negociación', href: '/comercial-opex', icon: Handshake, roles: [...MANDO, ...VENTA], grupo: 'vender' },
+  // «Comercial negociación» se mudó a Inventario el 2026-11-16 con el nombre
+  // «Prospección» (ver la entrada junto a Arrendadores).
   // ─── Las cuatro de la CADENA DE PRECIO, en Comercial ──────────────────────
   //
   // Van en este orden a proposito: primero de donde sale la tarifa, y luego lo

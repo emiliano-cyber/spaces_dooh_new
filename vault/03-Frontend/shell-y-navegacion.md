@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-11-12
+actualizado: 2026-11-16
 tags: [frontend, shell, navegacion, rbac]
 archivos:
   - apps/web/lib/host.ts
@@ -86,12 +86,21 @@ orden de ese arreglo **es** el orden en pantalla. Al 2026-10-05 (26 entradas):
 | Clave (código) | Rótulo (pantalla) | Entradas |
 |---|---|---|
 | `inicio` | *sin título* | Dashboard |
-| `patrimonio` | **Inventario** | Inventario · Arrendadores · Network · Almacén |
+| `patrimonio` | **Inventario** | Inventario · Arrendadores · **Prospección** · Network · Almacén |
 | `ojos` | **Space Eyes** | Equipos · Galería · Gráficas · Ajustar texto · Programación · Campañas · Verificación · Fallas — desde v0.11.0 (08/10, ADR 0045); fuera de la cuenta de 26 de arriba. Ajustar texto y Programación solo MANDO; el resto MANDO + VENTA. `hrefActivo()` (`nav.ts:311-321`) enciende **una sola** entrada en sus subpáginas (v0.11.5) |
-| `vender` | **Comercial** | Clientes · Comercial · Disponibilidad · Propuestas · Comercial negociación · Franjas y temporadas · Descuentos por volumen · Códigos de negociación · Paquetes cerrados |
+| `vender` | **Comercial** | Clientes · Comercial · Disponibilidad · Propuestas · Franjas y temporadas · Descuentos por volumen · Códigos de negociación · Paquetes cerrados |
 | `entregar` | **Operaciones** | Campañas · **Creativos** · Imprenta · Operaciones · Consumo de luz |
 | `cobrar` | **Finanzas** | Finanzas · Reportes · Comisiones |
 | `sistema` | **Sistema** | Integraciones · Razones sociales · Actividad · Administración |
+
+> [!note] 2026-11-16 · «Comercial negociación» es **Prospección** y vive en Inventario
+> Pedido del dueño: se renombra y sube al grupo `patrimonio`, justo debajo de
+> Arrendadores (`nav.ts`, entrada `comercial-opex`). En inglés *Prospecting*, en
+> italiano *Prospezione*, en portugués *Prospecção*; cambia también el título de
+> la página y el rótulo de `lib/modulos.ts` (la pantalla de permisos). **No
+> cambian** la clave `comercial-opex`, la ruta `/comercial-opex`, los roles
+> (MANDO + VENTA) ni el módulo de permisos (`captacion`). Un vendedor ya veía el
+> encabezado Inventario por Network, así que no le aparece un grupo nuevo.
 
 > [!note] 2026-10-13 · dos rótulos cambiados por el dueño
 > «Comercial OPEX» se llama **Comercial negociación** y «Códigos promocionales»

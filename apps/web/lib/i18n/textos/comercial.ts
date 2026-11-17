@@ -428,7 +428,7 @@ export const ES_COMERCIAL = {
   'comercial.eye.sin-verificar': 'Sin verificación IA aún',
 
   // ── Comercial negociacion (`ComercialOpex`) ──
-  'comercial.negociacion.titulo': 'Comercial negociación',
+  'comercial.negociacion.titulo': 'Prospección',
   'comercial.negociacion.descripcion':
     'Prospección de arrendadores: los espacios que se están persiguiendo, quién manda en cada uno y cómo va la negociación de su renta.',
   'comercial.negociacion.nuevo': 'Nuevo espacio',
@@ -970,7 +970,7 @@ export const EN_COMERCIAL: Record<ClaveComercial, string> = {
   'comercial.eye.no-coincide': 'Does not match the creative',
   'comercial.eye.sin-verificar': 'No AI check yet',
 
-  'comercial.negociacion.titulo': 'Lease negotiation',
+  'comercial.negociacion.titulo': 'Prospecting',
   'comercial.negociacion.descripcion':
     'Landlord prospecting: the spaces being pursued, who decides on each one, and how the rent negotiation is going.',
   'comercial.negociacion.nuevo': 'New space',
@@ -1525,7 +1525,7 @@ export const IT_COMERCIAL: Record<ClaveComercial, string> = {
   'comercial.eye.no-coincide': 'Non corrisponde alla creatività',
   'comercial.eye.sin-verificar': 'Non ancora verificato dall’IA',
 
-  'comercial.negociacion.titulo': 'Negoziazione locazioni',
+  'comercial.negociacion.titulo': 'Prospezione',
   'comercial.negociacion.descripcion':
     'Ricerca di locatori: gli spazi che si stanno trattando, chi decide su ciascuno e come va la negoziazione del canone.',
   'comercial.negociacion.nuevo': 'Nuovo spazio',
@@ -2090,7 +2090,7 @@ export const PT_COMERCIAL: Record<ClaveComercial, string> = {
   'comercial.eye.sin-verificar': 'Ainda sem verificação por IA',
 
   // ── Comercial negociacion (`ComercialOpex`) ──
-  'comercial.negociacion.titulo': 'Negociação de locações',
+  'comercial.negociacion.titulo': 'Prospecção',
   'comercial.negociacion.descripcion':
     'Prospecção de locadores: os espaços que estão sendo buscados, quem decide em cada um e como vai a negociação do aluguel.',
   'comercial.negociacion.nuevo': 'Novo espaço',

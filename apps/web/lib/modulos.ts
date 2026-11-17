@@ -45,7 +45,7 @@ export const AREAS: AreaProducto[] = [
   // `prospectos` por decisión del dueño (21/10): sus rutas son las de
   // `/api/captacion/*`, así que su permiso es el de `captacion`. Con
   // `comercial` la pantalla se habría abierto a quien no puede leer su API.
-  { clave: 'comercial-opex', label: 'Comercial negociación', modulo: 'captacion', apiPropia: true },
+  { clave: 'comercial-opex', label: 'Prospección', modulo: 'captacion', apiPropia: true },
   { clave: 'inventario', label: 'Inventario', modulo: 'inventario', apiPropia: true },
   // Las ocho pantallas de Space Eyes (equipos, galería, vivo, programación,
   // campañas, verificación, fallas) exigen `inventario.ver` / `inventario.crear`.
