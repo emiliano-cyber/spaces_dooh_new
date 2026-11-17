@@ -95,6 +95,10 @@ alguna empezara a leer la cookie, la exención se vuelve un agujero.
 >   es pura en `lib/seguimiento-campana.ts`.
 > - **El nombre de la imprenta llega `null` por omisión** (solo lo enciende el
 >   vendedor): sin nombre no se pinta ni «Imprime» ni hueco.
+>   El interruptor está en la ficha interna de la propuesta, solo si ya tiene
+>   campaña: `components/demo/propuestas/ImprentaVisibleCliente.tsx`
+>   (`GET·PATCH /api/propuestas/[id]/imprenta-visible`; deshabilitado con su
+>   nota si `puedeCambiar` es falso).
 > - El banner de «al aire», «lista» y «terminó» se deriva de los PASOS, no de
 >   `mensaje`: el servidor pone `mensaje = pasoActual`, que con la campaña
 >   corriendo vale «finalizada».
