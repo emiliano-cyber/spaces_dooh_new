@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-11-16
+actualizado: 2026-11-17
 tags: [frontend, shell, navegacion, rbac]
 archivos:
   - apps/web/lib/host.ts
@@ -86,12 +86,19 @@ orden de ese arreglo **es** el orden en pantalla. Al 2026-10-05 (26 entradas):
 | Clave (código) | Rótulo (pantalla) | Entradas |
 |---|---|---|
 | `inicio` | *sin título* | Dashboard |
-| `patrimonio` | **Inventario** | Inventario · Arrendadores · **Prospección** · Network · Almacén |
-| `ojos` | **Space Eyes** | Equipos · Comprobantes (PoD; antes «Galería», 17/11) · Gráficas · Ajustar texto · Programación · Campañas · Verificación · Fallas — desde v0.11.0 (08/10, ADR 0045); fuera de la cuenta de 26 de arriba. Ajustar texto y Programación solo MANDO; el resto MANDO + VENTA. `hrefActivo()` (`nav.ts:311-321`) enciende **una sola** entrada en sus subpáginas (v0.11.5) |
+| `patrimonio` | **Inventario** | **Prospección** · Inventario · Arrendadores · Network · Almacén |
+| `ojos` | **Space Eyes** | Equipos · Comprobantes (PoD; antes «Galería», 17/11) · Gráficas · Ajustar texto · Programación · Campañas · Verificación · Fallas — desde v0.11.0 (08/10, ADR 0045); fuera de la cuenta de 26 de arriba. Ajustar texto y Programación solo MANDO; el resto MANDO + VENTA. `hrefActivo()` (`nav.ts:326-329`) enciende **una sola** entrada en sus subpáginas (v0.11.5) |
 | `vender` | **Comercial** | Clientes · Comercial · Disponibilidad · Propuestas · Franjas y temporadas · Descuentos por volumen · Códigos de negociación · Paquetes cerrados |
 | `entregar` | **Operaciones** | Campañas · **Creativos** · Imprenta · Operaciones · Consumo de luz |
 | `cobrar` | **Finanzas** | Finanzas · Reportes · Comisiones |
 | `sistema` | **Sistema** | Integraciones · Razones sociales · Actividad · Administración |
+
+> [!note] 2026-11-17 · Prospección es la **primera** entrada de Inventario
+> Pedido del dueño: «poner hasta arriba de la sección de inventario». Antes iba
+> debajo de Arrendadores (lo que cuenta la nota del 16/11 de abajo); ahora va
+> antes que Inventario. Solo cambia el orden en `NAV`: la clave, la ruta, los
+> roles y el módulo siguen igual. Lo fija `nav.test.ts` (primera del grupo
+> `patrimonio` y seguida de `inventario`).
 
 > [!note] 2026-11-16 · «Comercial negociación» es **Prospección** y vive en Inventario
 > Pedido del dueño: se renombra y sube al grupo `patrimonio`, justo debajo de

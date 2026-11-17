@@ -5,6 +5,13 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-17 · «Prospección» sube al primer lugar de Inventario
+
+- En el menú, **Prospección** ahora es la **primera** entrada del grupo **Inventario**, antes que Inventario y Arrendadores (antes iba debajo de Arrendadores).
+- Es la misma pantalla y la ven las mismas personas; solo cambia su lugar en el menú.
+
+---
+
 ## 2026-11-17 · La «Galería» de Space Eyes ahora se llama «Comprobantes»
 
 - En el menú de Space Eyes, **Galería** pasa a llamarse **Comprobantes**, y el título de la pantalla también.
