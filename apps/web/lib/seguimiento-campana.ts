@@ -74,6 +74,8 @@ export interface Seguimiento {
   fechaInicio: string
   fechaFin: string
   cancelada: boolean
+  /** Ya pasó la fecha de arranque (hoy de MÉXICO, del servidor) y todavía no está al aire. */
+  retrasada: boolean
   /** El paso en el que está la campaña (el `actual`/`alerta`, o el último si terminó). */
   pasoActual: ClavePaso
   /** Mensaje grande del encabezado: la página lo traduce como `seguimiento.mensaje.<clave>`. */
@@ -193,6 +195,12 @@ export function armarSeguimiento(d: DatosSeguimiento, hoy: string): Seguimiento 
   } else if (pasoActual === 'instalacion') {
     mensaje = usaImprenta(tipo) && !usaCreativo(tipo) ? 'instalacion.montaje' : usaCreativo(tipo) && !usaImprenta(tipo) ? 'instalacion.publicacion' : 'instalacion.hibrida'
   } else if (iActual === -1) mensaje = 'finalizada'
+  // OJO con estos dos, que el diseño encontró mal el 17/11: el paso ACTUAL es
+  // el siguiente por cumplir, así que con la campaña corriendo el actual es
+  // «finalizada» (y decir «terminó» sería mentir), y con la lona montada
+  // esperando su fecha es «al_aire» (y decir «está al aire» también).
+  else if (pasoActual === 'finalizada') mensaje = 'al_aire'
+  else if (pasoActual === 'al_aire') mensaje = 'lista'
   else mensaje = pasoActual
 
   const proveedores = [...new Set(d.imprenta.map((o) => (o.proveedor ?? '').trim()).filter(Boolean))]
@@ -204,6 +212,7 @@ export function armarSeguimiento(d: DatosSeguimiento, hoy: string): Seguimiento 
     fechaInicio: c.fechaInicio,
     fechaFin: c.fechaFin,
     cancelada,
+    retrasada: !cancelada && !alAire && !creaDetenido && hoy > c.fechaInicio,
     pasoActual,
     mensaje,
     pasos,

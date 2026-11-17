@@ -107,6 +107,20 @@ describe('armarSeguimiento', () => {
     expect(ambos.mensaje).toBe('instalacion.hibrida')
   })
 
+  it('corriendo dice «al aire» y no «terminó»; montada antes de su fecha dice «lista»', () => {
+    const montada = { imprenta: [oi('IMPRESO')], montajes: [{ estatus: 'COMPLETADA', fechaCompletada: '2026-11-28T18:00:00.000Z' }] }
+    expect(armarSeguimiento(base({}, montada), '2026-12-10').mensaje).toBe('al_aire')
+    expect(armarSeguimiento(base({}, montada), '2026-11-29').mensaje).toBe('lista')
+    expect(armarSeguimiento(base({}, montada), '2027-01-02').mensaje).toBe('finalizada')
+  })
+
+  it('retrasada solo si pasó el arranque sin estar al aire (y no por un arte rechazado)', () => {
+    expect(armarSeguimiento(base({}, { imprenta: [oi('IMPRESO')] }), '2026-12-03').retrasada).toBe(true)
+    expect(armarSeguimiento(base({}, { imprenta: [oi('IMPRESO')] }), '2026-11-30').retrasada).toBe(false)
+    const montada = { imprenta: [oi('IMPRESO')], montajes: [{ estatus: 'COMPLETADA', fechaCompletada: null }] }
+    expect(armarSeguimiento(base({}, montada), '2026-12-03').retrasada).toBe(false)
+  })
+
   it('cancelada: lo dice el mensaje', () => {
     const s = armarSeguimiento(base({ estado: 'CANCELADA' }), '2026-11-10')
     expect(s.cancelada).toBe(true)

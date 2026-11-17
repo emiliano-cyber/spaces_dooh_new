@@ -46,6 +46,7 @@ import type {
 const MENSAJES: Record<string, ClaveTexto> = {
   al_aire: 'cuenta.seguimiento.mensaje.al_aire',
   finalizada: 'cuenta.seguimiento.mensaje.finalizada',
+  lista: 'cuenta.seguimiento.mensaje.lista',
   cancelada: 'cuenta.seguimiento.mensaje.cancelada',
   'material.rechazado': 'cuenta.seguimiento.mensaje.material.rechazado',
   'material.esperando-arte': 'cuenta.seguimiento.mensaje.material.esperando-arte',
@@ -114,7 +115,9 @@ export function SeguimientoCampana({
   // Retraso DERIVADO, sin causa inventada: ya pasó el arranque y aún no está al
   // aire. Si el paso actual es el material detenido, manda el aviso del ajuste.
   const antesDelAire = !s.cancelada && ['aceptada', 'confirmada', 'material', 'instalacion', 'al_aire'].includes(s.pasoActual)
-  const retraso = antesDelAire && !alerta && hoy > s.fechaInicio
+  // El servidor lo manda con el «hoy» de México (`retrasada`); el cálculo con
+  // la fecha del navegador queda solo para un servidor anterior que no lo trae.
+  const retraso = typeof s.retrasada === 'boolean' ? s.retrasada : antesDelAire && !alerta && hoy > s.fechaInicio
 
   // En esos tres casos el banner se deriva de los PASOS y no de `s.mensaje`:
   // `armarSeguimiento` pone `mensaje = pasoActual`, así que con la campaña
