@@ -1,6 +1,6 @@
 ---
 tipo: contrato
-estado: en-curso
+estado: verificado
 actualizado: 2026-11-17
 tags: [backend, propuestas, campanas, vendedores, dashboard, r2, sesion]
 archivos:
@@ -11,6 +11,7 @@ archivos:
   - apps/web/lib/test/conteo-diario.e2e.test.ts
   - apps/web/lib/server/propuestas-resumen-controller.ts
   - apps/web/app/api/propuestas/resumen/route.ts
+  - apps/web/components/demo/inicio/ConteoDiario.tsx
   - docs/Plan_Conteo_Campanas_Por_Dia.md
 ---
 
@@ -69,3 +70,8 @@ México cuenta en **ese** día.
 - `lib/test/conteo-diario.e2e.test.ts` — 15 casos (13 del conteo y 2 del tablero por periodo) contra Postgres con el rol de
   la aplicación; los negativos: la vendedora no ve a otro (ni forzando la URL),
   no ve «sin vendedor», y nada de otra organización entra en la cuenta.
+
+## En pantalla
+
+El bloque **Campañas por día** del Dashboard: ver [[03-Frontend/dashboard-inicio]],
+sección «Campañas por día (CONTEO-DIA, 17/11)».

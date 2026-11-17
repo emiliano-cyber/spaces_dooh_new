@@ -1,8 +1,9 @@
 # Plan · Conteo de campañas por día, por vendedor
 
-> **Estado:** propuesto el 2026-11-17, **sin aprobar**. D1 la cerró el dueño el
-> mismo día («las que se crearon y las que se aprueban»); faltan **D3** y **D4**
-> (§2) antes de la Tarea 1.
+> **Estado:** **ejecutado** el 2026-11-17, en `feat/conteo-campanas-por-dia`.
+> El dueño cerró las cuatro decisiones el mismo día: D1 «las que se crearon y
+> las que se aprueban»; D3 y D4 «el bloque de dashboard sí, cámbialo».
+> Lo hecho, en `vault/02-Backend/conteo-campanas-por-dia.md` y en la bitácora.
 > **Pedido:** «el conteo de campañas por día, para cada vendedor y usuario grande».
 
 ---
@@ -32,8 +33,8 @@ Fase 3) adoptó para las propuestas: *si no puedes aprobar, solo lo tuyo*.
 |---|---|---|
 | **D1** | ¿Qué cuenta como «campaña de ese día»? | **CERRADA (17/11): las dos — creadas y aprobadas**, como dos series |
 | **D2** | ¿Qué estados cuentan? | **Resuelta por D1**: «creadas» cuenta todas las que se crearon, acaben como acaben; «aprobadas» solo las que se aprobaron. Ver §3 |
-| **D3** | ¿Dónde se ve? | **Abierta.** Recomendación: bloque del **Dashboard** (últimos 30 días), que es la referencia de diseño aprobada (26/10) y ya sabe ocultar bloques por persona con «Personalizar». Alternativa: dentro del tablero de Propuestas |
-| **D4** | El tablero de propuestas por periodo que ya existe (`/api/propuestas/resumen`) le enseña **al vendedor** las cifras de **todos** los vendedores. ¿Se alinea con la regla nueva? | **Abierta.** Si el vendedor solo debe ver lo suyo aquí, verlo todo allá contradice la decisión. Recomendación: alinearlo, como tarea aparte (T5) |
+| **D3** | ¿Dónde se ve? | **CERRADA (17/11): bloque del Dashboard.** Era la recomendación: bloque del **Dashboard** (últimos 30 días), que es la referencia de diseño aprobada (26/10) y ya sabe ocultar bloques por persona con «Personalizar». Alternativa: dentro del tablero de Propuestas |
+| **D4** | El tablero de propuestas por periodo que ya existe (`/api/propuestas/resumen`) le enseña **al vendedor** las cifras de **todos** los vendedores. ¿Se alinea con la regla nueva? | **CERRADA (17/11): sí, se alinea (T5).** Si el vendedor solo debe ver lo suyo aquí, verlo todo allá contradice la decisión. Recomendación: alinearlo, como tarea aparte (T5) |
 
 ## 3 · De dónde sale cada número (sin migración)
 
@@ -119,7 +120,7 @@ Pruebas e2e (`propuestas-conteo-diario.e2e.test.ts`, con `npm run build` antes):
 - una propuesta creada a las 23:30 de Ciudad de México cuenta en **su** día local;
 - sin sesión → 401; rango mayor de 92 días → 400.
 
-### T3 · La pantalla (donde diga D3)
+### T3 · El bloque del Dashboard
 
 Siguiendo el diseño del Dashboard, sin tocar lo demás:
 - **Vendedor**: sus dos series por día (creadas y aprobadas) y los totales del periodo.
@@ -135,7 +136,7 @@ Siguiendo el diseño del Dashboard, sin tocar lo demás:
 - Entrada en `docs/Registro_Cambios.md`.
 - Recuentos con `node scripts/recuentos.mjs` (sube 1 endpoint) en `CLAUDE.md` y el MOC.
 
-### T5 · (solo si D4 dice que sí) Alinear el tablero de propuestas
+### T5 · Alinear el tablero de propuestas
 
 `/api/propuestas/resumen` aplica la misma regla: el vendedor recibe solo sus
 filas en `porVendedor` y sus propuestas en los totales. Con su e2e negativa.

@@ -88,9 +88,14 @@ vi.mock('@/components/demo/ui/CardColapsable', () => ({
       p.resumen as never, p.accion as never, createElement('div', { className: p.contentClassName }, p.children as never)),
 }))
 vi.mock('@/components/demo/MapView', () => ({ MapView: () => createElement('div', { 'data-mapa': '' }) }))
-vi.mock('@/components/demo/charts', () => ({ OcupacionChart: () => createElement('div', { 'data-grafica': '' }) }))
+vi.mock('@/components/demo/charts', () => ({
+  OcupacionChart: () => createElement('div', { 'data-grafica': '' }),
+  ConteoDiarioChart: () => createElement('div', { 'data-grafica-conteo': '' }),
+}))
 vi.mock('@/components/demo/shell/SesionContext', () => ({
-  usePuede: () => datos.finanzas,
+  // `comercial.ver` lo tienen todos los roles que entran al Dashboard (mando y
+  // venta); lo que separa un tablero de otro es Finanzas.
+  usePuede: (modulo: string) => (modulo === 'comercial' ? true : datos.finanzas),
   useSesionCtx: () => ({ sesion: { usuario: { id: 'u1', nombre: 'Ana Ventas' } } }),
 }))
 vi.mock('@/lib/data/client', async (importOriginal) => {
@@ -190,6 +195,21 @@ function conTodo() {
     clientes: CLIENTES, reservas: RESERVAS, propuestas: PROPUESTAS, facturas: FACTURAS, cobranzas: COBRANZAS,
     usuarios: [{ id: 'u1', nombre: 'Ana Ventas' }], cfg: { razonSocial: 'Medios SA de CV', nombreComercial: 'Medios' },
   })
+}
+// CONTEO-DIA (17/11) · tres días, con una cifra de mil o más para que los
+// separadores de cada idioma se vean.
+const CONTEO = {
+  dias: ['2026-10-31', '2026-11-01', '2026-11-02'],
+  porVendedor: [
+    { id: 'u1', nombre: 'Ana Ventas', creadas: [1200, 30, 4], aprobadas: [0, 2, 1], totalCreadas: 1234, totalAprobadas: 3 },
+    { id: null, nombre: null, creadas: [0, 1, 0], aprobadas: [0, 0, 0], totalCreadas: 1, totalAprobadas: 0 },
+  ],
+  total: { creadas: [1200, 31, 4], aprobadas: [0, 2, 1], totalCreadas: 1235, totalAprobadas: 3 },
+}
+const CONTEO_VACIO = {
+  dias: CONTEO.dias,
+  porVendedor: [],
+  total: { creadas: [0, 0, 0], aprobadas: [0, 0, 0], totalCreadas: 0, totalAprobadas: 0 },
 }
 const inicio = async () => (await import('../../app/(app)/(shell)/inicio/page')).default
 
@@ -364,6 +384,43 @@ export const ESTADOS: Estado[] = [
     ingles: ['Customizing the dashboard', 'Click the eye on each block to hide or show it', '>Done<',
       'aria-label="Hide “November revenue”"', 'aria-label="Hide “Your network on the map”"'],
   },
+  // CONTEO-DIA (17/11) · el bloque «Campañas por día», con datos. La fase la
+  // fuerza la pila: es el `useState` de `useConteoDiario`.
+  {
+    nombre: 'dashboard · campañas por día, todo el equipo',
+    pintar: async (idioma) => {
+      const Pagina = await inicio()
+      conTodo()
+      forzar(enesimo('useConteoDiario', esFase, 1), { fase: 'datos', soloPropio: false, conteo: CONTEO })
+      return pintar(idioma, createElement(Pagina))
+    },
+    espanol: ['Campañas por día', '>Creadas<', '>Aprobadas<', '>Hoy<', 'creadas · aprobadas', 'Por vendedor',
+      'Sin vendedor', 'últimos 3 días', 'Creadas: propuestas armadas ese día. Aprobadas: campañas que nacieron ese día.'],
+    ingles: ['Campaigns per day', '>Created<', '>Approved<', '>Today<', 'created · approved', 'By sales rep', 'Ana Ventas',
+      'No sales rep', 'last 3 days', 'Created: proposals drafted that day. Approved: campaigns that started that day.'],
+  },
+  {
+    nombre: 'dashboard · campañas por día, solo lo propio y sin movimiento',
+    pintar: async (idioma) => {
+      const Pagina = await inicio()
+      conTodo()
+      forzar(enesimo('useConteoDiario', esFase, 1), { fase: 'datos', soloPropio: true, conteo: CONTEO_VACIO })
+      return pintar(idioma, createElement(Pagina))
+    },
+    espanol: ['Solo tus propuestas', 'Sin campañas creadas ni aprobadas en los últimos 3 días.'],
+    ingles: ['Only your proposals', 'No campaigns created or approved in the last 3 days.'],
+  },
+  {
+    nombre: 'dashboard · campañas por día, con error',
+    pintar: async (idioma) => {
+      const Pagina = await inicio()
+      conTodo()
+      forzar(enesimo('useConteoDiario', esFase, 1), { fase: 'error' })
+      return pintar(idioma, createElement(Pagina))
+    },
+    espanol: ['No se pudo cargar el conteo.'],
+    ingles: ['Could not load the count.'],
+  },
 ]
 
 describe('DASHBOARD · personalizando', () => {
@@ -371,8 +428,9 @@ describe('DASHBOARD · personalizando', () => {
     const e = ESTADOS.find((x) => x.nombre === 'dashboard · personalizando')!
     const html = await e.pintar('es')
     // Un ojo por bloque que el rol puede ver: 4 indicadores con Finanzas,
-    // la franja de costos y las 6 tarjetas.
-    expect(html.match(/aria-pressed="true"/g)?.length).toBe(11)
+    // la franja de costos y las 7 tarjetas (la 7.ª, «Campañas por día», desde
+    // CONTEO-DIA, 17/11).
+    expect(html.match(/aria-pressed="true"/g)?.length).toBe(12)
     expect(html).not.toContain('Ver por pantalla')
     expect(html).not.toContain('Ver comercial')
     expect(html).not.toContain('title="Personalizar"')

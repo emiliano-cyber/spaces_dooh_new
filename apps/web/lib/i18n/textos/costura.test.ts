@@ -323,6 +323,8 @@ const DISTINTOS_A_PROPOSITO_IT: Record<string, string> = {
   Nuevo: 'el tipo de una entrada de las notas de version, una funcion nueva («Novità», como el rotulo del sector), frente a la opcion del asistente de contrato de Inventario que da de alta un locatore nuevo, masculino («Nuovo»)',
   '{n} nueva': 'las novedades de las notas de version («{n} novità», invariable) frente a las pantallas creadas por una carga de Inventario, que son impianti, masculino («{n} nuovo»)',
   '{n} nuevas': 'lo mismo que «{n} nueva», en plural («{n} novità» / «{n} nuovi»)',
+  // CONTEO-DIA (17/11).
+  Creadas: 'concordancia: las campañas del bloque «Campañas por día» del Dashboard son femeninas («Create»); lo creado por una carga de Inventario son impianti, masculino («Creati»)',
 }
 
 function lotesItaliano(): LoteIt[] {
@@ -440,6 +442,8 @@ const DISTINTOS_A_PROPOSITO_PT: Record<string, string> = {
   Teléfono: 'el aparato que se da de alta en Space Eyes es un celular («Celular»); en los demas es el numero de contacto («Telefone»)',
   '{n} nueva': 'las novedades de las notas de version («{n} novidade», sustantivo) frente a los pontos creados por una carga de Inventario, masculino («{n} novo»)',
   '{n} nuevas': 'lo mismo que «{n} nueva», en plural («{n} novidades» / «{n} novos»)',
+  // CONTEO-DIA (17/11).
+  Creadas: 'concordancia: las campanhas del bloque «Campañas por día» del Dashboard son femeninas («Criadas»); lo creado por una carga de Inventario son registros, masculino («Criados»)',
 }
 
 function lotesPortugues(): LoteIt[] {

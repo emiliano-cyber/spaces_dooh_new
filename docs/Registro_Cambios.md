@@ -5,6 +5,16 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-17 · «Campañas por día» en el Dashboard, por vendedor
+
+- El Dashboard tiene un bloque nuevo, **Campañas por día**: cuántas campañas se **crearon** y cuántas se **aprobaron** cada día de los últimos 30 días, con una gráfica de barras y las cifras de hoy.
+- **Cada vendedor ve solo lo suyo.** El Dueño, el Administrador, el Director comercial y el Gerente de ventas ven el total del equipo y una fila por vendedor.
+- «Creadas» son las propuestas que se armaron ese día; «aprobadas», las campañas que nacieron ese día, porque una campaña se crea al aprobar su propuesta.
+- Se puede ocultar como cualquier otro bloque, desde **Personalizar**.
+- En el tablero de **Propuestas**, un vendedor ahora ve también **solo sus propuestas**; antes veía las cifras de todo el equipo.
+
+---
+
 ## 2026-11-16 · v0.12.13 · «Comercial negociación» ahora se llama «Prospección» y está en Inventario
 
 - En el menú, **Comercial negociación** pasa a llamarse **Prospección** y se mueve del grupo Comercial al grupo **Inventario**, justo debajo de **Arrendadores**.
