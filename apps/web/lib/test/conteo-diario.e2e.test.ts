@@ -207,3 +207,29 @@ describe('las fechas', () => {
     expect(r.status).toBe(401)
   })
 })
+
+// ─── CONTEO-DIA, tarea 5 · el tablero de propuestas por periodo, alineado ───
+//
+// Decisión del dueño (17/11): si el vendedor solo ve lo suyo en el conteo
+// diario, verlo todo en el tablero de Propuestas lo contradice. Hasta hoy
+// `/api/propuestas/resumen` le daba a cualquiera con `comercial.ver` el
+// «por vendedor» del equipo entero.
+describe('el tablero de propuestas por periodo sigue la misma regla', () => {
+  const resumen = async (c: Cliente) => {
+    const r = await c.pedir(`/api/propuestas/resumen/?periodo=rango&desde=${VENTANA.desde}&hasta=${VENTANA.hasta}`)
+    expect(r.status, JSON.stringify(r.datos)).toBe(200)
+    return r.datos.resumen as { generadas: number; aprobadas: { n: number }; porVendedor: { vendedor: string }[] }
+  }
+
+  it('el GERENTE ve a todo el equipo', async () => {
+    const r = await resumen(cli.gerente)
+    expect(r.porVendedor.map((v) => v.vendedor).sort()).toEqual(['AnaA', 'BetoA', 'Sin vendedor'])
+  })
+
+  it('NEGATIVO · la VENDEDORA ve solo lo suyo, en las filas Y en los totales', async () => {
+    const r = await resumen(cli.ana)
+    expect(r.porVendedor.map((v) => v.vendedor)).toEqual(['AnaA'])
+    expect(r.generadas).toBe(2)
+    expect(r.aprobadas.n).toBe(1)
+  })
+})

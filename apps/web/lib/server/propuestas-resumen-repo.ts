@@ -32,7 +32,9 @@ export interface ItemAprobadoResumen {
   fechaFin: string
 }
 
-export async function filasPropuestasResumen(): Promise<{
+// `soloUsuario` (CONTEO-DIA, tarea 5, 17/11): el vendedor ve solo SUS
+// propuestas, también aquí. Lo decide el controller con la sesión.
+export async function filasPropuestasResumen(soloUsuario: string | null = null): Promise<{
   propuestas: FilaPropuestaResumen[]
   items: ItemAprobadoResumen[]
 }> {
@@ -52,8 +54,9 @@ export async function filasPropuestasResumen(): Promise<{
          -- El nombre de quien vende, con el tenant como segunda capa: un id de
          -- usuario de otra organización no le pone nombre a una de ésta.
          left join usuarios u on u.id = p.usuario_id and u.tenant_id = p.tenant_id
-        where p.tenant_id = $1`,
-      [tenant],
+        where p.tenant_id = $1
+          and ($2::uuid is null or p.usuario_id = $2::uuid)`,
+      [tenant, soloUsuario],
     ),
     // Solo las pantallas APROBADAS de cada propuesta: son las que se vendieron
     // y las que cuestan renta. Es el mismo criterio que el precio congelado.

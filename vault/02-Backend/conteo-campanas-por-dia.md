@@ -9,6 +9,8 @@ archivos:
   - apps/web/lib/server/propuestas-conteo-controller.ts
   - apps/web/app/api/propuestas/conteo-diario/route.ts
   - apps/web/lib/test/conteo-diario.e2e.test.ts
+  - apps/web/lib/server/propuestas-resumen-controller.ts
+  - apps/web/app/api/propuestas/resumen/route.ts
   - docs/Plan_Conteo_Campanas_Por_Dia.md
 ---
 
@@ -41,7 +43,9 @@ vendedor ni fecha de aprobación. Contarlas pediría migración.
 `comercial.aprobar` —Dueño, Administrador, Director comercial, Gerente de
 ventas ([[roles-de-venta]])— ve a todos, con «sin vendedor» y el total; quien no
 (el vendedor), **solo lo suyo**. Es la regla de `soloDe()` de [[captacion]],
-con el permiso de Comercial. El filtro sale de la **sesión**: ningún parámetro
+con el permiso de Comercial. **El tablero de propuestas por periodo
+(`/api/propuestas/resumen`) sigue la misma regla desde el 17/11** (decisión
+del dueño): antes le enseñaba al vendedor las cifras de todo el equipo. El filtro sale de la **sesión**: ningún parámetro
 de la URL lo cambia, y la e2e lo intenta con tres nombres distintos.
 
 ## El día, en la zona del negocio
@@ -62,6 +66,6 @@ México cuenta en **ese** día.
 ## Pruebas
 
 - `lib/propuestas-por-dia.test.ts` — la cuenta, en puro.
-- `lib/test/conteo-diario.e2e.test.ts` — 13 casos contra Postgres con el rol de
+- `lib/test/conteo-diario.e2e.test.ts` — 15 casos (13 del conteo y 2 del tablero por periodo) contra Postgres con el rol de
   la aplicación; los negativos: la vendedora no ve a otro (ni forzando la URL),
   no ve «sin vendedor», y nada de otra organización entra en la cuenta.

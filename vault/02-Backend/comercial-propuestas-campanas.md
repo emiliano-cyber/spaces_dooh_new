@@ -489,7 +489,11 @@ periodo de mayor a menor ganancia.
   **sin costo**: cuenta en la venta, no en la ganancia, y la pantalla lo avisa.
 - **Quién ve qué.** El tablero pide `comercial.ver`; el costo y la ganancia,
   además `finanzas.ver` (Dueño, Administrador, Director comercial). A un
-  Gerente o Vendedor no le llegan del servidor.
+  Gerente o Vendedor no le llegan del servidor. **Y desde el 17/11
+  (CONTEO-DIA), quien no tiene `comercial.aprobar` —el vendedor— ve solo SUS
+  propuestas, en las filas y en los totales**: la misma regla que el conteo
+  diario ([[conteo-campanas-por-dia]]), con el filtro sacado de la sesión.
+  Antes veía el «por vendedor» del equipo entero.
 
 Las cuentas, puras, en `lib/propuestas-periodo.ts`; la ruta,
 `GET /api/propuestas/resumen`. Cobertura: `lib/propuestas-periodo.test.ts`

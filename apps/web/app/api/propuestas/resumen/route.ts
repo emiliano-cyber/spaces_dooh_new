@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { exigir, tienePermiso } from '@/lib/server/auth'
 import { resumenPropuestasCtrl } from '@/lib/server/propuestas-resumen-controller'
+import { soloVendedorDe } from '@/lib/server/propuestas-conteo-controller'
 import { respuestaError } from '@/lib/server/errores'
 
 export const runtime = 'nodejs'
@@ -18,7 +19,8 @@ export async function GET(req: Request) {
     const sp = new URL(req.url).searchParams
     const query = Object.fromEntries([...sp.entries()].filter(([, v]) => v !== ''))
     const conGanancia = await tienePermiso(g.usuario.rol, 'finanzas', 'ver')
-    return NextResponse.json(await resumenPropuestasCtrl(query, conGanancia), {
+    const solo = await soloVendedorDe(g.usuario)
+    return NextResponse.json(await resumenPropuestasCtrl(query, conGanancia, solo), {
       headers: { 'Cache-Control': 'no-store' },
     })
   } catch (e) {
