@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { formatNumero } from '@/lib/formato-numero'
 import { useIdioma } from '@/lib/i18n/contexto'
 import { cifraEnEtiqueta } from '@/lib/i18n/cifra-en-etiqueta'
-import { Radio, CalendarDays, Wallet, Coins, Receipt, Building2, MapPin, CircleHelp, CheckCircle2, ExternalLink } from 'lucide-react'
+import { Radio, CalendarDays, Wallet, Coins, Receipt, Building2, MapPin, CircleHelp, CheckCircle2, ExternalLink, ChevronDown } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { AvisoFranjaCMS } from '@/components/demo/rejilla/AvisoFranjaCMS'
 import { Button } from '@/components/demo/ui/Button'
@@ -13,6 +13,8 @@ import { formatMonto, formatFecha, formatFechaHora } from '@/lib/data/client'
 import { ubicacion } from '@/lib/ubicacion'
 import { claveTipoMedio } from '@/components/demo/comercial/claves'
 import { etiquetaTipoMedio } from '@/lib/tipo-medio'
+import { SeguimientoCampana } from '@/components/demo/propuestas/SeguimientoCampana'
+import type { Seguimiento } from '@/lib/seguimiento-campana'
 
 const API = '/spaces-dooh/api'
 
@@ -103,6 +105,13 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
   const [enviando, setEnviando] = useState(false)
   const [errorAcep, setErrorAcep] = useState<string | null>(null)
   const [aceptadaLocal, setAceptadaLocal] = useState<{ aceptadoEn: string; aceptadoPor: string } | null>(null)
+  // SEGUIMIENTO (17/11) · cuando la propuesta ya es campaña, el rastreo va
+  // arriba y la propuesta se pliega debajo. `null` = sin campaña o sin
+  // respuesta: la página queda EXACTAMENTE como antes. Estos dos estados van
+  // DESPUÉS de los de siempre a propósito: las pruebas de pantalla fuerzan
+  // `useState` en orden de render (`pantallas-cuenta-shell.test.ts`).
+  const [seguimiento, setSeguimiento] = useState<Seguimiento | null>(null)
+  const [propuestaAbierta, setPropuestaAbierta] = useState(false)
   // I18N (lote cuenta, 2026-11-02) · la liga la abre el CLIENTE, con el idioma
   // de su navegador; las cifras pasan el idioma a `formatMonto` (ADR 0048).
   const { t, idioma } = useIdioma()
@@ -113,10 +122,24 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
 
   useEffect(() => {
     let vivo = true
-    fetch(`${API}/propuestas/publica/${params.id}/`, { cache: 'no-store' })
+    // Las dos en paralelo, y la página se pinta cuando llegan AMBAS: si no, el
+    // cliente vería la propuesta y un instante después el seguimiento
+    // empujándola hacia abajo. El seguimiento nunca tumba la página: si falla,
+    // se queda en `null` y se ve la propuesta como siempre.
+    const propuesta = fetch(`${API}/propuestas/publica/${params.id}/`, { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => vivo && setData(d ?? null))
-      .catch(() => vivo && setData(null))
+      .catch(() => null)
+    const seg = fetch(`${API}/propuestas/publica/${params.id}/seguimiento/`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: { hayCampana?: boolean; seguimiento?: Seguimiento } | null) =>
+        j?.hayCampana && j.seguimiento ? j.seguimiento : null,
+      )
+      .catch(() => null)
+    Promise.all([propuesta, seg]).then(([d, sg]) => {
+      if (!vivo) return
+      setSeguimiento(sg)
+      setData(d ?? null)
+    })
     return () => {
       vivo = false
     }
@@ -189,6 +212,273 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
       label: it.sitioNombre,
     }))
 
+  const cuerpo = (
+    <>
+      {/* Nombre + folio */}
+      <div>
+        <h1 className="text-2xl text-ink">{p.nombre}</h1>
+        <p className="demo-num mt-1 text-[12px] text-muted">
+          {p.folio}
+          {p.vigenteHasta && p.estatus === 'ENVIADA' && !aceptada && (
+            <span className={vencida ? 'text-error' : ''}>
+              {' · '}
+              {vencida ? t('cuenta.publica.vencio-el', { fecha: formatFecha(p.vigenteHasta, idioma) }) : t('cuenta.publica.valida-hasta', { fecha: formatFecha(p.vigenteHasta, idioma) })}
+            </span>
+          )}
+        </p>
+      </div>
+
+      {/* Metadatos */}
+      <Card className="overflow-hidden p-0">
+        <div className="grid grid-cols-2 divide-x divide-y divide-border sm:grid-cols-4 sm:divide-y-0">
+          <Meta icon={<CalendarDays className="h-4 w-4" />} label={t('propuestas.ficha.meta.fechas')}
+            value={desde && hasta ? `${formatFecha(desde, idioma)} – ${formatFecha(hasta, idioma)}` : '—'} />
+          <Meta label={t('propuestas.ficha.meta.anunciante')} value={p.clienteNombre ?? t('propuestas.comun.sin-cliente')} />
+          <Meta label={t('propuestas.comun.agencia')} value={p.agenciaNombre ?? t('propuestas.ficha.meta.directa')} />
+          <Meta label={t('propuestas.ficha.meta.comision')} value={`${comisionPct}%`} />
+        </div>
+      </Card>
+
+      {/* KPIs */}
+      <Card>
+        <CardHeader><CardTitle>{t('propuestas.ficha.resumen')}</CardTitle></CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <Kpi icon={<Wallet className="h-4 w-4" />} tono="info" label={t('propuestas.ficha.kpi.total')} value={formatMonto(p.total, idioma)} />
+            <Kpi icon={<Coins className="h-4 w-4" />} tono="success" label={t('propuestas.comun.neto')} value={formatMonto(p.neto, idioma)} />
+            <Kpi icon={<Receipt className="h-4 w-4" />} tono="ambar" label={t('propuestas.comun.iva', { pct: ivaPct })} value={formatMonto(p.iva, idioma)} />
+            <Kpi icon={<Building2 className="h-4 w-4" />} tono="neutro" label={t('cuenta.publica.kpi.sitios')} value={`${p.items.length}`} />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Sitios */}
+      <Card>
+        <CardHeader><CardTitle>{t('cuenta.publica.sitios')}</CardTitle></CardHeader>
+        <CardContent>
+          {p.items.length === 0 ? (
+            <p className="text-[13px] text-muted">{t('propuestas.ficha.sitios.vacia')}</p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {p.items.map((it, i) => (
+                <li key={i} className="flex items-start justify-between gap-3 py-2.5">
+                  <div className="min-w-0">
+                    <div className="truncate text-[13px] text-ink">{it.sitioNombre}</div>
+                    {/* REJILLA-01 · la franja CONTRATADA, con su horario. Un
+                        importe sin las horas que compró deja al cliente sin
+                        saber qué aceptó — y esta pantalla es exactamente donde
+                        lo acepta. */}
+                    {it.franjaId && (
+                      <div className="text-[11px] font-medium text-amber-800">
+                        {it.franjaNombre ?? it.franjaId}
+                        {it.franjaHorario ? ` · ${it.franjaHorario}` : ''}
+                      </div>
+                    )}
+                    {/* Ubicación completa: dirección + zona. Redundante con el
+                        mapa a propósito — el cliente que abre la liga debe poder
+                        situar la pantalla aunque los tiles no carguen. */}
+                    <div className="flex items-start gap-1 text-[11px] text-muted">
+                      <MapPin className="mt-0.5 h-3 w-3 shrink-0" />
+                      <span>
+                        {it.direccion ? <span className="text-ink">{it.direccion}</span> : null}
+                        {it.direccion && zonaDe(it) ? <br /> : null}
+                        {zonaDe(it) ?? (it.direccion ? null : t('cuenta.publica.sin-ubicacion'))}
+                        {/* Ola 5: en español el tipo va como siempre (el codigo); en ingles,
+                            su etiqueta, porque «ESPECTACULAR» es una palabra española. */}
+                        {it.tipoMedio ? ` · ${idioma === 'es' ? it.tipoMedio : tipoMedioIngles(it.tipoMedio)}` : ''}
+                      </span>
+                    </div>
+                    {it.lat != null && it.lng != null && (
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${it.lat},${it.lng}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-info hover:underline"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        <span className="demo-num">
+                          {it.lat.toFixed(5)}, {it.lng.toFixed(5)}
+                        </span>
+                      </a>
+                    )}
+                  </div>
+                  <span className="demo-num shrink-0 text-[13px] text-ink">{formatMonto(it.precio, idioma)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {/* REJILLA-01 · y el aviso, en la superficie que MÁS importa: ésta
+              es la que ve el cliente y donde acepta. Enseñarle «Prime
+              06:00–10:00» y no decirle que la programación no viaja sola al
+              CMS sería mentirle por omisión justo al firmar. */}
+          {p.items.some((it) => it.franjaId) && (
+            <div className="mt-3">
+              <AvisoFranjaCMS />
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Mapa con la ubicación de las pantallas. Si ningún sitio tiene
+          coordenadas lo decimos en vez de ocultar la tarjeta en silencio: la
+          dirección de cada pantalla sigue estando en la lista de arriba. */}
+      <Card>
+        <CardHeader><CardTitle>{t('propuestas.ficha.mapa')}</CardTitle></CardHeader>
+        <CardContent>
+          {puntos.length > 0 ? (
+            <>
+              <div className="h-[340px] w-full overflow-hidden rounded border border-border">
+                <MapView points={puntos} zoom={11} />
+              </div>
+              {puntos.length < p.items.length && (
+                <p className="mt-2 text-[11px] text-muted">
+                  {t(p.items.length === 1 ? 'cuenta.publica.mapa.parcial.uno' : 'cuenta.publica.mapa.parcial.otros', {
+                    faltan: p.items.length - puntos.length,
+                    n: formatNumero(p.items.length),
+                  })}
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="text-[13px] text-muted">
+              {t('cuenta.publica.mapa.ninguna')}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Total */}
+      <Card>
+        <CardContent>
+          <dl className="space-y-2 text-[13px]">
+            <Fila label={t('propuestas.comun.bruto-lista')} valor={formatMonto(p.bruto, idioma)} />
+            {/* PAQ-01 · EL PAQUETE VA PRIMERO, y no es cosmético: es lo único
+                de la cadena que no descuenta sino que SUSTITUYE, así que
+                tiene que leerse antes que cualquier resta. Pintado como
+                «Precio del paquete» y no como un descuento, porque llamarlo
+                descuento haría creer que el bruto de arriba sigue mandando.
+
+                Este objeto se arma A MANO en `obtenerPropuestaPublica`, campo
+                por campo: añadirlo a `armarPropuesta` NO basta para que
+                llegue hasta aquí — es el defecto que la Fase 2 encontró en
+                este mismo sitio revisando el diff y que la Fase 3 volvió a
+                encontrar. Esta vez tiene prueba propia. */}
+            {p.paquete && (
+              <>
+                <Fila
+                  label={t('propuestas.comun.paquete-conjunto', { nombre: p.paquete.nombre })}
+                  valor={formatMonto(p.paquete.precio, idioma)}
+                />
+                <p className="text-[11px] leading-snug text-muted-foreground">
+                  {p.paquete.aviso}
+                </p>
+              </>
+            )}
+            {/* VOL-01 · en la liga PÚBLICA es donde más importa: es el
+                documento que el cliente lee y acepta, y si el descuento por
+                volumen no figura, la cuenta de la cotización no da. */}
+            {(p.descuentoVolumenMonto ?? 0) > 0 && (
+              <Fila
+                label={t('propuestas.comun.descuento-volumen', { pct: cifraEnEtiqueta(Math.round((p.descuentoVolumenPct ?? 0) * 10) / 10, idioma) })}
+                valor={`− ${formatMonto(p.descuentoVolumenMonto ?? 0, idioma)}`}
+              />
+            )}
+            {p.descuentoMonto > 0 && (
+              <Fila label={t('propuestas.documento.descuento', { pct: cifraEnEtiqueta(p.descuentoPct, idioma) })} valor={`− ${formatMonto(p.descuentoMonto, idioma)}`} />
+            )}
+            {/* COD-01 · y el código, CON SU NOMBRE. Es la superficie que ve el
+                cliente y el documento que acepta: si el cupón que se le
+                prometió no figura aquí, la cotización enseña un total más
+                bajo que su propia cuenta y sin decir por qué. Este objeto se
+                arma A MANO en `obtenerPropuestaPublica`, campo por campo:
+                añadirlo a `armarPropuesta` NO basta para que llegue hasta
+                aquí — es el defecto que la Fase 2 encontró en este mismo
+                sitio revisando el diff, no corriendo pruebas. */}
+            {(p.codigoDescuentoMonto ?? 0) > 0 && (
+              <Fila
+                label={t('propuestas.comun.codigo-pct', { codigo: p.codigoTexto ?? '', pct: cifraEnEtiqueta(p.codigoDescuentoPct ?? 0, idioma) })}
+                valor={`− ${formatMonto(p.codigoDescuentoMonto ?? 0, idioma)}`}
+              />
+            )}
+            <Fila label={t('propuestas.documento.comision', { pct: comisionPct })} valor={`− ${formatMonto(p.base - p.neto, idioma)}`} />
+            <Fila label={t('propuestas.comun.neto')} valor={formatMonto(p.neto, idioma)} />
+            <Fila label={t('propuestas.comun.iva', { pct: ivaPct })} valor={formatMonto(p.iva, idioma)} />
+            <div className="mt-1 border-t border-border pt-2">
+              <Fila label={t('propuestas.ficha.total')} valor={formatMonto(p.total, idioma)} fuerte />
+            </div>
+          </dl>
+        </CardContent>
+      </Card>
+
+      {/* PROP-COMPLETA (29/10) · los términos que el cliente acepta junto con
+          el total. Antes del botón, a propósito: se aceptan después de leerlos. */}
+      {p.condiciones && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('propuestas.condiciones.terminos')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="whitespace-pre-wrap text-[13px] text-ink">{p.condiciones}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Aceptación del cliente (cierra el loop de venta) */}
+      {aceptada ? (
+        <Card className="border-[#10b98140] bg-[#10b9810d]">
+          <CardContent>
+            <div className="flex items-start gap-3 py-1">
+              <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-[#0f7a55]" />
+              <div>
+                <div className="text-[15px] font-semibold text-ink">{t('cuenta.publica.aceptada.titulo')}</div>
+                <div className="mt-0.5 text-[13px] text-muted">
+                  {aceptada.aceptadoPor
+                    ? t('cuenta.publica.aceptada.detalle-por', { quien: aceptada.aceptadoPor, fecha: formatFechaHora(aceptada.aceptadoEn, idioma) })
+                    : t('cuenta.publica.aceptada.detalle', { fecha: formatFechaHora(aceptada.aceptadoEn, idioma) })}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ) : puedeAceptar ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('cuenta.publica.aceptas')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-[13px] text-muted">
+              {t(p.items.length === 1 ? 'cuenta.publica.al-aceptar.uno' : 'cuenta.publica.al-aceptar.otros', {
+                n: p.items.length,
+                total: formatMonto(p.total, idioma),
+              })}
+            </p>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+              <input
+                value={nombre}
+                onChange={(e) => setNombre(e.target.value)}
+                placeholder={t('cuenta.publica.tu-nombre')}
+                className="h-10 flex-1 rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              />
+              <Button onClick={aceptar} disabled={enviando} className="shrink-0">
+                <CheckCircle2 className="h-4 w-4" /> {enviando ? t('cuenta.publica.aceptando') : t('cuenta.publica.aceptar')}
+              </Button>
+            </div>
+            {errorAcep && <p className="mt-2 text-[12px] text-error">{errorAcep}</p>}
+          </CardContent>
+        </Card>
+      ) : vencida ? (
+        <Card className="border-[#ef444440]">
+          <CardContent>
+            <p className="py-1 text-[13px] text-ink">
+              {t('cuenta.publica.vencida.detalle', { fecha: formatFecha(p.vigenteHasta as string, idioma) })}
+            </p>
+          </CardContent>
+        </Card>
+      ) : null}
+
+    </>
+  )
+
   return (
     <div className="min-h-screen bg-bg">
       {/* Header público */}
@@ -230,267 +520,34 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
       </header>
 
       <main className="w-full space-y-4 px-6 py-6">
-        {/* Nombre + folio */}
-        <div>
-          <h1 className="text-2xl text-ink">{p.nombre}</h1>
-          <p className="demo-num mt-1 text-[12px] text-muted">
-            {p.folio}
-            {p.vigenteHasta && p.estatus === 'ENVIADA' && !aceptada && (
-              <span className={vencida ? 'text-error' : ''}>
-                {' · '}
-                {vencida ? t('cuenta.publica.vencio-el', { fecha: formatFecha(p.vigenteHasta, idioma) }) : t('cuenta.publica.valida-hasta', { fecha: formatFecha(p.vigenteHasta, idioma) })}
-              </span>
-            )}
-          </p>
-        </div>
-
-        {/* Metadatos */}
-        <Card className="overflow-hidden p-0">
-          <div className="grid grid-cols-2 divide-x divide-y divide-border sm:grid-cols-4 sm:divide-y-0">
-            <Meta icon={<CalendarDays className="h-4 w-4" />} label={t('propuestas.ficha.meta.fechas')}
-              value={desde && hasta ? `${formatFecha(desde, idioma)} – ${formatFecha(hasta, idioma)}` : '—'} />
-            <Meta label={t('propuestas.ficha.meta.anunciante')} value={p.clienteNombre ?? t('propuestas.comun.sin-cliente')} />
-            <Meta label={t('propuestas.comun.agencia')} value={p.agenciaNombre ?? t('propuestas.ficha.meta.directa')} />
-            <Meta label={t('propuestas.ficha.meta.comision')} value={`${comisionPct}%`} />
-          </div>
-        </Card>
-
-        {/* KPIs */}
-        <Card>
-          <CardHeader><CardTitle>{t('propuestas.ficha.resumen')}</CardTitle></CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-              <Kpi icon={<Wallet className="h-4 w-4" />} tono="info" label={t('propuestas.ficha.kpi.total')} value={formatMonto(p.total, idioma)} />
-              <Kpi icon={<Coins className="h-4 w-4" />} tono="success" label={t('propuestas.comun.neto')} value={formatMonto(p.neto, idioma)} />
-              <Kpi icon={<Receipt className="h-4 w-4" />} tono="ambar" label={t('propuestas.comun.iva', { pct: ivaPct })} value={formatMonto(p.iva, idioma)} />
-              <Kpi icon={<Building2 className="h-4 w-4" />} tono="neutro" label={t('cuenta.publica.kpi.sitios')} value={`${p.items.length}`} />
+        {seguimiento ? (
+          <>
+            <SeguimientoCampana seguimiento={seguimiento} />
+            {/* La propuesta aceptada, plegada: ya no es lo que el cliente viene
+                a ver, pero sigue siendo el documento de lo que contrató. Se
+                MONTA al abrirla (no solo se oculta): el mapa medido dentro de un
+                contenedor oculto se dibuja roto. */}
+            <div className="rounded-md border border-border bg-surface">
+              <button
+                type="button"
+                aria-expanded={propuestaAbierta}
+                aria-controls="propuesta-plegada"
+                onClick={() => setPropuestaAbierta((v) => !v)}
+                className="flex min-h-[44px] w-full items-center justify-between gap-2 px-4 text-left text-[13px] font-medium text-ink"
+              >
+                {propuestaAbierta ? t('cuenta.seguimiento.ocultar-propuesta') : t('cuenta.seguimiento.ver-propuesta')}
+                <ChevronDown aria-hidden="true" className={`h-4 w-4 text-muted transition-transform ${propuestaAbierta ? 'rotate-180' : ''}`} />
+              </button>
+              {propuestaAbierta && (
+                <div id="propuesta-plegada" className="space-y-4 border-t border-border p-4">
+                  {cuerpo}
+                </div>
+              )}
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Sitios */}
-        <Card>
-          <CardHeader><CardTitle>{t('cuenta.publica.sitios')}</CardTitle></CardHeader>
-          <CardContent>
-            {p.items.length === 0 ? (
-              <p className="text-[13px] text-muted">{t('propuestas.ficha.sitios.vacia')}</p>
-            ) : (
-              <ul className="divide-y divide-border">
-                {p.items.map((it, i) => (
-                  <li key={i} className="flex items-start justify-between gap-3 py-2.5">
-                    <div className="min-w-0">
-                      <div className="truncate text-[13px] text-ink">{it.sitioNombre}</div>
-                      {/* REJILLA-01 · la franja CONTRATADA, con su horario. Un
-                          importe sin las horas que compró deja al cliente sin
-                          saber qué aceptó — y esta pantalla es exactamente donde
-                          lo acepta. */}
-                      {it.franjaId && (
-                        <div className="text-[11px] font-medium text-amber-800">
-                          {it.franjaNombre ?? it.franjaId}
-                          {it.franjaHorario ? ` · ${it.franjaHorario}` : ''}
-                        </div>
-                      )}
-                      {/* Ubicación completa: dirección + zona. Redundante con el
-                          mapa a propósito — el cliente que abre la liga debe poder
-                          situar la pantalla aunque los tiles no carguen. */}
-                      <div className="flex items-start gap-1 text-[11px] text-muted">
-                        <MapPin className="mt-0.5 h-3 w-3 shrink-0" />
-                        <span>
-                          {it.direccion ? <span className="text-ink">{it.direccion}</span> : null}
-                          {it.direccion && zonaDe(it) ? <br /> : null}
-                          {zonaDe(it) ?? (it.direccion ? null : t('cuenta.publica.sin-ubicacion'))}
-                          {/* Ola 5: en español el tipo va como siempre (el codigo); en ingles,
-                              su etiqueta, porque «ESPECTACULAR» es una palabra española. */}
-                          {it.tipoMedio ? ` · ${idioma === 'es' ? it.tipoMedio : tipoMedioIngles(it.tipoMedio)}` : ''}
-                        </span>
-                      </div>
-                      {it.lat != null && it.lng != null && (
-                        <a
-                          href={`https://www.google.com/maps/search/?api=1&query=${it.lat},${it.lng}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-info hover:underline"
-                        >
-                          <ExternalLink className="h-3 w-3" />
-                          <span className="demo-num">
-                            {it.lat.toFixed(5)}, {it.lng.toFixed(5)}
-                          </span>
-                        </a>
-                      )}
-                    </div>
-                    <span className="demo-num shrink-0 text-[13px] text-ink">{formatMonto(it.precio, idioma)}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {/* REJILLA-01 · y el aviso, en la superficie que MÁS importa: ésta
-                es la que ve el cliente y donde acepta. Enseñarle «Prime
-                06:00–10:00» y no decirle que la programación no viaja sola al
-                CMS sería mentirle por omisión justo al firmar. */}
-            {p.items.some((it) => it.franjaId) && (
-              <div className="mt-3">
-                <AvisoFranjaCMS />
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Mapa con la ubicación de las pantallas. Si ningún sitio tiene
-            coordenadas lo decimos en vez de ocultar la tarjeta en silencio: la
-            dirección de cada pantalla sigue estando en la lista de arriba. */}
-        <Card>
-          <CardHeader><CardTitle>{t('propuestas.ficha.mapa')}</CardTitle></CardHeader>
-          <CardContent>
-            {puntos.length > 0 ? (
-              <>
-                <div className="h-[340px] w-full overflow-hidden rounded border border-border">
-                  <MapView points={puntos} zoom={11} />
-                </div>
-                {puntos.length < p.items.length && (
-                  <p className="mt-2 text-[11px] text-muted">
-                    {t(p.items.length === 1 ? 'cuenta.publica.mapa.parcial.uno' : 'cuenta.publica.mapa.parcial.otros', {
-                      faltan: p.items.length - puntos.length,
-                      n: formatNumero(p.items.length),
-                    })}
-                  </p>
-                )}
-              </>
-            ) : (
-              <p className="text-[13px] text-muted">
-                {t('cuenta.publica.mapa.ninguna')}
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Total */}
-        <Card>
-          <CardContent>
-            <dl className="space-y-2 text-[13px]">
-              <Fila label={t('propuestas.comun.bruto-lista')} valor={formatMonto(p.bruto, idioma)} />
-              {/* PAQ-01 · EL PAQUETE VA PRIMERO, y no es cosmético: es lo único
-                  de la cadena que no descuenta sino que SUSTITUYE, así que
-                  tiene que leerse antes que cualquier resta. Pintado como
-                  «Precio del paquete» y no como un descuento, porque llamarlo
-                  descuento haría creer que el bruto de arriba sigue mandando.
-
-                  Este objeto se arma A MANO en `obtenerPropuestaPublica`, campo
-                  por campo: añadirlo a `armarPropuesta` NO basta para que
-                  llegue hasta aquí — es el defecto que la Fase 2 encontró en
-                  este mismo sitio revisando el diff y que la Fase 3 volvió a
-                  encontrar. Esta vez tiene prueba propia. */}
-              {p.paquete && (
-                <>
-                  <Fila
-                    label={t('propuestas.comun.paquete-conjunto', { nombre: p.paquete.nombre })}
-                    valor={formatMonto(p.paquete.precio, idioma)}
-                  />
-                  <p className="text-[11px] leading-snug text-muted-foreground">
-                    {p.paquete.aviso}
-                  </p>
-                </>
-              )}
-              {/* VOL-01 · en la liga PÚBLICA es donde más importa: es el
-                  documento que el cliente lee y acepta, y si el descuento por
-                  volumen no figura, la cuenta de la cotización no da. */}
-              {(p.descuentoVolumenMonto ?? 0) > 0 && (
-                <Fila
-                  label={t('propuestas.comun.descuento-volumen', { pct: cifraEnEtiqueta(Math.round((p.descuentoVolumenPct ?? 0) * 10) / 10, idioma) })}
-                  valor={`− ${formatMonto(p.descuentoVolumenMonto ?? 0, idioma)}`}
-                />
-              )}
-              {p.descuentoMonto > 0 && (
-                <Fila label={t('propuestas.documento.descuento', { pct: cifraEnEtiqueta(p.descuentoPct, idioma) })} valor={`− ${formatMonto(p.descuentoMonto, idioma)}`} />
-              )}
-              {/* COD-01 · y el código, CON SU NOMBRE. Es la superficie que ve el
-                  cliente y el documento que acepta: si el cupón que se le
-                  prometió no figura aquí, la cotización enseña un total más
-                  bajo que su propia cuenta y sin decir por qué. Este objeto se
-                  arma A MANO en `obtenerPropuestaPublica`, campo por campo:
-                  añadirlo a `armarPropuesta` NO basta para que llegue hasta
-                  aquí — es el defecto que la Fase 2 encontró en este mismo
-                  sitio revisando el diff, no corriendo pruebas. */}
-              {(p.codigoDescuentoMonto ?? 0) > 0 && (
-                <Fila
-                  label={t('propuestas.comun.codigo-pct', { codigo: p.codigoTexto ?? '', pct: cifraEnEtiqueta(p.codigoDescuentoPct ?? 0, idioma) })}
-                  valor={`− ${formatMonto(p.codigoDescuentoMonto ?? 0, idioma)}`}
-                />
-              )}
-              <Fila label={t('propuestas.documento.comision', { pct: comisionPct })} valor={`− ${formatMonto(p.base - p.neto, idioma)}`} />
-              <Fila label={t('propuestas.comun.neto')} valor={formatMonto(p.neto, idioma)} />
-              <Fila label={t('propuestas.comun.iva', { pct: ivaPct })} valor={formatMonto(p.iva, idioma)} />
-              <div className="mt-1 border-t border-border pt-2">
-                <Fila label={t('propuestas.ficha.total')} valor={formatMonto(p.total, idioma)} fuerte />
-              </div>
-            </dl>
-          </CardContent>
-        </Card>
-
-        {/* PROP-COMPLETA (29/10) · los términos que el cliente acepta junto con
-            el total. Antes del botón, a propósito: se aceptan después de leerlos. */}
-        {p.condiciones && (
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('propuestas.condiciones.terminos')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="whitespace-pre-wrap text-[13px] text-ink">{p.condiciones}</p>
-            </CardContent>
-          </Card>
+          </>
+        ) : (
+          cuerpo
         )}
-
-        {/* Aceptación del cliente (cierra el loop de venta) */}
-        {aceptada ? (
-          <Card className="border-[#10b98140] bg-[#10b9810d]">
-            <CardContent>
-              <div className="flex items-start gap-3 py-1">
-                <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-[#0f7a55]" />
-                <div>
-                  <div className="text-[15px] font-semibold text-ink">{t('cuenta.publica.aceptada.titulo')}</div>
-                  <div className="mt-0.5 text-[13px] text-muted">
-                    {aceptada.aceptadoPor
-                      ? t('cuenta.publica.aceptada.detalle-por', { quien: aceptada.aceptadoPor, fecha: formatFechaHora(aceptada.aceptadoEn, idioma) })
-                      : t('cuenta.publica.aceptada.detalle', { fecha: formatFechaHora(aceptada.aceptadoEn, idioma) })}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ) : puedeAceptar ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('cuenta.publica.aceptas')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-[13px] text-muted">
-                {t(p.items.length === 1 ? 'cuenta.publica.al-aceptar.uno' : 'cuenta.publica.al-aceptar.otros', {
-                  n: p.items.length,
-                  total: formatMonto(p.total, idioma),
-                })}
-              </p>
-              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-                <input
-                  value={nombre}
-                  onChange={(e) => setNombre(e.target.value)}
-                  placeholder={t('cuenta.publica.tu-nombre')}
-                  className="h-10 flex-1 rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                />
-                <Button onClick={aceptar} disabled={enviando} className="shrink-0">
-                  <CheckCircle2 className="h-4 w-4" /> {enviando ? t('cuenta.publica.aceptando') : t('cuenta.publica.aceptar')}
-                </Button>
-              </div>
-              {errorAcep && <p className="mt-2 text-[12px] text-error">{errorAcep}</p>}
-            </CardContent>
-          </Card>
-        ) : vencida ? (
-          <Card className="border-[#ef444440]">
-            <CardContent>
-              <p className="py-1 text-[13px] text-ink">
-                {t('cuenta.publica.vencida.detalle', { fecha: formatFecha(p.vigenteHasta as string, idioma) })}
-              </p>
-            </CardContent>
-          </Card>
-        ) : null}
 
         <p className="pb-4 text-center text-[11px] text-muted">
           {t('cuenta.publica.pie')}{puedeAceptar || aceptada ? '' : t('cuenta.publica.pie.solo-lectura')}

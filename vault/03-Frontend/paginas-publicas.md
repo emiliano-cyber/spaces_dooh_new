@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-11-17
 tags: [frontend, publico, tokens, amarillo]
 archivos:
   - apps/web/app/(app)/portal/[token]/
@@ -12,6 +12,8 @@ archivos:
   - apps/web/lib/server/portal-repo.ts
   - apps/web/middleware.ts
   - apps/web/components/demo/rejilla/AvisoFranjaCMS.tsx
+  - apps/web/components/demo/propuestas/SeguimientoCampana.tsx
+  - apps/web/lib/seguimiento-campana.ts
 ---
 
 # Páginas públicas (sin sesión)
@@ -77,6 +79,27 @@ alguna empezara a leer la cookie, la exención se vuelve un agujero.
 > Todo opcional en el tipo (`:16-72`): una propuesta sin nada de eso se pinta
 > como antes. Ver [[rejilla-franja-y-temporada]], [[descuento-por-volumen]],
 > [[codigo-promocional]] y [[paquete-cerrado]].
+
+## Cuando la propuesta ya es campaña: el seguimiento
+
+> [!note] 2026-11-17 · el rastreo «tipo Mercado Libre» en `/p/[id]`
+> La página pide en paralelo la propuesta y `GET /api/propuestas/publica/[id]/seguimiento`
+> y se pinta cuando llegan las dos. Con `hayCampana: true` va ARRIBA
+> `SeguimientoCampana` (banner con el mensaje y la fecha clave, línea vertical de
+> seis pasos con un solo `aria-current="step"`, lonas con «1 de 2 lonas impresas»
+> y detalle plegable, anuncios con su estatus) y la propuesta se pliega debajo,
+> montada solo al abrirla (el mapa oculto se dibuja roto). Con `hayCampana: false`
+> o si el fetch falla, la página es la de siempre.
+>
+> - Los textos van por `cuenta.seguimiento.*` (es/en/it/pt); la regla de los pasos
+>   es pura en `lib/seguimiento-campana.ts`.
+> - **El nombre de la imprenta llega `null` por omisión** (solo lo enciende el
+>   vendedor): sin nombre no se pinta ni «Imprime» ni hueco.
+> - El banner de «al aire», «lista» y «terminó» se deriva de los PASOS, no de
+>   `mensaje`: el servidor pone `mensaje = pasoActual`, que con la campaña
+>   corriendo vale «finalizada».
+> - Pruebas: `lib/i18n/pantallas-cuenta-shell.test.ts` (tres estados en cuatro
+>   idiomas y lo que NO debe verse).
 
 ## Marca en las páginas de cara al cliente
 
