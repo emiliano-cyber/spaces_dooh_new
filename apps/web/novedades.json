@@ -1,5 +1,17 @@
 [
   {
+    "version": "v0.12.13",
+    "fecha": "2026-11-17",
+    "items": [
+      {
+        "tipo": "AJUSTADO",
+        "texto": "«Comercial negociación» ahora se llama «Prospección» y está en el grupo Inventario del menú, justo debajo de Arrendadores. Es la misma pantalla, con la misma información y para las mismas personas.",
+        "en": "“Lease negotiation” is now called “Prospecting” and sits in the Inventory group of the menu, right below Landlords. It is the same screen, with the same information and for the same people.",
+        "it": "«Negoziazione locazioni» ora si chiama «Prospezione» e si trova nel gruppo Inventario del menu, subito sotto Locatori. È la stessa schermata, con le stesse informazioni e per le stesse persone."
+      }
+    ]
+  },
+  {
     "version": "v0.12.12",
     "fecha": "2026-11-16",
     "items": [

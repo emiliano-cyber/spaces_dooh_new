@@ -5,7 +5,7 @@ La entrada más reciente va arriba.
 
 ---
 
-## 2026-11-16 · «Comercial negociación» ahora se llama «Prospección» y está en Inventario (sin publicar)
+## 2026-11-16 · v0.12.13 · «Comercial negociación» ahora se llama «Prospección» y está en Inventario
 
 - En el menú, **Comercial negociación** pasa a llamarse **Prospección** y se mueve del grupo Comercial al grupo **Inventario**, justo debajo de **Arrendadores**.
 - La pantalla es la misma, con el mismo contenido y la misma dirección; solo cambian su nombre (también en el título de la página y en Administración → Roles) y su lugar en el menú.
