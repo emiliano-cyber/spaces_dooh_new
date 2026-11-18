@@ -5,6 +5,22 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-18 · Italiano: lo que todavía salía en español o con cifras a la española
+
+Pedido del dueño: «no todo está traducido: hay pedazos en español». Se recorrió toda la aplicación en italiano con una cuenta de prueba, pantalla por pantalla. Casi todo ya estaba en italiano; lo que se colaba eran valores pintados tal cual. Arreglado:
+
+- **Propuestas › Seguimiento › ficha de una oportunidad**, en la «Cronologia»: decía «BORRADOR → ENVIADA» y «— → 2026-12-18». Ahora dice «Bozza → Inviata» y «— → 18 dic 2026», y las cifras con coma («0 → 12,5»).
+- En la misma ficha, el «Sopra di … (4.5%)» lleva ya la coma italiana: «(4,5%)».
+- **Ficha de la campaña › Cosa viene inviato su DOOHmain**: el tipo de cliente decía «Directo» y el periodo «2026-11-10 – 2026-12-09». Ahora «Diretto» y «10 nov 2026 – 9 dic 2026». Lo que se manda a DOOHmain no cambia.
+- **Stampa** (Imprenta): la medida de cada orden decía «12.9 × 7.2 m»; ahora «12,9 × 7,2 m», como el arte de al lado.
+- **Impostazioni › Ruoli e permessi**: el módulo de prospección salía como «Captacion»; ahora «Acquisizione siti». Lo mismo arregla el inglés y el portugués de esa fila.
+
+En español todo se ve exactamente igual que antes. Los cuatro primeros arreglos también le sirven al inglés y al portugués (fechas, estatus y «Direct»/«Direto» en su idioma).
+
+Lo que **no** se cambió, a propósito: la liga pública de una propuesta (`/p/…`) y su seguimiento se ven en el **idioma de los documentos de la instancia**, no en el de quien la abre; en una instancia en español salen en español aunque la abra alguien con la interfaz en italiano. Y los nombres, notas y datos que escribe la gente no se traducen.
+
+---
+
 ## 2026-11-18 · Propuestas: el resumen es su propia pestaña, y la primera
 
 Pedido del dueño: «en Propuestas, el resumen de propuestas hazlo su propia sección y que sea la primera en abrirse».
