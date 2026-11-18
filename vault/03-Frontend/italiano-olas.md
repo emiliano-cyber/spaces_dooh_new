@@ -1,7 +1,7 @@
 ---
 tipo: tablero
 estado: en-curso
-actualizado: 2026-11-05
+actualizado: 2026-11-18
 tags: [frontend, i18n, italiano, olas, agentes, dinero]
 archivos:
   - apps/web/lib/i18n/idiomas.ts
@@ -16,6 +16,9 @@ archivos:
   - apps/web/lib/test/espejo-italiano.ts
   - apps/web/lib/i18n/barrido-italiano.ts
   - apps/web/lib/i18n/parte-en-idioma.tsx
+  - apps/web/lib/i18n/recorrido-italiano-18-11.test.ts
+  - apps/web/components/demo/crm/etiquetas.ts
+  - apps/web/components/demo/admin/etiqueta-modulo.ts
   - apps/web/lib/captura-cifra.ts
   - apps/web/components/demo/ui/EntradaCifra.tsx
   - scripts/i18n-barrido-italiano.mjs
@@ -702,3 +705,49 @@ cambiar el español. Detalle y tabla de decisiones de traducción en
   mandará; y lo que no es una cifra («1,500» tecleado en español) se deja como
   se tecleó con su aviso, en vez de pintarse «1.500». Lo que se manda no
   cambia. Probado tecla a tecla con `lib/test/formulario-sin-dom.ts`.
+
+## 15 · Segundo recorrido en el navegador (2026-11-18)
+
+Rama `i18n/it-18-11` (sale de `integra/18-11`, `ff89ff28`), **sin validar**.
+Pedido del dueño: «no todo está traducido: hay pedazos en español». Recorrido
+con `it@hoy.test` (Administrador, italiano por cuenta) sobre `spaces_hoy`:
+Dashboard, todo el menú, Propuestas (Resumen · Propuestas · Seguimiento ·
+Prospectos), ficha de propuesta con «Vedi foto e posizione», ficha de
+oportunidad, campaña con «Aggiorna campagna» y lo que va a DOOHmain, Stampa,
+PoD, Inventario (Fissi/Digitali y zona), Impostazioni (las tres pestañas) y la
+liga pública `/p/<token>` (propuesta enviada y aceptada con seguimiento).
+
+**La cobertura ya estaba completa** (`coberturaItaliano()` 6438/6438, y los
+valores italianos iguales al español o al inglés son cognados o están
+declarados). Lo que se colaba eran **valores de la base pintados tal cual** y
+**cifras sin el formato del idioma**:
+
+| Pantalla | Se veía | Arreglo |
+|---|---|---|
+| Ficha de oportunidad › Cronologia | «BORRADOR → ENVIADA», «— → 2026-12-18», «0 → 12.5» | `valorDeCambio` (`crm/etiquetas.ts`): estatus por `CLAVE_ESTATUS`, fecha por `formatFecha`, cifra por `numeroEnIdioma`. En español, `String(v)` como siempre |
+| Ficha de oportunidad › Richiesto rispetto al preventivo | «Sopra di MX$ 3.592,00 (4.5%)» | `pct` con `numeroEnIdioma` → «(4,5%)»; es/en idénticos |
+| Campaña › Cosa viene inviato su DOOHmain | «· Directo», «Periodo: 2026-11-10 – 2026-12-09» | el tipo se rotula con `clientes.tipo.*` y las fechas con `formatFecha` fuera del español. Lo que viaja a DOOHmain no cambia |
+| Stampa › fila de la orden | «12.9 × 7.2 m» | `medidaEnIdioma` (`ArteEnSitio.tsx`), la misma regla que el arte de al lado |
+| Impostazioni › Ruoli e permessi | «Captacion» (y en inglés también «Inventario») | `etiquetaModulo` (sacada a `admin/etiqueta-modulo.ts`, un `page.tsx` no puede exportarla) cae a `nav.<clave>` antes que al `label` capitalizado del servidor |
+
+Los cuatro primeros cambian también el inglés y el portugués (son la rama «no
+español»); **el español sale idéntico**, y lo fijan las pruebas.
+
+**Visto y NO cambiado, a propósito:**
+
+- `/p/<token>` (propuesta y seguimiento de campaña) va en el **idioma de los
+  documentos de la instancia** (ADR 0049), no en el de quien la abre: en
+  `spaces_hoy` (instancia en español) sale en español. Detalle aparte, del
+  español: la línea del sitio pinta el tipo crudo («Tijuana ·
+  PANTALLA_DIGITAL»), porque `p/[id]/page.tsx` pinta `it.tipoMedio` tal cual
+  cuando el idioma es `es`. No es del italiano; queda para quien lleve el
+  español.
+- Los datos sembrados «Caso ·» (nombres, notas, descripciones de OT como
+  «Montaje de lona de la campaña», franjas «Mañana/Tarde/Noche») son datos.
+- La campanita de avisos no se pudo abrir desde el recorrido automatizado.
+
+**Pruebas:** `lib/i18n/recorrido-italiano-18-11.test.ts` (nueva) y un caso más
+en «frases italianas a la vista» de `pantallas-campanas-finanzas.test.ts` (el
+fixture de DOOHmain lleva ahora `tipo: 'Directo'`). En rojo sin el arreglo
+(6 fallos) y en verde con él.
+

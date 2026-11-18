@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Code2, Images } from 'lucide-react'
 import { useIdioma } from '@/lib/i18n/contexto'
+import type { Idioma } from '@/lib/i18n/idiomas'
 import { formatNumero } from '@/lib/formato-numero'
 import {
   ajusteEnMarco,
@@ -147,6 +148,16 @@ export function TextoMedida({
 export function decimalesDe(n: number): number {
   if (Number.isInteger(n)) return 0
   return Number.isInteger(n * 10) ? 1 : 2
+}
+
+/**
+ * «12,9 × 7,2 m» en el idioma de quien lee. La fila de una orden de impresión
+ * lo pintaba con `${ancho} × ${alto} m`, que deja el punto decimal en italiano
+ * («12.9 × 7.2 m» junto al «12,9 × 7,2 m» del arte: recorrido del 18/11). En
+ * español e inglés sale idéntico a la plantilla de antes.
+ */
+export function medidaEnIdioma(ancho: number, alto: number, idioma: Idioma): string {
+  return `${formatNumero(ancho, decimalesDe(ancho), idioma)} × ${formatNumero(alto, decimalesDe(alto), idioma)} m`
 }
 
 /** Miniatura + su ajuste debajo, para la fila de la orden. */
