@@ -33,6 +33,10 @@ archivos:
   - apps/web/components/demo/captacion/CuadroContactado.tsx
   - apps/web/components/demo/captacion/contactado-oportunidad.test.ts
   - apps/web/lib/server/oportunidades-repo.una-abierta.test.ts
+  - apps/web/lib/seguimiento-arrastre.ts
+  - apps/web/lib/seguimiento-arrastre.test.ts
+  - apps/web/components/demo/crm/ModalCambioEtapa.tsx
+  - apps/web/components/demo/crm/seguimiento-arrastre.test.ts
 ---
 
 # CRM comercial — las oportunidades (ADR 0051, Fases 2 a 4)
@@ -348,11 +352,59 @@ build anterior: 7 fallos).
 >   (pantalla «resumen de propuestas», bloque «Resumen · Propuestas: cada
 >   pestaña con lo suyo»; ahí la navegación por omisión es `vista=propuestas`).
 
+> [!important] 2026-11-18, noche · las tarjetas de Seguimiento se ARRASTRAN entre columnas
+> Pedido del dueño: «que se pueda mover y se vea la animación arrastrando entre
+> cada columna, y solo al terminar de moverlo abrir un modal con los campos para
+> llenar el cambio». Sin API nueva, sin migración y **sin dependencias**
+> (Pointer Events nativos):
+>
+> - **Ratón**: arranca al pasar 6 px (`UMBRAL_ARRASTRE_PX`); menos es un clic
+>   y abre la ficha. **Dedo**: pulsación larga de 350 ms
+>   (`PULSACION_LARGA_MS`); deslizar antes (más de 10 px) es scroll y el
+>   tablero se desplaza como siempre. Ya arrastrando, un `touchmove` no pasivo
+>   frena el scroll del navegador, y cerca del borde el tablero (y la ventana)
+>   se desplazan solos. **Teclado**: botón «Mover de etapa» (icono, fuera del
+>   enlace) en cada tarjeta abierta, que abre el mismo modal con un selector.
+> - **La animación**: una copia sigue al puntero en un portal (levantada,
+>   inclinada, con sombra), el original queda tenue, la columna bajo el puntero
+>   se resalta con un hueco «Suelta aquí», y las que no aceptan se apagan con
+>   «Aquí no». La vuelta a su sitio (soltar fuera, Cancelar, error) y la caída
+>   en el destino son un FLIP con Web Animations. Con
+>   `prefers-reduced-motion` no hay vuelo ni inclinación.
+> - **Qué acepta cada columna** (`aceptaColumna`, `lib/seguimiento-arrastre.ts`):
+>   la regla del servidor, `problemaCambioEtapa`: una abierta va a cualquier
+>   otra etapa; GANADA y PERDIDA no se arrastran. Soltar en la propia columna,
+>   fuera o con Escape no hace nada.
+> - **El modal** (`ModalCambioEtapa.tsx`) pide lo que acepta `POST …/etapa`
+>   (`.strict()`: `etapa`, `nota`, `motivoPerdida`): la nota siempre; el
+>   motivo obligatorio a PERDIDA; a GANADA una casilla de confirmación (solo de
+>   pantalla: se cierra para siempre). Mientras está abierto, la tarjeta se ve
+>   en el destino «Pendiente de guardar» (`aplicarPendiente`, sin tocar la
+>   lista). Guardar → se queda y se relee; Cancelar → vuelve sin llamar a la
+>   API; error (409/400) → vuelve, el texto del servidor en un toast y se
+>   relee.
+> - **Prospectos**: se arrastran solo a Necesidad, Cotizando o Negociando
+>   (Contacto es su columna; ganar o perder no tienen sentido desde el alta).
+>   Abre `FormOportunidad` con el prospecto y un aviso («Al crearla se moverá
+>   a…»). `POST /api/oportunidades` **no acepta etapa** (a propósito: la etapa
+>   solo cambia por su ruta), así que la oportunidad nace en Contacto y
+>   `moverTrasCrear` la pasa al destino con `…/etapa` justo después; si eso
+>   falla, queda creada en Contacto y se dice. Cerrar el formulario sin crear
+>   la devuelve.
+> - **Permiso**: sin `comercial.crear` (el de `…/etapa`) no hay ni arrastre ni
+>   botón.
+> - Pruebas: `lib/seguimiento-arrastre.test.ts` (21, en rojo sin el módulo) y
+>   `components/demo/crm/seguimiento-arrastre.test.ts` (16: el modal por etapa
+>   en los cuatro idiomas y el tablero con y sin permiso; 7 en rojo antes de la
+>   pantalla). Mutadas la confirmación de GANADA, la regla de la propia columna
+>   y el campo del motivo: rojo cada una. El arrastre en sí (DOM, puntero) no
+>   se prueba en unitarias: queda para el recorrido en navegador.
+
 | Pantalla | Qué hay |
 |---|---|
 | `/propuestas` | **Resumen** (por omisión, 18/11): cuatro `KPICard` históricas + `TableroPropuestas` del periodo; botón «Nueva propuesta» |
 | `/propuestas?vista=propuestas` | La lista de propuestas (por propuesta o por cliente), con sus filtros y la franja del embudo; `&duplicar=`/`&agregar=` abren el formulario precargado |
-| `/propuestas?vista=seguimiento` | Columnas por etapa (Perdida plegada) con cuenta y monto; tarjetas que abren la ficha; los prospectos de tipo cliente sin oportunidad, punteados en Contacto con «Crear oportunidad»; búsqueda y vendedor arriba. «Nueva oportunidad» (encabezado de la página, `comercial.crear`) abre `FormOportunidad` (`components/demo/crm/Seguimiento.tsx`) |
+| `/propuestas?vista=seguimiento` | Columnas por etapa (Perdida plegada) con cuenta y monto; tarjetas que abren la ficha y se arrastran entre columnas (modal del cambio al soltar, 18/11); los prospectos de tipo cliente sin oportunidad, punteados en Contacto con «Crear oportunidad»; búsqueda y vendedor arriba. «Nueva oportunidad» (encabezado de la página, `comercial.crear`) abre `FormOportunidad` (`components/demo/crm/Seguimiento.tsx`) |
 | `/propuestas?vista=prospectos` | Los leads de tipo cliente: la pantalla de Captación con `tipoFijo="CLIENTE"` (`propuestas/page.tsx:229`), sin otra pantalla de leads; `&prospecto=<id>` abre ese prospecto |
 | `/crm/oportunidades/[id]` | La ficha (`FichaOportunidad`): lo pedido, el cotejo por cotización, días en cada etapa, actividades, cambio de etapa, ligar y desligar propuestas, y la línea de tiempo unida, filtrable por persona |
 | `/crm`, `/crm?vista=…` | Redirige a `/propuestas?vista=prospectos` si trae esa vista; si no (sin `vista`, `embudo`, `oportunidades`), a `?vista=seguimiento` |

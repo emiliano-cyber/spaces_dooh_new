@@ -86,6 +86,7 @@ export function FormOportunidad({
   onCerrar,
   ficha,
   prospecto = null,
+  aviso = null,
   onGuardada,
 }: {
   abierto: boolean
@@ -94,6 +95,9 @@ export function FormOportunidad({
   ficha?: FichaOportunidad | null
   /** Solo en un alta: el prospecto ya elegido. */
   prospecto?: ProspectoElegido | null
+  /** 18/11 · un aviso arriba del formulario: el prospecto arrastrado a otra
+   *  columna dice a qué etapa se moverá al crearla. */
+  aviso?: string | null
   onGuardada: (f: FichaOportunidad) => void
 }) {
   const { t, idioma } = useIdioma()
@@ -168,6 +172,9 @@ export function FormOportunidad({
       }
     >
       <div className="grid gap-3 sm:grid-cols-2">
+        {aviso && (
+          <p className="rounded border border-border bg-accent-soft px-3 py-2 text-[12px] text-ink sm:col-span-2">{aviso}</p>
+        )}
         <Campo label={t('crm.form.nombre')} obligatorio className="sm:col-span-2">
           <input className={inputCls} value={v.nombre} maxLength={200} placeholder={t('crm.form.nombre-ejemplo')}
             onChange={(e) => cambia('nombre', e.target.value)} />
