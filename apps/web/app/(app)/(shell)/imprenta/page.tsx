@@ -47,8 +47,10 @@ import {
   type GrupoPrioridad,
   type Priorizada,
 } from '@/lib/prioridad-imprenta'
-import { medidaDeOrden, proporcionDibujable, type Ajuste } from '@/lib/proporcion-pantalla'
-import { ArteEnSitio, MiniaturaArte, TextoAjuste, TextoMedida, medidaEnIdioma } from '@/components/operaciones/ArteEnSitio'
+import { medidaDeOrden } from '@/lib/proporcion-pantalla'
+import { ArteEnSitio, MiniaturaArte, TextoMedida, esHtml, medidaEnIdioma } from '@/components/operaciones/ArteEnSitio'
+import { RevisionArte, pixelesDeImagen } from '@/components/operaciones/ValoracionArte'
+import { valorarArte } from '@/lib/valoracion-arte'
 
 const PROCESO: EstOrdenImpresion[] = [
   'ARTE_RECIBIDO',
@@ -103,6 +105,9 @@ export default function ImprentaPage() {
   const [filtroGrupo, setFiltroGrupo] = useState<GrupoPrioridad | null>(null)
   const [verArte, setVerArte] = useState<{ ordenId: string; creativoId: string } | null>(null)
   const [subiendoPara, setSubiendoPara] = useState<string | null>(null)
+  // IMP-VAL (18/11) · el archivo elegido espera aquí a que se revise su
+  // valoración contra la lona; no se sube hasta confirmar.
+  const [porSubir, setPorSubir] = useState<ArchivoPorSubir | null>(null)
   const archivoRef = useRef<HTMLInputElement>(null)
   const destinoSubida = useRef<OrdenVista | null>(null)
 
@@ -171,34 +176,46 @@ export default function ImprentaPage() {
     archivoRef.current?.click()
   }
 
-  // El arte se guarda como el de Creativos (`imagenAHtml`): así una campaña
-  // híbrida no estrena un formato que el player DOOH no conoce, y `/arte/`
-  // sirve la imagen de dentro para la vista previa.
+  // IMP-VAL (18/11) · al elegir el archivo NO se sube: se lee (data URL y
+  // píxeles) y se abre la revisión contra la lona. El tope de peso ya no corta
+  // aquí con un aviso suelto: sale en rojo en la valoración y deja el botón
+  // apagado, que dice lo mismo y además enseña cómo se vería.
   function onArchivo(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
     e.target.value = ''
     const o = destinoSubida.current
     if (!f || !o) return
-    if (f.size > IMAGEN_CREATIVO_MAX_MB * 1024 * 1024) {
+    const reader = new FileReader()
+    reader.onerror = () => toast.error(t('operaciones.imprenta.valoracion.confirmar.no-leer'))
+    reader.onload = async () => {
+      const dataUrl = reader.result as string
+      const pixeles = await pixelesDeImagen(f)
+      setPorSubir({ orden: o, archivo: f, dataUrl, pixeles })
+    }
+    reader.readAsDataURL(f)
+  }
+
+  // El arte se guarda como el de Creativos (`imagenAHtml`): así una campaña
+  // híbrida no estrena un formato que el player DOOH no conoce, y `/arte/`
+  // sirve la imagen de dentro para la vista previa.
+  async function subirArte(p: ArchivoPorSubir) {
+    if (p.archivo.size > IMAGEN_CREATIVO_MAX_MB * 1024 * 1024) {
       toast.error(t('operaciones2.creativos.imagen-supera', { mb: IMAGEN_CREATIVO_MAX_MB }))
       return
     }
-    setSubiendoPara(o.id)
-    const reader = new FileReader()
-    reader.onload = async () => {
-      try {
-        await crearCreatividadApi({
-          campanaId: o.campanaId,
-          nombre: f.name,
-          codigo: imagenAHtml(reader.result as string, f.name),
-          formato: 'text/html',
-        })
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : t('operaciones.imprenta.arte.no-subir'))
-      }
-      setSubiendoPara(null)
+    setPorSubir(null)
+    setSubiendoPara(p.orden.id)
+    try {
+      await crearCreatividadApi({
+        campanaId: p.orden.campanaId,
+        nombre: p.archivo.name,
+        codigo: imagenAHtml(p.dataUrl, p.archivo.name),
+        formato: 'text/html',
+      })
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('operaciones.imprenta.arte.no-subir'))
     }
-    reader.readAsDataURL(f)
+    setSubiendoPara(null)
   }
 
   const abierta = verArte ? oisVisibles.find((o) => o.id === verArte.ordenId) ?? null : null
@@ -397,6 +414,8 @@ export default function ImprentaPage() {
         className="hidden"
         onChange={onArchivo}
       />
+
+      <ConfirmarArteDialog porSubir={porSubir} onCancelar={() => setPorSubir(null)} onSubir={subirArte} />
 
       <VerArteDialog
         key={verArte?.creativoId ?? 'cerrado'}
@@ -608,13 +627,12 @@ function VerArteDialog({
   onElegir: (creativoId: string) => void
 }) {
   const t = useTexto()
-  const [modo, setModo] = useState<'cover' | 'contain'>('cover')
-  const [ajuste, setAjuste] = useState<Ajuste | null>(null)
   const [enviando, setEnviando] = useState(false)
   if (!orden || !creativo) return null
   const proporcion = orden.medida ? orden.medida.ancho / orden.medida.alto : null
-  // Que quepa en el modal: hasta 360 px de alto y 640 de ancho.
-  const alto = Math.round(Math.min(360, 640 / proporcionDibujable(proporcion ?? 16 / 9)))
+  // `esImagen` manda, como en `ArteEnSitio`: una imagen envuelta en HTML se
+  // sirve como imagen por `/arte/` y se puede medir.
+  const imagen = creativo.esImagen || !esHtml(creativo)
 
   async function validar(aprobar: boolean) {
     if (!creativo) return
@@ -651,38 +669,19 @@ function VerArteDialog({
       }
     >
       <div className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <StatusBadge tono={CREATIVIDAD_TONO[creativo.estatusValidacion]}>
-              {t(CLAVE_ESTADO_ARTE[creativo.estatusValidacion])}
-            </StatusBadge>
-            <TextoMedida medida={orden.medida} />
-            <TextoAjuste ajuste={ajuste} />
-          </div>
-          <div className="inline-flex rounded border border-border p-0.5 text-[12px]" role="group">
-            {(['cover', 'contain'] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                aria-pressed={modo === m}
-                onClick={() => setModo(m)}
-                className={`rounded px-2 py-0.5 ${modo === m ? 'bg-ink text-surface' : 'text-muted hover:text-ink'}`}
-              >
-                {t(m === 'cover' ? 'operaciones.imprenta.arte.a-sangre' : 'operaciones.imprenta.arte.completo')}
-              </button>
-            ))}
-          </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <StatusBadge tono={CREATIVIDAD_TONO[creativo.estatusValidacion]}>
+            {t(CLAVE_ESTADO_ARTE[creativo.estatusValidacion])}
+          </StatusBadge>
+          <TextoMedida medida={orden.medida} />
         </div>
-        <div className="flex justify-center rounded-md bg-surface-2 p-4">
-          <ArteEnSitio
-            key={`${creativo.id}-${modo}`}
-            creativo={creativo}
-            proporcion={proporcion}
-            alto={alto}
-            modo={modo}
-            onAjuste={setAjuste}
-          />
-        </div>
+        {/* IMP-VAL · la lona a escala con el arte puesto y si sirve. */}
+        <RevisionArte
+          medida={orden.medida}
+          src={creativo.archivoUrl ?? null}
+          imagen={imagen}
+          creativo={creativo}
+        />
         {orden.arte.length > 1 && (
           <div className="flex flex-wrap gap-2">
             {orden.arte.map((cr) => (
@@ -698,6 +697,69 @@ function VerArteDialog({
             ))}
           </div>
         )}
+      </div>
+    </Modal>
+  )
+}
+
+type ArchivoPorSubir = {
+  orden: OrdenVista
+  archivo: File
+  dataUrl: string
+  pixeles: { ancho: number; alto: number } | null
+}
+
+// IMP-VAL (18/11) · el paso que faltaba entre elegir el archivo y subirlo: la
+// lona a escala con el arte puesto y la valoración. Rojo no impide subir —quién
+// aprueba y el flujo de estatus no cambian—, pero el botón dice «de todos
+// modos». Lo único que bloquea es el peso, porque el servidor lo rechazaría.
+function ConfirmarArteDialog({
+  porSubir,
+  onCancelar,
+  onSubir,
+}: {
+  porSubir: ArchivoPorSubir | null
+  onCancelar: () => void
+  onSubir: (p: ArchivoPorSubir) => void
+}) {
+  const t = useTexto()
+  if (!porSubir) return null
+  const { orden, archivo, dataUrl, pixeles } = porSubir
+  const v = valorarArte(
+    orden.medida,
+    { anchoPx: pixeles?.ancho ?? null, altoPx: pixeles?.alto ?? null, tipo: archivo.type, bytes: archivo.size },
+    IMAGEN_CREATIVO_MAX_MB,
+  )
+  const pesoExcedido = v.peso?.semaforo === 'rojo'
+  return (
+    <Modal
+      open
+      size="lg"
+      onOpenChange={(abierto) => !abierto && onCancelar()}
+      title={t('operaciones.imprenta.valoracion.confirmar.titulo')}
+      subtitle={[archivo.name, orden.folio, orden.nombreSitio].filter(Boolean).join(' · ')}
+      footer={
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button variant="secondary" size="sm" onClick={onCancelar}>{t('comun.cancelar')}</Button>
+          <Button variant="success" size="sm" disabled={pesoExcedido} onClick={() => onSubir(porSubir)}>
+            <Upload className="h-3.5 w-3.5" />
+            {v.general === 'rojo' && !pesoExcedido
+              ? t('operaciones.imprenta.valoracion.confirmar.subir-igual')
+              : t('operaciones.imprenta.arte.subir')}
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-3">
+        <TextoMedida medida={orden.medida} />
+        <RevisionArte
+          medida={orden.medida}
+          src={dataUrl}
+          imagen
+          pixeles={pixeles}
+          tipo={archivo.type}
+          bytes={archivo.size}
+        />
       </div>
     </Modal>
   )

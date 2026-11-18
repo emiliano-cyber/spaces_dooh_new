@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-11-17
+actualizado: 2026-11-18
 tags: [backend, operaciones, ot, imprenta, amarillo, almacen, checklist]
 archivos:
   - apps/web/lib/server/ot-repo.ts
@@ -26,6 +26,8 @@ archivos:
   - apps/web/lib/prioridad-imprenta.ts
   - apps/web/lib/proporcion-pantalla.ts
   - apps/web/components/operaciones/ArteEnSitio.tsx
+  - apps/web/components/operaciones/ValoracionArte.tsx
+  - apps/web/lib/valoracion-arte.ts
   - apps/web/app/api/creativos/[id]/arte/route.ts
   - apps/web/lib/server/creativos-repo.ts
   - apps/web/lib/data/derive.ts
@@ -176,6 +178,45 @@ condición de la orden → 6 de 8 en rojo.
 > La pantalla en un navegador real (Chrome) a la hora de cerrar este cambio:
 > ver el diario del 17/11.
 
+### La valoración del arte para la lona (IMP-VAL, 2026-11-18)
+
+Pedido del dueño: «en la pantalla de Imprenta debemos tener cambios a la hora de
+la valoración del arte a subir, ya que se debe dejar en claro y mostrar el
+ejemplo de cómo se vería el arte en el tamaño de la lona». Sin migración, sin
+rutas nuevas y sin tocar el servidor: las dimensiones del archivo se leen en el
+navegador (`createImageBitmap`, y si no hay, `Image`).
+
+| Qué | Dónde | Por qué así |
+|---|---|---|
+| **Elegir el archivo ya no lo sube** | `imprenta/page.tsx` (`onArchivo` → `ConfirmarArteDialog` → `subirArte`) | Antes «Subir arte» mandaba el archivo en cuanto se elegía. Ahora se lee (data URL y píxeles) y se abre «Revisa el arte antes de subirlo» con la lona y la valoración. Rojo **no** impide subir —el botón pasa a «Subir de todos modos»—; lo único que lo apaga es el peso, porque el servidor lo rechazaría. Quién sube (`comercial.crear`) y el flujo de estatus no cambian |
+| **El arte ya subido se revisa igual** | `VerArteDialog` → `RevisionArte` | El diálogo de aprobar mide la imagen servida por `/arte/` y enseña la misma lona y la misma valoración (sin formato ni peso: el archivo original ya no existe, se guardó envuelto en HTML). Un creativo en código no se puede medir: se pinta con `ArteEnSitio` y se dice |
+| **La lona a escala** | `components/operaciones/ValoracionArte.tsx` (`LonaAEscala`) | SVG cuyo `viewBox` es la lona **en metros**: cotas de ancho y alto en el idioma de quien lee, el margen de seguridad punteado y una persona de 1,70 m de pie al borde de abajo, todo a escala real. «A sangre»: lo que sobra se ve atenuado y rayado FUERA de la lona (se pierde; acotado a media lona por lado para que la lona no se vuelva una raya). «Sin recortar»: el arte entero y las franjas en blanco rayadas. **No hay modo «estirar»**: la convención de IMP-CREA es que la imprenta no deforma |
+| **La valoración** | `lib/valoracion-arte.ts` (puro) | Semáforo general = el peor de cuatro criterios. **Proporción**: ≤ 3 % de recorte verde (`TOLERANCIA_AJUSTE`), ≤ 15 % ámbar con los cm que se pierden por lado, más rojo con la proporción en que pedirlo. **Resolución efectiva a tamaño real**: px ÷ m a sangre (manda el lado que más se estira) → DPI. **Formato**: PNG/JPG/WebP verde, otro ámbar. **Peso**: hasta `IMAGEN_CREATIVO_MAX_MB` verde, más rojo |
+
+> [!important] Umbrales ORIENTATIVOS, decididos aquí (no había convención)
+> - **Margen de seguridad**: 5 cm por lado (`MARGEN_SEGURIDAD_M`). Se rotula
+>   como orientativo: cada imprenta tiene el suyo.
+> - **Gran formato** (un lado ≥ 6 m, se ve de lejos): verde ≥ **10 DPI**, ámbar
+>   ≥ 5. La guía de exterior es «72 dpi al 10 %» ≈ 7 DPI a tamaño real. Se
+>   eligió 10 y no 20–30 porque el tope de subida es de **4 MB**: 20 DPI en
+>   12,9 m son ~10 200 px de ancho, que no caben, y un semáforo que nunca da
+>   verde enseña a no mirarlo.
+> - **Lona cercana** (< 6 m, se ve a pocos metros): verde ≥ **30 DPI**, ámbar ≥ 15.
+>
+> Si el dueño o la imprenta dan otras cifras, se cambian en `UMBRALES_DPI`,
+> `LADO_GRAN_FORMATO_M` y `MARGEN_SEGURIDAD_M`; las pruebas leen las constantes.
+
+Pruebas: `lib/valoracion-arte.test.ts` (21, en rojo primero: el módulo no
+existía) y `components/operaciones/ValoracionArte.test.ts` (6, rinde la revisión
+con `renderToStaticMarkup` y lee los textos). Dos mutantes, uno en cada archivo
+(invertir costados/arriba-abajo; la fórmula del recorte), muertos. Textos en
+es/en/it/pt (`operaciones.imprenta.valoracion.*`).
+
+> [!warning] Lo que NO se verificó
+> El navegador (lo prueba el orquestador en Chrome) ni la ficha de campaña: el
+> arte de una OOH que se sube desde la ficha **no** pasa todavía por esta
+> revisión (ese archivo lo tenía otro agente el 18/11).
+
 ## Cómo se ven las pantallas (rediseño del 26/10)
 
 Solo presentación, con el lenguaje del Dashboard. Mismos datos, mismos
@@ -205,6 +246,8 @@ permisos, mismas acciones.
   por grupo de urgencia, cada grupo filtra la lista), la lista va agrupada y
   ordenada por esa prioridad con el lugar en la cola y «Arranca en N días», y
   bajo cada orden su arte en la proporción del sitio (ver arriba).
+  **Desde el 18/11**, subir o abrir un arte enseña la lona a escala y la
+  valoración para imprimir (IMP-VAL, ver arriba).
 
 ## OT automáticas
 

@@ -5,6 +5,21 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-18 · Imprenta: antes de subir un arte se ve cómo quedaría en la lona y si sirve
+
+Pedido del dueño: «se debe dejar en claro y mostrar el ejemplo de cómo se vería el arte en el tamaño de la lona».
+
+- **Al elegir el archivo** con «Subir arte» ya no se sube de inmediato: se abre una ventana «Revisa el arte antes de subirlo». Ahí se ve **la lona dibujada en su medida real** (con el ancho y el alto en metros), el arte puesto como quedaría impreso, una línea punteada con el **margen de seguridad** (5 cm, orientativo) y una **persona de 1,70 m** al lado para darse idea del tamaño.
+- **A sangre** (como sale la lona): lo que no cabe se ve rayado y atenuado fuera de la lona, porque se pierde. **Sin recortar**: el arte entero y, rayado, lo que quedaría en blanco.
+- Junto al dibujo, **un semáforo** con lo que importa, en palabras: «Sirve para imprimir», «Sirve, con observaciones» o «No conviene imprimirlo así», y una línea por punto:
+  - la **proporción** («Sirve con recorte: se pierden 13 cm arriba y otro tanto abajo», o «No ajusta… Pide el arte en 1:3»);
+  - la **resolución a tamaño real** («Resolución baja: 3.8 DPI; se verá pixelado. Pide al menos 5,079 × 2,835 px»);
+  - el **formato** (PNG, JPG o WebP sirven) y el **peso** del archivo (el tope sigue siendo 4 MB).
+- Un arte en rojo **se puede subir igual** («Subir de todos modos»): quién lo aprueba y los pasos de la orden no cambian. Solo un archivo de más de 4 MB deja el botón apagado.
+- **Al abrir un arte ya subido** para aprobarlo o rechazarlo se ve la misma lona y la misma valoración (sin formato ni peso, que ya no se conservan).
+- Las cifras de referencia son **orientativas**: en lonas de 6 m o más (se ven de lejos) sirve con 10 DPI; en lonas más chicas, que se ven de cerca, con 30.
+- En español, inglés, italiano y portugués, con los números en el formato de cada idioma.
+
 ## 2026-11-18 · Propuestas › Seguimiento: las tarjetas se arrastran de una columna a otra
 
 Pedido del dueño: «que se pueda mover y se vea la animación arrastrando entre cada columna, y solo al terminar de moverlo abrir un modal con los campos para llenar el cambio».
