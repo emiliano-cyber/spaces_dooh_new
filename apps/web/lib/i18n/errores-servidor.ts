@@ -1485,7 +1485,7 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
     'Este contrato já está assinado. Escreva o motivo da alteração: a versão assinada será arquivada e será preciso assiná-lo de novo.',
   'Este contrato ya fue firmado con este enlace.': 'Este contrato já foi assinado com este link.',
   'Este enlace ya se usó. Solicita uno nuevo.': 'Este link já foi usado. Solicite um novo.',
-  'Este prospecto ya se decidió': 'Este prospect já foi decidido',
+  'Este prospecto ya se decidió': 'Este prospecto já foi decidido',
   'Falta el id del ticket': 'Falta o id do ticket',
   'Falta el recibo a borrar': 'Falta a conta a excluir',
   'Fechas inválidas (se espera YYYY-MM-DD)': 'Datas inválidas (o formato esperado é AAAA-MM-DD)',
@@ -1624,14 +1624,14 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
   'Selecciona una opción válida': 'Selecione uma opção válida',
   'El texto tiene un formato inválido': 'O texto tem um formato inválido',
   'El valor no es válido': 'O valor não é válido',
-  'Ese prospecto no existe': 'Esse prospect não existe',
+  'Ese prospecto no existe': 'Esse prospecto não existe',
   // ADR 0051 · as oportunidades do CRM comercial.
   'Esa oportunidad no existe': 'Essa oportunidade não existe',
   'El presupuesto mínimo no puede ser mayor que el máximo': 'O orçamento mínimo não pode ser maior que o máximo',
   'La fecha de inicio no puede ir después de la de fin': 'A data de início não pode ser depois da data de término',
-  'Elige el cliente o el prospecto': 'Escolha o cliente ou o prospect',
-  'Solo un prospecto de tipo cliente puede tener oportunidades': 'Só um prospect do tipo cliente pode ter oportunidades',
-  'Ese prospecto ya es otro cliente': 'Esse prospect já é outro cliente',
+  'Elige el cliente o el prospecto': 'Escolha o cliente ou o prospecto',
+  'Solo un prospecto de tipo cliente puede tener oportunidades': 'Só um prospecto do tipo cliente pode ter oportunidades',
+  'Ese prospecto ya es otro cliente': 'Esse prospecto já é outro cliente',
   'Ese cliente no existe': 'Esse cliente não existe',
   'La oportunidad ya está cerrada': 'A oportunidade já está fechada',
   'La oportunidad ya está en esa etapa': 'A oportunidade já está nessa etapa',
@@ -2441,7 +2441,7 @@ export const PERIODICIDAD_PT: Record<string, string> = {
 // Detras de «ele»: cada etapa lleva su verbo («ainda é um prospect», «está
 // em negociação»), porque «ele está um prospect» no se dice.
 export const ETAPA_PT: Record<string, string> = {
-  prospecto: 'ainda é um prospect',
+  prospecto: 'ainda é um prospecto',
   contactado: 'já foi contatado',
   visita: 'está na fase de visita',
   negociación: 'está em negociação',
@@ -2585,7 +2585,7 @@ const PATRONES_PT: Record<string, { pt: string; huecosPt?: Record<number, (valor
     pt: 'Esta campanha vai até $1. Estender só pode deixá-la mais longa: escolha uma data posterior.',
   },
   'This prospect cannot be edited: it is $1': {
-    pt: 'Não é possível editar este prospect: ele $1',
+    pt: 'Não é possível editar este prospecto: ele $1',
     huecosPt: { 1: deTablaPt(ETAPA_PT) },
   },
   'To send it for review, it still needs: $1': {

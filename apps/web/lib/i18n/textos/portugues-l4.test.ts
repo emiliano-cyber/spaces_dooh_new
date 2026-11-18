@@ -147,7 +147,9 @@ export const COGNADOS_PT_L4 = new Set<string>([
   'clientes.captacion.digital',                        // "Digital"
   'clientes.captacion.detalle.etapa',                  // "Etapa"
   'clientes.captacion.detalle.vendedor',               // "Vendedor"
-  'clientes.captacion.prospectos',                     // "Prospects"
+  'clientes.captacion.prospectos',                     // "Prospectos" (dueno 18/11: no "Prospects")
+  'clientes.captacion.pagina',                         // "Pagina {n} de {paginas} · {total} prospectos" (18/11)
+  'clientes.captacion.editar',                         // "Editar prospecto" (18/11)
   'clientes.captacion.col.tipo',                       // "Tipo"
   'clientes.captacion.col.etapa',                      // "Etapa"
   'clientes.captacion.col.vendedor',                   // "Vendedor"
