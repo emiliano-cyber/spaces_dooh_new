@@ -1,6 +1,6 @@
 'use client'
 
-import { Monitor, CheckCircle2, FileWarning, Home } from 'lucide-react'
+import { Monitor, CheckCircle2, FileWarning, Home, Layers, MonitorPlay, Signpost, MapPin } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { KPICard } from '@/components/demo/KPICard'
@@ -60,8 +60,67 @@ export type FiltrosInventario = {
   disp: Tono | null
   medio: ClaseMedio | null
   contrato: ClaseContrato | null
+  // Zona (18/11): la ciudad y, dentro de ella, la alcaldía (el distrito en
+  // Perú). Son DOS campos y no uno porque la alcaldía sola no identifica una
+  // zona: «Centro» existe en muchas ciudades y mezclarlas sería filtrar mal.
+  ciudad: string | null
+  alcaldia: string | null
 }
-export const FILTROS_VACIOS: FiltrosInventario = { disp: null, medio: null, contrato: null }
+export const FILTROS_VACIOS: FiltrosInventario = {
+  disp: null,
+  medio: null,
+  contrato: null,
+  ciudad: null,
+  alcaldia: null,
+}
+
+/** ¿Hay algún filtro puesto? Lo usan el «Quitar filtros» y el texto de tabla vacía. */
+export function hayFiltros(f: FiltrosInventario): boolean {
+  return !!(f.disp || f.medio || f.contrato || f.ciudad || f.alcaldia)
+}
+
+// La ciudad y la alcaldía se comparan RECORTADAS: el importador de Excel deja a
+// veces un espacio al final, y «Lima » y «Lima» saldrían como dos zonas.
+const limpio = (v: string | null | undefined) => (v ?? '').trim()
+
+/** ¿La pantalla cae en la zona elegida? Sin ciudad elegida, todas caen. */
+export function enZona(
+  s: Pick<Sitio, 'ciudad' | 'alcaldia'>,
+  f: Pick<FiltrosInventario, 'ciudad' | 'alcaldia'>,
+): boolean {
+  if (f.ciudad && limpio(s.ciudad) !== f.ciudad) return false
+  if (f.alcaldia && limpio(s.alcaldia) !== f.alcaldia) return false
+  return true
+}
+
+export type ZonaInventario = { nombre: string; n: number; alcaldias: { nombre: string; n: number }[] }
+
+/**
+ * Las zonas que EXISTEN en el inventario, con cuántas pantallas tiene cada una,
+ * de más a menos (la zona con más pantallas es la que más se busca). Las
+ * pantallas sin ciudad no forman zona: no hay nada útil que elegir ahí.
+ */
+export function zonasInventario(sitios: Pick<Sitio, 'ciudad' | 'alcaldia'>[]): ZonaInventario[] {
+  const porCiudad = new Map<string, Map<string, number>>()
+  for (const s of sitios) {
+    const c = limpio(s.ciudad)
+    if (!c) continue
+    const m = porCiudad.get(c) ?? new Map<string, number>()
+    porCiudad.set(c, m)
+    const a = limpio(s.alcaldia)
+    if (a) m.set(a, (m.get(a) ?? 0) + 1)
+  }
+  const total = cuenta(sitios.map((s) => limpio(s.ciudad)).filter(Boolean))
+  const orden = (a: { nombre: string; n: number }, b: { nombre: string; n: number }) =>
+    b.n - a.n || a.nombre.localeCompare(b.nombre)
+  return [...porCiudad.entries()]
+    .map(([nombre, m]) => ({
+      nombre,
+      n: total.get(nombre) ?? 0,
+      alcaldias: [...m.entries()].map(([a, n]) => ({ nombre: a, n })).sort(orden),
+    }))
+    .sort(orden)
+}
 
 function cuenta<T extends string>(lista: T[]): Map<T, number> {
   const m = new Map<T, number>()
@@ -184,7 +243,6 @@ export const ChipsFiltroInventario = ({
 }) => {
   const t = useTexto()
   const disp = cuenta(sitios.map(tonoDisponibilidad))
-  const medios = cuenta(sitios.map(claseMedio))
   const contratos = cuenta(sitios.map((s) => claseContrato(s, tieneContrato(s))))
   const alternar = <K extends keyof FiltrosInventario>(k: K, v: FiltrosInventario[K]) =>
     onCambio({ ...filtros, [k]: filtros[k] === v ? null : v })
@@ -199,14 +257,6 @@ export const ChipsFiltroInventario = ({
           </Chip>
         ))}
       </Grupo>
-      <Grupo titulo={t('inventario.chips.medio')}>
-        <Chip activo={filtros.medio === 'digital'} onClick={() => alternar('medio', 'digital')}>
-          {t('inventario.medio.digital')} <span className="demo-num">({medios.get('digital') ?? 0})</span>
-        </Chip>
-        <Chip activo={filtros.medio === 'fija'} onClick={() => alternar('medio', 'fija')}>
-          {t('inventario.medio.fija')} <span className="demo-num">({medios.get('fija') ?? 0})</span>
-        </Chip>
-      </Grupo>
       <Grupo titulo={t('inventario.chips.contrato')}>
         <Chip activo={filtros.contrato === 'con'} onClick={() => alternar('contrato', 'con')}>
           {t('inventario.chips.con-contrato')} <span className="demo-num">({contratos.get('con') ?? 0})</span>
@@ -218,6 +268,144 @@ export const ChipsFiltroInventario = ({
           {t('inventario.chips.propia')} <span className="demo-num">({contratos.get('propia') ?? 0})</span>
         </Chip>
       </Grupo>
+    </div>
+  )
+}
+
+// ─── Pestañas Todos / Fijos / Digitales (18/11) ─────────────────────────────
+//
+// El medio era un grupo de chips de 11 px escondido entre los otros dos, y es
+// el corte que más se usa: quien vende digital no quiere ver espectaculares, y
+// al revés. Sube a pestañas grandes, con el mismo lenguaje que el selector de
+// vía de la página (pastilla BLANCA sobre riel crema, contorno por `ring-*`;
+// el porqué de las dos cosas está en `inventario/page.tsx`).
+//
+// Los números cuentan sobre el inventario completo, igual que los chips: dicen
+// cuántas hay de cada medio y no cambian al tocar otro filtro.
+
+function clasePestana(activa: boolean): string {
+  return cn(
+    'inline-flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded px-3 py-2 text-[13px] sm:flex-none sm:px-4',
+    'transition-[background-color,box-shadow,color] duration-150',
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+    activa
+      ? 'bg-surface font-medium text-ink shadow-sm ring-1 ring-border-strong'
+      : 'bg-transparent text-muted hover:bg-surface hover:text-ink',
+  )
+}
+
+export const PestanasMedio = ({
+  sitios,
+  medio,
+  onCambio,
+}: {
+  sitios: Sitio[]
+  medio: ClaseMedio | null
+  onCambio: (m: ClaseMedio | null) => void
+}) => {
+  const t = useTexto()
+  const medios = cuenta(sitios.map(claseMedio))
+  const opciones: { valor: ClaseMedio | null; etiqueta: string; n: number; icono: React.ReactNode }[] = [
+    { valor: null, etiqueta: t('inventario.pestana.todos'), n: sitios.length, icono: <Layers className="h-4 w-4" /> },
+    { valor: 'fija', etiqueta: t('inventario.pestana.fijos'), n: medios.get('fija') ?? 0, icono: <Signpost className="h-4 w-4" /> },
+    { valor: 'digital', etiqueta: t('inventario.pestana.digitales'), n: medios.get('digital') ?? 0, icono: <MonitorPlay className="h-4 w-4" /> },
+  ]
+  return (
+    <div
+      role="tablist"
+      aria-label={t('inventario.chips.medio')}
+      className="flex w-full gap-1 rounded-md border border-border bg-surface-2 p-1 sm:w-auto"
+    >
+      {opciones.map((o) => (
+        <button
+          key={o.valor ?? 'todos'}
+          type="button"
+          role="tab"
+          aria-selected={medio === o.valor}
+          onClick={() => onCambio(o.valor)}
+          className={clasePestana(medio === o.valor)}
+        >
+          {o.icono}
+          {o.etiqueta}
+          <span
+            className={cn(
+              'demo-num rounded-full px-1.5 text-[11px]',
+              medio === o.valor ? 'bg-accent-soft text-ink' : 'bg-surface text-muted',
+            )}
+          >
+            {o.n}
+          </span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// ─── Selector de zona (18/11) ───────────────────────────────────────────────
+//
+// Dos listas encadenadas: ciudad y, dentro de ella, alcaldía. Las zonas salen
+// del propio inventario —no hay catálogo de zonas en la base—, así que solo se
+// ofrecen las que tienen pantallas. Las cuentas respetan el medio elegido:
+// «Digitales» + «Guadalajara (4)» tiene que decir cuántas DIGITALES hay ahí, o
+// el número promete filas que la tabla no va a enseñar.
+
+const claseSelect =
+  'h-9 min-w-0 max-w-[220px] rounded border border-border-strong bg-surface px-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:text-muted'
+
+export const SelectorZona = ({
+  sitios,
+  filtros,
+  onCambio,
+}: {
+  sitios: Sitio[]
+  filtros: FiltrosInventario
+  onCambio: (f: FiltrosInventario) => void
+}) => {
+  const t = useTexto()
+  const base = filtros.medio ? sitios.filter((s) => claseMedio(s) === filtros.medio) : sitios
+  const zonas = zonasInventario(base)
+  // Si la ciudad elegida se quedó sin pantallas al cambiar de medio, se sigue
+  // ofreciendo con (0): quitarla de la lista dejaría el <select> mostrando otra.
+  const ciudades =
+    filtros.ciudad && !zonas.some((z) => z.nombre === filtros.ciudad)
+      ? [...zonas, { nombre: filtros.ciudad, n: 0, alcaldias: [] }]
+      : zonas
+  const actual = ciudades.find((z) => z.nombre === filtros.ciudad)
+  const alcaldias = actual?.alcaldias ?? []
+  if (ciudades.length === 0) return null
+  return (
+    <div className="flex min-w-0 flex-wrap items-center gap-2">
+      <MapPin className="h-4 w-4 shrink-0 text-muted" aria-hidden />
+      <select
+        aria-label={t('inventario.zona.ciudad')}
+        value={filtros.ciudad ?? ''}
+        // Cambiar de ciudad SIEMPRE limpia la alcaldía: la de antes no existe
+        // en la ciudad nueva y dejaría la tabla vacía sin razón visible.
+        onChange={(e) => onCambio({ ...filtros, ciudad: e.target.value || null, alcaldia: null })}
+        className={claseSelect}
+      >
+        <option value="">{t('inventario.zona.todas-ciudades')}</option>
+        {ciudades.map((z) => (
+          <option key={z.nombre} value={z.nombre}>
+            {z.nombre} ({z.n})
+          </option>
+        ))}
+      </select>
+      <select
+        aria-label={t('inventario.zona.alcaldia')}
+        value={filtros.alcaldia ?? ''}
+        disabled={!filtros.ciudad || alcaldias.length === 0}
+        onChange={(e) => onCambio({ ...filtros, alcaldia: e.target.value || null })}
+        title={!filtros.ciudad ? t('inventario.zona.elige-ciudad') : undefined}
+        className={claseSelect}
+      >
+        <option value="">{t('inventario.zona.todas-alcaldias')}</option>
+        {alcaldias.map((a) => (
+          <option key={a.nombre} value={a.nombre}>
+            {a.nombre} ({a.n})
+          </option>
+        ))}
+      </select>
     </div>
   )
 }

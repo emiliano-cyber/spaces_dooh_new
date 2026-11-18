@@ -7,7 +7,11 @@ import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import {
   IndicadoresInventario,
   ChipsFiltroInventario,
+  PestanasMedio,
+  SelectorZona,
   FILTROS_VACIOS,
+  hayFiltros,
+  enZona,
   claseContrato,
   claseMedio,
   tonoDisponibilidad,
@@ -200,12 +204,13 @@ export function InventarioTabla() {
   // del sitio si es un contrato antiguo.
   const tieneContrato = (s: Sitio) =>
     !!(s.predioId ? rentaPorSitio.porPredio.get(s.predioId) : rentaPorSitio.porSitio.get(s.id))
-  const hayChips = !!(filtros.disp || filtros.medio || filtros.contrato)
+  const hayChips = hayFiltros(filtros)
 
   const filtrados = sitios.filter((s) => {
     if (filtros.disp && tonoDisponibilidad(s) !== filtros.disp) return false
     if (filtros.medio && claseMedio(s) !== filtros.medio) return false
     if (filtros.contrato && claseContrato(s, tieneContrato(s)) !== filtros.contrato) return false
+    if (!enZona(s, filtros)) return false
     if (!q) return true
     const t = `${s.nombre} ${s.codigoProveedor} ${s.alcaldia} ${s.ciudad}`.toLowerCase()
     return t.includes(q.toLowerCase())
@@ -436,6 +441,17 @@ export function InventarioTabla() {
           </div>
       }
     >
+      {/* 18/11 · primera fila: el corte que más se usa —Fijos o Digitales— y
+          la zona. Segunda fila: el buscador y los chips finos. Antes era una
+          sola fila donde el medio era un chip de 11 px entre otros seis. */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-surface-2/40 px-3 py-2.5">
+        <PestanasMedio
+          sitios={sitios}
+          medio={filtros.medio}
+          onCambio={(medio) => setFiltros({ ...filtros, medio })}
+        />
+        <SelectorZona sitios={sitios} filtros={filtros} onCambio={setFiltros} />
+      </div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-y border-border px-3 py-2">
         <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
           <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
