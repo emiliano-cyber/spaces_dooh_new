@@ -6,6 +6,17 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!warning] 2026-11-18 (cierre) · **`integra/18-11` PAUSADA por el dueño en `a40eb49b`, sin empujar** · incluye ROJOS R2/R3 aprobados
+> Junta `main` v0.12.14, `feat/propuestas-sin-crm`, `feat/inventario-filtros`, `feat/actualizar-campana` y las tres ramas
+> `i18n/*-18-11`, más lo hecho encima ese día (Seguimiento por columnas y arrastre, prospectos y Contactado, una oportunidad
+> abierta por prospecto, Resumen, fotos del sitio, liga horizontal y «Ver negociación acordada», envíos de creativo del cliente,
+> valoración del arte en Imprenta). Migraciones nuevas: `20261118_idiomas_servidor_sin_espanol_obligatorio.sql` y
+> `20261118_envios_creativo_cliente.sql`. **A medias en `wip/18-11-pausa` (`c88769e4`)**: imprentas con requisitos
+> (`20261118_imprentas_y_requisitos.sql`) y rechazo por proporción del envío del cliente — sin verificar.
+> **Zonas que quedan tomadas hasta retomar:** Z5 · Comercial (propuestas, crm, liga pública), Imprenta/Operaciones,
+> `lib/i18n/**`, `db/migrations/` (20261118_*), `infra/nginx/*` (plantillas, sin aplicar) y Z12 · Docs.
+> Pendientes y decisiones en [[2026-11-18]] § «Cierre del día».
+
 > [!important] 2026-11-18 · **«Actualizar campaña» + aprobar en la ficha solo Dueño/Administrador** — `feat/actualizar-campana`, desde `main` `6d4226bf`
 > Un botón en la ficha de campaña publicada: conservar/eliminar creativos, subir nuevos con «¿Apruebas este creativo?» y
 > mandar a DOOHmain en un paso. Aprobar en la ficha (creativo y publicación) solo Dueño y Administrador; la pantalla
