@@ -29,6 +29,8 @@ export const METRICAS_DASHBOARD = [
   // Las tarjetas.
   { id: 'grafica-ocupacion', grupo: 'tarjetas' },
   { id: 'pipeline', grupo: 'tarjetas' },
+  // CONTEO-DIA (17/11) · creadas y aprobadas por día; quien ve Comercial.
+  { id: 'conteo-diario', grupo: 'tarjetas' },
   { id: 'alertas', grupo: 'tarjetas' },
   { id: 'huecos', grupo: 'tarjetas' },
   { id: 'cobranza', grupo: 'tarjetas' },

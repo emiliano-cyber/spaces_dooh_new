@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { exigir } from '@/lib/server/auth'
 import { crearPropuestaCtrl } from '@/lib/server/propuestas-controller'
+import { soloDe as soloDeOportunidades } from '@/lib/server/oportunidades-controller'
 import { respuestaError } from '@/lib/server/errores'
 import { registrarAccion } from '@/lib/server/acciones-repo'
 import { textoBitacoraAjusteTarifa } from '@/lib/tarifa-calculada'
@@ -20,7 +21,9 @@ export async function POST(req: Request) {
   const g = await exigir('comercial', 'crear')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   try {
-    const { propuesta, ajustes } = await crearPropuestaCtrl(await req.json().catch(() => ({})))
+    const { propuesta, ajustes } = await crearPropuestaCtrl(await req.json().catch(() => ({})), {
+      soloDeOportunidad: await soloDeOportunidades(g.usuario),
+    })
     await registrarAccion(g.usuario, 'Creó propuesta', propuesta.nombre)
     // ADR 0048 · la frase lleva importes con el simbolo de la moneda de la
     // instancia; en servidor hay que pedirla antes de escribirla.

@@ -599,6 +599,8 @@ export interface Propuesta {
   // P19 (29/10) · el nombre del vendedor congelado al crear: sobrevive al
   // borrado del usuario.
   vendedorNombre?: string | null
+  // ADR 0051 · la oportunidad del CRM a la que responde (opcional).
+  oportunidadId?: string | null
   // PROP-COMPLETA (29/10) · términos de ESTA propuesta (copiados de la
   // plantilla al crear) y su vigencia. `vigenteHasta` se pone al enviar; null =
   // sin vigencia (todo lo enviado antes del 29/10). `vencida` lo calcula el
@@ -650,7 +652,8 @@ export interface Propuesta {
   base: number          // baseComercial − código (base de cálculo)
   divisor: number       // 1 − comisión/100
   neto: number          // base × divisor (lo que recibe el medio)
-  iva: number           // base × 16%
+  iva: number           // base × ivaPct
+  ivaPct?: number       // la tasa del cliente (clientes.iva_pct), o 16
   total: number         // base + iva (lo que paga el cliente)
   // Aprobación granular (sitio por sitio): presupuesto sobre lo aprobado.
   itemsAprobados: number
@@ -845,6 +848,29 @@ export interface OrdenImpresion {
   pruebaColorUrl: string | null      // prueba de color (probatorio)
   pruebaColorAprobada: boolean
   creadoEn: string
+  // IMP-CREA (17/11) · lo que Imprenta necesita sin depender de Comercial
+  // (`listarOrdenesImpresion`). Opcionales: la demo en memoria no los trae y
+  // la pantalla cae a `useCampanas`/`useSitios`/`useCreatividades`.
+  campanaNombre?: string | null
+  tipoCampana?: TipoCampana | null
+  campanaInicio?: string | null
+  campanaFin?: string | null
+  sitioNombre?: string | null
+  sitioAncho?: number | null
+  sitioAlto?: number | null
+  creativos?: CreativoDeImpresion[]
+}
+
+// El arte de la campaña de una orden de impresión, sin la fuente (la sirve
+// `/api/creativos/<id>/arte/`).
+export interface CreativoDeImpresion {
+  id: string
+  nombre: string
+  archivoUrl: string | null
+  esImagen?: boolean
+  formato: string | null
+  resolucion: string | null
+  estatusValidacion: EstValidacionCreatividad
 }
 
 // No hay modelo de facturación en Prisma.

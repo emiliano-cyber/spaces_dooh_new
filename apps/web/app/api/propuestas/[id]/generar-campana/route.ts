@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { siNoEsSuya } from '@/lib/server/propuestas-visibilidad'
 import { z } from 'zod'
 import { exigir } from '@/lib/server/auth'
 import { generarCampanaDesdePropuesta, PropuestaCampanaError } from '@/lib/server/campanas-repo'
@@ -22,6 +23,9 @@ const cuerpoSchema = z.object({ clienteId: z.string().uuid('Cliente inválido').
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   const g = await exigir('comercial', 'crear')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
+  // ADR 0051 · el vendedor solo toca SUS propuestas; una ajena es 404.
+  const ajena = await siNoEsSuya(g.usuario, params.id)
+  if (ajena) return ajena
   try {
     const { clienteId } = validar(cuerpoSchema, await req.json().catch(() => ({})))
     if (clienteId) {

@@ -192,6 +192,7 @@ export const COGNADOS_PT_L4 = new Set<string>([
   'inicio.incidencia.clima',                           // "clima"
   'inicio.incidencia.legal',                           // "legal"
   'inicio.incidencia.vandalismo',                      // "vandalismo"
+  'inicio.conteo.por-vendedor',                        // "Por vendedor" (CONTEO-DIA, 17/11)
 ])
 
 // Singular igual al plural A PROPOSITO (frase que no depende de la cifra).

@@ -277,7 +277,8 @@ Space Eyes. No hay que capturar nada dos veces.
 
   ![Fallas en un celular: cada falla en una tarjeta con su estado, el equipo, las fechas y las fotos](capturas-space-eyes-2026-10-07/11-fallas-celular.jpg)
 
-- **Galería**: todas las fotos de los equipos, por fechas, origen (programada,
+- **Comprobantes** (en inglés *PoD*; hasta el 17/11 se llamaba «Galería»):
+  todas las fotos de los equipos, por fechas, origen (programada,
   pedida a mano, creativo nuevo, falla, campaña) y equipo; se puede descargar
   el álbum.
 

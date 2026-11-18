@@ -127,6 +127,13 @@ describe('2 · el tablero', () => {
   })
 
   it('el vendedor ve los conteos y la venta, pero NO el costo ni la ganancia', async () => {
+    // ADR 0051 y CONTEO-DIA (17/11) · el vendedor solo ve SUS propuestas, también
+    // en el resumen (`conteo-diario.e2e.test.ts` lo mide). Para seguir probando
+    // que no ve el costo, la aprobada pasa a ser suya.
+    await poolTest().query(
+      `update propuestas set usuario_id = (select id from usuarios where email = 'vendedor@proptab.test') where id = $1`,
+      [aprobada],
+    )
     const r = await vendedor.pedir('/api/propuestas/resumen/?periodo=mes')
     expect(r.status).toBe(200)
     expect(r.datos.conGanancia).toBe(false)

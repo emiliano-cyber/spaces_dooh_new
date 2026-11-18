@@ -1,7 +1,7 @@
 ---
 tipo: referencia
 estado: verificado
-actualizado: 2026-11-11
+actualizado: 2026-11-17
 tags: [backend, api, endpoints]
 archivos:
   - apps/web/app/api/
@@ -25,6 +25,8 @@ archivos:
   - apps/web/app/api/paquetes/
   - apps/web/app/api/propuestas/[id]/paquete/route.ts
   - apps/web/app/api/propuestas/[id]/enviar/route.ts
+  - apps/web/app/api/propuestas/[id]/imprenta-visible/route.ts
+  - apps/web/app/api/propuestas/publica/[id]/seguimiento/route.ts
   - apps/web/app/api/propuestas/[id]/items/route.ts
   - apps/web/app/api/rejilla/
   - apps/web/app/api/reportes/rentabilidad/route.ts
@@ -36,6 +38,15 @@ archivos:
 ---
 
 # API — los 159 endpoints (medidos el 2026-10-29 con `recuentos.mjs`)
+
+> **2026-11-17 · 169 (ADR 0051, Fase 2, rama `feat/crm-comercial`):** las cuatro
+> rutas de las oportunidades del CRM —`/api/oportunidades`, `…/[id]`,
+> `…/[id]/etapa` y `…/[id]/actividades`—. Medido con `recuentos.mjs`. Ver
+> [[crm-oportunidades]]. **Fase 3, sin rutas nuevas:** `POST /api/propuestas`
+> acepta `oportunidadId`, `PATCH /api/propuestas/[id]` liga con `{ oportunidadId }`,
+> y **todas las rutas por id de `/api/propuestas/**` contestan 404 a un vendedor
+> con la propuesta de otro** (`propuestas-visibilidad.ts`); `/api/estado` y el
+> resumen le traen solo las suyas.
 
 > **2026-11-12 · 165 (AVISOS-CANAL, rama `feat/avisos-por-canal`):** `GET` y
 > `PUT /api/perfil/avisos`, una sola ruta (`route.ts`). Medido con
@@ -248,11 +259,13 @@ en `:230-237`) y **no** puede condicionarse a que la ruta
 |---|---|---|
 | POST | `/api/clientes` · PATCH `/api/clientes/[id]` | exigir |
 | DELETE | `/api/clientes/[id]` | **REAUTH** + `comercial:aprobar` |
-| GET | `/api/propuestas/resumen` | exigir (`comercial:ver`); costo y ganancia solo con `finanzas:ver` | (06/10, PROP-PER) tablero por periodo: generadas, aprobadas, rechazadas, tasa de cierre, ganancia (venta − renta del contrato) |
+| GET | `/api/propuestas/resumen` | exigir (`comercial:ver`); costo y ganancia solo con `finanzas:ver`; sin `comercial:aprobar`, solo las propias (17/11) | (06/10, PROP-PER) tablero por periodo: generadas, aprobadas, rechazadas, tasa de cierre, ganancia (venta − renta del contrato) |
+| GET | `/api/propuestas/conteo-diario` | exigir (`comercial:ver`); sin `comercial:aprobar`, solo lo propio (sale de la sesión) | (17/11, CONTEO-DIA) creadas y aprobadas por día y por vendedor, en la zona del negocio; 30 días por omisión, 92 como máximo. Ver [[conteo-campanas-por-dia]] |
 | POST | `/api/propuestas` · PATCH `/api/propuestas/[id]` | exigir (`comercial:crear`). Desde `17fbd252` (01/10) el `POST` **recalcula la tarifa** de cada línea en el servidor; un precio distinto al centavo exige además `comercial:aprobar` del rol de la sesión, o 403 y no se guarda nada |
 | POST | `/api/propuestas/[id]/items` | (29/10, PROP-COMPLETA) `comercial:crear`. Agrega sitios a una BORRADOR o ENVIADA (sube versión) con el periodo de la propuesta; cuerpo `{ items }` como el alta y la MISMA tarifa del servidor (403 si una vendedora se aparta); otro estatus → 409 |
 | DELETE | `/api/propuestas/items/[id]` | (29/10, PROP-COMPLETA) `comercial:crear`. Quita un sitio (BORRADOR o ENVIADA, sube versión); nunca el último (409); de otra organización → 404 |
 | DELETE | `/api/propuestas/[id]` | (29/10, PROP-COMPLETA, R5) `comercial:crear`. Borra un **BORRADOR** con sus líneas y su canje (devuelve el uso del cupón); otro estatus o con campaña → 409; de otra organización → 404 |
+| GET·PATCH | `/api/propuestas/[id]/imprenta-visible` | (17/11, SEG-CLIENTE) GET `comercial:ver` → `{ imprentaVisible, puedeCambiar }`; PATCH `comercial:crear` con `{ visible }`. **Oculta por omisión** (decisión del dueño): solo el vendedor que creó la propuesta (`usuario_id`) o un rol superior (ADR 0040; Dueño/Admin siempre; roles fuera de venta nunca) → si no, 403 sin escribir. Capas: `imprenta-visible-controller.ts` → `imprenta-visible-repo.ts`; regla pura `puedeCambiarImprentaVisible` en `lib/seguimiento-campana.ts` |
 | POST | `/api/propuestas/[id]/enviar` | (29/10, PROP-COMPLETA) `comercial:crear`. Cuerpo `{ para, mensaje? }`. Manda la liga por correo (canal de operación, copia a quien envía) y **después** deja la propuesta ENVIADA; si Resend falla, 502 y no cambia nada; sin correo configurado solo cambia el estatus (`correo: 'no_configurado'`). Vale para BORRADOR y ENVIADA (reenviar); lo demás 409 — `lib/server/propuestas-envio.ts` |
 | POST · DELETE | `/api/propuestas/[id]/paquete` | (05/10) `comercial:crear` — aplicar o quitar un paquete cerrado; el cuerpo lleva **solo** `paqueteId`, el precio lo copia el servidor bajo RLS — [[paquete-cerrado]] |
 | PATCH | `/api/propuestas/items/[id]` | exigir |
@@ -262,7 +275,7 @@ en `:230-237`) y **no** puede condicionarse a que la ruta
 | POST | `/api/reservar` | exigir |
 | PATCH | `/api/reservas/[id]/creativo` | exigir |
 | POST | `/api/creatividades` · PATCH·DELETE·PUT `/api/creatividades/[id]` | exigir |
-| GET | `/api/creativos/[id]/arte` | exigir |
+| GET | `/api/creativos/[id]/arte` | `comercial:ver`, o `imprenta:ver` si la campaña del creativo tiene orden de impresión (17/11) |
 | POST | `/api/campanas/[id]/confirmar` | exigir |
 | POST | `/api/campanas/[id]/contrato` | exigir |
 | GET·POST | `/api/campanas/[id]/extender` | GET `comercial:ver` (las extensiones con su contrato) · POST `comercial:crear`, `{ fechaFin, contratoUrl }`: sin el contrato firmado de la extensión, 422 (EXT-CONTRATO, 29/10); ver [[comercial-propuestas-campanas]] |
@@ -277,6 +290,10 @@ en `:230-237`) y **no** puede condicionarse a que la ruta
 | POST | `/api/campanas/[id]/facturar` | **SENSIBLE** |
 | GET · PUT | `/api/campanas/franja-programada` | `comercial:ver` · `comercial:aprobar` — la franja en que **se transmite** (PROG-01, 30/09), en bloque y atómico; ver [[rejilla-franja-y-temporada]] |
 | POST | `/api/ordenes-compra` | exigir |
+| GET·POST | `/api/oportunidades` | (17/11, ADR 0051) `comercial:ver` · `comercial:crear` — el vendedor ve **las suyas**; quien tiene `comercial:aprobar`, todas. Ajena = 404 — [[crm-oportunidades]] |
+| GET·PATCH | `/api/oportunidades/[id]` | (17/11) `comercial:ver` · `comercial:crear` — ficha con línea de tiempo y cotizaciones; cerrada = 409 al editar |
+| POST | `/api/oportunidades/[id]/etapa` | (17/11) `comercial:crear` — deja la fila `ETAPA` en la misma transacción; perderla exige motivo |
+| POST | `/api/oportunidades/[id]/actividades` | (17/11) `comercial:crear` — llamada, visita, junta, correo, WhatsApp o nota; solo se añade |
 | GET·POST | `/api/captacion` | (05/10) `captacion:ver` · `captacion:crear` — [[captacion]] |
 | GET·PATCH | `/api/captacion/[id]` | (05/10) `captacion:ver` · `captacion:crear` |
 | POST | `/api/captacion/[id]/avances` | (05/10) `captacion:crear` |
@@ -507,6 +524,7 @@ el 26/08 y su cerrojo real es que `tenants` esté vacía, no el token).
 | GET | `/api/portal/[token]` | `campanas.portal_token` |
 | GET·POST | `/api/firma/[token]` | token de firma del contrato |
 | GET·POST | `/api/propuestas/publica/[id]` | `propuestas.token_publico` — con el cupón **PENDIENTE** (COD-03) el GET no lo trae ni en el JSON y su total va sin él; el POST acepta **sin** cupón y devuelve el uso |
+| GET | `/api/propuestas/publica/[id]/seguimiento` | `propuestas.token_publico` — (17/11, SEG-CLIENTE) el avance de la campaña que nació de la propuesta, estilo rastreo de pedido: `{ hayCampana:false }` o `{ hayCampana:true, seguimiento }` (6 pasos, creativos, órdenes de imprenta, `retrasada`). Límite 60/min por IP. Capas: `seguimiento-publico-controller.ts` → `seguimiento-publico-repo.ts` (bajo `qConTenant` con el tenant del token, R2) → regla pura `lib/seguimiento-campana.ts`. **No lee** montos, OC, facturas, motivos de rechazo ni URLs; el `proveedor` se anula en el SELECT salvo `imprenta_visible` |
 | GET | `/api/logo/[token]` | `config_negocio.logo_token` |
 
 ## Cron

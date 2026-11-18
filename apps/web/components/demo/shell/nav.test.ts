@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { NAV, GRUPOS, hrefActivo, type GrupoNav } from './nav'
+import { NAV, GRUPOS, hrefActivo, rutasDe, type GrupoNav } from './nav'
 import { ROLES_ASIGNABLES } from '@/lib/roles'
 import type { RolDemo } from '@/lib/data/types'
 
@@ -40,10 +40,13 @@ describe('1 · lo que se pidió expresamente', () => {
 describe('2 · el orden cuenta el proceso', () => {
   const posicion = (key: string) => NAV.findIndex((n) => n.key === key)
 
-  it('primero se vende y después se entrega: Propuestas ANTES que Campañas', () => {
+  it('primero se vende y después se entrega: el CRM (con Propuestas) ANTES que Campañas', () => {
     // Éste era el desorden de fondo. Campañas salía TERCERA, tres puestos por
     // encima de Propuestas — y una campaña nace justo de aprobar una propuesta.
-    expect(posicion('propuestas')).toBeLessThan(posicion('campanas'))
+    // ADR 0051 · «Propuestas» es ahora una pestaña de «CRM». Con la clave
+    // vieja esta prueba pasaba EN FALSO: `findIndex` da -1 y -1 es menor.
+    expect(posicion('crm')).toBeGreaterThanOrEqual(0)
+    expect(posicion('crm')).toBeLessThan(posicion('campanas'))
   })
 
   it('primero se tiene y después se vende: Inventario ANTES que Comercial', () => {
@@ -161,7 +164,7 @@ describe('3 ter · los cuatro roles del ADR 0040 (2026-09-29)', () => {
   it('los tres roles de venta ven el ciclo comercial entero', () => {
     for (const rol of ['DIRECTOR_COMERCIAL', 'GERENTE_VENTAS', 'VENDEDOR']) {
       const suyas = claves(rol)
-      for (const pantalla of ['clientes', 'comercial', 'disponibilidad', 'propuestas', 'campanas']) {
+      for (const pantalla of ['clientes', 'comercial', 'disponibilidad', 'crm', 'campanas']) {
         expect(suyas, `${rol} no ve ${pantalla}`).toContain(pantalla)
       }
     }
@@ -306,6 +309,27 @@ describe('Captación, OCULTA del menú por ahora (2026-09-30)', () => {
 // Visto en g500 el 12/10: en /space-eyes/galeria se encendían «Equipos»
 // (/space-eyes) y «Galería» a la vez, porque cada ítem se marcaba activo en
 // cualquier subruta suya. Gana el href más largo, como en `AuthGate`.
+describe('ADR 0051 · «CRM» con Propuestas dentro', () => {
+  const crm = NAV.find((n) => n.key === 'crm')!
+
+  it('ya no hay entrada propia de Propuestas, y su ruta es del CRM', () => {
+    expect(NAV.find((n) => n.key === 'propuestas')).toBeUndefined()
+    expect(rutasDe(crm)).toEqual(['/crm', '/propuestas'])
+  })
+
+  it('/propuestas y su detalle encienden «CRM» en el menú', () => {
+    const rutas = NAV.flatMap((n) => rutasDe(n))
+    expect(hrefActivo('/propuestas', rutas)).toBe('/propuestas')
+    expect(hrefActivo('/propuestas/abc', rutas)).toBe('/propuestas')
+    expect(rutasDe(crm)).toContain(hrefActivo('/propuestas/abc', rutas))
+  })
+
+  it('ninguna ruta pertenece a dos entradas: la compuerta no puede dudar de qué roles aplicar', () => {
+    const todas = NAV.flatMap((n) => rutasDe(n))
+    expect(new Set(todas).size).toBe(todas.length)
+  })
+})
+
 describe('hrefActivo', () => {
   const hrefs = NAV.map((n) => n.href)
   it('en una subpágina de Space Eyes solo se enciende la subpágina', () => {

@@ -66,8 +66,10 @@ recorte el pie del menú.
 `AuthGate.tsx:16-18` — el control de acceso por ruta usa **el mismo `NAV`** que
 pinta el menú (`components/demo/shell/nav.ts`), así ocultar el ítem y bloquear la
 ruta nunca se desincronizan. Eso cierra las fugas por enlaces directos, no solo
-el menú. El emparejamiento está en `moduloDe()` (`AuthGate.tsx:19-24`): gana el
-`href` más largo. Las salidas obligatorias (códigos de recuperación, contraseña
+el menú. El emparejamiento está en `moduloDe()` (`AuthGate.tsx:20-28`): gana la
+ruta más larga, y desde el 17/11 se emparejan **todas las rutas de cada
+entrada** —la suya y las de `tambien`, con `rutasDe()`—, no solo su `href`.
+Ver «CRM» abajo: es lo que mantiene `/propuestas` bajo compuerta. Las salidas obligatorias (códigos de recuperación, contraseña
 temporal) se deciden aparte, sin React, en `compuerta.ts`.
 
 Comportamiento:
@@ -80,18 +82,40 @@ Comportamiento:
 
 ### Los grupos del menú, y la trampa de buscarlos por su rótulo
 
-El menú va por **fases del proceso**, declaradas en `GRUPOS` (`nav.ts:98-106`), y el
+El menú va por **fases del proceso**, declaradas en `GRUPOS` (`nav.ts:110-118`), y el
 orden de ese arreglo **es** el orden en pantalla. Al 2026-10-05 (26 entradas):
 
 | Clave (código) | Rótulo (pantalla) | Entradas |
 |---|---|---|
 | `inicio` | *sin título* | Dashboard |
 | `patrimonio` | **Inventario** | **Prospección** · Inventario · Arrendadores · Network · Almacén |
-| `ojos` | **Space Eyes** | Equipos · Galería · Gráficas · Ajustar texto · Programación · Campañas · Verificación · Fallas — desde v0.11.0 (08/10, ADR 0045); fuera de la cuenta de 26 de arriba. Ajustar texto y Programación solo MANDO; el resto MANDO + VENTA. `hrefActivo()` (`nav.ts:311-321`) enciende **una sola** entrada en sus subpáginas (v0.11.5) |
-| `vender` | **Comercial** | Clientes · Comercial · Disponibilidad · Propuestas · Franjas y temporadas · Descuentos por volumen · Códigos de negociación · Paquetes cerrados |
+| `ojos` | **Space Eyes** | Equipos · Comprobantes (PoD; antes «Galería», 17/11) · Gráficas · Ajustar texto · Programación · Campañas · Verificación · Fallas — desde v0.11.0 (08/10, ADR 0045); fuera de la cuenta de 26 de arriba. Ajustar texto y Programación solo MANDO; el resto MANDO + VENTA. `hrefActivo()` (`nav.ts:326-329`) enciende **una sola** entrada en sus subpáginas (v0.11.5) |
+| `vender` | **Comercial** | Clientes · Comercial · Disponibilidad · **CRM** (antes Propuestas) · Franjas y temporadas · Descuentos por volumen · Códigos de negociación · Paquetes cerrados |
 | `entregar` | **Operaciones** | Campañas · **Creativos** · Imprenta · Operaciones · Consumo de luz |
 | `cobrar` | **Finanzas** | Finanzas · Reportes · Comisiones |
 | `sistema` | **Sistema** | Integraciones · Razones sociales · Actividad · Administración |
+
+> [!note] 2026-11-17 · **«CRM» sustituye a «Propuestas»** en el grupo Comercial (ADR 0051, Fase 4)
+> La entrada `crm` (`components/demo/shell/nav.ts:202`) va en el lugar que
+> tenía `propuestas`, con los **mismos roles** (`MANDO` + `VENTA`) y el icono
+> `Target`. Lleva a `/crm` (Embudo · Oportunidades · Prospectos) y **Propuestas
+> es su cuarta pestaña**: `/propuestas` y `/propuestas/[id]` **siguen vivas, con
+> la misma dirección**, y encienden «CRM».
+>
+> Lo hace un campo nuevo de `NavItem`, **`tambien: ['/propuestas']`**, con
+> `rutasDe()` (`nav.ts:94-105`), que cuenta en dos sitios:
+> - el `Sidebar` enciende la entrada si la ruta es de cualquiera de sus rutas
+>   (`Sidebar.tsx:93-94`);
+> - **la compuerta de `AuthGate`** empareja con todas ellas (`AuthGate.tsx:20-28`).
+>   Es lo que importa: sin `tambien`, `/propuestas` se habría quedado sin
+>   entrada en `NAV` y por tanto **sin compuerta de roles**.
+>
+> `nav.test.ts:309-327` vigila que ninguna ruta sea de dos entradas (la
+> compuerta no puede dudar qué roles aplicar). Y la prueba de orden «Propuestas
+> antes que Campañas» **pasaba en falso** al quitar la entrada: `findIndex` daba
+> -1, menor que cualquier posición. Ahora mira `crm` y exige que exista
+> (`nav.test.ts:41-50`). El atajo del 404 también cambió de clave
+> (`lib/atajos-404.ts:43`). Detalle en [[crm-oportunidades]].
 
 > [!note] 2026-11-17 · Prospección es la **primera** entrada de Inventario
 > Pedido del dueño: «poner hasta arriba de la sección de inventario». Antes iba
@@ -188,7 +212,7 @@ vacíos.
 
 `nav.test.ts` protege la **estructura**, no los rótulos: que las entradas de un
 grupo vayan seguidas, que ningún grupo declarado quede vacío, que el orden en
-pantalla sea el de `GRUPOS`, y que Propuestas vaya antes que Campañas y Campañas
+pantalla sea el de `GRUPOS`, y que el CRM (con Propuestas) vaya antes que Campañas y Campañas
 antes que Finanzas. Cambiar un rótulo no pone roja ninguna prueba — es un dato
 que solo se ve mirando.
 

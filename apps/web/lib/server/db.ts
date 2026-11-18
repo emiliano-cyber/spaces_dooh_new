@@ -49,15 +49,43 @@ pool.on('error', (e) => {
 })
 
 // Tenant activo de la request (import perezoso para evitar el ciclo db<->tenant).
-async function tenantDeRequest(): Promise<string> {
-  const { tenantActual } = await import('./tenant')
-  return (await tenantActual()) ?? ''
+// ADR 0051 · Fase 3 (17/11, aprobado por el dueño) — QUIÉN hace el cambio,
+// además de en qué organización. Lo leen los triggers que escriben el historial
+// de las propuestas (`20261117_propuesta_cambios_por_trigger.sql`): la base no
+// conoce la sesión, y sin esto cada cambio saldría como SISTEMA.
+//
+// Sale de la SESIÓN (`autorActual`, memoizado por petición), nunca de la
+// petición: es la misma regla que el vendedor de VEND-01. Y va con
+// `set_config(..., true)` como el tenant, TRANSACTION-LOCAL: el pool reusa
+// conexiones entre personas, y un GUC de sesión le pondría el nombre de una al
+// cambio de otra.
+//
+// Sin tenant no hay autor: el autor solo se busca con sesión.
+interface ContextoRequest {
+  tenant: string
+  usuarioId: string
+  usuarioNombre: string
+}
+async function contextoDeRequest(): Promise<ContextoRequest> {
+  const m = await import('./tenant')
+  const tenant = (await m.tenantActual()) ?? ''
+  // `typeof` porque más de una prueba unitaria simula `./tenant` solo con
+  // `tenantActual`: sin autor, el cambio se registra como SISTEMA y nada más.
+  const autor = tenant && typeof m.autorActual === 'function' ? await m.autorActual() : null
+  return { tenant, usuarioId: autor?.id ?? '', usuarioNombre: autor?.nombre ?? '' }
+}
+const SQL_CONTEXTO =
+  "select set_config('app.tenant_id', $1, true), set_config('app.usuario_id', $2, true), " +
+  "set_config('app.usuario_nombre', $3, true)"
+async function fijarContexto(client: PoolClient, c: ContextoRequest): Promise<void> {
+  await client.query(SQL_CONTEXTO, [c.tenant, c.usuarioId, c.usuarioNombre])
 }
 
 // Fija app.tenant_id (transaction-local) en un client YA dentro de transacción.
-// Úsalo tras `begin` en las transacciones explícitas (pool.connect()).
+// Úsalo tras `begin` en las transacciones explícitas (pool.connect()). Fija
+// también el autor (ver `contextoDeRequest`).
 export async function fijarTenant(client: PoolClient): Promise<void> {
-  await client.query("select set_config('app.tenant_id', $1, true)", [await tenantDeRequest()])
+  await fijarContexto(client, await contextoDeRequest())
 }
 
 // ─── Consultas SIN contexto de tenant (bootstrap / tablas exentas) ───────────
@@ -72,11 +100,11 @@ export async function qRaw1<T = any>(text: string, params?: unknown[]): Promise<
 
 // ─── Consultas CON contexto de tenant (RLS) ──────────────────────────────────
 export async function q<T = any>(text: string, params?: unknown[]): Promise<T[]> {
-  const tenant = await tenantDeRequest()
+  const contexto = await contextoDeRequest()
   const client = await pool.connect()
   try {
     await client.query('begin')
-    await client.query("select set_config('app.tenant_id', $1, true)", [tenant])
+    await fijarContexto(client, contexto)
     const res = await client.query(text, params as any[])
     await client.query('commit')
     return res.rows as T[]
@@ -163,11 +191,11 @@ export async function withTxBootstrap<T>(
 // Transacción multi-statement con app.tenant_id ya fijado. Para operaciones que
 // necesitan varias sentencias atómicas dentro del mismo tenant.
 export async function withTenantTx<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
-  const tenant = await tenantDeRequest()
+  const contexto = await contextoDeRequest()
   const client = await pool.connect()
   try {
     await client.query('begin')
-    await client.query("select set_config('app.tenant_id', $1, true)", [tenant])
+    await fijarContexto(client, contexto)
     const result = await fn(client)
     await client.query('commit')
     return result

@@ -157,7 +157,9 @@ describe('propuesta aprobada sin cliente', () => {
     const ca = new Cliente()
     await ca.entrar(ajena.usuarioEmail, PASSWORD_DEMO)
     const r = await generar(id, { clienteId: ajena.clienteId }, ca)
-    expect(r.status).toBe(409)
+    // ADR 0051 (17/11) · antes 409 (llegaba al repo); ahora la propuesta de otra
+    // organización no existe para quien pregunta: 404, como en el resto.
+    expect(r.status).toBe(404)
     expect(await clienteDe(id)).toBeNull()
   })
 

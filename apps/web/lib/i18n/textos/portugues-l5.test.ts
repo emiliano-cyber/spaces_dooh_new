@@ -86,6 +86,7 @@ export const COGNADOS_PT_L5 = new Set<string>([
   'nav.grupo.vender',                                // "Comercial"
   'nav.grupo.sistema',                               // "Sistema"
   'nav.dashboard',                                   // "Dashboard"
+  'nav.crm',                                         // "CRM", sigla (ADR 0051)
   'nav.network',                                     // "Network"
   'nav.clientes',                                    // "Clientes"
   'nav.comercial',                                   // "Comercial"
@@ -189,6 +190,7 @@ const COGNADOS_SERVIDOR = new Set<string>([
   'RFC inválido',
   'RFC',
   'Cliente',
+  'Nota',
   'Tarifa',
   'Contrato',
   'Documento',

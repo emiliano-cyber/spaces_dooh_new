@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { siElRenglonNoEsSuyo } from '@/lib/server/propuestas-visibilidad'
 import { exigir } from '@/lib/server/auth'
 import { aprobarItemCtrl, quitarSitioCtrl } from '@/lib/server/propuestas-controller'
 import { respuestaError } from '@/lib/server/errores'
@@ -11,6 +12,9 @@ export const dynamic = 'force-dynamic'
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   const g = await exigir('comercial', 'crear')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
+  // ADR 0051 · el vendedor solo toca SUS propuestas; una ajena es 404.
+  const ajena = await siElRenglonNoEsSuyo(g.usuario, params.id)
+  if (ajena) return ajena
   try {
     const body = await req.json().catch(() => ({}))
     const prop = await aprobarItemCtrl(params.id, body)
@@ -27,6 +31,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
   const g = await exigir('comercial', 'crear')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
+  // ADR 0051 · el vendedor solo toca SUS propuestas; una ajena es 404.
+  const ajena = await siElRenglonNoEsSuyo(g.usuario, params.id)
+  if (ajena) return ajena
   try {
     const prop = await quitarSitioCtrl(params.id)
     await registrarAccion(

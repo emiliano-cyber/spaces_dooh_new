@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-11-13
+actualizado: 2026-11-17
 tags: [frontend, dashboard, inicio, dinero, comercial]
 archivos:
   - apps/web/app/(app)/(shell)/inicio/page.tsx
@@ -11,6 +11,7 @@ archivos:
   - apps/web/lib/alertas-visibles.ts
   - apps/web/lib/metricas-visibles.ts
   - apps/web/components/demo/ui/CardColapsable.tsx
+  - apps/web/components/demo/inicio/ConteoDiario.tsx
 ---
 
 # Dashboard (`/inicio`)
@@ -37,6 +38,7 @@ Pipedrive, Zoho):
 | «Tarifa publicada cobrada» | El mismo endpoint, dimensión `tarifa` | Quien tiene `finanzas:ver` |
 | Pipeline abierto, tasa de cierre | `pipelineComercial` sobre `propuestas` del store | Ventas en los KPI, y todos en la tarjeta |
 | Ganado en el mes, por vendedor | Igual, por `propuestas.aprobada_en` y `propuestas.usuario_id` | Todos |
+| Campañas por día (creadas y aprobadas, 30 días) | `GET /api/propuestas/conteo-diario` ([[02-Backend/conteo-campanas-por-dia]]) | Quien ve Comercial; el vendedor solo lo suyo, quien aprueba a todo el equipo con una fila por vendedor |
 | Ocupación de la red y su gráfica | `dashboardMetrics` / `ocupacionSerie` (sin cambios) | Todos |
 | Alertas | `construirAlertas`, ordenadas con `ordenarAlertas` | Todos (cada quien las de sus módulos) |
 | Huecos y renovaciones | `huecosProximos` sobre reservas, sitios y campañas | Todos |
@@ -172,6 +174,31 @@ lista de 13 nombres no decía dónde estaba cada bloque.
   `demo-rentabilidad`, a 1440 y a 390 px: ocultar, «Listo» (el botón dice 2 y
   los indicadores pasan a 3 columnas), Esc y «Mostrar todas». A 390 px la ayuda
   se aplastaba a una palabra por renglón: ahora va en su propio renglón.
+
+## Campañas por día (CONTEO-DIA, 17/11)
+
+Pedido del dueño: «el conteo de campañas por día, para cada vendedor y usuario
+grande», con «las que se crearon y las que se aprueban», y en un bloque del
+Dashboard. Es una tarjeta **de fila entera**, debajo de la de Ocupación y
+Pipeline: treinta días de barras no caben en una angosta.
+
+- Arriba, tres cifras: **creadas** y **aprobadas** de los 30 días, y las de
+  **hoy**. Debajo, la gráfica de barras agrupadas (`ConteoDiarioChart` en
+  `components/demo/charts.tsx`), azul las creadas y verde las aprobadas; la
+  leyenda usa **el mismo hex** que la barra, no el token de Tailwind.
+- **Quien aprueba** (Dueño, Administrador, Director, Gerente) ve además la
+  lista **por vendedor**, con «Sin vendedor» al final. **El vendedor** ve solo
+  lo suyo, con el rótulo «Solo tus propuestas»: lo decide el servidor
+  (`soloPropio` en la respuesta), la pantalla no filtra nada.
+- Es un bloque más de **Personalizar** (`conteo-diario` en
+  `lib/metricas-visibles.ts`), así que el contador pasa de 11 a **12**.
+- El contenido vive en `components/demo/inicio/ConteoDiario.tsx`
+  (`useConteoDiario` + `BloqueConteoDiario`); la tarjeta, el ojo y el plegado
+  los pone la página, como a las demás.
+- `pantallas-inicio.test.ts` lo pinta en tres estados (equipo, solo lo propio
+  sin movimiento, error) en los cuatro idiomas. Las ocho instantáneas que ya
+  había se compararon **quitando la sección nueva**: idénticas salvo el id que
+  Radix genera solo y el «12 de 12 visibles».
 
 ## Lo que no está, y por qué
 

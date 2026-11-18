@@ -5,10 +5,125 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-17 · sin versión todavía · CRM: el presupuesto con y sin IVA, y sin porcentaje de cierre
+
+Son dos decisiones del dueño sobre la pantalla del CRM. Todavía no está en ninguna versión publicada.
+
+- **Al abrir una oportunidad, cada cotización se compara con el presupuesto del cliente dos veces: con IVA y sin IVA.** Así sirve hable el cliente de su presupuesto como hable.
+- **El IVA es el de cada cliente**, el mismo con que se calcula la propuesta: si el cliente tiene 8 % (frontera), la comparación usa 8 %; si no tiene uno propio, 16 %. La pantalla dice qué tasa usó.
+- **Se quitó el porcentaje de probabilidad de cierre.** Las oportunidades ya no lo llevan: no está en el formulario, ni en la lista, ni en la ficha, ni en Administración.
+- **El embudo enseña en cada columna cuánto suman los presupuestos de sus oportunidades**, sin la cifra «ponderada» que salía de multiplicarlos por ese porcentaje.
+- Está en español, inglés, italiano y portugués.
+
+---
+
+## 2026-11-17 · sin versión todavía · El CRM comercial ya tiene pantalla
+
+Es la fase 4 del CRM comercial (ADR 0051), la que faltaba para poder usarlo. Todavía no está en ninguna versión publicada.
+
+- **En el menú, dentro de Comercial, «Propuestas» se llama ahora «CRM».** La ven las mismas personas que veían Propuestas.
+- El CRM tiene cuatro pestañas arriba: **Embudo**, **Oportunidades**, **Prospectos** y **Propuestas**.
+- **Embudo**: una columna por etapa (Contacto, Necesidad, Cotizando, Negociando, Ganada y Perdida) con las oportunidades de cada una y cuánto suman. Una tarjeta se puede pasar a otra etapa desde ahí; para darla por perdida hay que abrirla, porque pide el motivo.
+- **Oportunidades**: la misma información en lista, con filtro por etapa y el vendedor de cada una. Desde las dos se da de alta una oportunidad nueva: el cliente o prospecto, cuánto quiere gastar, las fechas, las plazas, los medios y el objetivo.
+- **Prospectos**: los clientes posibles que todavía no son clientes, con sus contactos y su bitácora (lo que antes estaba en Captación, solo los de tipo cliente).
+- **Propuestas**: la pantalla de siempre, en la misma dirección. Los enlaces guardados y la liga del cliente siguen sirviendo.
+- **Al abrir una oportunidad** se ve:
+  - lo que pidió el cliente contra lo que se le ha cotizado: si cada cotización queda debajo, dentro o encima de su presupuesto, por cuánto y en qué porcentaje, y si las fechas coinciden;
+  - cuántos días lleva desde el primer contacto y cuántos pasó en cada etapa;
+  - sus llamadas, visitas, juntas, correos y notas, y se pueden anotar nuevas;
+  - todo lo que ha pasado en una sola línea de tiempo: las anotaciones, cada cambio a sus cotizaciones (quién cambió qué) y la bitácora del prospecto. Se puede filtrar por persona;
+  - las cotizaciones ligadas, y un botón para ligar otra del mismo cliente o desligarla.
+- La bitácora del prospecto solo aparece a quien tiene permiso de ver ese prospecto.
+- **Un vendedor ve solo sus oportunidades**; quien puede aprobar en Comercial ve las de todo el equipo. Y dentro de una oportunidad, el vendedor solo ve las cotizaciones que son suyas, aunque alguien le haya ligado la de un compañero.
+- **Borrar un cliente que tiene oportunidades** ya dice cuántas tiene, en vez de un mensaje genérico.
+- Está en español, inglés, italiano y portugués.
+- El presupuesto se compara contra cada cotización con IVA y sin IVA (ver la entrada de arriba).
+
+---
+
+## 2026-11-17 · sin versión todavía · Cada vendedor ve solo sus propuestas, y cada cambio queda anotado
+
+Es la fase 3 del CRM comercial (ADR 0051). Todavía no está en ninguna versión publicada.
+
+- **Un vendedor ve solo las propuestas que él hizo.** Las de los demás ya no aparecen en su lista, en sus cifras ni en el resumen, y si intenta abrirlas o tocarlas le contesta que no existen.
+- Quien tiene el permiso de aprobar en Comercial sigue viendo todas, como hasta hoy. De fábrica son el Dueño, el Administrador, el Director comercial y el Gerente de ventas; se cambia en Administración → Roles.
+- Las propuestas viejas que no tienen vendedor (las de antes del 28 de septiembre) solo las ven quienes pueden aprobar.
+- **Cada cambio a una propuesta queda anotado campo por campo**: quién lo hizo, cuándo, qué había antes y qué quedó. Cuenta para el nombre, el descuento, el estatus, los sitios agregados, quitados o aprobados, el cupón, el paquete y el cliente. Si el cliente la acepta por la liga, queda anotado con el nombre que escribió.
+- Si se borra un borrador, su historial se conserva con su folio.
+- El historial es interno: el cliente no lo ve en la liga pública.
+- Una propuesta se puede ligar a una oportunidad del CRM, al crearla o después.
+- **Todavía no hay pantalla para leer el historial ni las oportunidades.** Llega en la fase 4.
+
+---
+
+## 2026-11-17 · sin versión todavía · Propuestas: ver la lista por cliente
+
+Es el primer paso del CRM comercial (ADR 0051). Todavía no está en ninguna versión publicada.
+
+- Arriba de la lista de propuestas aparecen dos botones: **Por propuesta** (la lista de siempre) y **Por cliente**.
+- **Por cliente** junta las cotizaciones de cada cliente en una fila y muestra:
+  - cuántas cotizaciones lleva y cuántas hay en cada estatus;
+  - cuántas veces se renegoció (las versiones de más);
+  - cuántos días llevamos negociando, contados desde la primera cotización. Si todo está cerrado, la cuenta se detiene en la última aprobación o rechazo;
+  - cuánto dinero hay en juego (borradores y enviadas) y cuánto se ganó (lo aprobado), con IVA;
+  - la tasa de cierre del cliente y quién le ha cotizado.
+- Al tocar un cliente se despliegan sus propuestas, de la más nueva a la más vieja, con un enlace a cada una.
+- Arriba aparecen primero los clientes con algo abierto. Las propuestas sin cliente se juntan en un grupo «Sin cliente».
+- El filtro de cliente sigue funcionando en esta vista. El de estatus y el buscador se esconden, porque cambiarían las cuentas.
+- Está en español, inglés, italiano y portugués.
+- **No cambia ningún dato ni ninguna cifra.** Muestra de otra forma las propuestas que ya existen.
+
+---
+
 ## 2026-11-17 · «Prospección» sube al primer lugar de Inventario
 
 - En el menú, **Prospección** ahora es la **primera** entrada del grupo **Inventario**, antes que Inventario y Arrendadores (antes iba debajo de Arrendadores).
 - Es la misma pantalla y la ven las mismas personas; solo cambia su lugar en el menú.
+
+---
+
+## 2026-11-17 · La «Galería» de Space Eyes ahora se llama «Comprobantes»
+
+- En el menú de Space Eyes, **Galería** pasa a llamarse **Comprobantes**, y el título de la pantalla también.
+- Es la misma pantalla, con las mismas fotos, filtros y la descarga del álbum; solo cambia el nombre.
+- En inglés se llama *PoD* (*proof of display*, como lo dice el sector), en italiano también *PoD* y en portugués *Comprovantes*.
+
+---
+
+## 2026-11-17 · El cliente sigue su campaña desde la liga de la propuesta, como un pedido
+
+Rama `feat/seguimiento-campana-publica`, todavía sin publicar.
+
+- **La liga que recibe el cliente cambia cuando su propuesta ya es campaña.** Arriba ve en qué va, con un mensaje grande («Tu campaña está en imprenta», «¡Tu campaña está al aire!») y la fecha que le importa. Debajo hay una línea de seis pasos, como el rastreo de un pedido: propuesta aceptada → campaña confirmada → material → instalación → al aire → terminada.
+- **Los pasos se nombran según lo que compró.** Si son lonas, se le habla de imprenta e instalación. Si son pantallas, de la revisión de su anuncio y de su programación. Si son las dos cosas, la línea avanza cuando las dos están listas.
+- **Ve sus lonas y sus anuncios.** De las lonas ve cuántas van impresas («1 de 2 lonas impresas») y el detalle de cada una: sitio, medida, material y si la prueba de color ya está aprobada. De los anuncios ve si están en revisión, aprobados o si necesitan un ajuste. Si necesitan un ajuste, el paso se pinta en ámbar y se le dice que su asesor lo contactará. El motivo interno no se le muestra.
+- **Si la campaña ya debía arrancar y todavía no está al aire, se le avisa del retraso.** Si se cancela, se le dice sin enseñar pasos a medias.
+- **La propuesta que aceptó sigue ahí,** plegada debajo del seguimiento.
+- **El nombre de la imprenta está oculto siempre, salvo que se decida mostrarlo.** En la ficha de la propuesta hay un interruptor nuevo, **Mostrar la imprenta al cliente en la liga**, que aparece cuando la propuesta ya tiene campaña. Lo puede mover el vendedor que creó la propuesta o alguien de rango superior: gerente, director comercial, administrador o dueño. Para los demás se ve deshabilitado, con la razón.
+- **El cliente nunca ve** importes de la campaña, órdenes de compra, facturas, cobranza ni notas internas.
+- Funciona en español, inglés, italiano y portugués, y se ve bien en el celular.
+- Si la propuesta todavía no es campaña, la liga se ve exactamente igual que antes.
+
+---
+
+## 2026-11-17 · «Campañas por día» en el Dashboard, por vendedor
+
+- El Dashboard tiene un bloque nuevo, **Campañas por día**: cuántas campañas se **crearon** y cuántas se **aprobaron** cada día de los últimos 30 días, con una gráfica de barras y las cifras de hoy.
+- **Cada vendedor ve solo lo suyo.** El Dueño, el Administrador, el Director comercial y el Gerente de ventas ven el total del equipo y una fila por vendedor.
+- «Creadas» son las propuestas que se armaron ese día; «aprobadas», las campañas que nacieron ese día, porque una campaña se crea al aprobar su propuesta.
+- Se puede ocultar como cualquier otro bloque, desde **Personalizar**.
+- En el tablero de **Propuestas**, un vendedor ahora ve también **solo sus propuestas**; antes veía las cifras de todo el equipo.
+
+---
+
+## 2026-11-17 · Imprenta: el arte de cada orden, en la medida de su sitio, y la cola por prioridad
+
+- **Cada orden de impresión enseña el arte de su campaña**, dibujado en la proporción del sitio donde va (la medida de la orden; si no la tiene, la del sitio). Se ve a sangre, como sale la lona, y debajo dice si **ajusta** o **cuánto se recorta y por dónde** («Se recorta 23 % por los costados»).
+- Al tocar un arte se abre en grande, con la opción **Sin recortar** para ver la pieza entera. Desde ahí quien tiene permiso de Comercial lo **aprueba o rechaza**.
+- Las **campañas fijas ya pueden tener arte**: se sube con **Subir arte** en la propia orden. La pantalla de Creativos sigue mostrando solo las campañas digitales, como pidió el dueño el 30/09.
+- Nueva tarjeta **Prioridad de impresión**: una franja que reparte las órdenes en **Atrasadas** (la campaña ya empezó y la lona no está lista), **Esta semana**, **Próximos 30 días**, **Más adelante**, **Sin fecha** y **Listas para montaje**. Tocar un grupo filtra la lista.
+- La lista ya no sale en orden de alta: sale **de la más próxima a la última** según la fecha de inicio de la campaña, con su lugar en la cola (1, 2, 3…) y «Arranca en N días» o «Arrancó hace N días».
+- Quien solo tiene acceso a Imprenta ve el arte de las campañas que tiene que imprimir, y nada más.
 
 ---
 

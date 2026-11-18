@@ -504,10 +504,12 @@ function Detalle({
 }
 
 // ─── La pantalla ─────────────────────────────────────────────────────────────
-export function Captacion() {
+// ADR 0051 · `tipoFijo`: la pestaña «Prospectos» del CRM la usa con CLIENTE,
+// sin el selector de tipo (lo de espacios vive en Prospección, en Inventario).
+export function Captacion({ tipoFijo }: { tipoFijo?: TipoProspecto } = {}) {
   const { t, idioma } = useIdioma()
   const [vista, setVista] = useState<(typeof VISTAS)[number]['clave']>('curso')
-  const [tipo, setTipo] = useState<TipoProspecto | ''>('')
+  const [tipo, setTipo] = useState<TipoProspecto | ''>(tipoFijo ?? '')
   const [pagina, setPagina] = useState<PaginaProspectos | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [abierto, setAbierto] = useState<ProspectoDetalle | null>(null)
@@ -598,11 +600,13 @@ export function Captacion() {
           ))}
         </div>
         <div className="flex gap-2">
-          <select aria-label={t('clientes.captacion.col.tipo')} className={`${inputCls} w-40`} value={tipo} onChange={(e) => { setTipo(e.target.value as TipoProspecto | ''); setNumPagina(1) }}>
-            <option value="">{t('clientes.captacion.todos-los-tipos')}</option>
-            {TIPOS_PROSPECTO.map((x) => <option key={x} value={x}>{t(CLAVE_TIPO_PROSPECTO[x])}</option>)}
-          </select>
-          <Button variant="success" className="whitespace-nowrap" onClick={() => abrirForm({ valor: formVacio() })}>
+          {!tipoFijo && (
+            <select aria-label={t('clientes.captacion.col.tipo')} className={`${inputCls} w-40`} value={tipo} onChange={(e) => { setTipo(e.target.value as TipoProspecto | ''); setNumPagina(1) }}>
+              <option value="">{t('clientes.captacion.todos-los-tipos')}</option>
+              {TIPOS_PROSPECTO.map((x) => <option key={x} value={x}>{t(CLAVE_TIPO_PROSPECTO[x])}</option>)}
+            </select>
+          )}
+          <Button variant="success" className="whitespace-nowrap" onClick={() => abrirForm({ valor: formVacio(tipoFijo) })}>
             <Plus className="mr-1 h-4 w-4" /> {t('clientes.captacion.nuevo')}
           </Button>
         </div>

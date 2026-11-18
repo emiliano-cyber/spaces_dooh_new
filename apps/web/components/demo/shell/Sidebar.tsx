@@ -11,7 +11,7 @@ import { TOKEN_TELCO, useConfigNegocio } from '@/lib/data/client'
 import { useIdioma } from '@/lib/i18n/contexto'
 import { DICCIONARIOS as DIC, type ClaveTexto } from '@/lib/i18n/diccionario'
 import { useSesionCtx } from './SesionContext'
-import { NAV, GRUPOS, hrefActivo } from './nav'
+import { NAV, GRUPOS, hrefActivo, rutasDe } from './nav'
 import { useMenuMovil } from './MenuMovilContext'
 
 // Globo con el nombre de la opción, para el sidebar colapsado. Va por el portal
@@ -89,8 +89,9 @@ function SidebarContent({
   const norm = (p: string) => p.replace(/\/spaces-dooh/, '').replace(/\/$/, '') || '/'
   const here = norm(pathname ?? '/')
   // UN solo ítem encendido: el de href más largo (ver `hrefActivo`).
-  const activo = hrefActivo(here, items.map((n) => norm(n.href)))
-  const esActivo = (href: string) => norm(href) === activo
+  // ADR 0051 · con las rutas de `tambien`: en /propuestas se enciende «CRM».
+  const activo = hrefActivo(here, items.flatMap((n) => rutasDe(n).map(norm)))
+  const esActivo = (n: { href: string; tambien?: string[] }) => rutasDe(n).map(norm).includes(activo ?? '')
 
   // MENU-CASCADA (12/11): qué secciones van plegadas a su título, por navegador.
   const {
@@ -107,7 +108,7 @@ function SidebarContent({
   // lista plana, el cuerpo de una sección, y la entrada actual de una sección
   // plegada. `oculto` lo saca del tabulador; `sufijo` evita la clave repetida.
   const itemNav = (n: (typeof items)[number], o: { oculto?: boolean; sufijo?: string } = {}) => {
-    const active = esActivo(n.href)
+    const active = esActivo(n)
     const Icon = n.icon
     return (
       <li key={o.sufijo ? `${n.key}-${o.sufijo}` : n.key}>
@@ -233,7 +234,7 @@ function SidebarContent({
                 ]
               }
               const plegada = estaPlegada(seccion.key)
-              const actual = seccion.items.find((n) => esActivo(n.href))
+              const actual = seccion.items.find((n) => esActivo(n))
               const nombre = rotulo(`nav.grupo.${seccion.key}`, seccion.titulo ?? '')
               return [
                 // MENU-CASCADA (12/11): el título es el botón que pliega la

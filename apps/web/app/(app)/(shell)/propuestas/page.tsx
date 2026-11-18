@@ -42,6 +42,8 @@ import { MapView } from '@/components/demo/MapView'
 import { pinTono } from '@/components/demo/StatusBadge'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { TableroPropuestas } from '@/components/demo/propuestas/TableroPropuestas'
+import { CotejoPorCliente } from '@/components/demo/propuestas/CotejoPorCliente'
+import { PestanasCrm } from '@/components/demo/crm/PestanasCrm'
 import {
   usePropuestas,
   useFunnelPropuestas,
@@ -143,6 +145,15 @@ export default function PropuestasPage() {
   const [filtroEstatus, setFiltroEstatus] = useState<EstPropuesta | ''>('')
   const [filtroCliente, setFiltroCliente] = useState('')
   const [busqueda, setBusqueda] = useState('')
+  // CRM, Fase 1 (ADR 0051, 17/11) · la misma lista vista por cliente: el
+  // cotejo de cotizaciones, días negociando y dinero. Solo el filtro de
+  // cliente le aplica: el de estatus y la búsqueda recortarían sus cuentas
+  // (un cliente con una aprobada y dos rechazadas no «lleva 1 cotización»).
+  const [vista, setVista] = useState<'propuesta' | 'cliente'>('propuesta')
+  const deCliente = useMemo(
+    () => (propuestas ?? []).filter((p) => !filtroCliente || p.clienteId === filtroCliente || p.agenciaId === filtroCliente),
+    [propuestas, filtroCliente],
+  )
 
   const filtradas = useMemo(() => {
     if (!propuestas) return []
@@ -176,6 +187,10 @@ export default function PropuestasPage() {
           </Button>
         )}
       </div>
+
+      {/* ADR 0051 · Fase 4: Propuestas es la cuarta pestaña del CRM. La
+          dirección no cambia; solo se llega desde «CRM» en el menú. */}
+      <PestanasCrm activa="propuestas" />
 
       {/* Rediseño del 26/10: KPIs → lista → análisis. Las cuatro cifras del
           antiguo «Embudo de propuestas» suben aquí como tarjetas, con las
@@ -262,6 +277,15 @@ export default function PropuestasPage() {
         >
           {/* Filtros en una fila: estatus con su conteo, cliente y búsqueda. */}
           <div className="mb-3 flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1.5" role="group" aria-label={t('crm.vista.grupo')}>
+              <ChipFiltro activo={vista === 'propuesta'} onClick={() => setVista('propuesta')}>
+                {t('crm.vista.propuesta')}
+              </ChipFiltro>
+              <ChipFiltro activo={vista === 'cliente'} onClick={() => setVista('cliente')}>
+                {t('crm.vista.cliente')}
+              </ChipFiltro>
+            </div>
+            {vista === 'propuesta' && (
             <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={t('propuestas.lista.filtro.estatus')}>
               <ChipFiltro activo={!filtroEstatus} onClick={() => setFiltroEstatus('')}>
                 {t('propuestas.lista.filtro.todas')} <span className="demo-num">{propuestas.length}</span>
@@ -272,6 +296,7 @@ export default function PropuestasPage() {
                 </ChipFiltro>
               ))}
             </div>
+            )}
             <div className="ml-auto flex flex-wrap items-center gap-2">
               <select
                 aria-label={t('propuestas.comun.cliente')}
@@ -286,6 +311,7 @@ export default function PropuestasPage() {
                   </option>
                 ))}
               </select>
+              {vista === 'propuesta' && (
               <input
                 aria-label={t('propuestas.lista.filtro.buscar')}
                 value={busqueda}
@@ -293,6 +319,7 @@ export default function PropuestasPage() {
                 placeholder={t('propuestas.lista.filtro.buscar.ejemplo')}
                 className="h-8 w-48 rounded border border-border-strong bg-surface px-2.5 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
               />
+              )}
             </div>
           </div>
 
@@ -300,7 +327,9 @@ export default function PropuestasPage() {
               las tarjetas de arriba. */}
           {funnel && funnel.total > 0 && <FunnelStrip f={funnel} />}
 
-          {filtradas.length === 0 ? (
+          {vista === 'cliente' ? (
+            <CotejoPorCliente propuestas={deCliente} clientes={clientes} />
+          ) : filtradas.length === 0 ? (
             <p className="py-8 text-center text-[13px] text-muted">
               {/* Una sola frase con huecos, no trozos pegados: en ingles el
                   estatus va ANTES del sustantivo («No approved proposals»). */}

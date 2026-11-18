@@ -174,7 +174,7 @@ describe('las tablas italianas estan completas y casan', () => {
 // ============================================================================
 describe('las tablas de huecos del servidor, completas y traducidas', () => {
   // Se dicen igual en espanol e italiano a proposito.
-  const COGNADOS = new Set(['RFC', 'Cliente', 'Documento', 'Logo', 'Periodo'])
+  const COGNADOS = new Set(['RFC', 'Cliente', 'Documento', 'Logo', 'Periodo', 'Nota'])
   const pares: Array<[string, Record<string, string>, Partial<Record<string, string>>]> = [
     ['periodicidad', PERIODICIDAD_EN, PERIODICIDAD_IT],
     ['etapa', ETAPA_EN, ETAPA_IT],

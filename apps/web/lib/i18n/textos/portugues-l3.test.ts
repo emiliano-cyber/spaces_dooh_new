@@ -47,6 +47,7 @@ export const COGNADOS_PT_L3 = new Set<string>([
   'operaciones.disponibilidad.ocupante-slots', // {campana} (confirmada, {spots} slots)
   'operaciones.disponibilidad.en-propuesta-spots', // , {n} spots
   'operaciones.almacen.estado.instalado', // Instalado
+  'operaciones.imprenta.arte.titulo', // Arte (glosario L3: arte → arte)
   'operaciones.almacen.tipo.lona', // Lona
   'operaciones.almacen.campo.marca', // Marca
   'operaciones.almacen.campo.modelo', // Modelo

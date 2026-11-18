@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { siNoEsSuya } from '@/lib/server/propuestas-visibilidad'
 import { exigir } from '@/lib/server/auth'
 import { decidirCodigoCtrl } from '@/lib/server/codigos-controller'
 import { respuestaError } from '@/lib/server/errores'
@@ -35,6 +36,9 @@ export const dynamic = 'force-dynamic'
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   const g = await exigir('comercial', 'aprobar')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
+  // ADR 0051 · el vendedor solo toca SUS propuestas; una ajena es 404.
+  const ajena = await siNoEsSuya(g.usuario, params.id)
+  if (ajena) return ajena
   try {
     const r = await decidirCodigoCtrl(params.id, await req.json().catch(() => ({})))
     return NextResponse.json(r)

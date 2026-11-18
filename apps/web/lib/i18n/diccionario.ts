@@ -1,5 +1,6 @@
 import { IDIOMA_POR_OMISION, type Idioma } from './idiomas'
 import { ES_PROPUESTAS, EN_PROPUESTAS, IT_PROPUESTAS, PT_PROPUESTAS } from './textos/propuestas'
+import { ES_CRM, EN_CRM, IT_CRM, PT_CRM } from './textos/crm'
 import { ES_COMPARTIDOS, EN_COMPARTIDOS, IT_COMPARTIDOS, PT_COMPARTIDOS } from './textos/compartidos'
 import { ES_CAMPANAS, EN_CAMPANAS, IT_CAMPANAS, PT_CAMPANAS } from './textos/campanas'
 import { ES_FINANZAS, EN_FINANZAS, IT_FINANZAS, PT_FINANZAS } from './textos/finanzas'
@@ -228,7 +229,7 @@ const ES = {
   'nav.network': 'Network',
   'nav.almacen': 'Almacén',
   'nav.space-eyes': 'Equipos',
-  'nav.space-eyes-galeria': 'Galería',
+  'nav.space-eyes-galeria': 'Comprobantes',
   'nav.space-eyes-graficas': 'Gráficas',
   'nav.space-eyes-texto': 'Ajustar texto',
   'nav.space-eyes-programacion': 'Programación',
@@ -239,6 +240,8 @@ const ES = {
   'nav.comercial': 'Comercial',
   'nav.disponibilidad': 'Disponibilidad',
   'nav.propuestas': 'Propuestas',
+  // ADR 0051 · Fase 4: «CRM» toma el lugar de «Propuestas» en el menú.
+  'nav.crm': 'CRM',
   'nav.captacion': 'Captación',
   'nav.comercial-opex': 'Prospección',
   'nav.franjas-y-temporadas': 'Franjas y temporadas',
@@ -268,6 +271,7 @@ const ES = {
   // `Record<ClaveDeSuArea, string>`, asi que una clave inglesa que falte sigue
   // siendo un error de compilacion, solo que en el archivo del area.
   ...ES_PROPUESTAS,
+  ...ES_CRM,
   ...ES_COMPARTIDOS,
   ...ES_CAMPANAS,
   ...ES_FINANZAS,
@@ -422,7 +426,7 @@ const EN: Record<ClaveTexto, string> = {
   'nav.network': 'Network',
   'nav.almacen': 'Warehouse',
   'nav.space-eyes': 'Devices',
-  'nav.space-eyes-galeria': 'Gallery',
+  'nav.space-eyes-galeria': 'PoD',
   'nav.space-eyes-graficas': 'Charts',
   'nav.space-eyes-texto': 'Photo label',
   'nav.space-eyes-programacion': 'Scheduling',
@@ -433,6 +437,7 @@ const EN: Record<ClaveTexto, string> = {
   'nav.comercial': 'Sales',
   'nav.disponibilidad': 'Availability',
   'nav.propuestas': 'Proposals',
+  'nav.crm': 'CRM',
   'nav.captacion': 'Prospecting',
   'nav.comercial-opex': 'Prospecting',
   'nav.franjas-y-temporadas': 'Dayparts and seasons',
@@ -455,6 +460,7 @@ const EN: Record<ClaveTexto, string> = {
   'nav.administracion': 'Settings',
 
   ...EN_PROPUESTAS,
+  ...EN_CRM,
   ...EN_COMPARTIDOS,
   ...EN_CAMPANAS,
   ...EN_FINANZAS,
@@ -617,7 +623,7 @@ const IT_BASE: Partial<Record<ClaveTexto, string>> = {
   'nav.network': 'Network',
   'nav.almacen': 'Magazzino',
   'nav.space-eyes': 'Dispositivi',
-  'nav.space-eyes-galeria': 'Galleria',
+  'nav.space-eyes-galeria': 'PoD',
   'nav.space-eyes-graficas': 'Grafici',
   'nav.space-eyes-texto': 'Etichetta delle foto',
   'nav.space-eyes-programacion': 'Programmazione',
@@ -628,6 +634,7 @@ const IT_BASE: Partial<Record<ClaveTexto, string>> = {
   'nav.comercial': 'Vendite',
   'nav.disponibilidad': 'Disponibilità',
   'nav.propuestas': 'Proposte',
+  'nav.crm': 'CRM',
   // Captacion es buscar espacios nuevos que arrendar, no clientes.
   'nav.captacion': 'Acquisizione siti',
   'nav.comercial-opex': 'Prospezione',
@@ -664,6 +671,7 @@ export const AMBITOS_ITALIANO: ReadonlyArray<{
   it: Partial<Record<string, string>>
 }> = [
   { ambito: 'propuestas', es: ES_PROPUESTAS, it: IT_PROPUESTAS },
+  { ambito: 'crm', es: ES_CRM, it: IT_CRM },
   { ambito: 'compartidos', es: ES_COMPARTIDOS, it: IT_COMPARTIDOS },
   { ambito: 'campanas', es: ES_CAMPANAS, it: IT_CAMPANAS },
   { ambito: 'finanzas', es: ES_FINANZAS, it: IT_FINANZAS },
@@ -689,6 +697,7 @@ export const AMBITOS_ITALIANO: ReadonlyArray<{
 const IT: Partial<Record<ClaveTexto, string>> = {
   ...IT_BASE,
   ...IT_PROPUESTAS,
+  ...IT_CRM,
   ...IT_COMPARTIDOS,
   ...IT_CAMPANAS,
   ...IT_FINANZAS,
@@ -822,7 +831,7 @@ const PT_BASE: Partial<Record<ClaveTexto, string>> = {
   'nav.network': 'Network',
   'nav.almacen': 'Almoxarifado',
   'nav.space-eyes': 'Dispositivos',
-  'nav.space-eyes-galeria': 'Galeria',
+  'nav.space-eyes-galeria': 'Comprovantes',
   'nav.space-eyes-graficas': 'Gráficos',
   'nav.space-eyes-texto': 'Legenda das fotos',
   'nav.space-eyes-programacion': 'Programação',
@@ -833,6 +842,7 @@ const PT_BASE: Partial<Record<ClaveTexto, string>> = {
   'nav.comercial': 'Comercial',
   'nav.disponibilidad': 'Disponibilidade',
   'nav.propuestas': 'Propostas',
+  'nav.crm': 'CRM',
   'nav.captacion': 'Captação',
   'nav.comercial-opex': 'Prospecção',
   'nav.franjas-y-temporadas': 'Faixas horárias e temporadas',
@@ -860,6 +870,7 @@ export const AMBITOS_PORTUGUES: ReadonlyArray<{
   pt: Partial<Record<string, string>>
 }> = [
   { ambito: 'propuestas', es: ES_PROPUESTAS, pt: PT_PROPUESTAS },
+  { ambito: 'crm', es: ES_CRM, pt: PT_CRM },
   { ambito: 'compartidos', es: ES_COMPARTIDOS, pt: PT_COMPARTIDOS },
   { ambito: 'campanas', es: ES_CAMPANAS, pt: PT_CAMPANAS },
   { ambito: 'finanzas', es: ES_FINANZAS, pt: PT_FINANZAS },
@@ -891,6 +902,7 @@ const PT: Partial<Record<ClaveTexto, string>> = {
   // glosario comun) y retiro el archivo: un solo sitio por clave. Los papeles
   // los sigue vigilando `papeles-portugues.test.ts`.
   ...PT_PROPUESTAS,
+  ...PT_CRM,
   ...PT_COMPARTIDOS,
   ...PT_CAMPANAS,
   ...PT_FINANZAS,

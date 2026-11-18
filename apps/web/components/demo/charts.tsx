@@ -119,3 +119,46 @@ export function ReservasChart({
     </ResponsiveContainer>
   )
 }
+
+// CONTEO-DIA (17/11) · campañas creadas y aprobadas por día, barras agrupadas.
+// Azul para las creadas y verde para las aprobadas, los mismos tonos que el
+// resto del Dashboard; el rótulo de cada serie va en la leyenda y en el
+// recuadro, así que el color no carga solo el significado.
+export interface PuntoConteo {
+  /** Rótulo del eje, ya en el idioma de la pantalla. */
+  label: string
+  creadas: number
+  aprobadas: number
+}
+
+function TooltipConteo({ active, payload, label }: any) {
+  const { t, idioma } = useIdioma()
+  if (!active || !payload?.length) return null
+  const valor = (k: string) => formatNumero(payload.find((p: any) => p.dataKey === k)?.value ?? 0, 0, idioma)
+  return (
+    <div className="rounded border border-border bg-surface px-2.5 py-1.5 text-[12px] shadow-none">
+      <div className="text-muted">{label}</div>
+      <div className="demo-num text-ink">
+        {t('inicio.conteo.creadas')}: {valor('creadas')}
+      </div>
+      <div className="demo-num text-ink">
+        {t('inicio.conteo.aprobadas')}: {valor('aprobadas')}
+      </div>
+    </div>
+  )
+}
+
+export function ConteoDiarioChart({ puntos, alto = 160 }: { puntos: PuntoConteo[]; alto?: number }) {
+  return (
+    <ResponsiveContainer width="100%" height={alto}>
+      <BarChart data={puntos} margin={{ top: 8, right: 8, left: -24, bottom: 0 }} barGap={1} barCategoryGap="20%">
+        <CartesianGrid stroke={BORDER} vertical={false} />
+        <XAxis dataKey="label" tick={ejeTick} tickLine={false} axisLine={{ stroke: BORDER }} interval="preserveStartEnd" minTickGap={16} />
+        <YAxis tick={ejeTick} tickLine={false} axisLine={false} allowDecimals={false} />
+        <Tooltip content={<TooltipConteo />} cursor={{ fill: '#0000000a' }} />
+        <Bar dataKey="creadas" fill={INFO} radius={[2, 2, 0, 0]} />
+        <Bar dataKey="aprobadas" fill={VERDE} radius={[2, 2, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  )
+}

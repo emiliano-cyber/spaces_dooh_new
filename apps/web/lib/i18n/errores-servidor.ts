@@ -494,6 +494,9 @@ export const CATALOGO_ERRORES: Record<string, string> = {
     'Only the Owner or an Administrator can delete users',
   'Solo el Dueño puede cambiar los permisos':
     'Only the Owner can change permissions',
+  // 1 sitio · lib/server/imprenta-visible-controller.ts:32
+  'Solo el vendedor que creó la propuesta o un superior puede mostrar la imprenta al cliente':
+    'Only the salesperson who created the proposal or someone above them can show the printer to the client',
   'Los permisos del Dueño no se cambian: siempre los tiene todos':
     'The Owner’s permissions can’t be changed: they always have all of them',
   'Ese rol no existe o ya no se usa':
@@ -593,6 +596,29 @@ export const CATALOGO_ERRORES: Record<string, string> = {
     'The value is not valid',
   'Ese prospecto no existe':
     'That prospect does not exist',
+  // ADR 0051 · las oportunidades del CRM comercial.
+  'Esa oportunidad no existe':
+    'That opportunity does not exist',
+  'El presupuesto mínimo no puede ser mayor que el máximo':
+    'The minimum budget cannot be greater than the maximum',
+  'La fecha de inicio no puede ir después de la de fin':
+    'The start date cannot be after the end date',
+  'Elige el cliente o el prospecto':
+    'Choose the client or the prospect',
+  'Solo un prospecto de tipo cliente puede tener oportunidades':
+    'Only a client prospect can have opportunities',
+  'Ese prospecto ya es otro cliente':
+    'That prospect is already a different client',
+  'Ese cliente no existe':
+    'That client does not exist',
+  'La oportunidad ya está cerrada':
+    'The opportunity is already closed',
+  'La oportunidad ya está en esa etapa':
+    'The opportunity is already at that stage',
+  'Escribe por qué se perdió':
+    'Write why it was lost',
+  'La propuesta es de otro cliente que la oportunidad':
+    'The proposal belongs to a different client than the opportunity',
   // v0.12.3 · pantallas y lugares propios.
   'El lugar elegido no existe o no es propio.':
     'The chosen location does not exist or is not owned.',
@@ -705,6 +731,7 @@ export const CAMPO_EN: Record<string, string> = {
   'Agencia': 'Agency',
   'Sitio': 'Site',
   'Spots por día': 'Spots per day',
+  'Nota': 'Note',
   'Cantidad': 'Quantity',
   'Tarifa': 'Rate',
   'Precio': 'Price',
@@ -1101,6 +1128,8 @@ export const CATALOGO_ERRORES_IT: Partial<Record<string, string>> = {
     'Solo il Titolare o un Amministratore possono eliminare utenti',
   'Solo el Dueño puede cambiar los permisos':
     'Solo il Titolare può modificare i permessi',
+  'Solo el vendedor que creó la propuesta o un superior puede mostrar la imprenta al cliente':
+    'Solo il commerciale che ha creato la proposta o un suo superiore può mostrare la tipografia al cliente',
   'Los permisos del Dueño no se cambian: siempre los tiene todos':
     'I permessi del Titolare non si modificano: li ha sempre tutti',
   'Ese rol no existe o ya no se usa':
@@ -1181,6 +1210,29 @@ export const CATALOGO_ERRORES_IT: Partial<Record<string, string>> = {
     'Il valore non è valido',
   'Ese prospecto no existe':
     'Questo prospect non esiste',
+  // ADR 0051 · le opportunità del CRM commerciale.
+  'Esa oportunidad no existe':
+    'Questa opportunità non esiste',
+  'El presupuesto mínimo no puede ser mayor que el máximo':
+    'Il budget minimo non può essere maggiore del massimo',
+  'La fecha de inicio no puede ir después de la de fin':
+    'La data di inizio non può essere successiva a quella di fine',
+  'Elige el cliente o el prospecto':
+    'Scegli il cliente o il prospect',
+  'Solo un prospecto de tipo cliente puede tener oportunidades':
+    'Solo un prospect di tipo cliente può avere opportunità',
+  'Ese prospecto ya es otro cliente':
+    'Questo prospect è già un altro cliente',
+  'Ese cliente no existe':
+    'Questo cliente non esiste',
+  'La oportunidad ya está cerrada':
+    'L’opportunità è già chiusa',
+  'La oportunidad ya está en esa etapa':
+    'L’opportunità è già in quella fase',
+  'Escribe por qué se perdió':
+    'Scrivi perché è stata persa',
+  'La propuesta es de otro cliente que la oportunidad':
+    'La proposta è di un cliente diverso da quello dell’opportunità',
   'El lugar elegido no existe o no es propio.':
     'Il luogo scelto non esiste o non è di proprietà.',
   '«Propia» es sí o no':
@@ -1269,6 +1321,7 @@ export const CAMPO_IT: Partial<Record<string, string>> = {
   'Agencia': 'Agenzia',
   'Sitio': 'Sito',
   'Spots por día': 'Spot al giorno',
+  'Nota': 'Nota',
   'Cantidad': 'Quantità',
   'Tarifa': 'Tariffa',
   'Precio': 'Prezzo',
@@ -1512,6 +1565,8 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
     'Somente o Titular ou um Administrador podem excluir usuários',
   'Solo el Dueño puede cambiar los permisos':
     'Somente o Titular pode alterar as permissões',
+  'Solo el vendedor que creó la propuesta o un superior puede mostrar la imprenta al cliente':
+    'Somente o vendedor que criou a proposta ou um superior pode mostrar a gráfica ao cliente',
   'Los permisos del Dueño no se cambian: siempre los tiene todos':
     'As permissões do Titular não podem ser alteradas: ele sempre tem todas',
   'Ese rol no existe o ya no se usa':
@@ -1564,6 +1619,18 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
   'El texto tiene un formato inválido': 'O texto tem um formato inválido',
   'El valor no es válido': 'O valor não é válido',
   'Ese prospecto no existe': 'Esse prospect não existe',
+  // ADR 0051 · as oportunidades do CRM comercial.
+  'Esa oportunidad no existe': 'Essa oportunidade não existe',
+  'El presupuesto mínimo no puede ser mayor que el máximo': 'O orçamento mínimo não pode ser maior que o máximo',
+  'La fecha de inicio no puede ir después de la de fin': 'A data de início não pode ser depois da data de término',
+  'Elige el cliente o el prospecto': 'Escolha o cliente ou o prospect',
+  'Solo un prospecto de tipo cliente puede tener oportunidades': 'Só um prospect do tipo cliente pode ter oportunidades',
+  'Ese prospecto ya es otro cliente': 'Esse prospect já é outro cliente',
+  'Ese cliente no existe': 'Esse cliente não existe',
+  'La oportunidad ya está cerrada': 'A oportunidade já está fechada',
+  'La oportunidad ya está en esa etapa': 'A oportunidade já está nessa etapa',
+  'Escribe por qué se perdió': 'Escreva por que foi perdida',
+  'La propuesta es de otro cliente que la oportunidad': 'A proposta é de outro cliente que não o da oportunidade',
   'El lugar elegido no existe o no es propio.': 'O lugar escolhido não existe ou não é da sua empresa.',
   '«Propia» es sí o no': '“Próprio” é sim ou não',
   'Esta pantalla tiene un contrato de renta vigente: termínalo en Arrendadores antes de marcarla como propia.':
@@ -1638,6 +1705,7 @@ export const CAMPO_PT: Partial<Record<string, string>> = {
   'Agencia': 'Agência',
   'Sitio': 'Ponto',
   'Spots por día': 'Spots por dia',
+  'Nota': 'Nota',
   'Cantidad': 'Quantidade',
   'Tarifa': 'Tarifa',
   'Precio': 'Preço',
@@ -1679,14 +1747,19 @@ function bloqueoClienteEn(v: string): string {
   return v
     .split(' y ')
     .map((pieza) => {
-      const m = /^(\d+) (campañas?|facturas?|clientes?|propuestas?)( que lo tienen como agencia)?$/.exec(pieza)
+      const m = /^(\d+) (campañas?|facturas?|clientes?|propuestas?|oportunidad(?:es)?)( que lo tienen como agencia)?$/.exec(pieza)
       if (!m) return pieza
       const uno = m[1] === '1'
-      const cosa = { campaña: 'campaign', factura: 'invoice', cliente: 'client', propuesta: 'proposal' }[
-        m[2].replace(/s$/, '') as 'campaña'
-      ]
+      // ADR 0051 · «oportunidades» hace el plural en -es: no basta quitar la s.
+      const [singular, plural] = {
+        campaña: ['campaign', 'campaigns'],
+        factura: ['invoice', 'invoices'],
+        cliente: ['client', 'clients'],
+        propuesta: ['proposal', 'proposals'],
+        oportunidad: ['opportunity', 'opportunities'],
+      }[m[2].startsWith('oportunidad') ? 'oportunidad' : m[2].replace(/s$/, '') as 'campaña']
       const agencia = m[3] ? (uno ? ' that has it as its agency' : ' that have it as their agency') : ''
-      return `${m[1]} ${cosa}${uno ? '' : 's'}${agencia}`
+      return `${m[1]} ${uno ? singular : plural}${agencia}`
     })
     .join(' and ')
 }
@@ -2082,7 +2155,7 @@ function bloqueoClienteIt(v: string): string {
   return v
     .split(' y ')
     .map((pieza) => {
-      const m = /^(\d+) (campañas?|facturas?|clientes?|propuestas?)( que lo tienen como agencia)?$/.exec(pieza)
+      const m = /^(\d+) (campañas?|facturas?|clientes?|propuestas?|oportunidad(?:es)?)( que lo tienen como agencia)?$/.exec(pieza)
       if (!m) return pieza
       const uno = m[1] === '1'
       const [singular, plural] = {
@@ -2090,7 +2163,8 @@ function bloqueoClienteIt(v: string): string {
         factura: ['fattura', 'fatture'],
         cliente: ['cliente', 'clienti'],
         propuesta: ['proposta', 'proposte'],
-      }[m[2].replace(/s$/, '') as 'campaña']
+        oportunidad: ['opportunità', 'opportunità'],
+      }[m[2].startsWith('oportunidad') ? 'oportunidad' : m[2].replace(/s$/, '') as 'campaña']
       const agencia = m[3] ? (uno ? ' che lo ha come agenzia' : ' che lo hanno come agenzia') : ''
       return `${m[1]} ${uno ? singular : plural}${agencia}`
     })
@@ -2384,7 +2458,7 @@ function bloqueoClientePt(v: string): string {
   return v
     .split(' y ')
     .map((pieza) => {
-      const m = /^(\d+) (campañas?|facturas?|clientes?|propuestas?)( que lo tienen como agencia)?$/.exec(pieza)
+      const m = /^(\d+) (campañas?|facturas?|clientes?|propuestas?|oportunidad(?:es)?)( que lo tienen como agencia)?$/.exec(pieza)
       // Una pieza que no se reconoce no pasa en espanol (validacion, retoque 8):
       // deja la marca y el mensaje entero cae al espanol, como `deTablaPt`.
       if (!m) return SIN_ITALIANO
@@ -2394,7 +2468,8 @@ function bloqueoClientePt(v: string): string {
         factura: ['fatura', 'faturas'],
         cliente: ['cliente', 'clientes'],
         propuesta: ['proposta', 'propostas'],
-      }[m[2].replace(/s$/, '') as 'campaña']
+        oportunidad: ['oportunidade', 'oportunidades'],
+      }[m[2].startsWith('oportunidad') ? 'oportunidad' : m[2].replace(/s$/, '') as 'campaña']
       const agencia = m[3] ? (uno ? ' que o tem como agência' : ' que o têm como agência') : ''
       return `${m[1]} ${uno ? singular : plural}${agencia}`
     })

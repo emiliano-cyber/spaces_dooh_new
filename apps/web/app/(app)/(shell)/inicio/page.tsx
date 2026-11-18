@@ -26,6 +26,7 @@ import { Button } from '@/components/demo/ui/Button'
 import { OcupacionChart } from '@/components/demo/charts'
 import { MapView, type MapPoint } from '@/components/demo/MapView'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
+import { BloqueConteoDiario, useConteoDiario } from '@/components/demo/inicio/ConteoDiario'
 import { type Tono } from '@/components/demo/StatusBadge'
 import { itemsEnPropuesta } from '@/lib/data/en-propuesta'
 import { cn } from '@/lib/cn'
@@ -183,6 +184,10 @@ export default function DashboardPage() {
   const veFinanzas = usePuede('finanzas', 'ver')
   const pnl = useDelMotor<PnlDelMes>(veFinanzas ? consultaPnlDelMes(hoy) : null, pnlDesdeRespuesta, { fase: 'cargando' })
   const precio = useDelMotor<PrecioDelMes>(veFinanzas ? consultaPrecioDelMes(hoy) : null, precioDesdeRespuesta, { fase: 'cargando' })
+  // CONTEO-DIA (17/11) · lo ve quien ve Comercial; si ve a todos o solo lo
+  // suyo lo decide el servidor con la sesión.
+  const veComercial = usePuede('comercial', 'ver')
+  const conteoDiario = useConteoDiario(veComercial)
 
   const subtitulo = [
     cfg?.razonSocial ? t('inicio.razon-social', { nombre: cfg.razonSocial }) : null,
@@ -224,8 +229,10 @@ export default function DashboardPage() {
 
   // DASH-METRICAS · lo que este rol PUEDE ver (DASH-REF): el menú no ofrece
   // una métrica que su tablero nunca pinta.
-  const disponibles: MetricaDashboard[] = METRICAS_DASHBOARD.map((x) => x.id).filter((id) =>
-    veFinanzas ? id !== 'pipeline-abierto' && id !== 'tasa' : !['ingreso', 'margen', 'costos', 'cobranza'].includes(id),
+  const disponibles: MetricaDashboard[] = METRICAS_DASHBOARD.map((x) => x.id).filter(
+    (id) =>
+      (veFinanzas ? id !== 'pipeline-abierto' && id !== 'tasa' : !['ingreso', 'margen', 'costos', 'cobranza'].includes(id)) &&
+      (id !== 'conteo-diario' || veComercial),
   )
   // `ve`: lo que se PINTA. Editando, también lo oculto, atenuado en su sitio
   // (DASH-EDITAR): si desapareciera, no quedaría dónde tocar para recuperarlo.
@@ -515,6 +522,24 @@ export default function DashboardPage() {
       </div>
       )}
 
+      {/* CONTEO-DIA (17/11) · campañas creadas y aprobadas por día. Una fila
+          entera para él solo: treinta días de barras no caben en una angosta. */}
+      {ve('conteo-diario') && (
+        <CardColapsable
+          id="inicio.conteo-diario"
+          titulo={t('inicio.conteo')}
+          className={cn(oculta('conteo-diario') && OCULTO_TARJETA)}
+          accion={acc(
+            'conteo-diario',
+            <Link href="/propuestas" className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline">
+              {t('nav.propuestas')} <ArrowRight className="h-3.5 w-3.5" />
+            </Link>,
+          )}
+        >
+          <BloqueConteoDiario estado={conteoDiario} />
+        </CardColapsable>
+      )}
+
       {/* Alertas + Huecos y renovaciones. Las dos van a la MISMA altura
           (`items-stretch`, 11/11, pedido del dueño): con `items-start` la más
           corta dejaba un hueco debajo y la fila perdía naturalidad. Una tarjeta
@@ -785,6 +810,7 @@ function etiquetaMetrica(id: MetricaDashboard, t: ReturnType<typeof useIdioma>['
     case 'costos': return t('inicio.costos-de', { mes })
     case 'grafica-ocupacion': return t('inicio.ocupacion')
     case 'pipeline': return t('inicio.pipeline')
+    case 'conteo-diario': return t('inicio.conteo')
     case 'alertas': return t('inicio.alertas')
     case 'huecos': return t('inicio.huecos')
     case 'cobranza': return t('inicio.por-cobrar')

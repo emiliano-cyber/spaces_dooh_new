@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { siNoEsSuya } from '@/lib/server/propuestas-visibilidad'
 import { exigir, tienePermiso } from '@/lib/server/auth'
 import { aplicarCodigoCtrl, quitarCodigoCtrl, leerCodigoCtrl } from '@/lib/server/codigos-controller'
 import { respuestaError } from '@/lib/server/errores'
@@ -48,6 +49,9 @@ export const dynamic = 'force-dynamic'
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const g = await exigir('comercial', 'ver')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
+  // ADR 0051 · el vendedor solo toca SUS propuestas; una ajena es 404.
+  const ajena = await siNoEsSuya(g.usuario, params.id)
+  if (ajena) return ajena
   try {
     const r = await leerCodigoCtrl(params.id)
     const puedeAprobarCodigo = await tienePermiso(g.usuario.rol, 'comercial', 'aprobar')
@@ -64,6 +68,9 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   const g = await exigir('comercial', 'crear')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
+  // ADR 0051 · el vendedor solo toca SUS propuestas; una ajena es 404.
+  const ajena = await siNoEsSuya(g.usuario, params.id)
+  if (ajena) return ajena
   try {
     const r = await aplicarCodigoCtrl(params.id, await req.json().catch(() => ({})))
     // La bitácora DICE EL CÓDIGO Y EL PORCENTAJE. Un «aplicó un código» pelado
@@ -84,6 +91,9 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
   const g = await exigir('comercial', 'crear')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
+  // ADR 0051 · el vendedor solo toca SUS propuestas; una ajena es 404.
+  const ajena = await siNoEsSuya(g.usuario, params.id)
+  if (ajena) return ajena
   try {
     const r = await quitarCodigoCtrl(params.id)
     await registrarAccion(g.usuario, 'Quitó el código promocional de la propuesta', params.id)

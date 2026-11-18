@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-26
+actualizado: 2026-11-17
 tags: [frontend, modulos, pantallas, verde]
 archivos:
   - apps/web/app/(app)/(shell)/
@@ -17,6 +17,10 @@ archivos:
   - apps/web/app/(app)/(shell)/comercial-opex/page.tsx
   - apps/web/lib/cliente-pipeline.ts
   - apps/web/components/demo/clientes/FichaCliente.tsx
+  - apps/web/app/(app)/(shell)/crm/page.tsx
+  - apps/web/app/(app)/(shell)/crm/oportunidades/[id]/page.tsx
+  - apps/web/components/demo/crm/
+  - apps/web/lib/data/oportunidades-api.ts
 ---
 
 # Módulos internos (dentro del shell)
@@ -36,7 +40,9 @@ archivos:
 | `/network` | Pantallas en red | `sitios.en_network` | — |
 | `/arrendadores` | Arrendadores, predios, contratos | `/api/arrendadores`, `/api/contratos` | `ContratoSheet`, `PagosRentaCard`, `CompromisoRentaCard`, `ConciliacionCard`, `PanelFirmas`, `ConstanciaFirmas`, `LicenciasCard`, `GestionRazonesSociales`, `BarraDocumento`, `BajaPropietarioDialog` |
 | `/clientes` | Clientes — al pulsar el nombre, **ficha con su pipeline y sus campañas** (20/10) | `/api/clientes`; la ficha lee lo que ya trae `/api/estado` | `ClientesBadge`, `BorrarClienteDialog`, `FichaCliente`, `PipelineCliente`, `CampanasDelCliente` |
-| `/propuestas`, `/propuestas/[id]` | Propuestas, con **tarifa calculada** y **calculadora de spots** | `/api/propuestas`, `/api/rejilla/*`, `/api/volumen/escalas` | `AvisoFranjaCMS`, `MapView`, `CalculadoraSpotsLinea` (local de la página) |
+| `/crm` | CRM comercial (ADR 0051, Fase 4, 17/11) — **la entrada «CRM» del menú**, en el lugar de Propuestas. Pestañas `?vista=`: **Embudo** (por omisión: una columna por etapa con su total), **Oportunidades** (lista con chips por etapa) y **Prospectos** (los leads de tipo cliente); la cuarta, Propuestas, es `/propuestas` | `/api/oportunidades` (GET, POST), `/api/oportunidades/[id]/etapa`; Prospectos, `/api/captacion/*` | `PestanasCrm`, `Oportunidades`, `FormOportunidad`, `Captacion` con `tipoFijo="CLIENTE"` — ver [[crm-oportunidades]] |
+| `/crm/oportunidades/[id]` | Ficha de la oportunidad: lo que pide el cliente, el **cotejo** de cada cotización ligada contra el presupuesto (con IVA) y las fechas, días en cada etapa, actividades, cambio de etapa, ligar y desligar propuestas, y la línea de tiempo unida (actividades + cambios de las propuestas + bitácora del lead si se ve), filtrable por persona | `/api/oportunidades/[id]` (GET, PATCH), `…/etapa`, `…/actividades`, `PATCH /api/propuestas/[id]` con `{ oportunidadId }`; los totales, de la lista de propuestas ya cargada (`/api/estado`) | `FichaOportunidad`, `FormOportunidad`, `etiquetas.ts` |
+| `/propuestas`, `/propuestas/[id]` | Propuestas, con **tarifa calculada** y **calculadora de spots**; la lista se ve **por propuesta o por cliente** (cotejo del CRM, Fase 1 del ADR 0051: `CotejoPorCliente` sobre `lib/crm-cotejo.ts`, 17/11). **Desde el 17/11 (Fase 4) es la cuarta pestaña del CRM**: lleva `PestanasCrm` arriba de la lista (`propuestas/page.tsx:193`), sin entrada propia en el menú (enciende «CRM») y **con la misma dirección** | `/api/propuestas`, `/api/rejilla/*`, `/api/volumen/escalas` | `AvisoFranjaCMS`, `MapView`, `CalculadoraSpotsLinea` (local de la página), `CotejoPorCliente`, `PestanasCrm` |
 | `/captacion` | Captación (CAP-01) — **fuera del menú desde el 30/09** | `/api/captacion/*` | `Captacion` — ver [[02-Backend/captacion]] |
 | `/comercial-opex` | Comercial negociación: prospección de arrendadores — **funcional desde NEG-01 (22/10)**, encima de Captación | `/api/captacion/*`, `/api/geo/buscar` | `ComercialOpex`, `SelectorUbicacion` — ver [[comercial-opex]] |
 | `/franjas-y-temporadas` | Catálogo de franjas y temporadas, y **horario de transmisión** | `/api/rejilla/*`, `/api/campanas/franja-programada` | `GestionRejilla`, `ProgramacionPorFranja` (PROG-01) |

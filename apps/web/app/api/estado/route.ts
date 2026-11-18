@@ -121,7 +121,12 @@ export async function GET() {
       siAlguno(['arrendadores', 'finanzas'], listarContratos),
       siAlguno(['arrendadores', 'finanzas'], listarPagosRenta),
       si('arrendadores', listarIncidencias),
-      si('comercial', listarPropuestas),
+      // ADR 0051 (17/11) · el vendedor recibe SOLO sus propuestas; quien tiene
+      // `comercial.aprobar`, todas. Del mapa de permisos de arriba: ninguna
+      // consulta más.
+      si('comercial', () =>
+        listarPropuestas((permisos['comercial'] ?? []).includes('aprobar') ? null : g.usuario.id),
+      ),
       si('comercial', listarOrdenesCompra),
       // Notificaciones y config no son de módulo: las primeras son del propio
       // usuario y la segunda es la identidad del tenant que pinta el shell.

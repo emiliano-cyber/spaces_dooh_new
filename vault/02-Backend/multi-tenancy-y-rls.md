@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-11-17
 tags: [backend, multi-tenant, rls, seguridad, rojo, instancias]
 archivos:
   - apps/web/lib/server/db.ts
@@ -77,17 +77,28 @@ admite el **Dueño del tenant de plataforma** (el `tenants` más antiguo,
 
 | Función | Fija `app.tenant_id` | Cuándo usarla |
 |---|---|---|
-| `q()` / `q1()` (`db.ts:74-93`) | Sí, del tenant de la sesión | **Por defecto.** Todo lo normal |
-| `qRaw()` / `qRaw1()` (`db.ts:64-71`) | **No** | Solo lo que no tiene RLS (`tenants`, `sesiones`, `rol_permisos`, `schema_migrations`), las funciones SECURITY DEFINER (`auth_*`, `*_tenant_por_token`) y el panel de `tickets` (ver abajo) |
-| `qConTenant(id, …)` (`db.ts:100-118`) | Sí, explícito | Hay tenant pero aún no hay sesión: signup, reset, desbloqueo |
-| `withTenantTx(fn)` (`db.ts:165-180`) | Sí, del de la sesión | Varias sentencias atómicas |
-| `fijarTenant(client)` (`db.ts:59-61`) | Sí, del de la sesión | Transacción explícita con `pool.connect()` + `begin` propios (`campanas-repo`, `arrendadores-repo`). Va **después** del `begin`: fuera de transacción el GUC local muere en la misma sentencia |
-| `fijarTenantExplicito(client,id)` (`db.ts:124-126`) | Sí, explícito | Rutas públicas por token y el cron |
-| `withTxBootstrap(fn)` (`db.ts:143-161`) | **No al empezar**; lo fija `ctx.fijarTenant(id)` a mitad | Altas: el `INSERT` de `tenants` (sin RLS) y el del Dueño (fail-closed) en UNA transacción, para que un fallo del segundo deshaga el primero (`cuentas-controller.ts:74`) |
+| `q()` / `q1()` (`db.ts:102-121`) | Sí, del tenant de la sesión | **Por defecto.** Todo lo normal |
+| `qRaw()` / `qRaw1()` (`db.ts:92-99`) | **No** | Solo lo que no tiene RLS (`tenants`, `sesiones`, `rol_permisos`, `schema_migrations`), las funciones SECURITY DEFINER (`auth_*`, `*_tenant_por_token`) y el panel de `tickets` (ver abajo) |
+| `qConTenant(id, …)` (`db.ts:128-146`) | Sí, explícito | Hay tenant pero aún no hay sesión: signup, reset, desbloqueo |
+| `withTenantTx(fn)` (`db.ts:193-208`) | Sí, del de la sesión | Varias sentencias atómicas |
+| `fijarTenant(client)` (`db.ts:87-89`) | Sí, del de la sesión | Transacción explícita con `pool.connect()` + `begin` propios (`campanas-repo`, `arrendadores-repo`). Va **después** del `begin`: fuera de transacción el GUC local muere en la misma sentencia |
+| `fijarTenantExplicito(client,id)` (`db.ts:152-154`) | Sí, explícito | Rutas públicas por token y el cron |
+| `withTxBootstrap(fn)` (`db.ts:171-189`) | **No al empezar**; lo fija `ctx.fijarTenant(id)` a mitad | Altas: el `INSERT` de `tenants` (sin RLS) y el del Dueño (fail-closed) en UNA transacción, para que un fallo del segundo deshaga el primero (`cuentas-controller.ts:74`) |
 
 Siempre **transaction-local** (`set_config(..., true)`). Nunca de sesión: el pool
 reutiliza conexiones entre tenants y un GUC de sesión filtraría datos
 (`db.ts:12-15`).
+
+> [!important] Desde el 17/11 (ADR 0051, Fase 3) se fija también el AUTOR
+> `q()`, `withTenantTx()` y `fijarTenant()` fijan, en la **misma sentencia** que
+> `app.tenant_id`, `app.usuario_id` y `app.usuario_nombre` de la sesión
+> (`contextoDeRequest` y `fijarContexto`, `db.ts:69-82`; `autorActual` en `tenant.ts`, memoizado por
+> petición). Los lee el trigger que escribe el historial de las propuestas
+> ([[crm-oportunidades]]). Las mismas reglas que el tenant: TRANSACTION-LOCAL y
+> nunca del cuerpo. `qConTenant` y `fijarTenantExplicito` (rutas públicas, cron)
+> **no** lo fijan: ahí el cambio sale como SISTEMA o, en la liga, como CLIENTE.
+> La e2e `propuesta-cambios` comprueba que el autor no se queda pegado a una
+> conexión del pool.
 
 > [!bug] El modo de fallo que ya costó un despliegue entero
 > Usar `qRaw` sobre una tabla fail-closed devuelve **cero filas**, no un error.

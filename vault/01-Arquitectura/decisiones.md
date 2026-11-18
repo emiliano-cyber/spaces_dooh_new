@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-11-05
+actualizado: 2026-11-17
 tags: [adr, decisiones, reglas-de-negocio]
 archivos:
   - docs/adr/
@@ -82,6 +82,7 @@ se escribe uno nuevo que lo reemplace (`~/.claude/skills/eng-architecture`).
 | 0048 | **La moneda es de la instancia, se elige al crearla y no se puede cambiar** | Aceptada (02/11, el dueño; ROJO R3+R4) | MXN o USD, una por instancia. Se elige en `POST /api/bootstrap` (`provision-instancia.sh --moneda`); sin valor, MXN. `20261102_moneda_inmutable_por_instancia.sql`: CHECK y triggers que impiden cambiarla y una segunda moneda; `PATCH /api/config` la rechaza. `MONEDA` deja de ser constante: `monedaInstancia()` en `lib/i18n/dinero.ts`. Ver [[03-Frontend/idiomas-es-en]] §7 |
 | 0049 | **El idioma de los documentos es de la instancia, se elige al crearla y no se cambia** | Aceptada (03/11, el dueño; ROJO R3 + firmas) | `es`/`en`/`it` en `tenants.idioma_documentos` (DEFAULT `es`: las instancias existentes no cambian). Se elige en `POST /api/bootstrap` (`provision-instancia.sh --idioma`); triggers que impiden cambiarlo y un segundo idioma. El contrato, lo que su página imprime y la constancia de firmas van en él; **segunda vuelta (03/11, el dueño): todos los papeles** —propuesta impresa, `/p`, portal, comprobante y correos—, salvo el CSV del estado de cuenta; la interfaz sigue a la persona. `idiomaDeLaInstancia()`, fail-closed. Contrato en/it: **plantillas de ejemplo** que cada cliente irá adaptando (D13, el dueño, 04/11). Ver [[03-Frontend/idiomas-es-en]] §12 |
 | 0050 | **`demo.space-os.io` vuelve: es la DEMO, servida por el droplet viejo de g500 y con una copia de sus datos** | Aceptada (05/11, el dueño) — **sustituye al 0024** | `142.93.113.106` (libre tras la guía 30) pasa de instancia `g500` a instancia `demo` **sobre la misma base**: se conservan los datos de g500 al 04/11 (y la copia de Space Eyes, parada) y se quita su identidad (`INSTANCIA`, `FLOTA_TOKEN`, claves de Postgres rotadas, Spaces a `demo/`, sin DOOHmain, Resend, Google ni Maps, certificado de g500 borrado). `CANAL=beta`, `modo = automatica`. `DEMO_URL` pasa a `https://demo.space-os.io/spaces-dooh`; la DEMO del PADRE se apaga tras la primera promoción validada contra la nueva. Riesgo aceptado: datos reales de un cliente en una dirección pública. Guía `docs/evidencias/31-g500-viejo-como-demo-20261105.md`, sin correr |
+| 0051 | **El CRM comercial: oportunidades encima de `prospectos` (tipo CLIENTE) y `propuestas`, con el cotejo de lo que pide el cliente contra lo que se le cotiza** | Aceptada (17/11, el dueño; ROJO R3 + R4) | Cuatro fases. Fase 1 (17/11, sin migración): `lib/crm-cotejo.ts` y la vista «Por cliente» en Propuestas. Fases 2–3: `oportunidades`, `oportunidad_actividades` y `propuesta_cambios` (campo por campo, append-only) y `propuestas.oportunidad_id` opcional. Fase 4: menú «CRM» con Propuestas dentro. Visibilidad igual que Captación (`soloDe`). Abiertas: si el vendedor ve solo sus propuestas, la probabilidad por etapa y el historial en la liga pública |
 
 > [!danger] Cuatro de estos ADR se superaron entre sí en 48 horas — lee el estado, no el número
 > `0015` → `0016` → `0017` y `0020` → `0021` cambiaron de decisión **el mismo día

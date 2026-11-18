@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { soloDePropuestas } from '@/lib/server/propuestas-visibilidad'
 import { exigir, tienePermiso } from '@/lib/server/auth'
 import { resumenPropuestasCtrl } from '@/lib/server/propuestas-resumen-controller'
 import { respuestaError } from '@/lib/server/errores'
@@ -18,7 +19,9 @@ export async function GET(req: Request) {
     const sp = new URL(req.url).searchParams
     const query = Object.fromEntries([...sp.entries()].filter(([, v]) => v !== ''))
     const conGanancia = await tienePermiso(g.usuario.rol, 'finanzas', 'ver')
-    return NextResponse.json(await resumenPropuestasCtrl(query, conGanancia), {
+    // ADR 0051 · el vendedor ve el resumen de SUS propuestas. CONTEO-DIA llegó
+    // a la misma regla el mismo 17/11 (`soloVendedorDe`, idéntica): se unieron.
+    return NextResponse.json(await resumenPropuestasCtrl(query, conGanancia, await soloDePropuestas(g.usuario)), {
       headers: { 'Cache-Control': 'no-store' },
     })
   } catch (e) {

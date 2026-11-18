@@ -158,6 +158,8 @@ const crearSchema = z
     fechaFin: z.string().min(1, 'Fecha de fin requerida'),
     items: z.array(itemSchema).min(1, 'Agrega al menos un sitio'),
     notas: z.string().nullish(),
+    // ADR 0051 §3 · opcional; quién puede usarla lo decide la ruta.
+    oportunidadId: z.string().uuid().nullish(),
   })
   .refine((d) => new Date(d.fechaFin) >= new Date(d.fechaInicio), {
     message: 'La fecha fin no puede ser anterior a la de inicio',
@@ -454,11 +456,16 @@ async function prepararLineas(d: { fechaInicio: string; fechaFin: string; items:
   return { items, ajustes }
 }
 
-export async function crearPropuestaCtrl(body: unknown) {
+/**
+ * `soloDeOportunidad` lo calcula la ruta desde la sesión (la regla de
+ * `oportunidades-controller.ts`): con él, un vendedor solo liga la propuesta a
+ * SUS oportunidades. No viene del cuerpo.
+ */
+export async function crearPropuestaCtrl(body: unknown, opts: { soloDeOportunidad?: string | null } = {}) {
   const d = validar(crearSchema, body)
   const { items, ajustes } = await prepararLineas(d)
   try {
-    const propuesta = await crearPropuesta({ ...d, items } as PropuestaInput)
+    const propuesta = await crearPropuesta({ ...d, items } as PropuestaInput, opts)
     return { propuesta, ajustes }
   } catch (e) {
     if (e instanceof PropuestaError) throw new AppError(e.message, 400)
