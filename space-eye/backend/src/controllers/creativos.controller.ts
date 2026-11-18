@@ -18,6 +18,7 @@ import { equipoAjeno } from '../utils/dueno';
 import { z } from 'zod';
 import { firmarFilas } from '../utils/firmaArchivos';
 import { encuadreDe } from './dashboard.controller';
+import { ordenarEquipo } from '../utils/espejo';
 
 /** Bits distintos entre dos huellas de 256 bits en hexadecimal. */
 export function distancia(a: string, b: string): number {
@@ -38,6 +39,7 @@ export async function configDe(deviceId: number) {
   const [filas] = await pool.query<any[]>(
     `SELECT creative_watch, creative_desde, creative_max_dia, creative_cada_min,
             creative_recorrido_seg, creative_paso_seg, creative_tolerancia, aprendizaje_min,
+            creative_fotos_dia,
             creative_envio_min, creative_refoto_h
      FROM devices WHERE id = ?`,
     [deviceId]
@@ -61,6 +63,7 @@ export async function configDe(deviceId: number) {
     // Desde cuando vigila: el dashboard lo usa para decir hasta cuando aprende.
     desde: d.creative_desde,
     max_dia: d.creative_max_dia,
+    fotos_dia: d.creative_fotos_dia,
     cada_min: d.creative_cada_min,
     // Cuando mandar las fotos nuevas: 0 al momento, o juntas cada N min (023).
     envio_min: Number(d.creative_envio_min ?? 0),
@@ -124,6 +127,84 @@ export async function paraElEquipo(req: Request, res: Response) {
  * fecha, para saber que sigue en rotacion). `nuevas` son las que el equipo no
  * reconocio; de esas normalmente ya viene la foto por su cuenta.
  */
+// --- La auditoria por DIA (migracion 033) -----------------------------------
+//
+// El equipo reporta en cada vuelta las huellas que reconocio. Ese dato se
+// estaba sumando a un contador de por vida, que no sirve para auditar: no dice
+// si el anuncio estuvo en rotacion AYER. Aqui se guarda por dia, y con su
+// denominador.
+//
+// `revisiones` sube una vez por vuelta para TODOS los creativos que el catalogo
+// tiene ese dia, no solo para los vistos: el denominador de «salio en 37 de 96»
+// tiene que ser el mismo para los dos anuncios que se comparan, o la cuenta
+// miente a favor del que se vio mas.
+async function anotarElDia(deviceId: number, vistos: string[], catalogo: string[]) {
+  if (!catalogo.length) return;
+  // Una sola sentencia para los dos contadores: la fila del dia se crea sola la
+  // primera vez que ese creativo aparece en el reporte.
+  const filas = catalogo.map(() => '(?, ?, CURDATE(), 0, 0)').join(', ');
+  await pool.query(
+    `INSERT INTO device_creative_dias (device_id, phash, dia, apariciones, revisiones)
+     VALUES ${filas}
+     ON DUPLICATE KEY UPDATE revisiones = revisiones + 1`,
+    catalogo.flatMap((h) => [deviceId, h]));
+  // `revisiones` no sube en el INSERT de la fila nueva (empieza en 0 y la
+  // primera vuelta cuenta), asi que se pone a 1 a las recien creadas.
+  await pool.query(
+    `UPDATE device_creative_dias SET revisiones = 1
+      WHERE device_id = ? AND dia = CURDATE() AND revisiones = 0`, [deviceId]);
+  if (!vistos.length) return;
+  await pool.query(
+    `UPDATE device_creative_dias SET apariciones = apariciones + 1
+      WHERE device_id = ? AND dia = CURDATE() AND phash IN (?)`, [deviceId, vistos]);
+}
+
+/**
+ * Cuantas fotos de auditoria diaria lleva PEDIDAS hoy este equipo.
+ *
+ * Se cuentan las ORDENES y no las fotos que llegaron, y la diferencia importa:
+ * entre que se pide una y llega pasan segundos, pero si se contaran las
+ * llegadas, un equipo lento o apagado dejaria el contador en cero y el servidor
+ * seguiria pidiendo fotos que nadie va a tomar. El tope es de gasto, y el gasto
+ * se compromete al pedirla.
+ */
+async function refotosDeHoy(deviceId: number): Promise<number> {
+  const [f] = await pool.query<any[]>(
+    `SELECT COUNT(*) n FROM commands
+      WHERE device_id = ? AND command_type = 'TAKE_PHOTO' AND created_at >= CURDATE()
+        AND JSON_EXTRACT(payload, '$.motivo') = 'refoto'`, [deviceId]);
+  return Number((f as any[])[0]?.n || 0);
+}
+
+/**
+ * La foto del dia: si un creativo que ACABA de verse no tiene la de hoy, se le
+ * pide una al equipo en este momento.
+ *
+ * Por que ahora y no por horario: el servidor sabe que ese anuncio esta en
+ * pantalla AHORA mismo, porque el equipo acaba de reportarlo. Pedida en
+ * cualquier otro momento, la foto saldria del anuncio que tocara.
+ *
+ * No acierta siempre -el bucle avanza mientras la orden viaja-, y no hace
+ * falta: la foto que llegue se identifica por su huella y se le cuelga al
+ * creativo que de verdad salga en ella (`refrescarConFoto`). Con el bucle
+ * girando, en un dia se cubre la rotacion entera.
+ *
+ * UNA sola orden por reporte, y con tope diario: cada foto son datos moviles
+ * del equipo.
+ */
+async function pedirFotoDelDia(deviceId: number, vistos: string[], topeDia: number) {
+  if (!vistos.length || topeDia <= 0) return;
+  if ((await refotosDeHoy(deviceId)) >= topeDia) return;
+  const [faltan] = await pool.query<any[]>(
+    `SELECT c.phash FROM device_creatives c
+       LEFT JOIN device_creative_dias d
+              ON d.device_id = c.device_id AND d.phash = c.phash AND d.dia = CURDATE()
+      WHERE c.device_id = ? AND c.phash IN (?) AND d.photo_id IS NULL
+      LIMIT 1`, [deviceId, vistos]);
+  if (!(faltan as any[]).length) return;
+  await ordenarEquipo(deviceId, 'TAKE_PHOTO', { ...(await encuadreDe(deviceId)), motivo: 'refoto' });
+}
+
 export async function registrarRecorrido(
   deviceId: number,
   vistas: string[],
@@ -172,6 +253,13 @@ export async function registrarRecorrido(
       [deviceId, [...refrescar]]
     );
   }
+
+  // La cuenta del dia, y la foto del dia. Ninguna de las dos puede tumbar el
+  // reporte del equipo: es lo que trae tambien la salud de la pantalla.
+  await anotarElDia(deviceId, [...refrescar], catalogo).catch((err) =>
+    console.error('[creativos] no se pudo anotar el dia:', err?.message));
+  await pedirFotoDelDia(deviceId, [...refrescar], Number(cfg?.fotos_dia ?? 6)).catch((err) =>
+    console.error('[creativos] no se pudo pedir la foto del dia:', err?.message));
 
   if (!candidatas.length) return;
 
@@ -501,6 +589,18 @@ export async function refrescarConFoto(
   if (!tocaRefoto(conocida, r.refoto_h)) return { phash: conocida.phash, refrescada: false };
 
   await ligarFoto(deviceId, conocida.phash, photoId);
+  // Y la fila de HOY se queda con ella: la de ayer sigue en la fila de ayer,
+  // que es lo que hace que se pueda mirar como envejece un anuncio.
+  await pool.query(
+    `INSERT INTO device_creative_dias (device_id, phash, dia, photo_id)
+     VALUES (?, ?, CURDATE(), ?)
+     ON DUPLICATE KEY UPDATE photo_id = VALUES(photo_id)`,
+    [deviceId, conocida.phash, photoId]).catch(() => null);
+  // Y se marca de donde salio. Solo si venia como «a peticion»: una foto por
+  // horario sigue siendo por horario aunque de paso sirva para el dia.
+  await pool.query(
+    `UPDATE photos SET source = 'refoto' WHERE id = ? AND source = 'on_demand'`,
+    [photoId]).catch(() => null);
   await pool.query(
     `INSERT INTO device_logs (device_id, level, category, message) VALUES (?, 'info', 'creative', ?)`,
     [deviceId, `Creativo puesto al dia con una foto del sitio (${conocida.bits} bits de diferencia)`]
