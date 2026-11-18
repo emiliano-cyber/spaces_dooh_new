@@ -35,6 +35,9 @@ archivos: []
 > `propuestas/page.tsx`), Z12 · Docs y `docs/Registro_Cambios.md`, y `lib/i18n/diccionario.ts` solo para registrar el área. Las Fases 2–3
 > son ROJO R3 + R4 (forma de la migración aprobada por el dueño el 17/11). Detalle en [[2026-11-17]].
 
+> [!success] 2026-11-17 · **SE-PoD · la «Galería» de Space Eyes se llama «Comprobantes» (en inglés «PoD»)** — rama `feat/space-eyes-comprobantes`, desde `main` `17f56561` — **sin empujar** · VERDE (solo textos)
+> Pedido del dueño. Menú (`nav.space-eyes-galeria`, `nav.ts`) y título (`spaceeyes.galeria.titulo`); italiano «PoD» declarado igual al inglés, portugués «Comprovantes». La ruta `/space-eyes/galeria` y las claves no cambian. Zonas Space Eyes y Z12 **reclamadas y liberadas** en el mismo commit. Typecheck limpio y 10 389 unitarias en verde. **Visto en Chrome** sobre el build de `6358ab07`: menú y título en es «Comprobantes», en/it «PoD», pt «Comprovantes»; a 375 px sin desborde (la pantalla real, con un Space Eye falso local; detalle en el diario del 17/11 de la rama `feat/seguimiento-campana-publica`).
+
 > [!important] 2026-11-16 · **v0.12.12 = `integra/v0-12-12`** — `feat/personalizar-dashboard` + `feat/paleta-de-instalacion`, desde `main` `4462557e`
 > Conflictos de la paleta con CAMPOS-PANTALLA en los guiones del alta: se conservan los dos. Typecheck, 10 389 unitarias,
 > build, `pruebas-provision` (60/200) e `instalar-hijo` (12/64) y e2e 1270 + novedades tras reconstruir, en verde (solo

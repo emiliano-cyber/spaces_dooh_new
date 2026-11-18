@@ -1860,7 +1860,7 @@ pantalla({
     return pintar(idioma, el(C))
   },
   espanol: [
-    'Galería de fotos',
+    'Comprobantes',
     'Todas las fotos de los equipos: programadas, pedidas a mano, de creativos nuevos y de fallas.',
     'Actualizar',
     'Descargar álbum',
@@ -1896,7 +1896,7 @@ pantalla({
     'Siguiente',
   ],
   ingles: [
-    'Photo gallery',
+    'PoD',
     'Download album',
     'All sources',
     'Campaign',

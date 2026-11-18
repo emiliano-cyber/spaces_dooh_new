@@ -75,6 +75,21 @@ Es el primer paso del CRM comercial (ADR 0051). Todavía no está en ninguna ver
 
 ---
 
+## 2026-11-17 · «Prospección» sube al primer lugar de Inventario
+
+- En el menú, **Prospección** ahora es la **primera** entrada del grupo **Inventario**, antes que Inventario y Arrendadores (antes iba debajo de Arrendadores).
+- Es la misma pantalla y la ven las mismas personas; solo cambia su lugar en el menú.
+
+---
+
+## 2026-11-17 · La «Galería» de Space Eyes ahora se llama «Comprobantes»
+
+- En el menú de Space Eyes, **Galería** pasa a llamarse **Comprobantes**, y el título de la pantalla también.
+- Es la misma pantalla, con las mismas fotos, filtros y la descarga del álbum; solo cambia el nombre.
+- En inglés se llama *PoD* (*proof of display*, como lo dice el sector), en italiano también *PoD* y en portugués *Comprovantes*.
+
+---
+
 ## 2026-11-16 · v0.12.13 · «Comercial negociación» ahora se llama «Prospección» y está en Inventario
 
 - En el menú, **Comercial negociación** pasa a llamarse **Prospección** y se mueve del grupo Comercial al grupo **Inventario**, justo debajo de **Arrendadores**.

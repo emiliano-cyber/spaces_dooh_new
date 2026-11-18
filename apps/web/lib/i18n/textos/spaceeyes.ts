@@ -736,7 +736,7 @@ export const ES_SPACEEYES = {
   'spaceeyes.galeria.album.parcial.otros': 'Álbum descargado; {n} fotos no se pudo incluir',
   'spaceeyes.galeria.album.listo': 'Álbum descargado',
   'spaceeyes.galeria.album.error': 'Error al descargar el álbum: {motivo}',
-  'spaceeyes.galeria.titulo': 'Galería de fotos',
+  'spaceeyes.galeria.titulo': 'Comprobantes',
   'spaceeyes.galeria.descripcion':
     'Todas las fotos de los equipos: programadas, pedidas a mano, de creativos nuevos y de fallas.',
   'spaceeyes.galeria.album.ayuda': 'Descarga en un .zip todas las fotos que coinciden con los filtros, con su marca',
@@ -1935,7 +1935,7 @@ export const EN_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.galeria.album.parcial.otros': 'Album downloaded; {n} photos could not be included',
   'spaceeyes.galeria.album.listo': 'Album downloaded',
   'spaceeyes.galeria.album.error': 'Error downloading the album: {motivo}',
-  'spaceeyes.galeria.titulo': 'Photo gallery',
+  'spaceeyes.galeria.titulo': 'PoD',
   'spaceeyes.galeria.descripcion':
     'Every photo from the devices: scheduled, requested manually, of new creatives and of faults.',
   'spaceeyes.galeria.album.ayuda': 'Downloads every photo that matches the filters as a .zip, with its label',
@@ -3152,7 +3152,7 @@ export const IT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.galeria.album.parcial.otros': 'Album scaricato; non è stato possibile includere {n} foto',
   'spaceeyes.galeria.album.listo': 'Album scaricato',
   'spaceeyes.galeria.album.error': 'Errore durante lo scaricamento dell’album: {motivo}',
-  'spaceeyes.galeria.titulo': 'Galleria foto',
+  'spaceeyes.galeria.titulo': 'PoD',
   'spaceeyes.galeria.descripcion':
     'Tutte le foto dei dispositivi: programmate, richieste manualmente, di nuove creatività e di guasti.',
   'spaceeyes.galeria.album.ayuda': 'Scarica in un .zip tutte le foto che corrispondono ai filtri, con la loro sovrimpressione',
@@ -4365,7 +4365,7 @@ export const PT_SPACEEYES: Record<ClaveSpaceEyes, string> = {
   'spaceeyes.galeria.album.parcial.otros': 'Álbum baixado; não foi possível incluir {n} fotos',
   'spaceeyes.galeria.album.listo': 'Álbum baixado',
   'spaceeyes.galeria.album.error': 'Erro ao baixar o álbum: {motivo}',
-  'spaceeyes.galeria.titulo': 'Galeria de fotos',
+  'spaceeyes.galeria.titulo': 'Comprovantes',
   'spaceeyes.galeria.descripcion':
     'Todas as fotos dos dispositivos: programadas, pedidas manualmente, de criativos novos e de falhas.',
   'spaceeyes.galeria.album.ayuda': 'Baixa em um .zip todas as fotos que correspondem aos filtros, com a legenda',

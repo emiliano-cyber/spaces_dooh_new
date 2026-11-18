@@ -279,6 +279,7 @@ describe('diccionario de Space Eyes · italiano', () => {
     'spaceeyes.conexion.en-linea', // «Online»
     'spaceeyes.lista.filtro.linea', // «Online · {n}»
     'spaceeyes.solicitudes.folio', // « · ticket {folio}»
+    'spaceeyes.galeria.titulo', // «PoD»: proof of display, como lo dice el sector (dueño, 17/11)
     'spaceeyes.demo.aviso.demo', // «demo»
     'spaceeyes.fallas.donde.gabinetes.uno', // «Cabinet {lista}»: «cabinet» es invariable
     'spaceeyes.graficas.pct', // «{n}%»
