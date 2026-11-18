@@ -4,6 +4,8 @@ import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
 import { useIdioma } from '@/lib/i18n/contexto'
 import type { EleccionContactado } from '@/lib/prospecto-contactado'
+import type { Etapa } from '@/lib/captacion'
+import { CLAVE_ETAPA } from '@/components/demo/comercial-opex/ComercialOpex'
 
 // ============================================================================
 //  El cuadro de «pasa a Contactado»: ¿sigue como prospecto o se convierte en
@@ -16,11 +18,14 @@ import type { EleccionContactado } from '@/lib/prospecto-contactado'
 export function CuadroContactado({
   abierto,
   nombre,
+  etapa,
   ocupado,
   onElegir,
 }: {
   abierto: boolean
   nombre: string
+  /** La etapa a la que entra, para decirlo. */
+  etapa: Etapa
   ocupado: boolean
   onElegir: (e: EleccionContactado) => void
 }) {
@@ -38,7 +43,7 @@ export function CuadroContactado({
         </div>
       }
     >
-      <p className="text-[13px] text-ink">{t('crm.contactado.texto', { nombre })}</p>
+      <p className="text-[13px] text-ink">{t('crm.contactado.texto', { nombre, etapa: t(CLAVE_ETAPA[etapa]) })}</p>
     </Modal>
   )
 }

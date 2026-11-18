@@ -612,6 +612,9 @@ export const CATALOGO_ERRORES: Record<string, string> = {
     'Choose the client or the prospect',
   'Solo un prospecto de tipo cliente puede tener oportunidades':
     'Only a client prospect can have opportunities',
+  // 18/11 · una sola oportunidad abierta por prospecto.
+  'Ese prospecto ya tiene una oportunidad abierta. Se puede abrir otra cuando esa se gane o se pierda':
+    'That prospect already has an open opportunity. Another one can be opened once it is won or lost',
   'Ese prospecto ya es otro cliente':
     'That prospect is already a different client',
   'Ese cliente no existe':
@@ -1230,6 +1233,8 @@ export const CATALOGO_ERRORES_IT: Partial<Record<string, string>> = {
     'Scegli il cliente o il prospect',
   'Solo un prospecto de tipo cliente puede tener oportunidades':
     'Solo un prospect di tipo cliente può avere opportunità',
+  'Ese prospecto ya tiene una oportunidad abierta. Se puede abrir otra cuando esa se gane o se pierda':
+    'Quel prospect ha già un’opportunità aperta. Se ne può aprire un’altra quando quella viene vinta o persa',
   'Ese prospecto ya es otro cliente':
     'Questo prospect è già un altro cliente',
   'Ese cliente no existe':
@@ -1637,6 +1642,8 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
   'La fecha de inicio no puede ir después de la de fin': 'A data de início não pode ser depois da data de término',
   'Elige el cliente o el prospecto': 'Escolha o cliente ou o prospect',
   'Solo un prospecto de tipo cliente puede tener oportunidades': 'Só um prospect do tipo cliente pode ter oportunidades',
+  'Ese prospecto ya tiene una oportunidad abierta. Se puede abrir otra cuando esa se gane o se pierda':
+    'Esse prospect já tem uma oportunidade aberta. Outra pode ser aberta quando ela for ganha ou perdida',
   'Ese prospecto ya es otro cliente': 'Esse prospect já é outro cliente',
   'Ese cliente no existe': 'Esse cliente não existe',
   'La oportunidad ya está cerrada': 'A oportunidade já está fechada',

@@ -364,10 +364,22 @@ async function insertarActividad(
  * Alta, con su primera fila ETAPA en la MISMA transacción: no existe una
  * oportunidad sin historia.
  *
- * El prospecto se BLOQUEA (`for share`) y se comprueba aquí, no con un CHECK:
+ * El prospecto se BLOQUEA y se comprueba aquí, no con un CHECK:
  * que sea de tipo CLIENTE y que quien da el alta lo pueda ver con la regla de
  * Captación (`soloDeCaptacion`). Sin eso, un vendedor podría colgar su
  * oportunidad del lead de otro vendedor con solo conocer el id.
+ *
+ * 18/11 · y que no tenga ya una oportunidad ABIERTA (pedido del dueño): con
+ * todas cerradas —GANADA o PERDIDA— sí se abre otra. Esta comprobación va por
+ * organización y NO por vendedor: cuenta también la abierta de otro vendedor
+ * que quien crea no ve. El 409 no dice de quién es ni cómo se llama. Corre
+ * después de leer el prospecto con su regla, así que uno que no se ve sigue
+ * siendo 404 y no revela que tenga oportunidades.
+ * El bloqueo pasó de `for share` a `for no key update` por esto: con
+ * `for share` dos altas simultáneas lo leen a la vez, las dos ven «ninguna
+ * abierta» y nacen dos. `no key update` las pone en fila y no estorba a las
+ * FK que apuntan al prospecto (toman `key share`). Sin índice único parcial
+ * a propósito: sería una migración (R3) y la regla cabe aquí.
  */
 export async function crearOportunidad(
   d: DatosOportunidad & { prospectoId: string | null; clienteId: string | null; nota: string | null },
@@ -381,12 +393,24 @@ export async function crearOportunidad(
       const { rows } = await client.query(
         `select tipo, registro_id from prospectos
           where id = $1 and tenant_id = $2 and ($3::uuid is null or usuario_id = $3::uuid)
-          for share`,
+          for no key update`,
         [d.prospectoId, tenant, soloDeCaptacion],
       )
       const p = rows[0]
       if (!p) throw new AppError('Ese prospecto no existe', 404)
       if (p.tipo !== 'CLIENTE') throw new AppError('Solo un prospecto de tipo cliente puede tener oportunidades', 409)
+      const abierta = await client.query(
+        `select 1 from oportunidades
+          where prospecto_id = $1 and tenant_id = $2 and etapa not in ('GANADA', 'PERDIDA')
+          limit 1`,
+        [d.prospectoId, tenant],
+      )
+      if (abierta.rows[0]) {
+        throw new AppError(
+          'Ese prospecto ya tiene una oportunidad abierta. Se puede abrir otra cuando esa se gane o se pierda',
+          409,
+        )
+      }
       if (p.registro_id) {
         if (clienteId && clienteId !== String(p.registro_id)) {
           throw new AppError('Ese prospecto ya es otro cliente', 409)

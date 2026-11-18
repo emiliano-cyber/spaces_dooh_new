@@ -454,22 +454,37 @@ const ESTADOS: Estado[] = [
     ],
   },
   {
-    // 18/11 · un CLIENTE que pasa a Contactado: el cuadro sale DENTRO del
-    // panel del prospecto (`Detalle`), con sus dos salidas y «Cancelar».
-    nombre: 'captacion · un cliente pasa a Contactado: prospecto u oportunidad',
+    // 18/11 · un CLIENTE que entra a una etapa de Contactado en adelante: el
+    // cuadro sale DENTRO del panel del prospecto (`Detalle`), con sus dos
+    // salidas y «Cancelar», y dice a qué etapa entra.
+    nombre: 'captacion · un cliente pasa a Visita: prospecto u oportunidad',
     pintar: async (idioma) => {
       const C_captacionPagina = await captacionPagina() // la pagina PRIMERO, los forzados despues
       forzar(enesimo('Captacion', esNull), PAGINA)
-      forzar(enesimo('Captacion', esNull, 2), { ...DETALLE, tipo: 'CLIENTE', nombre: 'Tacos Norte', etapa: 'PROSPECTO' })
+      forzar(enesimo('Captacion', esNull, 2), { ...DETALLE, tipo: 'CLIENTE', nombre: 'Tacos Norte', etapa: 'CONTACTADO' })
+      forzar(enesimo('Detalle', (v) => v === 'CONTACTADO'), 'VISITA') // la etapa elegida
       forzar(enesimo('Detalle', esFalse, 2), true) // pregunta (el 1.º es `duplicado`)
       return pintar(idioma, createElement(C_captacionPagina))
     },
     espanol: [
-      '¿Lo conviertes en oportunidad?', 'Tacos Norte pasa a Contactado.', 'Seguir como prospecto', 'Convertir en oportunidad',
+      '¿Lo conviertes en oportunidad?', 'Tacos Norte pasa a Visita.', 'Seguir como prospecto', 'Convertir en oportunidad',
     ],
     ingles: [
-      'Convert it into an opportunity?', 'Tacos Norte moves to Contacted.', 'Keep as prospect', 'Convert to opportunity',
+      'Convert it into an opportunity?', 'Tacos Norte moves to Visit.', 'Keep as prospect', 'Convert to opportunity',
     ],
+  },
+  {
+    // «Convertir en oportunidad» abre el alta de oportunidad sobre el panel.
+    nombre: 'captacion · convertir abre el formulario de la oportunidad',
+    pintar: async (idioma) => {
+      const C_captacionPagina = await captacionPagina() // la pagina PRIMERO, los forzados despues
+      forzar(enesimo('Captacion', esNull), PAGINA)
+      forzar(enesimo('Captacion', esNull, 2), { ...DETALLE, tipo: 'CLIENTE', nombre: 'Tacos Norte', etapa: 'PROSPECTO' })
+      forzar(enesimo('Detalle', esFalse, 4), true) // convirtiendo (duplicado, pregunta, ocupado, convirtiendo)
+      return pintar(idioma, createElement(C_captacionPagina))
+    },
+    espanol: ['Nueva oportunidad', 'Crear oportunidad'],
+    ingles: ['New opportunity', 'Create opportunity'],
   },
   {
     nombre: 'captacion · en revision, para quien aprueba',

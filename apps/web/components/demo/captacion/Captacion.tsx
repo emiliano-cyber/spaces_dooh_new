@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Plus, Clock, CheckCircle2, XCircle } from 'lucide-react'
 import { Button } from '@/components/demo/ui/Button'
@@ -42,15 +42,15 @@ import {
 } from '@/lib/data/captacion-api'
 import { localeDe } from '@/lib/i18n/formato-idioma'
 import { usePuede } from '@/components/demo/shell/SesionContext'
-import { crearOportunidadApi, oportunidadesApi } from '@/lib/data/oportunidades-api'
+import { oportunidadesApi } from '@/lib/data/oportunidades-api'
 import {
   aplicarEleccion,
-  altaDesdeProspecto,
   preguntarAlContactar,
-  tieneOportunidad,
+  tieneOportunidadAbierta,
   type EleccionContactado,
 } from '@/lib/prospecto-contactado'
 import { CuadroContactado } from './CuadroContactado'
+import { FormOportunidad } from '@/components/demo/crm/FormOportunidad'
 
 // ============================================================================
 //  La bitácora de captación.  CAP-01.
@@ -337,6 +337,11 @@ function Detalle({
   const [pregunta, setPregunta] = useState(false)
   const [ocupado, setOcupado] = useState(false)
   const [oportunidadCreada, setOportunidadCreada] = useState<string | null>(null)
+  // «Convertir en oportunidad» abre `FormOportunidad` con el prospecto elegido.
+  const [convirtiendo, setConvirtiendo] = useState(false)
+  // Estable: `FormOportunidad` se reinicia cada vez que cambia `prospecto`, y
+  // un objeto nuevo en cada render borraba lo que se iba tecleando.
+  const elegido = useMemo(() => ({ id: p.id, nombre: p.nombre }), [p.id, p.nombre])
   // OBLIG-01 · el avance exige etapa y nota (`captacion-controller.ts:192-193`).
   const ob = useObligatorios({ etapa, nota }, ['etapa', 'nota'])
 
@@ -352,19 +357,20 @@ function Detalle({
   const posibles = ETAPAS.filter((e) => motivoAvanceInvalido(p.etapa, e) === null)
   const faltan = faltantesParaRevision(p, idioma)
 
-  // 18/11 · un CLIENTE que entra a Contactado: el vendedor decide si sigue
-  // como prospecto o se convierte en oportunidad. Si ya tiene una, no se
-  // pregunta. Se mira contra las oportunidades que quien guarda puede ver
-  // (las primeras 100, como Seguimiento); si esa lectura falla, no se
-  // pregunta y se guarda como siempre: mejor eso que ofrecer una segunda.
+  // 18/11 · un CLIENTE que entra a una etapa de Contactado en adelante: el
+  // vendedor decide si sigue como prospecto o se convierte en oportunidad. Si
+  // ya tiene una ABIERTA, no se pregunta. Se mira contra las oportunidades
+  // que quien guarda puede ver (las primeras 100, como Seguimiento); una
+  // abierta que no ve la para el servidor con 409 al crear. Si esa lectura
+  // falla, no se pregunta y se guarda como siempre.
   // Va ANTES de `guardarAvance`: `textos/clientes.test.ts` exige que entre
   // `avanceApi(` y su mensaje de error no se cuele otra API.
   async function hayQuePreguntar(): Promise<boolean> {
-    const candidato = { tipo: p.tipo, etapaActual: p.etapa, etapaNueva: etapa, tieneOportunidad: false, puedeConvertir }
+    const candidato = { tipo: p.tipo, etapaActual: p.etapa, etapaNueva: etapa, tieneOportunidadAbierta: false, puedeConvertir }
     if (!preguntarAlContactar(candidato)) return false
     try {
       const { oportunidades } = await oportunidadesApi({ porPagina: 100 })
-      return preguntarAlContactar({ ...candidato, tieneOportunidad: tieneOportunidad(p.id, oportunidades) })
+      return preguntarAlContactar({ ...candidato, tieneOportunidadAbierta: tieneOportunidadAbierta(p.id, oportunidades) })
     } catch {
       return false
     }
@@ -391,23 +397,34 @@ function Detalle({
   }
 
   async function elegir(eleccion: EleccionContactado) {
-    if (eleccion === 'cancelar') return setPregunta(false)
     setOcupado(true)
     try {
-      const r = await aplicarEleccion(eleccion, {
-        guardarAvance,
-        crearOportunidad: () => crearOportunidadApi(altaDesdeProspecto(p)),
-      })
-      if (r.prospecto) onCambio(r.prospecto)
-      setNota('')
-      ob.reiniciar()
-      if (r.oportunidad) setOportunidadCreada(r.oportunidad.id)
-      if (r.errorOportunidad) setError(t('crm.contactado.error', { error: r.errorOportunidad }))
+      const guardado = await aplicarEleccion(eleccion, { guardarAvance, abrirFormulario: () => setConvirtiendo(true) })
+      if (guardado) {
+        onCambio(guardado)
+        setNota('')
+        ob.reiniciar()
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : t('clientes.captacion.error.avance'))
     } finally {
       setOcupado(false)
       setPregunta(false)
+    }
+  }
+
+  // La oportunidad ya existe (la creó el formulario): ahora sí, el avance. Si
+  // el servidor la negó —p. ej. el 409 de «ya tiene una abierta»—, el
+  // formulario lo dijo y sigue abierto; aquí no se llega y el avance no se
+  // guarda. Cerrar el formulario sin crear = la etapa no cambia.
+  async function trasCrearOportunidad(id: string) {
+    setOportunidadCreada(id)
+    try {
+      onCambio(await guardarAvance())
+      setNota('')
+      ob.reiniciar()
+    } catch (e) {
+      setError(t('crm.contactado.error', { error: e instanceof Error ? e.message : String(e) }))
     }
   }
 
@@ -550,7 +567,15 @@ function Detalle({
         </section>
       )}
 
-      <CuadroContactado abierto={pregunta} nombre={p.nombre} ocupado={ocupado} onElegir={(e) => void elegir(e)} />
+      <CuadroContactado abierto={pregunta} nombre={p.nombre} etapa={etapa} ocupado={ocupado} onElegir={(e) => void elegir(e)} />
+      {convirtiendo && (
+        <FormOportunidad
+          abierto
+          prospecto={elegido}
+          onCerrar={() => setConvirtiendo(false)}
+          onGuardada={(f) => void trasCrearOportunidad(f.id)}
+        />
+      )}
 
       <section>
         <h3 className="mb-2 text-sm font-semibold">{t('clientes.captacion.bitacora')}</h3>

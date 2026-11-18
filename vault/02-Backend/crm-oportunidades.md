@@ -32,6 +32,7 @@ archivos:
   - apps/web/lib/prospecto-contactado.ts
   - apps/web/components/demo/captacion/CuadroContactado.tsx
   - apps/web/components/demo/captacion/contactado-oportunidad.test.ts
+  - apps/web/lib/server/oportunidades-repo.una-abierta.test.ts
 ---
 
 # CRM comercial — las oportunidades (ADR 0051, Fases 2 a 4)
@@ -249,43 +250,64 @@ build anterior: 7 fallos).
 > - Pruebas: `pantallas-crm.test.ts`, bloque «los prospectos sin oportunidad
 >   se ven en Seguimiento».
 
-> [!important] 2026-11-18, noche · al pasar a **Contactado**, el vendedor elige: prospecto u oportunidad
+> [!important] 2026-11-18, noche · de **Contactado en adelante**, el vendedor elige: prospecto u oportunidad — y solo UNA abierta por prospecto
 > Pedido del dueño: «si el prospecto ya entró a Contactado se convierte; si
 > no, sigue como prospecto». Al preguntarle cómo: **«darle la opción al
-> vendedor de ponerlo como prospecto o dejarlo solo como oportunidad»**.
+> vendedor de ponerlo como prospecto o dejarlo solo como oportunidad»**. Una
+> primera versión (`07951119`) preguntaba solo al entrar a Contactado y creaba
+> la oportunidad directa; el dueño contestó las dudas el mismo día y quedó así:
 >
 > - **Dónde sale.** En el panel del prospecto (`Captacion.tsx`, `Detalle`),
->   al pulsar «Guardar avance» con la etapa **Contactado**. Es el ÚNICO sitio
->   de la pantalla donde cambia la etapa de un CLIENTE (la pestaña Prospectos
->   de `/propuestas` y `/captacion` usan el mismo componente; Comercial
->   negociación solo maneja predios y pantallas).
+>   al pulsar «Guardar avance». Es el ÚNICO sitio de la pantalla donde cambia
+>   la etapa de un CLIENTE (la pestaña Prospectos de `/propuestas` y
+>   `/captacion` usan el mismo componente; Comercial negociación solo maneja
+>   predios y pantallas). «Aprobar» (quien aprueba) no pregunta.
 > - **Cuándo** (`preguntarAlContactar`, `lib/prospecto-contactado.ts`):
->   tipo CLIENTE, ENTRA a Contactado (una nota estando ya ahí no pregunta),
->   quien guarda tiene `comercial.crear` y el prospecto **no tiene
->   oportunidad** entre las que quien guarda puede ver (`GET
->   /api/oportunidades`, las primeras 100: el mismo límite que Seguimiento).
->   Si esa lectura falla, no pregunta y guarda como siempre. Cualquier otra
->   etapa, tipo o persona: nada cambia.
+>   tipo CLIENTE, ENTRA a una etapa de Contactado en adelante
+>   (`ETAPAS_QUE_PREGUNTAN`: Contactado, Visita, Negociación, En revisión,
+>   Aprobado; nunca Prospecto, Perdido ni Rechazado; una nota sin cambiar de
+>   etapa no pregunta), quien guarda tiene `comercial.crear` y el prospecto
+>   **no tiene oportunidad ABIERTA** (`tieneOportunidadAbierta`: GANADA y
+>   PERDIDA no cuentan) entre las que quien guarda ve (`GET
+>   /api/oportunidades`, las primeras 100). Si esa lectura falla, no pregunta
+>   y guarda como siempre. Quien siguió como prospecto vuelve a ver el cuadro
+>   en cada cambio de etapa siguiente.
 > - **Las salidas** (`aplicarEleccion`): **Cancelar** (o cerrar) no manda
->   nada y la etapa no cambia. **Seguir como prospecto** solo manda el avance.
->   **Convertir en oportunidad** manda el avance y DESPUÉS `POST
->   /api/oportunidades` con `prospectoId` y el nombre del prospecto como
->   nombre (`altaDesdeProspecto`); presupuesto, fechas y medios van vacíos y
->   se capturan en la ficha. Se eligió crearla directa y no abrir
->   `FormOportunidad`: el único dato obligatorio es el nombre, y así un clic
->   basta. El panel dice «Se creó la oportunidad» con enlace a su ficha.
->   Si el avance falla no se crea nada; si la oportunidad falla, el avance
->   queda y se dice (`crm.contactado.error`).
-> - **Sin servidor nuevo**: las dos APIs de siempre; el servidor sigue
->   comprobando tipo CLIENTE y visibilidad.
+>   nada. **Seguir como prospecto** solo manda el avance. **Convertir en
+>   oportunidad** abre `FormOportunidad` con el prospecto elegido (para
+>   presupuesto, fechas, medios); el avance se guarda **después**, en
+>   `trasCrearOportunidad`, cuando la oportunidad ya existe. Así cerrar el
+>   formulario sin crear deja la etapa como estaba, y un 409 del servidor lo
+>   dice el propio formulario (toast) sin guardar el avance. Si la oportunidad
+>   entra y el avance no, se dice (`crm.contactado.error`). El panel trae
+>   «Se creó la oportunidad» con enlace a su ficha.
+> - **Servidor — una sola abierta por prospecto** (`crearOportunidad`,
+>   `oportunidades-repo.ts`): tras leer el prospecto con la regla de Captación
+>   (uno que no se ve sigue siendo **404** y no revela nada), `select 1 from
+>   oportunidades where prospecto_id = $1 and tenant_id = $2 and etapa not in
+>   ('GANADA','PERDIDA')`. **Sin `soloDe`**: cuenta también la abierta de otro
+>   vendedor que quien crea no ve. Si hay una: **409** «Ese prospecto ya tiene
+>   una oportunidad abierta. Se puede abrir otra cuando esa se gane o se
+>   pierda», sin decir de quién ni cómo se llama (traducido en
+>   `errores-servidor.ts`). El prospecto se bloquea con `for no key update`
+>   (antes `for share`, que dejaba pasar dos altas simultáneas). Sin índice
+>   único parcial a propósito: sería migración (R3). `PATCH` no puede cambiar
+>   el prospecto (`edicionSchema` no lo admite) y una cerrada no se reabre
+>   (`problemaCambioEtapa`), así que el alta es el único camino.
 > - **Seguimiento**: la tarjeta punteada de un prospecto que va en una etapa
 >   distinta de Prospecto lleva, junto a «Prospecto», su etapa («Contactado»,
->   «Visita»…). «Crear oportunidad» sigue ahí.
-> - Pruebas: `components/demo/captacion/contactado-oportunidad.test.ts` (20:
->   cuándo pregunta y cuándo no, qué llama cada salida con llamadas falsas, el
->   cuadro en es/en/it/pt y la etapa en la tarjeta) y un estado más en
->   `pantallas-clientes.test.ts` (el cuadro dentro del panel, rendido;
->   mutado —`abierto={false}`— da 2 en rojo).
+>   «Visita»…). «Crear oportunidad» sigue ahí y muestra el 409 si lo hay.
+>   Un prospecto con CUALQUIER oportunidad (también cerrada) sigue sin
+>   tarjeta suelta; con todas cerradas se le abre otra desde el cuadro o desde
+>   «Nueva oportunidad».
+> - Pruebas: `components/demo/captacion/contactado-oportunidad.test.ts`
+>   (19), dos estados en `pantallas-clientes.test.ts` (el cuadro con la etapa,
+>   y el formulario al convertir; mutados dan 2 en rojo cada uno),
+>   `lib/server/oportunidades-repo.una-abierta.test.ts` (6: forma de la
+>   consulta, sin vendedor, orden y bloqueo; 3 en rojo antes del cambio) y
+>   `oportunidades.e2e.test.ts` § 9 (abierta de otro vendedor → 409 sin
+>   revelar nada; propia → 409; cerradas → 201; otra organización → 404 y no
+>   estorba). Mutada la comprobación, con build: 2 en rojo.
 
 > [!important] 2026-11-18, noche · CUATRO pestañas: **Resumen** · Propuestas · Seguimiento · Prospectos
 > Pedido del dueño: «en Propuestas, el resumen de propuestas hazlo su propia

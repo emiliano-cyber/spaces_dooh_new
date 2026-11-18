@@ -6,8 +6,7 @@ import type { Idioma } from '@/lib/i18n/idiomas'
 import { ES_CRM, EN_CRM, IT_CRM, PT_CRM } from '@/lib/i18n/textos/crm'
 import {
   preguntarAlContactar,
-  tieneOportunidad,
-  altaDesdeProspecto,
+  tieneOportunidadAbierta,
   aplicarEleccion,
 } from '@/lib/prospecto-contactado'
 import { CuadroContactado } from './CuadroContactado'
@@ -39,22 +38,35 @@ vi.mock('@/components/demo/ui/CardColapsable', () => ({
     createElement('section', null, createElement('h3', null, p.titulo), p.children as never),
 }))
 
-const base = { tipo: 'CLIENTE' as const, etapaActual: 'PROSPECTO' as const, etapaNueva: 'CONTACTADO' as const, tieneOportunidad: false, puedeConvertir: true }
+const base = {
+  tipo: 'CLIENTE' as const,
+  etapaActual: 'PROSPECTO' as const,
+  etapaNueva: 'CONTACTADO' as const,
+  tieneOportunidadAbierta: false,
+  puedeConvertir: true,
+}
 
-describe('cuándo se pregunta', () => {
-  it('un CLIENTE sin oportunidad que pasa a CONTACTADO: sí', () => {
+describe('cuándo se pregunta (18/11: desde Contactado en adelante)', () => {
+  it('un CLIENTE sin oportunidad abierta que entra a CONTACTADO: sí', () => {
     expect(preguntarAlContactar(base)).toBe(true)
   })
-  it('con oportunidad ya ligada: no', () => {
-    expect(preguntarAlContactar({ ...base, tieneOportunidad: true })).toBe(false)
+  it('y al entrar a cualquier etapa de Contactado en adelante: sí', () => {
+    for (const e of ['CONTACTADO', 'VISITA', 'NEGOCIACION', 'EN_REVISION', 'APROBADO'] as const) {
+      expect(preguntarAlContactar({ ...base, etapaNueva: e }), e).toBe(true)
+    }
+    // También al avanzar entre ellas (siguió como prospecto en Contactado).
+    expect(preguntarAlContactar({ ...base, etapaActual: 'CONTACTADO', etapaNueva: 'VISITA' })).toBe(true)
   })
-  it('a cualquier otra etapa: no', () => {
-    for (const e of ['PROSPECTO', 'VISITA', 'NEGOCIACION', 'EN_REVISION', 'PERDIDO'] as const) {
-      expect(preguntarAlContactar({ ...base, etapaNueva: e })).toBe(false)
+  it('a PROSPECTO, PERDIDO o RECHAZADO: nunca', () => {
+    for (const e of ['PROSPECTO', 'PERDIDO', 'RECHAZADO'] as const) {
+      expect(preguntarAlContactar({ ...base, etapaActual: 'CONTACTADO', etapaNueva: e }), e).toBe(false)
     }
   })
-  it('si ya estaba en CONTACTADO (solo una nota): no', () => {
-    expect(preguntarAlContactar({ ...base, etapaActual: 'CONTACTADO' })).toBe(false)
+  it('si se queda en la misma etapa (solo una nota): no', () => {
+    expect(preguntarAlContactar({ ...base, etapaActual: 'VISITA', etapaNueva: 'VISITA' })).toBe(false)
+  })
+  it('con una oportunidad ABIERTA: no', () => {
+    expect(preguntarAlContactar({ ...base, tieneOportunidadAbierta: true })).toBe(false)
   })
   it('un prospecto de espacio (arrendador, predio, pantalla): no', () => {
     for (const tipo of ['ARRENDADOR', 'PREDIO', 'PANTALLA'] as const) {
@@ -64,80 +76,49 @@ describe('cuándo se pregunta', () => {
   it('quien no puede crear oportunidades: no (guarda como siempre)', () => {
     expect(preguntarAlContactar({ ...base, puedeConvertir: false })).toBe(false)
   })
-  it('tieneOportunidad mira el prospectoId de las oportunidades', () => {
-    const ops = [{ prospectoId: null }, { prospectoId: 'p2' }]
-    expect(tieneOportunidad('p2', ops)).toBe(true)
-    expect(tieneOportunidad('p1', ops)).toBe(false)
+  it('tieneOportunidadAbierta: solo cuentan las de ese prospecto que no están GANADA ni PERDIDA', () => {
+    const ops = [
+      { prospectoId: null, etapa: 'CONTACTO' as const },
+      { prospectoId: 'p2', etapa: 'NEGOCIANDO' as const },
+      { prospectoId: 'p3', etapa: 'GANADA' as const },
+      { prospectoId: 'p3', etapa: 'PERDIDA' as const },
+    ]
+    expect(tieneOportunidadAbierta('p2', ops)).toBe(true)
+    expect(tieneOportunidadAbierta('p3', ops)).toBe(false)
+    expect(tieneOportunidadAbierta('p1', ops)).toBe(false)
   })
 })
 
 describe('lo que hace cada opción', () => {
-  const llamadas = () => {
-    const orden: string[] = []
-    return {
-      orden,
-      guardarAvance: vi.fn(async () => { orden.push('avance'); return { id: 'p1', etapa: 'CONTACTADO' } }),
-      crearOportunidad: vi.fn(async () => { orden.push('oportunidad'); return { id: 'o9' } }),
-    }
-  }
+  const llamadas = () => ({
+    guardarAvance: vi.fn(async () => ({ id: 'p1', etapa: 'CONTACTADO' })),
+    abrirFormulario: vi.fn(),
+  })
 
   it('cancelar no llama nada', async () => {
     const a = llamadas()
-    const r = await aplicarEleccion('cancelar', a)
+    expect(await aplicarEleccion('cancelar', a)).toBeNull()
     expect(a.guardarAvance).not.toHaveBeenCalled()
-    expect(a.crearOportunidad).not.toHaveBeenCalled()
-    expect(r).toEqual({ prospecto: null, oportunidad: null, errorOportunidad: null })
+    expect(a.abrirFormulario).not.toHaveBeenCalled()
   })
 
   it('«Seguir como prospecto» solo guarda el avance', async () => {
     const a = llamadas()
-    const r = await aplicarEleccion('prospecto', a)
-    expect(a.orden).toEqual(['avance'])
-    expect(r.prospecto).toEqual({ id: 'p1', etapa: 'CONTACTADO' })
-    expect(r.oportunidad).toBeNull()
+    expect(await aplicarEleccion('prospecto', a)).toEqual({ id: 'p1', etapa: 'CONTACTADO' })
+    expect(a.abrirFormulario).not.toHaveBeenCalled()
   })
 
-  it('«Convertir en oportunidad» guarda el avance y DESPUÉS crea la oportunidad', async () => {
+  it('«Convertir en oportunidad» abre el formulario y NO guarda el avance todavía', async () => {
     const a = llamadas()
-    const r = await aplicarEleccion('oportunidad', a)
-    expect(a.orden).toEqual(['avance', 'oportunidad'])
-    expect(r.oportunidad).toEqual({ id: 'o9' })
-    expect(r.errorOportunidad).toBeNull()
+    expect(await aplicarEleccion('oportunidad', a)).toBeNull()
+    expect(a.abrirFormulario).toHaveBeenCalledOnce()
+    expect(a.guardarAvance).not.toHaveBeenCalled()
   })
 
-  it('si el avance falla, no se crea la oportunidad (y el error sube)', async () => {
+  it('si el avance falla, el error sube', async () => {
     const a = llamadas()
     a.guardarAvance.mockRejectedValueOnce(new Error('409'))
-    await expect(aplicarEleccion('oportunidad', a)).rejects.toThrow('409')
-    expect(a.crearOportunidad).not.toHaveBeenCalled()
-  })
-
-  it('si la oportunidad falla, el avance queda guardado y se dice', async () => {
-    const a = llamadas()
-    a.crearOportunidad.mockRejectedValueOnce(new Error('Sin permiso'))
-    const r = await aplicarEleccion('oportunidad', a)
-    expect(r.prospecto).not.toBeNull()
-    expect(r.oportunidad).toBeNull()
-    expect(r.errorOportunidad).toBe('Sin permiso')
-  })
-
-  it('la oportunidad nace del prospecto, con su nombre y sin datos inventados', () => {
-    expect(altaDesdeProspecto({ id: 'p1', nombre: '  Tacos El Güero  ' })).toEqual({
-      nombre: 'Tacos El Güero',
-      presupuestoMin: null,
-      presupuestoMax: null,
-      fechaInicioDeseada: null,
-      fechaFinDeseada: null,
-      fechaDecision: null,
-      plazas: null,
-      tiposMedio: [],
-      objetivo: null,
-      clienteId: null,
-      prospectoId: 'p1',
-      nota: null,
-    })
-    // El servidor limita el nombre a 200.
-    expect(altaDesdeProspecto({ id: 'p1', nombre: 'x'.repeat(250) }).nombre).toHaveLength(200)
+    await expect(aplicarEleccion('prospecto', a)).rejects.toThrow('409')
   })
 })
 
@@ -148,16 +129,20 @@ describe('el cuadro', () => {
   const DIC = { es: ES_CRM, en: EN_CRM, it: IT_CRM, pt: PT_CRM } as const
   for (const idioma of ['es', 'en', 'it', 'pt'] as const) {
     it(`en ${idioma}: título, explicación y las tres salidas`, () => {
-      const html = envolver(idioma, createElement(CuadroContactado, { abierto: true, nombre: 'Tacos', ocupado: false, onElegir: () => {} }))
+      const html = envolver(idioma, createElement(CuadroContactado, { abierto: true, nombre: 'Tacos', etapa: 'VISITA', ocupado: false, onElegir: () => {} }))
       const d = DIC[idioma]
       expect(html).toContain(d['crm.contactado.titulo'])
-      expect(html).toContain(d['crm.contactado.texto'].replace('{nombre}', 'Tacos'))
+      // La etapa va con su nombre en el idioma: «Visita», «Visit»…
+      const [antes, despues] = d['crm.contactado.texto'].replace('{nombre}', 'Tacos').split('{etapa}')
+      expect(html).toContain(antes)
+      expect(html).toContain(despues)
+      expect(html).toContain({ es: 'Visita', en: 'Visit', it: 'Sopralluogo', pt: 'Visita' }[idioma])
       expect(html).toContain(d['crm.contactado.seguir'])
       expect(html).toContain(d['crm.contactado.convertir'])
     })
   }
   it('cerrado no pinta nada', () => {
-    expect(envolver('es', createElement(CuadroContactado, { abierto: false, nombre: 'Tacos', ocupado: false, onElegir: () => {} }))).toBe('')
+    expect(envolver('es', createElement(CuadroContactado, { abierto: false, nombre: 'Tacos', etapa: 'VISITA', ocupado: false, onElegir: () => {} }))).toBe('')
   })
 })
 

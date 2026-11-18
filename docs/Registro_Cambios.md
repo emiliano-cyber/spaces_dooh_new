@@ -19,15 +19,16 @@ Pedido del dueño: «el idioma predefinido es el del servidor, pero si lo cambia
 
 ---
 
-## 2026-11-18 · Prospectos: al pasar a Contactado, eliges si sigue como prospecto o se convierte en oportunidad
+## 2026-11-18 · Prospectos: de Contactado en adelante, eliges si sigue como prospecto o se convierte en oportunidad
 
 Pedido del dueño: «si el prospecto ya entró a Contactado se convierte; si no, sigue como prospecto», y que lo decida el vendedor.
 
-- En la pestaña **Prospectos**, al registrar el avance de un prospecto de tipo cliente a **Contactado**, sale un cuadro con dos opciones:
-  - **Seguir como prospecto**: guarda el avance y nada más. En Seguimiento sigue como tarjeta de prospecto.
-  - **Convertir en oportunidad**: guarda el avance y crea la oportunidad de ese prospecto, con su nombre. El presupuesto, las fechas y los medios se llenan después en la ficha; el panel trae el enlace **Ver oportunidad**. En Seguimiento deja de verse como prospecto y aparece como oportunidad.
+- En la pestaña **Prospectos**, al registrar el avance de un prospecto de tipo cliente a **Contactado o a cualquier etapa posterior** (Visita, Negociación, En revisión), sale un cuadro con dos opciones:
+  - **Seguir como prospecto**: guarda el avance y nada más. En Seguimiento sigue como tarjeta de prospecto. En el siguiente cambio de etapa se vuelve a preguntar.
+  - **Convertir en oportunidad**: abre el formulario de la oportunidad con el prospecto ya elegido, para capturar presupuesto, fechas y medios. Al crearla se guarda también el avance y el panel trae el enlace **Ver oportunidad**. Si cierras el formulario sin crearla, la etapa no cambia.
 - **Cancelar** cierra el cuadro sin cambiar la etapa.
-- El cuadro no sale si el prospecto ya tiene oportunidad, si pasa a otra etapa, si es un predio, pantalla o arrendador, ni a quien no puede crear oportunidades: para ellos todo sigue igual.
+- El cuadro no sale si el prospecto ya tiene una oportunidad abierta, si pasa a Perdido o Rechazado, si es un predio, pantalla o arrendador, ni a quien no puede crear oportunidades: para ellos todo sigue igual.
+- **Una sola oportunidad abierta por prospecto**: el sistema no deja crear otra mientras la anterior siga abierta, aunque la lleve otro vendedor. Lo dice con un aviso claro, sin mostrar de quién es. Cuando la anterior se gana o se pierde, sí se puede abrir otra.
 - En **Seguimiento**, la tarjeta de un prospecto que ya va en Contactado (o más adelante) lo dice junto a «Prospecto», para distinguirlo de uno recién captado. El botón **Crear oportunidad** sigue disponible.
 
 ---
