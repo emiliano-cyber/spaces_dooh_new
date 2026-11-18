@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-11-10
+actualizado: 2026-11-18
 tags: [frontend, i18n, idiomas, ingles, dinero]
 archivos:
   - apps/web/lib/server/idiomas-servidor.ts
@@ -67,6 +67,9 @@ archivos:
   - apps/web/app/(app)/layout.tsx
   - apps/web/components/demo/ui/Modal.tsx
   - apps/web/components/demo/ui/Sheet.tsx
+  - apps/web/lib/i18n/actividad.ts
+  - apps/web/lib/i18n/textos/actividad.ts
+  - apps/web/app/(app)/(shell)/actividad/page.tsx
 ---
 
 # La aplicación en dos idiomas (I18N-01)
@@ -2394,6 +2397,55 @@ main».
 por servidor está hecha y probada en la rama `feat/apariencia-e-idiomas`
 (`2f1d57f9`), aparcada por el dueño el 10/11; cuando entre, añadirá sus
 columnas aquí con una migración NUEVA (la de esa rama ya no vale tal cual).
+
+## 15 · Revisión del inglés en el navegador (18/11, rama `i18n/en-18-11`)
+
+Queja del dueño: *«no todo está traducido: hay pedazos en español»*. Recorrido
+real en Chrome (puerto 3431, base `spaces_hoy`, cuenta `en@hoy.test`) por las
+35 entradas del menú, 8 propuestas, 14 campañas, 3 oportunidades, 2 OT, la
+ficha de inventario, las tres pestañas de Administración, la campanita y los
+diálogos «View photos and location», «Add sites», «Update campaign» y
+«Extend campaign». **Lo único fijo que salía en español era Actividad**; lo
+demás que se ve en español es dato (nombres de casos, ciudades, notas que
+escribió alguien).
+
+- **Actividad** (`app/(app)/(shell)/actividad/page.tsx`): cada renglón es el
+  texto que el servidor GUARDA en `acciones.accion` (`registrarAccion()`), y se
+  pintaba tal cual. Se sigue guardando en español (§8: es registro). Como la
+  campanita en la ola 6, la pantalla lo **reconoce y lo rearma al pintarlo**:
+  plantillas en `lib/i18n/textos/actividad.ts` (el español de cada una es el
+  literal exacto del servidor, con huecos), motor en `lib/i18n/actividad.ts`
+  (`traducirAccion`, `traducirEntidadAccion`, `traducirQuienAccion`). Los
+  estatus en mayúsculas salen con su clave (`propuestas.estatus.*`,
+  `campanas.impresion.*`), los importes con `formatearDinero` (`MX$`), los
+  plurales por `.uno/.otros`, y el « (vN)» final se quita y se repone. Lo que
+  no casa se pinta tal cual. **No está en `DICCIONARIOS`** a propósito: no son
+  claves de interfaz, y así no se tocó `diccionario.ts` (que los revisores de
+  italiano y portugués editan a la vez). it/pt: primera versión del revisor
+  del inglés, a repasar.
+- **Lo ata `lib/i18n/actividad.test.ts`**: recorre `app/` y `lib/`, saca el
+  segundo argumento de cada `registrarAccion(` (más de cien) y exige que todo
+  literal resultado se reconozca y que cada trozo fijo de una plantilla
+  `` `…${x}…` `` esté en el catálogo; llama a las funciones de texto reales
+  (`textoBitacoraPropuesta`, `textoAccionPublicacion`,
+  `textoBitacoraAjusteTarifa`, `textoAccionProgramacion`, las de
+  `codigo-aprobacion.ts`). Y `pantallas-admin.test.ts` «actividad · renglones
+  guardados por el servidor» (rojo sin el arreglo: los nueve textos en español).
+
+> [!warning] Lo que se vio y NO se tocó
+> - **La liga pública `/p/<token>` sale en español** con la interfaz en inglés:
+>   es a propósito (ADR 0049, layout de `app/(app)/p/[id]/`): va en el idioma
+>   de los documentos de la instancia. En esa página, en español, el tipo de
+>   medio sale como código (`PANTALLA_DIGITAL`, `ESPECTACULAR`) — es el
+>   español, no el inglés, y ya estaba así (comentario «Ola 5» en la página).
+>   El `aria-label` del `Toaster` («Notifications alt+T») sale en el idioma de
+>   la petición y no en el del documento.
+> - **~110 respuestas `{ error: '…' }` escritas a mano en 49 rutas** de
+>   `app/api` (no pasan por `respuestaError()`) siguen llegando en español:
+>   validaciones de Space Eyes, Network, creativos, notificaciones, perfil,
+>   `propuestas/[id]`… Ya estaba anotado en «Lo que NO cubre este lote» (ola
+>   6). Arreglarlo toca `errores-servidor.ts` en los cuatro idiomas: tarea
+>   aparte, coordinada con quien lleve italiano y portugués.
 
 ## Enlaces
 

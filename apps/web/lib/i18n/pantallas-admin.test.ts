@@ -676,6 +676,38 @@ const PANTALLAS: Pantalla[] = [
     ingles: ['Activity log', 'Who did what and when', 'Actions', '3 of 3', 'Date', 'Time', 'Any time', 'Who', 'All', 'Today', 'Yesterday'],
   },
   {
+    // Revision del ingles (18/11): la bitacora que guarda el servidor, en
+    // espanol, salia tal cual con la interfaz en ingles. Renglones copiados de
+    // la base de pruebas del 18/11.
+    nombre: 'actividad · renglones guardados por el servidor',
+    pintar: async (i) => {
+      const P = (await import('../../app/(app)/(shell)/actividad/page')).default
+      const ahora = iso(hoy)
+      datos.acciones = [
+        { id: 'g1', usuarioNombre: 'Beto Ventas', accion: 'Creó propuesta', entidad: 'Caso 12 · Verano', timestamp: ahora },
+        { id: 'g2', usuarioNombre: 'Beto Ventas', accion: 'Propuesta → ENVIADA (el correo no está configurado: la liga se manda a mano)', entidad: 'Caso 12 · Verano', timestamp: ahora },
+        { id: 'g3', usuarioNombre: 'Beto Ventas', accion: 'Avanzó impresión → EN_PRODUCCION', entidad: 'OI-7', timestamp: ahora },
+        { id: 'g4', usuarioNombre: 'Sistema', accion: 'Campaña completada automáticamente al vencer su periodo', entidad: 'Caso 9', timestamp: ahora },
+        { id: 'g5', usuarioNombre: 'Beto Ventas', accion: 'Registró un prospecto', entidad: 'cliente · hp', timestamp: ahora },
+        { id: 'g6', usuarioNombre: 'Beto Ventas', accion: 'Generó campaña desde propuesta', entidad: 'Caso 12 · Verano', timestamp: ahora },
+        { id: 'g7', usuarioNombre: 'Beto Ventas', accion: 'Contraseña de cambios incorrecta', entidad: 'Intento fallido de desbloqueo', timestamp: ahora },
+      ]
+      return pintar(i, createElement(P))
+    },
+    // «Sistema» no va en esta lista: sigue en el atributo value del filtro «Quién»
+    // (es el dato por el que se filtra); lo que se lee es «System», abajo.
+    espanol: [
+      'Creó propuesta', 'Propuesta → ENVIADA (el correo no está configurado: la liga se manda a mano)', 'Avanzó impresión → EN_PRODUCCION',
+      'Campaña completada automáticamente al vencer su periodo', 'Registró un prospecto', 'Generó campaña desde propuesta',
+      'Contraseña de cambios incorrecta', 'Intento fallido de desbloqueo',
+    ],
+    ingles: [
+      'Created a proposal', 'Proposal → Sent (email isn’t set up: the link is sent by hand)', 'Moved printing forward → In production',
+      'Campaign completed automatically when its period ended', 'System', 'Recorded a prospect', 'Generated a campaign from a proposal',
+      'Wrong change-control password', 'Failed unlock attempt',
+    ],
+  },
+  {
     nombre: 'actividad · sin coincidencias y vacia',
     pintar: async (i) => {
       const P = (await import('../../app/(app)/(shell)/actividad/page')).default
