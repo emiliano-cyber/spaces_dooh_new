@@ -61,9 +61,6 @@ create table if not exists oportunidades (
   -- lo que decide quién la ve (VEND-01).
   usuario_id            uuid references usuarios(id) on delete set null,
   etapa                 text not null default 'CONTACTO',
-  -- NULL = «la de la etapa» (lib/crm.ts, PROBABILIDAD_POR_ETAPA), que se aplica
-  -- al leer: la tabla de omisión sigue abierta (pregunta 3 del ADR).
-  probabilidad_pct      smallint,
   -- Sin moneda: es la de la instancia (ADR 0048).
   presupuesto_min       numeric(14,2),
   presupuesto_max       numeric(14,2),
@@ -82,7 +79,6 @@ create table if not exists oportunidades (
   constraint oportunidades_nombre_ck      check (length(btrim(nombre)) between 1 and 200),
   constraint oportunidades_etapa_ck
     check (etapa in ('CONTACTO','NECESIDAD','COTIZANDO','NEGOCIANDO','GANADA','PERDIDA')),
-  constraint oportunidades_probabilidad_ck check (probabilidad_pct is null or probabilidad_pct between 0 and 100),
   constraint oportunidades_presupuesto_ck
     check ((presupuesto_min is null or presupuesto_min >= 0)
        and (presupuesto_max is null or presupuesto_max >= 0)
@@ -132,8 +128,6 @@ comment on table oportunidades is
   'ADR 0051. Lo que un cliente (o un prospecto CLIENTE) quiere comprar: presupuesto, fechas, plazas, medios, objetivo y la etapa de la venta. No se borra: la que no prospera se marca PERDIDA con su motivo.';
 comment on column oportunidades.usuario_id is
   'ADR 0051. El VENDEDOR. Lo estampa oportunidades-repo.ts desde la sesión. Quien no tiene comercial.aprobar solo ve las suyas.';
-comment on column oportunidades.probabilidad_pct is
-  'ADR 0051. La que puso el vendedor. NULL = la de la etapa (lib/crm.ts), aplicada al leer.';
 
 -- ─── oportunidad_actividades: la línea de tiempo comercial ──────────────────
 create table if not exists oportunidad_actividades (

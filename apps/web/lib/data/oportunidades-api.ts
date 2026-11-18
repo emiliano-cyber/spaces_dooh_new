@@ -27,8 +27,6 @@ export type FichaOportunidad = Oportunidad & {
   propuestas: PropuestaLigada[]
   cambios: CambioPropuesta[]
   avancesProspecto: AvanceProspecto[]
-  /** La probabilidad por etapa de la instancia (ADR 0051, pregunta 3). */
-  probabilidades?: Record<EtapaOportunidad, number>
 }
 
 export interface PaginaOportunidades {
@@ -39,8 +37,6 @@ export interface PaginaOportunidades {
   porPagina: number
   /** Si quien mira tiene `comercial.aprobar`: ve las de todo el equipo. */
   veTodas: boolean
-  /** La probabilidad por etapa de la instancia (ADR 0051, pregunta 3). */
-  probabilidades?: Record<EtapaOportunidad, number>
 }
 
 export interface DatosOportunidadForm {
@@ -53,7 +49,6 @@ export interface DatosOportunidadForm {
   plazas: string | null
   tiposMedio: string[]
   objetivo: string | null
-  probabilidadPct: number | null
 }
 
 export class ErrorApiCrm extends Error {

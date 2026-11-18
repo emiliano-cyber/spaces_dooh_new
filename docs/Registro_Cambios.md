@@ -5,15 +5,14 @@ La entrada más reciente va arriba.
 
 ---
 
-## 2026-11-17 · sin versión todavía · CRM: el presupuesto con y sin IVA, y la probabilidad la fija cada empresa
+## 2026-11-17 · sin versión todavía · CRM: el presupuesto con y sin IVA, y sin porcentaje de cierre
 
 Son dos decisiones del dueño sobre la pantalla del CRM. Todavía no está en ninguna versión publicada.
 
 - **Al abrir una oportunidad, cada cotización se compara con el presupuesto del cliente dos veces: con IVA y sin IVA.** Así sirve hable el cliente de su presupuesto como hable.
 - **El IVA es el de cada cliente**, el mismo con que se calcula la propuesta: si el cliente tiene 8 % (frontera), la comparación usa 8 %; si no tiene uno propio, 16 %. La pantalla dice qué tasa usó.
-- **La probabilidad de cierre de cada etapa ya no es fija: la decide cada empresa** en **Administración → Comercial → Probabilidad de cierre por etapa (CRM)**. Hay una casilla para Contacto, Necesidad, Cotizando y Negociando; si se deja vacía, se usa la sugerida (10, 25, 50 y 75 %). Ganada cuenta siempre 100 % y Perdida 0 %.
-- Al cambiarla, el embudo se recalcula para todas las oportunidades, salvo las que tienen una probabilidad puesta a mano por el vendedor: esa sigue mandando.
-- Solo la puede cambiar quien ya podía cambiar la configuración del negocio. Un vendedor no.
+- **Se quitó el porcentaje de probabilidad de cierre.** Las oportunidades ya no lo llevan: no está en el formulario, ni en la lista, ni en la ficha, ni en Administración.
+- **El embudo enseña en cada columna cuánto suman los presupuestos de sus oportunidades**, sin la cifra «ponderada» que salía de multiplicarlos por ese porcentaje.
 - Está en español, inglés, italiano y portugués.
 
 ---
@@ -24,7 +23,7 @@ Es la fase 4 del CRM comercial (ADR 0051), la que faltaba para poder usarlo. Tod
 
 - **En el menú, dentro de Comercial, «Propuestas» se llama ahora «CRM».** La ven las mismas personas que veían Propuestas.
 - El CRM tiene cuatro pestañas arriba: **Embudo**, **Oportunidades**, **Prospectos** y **Propuestas**.
-- **Embudo**: una columna por etapa (Contacto, Necesidad, Cotizando, Negociando, Ganada y Perdida) con las oportunidades de cada una, cuánto suman y cuánto valen según su probabilidad de cerrarse. Una tarjeta se puede pasar a otra etapa desde ahí; para darla por perdida hay que abrirla, porque pide el motivo.
+- **Embudo**: una columna por etapa (Contacto, Necesidad, Cotizando, Negociando, Ganada y Perdida) con las oportunidades de cada una y cuánto suman. Una tarjeta se puede pasar a otra etapa desde ahí; para darla por perdida hay que abrirla, porque pide el motivo.
 - **Oportunidades**: la misma información en lista, con filtro por etapa y el vendedor de cada una. Desde las dos se da de alta una oportunidad nueva: el cliente o prospecto, cuánto quiere gastar, las fechas, las plazas, los medios y el objetivo.
 - **Prospectos**: los clientes posibles que todavía no son clientes, con sus contactos y su bitácora (lo que antes estaba en Captación, solo los de tipo cliente).
 - **Propuestas**: la pantalla de siempre, en la misma dirección. Los enlaces guardados y la liga del cliente siguen sirviendo.

@@ -15,8 +15,7 @@ import {
   type DatosOportunidadForm,
   type FichaOportunidad,
 } from '@/lib/data/oportunidades-api'
-import { PROBABILIDAD_POR_ETAPA, TIPOS_MEDIO, type EtapaOportunidad } from '@/lib/crm'
-import { porcentajeEnIdioma } from '@/lib/i18n/formato-idioma'
+import { TIPOS_MEDIO } from '@/lib/crm'
 import { claveMedio } from './etiquetas'
 
 // ============================================================================
@@ -27,8 +26,6 @@ import { claveMedio } from './etiquetas'
 //  alta, con la regla de Captación). Al editar eso ya no cambia.
 //
 //  El vendedor NO se elige: lo pone el servidor desde la sesión.
-//  La probabilidad vacía significa «la de la etapa», que se aplica al leer
-//  (`lib/crm.ts`): por eso se manda null y no el número de la etapa.
 // ============================================================================
 
 const inputCls =
@@ -47,14 +44,13 @@ interface Valores {
   plazas: string
   tiposMedio: string[]
   objetivo: string
-  probabilidadPct: string
   nota: string
 }
 
 const vacio = (): Valores => ({
   nombre: '', origen: 'cliente', clienteId: '', prospectoId: '', presupuestoMin: '', presupuestoMax: '',
   fechaInicioDeseada: '', fechaFinDeseada: '', fechaDecision: '', plazas: '', tiposMedio: [], objetivo: '',
-  probabilidadPct: '', nota: '',
+  nota: '',
 })
 
 const deFicha = (f: FichaOportunidad): Valores => ({
@@ -68,7 +64,6 @@ const deFicha = (f: FichaOportunidad): Valores => ({
   plazas: f.plazas ?? '',
   tiposMedio: f.tiposMedio,
   objetivo: f.objetivo ?? '',
-  probabilidadPct: f.probabilidadPct == null ? '' : String(f.probabilidadPct),
 })
 
 // Un número tecleado, o null si está vacío. Un texto que no es número viaja
@@ -81,15 +76,12 @@ export function FormOportunidad({
   onCerrar,
   ficha,
   onGuardada,
-  probabilidades,
 }: {
   abierto: boolean
   onCerrar: () => void
   /** Si viene, se edita; si no, es un alta. */
   ficha?: FichaOportunidad | null
   onGuardada: (f: FichaOportunidad) => void
-  /** La tabla de la instancia; sin ella, la de fábrica. */
-  probabilidades?: Record<EtapaOportunidad, number>
 }) {
   const { t, idioma } = useIdioma()
   const clientes = useClientes()
@@ -112,8 +104,6 @@ export function FormOportunidad({
   }, [abierto, editando, v.origen, prospectos])
 
   const cambia = <K extends keyof Valores>(k: K, valor: Valores[K]) => setV((x) => ({ ...x, [k]: valor }))
-  const etapa: EtapaOportunidad = ficha?.etapa ?? 'CONTACTO'
-  const pctEtapa = porcentajeEnIdioma(String((probabilidades ?? ficha?.probabilidades ?? PROBABILIDAD_POR_ETAPA)[etapa]), idioma)
 
   async function guardar() {
     const datos: DatosOportunidadForm = {
@@ -126,7 +116,6 @@ export function FormOportunidad({
       plazas: texto(v.plazas),
       tiposMedio: v.tiposMedio,
       objetivo: texto(v.objetivo),
-      probabilidadPct: cifra(v.probabilidadPct),
     }
     setGuardando(true)
     try {
@@ -215,11 +204,6 @@ export function FormOportunidad({
         </Campo>
         <Campo label={t('crm.form.decision')}>
           <input type="date" className={inputCls} value={v.fechaDecision} onChange={(e) => cambia('fechaDecision', e.target.value)} />
-        </Campo>
-        <Campo label={t('crm.form.probabilidad')}>
-          <EntradaCifra className={inputCls} type="number" min={0} max={100} valor={v.probabilidadPct}
-            onCambio={(c) => cambia('probabilidadPct', c)} decimales={0} minimo={0} maximo={100}
-            placeholder={t('crm.form.probabilidad-ayuda', { pct: pctEtapa })} />
         </Campo>
         <Campo label={t('crm.form.plazas')} className="sm:col-span-2">
           <input className={inputCls} value={v.plazas} maxLength={1000} placeholder={t('crm.form.plazas-ejemplo')}

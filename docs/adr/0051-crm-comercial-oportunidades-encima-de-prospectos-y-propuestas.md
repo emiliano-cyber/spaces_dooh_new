@@ -68,7 +68,7 @@ propuestas 1..n (oportunidad_id) ← lo que COTIZAMOS (opcional)
 | `nombre` | text | «Campaña Navidad 2026», 1..200 |
 | `usuario_id` | uuid | el **vendedor**, de la sesión, nunca del cuerpo (VEND-01) |
 | `etapa` | text | `CONTACTO · NECESIDAD · COTIZANDO · NEGOCIANDO · GANADA · PERDIDA` |
-| `probabilidad_pct` | smallint | 0..100; por omisión la de la etapa |
+| ~~`probabilidad_pct`~~ | — | **Quitada el 17/11** por el dueño, antes de publicar: ver «La probabilidad, quitada» |
 | `presupuesto_min`, `presupuesto_max` | numeric(14,2) | ≥ 0 y min ≤ max. Sin moneda: es la de la instancia (ADR 0048) |
 | `fecha_inicio_deseada`, `fecha_fin_deseada` | date | lo que pide; inicio ≤ fin |
 | `fecha_decision` | date | cuándo dice el cliente que decide |
@@ -167,10 +167,8 @@ En la ficha de la oportunidad, sin columnas nuevas:
 
 Tal como §1 a §5, con cuatro precisiones que salieron al hacerla:
 
-- **La probabilidad se guarda NULL cuando el vendedor no la pone**, y la tabla
-  por etapa (`lib/crm.ts`, `PROBABILIDAD_POR_ETAPA`) se aplica **al leer**. Así la
-  pregunta 3 sigue abierta sin costo: si el dueño cambia los números, cambian
-  todas las oportunidades sin reescribir una fila.
+- ~~**La probabilidad se guarda NULL cuando el vendedor no la pone**~~ — quitada entera el 17/11,
+  ver «La probabilidad, quitada».
 - **El cliente que nace al aprobar el prospecto se lee, no se copia**:
   `coalesce(cliente_id, prospectos.registro_id)`. La aprobación de Captación no se
   tocó; §1 decía «se rellena `cliente_id`», y leerlo da lo mismo sin abrir otra
@@ -257,8 +255,8 @@ La pantalla, tal como §6 y §7, con lo que salió al hacerla:
   cuentan, y se cuenta con marcas de tiempo porque el navegador no conoce la zona del negocio),
   `cotejoPresupuesto` (`:139`, debajo · dentro · encima del rango, con la diferencia contra el
   extremo rebasado y su %), `cotejoFechas` (`:175`, días que se movió cada extremo) y
-  `agruparEmbudo` (`:196`, una columna por etapa con su total y su **ponderado** por la
-  probabilidad efectiva; el monto de referencia es el máximo, o el mínimo, `montoReferencia`, `:188`).
+  `agruparEmbudo` (una columna por etapa con su total; el monto de referencia es el máximo, o el
+  mínimo, `montoReferencia`). El «ponderado» por probabilidad que llevaba se quitó el 17/11.
   24 unitarias en `lib/crm.test.ts`.
 - **El cotizado es el total con IVA** de cada propuesta, tal como lo arma `armarPropuesta`
   (`propuestas-repo.ts:86-87`: `total = bruto + iva`): la misma cifra que las tarjetas de Propuestas
@@ -304,28 +302,23 @@ ficha la enseña (`FichaOportunidad.tsx`). Sin migración. «Sin IVA» es la `ba
 el neto es lo que recibe el medio tras la comisión de agencia, y el cliente no habla de eso. El
 cotejo por cliente de la Fase 1 sigue con IVA (son las cifras de las tarjetas).
 
-**La probabilidad por etapa, por instancia** (pregunta 3). Forma aprobada por el dueño el 17/11 (ROJO
-R3, migración):
+**La probabilidad, quitada** (pregunta 3). El dueño contestó primero «la fija cada instancia», se
+hizo (migración `20261117_crm_probabilidad_por_etapa.sql`, una tarjeta en Administración → Comercial,
+vista en el navegador) y, al ver para qué servía —pesar el embudo y dar un «ponderado»—, pidió **«ese
+porcentaje bórralo»** y eligió quitarlo **todo** el mismo 17/11. Como nada estaba publicado, se quitó
+limpio, sin migración de vuelta:
 
-- `20261117_crm_probabilidad_por_etapa.sql`: `config_negocio.crm_probabilidades jsonb not null
-  default '{}'` con CHECK de objeto, calcada de `costos_ot`. `{}` = la de fábrica; el respaldo vive
-  solo en el código (`PROBABILIDAD_POR_ETAPA`).
-- Solo las cuatro etapas abiertas; GANADA 100 y PERDIDA 0 fijas. `sanearProbabilidades` y
-  `tablaProbabilidades` (`lib/crm.ts`) sanean al leer y al escribir: enteros de 0 a 100, el 0 vale.
-- Se edita en **Administración → Comercial** (`ProbabilidadesCrmCard`), con `PATCH /api/config`
-  (`administracion.crear`, quien ya editaba la configuración). El PATCH **fusiona** con lo guardado
-  y `null` quita una etapa: tocar Contacto no borra Negociando.
-- **Se aplica al leer** (`oportunidades-repo.ts`, `probabilidadesDelTenant`): cambiarla recalcula el
-  embudo de todas las oportunidades sin probabilidad puesta a mano. La lista y la ficha traen la
-  tabla (`probabilidades`) para que el formulario enseñe la sugerida de la instancia.
-- Los mensajes de validación de este campo, como los del tope y la vigencia de la misma ruta, no se
-  traducen: solo se alcanzan por API, porque la pantalla no deja mandar un valor fuera de rango.
+- Se borró la migración `20261117_crm_probabilidad_por_etapa.sql` y la columna `probabilidad_pct`
+  salió de `20261117_crm_oportunidades.sql` (sin publicar; las bases de prueba se recrean).
+- Fuera de `lib/crm.ts` la tabla por etapa, el saneo y `probabilidadEfectiva`; `agruparEmbudo` da
+  solo el total. Fuera la casilla del formulario, la columna de la lista, la línea de la tarjeta del
+  embudo, el dato de la ficha, la tarjeta de Administración y sus textos en los cuatro idiomas.
+- **La API ya no lo acepta:** `probabilidadPct` en el alta o la edición, y `crmProbabilidades` en
+  `/api/config`, dan **400** (esquemas `.strict()`), no se ignoran en silencio. Lo vigila la sección 7
+  de `oportunidades.e2e.test.ts`, que comprueba además que la base no tiene ninguna de las dos
+  columnas.
 
-Probado: 3 unitarias nuevas en `lib/crm.test.ts`; en `oportunidades.e2e.test.ts` las secciones 7
-(la tabla por instancia, la fusión, los 400, el 403 del vendedor, la columna con basura, el CHECK y
-otra organización intacta) y 8 (`ivaPct` 8 y 16), **vistas en rojo** contra el build anterior (6
-fallos) y en verde (38); `pantallas-crm.test.ts` con un cliente de frontera, vista en rojo sin el
-cambio de la ficha.
+Lo que sí quedó de esa ronda: el cotejo con y sin IVA (arriba) y la sección 8 de la e2e (`ivaPct`).
 
 ## Alternativas consideradas
 
@@ -369,8 +362,8 @@ cambió habría que comparar dos fotos.
    17/11: «sus propuestas el vendedor, el resto todas».** Hecho en la Fase 3, en toda la aplicación
    y no solo en la pestaña del CRM.
 3. ~~**Probabilidad por etapa por omisión**: propuesta 10 · 25 · 50 · 75 · 100 · 0. ¿Te sirve así o
-   la fija cada instancia?~~ **Contestada el 17/11: la fija cada instancia**, con la forma aprobada
-   el mismo día. Ver «Después de la Fase 4».
+   la fija cada instancia?~~ **Contestada el 17/11: primero «la fija cada instancia» y, ya hecha,
+   «ese porcentaje bórralo»: se quitó entera.** Ver «La probabilidad, quitada».
 4. ~~**¿Se ve el historial de cambios en la liga pública del cliente?**~~ **Contestada el 17/11:
    no, es interno.** La e2e `propuestas-por-vendedor` comprueba que la liga no lo trae.
 5. ~~**El cotejo compara el presupuesto contra el total CON IVA** de cada cotización. ¿Cómo habla el

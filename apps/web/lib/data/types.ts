@@ -957,8 +957,6 @@ export interface ConfigNegocio {
   // dejaría al navegador calculando el costo con una tabla distinta a la del
   // servidor, que es la divergencia que se está cerrando.
   costosOt?: Partial<Record<TipoOT, number>>
-  // ADR 0051 · probabilidad por etapa ABIERTA del CRM que fijó la instancia; {} = la de fábrica.
-  crmProbabilidades?: Partial<Record<'CONTACTO' | 'NECESIDAD' | 'COTIZANDO' | 'NEGOCIANDO', number>>
 }
 
 export interface Notificacion {

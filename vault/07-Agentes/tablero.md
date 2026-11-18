@@ -12,9 +12,9 @@ archivos: []
 > recorrerla salieron y se arreglaron la ficha que enseñaba propuestas de otro vendedor y el cotejo de fechas en `NaN`. Unitarias
 > completas y e2e completas en verde (salvo `grants-rol-app`, Docker). **Zonas tomadas y liberadas:** Z5, **`nav.ts`** y
 > **`lib/modulos.ts`** (alto contacto), `Sidebar.tsx`, `AuthGate.tsx`, `lib/i18n/errores-servidor.ts` y Z12 · Docs.
-> Y después, con las preguntas 3 y 5 contestadas: cotejo con y sin IVA (tasa del cliente) y la probabilidad por etapa por
-> instancia (`20261117_crm_probabilidad_por_etapa.sql`, **ROJO R3**, forma aprobada por el dueño), con `app/api/config/route.ts`,
-> `config-repo.ts` y Administración → Comercial. Tomadas y liberadas.
+> Y después, con las preguntas 3 y 5 contestadas: cotejo con y sin IVA (tasa del cliente), y la probabilidad de cierre
+> **quitada entera** por decisión del dueño (se borró su migración, sin publicar, y la columna de la de la Fase 2).
+> `app/api/config/route.ts`, `config-repo.ts` y Administración quedaron como estaban. Tomadas y liberadas.
 > Ver [[crm-oportunidades]] y [[2026-11-17]].
 
 > [!success] 2026-11-17 · **CRM-03 · Fase 3 del ADR 0051: historial de propuestas por trigger, ligar, y el vendedor ve solo lo suyo** — rama `feat/crm-comercial` · **ROJO R1/R3/R4**, aprobado por el dueño el 17/11

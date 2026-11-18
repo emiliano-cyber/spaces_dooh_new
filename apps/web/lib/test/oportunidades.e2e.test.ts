@@ -235,8 +235,9 @@ describe('2 · el alta', () => {
     expect(o.fechaInicioDeseada).toBe('2026-12-01')
     expect(o.fechaDecision).toBe('2026-11-25')
     expect(o.tiposMedio).toEqual(['ESPECTACULAR', 'PANTALLA_DIGITAL'])
-    expect(o.probabilidadPct).toBeNull()
-    expect(o.probabilidad).toBe(10)
+    // El dueño quitó la probabilidad el 17/11: ya no viaja.
+    expect(o).not.toHaveProperty('probabilidad')
+    expect(o).not.toHaveProperty('probabilidadPct')
     expect(o.cotizaciones).toBe(0)
     expect(o.actividades).toHaveLength(1)
     expect(o.actividades[0]).toMatchObject({
@@ -367,11 +368,10 @@ describe('4 · editar y mover en el embudo', () => {
   })
 
   it('lo que no viene no se toca; null lo borra', async () => {
-    let r = await vendedor.pedir(ruta(o.id), { metodo: 'PATCH', cuerpo: { plazas: 'Guadalajara', probabilidadPct: 35 } })
+    let r = await vendedor.pedir(ruta(o.id), { metodo: 'PATCH', cuerpo: { plazas: 'Guadalajara' } })
     expect(r.status).toBe(200)
     expect(r.datos.plazas).toBe('Guadalajara')
     expect(r.datos.presupuestoMax).toBe(80000)
-    expect(r.datos.probabilidad).toBe(35)
     r = await vendedor.pedir(ruta(o.id), { metodo: 'PATCH', cuerpo: { presupuestoMax: null } })
     expect(r.datos.presupuestoMax).toBeNull()
     expect(r.datos.plazas).toBe('Guadalajara')
@@ -418,7 +418,6 @@ describe('4 · editar y mover en el embudo', () => {
     expect(r.status).toBe(200)
     expect(r.datos.perdidaEn).toBeTruthy()
     expect(r.datos.motivoPerdida).toBe('Se fue con la competencia')
-    expect(r.datos.probabilidad).toBe(0)
     expect((await vendedor.pedir(ruta(o.id, 'etapa/'), { cuerpo: { etapa: 'NEGOCIANDO' } })).status).toBe(409)
     expect((await vendedor.pedir(ruta(o.id), { metodo: 'PATCH', cuerpo: { plazas: 'Otra' } })).status).toBe(409)
     expect(
@@ -427,12 +426,11 @@ describe('4 · editar y mover en el embudo', () => {
     ).toBe(201)
   })
 
-  it('ganarla estampa la fecha y la probabilidad es 100', async () => {
+  it('ganarla estampa la fecha', async () => {
     const g = await nueva('Ganable')
     const r = await vendedor.pedir(ruta(g.id, 'etapa/'), { cuerpo: { etapa: 'GANADA' } })
     expect(r.status).toBe(200)
     expect(r.datos.ganadaEn).toBeTruthy()
-    expect(r.datos.probabilidad).toBe(100)
   })
 
   it('el embudo cuenta por etapa en la base', async () => {
@@ -536,73 +534,30 @@ describe('6 · Fase 4 · lo que la ficha trae para su línea de tiempo', () => {
 })
 
 // ───────────────────────────────────────────────────────────────────────────
-describe('7 · la probabilidad por etapa la fija cada instancia (pregunta 3, 17/11)', () => {
-  let dueno: Cliente
-  const fijar = (c: Cliente, crmProbabilidades: Record<string, unknown>) =>
-    c.pedir('/api/config/', { metodo: 'PATCH', cuerpo: { crmProbabilidades } })
-
-  beforeAll(async () => {
-    dueno = await entrar(org.usuarioEmail)
+describe('7 · la probabilidad de cierre ya no existe (el dueño la quitó, 17/11)', () => {
+  it('ni al dar de alta ni al editar: el campo se rechaza con 400, no se ignora en silencio', async () => {
+    expect(
+      (await vendedor.pedir('/api/oportunidades/', { cuerpo: { nombre: 'Con prob.', clienteId: clienteOrg, probabilidadPct: 40 } })).status,
+    ).toBe(400)
+    const o = await nueva('Sin prob.')
+    expect((await vendedor.pedir(ruta(o.id), { metodo: 'PATCH', cuerpo: { probabilidadPct: 40 } })).status).toBe(400)
   })
 
-  it('sin configurar, la de fábrica; configurada, la suya, y se aplica al leer', async () => {
-    const o = await nueva('Prob. por instancia')
-    expect((await vendedor.pedir(ruta(o.id))).datos.probabilidad).toBe(10)
-
-    const r = await fijar(dueno, { CONTACTO: 5 })
-    expect(r.status, JSON.stringify(r.datos)).toBe(200)
-    expect((await dueno.pedir('/api/config/')).datos.crmProbabilidades).toEqual({ CONTACTO: 5 })
-
-    // La misma oportunidad, sin reescribirla: cambia al leer.
-    const d = (await vendedor.pedir(ruta(o.id))).datos
-    expect(d.probabilidad).toBe(5)
-    expect(d.probabilidades).toMatchObject({ CONTACTO: 5, NECESIDAD: 25, GANADA: 100, PERDIDA: 0 })
+  it('ni en la configuración, ni la lista y la ficha traen tabla de probabilidades', async () => {
+    const dueno = await entrar(org.usuarioEmail)
+    expect((await dueno.pedir('/api/config/', { metodo: 'PATCH', cuerpo: { crmProbabilidades: { CONTACTO: 5 } } })).status).toBe(400)
+    expect((await dueno.pedir('/api/config/')).datos).not.toHaveProperty('crmProbabilidades')
     const lista = (await vendedor.pedir('/api/oportunidades/')).datos
-    expect(lista.probabilidades.CONTACTO).toBe(5)
-    expect(lista.oportunidades.find((x: any) => x.id === o.id).probabilidad).toBe(5)
-
-    // La que el vendedor pone a mano manda sobre la de la instancia.
-    await vendedor.pedir(ruta(o.id), { metodo: 'PATCH', cuerpo: { probabilidadPct: 33 } })
-    expect((await vendedor.pedir(ruta(o.id))).datos.probabilidad).toBe(33)
+    expect(lista).not.toHaveProperty('probabilidades')
+    expect(lista.oportunidades.every((x: any) => !('probabilidad' in x))).toBe(true)
   })
 
-  it('se FUSIONA con lo guardado, y null quita una etapa', async () => {
-    await fijar(dueno, { NEGOCIANDO: 60 })
-    expect((await dueno.pedir('/api/config/')).datos.crmProbabilidades).toEqual({ CONTACTO: 5, NEGOCIANDO: 60 })
-    await fijar(dueno, { CONTACTO: null })
-    expect((await dueno.pedir('/api/config/')).datos.crmProbabilidades).toEqual({ NEGOCIANDO: 60 })
-    // Y el 0 es un valor, no «sin configurar».
-    await fijar(dueno, { NECESIDAD: 0 })
-    expect((await dueno.pedir('/api/config/')).datos.crmProbabilidades).toEqual({ NECESIDAD: 0, NEGOCIANDO: 60 })
-  })
-
-  it('GANADA o PERDIDA, fuera de 0–100, con decimales o una etapa que no existe: 400 y no se guarda nada', async () => {
-    for (const malo of [{ GANADA: 90 }, { PERDIDA: 10 }, { COTIZANDO: 101 }, { COTIZANDO: -1 }, { COTIZANDO: 2.5 }, { OTRA: 50 }]) {
-      expect((await fijar(dueno, malo)).status, JSON.stringify(malo)).toBe(400)
-    }
-    expect((await dueno.pedir('/api/config/')).datos.crmProbabilidades).toEqual({ NECESIDAD: 0, NEGOCIANDO: 60 })
-  })
-
-  it('un vendedor no la puede cambiar', async () => {
-    expect((await fijar(vendedor, { CONTACTO: 99 })).status).toBe(403)
-  })
-
-  it('una corrección a mano con basura en la columna no rompe: cae a la de fábrica', async () => {
-    await poolTest().query(`update config_negocio set crm_probabilidades = '{"CONTACTO":"mucho","COTIZANDO":250}' where tenant_id = $1`, [org.id])
-    const lista = (await vendedor.pedir('/api/oportunidades/')).datos
-    expect(lista.probabilidades).toMatchObject({ CONTACTO: 10, COTIZANDO: 50 })
-    // El CHECK de forma impide un arreglo o un escalar.
-    await expect(
-      poolTest().query(`update config_negocio set crm_probabilidades = '[]' where tenant_id = $1`, [org.id]),
-    ).rejects.toThrow(/crm_probabilidades_objeto_ck/)
-  })
-
-  it('la de una organización no toca la de otra', async () => {
-    await fijar(dueno, { CONTACTO: 1 })
-    const r = await duenoOtra.pedir('/api/oportunidades/', { cuerpo: { nombre: 'De la otra', clienteId: clienteOtra } })
-    expect(r.status, JSON.stringify(r.datos)).toBe(201)
-    expect(r.datos.probabilidad).toBe(10)
-    expect((await duenoOtra.pedir('/api/config/')).datos.crmProbabilidades).toEqual({})
+  it('y la base no tiene la columna', async () => {
+    const r = await poolTest().query(
+      `select column_name from information_schema.columns
+        where table_name in ('oportunidades','config_negocio') and column_name in ('probabilidad_pct','crm_probabilidades')`,
+    )
+    expect(r.rows).toEqual([])
   })
 })
 

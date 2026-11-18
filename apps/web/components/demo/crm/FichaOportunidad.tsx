@@ -211,10 +211,8 @@ export function FichaOportunidad({
         )}
       </div>
 
-      <dl className="grid gap-3 rounded-lg border border-border bg-surface p-4 sm:grid-cols-4">
+      <dl className="grid gap-3 rounded-lg border border-border bg-surface p-4 sm:grid-cols-3">
         <div><dt className="text-[12px] text-muted">{t('crm.col.presupuesto')}</dt><dd className="demo-num text-[15px] text-ink">{presupuesto}</dd></div>
-        <div><dt className="text-[12px] text-muted">{t('crm.col.probabilidad')}</dt>
-          <dd className="demo-num text-[15px] text-ink">{ficha.probabilidadPct == null && !cerrada ? t('crm.ficha.prob-etapa', { pct: pct(ficha.probabilidad) }) : pct(ficha.probabilidad)}</dd></div>
         <div><dt className="text-[12px] text-muted">{t('crm.ficha.dias-total')}</dt><dd className="demo-num text-[15px] text-ink">{diasTotal}</dd></div>
         <div><dt className="text-[12px] text-muted">{t('crm.cotejo.col.cotizaciones')}</dt><dd className="demo-num text-[15px] text-ink">{ficha.cotizaciones}</dd></div>
       </dl>

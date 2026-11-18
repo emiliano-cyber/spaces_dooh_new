@@ -5,9 +5,6 @@ actualizado: 2026-11-17
 tags: [backend, crm, comercial, oportunidades, adr-0051, rojo]
 archivos:
   - db/migrations/20261117_propuesta_cambios_por_trigger.sql
-  - db/migrations/20261117_crm_probabilidad_por_etapa.sql
-  - apps/web/components/demo/crm/ProbabilidadesCrm.tsx
-  - apps/web/app/api/config/route.ts
   - apps/web/lib/server/propuestas-visibilidad.ts
   - apps/web/lib/test/propuesta-cambios.e2e.test.ts
   - apps/web/lib/test/propuestas-por-vendedor.e2e.test.ts
@@ -49,7 +46,7 @@ las fases están en `docs/adr/0051-…md` y en [[decisiones]].
 
 | Tabla | Qué guarda | Lo que no se puede |
 |---|---|---|
-| `oportunidades` | El cliente o el prospecto (al menos uno), el vendedor, la etapa, la probabilidad, el presupuesto mín./máx., las fechas deseadas y de decisión, plazas, medios y objetivo | Borrarla: la que no prospera se marca `PERDIDA` con su motivo |
+| `oportunidades` | El cliente o el prospecto (al menos uno), el vendedor, la etapa, el presupuesto mín./máx., las fechas deseadas y de decisión, plazas, medios y objetivo | Borrarla: la que no prospera se marca `PERDIDA` con su motivo |
 | `oportunidad_actividades` | Llamadas, visitas, juntas, correos, WhatsApp, notas, y una fila `ETAPA` por cada cambio de etapa | Editarla o borrarla, ni como superusuario (trigger `crm_solo_crece`) |
 | `propuesta_cambios` | Campo por campo, quién cambió qué en cada propuesta. La escriben **triggers** (Fase 3, abajo) | Igual: solo crece |
 
@@ -88,9 +85,8 @@ su ruta) y las fechas de cierre. Los esquemas son `.strict()`.
 - Etapas: `CONTACTO → NECESIDAD → COTIZANDO → NEGOCIANDO → GANADA | PERDIDA`.
   Mientras está abierta **se puede ir y volver**; cerrada ya no se mueve ni se
   edita (sí se le pueden anotar actividades). Perderla **exige el motivo**.
-- Probabilidad: la que pone el vendedor, o la de la etapa (10 · 25 · 50 · 75 ·
-  100 · 0) **aplicada al leer**. La base guarda `NULL` cuando no la tocó,
-  porque esa tabla sigue siendo una pregunta abierta al dueño (pregunta 3).
+- **No hay probabilidad de cierre.** La hubo (por etapa y luego por
+  instancia) y el dueño la quitó entera el 17/11: ver abajo.
 - El cliente de una oportunidad sobre un lead aparece solo cuando el lead se
   aprueba: se lee `coalesce(cliente_id, prospectos.registro_id)`, sin que la
   aprobación de Captación tenga que saber de oportunidades.
@@ -163,7 +159,7 @@ build anterior: 7 fallos).
 
 | Pantalla | Qué hay |
 |---|---|
-| `/crm` (Embudo, por omisión) | Una columna por etapa con su total y su ponderado. Una tarjeta se mueve a otra etapa abierta o a GANADA; a PERDIDA no, porque exige el motivo y eso va en la ficha (`components/demo/crm/Oportunidades.tsx:34`) |
+| `/crm` (Embudo, por omisión) | Una columna por etapa con su total. Una tarjeta se mueve a otra etapa abierta o a GANADA; a PERDIDA no, porque exige el motivo y eso va en la ficha (`components/demo/crm/Oportunidades.tsx:34`) |
 | `/crm?vista=oportunidades` | La lista, con chips por etapa y la columna de vendedor. «Nueva oportunidad» abre `FormOportunidad` |
 | `/crm?vista=prospectos` | Los leads de tipo cliente: la pantalla de Captación con `tipoFijo="CLIENTE"` (`crm/page.tsx:33`), sin otra pantalla de leads |
 | `/crm/oportunidades/[id]` | La ficha (`FichaOportunidad`): lo pedido, el cotejo por cotización, días en cada etapa, actividades, cambio de etapa, ligar y desligar propuestas, y la línea de tiempo unida, filtrable por persona |
@@ -190,9 +186,8 @@ en `lib/crm.test.ts`):
 - `cotejoPresupuesto` (`:139`): debajo · dentro · encima del rango, con la
   diferencia contra el extremo rebasado y su %. `cotejoFechas` (`:175`): cuántos
   días se movió cada extremo.
-- `agruparEmbudo` (`:196`): total y **ponderado** por la probabilidad efectiva.
-  El monto de referencia es el máximo del presupuesto, o el mínimo
-  (`montoReferencia`, `:188`).
+- `agruparEmbudo`: el total de cada columna. El monto de referencia es el
+  máximo del presupuesto, o el mínimo (`montoReferencia`).
 
 > [!important] El cotejo va CON IVA y SIN IVA, con la tasa de cada cliente
 > Decisión del dueño del 17/11 (pregunta 5 del ADR). Cada cotización se
@@ -201,19 +196,19 @@ en `lib/crm.test.ts`):
 > (`clientes.iva_pct`, p. ej. 8 % en la frontera) o 16. «Sin IVA» es la `base`,
 > **no** el `neto` (eso es lo que recibe el medio tras la comisión).
 
-## La probabilidad por etapa la fija cada instancia
+## La probabilidad de cierre, quitada (17/11)
 
-Decisión del dueño del 17/11 (pregunta 3), forma aprobada el mismo día.
-`config_negocio.crm_probabilidades` (`20261117_crm_probabilidad_por_etapa.sql`)
-guarda solo las etapas abiertas que la instancia cambió; `{}` = la de fábrica
-(10 · 25 · 50 · 75). GANADA es 100 y PERDIDA 0 siempre. Se edita en
-**Administración → Comercial** (`ProbabilidadesCrmCard`) con `PATCH /api/config`,
-que **fusiona** con lo guardado (`null` quita una etapa). Se aplica al leer
-(`probabilidadesDelTenant` en `oportunidades-repo.ts`), así que cambiarla
-recalcula el embudo de todas las oportunidades sin probabilidad puesta a mano;
-la lista y la ficha traen la tabla en `probabilidades`. Saneo al leer y al
-escribir en `lib/crm.ts` (`sanearProbabilidades`, `tablaProbabilidades`).
-Probado en la sección 7 de `oportunidades.e2e.test.ts`, vista en rojo.
+Hubo un porcentaje de cierre por oportunidad para «ponderar» el embudo: fijo
+por etapa (10 · 25 · 50 · 75), luego configurable por instancia en
+Administración. El dueño, al ver para qué servía, pidió **«ese porcentaje
+bórralo»** y eligió quitarlo **todo**. Como nada estaba publicado, se quitó
+limpio: se borró `20261117_crm_probabilidad_por_etapa.sql` y la columna
+`probabilidad_pct` salió de `20261117_crm_oportunidades.sql`.
+
+La API **rechaza con 400** `probabilidadPct` (alta y edición) y
+`crmProbabilidades` (`/api/config`), en vez de ignorarlos: lo vigila la sección
+7 de `oportunidades.e2e.test.ts`, que comprueba además que la base no tiene
+ninguna de las dos columnas.
 
 > [!important] Lo ligado pasa por la regla de la Fase 3 (arreglado el 17/11)
 > Ligar no exige que propuesta y oportunidad sean del mismo vendedor

@@ -37,65 +37,12 @@ export const TIPOS_MEDIO = [
   'OTRO',
 ] as const
 
-/**
- * La probabilidad de cierre DE FÁBRICA, cuando ni el vendedor ni la instancia
- * pusieron otra.
- *
- * El dueño decidió el 17/11 (pregunta 3 del ADR 0051) que **la fija cada
- * instancia**: Administración guarda en `config_negocio.crm_probabilidades`
- * solo las etapas que cambió, y `tablaProbabilidades` las mezcla con estas. La
- * base guarda `probabilidad_pct` NULL cuando el vendedor no la toca, y la tabla
- * se aplica al LEER: cambiarla recalcula todas las oportunidades sin reescribir
- * una fila.
- */
-export const PROBABILIDAD_POR_ETAPA: Record<EtapaOportunidad, number> = {
-  CONTACTO: 10,
-  NECESIDAD: 25,
-  COTIZANDO: 50,
-  NEGOCIANDO: 75,
-  GANADA: 100,
-  PERDIDA: 0,
-}
+// La oportunidad NO lleva probabilidad de cierre. La hubo (fija por etapa, luego
+// por instancia, para «ponderar» el embudo) y el dueño la quitó entera el
+// 17/11: el embudo enseña lo que quiere gastar cada cliente, sin pesarlo.
 
 export function etapaOportunidadCerrada(e: EtapaOportunidad): boolean {
   return e === 'GANADA' || e === 'PERDIDA'
-}
-
-export type EtapaAbierta = (typeof ETAPAS_ABIERTAS)[number]
-export type ProbabilidadesInstancia = Partial<Record<EtapaAbierta, number>>
-
-/**
- * Lo que guardó la instancia, saneado. Solo etapas ABIERTAS y enteros de 0 a
- * 100; lo demás se tira. Se sanea al leer y al escribir, como `costos_ot`: la
- * columna es jsonb, la puede tocar una corrección a mano, y una base sin la
- * migración devuelve `undefined`. En todos esos casos, `{}` = la de fábrica.
- * El 0 se conserva: es un valor de verdad, no «sin configurar».
- */
-export function sanearProbabilidades(v: unknown): ProbabilidadesInstancia {
-  if (!v || typeof v !== 'object' || Array.isArray(v)) return {}
-  const fuera: ProbabilidadesInstancia = {}
-  for (const e of ETAPAS_ABIERTAS) {
-    const crudo = (v as Record<string, unknown>)[e]
-    if (crudo == null || crudo === '') continue
-    const n = Number(crudo)
-    if (Number.isInteger(n) && n >= 0 && n <= 100) fuera[e] = n
-  }
-  return fuera
-}
-
-/** La tabla completa de una instancia: lo suyo encima de la de fábrica. GANADA y PERDIDA no se tocan. */
-export function tablaProbabilidades(deLaInstancia: unknown): Record<EtapaOportunidad, number> {
-  return { ...PROBABILIDAD_POR_ETAPA, ...sanearProbabilidades(deLaInstancia) }
-}
-
-/** Cerrada no hay duda que valga: ganada es 100 y perdida 0. */
-export function probabilidadEfectiva(
-  etapa: EtapaOportunidad,
-  pct: number | null,
-  tabla: Record<EtapaOportunidad, number> = PROBABILIDAD_POR_ETAPA,
-): number {
-  if (etapaOportunidadCerrada(etapa)) return PROBABILIDAD_POR_ETAPA[etapa]
-  return pct ?? tabla[etapa]
 }
 
 export type ProblemaEtapa = 'MISMA' | 'CERRADA' | 'SIN_MOTIVO'
@@ -223,20 +170,13 @@ export function montoReferencia(min: number | null, max: number | null): number 
   return max ?? min ?? null
 }
 
-/**
- * Las columnas del embudo, en su orden, con cuánto suman (`total`, el monto de
- * referencia) y cuánto valen pesadas por su probabilidad (`ponderado`).
- */
+/** Las columnas del embudo, en su orden, con cuánto suman (`total`, el monto de referencia). */
 export function agruparEmbudo<
-  T extends { etapa: EtapaOportunidad; presupuestoMin: number | null; presupuestoMax: number | null; probabilidad: number },
->(ops: T[]): { etapa: EtapaOportunidad; oportunidades: T[]; total: number; ponderado: number }[] {
+  T extends { etapa: EtapaOportunidad; presupuestoMin: number | null; presupuestoMax: number | null },
+>(ops: T[]): { etapa: EtapaOportunidad; oportunidades: T[]; total: number }[] {
   return ETAPAS_OPORTUNIDAD.map((etapa) => {
     const de = ops.filter((o) => o.etapa === etapa)
     const total = de.reduce((s, o) => s + (montoReferencia(o.presupuestoMin, o.presupuestoMax) ?? 0), 0)
-    const ponderado = de.reduce(
-      (s, o) => s + ((montoReferencia(o.presupuestoMin, o.presupuestoMax) ?? 0) * o.probabilidad) / 100,
-      0,
-    )
-    return { etapa, oportunidades: de, total, ponderado: Math.round(ponderado * 100) / 100 }
+    return { etapa, oportunidades: de, total }
   })
 }

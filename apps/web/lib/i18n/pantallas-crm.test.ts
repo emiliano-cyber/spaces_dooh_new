@@ -107,8 +107,6 @@ const op = (o: Partial<Oportunidad> & Pick<Oportunidad, 'id' | 'etapa'>): Oportu
   clienteNombre: 'Refrescos del Norte',
   usuarioId: 'u1',
   vendedorNombre: 'Ana',
-  probabilidadPct: null,
-  probabilidad: 50,
   presupuestoMin: 100000,
   presupuestoMax: 200000,
   fechaInicioDeseada: '2026-12-01',

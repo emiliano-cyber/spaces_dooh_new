@@ -3,10 +3,8 @@ import type { PoolClient } from 'pg'
 import { q, q1, withTenantTx } from './db'
 import { tenantActual } from './tenant'
 import { AppError } from './errores'
-import { probabilidadesDelTenant } from './config-repo'
 import {
   etapaOportunidadCerrada,
-  probabilidadEfectiva,
   problemaCambioEtapa,
   problemaFechas,
   problemaPresupuesto,
@@ -71,10 +69,6 @@ export interface Oportunidad {
   usuarioId: string | null
   vendedorNombre: string | null
   etapa: EtapaOportunidad
-  /** La que guardó el vendedor; null = la de la etapa. */
-  probabilidadPct: number | null
-  /** La que vale: la del vendedor o la de la etapa, y 100/0 si está cerrada. */
-  probabilidad: number
   presupuestoMin: number | null
   presupuestoMax: number | null
   fechaInicioDeseada: string | null
@@ -95,7 +89,7 @@ export interface Oportunidad {
 // `date` con `to_char` para que el 30 no se lea 29 en México (ver `codigos-repo.ts`).
 const SEL = `o.id, o.nombre, o.prospecto_id, p.nombre as prospecto_nombre,
   coalesce(o.cliente_id, case when p.tipo = 'CLIENTE' then p.registro_id end) as cliente_id,
-  c.nombre as cliente_nombre, o.usuario_id, v.nombre as vendedor_nombre, o.etapa, o.probabilidad_pct,
+  c.nombre as cliente_nombre, o.usuario_id, v.nombre as vendedor_nombre, o.etapa,
   o.presupuesto_min, o.presupuesto_max,
   to_char(o.fecha_inicio_deseada,'YYYY-MM-DD') as fecha_inicio_deseada,
   to_char(o.fecha_fin_deseada,'YYYY-MM-DD') as fecha_fin_deseada,
@@ -119,12 +113,8 @@ const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : v == null ? n
 // `numeric` llega como cadena: a número, y null se queda null (no 0).
 const num = (v: unknown) => (v == null ? null : Number(v))
 
-// `tabla`: la probabilidad por etapa de la instancia (ADR 0051, pregunta 3).
-// Se aplica al LEER, así que cambiarla en Administración recalcula todas las
-// oportunidades que no tienen una puesta a mano.
-function aOportunidad(r: any, tabla: Record<EtapaOportunidad, number>): Oportunidad {
+function aOportunidad(r: any): Oportunidad {
   const etapa = r.etapa as EtapaOportunidad
-  const pct = num(r.probabilidad_pct)
   return {
     id: String(r.id),
     nombre: String(r.nombre),
@@ -135,8 +125,6 @@ function aOportunidad(r: any, tabla: Record<EtapaOportunidad, number>): Oportuni
     usuarioId: r.usuario_id ?? null,
     vendedorNombre: r.vendedor_nombre ?? null,
     etapa,
-    probabilidadPct: pct,
-    probabilidad: probabilidadEfectiva(etapa, pct, tabla),
     presupuestoMin: num(r.presupuesto_min),
     presupuestoMax: num(r.presupuesto_max),
     fechaInicioDeseada: r.fecha_inicio_deseada ?? null,
@@ -168,7 +156,6 @@ export async function listarOportunidades(f: FiltroOportunidades): Promise<{
   oportunidades: Oportunidad[]
   total: number
   porEtapa: Partial<Record<EtapaOportunidad, number>>
-  probabilidades: Record<EtapaOportunidad, number>
 }> {
   const tenant = await tenantActual()
   const params: unknown[] = [tenant]
@@ -209,14 +196,10 @@ export async function listarOportunidades(f: FiltroOportunidades): Promise<{
       limit $${params.length - 1} offset $${params.length}`,
     params,
   )
-  // La tabla viaja con la página: el formulario la enseña como «si no pones
-  // otra» sin pedir la configuración, que es de Administración.
-  const tabla = await probabilidadesDelTenant()
   return {
-    oportunidades: filas.map((r) => aOportunidad(r, tabla)),
+    oportunidades: filas.map(aOportunidad),
     total: total?.n ?? 0,
     porEtapa: Object.fromEntries(conteos.map((c) => [c.etapa, c.n])),
-    probabilidades: tabla,
   }
 }
 
@@ -322,14 +305,7 @@ export async function leerCambiosDePropuestas(
 export async function obtenerOportunidad(
   id: string,
   soloDe?: string | null,
-): Promise<
-  | (Oportunidad & {
-      actividades: Actividad[]
-      propuestas: PropuestaLigada[]
-      probabilidades: Record<EtapaOportunidad, number>
-    })
-  | null
-> {
+): Promise<(Oportunidad & { actividades: Actividad[]; propuestas: PropuestaLigada[] }) | null> {
   const tenant = await tenantActual()
   const r = await q1<any>(
     `select ${SEL} ${DESDE}
@@ -337,10 +313,8 @@ export async function obtenerOportunidad(
     [id, tenant, soloDe ?? null],
   )
   if (!r) return null
-  const tabla = await probabilidadesDelTenant()
   return {
-    ...aOportunidad(r, tabla),
-    probabilidades: tabla,
+    ...aOportunidad(r),
     actividades: await leerActividades(id, tenant),
     propuestas: await leerPropuestasLigadas(id, tenant, soloDe ?? null),
   }
@@ -356,7 +330,6 @@ export interface DatosOportunidad {
   plazas: string | null
   tiposMedio: string[]
   objetivo: string | null
-  probabilidadPct: number | null
 }
 
 export interface Autor {
@@ -428,11 +401,10 @@ export async function crearOportunidad(
     const { rows } = await client.query(
       `insert into oportunidades (tenant_id, prospecto_id, cliente_id, nombre, usuario_id, presupuesto_min,
                                   presupuesto_max, fecha_inicio_deseada, fecha_fin_deseada, fecha_decision,
-                                  plazas, tipos_medio, objetivo, probabilidad_pct)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::text[],$13,$14) returning id`,
+                                  plazas, tipos_medio, objetivo)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::text[],$13) returning id`,
       [tenant, d.prospectoId, clienteId, d.nombre, autor.id, d.presupuestoMin, d.presupuestoMax,
-       d.fechaInicioDeseada, d.fechaFinDeseada, d.fechaDecision, d.plazas, d.tiposMedio, d.objetivo,
-       d.probabilidadPct],
+       d.fechaInicioDeseada, d.fechaFinDeseada, d.fechaDecision, d.plazas, d.tiposMedio, d.objetivo],
     )
     const id = String(rows[0].id)
     await insertarActividad(client, {
@@ -468,7 +440,6 @@ const COLUMNA: Record<keyof DatosOportunidad, string> = {
   plazas: 'plazas',
   tiposMedio: 'tipos_medio',
   objetivo: 'objetivo',
-  probabilidadPct: 'probabilidad_pct',
 }
 
 /**

@@ -73,7 +73,6 @@ const campos = {
     .nullish()
     .transform((v) => [...new Set(v ?? [])]),
   objetivo: opcional(2000),
-  probabilidadPct: z.coerce.number().int().min(0).max(100).nullish().transform((v) => v ?? null),
 }
 
 const altaSchema = z
@@ -167,7 +166,6 @@ export async function crearOportunidadCtrl(u: UsuarioSesion, body: unknown) {
     plazas: v.plazas ?? null,
     tiposMedio: v.tiposMedio ?? [],
     objetivo: v.objetivo ?? null,
-    probabilidadPct: v.probabilidadPct ?? null,
     prospectoId: v.prospectoId ?? null,
     clienteId: v.clienteId ?? null,
     nota: v.nota ?? null,

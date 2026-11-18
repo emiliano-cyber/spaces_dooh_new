@@ -1,9 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   ETAPAS_OPORTUNIDAD,
-  PROBABILIDAD_POR_ETAPA,
   etapaOportunidadCerrada,
-  probabilidadEfectiva,
   problemaCambioEtapa,
   problemaPresupuesto,
   problemaFechas,
@@ -12,8 +10,6 @@ import {
   cotejoFechas,
   agruparEmbudo,
   montoReferencia,
-  tablaProbabilidades,
-  sanearProbabilidades,
 } from './crm'
 
 // ADR 0051 §1 y §2: las reglas de la oportunidad que NO dependen de la base.
@@ -26,54 +22,6 @@ describe('las etapas de una oportunidad', () => {
 
   it('solo GANADA y PERDIDA cierran', () => {
     expect(ETAPAS_OPORTUNIDAD.filter(etapaOportunidadCerrada)).toEqual(['GANADA', 'PERDIDA'])
-  })
-})
-
-describe('la probabilidad', () => {
-  it('por omisión es la de la etapa (10 · 25 · 50 · 75 · 100 · 0)', () => {
-    expect(PROBABILIDAD_POR_ETAPA).toEqual({
-      CONTACTO: 10, NECESIDAD: 25, COTIZANDO: 50, NEGOCIANDO: 75, GANADA: 100, PERDIDA: 0,
-    })
-    expect(probabilidadEfectiva('COTIZANDO', null)).toBe(50)
-  })
-
-  it('la que puso el vendedor manda mientras está abierta', () => {
-    expect(probabilidadEfectiva('COTIZANDO', 65)).toBe(65)
-    expect(probabilidadEfectiva('CONTACTO', 0)).toBe(0)
-  })
-
-  it('cerrada no hay duda: ganada es 100 y perdida 0, diga lo que diga la columna', () => {
-    expect(probabilidadEfectiva('GANADA', 40)).toBe(100)
-    expect(probabilidadEfectiva('PERDIDA', 90)).toBe(0)
-  })
-})
-
-describe('la probabilidad la fija cada instancia (decisión del dueño, 17/11)', () => {
-  it('lo que guardó la instancia manda en las etapas abiertas; lo que no, es el de fábrica', () => {
-    const tabla = tablaProbabilidades({ CONTACTO: 5, COTIZANDO: 40 })
-    expect(tabla).toEqual({ CONTACTO: 5, NECESIDAD: 25, COTIZANDO: 40, NEGOCIANDO: 75, GANADA: 100, PERDIDA: 0 })
-    expect(probabilidadEfectiva('CONTACTO', null, tabla)).toBe(5)
-    // La que puso el vendedor a mano sigue mandando sobre la de la instancia.
-    expect(probabilidadEfectiva('CONTACTO', 30, tabla)).toBe(30)
-  })
-
-  it('GANADA y PERDIDA no se configuran: 100 y 0 siempre', () => {
-    const tabla = tablaProbabilidades({ GANADA: 80, PERDIDA: 20 } as any)
-    expect(probabilidadEfectiva('GANADA', null, tabla)).toBe(100)
-    expect(probabilidadEfectiva('PERDIDA', null, tabla)).toBe(0)
-  })
-
-  it('el saneo tira lo que no sirve en vez de dejarlo pasar o convertirlo en 0', () => {
-    // La columna es jsonb: la puede tocar una corrección a mano, y una base sin
-    // la migración devuelve undefined. En todos los casos, la de fábrica.
-    for (const basura of [undefined, null, '[]', [], 7, 'hola']) {
-      expect(sanearProbabilidades(basura)).toEqual({})
-    }
-    expect(
-      sanearProbabilidades({ CONTACTO: '15', NECESIDAD: -1, COTIZANDO: 101, NEGOCIANDO: 33.5, GANADA: 90, OTRA: 50, PERDIDA: null }),
-    ).toEqual({ CONTACTO: 15 })
-    // El 0 es un valor de verdad («aquí no cuento nada todavía»), no «sin configurar».
-    expect(sanearProbabilidades({ CONTACTO: 0 })).toEqual({ CONTACTO: 0 })
   })
 })
 
@@ -205,19 +153,19 @@ describe('las fechas pedidas contra las cotizadas', () => {
 })
 
 describe('el embudo', () => {
-  it('agrupa por etapa en el orden del embudo, con el total y el ponderado de cada columna', () => {
+  it('agrupa por etapa en el orden del embudo, con el total de cada columna (sin ponderar: el dueño quitó la probabilidad)', () => {
     const ops = [
-      { etapa: 'COTIZANDO' as const, presupuestoMin: 100, presupuestoMax: 200, probabilidad: 50 },
-      { etapa: 'COTIZANDO' as const, presupuestoMin: null, presupuestoMax: null, probabilidad: 50 },
-      { etapa: 'CONTACTO' as const, presupuestoMin: 80, presupuestoMax: null, probabilidad: 10 },
+      { etapa: 'COTIZANDO' as const, presupuestoMin: 100, presupuestoMax: 200 },
+      { etapa: 'COTIZANDO' as const, presupuestoMin: null, presupuestoMax: null },
+      { etapa: 'CONTACTO' as const, presupuestoMin: 80, presupuestoMax: null },
     ]
     const e = agruparEmbudo(ops)
     expect(e.map((c) => c.etapa)).toEqual(['CONTACTO', 'NECESIDAD', 'COTIZANDO', 'NEGOCIANDO', 'GANADA', 'PERDIDA'])
     const cot = e.find((c) => c.etapa === 'COTIZANDO')!
     expect(cot.oportunidades).toHaveLength(2)
     expect(cot.total).toBe(200)
-    expect(cot.ponderado).toBe(100)
-    expect(e.find((c) => c.etapa === 'CONTACTO')!.ponderado).toBe(8)
+    expect(e.find((c) => c.etapa === 'CONTACTO')!.total).toBe(80)
+    expect(Object.keys(cot)).not.toContain('ponderado')
   })
 
   it('el monto de referencia es el máximo, o el mínimo si no hay máximo', () => {

@@ -6,7 +6,6 @@ import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/demo/ui/Button'
 import { useIdioma } from '@/lib/i18n/contexto'
-import { porcentajeEnIdioma } from '@/lib/i18n/formato-idioma'
 import { formatFecha } from '@/lib/data/client'
 import { withTrail } from '@/lib/nav-trail'
 import {
@@ -35,7 +34,6 @@ import { COLOR_ETAPA, claveEtapa } from './etiquetas'
 //  a PERDIDA no, porque exige el motivo y eso se escribe en la ficha.
 // ============================================================================
 
-const pct = (n: number, idioma: Parameters<typeof porcentajeEnIdioma>[1]) => porcentajeEnIdioma(String(n), idioma)
 
 const enlaceFicha = (o: Oportunidad, volver: string, href: string) =>
   withTrail(`/crm/oportunidades/${o.id}`, [{ label: volver, href }])
@@ -86,7 +84,7 @@ export function Oportunidades({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-[13px] text-muted">
-          {pagina && !pagina.veTodas ? t('crm.solo-tuyas') : vista === 'embudo' ? t('crm.embudo.ayuda') : ''}
+          {pagina && !pagina.veTodas ? t('crm.solo-tuyas') : ''}
         </p>
         <Button variant="success" onClick={() => setFormAbierto(true)}>
           <Plus className="mr-1 h-4 w-4" /> {t('crm.nueva')}
@@ -107,9 +105,6 @@ export function Oportunidades({
                   <span className="demo-num text-[12px] text-muted">{c.oportunidades.length}</span>
                 </div>
                 <p className="demo-num text-[11px] text-muted">{t('crm.embudo.total', { monto: dinero(c.total) })}</p>
-                {!etapaOportunidadCerrada(c.etapa) && (
-                  <p className="demo-num text-[11px] text-muted">{t('crm.embudo.ponderado', { monto: dinero(c.ponderado) })}</p>
-                )}
               </header>
               {/* `list-none` explícito: el proyecto no usa el preflight de Tailwind. */}
               <ul className="m-0 list-none space-y-2 p-0">
@@ -119,10 +114,9 @@ export function Oportunidades({
                     <Link href={enlaceFicha(o, volver, hrefVolver)} className="font-medium text-ink hover:underline">{o.nombre}</Link>
                     <p className="text-muted">{cliente(o)}</p>
                     <p className={montoReferencia(o.presupuestoMin, o.presupuestoMax) == null ? 'text-muted' : 'demo-num text-ink'}>{monto(o)}</p>
-                    <p className="text-muted">
-                      {t('crm.prob', { pct: pct(o.probabilidad, idioma) })}
-                      {o.fechaDecision ? ` · ${t('crm.decide', { fecha: formatFecha(o.fechaDecision, idioma) })}` : ''}
-                    </p>
+                    {o.fechaDecision && (
+                      <p className="text-muted">{t('crm.decide', { fecha: formatFecha(o.fechaDecision, idioma) })}</p>
+                    )}
                     {!etapaOportunidadCerrada(o.etapa) && (
                       <select aria-label={t('crm.ficha.etapa')} className="mt-1 h-7 w-full rounded border border-border-strong bg-surface px-1 text-[12px] text-ink"
                         value="" onChange={(e) => e.target.value && mover(o, e.target.value as EtapaOportunidad)}>
@@ -159,7 +153,6 @@ export function Oportunidades({
                   <th className="px-3 py-2 font-medium">{t('crm.col.cliente')}</th>
                   <th className="px-3 py-2 font-medium">{t('crm.col.etapa')}</th>
                   <th className="px-3 py-2 text-right font-medium">{t('crm.col.presupuesto')}</th>
-                  <th className="px-3 py-2 text-right font-medium">{t('crm.col.probabilidad')}</th>
                   <th className="px-3 py-2 font-medium">{t('crm.col.decision')}</th>
                   <th className="px-3 py-2 text-right font-medium">{t('crm.cotejo.col.cotizaciones')}</th>
                   <th className="px-3 py-2 font-medium">{t('crm.col.vendedor')}</th>
@@ -172,7 +165,6 @@ export function Oportunidades({
                     <td className="px-3 py-2 text-muted">{cliente(o)}</td>
                     <td className="px-3 py-2"><span className={`rounded-full border px-2 py-0.5 text-[11px] ${COLOR_ETAPA[o.etapa]}`}>{t(claveEtapa(o.etapa))}</span></td>
                     <td className={`px-3 py-2 text-right ${montoReferencia(o.presupuestoMin, o.presupuestoMax) == null ? 'text-muted' : 'demo-num'}`}>{monto(o)}</td>
-                    <td className="demo-num px-3 py-2 text-right">{pct(o.probabilidad, idioma)}</td>
                     <td className="px-3 py-2 text-muted">{o.fechaDecision ? formatFecha(o.fechaDecision, idioma) : '—'}</td>
                     <td className="demo-num px-3 py-2 text-right">{o.cotizaciones}</td>
                     <td className="px-3 py-2 text-muted">{o.vendedorNombre ?? t('crm.cotejo.sin-vendedor')}</td>
@@ -184,7 +176,7 @@ export function Oportunidades({
         </div>
       )}
 
-      <FormOportunidad abierto={formAbierto} onCerrar={() => setFormAbierto(false)} onGuardada={cargar} probabilidades={pagina?.probabilidades} />
+      <FormOportunidad abierto={formAbierto} onCerrar={() => setFormAbierto(false)} onGuardada={cargar} />
     </div>
   )
 }

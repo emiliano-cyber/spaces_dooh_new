@@ -12,7 +12,6 @@ import { rfcTenant, textoTenant } from '@/lib/server/config-fiscal'
 import { esEmailValido, EMAIL_INVALIDO } from '@/lib/validacion'
 import { sanearCostosOt } from '@/lib/costos-ot'
 import { TODOS_TIPOS_OT } from '@/lib/tipos-ot'
-import { ETAPAS_ABIERTAS, sanearProbabilidades } from '@/lib/crm'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -103,19 +102,6 @@ const configSchema = z
           .max(99_999_999, 'El costo de una orden de trabajo es demasiado grande')
           .nullable(),
       ),
-    // ADR 0051, pregunta 3 (17/11): la probabilidad de cierre por etapa del
-    // CRM la fija cada instancia. Claves CERRADAS a las etapas abiertas —GANADA
-    // es 100 y PERDIDA 0 siempre—, enteros de 0 a 100. `null` es QUITAR esa
-    // etapa (vuelve a la de fábrica), igual que en `costosOt`.
-    crmProbabilidades: z.record(
-      z.enum(ETAPAS_ABIERTAS),
-      z.coerce
-        .number()
-        .int('La probabilidad debe ser un número entero')
-        .min(0, 'La probabilidad no puede ser negativa')
-        .max(100, 'La probabilidad no puede pasar de 100 %')
-        .nullable(),
-    ),
     // La razón social ya no se escribe como texto: Identidad elige cuál de
     // «Razones sociales» es la principal (20261012_razon_social_principal.sql).
     // Un cliente viejo que mande `razonSocial` recibe 400 por el `.strict()`, en
@@ -203,7 +189,6 @@ export async function PATCH(req: Request) {
     vigenciaPropuestaDias: 'vigencia_propuesta_dias',
     emailRemitente: 'email_remitente',
     costosOt: 'costos_ot',
-    crmProbabilidades: 'crm_probabilidades',
   }
   // Vaciar el campo es QUITAR el correo, no guardar una cadena vacía: un
   // Reply-To vacío es una cabecera rota, y el CHECK de la columna la rechaza
@@ -218,15 +203,6 @@ export async function PATCH(req: Request) {
   // y no solo al leer porque dejar basura entrar a la columna es arrastrarla en
   // cada respaldo y que el siguiente que lea el jsonb crudo se la crea.
   if (b.costosOt !== undefined) b.costosOt = JSON.stringify(sanearCostosOt(b.costosOt))
-  // Las probabilidades se FUSIONAN con lo guardado, no lo reemplazan: la
-  // pantalla manda solo las etapas que tocó, y `null` quita una. Sin fusionar,
-  // cambiar Contacto borraría en silencio lo que la instancia puso en
-  // Negociando. Saneadas a la entrada por lo mismo que los costos.
-  if (b.crmProbabilidades !== undefined) {
-    const guardadas = sanearProbabilidades((await obtenerConfigRow()).crm_probabilidades) as Record<string, number | null>
-    const fusion = { ...guardadas, ...(b.crmProbabilidades as Record<string, number | null>) }
-    b.crmProbabilidades = JSON.stringify(sanearProbabilidades(fusion))
-  }
   // La identidad fiscal va PRIMERO: es la única parte que puede rechazar por
   // un dato de otra tabla (una principal ajena o dada de baja → 400), y si
   // fuera al final, ese 400 llegaría con el resto de la petición ya guardado.
