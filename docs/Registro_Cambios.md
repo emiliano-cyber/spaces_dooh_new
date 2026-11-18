@@ -30,6 +30,7 @@ Pedido del dueño: «si el prospecto ya entró a Contactado se convierte; si no,
 - El cuadro no sale si el prospecto ya tiene una oportunidad abierta, si pasa a Perdido o Rechazado, si es un predio, pantalla o arrendador, ni a quien no puede crear oportunidades: para ellos todo sigue igual.
 - **Una sola oportunidad abierta por prospecto**: el sistema no deja crear otra mientras la anterior siga abierta, aunque la lleve otro vendedor. Lo dice con un aviso claro, sin mostrar de quién es. Cuando la anterior se gana o se pierde, sí se puede abrir otra.
 - En **Seguimiento**, la tarjeta de un prospecto que ya va en Contactado (o más adelante) lo dice junto a «Prospecto», para distinguirlo de uno recién captado. El botón **Crear oportunidad** sigue disponible.
+- En **Seguimiento**, cuando todas las oportunidades de un prospecto están cerradas (ganadas o perdidas), el prospecto vuelve a aparecer como tarjeta de prospecto, con su etapa y **Crear oportunidad**. Mientras tenga una abierta, se ve solo por su oportunidad.
 
 ---
 

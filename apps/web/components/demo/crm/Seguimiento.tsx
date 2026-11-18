@@ -26,6 +26,7 @@ import {
 } from '@/lib/crm'
 import { FormOportunidad, type ProspectoElegido } from './FormOportunidad'
 import { COLOR_ETAPA, claveEtapa } from './etiquetas'
+import { tieneOportunidadAbierta } from '@/lib/prospecto-contactado'
 
 // ============================================================================
 //  Seguimiento — las oportunidades en columnas por etapa (tipo Kanban).
@@ -65,8 +66,8 @@ import { COLOR_ETAPA, claveEtapa } from './etiquetas'
 //  Se quedan fuera los PERDIDO y RECHAZADO (lo mismo que ofrece el alta de
 //  oportunidad); un APROBADO sin oportunidad SÍ sale: ya es cliente, pero
 //  nadie le está dando seguimiento, que es justo lo que esta vista enseña.
-//  Un prospecto que ya tiene oportunidad (abierta o cerrada) no se repite:
-//  se ve por su oportunidad. Ojo: se compara contra las oportunidades que
+//  Un prospecto con una oportunidad ABIERTA no se repite: se ve por su
+//  oportunidad (desde el 18/11, quinto pedido, con todas cerradas vuelve). Ojo: se compara contra las oportunidades que
 //  llegaron (las primeras 100); con más, uno podría salir dos veces.
 //
 //  18/11, cuarto pedido: al pasar un prospecto a Contactado el vendedor elige
@@ -152,14 +153,20 @@ export function Seguimiento({
   useEffect(cargar, [cargar])
 
   const ops = useMemo(() => pagina?.oportunidades ?? [], [pagina])
-  // Los prospectos que todavía no tienen ninguna oportunidad (de cualquier
-  // etapa) entre las que llegaron.
-  const sueltos = useMemo(() => {
-    const conOportunidad = new Set(ops.map((o) => o.prospectoId).filter(Boolean))
-    return (prospectos ?? []).filter(
-      (p) => p.tipo === 'CLIENTE' && !conOportunidad.has(p.id) && ETAPAS_PROSPECTO_VISIBLES.includes(p.etapa),
-    )
-  }, [ops, prospectos])
+  // Los prospectos que no tienen una oportunidad ABIERTA entre las que
+  // llegaron. 18/11, quinto pedido («sí, que vuelva a aparecer como
+  // prospecto»): con todas sus oportunidades cerradas (GANADA o PERDIDA)
+  // vuelve a salir como tarjeta, que es justo cuando el servidor deja abrirle
+  // otra (`crearOportunidad`). Hasta entonces se ocultaba con cualquiera.
+  // También el APROBADO con su oportunidad ganada: el dueño lo quiso así en
+  // general, aunque ya sea cliente.
+  const sueltos = useMemo(
+    () =>
+      (prospectos ?? []).filter(
+        (p) => p.tipo === 'CLIENTE' && !tieneOportunidadAbierta(p.id, ops) && ETAPAS_PROSPECTO_VISIBLES.includes(p.etapa),
+      ),
+    [ops, prospectos],
+  )
   const cliente = (o: Oportunidad) => o.clienteNombre ?? o.prospectoNombre ?? '—'
 
   // Los vendedores que aparecen en lo que llegó, para el filtro.

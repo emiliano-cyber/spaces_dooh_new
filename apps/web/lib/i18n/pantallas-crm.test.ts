@@ -487,3 +487,53 @@ describe('18/11 · la búsqueda de Seguimiento encuentra prospectos', () => {
     expect(prospectoCoincide(p, '', 'u1')).toBe(false)
   })
 })
+
+// ─── 18/11 (5.º pedido) · con todas sus oportunidades cerradas, vuelve ──────
+// El dueño: «sí, que vuelva a aparecer como prospecto». La tarjeta suelta se
+// oculta solo si el prospecto tiene una oportunidad ABIERTA; con todas
+// cerradas (GANADA o PERDIDA) vuelve a Contacto, con su etapa y «Crear
+// oportunidad» — la misma regla con la que el servidor deja abrir otra.
+describe('18/11 · el prospecto con todas sus oportunidades cerradas vuelve a Seguimiento', () => {
+  const PAG: PaginaOportunidades = {
+    ...PAGINA,
+    oportunidades: [
+      op({ id: 'a1', etapa: 'NEGOCIANDO', prospectoId: 'pr-abierta', clienteNombre: null, prospectoNombre: 'Abierta SA' }),
+      op({ id: 'c1', etapa: 'PERDIDA', prospectoId: 'pr-cerrada', perdidaEn: '2026-11-03T18:00:00.000Z', motivoPerdida: 'Precio' }),
+      op({ id: 'c2', etapa: 'GANADA', prospectoId: 'pr-cerrada', ganadaEn: '2026-11-04T18:00:00.000Z' }),
+      // Una cerrada y otra abierta del mismo: manda la abierta.
+      op({ id: 'm1', etapa: 'PERDIDA', prospectoId: 'pr-mixta', perdidaEn: '2026-11-03T18:00:00.000Z', motivoPerdida: 'Precio' }),
+      op({ id: 'm2', etapa: 'CONTACTO', prospectoId: 'pr-mixta' }),
+      // Aprobado (ya es cliente) con su oportunidad GANADA: también vuelve.
+      op({ id: 'g1', etapa: 'GANADA', prospectoId: 'pr-apro', ganadaEn: '2026-11-04T18:00:00.000Z' }),
+    ],
+    veTodas: true,
+  }
+  const PROSPECTOS = [
+    pro({ id: 'pr-abierta', nombre: 'Con abierta' }),
+    pro({ id: 'pr-cerrada', nombre: 'Con cerradas', etapa: 'VISITA' }),
+    pro({ id: 'pr-mixta', nombre: 'Con mixta' }),
+    pro({ id: 'pr-nada', nombre: 'Sin ninguna' }),
+    pro({ id: 'pr-apro', nombre: 'Aprobado ganado', etapa: 'APROBADO', registroId: 'c9' }),
+  ]
+  const h = () =>
+    envolver('es', createElement(Seguimiento, { inicial: PAG, prospectosInicial: PROSPECTOS, ahora: AHORA, puedeCrear: true }))
+
+  it('con todas cerradas: sale como prospecto, con su etapa y «Crear oportunidad»', () => {
+    const html = h()
+    expect(html).toContain('prospecto=pr-cerrada')
+    const i = html.indexOf('prospecto=pr-cerrada')
+    const tarjeta = html.slice(html.lastIndexOf('<li', i), html.indexOf('</li>', i) + 5)
+    expect(tarjeta).toContain('>Visita<')
+    expect(html.slice(html.indexOf('</a>', i), html.indexOf('</li>', i))).toContain('Crear oportunidad')
+  })
+  it('con una abierta (aunque tenga cerradas): no', () => {
+    expect(h()).not.toContain('prospecto=pr-abierta')
+    expect(h()).not.toContain('prospecto=pr-mixta')
+  })
+  it('sin ninguna: sí, como siempre', () => {
+    expect(h()).toContain('prospecto=pr-nada')
+  })
+  it('el aprobado con su oportunidad ganada también vuelve (el dueño: sí en general)', () => {
+    expect(h()).toContain('prospecto=pr-apro')
+  })
+})

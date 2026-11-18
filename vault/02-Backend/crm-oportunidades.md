@@ -297,9 +297,13 @@ build anterior: 7 fallos).
 > - **Seguimiento**: la tarjeta punteada de un prospecto que va en una etapa
 >   distinta de Prospecto lleva, junto a «Prospecto», su etapa («Contactado»,
 >   «Visita»…). «Crear oportunidad» sigue ahí y muestra el 409 si lo hay.
->   Un prospecto con CUALQUIER oportunidad (también cerrada) sigue sin
->   tarjeta suelta; con todas cerradas se le abre otra desde el cuadro o desde
->   «Nueva oportunidad».
+>   La tarjeta suelta se oculta **solo con una oportunidad ABIERTA**
+>   (`tieneOportunidadAbierta`, la misma regla del cuadro y del 409): con
+>   todas cerradas (GANADA o PERDIDA) vuelve a Contacto con su etapa y «Crear
+>   oportunidad» (el dueño: «sí, que vuelva a aparecer como prospecto»).
+>   También el APROBADO con su oportunidad ganada: el dueño lo quiso en
+>   general. Pruebas: `pantallas-crm.test.ts`, bloque «el prospecto con todas
+>   sus oportunidades cerradas vuelve a Seguimiento» (2 en rojo antes).
 > - Pruebas: `components/demo/captacion/contactado-oportunidad.test.ts`
 >   (19), dos estados en `pantallas-clientes.test.ts` (el cuadro con la etapa,
 >   y el formulario al convertir; mutados dan 2 en rojo cada uno),
