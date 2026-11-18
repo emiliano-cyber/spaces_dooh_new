@@ -1048,7 +1048,8 @@ const PANTALLAS: Pantalla[] = [
       'Prueba de color aprobada',
       'Sitio por confirmar',
       '>Impresa<',
-      'Ver la propuesta que aceptaste',
+      // 18/11, pedido del dueño: el botón dice «Ver negociación acordada».
+      'Ver negociación acordada',
     ],
     ingles: [
       'Your campaign tracking',
@@ -1065,7 +1066,7 @@ const PANTALLAS: Pantalla[] = [
       'Banner, 12.9 × 7.2 m',
       'Color proof approved',
       'Site to be confirmed',
-      'See the proposal you accepted',
+      'View agreed negotiation',
     ],
   },
   {
@@ -1516,6 +1517,25 @@ describe('seguimiento en la liga · lo que no se ve', () => {
   it('exactamente un paso con aria-current', async () => {
     const html = await pintarConSeguimiento('es', SEG_OOH)
     expect(html.split('aria-current="step"').length - 1).toBe(1)
+  })
+  // 18/11 · pedido del dueño: «el pipeline debe de ser en horizontal en la
+  // liga». Horizontal SIEMPRE (también en el teléfono): en angosto se desplaza
+  // DENTRO de su caja, nunca la página entera.
+  it('la línea de pasos es horizontal y se desplaza dentro de su propia caja', async () => {
+    const html = await pintarConSeguimiento('es', SEG_OOH)
+    const ol = /<ol[^>]*data-orientacion="([^"]+)"[^>]*>/.exec(html)
+    expect(ol?.[1]).toBe('horizontal')
+    expect(ol?.[0]).toContain('flex')
+    // La caja que envuelve la línea es la que hace scroll, no la página.
+    expect(html).toMatch(/<div[^>]*data-pasos-scroll="1"[^>]*class="[^"]*overflow-x-auto/)
+    // Seis pasos, en orden, todos en la misma fila.
+    expect(html.split('data-paso=').length - 1).toBe(6)
+  })
+  it('horizontal conserva el estado en palabra: «Ahora» visible y el resto para el lector', async () => {
+    const t = texto(await pintarConSeguimiento('es', SEG_OOH))
+    expect(t).toContain('Ahora')
+    expect(t).toContain('Completado')
+    expect(t).toContain('Pendiente')
   })
   it('corriendo no dice «terminó», y cancelada no pinta los pasos', async () => {
     expect(texto(await pintarConSeguimiento('es', SEG_HIBRIDA_AL_AIRE))).not.toContain('Tu campaña terminó')

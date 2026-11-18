@@ -87,8 +87,8 @@ alguna empezara a leer la cookie, la exención se vuelve un agujero.
 > [!note] 2026-11-17 · el rastreo «tipo Mercado Libre» en `/p/[id]`
 > La página pide en paralelo la propuesta y `GET /api/propuestas/publica/[id]/seguimiento`
 > y se pinta cuando llegan las dos. Con `hayCampana: true` va ARRIBA
-> `SeguimientoCampana` (banner con el mensaje y la fecha clave, línea vertical de
-> seis pasos con un solo `aria-current="step"`, lonas con «1 de 2 lonas impresas»
+> `SeguimientoCampana` (banner con el mensaje y la fecha clave, línea HORIZONTAL de
+> seis pasos con un solo `aria-current="step"` —ver abajo—, lonas con «1 de 2 lonas impresas»
 > y detalle plegable, anuncios con su estatus) y la propuesta se pliega debajo,
 > montada solo al abrirla (el mapa oculto se dibuja roto). Con `hayCampana: false`
 > o si el fetch falla, la página es la de siempre.
@@ -106,6 +106,20 @@ alguna empezara a leer la cookie, la exención se vuelve un agujero.
 >   corriendo vale «finalizada».
 > - Pruebas: `lib/i18n/pantallas-cuenta-shell.test.ts` (tres estados en cuatro
 >   idiomas y lo que NO debe verse).
+>
+> [!note] 2026-11-18 · la línea de pasos es HORIZONTAL (pedido del dueño)
+> «El pipeline debe de ser en horizontal en la liga que se envía al cliente».
+> `LineaPasos`/`PasoColumna` en `SeguimientoCampana.tsx`: círculos unidos por
+> un tramo de centro a centro (sólido hasta donde se llegó, punteado lo que
+> falta), completados con palomita, el actual con «Ahora» o «Requiere
+> atención», pendientes en gris; etiqueta y fecha debajo. En el teléfono
+> **sigue horizontal**: cada paso mide 92 px y la caja
+> (`data-pasos-scroll`, `overflow-x-auto`) se desplaza por dentro, centrando el
+> paso actual con `scrollLeft` al abrir (no `scrollIntoView`, que movería la
+> página en vertical). La página no tiene scroll horizontal. Desde `sm` los
+> seis reparten el ancho. El resumen «1 de 2 lonas impresas» pasó de dentro del
+> paso a debajo de la línea. Prueba: «la línea de pasos es horizontal…» en
+> `pantallas-cuenta-shell.test.ts`.
 
 ## Fotos y ubicación de cada pantalla
 

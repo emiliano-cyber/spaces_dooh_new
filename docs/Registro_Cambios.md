@@ -5,6 +5,16 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-18 · El seguimiento de la campaña en la liga del cliente va en horizontal
+
+Pedido del dueño: «el pipeline debe de ser en horizontal en la liga que se envía al cliente».
+
+- Los seis pasos (propuesta aceptada → campaña confirmada → material → instalación → al aire → terminada) ahora van en una fila, como el rastreo de un pedido: círculos unidos por una línea, los completados con palomita y en color, el actual resaltado con «Ahora», los pendientes en gris, y debajo de cada uno su nombre y su fecha.
+- En el teléfono sigue en horizontal: la fila se desliza con el dedo dentro de su recuadro y se abre centrada en el paso en el que va la campaña. La página no se mueve de lado.
+- Lo demás no cambia: el aviso ámbar cuando hay que ajustar el anuncio, «va con un poco de retraso», el nombre de la imprenta oculto, y una campaña cancelada sin pasos.
+
+---
+
 ## 2026-11-18 · La liga del cliente dice «Pantalla digital», no «PANTALLA_DIGITAL»
 
 - En la propuesta que abre el cliente, cada sitio decía su tipo con el código interno en mayúsculas («PANTALLA_DIGITAL», «ESPECTACULAR»). Ahora dice el nombre legible («Pantalla digital», «Espectacular»), en español como en los demás idiomas.

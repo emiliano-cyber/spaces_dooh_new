@@ -24,6 +24,7 @@
 //    hueco; cuando llega el nombre, se dice una vez.
 // ============================================================================
 
+import { useEffect, useRef } from 'react'
 import { Check, AlertTriangle, CircleSlash, ChevronDown, Printer, MonitorPlay, Radio } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { useIdioma } from '@/lib/i18n/contexto'
@@ -228,74 +229,105 @@ export function SeguimientoCampana({
   )
 }
 
-// ─── La línea de pasos: vertical siempre ────────────────────────────────────
-// Horizontal no cabe con seis pasos con texto a 375 px, y una sola forma en
-// todos los anchos es más fácil de leer que dos.
+// ─── La línea de pasos: HORIZONTAL siempre (18/11) ──────────────────────────
+// Pedido del dueño el 18/11: «el pipeline debe de ser en horizontal en la liga
+// que se envía al cliente», como el rastreo de un pedido. Hasta ese día era
+// vertical «porque seis pasos con texto no caben a 375 px»; sigue siendo
+// verdad, y por eso en angosto la línea se DESPLAZA DENTRO DE SU CAJA
+// (`overflow-x-auto`) con un ancho mínimo por paso, y al abrir se centra el
+// paso actual. La página nunca tiene scroll horizontal: lo que se mueve es la
+// caja, no el documento. Una sola forma en todos los anchos, como antes.
 function LineaPasos({ s }: { s: Seguimiento }) {
   const { t, idioma } = useIdioma()
+  const caja = useRef<HTMLDivElement>(null)
   // Exactamente un paso «actual» para el lector de pantalla: el que el
   // servidor marca, o el último cuando todo terminó.
   const iActual = Math.max(0, s.pasos.findIndex((p) => p.clave === s.pasoActual))
+
+  // Centra el paso actual en su caja (solo en el navegador, y solo si hay
+  // desplazamiento). Con `scrollLeft` y no `scrollIntoView`: este último
+  // movería también la PÁGINA en vertical para enseñar la caja.
+  useEffect(() => {
+    const el = caja.current
+    if (!el || el.scrollWidth <= el.clientWidth) return
+    const li = el.querySelector<HTMLElement>('[aria-current="step"]')
+    if (!li) return
+    el.scrollLeft = Math.max(0, li.offsetLeft + li.offsetWidth / 2 - el.clientWidth / 2)
+  }, [iActual])
+
+  const pasoMaterial = s.pasos.find((p) => p.clave === 'material')
   return (
-    <ol role="list" className="relative">
-      {s.pasos.map((p, i) => (
-        <PasoFila
-          key={p.clave}
-          paso={p}
-          etiqueta={t(clavePaso(p.clave, s.tipo))}
-          estadoTexto={t(ESTADO_PASO[p.estado])}
-          ultimo={i === s.pasos.length - 1}
-          esActual={i === iActual}
-          detalle={
-            p.fecha
-              ? formatFecha(p.fecha, idioma)
-              : p.estado === 'alerta'
-                ? t('cuenta.seguimiento.paso.alerta')
-                : p.clave === 'al_aire'
-                  ? t('cuenta.seguimiento.paso.previsto', { fecha: formatFecha(s.fechaInicio, idioma) })
-                  : p.clave === 'finalizada'
-                    ? t('cuenta.seguimiento.paso.previsto', { fecha: formatFecha(s.fechaFin, idioma) })
-                    : null
-          }
-          extra={
-            // El agregado de lonas va junto al paso en curso: es lo que contesta
-            // «¿cuánto le falta?» sin abrir el detalle.
-            p.clave === 'material' && p.estado !== 'hecho' && s.imprenta.length > 0 ? (
-              <ResumenLonas listas={s.imprentaListas} total={s.imprenta.length} />
-            ) : null
-          }
-        />
-      ))}
-    </ol>
+    <>
+      <div ref={caja} data-pasos-scroll="1" className="-mx-1 overflow-x-auto px-1 pb-1">
+        <ol role="list" data-orientacion="horizontal" className="flex min-w-max items-start sm:min-w-0">
+          {s.pasos.map((p, i) => (
+            <PasoColumna
+              key={p.clave}
+              paso={p}
+              etiqueta={t(clavePaso(p.clave, s.tipo))}
+              estadoTexto={t(ESTADO_PASO[p.estado])}
+              ultimo={i === s.pasos.length - 1}
+              siguienteLlegado={i < s.pasos.length - 1 && s.pasos[i + 1].estado !== 'pendiente'}
+              esActual={i === iActual}
+              detalle={
+                p.fecha
+                  ? formatFecha(p.fecha, idioma)
+                  : p.estado === 'alerta'
+                    ? t('cuenta.seguimiento.paso.alerta')
+                    : p.clave === 'al_aire'
+                      ? t('cuenta.seguimiento.paso.previsto', { fecha: formatFecha(s.fechaInicio, idioma) })
+                      : p.clave === 'finalizada'
+                        ? t('cuenta.seguimiento.paso.previsto', { fecha: formatFecha(s.fechaFin, idioma) })
+                        : null
+              }
+            />
+          ))}
+        </ol>
+      </div>
+      {/* El agregado de lonas iba DENTRO del paso en curso cuando la línea era
+          vertical; en horizontal no cabe bajo una columna de 90 px, así que va
+          debajo de la línea, solo mientras el material sigue en curso. */}
+      {pasoMaterial && pasoMaterial.estado !== 'hecho' && s.imprenta.length > 0 && (
+        <div className="mt-3">
+          <ResumenLonas listas={s.imprentaListas} total={s.imprenta.length} />
+        </div>
+      )}
+    </>
   )
 }
 
-function PasoFila({
+function PasoColumna({
   paso,
   etiqueta,
   estadoTexto,
   detalle,
-  extra,
   ultimo,
+  siguienteLlegado,
   esActual,
 }: {
   paso: PasoSeguimiento
   etiqueta: string
   estadoTexto: string
   detalle: string | null
-  extra: React.ReactNode
   ultimo: boolean
+  /** El paso siguiente ya se alcanzó (hecho/actual/alerta): el tramo hacia él va sólido. */
+  siguienteLlegado: boolean
   esActual: boolean
 }) {
   const e = paso.estado
   return (
-    <li aria-current={esActual ? 'step' : undefined} className="relative flex gap-3 pb-5 last:pb-0">
-      {/* El conector: sólido hasta donde se ha llegado, punteado lo que falta. */}
+    <li
+      data-paso={paso.clave}
+      aria-current={esActual ? 'step' : undefined}
+      className="relative flex w-[92px] shrink-0 flex-col items-center px-1 text-center sm:w-auto sm:min-w-0 sm:flex-1"
+    >
+      {/* El tramo hacia el SIGUIENTE paso, de centro a centro: sólido hasta
+          donde se ha llegado, punteado lo que falta. */}
       {!ultimo && (
         <span
           aria-hidden="true"
-          className={`absolute left-[13px] top-7 h-[calc(100%-1.75rem)] w-0.5 ${
-            e === 'hecho' ? 'bg-accent' : 'border-l-2 border-dotted border-border-strong bg-transparent'
+          className={`absolute left-1/2 top-[13px] w-full ${
+            e === 'hecho' && siguienteLlegado ? 'h-0.5 bg-accent' : 'border-t-2 border-dotted border-border-strong'
           }`}
         />
       )}
@@ -319,30 +351,33 @@ function PasoFila({
           <span className="h-2 w-2 rounded-full bg-accent" />
         ) : null}
       </span>
-      <div className="min-w-0 flex-1 pt-0.5">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className={`text-[14px] ${e === 'actual' || e === 'alerta' ? 'font-semibold text-ink' : e === 'hecho' ? 'text-ink' : 'text-muted'}`}>
-            {etiqueta}
-          </span>
-          {e === 'actual' || e === 'alerta' ? (
-            <span
-              className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
-                e === 'alerta' ? 'border-[#f59e0b40] bg-[#f59e0b1a] text-[#9a6700]' : 'border-accent bg-surface text-ink'
-              }`}
-            >
-              {estadoTexto}
-            </span>
-          ) : (
-            <span className="sr-only">{estadoTexto}</span>
-          )}
-        </div>
-        {detalle && (
-          <div className={`mt-0.5 text-[12px] ${e === 'alerta' ? 'text-[#9a6700]' : 'text-muted'} ${e === 'pendiente' ? 'italic' : 'demo-num'}`}>
-            {detalle}
-          </div>
-        )}
-        {extra}
-      </div>
+      <span
+        className={`mt-2 text-[12px] leading-tight sm:text-[13px] ${
+          e === 'actual' || e === 'alerta' ? 'font-semibold text-ink' : e === 'hecho' ? 'text-ink' : 'text-muted'
+        }`}
+      >
+        {etiqueta}
+      </span>
+      {e === 'actual' || e === 'alerta' ? (
+        <span
+          className={`mt-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+            e === 'alerta' ? 'border-[#f59e0b40] bg-[#f59e0b1a] text-[#9a6700]' : 'border-accent bg-surface text-ink'
+          }`}
+        >
+          {estadoTexto}
+        </span>
+      ) : (
+        <span className="sr-only">{estadoTexto}</span>
+      )}
+      {detalle && (
+        <span
+          className={`mt-1 text-[11px] leading-tight ${e === 'alerta' ? 'text-[#9a6700]' : 'text-muted'} ${
+            e === 'pendiente' ? 'italic' : 'demo-num'
+          }`}
+        >
+          {detalle}
+        </span>
+      )}
     </li>
   )
 }

@@ -959,6 +959,8 @@ seleccionado y cómo va su avance».
   una propuesta de otro vendedor es 404 al leer y al cambiar. Al integrarse
   con el CRM contestaban 200 y 403, que delataban que existía
   (`seguimiento-campana.e2e.test.ts`, caso «otro VENDEDOR»).
+- **18/11:** la línea de pasos de la liga es horizontal (pedido del dueño);
+  la regla de los pasos no cambió. Detalle en la UI pública.
 - UI pública: [[03-Frontend/paginas-publicas]].
 
 ## «Ver fotos y ubicación» de cada sitio (FOTOS-UBIC, 18/11)
