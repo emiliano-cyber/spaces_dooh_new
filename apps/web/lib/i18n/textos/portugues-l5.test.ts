@@ -346,7 +346,7 @@ describe('portugues L5 · los catalogos del servidor', () => {
 
   it('los huecos con espanol dentro salen en portugues (y lo desconocido no sale a medias)', () => {
     expect(traducirError('No se puede editar un prospecto negociación', 'pt')).toBe(
-      'Não é possível editar este prospect: ele está em negociação',
+      'Não é possível editar este prospecto: ele está em negociação',
     )
     const cola =
       '. Un predio es un solo inmueble y su renta se reparte entre las pantallas que cuelgan de él, así que una que está lejos ' +

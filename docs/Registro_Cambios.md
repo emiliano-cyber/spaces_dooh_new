@@ -5,6 +5,18 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-18 · Portugués: «Prospectos», el tipo de cliente y las medidas de imprenta
+
+Pedido del dueño: «no todo está traducido: hay pedazos en español y está en portugués». Se recorrió la aplicación entera en portugués.
+
+- La pestaña **Prospects** (y todo lo que decía «prospect») ahora dice **Prospectos** / **prospecto**: en Propuestas, en Seguimiento, en la ficha de una oportunidad y en los mensajes de error.
+- En la ficha de una campaña, en «O que é enviado ao DOOHmain», el tipo de cliente decía «Directo»; ahora dice **Direto** (o **Agência**). Lo que se manda a DOOHmain no cambia.
+- En Imprenta, la medida de cada orden salía con punto («12.9 × 7.2 m»); ahora sale con coma, **12,9 × 7,2 m**, como el resto de la pantalla. También en italiano.
+- Los títulos del menú ya estaban en portugués: **Inventário**, **Space Eyes** (nombre del producto) y **Comercial** (se escribe igual en portugués). Si en algún servidor se ven sin acento, es que tiene una versión anterior.
+- Siguen en español, a propósito: el **Registro de atividades** (es la bitácora tal como se guardó) y la liga que recibe el cliente, que va en el idioma de la empresa.
+
+---
+
 ## 2026-11-18 · Idiomas del servidor: al elegirlos a mano se empieza de cero, y el español también es opcional
 
 Pedido del dueño: «el idioma predefinido es el del servidor, pero si lo cambia, las 4 opciones de abajo deben estar sin seleccionar para que el usuario elija el idioma». Y el español, «también sin marcar y elegible».

@@ -106,7 +106,7 @@ export const COGNADOS_PT_L2 = new Set<string>([
   'comercial.eye.foto', // "foto"
   'comercial.negociacion.canal.whatsapp', // "WhatsApp"
   'comercial.negociacion.oferta.enviada', // "Enviada"
-  'comercial.negociacion.etapa.prospecto', // "Prospect" (= ingles)
+  'comercial.negociacion.etapa.prospecto', // "Prospecto" (= espanol; dueno 18/11)
   'comercial.negociacion.etapa.visita', // "Visita"
   'comercial.negociacion.etapa.perdido', // "Perdido"
   'comercial.negociacion.ficha', // "Ficha técnica"

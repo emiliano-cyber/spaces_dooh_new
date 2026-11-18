@@ -1414,6 +1414,22 @@ describe('lote CAMPANAS y FINANZAS · en PORTUGUES', () => {
     expect(faltan).toEqual([])
   })
 
+  // Recorrido del 18/11: la vista previa de DOOHmain pintaba «Directo» (el
+  // tipo de cliente que VIAJA a DOOHmain en espanol) en una ficha portuguesa.
+  it('18/11 · el tipo de cliente de la vista previa de DOOHmain sale en portugues', async () => {
+    const { ProgramacionDoohmain } = await import('../../components/demo/campanas/ProgramacionDoohmain')
+    for (const [tipo, pt] of [['Directo', 'Direto'], ['Agencia', 'Agência']] as const) {
+      reiniciar()
+      forzar(esNull, { ...VISTA_DOOHMAIN, cliente: { ...VISTA_DOOHMAIN.cliente, tipo } })
+      const enPt = texto(pintar('pt', createElement(ProgramacionDoohmain, { campanaId: 'c1', clave: 'k' })))
+      expect(enPt).toContain(`Refrescos SA · ${pt}`)
+      expect(enPt).not.toContain(`Refrescos SA · ${tipo}`)
+      reiniciar()
+      forzar(esNull, { ...VISTA_DOOHMAIN, cliente: { ...VISTA_DOOHMAIN.cliente, tipo } })
+      expect(texto(pintar('es', createElement(ProgramacionDoohmain, { campanaId: 'c1', clave: 'k' })))).toContain(`Refrescos SA · ${tipo}`)
+    }
+  })
+
   afterEach(() => fijarMonedaInstancia('MXN'))
   const vistos: Record<string, number> = {}
   for (const moneda of MONEDAS) {

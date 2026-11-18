@@ -48,7 +48,7 @@ import {
   type Priorizada,
 } from '@/lib/prioridad-imprenta'
 import { medidaDeOrden, proporcionDibujable, type Ajuste } from '@/lib/proporcion-pantalla'
-import { ArteEnSitio, MiniaturaArte, TextoAjuste, TextoMedida } from '@/components/operaciones/ArteEnSitio'
+import { ArteEnSitio, MiniaturaArte, TextoAjuste, TextoMedida, decimalesDe } from '@/components/operaciones/ArteEnSitio'
 
 const PROCESO: EstOrdenImpresion[] = [
   'ARTE_RECIBIDO',
@@ -434,6 +434,7 @@ function FilaOrden({
   onAbrirArte: (creativoId: string) => void
 }) {
   const t = useTexto()
+  const { idioma } = useIdioma()
   const o = p.orden
   const idx = PROCESO.indexOf(o.estatus)
   const digital = o.alto === 0 && o.ancho === 0
@@ -461,7 +462,11 @@ function FilaOrden({
             <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted">
               <span className="inline-flex items-center gap-1.5">
                 <Ruler className="h-3.5 w-3.5" />
-                {digital ? t('operaciones.imprenta.contenido-digital') : `${o.ancho} × ${o.alto} m`}
+                {/* 18/11 · con `formatNumero` y el idioma: el literal pintaba «12.9 × 7.2 m»
+                    con punto en portugués e italiano, al lado del «12,9 × 7,2 m» de la arte. */}
+                {digital
+                  ? t('operaciones.imprenta.contenido-digital')
+                  : `${formatNumero(o.ancho, decimalesDe(o.ancho), idioma)} × ${formatNumero(o.alto, decimalesDe(o.alto), idioma)} m`}
               </span>
               {o.nombreSitio && <span>{o.nombreSitio}</span>}
               {o.proveedor && <span>· {o.proveedor}</span>}

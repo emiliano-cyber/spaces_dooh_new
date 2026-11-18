@@ -264,7 +264,8 @@ describe('18/11 · Seguimiento sustituye al embudo y a la lista de oportunidades
     expect(rotulos(pestanas('es'))).toEqual(['Resumen', 'Propuestas', 'Seguimiento', 'Prospectos'])
     expect(rotulos(pestanas('en'))).toEqual(['Summary', 'Proposals', 'Follow-up', 'Prospects'])
     expect(rotulos(pestanas('it'))).toEqual(['Riepilogo', 'Proposte', 'Monitoraggio', 'Prospect'])
-    expect(rotulos(pestanas('pt'))).toEqual(['Resumo', 'Propostas', 'Acompanhamento', 'Prospects'])
+    // 18/11 · el dueño: en portugués es «Prospectos», no el «Prospects» inglés.
+    expect(rotulos(pestanas('pt'))).toEqual(['Resumo', 'Propostas', 'Acompanhamento', 'Prospectos'])
   })
 
   it('con el Resumen activo, el subrayado va en la primera', () => {
@@ -464,7 +465,10 @@ describe('18/11 · los prospectos sin oportunidad se ven en Seguimiento', () => 
     it(`en ${idioma} la tarjeta del prospecto no dice nada en español`, () => {
       const col = contacto(html(idioma))
       expect(col).toContain('Tacos El Güero')
-      expect(col).not.toContain('>Prospecto<')
+      // «Prospecto» es la misma palabra en portugués (dueño, 18/11): en pt
+      // se exige, y en en/it sería español colado.
+      if (idioma === 'pt') expect(col).toContain('>Prospecto<')
+      else expect(col).not.toContain('>Prospecto<')
       expect(col).not.toContain('Crear oportunidad')
       expect(col).not.toContain('Registrado hace')
     })

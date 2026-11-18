@@ -220,7 +220,12 @@ export function ProgramacionDoohmain({ campanaId, clave }: { campanaId: string; 
   if (!v) return <div className="mt-3 h-16 w-full animate-pulse rounded-md bg-surface-2" />
 
   const c = v.cliente
-  const datosCliente = [c.rfc && `RFC ${c.rfc}`, c.razonSocial, c.direccion, c.tipo].filter(Boolean).join(' · ')
+  // El tipo viaja a DOOHmain en español («Directo» / «Agencia», ver
+  // `clienteDoohmain`); aquí solo se PINTA, así que va en el idioma de quien
+  // mira. Antes salía «Directo» en una pantalla en portugués (recorrido 18/11).
+  const tipoCliente =
+    c.tipo === 'Directo' ? t('campanas.ficha.directo') : c.tipo === 'Agencia' ? t('campanas.ficha.agencia') : c.tipo
+  const datosCliente = [c.rfc && `RFC ${c.rfc}`, c.razonSocial, c.direccion, tipoCliente].filter(Boolean).join(' · ')
 
   return (
     <div className="mt-3 rounded-md border border-border bg-surface-2/40 p-3">
