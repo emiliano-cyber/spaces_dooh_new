@@ -144,7 +144,7 @@ export function TextoMedida({
 }
 
 // 12 → «12», 12,9 → «12,9», 3,25 → «3,25»: sin ceros de relleno.
-function decimalesDe(n: number): number {
+export function decimalesDe(n: number): number {
   if (Number.isInteger(n)) return 0
   return Number.isInteger(n * 10) ? 1 : 2
 }
