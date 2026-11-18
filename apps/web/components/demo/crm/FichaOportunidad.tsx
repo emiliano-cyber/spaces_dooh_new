@@ -6,7 +6,7 @@ import { ArrowLeft, CalendarClock, FileText, Pencil, Wallet } from 'lucide-react
 import { toast } from 'sonner'
 import { Button } from '@/components/demo/ui/Button'
 import { useIdioma } from '@/lib/i18n/contexto'
-import { porcentajeEnIdioma } from '@/lib/i18n/formato-idioma'
+import { numeroEnIdioma, porcentajeEnIdioma } from '@/lib/i18n/formato-idioma'
 import { formatFecha, usePropuestas, type Propuesta } from '@/lib/data/client'
 import { refrescarEstado } from '@/lib/data/estado-api'
 import { trailFromLocation, withTrail } from '@/lib/nav-trail'
@@ -32,7 +32,7 @@ import {
   type EtapaOportunidad,
 } from '@/lib/crm'
 import { FormOportunidad } from './FormOportunidad'
-import { COLOR_ETAPA, claveAccion, claveActividad, claveCampo, claveEtapa, claveMedio } from './etiquetas'
+import { COLOR_ETAPA, claveAccion, claveActividad, claveCampo, claveEtapa, claveMedio, valorDeCambio } from './etiquetas'
 
 // ============================================================================
 //  La ficha de una oportunidad: lo que pide el cliente, lo que se le cotizó y
@@ -74,12 +74,6 @@ const rango = (p: Propuesta) => {
   const ini = p.items.map((i) => i.fechaInicio).sort()[0] ?? null
   const fin = p.items.map((i) => i.fechaFin).sort().at(-1) ?? null
   return { ini, fin }
-}
-
-const valorCorto = (v: unknown): string => {
-  if (v == null) return '—'
-  if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') return String(v)
-  return JSON.stringify(v).slice(0, 80)
 }
 
 export function FichaOportunidad({
@@ -127,7 +121,10 @@ export function FichaOportunidad({
   }, [id])
   useEffect(cargar, [cargar])
 
-  const pct = (n: number) => porcentajeEnIdioma(String(n), idioma)
+  // Recorrido del italiano (18/11): `String(n)` dejaba el punto decimal en
+  // italiano y portugués («(4.5%)»). `numeroEnIdioma` da lo mismo de siempre en
+  // español e inglés («13.4») y la coma donde va («13,4%»).
+  const pct = (n: number) => porcentajeEnIdioma(numeroEnIdioma(n, idioma, { maximumFractionDigits: 1 }), idioma)
   const posicionTexto = (cp: ReturnType<typeof cotejoPresupuesto>) =>
     cp.posicion === 'ENCIMA' || cp.posicion === 'DEBAJO'
       ? t(cp.posicion === 'ENCIMA' ? 'crm.ficha.posicion.encima' : 'crm.ficha.posicion.debajo', {
@@ -160,7 +157,7 @@ export function FichaOportunidad({
         quien: c.origen === 'SISTEMA' ? t('crm.linea.sistema') : c.usuarioNombre,
         etiqueta: c.folio,
         texto: t(claveAccion(c.accion), { campo: c.campo ? (claveCampo(c.campo) ? t(claveCampo(c.campo)!) : c.campo) : '' }),
-        detalle: c.campo ? `${valorCorto(c.valorAnterior)} → ${valorCorto(c.valorNuevo)}` : null,
+        detalle: c.campo ? `${valorDeCambio(c.valorAnterior, c.campo, idioma, t)} → ${valorDeCambio(c.valorNuevo, c.campo, idioma, t)}` : null,
       })
     }
     for (const a of ficha.avancesProspecto) {

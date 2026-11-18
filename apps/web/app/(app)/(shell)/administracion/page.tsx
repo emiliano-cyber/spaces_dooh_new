@@ -6,6 +6,7 @@ import { useIdioma, useTexto } from '@/lib/i18n/contexto'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 import { DICCIONARIOS, type ClaveTexto } from '@/lib/i18n/diccionario'
 import type { Idioma } from '@/lib/i18n/idiomas'
+import { etiquetaModulo } from '@/components/demo/admin/etiqueta-modulo'
 import { CheckCircle2, Users, ShieldCheck, UserPlus, Building2, X, Plus, Check, Upload, Percent, MonitorPlay, KeyRound, Scale, AlertTriangle, Mail, FileText, CornerUpLeft, Loader2, Wrench, Save, ToggleLeft, ToggleRight, CalendarClock, ListChecks, Trash2 } from 'lucide-react'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
@@ -817,14 +818,6 @@ function etiquetaArea(clave: string, label: string, idioma: Idioma, t: (k: Clave
   return k in DICCIONARIOS.es ? t(k) : label
 }
 
-// La etiqueta de un modulo de la matriz la manda el servidor EN ESPANOL
-// (`MODULO_LABEL`, `lib/server/usuarios-repo.ts`): en espanol se pinta la que
-// llega, y en otro idioma la de `admin.modulo.<key>` si la hay.
-function etiquetaModulo(key: string, label: string, idioma: Idioma, t: (k: ClaveTexto) => string): string {
-  if (idioma === 'es') return label
-  const k = `admin.modulo.${key}` as ClaveTexto
-  return k in DICCIONARIOS.es ? t(k) : label
-}
 
 function AreasDelModulo({ modulo }: { modulo: string }) {
   const { t, idioma } = useIdioma()

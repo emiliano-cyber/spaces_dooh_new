@@ -48,7 +48,7 @@ import {
   type Priorizada,
 } from '@/lib/prioridad-imprenta'
 import { medidaDeOrden, proporcionDibujable, type Ajuste } from '@/lib/proporcion-pantalla'
-import { ArteEnSitio, MiniaturaArte, TextoAjuste, TextoMedida } from '@/components/operaciones/ArteEnSitio'
+import { ArteEnSitio, MiniaturaArte, TextoAjuste, TextoMedida, medidaEnIdioma } from '@/components/operaciones/ArteEnSitio'
 
 const PROCESO: EstOrdenImpresion[] = [
   'ARTE_RECIBIDO',
@@ -434,6 +434,7 @@ function FilaOrden({
   onAbrirArte: (creativoId: string) => void
 }) {
   const t = useTexto()
+  const { idioma } = useIdioma()
   const o = p.orden
   const idx = PROCESO.indexOf(o.estatus)
   const digital = o.alto === 0 && o.ancho === 0
@@ -461,7 +462,7 @@ function FilaOrden({
             <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted">
               <span className="inline-flex items-center gap-1.5">
                 <Ruler className="h-3.5 w-3.5" />
-                {digital ? t('operaciones.imprenta.contenido-digital') : `${o.ancho} × ${o.alto} m`}
+                {digital ? t('operaciones.imprenta.contenido-digital') : medidaEnIdioma(o.ancho, o.alto, idioma)}
               </span>
               {o.nombreSitio && <span>{o.nombreSitio}</span>}
               {o.proveedor && <span>· {o.proveedor}</span>}
