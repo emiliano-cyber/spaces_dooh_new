@@ -263,6 +263,24 @@ const SEG_HIBRIDA_AL_AIRE = {
   mensaje: 'al_aire',
   pasos: PASOS_SEG('hecho', { instalacion: 'hecho', al_aire: 'actual', finalizada: 'pendiente' }),
 }
+// ENVIO-CLIENTE (18/11) · la liga con «Envía tu creativo»: dos sitios para
+// elegir, un envío rechazado con su motivo y otro en revisión.
+const SEG_SUBIR = {
+  ...SEG_BASE,
+  tipo: 'OOH',
+  pasoActual: 'material',
+  mensaje: 'material.esperando-arte',
+  pasos: PASOS_SEG('actual'),
+  puedeSubirCreativo: true,
+  pantallas: [
+    { id: 's1', nombre: 'Pantalla Reforma', tipoMedio: 'ESPECTACULAR', ancho: 12.9, alto: 7.2, resolucionPx: null },
+    { id: 's2', nombre: 'Muro Insurgentes', tipoMedio: 'MURO', ancho: 3, alto: 9, resolucionPx: null },
+  ],
+  envios: [
+    { nombre: 'arte-v2.png', estatus: 'PENDIENTE', motivo: null, creadoEn: '2026-11-06T10:00:00Z', sitioNombre: 'Pantalla Reforma' },
+    { nombre: 'arte-v1.png', estatus: 'RECHAZADO', motivo: 'Falta el logo', creadoEn: '2026-11-05T10:00:00Z', sitioNombre: 'Pantalla Reforma' },
+  ],
+}
 const SEG_CANCELADA = { ...SEG_BASE, tipo: 'OOH', cancelada: true, pasoActual: 'material', mensaje: 'cancelada', pasos: PASOS_SEG('actual') }
 
 // La pagina con seguimiento: `data` es el primer `useState` en `undefined`;
@@ -1070,6 +1088,33 @@ const PANTALLAS: Pantalla[] = [
     ],
   },
   {
+    nombre: 'cuenta · seguimiento de la campana, envia tu creativo (ENVIO-CLIENTE)',
+    pintar: (idioma) => pintarConSeguimiento(idioma, SEG_SUBIR),
+    espanol: [
+      'Envía tu creativo',
+      'Imagen JPG, PNG o WebP de hasta 4 MB. Tu asesor la revisa antes de usarla.',
+      '¿Para qué sitio es?',
+      'Elige un sitio',
+      'Subir creativo',
+      'Cuando lo aprobemos pasará a imprenta.',
+      'Lo que nos enviaste',
+      'No aprobado',
+      'Por qué: Falta el logo',
+      '>En revisión<',
+    ],
+    ingles: [
+      'Send your creative',
+      'JPG, PNG or WebP image up to 4 MB. Your account manager reviews it before it is used.',
+      'Which site is it for?',
+      'Choose a site',
+      'Upload creative',
+      'Once we approve it, it will go to print.',
+      'What you sent us',
+      'Not approved',
+      'Why: Falta el logo',
+    ],
+  },
+  {
     nombre: 'cuenta · seguimiento de la campana, anuncio que necesita un ajuste',
     pintar: (idioma) => pintarConSeguimiento(idioma, SEG_DOOH_RECHAZO),
     espanol: [
@@ -1536,6 +1581,26 @@ describe('seguimiento en la liga · lo que no se ve', () => {
     expect(t).toContain('Ahora')
     expect(t).toContain('Completado')
     expect(t).toContain('Pendiente')
+  })
+  // ENVIO-CLIENTE (18/11) · «obvio no se puede aprobar más que por los perfiles
+  // seleccionados»: la liga no ofrece aprobar ni en un botón ni en un texto.
+  it('la liga con «Envía tu creativo» no expone ninguna acción de aprobar', async () => {
+    for (const idioma of ['es', 'en'] as const) {
+      const html = await pintarConSeguimiento(idioma, SEG_SUBIR)
+      const botones = [...html.matchAll(/<button[^>]*>([\s\S]*?)<\/button>/g)].map((m) => texto(m[1]))
+      expect(botones.length).toBeGreaterThan(0)
+      for (const b of botones) expect(b).not.toMatch(/aprob|approv|rechaz|reject/i)
+    }
+  })
+  it('con un solo sitio no se pregunta, y se dice su proporción y medida', async () => {
+    const seg = { ...SEG_SUBIR, pantallas: [SEG_SUBIR.pantallas[0]], envios: [] }
+    const t = texto(await pintarConSeguimiento('es', seg))
+    expect(t).not.toContain('¿Para qué sitio es?')
+    expect(t).toContain('Proporción 16:9 · 12.9 × 7.2 m')
+  })
+  it('sin `puedeSubirCreativo` ni envíos, no hay tarjeta de subir', async () => {
+    const t = texto(await pintarConSeguimiento('es', SEG_OOH))
+    expect(t).not.toContain('Envía tu creativo')
   })
   it('corriendo no dice «terminó», y cancelada no pinta los pasos', async () => {
     expect(texto(await pintarConSeguimiento('es', SEG_HIBRIDA_AL_AIRE))).not.toContain('Tu campaña terminó')

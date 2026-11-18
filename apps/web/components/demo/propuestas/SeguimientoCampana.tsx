@@ -27,6 +27,7 @@
 import { useEffect, useRef } from 'react'
 import { Check, AlertTriangle, CircleSlash, ChevronDown, Printer, MonitorPlay, Radio } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { SubirCreativoCliente } from './SubirCreativoCliente'
 import { useIdioma } from '@/lib/i18n/contexto'
 import { formatFecha } from '@/lib/data/client'
 import { formatNumero } from '@/lib/formato-numero'
@@ -99,8 +100,15 @@ function hoyLocal(): string {
 export function SeguimientoCampana({
   seguimiento: s,
   hoy = hoyLocal(),
+  urlEnvio,
 }: {
   seguimiento: Seguimiento
+  /**
+   * ENVIO-CLIENTE (18/11) · a dónde manda el cliente su creativo
+   * (`POST /api/propuestas/publica/<token>/creativos`). Sin ella no se ofrece
+   * subir, solo se enseña lo ya enviado.
+   */
+  urlEnvio?: string
   /** Inyectable para que las pruebas no dependan del reloj (lección de `ocupacion-idioma`). */
   hoy?: string
 }) {
@@ -221,6 +229,16 @@ export function SeguimientoCampana({
             <LineaPasos s={s} />
           </CardContent>
         </Card>
+      )}
+
+      {/* ENVIO-CLIENTE (18/11) · subir el arte desde aquí, mientras la campaña
+          no esté al aire. Un servidor anterior no manda `pantallas` ni
+          `envios`: se normalizan para no romper la página. */}
+      {!s.cancelada && (
+        <SubirCreativoCliente
+          s={{ ...s, puedeSubirCreativo: !!s.puedeSubirCreativo, pantallas: s.pantallas ?? [], envios: s.envios ?? [] }}
+          urlEnvio={urlEnvio}
+        />
       )}
 
       {!s.cancelada && usaImprenta && <Lonas s={s} />}

@@ -179,3 +179,56 @@ describe('puedeCambiarImprentaVisible', () => {
     expect(puedeCambiarImprentaVisible({ id: 'g', rol: 'GERENTE_VENTAS' }, prop(null, null))).toBe(true)
   })
 })
+
+// ENVIO-CLIENTE (18/11) · ¿cuándo enseña la liga «Subir creativo»? Mientras la
+// campaña NO esté al aire: en el paso de material, y en el de instalación solo
+// si lleva pantallas (todavía no se publica). Nunca cancelada ni terminada.
+describe('puedeSubirCreativo', () => {
+  it('en el paso de material, sí (OOH y DOOH)', () => {
+    expect(armarSeguimiento(base(), '2026-11-10').puedeSubirCreativo).toBe(true)
+    expect(armarSeguimiento(base({ tipo: 'DOOH' }), '2026-11-10').puedeSubirCreativo).toBe(true)
+  })
+  it('DOOH con el creativo aprobado y sin publicar (instalación): sí', () => {
+    const s = armarSeguimiento(
+      base({ tipo: 'DOOH' }, { creativos: [{ nombre: 'a', formato: null, resolucion: null, estatus: 'VALIDADA', creadoEn: null }] }),
+      '2026-11-10',
+    )
+    expect(s.pasoActual).toBe('instalacion')
+    expect(s.puedeSubirCreativo).toBe(true)
+  })
+  it('DOOH publicada que espera su fecha: sí, hasta que salga al aire', () => {
+    const s = armarSeguimiento(base({ tipo: 'DOOH', publicada: true }), '2026-11-10')
+    expect(s.pasoActual).toBe('al_aire')
+    expect(s.puedeSubirCreativo).toBe(true)
+  })
+  it('OOH montada que espera su fecha: no, la lona ya está puesta', () => {
+    const s = armarSeguimiento(base({}, { imprenta: [oi('IMPRESO')], montajes: [{ estatus: 'COMPLETADA', fechaCompletada: null }] }), '2026-11-10')
+    expect(s.pasoActual).toBe('al_aire')
+    expect(s.puedeSubirCreativo).toBe(false)
+  })
+  it('OOH con las lonas impresas (instalación): ya no, la lona está hecha', () => {
+    const s = armarSeguimiento(base({}, { imprenta: [oi('IMPRESO')] }), '2026-11-10')
+    expect(s.pasoActual).toBe('instalacion')
+    expect(s.puedeSubirCreativo).toBe(false)
+  })
+  it('al aire, terminada o cancelada: no', () => {
+    const alAire = armarSeguimiento(base({ tipo: 'DOOH', publicada: true, fechaInicio: '2026-11-01' }), '2026-11-10')
+    expect(alAire.pasoActual).toBe('al_aire')
+    expect(alAire.puedeSubirCreativo).toBe(false)
+    expect(armarSeguimiento(base({ estado: 'CANCELADA' }), '2026-11-10').puedeSubirCreativo).toBe(false)
+    // Pasó la fecha de fin sin instalar: el paso actual sigue en material, pero
+    // una campaña vencida ya no recibe material.
+    expect(armarSeguimiento(base({ fechaFin: '2026-11-05' }), '2026-11-10').puedeSubirCreativo).toBe(false)
+    expect(armarSeguimiento(base({ estado: 'COMPLETADA' }), '2026-11-10').puedeSubirCreativo).toBe(false)
+  })
+  it('pasa las pantallas y los envíos tal cual, y vacíos si no vienen', () => {
+    const s0 = armarSeguimiento(base(), '2026-11-10')
+    expect(s0.pantallas).toEqual([])
+    expect(s0.envios).toEqual([])
+    const pant = [{ id: 's1', nombre: 'Reforma', tipoMedio: 'ESPECTACULAR', ancho: 12.9, alto: 7.2, resolucionPx: null }]
+    const env = [{ nombre: 'arte.png', estatus: 'RECHAZADO' as const, motivo: 'Falta el logo', creadoEn: '2026-11-09T10:00:00Z', sitioNombre: 'Reforma' }]
+    const s = armarSeguimiento(base({}, { pantallas: pant, envios: env }), '2026-11-10')
+    expect(s.pantallas).toEqual(pant)
+    expect(s.envios).toEqual(env)
+  })
+})

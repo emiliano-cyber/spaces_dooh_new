@@ -224,7 +224,11 @@ describe('el esquema base no trae la organización de nadie', () => {
     //     --`oportunidades`, `oportunidad_actividades` y `propuesta_cambios`--,
     //     el CRM comercial del ADR 0051 (Fase 2). Subido a la vez que la
     //     migracion.
-    expect(trasMigrar.tablas).toBe(71)
+    //   · 72 el 2026-11-18: `20261118_envios_creativo_cliente.sql` anade
+    //     `envios_creativo_cliente`, la sala de espera del creativo que manda
+    //     el cliente por la liga (ENVIO-CLIENTE). Subido a la vez que la
+    //     migracion.
+    expect(trasMigrar.tablas).toBe(72)
     // Lo que de verdad importa: ni las migraciones resucitan al owner.
     expect(trasMigrar.tenants).toBe(0)
   })

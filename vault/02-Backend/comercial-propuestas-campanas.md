@@ -963,6 +963,65 @@ seleccionado y cómo va su avance».
   la regla de los pasos no cambió. Detalle en la UI pública.
 - UI pública: [[03-Frontend/paginas-publicas]].
 
+## El cliente manda su creativo desde la liga (ENVIO-CLIENTE, 18/11)
+
+Pedido del dueño (18/11): «de la liga se pueda subir el creativo que veremos
+desde la pantalla de Campañas, y obvio no se puede aprobar más que por los
+perfiles seleccionados». Y el mismo día, al ver la primera propuesta: «el subir
+el creativo no debe de poderse guardar en la BD; solo mandar el archivo para que
+lo vean los usuarios permitidos, y ellos al aprobarlo se apruebe automáticamente
+y ahora sí se guarde y se suba el creativo a DOOHmain». Fuera de la base no
+había dónde (el contenedor de una instancia no tiene volumen de escritura), y el
+dueño eligió **«Tabla temporal en la BD»**: `envios_creativo_cliente`
+(R3 aprobado; ver [[04-Datos/migraciones]]).
+
+- **Cuándo ofrece la liga «Subir creativo»** (`puedeSubirCreativo` en
+  `lib/seguimiento-campana.ts`, con prueba): mientras la campaña **no esté al
+  aire** — siempre en el paso de material; si lleva pantallas (DOOH/híbrida),
+  también en instalación y mientras espera su fecha. Una lona ya impresa o
+  montada, no. Nunca cancelada, terminada ni vencida. El servidor la vuelve a
+  calcular al recibir (409 si no).
+- **La ruta pública** `POST /api/propuestas/publica/[id]/creativos` →
+  `envio-cliente-publico-controller.ts` → `seguimiento-publico-repo.ts` (token →
+  `propuesta_tenant_por_token` → `qConTenant`) + `envio-cliente-publico-repo.ts`.
+  Escribe **solo** el envío PENDIENTE, el aviso (`notificaciones`, tipo
+  `CAMPANA`, y correo a quien lo encendió) y la bitácora («Cliente (liga
+  pública)»), en una sentencia. Valida tipo (400), tamaño (413, 4 MB como la
+  imagen envuelta del creativo normal), la pantalla de ESA campaña (400) y, con
+  `validarAltaCreatividad`, **la misma `crearSchema` del alta normal** (422).
+  Límite 10 cada 10 min por IP y 10 al día por campaña (429). Responde
+  `{ ok, nombre, estatus }`, nada interno. El nombre del archivo se sanea
+  (`sanearNombreArchivo`) y nunca es ruta: el archivo vive en la base.
+- **Proporción**: el creativo normal no la valida, así que el envío tampoco la
+  rechaza; la liga le dice al cliente la proporción y la medida de la pantalla
+  elegida (`orientacionDePantalla`) y si su imagen se recortará
+  (`ajusteEnMarco`, lo mismo que Imprenta).
+- **En la ficha de campaña** (`EnviosClienteCampana.tsx`, debajo de
+  Creativos): solo **Dueño y Administrador** (`puedeAprobarEnCampana`, la regla
+  de ACT-CAMP sin cambiarla), con vista previa y **Aprobar / Rechazar**. Rutas
+  `GET /api/campanas/[id]/envios-cliente` y `GET·POST
+  …/envios-cliente/[envioId]` → `envios-cliente-controller.ts` →
+  `envios-cliente-repo.ts` (`q` + `and tenant_id` + `and campana_id`). Las
+  tres dan 403 a otro rol.
+- **Aprobar, en un paso**: se TOMA el envío (se borra: un segundo clic da 404),
+  `crearCreatividadCtrl` (el alta normal) y `validarCreatividad(id, true)` (la
+  aprobación normal, con la autoasignación). Si falla, se borra el creativo a
+  medias y se devuelve el envío. Después, si la campaña es digital y su
+  publicación ya está aprobada, publica por el camino de «Volver a publicar»
+  (`reintentarPublicacionCtrl` + `publicarCampanaEnDoohmain`); si aún no, entra
+  cuando se apruebe la publicación; una OOH queda aprobada para Imprenta. Si
+  DOOHmain falla, el creativo ya quedó aprobado y la ficha lo dice
+  (`campanas.envios.aprobado.fallo`).
+- **Rechazar**: la fila queda `RECHAZADO` con el motivo y **sin el archivo**;
+  la liga dice «No aprobado · Por qué: …».
+- **Lo que no hace**: no toca `creatividades`, DOOHmain ni imprenta hasta
+  aprobar; la liga no tiene ninguna acción de aprobar (prueba en
+  `pantallas-cuenta-shell.test.ts`).
+- Pruebas: `lib/envio-creativo-cliente.test.ts`, `lib/seguimiento-campana.test.ts`
+  y `lib/test/envios-creativo-cliente.e2e.test.ts` (16, con R2 por el rol de la
+  app directo).
+- UI pública: [[03-Frontend/paginas-publicas]].
+
 ## «Ver fotos y ubicación» de cada sitio (FOTOS-UBIC, 18/11)
 
 Pedido del dueño: «añadir el cuadro de ver fotos de la pantalla y lugar» en la

@@ -538,7 +538,7 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
       <main className="w-full space-y-4 px-6 py-6">
         {seguimiento ? (
           <>
-            <SeguimientoCampana seguimiento={seguimiento} />
+            <SeguimientoCampana seguimiento={seguimiento} urlEnvio={`${API}/propuestas/publica/${params.id}/creativos/`} />
             {/* La propuesta aceptada, plegada: ya no es lo que el cliente viene
                 a ver, pero sigue siendo el documento de lo que contrató. Se
                 MONTA al abrirla (no solo se oculta): el mapa medido dentro de un

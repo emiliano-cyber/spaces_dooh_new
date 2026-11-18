@@ -38,6 +38,20 @@ Pedido del dueño: «que se pueda mover y se vea la animación arrastrando entre
 
 ---
 
+## 2026-11-18 · El cliente puede mandar su creativo desde la liga de su propuesta
+
+Pedido del dueño: «de la liga se pueda subir el creativo que veremos desde la pantalla de Campañas, y obvio no se puede aprobar más que por los perfiles seleccionados».
+
+- Cuando la propuesta ya es campaña y todavía no sale al aire, la liga que se le manda al cliente muestra **«Envía tu creativo»**. El cliente elige su imagen (JPG, PNG o WebP de hasta 4 MB) y, si la campaña tiene varias pantallas, a cuál va. Se le dice la proporción y la medida de esa pantalla, y si su imagen se va a recortar.
+- Lo que manda **no es todavía un creativo**: queda guardado aparte, en espera, y no llega a DOOHmain ni a imprenta.
+- En **Campañas**, en la ficha de la campaña, el **Dueño y el Administrador** ven lo que mandó el cliente, con su vista previa, y lo **aprueban o rechazan**. Los demás perfiles no lo ven. También llega un aviso a la campana.
+- **Aprobar** lo convierte en creativo ya aprobado, lo reparte en las pantallas como siempre y, si la publicación de la campaña ya estaba aprobada, lo manda a DOOHmain. Si DOOHmain falla, el creativo queda aprobado y la ficha avisa que falta volver a publicar. En una campaña de lonas, queda aprobado para Imprenta.
+- **Rechazar** borra el archivo y deja el motivo, que el cliente ve en su liga.
+- En la liga el cliente ve cada archivo que mandó: «En revisión» o «No aprobado» con el motivo. No hay ningún botón para aprobar.
+- Por seguridad hay límites: unos cuantos archivos por campaña al día y por conexión.
+
+---
+
 ## 2026-11-18 · El seguimiento de la campaña en la liga del cliente va en horizontal
 
 Pedido del dueño: «el pipeline debe de ser en horizontal en la liga que se envía al cliente».

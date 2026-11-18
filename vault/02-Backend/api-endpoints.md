@@ -28,6 +28,9 @@ archivos:
   - apps/web/app/api/propuestas/[id]/imprenta-visible/route.ts
   - apps/web/app/api/propuestas/publica/[id]/seguimiento/route.ts
   - apps/web/app/api/propuestas/publica/[id]/sitios/[sitioId]/route.ts
+  - apps/web/app/api/propuestas/publica/[id]/creativos/route.ts
+  - apps/web/app/api/campanas/[id]/envios-cliente/route.ts
+  - apps/web/app/api/campanas/[id]/envios-cliente/[envioId]/route.ts
   - apps/web/app/api/propuestas/[id]/items/route.ts
   - apps/web/app/api/rejilla/
   - apps/web/app/api/reportes/rentabilidad/route.ts
@@ -40,6 +43,12 @@ archivos:
 
 # API — los 159 endpoints (medidos el 2026-10-29 con `recuentos.mjs`)
 
+> **2026-11-18 · 176 (ENVIO-CLIENTE, rama `integra/18-11`):** tres rutas para el
+> creativo que manda el cliente por la liga —la pública `POST
+> /api/propuestas/publica/[id]/creativos` y, con sesión, `GET
+> /api/campanas/[id]/envios-cliente` y `GET·POST …/envios-cliente/[envioId]`—.
+> Medido con `recuentos.mjs`.
+>
 > **2026-11-17 · 169 (ADR 0051, Fase 2, rama `feat/crm-comercial`):** las cuatro
 > rutas de las oportunidades del CRM —`/api/oportunidades`, `…/[id]`,
 > `…/[id]/etapa` y `…/[id]/actividades`—. Medido con `recuentos.mjs`. Ver
@@ -283,6 +292,8 @@ en `:230-237`) y **no** puede condicionarse a que la ruta
 | POST | `/api/campanas/[id]/oc` | exigir |
 | POST | `/api/campanas/[id]/validar` | `comercial:crear` **y** rol Dueño o Administrador (`puedeAprobarEnCampana`, 18/11): cualquier otro rol, 403; ver [[comercial-propuestas-campanas]] |
 | POST | `/api/campanas/[id]/reintentar-publicacion` | `comercial:crear` — vuelve a mandar a DOOHmain una publicación YA aprobada, sin cambiar la campaña (13/10); ver [[integraciones-externas]] |
+| GET | `/api/campanas/[id]/envios-cliente` | `comercial:crear` **y** `puedeAprobarEnCampana` (Dueño/Administrador; 403 a los demás) — (18/11, ENVIO-CLIENTE) los envíos PENDIENTES del cliente de esa campaña, sin el archivo |
+| GET·POST | `/api/campanas/[id]/envios-cliente/[envioId]` | igual — GET sirve la imagen (vista previa, `no-store`, CSP `sandbox`); POST `{ accion: 'aprobar' }` crea el creativo YA aprobado (`crearCreatividadCtrl` + `validarCreatividad`, autoasignación incluida), borra el envío y, si la campaña es digital con la publicación aprobada, publica como «Volver a publicar»; `{ accion: 'rechazar', motivo? }` deja el motivo y borra el archivo. 404 si el envío no es de ESA campaña y tenant |
 | POST | `/api/campanas/[id]/creativos/repartir` | exigir |
 | POST | `/api/campanas/[id]/enviar-dominio` | exigir |
 | GET·POST | `/api/campanas/[id]/playlogs` | exigir — POST con `tipo: 'pantallas'` consulta `get_metrics` de las pantallas donde se publicó (29/10) |
@@ -526,6 +537,7 @@ el 26/08 y su cerrojo real es que `tenants` esté vacía, no el token).
 | GET·POST | `/api/firma/[token]` | token de firma del contrato |
 | GET·POST | `/api/propuestas/publica/[id]` | `propuestas.token_publico` — con el cupón **PENDIENTE** (COD-03) el GET no lo trae ni en el JSON y su total va sin él; el POST acepta **sin** cupón y devuelve el uso |
 | GET | `/api/propuestas/publica/[id]/sitios/[sitioId]` | `propuestas.token_publico` — (18/11, FOTOS-UBIC) fotos y ubicación de UNA pantalla que sea renglón de esa propuesta, para «Ver fotos y ubicación» de la liga: `{ nombre, tipoMedio, direccion, alcaldia, ciudad, estado, lat, lng, fotos }` en lista blanca. Mismo 404 para token falso y sitio ajeno. Límite 60/min por IP. Capas: `fotos-sitio-publico-controller.ts` → `fotos-sitio-publico-repo.ts` (bajo `qConTenant` con el tenant del token, R2) |
+| POST | `/api/propuestas/publica/[id]/creativos` | `propuestas.token_publico` — (18/11, ENVIO-CLIENTE) el cliente manda su creativo desde la liga: `{ archivo (data URL JPG/PNG/WebP), nombre?, sitioId?, ancho?, alto? }` → 201 `{ ok, nombre, estatus: 'PENDIENTE' }`, nada más. Escribe SOLO en `envios_creativo_cliente` (+ aviso y bitácora); **nunca** en `creatividades` ni DOOHmain. 404 token falso o mal formado · 409 sin campaña, o campaña que ya no admite material · 400 tipo, JSON o pantalla ajena (y falta elegir con varias) · 413 > 4 MB · 422 bytes que no son lo que dicen (la validación de `crearSchema`) · 429 por IP (10 cada 10 min) o por campaña (10 al día). Capas: `envio-cliente-publico-controller.ts` → `seguimiento-publico-repo.ts` + `envio-cliente-publico-repo.ts` (bajo `qConTenant`, R2) |
 | GET | `/api/propuestas/publica/[id]/seguimiento` | `propuestas.token_publico` — (17/11, SEG-CLIENTE) el avance de la campaña que nació de la propuesta, estilo rastreo de pedido: `{ hayCampana:false }` o `{ hayCampana:true, seguimiento }` (6 pasos, creativos, órdenes de imprenta, `retrasada`). Límite 60/min por IP. Capas: `seguimiento-publico-controller.ts` → `seguimiento-publico-repo.ts` (bajo `qConTenant` con el tenant del token, R2) → regla pura `lib/seguimiento-campana.ts`. **No lee** montos, OC, facturas, motivos de rechazo ni URLs; el `proveedor` se anula en el SELECT salvo `imprenta_visible` |
 | GET | `/api/logo/[token]` | `config_negocio.logo_token` |
 

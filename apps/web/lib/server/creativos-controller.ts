@@ -126,8 +126,18 @@ const crearSchema = z
     path: ['archivoUrl'],
   })
 
+/**
+ * La validación del ALTA de un creativo, sola: la misma que corre
+ * `crearCreatividadCtrl`. ENVIO-CLIENTE (18/11) la usa al RECIBIR el archivo
+ * del cliente, para rechazarlo en la liga y no después, cuando alguien ya lo
+ * aprobó en la ficha (ahí vuelve a pasar por `crearCreatividadCtrl`).
+ */
+export function validarAltaCreatividad(body: unknown) {
+  return validar(crearSchema, body)
+}
+
 export async function crearCreatividadCtrl(body: unknown) {
-  const d = validar(crearSchema, body)
+  const d = validarAltaCreatividad(body)
   try {
     return await crearCreatividad({
       campanaId: d.campanaId,

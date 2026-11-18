@@ -497,6 +497,23 @@ export const CATALOGO_ERRORES: Record<string, string> = {
     'Only the Owner or an Administrator can delete users',
   'Solo el Dueño o un Administrador pueden aprobar o rechazar la publicación':
     'Only the Owner or an Administrator can approve or reject the publication',
+  // ENVIO-CLIENTE (18/11) · el creativo que manda el cliente por la liga
+  'Tu propuesta todavía no es campaña: el creativo se envía cuando la confirmemos':
+    'Your proposal is not a campaign yet: send the creative once we confirm it',
+  'Esta campaña ya no recibe creativos desde la liga. Escribe a tu asesor.':
+    'This campaign no longer accepts creatives from the link. Write to your account manager.',
+  'Esa pantalla no es de tu campaña':
+    'That screen is not part of your campaign',
+  'Elige a qué pantalla va tu creativo':
+    'Choose which screen your creative is for',
+  'Ya recibimos varios archivos hoy para esta campaña. Inténtalo mañana o escribe a tu asesor.':
+    'We have already received several files today for this campaign. Try again tomorrow or write to your account manager.',
+  'Solo el Dueño o un Administrador pueden revisar los creativos que envía el cliente':
+    'Only the Owner or an Administrator can review the creatives sent by the client',
+  'Envío no encontrado':
+    'Submission not found',
+  'No se pudo aprobar el creativo':
+    'The creative could not be approved',
   'Solo el Dueño puede cambiar los permisos':
     'Only the Owner can change permissions',
   // 1 sitio · lib/server/imprenta-visible-controller.ts:32
@@ -1138,6 +1155,23 @@ export const CATALOGO_ERRORES_IT: Partial<Record<string, string>> = {
     'Solo il Titolare o un Amministratore possono eliminare utenti',
   'Solo el Dueño o un Administrador pueden aprobar o rechazar la publicación':
     'Solo il Titolare o un Amministratore possono approvare o rifiutare la pubblicazione',
+  // ENVIO-CLIENTE (18/11) · el creativo que manda el cliente por la liga
+  'Tu propuesta todavía no es campaña: el creativo se envía cuando la confirmemos':
+    'La tua proposta non è ancora una campagna: invia la creatività quando la confermeremo',
+  'Esta campaña ya no recibe creativos desde la liga. Escribe a tu asesor.':
+    'Questa campagna non riceve più creatività dal link. Scrivi al tuo consulente.',
+  'Esa pantalla no es de tu campaña':
+    'Quello schermo non fa parte della tua campagna',
+  'Elige a qué pantalla va tu creativo':
+    'Scegli a quale schermo va la tua creatività',
+  'Ya recibimos varios archivos hoy para esta campaña. Inténtalo mañana o escribe a tu asesor.':
+    'Oggi abbiamo già ricevuto diversi file per questa campagna. Riprova domani o scrivi al tuo consulente.',
+  'Solo el Dueño o un Administrador pueden revisar los creativos que envía el cliente':
+    'Solo il Titolare o un Amministratore possono rivedere le creatività inviate dal cliente',
+  'Envío no encontrado':
+    'Invio non trovato',
+  'No se pudo aprobar el creativo':
+    'Non è stato possibile approvare la creatività',
   'Solo el Dueño puede cambiar los permisos':
     'Solo il Titolare può modificare i permessi',
   'Solo el vendedor que creó la propuesta o un superior puede mostrar la imprenta al cliente':
@@ -1580,6 +1614,23 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
     'Somente o Titular ou um Administrador podem excluir usuários',
   'Solo el Dueño o un Administrador pueden aprobar o rechazar la publicación':
     'Somente o Titular ou um Administrador podem aprovar ou rejeitar a publicação',
+  // ENVIO-CLIENTE (18/11) · el creativo que manda el cliente por la liga
+  'Tu propuesta todavía no es campaña: el creativo se envía cuando la confirmemos':
+    'Sua proposta ainda não é uma campanha: envie o criativo quando a confirmarmos',
+  'Esta campaña ya no recibe creativos desde la liga. Escribe a tu asesor.':
+    'Esta campanha não recebe mais criativos pelo link. Escreva ao seu consultor.',
+  'Esa pantalla no es de tu campaña':
+    'Essa tela não faz parte da sua campanha',
+  'Elige a qué pantalla va tu creativo':
+    'Escolha para qual tela vai o seu criativo',
+  'Ya recibimos varios archivos hoy para esta campaña. Inténtalo mañana o escribe a tu asesor.':
+    'Já recebemos vários arquivos hoje para esta campanha. Tente amanhã ou escreva ao seu consultor.',
+  'Solo el Dueño o un Administrador pueden revisar los creativos que envía el cliente':
+    'Somente o Titular ou um Administrador podem revisar os criativos enviados pelo cliente',
+  'Envío no encontrado':
+    'Envio não encontrado',
+  'No se pudo aprobar el creativo':
+    'Não foi possível aprovar o criativo',
   'Solo el Dueño puede cambiar los permisos':
     'Somente o Titular pode alterar as permissões',
   'Solo el vendedor que creó la propuesta o un superior puede mostrar la imprenta al cliente':

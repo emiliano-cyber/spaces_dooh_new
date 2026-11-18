@@ -18,6 +18,7 @@ import { ValidacionPanel } from '@/components/demo/campanas/ValidacionPanel'
 import { EvidenciaGaleria } from '@/components/demo/campanas/EvidenciaGaleria'
 import { PlaylogsPanel } from '@/components/demo/campanas/PlaylogsPanel'
 import { AgregarCreativo } from '@/components/demo/campanas/AgregarCreativo'
+import { EnviosClienteCampana } from '@/components/demo/campanas/EnviosClienteCampana'
 import { ActualizarCampana } from '@/components/demo/campanas/ActualizarCampana'
 import { FranjaProgramadaCampana } from '@/components/demo/campanas/FranjaProgramadaCampana'
 import { ResumenCampana } from '@/components/demo/campanas/ResumenCampana'
@@ -230,6 +231,10 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
           <AgregarCreativo campanaId={id} />
         </div>
       </section>
+
+      {/* ENVIO-CLIENTE (18/11) · lo que mandó el cliente desde su liga, para
+          aprobarlo o rechazarlo. Solo Dueño y Administrador; sin envíos, nada. */}
+      <EnviosClienteCampana campanaId={id} />
 
       {/* Validación de publicación — SIEMPRE abierta, sin importar el estatus
           (pedido del dueño, 23/10). Era una `Seccion`: nacía abierta solo si
