@@ -896,6 +896,10 @@ seleccionado y cómo va su avance».
   (`imprenta-visible-controller.ts` → `imprenta-visible-repo.ts`), con la
   regla `puedeCambiarImprentaVisible` y el interruptor
   `components/demo/propuestas/ImprentaVisibleCliente.tsx` en la ficha.
+  **18/11:** las dos rutas llaman a `siNoEsSuya` antes que nada (ADR 0051):
+  una propuesta de otro vendedor es 404 al leer y al cambiar. Al integrarse
+  con el CRM contestaban 200 y 403, que delataban que existía
+  (`seguimiento-campana.e2e.test.ts`, caso «otro VENDEDOR»).
 - UI pública: [[03-Frontend/paginas-publicas]].
 
 ## Portal del cliente

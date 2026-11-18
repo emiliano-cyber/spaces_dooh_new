@@ -301,13 +301,17 @@ describe('3 · el nombre de la imprenta: oculto por omisión, lo enciende el cre
     expect((await seguimiento(ooh.token)).texto).not.toContain('Imprenta Norte')
   })
 
-  it('NEGATIVO · otro VENDEDOR: puedeCambiar false, PATCH 403 y el valor no cambia', async () => {
+  // ADR 0051 (Fase 3): un vendedor solo ve SUS propuestas, y una ajena es 404
+  // en TODA ruta por id. Esta ruta nació en otra rama (SEG-CLIENTE) antes de que
+  // existiera esa regla, y al integrarse contestaba 200 al GET (delataba que la
+  // propuesta existe y el valor del interruptor) y 403 al PATCH (lo mismo). Lo
+  // encontró el 18/11 la siembra de casos locales con dos vendedores.
+  it('NEGATIVO · otro VENDEDOR: la propuesta ajena es 404 al leer y al cambiar, y el valor no cambia', async () => {
     const g = await otroVendedor.pedir(`/api/propuestas/${ooh.id}/imprenta-visible/`)
-    expect(g.status).toBe(200)
-    expect(g.datos.puedeCambiar).toBe(false)
+    expect(g.status, JSON.stringify(g.datos)).toBe(404)
 
     const p = await otroVendedor.pedir(`/api/propuestas/${ooh.id}/imprenta-visible/`, { metodo: 'PATCH', cuerpo: { visible: true } })
-    expect(p.status, JSON.stringify(p.datos)).toBe(403)
+    expect(p.status, JSON.stringify(p.datos)).toBe(404)
     const f = await poolTest().query(`select imprenta_visible from propuestas where id = $1`, [ooh.id])
     expect(f.rows[0].imprenta_visible).toBe(false)
     expect((await seguimiento(ooh.token)).texto).not.toContain('Imprenta Norte')
