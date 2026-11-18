@@ -41,6 +41,13 @@ archivos: []
 > [!important] 2026-11-17 · **SEG-CLIENTE · seguimiento de la campaña en la liga del cliente (tipo Mercado Libre)** — rama `feat/seguimiento-campana-publica`, desde `main` `17f56561` (v0.12.13) — **sin empujar** · ROJO R2 (ruta pública por token) y R3 (migración `20261117_propuesta_imprenta_visible.sql`), **espera aprobación**
 > **Z5 · Comercial LIBERADA** (liga pública, ficha de propuesta, `propuestas-repo` no se toca). La imprenta va **oculta por omisión**; la muestra el vendedor creador o un superior (decisión del dueño). Commits `66010746` … `3745cc41`. Revalidado sobre `3745cc41` con build limpio: e2e `seguimiento-campana` + `aislamiento` + `propuesta-vigencia` **35/36** (1 omitida, A6) y capturas `-v2` en Chrome. Ver [[07-Agentes/diario/2026-11-17]].
 >
+> [!important] 2026-11-17 · **IMP-CREA + IMP-PRIO** — rama `feat/imprenta-creativos-y-prioridad`, desde `origin/main` `17f56561` — **sin empujar**
+> Imprenta enseña el arte de cada orden en la proporción de su sitio (a sangre, con cuánto se recorta) y la lista va por
+> prioridad (fecha de inicio de la campaña: Atrasadas → Esta semana → 30 días → Más adelante → Sin fecha → Listas). Las
+> campañas fijas ya reciben arte (decisión del dueño). Typecheck, 10 415 unitarias y `imprenta-arte.e2e` (8/8, mutantes
+> 6/8 en rojo) y la e2e completa (1279 en verde; solo `grants-rol-app`, por Docker) en verde; **sin Chrome**. **Zonas tomadas y liberadas:** Z6 · Operaciones, Z5 · Comercial (solo
+> `crearCreatividad` y `api/creativos/[id]/arte`), Z12 · Docs y `docs/Registro_Cambios.md`. Detalle en [[2026-11-17]].
+
 
 > [!important] 2026-11-16 · **v0.12.12 = `integra/v0-12-12`** — `feat/personalizar-dashboard` + `feat/paleta-de-instalacion`, desde `main` `4462557e`
 > Conflictos de la paleta con CAMPOS-PANTALLA en los guiones del alta: se conservan los dos. Typecheck, 10 389 unitarias,

@@ -116,6 +116,17 @@ Rama `feat/seguimiento-campana-publica`, todavía sin publicar.
 
 ---
 
+## 2026-11-17 · Imprenta: el arte de cada orden, en la medida de su sitio, y la cola por prioridad
+
+- **Cada orden de impresión enseña el arte de su campaña**, dibujado en la proporción del sitio donde va (la medida de la orden; si no la tiene, la del sitio). Se ve a sangre, como sale la lona, y debajo dice si **ajusta** o **cuánto se recorta y por dónde** («Se recorta 23 % por los costados»).
+- Al tocar un arte se abre en grande, con la opción **Sin recortar** para ver la pieza entera. Desde ahí quien tiene permiso de Comercial lo **aprueba o rechaza**.
+- Las **campañas fijas ya pueden tener arte**: se sube con **Subir arte** en la propia orden. La pantalla de Creativos sigue mostrando solo las campañas digitales, como pidió el dueño el 30/09.
+- Nueva tarjeta **Prioridad de impresión**: una franja que reparte las órdenes en **Atrasadas** (la campaña ya empezó y la lona no está lista), **Esta semana**, **Próximos 30 días**, **Más adelante**, **Sin fecha** y **Listas para montaje**. Tocar un grupo filtra la lista.
+- La lista ya no sale en orden de alta: sale **de la más próxima a la última** según la fecha de inicio de la campaña, con su lugar en la cola (1, 2, 3…) y «Arranca en N días» o «Arrancó hace N días».
+- Quien solo tiene acceso a Imprenta ve el arte de las campañas que tiene que imprimir, y nada más.
+
+---
+
 ## 2026-11-16 · v0.12.13 · «Comercial negociación» ahora se llama «Prospección» y está en Inventario
 
 - En el menú, **Comercial negociación** pasa a llamarse **Prospección** y se mueve del grupo Comercial al grupo **Inventario**, justo debajo de **Arrendadores**.

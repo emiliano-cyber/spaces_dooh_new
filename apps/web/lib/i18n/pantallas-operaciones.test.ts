@@ -85,7 +85,11 @@ const datos = vi.hoisted(() => ({ disponibilidad: undefined as unknown, puede: t
 vi.mock('@/components/demo/shell/SesionContext', () => ({ usePuede: () => datos.puede }))
 vi.mock('@/lib/data/client', async (importOriginal) => {
   const real = await importOriginal<typeof import('@/lib/data/client')>()
-  return { ...real, useDisponibilidad: () => datos.disponibilidad, useSitios: () => datos.sitios, useOrdenesImpresion: () => datos.ois, useCampanas: () => datos.campanas }
+  return { ...real, useDisponibilidad: () => datos.disponibilidad, useSitios: () => datos.sitios, useOrdenesImpresion: () => datos.ois, useCampanas: () => datos.campanas,
+    // IMP-CREA (17/11) · Imprenta lee también los creativos (respaldo de la demo
+    // en memoria). El real lleva su propio `useState(false)` y, llamado desde
+    // `ImprentaPage`, se comía el forzado del alta.
+    useCreatividades: () => [] }
 })
 
 beforeEach(() => {

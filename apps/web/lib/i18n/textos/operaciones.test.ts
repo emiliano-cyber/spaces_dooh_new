@@ -124,4 +124,10 @@ describe('operaciones · los avisos que no se rinden usan su clave', () => {
     expect(f).toMatch(/await aprobarPruebaColorApi\(o\.id, true\) \} catch \(e\) \{ toast\.error\(e instanceof Error \? e\.message : t\('operaciones\.imprenta\.error'\)\)/)
     fija(f, 'crearOrdenImpresionApi', 'operaciones.imprenta.no-crear')
   })
+
+  it('imprenta: subir el arte y aprobarlo o rechazarlo avisan lo suyo (IMP-CREA)', () => {
+    const f = leer('app/(app)/(shell)/imprenta/page.tsx')
+    fija(f, 'crearCreatividadApi', 'operaciones.imprenta.arte.no-subir')
+    fija(f, 'validarCreatividadApi', 'operaciones.imprenta.arte.no-validar')
+  })
 })

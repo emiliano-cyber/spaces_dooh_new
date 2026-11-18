@@ -275,7 +275,7 @@ en `:230-237`) y **no** puede condicionarse a que la ruta
 | POST | `/api/reservar` | exigir |
 | PATCH | `/api/reservas/[id]/creativo` | exigir |
 | POST | `/api/creatividades` · PATCH·DELETE·PUT `/api/creatividades/[id]` | exigir |
-| GET | `/api/creativos/[id]/arte` | exigir |
+| GET | `/api/creativos/[id]/arte` | `comercial:ver`, o `imprenta:ver` si la campaña del creativo tiene orden de impresión (17/11) |
 | POST | `/api/campanas/[id]/confirmar` | exigir |
 | POST | `/api/campanas/[id]/contrato` | exigir |
 | GET·POST | `/api/campanas/[id]/extender` | GET `comercial:ver` (las extensiones con su contrato) · POST `comercial:crear`, `{ fechaFin, contratoUrl }`: sin el contrato firmado de la extensión, 422 (EXT-CONTRATO, 29/10); ver [[comercial-propuestas-campanas]] |

@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-26
+actualizado: 2026-11-17
 tags: [backend, operaciones, ot, imprenta, amarillo, almacen, checklist]
 archivos:
   - apps/web/lib/server/ot-repo.ts
@@ -23,6 +23,11 @@ archivos:
   - apps/web/components/operaciones/OTVista.tsx
   - apps/web/app/(app)/(shell)/operaciones/page.tsx
   - apps/web/app/(app)/(shell)/imprenta/page.tsx
+  - apps/web/lib/prioridad-imprenta.ts
+  - apps/web/lib/proporcion-pantalla.ts
+  - apps/web/components/operaciones/ArteEnSitio.tsx
+  - apps/web/app/api/creativos/[id]/arte/route.ts
+  - apps/web/lib/server/creativos-repo.ts
   - apps/web/lib/data/derive.ts
   - apps/web/lib/server/storage.ts
 ---
@@ -38,7 +43,7 @@ mantenimiento, herrería, eléctrico, inspección (`tipo_ot`, `db/schema.sql:53`
 |---|---|---|
 | `ot-repo.ts` | 377 | OT + evidencias, cierre, checklist punto a punto, costo real, notificaciones |
 | `ot-controller.ts` | 99 | Validación (alta, costo, punto del checklist) |
-| `impresion-repo.ts` | 121 | Órdenes de impresión y OC |
+| `impresion-repo.ts` | 196 | Órdenes de impresión (con fecha, medida y arte de su campaña) y OC |
 | `operaciones-eventos.ts` | 86 | OT automáticas desde Arrendadores |
 | `almacen-repo.ts` | 141 | Activos y traslados; filtro por tipo |
 | `almacen-controller.ts` | 100 | Validación zod del alta y del `?tipo=` (desde el 30/09) |
@@ -144,7 +149,32 @@ ARTE_RECIBIDO → VALIDADO → EN_PRODUCCION → IMPRESO → LISTO_MONTAJE
 
 Con **prueba de color** aprobable (`prueba_color_url`,
 `prueba_color_aprobada`). Folio consecutivo `OI-2026-0001`
-(`impresion-repo.ts:14-16`, `folioDocumento('oi')`).
+(`impresion-repo.ts:15-17`, `folioDocumento('oi')`).
+
+### El arte y la prioridad (IMP-CREA / IMP-PRIO, 2026-11-17)
+
+Pedido del dueño: «que en imprenta se vean los creativos, cómo se verían en las
+proporciones de cada pantalla, y un mapeado de prioridad de cuáles son las más
+próximas y cuáles las últimas». Sin migración ni rutas nuevas.
+
+| Qué | Dónde | Por qué así |
+|---|---|---|
+| **Una campaña FIJA (OOH) ya recibe creativo** | `creativos-repo.ts` (`crearCreatividad`) | Decisión del dueño (17/11). Antes se rechazaba con «su producción es por imprenta» y la imprenta no tenía dónde ver el arte. Aprobarlo no lo mete en ninguna rotación: `autoasignarRotacion` solo toca reservas de pantallas digitales |
+| **La pantalla de Creativos sigue sin campañas fijas** | `lib/creativos-digitales.ts`, sin tocar | Pedido del 30/09. El arte de una fija se **sube y se aprueba desde Imprenta** (botón «Subir arte» y el diálogo del arte) |
+| **`GET /api/impresion` trae fecha, medida y arte** | `listarOrdenesImpresion` | `campanaInicio`/`campanaFin` (como texto: `::text`, para que la fecha no se corra un día en UTC-6), `tipoCampana`, `sitioNombre`/`sitioAncho`/`sitioAlto` y `creativos` (sin retirados, sin la fuente: el arte va por `/api/creativos/<id>/arte/`). Antes la pantalla los sacaba de `/api/estado`, que solo los manda a quien tiene **Comercial**: un rol IMPRENTA se quedaba sin fecha y sin arte |
+| **IMPRENTA ve el arte, pero solo el que imprime** | `app/api/creativos/[id]/arte/route.ts` + `creativoTieneOrdenImpresion` | Sin `comercial.ver` pero con `imprenta.ver`, se sirve el arte **solo si su campaña tiene orden de impresión**. El de una campaña sin orden sigue en 403. Subir y aprobar arte sigue exigiendo `comercial.crear` |
+| **La cola de prioridad** | `lib/prioridad-imprenta.ts` (puro, con pruebas) | Por **fecha de inicio de la campaña**, no de alta de la orden. Grupos: Atrasadas (ya arrancó y no está lista) · Esta semana (≤ 7 días) · Próximos 30 días · Más adelante · Sin fecha · Listas para montaje (al final, sin lugar en la cola). `hoy` es el día LOCAL (`diaLocal`), no el de UTC |
+| **El arte en la proporción del sitio** | `lib/proporcion-pantalla.ts` + `components/operaciones/ArteEnSitio.tsx` | Manda la medida de la orden; si es 0 × 0, la del sitio; si no hay ninguna, marco punteado y sin cálculo. Se pinta **a sangre** (`object-cover`, como sale la lona) y en el diálogo también «Sin recortar» (`contain`). Cuánto se pierde se dice en texto («Se recorta 23 % por los costados»), con tolerancia del 3 % |
+
+Pruebas: `lib/prioridad-imprenta.test.ts`, `lib/proporcion-pantalla.test.ts` y
+`lib/test/imprenta-arte.e2e.test.ts` (8 casos contra Postgres y Next reales,
+incluido el 403 de IMPRENTA sobre arte sin orden y el 404 entre
+organizaciones). Mutantes medidos con build: volver a bloquear OOH y quitar la
+condición de la orden → 6 de 8 en rojo.
+
+> [!warning] Lo que NO se verificó
+> La pantalla en un navegador real (Chrome) a la hora de cerrar este cambio:
+> ver el diario del 17/11.
 
 ## Cómo se ven las pantallas (rediseño del 26/10)
 
@@ -171,6 +201,10 @@ permisos, mismas acciones.
   en producción, listas para montaje) y una franja con el reparto por etapa. Cada
   orden es una fila con el progreso en una barra de un color y «Paso N de 5»
   (ya no el `Stepper` completo). El vacío trae «Nueva orden» si hay permiso.
+  **Desde el 17/11** hay además una tarjeta «Prioridad de impresión» (franja
+  por grupo de urgencia, cada grupo filtra la lista), la lista va agrupada y
+  ordenada por esa prioridad con el lugar en la cola y «Arranca en N días», y
+  bajo cada orden su arte en la proporción del sitio (ver arriba).
 
 ## OT automáticas
 
