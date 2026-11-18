@@ -5,6 +5,12 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-18 · La liga del cliente dice «Pantalla digital», no «PANTALLA_DIGITAL»
+
+- En la propuesta que abre el cliente, cada sitio decía su tipo con el código interno en mayúsculas («PANTALLA_DIGITAL», «ESPECTACULAR»). Ahora dice el nombre legible («Pantalla digital», «Espectacular»), en español como en los demás idiomas.
+
+---
+
 ## 2026-11-18 · Actividad: la bitácora sale en el idioma de quien la lee
 
 Pedido del dueño: «no todo está traducido al idioma correspondiente: hay pedazos en español».

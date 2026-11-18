@@ -287,9 +287,9 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
                         {it.direccion ? <span className="text-ink">{it.direccion}</span> : null}
                         {it.direccion && zonaDe(it) ? <br /> : null}
                         {zonaDe(it) ?? (it.direccion ? null : t('cuenta.publica.sin-ubicacion'))}
-                        {/* Ola 5: en español el tipo va como siempre (el codigo); en ingles,
-                            su etiqueta, porque «ESPECTACULAR» es una palabra española. */}
-                        {it.tipoMedio ? ` · ${idioma === 'es' ? it.tipoMedio : tipoMedioIngles(it.tipoMedio)}` : ''}
+                        {/* El tipo con su etiqueta legible en todos los idiomas. Hasta el 18/11, en
+                            español salía el código crudo («PANTALLA_DIGITAL») en la liga del cliente. */}
+                        {it.tipoMedio ? ` · ${tipoMedioIngles(it.tipoMedio)}` : ''}
                       </span>
                     </div>
                     {it.lat != null && it.lng != null && (
