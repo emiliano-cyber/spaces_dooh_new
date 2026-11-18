@@ -29,6 +29,9 @@ archivos:
   - apps/web/lib/i18n/textos/crm.ts
   - apps/web/lib/i18n/pantallas-crm.test.ts
   - apps/web/app/(app)/(shell)/propuestas/page.tsx
+  - apps/web/lib/prospecto-contactado.ts
+  - apps/web/components/demo/captacion/CuadroContactado.tsx
+  - apps/web/components/demo/captacion/contactado-oportunidad.test.ts
 ---
 
 # CRM comercial — las oportunidades (ADR 0051, Fases 2 a 4)
@@ -245,6 +248,44 @@ build anterior: 7 fallos).
 >   más, un prospecto con oportunidad vieja podría salir también suelto.
 > - Pruebas: `pantallas-crm.test.ts`, bloque «los prospectos sin oportunidad
 >   se ven en Seguimiento».
+
+> [!important] 2026-11-18, noche · al pasar a **Contactado**, el vendedor elige: prospecto u oportunidad
+> Pedido del dueño: «si el prospecto ya entró a Contactado se convierte; si
+> no, sigue como prospecto». Al preguntarle cómo: **«darle la opción al
+> vendedor de ponerlo como prospecto o dejarlo solo como oportunidad»**.
+>
+> - **Dónde sale.** En el panel del prospecto (`Captacion.tsx`, `Detalle`),
+>   al pulsar «Guardar avance» con la etapa **Contactado**. Es el ÚNICO sitio
+>   de la pantalla donde cambia la etapa de un CLIENTE (la pestaña Prospectos
+>   de `/propuestas` y `/captacion` usan el mismo componente; Comercial
+>   negociación solo maneja predios y pantallas).
+> - **Cuándo** (`preguntarAlContactar`, `lib/prospecto-contactado.ts`):
+>   tipo CLIENTE, ENTRA a Contactado (una nota estando ya ahí no pregunta),
+>   quien guarda tiene `comercial.crear` y el prospecto **no tiene
+>   oportunidad** entre las que quien guarda puede ver (`GET
+>   /api/oportunidades`, las primeras 100: el mismo límite que Seguimiento).
+>   Si esa lectura falla, no pregunta y guarda como siempre. Cualquier otra
+>   etapa, tipo o persona: nada cambia.
+> - **Las salidas** (`aplicarEleccion`): **Cancelar** (o cerrar) no manda
+>   nada y la etapa no cambia. **Seguir como prospecto** solo manda el avance.
+>   **Convertir en oportunidad** manda el avance y DESPUÉS `POST
+>   /api/oportunidades` con `prospectoId` y el nombre del prospecto como
+>   nombre (`altaDesdeProspecto`); presupuesto, fechas y medios van vacíos y
+>   se capturan en la ficha. Se eligió crearla directa y no abrir
+>   `FormOportunidad`: el único dato obligatorio es el nombre, y así un clic
+>   basta. El panel dice «Se creó la oportunidad» con enlace a su ficha.
+>   Si el avance falla no se crea nada; si la oportunidad falla, el avance
+>   queda y se dice (`crm.contactado.error`).
+> - **Sin servidor nuevo**: las dos APIs de siempre; el servidor sigue
+>   comprobando tipo CLIENTE y visibilidad.
+> - **Seguimiento**: la tarjeta punteada de un prospecto que va en una etapa
+>   distinta de Prospecto lleva, junto a «Prospecto», su etapa («Contactado»,
+>   «Visita»…). «Crear oportunidad» sigue ahí.
+> - Pruebas: `components/demo/captacion/contactado-oportunidad.test.ts` (20:
+>   cuándo pregunta y cuándo no, qué llama cada salida con llamadas falsas, el
+>   cuadro en es/en/it/pt y la etapa en la tarjeta) y un estado más en
+>   `pantallas-clientes.test.ts` (el cuadro dentro del panel, rendido;
+>   mutado —`abierto={false}`— da 2 en rojo).
 
 > [!important] 2026-11-18, noche · CUATRO pestañas: **Resumen** · Propuestas · Seguimiento · Prospectos
 > Pedido del dueño: «en Propuestas, el resumen de propuestas hazlo su propia

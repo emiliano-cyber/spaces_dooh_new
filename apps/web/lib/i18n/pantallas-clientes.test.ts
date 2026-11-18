@@ -454,6 +454,24 @@ const ESTADOS: Estado[] = [
     ],
   },
   {
+    // 18/11 · un CLIENTE que pasa a Contactado: el cuadro sale DENTRO del
+    // panel del prospecto (`Detalle`), con sus dos salidas y «Cancelar».
+    nombre: 'captacion · un cliente pasa a Contactado: prospecto u oportunidad',
+    pintar: async (idioma) => {
+      const C_captacionPagina = await captacionPagina() // la pagina PRIMERO, los forzados despues
+      forzar(enesimo('Captacion', esNull), PAGINA)
+      forzar(enesimo('Captacion', esNull, 2), { ...DETALLE, tipo: 'CLIENTE', nombre: 'Tacos Norte', etapa: 'PROSPECTO' })
+      forzar(enesimo('Detalle', esFalse, 2), true) // pregunta (el 1.º es `duplicado`)
+      return pintar(idioma, createElement(C_captacionPagina))
+    },
+    espanol: [
+      '¿Lo conviertes en oportunidad?', 'Tacos Norte pasa a Contactado.', 'Seguir como prospecto', 'Convertir en oportunidad',
+    ],
+    ingles: [
+      'Convert it into an opportunity?', 'Tacos Norte moves to Contacted.', 'Keep as prospect', 'Convert to opportunity',
+    ],
+  },
+  {
     nombre: 'captacion · en revision, para quien aprueba',
     pintar: async (idioma) => {
       const C_captacionPagina = await captacionPagina() // la pagina PRIMERO, los forzados despues

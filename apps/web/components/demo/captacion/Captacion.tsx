@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
 import { Plus, Clock, CheckCircle2, XCircle } from 'lucide-react'
 import { Button } from '@/components/demo/ui/Button'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
@@ -40,6 +41,16 @@ import {
   type ProspectoForm,
 } from '@/lib/data/captacion-api'
 import { localeDe } from '@/lib/i18n/formato-idioma'
+import { usePuede } from '@/components/demo/shell/SesionContext'
+import { crearOportunidadApi, oportunidadesApi } from '@/lib/data/oportunidades-api'
+import {
+  aplicarEleccion,
+  altaDesdeProspecto,
+  preguntarAlContactar,
+  tieneOportunidad,
+  type EleccionContactado,
+} from '@/lib/prospecto-contactado'
+import { CuadroContactado } from './CuadroContactado'
 
 // ============================================================================
 //  La bitácora de captación.  CAP-01.
@@ -301,11 +312,14 @@ function FormularioProspecto({
 function Detalle({
   p,
   puedeAprobar,
+  puedeConvertir = false,
   onCambio,
   onEditar,
 }: {
   p: ProspectoDetalle
   puedeAprobar: boolean
+  /** `comercial.crear`: si se ofrece convertirlo en oportunidad al contactarlo. */
+  puedeConvertir?: boolean
   onCambio: (p: ProspectoDetalle) => void
   onEditar: () => void
 }) {
@@ -317,6 +331,12 @@ function Detalle({
   const [motivo, setMotivo] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [duplicado, setDuplicado] = useState(false)
+  // 18/11 · el cuadro de «pasa a Contactado» (`lib/prospecto-contactado.ts`).
+  // Van DESPUÉS de `duplicado`: `pantallas-clientes.test.ts` fuerza los
+  // estados por orden y el primer `false` de aquí tiene que seguir siendo él.
+  const [pregunta, setPregunta] = useState(false)
+  const [ocupado, setOcupado] = useState(false)
+  const [oportunidadCreada, setOportunidadCreada] = useState<string | null>(null)
   // OBLIG-01 · el avance exige etapa y nota (`captacion-controller.ts:192-193`).
   const ob = useObligatorios({ etapa, nota }, ['etapa', 'nota'])
 
@@ -332,18 +352,62 @@ function Detalle({
   const posibles = ETAPAS.filter((e) => motivoAvanceInvalido(p.etapa, e) === null)
   const faltan = faltantesParaRevision(p, idioma)
 
+  // 18/11 · un CLIENTE que entra a Contactado: el vendedor decide si sigue
+  // como prospecto o se convierte en oportunidad. Si ya tiene una, no se
+  // pregunta. Se mira contra las oportunidades que quien guarda puede ver
+  // (las primeras 100, como Seguimiento); si esa lectura falla, no se
+  // pregunta y se guarda como siempre: mejor eso que ofrecer una segunda.
+  // Va ANTES de `guardarAvance`: `textos/clientes.test.ts` exige que entre
+  // `avanceApi(` y su mensaje de error no se cuele otra API.
+  async function hayQuePreguntar(): Promise<boolean> {
+    const candidato = { tipo: p.tipo, etapaActual: p.etapa, etapaNueva: etapa, tieneOportunidad: false, puedeConvertir }
+    if (!preguntarAlContactar(candidato)) return false
+    try {
+      const { oportunidades } = await oportunidadesApi({ porPagina: 100 })
+      return preguntarAlContactar({ ...candidato, tieneOportunidad: tieneOportunidad(p.id, oportunidades) })
+    } catch {
+      return false
+    }
+  }
+
+  const guardarAvance = () =>
+    avanceApi(p.id, { etapa, nota, siguientePaso: siguiente || null, siguientePasoFecha: fecha || null })
+
   async function avanzar() {
     setError(null)
+    setOportunidadCreada(null)
     if (!ob.validar()) return
     if (etapa === 'EN_REVISION' && p.etapa !== 'EN_REVISION' && faltan.length) {
       return setError(t('clientes.captacion.para-revision', { faltan: faltan.join(', ') }))
     }
+    if (await hayQuePreguntar()) return setPregunta(true)
     try {
-      onCambio(await avanceApi(p.id, { etapa, nota, siguientePaso: siguiente || null, siguientePasoFecha: fecha || null }))
+      onCambio(await guardarAvance())
       setNota('')
       ob.reiniciar()
     } catch (e) {
       setError(e instanceof Error ? e.message : t('clientes.captacion.error.avance'))
+    }
+  }
+
+  async function elegir(eleccion: EleccionContactado) {
+    if (eleccion === 'cancelar') return setPregunta(false)
+    setOcupado(true)
+    try {
+      const r = await aplicarEleccion(eleccion, {
+        guardarAvance,
+        crearOportunidad: () => crearOportunidadApi(altaDesdeProspecto(p)),
+      })
+      if (r.prospecto) onCambio(r.prospecto)
+      setNota('')
+      ob.reiniciar()
+      if (r.oportunidad) setOportunidadCreada(r.oportunidad.id)
+      if (r.errorOportunidad) setError(t('crm.contactado.error', { error: r.errorOportunidad }))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('clientes.captacion.error.avance'))
+    } finally {
+      setOcupado(false)
+      setPregunta(false)
     }
   }
 
@@ -378,6 +442,13 @@ function Detalle({
       {error && (
         <p role="alert" className="rounded-md border border-border bg-error-soft px-3 py-2 text-[13px] text-error">
           {error}
+        </p>
+      )}
+
+      {oportunidadCreada && (
+        <p role="status" className="rounded-md border border-[#10b98140] bg-success-soft px-3 py-2 text-[13px] text-[#0f7a55]">
+          {t('crm.contactado.creada')}{' '}
+          <Link href={`/crm/oportunidades/${oportunidadCreada}`} className="font-medium underline">{t('crm.contactado.ver')}</Link>
         </p>
       )}
 
@@ -479,6 +550,8 @@ function Detalle({
         </section>
       )}
 
+      <CuadroContactado abierto={pregunta} nombre={p.nombre} ocupado={ocupado} onElegir={(e) => void elegir(e)} />
+
       <section>
         <h3 className="mb-2 text-sm font-semibold">{t('clientes.captacion.bitacora')}</h3>
         <ol className="m-0 list-none space-y-3 border-l border-border py-0 pl-4 pr-0">
@@ -511,6 +584,8 @@ function Detalle({
 // `GET /api/captacion/<id>`, así que uno ajeno contesta 404 como siempre.
 export function Captacion({ tipoFijo, abrirId = null }: { tipoFijo?: TipoProspecto; abrirId?: string | null } = {}) {
   const { t, idioma } = useIdioma()
+  // 18/11 · quien puede crear oportunidades ve el cuadro de «pasa a Contactado».
+  const puedeConvertir = usePuede('comercial', 'crear')
   const [vista, setVista] = useState<(typeof VISTAS)[number]['clave']>('curso')
   const [tipo, setTipo] = useState<TipoProspecto | ''>(tipoFijo ?? '')
   const [pagina, setPagina] = useState<PaginaProspectos | null>(null)
@@ -735,6 +810,7 @@ export function Captacion({ tipoFijo, abrirId = null }: { tipoFijo?: TipoProspec
           <Detalle
             p={abierto}
             puedeAprobar={!!pagina?.puedeAprobar}
+            puedeConvertir={puedeConvertir}
             onCambio={(p) => { setAbierto(p); void cargar() }}
             onEditar={() => abrirForm({ valor: aForm(abierto), id: abierto.id })}
           />

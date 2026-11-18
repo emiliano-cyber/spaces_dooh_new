@@ -5,6 +5,19 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-18 · Prospectos: al pasar a Contactado, eliges si sigue como prospecto o se convierte en oportunidad
+
+Pedido del dueño: «si el prospecto ya entró a Contactado se convierte; si no, sigue como prospecto», y que lo decida el vendedor.
+
+- En la pestaña **Prospectos**, al registrar el avance de un prospecto de tipo cliente a **Contactado**, sale un cuadro con dos opciones:
+  - **Seguir como prospecto**: guarda el avance y nada más. En Seguimiento sigue como tarjeta de prospecto.
+  - **Convertir en oportunidad**: guarda el avance y crea la oportunidad de ese prospecto, con su nombre. El presupuesto, las fechas y los medios se llenan después en la ficha; el panel trae el enlace **Ver oportunidad**. En Seguimiento deja de verse como prospecto y aparece como oportunidad.
+- **Cancelar** cierra el cuadro sin cambiar la etapa.
+- El cuadro no sale si el prospecto ya tiene oportunidad, si pasa a otra etapa, si es un predio, pantalla o arrendador, ni a quien no puede crear oportunidades: para ellos todo sigue igual.
+- En **Seguimiento**, la tarjeta de un prospecto que ya va en Contactado (o más adelante) lo dice junto a «Prospecto», para distinguirlo de uno recién captado. El botón **Crear oportunidad** sigue disponible.
+
+---
+
 ## 2026-11-18 · Propuestas: el resumen es su propia pestaña, y la primera
 
 Pedido del dueño: «en Propuestas, el resumen de propuestas hazlo su propia sección y que sea la primera en abrirse».

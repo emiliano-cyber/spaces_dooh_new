@@ -15,6 +15,7 @@ import { Button } from '@/components/demo/ui/Button'
 import { oportunidadesApi, type Oportunidad, type PaginaOportunidades } from '@/lib/data/oportunidades-api'
 import { prospectosApi, type Prospecto } from '@/lib/data/captacion-api'
 import { ETAPAS as ETAPAS_PROSPECTO, type Etapa as EtapaProspecto } from '@/lib/captacion'
+import { CLAVE_ETAPA as CLAVE_ETAPA_PROSPECTO } from '@/components/demo/comercial-opex/ComercialOpex'
 import {
   ETAPAS_ABIERTAS,
   agruparEmbudo,
@@ -67,6 +68,12 @@ import { COLOR_ETAPA, claveEtapa } from './etiquetas'
 //  Un prospecto que ya tiene oportunidad (abierta o cerrada) no se repite:
 //  se ve por su oportunidad. Ojo: se compara contra las oportunidades que
 //  llegaron (las primeras 100); con más, uno podría salir dos veces.
+//
+//  18/11, cuarto pedido: al pasar un prospecto a Contactado el vendedor elige
+//  si sigue como prospecto o se convierte en oportunidad
+//  (`lib/prospecto-contactado.ts`). El que siguió como prospecto lleva aquí,
+//  junto a «Prospecto», la etapa en la que va («Contactado», «Visita»…), para
+//  distinguirlo del recién captado; «Crear oportunidad» sigue a mano.
 // ============================================================================
 
 const ETAPAS_VISIBLES: EtapaOportunidad[] = ['CONTACTO', 'NECESIDAD', 'COTIZANDO', 'NEGOCIANDO', 'GANADA']
@@ -384,6 +391,9 @@ export function Seguimiento({
                             className="block rounded-md p-2.5 no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                           >
                             <span className="inline-block rounded-full border border-border bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-muted">{t('crm.linea.prospecto')}</span>
+                            {p.etapa !== 'PROSPECTO' && (
+                              <span className="ml-1 inline-block rounded-full border border-border bg-accent-soft px-2 py-0.5 text-[11px] font-medium text-info">{t(CLAVE_ETAPA_PROSPECTO[p.etapa])}</span>
+                            )}
                             <p className="mt-1 truncate text-[13px] font-medium text-ink" title={p.nombre}>{p.nombre}</p>
                             {empresa && <p className="truncate text-muted" title={empresa}>{empresa}</p>}
                             <p className="mt-1 text-muted">
