@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { ProveedorIdioma } from './contexto'
 import type { Idioma } from './idiomas'
 import { ES_CRM } from './textos/crm'
+import { DICCIONARIOS } from './diccionario'
 import { CotejoPorCliente } from '@/components/demo/propuestas/CotejoPorCliente'
 import type { Propuesta } from '@/lib/data/client'
 
@@ -176,8 +177,10 @@ const pantallas = (idioma: Idioma) => [
 describe('Fase 4 · la pantalla del CRM', () => {
   it('en español: el embudo, la lista, la ficha con su cotejo y su línea de tiempo', () => {
     const html = pantallas('es')
-    for (const f of ['Embudo', 'Oportunidades', 'Prospectos', 'Propuestas', 'Cotizando', 'Contacto', 'Nueva oportunidad',
-      'Ves solo tus oportunidades.', 'Sin presupuesto', 'Lo que quiere el cliente', 'Días en cada etapa',
+    // «Nueva oportunidad» ya no está aquí: desde el 18/11 el botón vive en el
+    // encabezado de Propuestas, en el sitio de «Nueva propuesta».
+    for (const f of ['Embudo', 'Oportunidades', 'Prospectos', 'Propuestas', 'Cotizando', 'Contacto',
+      'Ves solo tus oportunidades.', 'Oportunidades abiertas', 'Presupuesto en juego', 'Resumen', 'Sin presupuesto', 'Lo que quiere el cliente', 'Días en cada etapa',
       'Lo que pide contra lo que se le cotizó', 'Pasó a Negociando', 'Cambió el descuento', 'Creó la propuesta',
       'Pidió precios', 'Siguiente: Mandar propuesta']) {
       expect(html, f).toContain(f)
@@ -196,6 +199,7 @@ describe('Fase 4 · la pantalla del CRM', () => {
 
   const ESPANOL_F4 = [
     ES_CRM['crm.pestana.embudo'], ES_CRM['crm.etapa.cotizando'], ES_CRM['crm.nueva'], ES_CRM['crm.solo-tuyas'],
+    ES_CRM['crm.kpi.abiertas'], ES_CRM['crm.kpi.en-juego'],
     ES_CRM['crm.sin-presupuesto'], ES_CRM['crm.ficha.quiere'], ES_CRM['crm.ficha.dias-etapa'], ES_CRM['crm.ficha.cotejo'],
     'Pasó a', 'Cambió el descuento', ES_CRM['crm.accion.crear'], ES_CRM['crm.ficha.fechas.igual'], 'Arriba por', ES_CRM['crm.cotejo.sin-iva'] + ':',
     ES_CRM['crm.ficha.linea'], ES_CRM['crm.ficha.actividad'],
@@ -209,3 +213,24 @@ describe('Fase 4 · la pantalla del CRM', () => {
     })
   }
 })
+
+// ─── 18/11 · «no se debe de llamar CRM sino Propuestas» ─────────────────────
+// Pedido del dueño. Se mira lo que se PINTA, en los cuatro idiomas, y además
+// cada texto del ámbito: una clave nueva que dijera «CRM» la caza aquí aunque
+// todavía no la use ninguna pantalla.
+describe('18/11 · ninguna pantalla de Propuestas dice «CRM»', () => {
+  for (const idioma of ['es', 'en', 'it', 'pt'] as Idioma[]) {
+    it(`en ${idioma}`, () => {
+      expect(pantallas(idioma)).not.toMatch(/\bCRM\b/)
+      expect(Object.entries(DICCIONARIOS[idioma]).filter(([k, v]) => k.startsWith('crm.') && /\bCRM\b/.test(v))).toEqual([])
+    })
+  }
+
+  it('la primera pestaña es la lista de propuestas, y las otras van a /propuestas?vista=', () => {
+    const html = envolver('es', createElement(PestanasCrm, { activa: 'propuestas' }))
+    const hrefs = [...html.matchAll(/href="([^"]+)"/g)].map((m) => m[1])
+    expect(hrefs).toEqual(['/propuestas', '/propuestas?vista=embudo', '/propuestas?vista=oportunidades', '/propuestas?vista=prospectos'])
+    expect(html).toMatch(/aria-current="page"[^>]*>Propuestas</)
+  })
+})
+

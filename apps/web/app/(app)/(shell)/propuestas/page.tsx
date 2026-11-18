@@ -43,7 +43,9 @@ import { pinTono } from '@/components/demo/StatusBadge'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { TableroPropuestas } from '@/components/demo/propuestas/TableroPropuestas'
 import { CotejoPorCliente } from '@/components/demo/propuestas/CotejoPorCliente'
-import { PestanasCrm } from '@/components/demo/crm/PestanasCrm'
+import { PestanasCrm, pestanaDeVista } from '@/components/demo/crm/PestanasCrm'
+import { Oportunidades } from '@/components/demo/crm/Oportunidades'
+import { Captacion } from '@/components/demo/captacion/Captacion'
 import {
   usePropuestas,
   useFunnelPropuestas,
@@ -64,7 +66,7 @@ import {
   type EstPropuesta,
   type FunnelPropuestas,
 } from '@/lib/data/client'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowUpRight } from 'lucide-react'
 import { withTrail } from '@/lib/nav-trail'
 import { crearPropuestaApi, agregarSitiosPropuestaApi, cambiarEstatusPropuestaApi, aprobarItemPropuestaApi, generarCampanaDesdePropuestaApi, ConfirmacionCeroError, CodigoPendienteApiError } from '@/lib/data/estado-api'
@@ -109,6 +111,10 @@ export default function PropuestasPage() {
   const puedeEditar = usePuede('comercial', 'crear')
   const [nuevoOpen, setNuevoOpen] = useState(false)
   const router = useRouter()
+  // ADR 0051 · las pestañas de Propuestas viven en `?vista=` (18/11). Sin ella,
+  // la lista de propuestas: lo primero que se ve al entrar, como siempre.
+  const pestana = pestanaDeVista(useSearchParams()?.get('vista'))
+  const [nuevaOportunidad, setNuevaOportunidad] = useState(false)
   // PROP-COMPLETA (29/10) · «Agregar sitios» y «Duplicar» se piden desde la
   // ficha con `?agregar=<id>` / `?duplicar=<id>` y abren ESTE formulario
   // precargado: el formulario es el único sitio que sabe cotizar una línea
@@ -179,18 +185,41 @@ export default function PropuestasPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl text-ink">{t('propuestas.lista.titulo')}</h1>
-          <p className="mt-1 text-[13px] text-muted">{t('propuestas.lista.subtitulo')}</p>
+          <p className="mt-1 text-[13px] text-muted">
+            {pestana === 'propuestas'
+              ? t('propuestas.lista.subtitulo')
+              : pestana === 'prospectos'
+              ? t('crm.prospectos.subtitulo')
+              : t('crm.subtitulo')}
+          </p>
         </div>
-        {puedeEditar && (
+        {/* El botón principal, siempre en este sitio y del mismo verde: en la
+            lista da de alta una propuesta; en el embudo y las oportunidades,
+            una oportunidad. Prospectos trae el suyo junto a sus filtros. */}
+        {puedeEditar && pestana === 'propuestas' && (
           <Button variant="success" size="sm" onClick={() => setNuevoOpen(true)}>
             <Plus className="h-3.5 w-3.5" /> {t('propuestas.lista.nueva')}
           </Button>
         )}
+        {puedeEditar && (pestana === 'embudo' || pestana === 'oportunidades') && (
+          <Button variant="success" size="sm" onClick={() => setNuevaOportunidad(true)}>
+            <Plus className="h-3.5 w-3.5" /> {t('crm.nueva')}
+          </Button>
+        )}
       </div>
 
-      {/* ADR 0051 · Fase 4: Propuestas es la cuarta pestaña del CRM. La
-          dirección no cambia; solo se llega desde «CRM» en el menú. */}
-      <PestanasCrm activa="propuestas" />
+      {/* ADR 0051 · lo del 17/11 (embudo, oportunidades y prospectos) son
+          pestañas DE Propuestas desde el 18/11, por pedido del dueño: «no se
+          debe de llamar CRM sino Propuestas». La lista es la primera. */}
+      <PestanasCrm activa={pestana} />
+
+      {(pestana === 'embudo' || pestana === 'oportunidades') && (
+        <Oportunidades vista={pestana} nuevaAbierta={nuevaOportunidad} onCerrarNueva={() => setNuevaOportunidad(false)} />
+      )}
+      {pestana === 'prospectos' && <Captacion tipoFijo="CLIENTE" />}
+
+      {pestana === 'propuestas' && (
+      <>
 
       {/* Rediseño del 26/10: KPIs → lista → análisis. Las cuatro cifras del
           antiguo «Embudo de propuestas» suben aquí como tarjetas, con las
@@ -277,6 +306,7 @@ export default function PropuestasPage() {
         >
           {/* Filtros en una fila: estatus con su conteo, cliente y búsqueda. */}
           <div className="mb-3 flex flex-wrap items-center gap-2">
+            {/* ADR 0051 (17/11) · la misma lista vista por cliente, con su cotejo. */}
             <div className="flex items-center gap-1.5" role="group" aria-label={t('crm.vista.grupo')}>
               <ChipFiltro activo={vista === 'propuesta'} onClick={() => setVista('propuesta')}>
                 {t('crm.vista.propuesta')}
@@ -366,6 +396,8 @@ export default function PropuestasPage() {
           Va DEBAJO de la lista desde el 26/10: es análisis, y la lista es lo
           que se trabaja. */}
       <TableroPropuestas />
+      </>
+      )}
 
       {nuevoOpen && <NuevaPropuestaDialog onClose={() => setNuevoOpen(false)} />}
       {modo && <NuevaPropuestaDialog modo={modo} onClose={cerrarModo} />}

@@ -31,9 +31,12 @@ export const AREAS: AreaProducto[] = [
   { clave: 'comercial', label: 'Comercial', modulo: 'comercial', apiPropia: true },
   { clave: 'clientes', label: 'Clientes', modulo: 'comercial', apiPropia: true },
   { clave: 'propuestas', label: 'Propuestas', modulo: 'comercial', apiPropia: true },
-  // ADR 0051 · el CRM (embudo, oportunidades y su ficha) cuelga de `comercial`:
-  // quien tiene `comercial.aprobar` ve las de todo el equipo.
-  { clave: 'crm', label: 'CRM', modulo: 'comercial', apiPropia: true },
+  // ADR 0051 · las oportunidades (embudo, lista y ficha, pestañas de Propuestas)
+  // cuelgan de `comercial`: quien tiene `comercial.aprobar` ve las de todo el
+  // equipo. La clave sigue siendo `crm`; el rótulo dejó de serlo el 18/11
+  // («no se debe de llamar CRM», pedido del dueño). En otro idioma lo pinta
+  // `nav.crm` (Administración, `etiquetaArea`).
+  { clave: 'crm', label: 'Oportunidades', modulo: 'comercial', apiPropia: true },
   { clave: 'campanas', label: 'Campañas', modulo: 'comercial', apiPropia: true },
   { clave: 'disponibilidad', label: 'Disponibilidad', modulo: 'comercial', apiPropia: false },
   { clave: 'creativos', label: 'Creativos', modulo: 'comercial', apiPropia: false },

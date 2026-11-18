@@ -1,7 +1,7 @@
 ---
 tipo: backend
 estado: en-curso
-actualizado: 2026-11-17
+actualizado: 2026-11-18
 tags: [backend, crm, comercial, oportunidades, adr-0051, rojo]
 archivos:
   - db/migrations/20261117_propuesta_cambios_por_trigger.sql
@@ -25,6 +25,7 @@ archivos:
   - apps/web/components/demo/crm/
   - apps/web/lib/i18n/textos/crm.ts
   - apps/web/lib/i18n/pantallas-crm.test.ts
+  - apps/web/app/(app)/(shell)/propuestas/page.tsx
 ---
 
 # CRM comercial — las oportunidades (ADR 0051, Fases 2 a 4)
@@ -157,12 +158,41 @@ build anterior: 7 fallos).
 
 ## Fase 4 — la pantalla
 
+> [!important] 2026-11-18 · YA NO SE LLAMA «CRM»: son pestañas de Propuestas
+> Pedido del dueño: «en el CRM no se debe de llamar CRM sino Propuestas;
+> además corrígelo porque debe de ser similar al que ya existía de
+> Propuestas». Se invirtió la relación del 17/11: ya no es `/crm` con
+> Propuestas como cuarta pestaña, sino **`/propuestas` con cuatro pestañas**
+> —Propuestas (la lista, por omisión) · Embudo · Oportunidades · Prospectos—,
+> en `?vista=` (`propuestas/page.tsx:116`, `PestanasCrm.tsx`). El menú vuelve a
+> decir «Propuestas» ([[shell-y-navegacion]]). **`/crm` solo redirige** a la
+> pestaña equivalente (`crm/page.tsx`, `redirect()` del servidor), y la ficha
+> se queda en `/crm/oportunidades/[id]`, que enciende «Propuestas» por
+> `tambien: ['/crm']`. Las claves internas (`crm.*`, el área `crm` de
+> `lib/modulos.ts`, `/api/oportunidades`) **no se renombraron**: no se ven.
+>
+> **Y se ve como Propuestas**: título y botón verde principal en el encabezado
+> («Nueva oportunidad» en el sitio de «Nueva propuesta», con el mismo permiso
+> `comercial.crear` que exige el `POST`), pestañas subrayadas como `ui/Tabs`,
+> cuatro `KPICard` (abiertas · presupuesto en juego · ganado · cotizaciones),
+> el embudo y la lista dentro de `CardColapsable` (`propuestas.embudo`,
+> `propuestas.oportunidades`), chips de filtro iguales a los de estatus, tabla
+> con el estilo de Clientes, y las etapas con el dibujo del estatus de una
+> propuesta (`COLOR_ETAPA` reutiliza `EST`: ganada = aprobada, perdida =
+> rechazada, cotizando = enviada). La ficha copia la de una propuesta:
+> «Volver» + migas, insignia junto al nombre, resumen en `KPICard` y cada
+> sección en `CardColapsable` `oportunidad.<seccion>`.
+>
+> Ninguna pantalla ni texto `crm.*` dice «CRM» en ningún idioma, y lo vigila
+> `pantallas-crm.test.ts` (bloque «18/11»).
+
 | Pantalla | Qué hay |
 |---|---|
-| `/crm` (Embudo, por omisión) | Una columna por etapa con su total. Una tarjeta se mueve a otra etapa abierta o a GANADA; a PERDIDA no, porque exige el motivo y eso va en la ficha (`components/demo/crm/Oportunidades.tsx:34`) |
-| `/crm?vista=oportunidades` | La lista, con chips por etapa y la columna de vendedor. «Nueva oportunidad» abre `FormOportunidad` |
-| `/crm?vista=prospectos` | Los leads de tipo cliente: la pantalla de Captación con `tipoFijo="CLIENTE"` (`crm/page.tsx:33`), sin otra pantalla de leads |
+| `/propuestas?vista=embudo` | Una columna por etapa con su total. Una tarjeta se mueve a otra etapa abierta o a GANADA; a PERDIDA no, porque exige el motivo y eso va en la ficha (`components/demo/crm/Oportunidades.tsx`) |
+| `/propuestas?vista=oportunidades` | La lista, con chips por etapa y la columna de vendedor. «Nueva oportunidad» (encabezado de la página) abre `FormOportunidad` |
+| `/propuestas?vista=prospectos` | Los leads de tipo cliente: la pantalla de Captación con `tipoFijo="CLIENTE"` (`propuestas/page.tsx:219`), sin otra pantalla de leads |
 | `/crm/oportunidades/[id]` | La ficha (`FichaOportunidad`): lo pedido, el cotejo por cotización, días en cada etapa, actividades, cambio de etapa, ligar y desligar propuestas, y la línea de tiempo unida, filtrable por persona |
+| `/crm`, `/crm?vista=…` | Redirige a `/propuestas?vista=…` (sin `vista`, al embudo, que es lo que enseñaba) |
 
 Todo pasa por `lib/data/oportunidades-api.ts`; el servidor ya filtra por
 vendedor, la pantalla no decide quién ve qué. El menú y las pestañas, en

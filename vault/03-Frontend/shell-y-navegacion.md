@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-11-17
+actualizado: 2026-11-18
 tags: [frontend, shell, navegacion, rbac]
 archivos:
   - apps/web/lib/host.ts
@@ -69,7 +69,7 @@ ruta nunca se desincronizan. Eso cierra las fugas por enlaces directos, no solo
 el menú. El emparejamiento está en `moduloDe()` (`AuthGate.tsx:20-28`): gana la
 ruta más larga, y desde el 17/11 se emparejan **todas las rutas de cada
 entrada** —la suya y las de `tambien`, con `rutasDe()`—, no solo su `href`.
-Ver «CRM» abajo: es lo que mantiene `/propuestas` bajo compuerta. Las salidas obligatorias (códigos de recuperación, contraseña
+Ver «Propuestas (y el CRM)» abajo: es lo que mantiene `/crm` y la ficha de oportunidad bajo compuerta. Las salidas obligatorias (códigos de recuperación, contraseña
 temporal) se deciden aparte, sin React, en `compuerta.ts`.
 
 Comportamiento:
@@ -90,12 +90,23 @@ orden de ese arreglo **es** el orden en pantalla. Al 2026-10-05 (26 entradas):
 | `inicio` | *sin título* | Dashboard |
 | `patrimonio` | **Inventario** | **Prospección** · Inventario · Arrendadores · Network · Almacén |
 | `ojos` | **Space Eyes** | Equipos · Comprobantes (PoD; antes «Galería», 17/11) · Gráficas · Ajustar texto · Programación · Campañas · Verificación · Fallas — desde v0.11.0 (08/10, ADR 0045); fuera de la cuenta de 26 de arriba. Ajustar texto y Programación solo MANDO; el resto MANDO + VENTA. `hrefActivo()` (`nav.ts:326-329`) enciende **una sola** entrada en sus subpáginas (v0.11.5) |
-| `vender` | **Comercial** | Clientes · Comercial · Disponibilidad · **CRM** (antes Propuestas) · Franjas y temporadas · Descuentos por volumen · Códigos de negociación · Paquetes cerrados |
+| `vender` | **Comercial** | Clientes · Comercial · Disponibilidad · **Propuestas** (fue «CRM» del 17 al 18/11) · Franjas y temporadas · Descuentos por volumen · Códigos de negociación · Paquetes cerrados |
 | `entregar` | **Operaciones** | Campañas · **Creativos** · Imprenta · Operaciones · Consumo de luz |
 | `cobrar` | **Finanzas** | Finanzas · Reportes · Comisiones |
 | `sistema` | **Sistema** | Integraciones · Razones sociales · Actividad · Administración |
 
-> [!note] 2026-11-17 · **«CRM» sustituye a «Propuestas»** en el grupo Comercial (ADR 0051, Fase 4)
+> [!important] 2026-11-18 · **vuelve «Propuestas»**: lo de abajo duró un día
+> Pedido del dueño: «en el CRM no se debe de llamar CRM sino Propuestas». La
+> entrada vuelve a ser `{ key: 'propuestas', label: 'Propuestas', href:
+> '/propuestas', tambien: ['/crm'], icon: FileText }` (`nav.ts:204`), con los
+> mismos roles; `nav.crm` ya no es una entrada (queda como rótulo del área
+> `crm` en la matriz de Administración: «Oportunidades»). El embudo, las
+> oportunidades y los prospectos son pestañas de `/propuestas?vista=…`;
+> `/crm` redirige allí, y `/crm/oportunidades/[id]` enciende «Propuestas» por
+> `tambien`. El atajo del 404 vuelve a ser `propuestas`. Lo vigila
+> `nav.test.ts` («ADR 0051 · «Propuestas» con las oportunidades dentro»).
+
+> [!note] 2026-11-17 · **«CRM» sustituye a «Propuestas»** en el grupo Comercial (ADR 0051, Fase 4) — DESHECHO el 18/11 (arriba)
 > La entrada `crm` (`components/demo/shell/nav.ts:202`) va en el lugar que
 > tenía `propuestas`, con los **mismos roles** (`MANDO` + `VENTA`) y el icono
 > `Target`. Lleva a `/crm` (Embudo · Oportunidades · Prospectos) y **Propuestas
@@ -212,7 +223,7 @@ vacíos.
 
 `nav.test.ts` protege la **estructura**, no los rótulos: que las entradas de un
 grupo vayan seguidas, que ningún grupo declarado quede vacío, que el orden en
-pantalla sea el de `GRUPOS`, y que el CRM (con Propuestas) vaya antes que Campañas y Campañas
+pantalla sea el de `GRUPOS`, y que Propuestas vaya antes que Campañas y Campañas
 antes que Finanzas. Cambiar un rótulo no pone roja ninguna prueba — es un dato
 que solo se ve mirando.
 

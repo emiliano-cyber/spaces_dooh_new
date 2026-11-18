@@ -86,7 +86,7 @@ export const COGNADOS_PT_L5 = new Set<string>([
   'nav.grupo.vender',                                // "Comercial"
   'nav.grupo.sistema',                               // "Sistema"
   'nav.dashboard',                                   // "Dashboard"
-  'nav.crm',                                         // "CRM", sigla (ADR 0051)
+  'nav.crm',                                         // "Oportunidades" (ADR 0051, area de Administracion)
   'nav.network',                                     // "Network"
   'nav.clientes',                                    // "Clientes"
   'nav.comercial',                                   // "Comercial"

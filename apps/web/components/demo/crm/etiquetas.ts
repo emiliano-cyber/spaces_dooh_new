@@ -1,6 +1,7 @@
 import type { EtapaOportunidad } from '@/lib/crm'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
 import { ES_CRM } from '@/lib/i18n/textos/crm'
+import { EST } from '@/components/demo/propuestas/estatus'
 
 // ============================================================================
 //  components/demo/crm/etiquetas.ts — De los valores del CRM a sus claves de
@@ -31,12 +32,18 @@ export function claveCampo(campo: string): ClaveTexto | null {
   return k in ES_CRM ? (k as ClaveTexto) : null
 }
 
-/** El color de cada etapa, con los tokens del proyecto. Ganada y perdida, como en Propuestas. */
+/**
+ * El color de cada etapa, con el MISMO dibujo que el estatus de una propuesta
+ * (`propuestas/estatus.ts`: borde y texto, sin relleno) desde el 18/11, cuando
+ * el dueño pidió que esto se pareciera a Propuestas. Ganada es una aprobada,
+ * perdida una rechazada y cotizando una enviada: las tres se leen igual en las
+ * dos listas.
+ */
 export const COLOR_ETAPA: Record<EtapaOportunidad, string> = {
-  CONTACTO: 'border-border bg-surface text-muted',
-  NECESIDAD: 'border-border bg-surface text-ink',
-  COTIZANDO: 'border-accent/40 bg-accent-soft text-ink',
-  NEGOCIANDO: 'border-accent bg-accent-soft text-ink',
-  GANADA: 'border-[#0f7a55]/40 bg-[#0f7a55]/10 text-[#0f7a55]',
-  PERDIDA: 'border-[#b42318]/40 bg-[#b42318]/10 text-[#b42318]',
+  CONTACTO: 'border-border text-muted',
+  NECESIDAD: 'border-border text-ink',
+  COTIZANDO: EST.ENVIADA.cls,
+  NEGOCIANDO: 'border-accent text-info',
+  GANADA: EST.APROBADA.cls,
+  PERDIDA: EST.RECHAZADA.cls,
 }

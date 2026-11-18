@@ -240,8 +240,10 @@ const ES = {
   'nav.comercial': 'Comercial',
   'nav.disponibilidad': 'Disponibilidad',
   'nav.propuestas': 'Propuestas',
-  // ADR 0051 · Fase 4: «CRM» toma el lugar de «Propuestas» en el menú.
-  'nav.crm': 'CRM',
+  // ADR 0051 · ya NO es una entrada del menú (18/11: volvió a ser
+  // «Propuestas»). Queda como rótulo del área `crm` de `lib/modulos.ts` en la
+  // matriz de Administración, que se traduce por `nav.<clave>`.
+  'nav.crm': 'Oportunidades',
   'nav.captacion': 'Captación',
   'nav.comercial-opex': 'Prospección',
   'nav.franjas-y-temporadas': 'Franjas y temporadas',
@@ -437,7 +439,7 @@ const EN: Record<ClaveTexto, string> = {
   'nav.comercial': 'Sales',
   'nav.disponibilidad': 'Availability',
   'nav.propuestas': 'Proposals',
-  'nav.crm': 'CRM',
+  'nav.crm': 'Opportunities',
   'nav.captacion': 'Prospecting',
   'nav.comercial-opex': 'Prospecting',
   'nav.franjas-y-temporadas': 'Dayparts and seasons',
@@ -634,7 +636,7 @@ const IT_BASE: Partial<Record<ClaveTexto, string>> = {
   'nav.comercial': 'Vendite',
   'nav.disponibilidad': 'Disponibilità',
   'nav.propuestas': 'Proposte',
-  'nav.crm': 'CRM',
+  'nav.crm': 'Opportunità',
   // Captacion es buscar espacios nuevos que arrendar, no clientes.
   'nav.captacion': 'Acquisizione siti',
   'nav.comercial-opex': 'Prospezione',
@@ -842,7 +844,7 @@ const PT_BASE: Partial<Record<ClaveTexto, string>> = {
   'nav.comercial': 'Comercial',
   'nav.disponibilidad': 'Disponibilidade',
   'nav.propuestas': 'Propostas',
-  'nav.crm': 'CRM',
+  'nav.crm': 'Oportunidades',
   'nav.captacion': 'Captação',
   'nav.comercial-opex': 'Prospecção',
   'nav.franjas-y-temporadas': 'Faixas horárias e temporadas',

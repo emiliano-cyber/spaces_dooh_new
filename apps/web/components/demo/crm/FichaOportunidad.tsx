@@ -2,14 +2,18 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Pencil } from 'lucide-react'
+import { ArrowLeft, CalendarClock, FileText, Pencil, Wallet } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/demo/ui/Button'
 import { useIdioma } from '@/lib/i18n/contexto'
 import { porcentajeEnIdioma } from '@/lib/i18n/formato-idioma'
 import { formatFecha, usePropuestas, type Propuesta } from '@/lib/data/client'
 import { refrescarEstado } from '@/lib/data/estado-api'
-import { withTrail } from '@/lib/nav-trail'
+import { trailFromLocation, withTrail } from '@/lib/nav-trail'
+import { cn } from '@/lib/cn'
+import { KPICard } from '@/components/demo/KPICard'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
+import { Breadcrumbs, type Crumb } from '@/components/demo/ui/Breadcrumbs'
 import { EST, CLAVE_ESTATUS } from '@/components/demo/propuestas/estatus'
 import {
   cambiarEtapaApi,
@@ -46,6 +50,12 @@ import { COLOR_ETAPA, claveAccion, claveActividad, claveCampo, claveEtapa, clave
 //  oportunidad, los cambios de sus propuestas (los escribe el trigger de la
 //  Fase 3) y la bitácora del prospecto del que salió, si quien mira lo puede
 //  ver. No se escribe nada dos veces.
+//
+//  EL DIBUJO ES EL DE LA FICHA DE UNA PROPUESTA (18/11, pedido del dueño: «debe
+//  de ser similar al que ya existía de Propuestas»): «Volver» y migas arriba,
+//  nombre con su insignia de etapa, acciones `sm` a la derecha, las cifras en
+//  `KPICard` dentro de una tarjeta plegable, y cada sección en su
+//  `CardColapsable` con id `oportunidad.<seccion>`.
 // ============================================================================
 
 const inputCls =
@@ -97,6 +107,18 @@ export function FichaOportunidad({
   const [aLigar, setALigar] = useState('')
   const [quien, setQuien] = useState('')
   const [ocupado, setOcupado] = useState(false)
+  // Rastro de navegación (cómo llegué); por omisión, Propuestas › Oportunidades.
+  // Se lee después de montar, como en la ficha de propuesta: el servidor no
+  // tiene `window`.
+  const porOmision: Crumb[] = [
+    { label: t('propuestas.lista.titulo'), href: '/propuestas' },
+    { label: t('crm.pestana.oportunidades'), href: '/propuestas?vista=oportunidades' },
+  ]
+  const [trail, setTrail] = useState<Crumb[]>(porOmision)
+  useEffect(() => {
+    const rastro = trailFromLocation()
+    if (rastro.length) setTrail(rastro)
+  }, [])
 
   const cargar = useCallback(() => {
     oportunidadApi(id)
@@ -149,7 +171,7 @@ export function FichaOportunidad({
 
   const personas = useMemo(() => [...new Set(eventos.map((e) => e.quien).filter((x): x is string => !!x))].sort(), [eventos])
 
-  if (error) return <p className="text-[13px] text-[#b42318]">{error}</p>
+  if (error) return <p className="text-[13px] text-error">{error}</p>
   if (!ficha) return <p className="text-[13px] text-muted">{t('crm.cargando')}</p>
 
   const cerrada = etapaOportunidadCerrada(ficha.etapa)
@@ -164,7 +186,7 @@ export function FichaOportunidad({
     ficha.presupuestoMin == null && ficha.presupuestoMax == null
       ? t('crm.sin-presupuesto')
       : [ficha.presupuestoMin, ficha.presupuestoMax].map((x) => (x == null ? '—' : dinero(x))).join(' – ')
-  const volver = withTrail('/crm', [])
+  const volver = trail[trail.length - 1]
 
   async function accion(fn: () => Promise<unknown>, refrescar = false) {
     setOcupado(true)
@@ -180,46 +202,56 @@ export function FichaOportunidad({
   }
 
   return (
-    <div className="space-y-5">
-      <div>
-        <Link href={volver} className="inline-flex items-center gap-1 text-[12px] text-muted hover:text-ink">
-          <ArrowLeft className="h-3.5 w-3.5" /> {t('crm.ficha.volver')}
-        </Link>
-        <div className="mt-1 flex flex-wrap items-start justify-between gap-2">
-          <div>
-            <h1 className="text-2xl text-ink">{ficha.nombre}</h1>
-            <p className="mt-1 text-[13px] text-muted">
-              {ficha.clienteNombre ?? (ficha.prospectoNombre ? t('crm.ficha.prospecto-de', { nombre: ficha.prospectoNombre }) : '—')}
-              {' · '}
-              {t('crm.ficha.vendedor', { nombre: ficha.vendedorNombre ?? t('crm.cotejo.sin-vendedor') })}
-            </p>
-          </div>
+    <div className="w-full space-y-5">
+      <div className="flex flex-wrap items-center gap-2">
+        {volver?.href && (
+          <Link href={volver.href} className="inline-flex items-center gap-1 text-[13px] font-medium text-info hover:underline">
+            <ArrowLeft className="h-3.5 w-3.5" /> {volver.label}
+          </Link>
+        )}
+        <span className="text-muted">·</span>
+        <Breadcrumbs items={[...trail, { label: ficha.nombre }]} />
+      </div>
+
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className={`rounded-full border px-2.5 py-0.5 text-[12px] ${COLOR_ETAPA[ficha.etapa]}`}>{t(claveEtapa(ficha.etapa))}</span>
-            {!cerrada && (
-              <Button variant="secondary" onClick={() => setEditar(true)}>
-                <Pencil className="mr-1 h-3.5 w-3.5" /> {t('crm.ficha.editar')}
-              </Button>
-            )}
+            <h1 className="text-2xl text-ink">{ficha.nombre}</h1>
+            <span className={cn('rounded-full border px-2 py-0.5 text-[11px] font-medium', COLOR_ETAPA[ficha.etapa])}>{t(claveEtapa(ficha.etapa))}</span>
           </div>
-        </div>
-        {cerrada && (
-          <p className="mt-2 text-[13px] text-muted">
-            {t('crm.ficha.cerrada', { fecha: formatFecha((ficha.ganadaEn ?? ficha.perdidaEn ?? ficha.actualizadoEn), idioma) })}
-            {ficha.motivoPerdida ? ` ${t('crm.ficha.perdida-por', { motivo: ficha.motivoPerdida })}` : ''}
+          <p className="mt-1 text-[12px] text-muted">
+            {ficha.clienteNombre ?? (ficha.prospectoNombre ? t('crm.ficha.prospecto-de', { nombre: ficha.prospectoNombre }) : '—')}
+            {' · '}
+            {t('crm.ficha.vendedor', { nombre: ficha.vendedorNombre ?? t('crm.cotejo.sin-vendedor') })}
           </p>
+          {cerrada && (
+            <p className="mt-1 text-[12px] text-muted">
+              {t('crm.ficha.cerrada', { fecha: formatFecha((ficha.ganadaEn ?? ficha.perdidaEn ?? ficha.actualizadoEn), idioma) })}
+              {ficha.motivoPerdida ? ` ${t('crm.ficha.perdida-por', { motivo: ficha.motivoPerdida })}` : ''}
+            </p>
+          )}
+        </div>
+        {!cerrada && (
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="secondary" onClick={() => setEditar(true)}>
+              <Pencil className="h-3.5 w-3.5" /> {t('crm.ficha.editar')}
+            </Button>
+          </div>
         )}
       </div>
 
-      <dl className="grid gap-3 rounded-lg border border-border bg-surface p-4 sm:grid-cols-3">
-        <div><dt className="text-[12px] text-muted">{t('crm.col.presupuesto')}</dt><dd className="demo-num text-[15px] text-ink">{presupuesto}</dd></div>
-        <div><dt className="text-[12px] text-muted">{t('crm.ficha.dias-total')}</dt><dd className="demo-num text-[15px] text-ink">{diasTotal}</dd></div>
-        <div><dt className="text-[12px] text-muted">{t('crm.cotejo.col.cotizaciones')}</dt><dd className="demo-num text-[15px] text-ink">{ficha.cotizaciones}</dd></div>
-      </dl>
+      {/* Las cifras con la `KPICard` del Dashboard, como el «Resumen
+          económico» de la ficha de una propuesta. */}
+      <CardColapsable id="oportunidad.resumen" titulo={t('crm.ficha.resumen')}>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <KPICard label={t('crm.col.presupuesto')} value={presupuesto} tono="azul" icon={<Wallet className="h-4 w-4" />} />
+          <KPICard label={t('crm.ficha.dias-total')} value={String(diasTotal)} icon={<CalendarClock className="h-4 w-4" />} />
+          <KPICard label={t('crm.cotejo.col.cotizaciones')} value={String(ficha.cotizaciones)} icon={<FileText className="h-4 w-4" />} />
+        </div>
+      </CardColapsable>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <section className="rounded-lg border border-border bg-surface p-4">
-          <h2 className="mb-2 text-[14px] font-medium text-ink">{t('crm.ficha.quiere')}</h2>
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <CardColapsable id="oportunidad.quiere" titulo={t('crm.ficha.quiere')}>
           <dl className="grid grid-cols-[auto,1fr] gap-x-4 gap-y-1.5 text-[13px]">
             <dt className="text-muted">{t('crm.form.inicio')}</dt><dd className="text-ink">{ficha.fechaInicioDeseada ? formatFecha(ficha.fechaInicioDeseada, idioma) : '—'}</dd>
             <dt className="text-muted">{t('crm.form.fin')}</dt><dd className="text-ink">{ficha.fechaFinDeseada ? formatFecha(ficha.fechaFinDeseada, idioma) : '—'}</dd>
@@ -228,10 +260,9 @@ export function FichaOportunidad({
             <dt className="text-muted">{t('crm.form.medios')}</dt><dd className="text-ink">{ficha.tiposMedio.length ? ficha.tiposMedio.map((m) => t(claveMedio(m))).join(', ') : '—'}</dd>
             <dt className="text-muted">{t('crm.form.objetivo')}</dt><dd className="whitespace-pre-line text-ink">{ficha.objetivo ?? '—'}</dd>
           </dl>
-        </section>
+        </CardColapsable>
 
-        <section className="rounded-lg border border-border bg-surface p-4">
-          <h2 className="mb-2 text-[14px] font-medium text-ink">{t('crm.ficha.dias-etapa')}</h2>
+        <CardColapsable id="oportunidad.dias-etapa" titulo={t('crm.ficha.dias-etapa')}>
           <ul className="m-0 flex list-none flex-wrap gap-2 p-0">
             {ETAPAS_OPORTUNIDAD.filter((e) => dias[e] != null).map((e) => (
               <li key={e} className={`rounded-full border px-2.5 py-0.5 text-[12px] ${COLOR_ETAPA[e]}`}>
@@ -259,11 +290,10 @@ export function FichaOportunidad({
               </Button>
             </div>
           )}
-        </section>
+        </CardColapsable>
       </div>
 
-      <section className="rounded-lg border border-border bg-surface p-4">
-        <h2 className="mb-2 text-[14px] font-medium text-ink">{t('crm.ficha.cotejo')}</h2>
+      <CardColapsable id="oportunidad.cotejo" titulo={t('crm.ficha.cotejo')}>
         {ligadas.length === 0 ? (
           <p className="text-[13px] text-muted">{t('crm.ficha.cotejo-vacio')}</p>
         ) : (
@@ -293,7 +323,7 @@ export function FichaOportunidad({
                   return (
                     <tr key={l.id} className="border-t border-border align-top">
                       <td className="py-2 pr-3">
-                        <Link href={withTrail(`/propuestas/${l.id}`, [{ label: ficha.nombre, href: `/crm/oportunidades/${ficha.id}` }])} className="font-medium text-ink hover:underline">{l.folio}</Link>
+                        <Link href={withTrail(`/propuestas/${l.id}`, [...trail, { label: ficha.nombre, href: `/crm/oportunidades/${ficha.id}` }])} className="font-medium text-ink hover:underline">{l.folio}</Link>
                         <span className="text-muted"> · {l.nombre}</span>
                         <div className="mt-0.5 flex items-center gap-1.5 text-[11px]">
                           {EST[est] && <span className={`rounded-full px-1.5 py-0.5 ${EST[est].cls}`}>{t(CLAVE_ESTATUS[est])}</span>}
@@ -346,17 +376,16 @@ export function FichaOportunidad({
             )}
           </label>
           {ligables.length > 0 && (
-            <Button variant="secondary" disabled={ocupado || !aLigar}
+            <Button variant="primary" disabled={ocupado || !aLigar}
               onClick={() => accion(async () => { await ligarPropuestaApi(aLigar, ficha.id); setALigar('') }, true)}>
               {t('crm.ficha.ligar-boton')}
             </Button>
           )}
         </div>
-      </section>
+      </CardColapsable>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr,2fr]">
-        <section className="rounded-lg border border-border bg-surface p-4">
-          <h2 className="mb-2 text-[14px] font-medium text-ink">{t('crm.ficha.actividad')}</h2>
+      <div className="grid items-start gap-4 lg:grid-cols-[1fr,2fr]">
+        <CardColapsable id="oportunidad.actividad" titulo={t('crm.ficha.actividad')}>
           <div className="space-y-2">
             <select aria-label={t('crm.ficha.actividad-tipo')} className={inputCls} value={actividad.tipo}
               onChange={(e) => setActividad((a) => ({ ...a, tipo: e.target.value as typeof a.tipo }))}>
@@ -381,19 +410,19 @@ export function FichaOportunidad({
               {t('crm.ficha.anotar')}
             </Button>
           </div>
-        </section>
+        </CardColapsable>
 
-        <section className="rounded-lg border border-border bg-surface p-4">
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-[14px] font-medium text-ink">{t('crm.ficha.linea')}</h2>
-            {personas.length > 1 && (
-              <select aria-label={t('crm.linea.filtro')} className="h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
-                value={quien} onChange={(e) => setQuien(e.target.value)}>
-                <option value="">{t('crm.linea.todos')}</option>
-                {personas.map((p) => <option key={p} value={p}>{p}</option>)}
-              </select>
-            )}
-          </div>
+        <CardColapsable
+          id="oportunidad.linea"
+          titulo={t('crm.ficha.linea')}
+          accion={personas.length > 1 ? (
+            <select aria-label={t('crm.linea.filtro')} className="h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
+              value={quien} onChange={(e) => setQuien(e.target.value)}>
+              <option value="">{t('crm.linea.todos')}</option>
+              {personas.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
+          ) : undefined}
+        >
           {eventos.length === 0 ? (
             <p className="text-[13px] text-muted">{t('crm.ficha.linea-vacia')}</p>
           ) : (
@@ -411,7 +440,7 @@ export function FichaOportunidad({
               ))}
             </ol>
           )}
-        </section>
+        </CardColapsable>
       </div>
 
       <FormOportunidad abierto={editar} onCerrar={() => setEditar(false)} ficha={ficha} onGuardada={(f) => setFicha((x) => (x ? { ...x, ...f } : f))} />

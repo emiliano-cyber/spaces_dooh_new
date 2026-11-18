@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-11-17
+actualizado: 2026-11-18
 tags: [backend, comercial, propuestas, campanas, amarillo, precio, extension, contrato]
 archivos:
   - apps/web/lib/seguimiento-campana.ts
@@ -69,6 +69,14 @@ archivos:
 > `usuario_id`, en la lista (`/api/estado`), en el resumen y en cada ruta por id
 > (404). Y cada cambio queda en `propuesta_cambios`, campo por campo, escrito por
 > un trigger. Detalle en [[crm-oportunidades]].
+
+> [!important] 18/11 · ADR 0051: lo del CRM son PESTAÑAS de Propuestas
+> Pedido del dueño: «no se debe de llamar CRM sino Propuestas» y que se parezca
+> a la Propuestas que ya existía. `/propuestas` enseña primero su lista de
+> siempre y arriba cuatro pestañas (Propuestas · Embudo · Oportunidades ·
+> Prospectos, en `?vista=`); el menú vuelve a decir «Propuestas» y `/crm` solo
+> redirige. Las pestañas nuevas usan los mismos KPIs, tarjetas plegables,
+> chips e insignias que la lista de propuestas. Detalle en [[crm-oportunidades]].
 
 ## El recorrido
 

@@ -14,7 +14,6 @@ import {
   Images,
   Users,
   FileText,
-  Target,
   Plug,
   Percent,
   CalendarRange,
@@ -197,10 +196,12 @@ export const NAV: NavItem[] = [
   { key: 'clientes', label: 'Clientes', href: '/clientes', icon: Users, roles: [...MANDO, ...VENTA], grupo: 'vender' },
   { key: 'comercial', label: 'Comercial', href: '/comercial', icon: Map, roles: [...MANDO, ...VENTA], grupo: 'vender' },
   { key: 'disponibilidad', label: 'Disponibilidad', href: '/disponibilidad', icon: CalendarRange, roles: [...MANDO, ...VENTA], grupo: 'vender' },
-  // ADR 0051 · Fase 4 (17/11): «CRM» toma el lugar de «Propuestas». Propuestas
-  // es una de sus pestañas y conserva su dirección (`tambien`), con los MISMOS
-  // roles: quien abría /propuestas la sigue abriendo, y nadie más.
-  { key: 'crm', label: 'CRM', href: '/crm', tambien: ['/propuestas'], icon: Target, roles: [...MANDO, ...VENTA], grupo: 'vender' },
+  // ADR 0051: el 17/11 «CRM» tomó el lugar de «Propuestas»; el 18/11 el dueño
+  // lo deshizo: «en el CRM no se debe de llamar CRM sino Propuestas». La
+  // entrada vuelve a ser la de siempre, y lo del CRM son pestañas dentro de
+  // ella. `/crm` (que redirige aquí) y la ficha `/crm/oportunidades/[id]`
+  // encienden ESTA entrada (`tambien`), con los MISMOS roles.
+  { key: 'propuestas', label: 'Propuestas', href: '/propuestas', tambien: ['/crm'], icon: FileText, roles: [...MANDO, ...VENTA], grupo: 'vender' },
   // CAP-01 · la bitacora de captacion: OCULTA del menu desde el 2026-09-30.
   // Pedido del dueno: «elimina captacion por ahora u ocultalo»; se solapaba con
   // Comercial OPEX, que es la forma que prefiere. Solo se quita la ENTRADA: las

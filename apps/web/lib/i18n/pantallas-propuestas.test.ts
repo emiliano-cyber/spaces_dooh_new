@@ -71,6 +71,8 @@ vi.mock('react', async (importOriginal) => {
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
   usePathname: () => '/propuestas',
+  // 18/11 · la pestaña de Propuestas sale de `?vista=`; sin ella, la lista.
+  useSearchParams: () => new URLSearchParams(),
   notFound: () => {
     throw new Error('notFound')
   },

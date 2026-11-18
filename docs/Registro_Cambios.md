@@ -5,6 +5,21 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-18 · sin versión todavía · El CRM vuelve a llamarse «Propuestas» y se ve como Propuestas
+
+Pedido del dueño: «en el CRM no se debe de llamar CRM sino Propuestas; además corrígelo porque debe de ser similar al que ya existía de Propuestas». Todavía no está en ninguna versión publicada.
+
+- **En el menú, dentro de Comercial, la entrada vuelve a llamarse «Propuestas»** (Proposals, Proposte, Propostas), en el mismo lugar y para las mismas personas. La palabra «CRM» ya no aparece en ninguna de estas pantallas, en ningún idioma.
+- **Al entrar se ve la lista de propuestas de siempre**, primero. Arriba de ella hay cuatro pestañas: **Propuestas**, **Embudo**, **Oportunidades** y **Prospectos**. Las tres últimas son lo que antes estaba en «CRM»; nada se perdió.
+- **Las pestañas nuevas se ven como Propuestas**: el mismo título, cuatro tarjetas de cifras arriba (oportunidades abiertas, presupuesto en juego, lo ganado y las cotizaciones), la lista dentro de una tarjeta que se puede plegar, los mismos filtros redondos y las mismas etiquetas de color (una oportunidad ganada se pinta como una propuesta aprobada, una perdida como una rechazada).
+- **El botón verde de arriba a la derecha cambia según la pestaña**: «Nueva propuesta» en la lista, «Nueva oportunidad» en Embudo y en Oportunidades. Solo lo ve quien puede crear en Comercial, igual que «Nueva propuesta».
+- **Al abrir una oportunidad**, la ficha se parece a la de una propuesta: «Volver» y el camino (Propuestas › Oportunidades › nombre) arriba, la etapa junto al nombre, las cifras en tarjetas y cada sección plegable.
+- El botón para ligar una cotización a la oportunidad ahora es azul (asignar), igual que «Guardar cambios» al editar una oportunidad: se sigue la regla de colores de los botones.
+- Si alguien tenía guardada la dirección vieja del CRM, sigue sirviendo: lo lleva a la pestaña que corresponde dentro de Propuestas.
+- Está en español, inglés, italiano y portugués.
+
+---
+
 ## 2026-11-17 · sin versión todavía · CRM: el presupuesto con y sin IVA, y sin porcentaje de cierre
 
 Son dos decisiones del dueño sobre la pantalla del CRM. Todavía no está en ninguna versión publicada.

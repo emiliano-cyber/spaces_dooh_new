@@ -145,7 +145,7 @@ export function FormOportunidad({
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={onCerrar}>{t('crm.form.cancelar')}</Button>
-          <Button variant="success" disabled={guardando || !v.nombre.trim()} onClick={guardar}>
+          <Button variant={editando ? 'primary' : 'success'} disabled={guardando || !v.nombre.trim()} onClick={guardar}>
             {editando ? t('crm.form.guardar') : t('crm.form.crear')}
           </Button>
         </div>
