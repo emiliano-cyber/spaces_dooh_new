@@ -1,5 +1,47 @@
 [
   {
+    "version": "v0.12.14",
+    "fecha": "2026-11-18",
+    "items": [
+      {
+        "tipo": "NUEVO",
+        "texto": "Comercial tiene un CRM: un embudo por etapas (Contacto, Necesidad, Cotizando, Negociando, Ganada y Perdida), las oportunidades de cada cliente con lo que quiere gastar comparado con cada cotización (con y sin IVA), sus llamadas, visitas y notas, y una línea de tiempo con cada cambio. Las propuestas siguen en la misma dirección, y ahora se pueden ver agrupadas por cliente.",
+        "en": "Sales now has a CRM: a pipeline by stage (Contact, Need, Quoting, Negotiating, Won and Lost), each client’s opportunities with their budget compared to every quote (with and without VAT), their calls, visits and notes, and a timeline with every change. Proposals stay at the same address, and can now be grouped by client.",
+        "it": "Commerciale ha un CRM: una pipeline per fase (Contatto, Esigenza, In preventivo, In trattativa, Vinta e Persa), le opportunità di ogni cliente con quanto vuole spendere confrontato con ogni preventivo (con e senza IVA), le sue chiamate, visite e note, e una cronologia con ogni modifica. Le proposte restano allo stesso indirizzo e ora si possono raggruppare per cliente."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Un vendedor ve solo sus propuestas y sus oportunidades. Quien puede aprobar en Comercial (de fábrica: Dueño, Administrador, Director comercial y Gerente de ventas) sigue viendo las de todo el equipo. Cada cambio a una propuesta queda anotado: quién, cuándo y qué cambió.",
+        "en": "A salesperson now sees only their own proposals and opportunities. Whoever can approve in Sales (by default: Owner, Administrator, Sales director and Sales manager) still sees the whole team’s. Every change to a proposal is recorded: who, when and what changed.",
+        "it": "Un venditore vede solo le proprie proposte e opportunità. Chi può approvare in Commerciale (di serie: Titolare, Amministratore, Direttore commerciale e Responsabile vendite) continua a vedere quelle di tutto il team. Ogni modifica a una proposta resta registrata: chi, quando e cosa è cambiato."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Cuando la propuesta ya es campaña, la liga del cliente se convierte en un seguimiento, como el rastreo de un pedido: en qué paso va (material, instalación, al aire), cuántas lonas van impresas y cómo van sus anuncios. Nunca ve importes ni notas internas, y el nombre de la imprenta está oculto salvo que el vendedor lo muestre.",
+        "en": "Once the proposal becomes a campaign, the client’s link turns into tracking, like following an order: which step it is at (artwork, installation, on air), how many prints are done and how their ads are doing. They never see amounts or internal notes, and the print shop’s name is hidden unless the salesperson shows it.",
+        "it": "Quando la proposta diventa campagna, il link del cliente si trasforma in un tracciamento, come quello di un ordine: a che punto è (materiale, installazione, in onda), quanti teli sono stampati e come vanno i suoi annunci. Non vede mai importi né note interne, e il nome della tipografia resta nascosto finché il venditore non lo mostra."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Dashboard: bloque nuevo «Campañas por día», con las campañas creadas y aprobadas cada día de los últimos 30 días. Cada vendedor ve lo suyo; los responsables ven el total y una fila por vendedor.",
+        "en": "Dashboard: new “Campaigns per day” block, with the campaigns created and approved each day over the last 30 days. Each salesperson sees their own; managers see the total and one row per salesperson.",
+        "it": "Dashboard: nuovo blocco «Campagne al giorno», con le campagne create e approvate ogni giorno negli ultimi 30 giorni. Ogni venditore vede le proprie; i responsabili vedono il totale e una riga per venditore."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Imprenta: cada orden enseña el arte de su campaña en la proporción del sitio y dice si ajusta o cuánto se recorta. Las campañas fijas ya pueden subir arte. La lista sale por prioridad, de la campaña que arranca antes a la última, con una franja de Atrasadas, Esta semana, Próximos 30 días y Listas para montaje.",
+        "en": "Print shop: each order shows its campaign’s artwork in the site’s proportions and says whether it fits or how much is cropped. Static campaigns can now upload artwork. The list is sorted by priority, from the campaign that starts first to the last, with a strip for Overdue, This week, Next 30 days and Ready to install.",
+        "it": "Tipografia: ogni ordine mostra la grafica della sua campagna nelle proporzioni del sito e dice se si adatta o quanto viene tagliata. Le campagne statiche ora possono caricare la grafica. L’elenco esce per priorità, dalla campagna che parte prima all’ultima, con una fascia di In ritardo, Questa settimana, Prossimi 30 giorni e Pronte per il montaggio."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Menú: «Prospección» pasa al primer lugar del grupo Inventario, y en Space Eyes la «Galería» se llama ahora «Comprobantes». Son las mismas pantallas.",
+        "en": "Menu: “Prospecting” moves to the top of the Inventory group, and in Space Eyes the “Gallery” is now called “PoD”. They are the same screens.",
+        "it": "Menu: «Prospezione» passa al primo posto del gruppo Inventario, e in Space Eyes la «Galleria» ora si chiama «PoD». Sono le stesse schermate."
+      }
+    ]
+  },
+  {
     "version": "v0.12.13",
     "fecha": "2026-11-17",
     "items": [
