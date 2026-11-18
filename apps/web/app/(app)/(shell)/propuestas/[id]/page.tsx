@@ -13,6 +13,7 @@ import { etiquetaCalculadora } from '@/lib/calculadora-spots'
 import { AvisoFranjaCMS } from '@/components/demo/rejilla/AvisoFranjaCMS'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { rutaListaPropuestas } from '@/components/demo/crm/PestanasCrm'
 import { useRouter } from 'next/navigation'
 import { KPICard } from '@/components/demo/KPICard'
 import { EST, CLAVE_ESTATUS } from '@/components/demo/propuestas/estatus'
@@ -256,10 +257,10 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
   const [trail, setTrail] = useState<Crumb[]>([])
   useEffect(() => {
     const rastro = trailFromLocation()
-    setTrail(rastro.length ? rastro : [{ label: t('propuestas.lista.titulo'), href: '/propuestas' }])
+    setTrail(rastro.length ? rastro : [{ label: t('propuestas.lista.titulo'), href: rutaListaPropuestas() }])
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  const volver = trail.length ? trail[trail.length - 1] : { label: t('propuestas.lista.titulo'), href: '/propuestas' }
+  const volver = trail.length ? trail[trail.length - 1] : { label: t('propuestas.lista.titulo'), href: rutaListaPropuestas() }
 
   if (!propuestas) {
     return <div className="h-64 w-full animate-pulse rounded-md bg-surface-2" />
@@ -269,7 +270,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
     return (
       <div className="w-full">
         <p className="text-[13px] text-muted">{t('propuestas.ficha.no-encontrada')}</p>
-        <Link href="/propuestas" className="mt-2 inline-flex items-center gap-1 text-[13px] text-info">
+        <Link href={rutaListaPropuestas()} className="mt-2 inline-flex items-center gap-1 text-[13px] text-info">
           <ArrowLeft className="h-3.5 w-3.5" /> {t('propuestas.ficha.volver')}
         </Link>
       </div>
@@ -343,7 +344,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
     try {
       await borrarPropuestaApi(id)
       toast.success(t('propuestas.ficha.borrar.hecho'))
-      router.push('/propuestas')
+      router.push(rutaListaPropuestas())
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t('propuestas.comun.error'))
     }
@@ -441,7 +442,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
           {/* PROP-COMPLETA · duplicar abre el formulario de alta precargado
               (mismos sitios y contratación, tarifa de hoy, sin cupón). */}
           {puedeEditar && (
-            <Button size="sm" variant="secondary" onClick={() => router.push(`/propuestas?duplicar=${p.id}`)}>
+            <Button size="sm" variant="secondary" onClick={() => router.push(rutaListaPropuestas(`duplicar=${p.id}`))}>
               <Copy className="h-3.5 w-3.5" /> {t('propuestas.ficha.duplicar')}
             </Button>
           )}
@@ -834,7 +835,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
               formulario de alta en modo «agregar», con el periodo de la propuesta. */}
           {puedeEditar && sitiosEditables && (
             <div className="mb-3 flex flex-wrap items-center gap-2">
-              <Button size="sm" variant="secondary" onClick={() => router.push(`/propuestas?agregar=${p.id}`)}>
+              <Button size="sm" variant="secondary" onClick={() => router.push(rutaListaPropuestas(`agregar=${p.id}`))}>
                 <Plus className="h-3.5 w-3.5" /> {t('propuestas.comun.agregar-sitios')}
               </Button>
               {p.estatus === 'ENVIADA' && (

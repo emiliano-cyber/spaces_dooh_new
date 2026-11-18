@@ -100,7 +100,7 @@ describe('CotejoPorCliente', () => {
 import { Seguimiento } from '@/components/demo/crm/Seguimiento'
 import CrmPage from '@/app/(app)/(shell)/crm/page'
 import { FichaOportunidad } from '@/components/demo/crm/FichaOportunidad'
-import { PestanasCrm, pestanaDeVista } from '@/components/demo/crm/PestanasCrm'
+import { PestanasCrm, pestanaDeVista, pestanaDeParametros, type PestanaCrm } from '@/components/demo/crm/PestanasCrm'
 import type { FichaOportunidad as Ficha, Oportunidad, PaginaOportunidades } from '@/lib/data/oportunidades-api'
 
 const op = (o: Partial<Oportunidad> & Pick<Oportunidad, 'id' | 'etapa'>): Oportunidad => ({
@@ -234,10 +234,18 @@ describe('18/11 · ninguna pantalla de Propuestas dice «CRM»', () => {
     })
   }
 
-  it('la primera pestaña es la lista de propuestas, y las otras van a /propuestas?vista=', () => {
+  // 18/11 (3.er pedido) · «el resumen de propuestas hazlo su propia sección y
+  // que sea la primera en abrirse»: Resumen es `/propuestas` a secas y la
+  // lista pasa a `?vista=propuestas`.
+  it('la primera pestaña es el Resumen (/propuestas a secas); la lista y las otras van por ?vista=', () => {
     const html = envolver('es', createElement(PestanasCrm, { activa: 'propuestas' }))
     const hrefs = [...html.matchAll(/href="([^"]+)"/g)].map((m) => m[1])
-    expect(hrefs).toEqual(['/propuestas', '/propuestas?vista=seguimiento', '/propuestas?vista=prospectos'])
+    expect(hrefs).toEqual([
+      '/propuestas',
+      '/propuestas?vista=propuestas',
+      '/propuestas?vista=seguimiento',
+      '/propuestas?vista=prospectos',
+    ])
     expect(html).toMatch(/aria-current="page"[^>]*>Propuestas</)
   })
 })
@@ -246,17 +254,25 @@ describe('18/11 · ninguna pantalla de Propuestas dice «CRM»', () => {
 // El dueño quitó la pestaña Oportunidades («es casi igual al embudo») y
 // renombró el embudo. Se vigila en los cuatro idiomas lo que se PINTA.
 describe('18/11 · Seguimiento sustituye al embudo y a la lista de oportunidades', () => {
-  const pestanas = (idioma: Idioma, activa: 'propuestas' | 'seguimiento' | 'prospectos' = 'propuestas') =>
+  const pestanas = (idioma: Idioma, activa: PestanaCrm = 'propuestas') =>
     envolver(idioma, createElement(PestanasCrm, { activa }))
   const rotulos = (html: string) => [...html.matchAll(/<a [^>]*>([^<]+)<\/a>/g)].map((m) => m[1])
   const seguimiento = (idioma: Idioma, pagina: PaginaOportunidades = PAGINA) =>
     envolver(idioma, createElement(Seguimiento, { inicial: pagina, ahora: AHORA }))
 
-  it('tres pestañas: Propuestas · Seguimiento · Prospectos (Seguimiento es la segunda)', () => {
-    expect(rotulos(pestanas('es'))).toEqual(['Propuestas', 'Seguimiento', 'Prospectos'])
-    expect(rotulos(pestanas('en'))).toEqual(['Proposals', 'Follow-up', 'Prospects'])
-    expect(rotulos(pestanas('it'))).toEqual(['Proposte', 'Monitoraggio', 'Prospect'])
-    expect(rotulos(pestanas('pt'))).toEqual(['Propostas', 'Acompanhamento', 'Prospects'])
+  it('cuatro pestañas: Resumen · Propuestas · Seguimiento · Prospectos (Resumen la primera)', () => {
+    expect(rotulos(pestanas('es'))).toEqual(['Resumen', 'Propuestas', 'Seguimiento', 'Prospectos'])
+    expect(rotulos(pestanas('en'))).toEqual(['Summary', 'Proposals', 'Follow-up', 'Prospects'])
+    expect(rotulos(pestanas('it'))).toEqual(['Riepilogo', 'Proposte', 'Monitoraggio', 'Prospect'])
+    expect(rotulos(pestanas('pt'))).toEqual(['Resumo', 'Propostas', 'Acompanhamento', 'Prospects'])
+  })
+
+  it('con el Resumen activo, el subrayado va en la primera', () => {
+    for (const idioma of ['es', 'en', 'it', 'pt'] as Idioma[]) {
+      const html = pestanas(idioma, 'resumen')
+      expect(html).toMatch(new RegExp(`aria-current="page"[^>]*>${DICCIONARIOS[idioma]['crm.pestana.resumen']}<`))
+      expect([...html.matchAll(/aria-current="page"/g)]).toHaveLength(1)
+    }
   })
 
   for (const idioma of ['es', 'en', 'it', 'pt'] as Idioma[]) {
@@ -265,7 +281,7 @@ describe('18/11 · Seguimiento sustituye al embudo y a la lista de oportunidades
       expect(html).not.toMatch(/Embudo|Pipeline|Funil/)
       expect(html).not.toMatch(/vista=oportunidades|vista=embudo/)
       expect(rotulos(pestanas(idioma))).not.toContain(DICCIONARIOS[idioma]['nav.crm'])
-      expect(rotulos(pestanas(idioma))).toHaveLength(3)
+      expect(rotulos(pestanas(idioma))).toHaveLength(4)
       expect(html).toMatch(new RegExp(`aria-current="page"[^>]*>${DICCIONARIOS[idioma]['crm.pestana.seguimiento']}<`))
     })
   }
@@ -275,8 +291,25 @@ describe('18/11 · Seguimiento sustituye al embudo y a la lista de oportunidades
     expect(pestanaDeVista('embudo')).toBe('seguimiento')
     expect(pestanaDeVista('oportunidades')).toBe('seguimiento')
     expect(pestanaDeVista('prospectos')).toBe('prospectos')
-    expect(pestanaDeVista(null)).toBe('propuestas')
-    expect(pestanaDeVista('cualquiera')).toBe('propuestas')
+    expect(pestanaDeVista('propuestas')).toBe('propuestas')
+    expect(pestanaDeVista('resumen')).toBe('resumen')
+    expect(pestanaDeVista(null)).toBe('resumen')
+    expect(pestanaDeVista(undefined)).toBe('resumen')
+    expect(pestanaDeVista('cualquiera')).toBe('resumen')
+  })
+
+  it('sin ?vista= se abre el Resumen, salvo que la dirección pida un diálogo de la lista', () => {
+    const de = (q: string) => pestanaDeParametros(new URLSearchParams(q))
+    expect(de('')).toBe('resumen')
+    expect(de('vista=propuestas')).toBe('propuestas')
+    expect(de('vista=seguimiento')).toBe('seguimiento')
+    // Marcadores de antes del 18/11: «Duplicar» y «Agregar sitios» abrían el
+    // formulario desde `/propuestas?duplicar=…` sin vista; caen en la lista.
+    expect(de('duplicar=p1')).toBe('propuestas')
+    expect(de('agregar=p1')).toBe('propuestas')
+    // Una vista explícita manda sobre el diálogo.
+    expect(de('vista=prospectos&duplicar=p1')).toBe('prospectos')
+    expect(pestanaDeParametros(null)).toBe('resumen')
   })
 
   it('/crm redirige: sin vista, ?vista=embudo y ?vista=oportunidades a Seguimiento; ?vista=prospectos a Prospectos', () => {

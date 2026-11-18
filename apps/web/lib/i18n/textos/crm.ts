@@ -64,6 +64,9 @@ export const ES_CRM = {
   'crm.unidad.cotizaciones': 'cotizaciones',
   'crm.pestana.prospectos': 'Prospectos',
   'crm.pestana.propuestas': 'Propuestas',
+  // 18/11 (3.er pedido) · el resumen es su propia pestaña, y la primera.
+  'crm.pestana.resumen': 'Resumen',
+  'crm.resumen.subtitulo': 'Cómo van las propuestas: las cifras de siempre y las del periodo que elijas.',
   'crm.kpi.abiertas': 'Oportunidades abiertas',
   'crm.kpi.abiertas.sub': 'Contacto, necesidad, cotizando y negociando',
   'crm.kpi.en-juego': 'Presupuesto en juego',
@@ -238,6 +241,9 @@ export const EN_CRM: Record<ClaveCrm, string> = {
   'crm.unidad.cotizaciones': 'quotes',
   'crm.pestana.prospectos': 'Prospects',
   'crm.pestana.propuestas': 'Proposals',
+  // 18/11 (3.er pedido) · el resumen es su propia pestaña, y la primera.
+  'crm.pestana.resumen': 'Summary',
+  'crm.resumen.subtitulo': 'How proposals are doing: all-time figures and those for the period you choose.',
   'crm.kpi.abiertas': 'Open opportunities',
   'crm.kpi.abiertas.sub': 'Contact, need, quoting and negotiating',
   'crm.kpi.en-juego': 'Budget at stake',
@@ -409,6 +415,9 @@ export const IT_CRM: Record<ClaveCrm, string> = {
   'crm.unidad.cotizaciones': 'preventivi',
   'crm.pestana.prospectos': 'Prospect',
   'crm.pestana.propuestas': 'Proposte',
+  // 18/11 (3.er pedido) · el resumen es su propia pestaña, y la primera.
+  'crm.pestana.resumen': 'Riepilogo',
+  'crm.resumen.subtitulo': 'Come vanno le proposte: i dati di sempre e quelli del periodo che scegli.',
   'crm.kpi.abiertas': 'Opportunità aperte',
   'crm.kpi.abiertas.sub': 'Contatto, esigenza, in preventivo e in trattativa',
   'crm.kpi.en-juego': 'Budget in gioco',
@@ -580,6 +589,9 @@ export const PT_CRM: Record<ClaveCrm, string> = {
   'crm.unidad.cotizaciones': 'cotações',
   'crm.pestana.prospectos': 'Prospects',
   'crm.pestana.propuestas': 'Propostas',
+  // 18/11 (3.er pedido) · el resumen es su propia pestaña, y la primera.
+  'crm.pestana.resumen': 'Resumo',
+  'crm.resumen.subtitulo': 'Como vão as propostas: os números de sempre e os do período que você escolher.',
   'crm.kpi.abiertas': 'Oportunidades abertas',
   'crm.kpi.abiertas.sub': 'Contato, necessidade, cotando e em negociação',
   'crm.kpi.en-juego': 'Orçamento em jogo',

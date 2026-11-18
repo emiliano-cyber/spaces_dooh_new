@@ -25,25 +25,50 @@ import { useTexto } from '@/lib/i18n/contexto'
 //  18/11, segundo pedido: «Embudo» se llama «Seguimiento» (columnas por etapa)
 //  y la pestaña «Oportunidades» se quitó por ser casi igual; su búsqueda y su
 //  filtro de vendedor pasaron a Seguimiento.
+//
+//  18/11, tercer pedido: «el resumen de propuestas hazlo su propia sección y
+//  que sea la primera en abrirse». Resumen (las cuatro cifras históricas y el
+//  tablero del periodo) es ahora `/propuestas` a secas, lo que abre el menú;
+//  la lista se mudó a `?vista=propuestas`. Todo enlace que espere la lista
+//  (volver de la ficha, borrar, duplicar, agregar sitios) apunta ahí.
 // ============================================================================
 
-export type PestanaCrm = 'propuestas' | 'seguimiento' | 'prospectos'
+export type PestanaCrm = 'resumen' | 'propuestas' | 'seguimiento' | 'prospectos'
 
 const PESTANAS: { clave: PestanaCrm; href: string }[] = [
-  { clave: 'propuestas', href: '/propuestas' },
+  { clave: 'resumen', href: '/propuestas' },
+  { clave: 'propuestas', href: rutaListaPropuestas() },
   { clave: 'seguimiento', href: '/propuestas?vista=seguimiento' },
   { clave: 'prospectos', href: '/propuestas?vista=prospectos' },
 ]
 
+/** La lista de propuestas; con `extra`, más parámetros (`duplicar=…`). */
+export function rutaListaPropuestas(extra?: string): string {
+  return `/propuestas?vista=propuestas${extra ? `&${extra}` : ''}`
+}
+
 /**
- * La pestaña de una dirección `?vista=`; cualquier otra cosa es la lista de
- * propuestas. `embudo` y `oportunidades` son marcadores de las dos pestañas que
- * existieron entre el 17 y el 18/11: los dos caen en Seguimiento, que es lo que
- * las sustituyó, y no en la lista (que sería otra pantalla).
+ * La pestaña de una dirección `?vista=`; sin ella, o con cualquier otra cosa,
+ * el Resumen, que es lo primero que se abre. `embudo` y `oportunidades` son
+ * marcadores de las dos pestañas que existieron entre el 17 y el 18/11: los
+ * dos caen en Seguimiento, que es lo que las sustituyó.
  */
 export function pestanaDeVista(v: string | null | undefined): PestanaCrm {
   if (v === 'seguimiento' || v === 'embudo' || v === 'oportunidades') return 'seguimiento'
-  return v === 'prospectos' ? 'prospectos' : 'propuestas'
+  if (v === 'prospectos') return 'prospectos'
+  return v === 'propuestas' ? 'propuestas' : 'resumen'
+}
+
+/**
+ * Como `pestanaDeVista`, pero mirando toda la dirección: un `?duplicar=` o
+ * `?agregar=` sin vista es un marcador de antes del 18/11 (cuando la lista era
+ * `/propuestas` a secas) y abre el formulario DE LA LISTA, así que cae en ella
+ * y no en el Resumen.
+ */
+export function pestanaDeParametros(q: { get(k: string): string | null } | null | undefined): PestanaCrm {
+  const vista = q?.get('vista')
+  if (!vista && (q?.get('duplicar') || q?.get('agregar'))) return 'propuestas'
+  return pestanaDeVista(vista)
 }
 
 export function PestanasCrm({ activa }: { activa: PestanaCrm }) {

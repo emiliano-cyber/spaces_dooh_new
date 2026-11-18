@@ -246,10 +246,47 @@ build anterior: 7 fallos).
 > - Pruebas: `pantallas-crm.test.ts`, bloque «los prospectos sin oportunidad
 >   se ven en Seguimiento».
 
+> [!important] 2026-11-18, noche · CUATRO pestañas: **Resumen** · Propuestas · Seguimiento · Prospectos
+> Pedido del dueño: «en Propuestas, el resumen de propuestas hazlo su propia
+> sección y que sea la primera en abrirse». **`/propuestas` a secas (lo que
+> abre el menú) es ahora el Resumen**; la lista se mudó a
+> **`?vista=propuestas`** (`PestanasCrm.tsx`, `rutaListaPropuestas()`).
+>
+> - **Resumen** = las cuatro `KPICard` históricas (pipeline, enviadas sin
+>   respuesta, ganado, tasa de cierre; `useFunnelPropuestas`) + el
+>   `TableroPropuestas` del periodo. Antes las cifras iban ARRIBA de la lista
+>   y el tablero DEBAJO; las dos son «cómo vamos» y ninguna es la lista que
+>   se trabaja, así que se fueron juntas. La franja del embudo en barras
+>   (`FunnelStrip`) se queda en la lista, junto a los chips de estatus.
+> - **Propuestas** = la lista (por propuesta o por cliente) con sus filtros.
+> - Botón verde «Nueva propuesta» en Resumen **y** en la lista (con
+>   `comercial.crear`): el Resumen es lo que se abre al entrar y empezar una
+>   no debe costar un clic más.
+> - `pestanaDeVista`: sin vista o con cualquier cosa desconocida → `resumen`;
+>   `propuestas` → la lista; `embudo`/`oportunidades` → Seguimiento.
+>   `pestanaDeParametros` además manda a la lista un `?duplicar=`/`?agregar=`
+>   SIN vista (marcadores de antes de hoy).
+> - Llevan a la lista (`?vista=propuestas`): «Volver» y migas por omisión de
+>   la ficha `/propuestas/[id]`, el «Volver a propuestas» de una propuesta que
+>   no existe, borrar una propuesta, «Duplicar» y «Agregar sitios»
+>   (`?vista=propuestas&duplicar=…`), la miga de las filas de la lista y del
+>   cotejo por cliente, y el «Ir a propuestas» de Campañas vacía. **Se quedan
+>   en `/propuestas` (Resumen)**: el menú, los atajos del 404, los enlaces de
+>   las tarjetas Pipeline y Conteo del Dashboard (son resumen) y la raíz de
+>   las migas de Seguimiento y de la ficha de oportunidad (es el módulo).
+> - Textos `crm.pestana.resumen` (Resumen / Summary / Riepilogo / Resumo, la
+>   misma palabra que `crm.ficha.resumen`) y `crm.resumen.subtitulo`.
+> - Pruebas: `pantallas-crm.test.ts` (cuatro pestañas en los cuatro idiomas,
+>   `pestanaDeVista`, `pestanaDeParametros`) y `pantallas-propuestas.test.ts`
+>   (pantalla «resumen de propuestas», bloque «Resumen · Propuestas: cada
+>   pestaña con lo suyo»; ahí la navegación por omisión es `vista=propuestas`).
+
 | Pantalla | Qué hay |
 |---|---|
+| `/propuestas` | **Resumen** (por omisión, 18/11): cuatro `KPICard` históricas + `TableroPropuestas` del periodo; botón «Nueva propuesta» |
+| `/propuestas?vista=propuestas` | La lista de propuestas (por propuesta o por cliente), con sus filtros y la franja del embudo; `&duplicar=`/`&agregar=` abren el formulario precargado |
 | `/propuestas?vista=seguimiento` | Columnas por etapa (Perdida plegada) con cuenta y monto; tarjetas que abren la ficha; los prospectos de tipo cliente sin oportunidad, punteados en Contacto con «Crear oportunidad»; búsqueda y vendedor arriba. «Nueva oportunidad» (encabezado de la página, `comercial.crear`) abre `FormOportunidad` (`components/demo/crm/Seguimiento.tsx`) |
-| `/propuestas?vista=prospectos` | Los leads de tipo cliente: la pantalla de Captación con `tipoFijo="CLIENTE"` (`propuestas/page.tsx:223`), sin otra pantalla de leads; `&prospecto=<id>` abre ese prospecto |
+| `/propuestas?vista=prospectos` | Los leads de tipo cliente: la pantalla de Captación con `tipoFijo="CLIENTE"` (`propuestas/page.tsx:229`), sin otra pantalla de leads; `&prospecto=<id>` abre ese prospecto |
 | `/crm/oportunidades/[id]` | La ficha (`FichaOportunidad`): lo pedido, el cotejo por cotización, días en cada etapa, actividades, cambio de etapa, ligar y desligar propuestas, y la línea de tiempo unida, filtrable por persona |
 | `/crm`, `/crm?vista=…` | Redirige a `/propuestas?vista=prospectos` si trae esa vista; si no (sin `vista`, `embudo`, `oportunidades`), a `?vista=seguimiento` |
 

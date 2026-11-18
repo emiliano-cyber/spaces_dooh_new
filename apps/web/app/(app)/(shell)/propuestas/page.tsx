@@ -43,7 +43,7 @@ import { pinTono } from '@/components/demo/StatusBadge'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { TableroPropuestas } from '@/components/demo/propuestas/TableroPropuestas'
 import { CotejoPorCliente } from '@/components/demo/propuestas/CotejoPorCliente'
-import { PestanasCrm, pestanaDeVista } from '@/components/demo/crm/PestanasCrm'
+import { PestanasCrm, pestanaDeParametros, rutaListaPropuestas } from '@/components/demo/crm/PestanasCrm'
 import { Seguimiento } from '@/components/demo/crm/Seguimiento'
 import { Captacion } from '@/components/demo/captacion/Captacion'
 import {
@@ -112,9 +112,11 @@ export default function PropuestasPage() {
   const [nuevoOpen, setNuevoOpen] = useState(false)
   const router = useRouter()
   // ADR 0051 · las pestañas de Propuestas viven en `?vista=` (18/11). Sin ella,
-  // la lista de propuestas: lo primero que se ve al entrar, como siempre.
+  // el Resumen: «que sea la primera en abrirse» (tercer pedido del 18/11). La
+  // lista es `?vista=propuestas`; un `?duplicar=`/`?agregar=` viejo, sin vista,
+  // también cae en ella.
   const parametros = useSearchParams()
-  const pestana = pestanaDeVista(parametros?.get('vista'))
+  const pestana = pestanaDeParametros(parametros)
   // 18/11 · la tarjeta de un prospecto en Seguimiento abre Prospectos con él.
   const prospectoAbierto = parametros?.get('prospecto') ?? null
   const [nuevaOportunidad, setNuevaOportunidad] = useState(false)
@@ -189,17 +191,21 @@ export default function PropuestasPage() {
         <div>
           <h1 className="text-2xl text-ink">{t('propuestas.lista.titulo')}</h1>
           <p className="mt-1 text-[13px] text-muted">
-            {pestana === 'propuestas'
+            {pestana === 'resumen'
+              ? t('crm.resumen.subtitulo')
+              : pestana === 'propuestas'
               ? t('propuestas.lista.subtitulo')
               : pestana === 'prospectos'
               ? t('crm.prospectos.subtitulo')
               : t('crm.subtitulo')}
           </p>
         </div>
-        {/* El botón principal, siempre en este sitio y del mismo verde: en la
-            lista da de alta una propuesta; en Seguimiento, una oportunidad.
-            Prospectos trae el suyo junto a sus filtros. */}
-        {puedeEditar && pestana === 'propuestas' && (
+        {/* El botón principal, siempre en este sitio y del mismo verde: en el
+            Resumen y en la lista da de alta una propuesta (el Resumen es lo
+            que se abre al entrar, y no debe costar un clic más empezar una);
+            en Seguimiento, una oportunidad. Prospectos trae el suyo junto a
+            sus filtros. */}
+        {puedeEditar && (pestana === 'resumen' || pestana === 'propuestas') && (
           <Button variant="success" size="sm" onClick={() => setNuevoOpen(true)}>
             <Plus className="h-3.5 w-3.5" /> {t('propuestas.lista.nueva')}
           </Button>
@@ -222,14 +228,15 @@ export default function PropuestasPage() {
       )}
       {pestana === 'prospectos' && <Captacion tipoFijo="CLIENTE" abrirId={prospectoAbierto} />}
 
-      {pestana === 'propuestas' && (
+      {pestana === 'resumen' && (
       <>
 
-      {/* Rediseño del 26/10: KPIs → lista → análisis. Las cuatro cifras del
-          antiguo «Embudo de propuestas» suben aquí como tarjetas, con las
-          mismas fuentes (`useFunnelPropuestas`). Son HISTÓRICAS —todas las
-          propuestas—, y así lo dicen: el Dashboard mide la tasa de cierre en
-          una ventana de días y el Resumen de abajo en el periodo elegido. */}
+      {/* 18/11 · el Resumen es su propia pestaña, y la primera. Junta lo que
+          el rediseño del 26/10 había puesto alrededor de la lista: arriba, las
+          cuatro cifras del antiguo «Embudo de propuestas» (`useFunnelPropuestas`),
+          que son HISTÓRICAS —todas las propuestas— y así lo dicen; debajo, el
+          tablero del periodo elegido. Las dos son «cómo vamos», y ninguna es
+          la lista que se trabaja. */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {!funnel ? (
           <>
@@ -285,6 +292,13 @@ export default function PropuestasPage() {
         )}
       </div>
 
+      {/* Cómo va el periodo: generadas, aprobadas, rechazadas y ganancia (06/10). */}
+      <TableroPropuestas />
+      </>
+      )}
+
+      {pestana === 'propuestas' && (
+      <>
       {!propuestas ? (
         <div className="h-40 animate-pulse rounded-md bg-surface-2" />
       ) : propuestas.length === 0 ? (
@@ -357,8 +371,9 @@ export default function PropuestasPage() {
             </div>
           </div>
 
-          {/* El embudo, ahora franja secundaria: sus cifras grandes subieron a
-              las tarjetas de arriba. */}
+          {/* El embudo, ahora franja secundaria: sus cifras grandes son las
+              tarjetas del Resumen (pestaña propia desde el 18/11). Se queda
+              aquí porque es el contexto de los filtros por estatus. */}
           {funnel && funnel.total > 0 && <FunnelStrip f={funnel} />}
 
           {vista === 'cliente' ? (
@@ -395,11 +410,6 @@ export default function PropuestasPage() {
           )}
         </CardColapsable>
       )}
-
-      {/* Cómo va el periodo: generadas, aprobadas, rechazadas y ganancia (06/10).
-          Va DEBAJO de la lista desde el 26/10: es análisis, y la lista es lo
-          que se trabaja. */}
-      <TableroPropuestas />
       </>
       )}
 
@@ -570,7 +580,7 @@ function PropuestaCard({
               <div className="text-[11px] text-muted">{t('propuestas.comun.total-con-iva')}</div>
             </div>
             <Link
-              href={withTrail(`/propuestas/${p.id}`, [{ label: t('propuestas.lista.titulo'), href: '/propuestas' }])}
+              href={withTrail(`/propuestas/${p.id}`, [{ label: t('propuestas.lista.titulo'), href: rutaListaPropuestas() }])}
               className="inline-flex items-center gap-1 rounded border border-border-strong px-2.5 py-1.5 text-[12px] font-medium text-info hover:bg-surface-2"
             >
               {t('propuestas.fila.abrir')} <ArrowUpRight className="h-3.5 w-3.5" />
@@ -2162,8 +2172,8 @@ function Dato({ label, valor }: { label: string; valor: string }) {
 
 // Tira de funnel comercial: enviadas → aprobadas → perdidas.
 // Desde el 26/10 es una franja secundaria DENTRO de la lista y no una tarjeta:
-// el pipeline, lo ganado y la tasa de cierre subieron a las `KPICard` de arriba
-// (eran las mismas cuatro cifras), y aquí queda solo el embudo en barras.
+// el pipeline, lo ganado y la tasa de cierre subieron a las `KPICard` (desde el
+// 18/11, en la pestaña Resumen), y aquí queda solo el embudo en barras.
 function FunnelStrip({ f }: { f: FunnelPropuestas }) {
   const t = useTexto()
   // Ancho relativo del embudo (enviadas alguna vez = base).

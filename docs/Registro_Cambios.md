@@ -5,6 +5,18 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-18 · Propuestas: el resumen es su propia pestaña, y la primera
+
+Pedido del dueño: «en Propuestas, el resumen de propuestas hazlo su propia sección y que sea la primera en abrirse».
+
+- Propuestas tiene ahora cuatro pestañas: **Resumen · Propuestas · Seguimiento · Prospectos**.
+- Al entrar a Propuestas desde el menú se abre **Resumen**. Ahí están las cuatro cifras de siempre (en pipeline, enviadas sin respuesta, ganado y tasa de cierre) y, debajo, el **Resumen de propuestas** del periodo que elijas (generadas, aprobadas, rechazadas y ganancia).
+- La pestaña **Propuestas** es la lista, con sus filtros, igual que antes, pero ya sin esas cifras arriba ni el resumen abajo.
+- El botón verde **Nueva propuesta** está en Resumen y en la lista.
+- Al volver de una propuesta, al borrarla y al usar **Duplicar** o **Agregar sitios**, se cae en la lista, como antes.
+
+---
+
 ## 2026-11-18 · Propuestas › Seguimiento: los prospectos también se ven
 
 Pedido del dueño: «los prospectos se deben de ver también en Seguimiento; creé uno y no se vio».

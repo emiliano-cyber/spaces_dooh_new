@@ -87,6 +87,14 @@ archivos:
 > a llamarse Seguimiento, en columnas por etapa tipo Kanban con búsqueda y
 > filtro de vendedor; `?vista=embudo`, `?vista=oportunidades` y `/crm` llevan a
 > `?vista=seguimiento`.
+>
+> **Y por la noche, cuatro**: **Resumen** · Propuestas · Seguimiento ·
+> Prospectos. Pedido: «el resumen de propuestas hazlo su propia sección y que
+> sea la primera en abrirse». `/propuestas` a secas es el Resumen (las cuatro
+> `KPICard` históricas + `TableroPropuestas`); la lista vive en
+> `?vista=propuestas` (`rutaListaPropuestas()`), y a ella llevan «Volver» de
+> la ficha, borrar, «Duplicar» y «Agregar sitios». Detalle en
+> [[crm-oportunidades]].
 
 ## El recorrido
 
