@@ -5,6 +5,22 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-18 · Propuestas › Seguimiento: las tarjetas se arrastran de una columna a otra
+
+Pedido del dueño: «que se pueda mover y se vea la animación arrastrando entre cada columna, y solo al terminar de moverlo abrir un modal con los campos para llenar el cambio».
+
+- **Con el ratón**: se toma la tarjeta y se lleva a otra columna. La tarjeta se levanta y sigue al puntero, la columna de debajo se ilumina con un hueco donde caerá, y las columnas donde no se puede soltar se ven apagadas con «Aquí no». Un clic normal sigue abriendo la ficha.
+- **En el celular o la tableta**: se mantiene pulsada la tarjeta un momento y luego se arrastra. Deslizar el dedo sin esperar sigue moviendo el tablero de lado, como antes. Al llegar al borde, el tablero avanza solo.
+- **Al soltar en otra columna** se abre una ventana con lo que pide el cambio: una nota (opcional) siempre; **el motivo** si se pasa a Perdida (obligatorio); y **una confirmación** si se pasa a Ganada, porque una oportunidad ganada o perdida ya no se mueve después. Mientras la ventana está abierta, la tarjeta espera en la columna nueva marcada «Pendiente de guardar».
+- **Guardar** la deja ahí. **Cancelar**, o si el sistema no deja el cambio (por ejemplo, porque otra persona la cerró mientras tanto), la tarjeta vuelve sola a su columna y se dice por qué.
+- Soltar fuera del tablero, en la misma columna o con **Escape** no hace nada: la tarjeta regresa.
+- **Un prospecto** (las tarjetas punteadas de Contacto) se puede arrastrar a Necesidad, Cotizando o Negociando: se abre el formulario de «Crear oportunidad» con él, avisando a qué etapa irá. Al crearla, nace en Contacto y se mueve sola a esa etapa.
+- **Sin arrastrar**: cada tarjeta tiene un botón «Mover de etapa» (las flechas de la esquina) que abre la misma ventana con la etapa a elegir. Sirve con el teclado.
+- Solo quien puede crear en Comercial puede mover tarjetas. Las ganadas y perdidas no se arrastran.
+- Si la computadora tiene activado «reducir movimiento», las tarjetas se mueven sin animaciones.
+
+---
+
 ## 2026-11-18 · El seguimiento de la campaña en la liga del cliente va en horizontal
 
 Pedido del dueño: «el pipeline debe de ser en horizontal en la liga que se envía al cliente».
@@ -12,6 +28,12 @@ Pedido del dueño: «el pipeline debe de ser en horizontal en la liga que se env
 - Los seis pasos (propuesta aceptada → campaña confirmada → material → instalación → al aire → terminada) ahora van en una fila, como el rastreo de un pedido: círculos unidos por una línea, los completados con palomita y en color, el actual resaltado con «Ahora», los pendientes en gris, y debajo de cada uno su nombre y su fecha.
 - En el teléfono sigue en horizontal: la fila se desliza con el dedo dentro de su recuadro y se abre centrada en el paso en el que va la campaña. La página no se mueve de lado.
 - Lo demás no cambia: el aviso ámbar cuando hay que ajustar el anuncio, «va con un poco de retraso», el nombre de la imprenta oculto, y una campaña cancelada sin pasos.
+
+---
+
+## 2026-11-18 · La liga del cliente: «Ver negociación acordada»
+
+- En la liga que se le manda al cliente, cuando la propuesta ya es campaña, el botón que despliega lo aceptado ya no dice «Ver la propuesta que aceptaste»: dice **«Ver negociación acordada»** (y «Ocultar negociación acordada» al cerrarlo). También en inglés, italiano y portugués.
 
 ---
 
