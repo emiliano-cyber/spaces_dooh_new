@@ -31,8 +31,13 @@ export function validarIdiomasServidor(body: unknown): Idioma[] | null {
   if (!Array.isArray(v) || !v.every((i) => (IDIOMAS as readonly unknown[]).includes(i))) {
     throw new AppError('Los idiomas no son validos')
   }
-  // El espanol va siempre: es al que cae todo texto que falte por traducir.
-  return IDIOMAS.filter((i) => i === 'es' || v.includes(i))
+  // IDIOMAS-SIN-ES (18/11): la lista se respeta TAL CUAL, tambien sin espanol
+  // (decision del dueno). Lo que falte por traducir sigue cayendo al espanol
+  // en el diccionario, pero eso no obliga a OFRECERLO. Vacia no: un servidor
+  // sin idiomas no puede pintar nada (y la base tampoco la acepta).
+  const lista = IDIOMAS.filter((i) => v.includes(i))
+  if (lista.length === 0) throw new AppError('Hay que elegir al menos un idioma')
+  return lista
 }
 
 export async function guardarIdiomasServidorCtrl(

@@ -60,6 +60,24 @@ export type Idioma = (typeof IDIOMAS)[number]
 export const IDIOMA_POR_OMISION: Idioma = 'es'
 
 /**
+ * El idioma que se PINTA cuando nadie pidio uno de los permitidos (ni la
+ * cuenta, ni la cookie, ni el navegador): el primero de `permitidos` en el
+ * orden de `IDIOMAS`. Con el espanol entre ellos es el espanol, como siempre
+ * (va primero en `IDIOMAS`).
+ *
+ * IDIOMAS-SIN-ES (18/11). Hasta ese dia el respaldo era SIEMPRE el espanol,
+ * porque «Idiomas del servidor» no dejaba quitarlo. El dueno decidio que
+ * tambien se pueda dejar sin marcar («tambien sin marcar y elegible»), y
+ * entonces caer al espanol pintaria un idioma que el servidor NO ofrece: el
+ * selector no lo listaria y la persona no podria volver a el. El espanol sigue
+ * siendo el respaldo del DICCIONARIO (los textos sin traducir), que es otra
+ * cosa y no cambia.
+ */
+export function idiomaDeRespaldo(permitidos: readonly Idioma[]): Idioma {
+  return IDIOMAS.find((i) => permitidos.includes(i)) ?? IDIOMA_POR_OMISION
+}
+
+/**
  * ¿Está ENCENDIDO el inglés? APAGADO por omisión desde el 2026-09-30.
  *
  * Pedido del dueño ese día: «se está mezclando y está en ambos idiomas,
@@ -116,8 +134,10 @@ export function portuguesActivo(
 }
 
 /**
- * Los idiomas que ESTA instancia ofrece, en el orden del selector. El español
- * siempre, y cada uno de los otros si su interruptor está encendido. Es lo
+ * Los idiomas que ESTA instancia ofrece, en el orden del selector. Con las
+ * variables: el español siempre, y cada uno de los otros si su interruptor
+ * está encendido. Con lo elegido en Administración: exactamente eso, que desde
+ * el 18/11 puede no llevar español (IDIOMAS-SIN-ES). Es lo
  * único que mira el resto del código (el layout raíz, `servidor.ts`,
  * `pages/_error.tsx`): un cuarto idioma se añade aquí y en `IDIOMAS`.
  */
@@ -156,11 +176,17 @@ export function idiomasElegidosEnLaInstancia(): Idioma[] | null {
   return almacenIdiomas[CLAVE_IDIOMAS] ?? null
 }
 
-/** La llama `lib/server/apariencia-instancia.ts`; el espanol se garantiza aqui. */
+/**
+ * La llama `lib/server/idiomas-servidor.ts`. La lista se respeta TAL CUAL (solo
+ * se ordena como `IDIOMAS` y se tira lo que no es un idioma): desde el 18/11
+ * (IDIOMAS-SIN-ES, decision del dueno) el espanol ya NO se anade solo. Una
+ * lista que se quede vacia vale como `null` (mandan las variables): un servidor
+ * sin ningun idioma no puede pintar nada, y la base tampoco lo admite
+ * (`20261118_idiomas_servidor_sin_espanol_obligatorio.sql`).
+ */
 export function fijarIdiomasDeLaInstancia(idiomas: readonly string[] | null): void {
-  almacenIdiomas[CLAVE_IDIOMAS] = idiomas
-    ? IDIOMAS.filter((i) => i === IDIOMA_POR_OMISION || idiomas.includes(i))
-    : null
+  const lista = idiomas ? IDIOMAS.filter((i) => idiomas.includes(i)) : null
+  almacenIdiomas[CLAVE_IDIOMAS] = lista && lista.length > 0 ? lista : null
 }
 
 // ─── LO QUE LA BASE ACEPTA ──────────────────────────────────────────────────
@@ -280,7 +306,10 @@ export function idiomaDeCabecera(
  * LA REGLA DE PRECEDENCIA, que es lo unico que hay que recordar de este
  * archivo:
  *
- *     cuenta  >  cookie  >  Accept-Language  >  espanol
+ *     cuenta  >  cookie  >  Accept-Language  >  respaldo
+ *
+ * (el respaldo es el espanol cuando esta encendido, y si no el primero de los
+ * encendidos: `idiomaDeRespaldo`, IDIOMAS-SIN-ES 18/11)
  *
  * La CUENTA entra el 2026-11-03 (IDIOMA-USUARIO). Decision del dueno: «el
  * idioma de lo demas se debe poder configurar por usuario y navegador». Es lo
@@ -312,7 +341,8 @@ export function resolverIdioma(entrada: {
   /**
    * Los idiomas ENCENDIDOS (`idiomasActivos()`). Un idioma fuera de esta lista
    * se trata como uno que no hablamos: una cookie que lo pide es basura y se
-   * cae a la cabecera. El español no se puede apagar: es el destino final.
+   * cae a la cabecera. El destino final es el primero de esta lista
+   * (`idiomaDeRespaldo`): el español si está, y si no el primero elegido.
    */
   permitidos?: readonly Idioma[]
 }): Idioma {
@@ -321,7 +351,10 @@ export function resolverIdioma(entrada: {
     normalizarIdioma(entrada.cuenta, permitidos) ??
     normalizarIdioma(entrada.cookie, permitidos) ??
     idiomaDeCabecera(entrada.cabecera, permitidos) ??
-    IDIOMA_POR_OMISION
+    // El primero de los permitidos, y no el espanol a secas: si el servidor
+    // no lo ofrece (IDIOMAS-SIN-ES, 18/11), pintarlo seria un idioma fuera del
+    // selector. Con el espanol permitido sale el espanol, como siempre.
+    idiomaDeRespaldo(permitidos)
   )
 }
 

@@ -82,6 +82,9 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // IDIOMAS-SERVIDOR (10/11) · los idiomas del servidor, desde Administracion.
   'Los idiomas no son validos':
     'The languages are not valid',
+  // IDIOMAS-SIN-ES (18/11) · el espanol ya no es obligatorio, pero vacia no.
+  'Hay que elegir al menos un idioma':
+    'At least one language must be chosen',
   'La moneda debe ser MXN o USD':
     'The currency must be MXN or USD',
   'La moneda de la instancia ya está fijada: una organización nueva nace en la misma que las demás':
@@ -854,6 +857,8 @@ export const CATALOGO_ERRORES_IT: Partial<Record<string, string>> = {
     'Le preferenze di notifica non sono valide.',
   'Los idiomas no son validos':
     'Le lingue non sono valide',
+  'Hay que elegir al menos un idioma':
+    'Bisogna scegliere almeno una lingua',
   'La moneda debe ser MXN o USD':
     'La valuta deve essere MXN o USD',
   'La moneda de la instancia ya está fijada: una organización nueva nace en la misma que las demás':
@@ -1379,6 +1384,7 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
   'El idioma de los documentos de la instancia solo se elige al darla de alta':
     'O idioma dos documentos da instância só é escolhido ao criá-la',
   'Los idiomas no son validos': 'Os idiomas não são válidos',
+  'Hay que elegir al menos un idioma': 'É preciso escolher pelo menos um idioma',
   'La moneda debe ser MXN o USD': 'A moeda deve ser MXN ou USD',
   'La moneda de la instancia ya está fijada: una organización nueva nace en la misma que las demás':
     'A moeda da instância já está definida: uma organização nova nasce na mesma moeda das demais',

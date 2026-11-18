@@ -102,8 +102,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // que se pintan en el navegador (el comprobante). Fail-closed como la
   // moneda: si la base no contesta, la pagina falla en vez de suponer espanol.
   const idiomaDocumentos = await idiomaDeLaInstancia()
-  // Los idiomas ENCENDIDOS (ola 0 del italiano, 2026-11-03). Con uno solo —el
-  // espanol— no hay nada que elegir y el selector no se pinta.
+  // Los idiomas ENCENDIDOS (ola 0 del italiano, 2026-11-03). Con uno solo no
+  // hay nada que elegir y el selector no se pinta. Desde el 18/11
+  // (IDIOMAS-SIN-ES) puede no incluir el espanol; `idiomaDeLaPeticion()` de
+  // arriba ya elige siempre uno de ESTA lista, asi que `idioma` y
+  // `disponibles` no se contradicen.
   const disponibles = idiomasActivos()
   // PALETA-01 (10/11) · el color de la instancia, que se elige AL INSTALAR
   // (`--paleta` del alta → `PALETA` en `app.env`) y no desde la aplicacion.

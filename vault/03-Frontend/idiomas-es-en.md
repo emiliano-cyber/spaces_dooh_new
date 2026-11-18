@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-11-10
+actualizado: 2026-11-18
 tags: [frontend, i18n, idiomas, ingles, dinero]
 archivos:
   - apps/web/lib/server/idiomas-servidor.ts
@@ -9,6 +9,7 @@ archivos:
   - apps/web/app/api/idiomas-servidor/route.ts
   - apps/web/components/demo/admin/IdiomasServidorPanel.tsx
   - db/migrations/20261110_idiomas_del_servidor.sql
+  - db/migrations/20261118_idiomas_servidor_sin_espanol_obligatorio.sql
   - apps/web/components/demo/shell/salir.ts
   - apps/web/components/demo/shell/IdiomaMenu.tsx
   - apps/web/lib/i18n/idiomas.ts
@@ -2362,6 +2363,8 @@ textos que antes salían en inglés o no existían. Rama `feat/verificacion-ajus
 > Administrador). Casillas por idioma, el español fijo, y «Usar los que digan
 > las variables del servidor» marcada por omisión. Al guardar, el selector
 > aparece (o desaparece) en el login y en el menú de la cuenta sin recargar.
+>
+> **Desde el 18/11 el español YA NO va fijo** (§14.1): es una casilla más.
 
 **Por qué.** La DEMO v0.12.8 (g500 viejo) se instaló con `app.env` escrito
 desde la plantilla, que no trae `IDIOMA_INGLES`; los tres selectores de §4 se
@@ -2374,7 +2377,7 @@ main».
 
 | Pieza | Qué hace |
 |---|---|
-| `apariencia_instancia` (`20261110_idiomas_del_servidor.sql`) | UNA fila, sin `tenant_id` ni RLS (describe el servidor, como `actualizaciones_instancia`). `idiomas text[]`, NULL = mandan las variables. CHECK: solo es/en/it/pt y el español siempre. Grants por columna: la app no puede insertar, borrar ni escribir `id` (medido con `spaces_app`) |
+| `apariencia_instancia` (`20261110_idiomas_del_servidor.sql`) | UNA fila, sin `tenant_id` ni RLS (describe el servidor, como `actualizaciones_instancia`). `idiomas text[]`, NULL = mandan las variables. CHECK: solo es/en/it/pt y **al menos uno** (hasta el 18/11 exigía el español; ver §14.1). Grants por columna: la app no puede insertar, borrar ni escribir `id` (medido con `spaces_app`) |
 | `lib/server/idiomas-servidor.ts` | Lee la fila una vez por proceso (`qRaw`, como `actualizaciones-repo.ts`) y la entrega a `fijarIdiomasDeLaInstancia()`. Si la base no contesta, **mandan las variables** (no fail-closed como la moneda: un idioma de más no cambia importes) |
 | `idiomasActivos()` (`lib/i18n/idiomas.ts`) | Sin argumento, **lo elegido en la base manda** sobre `IDIOMA_*`; con un entorno explícito (las pruebas) sigue midiendo solo las variables |
 | `app/layout.tsx` | `await idiomasDelServidor()` ANTES de `idiomaDeLaPeticion()` |
@@ -2394,6 +2397,48 @@ main».
 por servidor está hecha y probada en la rama `feat/apariencia-e-idiomas`
 (`2f1d57f9`), aparcada por el dueño el 10/11; cuando entre, añadirá sus
 columnas aquí con una migración NUEVA (la de esa rama ya no vale tal cual).
+
+### 14.1 · El español deja de ser obligatorio (IDIOMAS-SIN-ES · 18/11)
+
+Pedido del dueño: «el idioma predefinido es el del servidor, pero si lo cambia,
+las 4 opciones de abajo deben estar sin seleccionar para que el usuario elija
+el idioma». Y, preguntado por el español (casilla fija «siempre»): **«también
+sin marcar y elegible»**. ROJO R3 aprobado por el dueño el 18/11.
+
+**La tarjeta** (`IdiomasServidorPanel.tsx`):
+
+- Por omisión, «Usar los que digan las variables del servidor» marcada y las
+  cuatro casillas grises mostrando las activas (como antes).
+- Al **quitar** esa casilla, las cuatro quedan **sin marcar y habilitadas**,
+  español incluido (`elegidosAlCambiarServidor`). Si la instancia ya tenía
+  idiomas guardados, al abrir se ven **marcados** (`elegidosAlCargar`): el
+  vaciado ocurre solo en el momento de pasar de «servidor» a «elegir».
+- «Guardar idiomas» deshabilitado con 0 marcados, con el aviso
+  `admin.idiomas_servidor.elegir_uno` («Elige al menos un idioma para guardar.»).
+  La clave `admin.idiomas_servidor.siempre` se retiró.
+
+**El servidor:**
+
+| Pieza | Antes | Desde el 18/11 |
+|---|---|---|
+| CHECK `apariencia_instancia_idiomas_ck` | `'es' = any (idiomas)` | `cardinality(idiomas) >= 1` (`20261118_idiomas_servidor_sin_espanol_obligatorio.sql`, la del 10/11 no se edita) |
+| `validarIdiomasServidor` | añadía el español | lista tal cual en el orden de `IDIOMAS`; **vacía = 400** «Hay que elegir al menos un idioma» (traducido en `errores-servidor.ts`) |
+| `fijarIdiomasDeLaInstancia` | añadía el español | lista tal cual; vacía vale como `null` |
+| `resolverIdioma` | caía al español | cae a `idiomaDeRespaldo(permitidos)`: **el primero de los elegidos en el orden de `IDIOMAS`** (el español si está) |
+| `idiomaDeLaPeticion` (`servidor.ts`) y `_error.tsx` | con un solo idioma, español | con un solo idioma, **ese** |
+| `ProveedorIdioma` sin `disponibles` ni selector | `['es']` | `[idioma]` (fuera del proveedor sigue el español: no hay servidor que decida) |
+
+**Qué se pinta sin español elegido.** Con `['en','pt']`: quien entra sin
+cuenta, cookie ni navegador que coincida ve **inglés**; una cookie o un
+navegador en español se ignoran (el español apagado se trata como un idioma
+que no hablamos); el selector ofrece solo English y Português; «Mi cuenta» no
+deja guardar `es` (400). Medido en `idiomas-servidor-sin-espanol.e2e.test.ts`.
+
+**Lo que NO cambia:** el español sigue siendo el **respaldo del diccionario**
+(lo que falte de traducir) e `IDIOMA_POR_OMISION`; `usuarios.idioma_preferido`
+no se toca (una preferencia `es` se ignora mientras esté apagado y vuelve sola
+al encenderlo); y el idioma de los documentos (`tenants.idioma_documentos`,
+ADR 0049) es otra cosa y sigue inmutable. Ver [[04-Datos/migraciones]].
 
 ## Enlaces
 

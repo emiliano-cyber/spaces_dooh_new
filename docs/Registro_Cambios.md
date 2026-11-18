@@ -5,6 +5,20 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-18 · Idiomas del servidor: al elegirlos a mano se empieza de cero, y el español también es opcional
+
+Pedido del dueño: «el idioma predefinido es el del servidor, pero si lo cambia, las 4 opciones de abajo deben estar sin seleccionar para que el usuario elija el idioma». Y el español, «también sin marcar y elegible».
+
+- En **Administración → Idiomas del servidor** sigue marcada por omisión «Usar los que digan las variables del servidor».
+- Al **quitar** esa casilla, los cuatro idiomas (español, inglés, italiano y portugués) quedan **sin marcar**, para elegir de cero. El español ya no está fijo ni dice «siempre»: se puede dejar fuera.
+- **Guardar idiomas** no se activa hasta marcar al menos uno, y un aviso lo dice.
+- Si el servidor ya tenía idiomas elegidos, al abrir la tarjeta se ven marcados como estaban.
+- Si el español no está elegido, la aplicación se muestra en el **primero de los elegidos** (por ejemplo, con inglés y portugués, en inglés) y el selector solo ofrece esos. Lo que falte por traducir se sigue viendo en español, como hasta hoy.
+- El idioma de los documentos de cada instancia (contratos, propuestas) no cambia.
+- Cambio en la base de datos aprobado por el dueño: la regla que obligaba a incluir el español ahora pide al menos un idioma.
+
+---
+
 ## 2026-11-18 · Prospectos: al pasar a Contactado, eliges si sigue como prospecto o se convierte en oportunidad
 
 Pedido del dueño: «si el prospecto ya entró a Contactado se convierte; si no, sigue como prospecto», y que lo decida el vendedor.
