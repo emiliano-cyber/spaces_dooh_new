@@ -232,6 +232,22 @@ export interface SEEquipoResumen {
   ultimaFoto: { url: string; miniatura: string; tomadaEn: string | null; giro: number } | null
   /** Si se actualiza sin que nadie toque el equipo (ver lib/space-eyes-actualizacion). */
   actualizacion: ComoSeActualiza
+  /**
+   * La falla ABIERTA de este equipo, si tiene alguna, para que la lista avise
+   * sin que haya que entrar a mirar. Es la mas ANTIGUA de las abiertas: la que
+   * lleva mas tiempo sin arreglarse es la que urge, no la ultima que entro.
+   */
+  falla?: FallaAbierta | null
+}
+
+/** Lo justo para avisar en una tarjeta; el detalle vive en Fallas. */
+export interface FallaAbierta {
+  id: number
+  nombre: string
+  donde: string
+  desde: string
+  /** Cuantas abiertas tiene el equipo en total, contando esta. */
+  cuantas: number
 }
 
 export interface SEEquipoDetalle extends SEEquipoResumen {
@@ -307,7 +323,7 @@ export function urlAbsolutaDeFoto(storagePath: string): string {
   return `${BASE}${storagePath}`
 }
 
-function resumen(d: SEDeviceFila, foto?: SEPhoto): SEEquipoResumen {
+function resumen(d: SEDeviceFila, foto?: SEPhoto, falla?: FallaAbierta | null): SEEquipoResumen {
   return {
     id: d.id,
     nombre: d.name,
@@ -330,6 +346,7 @@ function resumen(d: SEDeviceFila, foto?: SEPhoto): SEEquipoResumen {
       app_actualiza_sola: d.app_actualiza_sola ?? null,
       app_actualiza_motivo: d.app_actualiza_motivo ?? null,
     }),
+    falla: falla ?? null,
   }
 }
 
@@ -355,7 +372,44 @@ export async function listarEquipos(): Promise<SEEquipoResumen[]> {
     ultimas = new Map()
   }
 
-  return devices.map((d) => resumen(d, ultimas.get(d.id)))
+  // Las fallas ABIERTAS de la flota, en una sola consulta. Igual que las fotos:
+  // si esto no contesta, la lista se pinta sin el aviso en vez de no pintarse.
+  //
+  // Va aqui y no en cada tarjeta porque una pantalla caida es justo lo que hay
+  // que ver SIN entrar: el correo avisa una vez y de noche no lo lee nadie; el
+  // aviso en la lista sigue ahi a la manana siguiente, y se va solo cuando la
+  // falla se recupera.
+  const abiertas = new Map<number, FallaAbierta>()
+  try {
+    const { fallas } = await api<{ fallas: Record<string, any>[] }>('/api/fallas?estado=abierta&limit=500')
+    for (const f of fallas ?? []) {
+      // El estado se comprueba AQUI aunque ya se pidio filtrado. En la
+      // demostracion, `datosDemo('fallas')` devuelve el historial ENTERO e
+      // ignora la consulta: sin esto, cada equipo con una falla vieja ya
+      // recuperada saldria marcado en rojo como si estuviera caido ahora.
+      if (f.estado !== 'abierta') continue
+      const did = Number(f.device_id)
+      if (!Number.isFinite(did)) continue
+      const ya = abiertas.get(did)
+      const desde = String(f.detectada_en)
+      // Se queda la MAS ANTIGUA, y se cuentan todas.
+      if (!ya || desde < ya.desde) {
+        abiertas.set(did, {
+          id: Number(f.id),
+          nombre: String(f.nombre ?? f.tipo),
+          donde: dondeDeFalla(f as any),
+          desde,
+          cuantas: (ya?.cuantas ?? 0) + 1,
+        })
+      } else {
+        ya.cuantas += 1
+      }
+    }
+  } catch {
+    abiertas.clear()
+  }
+
+  return devices.map((d) => resumen(d, ultimas.get(d.id), abiertas.get(d.id)))
 }
 
 /** Un equipo con todo lo que la ficha enseña, incluidas sus últimas fotos. */

@@ -42,6 +42,8 @@ import { PantallaConfig } from './PantallaConfig'
 import { CreativosConfig } from './CreativosConfig'
 import { EquipoAdmin } from './EquipoAdmin'
 import { Tabs, TabPanel } from '@/components/demo/ui/Tabs'
+import { seApi } from '@/lib/data/space-eyes-se'
+import { dondeFallo, type FallaUbicable } from '@/lib/space-eyes-fallas'
 import { usePuede, useSesionCtx } from '@/components/demo/shell/SesionContext'
 import { formatNumero } from '@/lib/formato-numero'
 
@@ -70,11 +72,24 @@ type Captura = 'quieto' | 'pidiendo' | 'esperando' | 'llegó' | 'encolada'
 const SONDEO_MS = 4000
 const SONDEOS_MAX = 15
 
+/**
+ * Una falla abierta tal como la devuelve la puerta: columnas crudas. El
+ * «dónde» NO viene hecho —eso lo arma la aplicación— y por eso se calcula con
+ * el mismo `dondeFallo` que usa la pantalla de Fallas.
+ */
+type FallaAbierta = FallaUbicable & { id: number; device_id: number; estado: string; nombre: string; detectada_en: string }
+
 export function FichaEquipo({ id }: { id: number }) {
   const [datos, setDatos] = useState<FichaEquipoDatos | null>(null)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [vista, setVista] = useState<Vista>('equipo')
+  // Arranca en el VIVO y no en la ultima captura: es lo que se viene a ver.
+  // Las otras tres vistas siguen ahi, en segundo plano. Ojo con el dato que
+  // esto gasta: ver en vivo cuesta ~50 MB por minuto de los datos del equipo
+  // (medido en la flota), asi que el vivo NO arranca al abrir la ficha -esa
+  // abre en Comprobantes- sino al entrar a esta pestana, que es cuando alguien
+  // dijo que queria verlo.
+  const [vista, setVista] = useState<Vista>('vivo')
   const [ampliada, setAmpliada] = useState<string | null>(null)
   // Quien puede operar el equipo (pedir fotos, vivo, cambiar ajustes): el mismo
   // permiso que exige la puerta /api/space-eyes/se para escribir.
@@ -122,6 +137,28 @@ export function FichaEquipo({ id }: { id: number }) {
 
   const equipo = datos?.equipo
   const pantalla = datos?.pantalla ?? null
+
+  // Las fallas ABIERTAS de este equipo, para el aviso de arriba. Se lee aparte
+  // y no con el resto de la ficha a propósito: va por la puerta de Space Eyes,
+  // y si no contesta la ficha se pinta igual, solo que sin el aviso.
+  //
+  // `version` la mueve cualquier guardado de la ficha, así que marcar una falla
+  // como recuperada en la pestaña de Pantalla y fallas apaga este aviso sin
+  // recargar la página.
+  const [abiertas, setAbiertas] = useState<FallaAbierta[]>([])
+  useEffect(() => {
+    let vivo = true
+    seApi<{ fallas: FallaAbierta[] }>(`fallas?estado=abierta&device_id=${id}`)
+      // Se vuelve a filtrar aqui aunque ya se pidio filtrado: en la
+      // demostracion esa ruta devuelve el historial entero de TODA la flota e
+      // ignora la consulta, y esta banda diria que este equipo esta caido por
+      // una falla vieja de otro.
+      .then((r) => vivo && setAbiertas((r?.fallas ?? []).filter((f) => f.estado === 'abierta' && f.device_id === id)))
+      .catch(() => vivo && setAbiertas([]))
+    return () => {
+      vivo = false
+    }
+  }, [id, version])
   const enLinea = equipo ? estaEnLinea(equipo.online, equipo.ultimaConexion) : false
   const fotos = equipo?.fotos ?? []
   const fotoEquipo: FotoEquipo | null = fotos[fotoElegida] ?? fotos[0] ?? null
@@ -356,13 +393,48 @@ export function FichaEquipo({ id }: { id: number }) {
         </div>
       )}
 
-      {/* Las pestañas de la ficha: lo mismo que el panel de Space Eye, aqui. */}
+      {/* La pantalla está fallando AHORA. Encima de las pestañas y no dentro de
+          «Pantalla y fallas», porque quien entra a mirar los comprobantes o el
+          vivo tiene que enterarse igual: el correo avisó una vez, de noche, y
+          esto sigue aquí hasta que la falla se recupera. */}
+      {abiertas.length > 0 && (
+        <div className="flex flex-wrap items-start gap-2 rounded-md border border-[#dc262640] bg-error-soft p-3">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-error" strokeWidth={2} />
+          <div className="min-w-0 flex-1 text-[13px]">
+            <p className="font-medium text-ink">
+              {abiertas.length === 1
+                ? `${abiertas[0].nombre}, sin recuperar`
+                : `${abiertas.length} fallas sin recuperar`}
+            </p>
+            <p className="mt-0.5 text-[12px] text-muted">
+              {abiertas.length === 1
+                ? `${dondeFallo(abiertas[0])} · desde ${fechaHora(abiertas[0].detectada_en)}`
+                : `La más antigua, desde ${fechaHora(
+                    abiertas.reduce((a, b) => (a.detectada_en <= b.detectada_en ? a : b)).detectada_en,
+                  )}`}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Las pestañas de la ficha, en el orden en que se preguntan.
+          ---------------------------------------------------------------------
+          Abre en COMPROBANTES, que es lo que vino a ver quien entra a un
+          equipo: qué anuncios ha detectado esa pantalla y cuándo. Abría en
+          Fotos, que es la materia prima de esa respuesta y no la respuesta.
+
+          «Comprobantes» y no «Creativos» porque es lo que son para quien los
+          lee: la prueba de que el anuncio salió. El valor interno sigue siendo
+          `creativos` a propósito —es el nombre del concepto en Space Eye, en la
+          tabla `device_creatives` y en su API—, y renombrarlo aquí solo
+          obligaría a traducirlo de vuelta en cada sitio que hable con el
+          servidor. */}
       <Tabs
-        defaultValue="fotos"
+        defaultValue="creativos"
         tabs={[
-          { value: 'fotos', label: 'Fotos' },
+          { value: 'creativos', label: 'Comprobantes' },
+          { value: 'fotos', label: 'En vivo' },
           { value: 'pantalla', label: 'Pantalla y fallas' },
-          { value: 'creativos', label: 'Creativos' },
           { value: 'equipo', label: 'Equipo' },
         ]}
       >
@@ -372,24 +444,32 @@ export function FichaEquipo({ id }: { id: number }) {
         <div className="min-w-0 flex-1 overflow-hidden rounded-md border border-border bg-surface">
           {/* Selector de origen */}
           <div className="flex flex-wrap items-center gap-2 border-b border-border p-2.5">
-            <div className="flex flex-wrap gap-0.5 rounded-md border border-border bg-surface p-0.5 text-[13px]">
+            {/* El vivo delante; las otras tres, detras y en voz baja. Eran
+                cuatro botones iguales, asi que la pantalla no decia a que
+                venia esta pestana: con todo del mismo tamano, el usuario
+                elige por costumbre -la ultima captura- y no por lo que
+                necesita. Las tres siguen a un clic: no se esconde nada, se
+                ordena. */}
             <Pestana activa={vista === 'vivo'} onClick={() => setVista('vivo')} icono={<Radio className="h-3.5 w-3.5" />}>
               En vivo
             </Pestana>
-            <Pestana activa={vista === 'equipo'} onClick={() => setVista('equipo')} icono={<Camera className="h-3.5 w-3.5" />}>
-              Captura Space Eyes
-            </Pestana>
-            <Pestana activa={vista === 'cliente'} onClick={() => setVista('cliente')} icono={<UserRound className="h-3.5 w-3.5" />}>
-              Foto del cliente
-            </Pestana>
-            <Pestana
-              activa={vista === 'comparar'}
-              onClick={() => setVista('comparar')}
-              icono={<Columns2 className="h-3.5 w-3.5" />}
-              disabled={!fotoCliente || !fotoEquipo}
-            >
-              Comparar
-            </Pestana>
+            <span className="hidden h-5 w-px shrink-0 bg-border sm:block" aria-hidden />
+            <span className="text-[12px] text-muted">Ver también</span>
+            <div className="flex flex-wrap items-center gap-0.5">
+              <Secundaria activa={vista === 'equipo'} onClick={() => setVista('equipo')} icono={<Camera className="h-3.5 w-3.5" />}>
+                Captura Space Eyes
+              </Secundaria>
+              <Secundaria activa={vista === 'cliente'} onClick={() => setVista('cliente')} icono={<UserRound className="h-3.5 w-3.5" />}>
+                Foto del cliente
+              </Secundaria>
+              <Secundaria
+                activa={vista === 'comparar'}
+                onClick={() => setVista('comparar')}
+                icono={<Columns2 className="h-3.5 w-3.5" />}
+                disabled={!fotoCliente || !fotoEquipo}
+              >
+                Comparar
+              </Secundaria>
             </div>
           </div>
 
@@ -397,6 +477,7 @@ export function FichaEquipo({ id }: { id: number }) {
           {vista === 'vivo' ? (
             <VistaEnVivo
               embebida
+              autoIniciar
               equipo={{ id: equipo.id, nombre: equipo.nombre, appVersion: equipo.versionApp, online: equipo.online }}
               puedeOperar={puedeOperar}
               puedeEncuadrar={puedeEncuadrarEquipo}
@@ -689,6 +770,41 @@ export function FichaEquipo({ id }: { id: number }) {
         {ampliada && <VisorFoto src={ampliada} alt={`Fotografía de ${equipo.nombre}`} />}
       </Modal>
     </div>
+  )
+}
+
+/**
+ * Lo mismo que `Pestana`, en voz baja: sin recuadro y en gris mientras no es
+ * la vista activa. Es la diferencia entre «elige una de cuatro» y «esto es lo
+ * que hay, y ademas puedes ver estas otras».
+ */
+function Secundaria({
+  activa,
+  onClick,
+  icono,
+  disabled,
+  children,
+}: {
+  activa: boolean
+  onClick: () => void
+  icono: React.ReactNode
+  disabled?: boolean
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        'inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-md px-2 text-[12px] transition-colors',
+        activa ? 'bg-surface-2 text-ink' : 'text-muted hover:bg-surface-2 hover:text-ink',
+        disabled && 'cursor-not-allowed opacity-40 hover:bg-transparent hover:text-muted',
+      )}
+    >
+      {icono}
+      {children}
+    </button>
   )
 }
 

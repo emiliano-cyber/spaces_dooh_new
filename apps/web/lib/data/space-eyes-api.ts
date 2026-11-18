@@ -30,6 +30,13 @@ export interface EquipoResumen {
   pantalla: { id: string; nombre: string } | null
   /** Si se actualiza sin que nadie toque el equipo (lib/space-eyes-actualizacion). */
   actualizacion?: { sola: boolean; texto: string; tono: 'ok' | 'aviso' | 'visita' }
+  /**
+   * La falla ABIERTA mas antigua del equipo, o null. Se queda a la vista hasta
+   * que la falla se recupera: el correo avisa UNA vez -y de madrugada no lo lee
+   * nadie-, asi que sin esto una pantalla podia pasar la noche caida y la lista
+   * seguia enseñandola igual que a las demas.
+   */
+  falla?: { id: number; nombre: string; donde: string; desde: string; cuantas: number } | null
 }
 
 export interface FotoEquipo {

@@ -64,6 +64,18 @@ export interface VistaEnVivoProps {
   onFoto?: () => void
   /** Dentro del marco de Fotos de la ficha: sin borde propio y del mismo tamaño que la foto. */
   embebida?: boolean
+  /**
+   * Conecta solo, sin esperar a que alguien pulse «Ver en vivo».
+   *
+   * Lo pone la pestaña «En vivo» de la ficha, que existe para esto. NO es
+   * gratis y por eso no se enciende en ningún otro sitio: el vivo gasta unos
+   * 50 MB por minuto de los datos del equipo, así que solo arranca cuando
+   * alguien ENTRA a esa pestaña —no al abrir la ficha, que abre en
+   * Comprobantes—. Y arranca UNA vez: si quien mira lo detiene, se queda
+   * detenido, porque volver a conectarle la cámara a alguien que acaba de
+   * apagarla es discutir con el usuario y gastarle el dato.
+   */
+  autoIniciar?: boolean
 }
 
 type Ajustes = Record<string, unknown> & {
@@ -149,7 +161,7 @@ function motivoDe(e: unknown, porDefecto: string): string {
   return e instanceof Error && e.message ? e.message : porDefecto
 }
 
-export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embebida = false }: VistaEnVivoProps) {
+export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embebida = false, autoIniciar = false }: VistaEnVivoProps) {
   const id = equipo.id
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const clienteRef = useRef<VisorWhep | null>(null)
@@ -628,6 +640,17 @@ export function VistaEnVivo({ equipo, puedeOperar, puedeEncuadrar, onFoto, embeb
   }
 
   const puedeIniciar = puedeOperar && porServidor && !sinVivo && estado === 'apagado' && dispositivo != null
+
+  // ─── Arrancar solo (ver `autoIniciar`) ───────────────────────────────────
+  // Espera a `puedeIniciar`, que es tanto como decir: cuando ya se sabe que
+  // este equipo puede transmitir y quien mira tiene permiso. Antes de eso
+  // `iniciar()` se iria sin hacer nada y nadie volveria a intentarlo.
+  const yaArranco = useRef(false)
+  useEffect(() => {
+    if (!autoIniciar || yaArranco.current || !puedeIniciar) return
+    yaArranco.current = true
+    void iniciar()
+  }, [autoIniciar, puedeIniciar, iniciar])
   const ctlBoton = 'shrink-0 inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] text-white backdrop-blur-sm transition-colors'
   const ctlSuave = 'bg-white/15 hover:bg-white/25'
   const deslizador = 'h-1 w-full cursor-pointer accent-white'

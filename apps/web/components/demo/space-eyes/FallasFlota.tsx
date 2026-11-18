@@ -7,6 +7,7 @@ import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { seApi, fotoSE, ErrorSE } from '@/lib/data/space-eyes-se'
+import { dondeFallo } from '@/lib/space-eyes-fallas'
 import { AvisosCorreo } from './AvisosCorreo'
 import { VisorFoto, fechaHora } from './piezas'
 import { formatNumero } from '@/lib/formato-numero'
@@ -72,15 +73,10 @@ const FILTROS: [Estado | '', string][] = [
   ['descartada', 'No eran falla'],
 ]
 
-/** Dónde falló, como lo diría una persona. Igual que Pantalla.donde de Space Eye. */
-function donde(f: FallaSE): string {
-  if (f.gabinete) return `Gabinete ${f.gabinete} (fila ${(f.fila ?? 0) + 1}, columna ${(f.columna ?? 0) + 1})`
-  const g = f.detalle?.gabinetes
-  if (g && g.length) return `Gabinetes ${g.join(', ')}` + (f.detalle?.total ? ` (${g.length} de ${f.detalle.total})` : '')
-  if (f.tipo === 'camara_movida') return 'Cámara (hay que volver a marcar la pantalla)'
-  if (f.tipo === 'sin_imagen') return 'Lente tapada, o pantalla apagada de noche'
-  return 'Toda la pantalla'
-}
+// El texto vive en `lib/space-eyes-fallas.ts`: lo dice también el aviso de la
+// ficha del equipo, y dos copias acaban diciendo cosas distintas de la MISMA
+// falla.
+const donde = dondeFallo
 
 const RECARGA_MS = 60_000
 
@@ -501,7 +497,7 @@ function DialogoCierre({
       <p className="text-[13px] leading-relaxed text-muted">
         {descartar
           ? 'El equipo no volverá a avisar de esta zona durante 7 días.'
-          : 'Se cierra sin esperar a que el equipo lo compruebe en su próxima foto.'}
+          : 'Se cierra sin esperar al equipo, y se le pide una foto ahora para dejar constancia de cómo quedó.'}
       </p>
       <label className="mt-3 block">
         <span className="block text-[12px] text-ink">

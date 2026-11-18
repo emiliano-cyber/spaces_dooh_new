@@ -58,7 +58,9 @@ type Aviso = { tono: 'ok' | 'error'; texto: string } | null
 
 const INTENTOS_FOTO = 15 // cada 2 s → ~30 s, lo mismo que el original
 
-export function AjustarTexto() {
+// `encabezado` lo apaga la pantalla de Ajustes, que ya pone el suyo: dos
+// titulos grandes seguidos no son dos secciones, son un descuido.
+export function AjustarTexto({ encabezado = true }: { encabezado?: boolean }) {
   const puedeEditar = usePuede('inventario', 'crear')
 
   const [equipos, setEquipos] = useState<EquipoSE[] | null>(null)
@@ -225,18 +227,20 @@ export function AjustarTexto() {
       {/* Sin «‹ Space Eyes» arriba, por lo mismo que en Gráficas: es una
           entrada del menú y ninguna otra pantalla enlaza aquí. Encima iba con
           otra flecha que la de las demás (ArrowLeft contra ChevronLeft). */}
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
-          <Type className="h-5 w-5" strokeWidth={1.75} />
-        </span>
-        <div className="min-w-[12rem] flex-1">
-          <h1 className="text-2xl text-ink">Ajustar texto de las fotos</h1>
-          <p className="text-[13px] text-muted">
-            Toma una fotografía de prueba y acomoda cómo se verá <b className="font-medium text-ink">nombre · fecha · hora</b>.
-            Se aplica a todas las fotos del equipo.
-          </p>
+      {encabezado && (
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
+            <Type className="h-5 w-5" strokeWidth={1.75} />
+          </span>
+          <div className="min-w-[12rem] flex-1">
+            <h1 className="text-2xl text-ink">Ajustar texto de las fotos</h1>
+            <p className="text-[13px] text-muted">
+              Toma una fotografía de prueba y acomoda cómo se verá <b className="font-medium text-ink">nombre · fecha · hora</b>.
+              Se aplica a todas las fotos del equipo.
+            </p>
+          </div>
         </div>
-      </div>
+      )}
 
       {error ? (
         <div className="flex items-start gap-2 rounded-md border border-[#dc262640] bg-error-soft p-3 text-[12px]">
