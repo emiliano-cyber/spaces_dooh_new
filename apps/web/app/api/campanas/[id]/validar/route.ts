@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { exigir } from '@/lib/server/auth'
 import { validarPublicacionCtrl } from '@/lib/server/campanas-controller'
-import { respuestaError } from '@/lib/server/errores'
+import { AppError, respuestaError } from '@/lib/server/errores'
+import { puedeAprobarEnCampana } from '@/lib/roles'
 import { registrarAccion } from '@/lib/server/acciones-repo'
 import { notificar } from '@/lib/server/notificaciones-repo'
 import { doohmainHabilitado, publicarCampanaEnDoohmain } from '@/lib/server/doohmain'
@@ -16,6 +17,13 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   const g = await exigir('comercial', 'crear')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   try {
+    // 18/11 · aprobar (o rechazar) la publicación es SOLO de Dueño y
+    // Administrador. Se exige aquí y no solo escondiendo el botón: esta ruta es
+    // la única puerta a esa decisión, y la API se puede llamar sin la ficha.
+    // `comercial.crear` sigue bastando para todo lo demás de la campaña.
+    if (!puedeAprobarEnCampana(g.usuario?.rol)) {
+      throw new AppError('Solo el Dueño o un Administrador pueden aprobar o rechazar la publicación', 403)
+    }
     const body = await req.json().catch(() => ({}))
     const c = await validarPublicacionCtrl(params.id, g.usuario?.nombre ?? 'Sistema', body)
     await registrarAccion(

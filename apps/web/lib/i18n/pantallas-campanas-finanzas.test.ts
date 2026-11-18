@@ -101,7 +101,12 @@ vi.mock('@/components/demo/ui/CardColapsable', () => ({
     createElement('section', null, createElement('h3', null, p.titulo), p.subtitulo as never,
       p.resumen as never, p.accion as never, p.children as never),
 }))
-vi.mock('@/components/demo/shell/SesionContext', () => ({ usePuede: () => datos.puede }))
+// El rol: desde el 18/11 aprobar en la ficha es solo de Dueño y Administrador
+// (`puedeAprobarEnCampana`). Dueño, para que se rindan los botones de siempre.
+vi.mock('@/components/demo/shell/SesionContext', () => ({
+  usePuede: () => datos.puede,
+  useSesionCtx: () => ({ sesion: { usuario: { rol: 'DUENO' } } }),
+}))
 // Componentes de OTRO lote que la pagina de Finanzas monta: aqui no cuentan.
 vi.mock('@/components/demo/arrendadores/PagosRentaCard', () => ({ PagosRentaCard: () => null }))
 vi.mock('@/components/demo/arrendadores/CompromisoRentaCard', () => ({ CompromisoRentaCard: () => null }))

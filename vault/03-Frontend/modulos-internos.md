@@ -10,6 +10,8 @@ archivos:
   - apps/web/lib/campanas-vista.ts
   - apps/web/lib/campanas-menu.ts
   - apps/web/components/demo/campanas/CampanasNav.tsx
+  - apps/web/components/demo/campanas/ActualizarCampana.tsx
+  - apps/web/lib/actualizar-campana.ts
   - apps/web/lib/tarifa-calculada.ts
   - apps/web/lib/calculadora-spots.ts
   - apps/web/app/(app)/(shell)/novedades/page.tsx
@@ -49,7 +51,7 @@ archivos:
 | `/descuentos-por-volumen` | Escala de volumen (VOL-01) | `/api/volumen/escalas` | `GestionVolumen` — ver [[02-Backend/descuento-por-volumen]] |
 | `/codigos-promocionales` | Códigos de negociación: cupones (COD-01) | `/api/codigos-promocionales` | `GestionCodigos` — ver [[02-Backend/codigo-promocional]] |
 | `/paquetes` | Paquetes cerrados (PAQ-01) | `/api/paquetes` | `GestionPaquetes` — ver [[02-Backend/paquete-cerrado]] |
-| `/campanas`, `/campanas/[id]` | Campañas | `/api/campanas/*` | `PipelineView`, `CandadoPanel`, `ValidacionPanel`, `PlaylogsPanel`, `DatosFacturacion`, `EvidenciaGaleria`, `AgregarCreativo`, `FranjaProgramadaCampana` (horario de transmisión, PROG-01), `ProgramacionDoohmain` (22/10: lo que se manda a DOOHmain antes de mandarlo). **Desde el 22/10 los Creativos son lo PRIMERO de la ficha**, siempre abiertos y fuera de las `Seccion` plegables: se ven y se suben en cualquier momento, aunque la campaña esté cerrada |
+| `/campanas`, `/campanas/[id]` | Campañas | `/api/campanas/*` | `PipelineView`, `CandadoPanel`, `ValidacionPanel`, `PlaylogsPanel`, `DatosFacturacion`, `EvidenciaGaleria`, `AgregarCreativo`, `FranjaProgramadaCampana` (horario de transmisión, PROG-01), `ProgramacionDoohmain` (22/10: lo que se manda a DOOHmain antes de mandarlo). **Desde el 22/10 los Creativos son lo PRIMERO de la ficha**, siempre abiertos y fuera de las `Seccion` plegables: se ven y se suben en cualquier momento, aunque la campaña esté cerrada. **Desde el 18/11**, `ActualizarCampana`: el botón «Actualizar campaña» junto a los Creativos (solo con la publicación aprobada) cambia creativos y vuelve a mandar a DOOHmain en una ventana; aprobar ahí, y Aprobar/Rechazar la publicación, solo Dueño y Administrador — ver [[comercial-propuestas-campanas]] |
 | `/creativos` | Creativos | `/api/creatividades` | — **v0.12.3 (sin publicar):** en un spot digital se MARCAN los creativos que van y rotan en partes iguales (`rotacionEnSpot`, `lib/reparto-creativos.ts`); ya no se escribe un número por creativo ni sale «2 de 1» en rojo. Al aprobar, un spot vacío recibe todos los aprobados y uno con la rotación automática suma al nuevo; uno ajustado a mano no se toca (`autollenadoDeSpot`, `autoasignarRotacion` en `creativos-repo.ts`). Sustituye la regla del «creativo único» de M14 por decisión del dueño (22/10) |
 | `/operaciones`, `/operaciones/ot/[id]` | Órdenes de trabajo | `/api/ot` | `OTVista` |
 | `/imprenta` | Imprenta | `/api/impresion` | — |

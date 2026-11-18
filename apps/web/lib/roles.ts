@@ -177,3 +177,24 @@ export function puedeEliminarUsuarios(rol: RolDemo | null | undefined): boolean 
 export function puedeEncuadrar(rol: string | null | undefined): boolean {
   return rol === 'DUENO'
 }
+
+/**
+ * ¿Puede este rol APROBAR desde la ficha de campaña? Solo Dueño y
+ * Administrador — pedido del dueño el 2026-11-18, junto con «Actualizar
+ * campaña».
+ *
+ * Cubre las dos aprobaciones que viven en esa ficha: «¿Apruebas este
+ * creativo?» (al actualizar la campaña) y Aprobar / Rechazar la publicación.
+ *
+ * SOLO la ficha, a propósito y aclarado el mismo día: «los demás perfiles se
+ * deben de quedar igual». La pantalla Creativos sigue dejando aprobar a quien
+ * tiene `comercial.crear`, y por eso `PATCH /api/creatividades/:id` NO usa esta
+ * función. La aprobación de la publicación, en cambio, solo existe en la
+ * ficha, así que ahí la puerta de verdad es `POST /api/campanas/:id/validar`.
+ *
+ * Toma `string` por lo mismo que `puedeEncuadrar`: el rol de la sesión llega
+ * como texto, y cualquier otro valor da false, que es el lado seguro.
+ */
+export function puedeAprobarEnCampana(rol: string | null | undefined): boolean {
+  return rol === 'DUENO' || rol === 'ADMINISTRADOR'
+}

@@ -10,7 +10,8 @@ import {
   CREATIVIDAD_TONO,
 } from '@/components/demo/StatusBadge'
 import { ConfirmDialog } from '@/components/demo/ui/ConfirmDialog'
-import { usePuede } from '@/components/demo/shell/SesionContext'
+import { usePuede, useSesionCtx } from '@/components/demo/shell/SesionContext'
+import { puedeAprobarEnCampana } from '@/lib/roles'
 import { useCampana, useCreatividades, formatFechaHora } from '@/lib/data/client'
 import { enviarADominioApi, validarPublicacionApi, reintentarPublicacionApi, eliminarCreatividadApi } from '@/lib/data/estado-api'
 import type { Creatividad } from '@/lib/data/types'
@@ -25,7 +26,7 @@ import { CLAVE_CREATIVIDAD, CLAVE_VALIDACION_PUB } from './etiquetas'
 
 // El recordatorio de no tener la pantalla abierta en el sitio de DOOHmain
 // (pedido del dueño, 22/10). Ámbar, como los demás avisos que piden hacer algo.
-function AvisoPantalla({ className }: { className?: string }) {
+export function AvisoPantalla({ className }: { className?: string }) {
   // El texto es el de `AVISO_PANTALLA_DOOHMAIN` (lib/doohmain-aviso.ts), con su
   // clave: `textos/campanas.test.ts` exige que el espanol sea identico.
   const t = useTexto()
@@ -49,6 +50,10 @@ export function ValidacionPanel({ campanaId }: { campanaId: string }) {
   const c = useCampana(campanaId)
   const creatividades = useCreatividades()
   const puede = usePuede('comercial', 'crear')
+  // 18/11 · aprobar o rechazar la publicación: solo Dueño y Administrador
+  // (`puedeAprobarEnCampana`; la puerta de verdad es la ruta `validar`).
+  const { sesion } = useSesionCtx()
+  const puedeAprobar = puedeAprobarEnCampana(sesion?.usuario?.rol)
   const { t, idioma } = useIdioma()
   const [busy, setBusy] = useState(false)
   const [busyCr, setBusyCr] = useState<string | null>(null)
@@ -280,6 +285,11 @@ export function ValidacionPanel({ campanaId }: { campanaId: string }) {
                   ? t('campanas.validacion.corregir')
                   : t('campanas.validacion.enviar')}
             </Button>
+          ) : c.validacionEstatus === 'PENDIENTE' && !puedeAprobar ? (
+            <p className="flex items-start gap-1.5 text-[12px] text-muted">
+              <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>{t('campanas.validacion.solo-dueno-admin')}</span>
+            </p>
           ) : c.validacionEstatus === 'PENDIENTE' ? (
             <div className="flex gap-2">
               <Button
@@ -396,7 +406,7 @@ export function ValidacionPanel({ campanaId }: { campanaId: string }) {
   )
 }
 
-function Miniatura({ cr }: { cr: Creatividad }) {
+export function Miniatura({ cr }: { cr: Creatividad }) {
   // HTML (formato o data:text/html) → iframe; <img> no puede pintar HTML.
   const esHtml = cr.formato === 'HTML' || (cr.archivoUrl ?? '').startsWith('data:text/html')
   if (cr.archivoUrl && esHtml) {
@@ -440,7 +450,7 @@ const ESTADO_PUBLICACION: Record<string, ClaveTexto> = {
   otro_cms: 'campanas.validacion.resultado.otro-cms',
 }
 
-function ResultadoDoohmain({ r }: { r: ResumenPublicacion }) {
+export function ResultadoDoohmain({ r }: { r: ResumenPublicacion }) {
   const t = useTexto()
   const tono =
     r.tipo === 'ok' ? 'border-success/40 bg-success-soft'

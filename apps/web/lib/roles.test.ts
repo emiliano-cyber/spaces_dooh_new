@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { puedeEncuadrar, ROLES_ASIGNABLES, puedeVerControlCambios, rolLabel, VALORES_ROL } from './roles'
+import { puedeEncuadrar, puedeAprobarEnCampana, ROLES_ASIGNABLES, puedeVerControlCambios, rolLabel, VALORES_ROL } from './roles'
 import { landingDeRol } from './data/usuarios'
 import type { RolDemo } from './data/types'
 
@@ -173,5 +173,25 @@ describe('puedeEncuadrar', () => {
   it('ni quien no tiene sesión', () => {
     expect(puedeEncuadrar(undefined)).toBe(false)
     expect(puedeEncuadrar(null)).toBe(false)
+  })
+})
+
+// Pedido del dueño (18/11): «que desde la pantalla de campañas se pueda aprobar
+// solo dueño y administrador». SOLO en la ficha de campaña: la pantalla Creativos
+// y los demás perfiles se quedan como estaban (aclarado el mismo día).
+describe('puedeAprobarEnCampana', () => {
+  it('Dueño y Administrador aprueban', () => {
+    expect(puedeAprobarEnCampana('DUENO')).toBe(true)
+    expect(puedeAprobarEnCampana('ADMINISTRADOR')).toBe(true)
+  })
+  it('ningún otro rol, ni los de venta', () => {
+    for (const rol of VALORES_ROL.filter((r) => r !== 'DUENO' && r !== 'ADMINISTRADOR')) {
+      expect(puedeAprobarEnCampana(rol), rol).toBe(false)
+    }
+  })
+  it('sin rol, o un texto desconocido, es no', () => {
+    expect(puedeAprobarEnCampana(null)).toBe(false)
+    expect(puedeAprobarEnCampana(undefined)).toBe(false)
+    expect(puedeAprobarEnCampana('dueno')).toBe(false)
   })
 })

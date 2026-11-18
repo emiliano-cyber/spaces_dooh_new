@@ -281,6 +281,47 @@ Un creativo puede ser **imagen** o **código HTML** (`creatividades.codigo`).
 El **reparto** a todas las pantallas está en `lib/reparto-creativos.ts` (puro,
 con tests) y se invoca desde `POST /api/campanas/[id]/creativos/repartir`.
 
+### «Actualizar campaña» (ACT-CAMP, 18/11)
+
+Pedido del dueño: cambiar los creativos de una campaña **ya publicada** costaba
+cuatro sitios —subir en la ficha, aprobar en Creativos, borrar uno por uno en
+Validación y «Volver a publicar»—. Ahora es una ventana desde la ficha
+(`components/demo/campanas/ActualizarCampana.tsx`): cada creativo de antes se
+marca **Conservar** o **Eliminar**, se suben nuevos (varias imágenes o código)
+con vista previa, cada uno con **«¿Apruebas este creativo?»**, y un botón hace
+todo y manda a DOOHmain.
+
+- **Sin endpoint nuevo, a propósito.** Cada paso reusa la ruta de siempre con sus
+  guardas: `POST /api/creatividades`, `DELETE /api/creatividades/[id]` (retira
+  de DOOHmain antes de borrar), `PATCH …` (aprueba y autoasigna la rotación) y
+  `POST /api/campanas/[id]/reintentar-publicacion`.
+- **El orden es lo que hace que funcione** (`lib/actualizar-campana.ts`, con
+  pruebas que lo fijan y una mutación que lo comprueba): **subir → eliminar →
+  aprobar → publicar**. Subir primero, para que un archivo que falla no deje nada
+  borrado. Eliminar **antes** de aprobar, porque la autoasignación llena con
+  todos los aprobados los spots que quedaron VACÍOS: así el nuevo entra en las
+  pantallas del que se fue. Al revés, un spot ajustado a mano se quedaría vacío
+  y la republicación lo rechazaría. Al primer fallo se para y se dice qué quedó
+  hecho.
+- **No deja la campaña sin ningún aprobado** (`revisarPlan`): las pantallas se
+  quedarían a oscuras, y se sabría solo después de borrar.
+- **Solo aparece con la publicación APROBADA** y en campañas digitales. Una que
+  aún no sale al aire sigue su camino (enviar al dominio → aprobar).
+
+> [!important] Aprobar en la ficha es solo de Dueño y Administrador (18/11)
+> `puedeAprobarEnCampana()` (`lib/roles.ts`). Cubre «¿Apruebas este
+> creativo?» de la ventana y **Aprobar / Rechazar la publicación**. La de la
+> publicación tiene puerta en el servidor: `POST /api/campanas/[id]/validar`
+> responde **403** a cualquier otro rol aunque tenga `comercial.crear`
+> (e2e `lib/test/aprobar-en-campana.e2e.test.ts`).
+>
+> **SOLO la ficha, aclarado por el dueño el mismo día:** «los demás perfiles se
+> deben de quedar igual». `PATCH /api/creatividades/[id]` **no** usa la regla y
+> la pantalla Creativos sigue dejando aprobar a quien tiene `comercial.crear`;
+> la misma e2e comprueba que un Vendedor sigue aprobando ahí, para que nadie
+> «complete» la regla por error. Un Vendedor puede usar «Actualizar campaña»:
+> lo que sube queda pendiente.
+
 ## Qué se vendió, no solo cuánto — `unidad`, `cantidad` y `spots_por_dia`
 
 `propuesta_items` y `reservas` guardan CÓMO se contrató desde

@@ -1,10 +1,17 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-11-17
+actualizado: 2026-11-18
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
+
+> [!important] 2026-11-18 · **«Actualizar campaña» + aprobar en la ficha solo Dueño/Administrador** — `feat/actualizar-campana`, desde `main` `6d4226bf`
+> Un botón en la ficha de campaña publicada: conservar/eliminar creativos, subir nuevos con «¿Apruebas este creativo?» y
+> mandar a DOOHmain en un paso. Aprobar en la ficha (creativo y publicación) solo Dueño y Administrador; la pantalla
+> Creativos sigue igual. Typecheck, 10 401 unitarias, build y e2e en verde. **Sin empujar.** **Zonas tomadas y liberadas:**
+> Z5 · Comercial (`components/demo/campanas/`, `app/api/campanas/[id]/validar`), Z11 (`lib/actualizar-campana.ts`,
+> `lib/roles.ts`), Z12 · Docs y `docs/Registro_Cambios.md`. Detalle en [[2026-11-18]].
 
 > [!success] 2026-11-17 · **CRM-04 · Fase 4 del ADR 0051: la pantalla del CRM — HECHA, sin empujar** — rama `feat/crm-comercial` · ÁMBAR
 > `/crm` (Embudo · Oportunidades · Prospectos), la ficha `/crm/oportunidades/[id]`, pestañas en `/propuestas`, «CRM» en el menú con
