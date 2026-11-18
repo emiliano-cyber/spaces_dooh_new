@@ -18,6 +18,9 @@ archivos:
   - apps/web/lib/server/clientes-repo.ts
   - apps/web/lib/server/clientes-controller.ts
   - apps/web/lib/i18n/errores-servidor.ts
+  - apps/web/components/demo/crm/Seguimiento.tsx
+  - apps/web/components/demo/crm/FormOportunidad.tsx
+  - apps/web/components/demo/captacion/Captacion.tsx
   - apps/web/lib/i18n/errores-crm.test.ts
   - apps/web/lib/data/oportunidades-api.ts
   - apps/web/app/(app)/(shell)/crm/page.tsx
@@ -213,10 +216,40 @@ build anterior: 7 fallos).
 > - Tarjeta plegable `propuestas.seguimiento` (antes `propuestas.embudo` y
 >   `propuestas.oportunidades`: quien las tenía plegadas la verá abierta una vez).
 
+> [!important] 2026-11-18, noche · los PROSPECTOS sin oportunidad también salen en Seguimiento
+> Tercer pedido del dueño: «los prospectos se deben de ver también en
+> Seguimiento; creé uno y no se vio». Crear un prospecto (pestaña Prospectos,
+> tabla `prospectos`) **no crea oportunidad**, y Seguimiento solo pintaba
+> oportunidades. Sin migración ni API nueva:
+>
+> - `Seguimiento.tsx` pide además `GET /api/captacion?tipo=CLIENTE` (el MISMO
+>   `prospectosApi` de la pestaña Prospectos, con su regla `soloDe`: quien no
+>   aprueba solo ve los suyos; los primeros 100) y pinta como **tarjeta
+>   punteada en Contacto**, con la etiqueta «Prospecto», los que **no tienen
+>   ninguna oportunidad** (abierta o cerrada) entre las que llegaron.
+> - **Estatus:** fuera `PERDIDO` y `RECHAZADO` (lo mismo que ofrece el alta de
+>   oportunidad). Un `APROBADO` sin oportunidad **sí sale**: ya es cliente,
+>   pero nadie le da seguimiento. `EN_REVISION` también.
+> - Tarjeta: nombre, contacto · razón social, «Registrado hace N días» (desde
+>   `creadoEn`) y el captador. Cuentan en el número de Contacto (no en el
+>   monto ni en las KPI, que siguen siendo de oportunidades); la búsqueda
+>   (nombre, contacto o razón social, sin acentos: `prospectoCoincide`) y el
+>   filtro de vendedor los incluyen.
+> - Pulsar la tarjeta abre `/propuestas?vista=prospectos&prospecto=<id>`, y
+>   `Captacion` abre ese panel solo (`abrirId`). El botón verde **«Crear
+>   oportunidad»** (solo con `comercial.crear`, que la página pasa como
+>   `puedeCrear`) va FUERA del enlace y abre `FormOportunidad` con el
+>   prospecto ya elegido (`prospecto`); el servidor sigue comprobando tipo
+>   CLIENTE y visibilidad. Al crearla se recarga y la tarjeta suelta se va.
+> - Límite conocido: se compara contra las primeras 100 oportunidades; con
+>   más, un prospecto con oportunidad vieja podría salir también suelto.
+> - Pruebas: `pantallas-crm.test.ts`, bloque «los prospectos sin oportunidad
+>   se ven en Seguimiento».
+
 | Pantalla | Qué hay |
 |---|---|
-| `/propuestas?vista=seguimiento` | Columnas por etapa (Perdida plegada) con cuenta y monto; tarjetas que abren la ficha; búsqueda y vendedor arriba. «Nueva oportunidad» (encabezado de la página, `comercial.crear`) abre `FormOportunidad` (`components/demo/crm/Seguimiento.tsx`) |
-| `/propuestas?vista=prospectos` | Los leads de tipo cliente: la pantalla de Captación con `tipoFijo="CLIENTE"` (`propuestas/page.tsx:219`), sin otra pantalla de leads |
+| `/propuestas?vista=seguimiento` | Columnas por etapa (Perdida plegada) con cuenta y monto; tarjetas que abren la ficha; los prospectos de tipo cliente sin oportunidad, punteados en Contacto con «Crear oportunidad»; búsqueda y vendedor arriba. «Nueva oportunidad» (encabezado de la página, `comercial.crear`) abre `FormOportunidad` (`components/demo/crm/Seguimiento.tsx`) |
+| `/propuestas?vista=prospectos` | Los leads de tipo cliente: la pantalla de Captación con `tipoFijo="CLIENTE"` (`propuestas/page.tsx:223`), sin otra pantalla de leads; `&prospecto=<id>` abre ese prospecto |
 | `/crm/oportunidades/[id]` | La ficha (`FichaOportunidad`): lo pedido, el cotejo por cotización, días en cada etapa, actividades, cambio de etapa, ligar y desligar propuestas, y la línea de tiempo unida, filtrable por persona |
 | `/crm`, `/crm?vista=…` | Redirige a `/propuestas?vista=prospectos` si trae esa vista; si no (sin `vista`, `embudo`, `oportunidades`), a `?vista=seguimiento` |
 

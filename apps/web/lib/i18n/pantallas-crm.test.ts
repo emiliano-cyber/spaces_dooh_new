@@ -338,3 +338,119 @@ describe('18/11 · Seguimiento sustituye al embudo y a la lista de oportunidades
   })
 })
 
+
+// ─── 18/11 (3.er pedido) · los prospectos también se ven en Seguimiento ─────
+// El dueño: «los prospectos se deben de ver también en Seguimiento; creé uno y
+// no se vio». Crear un prospecto no crea oportunidad, y Seguimiento solo
+// pintaba oportunidades. Ahora el prospecto de tipo cliente SIN oportunidad
+// sale como tarjeta en Contacto, con su acción «Crear oportunidad».
+import type { Prospecto } from '@/lib/data/captacion-api'
+
+const pro = (o: Partial<Prospecto> & Pick<Prospecto, 'id' | 'nombre'>): Prospecto =>
+  ({
+    tipo: 'CLIENTE',
+    contacto: { nombre: 'Laura Pérez', telefono: null, email: null },
+    direccion: null,
+    lat: null,
+    lng: null,
+    datos: { razonSocial: 'Tacos Norte SA de CV' },
+    etapa: 'PROSPECTO',
+    siguientePaso: null,
+    siguientePasoFecha: null,
+    usuarioId: 'u2',
+    vendedorNombre: 'Beto',
+    decididoPorNombre: null,
+    decididoEn: null,
+    motivoRechazo: null,
+    registroId: null,
+    creadoEn: '2026-11-06T18:00:00.000Z',
+    actualizadoEn: '2026-11-06T18:00:00.000Z',
+    ...o,
+  }) as Prospecto
+
+describe('18/11 · los prospectos sin oportunidad se ven en Seguimiento', () => {
+  // `o2` (Contacto) cuelga del prospecto `pr-cafe`: ese NO puede salir dos veces.
+  const PAG: PaginaOportunidades = {
+    ...PAGINA,
+    oportunidades: PAGINA.oportunidades.map((o) => (o.id === 'o2' ? { ...o, prospectoId: 'pr-cafe' } : o)),
+    veTodas: true,
+  }
+  const PROSPECTOS = [
+    pro({ id: 'pr-tacos', nombre: 'Tacos El Güero' }),
+    pro({ id: 'pr-cafe', nombre: 'Café Sur' }),
+    // Uno aprobado (ya es cliente) y sin oportunidad: también se ve.
+    pro({ id: 'pr-apro', nombre: 'Llantas Rápidas', etapa: 'APROBADO', registroId: 'c9', usuarioId: 'u1', vendedorNombre: 'Ana' }),
+  ]
+  const html = (idioma: Idioma = 'es', puedeCrear = true) =>
+    envolver(idioma, createElement(Seguimiento, { inicial: PAG, prospectosInicial: PROSPECTOS, ahora: AHORA, puedeCrear }))
+  // La primera columna es Contacto, en cualquier idioma.
+  const contacto = (h: string) => h.match(/<section aria-label="[^"]+"[\s\S]*?<\/section>/)?.[0] ?? ''
+
+  it('el prospecto sin oportunidad sale en la columna Contacto, con su etiqueta, contacto, vendedor y días', () => {
+    const col = contacto(html())
+    expect(col).toContain('Tacos El Güero')
+    expect(col).toContain('>Prospecto<')
+    expect(col).toContain('Laura Pérez')
+    expect(col).toContain('Tacos Norte SA de CV')
+    expect(col).toContain('Beto')
+    // Registrado el 6/11, «hoy» el 10/11: 4 días.
+    expect(col).toContain('Registrado hace 4 días')
+    // El aprobado sin oportunidad también.
+    expect(col).toContain('Llantas Rápidas')
+    // Abre el prospecto en la pestaña Prospectos.
+    expect(col).toContain('href="/propuestas?vista=prospectos&amp;prospecto=pr-tacos"')
+  })
+
+  it('el que ya tiene oportunidad NO sale duplicado como prospecto suelto', () => {
+    const h = html()
+    // Una sola tarjeta con ese nombre (el `title` repite el texto: se cuenta el texto).
+    expect(h.match(/>Café Sur</g)?.length).toBe(1)
+    expect(h).not.toContain('prospecto=pr-cafe')
+  })
+
+  it('cuenta en el número de la columna, y el vendedor del prospecto entra al filtro', () => {
+    const col = contacto(html())
+    // Una oportunidad (o2) más dos prospectos sueltos.
+    expect(col).toMatch(/<span class="demo-num text-\[12px\] font-medium text-ink">3<\/span>/)
+    expect(html()).toContain('<option value="u2">Beto</option>')
+  })
+
+  it('«Crear oportunidad» solo con comercial.crear', () => {
+    expect(html('es', true)).toContain('Crear oportunidad')
+    expect(html('es', false)).not.toContain('Crear oportunidad')
+  })
+
+  it('con solo prospectos y ninguna oportunidad, el tablero se pinta igual', () => {
+    const vacio: PaginaOportunidades = { ...PAG, oportunidades: [], total: 0, porEtapa: {} }
+    const h = envolver('es', createElement(Seguimiento, { inicial: vacio, prospectosInicial: PROSPECTOS, ahora: AHORA }))
+    expect(h).not.toContain(ES_CRM['crm.vacio'])
+    expect(contacto(h)).toContain('Tacos El Güero')
+  })
+
+  for (const idioma of ['en', 'it', 'pt'] as Idioma[]) {
+    it(`en ${idioma} la tarjeta del prospecto no dice nada en español`, () => {
+      const col = contacto(html(idioma))
+      expect(col).toContain('Tacos El Güero')
+      expect(col).not.toContain('>Prospecto<')
+      expect(col).not.toContain('Crear oportunidad')
+      expect(col).not.toContain('Registrado hace')
+    })
+  }
+})
+
+// La búsqueda filtra en el navegador: se prueba la función que la decide.
+import { prospectoCoincide } from '@/components/demo/crm/Seguimiento'
+
+describe('18/11 · la búsqueda de Seguimiento encuentra prospectos', () => {
+  const p = pro({ id: 'pr-tacos', nombre: 'Tacos El Güero' })
+  it('por nombre, contacto o razón social, sin acentos', () => {
+    expect(prospectoCoincide(p, 'guero', '')).toBe(true)
+    expect(prospectoCoincide(p, 'laura perez', '')).toBe(true)
+    expect(prospectoCoincide(p, 'tacos norte', '')).toBe(true)
+    expect(prospectoCoincide(p, 'pizza', '')).toBe(false)
+  })
+  it('y respeta el filtro de vendedor', () => {
+    expect(prospectoCoincide(p, '', 'u2')).toBe(true)
+    expect(prospectoCoincide(p, '', 'u1')).toBe(false)
+  })
+})

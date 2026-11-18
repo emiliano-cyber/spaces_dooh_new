@@ -113,7 +113,10 @@ export default function PropuestasPage() {
   const router = useRouter()
   // ADR 0051 · las pestañas de Propuestas viven en `?vista=` (18/11). Sin ella,
   // la lista de propuestas: lo primero que se ve al entrar, como siempre.
-  const pestana = pestanaDeVista(useSearchParams()?.get('vista'))
+  const parametros = useSearchParams()
+  const pestana = pestanaDeVista(parametros?.get('vista'))
+  // 18/11 · la tarjeta de un prospecto en Seguimiento abre Prospectos con él.
+  const prospectoAbierto = parametros?.get('prospecto') ?? null
   const [nuevaOportunidad, setNuevaOportunidad] = useState(false)
   // PROP-COMPLETA (29/10) · «Agregar sitios» y «Duplicar» se piden desde la
   // ficha con `?agregar=<id>` / `?duplicar=<id>` y abren ESTE formulario
@@ -215,9 +218,9 @@ export default function PropuestasPage() {
       <PestanasCrm activa={pestana} />
 
       {pestana === 'seguimiento' && (
-        <Seguimiento nuevaAbierta={nuevaOportunidad} onCerrarNueva={() => setNuevaOportunidad(false)} />
+        <Seguimiento nuevaAbierta={nuevaOportunidad} onCerrarNueva={() => setNuevaOportunidad(false)} puedeCrear={puedeEditar} />
       )}
-      {pestana === 'prospectos' && <Captacion tipoFijo="CLIENTE" />}
+      {pestana === 'prospectos' && <Captacion tipoFijo="CLIENTE" abrirId={prospectoAbierto} />}
 
       {pestana === 'propuestas' && (
       <>

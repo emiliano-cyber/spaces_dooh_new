@@ -506,7 +506,10 @@ function Detalle({
 // ─── La pantalla ─────────────────────────────────────────────────────────────
 // ADR 0051 · `tipoFijo`: la pestaña «Prospectos» del CRM la usa con CLIENTE,
 // sin el selector de tipo (lo de espacios vive en Prospección, en Inventario).
-export function Captacion({ tipoFijo }: { tipoFijo?: TipoProspecto } = {}) {
+// `abrirId` (18/11): la tarjeta de un prospecto en Seguimiento enlaza aquí con
+// `?prospecto=<id>`, y el panel de ese prospecto se abre solo. Lo lee con
+// `GET /api/captacion/<id>`, así que uno ajeno contesta 404 como siempre.
+export function Captacion({ tipoFijo, abrirId = null }: { tipoFijo?: TipoProspecto; abrirId?: string | null } = {}) {
   const { t, idioma } = useIdioma()
   const [vista, setVista] = useState<(typeof VISTAS)[number]['clave']>('curso')
   const [tipo, setTipo] = useState<TipoProspecto | ''>(tipoFijo ?? '')
@@ -558,6 +561,12 @@ export function Captacion({ tipoFijo }: { tipoFijo?: TipoProspecto } = {}) {
       setError(e instanceof Error ? e.message : t('clientes.captacion.error.abrir'))
     }
   }
+
+  useEffect(() => {
+    if (abrirId) void abrir(abrirId)
+    // Solo cuando cambia el id pedido: `abrir` es estable en lo que importa.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [abrirId])
 
   async function guardar() {
     if (!form) return

@@ -5,6 +5,20 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-18 · Propuestas › Seguimiento: los prospectos también se ven
+
+Pedido del dueño: «los prospectos se deben de ver también en Seguimiento; creé uno y no se vio».
+
+- Al dar de alta un prospecto en la pestaña **Prospectos**, ahora aparece también en **Seguimiento**, en la columna **Contacto**, con la etiqueta **Prospecto** y el borde punteado.
+- La tarjeta dice el nombre, el contacto y la razón social, hace cuántos días se registró y quién lo captó. Cuenta en el número de la columna.
+- El buscador y el filtro de vendedor de Seguimiento también los encuentran.
+- Al pulsar la tarjeta se abre el prospecto en la pestaña Prospectos.
+- El botón verde **Crear oportunidad** abre el formulario de siempre con ese prospecto ya elegido. Al crearla, la tarjeta del prospecto se va y queda la de la oportunidad.
+- No salen los prospectos **perdidos** ni los **rechazados**, ni los que ya tienen una oportunidad (esos se ven por su oportunidad). Un prospecto **aprobado** que todavía no tiene oportunidad sí sale.
+- Cada vendedor sigue viendo solo sus prospectos, igual que en la pestaña Prospectos.
+
+---
+
 ## 2026-11-18 · «Actualizar campaña»: cambiar creativos y volver a mandar a DOOHmain en un solo paso
 
 - En la ficha de una campaña digital que **ya está publicada**, junto a **Creativos**, aparece el botón **Actualizar campaña**.
