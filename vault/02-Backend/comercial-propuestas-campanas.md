@@ -77,6 +77,12 @@ archivos:
 > Prospectos, en `?vista=`); el menú vuelve a decir «Propuestas» y `/crm` solo
 > redirige. Las pestañas nuevas usan los mismos KPIs, tarjetas plegables,
 > chips e insignias que la lista de propuestas. Detalle en [[crm-oportunidades]].
+>
+> **Y esa misma tarde, tres pestañas**: Propuestas · **Seguimiento** ·
+> Prospectos. «Oportunidades» se quitó (casi igual al embudo) y el embudo pasó
+> a llamarse Seguimiento, en columnas por etapa tipo Kanban con búsqueda y
+> filtro de vendedor; `?vista=embudo`, `?vista=oportunidades` y `/crm` llevan a
+> `?vista=seguimiento`.
 
 ## El recorrido
 

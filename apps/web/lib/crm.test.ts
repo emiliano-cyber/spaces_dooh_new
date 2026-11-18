@@ -6,6 +6,7 @@ import {
   problemaPresupuesto,
   problemaFechas,
   diasPorEtapa,
+  diasNegociando,
   cotejoPresupuesto,
   cotejoFechas,
   agruparEmbudo,
@@ -172,5 +173,20 @@ describe('el embudo', () => {
     expect(montoReferencia(100, 200)).toBe(200)
     expect(montoReferencia(100, null)).toBe(100)
     expect(montoReferencia(null, null)).toBeNull()
+  })
+})
+
+describe('los días negociando (tarjeta de Seguimiento)', () => {
+  const ahora = new Date('2026-11-10T18:00:00.000Z')
+  it('abierta: del alta hasta hoy, en días completos', () => {
+    expect(diasNegociando({ creadoEn: '2026-11-01T18:00:00.000Z', ganadaEn: null, perdidaEn: null }, ahora)).toBe(9)
+    expect(diasNegociando({ creadoEn: '2026-11-10T08:00:00.000Z', ganadaEn: null, perdidaEn: null }, ahora)).toBe(0)
+  })
+  it('cerrada: se para el día que se ganó o se perdió, no sigue contando', () => {
+    expect(diasNegociando({ creadoEn: '2026-11-01T18:00:00.000Z', ganadaEn: '2026-11-04T18:00:00.000Z', perdidaEn: null }, ahora)).toBe(3)
+    expect(diasNegociando({ creadoEn: '2026-11-01T18:00:00.000Z', ganadaEn: null, perdidaEn: '2026-11-06T18:00:00.000Z' }, ahora)).toBe(5)
+  })
+  it('nunca negativo, aunque el reloj del navegador vaya atrasado', () => {
+    expect(diasNegociando({ creadoEn: '2026-11-12T18:00:00.000Z', ganadaEn: null, perdidaEn: null }, ahora)).toBe(0)
   })
 })

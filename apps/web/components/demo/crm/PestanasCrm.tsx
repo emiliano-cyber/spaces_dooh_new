@@ -5,8 +5,8 @@ import { cn } from '@/lib/cn'
 import { useTexto } from '@/lib/i18n/contexto'
 
 // ============================================================================
-//  Las pestañas de Propuestas (ADR 0051 §7): Propuestas · Embudo ·
-//  Oportunidades · Prospectos.
+//  Las pestañas de Propuestas (ADR 0051 §7): Propuestas · Seguimiento ·
+//  Prospectos.
 // ----------------------------------------------------------------------------
 //  18/11, pedido del dueño: «en el CRM no se debe de llamar CRM sino
 //  Propuestas; además corrígelo porque debe de ser similar al que ya existía
@@ -21,20 +21,29 @@ import { useTexto } from '@/lib/i18n/contexto'
 //  El dibujo es el de `ui/Tabs` (subrayado del activo, 13 px), y no chips: los
 //  chips en Propuestas ya son los FILTROS de la lista, y unas pestañas con la
 //  misma forma que un filtro se leían como otro filtro más.
+//
+//  18/11, segundo pedido: «Embudo» se llama «Seguimiento» (columnas por etapa)
+//  y la pestaña «Oportunidades» se quitó por ser casi igual; su búsqueda y su
+//  filtro de vendedor pasaron a Seguimiento.
 // ============================================================================
 
-export type PestanaCrm = 'propuestas' | 'embudo' | 'oportunidades' | 'prospectos'
+export type PestanaCrm = 'propuestas' | 'seguimiento' | 'prospectos'
 
 const PESTANAS: { clave: PestanaCrm; href: string }[] = [
   { clave: 'propuestas', href: '/propuestas' },
-  { clave: 'embudo', href: '/propuestas?vista=embudo' },
-  { clave: 'oportunidades', href: '/propuestas?vista=oportunidades' },
+  { clave: 'seguimiento', href: '/propuestas?vista=seguimiento' },
   { clave: 'prospectos', href: '/propuestas?vista=prospectos' },
 ]
 
-/** La pestaña de una dirección `?vista=`; cualquier otra cosa es la lista de propuestas. */
+/**
+ * La pestaña de una dirección `?vista=`; cualquier otra cosa es la lista de
+ * propuestas. `embudo` y `oportunidades` son marcadores de las dos pestañas que
+ * existieron entre el 17 y el 18/11: los dos caen en Seguimiento, que es lo que
+ * las sustituyó, y no en la lista (que sería otra pantalla).
+ */
 export function pestanaDeVista(v: string | null | undefined): PestanaCrm {
-  return v === 'embudo' || v === 'oportunidades' || v === 'prospectos' ? v : 'propuestas'
+  if (v === 'seguimiento' || v === 'embudo' || v === 'oportunidades') return 'seguimiento'
+  return v === 'prospectos' ? 'prospectos' : 'propuestas'
 }
 
 export function PestanasCrm({ activa }: { activa: PestanaCrm }) {

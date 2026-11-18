@@ -107,12 +107,12 @@ export function FichaOportunidad({
   const [aLigar, setALigar] = useState('')
   const [quien, setQuien] = useState('')
   const [ocupado, setOcupado] = useState(false)
-  // Rastro de navegación (cómo llegué); por omisión, Propuestas › Oportunidades.
+  // Rastro de navegación (cómo llegué); por omisión, Propuestas › Seguimiento.
   // Se lee después de montar, como en la ficha de propuesta: el servidor no
   // tiene `window`.
   const porOmision: Crumb[] = [
     { label: t('propuestas.lista.titulo'), href: '/propuestas' },
-    { label: t('crm.pestana.oportunidades'), href: '/propuestas?vista=oportunidades' },
+    { label: t('crm.pestana.seguimiento'), href: '/propuestas?vista=seguimiento' },
   ]
   const [trail, setTrail] = useState<Crumb[]>(porOmision)
   useEffect(() => {

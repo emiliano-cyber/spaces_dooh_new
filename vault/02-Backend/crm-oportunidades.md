@@ -186,13 +186,39 @@ build anterior: 7 fallos).
 > Ninguna pantalla ni texto `crm.*` dice «CRM» en ningún idioma, y lo vigila
 > `pantallas-crm.test.ts` (bloque «18/11»).
 
+> [!important] 2026-11-18, tarde · TRES pestañas: Propuestas · Seguimiento · Prospectos
+> Segundo pedido del dueño ese día: quitar la pestaña «Oportunidades» («es
+> casi igual al embudo») y que el embudo se llame **«Seguimiento»**
+> (inglés Follow-up, italiano Monitoraggio, portugués Acompanhamento; «Pipeline» descartado), con
+> **columnas por etapa tipo Kanban** (`components/demo/crm/Seguimiento.tsx`,
+> que sustituye a `Oportunidades.tsx`). `?vista=seguimiento`; los marcadores
+> `?vista=embudo` y `?vista=oportunidades` caen en Seguimiento
+> (`pestanaDeVista`, `PestanasCrm.tsx`), y `/crm` también.
+>
+> - Columnas Contacto · Necesidad · Cotizando · Negociando · Ganada, cada una
+>   con su cuenta y la suma de presupuestos (`agruparEmbudo`). **Perdida va
+>   plegada**: un chip «Ver perdidas (n)» la enseña como sexta columna.
+> - Tarjeta = enlace a la ficha: cliente (o prospecto), nombre, rango de
+>   presupuesto, cotizaciones, días negociando (`diasNegociando`, `lib/crm.ts`:
+>   del alta al cierre o a hoy) y vendedor. **Ya no lleva el `<select>` de
+>   etapa**: un control dentro de un enlace no se pulsa bien en celular, y la
+>   ficha tiene «Mover a otra etapa», que es además donde se pide el motivo de
+>   una perdida.
+> - Lo que tenía la lista quitada vive arriba: búsqueda por cliente u
+>   oportunidad (sin acentos) y filtro de vendedor **solo si `veTodas`** (es
+>   comodidad de pantalla: el servidor ya recorta por vendedor). Las cuatro
+>   `KPICard` no cambian al filtrar.
+> - Celular: columnas de ancho fijo (`w-64`) que se desplazan DENTRO de su
+>   contenedor (`overflow-x-auto`); en `xl`, rejilla de 5 o 6 columnas.
+> - Tarjeta plegable `propuestas.seguimiento` (antes `propuestas.embudo` y
+>   `propuestas.oportunidades`: quien las tenía plegadas la verá abierta una vez).
+
 | Pantalla | Qué hay |
 |---|---|
-| `/propuestas?vista=embudo` | Una columna por etapa con su total. Una tarjeta se mueve a otra etapa abierta o a GANADA; a PERDIDA no, porque exige el motivo y eso va en la ficha (`components/demo/crm/Oportunidades.tsx`) |
-| `/propuestas?vista=oportunidades` | La lista, con chips por etapa y la columna de vendedor. «Nueva oportunidad» (encabezado de la página) abre `FormOportunidad` |
+| `/propuestas?vista=seguimiento` | Columnas por etapa (Perdida plegada) con cuenta y monto; tarjetas que abren la ficha; búsqueda y vendedor arriba. «Nueva oportunidad» (encabezado de la página, `comercial.crear`) abre `FormOportunidad` (`components/demo/crm/Seguimiento.tsx`) |
 | `/propuestas?vista=prospectos` | Los leads de tipo cliente: la pantalla de Captación con `tipoFijo="CLIENTE"` (`propuestas/page.tsx:219`), sin otra pantalla de leads |
 | `/crm/oportunidades/[id]` | La ficha (`FichaOportunidad`): lo pedido, el cotejo por cotización, días en cada etapa, actividades, cambio de etapa, ligar y desligar propuestas, y la línea de tiempo unida, filtrable por persona |
-| `/crm`, `/crm?vista=…` | Redirige a `/propuestas?vista=…` (sin `vista`, al embudo, que es lo que enseñaba) |
+| `/crm`, `/crm?vista=…` | Redirige a `/propuestas?vista=prospectos` si trae esa vista; si no (sin `vista`, `embudo`, `oportunidades`), a `?vista=seguimiento` |
 
 Todo pasa por `lib/data/oportunidades-api.ts`; el servidor ya filtra por
 vendedor, la pantalla no decide quién ve qué. El menú y las pestañas, en

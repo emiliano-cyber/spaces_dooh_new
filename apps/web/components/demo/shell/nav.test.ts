@@ -322,6 +322,14 @@ describe('ADR 0051 · «Propuestas» con las oportunidades dentro', () => {
     expect(NAV.filter((n) => /\bCRM\b/i.test(n.label)).map((n) => n.key)).toEqual([])
   })
 
+  // 18/11 (2.º pedido) · Seguimiento y Prospectos son pestañas DE Propuestas
+  // (`?vista=`), no entradas del menú; «Embudo» y «Oportunidades» ya no existen
+  // ni como pestaña.
+  it('Seguimiento, Embudo y Oportunidades no son entradas del menú', () => {
+    expect(NAV.filter((n) => /^(Seguimiento|Embudo|Oportunidades)$/i.test(n.label)).map((n) => n.key)).toEqual([])
+    expect(NAV.filter((n) => ['seguimiento', 'embudo', 'oportunidades'].includes(n.key))).toEqual([])
+  })
+
   it('/crm (que redirige) y la ficha de una oportunidad encienden «Propuestas»', () => {
     expect(rutasDe(propuestas)).toEqual(['/propuestas', '/crm'])
     const rutas = NAV.flatMap((n) => rutasDe(n))

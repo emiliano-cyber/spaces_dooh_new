@@ -44,7 +44,7 @@ import { usePuede } from '@/components/demo/shell/SesionContext'
 import { TableroPropuestas } from '@/components/demo/propuestas/TableroPropuestas'
 import { CotejoPorCliente } from '@/components/demo/propuestas/CotejoPorCliente'
 import { PestanasCrm, pestanaDeVista } from '@/components/demo/crm/PestanasCrm'
-import { Oportunidades } from '@/components/demo/crm/Oportunidades'
+import { Seguimiento } from '@/components/demo/crm/Seguimiento'
 import { Captacion } from '@/components/demo/captacion/Captacion'
 import {
   usePropuestas,
@@ -194,27 +194,28 @@ export default function PropuestasPage() {
           </p>
         </div>
         {/* El botón principal, siempre en este sitio y del mismo verde: en la
-            lista da de alta una propuesta; en el embudo y las oportunidades,
-            una oportunidad. Prospectos trae el suyo junto a sus filtros. */}
+            lista da de alta una propuesta; en Seguimiento, una oportunidad.
+            Prospectos trae el suyo junto a sus filtros. */}
         {puedeEditar && pestana === 'propuestas' && (
           <Button variant="success" size="sm" onClick={() => setNuevoOpen(true)}>
             <Plus className="h-3.5 w-3.5" /> {t('propuestas.lista.nueva')}
           </Button>
         )}
-        {puedeEditar && (pestana === 'embudo' || pestana === 'oportunidades') && (
+        {puedeEditar && pestana === 'seguimiento' && (
           <Button variant="success" size="sm" onClick={() => setNuevaOportunidad(true)}>
             <Plus className="h-3.5 w-3.5" /> {t('crm.nueva')}
           </Button>
         )}
       </div>
 
-      {/* ADR 0051 · lo del 17/11 (embudo, oportunidades y prospectos) son
-          pestañas DE Propuestas desde el 18/11, por pedido del dueño: «no se
-          debe de llamar CRM sino Propuestas». La lista es la primera. */}
+      {/* ADR 0051 · lo del 17/11 son pestañas DE Propuestas desde el 18/11,
+          por pedido del dueño: «no se debe de llamar CRM sino Propuestas». La
+          lista es la primera; el embudo pasó a «Seguimiento» (columnas por
+          etapa) y la pestaña «Oportunidades» se quitó por ser casi igual. */}
       <PestanasCrm activa={pestana} />
 
-      {(pestana === 'embudo' || pestana === 'oportunidades') && (
-        <Oportunidades vista={pestana} nuevaAbierta={nuevaOportunidad} onCerrarNueva={() => setNuevaOportunidad(false)} />
+      {pestana === 'seguimiento' && (
+        <Seguimiento nuevaAbierta={nuevaOportunidad} onCerrarNueva={() => setNuevaOportunidad(false)} />
       )}
       {pestana === 'prospectos' && <Captacion tipoFijo="CLIENTE" />}
 

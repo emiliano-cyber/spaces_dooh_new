@@ -10,14 +10,16 @@ import { redirect } from 'next/navigation'
 //  prospectos son ahora pestañas de `/propuestas?vista=…`.
 //
 //  La dirección se conserva redirigiendo, y no se borra, porque ya estuvo un
-//  día en el menú: un marcador o una liga de `/crm?vista=oportunidades` caen en
-//  la MISMA pestaña. Sin `vista` va al embudo, que es lo que `/crm` enseñaba.
+//  día en el menú: un marcador de `/crm?vista=prospectos` cae en Prospectos, y
+//  cualquier otro (`/crm`, `?vista=embudo`, `?vista=oportunidades`) en
+//  Seguimiento, que desde el 18/11 sustituye al embudo y a la lista de
+//  oportunidades (esa pestaña se quitó por ser casi igual al embudo).
 //  La ficha de una oportunidad sigue en `/crm/oportunidades/[id]` (su ruta no
 //  se ve en ningún rótulo y la enciende «Propuestas» en el menú: `nav.ts`).
 // ============================================================================
 
 export default function CrmPage({ searchParams }: { searchParams: { vista?: string | string[] } }) {
   const v = Array.isArray(searchParams.vista) ? searchParams.vista[0] : searchParams.vista
-  const vista = v === 'oportunidades' || v === 'prospectos' ? v : 'embudo'
+  const vista = v === 'prospectos' ? v : 'seguimiento'
   redirect(`/propuestas?vista=${vista}`)
 }

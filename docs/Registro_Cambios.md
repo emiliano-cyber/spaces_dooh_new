@@ -5,6 +5,22 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-18 · sin versión todavía · Propuestas: «Embudo» pasa a llamarse «Seguimiento» y se ve por columnas
+
+Pedido del dueño, el mismo día: quitar la pestaña «Oportunidades» porque era casi igual al embudo, y que el embudo se llame «Seguimiento». Todavía no está en ninguna versión publicada.
+
+- **Propuestas tiene ahora tres pestañas: Propuestas, Seguimiento y Prospectos.** La pestaña «Oportunidades» ya no está; lo que tenía se ve en Seguimiento.
+- **Seguimiento enseña las oportunidades en columnas, una por etapa**: Contacto, Necesidad, Cotizando, Negociando y Ganada. Arriba de cada columna dice cuántas hay y cuánto suman sus presupuestos.
+- **Las perdidas no ocupan espacio**: están escondidas, y el botón redondo «Ver perdidas» (con cuántas hay) las enseña como una columna más.
+- **Cada tarjeta dice** el cliente, el nombre de la oportunidad, el presupuesto que dio (de cuánto a cuánto), cuántas cotizaciones lleva, cuántos días lleva la negociación y quién es el vendedor. Al pulsarla se abre la oportunidad; ahí se cambia de etapa, como antes.
+- **Arriba siguen las cuatro tarjetas de cifras** (abiertas, presupuesto en juego, ganado y cotizaciones), y hay un buscador por cliente u oportunidad. Quien ve las oportunidades de todo el equipo tiene además un filtro por vendedor.
+- **En el celular** las columnas se recorren deslizando de lado dentro del recuadro, sin que se mueva la página.
+- El botón verde «Nueva oportunidad» sigue en Seguimiento, para quien puede crear en Comercial.
+- Si alguien tenía guardada la dirección del embudo, de Oportunidades o del CRM viejo, lo lleva a Seguimiento.
+- En inglés se llama «Follow-up», en italiano «Monitoraggio» y en portugués «Acompanhamento».
+
+---
+
 ## 2026-11-18 · sin versión todavía · El CRM vuelve a llamarse «Propuestas» y se ve como Propuestas
 
 Pedido del dueño: «en el CRM no se debe de llamar CRM sino Propuestas; además corrígelo porque debe de ser similar al que ya existía de Propuestas». Todavía no está en ninguna versión publicada.

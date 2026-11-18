@@ -17,10 +17,12 @@ import type { Propuesta } from '@/lib/data/client'
 //  cuela ninguna frase española del área.
 // ============================================================================
 
+const redirect = vi.hoisted(() => vi.fn())
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: () => {}, replace: () => {}, refresh: () => {} }),
   usePathname: () => '/propuestas',
   useSearchParams: () => new URLSearchParams(),
+  redirect,
 }))
 
 const prop = (o: Partial<Propuesta> & Pick<Propuesta, 'id'>): Propuesta =>
@@ -95,9 +97,10 @@ describe('CotejoPorCliente', () => {
 })
 
 // ─── Fase 4 · la pantalla del CRM ───────────────────────────────────────────
-import { Oportunidades } from '@/components/demo/crm/Oportunidades'
+import { Seguimiento } from '@/components/demo/crm/Seguimiento'
+import CrmPage from '@/app/(app)/(shell)/crm/page'
 import { FichaOportunidad } from '@/components/demo/crm/FichaOportunidad'
-import { PestanasCrm } from '@/components/demo/crm/PestanasCrm'
+import { PestanasCrm, pestanaDeVista } from '@/components/demo/crm/PestanasCrm'
 import type { FichaOportunidad as Ficha, Oportunidad, PaginaOportunidades } from '@/lib/data/oportunidades-api'
 
 const op = (o: Partial<Oportunidad> & Pick<Oportunidad, 'id' | 'etapa'>): Oportunidad => ({
@@ -127,9 +130,13 @@ const op = (o: Partial<Oportunidad> & Pick<Oportunidad, 'id' | 'etapa'>): Oportu
 })
 
 const PAGINA: PaginaOportunidades = {
-  oportunidades: [op({ id: 'o1', etapa: 'COTIZANDO' }), op({ id: 'o2', etapa: 'CONTACTO', presupuestoMin: null, presupuestoMax: null })],
-  total: 2,
-  porEtapa: { COTIZANDO: 1, CONTACTO: 1 },
+  oportunidades: [
+    op({ id: 'o1', etapa: 'COTIZANDO', cotizaciones: 2 }),
+    op({ id: 'o2', etapa: 'CONTACTO', presupuestoMin: null, presupuestoMax: null, clienteNombre: null, clienteId: null, prospectoNombre: 'Café Sur' }),
+    op({ id: 'o3', etapa: 'PERDIDA', clienteNombre: 'Perdedora SA', perdidaEn: '2026-11-03T18:00:00.000Z', motivoPerdida: 'Precio' }),
+  ],
+  total: 3,
+  porEtapa: { COTIZANDO: 1, CONTACTO: 1, PERDIDA: 1 },
   pagina: 1,
   porPagina: 100,
   veTodas: false,
@@ -162,24 +169,25 @@ const PROP_LIGADA = prop({
   items: [{ fechaInicio: '2026-12-01', fechaFin: '2026-12-31' }] as any,
 })
 
+const AHORA = new Date('2026-11-10T18:00:00.000Z')
+
 const envolver = (idioma: Idioma, hijo: ReturnType<typeof createElement>) =>
   renderToStaticMarkup(createElement(ProveedorIdioma, { idioma, puedeElegir: true }, hijo))
 
 const pantallas = (idioma: Idioma) => [
-  envolver(idioma, createElement(PestanasCrm, { activa: 'embudo' })),
-  envolver(idioma, createElement(Oportunidades, { vista: 'embudo', inicial: PAGINA })),
-  envolver(idioma, createElement(Oportunidades, { vista: 'oportunidades', inicial: PAGINA })),
+  envolver(idioma, createElement(PestanasCrm, { activa: 'seguimiento' })),
+  envolver(idioma, createElement(Seguimiento, { inicial: PAGINA, ahora: AHORA })),
   envolver(idioma, createElement(FichaOportunidad, {
     id: 'o1', inicial: FICHA, propuestasInicial: [PROP_LIGADA], ahora: new Date('2026-11-10T18:00:00.000Z'),
   })),
 ].join('\n')
 
 describe('Fase 4 · la pantalla del CRM', () => {
-  it('en español: el embudo, la lista, la ficha con su cotejo y su línea de tiempo', () => {
+  it('en español: Seguimiento, la ficha con su cotejo y su línea de tiempo', () => {
     const html = pantallas('es')
     // «Nueva oportunidad» ya no está aquí: desde el 18/11 el botón vive en el
     // encabezado de Propuestas, en el sitio de «Nueva propuesta».
-    for (const f of ['Embudo', 'Oportunidades', 'Prospectos', 'Propuestas', 'Cotizando', 'Contacto',
+    for (const f of ['Seguimiento', 'Prospectos', 'Propuestas', 'Cotizando', 'Contacto',
       'Ves solo tus oportunidades.', 'Oportunidades abiertas', 'Presupuesto en juego', 'Resumen', 'Sin presupuesto', 'Lo que quiere el cliente', 'Días en cada etapa',
       'Lo que pide contra lo que se le cotizó', 'Pasó a Negociando', 'Cambió el descuento', 'Creó la propuesta',
       'Pidió precios', 'Siguiente: Mandar propuesta']) {
@@ -198,7 +206,7 @@ describe('Fase 4 · la pantalla del CRM', () => {
   })
 
   const ESPANOL_F4 = [
-    ES_CRM['crm.pestana.embudo'], ES_CRM['crm.etapa.cotizando'], ES_CRM['crm.nueva'], ES_CRM['crm.solo-tuyas'],
+    ES_CRM['crm.pestana.seguimiento'], ES_CRM['crm.seguimiento.buscar'], ES_CRM['crm.seguimiento.perdidas'], 'negociando', ES_CRM['crm.etapa.cotizando'], ES_CRM['crm.nueva'], ES_CRM['crm.solo-tuyas'],
     ES_CRM['crm.kpi.abiertas'], ES_CRM['crm.kpi.en-juego'],
     ES_CRM['crm.sin-presupuesto'], ES_CRM['crm.ficha.quiere'], ES_CRM['crm.ficha.dias-etapa'], ES_CRM['crm.ficha.cotejo'],
     'Pasó a', 'Cambió el descuento', ES_CRM['crm.accion.crear'], ES_CRM['crm.ficha.fechas.igual'], 'Arriba por', ES_CRM['crm.cotejo.sin-iva'] + ':',
@@ -229,8 +237,104 @@ describe('18/11 · ninguna pantalla de Propuestas dice «CRM»', () => {
   it('la primera pestaña es la lista de propuestas, y las otras van a /propuestas?vista=', () => {
     const html = envolver('es', createElement(PestanasCrm, { activa: 'propuestas' }))
     const hrefs = [...html.matchAll(/href="([^"]+)"/g)].map((m) => m[1])
-    expect(hrefs).toEqual(['/propuestas', '/propuestas?vista=embudo', '/propuestas?vista=oportunidades', '/propuestas?vista=prospectos'])
+    expect(hrefs).toEqual(['/propuestas', '/propuestas?vista=seguimiento', '/propuestas?vista=prospectos'])
     expect(html).toMatch(/aria-current="page"[^>]*>Propuestas</)
+  })
+})
+
+// ─── 18/11 (2.º pedido) · «Embudo» → «Seguimiento», sin «Oportunidades» ─────
+// El dueño quitó la pestaña Oportunidades («es casi igual al embudo») y
+// renombró el embudo. Se vigila en los cuatro idiomas lo que se PINTA.
+describe('18/11 · Seguimiento sustituye al embudo y a la lista de oportunidades', () => {
+  const pestanas = (idioma: Idioma, activa: 'propuestas' | 'seguimiento' | 'prospectos' = 'propuestas') =>
+    envolver(idioma, createElement(PestanasCrm, { activa }))
+  const rotulos = (html: string) => [...html.matchAll(/<a [^>]*>([^<]+)<\/a>/g)].map((m) => m[1])
+  const seguimiento = (idioma: Idioma, pagina: PaginaOportunidades = PAGINA) =>
+    envolver(idioma, createElement(Seguimiento, { inicial: pagina, ahora: AHORA }))
+
+  it('tres pestañas: Propuestas · Seguimiento · Prospectos (Seguimiento es la segunda)', () => {
+    expect(rotulos(pestanas('es'))).toEqual(['Propuestas', 'Seguimiento', 'Prospectos'])
+    expect(rotulos(pestanas('en'))).toEqual(['Proposals', 'Follow-up', 'Prospects'])
+    expect(rotulos(pestanas('it'))).toEqual(['Proposte', 'Monitoraggio', 'Prospect'])
+    expect(rotulos(pestanas('pt'))).toEqual(['Propostas', 'Acompanhamento', 'Prospects'])
+  })
+
+  for (const idioma of ['es', 'en', 'it', 'pt'] as Idioma[]) {
+    it(`en ${idioma} nada dice «Embudo»/«Pipeline» y no hay pestaña Oportunidades`, () => {
+      const html = pestanas(idioma, 'seguimiento') + seguimiento(idioma)
+      expect(html).not.toMatch(/Embudo|Pipeline|Funil/)
+      expect(html).not.toMatch(/vista=oportunidades|vista=embudo/)
+      expect(rotulos(pestanas(idioma))).not.toContain(DICCIONARIOS[idioma]['nav.crm'])
+      expect(rotulos(pestanas(idioma))).toHaveLength(3)
+      expect(html).toMatch(new RegExp(`aria-current="page"[^>]*>${DICCIONARIOS[idioma]['crm.pestana.seguimiento']}<`))
+    })
+  }
+
+  it('los marcadores viejos (?vista=embudo y ?vista=oportunidades) caen en Seguimiento', () => {
+    expect(pestanaDeVista('seguimiento')).toBe('seguimiento')
+    expect(pestanaDeVista('embudo')).toBe('seguimiento')
+    expect(pestanaDeVista('oportunidades')).toBe('seguimiento')
+    expect(pestanaDeVista('prospectos')).toBe('prospectos')
+    expect(pestanaDeVista(null)).toBe('propuestas')
+    expect(pestanaDeVista('cualquiera')).toBe('propuestas')
+  })
+
+  it('/crm redirige: sin vista, ?vista=embudo y ?vista=oportunidades a Seguimiento; ?vista=prospectos a Prospectos', () => {
+    const casos: [string | undefined, string][] = [
+      [undefined, '/propuestas?vista=seguimiento'],
+      ['embudo', '/propuestas?vista=seguimiento'],
+      ['oportunidades', '/propuestas?vista=seguimiento'],
+      ['seguimiento', '/propuestas?vista=seguimiento'],
+      ['prospectos', '/propuestas?vista=prospectos'],
+    ]
+    for (const [vista, destino] of casos) {
+      redirect.mockClear()
+      CrmPage({ searchParams: { vista } })
+      expect(redirect, String(vista)).toHaveBeenCalledWith(destino)
+    }
+  })
+
+  it('una columna por etapa, con su cuenta y su monto; Perdida plegada por omisión', () => {
+    const html = seguimiento('es')
+    const columnas = [...html.matchAll(/<section aria-label="([^"]+)"/g)].map((m) => m[1])
+    expect(columnas).toEqual(['Contacto', 'Necesidad', 'Cotizando', 'Negociando', 'Ganada'])
+    // La perdida no se pinta, pero su chip dice cuántas hay.
+    expect(html).not.toContain('Perdedora SA')
+    expect(html).toMatch(/aria-pressed="false"[^>]*>Ver perdidas <span class="demo-num">1<\/span>/)
+    // Cotizando: el monto de la columna es el máximo del rango.
+    expect(html).toContain('Presupuesto: $200,000.00')
+  })
+
+  it('cada tarjeta: cliente, oportunidad, rango, cotizaciones, días y vendedor, y abre la ficha', () => {
+    const html = seguimiento('es')
+    expect(html).toContain('href="/crm/oportunidades/o1')
+    expect(html).toContain('Refrescos del Norte')
+    expect(html).toContain('Oportunidad o1')
+    expect(html).toContain('$100,000.00 – $200,000.00')
+    expect(html).toContain('2 cotizaciones')
+    // Alta el 1/11, «hoy» el 10/11: 9 días.
+    expect(html).toContain('9 días negociando')
+    expect(html).toContain('Ana')
+    // El prospecto sin cliente se ve por su nombre, y sin presupuesto lo dice.
+    expect(html).toContain('Café Sur')
+    expect(html).toContain('Sin presupuesto')
+    // Las tarjetas ya no traen el selector de etapa del embudo: eso vive en la ficha.
+    expect(html).not.toContain('<select')
+  })
+
+  it('el filtro de vendedor sale solo si quien mira ve a todo el equipo', () => {
+    const solo = seguimiento('es')
+    expect(solo).not.toContain('Todos los vendedores')
+    expect(solo).toContain('Ves solo tus oportunidades.')
+    const todos = seguimiento('es', { ...PAGINA, veTodas: true })
+    expect(todos).toContain('Todos los vendedores')
+    expect(todos).toContain('aria-label="Buscar cliente u oportunidad"')
+  })
+
+  it('las columnas se desplazan dentro de su contenedor, no la página', () => {
+    const html = seguimiento('es')
+    expect(html).toMatch(/class="min-w-0 overflow-x-auto[^"]*"><div class="flex items-start gap-3 xl:grid/)
+    expect(html).toMatch(/<section aria-label="Contacto" class="w-64 shrink-0/)
   })
 })
 
