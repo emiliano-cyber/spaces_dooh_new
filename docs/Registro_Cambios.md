@@ -5,6 +5,15 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-18 · Inventario: pestañas Fijos / Digitales y filtro por zona
+
+- Arriba de la tabla de pantallas hay ahora tres pestañas grandes: **Todos**, **Fijos** y **Digitales**, cada una con cuántas pantallas tiene. Antes ese filtro era un chip pequeño entre otros seis.
+- Al lado, un **filtro por zona**: primero eliges la **ciudad** y luego, si quieres, la **alcaldía o zona** dentro de ella. Solo aparecen las zonas donde tienes pantallas, con su número entre paréntesis (y ese número respeta si estás viendo Fijos o Digitales).
+- Los filtros se combinan con el buscador y con los chips de disponibilidad y contrato. **Quitar filtros** los limpia todos, también la zona.
+- Descargar a Excel o CSV y el cambio masivo de tarifa o renta siguen trabajando sobre lo que se ve filtrado.
+
+---
+
 ## 2026-11-17 · «Prospección» sube al primer lugar de Inventario
 
 - En el menú, **Prospección** ahora es la **primera** entrada del grupo **Inventario**, antes que Inventario y Arrendadores (antes iba debajo de Arrendadores).
