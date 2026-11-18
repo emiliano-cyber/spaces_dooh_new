@@ -11,6 +11,7 @@ import { Chip } from '@/components/demo/admin/Chip'
 import { formatNumero } from '@/lib/formato-numero'
 import { useIdioma } from '@/lib/i18n/contexto'
 import type { Idioma } from '@/lib/i18n/idiomas'
+import { traducirAccion, traducirEntidadAccion, traducirQuienAccion } from '@/lib/i18n/actividad'
 
 const selectCls =
   'h-9 rounded border border-border-strong bg-surface px-2.5 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
@@ -107,7 +108,7 @@ export default function ActividadPage() {
               {t('admin.actividad.quien')}
               <select value={fUsuario} onChange={(e) => setFUsuario(e.target.value)} className={selectCls}>
                 <option value="">{t('admin.actividad.todos')}</option>
-                {usuarios.map((u) => <option key={u} value={u}>{u}</option>)}
+                {usuarios.map((u) => <option key={u} value={u}>{traducirQuienAccion(u, idioma)}</option>)}
               </select>
             </label>
             {hayFiltro && (
@@ -166,10 +167,13 @@ export default function ActividadPage() {
                       <div className="flex min-w-0 items-center gap-2.5">
                         <AvatarIniciales nombre={a.usuarioNombre} />
                         <div className="min-w-0 text-[13px] text-ink">
-                          <span className="font-medium">{a.usuarioNombre}</span>{' '}
+                          {/* El servidor GUARDA la bitácora en español (es registro);
+                              se rearma al pintarla en el idioma de quien lee
+                              (`lib/i18n/actividad.ts`, revisión del 18/11). */}
+                          <span className="font-medium">{traducirQuienAccion(a.usuarioNombre, idioma)}</span>{' '}
                           <span className="text-muted">·</span>{' '}
-                          {a.accion}{' '}
-                          <span className="text-ink">{a.entidad}</span>
+                          {traducirAccion(a.accion, idioma)}{' '}
+                          <span className="text-ink">{traducirEntidadAccion(a.entidad, idioma)}</span>
                         </div>
                       </div>
                       <span

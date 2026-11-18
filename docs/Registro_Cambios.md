@@ -5,6 +5,19 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-18 · Actividad: la bitácora sale en el idioma de quien la lee
+
+Pedido del dueño: «no todo está traducido al idioma correspondiente: hay pedazos en español».
+
+- Con la aplicación en inglés (o en italiano o portugués), la pantalla **Actividad** salía entera en español: «Creó propuesta», «Propuesta → ENVIADA…», «Avanzó impresión → EN_PRODUCCION», «Sistema»…
+- Ahora cada renglón se lee en el idioma de la persona: «Created a proposal», «Proposal → Sent…», «Moved printing forward → In production», «System». Los importes salen con el formato del idioma y los estados con su nombre, no en mayúsculas.
+- Lo que la aplicación guarda **no cambia**: la bitácora se sigue guardando en español, así que se ve igual para quien la usa en español y los filtros funcionan como antes. Solo cambia cómo se pinta.
+- Los nombres que escribe la gente (propuestas, clientes, pantallas) no se traducen.
+- Si aparece un renglón que la aplicación no reconoce, se muestra tal como se guardó.
+- El italiano y el portugués llevan una primera versión que repasarán sus revisores.
+
+---
+
 ## 2026-11-18 · Italiano: lo que todavía salía en español o con cifras a la española
 
 Pedido del dueño: «no todo está traducido: hay pedazos en español». Se recorrió toda la aplicación en italiano con una cuenta de prueba, pantalla por pantalla. Casi todo ya estaba en italiano; lo que se colaba eran valores pintados tal cual. Arreglado:
