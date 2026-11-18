@@ -9,7 +9,10 @@
 // su copia local o reporta una huella que en realidad ya conociamos.
 import { Request, Response } from 'express';
 import { pool } from '../config/database';
-import { enderezarPantalla, medirPantalla, type Medida } from '../utils/enderezar';
+import { leerStored } from '../services/photoStorage.service';
+import {
+  enderezarPantalla, medirPantalla, bloquesDe, parecidoPorBloques, type Medida, type Gris,
+} from '../utils/enderezar';
 import { calcular } from '../utils/huella';
 import { equipoAjeno } from '../utils/dueno';
 import { z } from 'zod';
@@ -434,10 +437,8 @@ export function tocaRefoto(c: Conocida, refotoH: number, ahora = Date.now()): bo
  *
  * Devuelve la huella del creativo refrescado, o null si no habia nada que hacer.
  */
-export async function medirPantallaEnFoto(
-  deviceId: number,
-  jpeg: Buffer,
-): Promise<(Medida & { phash: string | null }) | null> {
+/** La pantalla de ese equipo, de frente y en gris, lista para medirla. */
+export async function enderezarDeEquipo(deviceId: number, jpeg: Buffer): Promise<Gris | null> {
   const [filas] = await pool.query<any[]>(
     `SELECT pantalla, stream_rotation FROM devices WHERE id = ?`, [deviceId]);
   const d = (filas as any[])[0];
@@ -448,8 +449,14 @@ export async function medirPantallaEnFoto(
     esquinas = pantalla?.esquinas;
   } catch { return null; }
   if (!Array.isArray(esquinas) || esquinas.length !== 4) return null;
+  return enderezarPantalla(jpeg, esquinas, Number(d.stream_rotation) || 0);
+}
 
-  const gris = await enderezarPantalla(jpeg, esquinas, Number(d.stream_rotation) || 0);
+export async function medirPantallaEnFoto(
+  deviceId: number,
+  jpeg: Buffer,
+): Promise<(Medida & { phash: string | null }) | null> {
+  const gris = await enderezarDeEquipo(deviceId, jpeg);
   if (!gris) return null;
   // Sin huella no hay creativo: lente tapada o noche cerrada. Es la misma regla
   // con la que el equipo decide no gastar una foto.
@@ -471,23 +478,34 @@ export async function reconocerEnFoto(
   return { conocida, refoto_h: cfg.refoto_h };
 }
 
-/** Lo de arriba, y ademas lo guarda. Devuelve la huella refrescada, o null. */
+/**
+ * Lo de arriba, y ademas lo guarda.
+ *
+ * Devuelve null si la foto NO casa con ningun creativo del catalogo; si casa,
+ * devuelve con cual y si ademas se guardo como su foto de «ahora».
+ *
+ * Las dos cosas por separado y no una sola, porque son dos preguntas y quien
+ * llama necesita las dos: «¿esta pantalla se ve como la conocemos?» -que es lo
+ * que cierra una obstruccion- y «¿ademas tocaba refrescar su foto?» -que pasa
+ * una vez cada `refoto_h` horas-. Devolver solo la segunda dejaba la
+ * obstruccion abierta para siempre: casi ninguna foto toca refresco.
+ */
 export async function refrescarConFoto(
   deviceId: number,
   jpeg: Buffer,
   photoId: number,
-): Promise<string | null> {
+): Promise<{ phash: string; refrescada: boolean } | null> {
   const r = await reconocerEnFoto(deviceId, jpeg);
   if (!r) return null;
   const { conocida } = r;
-  if (!tocaRefoto(conocida, r.refoto_h)) return null;
+  if (!tocaRefoto(conocida, r.refoto_h)) return { phash: conocida.phash, refrescada: false };
 
   await ligarFoto(deviceId, conocida.phash, photoId);
   await pool.query(
     `INSERT INTO device_logs (device_id, level, category, message) VALUES (?, 'info', 'creative', ?)`,
     [deviceId, `Creativo puesto al dia con una foto del sitio (${conocida.bits} bits de diferencia)`]
   ).catch(() => null);
-  return conocida.phash;
+  return { phash: conocida.phash, refrescada: true };
 }
 
 /** Se volvio a ver: solo refresca la fecha y la cuenta. */
@@ -621,4 +639,102 @@ export async function reaprender(req: Request, res: Response) {
   await pool.query(`DELETE FROM device_creatives WHERE device_id = ?`, [did]);
   await pool.query(`UPDATE devices SET creative_desde = NOW() WHERE id = ?`, [did]);
   res.json({ ok: true });
+}
+
+// --- Un camion delante no es un anuncio nuevo --------------------------------
+//
+// EL SINTOMA. Pasa un trailer por delante del espectacular, o se estaciona
+// enfrente, y el equipo avisa «creativo nuevo»: gasta una foto de datos moviles
+// y mete en el catalogo del sitio un anuncio que no existe.
+//
+// POR QUE EL EQUIPO NO PUEDE VERLO. La huella resume la pantalla entera en 64
+// bits. Tapar un tercio de la imagen mueve esos bits tanto como cambiar el
+// anuncio, y desde un solo numero las dos cosas son iguales. Para distinguirlas
+// hay que comparar POR ZONAS contra lo que habia antes, y lo de antes lo tiene
+// el servidor -el catalogo del sitio-, no el telefono.
+//
+// LA REGLA, que es una sola: un anuncio nuevo cambia la pantalla ENTERA; algo
+// delante tapa un trozo y deja el resto igual. Asi que si una parte buena de la
+// pantalla sigue siendo un creativo que ya conociamos, lo que cambio esta
+// DELANTE y no EN la pantalla.
+//
+// EL UMBRAL ESTA SIN MEDIR CONTRA FOTOS REALES DE CAMIONES, y eso hay que
+// decirlo: 0.45 sale de la geometria del caso -un vehiculo tapa entre un cuarto
+// y la mitad de la pantalla desde la altura de la camara-, no de un conteo.
+// Para medirlo hace falta el catalogo de produccion, donde esas fotos ya estan
+// guardadas como «creativos» que se vieron UNA vez y nunca mas. El guion
+// `scripts/medir-obstruccion.ts` hace exactamente esa cuenta.
+const PARECIDO_OBSTRUIDO = 0.45;
+// Por encima de esto es la MISMA imagen; eso ya lo caza la huella y no es
+// asunto de aqui. Esta cota evita contar como obstruccion una foto que el
+// catalogo reconoceria igual.
+const PARECIDO_ES_LA_MISMA = 0.95;
+// Cuantos creativos del catalogo se comparan. Los mas vistos primero: el que
+// estaba en pantalla cuando paso el camion es, casi siempre, uno de ellos.
+const CATALOGO_A_COMPARAR = 6;
+
+export type Obstruccion = { obstruido: boolean; parecido: number; phash: string | null };
+
+// Las zonas de las fotos del catalogo, recordadas.
+//
+// Sin esto, CADA foto de «creativo nuevo» obligaba a enderezar seis fotos
+// guardadas -seis deformaciones de perspectiva de un JPEG entero- con el equipo
+// esperando la respuesta en una red movil. Y las seis dan siempre lo mismo: una
+// foto guardada no cambia nunca.
+//
+// La llave es la ruta del archivo, que es unica e inmutable. El tope existe
+// para que una flota grande no se coma la memoria del contenedor; al llegar se
+// vacia entero, que para un acierto de cache es de sobra -no hace falta un LRU
+// para algo que se recalcula en milisegundos-.
+const ZONAS_TOPE = 500;
+const zonasRecordadas = new Map<string, ReturnType<typeof bloquesDe>>();
+
+async function zonasDeFotoGuardada(deviceId: number, ruta: string) {
+  const ya = zonasRecordadas.get(ruta);
+  if (ya) return ya;
+  const antes = await enderezarDeEquipo(deviceId, await leerStored(ruta));
+  if (!antes) return null;
+  const zonas = bloquesDe(antes);
+  if (zonasRecordadas.size >= ZONAS_TOPE) zonasRecordadas.clear();
+  zonasRecordadas.set(ruta, zonas);
+  return zonas;
+}
+
+/**
+ * ¿Lo que cambio esta delante de la pantalla? Devuelve null si no se puede
+ * decidir (sin pantalla marcada, sin catalogo con fotos, foto ilegible).
+ */
+export async function obstruccionEnFoto(deviceId: number, jpeg: Buffer): Promise<Obstruccion | null> {
+  const gris = await enderezarDeEquipo(deviceId, jpeg);
+  if (!gris) return null;
+  const ahora = bloquesDe(gris);
+
+  const [filas] = await pool.query<any[]>(
+    `SELECT COALESCE(u.storage_path, p.storage_path) AS ruta
+       FROM device_creatives c
+       LEFT JOIN photos p ON p.id = c.photo_id
+       LEFT JOIN photos u ON u.id = c.photo_id_ultima
+      WHERE c.device_id = ? AND COALESCE(u.storage_path, p.storage_path) IS NOT NULL
+      ORDER BY c.vistas DESC
+      LIMIT ?`, [deviceId, CATALOGO_A_COMPARAR]);
+  if (!(filas as any[]).length) return null;
+
+  let mejor = 0;
+  for (const f of filas as any[]) {
+    let zonas: ReturnType<typeof bloquesDe> | null = null;
+    try {
+      zonas = await zonasDeFotoGuardada(deviceId, String(f.ruta));
+    } catch {
+      continue; // una foto que ya no esta en disco no invalida la pregunta
+    }
+    if (!zonas) continue;
+    const p = parecidoPorBloques(ahora, zonas);
+    if (p > mejor) mejor = p;
+  }
+
+  return {
+    obstruido: mejor >= PARECIDO_OBSTRUIDO && mejor < PARECIDO_ES_LA_MISMA,
+    parecido: mejor,
+    phash: calcular(gris.datos, gris.ancho, gris.alto),
+  };
 }

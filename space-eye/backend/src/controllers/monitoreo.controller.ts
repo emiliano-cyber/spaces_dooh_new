@@ -27,6 +27,7 @@ import {
 } from '../utils/fallasFalsas';
 import { campanasDelEquipo } from './campanasSpaceos.controller';
 import { equipoAjeno } from '../utils/dueno';
+import { ordenarEquipo } from '../utils/espejo';
 
 /** Una falla descartada a mano no vuelve a sonar en este plazo. */
 const SILENCIO_DIAS = 7;
@@ -228,6 +229,11 @@ export const NOMBRES: Record<string, string> = {
   pantalla_congelada: 'Pantalla congelada',
   camara_movida: 'Cámara movida',
   sin_imagen: 'Sin imagen',
+  // La abre el SERVIDOR, no el equipo: el telefono no puede distinguirla de un
+  // anuncio nuevo (ver `obstruccionEnFoto`). «Vehiculo» porque es lo que es el
+  // 99% de las veces -un trailer parado, una grua, un camion de mudanza-, y
+  // decir «obstruccion» a secas manda a buscar el problema en la pantalla.
+  obstruccion_vehiculo: 'Algo tapando la pantalla (vehículo)',
 };
 
 const HORA = /^([01]\d|2[0-4]):[0-5]\d$/;
@@ -676,6 +682,113 @@ export async function listar(req: Request, res: Response) {
  * ESA zona en SILENCIO_DIAS) o "recuperada" (se arreglo y ya no hace falta
  * esperar a que el equipo lo compruebe).
  */
+// --- La foto de cuando la imagen volvio (migracion 032) -----------------------
+//
+// Una falla que se cierra SOLA trae su foto: la sube el equipo con el evento de
+// recuperacion. Una que cierra una PERSONA desde el panel no traia ninguna, y
+// el historial se quedaba con la prueba de que se fue y ninguna de que volvio.
+// Esa es justo la mitad que hace falta para cobrarle a un cliente -o para
+// defenderse de el- cuando se discute una caida.
+//
+// Asi que al marcarla a mano se le pide una foto al equipo y se apunta cuando
+// se pidio. La foto llega por el camino de SIEMPRE (POST /api/device/photos):
+// no hay ruta nueva, ni mensaje nuevo, ni APK nueva. Al guardarse, `adjuntarFoto`
+// mira si ese equipo tenia una pedida hace poco.
+//
+// LA VENTANA CADUCA, y no por prolijidad: un equipo apagado no contesta hoy y
+// puede contestar manana al encender. Sin caducidad, su primera foto del dia
+// siguiente entraria como «asi volvio la imagen» con horas de retraso, y una
+// prueba falsa es peor que ninguna. Pasados estos minutos, lo que llegue se
+// guarda como la foto normal que es.
+const FOTO_ESPERA_MIN = 20;
+
+/**
+ * Pedirle al equipo una foto para dejar constancia de que la imagen volvio.
+ *
+ * Nunca tumba la respuesta al panel: si el equipo esta apagado o la orden no
+ * entra, la falla queda marcada igual -que es lo que la persona pidio- y
+ * simplemente no habra foto. Decirle «no se pudo recuperar» por eso seria
+ * mentir sobre lo que si se hizo.
+ */
+async function pedirFotoDeRecuperacion(deviceId: number, fallaId: number, usuarioId: number) {
+  try {
+    await ordenarEquipo(deviceId, 'TAKE_PHOTO', await encuadreDe(deviceId), { creadoPor: usuarioId });
+    await pool.query(`UPDATE pantalla_fallas SET foto_pedida_en = NOW() WHERE id = ?`, [fallaId]);
+  } catch (err) {
+    console.error('[monitoreo] no se pudo pedir la foto de recuperacion:', (err as any)?.message);
+  }
+}
+
+/**
+ * ¿Esta foto es la que esperaba una falla recuperada a mano? Si lo es, se queda
+ * con ella. La llama el camino de subida de fotos y devuelve el id de la falla
+ * que se la llevo, o null.
+ *
+ * Se toma la MAS RECIENTE de las que esperan: si alguien cerro dos fallas del
+ * mismo equipo con segundos de diferencia, la foto es de la ultima que miro.
+ * Y `foto_pedida_en` se limpia al adjuntarla, para que la siguiente foto del
+ * equipo -la de por horario, por ejemplo- no vuelva a entrar aqui.
+ */
+export async function adjuntarFotoDeRecuperacion(deviceId: number, photoId: number): Promise<number | null> {
+  const [filas] = await pool.query<any[]>(
+    `SELECT id FROM pantalla_fallas
+      WHERE device_id = ? AND estado = 'recuperada' AND cerrada_por = 'usuario'
+        AND photo_recuperacion_id IS NULL AND foto_pedida_en IS NOT NULL
+        AND foto_pedida_en >= NOW() - INTERVAL ? MINUTE
+      ORDER BY foto_pedida_en DESC LIMIT 1`,
+    [deviceId, FOTO_ESPERA_MIN]);
+  const falla = (filas as any[])[0];
+  if (!falla) return null;
+  await pool.query(
+    `UPDATE pantalla_fallas SET photo_recuperacion_id = ?, foto_pedida_en = NULL WHERE id = ?`,
+    [photoId, falla.id]);
+  return Number(falla.id);
+}
+
+// --- Algo delante de la pantalla (lo ve el servidor) -------------------------
+//
+// La abre el servidor al recibir una foto de «creativo nuevo» que en realidad
+// es la pantalla de siempre con algo tapandola (ver `obstruccionEnFoto`). Y la
+// cierra el servidor tambien, en cuanto una foto posterior vuelve a reconocer
+// un creativo limpio: el equipo no sabe que esta falla existe, asi que si no la
+// cerrara nadie se quedaria encendida para siempre, y una alerta que no se
+// apaga deja de mirarse.
+
+/** Una sola abierta por equipo: un camion parado manda muchas fotos seguidas. */
+export async function abrirObstruccion(
+  deviceId: number, photoId: number | null, parecido: number, nota: string,
+): Promise<number | null> {
+  const [ya] = await pool.query<any[]>(
+    `SELECT id FROM pantalla_fallas
+      WHERE device_id = ? AND tipo = 'obstruccion_vehiculo' AND estado = 'abierta' LIMIT 1`, [deviceId]);
+  if ((ya as any[]).length) return null;
+  // `detalle` es una columna JSON -lo que manda el equipo son los gabinetes de
+  // una zona-, asi que la MEDIDA va ahi en JSON y la frase para leer va en
+  // `nota`, que es texto y es lo que ensena el historial. Meter la frase en
+  // `detalle` revienta con ER_INVALID_JSON_TEXT, y como abrir la falla nunca
+  // puede tumbar la subida de la foto, el error se lo tragaba el `catch` de
+  // quien llama: la falla no se creaba y nada lo decia. (Cazado probandolo.)
+  const [r] = await pool.query<any>(
+    `INSERT INTO pantalla_fallas (device_id, tipo, confianza, detectada_en, photo_id, detalle, nota)
+     VALUES (?, 'obstruccion_vehiculo', ?, NOW(), ?, ?, ?)`,
+    [deviceId, Math.min(1, Math.max(0, parecido)), photoId,
+     JSON.stringify({ parecido: Math.round(parecido * 100) / 100 }), nota]);
+  const id = (r as any).insertId;
+  await avisar(deviceId, id, 'abierta');
+  return id;
+}
+
+/** La cierra cuando la pantalla vuelve a verse limpia. Devuelve cuantas cerro. */
+export async function cerrarObstruccion(deviceId: number, photoId: number | null): Promise<number> {
+  const [r] = await pool.query<any>(
+    `UPDATE pantalla_fallas
+        SET estado = 'recuperada', recuperada_en = NOW(), cerrada_por = 'servidor',
+            photo_recuperacion_id = ?, nota = 'La pantalla volvio a verse entera'
+      WHERE device_id = ? AND tipo = 'obstruccion_vehiculo' AND estado = 'abierta'`,
+    [photoId, deviceId]);
+  return Number((r as any).affectedRows || 0);
+}
+
 export async function actualizar(req: Request, res: Response) {
   const schema = z.object({
     estado: z.enum(['recuperada', 'descartada']),
@@ -691,8 +804,12 @@ export async function actualizar(req: Request, res: Response) {
   const [f] = await pool.query<any[]>(`SELECT device_id, tipo FROM pantalla_fallas WHERE id = ?`, [req.params.id]);
   const falla = (f as any[])[0];
   await avisar(falla.device_id, Number(req.params.id), parsed.data.estado);
+  // Solo al RECUPERAR. Una descartada no es «volvio la imagen», es «esto nunca
+  // fue una falla»: pedir una foto ahi gastaria dato para probar nada.
+  const pedida = parsed.data.estado === 'recuperada';
+  if (pedida) await pedirFotoDeRecuperacion(falla.device_id, Number(req.params.id), req.user!.uid);
   const ajuste = parsed.data.estado === 'descartada' ? await aprenderDeDescarte(falla.device_id, falla.tipo) : null;
-  res.json({ ok: true, ...(ajuste ? { ajuste } : {}) });
+  res.json({ ok: true, foto_pedida: pedida, ...(ajuste ? { ajuste } : {}) });
 }
 
 /**
