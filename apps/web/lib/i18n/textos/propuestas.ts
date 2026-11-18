@@ -438,6 +438,14 @@ export const ES_PROPUESTAS = {
 
   // ── Condiciones y vigencia (`BloqueCondicionesVigencia.tsx`) ──
   'propuestas.condiciones.guardadas': 'Condiciones y vigencia guardadas',
+  // SEG-CLIENTE (17/11) · el interruptor de la imprenta en la ficha (`ImprentaVisibleCliente.tsx`).
+  'propuestas.imprenta-visible.titulo': 'Imprenta en la liga del cliente',
+  'propuestas.imprenta-visible.etiqueta': 'Mostrar la imprenta al cliente en la liga',
+  'propuestas.imprenta-visible.ayuda': 'Apagado, el cliente ve el avance de sus lonas sin saber quién las imprime.',
+  'propuestas.imprenta-visible.sin-permiso': 'Solo el vendedor que creó la propuesta o un superior puede cambiarlo.',
+  'propuestas.imprenta-visible.mostrada': 'El cliente ya ve el nombre de la imprenta',
+  'propuestas.imprenta-visible.ocultada': 'El nombre de la imprenta quedó oculto para el cliente',
+  'propuestas.imprenta-visible.error': 'No se pudo cambiar. Reintenta.',
   'propuestas.condiciones.vigencia': 'Vigencia',
   'propuestas.condiciones.vencio': 'Venció el {fecha}: la liga ya no deja aceptarla. Pon otra fecha o vuelve a enviarla.',
   'propuestas.condiciones.hasta': 'El cliente puede aceptarla hasta el {fecha} (ese día incluido).',
@@ -948,6 +956,13 @@ export const EN_PROPUESTAS: Record<ClavePropuestas, string> = {
   'propuestas.codigo.no-admite': 'The proposal is already approved; no negotiation code allowed.',
 
   'propuestas.condiciones.guardadas': 'Terms and validity saved',
+  'propuestas.imprenta-visible.titulo': 'Printer on the client link',
+  'propuestas.imprenta-visible.etiqueta': 'Show the printer to the client on the link',
+  'propuestas.imprenta-visible.ayuda': 'When off, the client sees the progress of their banners without knowing who prints them.',
+  'propuestas.imprenta-visible.sin-permiso': 'Only the salesperson who created the proposal or someone above them can change this.',
+  'propuestas.imprenta-visible.mostrada': 'The client can now see the printer’s name',
+  'propuestas.imprenta-visible.ocultada': 'The printer’s name is now hidden from the client',
+  'propuestas.imprenta-visible.error': 'Could not change it. Please try again.',
   'propuestas.condiciones.vigencia': 'Validity',
   'propuestas.condiciones.vencio':
     'Expired on {fecha}: it can no longer be accepted through the link. Set a new date or send it again.',
@@ -1465,6 +1480,13 @@ export const IT_PROPUESTAS: Record<ClavePropuestas, string> = {
   'propuestas.codigo.no-admite': 'La proposta è già approvata; non ammette codici di negoziazione.',
 
   'propuestas.condiciones.guardadas': 'Condizioni e validità salvate',
+  'propuestas.imprenta-visible.titulo': 'Tipografia nel link del cliente',
+  'propuestas.imprenta-visible.etiqueta': 'Mostra la tipografia al cliente nel link',
+  'propuestas.imprenta-visible.ayuda': 'Se disattivato, il cliente vede l’avanzamento dei suoi teli senza sapere chi li stampa.',
+  'propuestas.imprenta-visible.sin-permiso': 'Solo il commerciale che ha creato la proposta o un suo superiore può modificarlo.',
+  'propuestas.imprenta-visible.mostrada': 'Il cliente ora vede il nome della tipografia',
+  'propuestas.imprenta-visible.ocultada': 'Il nome della tipografia ora è nascosto al cliente',
+  'propuestas.imprenta-visible.error': 'Non è stato possibile modificarlo. Riprova.',
   'propuestas.condiciones.vigencia': 'Validità',
   'propuestas.condiciones.vencio':
     'È scaduta in data {fecha}: il link non permette più di accettarla. Imposta un’altra data o inviala di nuovo.',
@@ -1992,6 +2014,13 @@ export const PT_PROPUESTAS: Record<ClavePropuestas, string> = {
 
   // ── Condiciones y vigencia ──
   'propuestas.condiciones.guardadas': 'Condições e validade salvas',
+  'propuestas.imprenta-visible.titulo': 'Gráfica no link do cliente',
+  'propuestas.imprenta-visible.etiqueta': 'Mostrar a gráfica ao cliente no link',
+  'propuestas.imprenta-visible.ayuda': 'Desligado, o cliente vê o andamento das lonas sem saber quem as imprime.',
+  'propuestas.imprenta-visible.sin-permiso': 'Somente o vendedor que criou a proposta ou um superior pode alterar isso.',
+  'propuestas.imprenta-visible.mostrada': 'O cliente agora vê o nome da gráfica',
+  'propuestas.imprenta-visible.ocultada': 'O nome da gráfica ficou oculto para o cliente',
+  'propuestas.imprenta-visible.error': 'Não foi possível alterar. Tente de novo.',
   'propuestas.condiciones.vigencia': 'Validade',
   'propuestas.condiciones.vencio': 'Vencida desde {fecha}: o link não permite mais aceitá-la. Defina outra data ou envie-a de novo.',
   'propuestas.condiciones.hasta': 'O cliente pode aceitá-la até {fecha} (esse dia incluído).',

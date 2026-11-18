@@ -211,6 +211,72 @@ const PUB = {
   ],
 }
 
+
+// SEGUIMIENTO (17/11) · la liga ya es campaña. Fechas en 2099 a proposito: el
+// componente compara contra el reloj real para el aviso de retraso, y con el
+// arranque tan lejos ese aviso no sale nunca (leccion de `ocupacion-idioma`).
+const PASOS_SEG = (material: string, resto: Record<string, string> = {}) =>
+  (['aceptada', 'confirmada', 'material', 'instalacion', 'al_aire', 'finalizada'] as const).map((clave) => ({
+    clave,
+    estado: clave === 'aceptada' || clave === 'confirmada' ? 'hecho' : clave === 'material' ? material : resto[clave] ?? 'pendiente',
+    fecha: clave === 'aceptada' ? '2026-11-02T10:00:00Z' : clave === 'confirmada' ? '2026-11-03T10:00:00Z' : null,
+  }))
+const SEG_BASE = {
+  folio: 'C-0123',
+  nombre: 'Verano Refrescos',
+  fechaInicio: '2099-12-01',
+  fechaFin: '2099-12-31',
+  cancelada: false,
+  creativos: [] as unknown[],
+  imprenta: [] as unknown[],
+  imprentaListas: 0,
+  proveedores: [] as string[],
+}
+// Lo NORMAL: la imprenta llega sin nombre (`proveedor: null`), porque el
+// dueno la oculta por omision. Las mas atrasadas van primero.
+const SEG_OOH = {
+  ...SEG_BASE,
+  tipo: 'OOH',
+  pasoActual: 'material',
+  mensaje: 'material.imprenta',
+  pasos: PASOS_SEG('actual'),
+  imprenta: [
+    { folio: 'IMP-77', sitioNombre: 'Pantalla Reforma', proveedor: null, material: 'PVC 13 oz', alto: 7.2, ancho: 12.9, estatus: 'IMPRESO', pruebaColorAprobada: true, actualizadoEn: null, avance: 0.8 },
+    { folio: 'IMP-78', sitioNombre: null, proveedor: null, material: null, alto: null, ancho: null, estatus: 'EN_PRODUCCION', pruebaColorAprobada: false, actualizadoEn: null, avance: 0.6 },
+  ],
+  imprentaListas: 1,
+}
+const SEG_DOOH_RECHAZO = {
+  ...SEG_BASE,
+  tipo: 'DOOH',
+  pasoActual: 'material',
+  mensaje: 'material.rechazado',
+  pasos: PASOS_SEG('alerta'),
+  creativos: [{ nombre: 'spot_30s.mp4', formato: 'MP4', resolucion: '1920x1080', estatus: 'RECHAZADA', creadoEn: null }],
+}
+// Corriendo: «al aire» es el paso actual y «terminada» pendiente; el servidor
+// manda `mensaje: 'al_aire'` y el banner NO debe decir «terminó».
+const SEG_HIBRIDA_AL_AIRE = {
+  ...SEG_BASE,
+  tipo: 'HIBRIDA',
+  pasoActual: 'al_aire',
+  mensaje: 'al_aire',
+  pasos: PASOS_SEG('hecho', { instalacion: 'hecho', al_aire: 'actual', finalizada: 'pendiente' }),
+}
+const SEG_CANCELADA = { ...SEG_BASE, tipo: 'OOH', cancelada: true, pasoActual: 'material', mensaje: 'cancelada', pasos: PASOS_SEG('actual') }
+
+// La pagina con seguimiento: `data` es el primer `useState` en `undefined`;
+// luego se saltan `errorAcep` y `aceptadaLocal` (los dos en null) y el
+// tercer null es `seguimiento`.
+async function pintarConSeguimiento(idioma: Idioma, seg: unknown) {
+  forzar(esUndef, { ...PUB, aceptadoEn: '2026-11-02T10:00:00Z', aceptadoPor: 'Ana López', items: [PUB.items[0]] })
+  forzar(esNull, null)
+  forzar(esNull, null)
+  forzar(esNull, seg)
+  const { default: Pagina } = await import('../../app/(app)/p/[id]/page')
+  return pintar(idioma, createElement(Pagina, { params: { id: 'p1' } }))
+}
+
 const PANTALLAS: Pantalla[] = [
   // ─── SHELL ────────────────────────────────────────────────────────────────
   {
@@ -960,6 +1026,91 @@ const PANTALLAS: Pantalla[] = [
     ingles: ['Invalid link', 'This link doesn’t match any proposal.'],
   },
   {
+    nombre: 'cuenta · seguimiento de la campana, lonas en imprenta (sin nombre de la imprenta)',
+    pintar: (idioma) => pintarConSeguimiento(idioma, SEG_OOH),
+    espanol: [
+      'Seguimiento de tu campaña',
+      'Campaña C-0123',
+      'Del 01/12/2099 al 31/12/2099',
+      'Tu campaña está en imprenta',
+      'Sale al aire el 01/12/2099.',
+      'Pasos de tu campaña',
+      'Propuesta aceptada',
+      'Campaña confirmada',
+      '>Ahora<',
+      'Previsto: 01/12/2099',
+      'Tus lonas',
+      '1 de 2 lonas impresas',
+      'Ver tus 2 lonas',
+      'Lona de 12.9 × 7.2 m',
+      'Prueba de color aprobada',
+      'Sitio por confirmar',
+      '>Impresa<',
+      'Ver la propuesta que aceptaste',
+    ],
+    ingles: [
+      'Your campaign tracking',
+      'Campaign C-0123',
+      'Dec 1, 2099 to Dec 31, 2099',
+      'Your campaign is being printed',
+      'Goes live on Dec 1, 2099.',
+      'Your campaign steps',
+      'Proposal accepted',
+      '>Now<',
+      'Expected: Dec 1, 2099',
+      '1 of 2 banners printed',
+      'See your 2 banners',
+      'Banner, 12.9 × 7.2 m',
+      'Color proof approved',
+      'Site to be confirmed',
+      'See the proposal you accepted',
+    ],
+  },
+  {
+    nombre: 'cuenta · seguimiento de la campana, anuncio que necesita un ajuste',
+    pintar: (idioma) => pintarConSeguimiento(idioma, SEG_DOOH_RECHAZO),
+    espanol: [
+      'Tu anuncio necesita un ajuste',
+      'Tu anuncio necesita un cambio antes de salir al aire. Tu asesor te contactará.',
+      'Revisamos tu anuncio',
+      'Requiere atención',
+      'Necesitamos un ajuste en tu anuncio',
+      'Programación en pantallas',
+      'Tus anuncios',
+      'Necesita un ajuste',
+    ],
+    ingles: [
+      'Your ad needs a change',
+      'Your ad needs a change before it can go live. Your account manager will contact you.',
+      'Reviewing your ad',
+      'Needs attention',
+      'We need a change to your ad',
+      'Scheduling on screens',
+      'Your ads',
+    ],
+  },
+  {
+    nombre: 'cuenta · seguimiento de la campana, hibrida al aire y cancelada',
+    pintar: async (idioma) =>
+      (await pintarConSeguimiento(idioma, SEG_HIBRIDA_AL_AIRE)) + (await pintarConSeguimiento(idioma, SEG_CANCELADA)),
+    espanol: [
+      '¡Tu campaña está al aire!',
+      'Al aire hasta el 31/12/2099.',
+      'Preparando tus anuncios',
+      'Instalación y programación',
+      'Campaña terminada',
+      'Esta campaña fue cancelada',
+      'Si tienes dudas, contacta a quien te envió la propuesta.',
+    ],
+    ingles: [
+      'Your campaign is live!',
+      'Live until Dec 31, 2099.',
+      'Preparing your ads',
+      'Installation and scheduling',
+      'This campaign was canceled',
+    ],
+  },
+  {
     // Ola 5 (recorrido en navegador): el boton que cierra el menu lateral en el
     // movil tenia el aria-label «Cerrar menú» escrito a mano, aunque la clave
     // `shell.topbar.cerrar-menu` ya existia para la barra superior.
@@ -1338,5 +1489,39 @@ describe('lote L5 · CUENTA Y SHELL en PORTUGUES', () => {
     expect(html).toContain('O sistema não está disponível no momento')
     const { default: Err } = await import('../../pages/_error')
     expect(renderToStaticMarkup(createElement(Err, { statusCode: 404, idioma: 'pt' }))).toContain('Página não encontrada')
+  })
+})
+
+// ============================================================================
+//  SEGUIMIENTO (17/11) · lo que la liga NO debe ensenar. Los casos de arriba
+//  prueban lo que sale; estos, lo que no: el nombre de la imprenta (oculto por
+//  omision), los folios y estatus internos, y el «termino» de una campana que
+//  sigue corriendo.
+// ============================================================================
+describe('seguimiento en la liga · lo que no se ve', () => {
+  it('sin nombre de la imprenta no hay «Imprime» ni hueco, ni folios ni estatus crudos', async () => {
+    const html = texto(await pintarConSeguimiento('es', SEG_OOH))
+    expect(html).not.toContain('Imprime')
+    expect(html).not.toContain('IMP-77')
+    expect(html).not.toContain('EN_PRODUCCION')
+    expect(html).not.toContain('IMPRESO')
+  })
+  it('con el nombre encendido se dice UNA vez', async () => {
+    const seg = { ...SEG_OOH, proveedores: ['Gráficos del Valle'], imprenta: SEG_OOH.imprenta.map((o) => ({ ...o, proveedor: 'Gráficos del Valle' })) }
+    const html = texto(await pintarConSeguimiento('es', seg))
+    expect(html.split('Imprime: Gráficos del Valle').length - 1).toBe(1)
+  })
+  it('exactamente un paso con aria-current', async () => {
+    const html = await pintarConSeguimiento('es', SEG_OOH)
+    expect(html.split('aria-current="step"').length - 1).toBe(1)
+  })
+  it('corriendo no dice «terminó», y cancelada no pinta los pasos', async () => {
+    expect(texto(await pintarConSeguimiento('es', SEG_HIBRIDA_AL_AIRE))).not.toContain('Tu campaña terminó')
+    expect(texto(await pintarConSeguimiento('es', SEG_CANCELADA))).not.toContain('Pasos de tu campaña')
+  })
+  it('con seguimiento, la propuesta va plegada: sin importes a la vista', async () => {
+    const html = texto(await pintarConSeguimiento('es', SEG_OOH))
+    expect(html).not.toContain('Resumen económico')
+    expect(html).not.toContain('Total que paga el cliente')
   })
 })

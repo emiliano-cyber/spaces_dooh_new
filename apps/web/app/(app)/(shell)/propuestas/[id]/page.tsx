@@ -61,6 +61,7 @@ import {
 import { BloqueCodigoPropuesta } from '@/components/demo/codigos/BloqueCodigoPropuesta'
 import { ElegirClienteDialog } from '@/components/demo/propuestas/ElegirClienteDialog'
 import { BloqueCondicionesVigencia } from '@/components/demo/propuestas/BloqueCondicionesVigencia'
+import { ImprentaVisibleCliente } from '@/components/demo/propuestas/ImprentaVisibleCliente'
 import { EnviarPropuestaDialog } from '@/components/demo/propuestas/EnviarPropuestaDialog'
 import {
   paquetesApi,
@@ -1026,6 +1027,10 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
           editable={puedeEditar && p.estatus !== 'APROBADA'}
         />
       </CardColapsable>
+
+      {/* SEG-CLIENTE (17/11) · solo con campaña: antes no hay seguimiento en
+          la liga y el interruptor no cambiaría nada que el cliente vea. */}
+      {campanas?.some((c) => c.propuestaId === p.id) && <ImprentaVisibleCliente propuestaId={p.id} />}
 
       {/* Mapa con la ubicación de las pantallas. PLEG-02 · plegado, el mapa se
           desmonta: al volver a abrirlo se redibuja con el encuadre inicial. */}

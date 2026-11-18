@@ -55,6 +55,7 @@ archivos:
   - db/migrations/20261029_campana_extensiones.sql
   - db/migrations/20261026_reserva_estatus_por_omision.sql
   - db/migrations/20261112_avisos_por_canal.sql
+  - db/migrations/20261117_propuesta_imprenta_visible.sql
   - db/migrations/20261023_contrato_versiones_firmadas.sql
 ---
 
@@ -74,6 +75,7 @@ archivos:
 >
 > | Migración | Decía | Entró en `main` |
 > |---|---|---|
+> | `20261117_propuesta_imprenta_visible.sql` | rama `feat/seguimiento-campana-publica` (SEG-CLIENTE), **pedida por el dueño el 17/11** (ROJO R3) | **Sin publicar.** Una columna, `propuestas.imprenta_visible` (false). Ver la sección de abajo |
 > | `20261117_propuesta_cambios_por_trigger.sql` | rama `feat/crm-comercial` (ADR 0051, Fase 3), **el dueño eligió el trigger el 17/11** (ROJO R3 + R4) | **Sin publicar.** Triggers en `propuestas` y `propuesta_items` que escriben `propuesta_cambios`; `crm_solo_crece()` deja borrar solo si la organización ya no existe. Probada por las e2e `propuesta-cambios` (17) y `propuestas-por-vendedor` (9) |
 > | `20261117_crm_oportunidades.sql` | rama `feat/crm-comercial` (ADR 0051, Fase 2), **forma aprobada por el dueño el 17/11** (ROJO R3) | **Sin publicar.** Crea `oportunidades`, `oportunidad_actividades` y `propuesta_cambios` (las dos últimas **solo crecen**, por trigger), `propuestas.oportunidad_id` y `clientes_id_tenant_uq`. Probada por la e2e `oportunidades` (28) contra Postgres 16 real |
 > | `20261112_avisos_por_canal.sql` | rama `feat/avisos-por-canal` (AVISOS-CANAL), **aprobada por el dueño el 12/11** (ROJO R3) | **Sin publicar.** Crea `avisos_usuario` y `usuarios.telefono_whatsapp`. Probada por la e2e `avisos-canal` (15) contra Postgres 16 real, idempotencia incluida |
@@ -1450,6 +1452,23 @@ de entidades añadía en paralelo. Si la necesitas, cuéntala, no la copies.
 >
 > Runner ×2 contra base desechable: **94 aplicadas** en la primera pasada, **0**
 > en la segunda, sin divergencia de checksum. Ver [[02-Backend/costo-real-de-ot]].
+
+## `20261117_propuesta_imprenta_visible.sql` — ¿ve el cliente quién imprime? (17/11)
+
+Pedida por el dueño el 17/11 (ROJO R3). `@tipo: esquema`, transaccional e
+idempotente (`add column if not exists`). Añade `propuestas.imprenta_visible
+boolean not null default false`, con comentario de columna.
+
+- **`false` para todas las filas existentes**: al aplicarla nadie ve un nombre
+  de imprenta que antes no veía. Decisión del dueño: «lo de la imprenta por
+  default está siempre oculto».
+- Vive en la propuesta y no en la campaña: la liga es de la propuesta y el
+  dueño del permiso (el vendedor creador, `usuario_id`) también.
+- Ninguna tabla nueva; no toca RLS ni grants (la columna hereda los de
+  `propuestas`).
+- Vuelta atrás: el código anterior ignora la columna.
+
+Ver [[02-Backend/comercial-propuestas-campanas]] (§ Seguimiento en la liga).
 
 ## `20261117_propuesta_cambios_por_trigger.sql` — el historial de propuestas lo escribe la base (17/11)
 

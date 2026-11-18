@@ -494,6 +494,9 @@ export const CATALOGO_ERRORES: Record<string, string> = {
     'Only the Owner or an Administrator can delete users',
   'Solo el Dueño puede cambiar los permisos':
     'Only the Owner can change permissions',
+  // 1 sitio · lib/server/imprenta-visible-controller.ts:32
+  'Solo el vendedor que creó la propuesta o un superior puede mostrar la imprenta al cliente':
+    'Only the salesperson who created the proposal or someone above them can show the printer to the client',
   'Los permisos del Dueño no se cambian: siempre los tiene todos':
     'The Owner’s permissions can’t be changed: they always have all of them',
   'Ese rol no existe o ya no se usa':
@@ -1125,6 +1128,8 @@ export const CATALOGO_ERRORES_IT: Partial<Record<string, string>> = {
     'Solo il Titolare o un Amministratore possono eliminare utenti',
   'Solo el Dueño puede cambiar los permisos':
     'Solo il Titolare può modificare i permessi',
+  'Solo el vendedor que creó la propuesta o un superior puede mostrar la imprenta al cliente':
+    'Solo il commerciale che ha creato la proposta o un suo superiore può mostrare la tipografia al cliente',
   'Los permisos del Dueño no se cambian: siempre los tiene todos':
     'I permessi del Titolare non si modificano: li ha sempre tutti',
   'Ese rol no existe o ya no se usa':
@@ -1560,6 +1565,8 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
     'Somente o Titular ou um Administrador podem excluir usuários',
   'Solo el Dueño puede cambiar los permisos':
     'Somente o Titular pode alterar as permissões',
+  'Solo el vendedor que creó la propuesta o un superior puede mostrar la imprenta al cliente':
+    'Somente o vendedor que criou a proposta ou um superior pode mostrar a gráfica ao cliente',
   'Los permisos del Dueño no se cambian: siempre los tiene todos':
     'As permissões do Titular não podem ser alteradas: ele sempre tem todas',
   'Ese rol no existe o ya no se usa':
