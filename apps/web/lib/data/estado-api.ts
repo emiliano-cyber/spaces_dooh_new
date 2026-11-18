@@ -1013,7 +1013,7 @@ export async function crearCreatividadApi(input: {
   codigo?: string | null
   formato?: string | null
   resolucion?: string | null
-}): Promise<void> {
+}, opciones: { refrescar?: boolean } = {}): Promise<{ id: string }> {
   const r = await fetch(`${API}/creatividades/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1021,7 +1021,10 @@ export async function crearCreatividadApi(input: {
   })
   const d = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error((d as any).error ?? 'No se pudo subir el creativo')
-  await refrescarEstado()
+  // «Actualizar campaña» (18/11) necesita el id para aprobarlo en el mismo
+  // paso, y encadena varias llamadas: refresca una sola vez al final.
+  if (opciones.refrescar !== false) await refrescarEstado()
+  return { id: (d as { id: string }).id }
 }
 
 export async function validarCreatividadApi(

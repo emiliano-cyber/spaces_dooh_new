@@ -492,6 +492,8 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 1 sitio · lib/server/usuarios-controller.ts:251
   'Solo el Dueño o un Administrador pueden eliminar usuarios':
     'Only the Owner or an Administrator can delete users',
+  'Solo el Dueño o un Administrador pueden aprobar o rechazar la publicación':
+    'Only the Owner or an Administrator can approve or reject the publication',
   'Solo el Dueño puede cambiar los permisos':
     'Only the Owner can change permissions',
   'Los permisos del Dueño no se cambian: siempre los tiene todos':
@@ -1099,6 +1101,8 @@ export const CATALOGO_ERRORES_IT: Partial<Record<string, string>> = {
     'Non è arrivato nessun file.',
   'Solo el Dueño o un Administrador pueden eliminar usuarios':
     'Solo il Titolare o un Amministratore possono eliminare utenti',
+  'Solo el Dueño o un Administrador pueden aprobar o rechazar la publicación':
+    'Solo il Titolare o un Amministratore possono approvare o rifiutare la pubblicazione',
   'Solo el Dueño puede cambiar los permisos':
     'Solo il Titolare può modificare i permessi',
   'Los permisos del Dueño no se cambian: siempre los tiene todos':
@@ -1510,6 +1514,8 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
   'No llego ningun archivo.': 'Nenhum arquivo chegou.',
   'Solo el Dueño o un Administrador pueden eliminar usuarios':
     'Somente o Titular ou um Administrador podem excluir usuários',
+  'Solo el Dueño o un Administrador pueden aprobar o rechazar la publicación':
+    'Somente o Titular ou um Administrador podem aprovar ou rejeitar a publicação',
   'Solo el Dueño puede cambiar los permisos':
     'Somente o Titular pode alterar as permissões',
   'Los permisos del Dueño no se cambian: siempre los tiene todos':

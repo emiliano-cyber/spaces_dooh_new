@@ -18,6 +18,7 @@ import { ValidacionPanel } from '@/components/demo/campanas/ValidacionPanel'
 import { EvidenciaGaleria } from '@/components/demo/campanas/EvidenciaGaleria'
 import { PlaylogsPanel } from '@/components/demo/campanas/PlaylogsPanel'
 import { AgregarCreativo } from '@/components/demo/campanas/AgregarCreativo'
+import { ActualizarCampana } from '@/components/demo/campanas/ActualizarCampana'
 import { FranjaProgramadaCampana } from '@/components/demo/campanas/FranjaProgramadaCampana'
 import { ResumenCampana } from '@/components/demo/campanas/ResumenCampana'
 import { ListaImpresionCampana, ListaOTCampana } from '@/components/demo/campanas/ListasCampana'
@@ -199,12 +200,17 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
                   : t('campanas.ficha.creativos.por-aprobar')}
             </StatusBadge>
           </h2>
-          <Link
-            href={withTrail('/creativos', trail)}
-            className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline"
-          >
-            {t('campanas.ficha.creativos.gestionar')} <ExternalLink className="h-3.5 w-3.5" />
-          </Link>
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            {/* 18/11 · cambiar creativos de una campaña ya publicada en un paso
+                (solo aparece con la publicación aprobada; ver el componente). */}
+            <ActualizarCampana campanaId={id} />
+            <Link
+              href={withTrail('/creativos', trail)}
+              className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline"
+            >
+              {t('campanas.ficha.creativos.gestionar')} <ExternalLink className="h-3.5 w-3.5" />
+            </Link>
+          </div>
         </div>
         <div className="space-y-3">
           {misCreas.length > 0 ? (

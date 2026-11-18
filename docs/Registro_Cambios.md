@@ -5,6 +5,20 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-18 · «Actualizar campaña»: cambiar creativos y volver a mandar a DOOHmain en un solo paso
+
+- En la ficha de una campaña digital que **ya está publicada**, junto a **Creativos**, aparece el botón **Actualizar campaña**.
+- Abre una ventana con los creativos de la campaña: en cada uno eliges **Conservar** o **Eliminar**.
+- Ahí mismo subes los creativos nuevos (puedes elegir varias imágenes a la vez, o pegar código) y los ves antes de mandarlos. Junto a cada uno está la pregunta **«¿Apruebas este creativo?»**.
+- El botón **Actualizar y enviar a DOOHmain** hace todo junto: sube lo nuevo, elimina lo que marcaste, aprueba lo que palomeaste y lo manda a DOOHmain. Al terminar enseña qué pasó en cada pantalla.
+- Antes eran cuatro pasos en tres lugares: subir en la ficha, aprobar en Creativos, borrar uno por uno y pulsar «Volver a publicar». Esos caminos siguen funcionando igual.
+- No te deja quedarte sin ningún creativo aprobado: las pantallas no tendrían nada que pasar.
+- Si algo falla a la mitad, se detiene y te dice qué sí se hizo.
+- **Aprobar desde la ficha de campaña es solo del Dueño y del Administrador**: la pregunta «¿Apruebas este creativo?» y los botones **Aprobar / Rechazar** de la publicación solo les aparecen a ellos. Los demás ven el aviso de que espera su aprobación; si actualizan la campaña, lo que suben queda pendiente.
+- La pantalla **Creativos** no cambia: ahí se sigue aprobando como hasta hoy.
+
+---
+
 ## 2026-11-17 · «Prospección» sube al primer lugar de Inventario
 
 - En el menú, **Prospección** ahora es la **primera** entrada del grupo **Inventario**, antes que Inventario y Arrendadores (antes iba debajo de Arrendadores).
