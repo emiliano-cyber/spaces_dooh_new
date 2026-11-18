@@ -19,6 +19,8 @@ Pedido del dueño: «se debe dejar en claro y mostrar el ejemplo de cómo se ver
 - **Al abrir un arte ya subido** para aprobarlo o rechazarlo se ve la misma lona y la misma valoración (sin formato ni peso, que ya no se conservan).
 - Las cifras de referencia son **orientativas**: en lonas de 6 m o más (se ven de lejos) sirve con 10 DPI; en lonas más chicas, que se ven de cerca, con 30.
 - En español, inglés, italiano y portugués, con los números en el formato de cada idioma.
+- **También desde la ficha de la campaña**: al subir una imagen se ve la misma lona y la misma valoración, con los sitios fijos de la campaña (si son varios, se elige contra cuál revisar).
+- **El arte de una campaña fija (OOH) puede pesar hasta 15 MB** (antes 4). Las campañas híbridas y digitales siguen en 4 MB, porque ese arte también va a las pantallas. **Falta un paso en cada servidor** (lo hace una persona): mientras no se actualice la configuración de nginx, un arte de más de ~9 MB se rechaza al subirlo.
 
 ## 2026-11-18 · Propuestas › Seguimiento: las tarjetas se arrastran de una columna a otra
 

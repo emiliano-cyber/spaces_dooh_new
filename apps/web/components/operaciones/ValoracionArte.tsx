@@ -229,11 +229,14 @@ export function PanelValoracion({
   lona,
   pixeles,
   html,
+  maxMb = IMAGEN_CREATIVO_MAX_MB,
 }: {
   v: Valoracion
   lona: Lona | null
   pixeles: { ancho: number; alto: number } | null
   html?: boolean
+  // Tope de subida para este arte (`topeArteMb`): 15 MB una OOH, 4 el resto.
+  maxMb?: number
 }) {
   const { t, idioma } = useIdioma()
   const n = (x: number, d = 0) => formatNumero(x, d, idioma)
@@ -318,7 +321,7 @@ export function PanelValoracion({
           <Linea s={v.peso.semaforo}>
             {t(
               v.peso.semaforo === 'verde' ? 'operaciones.imprenta.valoracion.peso.verde' : 'operaciones.imprenta.valoracion.peso.rojo',
-              { mb: n(v.peso.mb, 1), max: n(IMAGEN_CREATIVO_MAX_MB) },
+              { mb: n(v.peso.mb, 1), max: n(maxMb) },
             )}
           </Linea>
         )}
@@ -343,6 +346,7 @@ export function RevisionArte({
   tipo,
   bytes,
   creativo,
+  maxMb = IMAGEN_CREATIVO_MAX_MB,
 }: {
   medida: { ancho: number; alto: number } | null
   src: string | null
@@ -352,6 +356,7 @@ export function RevisionArte({
   bytes?: number | null
   // Para pintar un creativo en código con `ArteEnSitio` (no se puede medir).
   creativo?: CreativoDeImpresion
+  maxMb?: number
 }) {
   const { t, idioma } = useIdioma()
   const [modo, setModo] = useState<Modo>('cover')
@@ -371,7 +376,7 @@ export function RevisionArte({
   const v = valorarArte(
     lona,
     { anchoPx: imagen ? pixeles?.ancho ?? null : null, altoPx: imagen ? pixeles?.alto ?? null : null, tipo, bytes },
-    IMAGEN_CREATIVO_MAX_MB,
+    maxMb,
   )
   const recorta = v.proporcion != null && v.proporcion.semaforo !== 'verde'
 
@@ -422,7 +427,7 @@ export function RevisionArte({
         )}
       </div>
       <div className="min-w-0">
-        <PanelValoracion v={v} lona={lona} pixeles={imagen ? pixeles : null} html={!imagen} />
+        <PanelValoracion v={v} lona={lona} pixeles={imagen ? pixeles : null} html={!imagen} maxMb={maxMb} />
       </div>
     </div>
   )

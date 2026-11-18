@@ -28,6 +28,9 @@ archivos:
   - apps/web/components/operaciones/ArteEnSitio.tsx
   - apps/web/components/operaciones/ValoracionArte.tsx
   - apps/web/lib/valoracion-arte.ts
+  - apps/web/lib/arte-impresion.ts
+  - apps/web/components/demo/campanas/AgregarCreativo.tsx
+  - infra/nginx/instancia.conf.tpl
   - apps/web/app/api/creativos/[id]/arte/route.ts
   - apps/web/lib/server/creativos-repo.ts
   - apps/web/lib/data/derive.ts
@@ -212,10 +215,49 @@ con `renderToStaticMarkup` y lee los textos). Dos mutantes, uno en cada archivo
 (invertir costados/arriba-abajo; la fórmula del recorte), muertos. Textos en
 es/en/it/pt (`operaciones.imprenta.valoracion.*`).
 
+#### Respuestas del dueño (18/11, misma tarde)
+
+- **El arte de la ficha también pasa por la revisión.** `AgregarCreativo`
+  (ficha de campaña) abre la misma lona y la misma valoración al elegir una
+  imagen, contra los sitios FIJOS de la campaña con medida
+  (`lonasDeCampana`, `lib/arte-impresion.ts`; manda la medida de la orden de
+  impresión del sitio si la hay) y con un selector si hay varias. En una OOH
+  no se pinta la vista del player (no va a pantalla); en una híbrida, las dos.
+  No se tocó `campanas/[id]/page.tsx`: el componente lee sus propios hooks.
+- **Tope del arte de impresión: 15 MB, solo campañas OOH** (`topeArteMb`).
+  Híbridas y digitales siguen en 4 MB (comparten el arte con sus pantallas).
+  Por encima de 4 MB la imagen viaja SOLA en `archivoUrl` (`cuerpoArte`), no
+  envuelta: el servidor ya aceptaba 15 MB por esa vía
+  (`LIMITES.creatividadImagen`, tipo real por magic bytes), así que **no se
+  abrió ningún endpoint ni se tocó `creativos-controller.ts`**. `/arte/` y
+  DOOHmain ya leían ese caso.
+  - **Por qué 15 y no 25**: el arte vive como data URL en la base. 15 MB son
+    ~20 MB por fila (y por respaldo). 25 MB serían ~33 MB solos, y envueltos
+    —la envoltura guarda la imagen dos veces— ~67 MB por fila y ~250 MB de
+    memoria de Node por subida. Hoy el máximo era ~10,7 MB por fila.
+  - Ojo: `crearCreatividad` responde con `returning *` y devuelve el data URL
+    entero; con 15 MB son ~20 MB de vuelta. Funciona, pero conviene recortarlo.
+  - **nginx (R6)**: las plantillas cortan a 12M por servidor. Cada `location /`
+    que hace proxy en `instancia.conf.tpl`, `demo.space-os.io.conf`,
+    `padre-ip.conf` y los cuatro bloques de `space-os.io.conf` lleva ahora una
+    `location ~ ^/spaces-dooh/api/creatividades/?$` anidada con
+    `client_max_body_size 22M` (hereda cabeceras y tiempos; repite
+    `proxy_pass`). Prueba: `lib/arte-impresion.test.ts`. **No se aplicó en
+    ningún servidor.** En cada uno, una persona: copia el archivo que le toca
+    a `/etc/nginx/sites-available/`, `sudo nginx -t` y, si sale bien,
+    `sudo systemctl reload nginx`. En una instancia, regenerar su conf desde
+    `instancia.conf.tpl` con su dominio (el mismo paso de aprovisionamiento).
+    Hasta que se haga, un arte de más de ~9 MB recibe 413 de nginx.
+- **Umbrales configurables (por imprenta): PARADO, pide migración.** No hay
+  tabla de imprentas (el proveedor de la orden es texto libre,
+  `ordenes_impresion.proveedor`) ni un JSON de configuración genérico en
+  `config_negocio` (`costos_ot` es jsonb pero saneado a su forma). Hasta que
+  se decida, mandan las constantes de `lib/valoracion-arte.ts`.
+- **Un arte en rojo solo avisa**, como estaba.
+
 > [!warning] Lo que NO se verificó
-> El navegador (lo prueba el orquestador en Chrome) ni la ficha de campaña: el
-> arte de una OOH que se sube desde la ficha **no** pasa todavía por esta
-> revisión (ese archivo lo tenía otro agente el 18/11).
+> El navegador (lo prueba el orquestador en Chrome), `nginx -t` (no hay nginx
+> en esta máquina) ni una subida real de 15 MB contra el servidor.
 
 ## Cómo se ven las pantallas (rediseño del 26/10)
 

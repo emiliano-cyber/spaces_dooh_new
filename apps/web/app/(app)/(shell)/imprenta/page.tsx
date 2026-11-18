@@ -38,7 +38,7 @@ import {
   type EstOrdenImpresion,
 } from '@/lib/data/client'
 import type { OrdenImpresion, CreativoDeImpresion, EstValidacionCreatividad } from '@/lib/data/types'
-import { imagenAHtml, IMAGEN_CREATIVO_MAX_MB } from '@/lib/creativo-html'
+import { cuerpoArte, topeArteMb } from '@/lib/arte-impresion'
 import {
   priorizarImpresion,
   conteoPorGrupo,
@@ -195,23 +195,28 @@ export default function ImprentaPage() {
     reader.readAsDataURL(f)
   }
 
-  // El arte se guarda como el de Creativos (`imagenAHtml`): así una campaña
-  // híbrida no estrena un formato que el player DOOH no conoce, y `/arte/`
-  // sirve la imagen de dentro para la vista previa.
+  // Hasta 4 MB el arte se guarda como el de Creativos (`imagenAHtml`): así una
+  // campaña híbrida no estrena un formato que el player DOOH no conoce. Una
+  // OOH puede subir hasta 15 MB y, por encima de 4, la imagen va SOLA en
+  // `archivoUrl` (`lib/arte-impresion.ts` explica por qué: memoria y respaldos).
   async function subirArte(p: ArchivoPorSubir) {
-    if (p.archivo.size > IMAGEN_CREATIVO_MAX_MB * 1024 * 1024) {
-      toast.error(t('operaciones2.creativos.imagen-supera', { mb: IMAGEN_CREATIVO_MAX_MB }))
+    const tope = topeArteMb(p.orden.tipoCampana)
+    if (p.archivo.size > tope * 1024 * 1024) {
+      toast.error(t('operaciones2.creativos.imagen-supera', { mb: tope }))
       return
     }
     setPorSubir(null)
     setSubiendoPara(p.orden.id)
     try {
-      await crearCreatividadApi({
-        campanaId: p.orden.campanaId,
-        nombre: p.archivo.name,
-        codigo: imagenAHtml(p.dataUrl, p.archivo.name),
-        formato: 'text/html',
-      })
+      await crearCreatividadApi(
+        cuerpoArte({
+          campanaId: p.orden.campanaId,
+          nombre: p.archivo.name,
+          dataUrl: p.dataUrl,
+          tipo: p.archivo.type,
+          bytes: p.archivo.size,
+        }),
+      )
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('operaciones.imprenta.arte.no-subir'))
     }
@@ -725,10 +730,11 @@ function ConfirmarArteDialog({
   const t = useTexto()
   if (!porSubir) return null
   const { orden, archivo, dataUrl, pixeles } = porSubir
+  const tope = topeArteMb(orden.tipoCampana)
   const v = valorarArte(
     orden.medida,
     { anchoPx: pixeles?.ancho ?? null, altoPx: pixeles?.alto ?? null, tipo: archivo.type, bytes: archivo.size },
-    IMAGEN_CREATIVO_MAX_MB,
+    tope,
   )
   const pesoExcedido = v.peso?.semaforo === 'rojo'
   return (
@@ -759,6 +765,7 @@ function ConfirmarArteDialog({
           pixeles={pixeles}
           tipo={archivo.type}
           bytes={archivo.size}
+          maxMb={tope}
         />
       </div>
     </Modal>

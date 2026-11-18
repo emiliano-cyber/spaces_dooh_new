@@ -54,6 +54,11 @@ describe('RevisionArte', () => {
     expect(s).toContain('pasa del tope de 4 MB: no se puede subir')
   })
 
+  it('con el tope del arte de impresión (OOH), 10 MB sirven y lo dice con su tope', () => {
+    const s = html({ medida: { ancho: 12.9, alto: 7.2 }, src: PNG, imagen: true, pixeles: { ancho: 12900, alto: 7200 }, tipo: 'image/jpeg', bytes: 10 * 1024 * 1024, maxMb: 15 })
+    expect(s).toContain('Archivo de 10.0 MB (tope 15 MB)')
+  })
+
   it('sin medida de la lona no se dibuja ni se inventa una valoración', () => {
     const s = html({ medida: null, src: PNG, imagen: true, pixeles: { ancho: 1920, alto: 1080 } })
     expect(s).not.toContain('<svg')

@@ -275,6 +275,7 @@ export const ES_OPERACIONES = {
   'operaciones.imprenta.valoracion.confirmar.titulo': 'Revisa el arte antes de subirlo',
   'operaciones.imprenta.valoracion.confirmar.subir-igual': 'Subir de todos modos',
   'operaciones.imprenta.valoracion.confirmar.no-leer': 'No se pudo leer el archivo',
+  'operaciones.imprenta.valoracion.revisar-contra': 'Revisar contra la lona de',
 } as const
 
 export type ClaveOperaciones = keyof typeof ES_OPERACIONES
@@ -524,6 +525,7 @@ export const EN_OPERACIONES: Record<ClaveOperaciones, string> = {
   'operaciones.imprenta.valoracion.confirmar.titulo': 'Check the artwork before uploading it',
   'operaciones.imprenta.valoracion.confirmar.subir-igual': 'Upload anyway',
   'operaciones.imprenta.valoracion.confirmar.no-leer': 'Could not read the file',
+  'operaciones.imprenta.valoracion.revisar-contra': 'Check against the banner at',
 }
 
 // ─── ITALIANO · ola 0 (2026-11-03) ──────────────────────────────────────────
@@ -791,6 +793,7 @@ export const IT_OPERACIONES: Record<ClaveOperaciones, string> = {
   'operaciones.imprenta.valoracion.confirmar.titulo': 'Controlla la grafica prima di caricarla',
   'operaciones.imprenta.valoracion.confirmar.subir-igual': 'Carica comunque',
   'operaciones.imprenta.valoracion.confirmar.no-leer': 'Impossibile leggere il file',
+  'operaciones.imprenta.valoracion.revisar-contra': 'Verifica sul telo di',
 }
 
 // ─── PORTUGUES (pt-BR) · lote L3 (2026-11-05): COMPLETO ─────────────────────
@@ -1052,4 +1055,5 @@ export const PT_OPERACIONES: Record<ClaveOperaciones, string> = {
   'operaciones.imprenta.valoracion.confirmar.titulo': 'Confira a arte antes de enviá-la',
   'operaciones.imprenta.valoracion.confirmar.subir-igual': 'Enviar mesmo assim',
   'operaciones.imprenta.valoracion.confirmar.no-leer': 'Não foi possível ler o arquivo',
+  'operaciones.imprenta.valoracion.revisar-contra': 'Conferir com a lona de',
 }
