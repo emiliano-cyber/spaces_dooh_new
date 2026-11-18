@@ -888,6 +888,10 @@ export async function obtenerPropuestaPublica(codigo: string, opts: { conFotos?:
     items: armado.items.map((it) => {
       const s = byId.get(it.sitioId)
       return {
+        // FOTOS-UBIC (18/11) · con qué pedir «Ver fotos y ubicación» de ESTE
+        // renglón (`/api/propuestas/publica/<token>/sitios/<sitioId>`). El id
+        // ya viajaba en `paquete.sitios`; sin el token no abre nada.
+        sitioId: it.sitioId,
         sitioNombre: s?.nombre ?? it.sitioId,
         alcaldia: s?.alcaldia ?? null,
         tipoMedio: s?.tipo_medio ?? null,

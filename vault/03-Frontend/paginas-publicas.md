@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-11-17
+actualizado: 2026-11-18
 tags: [frontend, publico, tokens, amarillo]
 archivos:
   - apps/web/app/(app)/portal/[token]/
@@ -14,6 +14,8 @@ archivos:
   - apps/web/components/demo/rejilla/AvisoFranjaCMS.tsx
   - apps/web/components/demo/propuestas/SeguimientoCampana.tsx
   - apps/web/lib/seguimiento-campana.ts
+  - apps/web/components/demo/propuestas/FotosYUbicacionSitio.tsx
+  - apps/web/lib/server/fotos-sitio-publico-controller.ts
 ---
 
 # Páginas públicas (sin sesión)
@@ -104,6 +106,19 @@ alguna empezara a leer la cookie, la exención se vuelve un agujero.
 >   corriendo vale «finalizada».
 > - Pruebas: `lib/i18n/pantallas-cuenta-shell.test.ts` (tres estados en cuatro
 >   idiomas y lo que NO debe verse).
+
+## Fotos y ubicación de cada pantalla
+
+> [!note] 2026-11-18 · «Ver fotos y ubicación» en `/p/[id]` (FOTOS-UBIC)
+> Cada renglón de sitios lleva el botón «Ver fotos y ubicación», que abre un
+> cuadro con la galería de la pantalla (foto grande + miniaturas), la dirección,
+> la zona, las coordenadas con enlace a Google Maps y un mapa chico. Las fotos
+> se piden **al abrir** a `GET /api/propuestas/publica/[id]/sitios/[sitioId]`,
+> con el mismo token de la liga: `/api/sitios/:id/media` exige sesión y **no se
+> abrió**. La ruta solo responde sitios que son renglón de ESA propuesta, y solo
+> ubicación y fotos (lista blanca en el controller). Un servidor anterior sin
+> `items[].sitioId` no enseña el botón. Detalle en
+> [[comercial-propuestas-campanas]].
 
 ## Marca en las páginas de cara al cliente
 

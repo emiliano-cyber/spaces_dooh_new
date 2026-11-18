@@ -5,6 +5,20 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-18 · sin versión todavía · Propuestas: «Ver fotos y ubicación» de cada sitio, también para el cliente
+
+Pedido del dueño: añadir el cuadro para ver las fotos de la pantalla y del lugar en la propuesta, por cada sitio, tanto en nuestra ficha como en la que ve el cliente. Todavía no está en ninguna versión publicada.
+
+- **Cada sitio de la propuesta tiene ahora el botón «Ver fotos y ubicación».** Abre un cuadro con las fotos de la pantalla (una grande y, debajo, las demás en chico para ir cambiando), la dirección, la zona, las coordenadas que abren Google Maps y un mapa pequeño con el punto.
+- **Está en los dos lados**: en la ficha de la propuesta que usamos dentro del sistema y en la liga que se le manda al cliente.
+- **En nuestra ficha, cada sitio enseña además su dirección completa y sus coordenadas**, como ya las veía el cliente. Antes solo decía la alcaldía.
+- **El cliente solo ve las fotos y la ubicación de las pantallas de SU propuesta**: ni las de otras propuestas, ni las de otra empresa, ni nada del arrendador, la renta o los costos.
+- Las fotos son las mismas que se suben en la ficha de la pantalla. Si una pantalla todavía no tiene fotos, el cuadro lo dice y enseña igual la ubicación.
+- Las fotos se cargan solo al abrir el cuadro, para que la propuesta no tarde más en abrir.
+- Está en español, inglés, italiano y portugués.
+
+---
+
 ## 2026-11-18 · sin versión todavía · Propuestas: «Embudo» pasa a llamarse «Seguimiento» y se ve por columnas
 
 Pedido del dueño, el mismo día: quitar la pestaña «Oportunidades» porque era casi igual al embudo, y que el embudo se llame «Seguimiento». Todavía no está en ninguna versión publicada.

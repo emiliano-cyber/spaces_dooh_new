@@ -558,6 +558,19 @@ export const ES_PROPUESTAS = {
   'propuestas.documento.aceptada-en-linea': 'ACEPTADA EN LÍNEA',
   'propuestas.documento.acepta-cliente': 'ACEPTA EL CLIENTE',
   'propuestas.documento.firma': 'Nombre, firma y fecha',
+  // FOTOS-UBIC (18/11) · el cuadro «Ver fotos y ubicación» de cada sitio, en
+  // la ficha interna y en la liga del cliente.
+  'propuestas.fotos.boton': 'Ver fotos y ubicación',
+  'propuestas.fotos.titulo': 'Fotos y ubicación',
+  'propuestas.fotos.cargando': 'Cargando fotos…',
+  'propuestas.fotos.sin-fotos': 'Esta pantalla todavía no tiene fotos.',
+  'propuestas.fotos.error': 'No se pudieron cargar las fotos.',
+  'propuestas.fotos.foto-n': 'Foto {n} de {total}',
+  'propuestas.fotos.ver-foto': 'Ver la foto {n}',
+  'propuestas.fotos.ubicacion': 'Ubicación',
+  'propuestas.fotos.abrir-mapa': 'Abrir en Google Maps',
+  'propuestas.fotos.sin-coords': 'Sin coordenadas capturadas: la referencia es la dirección.',
+  'propuestas.fotos.sin-direccion': 'Dirección no capturada',
 } as const
 
 export type ClavePropuestas = keyof typeof ES_PROPUESTAS
@@ -1069,6 +1082,19 @@ export const EN_PROPUESTAS: Record<ClavePropuestas, string> = {
   'propuestas.documento.aceptada-en-linea': 'ACCEPTED ONLINE',
   'propuestas.documento.acepta-cliente': 'CLIENT ACCEPTANCE',
   'propuestas.documento.firma': 'Name, signature and date',
+  // FOTOS-UBIC (18/11) · el cuadro «Ver fotos y ubicación» de cada sitio, en
+  // la ficha interna y en la liga del cliente.
+  'propuestas.fotos.boton': 'View photos and location',
+  'propuestas.fotos.titulo': 'Photos and location',
+  'propuestas.fotos.cargando': 'Loading photos…',
+  'propuestas.fotos.sin-fotos': 'This screen has no photos yet.',
+  'propuestas.fotos.error': 'The photos could not be loaded.',
+  'propuestas.fotos.foto-n': 'Photo {n} of {total}',
+  'propuestas.fotos.ver-foto': 'View photo {n}',
+  'propuestas.fotos.ubicacion': 'Location',
+  'propuestas.fotos.abrir-mapa': 'Open in Google Maps',
+  'propuestas.fotos.sin-coords': 'No coordinates entered: use the address as reference.',
+  'propuestas.fotos.sin-direccion': 'Address not entered',
 }
 
 // ─── ITALIANO · lote L2 «Comercial y propuestas» (2026-11-03) ──────────────
@@ -1594,6 +1620,19 @@ export const IT_PROPUESTAS: Record<ClavePropuestas, string> = {
   'propuestas.documento.aceptada-en-linea': 'ACCETTATA ONLINE',
   'propuestas.documento.acepta-cliente': 'ACCETTAZIONE DEL CLIENTE',
   'propuestas.documento.firma': 'Nome, firma e data',
+  // FOTOS-UBIC (18/11) · el cuadro «Ver fotos y ubicación» de cada sitio, en
+  // la ficha interna y en la liga del cliente.
+  'propuestas.fotos.boton': 'Vedi foto e posizione',
+  'propuestas.fotos.titulo': 'Foto e posizione',
+  'propuestas.fotos.cargando': 'Caricamento delle foto…',
+  'propuestas.fotos.sin-fotos': 'Questo schermo non ha ancora foto.',
+  'propuestas.fotos.error': 'Impossibile caricare le foto.',
+  'propuestas.fotos.foto-n': 'Foto {n} di {total}',
+  'propuestas.fotos.ver-foto': 'Vedi la foto {n}',
+  'propuestas.fotos.ubicacion': 'Posizione',
+  'propuestas.fotos.abrir-mapa': 'Apri in Google Maps',
+  'propuestas.fotos.sin-coords': 'Coordinate non inserite: il riferimento è l’indirizzo.',
+  'propuestas.fotos.sin-direccion': 'Indirizzo non inserito',
 }
 
 // ─── PORTUGUES (pt-BR) · lote L2 (2026-11-05) ──────────────────────────────
@@ -2133,4 +2172,17 @@ export const PT_PROPUESTAS: Record<ClavePropuestas, string> = {
   'propuestas.documento.aceptada-en-linea': 'ACEITA ON-LINE',
   'propuestas.documento.acepta-cliente': 'ACEITE DO CLIENTE',
   'propuestas.documento.firma': 'Nome, assinatura e data',
+  // FOTOS-UBIC (18/11) · el cuadro «Ver fotos y ubicación» de cada sitio, en
+  // la ficha interna y en la liga del cliente.
+  'propuestas.fotos.boton': 'Ver fotos e localização',
+  'propuestas.fotos.titulo': 'Fotos e localização',
+  'propuestas.fotos.cargando': 'Carregando as fotos…',
+  'propuestas.fotos.sin-fotos': 'Esta tela ainda não tem fotos.',
+  'propuestas.fotos.error': 'Não foi possível carregar as fotos.',
+  'propuestas.fotos.foto-n': 'Imagem {n} de {total}',
+  'propuestas.fotos.ver-foto': 'Abrir a imagem {n}',
+  'propuestas.fotos.ubicacion': 'Localização',
+  'propuestas.fotos.abrir-mapa': 'Abrir no Google Maps',
+  'propuestas.fotos.sin-coords': 'Sem coordenadas cadastradas: a referência é o endereço.',
+  'propuestas.fotos.sin-direccion': 'Endereço não cadastrado',
 }

@@ -15,6 +15,7 @@ import { claveTipoMedio } from '@/components/demo/comercial/claves'
 import { etiquetaTipoMedio } from '@/lib/tipo-medio'
 import { SeguimientoCampana } from '@/components/demo/propuestas/SeguimientoCampana'
 import type { Seguimiento } from '@/lib/seguimiento-campana'
+import { FotosYUbicacionSitio } from '@/components/demo/propuestas/FotosYUbicacionSitio'
 
 const API = '/spaces-dooh/api'
 
@@ -24,6 +25,9 @@ interface ItemPub {
   franjaId?: string | null
   franjaNombre?: string | null
   franjaHorario?: string | null
+  // FOTOS-UBIC (18/11) · con qué pedir las fotos del renglón. Opcional: un
+  // servidor anterior no lo manda, y entonces no se ofrece el botón.
+  sitioId?: string
   sitioNombre: string
   alcaldia: string | null
   tipoMedio: string | null
@@ -300,6 +304,18 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
                           {it.lat.toFixed(5)}, {it.lng.toFixed(5)}
                         </span>
                       </a>
+                    )}
+                    {/* FOTOS-UBIC (18/11) · «ver fotos de la pantalla y lugar».
+                        Va por la ruta PÚBLICA con el mismo token de la liga:
+                        `/api/sitios/:id/media` exige sesión y el cliente no
+                        la tiene. Las fotos se piden al abrir, no aquí. */}
+                    {it.sitioId && (
+                      <div className="mt-1.5">
+                        <FotosYUbicacionSitio
+                          sitio={{ ...it, nombre: it.sitioNombre }}
+                          urlFotos={`${API}/propuestas/publica/${params.id}/sitios/${it.sitioId}/`}
+                        />
+                      </div>
                     )}
                   </div>
                   <span className="demo-num shrink-0 text-[13px] text-ink">{formatMonto(it.precio, idioma)}</span>

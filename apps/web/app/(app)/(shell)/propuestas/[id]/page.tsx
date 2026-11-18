@@ -37,7 +37,12 @@ import {
   Trash2,
   Copy,
   Plus,
+  ExternalLink,
 } from 'lucide-react'
+import { FotosYUbicacionSitio } from '@/components/demo/propuestas/FotosYUbicacionSitio'
+import { enlaceGoogleMaps } from '@/lib/fotos-sitio'
+import { puntoUtil } from '@/lib/coordenadas'
+import { ubicacion } from '@/lib/ubicacion'
 import { Card } from '@/components/demo/ui/Card'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
@@ -863,6 +868,8 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                   {p.items.map((it) => {
                     const s = sitios?.find((x) => x.id === it.sitioId)
                     const renta = rentaDe(it.sitioId)
+                    const punto = s ? puntoUtil(s.lat, s.lng) : null
+                    const enlaceMapa = s ? enlaceGoogleMaps(s.lat, s.lng) : null
                     const digital =
                       !!s &&
                       (s.tipoMedio === 'PANTALLA_DIGITAL' ||
@@ -887,9 +894,42 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                               </span>
                             )}
                           </div>
-                          <div className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-muted">
-                            <MapPin className="h-3 w-3" /> {s?.alcaldia ?? '—'}
+                          {/* FOTOS-UBIC (18/11) · la ubicación como en la liga
+                              del cliente: dirección, zona y coordenadas que
+                              abren Google Maps. Antes aquí solo salía la
+                              alcaldía, y el vendedor veía MENOS que su cliente. */}
+                          <div className="mt-0.5 flex items-start gap-1 text-[11px] text-muted">
+                            <MapPin className="mt-0.5 h-3 w-3 shrink-0" />
+                            <span>
+                              {s?.direccion ? <span className="text-ink">{s.direccion}</span> : null}
+                              {s?.direccion ? <br /> : null}
+                              {ubicacion([s?.alcaldia, s?.ciudad, s?.estado], ' · ') || (s?.direccion ? null : '—')}
+                            </span>
                           </div>
+                          {punto && enlaceMapa && (
+                            <a
+                              href={enlaceMapa}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-medium text-info hover:underline"
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                              <span className="demo-num">
+                                {punto.lat.toFixed(5)}, {punto.lng.toFixed(5)}
+                              </span>
+                            </a>
+                          )}
+                          {/* «Ver fotos y ubicación»: la galería se pide al abrir
+                              (`/api/sitios/:id/media`, permiso `network.ver`),
+                              no al pintar la tabla. */}
+                          {s && (
+                            <div className="mt-1.5">
+                              <FotosYUbicacionSitio
+                                sitio={s}
+                                urlFotos={`/spaces-dooh/api/sitios/${s.id}/media/`}
+                              />
+                            </div>
+                          )}
                         </td>
                         <td className="py-2.5 pr-3">
                           {renta ? (

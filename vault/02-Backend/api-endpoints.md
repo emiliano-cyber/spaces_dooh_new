@@ -1,7 +1,7 @@
 ---
 tipo: referencia
 estado: verificado
-actualizado: 2026-11-17
+actualizado: 2026-11-18
 tags: [backend, api, endpoints]
 archivos:
   - apps/web/app/api/
@@ -27,6 +27,7 @@ archivos:
   - apps/web/app/api/propuestas/[id]/enviar/route.ts
   - apps/web/app/api/propuestas/[id]/imprenta-visible/route.ts
   - apps/web/app/api/propuestas/publica/[id]/seguimiento/route.ts
+  - apps/web/app/api/propuestas/publica/[id]/sitios/[sitioId]/route.ts
   - apps/web/app/api/propuestas/[id]/items/route.ts
   - apps/web/app/api/rejilla/
   - apps/web/app/api/reportes/rentabilidad/route.ts
@@ -524,6 +525,7 @@ el 26/08 y su cerrojo real es que `tenants` esté vacía, no el token).
 | GET | `/api/portal/[token]` | `campanas.portal_token` |
 | GET·POST | `/api/firma/[token]` | token de firma del contrato |
 | GET·POST | `/api/propuestas/publica/[id]` | `propuestas.token_publico` — con el cupón **PENDIENTE** (COD-03) el GET no lo trae ni en el JSON y su total va sin él; el POST acepta **sin** cupón y devuelve el uso |
+| GET | `/api/propuestas/publica/[id]/sitios/[sitioId]` | `propuestas.token_publico` — (18/11, FOTOS-UBIC) fotos y ubicación de UNA pantalla que sea renglón de esa propuesta, para «Ver fotos y ubicación» de la liga: `{ nombre, tipoMedio, direccion, alcaldia, ciudad, estado, lat, lng, fotos }` en lista blanca. Mismo 404 para token falso y sitio ajeno. Límite 60/min por IP. Capas: `fotos-sitio-publico-controller.ts` → `fotos-sitio-publico-repo.ts` (bajo `qConTenant` con el tenant del token, R2) |
 | GET | `/api/propuestas/publica/[id]/seguimiento` | `propuestas.token_publico` — (17/11, SEG-CLIENTE) el avance de la campaña que nació de la propuesta, estilo rastreo de pedido: `{ hayCampana:false }` o `{ hayCampana:true, seguimiento }` (6 pasos, creativos, órdenes de imprenta, `retrasada`). Límite 60/min por IP. Capas: `seguimiento-publico-controller.ts` → `seguimiento-publico-repo.ts` (bajo `qConTenant` con el tenant del token, R2) → regla pura `lib/seguimiento-campana.ts`. **No lee** montos, OC, facturas, motivos de rechazo ni URLs; el `proveedor` se anula en el SELECT salvo `imprenta_visible` |
 | GET | `/api/logo/[token]` | `config_negocio.logo_token` |
 

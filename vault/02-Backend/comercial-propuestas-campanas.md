@@ -4,6 +4,10 @@ estado: verificado
 actualizado: 2026-11-18
 tags: [backend, comercial, propuestas, campanas, amarillo, precio, extension, contrato]
 archivos:
+  - apps/web/lib/fotos-sitio.ts
+  - apps/web/lib/server/fotos-sitio-publico-repo.ts
+  - apps/web/lib/server/fotos-sitio-publico-controller.ts
+  - apps/web/components/demo/propuestas/FotosYUbicacionSitio.tsx
   - apps/web/lib/seguimiento-campana.ts
   - apps/web/lib/server/seguimiento-publico-repo.ts
   - apps/web/lib/server/seguimiento-publico-controller.ts
@@ -907,6 +911,43 @@ seleccionado y cómo va su avance».
   con el CRM contestaban 200 y 403, que delataban que existía
   (`seguimiento-campana.e2e.test.ts`, caso «otro VENDEDOR»).
 - UI pública: [[03-Frontend/paginas-publicas]].
+
+## «Ver fotos y ubicación» de cada sitio (FOTOS-UBIC, 18/11)
+
+Pedido del dueño: «añadir el cuadro de ver fotos de la pantalla y lugar» en la
+propuesta, por sitio, en la ficha interna y en la liga del cliente.
+
+- **Un componente para las dos caras**:
+  `components/demo/propuestas/FotosYUbicacionSitio.tsx`. Botón secundario «Ver
+  fotos y ubicación» por renglón → `Modal` con la galería (foto grande +
+  miniaturas) y la ubicación (dirección, zona, coordenadas que abren Google
+  Maps y un `MapView` chico). Recibe la URL de la galería, que responde
+  `{ fotos: string[] }`; la ubicación ya la trae quien lo pinta.
+- **Las fotos se piden AL ABRIR**, no al pintar la tabla: son data URLs en
+  `sitios.fotos` (`text[]`) de cientos de kB cada una. No hay fotos «del
+  lugar» aparte: es UNA galería y se enseña entera. `lib/fotos-sitio.ts`
+  (`fotosMostrables`) deja pasar solo `data:image/*` y `https://`, sin
+  repetir y con tope de 12 — la liga es pública y lo que va a un `src` tiene
+  que ser una imagen.
+- **Interna** (`/propuestas/[id]`): galería por `GET /api/sitios/:id/media`
+  (permiso `network.ver`, sin cambios). El renglón enseña además dirección,
+  zona y coordenadas, como la liga del cliente (antes solo la alcaldía).
+- **Cliente** (`/p/[token]`): ruta pública nueva
+  `GET /api/propuestas/publica/[id]/sitios/[sitioId]` →
+  `fotos-sitio-publico-controller.ts` (forma del token y UUID antes de la
+  base; respuesta en LISTA BLANCA: nombre, tipo de medio, dirección, alcaldía,
+  ciudad, estado, lat/lng y fotos) → `fotos-sitio-publico-repo.ts`
+  (`propuesta_tenant_por_token` + `qConTenant`; join
+  `propuestas → propuesta_items → sitios` con `tenant_id` en cada tabla: el
+  sitio tiene que ser RENGLÓN de esa propuesta). Mismo 404 para token falso y
+  sitio ajeno. Límite 60/min por IP. **R2.** El payload de la liga gana
+  `items[].sitioId` (el id ya viajaba en `paquete.sitios`).
+- Pruebas: `lib/fotos-sitio.test.ts`,
+  `lib/server/fotos-sitio-publico-controller.test.ts` y
+  `lib/test/fotos-sitio-publico.e2e.test.ts` (sitio de la misma organización
+  fuera de la propuesta → 404; tokens cruzados entre organizaciones → 404;
+  token inventado o mal formado → 404; sin arrendador, renta, tarifa ni clave
+  en el texto crudo; `/api/sitios/:id/media` sigue exigiendo sesión).
 
 ## Portal del cliente
 
