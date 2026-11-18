@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-29
 tags: [backend, reportes, rentabilidad, finanzas, dinero, rojo]
 archivos:
   - apps/web/app/api/reportes/rentabilidad/route.ts
@@ -123,6 +123,19 @@ Las fechas **no tienen valor por omisión** a propósito. Un rango por omisión
 sobre historia de años es una consulta sin límite disfrazada de comodidad, que
 es exactamente el problema del que este endpoint nace.
 
+> [!important] 2026-10-29 · D6 · TOPE DE 24 MESES por consulta (decisión del dueño)
+> El reporte arma una casilla por pantalla y por periodo; con 500 pantallas y
+> cinco años son 30 000. Ahora un rango de más de 24 meses se rechaza con **400**
+> y la frase «El reporte abarca como máximo 24 meses por consulta. Acorta el
+> rango de fechas.» (traducida en `lib/i18n/errores-servidor.ts`), **antes de
+> tocar la base** (`validarConsultaRentabilidad`). La regla vive una sola vez en
+> el motor puro —`TOPE_MESES_REPORTE`, `excedeTopeDeMeses` y
+> `MSJ_TOPE_MESES_REPORTE` en `lib/data/reportes.ts`— y la usa también la
+> pantalla: `motivoInvalido` (`components/demo/reportes/consulta.ts`) devuelve la
+> misma frase y `debePedir` no manda la consulta. Cuenta: `hasta` antes de
+> `desde + 24 meses` (1/ene/2024 → 31/dic/2025 entra; un día más, no). Pruebas:
+> `reportes-controller.tope-meses.test.ts` y `consulta.tope-meses.test.ts`.
+
 El rango invertido se rechaza con 400, y se detecta con `diaComparable`
 (`lib/server/fechas.ts`) y no comparando texto: `2026-9-1` va antes que
 `2026-10-01` en el calendario y después como cadena. Ese defecto **ya se pagó
@@ -145,14 +158,14 @@ no tenga sustituto.
 ## Qué se reusa y qué es nuevo
 
 > [!tip] La atribución de renta NO se rehizo — se movió, y no se copió
-> `rentaAtribuidaPorSitio()` (`lib/data/derive.ts:1282`) reparte la renta del
+> `rentaAtribuidaPorSitio()` (`lib/data/derive.ts:1290`) reparte la renta del
 > contrato de un predio entre las caras de sus pantallas y distingue el contrato
 > de predio del contrato de pantalla suelta. Está pensada y probada
 > (`derive.anclaje-contrato.test.ts`, `derive.pnl.test.ts`), y esas dos pruebas
 > **pasan sin tocarse** tras este cambio.
 >
 > Lo único que cambió en ellas es la FIRMA: de `DemoState` a `DatosAtribucion`
-> (`derive.ts:1234` y `:1282` al 05/10; decía `:1239`), una interfaz con solo `sitios` y `contratos`.
+> (`derive.ts:1242` y `:1290` al 14/10; decía `:1239`), una interfaz con solo `sitios` y `contratos`.
 > `DemoState` sigue encajando por estructura, así que ni un llamador de la UI se
 > tocó, y el servidor puede reusarla sin fabricar un `DemoState` entero con
 > veintitantas rebanadas vacías.
@@ -162,12 +175,12 @@ no tenga sustituto.
 > implementaciones divergen**, y aquí divergir significa que el reporte y el
 > dashboard darían dos costos distintos para la misma pantalla.
 
-**Es nuevo el eje de tiempo.** `margenPorSitio()` (`derive.ts:1347`) es una
-**foto de hoy**: filtra las reservas vigentes hoy (`derive.ts:1354`) y no sabe
+**Es nuevo el eje de tiempo.** `margenPorSitio()` (`derive.ts:1355`) es una
+**foto de hoy**: filtra las reservas vigentes hoy (`derive.ts:1362`) y no sabe
 de periodos.
 
-También es nuevo `'trimestre'` en `Granularidad` (`derive.ts:1522`) y su
-etiquetado, y `etiquetaBucket` pasó a **exportarse** (`derive.ts:1590`): dos
+También es nuevo `'trimestre'` en `Granularidad` (`derive.ts:1530`) y su
+etiquetado, y `etiquetaBucket` pasó a **exportarse** (`derive.ts:1598`): dos
 etiquetados del mismo bucket acabarían diciendo «T1» en una pantalla y «1er
 trimestre» en la otra para el mismo periodo.
 
@@ -241,7 +254,7 @@ Deliberado, y conviene entenderlo antes de tocar el `where`:
   aplica ninguna regla de negocio. Ahí está el ahorro: reservas y órdenes de
   trabajo llegan ya recortadas al periodo.
 - **Las reglas de negocio las decide el motor puro.** Qué estatus de reserva
-  cuenta (`CANCELADA` no suma; `TENTATIVA` sí, el lugar ya está apartado), qué
+  cuenta (solo `CONFIRMADA` es venta desde TENT-PROP, 26/10: `cuentaComoVenta`; hasta ese día una `TENTATIVA` sumaba «porque el lugar ya está apartado», mientras la ocupación del Dashboard no la contaba), qué
   contrato está activo y cómo se atribuye la renta. Si el `where` repitiera esas
   reglas habría dos copias de cada una.
 

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import { recrearEsquema, cerrarPool, poolTest } from './db-e2e'
 import { sembrarTenant, asegurarPermisos, PASSWORD_DEMO, enDias } from './semillas-e2e'
 import { arrancarServidor, pararServidor, Cliente } from './servidor-e2e'
+import { diasDeCampana } from '../doohmain-programacion'
 
 // ============================================================================
 //  M14 / INC-02 · qué pieza va en qué pantalla.
@@ -144,38 +145,43 @@ describe('1 · con UN solo creativo aprobado no hay nada que decidir', () => {
     expect(r.rows[0].usuario_nombre).not.toBe('Sistema')
   })
 
-  it('al aprobar un SEGUNDO creativo, el primero conserva su sitio y el nuevo no entra solo', async () => {
-    // Consecuencia deliberada, y conviene tenerla escrita porque no es obvia.
-    //
-    // Cuando se aprobó A era el único, así que ocupar el loop entero era la
-    // única respuesta posible. Al aprobar B la situación pasa a ser ambigua —
-    // qué pieza en qué pantalla y con cuántos pases— y ahí el sistema NO
-    // decide: ni adivina un reparto ni deshace el de A. Borrar lo de A para
-    // «dejarlo neutro» destruiría una asignación que era correcta, y repartir
-    // a medias entre las dos sería inventar una decisión de negocio.
-    //
-    // OJO CON EL EFECTO: B se queda sin salir en ninguna pantalla, y ya no como
-    // antes, cuando la publicación mandaba todo a todas partes. Quien apruebe
-    // una segunda pieza tiene que asignarla; la pantalla de Creativos lo enseña
-    // slot a slot con su contador de spots usados.
+  // v0.12.3 · DECISIÓN DEL DUEÑO (22/10): «debe de ser autoseleccionable ya que
+  // pueden ser varios creativos», y eligió que TODOS roten en partes iguales.
+  // Hasta aquí la regla era «exactamente uno» y con dos o más no se tocaba nada;
+  // estas dos pruebas fijaban ese comportamiento y se reescriben con el nuevo.
+  it('al aprobar un SEGUNDO creativo, entra en la rotación de los spots que llenó el sistema', async () => {
     const camp = await sembrarCampana()
     const a = await sembrarCreativo(camp, 'Pieza A')
     const b = await sembrarCreativo(camp, 'Pieza B')
     await aprobar(a)
     await aprobar(b)
-    expect((await asignaciones(camp))[0].creativos).toEqual([{ creatividadId: a, veces: 6 }])
+    expect((await asignaciones(camp))[0].creativos).toEqual([
+      { creatividadId: a, veces: 3 },
+      { creatividadId: b, veces: 3 },
+    ])
   })
 
-  it('un slot VACIADO a mano no se vuelve a llenar solo al aprobar otra pieza', async () => {
-    // Vaciar un slot es una decisión: «esta pantalla, por ahora, no lleva
-    // nada». Si al aprobar la siguiente pieza el sistema lo rellenara, estaría
-    // deshaciendo esa decisión en silencio — y como ya hay dos aprobadas, ni
-    // siquiera sabría cuál poner. La regla es «exactamente uno», no «al menos
-    // uno», y esta prueba es la que lo distingue.
+  it('con MENOS spots que creativos, todos entran y rotan: no hay que escribir «2 de 1»', async () => {
+    const camp = await sembrarCampana({ sitios: [{ id: org.sitioId, spots: 1 }] })
+    const a = await sembrarCreativo(camp, 'Rota A')
+    const b = await sembrarCreativo(camp, 'Rota B')
+    await aprobar(a)
+    await aprobar(b)
+    expect((await asignaciones(camp))[0].creativos).toEqual([
+      { creatividadId: a, veces: 1 },
+      { creatividadId: b, veces: 1 },
+    ])
+  })
+
+  it('un slot VACÍO —aunque se vaciara a mano— recibe todos los aprobados al aprobar el siguiente', async () => {
+    // Era la prueba de «un slot vaciado a mano no se vuelve a llenar». Con la
+    // regla nueva, el dueño eligió que un spot digital vacío reciba TODOS los
+    // aprobados: vacío ya no es una decisión que se respete, es un hueco que se
+    // llena. Lo que sigue sin pisarse es un reparto AJUSTADO a mano (abajo).
     const camp = await sembrarCampana({ sitios: [{ id: org.sitioId, spots: 6 }, { id: sitioB, spots: 10 }] })
     const a = await sembrarCreativo(camp, 'Pieza A')
     const b = await sembrarCreativo(camp, 'Pieza B')
-    await aprobar(a) // autoasigna A a las dos
+    await aprobar(a)
     const res = await poolTest().query(
       `select r.id from reservas r join sitios s on s.id=r.sitio_id
         where r.campana_id=$1 and s.nombre='Pantalla B'`,
@@ -183,11 +189,69 @@ describe('1 · con UN solo creativo aprobado no hay nada que decidir', () => {
     )
     await c.pedir(`/api/reservas/${res.rows[0].id}/creativo/`, { metodo: 'PATCH', cuerpo: { creativos: [] } })
 
-    await aprobar(b) // ya hay DOS aprobadas: no debe tocar nada
+    await aprobar(b)
 
     const porSitio = Object.fromEntries((await asignaciones(camp)).map((f) => [f.sitio, f.creativos]))
-    expect(porSitio['Pantalla B']).toEqual([])
-    expect(porSitio['Pantalla creativos']).toEqual([{ creatividadId: a, veces: 6 }])
+    expect(porSitio['Pantalla B']).toEqual([
+      { creatividadId: a, veces: 5 },
+      { creatividadId: b, veces: 5 },
+    ])
+    expect(porSitio['Pantalla creativos']).toEqual([
+      { creatividadId: a, veces: 3 },
+      { creatividadId: b, veces: 3 },
+    ])
+  })
+
+  it('reemplazar uno PUBLICADO con DOOHmain sin responder: 502 y no se reemplaza nada', async () => {
+    // v0.12.3 · antes el reemplazo seguía aunque DOOHmain no confirmara que
+    // finalizó el arte viejo, y la pantalla decía «Arte reemplazado». En el
+    // arnés el intérprete de DOOHmain no existe, así que retirar SIEMPRE falla:
+    // es exactamente el caso.
+    const camp = await sembrarCampana()
+    const cr = await sembrarCreativo(camp, 'Ya publicado')
+    await poolTest().query(
+      `insert into doohmain_remote_campaigns (version, auth, name, anunciante) values ($1,'AUTH-PRUEBA','x','x')`,
+      [cr],
+    )
+    const r = await c.pedir(`/api/creatividades/${cr}/`, {
+      metodo: 'PUT', cuerpo: { nombre: 'Nuevo arte', codigo: '<p>Arte nuevo</p>', formato: 'HTML' },
+    })
+    expect(r.status, JSON.stringify(r.datos)).toBe(502)
+    expect(r.datos.error).toMatch(/No se reemplazó nada/)
+    const sigue = await poolTest().query('select nombre from creatividades where id=$1', [cr])
+    expect(sigue.rows[0].nombre).toBe('Ya publicado')
+  })
+
+  it('reemplazar uno que NUNCA se publicó no pregunta a DOOHmain: se reemplaza', async () => {
+    const camp = await sembrarCampana()
+    const cr = await sembrarCreativo(camp, 'Nunca publicado')
+    const r = await c.pedir(`/api/creatividades/${cr}/`, {
+      metodo: 'PUT', cuerpo: { nombre: 'Arte nuevo', codigo: '<p>Arte nuevo</p>', formato: 'HTML' },
+    })
+    expect(r.status, JSON.stringify(r.datos)).toBe(200)
+    expect(r.datos.nombre).toBe('Arte nuevo')
+  })
+
+  it('borrar o reemplazar con un id que no es uuid es 404 antes de tocar DOOHmain', async () => {
+    expect((await c.pedir('/api/creatividades/no-es-uuid/', { metodo: 'DELETE' })).status).toBe(404)
+    expect(
+      (await c.pedir('/api/creatividades/00000000-0000-0000-0000-000000000000/', {
+        metodo: 'PUT', cuerpo: { nombre: 'x', codigo: '<p>x</p>', formato: 'HTML' },
+      })).status,
+    ).toBe(404)
+  })
+
+  it('un reparto AJUSTADO a mano no se pisa al aprobar otro creativo', async () => {
+    const camp = await sembrarCampana({ sitios: [{ id: org.sitioId, spots: 6 }] })
+    const a = await sembrarCreativo(camp, 'Pieza A')
+    const b = await sembrarCreativo(camp, 'Pieza B')
+    await aprobar(a)
+    const res = await poolTest().query('select id from reservas where campana_id=$1', [camp])
+    await c.pedir(`/api/reservas/${res.rows[0].id}/creativo/`, {
+      metodo: 'PATCH', cuerpo: { creativos: [{ creatividadId: a, veces: 2 }] },
+    })
+    await aprobar(b)
+    expect((await asignaciones(camp))[0].creativos).toEqual([{ creatividadId: a, veces: 2 }])
   })
 
   it('no pisa una asignación puesta a mano', async () => {
@@ -373,13 +437,18 @@ describe('4 · la publicación manda a cada pantalla LO SUYO', () => {
     const camp = await sembrarCampana({ sitios: [{ id: org.sitioId, spots: 6 }, { id: sitioB, spots: 10 }] })
     const a = await sembrarCreativo(camp, 'Pieza A')
     const b = await sembrarCreativo(camp, 'Pieza B')
-    await aprobar(a); await aprobar(b) // A queda en las dos por autoasignación
+    // v0.12.3 · al aprobar B ya rota con A en las dos (decisión del dueño), así
+    // que la asignación se fija A MANO en cada una: la regla que esto vigila —una
+    // pieza que no está asignada a una pantalla no se le manda— no cambió.
+    await aprobar(a); await aprobar(b)
     const res = await poolTest().query(
-      `select r.id from reservas r join sitios s on s.id=r.sitio_id
-        where r.campana_id=$1 and s.nombre='Pantalla B'`, [camp],
+      `select r.id, s.nombre from reservas r join sitios s on s.id=r.sitio_id where r.campana_id=$1`, [camp],
     )
-    // En la B se cambia A por B.
-    await c.pedir(`/api/reservas/${res.rows[0].id}/creativo/`, {
+    const reservaDe = (nombre: string) => res.rows.find((r) => r.nombre === nombre).id
+    await c.pedir(`/api/reservas/${reservaDe('Pantalla creativos')}/creativo/`, {
+      metodo: 'PATCH', cuerpo: { creativos: [{ creatividadId: a, veces: 6 }] },
+    })
+    await c.pedir(`/api/reservas/${reservaDe('Pantalla B')}/creativo/`, {
       metodo: 'PATCH', cuerpo: { creativos: [{ creatividadId: b, veces: 10 }] },
     })
 
@@ -407,6 +476,184 @@ describe('4 · la publicación manda a cada pantalla LO SUYO', () => {
     expect(out.length).toBe(1)
     expect(out[0].creativoId).toBe(cr)
     expect(out[0].cantDia).toBeNull()
+  })
+
+  // 22/10 · lo demás que DOOHmain recibe: el total del periodo y, SOLO si la
+  // campaña tiene franja, su horario. Pedido del dueño: «la franja de tiempo
+  // solo la debe de mandar si es que tiene una; si no, mandamos lo que
+  // actualmente se manda». La regla está en `lib/doohmain-programacion.ts`;
+  // aquí se fija que el SQL encuentra la franja correcta.
+  const diasDe = async (campanaId: string) => {
+    const r = await poolTest().query(
+      `select to_char(fecha_inicio,'YYYY-MM-DD') fi, to_char(fecha_fin,'YYYY-MM-DD') ff from campanas where id=$1`,
+      [campanaId],
+    )
+    return diasDeCampana(r.rows[0].fi, r.rows[0].ff)
+  }
+  const franja = async (nombre: string, inicio: string, fin: string) =>
+    (await poolTest().query(
+      `insert into franjas_horarias (tenant_id, nombre, hora_inicio, hora_fin) values ($1,$2,$3,$4) returning id`,
+      [org.id, nombre, inicio, fin],
+    )).rows[0].id as string
+
+  it('sin franja: el horario NO viaja, y sí el total del periodo', async () => {
+    const camp = await sembrarCampana({ sitios: [{ id: org.sitioId, spots: 6 }] })
+    await aprobar(await sembrarCreativo(camp, 'Sin franja'))
+    const [r] = await publicar(camp)
+    expect(r.horaInicio).toBeNull()
+    expect(r.horaFin).toBeNull()
+    expect(r.cantDia).toBe(6)
+    expect(r.cantTotal).toBe(6 * (await diasDe(camp)))
+  })
+
+  it('con franja PROGRAMADA en la campaña: viaja su horario', async () => {
+    const camp = await sembrarCampana({ sitios: [{ id: org.sitioId, spots: 8 }] })
+    const prime = await franja('Prime programada', '18:00', '22:00')
+    await poolTest().query('update campanas set franja_programada_id=$1 where id=$2', [prime, camp])
+    await aprobar(await sembrarCreativo(camp, 'Con franja programada'))
+    const [r] = await publicar(camp)
+    expect([r.horaInicio, r.horaFin]).toEqual(['18:00', '22:00'])
+    expect(r.cantTotal).toBe(8 * (await diasDe(camp)))
+  })
+
+  it('la VISTA PREVIA enseña lo mismo que luego se publica, sin publicar nada', async () => {
+    // Pedido del dueño (22/10): ver la franja y las repeticiones en la campaña
+    // ANTES de subirla. Sale de la misma consulta que publica (`leerPlan()`); si
+    // algún día se separaran, esta prueba es la que lo nota.
+    const camp = await sembrarCampana({ sitios: [{ id: org.sitioId, spots: 5 }] })
+    const tarde = await franja('Tarde vista previa', '15:00', '19:00')
+    await poolTest().query('update campanas set franja_programada_id=$1 where id=$2', [tarde, camp])
+    await aprobar(await sembrarCreativo(camp, 'Antes de publicar'))
+
+    const v = await c.pedir(`/api/campanas/${camp}/programacion-doohmain/`)
+    expect(v.status).toBe(200)
+    expect(v.datos.filas).toHaveLength(1)
+    const [f] = v.datos.filas
+    expect(f.creativoNombre).toBe('Antes de publicar')
+    expect([f.programacion.horaInicio, f.programacion.horaFin]).toEqual(['15:00', '19:00'])
+    expect(f.programacion.cantDia).toBe(5)
+    expect(v.datos.cliente.nombre).toBeTruthy()
+
+    const [r] = await publicar(camp)
+    expect([r.horaInicio, r.horaFin, r.cantDia, r.cantTotal]).toEqual([
+      f.programacion.horaInicio, f.programacion.horaFin, f.programacion.cantDia, f.programacion.cantTotal,
+    ])
+  })
+
+  it('el horario INDIVIDUAL de una campaña SIN franja viaja, con sus días', async () => {
+    // Pedido del dueño (22/10, noche): una franja de tiempo individual en la
+    // campaña que se mande a DOOHmain.
+    const camp = await sembrarCampana({ sitios: [{ id: org.sitioId, spots: 3 }] })
+    await aprobar(await sembrarCreativo(camp, 'Con horario individual'))
+
+    const h = await c.pedir(`/api/campanas/${camp}/horario-doohmain/`, {
+      metodo: 'PATCH', cuerpo: { horario: { horaInicio: '07:30', horaFin: '09:00', dias: [5, 1, 3] } },
+    })
+    expect(h.status, JSON.stringify(h.datos)).toBe(200)
+
+    const v = await c.pedir(`/api/campanas/${camp}/programacion-doohmain/`)
+    expect(v.datos.horarioIndividual).toEqual({ horaInicio: '07:30', horaFin: '09:00', dias: [1, 3, 5] })
+    expect(v.datos.franjaCampana).toBeNull()
+    const [r] = await publicar(camp)
+    expect([r.horaInicio, r.horaFin]).toEqual(['07:30', '09:00'])
+
+    // Quitarlo devuelve a «todo el día».
+    expect((await c.pedir(`/api/campanas/${camp}/horario-doohmain/`, { metodo: 'PATCH', cuerpo: { horario: null } })).status).toBe(200)
+    const v2 = await c.pedir(`/api/campanas/${camp}/programacion-doohmain/`)
+    expect(v2.datos.horarioIndividual).toBeNull()
+    expect(v2.datos.filas[0].programacion.horaInicio).toBeNull()
+  })
+
+  // 23/10 · regla del dueño: «si la campaña ya tiene franja de horario no debe
+  // de tener la opción de añadir otra opción de horario». Hasta el 22/10 el
+  // individual se ponía encima de la franja y ganaba.
+  it('con franja PROGRAMADA no se le pone otro horario: 409 que la nombra, y no se guarda nada', async () => {
+    const camp = await sembrarCampana({ sitios: [{ id: org.sitioId, spots: 3 }] })
+    const prog = await franja('Prime que manda', '18:00', '22:00')
+    await poolTest().query('update campanas set franja_programada_id=$1 where id=$2', [prog, camp])
+    await aprobar(await sembrarCreativo(camp, 'Con franja programada y sin otro'))
+
+    const h = await c.pedir(`/api/campanas/${camp}/horario-doohmain/`, {
+      metodo: 'PATCH', cuerpo: { horario: { horaInicio: '07:30', horaFin: '09:00' } },
+    })
+    expect(h.status).toBe(409)
+    expect(h.datos.error).toMatch(/ya tiene franja horaria \(Prime que manda, 18:00 a 22:00\)/)
+
+    const v = await c.pedir(`/api/campanas/${camp}/programacion-doohmain/`)
+    expect(v.datos.horarioIndividual).toBeNull()
+    expect(v.datos.franjaCampana).toEqual({ nombre: 'Prime que manda', horaInicio: '18:00', horaFin: '22:00', origen: 'programada' })
+    const [r] = await publicar(camp)
+    expect([r.horaInicio, r.horaFin]).toEqual(['18:00', '22:00'])
+  })
+
+  it('con franja CONTRATADA en una pantalla tampoco', async () => {
+    const camp = await sembrarCampana({ sitios: [{ id: org.sitioId, spots: 3 }] })
+    const manana = await franja('Mañana que manda', '07:00', '10:00')
+    await poolTest().query('update reservas set franja_id=$1 where campana_id=$2', [manana, camp])
+    const h = await c.pedir(`/api/campanas/${camp}/horario-doohmain/`, {
+      metodo: 'PATCH', cuerpo: { horario: { horaInicio: '12:00', horaFin: '13:00' } },
+    })
+    expect(h.status).toBe(409)
+    const v = await c.pedir(`/api/campanas/${camp}/programacion-doohmain/`)
+    expect(v.datos.franjaCampana).toMatchObject({ nombre: 'Mañana que manda', origen: 'contratada' })
+  })
+
+  it('la franja de una reserva CANCELADA no cuenta', async () => {
+    const camp = await sembrarCampana({ sitios: [{ id: org.sitioId, spots: 3 }] })
+    const vieja = await franja('De una reserva cancelada', '07:00', '10:00')
+    await poolTest().query(`update reservas set franja_id=$1, estatus='CANCELADA' where campana_id=$2`, [vieja, camp])
+    const h = await c.pedir(`/api/campanas/${camp}/horario-doohmain/`, {
+      metodo: 'PATCH', cuerpo: { horario: { horaInicio: '12:00', horaFin: '13:00' } },
+    })
+    expect(h.status, JSON.stringify(h.datos)).toBe(200)
+  })
+
+  it('una campaña que ya tenía los DOS, de antes de la regla, puede quitar el individual y queda la franja', async () => {
+    const camp = await sembrarCampana({ sitios: [{ id: org.sitioId, spots: 3 }] })
+    const prog = await franja('Programada de antes', '18:00', '22:00')
+    await poolTest().query(
+      `update campanas set franja_programada_id=$1, doohmain_hora_inicio='07:30', doohmain_hora_fin='09:00' where id=$2`,
+      [prog, camp],
+    )
+    await aprobar(await sembrarCreativo(camp, 'Con los dos de antes'))
+    expect((await c.pedir(`/api/campanas/${camp}/horario-doohmain/`, { metodo: 'PATCH', cuerpo: { horario: null } })).status).toBe(200)
+    const [r] = await publicar(camp)
+    expect([r.horaInicio, r.horaFin]).toEqual(['18:00', '22:00'])
+  })
+
+  it('el horario individual: lo que no se acepta', async () => {
+    const camp = await sembrarCampana()
+    const patch = (cuerpo: unknown) => c.pedir(`/api/campanas/${camp}/horario-doohmain/`, { metodo: 'PATCH', cuerpo })
+    expect((await patch({ horario: { horaInicio: '7:30', horaFin: '09:00' } })).status).toBe(400)
+    expect((await patch({ horario: { horaInicio: '09:00', horaFin: '09:00' } })).status).toBe(400)
+    expect((await patch({ horario: { horaInicio: '07:30', horaFin: '09:00', dias: [7] } })).status).toBe(400)
+    expect((await patch({ horario: { horaInicio: '07:30', horaFin: '09:00' }, extra: 1 })).status).toBe(400)
+    expect((await c.pedir('/api/campanas/no-es-uuid/horario-doohmain/', { metodo: 'PATCH', cuerpo: { horario: null } })).status).toBe(404)
+    // Y la base lo vuelve a exigir aunque alguien se salte la API.
+    await expect(
+      poolTest().query(`update campanas set doohmain_hora_inicio='07:30', doohmain_hora_fin=null where id=$1`, [camp]),
+    ).rejects.toThrow(/campanas_doohmain_horario_par_ck/)
+  })
+
+  it('la vista previa: un id que no es uuid, o una campaña que no existe, es 404', async () => {
+    expect((await c.pedir('/api/campanas/no-es-uuid/programacion-doohmain/')).status).toBe(404)
+    expect((await c.pedir('/api/campanas/00000000-0000-0000-0000-000000000000/programacion-doohmain/')).status).toBe(404)
+  })
+
+  it('sin programada, la CONTRATADA de la pantalla; y la programada gana si hay las dos', async () => {
+    const camp = await sembrarCampana({ sitios: [{ id: org.sitioId, spots: 4 }] })
+    const manana = await franja('Mañana contratada', '07:00', '10:00')
+    await poolTest().query('update reservas set franja_id=$1 where campana_id=$2', [manana, camp])
+    await aprobar(await sembrarCreativo(camp, 'Con franja contratada'))
+    let [r] = await publicar(camp)
+    expect([r.horaInicio, r.horaFin]).toEqual(['07:00', '10:00'])
+
+    const noche = await franja('Noche programada', '20:00', '23:00')
+    await poolTest().query('update campanas set franja_programada_id=$1 where id=$2', [noche, camp])
+    const re = await c.pedir(`/api/campanas/${camp}/reintentar-publicacion/`, { cuerpo: {} })
+    expect(re.status, JSON.stringify(re.datos)).toBe(200)
+    ;[r] = re.datos.doohmain
+    expect([r.horaInicio, r.horaFin]).toEqual(['20:00', '23:00'])
   })
 
   it('NO manda al aire una pieza que no está aprobada, aunque figure asignada', async () => {
@@ -464,5 +711,88 @@ describe('3 · rechazar un creativo no toca las campañas de al lado', () => {
 
     expect((await asignaciones(campA))[0].creativos).toEqual([])
     expect((await asignaciones(campB))[0].creativos).toEqual([{ creatividadId: crB, veces: 10 }])
+  })
+})
+
+// ─── Reintentar la publicación ya aprobada ──────────────────────────────────
+
+describe('5 · reintentar la publicación en DOOHmain', () => {
+  // Pedido por el dueño el 13/10. Aprobada la publicación, la ficha no ofrecía
+  // ningún botón: si DOOHmain fallaba —tablas rotas, una pantalla sin mapa, la
+  // red—, no había forma de volver a mandarla. El reintento SOLO publica: no
+  // toca estado, fechas ni el candado de facturación, que ya decidió `validar`.
+  const reintentar = (campanaId: string, cli = c) =>
+    cli.pedir(`/api/campanas/${campanaId}/reintentar-publicacion/`, { cuerpo: {} })
+
+  async function aprobada(): Promise<string> {
+    const camp = await sembrarCampana({ sitios: [{ id: org.sitioId, spots: 6 }, { id: sitioB, spots: 10 }] })
+    await aprobar(await sembrarCreativo(camp, 'La única'))
+    expect((await c.pedir(`/api/campanas/${camp}/enviar-dominio/`, { cuerpo: {} })).status).toBe(200)
+    expect((await c.pedir(`/api/campanas/${camp}/validar/`, { cuerpo: { aprobar: true } })).status).toBe(200)
+    return camp
+  }
+
+  it('vuelve a mandar cada pantalla y devuelve el resultado de cada una', async () => {
+    const camp = await aprobada()
+    const r = await reintentar(camp)
+    expect(r.status, JSON.stringify(r.datos)).toBe(200)
+    expect(new Set(r.datos.doohmain.map((f: any) => f.sitio))).toEqual(new Set([CLAVE_A, CLAVE_B]))
+  })
+
+  it('no cambia el estado, la aprobación ni el candado de facturación', async () => {
+    const camp = await aprobada()
+    const antes = (await poolTest().query(
+      `select estado_comercial, validacion_estatus, validacion_en, validacion_por, reporte_publicacion
+         from campanas where id=$1`, [camp])).rows[0]
+    await reintentar(camp)
+    const despues = (await poolTest().query(
+      `select estado_comercial, validacion_estatus, validacion_en, validacion_por, reporte_publicacion
+         from campanas where id=$1`, [camp])).rows[0]
+    expect(despues).toEqual(antes)
+  })
+
+  it('queda en Actividad, nombrando las pantallas que fallaron', async () => {
+    const camp = await aprobada()
+    await reintentar(camp)
+    // En el arnés el intérprete no existe: las dos pantallas fallan.
+    const r = await poolTest().query(
+      `select accion from acciones where accion like 'Reintento de publicación en DOOHmain%' order by timestamp desc limit 1`,
+    )
+    expect(r.rows[0]?.accion).toContain(CLAVE_A)
+    expect(r.rows[0]?.accion).toContain(CLAVE_B)
+  })
+
+  it('una campaña cuya publicación NO está aprobada rebota: primero se aprueba', async () => {
+    const camp = await sembrarCampana()
+    await aprobar(await sembrarCreativo(camp, 'La única'))
+    await c.pedir(`/api/campanas/${camp}/enviar-dominio/`, { cuerpo: {} })
+    const r = await reintentar(camp)
+    expect(r.status).toBe(409)
+    expect(r.datos.error).toContain('aprobada')
+  })
+
+  it('también exige que cada pantalla tenga su pieza, como aprobar', async () => {
+    const camp = await aprobada()
+    const res = await poolTest().query(
+      `select r.id from reservas r join sitios s on s.id=r.sitio_id where r.campana_id=$1 and s.nombre='Pantalla B'`,
+      [camp],
+    )
+    await c.pedir(`/api/reservas/${res.rows[0].id}/creativo/`, { metodo: 'PATCH', cuerpo: { creativos: [] } })
+    const r = await reintentar(camp)
+    expect(r.status).toBe(409)
+    expect(r.datos.error).toContain('Pantalla B')
+  })
+
+  it('sin permiso de comercial, 403; y la de otra organización no existe', async () => {
+    const camp = await aprobada()
+    const imprenta = await sembrarTenant('reintento-imprenta', { rol: 'IMPRENTA' })
+    const ci = new Cliente()
+    await ci.entrar(imprenta.usuarioEmail, PASSWORD_DEMO)
+    expect((await reintentar(camp, ci)).status).toBe(403)
+
+    const ajena = await sembrarTenant('reintento-ajena')
+    const ca = new Cliente()
+    await ca.entrar(ajena.usuarioEmail, PASSWORD_DEMO)
+    expect((await reintentar(camp, ca)).status).toBe(404)
   })
 })

@@ -22,11 +22,14 @@ const { repo } = vi.hoisted(() => ({
     desactivarTemporada: vi.fn(async () => true),
     rejillaDeSitio: vi.fn(async () => [] as any[]),
     actualizarRejilla: vi.fn(async () => [] as any[]),
+    exhibicionDeSitio: vi.fn(
+      async (): Promise<{ exhibicion: string | null } | null> => ({ exhibicion: 'digital' }),
+    ),
   },
 }))
 vi.mock('./rejilla-repo', () => repo)
 
-const { guardarFranjaCtrl, guardarTemporadaCtrl } = await import('./rejilla-controller')
+const { guardarFranjaCtrl, guardarTemporadaCtrl, actualizarRejillaCtrl } = await import('./rejilla-controller')
 
 const PRIME = {
   id: 'F-PRIME',
@@ -137,5 +140,58 @@ describe('2 · los casos negativos — el corazón', () => {
     const enviado = repo.guardarFranja.mock.calls[0][0]
     expect(JSON.stringify(enviado)).not.toContain('T-AJENO')
     expect(Object.keys(enviado)).not.toContain('tenantId')
+  })
+})
+
+// ─── B45 (2026-10-29) · la unidad de una fila de rejilla se valida ─────────
+//
+// La ruta de modalidades (`sitios-controller.ts`) valida cada unidad con
+// `motivoModalidadInvalida(unidad, exhibicion)`; la de la rejilla solo pedía
+// «un texto de hasta 40». El cuadro de captura filtra, pero un `curl` no pasa
+// por el cuadro, y la tabla no tiene CHECK. Inerte hoy —una fila con unidad
+// inventada nunca gana la resolución— pero es basura escribible en una tabla de
+// precios, y la asimetría entre las dos rutas del mismo dinero es la que acaba
+// resolviéndose por el lado malo.
+describe('3 · B45 · la unidad de la rejilla se valida como la de las modalidades', () => {
+  const FILA = { franjaId: null, temporadaId: null, tarifaPublicada: 1800 }
+
+  it('NEGATIVO · una unidad inventada → 400 con la frase, y NO se escribe', async () => {
+    repo.exhibicionDeSitio.mockResolvedValue({ exhibicion: 'digital' })
+    await expect(
+      actualizarRejillaCtrl('S1', { guardar: [{ ...FILA, unidad: 'quincenal-pirata' }] }),
+    ).rejects.toThrow(/Unidad de venta no válida/)
+    expect(repo.actualizarRejilla).not.toHaveBeenCalled()
+  })
+
+  it('NEGATIVO · una pantalla FIJA no admite spot en la rejilla, igual que en modalidades', async () => {
+    repo.exhibicionDeSitio.mockResolvedValue({ exhibicion: 'fija' })
+    await expect(
+      actualizarRejillaCtrl('S1', { guardar: [{ ...FILA, unidad: 'spot' }] }),
+    ).rejects.toThrow(/Pantalla fija/)
+    expect(repo.actualizarRejilla).not.toHaveBeenCalled()
+  })
+
+  it('una digital con spot entra', async () => {
+    repo.exhibicionDeSitio.mockResolvedValue({ exhibicion: 'digital' })
+    await actualizarRejillaCtrl('S1', { guardar: [{ ...FILA, unidad: 'spot' }] })
+    expect(repo.actualizarRejilla).toHaveBeenCalledTimes(1)
+  })
+
+  it('NEGATIVO · una pantalla que no existe (u otra organización) → 404 sin escribir', async () => {
+    repo.exhibicionDeSitio.mockResolvedValue(null)
+    await expect(
+      actualizarRejillaCtrl('S-AJENO', { guardar: [{ ...FILA, unidad: 'mensual' }] }),
+    ).rejects.toThrow(/no existe/)
+    expect(repo.actualizarRejilla).not.toHaveBeenCalled()
+  })
+
+  it('QUITAR una fila con unidad basura SÍ se deja: es la forma de limpiarla', async () => {
+    // La basura escrita antes del 29/10 tiene que poder salir. Si la baja
+    // también se validara, esa fila se quedaría para siempre.
+    repo.exhibicionDeSitio.mockResolvedValue({ exhibicion: 'fija' })
+    await actualizarRejillaCtrl('S1', {
+      quitar: [{ unidad: 'quincenal-pirata', franjaId: null, temporadaId: null }],
+    })
+    expect(repo.actualizarRejilla).toHaveBeenCalledTimes(1)
   })
 })

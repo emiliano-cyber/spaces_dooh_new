@@ -8,6 +8,7 @@ import { ConfirmDialog } from '@/components/demo/ui/ConfirmDialog'
 import { seApi } from '@/lib/data/space-eyes-se'
 import { usePuede, useSesionCtx } from '@/components/demo/shell/SesionContext'
 import { puedeEncuadrar } from '@/lib/roles'
+import { useIdioma } from '@/lib/i18n/contexto'
 
 // ============================================================================
 //  Space Eyes — a quién se le avisa por correo cuando una pantalla falla.
@@ -51,6 +52,7 @@ export function AvisosCorreo() {
   const puedeCambiar = usePuede('inventario', 'crear')
   const { sesion } = useSesionCtx()
   const esDueno = puedeEncuadrar(sesion?.usuario?.rol)
+  const { t } = useIdioma()
 
   const [avisos, setAvisos] = useState<Avisos | null>(null)
   const [abierto, setAbierto] = useState(false)
@@ -105,26 +107,26 @@ export function AvisosCorreo() {
             : a,
         )
         setLlaveNueva('')
-        setMensaje({ tono: 'ok', texto: 'Guardado.' })
+        setMensaje({ tono: 'ok', texto: t('spaceeyes.avisos.guardado') })
         return true
       } catch (e) {
         const cual = e instanceof Error ? e.message : ''
         setMensaje({
           tono: 'error',
           texto: /sin_destinatarios/.test(cual)
-            ? 'Para encenderlos hace falta al menos un correo válido.'
+            ? t('spaceeyes.avisos.error.sin-destinatarios')
             : /remitente_invalido/.test(cual)
-              ? 'El remitente tiene que ser un correo, o «Nombre <correo@dominio>».'
+              ? t('spaceeyes.avisos.error.remitente')
               : /llave_invalida/.test(cual)
-                ? 'Esa no parece una llave: va completa, sin espacios.'
-                : 'No se pudo guardar.',
+                ? t('spaceeyes.avisos.error.llave')
+                : t('spaceeyes.avisos.error.guardar'),
         })
         return false
       } finally {
         setGuardando(false)
       }
     },
-    [avisos, esDueno, llaveNueva],
+    [avisos, esDueno, llaveNueva, t],
   )
 
   const probar = useCallback(async () => {
@@ -142,14 +144,14 @@ export function AvisosCorreo() {
         tono: 'ok',
         texto:
           r.salida === 'registrado'
-            ? 'Sin llave de correo: quedó escrito en el registro del servidor.'
-            : 'Correo de prueba mandado a ' + r.para.join(', ') + '.',
+            ? t('spaceeyes.avisos.prueba.registrada')
+            : t('spaceeyes.avisos.prueba.enviada', { correos: r.para.join(', ') }),
       })
     } catch (e) {
-      setMensaje({ tono: 'error', texto: e instanceof Error ? e.message : 'No salió el correo de prueba.' })
+      setMensaje({ tono: 'error', texto: e instanceof Error ? e.message : t('spaceeyes.avisos.prueba.error') })
     }
     setGuardando(false)
-  }, [guardar])
+  }, [guardar, t])
 
   // Mientras se pregunta no se pinta nada: lo normal son 200 ms y un renglón
   // que aparece y desaparece es peor que ninguno. Si NO contesta, sí se dice,
@@ -161,10 +163,8 @@ export function AvisosCorreo() {
       <section className="rounded-md border border-border bg-surface">
         <div className="flex flex-wrap items-center gap-2 px-3 py-2.5">
           <Mail className="h-4 w-4 shrink-0 text-muted" strokeWidth={1.75} />
-          <span className="text-[13px] text-ink">Avisos por correo</span>
-          <span className="min-w-0 text-[13px] text-muted">
-            · el Space Eye de esta instancia todavía no los tiene. Se encienden al actualizarlo.
-          </span>
+          <span className="text-[13px] text-ink">{t('spaceeyes.avisos.titulo')}</span>
+          <span className="min-w-0 text-[13px] text-muted">{t('spaceeyes.avisos.sin-servidor')}</span>
         </div>
       </section>
     )
@@ -172,41 +172,38 @@ export function AvisosCorreo() {
 
   const cuantos = (avisos.destinatarios || '').split(',').filter((d) => d.trim()).length
   const resumen = !avisos.activo
-    ? 'apagados'
+    ? t('spaceeyes.avisos.apagados')
     : cuantos === 0
-      ? 'encendidos, pero sin ningún correo'
-      : 'a ' +
-        (cuantos === 1 ? avisos.destinatarios.trim() : cuantos + ' correos') +
-        ', agrupados cada ' +
-        avisos.agrupar_min +
-        ' min'
+      ? t('spaceeyes.avisos.sin-correos')
+      : t('spaceeyes.avisos.resumen', {
+          quien: cuantos === 1 ? avisos.destinatarios.trim() : t('spaceeyes.avisos.correos', { n: cuantos }),
+          min: avisos.agrupar_min,
+        })
 
   return (
     <section className="rounded-md border border-border bg-surface">
       <div className="flex flex-wrap items-center gap-2 px-3 py-2.5">
         <Mail className="h-4 w-4 shrink-0 text-muted" strokeWidth={1.75} />
         <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', avisos.activo ? 'bg-success' : 'bg-border-strong')} />
-        <span className="text-[13px] text-ink">Avisos por correo</span>
+        <span className="text-[13px] text-ink">{t('spaceeyes.avisos.titulo')}</span>
         <span className="min-w-0 truncate text-[13px] text-muted">· {resumen}</span>
         <Button variant="tertiary" size="sm" className="ml-auto" onClick={() => setAbierto((v) => !v)}>
-          {abierto ? 'Cerrar' : 'Configurar'}
+          {abierto ? t('spaceeyes.avisos.cerrar') : t('spaceeyes.avisos.configurar')}
         </Button>
       </div>
 
       {abierto && (
         <div className="space-y-4 border-t border-border p-3">
           <p className="text-[13px] leading-relaxed text-muted">
-            Se avisa de la pantalla apagada o congelada y de la cámara sin imagen. Un gabinete suelto no manda correo:
-            se ve aquí abajo. Las fallas del mismo equipo salen juntas en un solo correo, así que una que se arregla
-            sola antes de la espera no molesta a nadie.
+            {t('spaceeyes.avisos.que-avisa')}
           </p>
 
           {!avisos.hay_llave && (
             <div className="flex items-start gap-2 rounded-md border border-[#b4530920] bg-warning-soft p-3 text-[12px]">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
               <span className="text-ink">
-                Todavía no hay cuenta de correo, así que no sale ninguno: los avisos quedan escritos en el registro del
-                servidor. {esDueno ? 'Llénala aquí abajo.' : 'La pone el Dueño.'}
+                {t('spaceeyes.avisos.sin-cuenta')}{' '}
+                {esDueno ? t('spaceeyes.avisos.sin-cuenta.dueno') : t('spaceeyes.avisos.sin-cuenta.no-dueno')}
               </span>
             </div>
           )}
@@ -219,11 +216,11 @@ export function AvisosCorreo() {
               onChange={(e) => setAvisos({ ...avisos, activo: e.target.checked })}
               className="h-4 w-4 rounded border-border-strong text-accent focus-visible:ring-2 focus-visible:ring-accent"
             />
-            Mandar correo cuando una pantalla falle
+            {t('spaceeyes.avisos.activar')}
           </label>
 
           <label className="block">
-            <span className="block text-[12px] text-ink">Correos que reciben el aviso</span>
+            <span className="block text-[12px] text-ink">{t('spaceeyes.avisos.destinatarios')}</span>
             <textarea
               value={avisos.destinatarios}
               disabled={!puedeCambiar}
@@ -233,12 +230,12 @@ export function AvisosCorreo() {
               className="mt-1 w-full rounded border border-border-strong bg-surface px-3 py-2 text-[13px] text-ink outline-none placeholder:text-muted focus-visible:ring-2 focus-visible:ring-accent"
             />
             <span className="mt-1 block text-[11px] text-muted">
-              Separados por coma. Se guardan solo los que son direcciones válidas.
+              {t('spaceeyes.avisos.destinatarios.ayuda')}
             </span>
           </label>
 
           <label className="block">
-            <span className="block text-[12px] text-ink">Esperar antes de mandar</span>
+            <span className="block text-[12px] text-ink">{t('spaceeyes.avisos.espera')}</span>
             <span className="mt-1 flex items-center gap-2">
               <input
                 type="number"
@@ -249,17 +246,17 @@ export function AvisosCorreo() {
                 onChange={(e) => setAvisos({ ...avisos, agrupar_min: Number(e.target.value) })}
                 className="h-9 w-24 rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
               />
-              <span className="text-[13px] text-muted">minutos desde la primera falla del equipo</span>
+              <span className="text-[13px] text-muted">{t('spaceeyes.avisos.espera.unidad')}</span>
             </span>
           </label>
 
           {puedeCambiar && (
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="primary" size="sm" disabled={guardando} onClick={() => void guardar()}>
-                Guardar
+                {t('spaceeyes.avisos.guardar')}
               </Button>
               <Button variant="secondary" size="sm" disabled={guardando} onClick={() => void probar()}>
-                Mandar un correo de prueba
+                {t('spaceeyes.avisos.probar')}
               </Button>
               {mensaje && (
                 <span className={cn('text-[12px]', mensaje.tono === 'ok' ? 'text-success' : 'text-error')}>
@@ -269,29 +266,27 @@ export function AvisosCorreo() {
             </div>
           )}
 
-          {avisos.ultimo_error && <p className="text-[11px] text-error">Último intento: {avisos.ultimo_error}</p>}
+          {avisos.ultimo_error && <p className="text-[11px] text-error">{t('spaceeyes.avisos.ultimo-intento', { motivo: avisos.ultimo_error })}</p>}
 
           {/* La cuenta del proveedor. Al final y plegada: la lista de correos
               cambia seguido; esto, una vez cada varios años. */}
           {esDueno && (
             <div className="border-t border-border pt-3">
               <Button variant="tertiary" size="sm" className="!px-0" onClick={() => setVerCuenta((v) => !v)}>
-                {verCuenta ? 'Ocultar la cuenta de correo' : 'Cambiar la cuenta de correo'}
+                {verCuenta ? t('spaceeyes.avisos.cuenta.cerrar') : t('spaceeyes.avisos.cuenta.abrir')}
               </Button>
               <p className="mt-1 text-[11px] text-muted">
                 {!avisos.hay_llave
-                  ? 'Sin cuenta: no sale ningún correo.'
+                  ? t('spaceeyes.avisos.cuenta.ninguna')
                   : avisos.cuenta_del_panel
-                    ? 'Sale de ' + avisos.remitente + ', con la llave ' + avisos.llave_pista + '.'
-                    : 'Sale de ' +
-                      avisos.remitente +
-                      ' — viene del entorno del contenedor, no de aquí. Si la escribes aquí, manda esta.'}
+                    ? t('spaceeyes.avisos.cuenta.del-panel', { remitente: avisos.remitente, pista: avisos.llave_pista })
+                    : t('spaceeyes.avisos.cuenta.del-entorno', { remitente: avisos.remitente })}
               </p>
 
               {verCuenta && (
                 <div className="mt-3 space-y-3">
                   <label className="block">
-                    <span className="block text-[12px] text-ink">De quién salen los correos</span>
+                    <span className="block text-[12px] text-ink">{t('spaceeyes.avisos.remitente')}</span>
                     <input
                       type="text"
                       value={avisos.remitente}
@@ -300,12 +295,12 @@ export function AvisosCorreo() {
                       className="mt-1 h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none placeholder:text-muted focus-visible:ring-2 focus-visible:ring-accent"
                     />
                     <span className="mt-1 block text-[11px] text-muted">
-                      El dominio tiene que estar verificado en Resend, o el correo se rechaza.
+                      {t('spaceeyes.avisos.remitente.ayuda')}
                     </span>
                   </label>
 
                   <label className="block">
-                    <span className="block text-[12px] text-ink">Llave de Resend</span>
+                    <span className="block text-[12px] text-ink">{t('spaceeyes.avisos.llave')}</span>
                     <input
                       type="password"
                       value={llaveNueva}
@@ -321,20 +316,19 @@ export function AvisosCorreo() {
                       data-lpignore="true"
                       placeholder={
                         avisos.llave_pista
-                          ? 'Puesta: ' + avisos.llave_pista + ' — escribe otra para cambiarla'
+                          ? t('spaceeyes.avisos.llave.puesta', { pista: avisos.llave_pista })
                           : 're_...'
                       }
                       className="mt-1 h-9 w-full rounded border border-border-strong bg-surface px-3 font-mono text-[13px] text-ink outline-none placeholder:font-sans placeholder:text-muted focus-visible:ring-2 focus-visible:ring-accent"
                     />
                     <span className="mt-1 block text-[11px] text-muted">
-                      Se escribe, no se lee: una vez guardada nadie vuelve a verla desde aquí. Dejarla en blanco no la
-                      borra.
+                      {t('spaceeyes.avisos.llave.ayuda')}
                     </span>
                   </label>
 
                   {avisos.llave_pista && (
                     <Button variant="danger" size="sm" disabled={guardando} onClick={() => setQuitando(true)}>
-                      Quitar la llave guardada
+                      {t('spaceeyes.avisos.llave.quitar')}
                     </Button>
                   )}
                 </div>
@@ -347,8 +341,8 @@ export function AvisosCorreo() {
       <ConfirmDialog
         open={quitando}
         onOpenChange={setQuitando}
-        title="Quitar la llave de correo"
-        confirmLabel="Quitar"
+        title={t('spaceeyes.avisos.llave.quitar.titulo')}
+        confirmLabel={t('spaceeyes.avisos.llave.quitar.confirmar')}
         busy={guardando}
         onConfirm={() => {
           setQuitando(false)
@@ -357,8 +351,7 @@ export function AvisosCorreo() {
         }}
       >
         <p className="text-[13px] leading-relaxed text-muted">
-          Sin llave no sale ningún aviso: quedan escritos en el registro del servidor. Se puede volver a poner cuando
-          sea.
+          {t('spaceeyes.avisos.llave.quitar.aviso')}
         </p>
       </ConfirmDialog>
     </section>

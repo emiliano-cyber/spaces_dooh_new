@@ -5,6 +5,929 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-10 · v0.12.9 · Los idiomas se encienden con un botón desde Administración
+
+**Qué cambia para quien usa la aplicación.** En **Administración → Configuración → Idiomas del servidor**, el Dueño o un Administrador marca qué idiomas ofrece su servidor: Español (siempre), English, Italiano o Português. Al guardar, el selector de idioma aparece en la pantalla de entrar y en el menú de la cuenta, sin recargar y sin que nadie tenga que entrar al servidor.
+
+**Por qué.** En la DEMO de la v0.12.8 no aparecía ningún selector de idioma: solo se encendían editando la configuración del servidor y reiniciándolo. Ahora es un botón.
+
+**A tener en cuenta.**
+- Es para **todo el servidor**: lo ven todas las organizaciones que vivan en él.
+- Quien tenga el navegador en inglés verá la aplicación en inglés en cuanto se encienda; puede cambiarla desde el mismo selector.
+- Italiano y portugués siguen en traducción: lo que falta sale en inglés (italiano) o en español (portugués). La tarjeta lo avisa.
+- Mientras nadie toque la tarjeta, el servidor se comporta exactamente como antes.
+
+## 2026-11-09 · Space Eyes: aviso por correo cuando una pantalla falla, y menos falsas alarmas (sin publicar)
+
+Lo trajo Jose el 09/11 y entra en la v0.12.8.
+
+- **Aviso por correo.** En **Space Eyes → Fallas** hay una tarjeta nueva, **«Avisos por
+  correo»**. Ahí se escribe a quién se le avisa y cuántos minutos esperar antes de mandar.
+  Avisa solo de lo grave: la pantalla apagada o congelada y la cámara sin imagen. Las fallas
+  del mismo equipo salen juntas en un solo correo, así que una que se arregla sola antes de la
+  espera no molesta a nadie.
+- **La cuenta de correo la pone el Dueño** (la llave de Resend y el remitente). Quien opera el
+  inventario puede cambiar la lista de correos, pero no la cuenta. Cada cambio de la llave
+  queda en la bitácora.
+- **Todavía no sale ningún correo**: hace falta verificar el dominio del remitente en Resend y
+  poner la llave. Mientras tanto los avisos quedan escritos en el registro del servidor.
+- **Menos falsas alarmas**: la cámara ya no se acusa a sí misma de noche, una pantalla apagada
+  ya no cuenta como un creativo nuevo, y una «cámara movida» que el servidor no se cree se
+  cierra sola y lo dice en el historial.
+- Todo en español, inglés, italiano y portugués. Y una prueba nueva impide que vuelva a entrar
+  a Space Eyes texto en español escrito directo, sin traducir.
+
+---
+
+## 2026-11-09 · Eliminar usuarios desde Administración (sin publicar)
+
+En **Administración → Equipo**, cada persona tiene ahora un botón rojo **«Eliminar»**
+(menos tú: a ti mismo no te puedes eliminar).
+
+- **Se pide escribir su nombre** antes de que el botón se active, para que un clic en la
+  fila de al lado no borre a otra persona.
+- **Y después tu contraseña**, igual que al restablecer la de otro: la bitácora queda con
+  la prueba de que fuiste tú, y una sesión olvidada abierta no basta para borrar a nadie.
+- **Es definitivo.** La persona deja de poder entrar en ese momento. Lo que hizo se
+  conserva: la bitácora y sus propuestas guardan su nombre (en los reportes sale como «Ya
+  no está en la organización»), pero sus órdenes de trabajo quedan sin asignar.
+- **Antes no se podía borrar a nadie con historial**: la bitácora no se deja modificar y
+  la base lo rechazaba. Una migración separa la bitácora de la lista de usuarios para que
+  se pueda, sin tocar ni una línea de lo registrado.
+- **Si solo quieres que no entre, desactívala** con el interruptor de estatus: eso se puede
+  deshacer y no le quita nada.
+- Siguen valiendo las reglas de siempre: no se puede eliminar al último Dueño activo, y a
+  un Dueño solo lo elimina otro Dueño.
+
+---
+
+## 2026-11-06 · Space Eyes: ajuste de noche, ajustes por tipo de equipo y dos fotos por creativo (sin publicar)
+
+Llega a la aplicación el trabajo de Space Eyes de Jose López (rama `fix/space-eyes-fotos-rapidas`):
+
+- **Ajuste de noche.** En la ficha del equipo, «Ajustes de imagen», se puede marcar «Bajar
+  la luz de noche automáticamente» y elegir desde qué hora y hasta qué hora. En ese tramo
+  el equipo baja la exposición solo; ya no hace falta entrar dos veces al día a moverla.
+- **Cada equipo enseña solo lo que puede aplicar.** Un teléfono acepta la exposición, el
+  balance de blancos y el enfoque fijo; los demás mandos eran de la Raspberry y en un
+  teléfono no hacían nada aunque se veían. Una cámara de PC se configura desde su propia
+  página y lo dice.
+- **Dos fotos por creativo:** cómo apareció la primera vez y cómo se ve hoy, para ver de
+  un vistazo si una lona se decoloró o la pantalla perdió un módulo.
+- **El mismo aspecto que el resto del sistema:** encabezados del mismo tamaño, sin margen
+  doble, grises cálidos y botones verdes para agregar y azules para guardar.
+
+Todo llega traducido al inglés, italiano y portugués.
+
+---
+
+## 2026-11-06 · El idioma se cambia desde el menú de la cuenta (sin publicar)
+
+Al pulsar tu nombre, arriba a la derecha, el menú trae ahora un bloque **«Idioma»**
+con los idiomas disponibles y el vigente marcado. Al elegir otro, toda la aplicación
+cambia en el momento, sin recargar, y queda **guardado en tu cuenta**: te sigue a
+cualquier computadora o teléfono.
+
+Antes solo se podía cambiar en la pantalla de entrar y en «Configuración → Idioma».
+Los dos siguen igual.
+
+**Solo aparece si el servidor tiene más de un idioma encendido.** Hoy ningún servidor
+lo tiene (todos van solo en español), así que nadie lo verá hasta que se encienda el
+inglés, el italiano o el portugués en ese servidor.
+
+---
+
+## 2026-11-05 · Propuestas: la cantidad de una línea ya no se guarda distinta de la que se teclea (sin publicar)
+
+**Corrige un fallo de la v0.12.6 que mueve dinero.** Al teclear a mano la cantidad de
+una línea de propuesta (salidas, horas o millares de CPM), una cifra con el separador
+equivocado se guardaba como otra cantidad sin avisar: «1.500» en español quedaba en
+**100**, y en italiano «1,500» en 100 y «1.5000» en 15 000. La propuesta salía con
+otro total.
+
+Ahora, si la cantidad no se entiende, se queda escrita tal como se tecleó, en rojo, y
+«Crear propuesta» no deja guardar hasta corregirla («la cantidad no se entiende»).
+También se puede borrar la cantidad y teclear otra: antes, borrar el 5 para poner un 8
+dejaba 18.
+
+**Lo mismo en «Reservar sitios»** (Comercial): los slots que se reservan en una pantalla
+digital caían a 0 si la cifra no se entendía, y el campo se comía el separador. Ahora se
+quedan en rojo y «Reservar (tentativa)» no deja seguir hasta corregirlos. Teclear más
+slots de los que hay sigue bajándolos a los disponibles, como siempre.
+
+**Conviene revisar** las propuestas de g500 creadas con la v0.12.6 en las que se tecleó
+a mano una cantidad grande: el campo enseñaba la cifra guardada, así que la diferencia
+se veía, pero era fácil no notarla.
+
+---
+
+## 2026-11-05 · Portugués: las cifras se escriben a la brasileña (sin publicar)
+
+El dueño lo decidió el 05/11. El portugués sigue apagado: nadie lo ve todavía. En español,
+inglés e italiano no cambia nada, ni una cifra ni un texto.
+
+- **En portugués, las cifras se escriben como en Brasil**: punto para los miles y coma para
+  los decimales («1.500,50», «12,9 m», «55,5 %»), igual que en italiano. Lo que se guarda es
+  exactamente la misma cantidad que en los demás idiomas.
+- **Lo que se puede leer de dos maneras no se adivina**: «1,500» en un importe se rechaza
+  (podría ser uno y medio o mil quinientos) y el aviso explica cómo escribirlo; lo mismo
+  con un importe pegado a la mexicana, «1,500.50».
+- Los avisos y los ejemplos de los campos ya lo dicen así: «o ponto separa os milhares e a
+  vírgula, os decimais», «Ex.: 12,9».
+
+---
+
+## 2026-11-05 · Portugués: los papeles de un servidor en portugués (sin publicar)
+
+El dueño lo aprobó el 05/11 («Sí, igual que italiano»). En un servidor en español, inglés o
+italiano no cambia nada: los contratos ya firmados siguen igual, letra por letra.
+
+- **Un servidor nuevo puede nacer con sus papeles en portugués de Brasil**, como ya podía en
+  inglés o en italiano: el contrato de ejemplo, la constancia de firmas, la propuesta impresa,
+  la liga que recibe el cliente, el portal, el comprobante de cobro y los correos (propuesta,
+  invitación, restablecer la contraseña y el aviso diario de contratos). Se elige al darlo de
+  alta y no se cambia. El importe con letra sale como en Brasil: «MIL DUZENTOS E TRINTA E
+  QUATRO PESOS 50/100 MXN».
+- **«Mi cuenta» puede guardar el portugués** como idioma de la persona, en cuanto el portugués
+  se encienda en el servidor. Hoy sigue apagado: nadie lo ve.
+- El contrato en portugués es una **plantilla de ejemplo**, como el inglés y el italiano: el
+  contrato que vale es el que el cliente sube.
+
+---
+
+## 2026-11-05 · v0.12.6 (preparada, todavía sin publicar)
+
+Junta todo lo que está abajo marcado «sin publicar» desde el 02/11: inglés e italiano,
+el idioma de cada persona, los papeles en el idioma del servidor, pesos o dólares por
+servidor, las cifras con coma, la vigencia de las propuestas, los nombres accesibles y lo
+nuevo de Space Eyes. Las notas que verá cada cliente están en `apps/web/novedades.json`.
+**El portugués NO va en esta versión**: sigue en su rama, `integra/portugues`.
+
+---
+
+## 2026-11-05 · Mapas, avisos y botones de cerrar en el idioma de cada persona, y la vigencia de las propuestas sin depender de la hora (sin publicar)
+
+Cambios que el dueño autorizó el 05/11. Los tres primeros se notan sobre todo con un lector de pantalla o al
+dejar el ratón encima de un botón.
+
+- **Los botones de los mapas** (acercar, alejar, buscar mi ubicación, créditos del mapa) y
+  el aviso de los marcadores decían «Zoom in», «Find my location», «Map marker»… en
+  inglés, también con la aplicación en español. Ahora salen en español, inglés o italiano,
+  según el idioma de quien usa la aplicación.
+- **Los avisos** que aparecen abajo a la derecha se anunciaban como «Notifications» y su
+  botón de cerrar como «Close toast». Ahora dicen «Notificaciones» y «Cerrar aviso» (en
+  inglés, «Notifications» y «Close notification»; en italiano, «Notifiche» y «Chiudi
+  notifica»).
+- **La X que cierra las ventanas y los paneles laterales** no tenía nombre: un lector de
+  pantalla decía solo «botón». Ahora dice «Cerrar» («Close», «Chiudi»), y al dejar el ratón
+  encima aparece el mismo texto. Igual con las X para quitar una tasa de IVA o un plazo de
+  cobranza en Administración («Quitar IVA 16%», «Quitar plazo 30 días»).
+- **La vigencia de las propuestas ya no depende de la hora.** Entre las 6 de la tarde y la
+  medianoche, una propuesta válida «hasta hoy» enseñaba al cliente el botón de aceptar y, al
+  pulsarlo, le decía que ya había vencido. Y una propuesta enviada a esas horas quedaba con un
+  día más de vigencia que el que decía su correo. Ahora todo cuenta con el mismo día, el de la
+  zona horaria de la empresa: el último día de vigencia vale completo, hasta la medianoche.
+
+## 2026-11-05 · Cifras: una coma mal puesta ya no cambia el importe en silencio (sin publicar)
+
+Decisión del dueño. Hasta ahora, en un campo de importe o de cantidad, si alguien
+**tecleaba** «2,5» pensando en «dos y medio», la coma desaparecía y se guardaba **25**,
+sin ningún aviso; «15000,50» se guardaba como 1,500,050. Si **pegaba** el mismo texto, en
+cambio, el campo lo rechazaba y explicaba por qué.
+
+Ahora teclear y pegar se tratan igual, en español y en inglés:
+
+- **La coma que escribe la persona se queda donde la escribió.** Si está bien puesta
+  («1,500», «12,500.50») vale como siempre. Si no («2,5», «12,34», «1,5000»), el campo la
+  deja a la vista, se marca en rojo con el aviso «Las comas van cada tres cifras…» y el
+  formulario **no se guarda** hasta corregirla.
+- **No regaña mientras se escribe.** Al teclear «1,500» se pasa por «1,» y «1,5»: ahí no
+  sale nada. El aviso aparece al salir del campo o al pulsar Enter, si lo que quedó no es
+  una cifra bien puesta.
+- **Lo de siempre no cambia:** quien teclea «1500» sigue viendo «1,500» mientras escribe,
+  y el punto sigue siendo el decimal («2.5» es dos y medio).
+
+Afecta a todos los campos donde se teclea un importe o una cantidad con coma de miles
+(tarifas, rentas, precios, cantidades). Los campos de medidas y porcentajes (por ejemplo
+la comisión o el descuento) no cambian. En italiano ya funcionaba así.
+
+---
+
+## 2026-11-04 · Idiomas: el correo de «olvidé mi contraseña», «provvigione» y los contratos de ejemplo (sin publicar)
+
+Tres cambios que el dueño autorizó el 04/11. En un servidor en español no cambia nada.
+
+- **El correo para restablecer la contraseña** llega en el idioma del servidor, como ya
+  pasaba con la invitación: en inglés o en italiano si el servidor se creó así. En español
+  sale exactamente igual que antes. Lo demás de «olvidé mi contraseña» no cambia: el enlace
+  vence igual, los límites de intentos son los mismos y la respuesta sigue sin decir si el
+  correo está registrado.
+- **En italiano, «comisión» se dice siempre «provvigione»**, como en el menú. Antes las
+  pantallas de Comisiones, Propuestas y Reportes decían «commissione».
+- **Los contratos en inglés e italiano son plantillas de ejemplo** que cada cliente irá
+  adaptando. Ya no hace falta esperar la revisión de un abogado para crear un servidor en
+  esos idiomas. El texto del contrato no cambió.
+
+---
+
+## 2026-11-02 · Paquetes: los textos ya no dan por hecho que se cobra en pesos (sin publicar)
+
+Ahora que una instancia puede trabajar en dólares, cuatro textos de la pantalla
+de **Paquetes** decían algo falso en esa instancia, porque hablaban de pesos. Se
+reescribieron sin nombrar la moneda, en español y en inglés. Es el único cambio
+de texto en español que el dueño autorizó en la traducción al inglés.
+
+- «Precio del conjunto (pesos enteros)» → **«Precio del conjunto (cantidad
+  entera, sin centavos)»**.
+- «la suma de las partes da el precio del paquete al peso» → **«… con
+  exactitud»**.
+- «Suma de las partes — cuadra al peso» → **«— cuadra exacto»**.
+- El aviso al guardar un paquete con centavos: «tiene que ser un numero entero
+  de pesos» → **«tiene que ser una cantidad entera»** (el resto de la frase
+  sigue igual: el reparto entre las pantallas no admite centavos).
+
+Lo demás del español no cambió. Se comprobó con las pruebas automáticas que
+dibujan las pantallas ya traducidas (propuestas, campañas, finanzas, comercial,
+catálogos de precio y piezas compartidas): 124 estados de pantalla, comparados
+antes y después. Solo cambian esas frases, y solo en Paquetes. Las pantallas
+que aún no se traducen no tienen esas pruebas, pero tampoco tenían ninguno de
+estos textos. La cantidad con letra
+de los contratos («… PESOS 00/100 M.N.») y los recibos de CFE se quedan como
+están, a propósito.
+
+Además, en inglés, los avisos «no puede ser mayor que…» y «no puede ser menor
+que…» de un campo de cifra ahora dicen «Must not be greater than…» y «Must not
+be less than…», igual que el aviso del servidor.
+
+---
+
+## 2026-11-02 · La moneda de cada instancia: pesos o dólares, elegida al crearla y para siempre (sin publicar)
+
+Decisión del dueño: una instancia trabaja en **pesos mexicanos (MXN)** o en
+**dólares (USD)**. Se elige **una sola vez, al crearla**, y después **no se puede
+cambiar**, por seguridad. Las instancias que ya existen se quedan en pesos y se
+ven exactamente igual que antes.
+
+- **Por qué no se puede cambiar.** Los importes que ya están guardados
+  (contratos, propuestas, cobranza) son solo números: no dicen en qué moneda
+  están. Si se cambiara la moneda, «$10,000 pesos» pasaría a leerse como
+  «$10,000 dólares» sin convertir nada. Por eso lo impiden dos cosas a la vez:
+  la base de datos y la aplicación. Cambiarla a la fuerza ya no es un ajuste: es
+  una corrección de datos con tipo de cambio, que se decide aparte.
+- **Cómo se ve.** En una instancia en pesos todo sigue igual: `$ 1,234.50`. En
+  una en dólares, en español se escribe `US$ 1,234.50` para que nadie lo lea
+  como pesos. El documento de la propuesta que se le da al cliente, los avisos y
+  la bitácora usan la moneda de la instancia. Un contrato en dólares dice
+  «DÓLARES … USD» en la cantidad con letra, no «PESOS … M.N.».
+- **Los contratos ya firmados no cambian.** Si un contrato en dólares se firmó
+  antes de este cambio (cuando su letra todavía decía «PESOS»), sus firmas
+  siguen apareciendo como válidas: el sistema lo revisa con la regla con la que
+  se firmó. Si alguien cambia un dato de ese contrato, se sigue avisando.
+- **Si la base de datos no responde**, la aplicación muestra una página propia
+  en español («El sistema no está disponible en este momento», con un botón
+  para reintentar) en lugar de una pantalla de error en inglés. No muestra los
+  importes con una moneda adivinada.
+- **El registro abierto no elige la moneda.** Solo quien da de alta la
+  instancia la elige; las organizaciones que se creen después usan la misma.
+- **Administración → Identidad** muestra la moneda de la instancia (antes decía
+  «Peso mexicano» escrito a mano) y avisa de que no se puede cambiar.
+- **Cambios de contrato** ya no deja escribir otra moneda: el campo se muestra y
+  no se edita. Un contrato va siempre en la moneda de la instancia.
+- **Captación** dice «Presupuesto estimado (USD)» en una instancia en dólares.
+- **Quien da de alta una instancia** elige la moneda con `--moneda MXN` o
+  `--moneda USD` en el último paso (`--bootstrap`). Si no la pone, pesos. Si la
+  pone en otro paso, el guion se para y lo avisa. Ver
+  `docs/runbook-alta-de-owner.md` §6.
+- En las pantallas en inglés el símbolo sigue siendo el de siempre; mostrar
+  «MX$» en inglés se hará en otra tarea.
+
+Detalle técnico: ADR 0048 y `vault/03-Frontend/idiomas-es-en.md` §7.
+
+---
+
+## 2026-10-29 · DOOHmain: pausar creativos, su estado y el historial por pantalla (entra en la v0.12.5, todavía sin publicar)
+
+Pedido del dueño: subir y bajar creativos, ver el historial de reproducción y
+tener un link de comprobación. Se revisó qué deja hacer la API de DOOHmain y se
+integró lo que faltaba. Está en la ficha de cada campaña, en «Reproducciones
+(proof of play)».
+
+- **«En DOOHmain ahora».** Cada anuncio publicado aparece con las pantallas de
+  DOOHmain donde está y cómo lo ve DOOHmain en este momento: «Al aire», «En
+  pausa», «Programada» (todavía no empieza), «Terminó» (ya pasó su fecha fin),
+  «Finalizada», «Eliminada en DOOHmain» o «No está en DOOHmain» si la borraron
+  en su panel, y «Sin confirmar» si DOOHmain no contesta. Probado contra una
+  pantalla de pruebas real: DOOHmain sigue diciendo «activa» a una campaña
+  vencida o que aún no empieza, así que esas dos se calculan con las fechas.
+  Solo se ofrece «Pausar» o «Reanudar» donde sirve de algo.
+- **Pausar y reanudar.** Un anuncio se puede bajar del aire con «Pausar» y
+  volver a subir con «Reanudar», sin perderlo ni repetir la publicación. Es la
+  única forma de bajarlo que tiene vuelta: DOOHmain no deja quitar un anuncio de
+  su lista. Quitarlo para siempre sigue siendo la papelera del panel de
+  validación. La bitácora anota «Pausó creativo en DOOHmain» o «Reanudó…».
+- **Historial de sus pantallas.** Una pestaña nueva pide a DOOHmain lo que se
+  reprodujo, día por día, en las pantallas donde está la campaña. Ojo: incluye
+  también otras campañas de esas pantallas, así que sirve para ver que la
+  pantalla estuvo funcionando, pero **no cuenta como prueba de esta campaña** ni
+  la deja lista para facturar. Para eso sigue la pestaña «De esta campaña».
+- **Recordatorio al reemplazar un anuncio aprobado.** Antes de elegir el arte
+  nuevo, un aviso explica que el anterior se baja del aire en DOOHmain solo y
+  recuerda **eliminar la campaña anterior en el panel de DOOHmain**: no se puede
+  borrar desde aquí y la nueva lleva el mismo nombre (la anterior es la que
+  aparece como finalizada). El mensaje de «Arte reemplazado» lo repite.
+- **El link de comprobación no lo da DOOHmain.** Su API no tiene nada para
+  compartir un reporte. Se puede construir aquí, pero es una página que se abre
+  sin iniciar sesión, y eso espera la decisión del dueño.
+
+---
+
+## 2026-10-29 · v0.12.5 (preparada, todavía sin publicar)
+
+Junta lo que sigue: extender campaña solo con contrato, la ubicación por
+coordenadas en Comercial negociación y las correcciones de precios y reportes.
+Trae un cambio de base de datos aprobado por el dueño (`campana_extensiones`).
+
+**Propuestas, completas.** Decisiones del dueño del 29/10, una por una. Trae un
+segundo cambio de base de datos, también aprobado: las condiciones, la vigencia
+y el nombre del vendedor de cada propuesta.
+
+- **«Generar PDF» ya funciona.** Antes el botón no hacía nada. Ahora abre, en
+  otra pestaña, el documento que se le entrega al cliente: el logo de la
+  organización, las pantallas con su foto, el mapa, los importes (los mismos que
+  ve el cliente en su liga), los términos y condiciones, y la liga con un código
+  QR para aceptarla en línea. Se guarda como PDF con «Imprimir». Si hay un código
+  de negociación que todavía no se aprueba, el documento no lo enseña, igual que
+  la liga.
+- **«Enviar» manda la propuesta por correo.** Pide el correo del cliente (lo
+  propone del contacto del cliente) y un mensaje opcional, y manda la liga. Quien
+  la envía recibe copia; si el cliente responde, le contesta al correo de la
+  organización. Si el correo no sale, la propuesta no cambia y se puede
+  reintentar. En una instalación sin correo configurado, solo la marca como
+  enviada y avisa de que la liga hay que mandarla a mano. Una propuesta ya
+  enviada se puede **reenviar**.
+- **Vigencia.** Al enviarla, la propuesta vale **30 días** (cada organización lo
+  cambia en Administración → «Propuestas: vigencia y condiciones»). El último día
+  todavía vale. Vencida, el cliente ve «venció el …» y ya no puede aceptarla; por
+  dentro se le pone otra fecha en la ficha o se reenvía, y vuelve a valer. Las
+  propuestas enviadas antes de hoy no tienen vigencia y se siguen aceptando como
+  siempre.
+- **Términos y condiciones.** En Administración se escribe una plantilla; cada
+  propuesta nueva la copia y se puede ajustar en su ficha («Condiciones y
+  vigencia»). Cambiar la plantilla no toca las propuestas ya creadas. Salen en el
+  documento y en la liga, antes del botón de aceptar.
+- **Agregar y quitar pantallas** a una propuesta en borrador o enviada. Las
+  nuevas se cotizan con las fechas de la propuesta y con la tarifa de hoy, con las
+  mismas reglas que al crearla (un vendedor no puede poner otro precio). Si ya
+  estaba enviada, sube de versión. No se puede quitar la última pantalla.
+- **Duplicar:** crea una propuesta nueva con las mismas pantallas, cliente y
+  fechas, cotizada con la tarifa de hoy y sin el código de negociación.
+- **Borrar** un borrador. Las enviadas no se borran (se rechazan) y las
+  aprobadas no se tocan. Si el borrador tenía un código de negociación, su uso se
+  devuelve.
+- **El vendedor que se va no pierde sus ventas.** Si se borra a un usuario, sus
+  propuestas conservan su nombre, y Reportes y el Dashboard lo siguen nombrando en
+  vez de mandar su dinero a «Sin vendedor».
+- Decidido sin cambiar nada: si una campaña se programa en un horario distinto
+  del que se vendió, el sistema **solo avisa**, como hasta ahora.
+
+
+**Una campaña solo se extiende con un contrato nuevo.** Decisión del dueño:
+«Extender campaña» vuelve a estar a la mano, en la ficha de cada campaña, pero
+para alargarla hay que adjuntar en ese mismo paso el contrato firmado de la
+extensión (en PDF).
+
+- En la ficha de la campaña hay una tarjeta nueva, **«Extensiones»**, con el
+  botón «Extender campaña». Pide la nueva fecha de fin y el contrato firmado;
+  sin el contrato no deja extender, y el sistema lo rechaza aunque se intente
+  por otro camino: «Para extender la campaña adjunta el contrato firmado de la
+  extensión».
+- Cada extensión queda en el expediente de la campaña: con qué folio quedó
+  (por ejemplo PR-2026-0042.1), de qué fecha a qué fecha, quién la hizo y su
+  contrato, que se puede abrir desde la misma tarjeta.
+- El contrato original del cliente no se toca: el de cada extensión se guarda
+  aparte.
+- La bitácora anota «Extendió campaña … hasta … con contrato».
+- Ya no se puede «extender» a la misma fecha que la campaña ya tiene: no
+  alargaría nada.
+- Una campaña que tiene extensiones no se puede borrar, para que sus contratos
+  firmados no se pierdan nunca.
+
+Trae un cambio de base de datos, aprobado por el dueño: una tabla nueva para las
+extensiones y sus contratos.
+
+**En Comercial negociación, la ubicación de un espacio se pone por coordenadas o
+por calle.** Decisión del dueño. En el bloque «Ubicación» de cada espacio, la caja
+de búsqueda (el botón ahora dice «Ubicar») acepta, además de una dirección:
+
+- **Coordenadas**, como las copia Google Maps: `19.4326, -99.1332` o
+  `19°25'57.4"N 99°07'59.5"W`. El pin se pone ahí al instante, sin buscar nada.
+- **Un enlace de Google Maps**, el largo que sale en el navegador o el corto que
+  da «Compartir» en el teléfono (`maps.app.goo.gl/…`).
+
+Después se afina arrastrando el pin y se guarda, como antes. Esto funciona en
+todas las instalaciones, **sin clave y sin costo**. Si las coordenadas están fuera
+de rango (por ejemplo, pegadas al revés) o el enlace no es de Google Maps, la
+pantalla lo dice en vez de poner el pin en otro lado.
+
+**El buscador de calles puede ser el de Google** si el dueño de la instalación
+pone su propia clave de Google en la configuración del servidor
+(`GOOGLE_MAPS_SERVIDOR_KEY`). Sin clave sigue el de OpenStreetMap, como hasta
+ahora. La clave se queda en el servidor: nunca llega al navegador. **Todavía nadie
+lo ha probado con una clave real de Google**, y falta revisar sus condiciones de
+uso antes de encenderlo. Los mapas siguen siendo los de siempre: no se decidió
+poner mapas de Google en ninguna pantalla.
+
+**Franjas y temporadas ya pide la contraseña cuando tu organización la exige.**
+Si el control de cambios está encendido, al añadir o dar de baja una franja o una
+temporada aparece un cuadro para escribir tu contraseña y confirmar. Antes salía
+un mensaje en rojo y no había forma de terminar el cambio desde esa pantalla.
+
+**Una propuesta aprobada solo nombra la temporada si fue la que puso el precio.**
+Antes, una venta hecha en fechas del Buen Fin pero cobrada a la tarifa normal
+quedaba guardada diciendo «Buen Fin», como si se hubiera cobrado ese precio.
+Ahora, al aprobar, la temporada solo se anota si de verdad fue su tarifa la que se
+cobró; si no, se deja en blanco. Las propuestas que ya estaban aprobadas no
+cambian.
+
+**Reportes: vender dos horarios de la misma pantalla ya no la saca de «tarifa
+publicada contra neta».** Si en una propuesta se vendían, por ejemplo, el horario
+prime y la madrugada de la misma pantalla, el reporte no sabía qué precio era de
+cuál y dejaba esa pantalla fuera de la comparación. Ahora distingue cada horario.
+
+**Al generar una campaña, cada pantalla se cobra a su precio aunque se repita.**
+Si una propuesta llevaba la misma pantalla dos veces (por ejemplo, el horario
+prime y la madrugada, o dos periodos), la campaña guardaba las dos con el precio
+de la última. Así se cobraba menos, o más, de lo cotizado. Ahora cada una lleva
+el suyo. Las campañas ya creadas no cambian. Hay una consulta para que el dueño
+revise si alguna quedó afectada.
+
+**Reportes: como máximo 24 meses por consulta.** Por decisión del dueño, el
+reporte de rentabilidad abarca hasta dos años de una vez. Si se eligen fechas más
+separadas, la pantalla lo avisa («El reporte abarca como máximo 24 meses por
+consulta. Acorta el rango de fechas.») y no lo calcula; así un inventario grande
+no deja la pantalla cargando sin fin.
+
+---
+
+## 2026-10-27 · v0.12.4 (preparada, todavía sin publicar)
+
+Junta en una sola versión lo que se cuenta abajo en las entradas del 26 y del
+23/10: el **nuevo diseño** (el Dashboard y todos los módulos menos Space Eyes),
+«tentativo» como «está en una propuesta», el **contrato firmado que se puede
+cambiar**, «Pantalla propia» en todas las altas y la ficha de campaña con la
+validación siempre abierta. Trae dos cambios de base de datos, los dos aprobados
+por el dueño: las versiones firmadas de los contratos y que una reserva nazca
+confirmada por omisión.
+
+---
+
+## 2026-10-26
+
+**«Tentativo» ahora quiere decir «está en una propuesta».** Una pantalla fija o
+los spots de una digital son tentativos cuando están en una propuesta que todavía
+no se aprueba (en borrador o enviada). Es solo un aviso: la pantalla se puede
+seguir ofreciendo a otro cliente.
+
+- En Disponibilidad, una pantalla libre que alguien pide en una propuesta sale
+  «En propuesta», en ámbar; al pasar el ratón dice qué propuesta y qué cliente.
+- En Comercial, la tarjeta «En propuesta» lista las propuestas abiertas, con un
+  enlace a cada una (sustituye a «Reservas tentativas», que nunca aparecía).
+- En el calendario de la ficha de una pantalla y en el mapa del Dashboard, el
+  ámbar es «en propuesta».
+- En «Huecos y renovaciones» del Dashboard, si una cara que se queda libre ya
+  está en una propuesta, se dice cuál: es a quién llamar.
+- Reportes y el ingreso del mes cuentan solo lo vendido de verdad (confirmado).
+- El vendedor ya no ve errores en la consola al abrir el Dashboard.
+
+**Todas las pantallas (menos Space Eyes) tienen ahora el mismo diseño que el
+Dashboard.** Nada cambia en lo que hacen: los mismos botones, permisos,
+confirmaciones y cifras. Lo que cambia es cómo se ven:
+
+- Cada módulo abre con sus cifras clave arriba (por ejemplo, Operaciones:
+  abiertas, vencidas, por vencer y sin asignar; Finanzas: por cobrar, vencido,
+  facturado y cobrado).
+- Filtros en chips con su conteo, listas más compactas y «Ver todas (N)» en vez
+  de listas interminables (Operaciones ya no son 114 tarjetas seguidas).
+- Disponibilidad usa un solo código de color: libre sin relleno, apartada en
+  ámbar y ocupada en rojo. Antes el verde quería decir «libre» en un sitio y
+  «confirmada» en otro.
+- En el detalle de una propuesta se quitó una segunda cuenta de «bruto a total»
+  que no restaba el descuento comercial y no coincidía con la de arriba.
+- Se ve bien en el teléfono: Finanzas y Propuestas ya no se salen de la
+  pantalla.
+- Almacén distingue «no se pudo cargar» de «no hay nada», con un botón para
+  reintentar.
+
+**El Dashboard se rehízo con lo que ponen en su inicio otros programas de medios
+exteriores y los CRM:**
+
+- **Cada quien ve su tablero.** Quien ve Finanzas tiene arriba el ingreso, el
+  margen, lo ganado en el mes y la ocupación. Un vendedor tiene su pipeline
+  abierto, su tasa de cierre, lo ganado en el mes y la ocupación, en vez de
+  tarjetas de dinero vacías.
+- **Pipeline comercial** en lugar de «Tentativas vs confirmadas»: cuánto hay en
+  propuestas abiertas, cuánto se aprobó este mes, qué porcentaje de las
+  propuestas decididas en los últimos 90 días se ganó, y lo ganado por cada
+  vendedor.
+- **Huecos y renovaciones** en lugar de «Campañas por finalizar»: qué caras (o
+  slots de una pantalla digital) se quedan sin campaña en los próximos 30 días,
+  y qué cliente sale, para ofrecerle renovar. Si otra campaña ya tomó el lugar,
+  no aparece.
+- **Por cobrar por antigüedad**: el saldo repartido en sin vencer, 1–30, 31–60,
+  61–90 y más de 90 días, y cuánto está vencido.
+- **Alertas**: las urgentes van primero, hay un contador por tipo y un botón
+  «Ver todas». Las de licencias y permisos ya se pueden ocultar.
+- **Rendimiento**: la renta como porcentaje del ingreso del mes y cuánto de la
+  tarifa publicada se está cobrando.
+- **Mapa** más chico, y el color de cada espectacular dice si está ocupado,
+  apartado o libre HOY.
+
+- **El Dashboard ya enseña el ingreso y el margen DEL MES.** Antes, «Ingreso
+  contratado del mes» sumaba todas las ventas confirmadas que han existido, y el
+  margen contaba la renta de una pantalla una vez por cada venta que tuvo. Ahora
+  las dos tarjetas dicen el mes («Ingreso de octubre», «Margen de octubre») y dan
+  exactamente la misma cifra que Reportes → Rentabilidad para ese mes: el ingreso
+  se reparte por los días que la campaña cae en el mes, la renta es la de todas
+  tus pantallas con contrato (vendidas o no, porque se paga igual) y se suma la
+  luz. La impresión se ve aparte y no entra en el margen. Un enlace «Ver por
+  pantalla» abre ese mismo mes en Reportes.
+- **Quien no tiene permiso de Finanzas ya no ve cifras falsas.** Un vendedor veía
+  «Por cobrar $0» y un margen de 100 % en verde porque esos datos no le llegan.
+  Ahora esas tarjetas dicen «—, requiere permiso de Finanzas».
+
+---
+
+## 2026-10-23
+
+**Preparado (todavía sin publicar):**
+
+- **Un contrato firmado ya se puede cambiar.** Antes, en cuanto alguien lo
+  firmaba, sus términos no se podían tocar y había que hacer otro contrato. Ahora
+  «Editar términos» aparece también en los contratos firmados, aunque los hayan
+  firmado las dos partes. Hay que escribir el motivo. Al guardar, la versión
+  firmada se guarda tal cual —el texto y quién firmó, cuándo y desde dónde— en
+  «Versiones firmadas anteriores», las firmas se anulan y el contrato se vuelve a
+  enviar a firma con los datos nuevos.
+- **Antes de enviar a firma se revisan los datos.** «Enviar a firma» ya no
+  congela el contrato de golpe: primero enseña los datos actuales que va a llevar
+  —los de tu empresa, los del arrendador, el espacio y los términos— y solo al
+  confirmar «Los datos son correctos» se congela y se genera el enlace. Si alguien
+  cambió algún dato mientras lo revisabas, avisa y pide recargar.
+- **Volver a enviar a firma ya no borra lo firmado.** Antes, reenviar un contrato
+  firmado borraba sus firmas sin dejar copia. Ahora la versión firmada queda
+  guardada antes de reiniciarlas.
+- **«Pantalla propia» en todas las altas.** El alta de pantalla desde Comercial
+  ya ofrece «Pantalla propia», como la de Inventario. Y al volver a importar un
+  archivo de pantallas propias sobre pantallas que ya existían, ahora sí quedan
+  como propias (antes se actualizaban los datos y seguían rentadas). Si alguna
+  tiene un contrato de renta vigente, esa fila sale como error y no se toca.
+
+---
+
+## 2026-10-23 · Ficha de campaña: validación siempre abierta y un solo horario
+
+- **En la ficha de cada campaña, «Validación de publicación» está siempre
+  abierta**, justo debajo de los creativos, sea cual sea su estatus. Antes,
+  cuando ya estaba aprobada —o la campaña no tenía pantallas digitales— salía
+  plegada y al final de la página, y había que buscarla para ver lo que se manda
+  a DOOHmain o para volver a enviar.
+- **Si la campaña ya tiene franja horaria, no se le pone otro horario.** En «Lo
+  que se manda a DOOHmain», una campaña con franja programada —o con una franja
+  contratada en alguna pantalla— ya no muestra el cuadro para poner un horario
+  propio: dice qué franja se manda y su horario. Las campañas sin franja lo siguen
+  teniendo como antes.
+
+---
+
+## 2026-10-22
+
+**Preparado para la v0.12.3 (todavía sin publicar):**
+
+- **Pantallas y lugares propios.** Al dar de alta una pantalla (o al importar un
+  archivo) se puede marcar «Pantalla propia»: es de la empresa, no se le paga renta
+  a nadie, no pide arrendador ni abre contrato, y se puede vender igual. Su costo
+  es solo la luz y la operación. Una pantalla que ya existe se puede marcar propia
+  desde su ficha (pide tu contraseña); si tiene un contrato de renta vigente, hay
+  que terminarlo antes. En Inventario, Comercial, propuestas y Reportes sale
+  «Propia» en vez de «sin contrato».
+- **Las fechas de la propuesta se entienden solas.** Si escribes a mano la fecha
+  «Hasta», la duración se pone sola: meses, catorcenas, semanas o días, la que
+  cuadre exacta.
+- **Varios creativos en un mismo spot rotan solos.** En Creativos ya no hay que
+  escribir cuántas veces sale cada uno: se marca qué creativos van en cada spot y
+  se reparten en partes iguales. Si hay más creativos que spots, todos entran y se
+  turnan; ya no sale «2 de 1» en rojo. Al aprobar un creativo, los spots vacíos y
+  los que tenían el reparto automático lo suman solos; uno ajustado a mano se
+  respeta.
+- **Al reemplazar un creativo publicado se explica lo que pasa en DOOHmain.** El
+  arte anterior queda finalizado (no se reproduce), pero sigue apareciendo en la
+  lista de DOOHmain porque DOOHmain no deja quitarlo; por eso se veían tres
+  imágenes. Si DOOHmain no responde al finalizarlo, ya no se reemplaza a medias:
+  avisa y no cambia nada.
+
+- **Horario propio de cada campaña en DOOHmain.** En la ficha de la campaña,
+  en «Lo que se manda a DOOHmain», se puede poner una hora de inicio, una de fin
+  y, si se quiere, los días de la semana. Ese horario es el que se manda a
+  DOOHmain y manda sobre la franja programada o la contratada. «Quitar» lo borra
+  y se vuelve a usar la franja.
+- **En Inventario se ve el id de DOOHmain de cada pantalla.** Antes, si la
+  pantalla se publicaba con el id que pone el servidor, al editarla el campo salía
+  vacío y parecía que no tenía. Ahora la tabla y la ficha enseñan el id que se usa
+  y dicen si está escrito en la ficha o lo pone el servidor.
+- **Los creativos, lo primero de la campaña.** En la ficha de cada campaña,
+  los creativos ya salen arriba de todo, siempre abiertos: se ven y se suben
+  ahí mismo en cuanto la campaña existe y en cualquier momento, aunque ya esté
+  cerrada. Antes, cuando todos estaban aprobados, la sección se plegaba y se iba
+  al fondo.
+- **Antes de publicar en DOOHmain se ve lo que se va a mandar.** En «Validación
+  de publicación» hay un cuadro con cada pantalla: a qué pantalla de DOOHmain va,
+  con qué creativo, en qué horario (la franja, o «todo el día» si no tiene) y
+  cuántas reproducciones por día y en toda la campaña, además de los datos del
+  cliente. Si una pantalla no tiene pauta diaria, dice «las que quepan».
+- **El aviso de la franja horaria dice ahora la verdad.** Decía que la franja
+  no se envía al CMS; desde hoy, al publicar en DOOHmain sí se envía. Sigue
+  habiendo que programarla a mano en las pantallas de otro CMS o si el anuncio ya
+  estaba publicado.
+- **DOOHmain recibe ahora todos los datos de la campaña.** Al publicar, además
+  de las fechas y los spots por día, se manda **cuántas reproducciones en total**
+  le tocan a cada pantalla en toda la campaña y **los datos del cliente**: RFC,
+  razón social, dirección (si está en su contacto) y si es directo o agencia.
+  Si la campaña tiene una **franja de horario** —la programada o, si no, la
+  contratada en esa pantalla—, se manda también su horario y DOOHmain reparte las
+  reproducciones del día dentro de él. **Si no tiene franja, se manda lo mismo que
+  antes.** Un anuncio que ya estaba publicado no cambia de horario al volver a
+  publicar (DOOHmain no deja reemplazarlo); sí se actualizan las cantidades y el
+  cliente.
+- **Recordatorio al publicar en DOOHmain.** En la ficha de una campaña con
+  pantallas digitales, debajo de «Enviar al dominio», «Aprobar publicación» y
+  «Volver a publicar», y dentro de las ventanas que confirman la publicación,
+  sale ahora en ámbar: *«Recuerda no estar en la pantalla dentro del sitio de
+  DOOHmain para permitir el proceso: ciérrala allí antes de enviar o
+  publicar.»* Es solo un recordatorio: la aplicación no puede ver si alguien
+  tiene la pantalla abierta en DOOHmain.
+
+- **Comercial negociación ya guarda de verdad.** Hasta hoy la pantalla era una
+  maqueta con espacios de ejemplo; ahora cada espacio que se persigue (un muro,
+  una azotea, un terreno, una pantalla) se da de alta con **Nuevo espacio** y
+  todo lo que se le captura se queda:
+  - **la ficha**: qué tipo de espacio es, su **visibilidad** (cercana, media o
+    lejana), sus **medidas** —ancho y alto, con el área calculada sola, y la
+    superficie del terreno— y la renta que se está autorizado a ofrecer;
+  - **la ubicación**: se busca la dirección, se elige el resultado y se afina el
+    punto arrastrando el pin en el mapa. Lo que se guarda es el punto que tú
+    dejas marcado. Usar el GPS del teléfono queda pendiente;
+  - **los contactos** (el dueño, la apoderada, la vecina, el portero), marcando
+    quién firma;
+  - **las ofertas de renta** que se le hacen al dueño, por versiones, con su
+    estado (enviada, contraoferta, rechazada, aceptada). No se borran: son la
+    historia de la negociación;
+  - **la competencia**, **el historial de contactos** con el canal y con quién se
+    habló, y **notas adicionales** con autor y fecha, que no se editan ni se
+    borran.
+  La barra de «Búsqueda del responsable» ya se mueve con un clic, y el último
+  paso («Responsable legal confirmado») pide antes marcar qué contacto firma.
+  Cada vendedor ve y trabaja solo sus espacios; los gerentes, directores,
+  administradores y el Dueño ven los de todo el equipo. Por dentro es la misma
+  información que Captación: un espacio que se cierra se aprueba allí y nace como
+  predio con la ubicación que se le fijó.
+
+---
+
+## 2026-10-21
+
+- **v0.12.1 · la aplicación corre sobre una versión de Node con parches.** El
+  21 de octubre Node publicó diez fallos de seguridad, uno de ellos grave
+  (permite ejecutar código), y la versión que usábamos (Node 20) ya no recibe
+  parches. La imagen y las pruebas automáticas pasan a Node 22.23.4, que sí los
+  trae. No cambia nada en pantalla. El servidor PADRE, que no corre desde la
+  imagen, lo actualiza una persona con la guía
+  `docs/evidencias/28-node-22-y-php-servidores-20261021.txt`. El aviso de PHP
+  de ese mismo día no nos afecta: SPACE OS no usa PHP, y la guía incluye cómo
+  comprobar que ningún servidor lo tenga instalado.
+
+- **Las notificaciones se pueden borrar una por una.** En la campanita, cada
+  aviso tiene ahora una **✕** a la derecha para quitarlo solo; «Borrar todas»
+  sigue arriba para vaciar la lista de un golpe. Las que ya leíste se quedan en
+  la lista, atenuadas, hasta que las borres.
+- **Tu campanita es tuya.** Lo que marcas como leído o borras ya no le cambia
+  nada a tus compañeros. Antes, si alguien vaciaba su campanita, se la vaciaba a
+  toda la empresa, y lo que uno leía les aparecía como leído a los demás. Lo que
+  ya se había borrado o leído para todos antes de este cambio se queda como
+  estaba.
+
+Seis correcciones de seguridad que salieron de la revisión del 21 de octubre.
+Ninguna cambia cómo se usa la aplicación en el día a día.
+
+- **Un administrador ya no puede restablecer la contraseña de un Dueño.** Solo
+  otro Dueño puede hacerlo. Antes, un administrador podía ponerle una
+  contraseña temporal a un Dueño y entrar como él. Ahora el sistema contesta
+  «Solo un Dueño puede restablecer la contraseña de otro Dueño». Con el resto
+  de los usuarios, el administrador lo sigue haciendo igual.
+- **Cambiar tu contraseña o tu correo cierra tu sesión en los demás equipos.**
+  La pantalla donde hiciste el cambio sigue abierta; en cualquier otro
+  navegador o teléfono donde tuvieras la sesión abierta, hay que volver a
+  entrar. Es lo que se espera cuando alguien cambia su contraseña porque cree
+  que se la robaron.
+- **Demasiados intentos fallidos sobre una misma cuenta la bloquean 15
+  minutos.** Tras 10 contraseñas equivocadas para el mismo correo, aunque
+  vengan de equipos distintos, esa cuenta no entra con contraseña durante 15
+  minutos y la pantalla pide esperar. Entrar con Google o con un código de
+  recuperación sigue funcionando. Un acceso correcto vuelve a poner la cuenta a
+  cero.
+- **Los enlaces a contratos y órdenes de compra solo aceptan un archivo subido
+  o una dirección web (`http` o `https`).** Antes se podía guardar cualquier
+  texto ahí, y un texto preparado podía ejecutar código al pulsar «Ver
+  contrato».
+- **El botón «Volver» solo lleva a pantallas de la propia aplicación.** Un
+  enlace preparado podía convertirlo en una puerta a otro sitio.
+- **El recuadro que sale al pasar sobre una pantalla en el mapa muestra el
+  nombre tal como se escribió**, aunque lleve símbolos como `<` o `>`. Antes
+  esos símbolos se interpretaban, y un nombre preparado podía ejecutar código.
+- *(Por debajo, y sin nada que se vea: se apagó una función de Next.js para
+  redimensionar imágenes que la aplicación no usaba y que tenía un fallo de
+  seguridad grave.)*
+
+## 2026-10-20
+
+- **En Clientes ya se ven las campañas y el pipeline de cada cliente.** Al
+  pulsar el nombre de un cliente se abre su ficha con dos partes. Arriba, su
+  **pipeline**: cuántas propuestas tiene en borrador, enviadas y aprobadas,
+  cuántas campañas en curso y terminadas, y cuánto dinero hay en cada paso
+  (con IVA), más lo que se perdió (propuestas rechazadas y campañas
+  canceladas). Abajo, la **lista de sus campañas** con su estado y en qué
+  etapa van; al pulsar una se abre esa campaña en Campañas. Si el cliente es
+  una agencia, también salen las propuestas que armó como agencia y las
+  campañas que salieron de ellas.
+- **Los formularios dicen qué dato es obligatorio, y cuál faltó.** En todas las
+  ventanas de dar de alta o editar (pantallas, contratos, arrendadores,
+  propuestas, reservas, órdenes de trabajo, imprenta, almacén, facturas,
+  clientes, usuarios, captación, códigos, paquetes y más), los campos
+  obligatorios llevan un **asterisco rojo** y los opcionales solo su nombre
+  (desaparece el «(opcional)»). Si pulsas Guardar y falta un obligatorio, **ese
+  campo se pone en rojo con «Falta este dato» debajo** y no se guarda nada; al
+  escribirlo, el rojo se quita. Antes el botón de guardar se quedaba apagado
+  sin decir por qué, o el error llegaba después sin decir de qué campo.
+- **Reportar una incidencia ahora pide la descripción.** Antes, si se dejaba
+  vacía, se guardaba con un texto genérico.
+- *(Los formularios de Space Eyes se pasan a esta regla en una versión
+  posterior a la 0.12.0, la primera que los trae a `main`.)*
+- **Todas las pantallas se pueden plegar por secciones, como Arrendadores.**
+  En Dashboard, Inventario, Comercial, Clientes, Propuestas, Campañas,
+  Creativos, Operaciones, Finanzas, Reportes, Administración y el resto, cada
+  bloque con título se pliega o despliega con un clic en su encabezado, y sus
+  cifras principales siguen a la vista aunque esté plegado. **La aplicación
+  recuerda cómo lo dejaste**: al volver o recargar, lo plegado sigue plegado
+  (solo en ese navegador; no cambia nada para los demás). También Arrendadores
+  lo recuerda ahora, y las secciones de la ficha de campaña.
+
+## 2026-10-19
+
+- **Space Eyes: el encuadre de un equipo solo lo fija el Dueño.** En g500
+  varias personas movieron el zoom desde la vista en vivo y dejaron torcido el
+  encuadre de tres pantallas. Al cambiar el encuadre, el equipo olvida los
+  creativos que ya reconocía y pasa un día sin reconocer nada. Ahora fijar el
+  lente, el zoom, la orientación o las esquinas de la pantalla es solo del
+  Dueño. Los demás pueden seguir moviendo el zoom, la luz y el enfoque para
+  mirar, y la foto que piden sale como la ven, sin cambiar el sitio. En
+  Actividad queda quién fijó el encuadre de qué equipo.
+- **Space Eyes: «Ver con este lente» y «Ver nítido»** en la vista en vivo,
+  para mirar por otro lente sin fijarlo.
+- **Space Eyes: las campañas con el arte guardado como archivo ya llegan a los
+  equipos.** «Lanzamiento SpaceOs» nunca había llegado a PATRIOTISMO y
+  «Aceptamos g500» se había apagado sola; ninguna daba error.
+- **Space Eyes: «Agregar dispositivo» avisa** cuando la dirección del servidor
+  no sirve, en vez de mostrar una que el equipo no puede alcanzar.
+- *(Trabajo de José. Va en la versión 0.12.0; para que el candado quede
+  completo, en g500 hay que actualizar también el servidor de Space Eye.)*
+- **Cada pago de un cliente puede llevar su comprobante.** En Finanzas →
+  Cobranza, al **Registrar pago** hay un campo nuevo, **«Comprobante de
+  pago»**, para adjuntar el recibo o la transferencia (PDF o imagen, hasta
+  5 MB). Es opcional. Y en cada cobranza que ya tiene algo pagado aparece
+  **«Pagos y comprobantes»**: la lista de los pagos recibidos, con su fecha y
+  quién los registró, donde se abre cada comprobante o se sube el que llegó
+  después. Subirlo después no cambia el importe ni la fecha del pago. Es lo
+  mismo que ya tenían los pagos de renta a los arrendadores. *(Aprobado por el dueño el 19/10; sale en la
+  versión 0.12.0.)*
+
+## 2026-10-14
+
+- **La documentación interna, al día con las versiones 0.11.4 a 0.11.9.** No
+  cambia nada en la aplicación. Se revisó la documentación técnica contra lo
+  que se hizo del 8 al 13 de octubre y se corrigió lo que había quedado viejo:
+  nombres del menú, referencias al código y lo nuevo de Space Eyes. También se
+  arregló un conteo automático que decía que había una tabla de más en la base
+  de datos.
+- **La versión 0.11.9 tardó en publicarse porque el almacén de versiones se
+  llenó.** Se liberó espacio y se publicó el mismo día. Pasa más o menos cada
+  nueve versiones mientras se use el plan gratuito.
+
+## 2026-10-13
+
+- **Dos nombres nuevos en el menú Comercial.** «Comercial OPEX» ahora se llama
+  **Comercial negociación** y «Códigos promocionales» se llama **Códigos de
+  negociación**. En la propuesta y en Paquetes, «código promocional» también
+  pasa a decir «código de negociación». Solo cambia el nombre: las pantallas,
+  los enlaces y quién puede entrar siguen igual.
+- **Una propuesta aprobada sin cliente ya puede generar su campaña.** Antes se
+  quedaba atascada: sin cliente no se genera la campaña, y aprobada ya no se
+  podía editar. Ahora, al pulsar «Generar campaña», si falta el cliente se
+  abre una ventana para elegirlo y se genera en el mismo paso. Solo se puede
+  poner si la propuesta no tenía cliente (cambiarlo sigue yendo como adenda),
+  tiene que ser un anunciante (no una agencia), y su IVA tiene que ser el
+  mismo con el que se aprobó; si no, el total cambiaría y la aplicación lo
+  dice y no lo pone.
+- **Cada pantalla dice a qué pantalla de DOOHmain va.** En la ficha de una
+  pantalla digital (Editar), el campo **«Pantalla en DOOHmain»** sugiere las
+  pantallas de tu cuenta de DOOHmain; eliges una y guardas. Ya no hace falta
+  pedir que se configure en el servidor cada pantalla nueva. Si lo dejas
+  vacío, se usa lo que esté configurado en el servidor, como hasta hoy.
+- **Las pantallas de otro CMS ya no se mandan a DOOHmain.** Si en la ficha la
+  pantalla dice CMS «Broadsign» (u otro), al publicar la campaña aparece como
+  «Se programa en su CMS» y no se sube a DOOHmain. Antes se subía igual.
+
+- **Publicar una campaña en DOOHmain vuelve a funcionar.** Al aprobar la
+  publicación, el arte no llegaba a ninguna pantalla de DOOHmain: se quedaba
+  una campaña vacía allá y nada más. Era un defecto en las tablas donde la
+  aplicación anota lo que ya subió. Se corrige al actualizar (con un cambio a
+  la base de datos), sin tocar lo ya publicado.
+- **Al aprobar la publicación se ve qué pasó en cada pantalla.** Debajo de
+  «Aprobada por…» aparece la lista de pantallas con su pantalla en DOOHmain y
+  si quedó «Publicada», «Ya estaba publicada» o con qué error (por ejemplo,
+  una pantalla que no tiene su nombre de DOOHmain configurado). Antes decía
+  «Publicación aprobada» aunque no se hubiera subido nada. En **Actividad**
+  queda escrito qué pantallas fallaron y por qué.
+- **Botón «Volver a publicar en DOOHmain».** En una campaña con la publicación
+  ya aprobada, si alguna pantalla no se subió (por ejemplo, porque faltaba su
+  nombre en DOOHmain), ahora se puede volver a mandar desde la misma ficha. Lo
+  que ya estaba publicado no se duplica, y la campaña no cambia de estado.
+
+## 2026-10-12
+
+- **Inventario, Comercial y el arranque de la aplicación, más rápidos.** Con
+  muchas fotos en una pantalla, cada lista de pantallas las leía enteras de la
+  base aunque no las mostrara. En g500 una pantalla con 10 MB de fotos hacía
+  que cada página tardara de 5 a 7 segundos en aparecer. Ahora las listas no
+  las leen; las fotos se siguen viendo igual al abrir la ficha de la pantalla.
+- **El menú marca una sola opción en Space Eyes.** En Galería, Gráficas,
+  Fallas y las demás, «Equipos» se quedaba resaltado a la vez que la página
+  abierta.
+- **Nuevo texto en la presentación de Space Eyes.** Debajo del título, en
+  lugar de la explicación del equipo junto a cada pantalla, ahora dice:
+  «Incidencias reportadas antes de que voltee a ver el sitio.» y «Campaña
+  programática comprobada en cuanto se reproduce.». Solo cambia el texto.
+- **La razón social de la empresa ahora se elige de «Razones sociales».** En
+  Administración → Identidad de la empresa, «Razón social» ya no es un texto
+  para escribir: es una lista con las razones sociales activas, y debajo un
+  enlace para agregar o editar. Es el mismo registro, así que si renombras una
+  o le corriges el RFC en «Razones sociales», Identidad, el encabezado de
+  Inicio y los contratos lo ven al momento.
+  - La **primera** razón social que agregas queda como la de la empresa; la
+    cambias en Identidad cuando quieras.
+  - El **RFC** de «Datos fiscales para contratos» es el de esa razón social:
+    cambiarlo en un lado lo cambia en el otro.
+  - La razón social elegida **no se puede dar de baja**: primero elige otra.
+  - Al actualizar, la razón social que ya tenías escrita **se pasa sola** a la
+    lista (si ya estaba, se usa ésa). Si no tenías ninguna escrita y en la
+    lista hay varias, la eliges tú en Identidad.
+  - El **nombre comercial** se queda en Identidad: es la marca, no una razón
+    social.
+
+## 2026-10-11
+
+- **La versión v0.11.4 ya está en g500.** Se instaló la noche del 11/10
+  (05:45 del 12/10 en hora UTC), aprobada por ti, y la probaste en el
+  navegador: la versión, las fotos de Space Eyes, la ficha del celular, una
+  propuesta vieja y un importe nuevo. No cambió nada en la base de datos y se
+  sacó respaldo antes.
+  - **g500 no se pudo agrandar a 2 GB**: su región de DigitalOcean no tenía
+    espacio para el cambio. Sigue con 1 GB más memoria de reserva en disco,
+    lo que alcanza para la presentación pero va justo. Se cambia a un servidor
+    más grande después del 14.
+  - **Space Eye estuvo detenido unos 20 minutos** esa noche por una pausa
+    hecha a mano mientras se instalaba. Ya está encendido; la actualización no
+    lo apagó.
+- **Space Eyes abre más rápido** *(cambio de José, para la presentación del
+  14)*. Al abrir un equipo se bajaban seis fotos completas del celular, de 2
+  a 5 MB cada una, solo para pintar los cuadritos de «Recientes». Ahora la
+  lista y esos cuadritos usan la miniatura que Space Eye ya guarda, y la foto
+  grande aparece al instante en versión ligera y se completa al terminar de
+  bajar.
+- **La ficha de un equipo de Space Eyes ya no falla con su ubicación**
+  *(cambio de José)*. Cuando el teléfono de g500 mandó su ubicación por
+  primera vez, la página entera mostró «Application error»: la ubicación
+  llegaba como texto y la pantalla esperaba un número.
+- **En el servidor principal, las solicitudes de activación de Space Eyes se
+  ven dentro de su pantalla** *(cambio de José)*. Cada solicitud trae la
+  orden para activarla lista para copiar; activar sigue pidiendo la frase de
+  paso. Las empresas no lo ven: solo existe en el servidor principal.
+  - **Se quitaron de ese cambio dos guiones** que conectaban g500 a un
+    servidor de cámaras externo. Eran del diseño anterior: Space Eye ya vive
+    dentro de g500, y correrlos lo habría desconectado de él.
+- **Lo que sigue pendiente de José** (revisión del 11/10): un parpadeo de la
+  foto al usar «Tomar foto», subir al repositorio la versión de Space Eye que
+  corre en g500, y proteger las cookies de la aplicación en la configuración
+  de g500. El detalle está en la bóveda (diario del 11/10).
+
 ## 2026-10-09
 
 - **Se publicó la versión v0.11.3** (las comas de miles al ver y al teclear

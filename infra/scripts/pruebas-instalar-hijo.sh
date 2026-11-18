@@ -416,7 +416,7 @@ limpiar
 #  sabe por que), que eyes.env sea secreto, que el certificado lleve el segundo
 #  nombre, y que SIN la bandera no cambie nada de lo de siempre.
 # ============================================================================
-escenario 'EYES · --con-eyes: las MISMAS credenciales en app.env y eyes.env, 600, cron y certificado con eyes.<dominio>'
+escenario 'EYES · --con-eyes: las MISMAS credenciales en app.env y eyes.env, 600, cron, fragmento de nginx y SIN subdominio'
 preparar
 fabricar_licencia p "$DOM"
 correr REGISTRY=registro.ejemplo/x PADRE_URL=https://padre.ejemplo.invalid FLOTA_TOKEN=t0ken-de-flota -- \
@@ -425,7 +425,7 @@ codigo_es 0
 escrito_casa /etc/space-os/app.env '^SPACE_EYE_BASE_URL=http://127\.0\.0\.1:4200$'
 escrito_casa /etc/space-os/app.env '^SPACE_EYE_KEY=se_[0-9a-f]{12}_[A-Za-z0-9_-]{40,}$'
 escrito_casa /etc/space-os/eyes.env '^INSTANCIA_OWNER=p$'
-escrito_casa /etc/space-os/eyes.env "^EYES_DOMINIO=eyes\.$DOM\$"
+escrito_casa /etc/space-os/eyes.env "^EYES_DOMINIO=$DOM\$"
 LLAVE_APP="$(grep -m1 '^SPACE_EYE_KEY=' "$(ruta_escrita /etc/space-os/app.env)" 2>/dev/null | cut -d= -f2-)"
 LLAVE_EYES="$(grep -m1 '^INSTANCIA_LLAVE=' "$(ruta_escrita /etc/space-os/eyes.env)" 2>/dev/null | cut -d= -f2-)"
 TEST_APP="$(grep -m1 '^SPACE_EYE_PROVISION_TOKEN=' "$(ruta_escrita /etc/space-os/app.env)" 2>/dev/null | cut -d= -f2-)"
@@ -438,8 +438,9 @@ modo_escrito /etc/space-os/eyes.env 600
 # Y la licencia del padre: con Space Eyes, update.sh la baja sola (etapa 4).
 escrito_casa /etc/space-os/instancia.env '^LICENCIA_DEL_PADRE="1"$'
 escrito_dice /etc/cron.d/space-os-eyes '/opt/space-os/update-eyes.sh --comprobar'
-if grep -qE -- "certbot .*-d $DOM .*-d eyes\.$DOM" "$SALIDA"; then bien
-else mal "el certificado no pide eyes.$DOM: los equipos verian un certificado ajeno"; fi
+# Sin subdominio: los equipos entran por el mismo dominio de la instancia.
+if grep -qF -- "eyes.$DOM" "$SALIDA"; then mal "aparece eyes.$DOM: los equipos deben entrar por $DOM"; else bien; fi
+escrito_dice /etc/nginx/snippets/space-eyes.conf 'proxy_pass         http://127.0.0.1:4200;'
 if grep -qF -- 'ufw allow 8189/udp' "$SALIDA"; then bien
 else mal "no se abre el UDP del vivo (8189)"; fi
 limpiar

@@ -5,6 +5,8 @@ import { AlertTriangle, Clock, Loader2, MoonStar } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
 import { usePuede } from '@/components/demo/shell/SesionContext'
+import { useIdioma } from '@/lib/i18n/contexto'
+import type { ClaveTexto } from '@/lib/i18n/diccionario'
 import { seApi, ErrorSE } from '@/lib/data/space-eyes-se'
 import {
   CAPACIDADES,
@@ -59,20 +61,23 @@ type Aviso = { tono: 'ok' | 'error'; texto: string } | null
 /** Lo que un tipo de equipo sabe hacer de noche, cuando sabe hacer algo. */
 type CapNoche = NonNullable<(typeof CAPACIDADES)['pi']['noche']>
 
-function mensaje(e: unknown): string {
-  if (e instanceof ErrorSE && e.status === 403) return 'No tienes permiso para esto.'
+type Traducir = (clave: ClaveTexto, valores?: Record<string, string | number>) => string
+
+function mensaje(e: unknown, t: Traducir): string {
+  if (e instanceof ErrorSE && e.status === 403) return t('spaceeyes.comun.sin-permiso')
   return e instanceof Error ? e.message : String(e)
 }
 
-/** «19:00 a 07:00, −4» o «apagado», dicho para leerse de corrido. */
-function resumenDe(n: Noche, paso: number): string {
-  if (!n.activo) return 'sin tramo de noche'
+/** «19:00 a 07:00, −4» o «sin tramo», dicho para leerse de corrido. */
+function resumenDe(n: Noche, paso: number, t: Traducir): string {
+  if (!n.activo) return t('spaceeyes.brillo.sin-tramo')
   const v = paso >= 1 ? Math.round(n.valor) : n.valor.toFixed(1)
-  return `${n.inicio} a ${n.fin} · ${n.valor < 0 ? '' : '+'}${v}`
+  return `${n.inicio} — ${n.fin} · ${n.valor < 0 ? '' : '+'}${v}`
 }
 
 export function BrilloPorHoras() {
   const puedeEditar = usePuede('inventario', 'crear')
+  const { t } = useIdioma()
 
   const [equipos, setEquipos] = useState<EquipoSE[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -86,9 +91,9 @@ export function BrilloPorHoras() {
       const d = await seApi<{ devices?: EquipoSE[] }>('devices')
       setEquipos(d?.devices ?? [])
     } catch (e) {
-      setError(mensaje(e))
+      setError(mensaje(e, t))
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     cargar()
@@ -154,11 +159,15 @@ export function BrilloPorHoras() {
       setAviso({
         tono: 'ok',
         texto: borrador.activo
-          ? `${eq.name ?? 'El equipo'}: baja la luz de ${borrador.inicio} a ${borrador.fin}.`
-          : `${eq.name ?? 'El equipo'}: se quitó el tramo de noche.`,
+          ? t('spaceeyes.brillo.guardado', {
+              equipo: eq.name ?? t('spaceeyes.brillo.el-equipo'),
+              desde: borrador.inicio,
+              hasta: borrador.fin,
+            })
+          : t('spaceeyes.brillo.quitado', { equipo: eq.name ?? t('spaceeyes.brillo.el-equipo') }),
       })
     } catch (e) {
-      setAviso({ tono: 'error', texto: `No se pudo guardar: ${mensaje(e)}` })
+      setAviso({ tono: 'error', texto: t('spaceeyes.brillo.no-guardo', { motivo: mensaje(e, t) }) })
     } finally {
       setGuardando(false)
     }
@@ -168,7 +177,7 @@ export function BrilloPorHoras() {
     return (
       <div className="flex items-start gap-2 rounded-md border border-border bg-surface p-3 text-[13px]">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
-        <span className="text-ink">No se pudo leer la flota: {error}</span>
+        <span className="text-ink">{t('spaceeyes.brillo.no-flota', { motivo: error })}</span>
       </div>
     )
   }
@@ -176,7 +185,7 @@ export function BrilloPorHoras() {
   if (!equipos) {
     return (
       <div className="flex items-center gap-2 px-1 py-6 text-[13px] text-muted">
-        <Loader2 className="h-4 w-4 animate-spin" /> Leyendo los equipos…
+        <Loader2 className="h-4 w-4 animate-spin" /> {t('spaceeyes.brillo.leyendo')}
       </div>
     )
   }
@@ -187,14 +196,8 @@ export function BrilloPorHoras() {
   return (
     <div className="space-y-4">
       <div className="space-y-1">
-        <p className="text-[13px] leading-relaxed text-muted">
-          De noche el LED del espectacular es lo único que alumbra la escena: con los mismos ajustes que de día la
-          foto sale quemada. Aquí se ve, de toda la flota, quién baja la luz y a qué horas. Es la hora del sitio, no
-          la del servidor, y el tramo puede cruzar la medianoche.
-        </p>
-        <p className="text-[12px] text-muted">
-          {conTramo} de {pueden} equipos que lo admiten tienen tramo de noche.
-        </p>
+        <p className="text-[13px] leading-relaxed text-muted">{t('spaceeyes.brillo.que-es')}</p>
+        <p className="text-[12px] text-muted">{t('spaceeyes.brillo.cuantos', { n: conTramo, total: pueden })}</p>
       </div>
 
       {aviso && (
@@ -215,13 +218,15 @@ export function BrilloPorHoras() {
                 {eq.city && <span className="text-[12px] text-muted">· {eq.city}</span>}
                 <span className="min-w-0 truncate text-[13px] text-muted">
                   ·{' '}
-                  {cap
-                    ? resumenDe(noche, cap.paso)
-                    : 'este tipo de equipo no baja la luz por horario'}
+                  {cap ? resumenDe(noche, cap.paso, t) : t('spaceeyes.brillo.no-aplica')}
                 </span>
                 {cap && (
                   <Button variant="tertiary" size="sm" className="ml-auto" onClick={() => abrir({ eq, noche })}>
-                    {estaAbierto ? 'Cerrar' : noche.activo ? 'Cambiar' : 'Poner tramo'}
+                    {estaAbierto
+                      ? t('spaceeyes.avisos.cerrar')
+                      : noche.activo
+                        ? t('spaceeyes.brillo.cambiar')
+                        : t('spaceeyes.brillo.poner')}
                   </Button>
                 )}
               </div>
@@ -236,14 +241,14 @@ export function BrilloPorHoras() {
                       onChange={(e) => setBorrador({ ...borrador, activo: e.target.checked })}
                       className="h-4 w-4 rounded border-border-strong text-accent focus-visible:ring-2 focus-visible:ring-accent"
                     />
-                    Bajar la luz de noche automáticamente
+                    {t('spaceeyes.brillo.activar')}
                   </label>
 
                   {borrador.activo && (
                     <>
                       <div className="flex flex-wrap items-end gap-3">
                         <label className="block">
-                          <span className="block text-[12px] text-ink">Desde</span>
+                          <span className="block text-[12px] text-ink">{t('spaceeyes.comun.desde')}</span>
                           <input
                             type="time"
                             value={borrador.inicio}
@@ -253,7 +258,7 @@ export function BrilloPorHoras() {
                           />
                         </label>
                         <label className="block">
-                          <span className="block text-[12px] text-ink">Hasta</span>
+                          <span className="block text-[12px] text-ink">{t('spaceeyes.comun.hasta')}</span>
                           <input
                             type="time"
                             value={borrador.fin}
@@ -263,20 +268,20 @@ export function BrilloPorHoras() {
                           />
                         </label>
                         <span className="flex items-center gap-1 pb-1 text-[12px] text-muted">
-                          <Clock className="h-3.5 w-3.5" /> hora del sitio
+                          <Clock className="h-3.5 w-3.5" /> {t('spaceeyes.brillo.hora-sitio')}
                         </span>
                       </div>
 
                       <label className="block">
                         <span className="flex items-baseline justify-between text-[12px] text-ink">
-                          <span>Cuánto baja</span>
+                          <span>{t('spaceeyes.brillo.cuanto')}</span>
                           <span className="text-muted">
                             {cap.paso >= 1 ? Math.round(borrador.valor) : borrador.valor.toFixed(2)}
                             {borrador.valor < 0
-                              ? ' · más oscuro'
+                              ? t('spaceeyes.brillo.mas-oscuro')
                               : borrador.valor > 0
-                                ? ' · más claro'
-                                : ' · igual que de día'}
+                                ? t('spaceeyes.brillo.mas-claro')
+                                : t('spaceeyes.brillo.igual')}
                           </span>
                         </span>
                         <input
@@ -296,16 +301,20 @@ export function BrilloPorHoras() {
 
                   <div className="flex items-center gap-2">
                     <Button size="sm" disabled={!puedeEditar || guardando} onClick={() => guardar(eq, cap)}>
-                      {guardando ? 'Guardando…' : 'Guardar'}
+                      {guardando ? t('spaceeyes.comun.guardando') : t('spaceeyes.avisos.guardar')}
                     </Button>
-                    {!puedeEditar && <span className="text-[12px] text-muted">Solo de lectura con tu permiso.</span>}
+                    {!puedeEditar && (
+                      <span className="text-[12px] text-muted">{t('spaceeyes.brillo.solo-lectura')}</span>
+                    )}
                   </div>
                 </div>
               )}
             </div>
           )
         })}
-        {!lista.length && <p className="px-3 py-6 text-[13px] text-muted">No hay equipos en esta instancia.</p>}
+        {!lista.length && (
+          <p className="px-3 py-6 text-[13px] text-muted">{t('spaceeyes.brillo.sin-equipos')}</p>
+        )}
       </div>
     </div>
   )

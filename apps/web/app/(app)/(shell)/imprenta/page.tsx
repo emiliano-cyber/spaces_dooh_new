@@ -4,16 +4,21 @@ import { toast } from 'sonner'
 import { useState } from 'react'
 import Link from 'next/link'
 import { ArrowUpRight, Ruler, Plus, ChevronRight } from 'lucide-react'
-import { Card } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
+import { EntradaCifra } from '@/components/demo/ui/EntradaCifra'
+import { cifraIlegible } from '@/lib/captura-cifra'
 import { EmptyState } from '@/components/demo/EmptyState'
-import { Stepper } from '@/components/demo/Stepper'
+import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
+import { formatNumero } from '@/lib/formato-numero'
 import {
   StatusBadge,
   IMPRESION_TONO,
-  IMPRESION_LABEL,
 } from '@/components/demo/StatusBadge'
+import { CLAVE_IMPRESION } from '@/components/demo/campanas/etiquetas'
+import { useIdioma, useTexto } from '@/lib/i18n/contexto'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { crearOrdenImpresionApi, avanzarOrdenImpresionApi, aprobarPruebaColorApi } from '@/lib/data/estado-api'
 import {
@@ -32,6 +37,7 @@ const PROCESO: EstOrdenImpresion[] = [
 ]
 
 export default function ImprentaPage() {
+  const t = useTexto()
   const ois = useOrdenesImpresion()
   const campanas = useCampanas()
   const sitios = useSitios()
@@ -48,31 +54,101 @@ export default function ImprentaPage() {
     const camp = campanas?.find((c) => c.id === o.campanaId)
     return !camp || camp.tipoCampana !== 'DOOH'
   })
+  // Conteos para los indicadores y la franja de reparto (solo presentación).
+  const conteoPorEtapa = Object.fromEntries(
+    PROCESO.map((p) => [p, oisVisibles.filter((o) => o.estatus === p).length]),
+  ) as Record<EstOrdenImpresion, number>
+  const pruebasPendientes = oisVisibles.filter((o) => !o.pruebaColorAprobada).length
 
   async function avanzar(id: string) {
     setAvanzando(id)
     try {
       await avanzarOrdenImpresionApi(id)
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'No se pudo avanzar la orden')
+      toast.error(e instanceof Error ? e.message : t('operaciones.imprenta.no-avanzar'))
     }
     setAvanzando(null)
   }
 
   return (
     <div className="w-full space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-2">
+      {/* El botón principal arriba a la derecha, alineado con el título
+          (`items-start`), como Operaciones; con `items-end` quedaba descolgado. */}
+      <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h1 className="text-2xl text-ink">Imprenta</h1>
-          <p className="mt-1 text-[13px] text-muted">Órdenes de impresión · del arte al montaje</p>
+          <h1 className="text-2xl text-ink">{t('operaciones.imprenta.titulo')}</h1>
+          <p className="mt-1 text-[13px] text-muted">{t('operaciones.imprenta.descripcion')}</p>
         </div>
         {puedeCrear && (
           <Button variant="success" size="sm" onClick={() => setNueva(true)}>
-            <Plus className="h-3.5 w-3.5" /> Nueva orden
+            <Plus className="h-3.5 w-3.5" /> {t('operaciones.imprenta.nueva')}
           </Button>
         )}
       </div>
 
+      {/* Dónde está el trabajo, de un vistazo (lenguaje del Dashboard). Sale
+          de `oisVisibles`, la misma lista de abajo: sin endpoint nuevo. */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {!ois ? (
+          <>
+            <KPICardSkeleton />
+            <KPICardSkeleton />
+            <KPICardSkeleton />
+            <KPICardSkeleton />
+          </>
+        ) : (
+          <>
+            <KPICard
+              label={t('operaciones.imprenta.kpi.en-proceso')}
+              value={formatNumero(oisVisibles.filter((o) => o.estatus !== 'LISTO_MONTAJE').length)}
+              sub={t('operaciones.imprenta.kpi.en-proceso-sub')}
+            />
+            <KPICard
+              label={t('operaciones.imprenta.kpi.prueba')}
+              value={formatNumero(pruebasPendientes)}
+              sub={t('operaciones.imprenta.kpi.sin-aprobar')}
+              tono={pruebasPendientes > 0 ? 'ambar' : 'neutro'}
+            />
+            <KPICard
+              label={t('operaciones.imprenta.kpi.en-produccion')}
+              value={formatNumero(conteoPorEtapa.EN_PRODUCCION + conteoPorEtapa.IMPRESO)}
+              sub={t('operaciones.imprenta.kpi.en-produccion-sub')}
+            />
+            <KPICard
+              label={t('operaciones.imprenta.kpi.listas')}
+              value={formatNumero(conteoPorEtapa.LISTO_MONTAJE)}
+              sub={t('operaciones.imprenta.kpi.listas-sub')}
+              tono={conteoPorEtapa.LISTO_MONTAJE > 0 ? 'verde' : 'neutro'}
+            />
+          </>
+        )}
+      </div>
+
+      {/* Reparto por etapa: la franja secundaria del Dashboard, con la etiqueta
+          y el número en texto. */}
+      {ois && oisVisibles.length > 0 && (
+        <div className="flex flex-wrap gap-x-4 gap-y-1 rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px]">
+          {PROCESO.map((p) => (
+            <span key={p} className="text-muted">
+              {t(CLAVE_IMPRESION[p])} <span className="demo-num font-medium text-ink">{formatNumero(conteoPorEtapa[p])}</span>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* PLEG-01 · la página es una sola lista: se pliega entera, como las
+          secciones de Arrendadores. */}
+      <CardColapsable
+        id="imprenta.ordenes"
+        titulo={t('operaciones.imprenta.ordenes')}
+        resumen={
+          ois ? (
+            <span className="demo-num text-[12px] text-muted">
+              {t(oisVisibles.length === 1 ? 'operaciones.imprenta.orden.uno' : 'operaciones.imprenta.orden.otros', { n: oisVisibles.length })}
+            </span>
+          ) : undefined
+        }
+      >
       {!ois ? (
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
@@ -82,98 +158,114 @@ export default function ImprentaPage() {
       ) : oisVisibles.length === 0 ? (
         <EmptyState
           icon={Ruler}
-          titulo="Sin órdenes de impresión"
-          detalle="Crea una orden ligada a una campaña fija (OOH/híbrida) para llevar el proceso del arte al montaje."
+          titulo={t('operaciones.imprenta.vacia')}
+          detalle={t('operaciones.imprenta.vacia-detalle')}
+          accion={
+            puedeCrear ? (
+              <Button variant="success" onClick={() => setNueva(true)}>
+                <Plus className="h-3.5 w-3.5" /> {t('operaciones.imprenta.nueva')}
+              </Button>
+            ) : undefined
+          }
         />
       ) : (
-        <ul className="space-y-3">
+        // Una fila por orden (`divide-y`), no una tarjeta alta cada una: con
+        // veinte órdenes el Stepper completo de cada una era un muro. El
+        // progreso queda en una barra de un color con «Paso N de 5» en texto.
+        <ul className="m-0 list-none divide-y divide-border p-0">
           {oisVisibles.map((o) => {
             const camp = campanas?.find((c) => c.id === o.campanaId)
             const sitio = sitios?.find((s) => s.id === o.sitioId)
             const idx = PROCESO.indexOf(o.estatus)
-            const pasos = PROCESO.map((p) => ({ key: p, label: IMPRESION_LABEL[p] }))
             const digital = o.alto === 0 && o.ancho === 0
             const enFinal = idx >= PROCESO.length - 1
             return (
-              <li key={o.id}>
-                <Card className="p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="demo-num text-[12px] text-muted">{o.folio}</div>
-                      <div className="mt-0.5 text-[14px] font-medium text-ink">{o.material || 'Sin material'}</div>
-                      <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted">
-                        <span className="inline-flex items-center gap-1.5">
-                          <Ruler className="h-3.5 w-3.5" />
-                          {digital ? 'Contenido digital' : `${o.ancho} × ${o.alto} m`}
-                        </span>
-                        {sitio && <span>{sitio.nombre}</span>}
-                        {o.proveedor && <span>· {o.proveedor}</span>}
-                      </div>
-                    </div>
-                    <StatusBadge tono={IMPRESION_TONO[o.estatus]}>
-                      {IMPRESION_LABEL[o.estatus]}
-                    </StatusBadge>
+              <li key={o.id} className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
+                {/* Izquierda: qué se imprime, dónde y para qué campaña. */}
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-baseline gap-x-2">
+                    <span className="demo-num text-[12px] text-muted">{o.folio}</span>
+                    <span className="text-[14px] font-medium text-ink">{o.material || t('operaciones.imprenta.sin-material')}</span>
                   </div>
-
-                  {/* Proceso */}
-                  <div className="mt-4">
-                    <Stepper pasos={pasos} actualIndex={idx} />
-                  </div>
-
-                  {/* Prueba de color (probatorio) */}
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-surface-2 px-3 py-2">
-                    <span className="flex items-center gap-2 text-[12px] text-ink">
-                      Prueba de color:
-                      <span className={o.pruebaColorAprobada ? 'font-medium text-[#0f7a55]' : 'text-muted'}>
-                        {o.pruebaColorAprobada ? 'Aprobada' : 'Pendiente'}
-                      </span>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Ruler className="h-3.5 w-3.5" />
+                      {digital ? t('operaciones.imprenta.contenido-digital') : `${o.ancho} × ${o.alto} m`}
                     </span>
-                    {puedeCrear && !o.pruebaColorAprobada && (
-                      <Button
-                        size="sm"
-                        variant="primary"
-                        onClick={async () => {
-                          try { await aprobarPruebaColorApi(o.id, true) } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
-                        }}
-                      >
-                        Aprobar prueba de color
-                      </Button>
-                    )}
-                  </div>
-
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
+                    {sitio && <span>{sitio.nombre}</span>}
+                    {o.proveedor && <span>· {o.proveedor}</span>}
                     {camp ? (
                       puedeVerCampanas ? (
                         <Link
                           href={`/campanas/${camp.id}`}
-                          className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline"
+                          className="inline-flex items-center gap-1 font-medium text-info hover:underline"
                         >
-                          Campaña: {camp.nombre} <ArrowUpRight className="h-3.5 w-3.5" />
+                          {t('operaciones.imprenta.campana', { nombre: camp.nombre })} <ArrowUpRight className="h-3.5 w-3.5" />
                         </Link>
                       ) : (
-                        <span className="text-[12px] text-muted">Campaña: {camp.nombre}</span>
+                        <span>{t('operaciones.imprenta.campana', { nombre: camp.nombre })}</span>
                       )
                     ) : (
-                      <span className="text-[12px] text-muted">Sin campaña</span>
-                    )}
-                    {puedeCrear && !enFinal && (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        disabled={avanzando === o.id}
-                        onClick={() => avanzar(o.id)}
-                      >
-                        {avanzando === o.id ? 'Avanzando…' : 'Avanzar'}
-                        <ChevronRight className="h-3.5 w-3.5" />
-                      </Button>
+                      <span>{t('operaciones.imprenta.sin-campana')}</span>
                     )}
                   </div>
-                </Card>
+                  {/* Progreso: una barra de un solo color y el paso en texto
+                      (el color no carga el significado solo). */}
+                  <div className="mt-1.5 flex items-center gap-2" title={PROCESO.map((p) => t(CLAVE_IMPRESION[p])).join(' → ')}>
+                    <div className="flex w-28 gap-0.5" aria-hidden>
+                      {PROCESO.map((p, i) => (
+                        <span key={p} className={`h-1.5 flex-1 rounded-full ${i <= idx ? 'bg-info' : 'bg-surface-2'}`} />
+                      ))}
+                    </div>
+                    <span className="demo-num text-[11px] text-muted">
+                      {t('operaciones.imprenta.paso', { n: idx + 1, total: PROCESO.length })}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Derecha: prueba de color, estado y las acciones de siempre. */}
+                <div className="flex shrink-0 flex-wrap items-center gap-2 lg:justify-end">
+                  <span
+                    className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+                      o.pruebaColorAprobada
+                        ? 'border-transparent bg-success-soft text-[#0f7a55]'
+                        : 'border-border text-muted'
+                    }`}
+                  >
+                    {o.pruebaColorAprobada ? t('operaciones.imprenta.prueba-aprobada') : t('operaciones.imprenta.prueba-pendiente')}
+                  </span>
+                  <StatusBadge tono={IMPRESION_TONO[o.estatus]}>
+                    {t(CLAVE_IMPRESION[o.estatus])}
+                  </StatusBadge>
+                  {puedeCrear && !o.pruebaColorAprobada && (
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      onClick={async () => {
+                        try { await aprobarPruebaColorApi(o.id, true) } catch (e) { toast.error(e instanceof Error ? e.message : t('operaciones.imprenta.error')) }
+                      }}
+                    >
+                      {t('operaciones.imprenta.aprobar-prueba')}
+                    </Button>
+                  )}
+                  {puedeCrear && !enFinal && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={avanzando === o.id}
+                      onClick={() => avanzar(o.id)}
+                    >
+                      {avanzando === o.id ? t('operaciones.imprenta.avanzando') : t('operaciones.imprenta.avanzar')}
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
               </li>
             )
           })}
         </ul>
       )}
+      </CardColapsable>
 
       <NuevaOrdenDialog open={nueva} onClose={() => setNueva(false)} />
     </div>
@@ -181,6 +273,8 @@ export default function ImprentaPage() {
 }
 
 function NuevaOrdenDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const t = useTexto()
+  const { idioma } = useIdioma()
   const campanas = useCampanas()
   const sitios = useSitios()
   const [campanaId, setCampanaId] = useState('')
@@ -191,8 +285,16 @@ function NuevaOrdenDialog({ open, onClose }: { open: boolean; onClose: () => voi
   const [proveedor, setProveedor] = useState('')
   const [enviando, setEnviando] = useState(false)
 
+  // OBLIG-01 · la campaña es lo único que exige el servidor
+  // (`impresion-controller.ts:13`).
+  const ob = useObligatorios({ campanaId }, ['campanaId'])
+
   async function guardar() {
-    if (!campanaId) return
+    if (!ob.validar()) return
+    // P-L2-1 · en italiano las medidas van por `EntradaCifra` («12,9»); lo
+    // ilegible llega como 'NaN' (en rojo en el campo) y no se manda. En
+    // español e inglés `cifraIlegible` es `false`.
+    if (cifraIlegible(ancho, idioma) || cifraIlegible(alto, idioma)) return
     setEnviando(true)
     try {
       await crearOrdenImpresionApi({
@@ -204,9 +306,10 @@ function NuevaOrdenDialog({ open, onClose }: { open: boolean; onClose: () => voi
         proveedor: proveedor.trim(),
       })
       setCampanaId(''); setSitioId(''); setMaterial(''); setAncho(''); setAlto(''); setProveedor('')
+      ob.reiniciar()
       onClose()
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'No se pudo crear la orden')
+      toast.error(e instanceof Error ? e.message : t('operaciones.imprenta.no-crear'))
     }
     setEnviando(false)
   }
@@ -215,24 +318,24 @@ function NuevaOrdenDialog({ open, onClose }: { open: boolean; onClose: () => voi
     <Modal
       open={open}
       onOpenChange={(v) => !v && onClose()}
-      title="Nueva orden de impresión"
+      title={t('operaciones.imprenta.nueva-titulo')}
       footer={
         <div className="flex justify-end gap-2">
-          <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
-          <Button variant="success" size="sm" disabled={enviando || !campanaId} onClick={guardar}>
-            {enviando ? 'Creando…' : 'Crear orden'}
+          <Button variant="secondary" size="sm" onClick={onClose}>{t('comun.cancelar')}</Button>
+          <Button variant="success" size="sm" disabled={enviando} onClick={guardar}>
+            {enviando ? t('operaciones.imprenta.creando') : t('operaciones.imprenta.crear')}
           </Button>
         </div>
       }
     >
       <div className="space-y-3">
-        <Campo label="Campaña">
+        <Campo label={t('operaciones.imprenta.campo.campana')} obligatorio falta={ob.falta('campanaId')}>
           <select
             value={campanaId}
             onChange={(e) => setCampanaId(e.target.value)}
             className="w-full rounded border border-border-strong bg-surface px-2.5 py-2 text-[13px] text-ink"
           >
-            <option value="">Selecciona una campaña…</option>
+            <option value="">{t('operaciones.imprenta.selecciona-campana')}</option>
             {(campanas ?? [])
               .filter((c) => c.tipoCampana !== 'DOOH') // digital no imprime
               .map((c) => (
@@ -240,7 +343,7 @@ function NuevaOrdenDialog({ open, onClose }: { open: boolean; onClose: () => voi
               ))}
           </select>
         </Campo>
-        <Campo label="Sitio (opcional)">
+        <Campo label={t('operaciones.imprenta.campo.sitio')}>
           <select
             value={sitioId}
             onChange={(e) => setSitioId(e.target.value)}
@@ -252,49 +355,40 @@ function NuevaOrdenDialog({ open, onClose }: { open: boolean; onClose: () => voi
             ))}
           </select>
         </Campo>
-        <Campo label="Material">
+        <Campo label={t('operaciones.imprenta.campo.material')}>
           <input
             value={material}
             onChange={(e) => setMaterial(e.target.value)}
-            placeholder="Lona front, vinil, contenido digital…"
+            placeholder={t('operaciones.imprenta.campo.material-ej')}
             className="w-full rounded border border-border-strong bg-surface px-2.5 py-2 text-[13px] text-ink"
           />
         </Campo>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Campo label="Ancho (m)">
-            <input
-              type="number" inputMode="decimal" value={ancho}
-              onChange={(e) => setAncho(e.target.value)} placeholder="0"
+          <Campo label={t('operaciones.imprenta.campo.ancho')}>
+            <EntradaCifra
+              type="number" inputMode="decimal" valor={ancho}
+              onCambio={setAncho} placeholder="0" decimales={2} minimo={0}
               className="demo-num w-full rounded border border-border-strong bg-surface px-2.5 py-2 text-[13px] text-ink"
             />
           </Campo>
-          <Campo label="Alto (m)">
-            <input
-              type="number" inputMode="decimal" value={alto}
-              onChange={(e) => setAlto(e.target.value)} placeholder="0"
+          <Campo label={t('operaciones.imprenta.campo.alto')}>
+            <EntradaCifra
+              type="number" inputMode="decimal" valor={alto}
+              onCambio={setAlto} placeholder="0" decimales={2} minimo={0}
               className="demo-num w-full rounded border border-border-strong bg-surface px-2.5 py-2 text-[13px] text-ink"
             />
           </Campo>
         </div>
-        <Campo label="Proveedor (opcional)">
+        <Campo label={t('operaciones.imprenta.campo.proveedor')}>
           <input
             value={proveedor}
             onChange={(e) => setProveedor(e.target.value)}
-            placeholder="Imprenta proveedora"
+            placeholder={t('operaciones.imprenta.campo.proveedor-ej')}
             className="w-full rounded border border-border-strong bg-surface px-2.5 py-2 text-[13px] text-ink"
           />
         </Campo>
-        <p className="text-[11px] text-muted">Deja ancho y alto en 0 para contenido digital.</p>
+        <p className="text-[11px] text-muted">{t('operaciones.imprenta.digital-ayuda')}</p>
       </div>
     </Modal>
-  )
-}
-
-function Campo({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-[12px] font-medium text-ink">{label}</span>
-      {children}
-    </label>
   )
 }

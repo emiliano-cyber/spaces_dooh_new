@@ -172,6 +172,79 @@ describe('rentabilidadPorTarifa — publicada contra neta', () => {
     expect(filaDe(r, 'S2').ingresoLista).toBeNull()
   })
 
+  it('B42 · DOS FRANJAS de la misma pantalla SÍ se comparan: se desempata por (pantalla, franja)', () => {
+    // El caso de uso central de la rejilla: vender el prime y la madrugada de
+    // la misma pantalla en una propuesta. Hasta el 29/10 eso sacaba la
+    // pantalla entera del reporte (AMBIGUA por `sitioId`), aunque el snapshot
+    // ya congelaba la franja de cada línea y la reserva la hereda.
+    //   prime:     lista 20 000 → neto 18 000
+    //   madrugada: lista  8 000 → neto  7 200
+    //   publicada 28 000 · neto 25 200 · descuento+comisión 2 800 · 10 %
+    const datos = baseDatos({
+      sitios: SITIOS,
+      reservas: [
+        { sitioId: 'S1', campanaId: 'C1', franjaId: 'F-PRIME', precio: 18_000, estatus: 'CONFIRMADA', fechaInicio: '2026-02-01', fechaFin: '2026-02-28' },
+        { sitioId: 'S1', campanaId: 'C1', franjaId: 'F-MADRUGADA', precio: 7_200, estatus: 'CONFIRMADA', fechaInicio: '2026-02-01', fechaFin: '2026-02-28' },
+      ],
+      tarifasPublicadas: [
+        {
+          campanaId: 'C1',
+          porSitio: [
+            { sitioId: 'S1', franjaId: 'F-PRIME', lista: 20_000, neto: 18_000 },
+            { sitioId: 'S1', franjaId: 'F-MADRUGADA', lista: 8_000, neto: 7_200 },
+          ],
+        },
+      ],
+    })
+    const r = rentabilidadPorTarifa(datos, FEB)
+    const s1 = filaDe(r, 'S1')
+    expect(s1.ingreso).toBe(25_200)
+    expect(s1.ingresoLista).toBe(28_000)
+    expect(s1.descuentoYComision).toBe(2_800)
+    expect(r.tarifas!.reservasConTarifa).toBe(2)
+    expect(r.tarifas!.reservasSinTarifa).toBe(0)
+  })
+
+  it('NEGATIVA · B42 · la misma pantalla y la MISMA franja dos veces sigue siendo ambigua', () => {
+    // Desempatar por franja no puede convertirse en elegir: dos periodos de la
+    // misma franja siguen sin decir cuál reserva es cuál.
+    const datos = baseDatos({
+      sitios: SITIOS,
+      reservas: [
+        { sitioId: 'S1', campanaId: 'C1', franjaId: 'F-PRIME', precio: 27_000, estatus: 'CONFIRMADA', fechaInicio: '2026-02-01', fechaFin: '2026-02-14' },
+        { sitioId: 'S1', campanaId: 'C1', franjaId: 'F-PRIME', precio: 27_000, estatus: 'CONFIRMADA', fechaInicio: '2026-02-15', fechaFin: '2026-02-28' },
+      ],
+      tarifasPublicadas: [
+        {
+          campanaId: 'C1',
+          porSitio: [
+            { sitioId: 'S1', franjaId: 'F-PRIME', lista: 60_000, neto: 27_000 },
+            { sitioId: 'S1', franjaId: 'F-PRIME', lista: 30_000, neto: 27_000 },
+          ],
+        },
+      ],
+    })
+    const r = rentabilidadPorTarifa(datos, FEB)
+    expect(filaDe(r, 'S1').ingresoLista).toBeNull()
+    expect(r.tarifas!.reservasSinTarifa).toBe(2)
+  })
+
+  it('NEGATIVA · B42 · una reserva de OTRA franja no toma la tarifa de la vendida', () => {
+    // La reserva dice madrugada y el snapshot solo congeló el prime: no hay
+    // tarifa publicada para ESA reserva, aunque el neto coincidiera.
+    const datos = baseDatos({
+      sitios: SITIOS,
+      reservas: [
+        { sitioId: 'S1', campanaId: 'C1', franjaId: 'F-MADRUGADA', precio: 18_000, estatus: 'CONFIRMADA', fechaInicio: '2026-02-01', fechaFin: '2026-02-28' },
+      ],
+      tarifasPublicadas: [
+        { campanaId: 'C1', porSitio: [{ sitioId: 'S1', franjaId: 'F-PRIME', lista: 20_000, neto: 18_000 }] },
+      ],
+    })
+    const r = rentabilidadPorTarifa(datos, FEB)
+    expect(filaDe(r, 'S1').ingresoLista).toBeNull()
+  })
+
   it('NEGATIVA · una pantalla REPETIDA en el snapshot no es comparable', () => {
     // Una propuesta puede traer dos ítems de la MISMA pantalla (dos periodos), y
     // entonces `porSitio` la lleva dos veces con dos tarifas de lista distintas.

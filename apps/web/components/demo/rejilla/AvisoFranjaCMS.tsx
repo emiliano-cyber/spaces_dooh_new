@@ -1,5 +1,8 @@
+'use client'
+
 import { AlertTriangle } from 'lucide-react'
-import { AVISO_FRANJA_NO_VIAJA_AL_CMS } from '@/lib/rejilla'
+import { avisoFranja } from '@/lib/rejilla'
+import { useIdioma } from '@/lib/i18n/contexto'
 
 // ============================================================================
 //  EL AVISO, en UN solo componente. ADR 0039: «el producto tiene que DECIRLO».
@@ -36,6 +39,9 @@ import { AVISO_FRANJA_NO_VIAJA_AL_CMS } from '@/lib/rejilla'
 //      queda cuando las cinco pantallas hayan cambiado.
 // ============================================================================
 export function AvisoFranjaCMS({ compacto = false }: { compacto?: boolean }) {
+  // I18N (lote compartidos) · el texto en el idioma de quien mira. El que se
+  // congela en el snapshot sigue siendo la constante en espanol.
+  const { idioma } = useIdioma()
   return (
     <div
       role="note"
@@ -45,7 +51,7 @@ export function AvisoFranjaCMS({ compacto = false }: { compacto?: boolean }) {
       }
     >
       <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-      <span>{AVISO_FRANJA_NO_VIAJA_AL_CMS}</span>
+      <span>{avisoFranja(idioma)}</span>
     </div>
   )
 }

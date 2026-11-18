@@ -4,8 +4,10 @@ import { useCallback, useEffect, useState } from 'react'
 import { AlertTriangle, ChevronLeft, ChevronRight, ImageOff, Loader2, RefreshCw, ShieldCheck } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
-import { ErrorSE, fotoSE, seApi } from '@/lib/data/space-eyes-se'
-import { fechaHora } from './piezas'
+import { fotoSE, seApi, textoDeError } from '@/lib/data/space-eyes-se'
+import { fechaHora, fijo } from './piezas'
+import { useIdioma } from '@/lib/i18n/contexto'
+import type { ClaveTexto } from '@/lib/i18n/diccionario'
 
 // ============================================================================
 //  Space Eyes — verificación.
@@ -45,6 +47,7 @@ function num(v: number | string | null | undefined): number | null {
 // `encabezado` lo apaga la pantalla de Ajustes, que ya pone el suyo: dos
 // titulos grandes seguidos no son dos secciones, son un descuido.
 export function Verificacion({ encabezado = true }: { encabezado?: boolean }) {
+  const { t, idioma } = useIdioma()
   const [filas, setFilas] = useState<Verificacion[] | null>(null)
   const [resultado, setResultado] = useState<Resultado>('')
   const [pagina, setPagina] = useState(1)
@@ -60,10 +63,10 @@ export function Verificacion({ encabezado = true }: { encabezado?: boolean }) {
       const d = await seApi<{ verifications: Verificacion[] }>(q)
       setFilas(d.verifications ?? [])
     } catch (e) {
-      setError(e instanceof ErrorSE || e instanceof Error ? e.message : 'No se pudo consultar Space Eyes')
+      setError(textoDeError(e, idioma) ?? t('spaceeyes.comun.no-consultar'))
     }
     setCargando(false)
-  }, [pagina, resultado])
+  }, [pagina, resultado, t, idioma])
 
   useEffect(() => {
     void cargar()
@@ -77,18 +80,18 @@ export function Verificacion({ encabezado = true }: { encabezado?: boolean }) {
       <div className="flex flex-wrap items-center gap-3">
         {encabezado && (
           <>
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
-              <ShieldCheck className="h-5 w-5" strokeWidth={1.75} />
-            </span>
-            <div className="min-w-[12rem] flex-1">
-              <h1 className="text-2xl text-ink">Verificación</h1>
-              <p className="text-[13px] text-muted">Comparación de cada foto contra la creatividad de su campaña.</p>
-            </div>
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
+            <ShieldCheck className="h-5 w-5" strokeWidth={1.75} />
+          </span>
+          <div className="min-w-[12rem] flex-1">
+            <h1 className="text-2xl text-ink">{t('spaceeyes.verif.titulo')}</h1>
+            <p className="text-[13px] text-muted">{t('spaceeyes.verif.descripcion')}</p>
+          </div>
           </>
         )}
         <Button variant="secondary" size="sm" onClick={() => void cargar()} disabled={cargando}>
           {cargando ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-1.5 h-3.5 w-3.5" />}
-          Actualizar
+          {t('spaceeyes.comun.actualizar')}
         </Button>
       </div>
 
@@ -96,10 +99,10 @@ export function Verificacion({ encabezado = true }: { encabezado?: boolean }) {
         <div className="inline-flex rounded-md border border-border bg-surface p-0.5 text-[13px]">
           {(
             [
-              ['', 'Todos los resultados'],
-              ['true', 'Correctos'],
-              ['false', 'Incorrectos'],
-            ] as [Resultado, string][]
+              ['', 'spaceeyes.verif.filtro.todos'],
+              ['true', 'spaceeyes.verif.filtro.correctos'],
+              ['false', 'spaceeyes.verif.filtro.incorrectos'],
+            ] as [Resultado, ClaveTexto][]
           ).map(([clave, texto]) => (
             <button
               key={clave || 'todos'}
@@ -113,7 +116,7 @@ export function Verificacion({ encabezado = true }: { encabezado?: boolean }) {
                 resultado === clave ? 'bg-surface-2 font-medium text-ink' : 'text-muted hover:text-ink',
               )}
             >
-              {texto}
+              {t(texto)}
             </button>
           ))}
         </div>
@@ -123,7 +126,7 @@ export function Verificacion({ encabezado = true }: { encabezado?: boolean }) {
         <div className="flex items-start gap-2 rounded-md border border-[#dc262640] bg-error-soft p-3 text-[12px]">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-error" />
           <div>
-            <div className="font-medium text-ink">No se pudieron cargar las verificaciones</div>
+            <div className="font-medium text-ink">{t('spaceeyes.verif.error')}</div>
             <div className="text-muted">{error}</div>
           </div>
         </div>
@@ -131,7 +134,7 @@ export function Verificacion({ encabezado = true }: { encabezado?: boolean }) {
         <div className="h-40 animate-pulse rounded-md bg-surface-2" />
       ) : lista.length === 0 ? (
         <div className="rounded-md border border-border bg-surface px-3 py-10 text-center text-[13px] text-muted">
-          Sin resultados de verificación
+          {t('spaceeyes.verif.vacio')}
         </div>
       ) : (
         <>
@@ -152,10 +155,14 @@ export function Verificacion({ encabezado = true }: { encabezado?: boolean }) {
                     target="_blank"
                     rel="noreferrer"
                     className="block h-16 w-16 shrink-0 overflow-hidden rounded bg-surface-2"
-                    title="Ver la foto completa"
+                    title={t('spaceeyes.verif.ver-completa')}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={miniatura} alt={`Foto de ${v.device_name ?? 'equipo'}`} className="h-full w-full object-cover" />
+                    <img
+                      src={miniatura}
+                      alt={t('spaceeyes.galeria.foto-de', { nombre: v.device_name ?? t('spaceeyes.galeria.equipo') })}
+                      className="h-full w-full object-cover"
+                    />
                   </a>
                 ) : (
                   <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded bg-surface-2 text-muted">
@@ -173,16 +180,18 @@ export function Verificacion({ encabezado = true }: { encabezado?: boolean }) {
                           : 'border-[#dc262640] bg-error-soft text-[#b42318]',
                       )}
                     >
-                      {correcto ? 'Correcto' : 'Incorrecto'}
+                      {correcto ? t('spaceeyes.verif.correcto') : t('spaceeyes.verif.incorrecto')}
                     </span>
                   </div>
                   <div className="demo-num flex flex-wrap gap-x-3 text-muted">
-                    <span>Confianza {conf !== null ? `${(conf * 100).toFixed(0)}%` : '—'}</span>
-                    <span>SSIM {ssim !== null && ssim !== 0 ? ssim.toFixed(3) : '—'}</span>
+                    <span>{t('spaceeyes.verif.confianza', { pct: conf !== null ? `${(conf * 100).toFixed(0)}%` : '—' })}</span>
+                    <span>SSIM {ssim !== null && ssim !== 0 ? fijo(ssim, 3, idioma) : '—'}</span>
                     <span>pHash {phash ?? '—'}</span>
-                    <span className={v.ocr_match ? 'text-success' : 'text-error'}>OCR {v.ocr_match ? 'Sí' : 'No'}</span>
+                    <span className={v.ocr_match ? 'text-success' : 'text-error'}>
+                      OCR {v.ocr_match ? t('spaceeyes.verif.si') : t('spaceeyes.verif.no')}
+                    </span>
                   </div>
-                  <div className="text-muted">{fechaHora(v.processed_at)}</div>
+                  <div className="text-muted">{fechaHora(v.processed_at, idioma)}</div>
                 </div>
               </li>
             )
@@ -192,14 +201,14 @@ export function Verificacion({ encabezado = true }: { encabezado?: boolean }) {
           <table className="w-full min-w-[720px] text-[13px]">
             <thead className="border-b border-border bg-surface-2 text-left text-[12px] text-muted">
               <tr>
-                <th className="px-4 py-2.5 font-medium">Foto</th>
-                <th className="px-4 py-2.5 font-medium">Equipo</th>
+                <th className="px-4 py-2.5 font-medium">{t('spaceeyes.vivo.foto')}</th>
+                <th className="px-4 py-2.5 font-medium">{t('spaceeyes.comun.equipo')}</th>
                 <th className="px-4 py-2.5 font-medium">SSIM</th>
                 <th className="px-4 py-2.5 font-medium">pHash</th>
-                <th className="px-4 py-2.5 font-medium">Coincidencia OCR</th>
-                <th className="px-4 py-2.5 font-medium">Resultado</th>
-                <th className="px-4 py-2.5 font-medium">Confianza</th>
-                <th className="px-4 py-2.5 font-medium">Fecha</th>
+                <th className="px-4 py-2.5 font-medium">{t('spaceeyes.verif.ocr')}</th>
+                <th className="px-4 py-2.5 font-medium">{t('spaceeyes.verif.resultado')}</th>
+                <th className="px-4 py-2.5 font-medium">{t('spaceeyes.comun.confianza')}</th>
+                <th className="px-4 py-2.5 font-medium">{t('spaceeyes.verif.fecha')}</th>
               </tr>
             </thead>
             <tbody>
@@ -219,12 +228,12 @@ export function Verificacion({ encabezado = true }: { encabezado?: boolean }) {
                           target="_blank"
                           rel="noreferrer"
                           className="block h-12 w-12 overflow-hidden rounded bg-surface-2"
-                          title="Ver la foto completa"
+                          title={t('spaceeyes.verif.ver-completa')}
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={miniatura}
-                            alt={`Foto de ${v.device_name ?? 'equipo'}`}
+                            alt={t('spaceeyes.galeria.foto-de', { nombre: v.device_name ?? t('spaceeyes.galeria.equipo') })}
                             className="h-full w-full object-cover"
                           />
                         </a>
@@ -235,10 +244,12 @@ export function Verificacion({ encabezado = true }: { encabezado?: boolean }) {
                       )}
                     </td>
                     <td className="px-4 py-2.5 text-ink">{v.device_name ?? '—'}</td>
-                    <td className="demo-num px-4 py-2.5 text-ink">{ssim !== null && ssim !== 0 ? ssim.toFixed(3) : '—'}</td>
+                    <td className="demo-num px-4 py-2.5 text-ink">{ssim !== null && ssim !== 0 ? fijo(ssim, 3, idioma) : '—'}</td>
                     <td className="demo-num px-4 py-2.5 text-ink">{phash ?? '—'}</td>
                     <td className="px-4 py-2.5">
-                      <span className={v.ocr_match ? 'text-success' : 'text-error'}>{v.ocr_match ? 'Sí' : 'No'}</span>
+                      <span className={v.ocr_match ? 'text-success' : 'text-error'}>
+                        {v.ocr_match ? t('spaceeyes.verif.si') : t('spaceeyes.verif.no')}
+                      </span>
                     </td>
                     <td className="px-4 py-2.5">
                       <span
@@ -249,11 +260,11 @@ export function Verificacion({ encabezado = true }: { encabezado?: boolean }) {
                             : 'border-[#dc262640] bg-error-soft text-[#b42318]',
                         )}
                       >
-                        {correcto ? 'Correcto' : 'Incorrecto'}
+                        {correcto ? t('spaceeyes.verif.correcto') : t('spaceeyes.verif.incorrecto')}
                       </span>
                     </td>
                     <td className="demo-num px-4 py-2.5 text-ink">{conf !== null ? `${(conf * 100).toFixed(0)}%` : '—'}</td>
-                    <td className="whitespace-nowrap px-4 py-2.5 text-muted">{fechaHora(v.processed_at)}</td>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-muted">{fechaHora(v.processed_at, idioma)}</td>
                   </tr>
                 )
               })}
@@ -265,25 +276,25 @@ export function Verificacion({ encabezado = true }: { encabezado?: boolean }) {
 
       {!error && (pagina > 1 || hayMas) && (
         <div className="flex items-center justify-end gap-2 text-[12px] text-muted">
-          <span>Página {pagina}</span>
+          <span>{t('spaceeyes.comun.pagina', { pagina })}</span>
           <Button
             size="sm"
             variant="secondary"
-            aria-label="Página anterior"
+            aria-label={t('spaceeyes.verif.pagina-anterior')}
             disabled={pagina <= 1 || cargando}
             onClick={() => setPagina((p) => Math.max(1, p - 1))}
           >
             <ChevronLeft className="h-3.5 w-3.5" />
-            Anterior
+            {t('spaceeyes.comun.anterior')}
           </Button>
           <Button
             size="sm"
             variant="secondary"
-            aria-label="Página siguiente"
+            aria-label={t('spaceeyes.verif.pagina-siguiente')}
             disabled={!hayMas || cargando}
             onClick={() => setPagina((p) => p + 1)}
           >
-            Siguiente
+            {t('spaceeyes.comun.siguiente')}
             <ChevronRight className="h-3.5 w-3.5" />
           </Button>
         </div>

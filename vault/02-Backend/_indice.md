@@ -54,7 +54,7 @@ No hay servicio aparte.
 | [[reportes-dimensiones]] | Las cuatro dimensiones y la atribución **consciente del periodo** |
 | [[reportes-por-razon-social]] | La sexta dimensión: cuánto pasa por cada razón social, y por qué no pinta margen |
 | [[tarifa-publicada-vs-neta]] | La séptima: qué tarifa se **publicó** y qué entró de ella. Las dos convenciones de precio y el guard que las sobrevive |
-| [[rejilla-franja-y-temporada]] | **ADR 0039, Fase 1**: el precio deja de ser un número y pasa a ser `f(pantalla, unidad, franja, fecha)`. Las dos decisiones de diseño, el congelado, y por qué la franja NO viaja al CMS |
+| [[rejilla-franja-y-temporada]] | **ADR 0039, Fase 1**: el precio deja de ser un número y pasa a ser `f(pantalla, unidad, franja, fecha)`. Las dos decisiones de diseño, el congelado, y la franja en el CMS (desde el 22/10 viaja a DOOHmain al publicar) |
 | [[descuento-por-volumen]] | **ADR 0039, Fase 2**: «compra 50 spots y pagas 40». Por qué la escala cuelga de la organización y por qué los tramos son planos; si el volumen cuenta contra el tope; y cómo se congela |
 | [[codigo-promocional]] | **ADR 0039, Fase 3**: «usa este código y ten un 20 % adicional». Cómo se resuelve **la carrera del último uso** con un `for update`; por qué el canje se cuenta al APLICAR y no al aprobar; por qué el cupón **no** cuenta contra el tope; y cómo se congela |
 | [[paquete-cerrado]] | **ADR 0039, Fase 4**: «estas cinco pantallas, prime, un mes: 180 000». El único escalón que **sustituye** el precio en vez de modificarlo. Cómo se **reparte** entre las pantallas cuadrando al peso (mayor resto); por qué un paquete **no admite volumen** y solo admite cupón con su bandera; por qué sale con **raya** del reporte publicada vs neta; y cómo se congela |

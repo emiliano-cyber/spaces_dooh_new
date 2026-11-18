@@ -5,6 +5,8 @@ import { toast } from 'sonner'
 import { Button } from '@/components/demo/ui/Button'
 import { Card, CardContent } from '@/components/demo/ui/Card'
 import { PreguntaSiNo } from './PreguntaSiNo'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { codigoDePapel, etiquetaDePapel } from '@/lib/i18n/papeles'
 import {
   camposDelPaso3,
   planDelCuestionario,
@@ -51,6 +53,7 @@ export function CuestionarioRazonesSociales({
   // obligaría a mantener dos valores sincronizados a mano.
   const [porCampo, setPorCampo] = useState<Record<string, string>>({})
   const [enviando, setEnviando] = useState(false)
+  const { t, idioma } = useIdioma()
 
   const campos = useMemo(
     () => camposDelPaso3({ variasRazonesSociales: varias, operacionYVentasJuntas: juntas }, roles),
@@ -93,7 +96,7 @@ export function CuestionarioRazonesSociales({
 
   async function enviar() {
     if (!plan || !plan.ok) {
-      toast.error(plan && !plan.ok ? plan.error : 'Contesta las preguntas antes de continuar.')
+      toast.error(plan && !plan.ok ? plan.error : t('cuenta.cuestionario.contesta'))
       return
     }
     setEnviando(true)
@@ -104,8 +107,8 @@ export function CuestionarioRazonesSociales({
         body: JSON.stringify(respuestas),
       })
       const d = await r.json().catch(() => ({}))
-      if (!r.ok) throw new Error(d?.error ?? 'No se pudo guardar el cuestionario')
-      toast.success(`Listo: ${resumenParaBitacora(plan.entidades)}`)
+      if (!r.ok) throw new Error(d?.error ?? t('cuenta.cuestionario.error.guardar'))
+      toast.success(t('cuenta.cuestionario.listo', { resumen: resumenParaBitacora(plan.entidades) }))
       alTerminar(d.entidades ?? [])
     } catch (e) {
       toast.error((e as Error).message)
@@ -120,8 +123,8 @@ export function CuestionarioRazonesSociales({
         <CardContent className="space-y-6 pt-4">
           <PreguntaSiNo
             numero={1}
-            pregunta="¿Tu empresa tiene varias razones sociales?"
-            ayuda="Casi todas las empresas de medios reparten su operación entre varias. Si tienes una sola, con esto te ahorras el resto."
+            pregunta={t('cuenta.cuestionario.p1')}
+            ayuda={t('cuenta.cuestionario.p1.ayuda')}
             valor={varias}
             onCambio={(v) => {
               setVarias(v)
@@ -137,8 +140,8 @@ export function CuestionarioRazonesSociales({
           {varias === true && (
             <PreguntaSiNo
               numero={2}
-              pregunta="¿La operación está en la misma razón social que comercializa o factura las ventas?"
-              ayuda="Suelen coincidir, y por eso se pregunta: si es tu caso, el paso siguiente te pide un dato menos."
+              pregunta={t('cuenta.cuestionario.p2')}
+              ayuda={t('cuenta.cuestionario.p2.ayuda')}
               valor={juntas}
               onCambio={setJuntas}
               deshabilitado={enviando}
@@ -154,19 +157,19 @@ export function CuestionarioRazonesSociales({
               <h2 className="text-sm font-medium text-ink">
                 <span className="mr-2 text-muted">3.</span>
                 {varias === false
-                  ? 'Indica tu razón social'
-                  : 'Indica las razones sociales para cada rol dentro de tu empresa'}
+                  ? t('cuenta.cuestionario.p3.una')
+                  : t('cuenta.cuestionario.p3.varias')}
               </h2>
               <p className="mt-2 text-[13px] leading-relaxed text-muted">
                 {varias === false
-                  ? 'Se le asignarán todos los roles. Después puedes separarlos en Razones sociales.'
-                  : 'Una misma razón social puede llevar varios roles: escribe el mismo nombre y se agrupan en una sola. Lo que no sepas todavía, déjalo en blanco.'}
+                  ? t('cuenta.cuestionario.p3.una.ayuda')
+                  : t('cuenta.cuestionario.p3.varias.ayuda')}
               </p>
             </div>
 
             {varias === false ? (
               <label className="block">
-                <span className="mb-1 block text-[13px] text-muted">Razón social</span>
+                <span className="mb-1 block text-[13px] text-muted">{t('cuenta.cuestionario.razon-social')}</span>
                 <input
                   value={unica}
                   onChange={(e) => setUnica(e.target.value)}
@@ -181,7 +184,11 @@ export function CuestionarioRazonesSociales({
               <div className="space-y-3">
                 {campos.map((campo) => (
                   <label key={campo.clave} className="block">
-                    <span className="mb-1 block text-[13px] text-muted">{campo.etiqueta}</span>
+                    {/* Ola 6 · la etiqueta sale del catalogo (dato en espanol), y el campo
+                        que junta dos papeles las une con « · ». */}
+                    <span className="mb-1 block text-[13px] text-muted">
+                      {campo.etiqueta.split(' · ').map((p) => etiquetaDePapel(p, idioma)).join(' · ')}
+                    </span>
                     <input
                       value={porCampo[campo.clave] ?? ''}
                       onChange={(e) =>
@@ -189,7 +196,7 @@ export function CuestionarioRazonesSociales({
                       }
                       maxLength={LIMITE_RAZON_SOCIAL}
                       disabled={enviando}
-                      placeholder="Razón social"
+                      placeholder={t('cuenta.cuestionario.razon-social')}
                       className="h-10 w-full rounded border border-border-strong bg-surface px-3 text-sm text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                     />
                   </label>
@@ -201,12 +208,12 @@ export function CuestionarioRazonesSociales({
                 que lo va a crear, así que no puede prometer otra cosa. */}
             {plan?.ok && (
               <div className="rounded border border-border bg-surface-2 p-3 text-[13px] text-ink">
-                <p className="font-medium">Se crearán {plan.entidades.length === 1 ? '1 razón social' : `${plan.entidades.length} razones sociales`}:</p>
+                <p className="font-medium">{plan.entidades.length === 1 ? t('cuenta.cuestionario.se-crearan.uno') : t('cuenta.cuestionario.se-crearan.otros', { n: plan.entidades.length })}</p>
                 <ul className="mt-2 space-y-1">
                   {plan.entidades.map((e) => (
                     <li key={e.razonSocial}>
                       <span className="font-medium">{e.razonSocial}</span>
-                      <span className="text-muted"> — {e.roles.join(', ')}</span>
+                      <span className="text-muted"> — {e.roles.map((r) => codigoDePapel(r, idioma)).join(', ')}</span>
                     </li>
                   ))}
                 </ul>
@@ -224,14 +231,14 @@ export function CuestionarioRazonesSociales({
 
       <div className="flex flex-wrap items-center gap-3">
         <Button onClick={enviar} disabled={enviando || !plan?.ok}>
-          {enviando ? 'Guardando…' : 'Guardar y continuar'}
+          {enviando ? t('cuenta.cuestionario.guardando') : t('cuenta.cuestionario.guardar')}
         </Button>
         {/* Nadie queda encerrado: se puede saltar y el cuestionario sigue
             accesible desde Razones sociales. Un paso obligatorio aquí dejaría al
             Dueño fuera de su propia aplicación por un dato que quizá tiene que
             preguntarle a su contador. */}
         <Button variant="ghost" onClick={alSaltar} disabled={enviando}>
-          Lo hago más tarde
+          {t('cuenta.cuestionario.mas-tarde')}
         </Button>
       </div>
     </div>

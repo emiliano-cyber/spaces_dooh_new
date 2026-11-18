@@ -3,6 +3,8 @@ import { exigirCambioSensible } from '@/lib/server/cambios'
 import { fijarCostoOTCtrl } from '@/lib/server/ot-controller'
 import { respuestaError } from '@/lib/server/errores'
 import { registrarAccion } from '@/lib/server/acciones-repo'
+import { monedaDeLaInstancia } from '@/lib/server/moneda-instancia'
+import { simboloMoneda } from '@/lib/i18n/dinero'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -65,11 +67,14 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (!gc.ok) return gc.res
   try {
     const ot = await fijarCostoOTCtrl(params.id, await req.json().catch(() => ({})))
+    // ADR 0048 · el importe de la bitacora lleva el simbolo de la moneda de la
+    // instancia; en servidor hay que pedirla antes de escribirlo.
+    await monedaDeLaInstancia()
     await registrarAccion(
       gc.usuario,
       ot.costoReal == null
         ? 'Borró el costo real de la OT (vuelve a la estimación por tipo)'
-        : `Capturó el costo real de la OT: $${Math.round(ot.costoReal).toLocaleString('es-MX')}`,
+        : `Capturó el costo real de la OT: ${simboloMoneda()}${Math.round(ot.costoReal).toLocaleString('es-MX')}`,
       ot.folio,
     )
     return NextResponse.json(ot)

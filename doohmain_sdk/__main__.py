@@ -73,9 +73,28 @@ def _build_parser() -> argparse.ArgumentParser:
     pub.add_argument("--list", required=True, dest="list_name")
     # Programación: spots/día → cuota diaria en DOOHmain (opcional).
     pub.add_argument("--cant-dia", type=int, default=None)
+    # 22/10 · lo demás que DOOHmain recibe. Todo opcional: ausente = lo de antes.
+    pub.add_argument("--cant-total", type=int, default=None)
+    pub.add_argument("--hora-inicio", default=None, help="HH:mm, solo si hay franja")
+    pub.add_argument("--hora-fin", default=None, help="HH:mm, solo si hay franja")
+    # 22/10 · días de la semana del horario individual, "1,2,3" (0 = domingo).
+    pub.add_argument("--dias", default=None, help="0..6 separados por coma; ausente = todos")
+    pub.add_argument("--auto-cant", action="store_true")
+    pub.add_argument("--cliente-rfc", default=None)
+    pub.add_argument("--cliente-razon-social", default=None)
+    pub.add_argument("--cliente-direccion", default=None)
+    pub.add_argument("--cliente-tipo", default=None)
 
     ret = sub.add_parser("retirar", help="Retira un creativo de DOOHmain (finish + limpia tracking)")
     ret.add_argument("--version", required=True)
+
+    # 29/10 · pausar / reanudar: reversible, a diferencia de `retirar`.
+    es = sub.add_parser("estado", help="Pausa o reanuda la campaña de un creativo publicado")
+    es.add_argument("--version", required=True)
+    es.add_argument("--status", required=True, choices=["pause", "active"])
+
+    ca = sub.add_parser("campanas", help="Estado de campañas en DOOHmain (payload crudo)")
+    ca.add_argument("--auth", action="append", required=True, help="auth de campaña (repetible)")
 
     # Proof of play. Devuelven el payload CRUDO de DOOHmain, sin interpretarlo:
     # todavía no hemos visto una respuesta con datos (hasta hoy siempre `[]`,
@@ -133,6 +152,14 @@ def main(argv: list[str] | None = None) -> int:
             estado = integration.retirar_creativo(args.version)
             return _emit_ok({"estado": estado})
 
+        if args.cmd == "estado":
+            estado = integration.cambiar_estado(args.version, args.status)
+            return _emit_ok({"estado": estado})
+
+        if args.cmd == "campanas":
+            with DOOHmainClient() as api:
+                return _emit_ok({"payload": api.get_campaigns(args.auth)})
+
         if args.cmd == "stats":
             with DOOHmainClient() as api:
                 return _emit_ok({"payload": api.get_stats(args.auth, args.start_date, args.end_date)})
@@ -147,16 +174,36 @@ def main(argv: list[str] | None = None) -> int:
             api = DOOHmainClient()
             db = Database()
             try:
+                cliente = {
+                    "cuit": args.cliente_rfc,
+                    "real_name": args.cliente_razon_social,
+                    "address": args.cliente_direccion,
+                    "client_type": args.cliente_tipo,
+                }
                 auth = integration.ensure_campaign(
                     args.version, args.anunciante, args.campana,
                     args.fecha_inicio, args.fecha_fin,
-                    cant_dia=args.cant_dia, api=api, db=db,
+                    cant_dia=args.cant_dia, cant_total=args.cant_total,
+                    auto_cant=args.auto_cant,
+                    cliente={k: v for k, v in cliente.items() if v},
+                    api=api, db=db,
                 )
                 media_id = integration.ensure_media(
                     args.filepath, args.version, api=api, db=db
                 )
+                # La franja va junta o no va: una hora sola no es un horario.
+                con_franja = bool(args.hora_inicio and args.hora_fin)
+                dias = None
+                if con_franja and args.dias:
+                    dias = sorted({int(d) for d in args.dias.split(",") if d.strip() != ""})
+                    if any(d < 0 or d > 6 for d in dias):
+                        raise DOOHmainError(f"--dias fuera de 0..6: {args.dias!r}")
                 estado = integration.publish_spot(
-                    args.screen, args.list_name, auth, media_id, api=api, db=db
+                    args.screen, args.list_name, auth, media_id,
+                    start_time=args.hora_inicio if con_franja else None,
+                    end_time=args.hora_fin if con_franja else None,
+                    days=dias,
+                    api=api, db=db,
                 )
             finally:
                 api.close()

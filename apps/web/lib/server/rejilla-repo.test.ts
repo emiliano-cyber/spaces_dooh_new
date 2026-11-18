@@ -154,6 +154,15 @@ describe('3 · la rejilla de una pantalla', () => {
     expect(sel).toMatch(/join franjas_horarias \w+ on [\w.]+\.id = [\w.]+\.franja_id and [\w.]+\.tenant_id = [\w.]+\.tenant_id/)
     expect(sel).toMatch(/join temporadas \w+ on [\w.]+\.id = [\w.]+\.temporada_id and [\w.]+\.tenant_id = [\w.]+\.tenant_id/)
   })
+
+  it('B44 · la lectura POR SITIO lleva `and tenant_id` con el tenant de la SESIÓN', async () => {
+    // La cabecera del archivo promete esta segunda capa en toda operación por
+    // id; hasta el 29/10 esta consulta era `where t.sitio_id = $1` a secas.
+    await rejillaDeSitio('S1')
+    const c = consultas.find((x) => /from sitio_tarifas/.test(x.sql))!
+    expect(c.sql.replace(/\s+/g, ' ')).toMatch(/where t\.sitio_id = \$1 and t\.tenant_id = \$2/)
+    expect(c.params).toEqual(['S1', 'T1'])
+  })
 })
 
 describe('4 · escribir la rejilla — lo que NO puede pasar', () => {
@@ -165,6 +174,13 @@ describe('4 · escribir la rejilla — lo que NO puede pasar', () => {
     db.q1.mockResolvedValue({ id: 'S1', tenant_id: 'T-DE-LA-PANTALLA' })
     await actualizarRejilla('S1', { guardar: [FILA], quitar: [] })
     expect(params()).toContain('T-DE-LA-PANTALLA')
+  })
+
+  it('B44 · la lectura de la PANTALLA por id lleva `and tenant_id` con el de la sesión', async () => {
+    await actualizarRejilla('S1', { guardar: [FILA], quitar: [] })
+    const c = consultas.find((x) => /from sitios where/.test(x.sql))!
+    expect(c.sql.replace(/\s+/g, ' ')).toMatch(/from sitios where id = \$1 and tenant_id = \$2/)
+    expect(c.params).toEqual(['S1', 'T1'])
   })
 
   it('NO hay borrado en bloque: guardar una fila no se lleva las demás', async () => {

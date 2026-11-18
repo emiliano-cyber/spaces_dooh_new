@@ -11,10 +11,18 @@
 //  repo no trae jsdom ni testing-library (ver `vitest.config.ts`).
 // ============================================================================
 
+// I18N (lote shell, 2026-11-02) · se pinta desde el layout del shell, que es un
+// Server Component: el idioma llega por propiedad (el de `idiomaDeLaPeticion()`)
+// y, si no llega, es espanol, como siempre.
+import type { Idioma } from '@/lib/i18n/idiomas'
+import { traducir } from '@/lib/i18n/diccionario'
+
 export function BandaLicencia({
   aviso,
+  idioma = 'es',
 }: {
   aviso: { tono: 'aviso' | 'gracia'; vence: string; finGracia: string } | null
+  idioma?: Idioma
 }) {
   if (aviso === null) return null
 
@@ -30,13 +38,12 @@ export function BandaLicencia({
     >
       {enGracia ? (
         <span>
-          Tu licencia de SPACE OS venció el {aviso.vence}. El sistema dejará de funcionar el{' '}
-          {aviso.finGracia}.
+          {traducir(idioma, 'shell.licencia.gracia', { vence: aviso.vence, finGracia: aviso.finGracia })}
         </span>
       ) : (
-        <span>Tu licencia de SPACE OS vence el {aviso.vence}.</span>
+        <span>{traducir(idioma, 'shell.licencia.aviso', { vence: aviso.vence })}</span>
       )}
-      <span>Para renovarla, contacta con tu proveedor.</span>
+      <span>{traducir(idioma, 'shell.licencia.renovar')}</span>
     </div>
   )
 }

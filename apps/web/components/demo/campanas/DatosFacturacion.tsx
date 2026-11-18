@@ -9,6 +9,9 @@ import { usePuede } from '@/components/demo/shell/SesionContext'
 import { useClientes } from '@/lib/data/client'
 import { subirContratoCampanaApi } from '@/lib/data/estado-api'
 import type { Campana } from '@/lib/data/types'
+import type { ClaveTexto } from '@/lib/i18n/diccionario'
+import { useTexto } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
 
 // ============================================================================
 //  Datos de facturación de la campaña. El cliente se eligió al crear la
@@ -18,10 +21,10 @@ import type { Campana } from '@/lib/data/types'
 //  contrato firmado del cliente, si se sube.
 // ============================================================================
 
-const USO_CFDI: Record<string, string> = {
-  G01: 'G01 · Adquisición de mercancías',
-  G03: 'G03 · Gastos en general',
-  P01: 'P01 · Por definir',
+const USO_CFDI: Record<string, ClaveTexto> = {
+  G01: 'campanas.facturacion.uso.g01',
+  G03: 'campanas.facturacion.uso.g03',
+  P01: 'campanas.facturacion.uso.p01',
 }
 
 // `sinCard`: cuando esta tarjeta va dentro de una sección colapsable de la ficha
@@ -29,6 +32,7 @@ const USO_CFDI: Record<string, string> = {
 export function DatosFacturacion({ campana, sinCard }: { campana: Campana; sinCard?: boolean }) {
   const clientes = useClientes()
   const puede = usePuede('comercial', 'crear')
+  const t = useTexto()
   const fileRef = useRef<HTMLInputElement>(null)
   const [subiendo, setSubiendo] = useState(false)
 
@@ -41,7 +45,7 @@ export function DatosFacturacion({ campana, sinCard }: { campana: Campana; sinCa
     e.target.value = ''
     if (!f) return
     if (f.size > 10 * 1024 * 1024) {
-      toast.error('El contrato supera 10 MB')
+      toast.error(t('campanas.comun.contrato-supera', { mb: 10 }))
       return
     }
     setSubiendo(true)
@@ -49,9 +53,9 @@ export function DatosFacturacion({ campana, sinCard }: { campana: Campana; sinCa
     reader.onload = async () => {
       try {
         await subirContratoCampanaApi(campana.id, reader.result as string)
-        toast.success('Contrato adjuntado')
+        toast.success(t('campanas.facturacion.adjuntado'))
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'No se pudo adjuntar')
+        toast.error(err instanceof Error ? err.message : t('campanas.facturacion.no-adjuntar'))
       }
       setSubiendo(false)
     }
@@ -61,22 +65,25 @@ export function DatosFacturacion({ campana, sinCard }: { campana: Campana; sinCa
   const cuerpo = (
       <>
         {!cli ? (
-          <p className="text-[13px] text-muted">Esta campaña no tiene cliente asignado.</p>
+          <p className="text-[13px] text-muted">{t('campanas.facturacion.sin-cliente')}</p>
         ) : (
           <dl className="space-y-2 text-[13px]">
-            <Fila label="Cliente" valor={cli.nombre} />
-            <Fila label="Razón social" valor={cli.razonSocial} destacaFalta />
-            <Fila label="RFC" valor={cli.rfc} mono destacaFalta />
-            <Fila label="Régimen fiscal" valor={cli.regimenFiscal} />
-            <Fila label="CP fiscal" valor={cli.cpFiscal} mono />
-            <Fila label="Uso CFDI" valor={cli.usoCfdi ? (USO_CFDI[cli.usoCfdi] ?? cli.usoCfdi) : null} />
-            <Fila label="IVA" valor={`${cli.ivaPct}%`} />
+            <Fila label={t('campanas.facturacion.cliente')} valor={cli.nombre} />
+            <Fila label={t('campanas.facturacion.razon-social')} valor={cli.razonSocial} destacaFalta />
+            <Fila label={t('campanas.facturacion.rfc')} valor={cli.rfc} mono destacaFalta />
+            <Fila label={t('campanas.facturacion.regimen')} valor={cli.regimenFiscal} />
+            <Fila label={t('campanas.facturacion.cp')} valor={cli.cpFiscal} mono />
+            <Fila
+              label={t('campanas.facturacion.uso')}
+              valor={cli.usoCfdi ? (USO_CFDI[cli.usoCfdi] ? t(USO_CFDI[cli.usoCfdi]) : cli.usoCfdi) : null}
+            />
+            <Fila label={t('campanas.facturacion.iva')} valor={`${cli.ivaPct}%`} />
           </dl>
         )}
 
         {!fiscalCompleto && cli && (
           <p className="mt-3 rounded border border-[#f59e0b40] bg-[#f59e0b0d] px-2.5 py-2 text-[12px] text-[#9a6700]">
-            Completa RFC y razón social en <b>Clientes</b> para poder facturar esta campaña.
+            {interpolarNodos(t('campanas.facturacion.completa'), { clientes: <b>{t('campanas.facturacion.clientes')}</b> })}
           </p>
         )}
 
@@ -84,7 +91,7 @@ export function DatosFacturacion({ campana, sinCard }: { campana: Campana; sinCa
         <div className="mt-4 border-t border-border pt-3">
           <div className="flex items-center justify-between gap-2">
             <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-ink">
-              <FileText className="h-3.5 w-3.5 text-muted" /> Contrato del cliente
+              <FileText className="h-3.5 w-3.5 text-muted" /> {t('campanas.facturacion.contrato')}
             </span>
             {campana.contratoUrl ? (
               <a
@@ -93,10 +100,10 @@ export function DatosFacturacion({ campana, sinCard }: { campana: Campana; sinCa
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline"
               >
-                Ver contrato <ExternalLink className="h-3.5 w-3.5" />
+                {t('campanas.comun.ver-contrato')} <ExternalLink className="h-3.5 w-3.5" />
               </a>
             ) : (
-              <span className="text-[12px] text-muted">Sin contrato adjunto</span>
+              <span className="text-[12px] text-muted">{t('campanas.facturacion.sin-contrato')}</span>
             )}
           </div>
           {puede && (
@@ -104,7 +111,11 @@ export function DatosFacturacion({ campana, sinCard }: { campana: Campana; sinCa
               <input ref={fileRef} type="file" accept="application/pdf,image/*" className="hidden" onChange={onFile} />
               <Button size="sm" variant="secondary" disabled={subiendo} onClick={() => fileRef.current?.click()}>
                 <Upload className="h-3.5 w-3.5" />
-                {subiendo ? 'Subiendo…' : campana.contratoUrl ? 'Reemplazar contrato' : 'Subir contrato (PDF)'}
+                {subiendo
+                  ? t('campanas.comun.subiendo')
+                  : campana.contratoUrl
+                    ? t('campanas.facturacion.reemplazar')
+                    : t('campanas.facturacion.subir')}
               </Button>
             </div>
           )}
@@ -118,7 +129,7 @@ export function DatosFacturacion({ campana, sinCard }: { campana: Campana; sinCa
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Datos de facturación</CardTitle>
+        <CardTitle>{t('campanas.ficha.facturacion')}</CardTitle>
         <span
           className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${
             fiscalCompleto
@@ -127,7 +138,7 @@ export function DatosFacturacion({ campana, sinCard }: { campana: Campana; sinCa
           }`}
         >
           {fiscalCompleto ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
-          {fiscalCompleto ? 'Cliente listo para facturar' : 'Faltan datos fiscales'}
+          {fiscalCompleto ? t('campanas.facturacion.listo') : t('campanas.facturacion.faltan')}
         </span>
       </CardHeader>
       <CardContent>{cuerpo}</CardContent>
@@ -146,6 +157,7 @@ function Fila({
   mono?: boolean
   destacaFalta?: boolean
 }) {
+  const t = useTexto()
   const falta = !valor
   return (
     <div className="flex items-center justify-between gap-3">
@@ -155,7 +167,7 @@ function Fila({
           falta && destacaFalta ? 'text-[#9a6700]' : falta ? 'text-muted' : 'text-ink'
         }`}
       >
-        {valor || '— falta —'}
+        {valor || t('campanas.facturacion.falta')}
       </dd>
     </div>
   )

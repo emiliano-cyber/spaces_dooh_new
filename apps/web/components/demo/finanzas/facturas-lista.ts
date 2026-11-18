@@ -1,4 +1,6 @@
 import type { Factura, EstFactura } from '@/lib/data/types'
+import { traducir } from '@/lib/i18n/diccionario'
+import type { Idioma } from '@/lib/i18n/idiomas'
 
 // ============================================================================
 //  components/demo/finanzas/facturas-lista.ts — el armado del apartado
@@ -43,8 +45,11 @@ export function armarListaFacturas(
   clientes: { id: string; nombre: string }[] | undefined | null,
   campanas: { id: string; nombre: string }[] | undefined | null,
   entidades: { id: string; nombre: string }[] | undefined | null,
+  // Costura (2026-11-02): solo cambia el «Sin asignar»; 'es' por omision.
+  idioma: Idioma = 'es',
 ): FilaFactura[] {
   if (!facturas?.length) return []
+  const sinAsignar = idioma === 'es' ? 'Sin asignar' : traducir(idioma, 'compartidos.asignacion.sin-asignar')
   const porCliente = new Map((clientes ?? []).map((c) => [c.id, c.nombre]))
   const porCampana = new Map((campanas ?? []).map((c) => [c.id, c.nombre]))
   const porEntidad = new Map((entidades ?? []).map((e) => [e.id, e.nombre]))
@@ -60,7 +65,7 @@ export function armarListaFacturas(
       // «Sin asignar» y no una raya: aquí el hueco tiene nombre propio y ya se
       // llama así en el resto del módulo de razones sociales. Decir «—» haría
       // pensar que el dato se perdió, cuando lo que pasa es que nadie lo eligió.
-      emisora: (f.entidadEmisoraId && porEntidad.get(f.entidadEmisoraId)) || 'Sin asignar',
+      emisora: (f.entidadEmisoraId && porEntidad.get(f.entidadEmisoraId)) || sinAsignar,
       monto: f.monto,
       moneda: f.moneda,
       estatus: f.estatus,

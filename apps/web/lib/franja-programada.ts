@@ -27,6 +27,9 @@
 //  dejar escrito qué tiene que meter a mano quien opera la pantalla.
 // ============================================================================
 
+import { traducir } from './i18n/diccionario'
+import type { Idioma } from './i18n/idiomas'
+
 export type FranjaRef = {
   id: string
   nombre: string
@@ -72,10 +75,17 @@ const pantallas = (n: number) => `${n} pantalla${n === 1 ? '' : 's'}`
  * Un nombre de franja contratada que no llega (dada de baja y sin join, por
  * ejemplo) se dice como «otra franja»: nunca un «se vendió como null».
  */
-export function avisosDeProgramacion(e: {
-  programada: FranjaRef | null
-  contratadas: FranjaContratada[]
-}): AvisoProgramacion[] {
+export function avisosDeProgramacion(
+  e: {
+    programada: FranjaRef | null
+    contratadas: FranjaContratada[]
+  },
+  // I18N (lote servidor, 2026-11-02) · 'es' por omision. El aviso lo arma el
+  // SERVIDOR (`programacionCtrl`) y viaja en el cuerpo de la respuesta, asi que
+  // quien llama le pasa el idioma de la peticion. En español sale el literal de
+  // siempre; el otro idioma va al diccionario (`servidor.franja.*`).
+  idioma: Idioma = 'es',
+): AvisoProgramacion[] {
   if (!e.programada) return []
   const programada = e.programada
   const porFranja = new Map<string, { nombre: string | null; pantallas: number }>()
@@ -91,7 +101,15 @@ export function avisosDeProgramacion(e: {
     franjaContratadaId: id,
     franjaContratadaNombre: v.nombre,
     pantallas: v.pantallas,
-    texto:
+    texto: idioma !== 'es'
+      ? traducir(idioma, 'servidor.franja.aviso', {
+          vendida: v.nombre ? traducir(idioma, 'servidor.franja.vendida', { nombre: v.nombre }) : traducir(idioma, 'servidor.franja.otra'),
+          pantallas: traducir(idioma, v.pantallas === 1 ? 'servidor.franja.pantallas.uno' : 'servidor.franja.pantallas.otros', {
+            n: v.pantallas,
+          }),
+          programada: programada.nombre,
+        })
+      :
       `Se vendió como ${v.nombre ? `«${v.nombre}»` : 'otra franja'} (${pantallas(v.pantallas)}) ` +
       `y se programa en «${programada.nombre}». El precio y lo contratado no cambian; ` +
       `confirma con el cliente que el horario de transmisión es el acordado.`,

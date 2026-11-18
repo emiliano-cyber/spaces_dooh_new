@@ -18,7 +18,7 @@
 // ============================================================================
 
 export interface DatosKitPi {
-  /** https://eyes.<dominio> de la empresa. */
+  /** https://<dominio> de la empresa: su propio droplet, sin subdominio aparte. */
   servidor: string
   /** Codigo de vinculacion, con o sin guion. */
   codigo: string

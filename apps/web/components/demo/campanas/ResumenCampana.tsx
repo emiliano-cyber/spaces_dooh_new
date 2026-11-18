@@ -1,0 +1,110 @@
+'use client'
+
+import {
+  useCampana,
+  useOrdenesTrabajo,
+  useEvidencias,
+  useMargenCampana,
+  useReporteCampana,
+  candadoFacturacion,
+  otAbierta,
+  formatMonto,
+} from '@/lib/data/client'
+import { formatNumero } from '@/lib/formato-numero'
+import { cn } from '@/lib/cn'
+import { useIdioma } from '@/lib/i18n/contexto'
+
+// ============================================================================
+//  Franja de resumen bajo el encabezado de la campaña — la franja secundaria
+//  del Dashboard (`rounded-md border bg-surface-2 px-4 py-2 text-[12px]`).
+//
+//  Total, margen, % entregado, candado, OT y evidencias vivían cada uno dentro
+//  de su sección, y varias nacen plegadas al fondo: para saber cómo iba una
+//  campaña había que abrir cuatro tarjetas. Aquí se leen de un vistazo, como el
+//  «Campaign Summary» de Broadsign POP.
+//
+//  NO son KPICard a propósito: cuatro tarjetas grandes empujarían Creativos y
+//  la Validación hacia abajo, y el dueño los quiere arriba (22/10 y 23/10).
+//
+//  Es un componente aparte —y no JSX en `campanas/[id]/page.tsx`— para que la
+//  página solo gane UNA línea: otra rama cambia ese archivo y así se juntan sin
+//  pelea. Lee del mismo store que la página (los hooks no piden nada nuevo al
+//  servidor) y repite sus mismas reglas: `candadoFacturacion` y las OT de la
+//  campaña; las evidencias son las de esas OT, como en la sección Evidencias.
+// ============================================================================
+
+export function ResumenCampana({ campanaId }: { campanaId: string }) {
+  const { t, idioma } = useIdioma()
+  const c = useCampana(campanaId)
+  const ots = useOrdenesTrabajo()
+  const evidencias = useEvidencias()
+  const margen = useMargenCampana(campanaId)
+  const reporte = useReporteCampana(campanaId)
+
+  if (!c) return null
+
+  const misOts = (ots ?? []).filter((o) => o.campanaId === campanaId)
+  const abiertas = misOts.filter(otAbierta).length
+  const misEvid = (evidencias ?? []).filter((e) => misOts.some((o) => o.id === e.otId))
+  const tieneFija = c.tipoCampana === 'OOH' || c.tipoCampana === 'HIBRIDA'
+  const candado = candadoFacturacion(c)
+
+  return (
+    <dl className="m-0 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px]">
+      <Par
+        etiqueta={t('campanas.comun.total')}
+        valor={c.presupuestoBruto ? formatMonto(c.presupuestoBruto, idioma) : '—'}
+        title={c.presupuestoBruto ? undefined : t('campanas.comun.sin-presupuesto')}
+      />
+      <Par
+        etiqueta={t('campanas.comun.margen')}
+        valor={margen ? `${margen.margenPct.toFixed(0)}%` : '—'}
+        cls={margen ? (margen.margen >= 0 ? 'text-[#0f7a55]' : 'text-error') : undefined}
+      />
+      <Par
+        etiqueta={t('campanas.resumen.entregado')}
+        valor={reporte ? `${reporte.cumplimientoPct.toFixed(0)}%` : '—'}
+        cls={reporte ? (reporte.cumplimientoPct >= 100 ? 'text-[#0f7a55]' : 'text-[#9a6700]') : undefined}
+      />
+      <Par
+        etiqueta={t('campanas.resumen.candado')}
+        valor={candado ? t('campanas.comun.lista-facturar') : t('campanas.comun.pendiente')}
+        cls={candado ? 'text-[#0f7a55]' : 'text-[#9a6700]'}
+        mono={false}
+      />
+      <Par
+        etiqueta={t('campanas.resumen.ot')}
+        valor={
+          misOts.length === 0
+            ? '—'
+            : t(abiertas === 1 ? 'campanas.resumen.ot.uno' : 'campanas.resumen.ot.otros', {
+                n: formatNumero(abiertas),
+                total: formatNumero(misOts.length),
+              })
+        }
+      />
+      {tieneFija && <Par etiqueta={t('campanas.resumen.evidencias')} valor={formatNumero(misEvid.length)} />}
+    </dl>
+  )
+}
+
+function Par({
+  etiqueta,
+  valor,
+  cls,
+  title,
+  mono = true,
+}: {
+  etiqueta: string
+  valor: string
+  cls?: string
+  title?: string
+  mono?: boolean
+}) {
+  return (
+    <div className="flex items-baseline gap-1.5" title={title}>
+      <dt className="text-muted">{etiqueta}</dt>
+      <dd className={cn('m-0 font-medium', mono && 'demo-num', cls ?? 'text-ink')}>{valor}</dd>
+    </div>
+  )
+}

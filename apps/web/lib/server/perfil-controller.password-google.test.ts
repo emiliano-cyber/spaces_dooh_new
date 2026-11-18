@@ -23,6 +23,10 @@ const { repo, auth } = vi.hoisted(() => ({
     emailExiste: vi.fn(async () => false),
     actualizarPerfil: vi.fn(async () => true),
     tieneIdentidadVinculada: vi.fn(async () => true),
+    // SEG-21OCT: el cambio de perfil cierra las demás sesiones. Aquí no se mide
+    // eso (lo mide `perfil-cierra-sesiones.test.ts`), pero el mock tiene que
+    // tenerla o el camino feliz revienta al llamarla.
+    cerrarOtrasSesionesDeUsuario: vi.fn(async () => 0),
   },
   auth: {
     hashPassword: vi.fn(async (p: string) => `hash:${p}`),

@@ -1,7 +1,7 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-29
 tags: [backend, precios, tarifas, franjas, temporadas, propuestas, dinero, snapshot, rls, programacion]
 archivos:
   - db/migrations/20260928_rejilla_franja_temporada.sql
@@ -154,6 +154,17 @@ Tres motivos, y el tercero decide:
 Con tabla aparte, el invariante «lo que no tiene franja se vende como siempre»
 deja de ser una convención del código y pasa a ser **estructural**.
 
+> [!note] 2026-10-29 · B44 · las lecturas por id ya llevan `and tenant_id`
+> La cabecera de `rejilla-repo.ts` prometía la segunda capa sobre la RLS en toda
+> operación por id y cuatro lecturas no la llevaban. Ahora sí: `rejillaDeSitio`
+> (`where t.sitio_id = $1 and t.tenant_id = $2`), la lectura de la pantalla en
+> `actualizarRejilla`, las tres de `getSitio` en `sitios-repo.ts` (pantalla,
+> modalidades y rejilla) y las temporadas de `congelarSnapshotEconomico` en
+> `propuestas-repo.ts` (con el tenant de la liga pública cuando se aprueba por
+> ella). Pruebas unitarias del SQL en `rejilla-repo.test.ts`,
+> `sitios-repo.rejilla.test.ts` y `propuestas-snapshot-franja.test.ts` §3; **la
+> RLS de verdad solo la ven las e2e** (`rejilla-franja-temporada.e2e.test.ts`).
+
 ### Las FK a franja y temporada son COMPUESTAS `(id, tenant_id)`
 
 Al revés que `propuestas.usuario_id` del mismo día, y el motivo es que **aquí el
@@ -247,6 +258,22 @@ La temporada **no** se guarda en `propuesta_items`: se deduce de `fecha_inicio`.
 Copiarla ahí sería una segunda verdad que envejece. En el snapshot sí, porque ahí
 deja de ser un dato vivo.
 
+> [!important] 2026-10-29 · B43 · la temporada congelada es la que PUSO el precio
+> Hasta hoy `porSitio[].temporada` era `temporadaDeFecha(...)`: la que **cubre**
+> la fecha, ganara o no su fila. Una venta del Buen Fin a tarifa base quedaba
+> congelada diciendo «Buen Fin». Ahora `congelarSnapshotEconomico`
+> (`lib/server/propuestas-repo.ts`) resuelve con `tarifaCalculada` sobre
+> `datosParaTarifar` —lo mismo que usa el servidor al crear la propuesta— y guarda
+> `temporadaQuePuso` (la de la **fila ganadora**, campo nuevo de
+> `lib/tarifa-calculada.ts`), **solo si** esa resolución da exactamente la
+> `tarifa_unitaria` vendida. Si el dueño movió la rejilla o las temporadas entre
+> cotizar y aprobar, o un gerente puso otro precio, se congela `null`: callarse
+> antes que afirmar. Las líneas de calculadora (ADR 0042) no se pueden recomprobar
+> sin el loop: se nombra la temporada solo si nadie ajustó el precio. Sin
+> migración (decisión del dueño, 29/10). **Lo ya congelado no se reescribe**: un
+> snapshot es inmutable, así que las propuestas aprobadas antes del 29/10 siguen
+> con la temporada de la fecha. Prueba: `propuestas-snapshot-franja.test.ts` §2b.
+
 **Medido** en `rejilla-franja-temporada.e2e.test.ts` §5: se vende el prime a
 1 800, se aprueba, el dueño lo sube a 2 500 **y renombra la franja**, y el
 snapshot no se mueve ni en el precio, ni en el nombre, ni en el horario.
@@ -254,6 +281,16 @@ snapshot no se mueve ni en el precio, ni en el nombre, ni en el horario.
 ---
 
 ## La franja NO viaja al CMS, y el producto lo dice
+
+> [!warning] 2026-10-22 · YA NO ES ASÍ con DOOHmain — lo de abajo es la historia
+> Por pedido del dueño, al publicar en DOOHmain se manda el horario de la franja
+> (la programada de la campaña o, si no, la contratada) y las reproducciones; ver
+> [[integraciones-externas]] y `lib/doohmain-programacion.ts`. El aviso
+> `AVISO_FRANJA_NO_VIAJA_AL_CMS` se reescribió para decir las dos mitades: a
+> DOOHmain se envía; en una pantalla de OTRO CMS, o con un anuncio ya publicado,
+> sigue habiendo que programarla a mano. La constante conserva su nombre (la
+> congela el snapshot de cada propuesta). Las propuestas aceptadas antes del 22/10
+> guardan en su snapshot el texto viejo, que era cierto cuando se aceptaron.
 
 El SDK de DOOHmain acepta `--version --anunciante --campana --fecha-inicio
 --fecha-fin --filepath --screen --list --cant-dia`
@@ -330,6 +367,24 @@ El candado es **exactamente** el de `PATCH /api/sitios/:id/modalidades` —
 dinero. Pedir aquí más que para la tarifa escalar sería una incoherencia, y las
 incoherencias se acaban resolviendo por el lado malo.
 
+> [!note] 2026-10-29 · B41 · la pantalla del catálogo ya pide la contraseña
+> `/franjas-y-temporadas` (`GestionRejilla.tsx`) escribía contra las rutas
+> sensibles de arriba **sin montar el candado**: con `exigir_reautenticacion`
+> encendido el dueño veía el 403 en rojo y ningún sitio donde teclear la
+> contraseña. Ahora sus tres acciones (alta de franja, alta de temporada, dar de
+> baja) pasan por `useCandado().ejecutar` y el 403 abre un `DialogoCandado`
+> atado a esa acción; un fallo que no es el candado sigue en el hueco de error
+> de la pantalla. Prueba: `components/demo/rejilla/GestionRejilla.candado.test.ts`.
+
+> [!note] 2026-10-29 · B45 · la UNIDAD de cada fila se valida como en modalidades
+> `actualizarRejillaCtrl` (`lib/server/rejilla-controller.ts`) lee la exhibición
+> de la pantalla con `exhibicionDeSitio` (`rejilla-repo.ts`, por `id` y con
+> `and tenant_id`) y pasa cada unidad a **guardar** por
+> `motivoModalidadInvalida`, la misma regla que `PATCH …/modalidades`: una unidad
+> inventada o un spot en una pantalla fija dan 400 sin escribir. Las **bajas** no
+> se validan, a propósito: son la única forma de limpiar la basura escrita antes.
+> Prueba: `rejilla-controller.test.ts` §3.
+
 Y se sigue el camino que aquella ruta dejó marcado en su cabecera: *«el día que
 llegue otra tarifa por unidad —un recargo por franja— nadie se acordará»*. Pues
 llegó, y va por **ruta propia**, no por una cadena más en una lista blanca.
@@ -355,6 +410,26 @@ llegó, y va por **ruta propia**, no por una cadena más en una lista blanca.
   la nota del principio—. Lo que pinta el cliente ya no es lo que manda.)*
 
 ---
+
+### La pantalla, rediseñada (26/10) — solo presentación
+
+`GestionRejilla.tsx` y `ProgramacionPorFranja.tsx`, sin tocar las validaciones
+(`motivoFranjaInvalida`/`motivoTemporadaInvalida`), «Dar de baja», la
+atomicidad de `programarFranjaApi` ni `NO_PROGRAMABLES`:
+
+- El aviso de CMS sale **completo** arriba y **compacto** dentro de «Horario de
+  transmisión» (`<AvisoFranjaCMS compacto />`): eran dos avisos grandes iguales
+  en la misma página. Los dos siguen pintados, que es lo que exige
+  `lib/rejilla-aviso.test.ts`. `AvisoFranjaCMS` no se re-tiñó: lo usan también
+  la propuesta y la liga pública, que son de otro grupo.
+- Subtítulos de una frase y la explicación en la franja secundaria (con tres
+  renglones de subtítulo el chevrón se caía debajo del texto).
+- Tablas con la cabecera común, horas en `demo-num`, fechas de temporada en
+  dd/mm/aaaa, columna **Estado** con `StatusBadge` (Activa / Dada de baja) además
+  del tachado, y la fila de alta con fondo propio.
+- Horario de transmisión: cada franja con su pastilla «N campañas» a la
+  derecha; sin franjas activas no se pinta la lista vacía (dejaba una raya
+  suelta); los avisos de discrepancia con la franja ámbar del proyecto.
 
 ## La franja PROGRAMADA — en qué horario se transmite (PROG-01, 2026-09-30)
 
@@ -461,6 +536,9 @@ las franjas a quien no tiene `precios.ver`, porque un nombre no es un precio.
   la ficha o por API. El importador sigue escribiendo solo `sitio_modalidades`.
 - **El reporte `tarifa` (publicada vs neta) todavía no distingue por franja.**
   Lee del snapshot, que ya la trae congelada, pero no la usa como dimensión.
+  *(2026-10-29, B42: sí la usa para DESEMPATAR — dos franjas de la misma
+  pantalla ya no sacan la pantalla del reporte; ver [[tarifa-publicada-vs-neta]].
+  Como dimensión propia, sigue sin existir.)*
 - Si la flota llega a PostgreSQL 15, el solape podría cerrarse también en el
   esquema.
 

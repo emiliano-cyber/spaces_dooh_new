@@ -7,6 +7,7 @@ import { Button } from '@/components/demo/ui/Button'
 import { CampoContrasena } from '@/components/demo/ui/CampoContrasena'
 import { desbloquearApi } from '@/lib/data/cambios-api'
 import { confirmarConCandado, type ResultadoCandado } from '@/lib/cambios-candado'
+import { useTexto } from '@/lib/i18n/contexto'
 
 // ============================================================================
 //  El paso de la contraseña, montado: estado + los dos envases donde cabe.
@@ -87,6 +88,7 @@ export interface Candado {
 }
 
 export function useCandado(): Candado {
+  const t = useTexto()
   const [reautenticando, setReautenticando] = useState(false)
   const [pass, setPass] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -123,7 +125,7 @@ export function useCandado(): Candado {
       olvidar()
       accion.alLograr?.()
     } else if (r.estado === 'falta-contrasena') {
-      setError('Escribe tu contraseña para confirmar.')
+      setError(t('compartidos.candado.falta'))
     } else if (r.estado === 'pedir-contrasena') {
       pendiente.current = accion
       setReautenticando(true)
@@ -167,12 +169,11 @@ export function PasoContrasena({
   /** Enter confirma. Lo pasa el cuadro para no duplicar aquí su condición. */
   onEnter?: () => void
 }) {
+  const t = useTexto()
   if (!candado.reautenticando) return null
   return (
     <div className="space-y-2 border-t border-border pt-2">
-      <p className="text-[12px] text-muted">
-        Tu organización pide la contraseña para confirmar los cambios sensibles.
-      </p>
+      <p className="text-[12px] text-muted">{t('compartidos.candado.pide')}</p>
       <CampoContrasena
         valor={candado.pass}
         onChange={candado.setPass}
@@ -201,13 +202,14 @@ export function DialogoCandado({
   candado,
   titulo,
   subtitulo,
-  etiquetaConfirmar = 'Confirmar',
+  etiquetaConfirmar,
 }: {
   candado: Candado
   titulo: string
   subtitulo?: string
   etiquetaConfirmar?: string
 }) {
+  const t = useTexto()
   return (
     <Modal
       open={candado.reautenticando}
@@ -219,7 +221,7 @@ export function DialogoCandado({
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="secondary" size="sm" onClick={candado.olvidar} disabled={candado.enviando}>
-            Cancelar
+            {t('comun.cancelar')}
           </Button>
           <Button
             size="sm"
@@ -227,7 +229,7 @@ export function DialogoCandado({
             onClick={() => void candado.reintentar()}
           >
             {candado.enviando && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            {etiquetaConfirmar}
+            {etiquetaConfirmar ?? t('compartidos.candado.confirmar')}
           </Button>
         </div>
       }

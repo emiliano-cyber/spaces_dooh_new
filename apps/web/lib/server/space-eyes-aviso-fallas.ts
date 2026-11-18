@@ -1,7 +1,7 @@
 import 'server-only'
 import { listarEquipos } from './space-eye'
 import { notificar } from './notificaciones-repo'
-import { tenantActual } from './tenant'
+import { veSpaceEyes } from '@/lib/roles'
 
 // ============================================================================
 //  lib/server/space-eyes-aviso-fallas.ts — Que una pantalla caída SALTE.
@@ -38,13 +38,18 @@ const enCurso = new Map<string, Promise<void>>()
  * AHORA. Nunca lanza: si Space Eye no contesta, no pasa nada y se reintenta en
  * el siguiente sondeo.
  *
- * Sin `tenant`, el de la sesión. Resuélvelo ANTES si vas a llamarla sin
- * esperarla (`void avisarFallasEyes({ tenant })`), porque para entonces puede
- * que ya no haya petición de la que sacarlo.
+ * Se le pasa el ROL de quien sondea, no el tenant: el tenant lo resuelve ella
+ * misma, igual que `notificar()`.
  */
-export async function avisarFallasEyes(opts: { tenant?: string | null } = {}): Promise<void> {
+export async function avisarFallasEyes(opts: { rol?: string | null } = {}): Promise<void> {
   try {
-    const tenant = opts.tenant ?? (await tenantActual())
+    if (!veSpaceEyes(opts.rol)) return
+    // `tenant.ts` se carga AQUI y no arriba: la ruta que llama a esto la
+    // importan pruebas sin peticion, y ese modulo revienta al evaluarse fuera
+    // de una (usa `cache()` de React). Dentro del `try`, si no hay peticion no
+    // pasa nada y el sondeo siguiente lo vuelve a intentar.
+    const { tenantActual } = await import('./tenant')
+    const tenant = await tenantActual()
     if (!tenant) return
     if (Date.now() - (ultima.get(tenant) ?? 0) < RESPIRO_MS) return
     const curso = enCurso.get(tenant)

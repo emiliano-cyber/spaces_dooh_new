@@ -29,7 +29,7 @@
 import { readFileSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { validarNovedades, notasDe, versionBase } from '../apps/web/lib/novedades-reglas.mjs'
+import { validarNovedades, notasDe, versionBase, sinTraducir } from '../apps/web/lib/novedades-reglas.mjs'
 
 const RAIZ = join(dirname(fileURLToPath(import.meta.url)), '..')
 const POR_OMISION = join(RAIZ, 'apps', 'web', 'novedades.json')
@@ -90,3 +90,15 @@ if (!entrada) {
 }
 
 console.log(`Notas de ${version}: ${entrada.items.length} item(s) en ${mostrada} (entrada ${entrada.version}, ${entrada.fecha}).`)
+
+// Las traducciones (2026-11-05) AVISAN y no paran: sin ellas la entrada se
+// pinta en espanol en una interfaz inglesa o italiana, que es lo que pasaba
+// con todas hasta ese dia. Parar una release por eso seria peor que el
+// defecto. `::warning::` lo pinta GitHub Actions como anotacion amarilla.
+const faltan = sinTraducir(entrada)
+const NOMBRE = { en: 'ingles', it: 'italiano' }
+for (const [k, n] of Object.entries(faltan)) {
+  if (n > 0) {
+    console.log(`::warning::${n} item(s) sin traducir al ${NOMBRE[k] ?? k} («${k}») en ${entrada.version}: se pintaran en espanol.`)
+  }
+}

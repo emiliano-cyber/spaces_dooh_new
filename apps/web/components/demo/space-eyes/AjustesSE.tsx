@@ -4,6 +4,7 @@ import { useSearchParams } from 'next/navigation'
 import { Tabs, TabPanel } from '@/components/demo/ui/Tabs'
 import { useSesionCtx } from '@/components/demo/shell/SesionContext'
 import { esMando } from '@/lib/roles'
+import { useIdioma } from '@/lib/i18n/contexto'
 import { BrilloPorHoras } from '@/components/demo/space-eyes/BrilloPorHoras'
 import { AjustarTexto } from '@/components/demo/space-eyes/AjustarTexto'
 import { Programacion } from '@/components/demo/space-eyes/Programacion'
@@ -36,17 +37,18 @@ import { Graficas } from '@/components/demo/space-eyes/Graficas'
 // venta, porque quien enseña una pantalla a un cliente necesita saber qué
 // salió en ella. Agruparlas no es motivo para cambiar quién entra.
 const PESTANAS = [
-  { value: 'brillo', label: 'Brillo por horas', soloMando: true },
-  { value: 'texto', label: 'Ajustar texto', soloMando: true },
-  { value: 'programacion', label: 'Programación', soloMando: true },
-  { value: 'verificacion', label: 'Verificación', soloMando: false },
-  { value: 'graficas', label: 'Gráficas', soloMando: false },
+  { value: 'brillo', clave: 'spaceeyes.ajustes.tab.brillo', soloMando: true },
+  { value: 'texto', clave: 'spaceeyes.ajustes.tab.texto', soloMando: true },
+  { value: 'programacion', clave: 'spaceeyes.ajustes.tab.programacion', soloMando: true },
+  { value: 'verificacion', clave: 'spaceeyes.verif.titulo', soloMando: false },
+  { value: 'graficas', clave: 'spaceeyes.graficas.titulo', soloMando: false },
 ] as const
 
 type Clave = (typeof PESTANAS)[number]['value']
 
 export function AjustesSE() {
   const params = useSearchParams()
+  const { t } = useIdioma()
   const { sesion } = useSesionCtx()
   const mando = esMando(sesion?.usuario?.rol)
 
@@ -59,17 +61,14 @@ export function AjustesSE() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl text-ink">Ajustes</h1>
-        <p className="mt-1 text-[13px] text-muted">
-          La luz de noche, la marca de las fotos, a qué horas se disparan, contra qué se verifican y cómo ha
-          estado cada equipo.
-        </p>
+        <h1 className="text-2xl text-ink">{t('spaceeyes.ajustes.titulo')}</h1>
+        <p className="mt-1 text-[13px] text-muted">{t('spaceeyes.ajustes.descripcion')}</p>
       </div>
 
       {/* `key` fuerza el remonte cuando se llega con otra pestaña en la
           dirección: `defaultValue` solo se mira al montar, así que sin esto
           una redirección desde /texto abriría la pestaña de antes. */}
-      <Tabs key={inicial} tabs={visibles.map((p) => ({ value: p.value, label: p.label }))} defaultValue={inicial}>
+      <Tabs key={inicial} tabs={visibles.map((p) => ({ value: p.value, label: t(p.clave) }))} defaultValue={inicial}>
         {mando && (
           <TabPanel value="brillo" className="pt-4">
             <BrilloPorHoras />

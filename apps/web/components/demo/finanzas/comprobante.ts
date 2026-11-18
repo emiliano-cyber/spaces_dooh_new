@@ -1,4 +1,7 @@
 import type { Factura, EstFactura } from '@/lib/data/types'
+import { traducir } from '@/lib/i18n/diccionario'
+import type { Idioma } from '@/lib/i18n/idiomas'
+import { monedaInstancia } from '@/lib/i18n/dinero'
 
 // ============================================================================
 //  components/demo/finanzas/comprobante.ts — el documento de una factura.
@@ -45,6 +48,9 @@ export function armarComprobante(
   f: Factura,
   campanas: { id: string; nombre: string }[] | undefined | null,
   entidades: { id: string; razonSocial: string; rfc: string | null }[] | undefined | null,
+  // Costura (2026-11-02): solo cambia el «Sin asignar» del emisor. 'es' por
+  // omision; el espanol es el de siempre.
+  idioma: Idioma = 'es',
 ): Comprobante {
   const emisora = f.entidadEmisoraId
     ? (entidades ?? []).find((e) => e.id === f.entidadEmisoraId)
@@ -65,7 +71,7 @@ export function armarComprobante(
     // —`f.razonSocial` es la del receptor—, que es el error que este par de
     // campos invita a cometer y por eso van separados y nombrados así.
     emisor: {
-      razonSocial: emisora?.razonSocial ?? 'Sin asignar',
+      razonSocial: emisora?.razonSocial ?? (idioma === 'es' ? 'Sin asignar' : traducir(idioma, 'compartidos.asignacion.sin-asignar')),
       rfc: emisora?.rfc || GUION,
     },
     receptor: {
@@ -77,7 +83,8 @@ export function armarComprobante(
       subtotal,
       iva,
       total,
-      moneda: f.moneda || 'MXN',
+      // Sin moneda en la factura, la de la instancia (ADR 0048). Era 'MXN'.
+      moneda: f.moneda || monedaInstancia(),
       // Si los tres números no suman, el documento lo DICE en vez de callarse.
       // `crearFactura` los calcula para que cuadren exactamente, así que un
       // descuadre significa que algo los tocó después — y eso hay que verlo,

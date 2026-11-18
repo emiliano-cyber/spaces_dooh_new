@@ -4,26 +4,31 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { ChevronDown, UserCircle2, LogOut, Bell, Trash2, Menu, Settings, KeyRound } from 'lucide-react'
-import { apiLogout } from '@/lib/auth-real'
+import { cerrarSesionYSalir } from './salir'
 import { rolLabel } from './nav'
 import { useSesionCtx } from './SesionContext'
 import { useMenuMovil } from './MenuMovilContext'
 import { DesbloqueoCambios } from './DesbloqueoCambios'
 import { useNotificaciones } from '@/lib/data/client'
-import { marcarNotificacionLeidaApi, archivarTodasNotificacionesApi } from '@/lib/data/estado-api'
+import { marcarNotificacionLeidaApi, archivarTodasNotificacionesApi, borrarNotificacionApi } from '@/lib/data/estado-api'
+import { ItemNotificacion } from './ItemNotificacion'
+import { IdiomaMenu } from './IdiomaMenu'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
 
 export function Topbar() {
   const router = useRouter()
+  const { t, idioma } = useIdioma()
   const { abierto, alternar } = useMenuMovil()
-  const { sesion, refrescar } = useSesionCtx()
+  const { sesion } = useSesionCtx()
   const usuario = sesion?.usuario
   const notificaciones = useNotificaciones() ?? []
   const noLeidas = notificaciones.filter((n) => !n.leida).length
 
+  // Carga completa y no `router.push`: la pantalla de entrar tiene que volver a
+  // resolver el idioma sin la cuenta que acaba de salir (B64, ver `salir.ts`).
   async function cerrar() {
-    await apiLogout()
-    await refrescar()
-    router.push('/login')
+    await cerrarSesionYSalir()
   }
 
   async function abrirNotif(id: string, link: string | null) {
@@ -38,7 +43,7 @@ export function Topbar() {
         <button
           type="button"
           onClick={alternar}
-          aria-label={abierto ? 'Cerrar menú' : 'Abrir menú'}
+          aria-label={abierto ? t('shell.topbar.cerrar-menu') : t('shell.topbar.abrir-menu')}
           aria-expanded={abierto}
           className="inline-flex h-9 w-9 items-center justify-center rounded border border-border-strong bg-surface text-muted transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent md:hidden"
         >
@@ -46,7 +51,9 @@ export function Topbar() {
         </button>
         {usuario ? (
           <span>
-            Vista de <span className="font-medium text-ink">{rolLabel(usuario.rol)}</span>
+            {interpolarNodos(t('shell.topbar.vista-de'), {
+              rol: <span className="font-medium text-ink">{rolLabel(usuario.rol, idioma)}</span>,
+            })}
           </span>
         ) : null}
       </div>
@@ -61,7 +68,7 @@ export function Topbar() {
           <DropdownMenu.Trigger asChild>
             <button
               type="button"
-              aria-label="Notificaciones"
+              aria-label={t('shell.topbar.notificaciones')}
               className="relative inline-flex h-9 w-9 items-center justify-center rounded border border-border-strong bg-white text-muted transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
               <Bell className="h-4 w-4" strokeWidth={1.75} />
@@ -79,7 +86,7 @@ export function Topbar() {
               className="demo-root z-50 max-h-[420px] w-80 overflow-y-auto rounded-md border border-border bg-surface p-1 shadow-lg data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"
             >
               <div className="flex items-center justify-between px-2 py-1.5">
-                <span className="text-[13px] font-medium text-ink">Notificaciones</span>
+                <span className="text-[13px] font-medium text-ink">{t('shell.topbar.notificaciones')}</span>
                 {/* Aparece siempre que HAYA algo en la lista, no solo si queda
                     algo sin leer: el panel enseña también las leídas, y son
                     justo las que se acumulan y hay que poder quitar de encima.
@@ -92,40 +99,24 @@ export function Topbar() {
                     onClick={() => { void archivarTodasNotificacionesApi() }}
                     className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-muted transition-colors hover:bg-surface-2 hover:text-ink"
                   >
-                    <Trash2 className="h-3.5 w-3.5" /> Borrar todas
+                    <Trash2 className="h-3.5 w-3.5" /> {t('shell.topbar.borrar-todas')}
                   </button>
                 )}
               </div>
               <div className="my-1 h-px bg-border" />
               {notificaciones.length === 0 ? (
-                <p className="px-2 py-4 text-center text-[12px] text-muted">Sin notificaciones</p>
+                <p className="px-2 py-4 text-center text-[12px] text-muted">{t('shell.topbar.sin-notificaciones')}</p>
               ) : (
+                // Cada aviso lleva su botón para borrarlo SOLO (NOTIF-USUARIO,
+                // 21/10); leer y borrar son de esta persona, no de toda la
+                // empresa. Ver `ItemNotificacion.tsx`.
                 notificaciones.slice(0, 30).map((n) => (
-                  <button
+                  <ItemNotificacion
                     key={n.id}
-                    type="button"
-                    onClick={() => abrirNotif(n.id, n.link)}
-                    className={`block w-full rounded px-2 py-2 text-left outline-none hover:bg-surface-2 ${n.leida ? 'opacity-60' : ''}`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`h-2 w-2 shrink-0 rounded-full ${
-                          n.nivel === 'ok' ? 'bg-success' : n.nivel === 'warn' ? 'bg-warning' : 'bg-info'
-                        } ${n.leida ? 'opacity-0' : ''}`}
-                      />
-                      <span className="text-[13px] font-medium text-ink">{n.titulo}</span>
-                    </div>
-                    {/* B6: `truncate` cortaba el detalle en «…el importe de la re…»
-                        y no había forma de ver el resto. Se deja en DOS líneas: la
-                        mayoría cabe entera, y el aviso sigue siendo una fila corta
-                        de lista y no un párrafo. El `title` da el texto íntegro al
-                        pasar el ratón, para el caso que aun así se pase. */}
-                    {n.detalle && (
-                      <div className="ml-4 line-clamp-2 text-[12px] text-muted" title={n.detalle}>
-                        {n.detalle}
-                      </div>
-                    )}
-                  </button>
+                    n={n}
+                    onAbrir={abrirNotif}
+                    onBorrar={(id) => { void borrarNotificacionApi(id) }}
+                  />
                 ))
               )}
             </DropdownMenu.Content>
@@ -140,7 +131,7 @@ export function Topbar() {
               className="inline-flex h-9 items-center gap-2 rounded border border-border-strong bg-white px-3 text-[13px] font-medium text-ink transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
               <UserCircle2 className="h-4 w-4 text-muted" strokeWidth={1.75} />
-              {usuario?.nombre ?? 'Cuenta'}
+              {usuario?.nombre ?? t('shell.topbar.cuenta')}
               <ChevronDown className="h-3.5 w-3.5 text-muted" />
             </button>
           </DropdownMenu.Trigger>
@@ -153,7 +144,7 @@ export function Topbar() {
               {usuario && (
                 <div className="px-2 py-1.5">
                   <div className="text-[13px] font-medium text-ink">{usuario.nombre}</div>
-                  <div className="text-[11px] text-muted">{usuario.cargo ?? rolLabel(usuario.rol)}</div>
+                  <div className="text-[11px] text-muted">{usuario.cargo ?? rolLabel(usuario.rol, idioma)}</div>
                   <div className="demo-num mt-0.5 text-[11px] text-muted">{usuario.email}</div>
                 </div>
               )}
@@ -163,7 +154,7 @@ export function Topbar() {
                   href="/configuracion"
                   className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-[13px] text-ink outline-none data-[highlighted]:bg-surface-2"
                 >
-                  <Settings className="h-4 w-4 text-muted" /> Configuración
+                  <Settings className="h-4 w-4 text-muted" /> {t('shell.topbar.configuracion')}
                 </Link>
               </DropdownMenu.Item>
               {/* B6 · el único camino para llegar aquí por voluntad propia.
@@ -176,14 +167,16 @@ export function Topbar() {
                   href="/codigos-recuperacion"
                   className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-[13px] text-ink outline-none data-[highlighted]:bg-surface-2"
                 >
-                  <KeyRound className="h-4 w-4 text-muted" /> Códigos de recuperación
+                  <KeyRound className="h-4 w-4 text-muted" /> {t('shell.topbar.codigos')}
                 </Link>
               </DropdownMenu.Item>
+              {/* El idioma a un clic (06/11). No pinta nada con un solo idioma encendido. */}
+              <IdiomaMenu />
               <DropdownMenu.Item
                 onSelect={cerrar}
                 className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-[13px] text-ink outline-none data-[highlighted]:bg-surface-2"
               >
-                <LogOut className="h-4 w-4 text-muted" /> Cerrar sesión
+                <LogOut className="h-4 w-4 text-muted" /> {t('shell.topbar.cerrar-sesion')}
               </DropdownMenu.Item>
             </DropdownMenu.Content>
           </DropdownMenu.Portal>

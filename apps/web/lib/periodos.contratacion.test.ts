@@ -154,3 +154,20 @@ describe('etiquetaFrecuencia — la programación, con OTRO vocabulario', () => 
     expect(etiquetaFrecuencia(0)).toBeNull()
   })
 })
+
+// Costura del ingles (2026-11-02): la ficha de la campana ya estaba traducida
+// pero pintaba la reserva con `resumenReserva` sin idioma («1 mes»).
+describe('resumenReserva — en ingles', () => {
+  // Solo se fija la unidad: el importe es de `formatMonto`, que es otra tarea
+  // (la moneda por instancia) y no se acopla aqui.
+  it('la unidad sale en el idioma', () => {
+    expect(resumenReserva({ unidad: 'mensual', cantidad: 1, precio: 1000 }, 'en')).toMatch(/^1 month · /)
+    expect(resumenReserva({ unidad: 'spot', cantidad: 50, precio: 54_000 }, 'en')).toMatch(/^50 plays · /)
+  })
+  it('en espanol, lo de siempre', () => {
+    expect(resumenReserva({ unidad: 'spot', cantidad: 50, precio: 54_000 }, 'es')).toBe(
+      resumenReserva({ unidad: 'spot', cantidad: 50, precio: 54_000 }),
+    )
+    expect(resumenReserva({ unidad: 'spot', cantidad: 50, precio: 54_000 }, 'es')).toMatch(/^50 salidas · /)
+  })
+})

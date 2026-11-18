@@ -4,6 +4,8 @@ import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { refrescarEstado } from '@/lib/data/estado-api'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { traducirNotificacion } from '@/lib/i18n/notificaciones'
 
 // ============================================================================
 //  Notificaciones en vivo mientras la pestaña está abierta: llegan solas, sin
@@ -36,6 +38,11 @@ const MOSTRAR: Record<string, (m: string, o?: object) => void> = {
 
 export function SondeoNotificaciones() {
   const router = useRouter()
+  // Ola 6 · el aviso emergente dice lo mismo que la campanita, en el idioma de
+  // quien lo lee. Se lee por `ref` para no reiniciar el sondeo al cambiar.
+  const { t, idioma } = useIdioma()
+  const textos = useRef({ t, idioma })
+  textos.current = { t, idioma }
   // Marca de la última notificación vista. Arranca en "ahora": lo anterior ya
   // vino en la carga inicial y avisar de todo el histórico al abrir sería ruido.
   const desde = useRef<string>(new Date().toISOString())
@@ -71,11 +78,12 @@ export function SondeoNotificaciones() {
         for (const n of nuevas) {
           avisadas.current.add(n.id)
           const mostrar = MOSTRAR[n.nivel as string] ?? toast
-          mostrar(n.titulo, {
-            description: n.detalle ?? undefined,
+          const v = traducirNotificacion(n, textos.current.idioma)
+          mostrar(v.titulo, {
+            description: v.detalle ?? undefined,
             // Solo hay acción si la notificación apunta a algún sitio.
             action: n.link
-              ? { label: 'Ver', onClick: () => router.push(n.link) }
+              ? { label: textos.current.t('notificaciones.ver'), onClick: () => router.push(n.link) }
               : undefined,
           })
         }

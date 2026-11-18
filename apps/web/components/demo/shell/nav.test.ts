@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { NAV, GRUPOS, type GrupoNav } from './nav'
+import { NAV, GRUPOS, hrefActivo, type GrupoNav } from './nav'
 import { ROLES_ASIGNABLES } from '@/lib/roles'
 import type { RolDemo } from '@/lib/data/types'
 
@@ -291,5 +291,24 @@ describe('Captación, OCULTA del menú por ahora (2026-09-30)', () => {
   })
   it('Comercial OPEX sigue en el grupo Comercial', () => {
     expect(NAV.find((n) => n.key === 'comercial-opex')?.grupo).toBe('vender')
+  })
+})
+
+// Visto en g500 el 12/10: en /space-eyes/galeria se encendían «Equipos»
+// (/space-eyes) y «Galería» a la vez, porque cada ítem se marcaba activo en
+// cualquier subruta suya. Gana el href más largo, como en `AuthGate`.
+describe('hrefActivo', () => {
+  const hrefs = NAV.map((n) => n.href)
+  it('en una subpágina de Space Eyes solo se enciende la subpágina', () => {
+    expect(hrefActivo('/space-eyes/galeria', hrefs)).toBe('/space-eyes/galeria')
+    expect(hrefActivo('/space-eyes/fallas', hrefs)).toBe('/space-eyes/fallas')
+  })
+  it('Equipos sigue activo en su página y en el detalle de un equipo', () => {
+    expect(hrefActivo('/space-eyes', hrefs)).toBe('/space-eyes')
+    expect(hrefActivo('/space-eyes/123', hrefs)).toBe('/space-eyes')
+  })
+  it('la raíz no se enciende en todas las rutas', () => {
+    expect(hrefActivo('/operaciones/ot/123', ['/', '/operaciones'])).toBe('/operaciones')
+    expect(hrefActivo('/nada', ['/'])).toBeNull()
   })
 })

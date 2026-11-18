@@ -1,7 +1,7 @@
 ---
 tipo: manual
 estado: vigente
-actualizado: 2026-10-07
+actualizado: 2026-10-14
 tags: [manual, tecnico, desarrollador, space-eyes, camaras, raspberry, telefono, campanas]
 archivos:
   - apps/web/lib/server/space-eye.ts
@@ -128,7 +128,14 @@ sequenceDiagram
 - **Space Eye** (`space-eye/backend/src/controllers/campanasSpaceos.controller.ts`):
   cada par campaña-creativo es una fila de `campaigns` con
   `origen`/`origen_id`; lo que ya no viene se apaga (`active = FALSE`), nada se
-  borra. Migración `024_campanas_de_spaceos.sql`.
+  borra. Migración `024_campanas_de_spaceos.sql`. Nacen **sin verificación
+  con IA** salvo que el Space Eye tenga `VERIFICACION_IA=1`: la pila de cada
+  empresa (`infra/eyes`) no trae el ai-worker, y con la verificación encendida
+  las pruebas se quedaban en «pendiente» para siempre. La foto de prueba llega
+  igual y se revisa a ojo.
+- **El equipo** busca TODAS las campañas cuyo arte coincide (el mismo
+  creativo puede estar vendido en dos campañas de la misma pantalla) y sube la
+  prueba de cada una que la necesite.
 - **El equipo** (`space-eye/pi-agent/vision/campanas.py`,
   `space-eye/android/.../pantalla/Campanas.kt` y `BuscadorCampanas.kt`): la
   campaña se busca ANTES que el catálogo de creativos; si coincide, sube su
@@ -233,7 +240,7 @@ huella `vigilancia`), `pending-commands`, `upload-photo`
   (`lib/space-eyes-actualizacion.ts`): ficha › Equipo y el filtro «Se
   actualizan a mano» de la lista.
 
-Versiones al 07/10/2026: Raspberry **0.7.5**, teléfono **0.16.4** (código 36),
+Versiones al 08/10/2026: Raspberry **0.7.6**, teléfono **0.16.4** (código 36),
 PC **1.6.0**, imagen de Space Eye construida con `space-eye/Dockerfile.instancia`.
 
 ## 8. Despliegue
@@ -290,6 +297,28 @@ contra un Space Eye local.
    simulados no bajan sus actualizaciones.
 7. **Datos de ensayo**: los anuncios 8 y 9 son el MISMO creativo en dos
    sitios; el equipo los ve, con razón, como uno solo.
+8. **Miniaturas, no fotos completas** (v0.11.4, rama de José
+   `fix/space-eyes-fotos-rapidas`): abrir una ficha bajaba seis fotos del
+   celular de 2-5 MB para pintar recuadros de 56 px, y con 1 GB de servidor
+   tardaba segundos (g500, 11/10). `miniaturaDe()`
+   (`lib/server/space-eye.ts:294`) usa `thumbnail_path` (~400 px, ~30 KB) y cae
+   a la foto si no hay; `/api/space-eyes/foto` responde con
+   `Cache-Control: private, max-age=3600` (`foto/route.ts:76`).
+9. **El GPS llega como TEXTO** (v0.11.4, misma rama, `54bfcaf8`): Space Eye lo
+   guarda en `DECIMAL` y mysql2 lo entrega como cadena, así que
+   `gps.lat.toFixed(5)` tumbaba la ficha entera («Application error») en cuanto
+   un teléfono mandaba su ubicación (g500, 09/10). `gpsDeFoto()`
+   (`space-eye.ts:361`) lo devuelve siempre como números, o `null`.
+
+## 10 bis. Solicitudes de activación en el PADRE (v0.11.4)
+
+Hasta el 08/10 las solicitudes de activación de Space Eyes solo se veían en el
+panel de flota, que es otra página, y nadie las buscaba ahí. Ahora el
+`layout.tsx` de `/space-eyes` pinta `SolicitudesActivacion.tsx` arriba de todo,
+que lee `/flota/solicitudes.json` (`RUTAS_SOLICITUDES`,
+`apps/flota/servidor.mjs:84`) con la misma sesión y el mismo permiso que el
+resto del panel. **En una instancia hija ese JSON da 404, y es lo esperado**:
+el receptor de flota solo vive en el PADRE.
 
 ## Relacionadas
 [[manual-space-eyes]] · [[0045-space-eye-vive-dentro-de-cada-instancia]] ·

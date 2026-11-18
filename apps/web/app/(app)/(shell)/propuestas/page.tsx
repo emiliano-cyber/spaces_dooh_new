@@ -1,11 +1,16 @@
 'use client'
 
 import { toast } from 'sonner'
-import { conteo } from '@/lib/plural'
-import { useState, useEffect, useMemo } from 'react'
+import { conteo, plural } from '@/lib/plural'
+import { useIdioma, useTexto } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import Link from 'next/link'
-import { Plus, FileText, Send, Check, X, ChevronDown, ChevronRight, Monitor, Square, List, Map as MapIcon } from 'lucide-react'
-import { Card, CardContent } from '@/components/demo/ui/Card'
+import { Plus, FileText, Send, Check, X, ChevronDown, ChevronRight, Monitor, Square, List, Map as MapIcon, Trophy, Target } from 'lucide-react'
+import { cn } from '@/lib/cn'
+import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
+import { EST, ORDEN_ESTATUS, CLAVE_ESTATUS } from '@/components/demo/propuestas/estatus'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { AvisoFranjaCMS } from '@/components/demo/rejilla/AvisoFranjaCMS'
 import { catalogoRejillaApi, type FranjaUI, type TemporadaUI } from '@/lib/data/rejilla-api'
 import { modalidadesDeSitio, tarifaCalculada } from '@/lib/tarifa-calculada'
@@ -27,8 +32,12 @@ import { resolverVolumen } from '@/lib/volumen'
 import { escalasVolumenApi, type TramoVolumenUI } from '@/lib/data/volumen-api'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
+import { ElegirClienteDialog } from '@/components/demo/propuestas/ElegirClienteDialog'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
-import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
+import { CRUDO_INVALIDO, cifraIlegible } from '@/lib/captura-cifra'
+import { parcheCantidad, valorCampoCantidad, cantidadIlegible } from '@/lib/cantidad-propuesta'
+import { EntradaCifra } from '@/components/demo/ui/EntradaCifra'
 import { MapView } from '@/components/demo/MapView'
 import { pinTono } from '@/components/demo/StatusBadge'
 import { usePuede } from '@/components/demo/shell/SesionContext'
@@ -47,6 +56,7 @@ import {
   cupoDePantalla,
   formatMonto,
   formatMontoCorto,
+  formatFecha,
   divisorDeComision,
   type Propuesta,
   type EstPropuesta,
@@ -55,20 +65,26 @@ import {
 import { useRouter } from 'next/navigation'
 import { ArrowUpRight } from 'lucide-react'
 import { withTrail } from '@/lib/nav-trail'
-import { crearPropuestaApi, cambiarEstatusPropuestaApi, aprobarItemPropuestaApi, generarCampanaDesdePropuestaApi, ConfirmacionCeroError } from '@/lib/data/estado-api'
+import { crearPropuestaApi, agregarSitiosPropuestaApi, cambiarEstatusPropuestaApi, aprobarItemPropuestaApi, generarCampanaDesdePropuestaApi, ConfirmacionCeroError, CodigoPendienteApiError } from '@/lib/data/estado-api'
 import {
   UNIDADES,
   unidadCorta,
+  etiquetaUnidad,
   cantidadEfectiva,
   diasInclusivos,
   precioItem,
   periodosEnRango,
   fechaFinDesde,
+  duracionDesdeFechas,
   esCantidadManual,
   type Unidad,
 } from '@/lib/periodos'
-import { PERIODICIDADES, factorMensual } from '@/lib/renta-periodicidad'
+import { PERIODICIDADES, factorMensual, periodicidadLabel } from '@/lib/renta-periodicidad'
 import { formatNumero } from '@/lib/formato-numero'
+import { formatearDineroRedondo } from '@/lib/i18n/dinero'
+import { numeroEnIdioma } from '@/lib/i18n/formato-idioma'
+import { cifraEnEtiqueta } from '@/lib/i18n/cifra-en-etiqueta'
+import type { Idioma } from '@/lib/i18n/idiomas'
 
 // Periodicidades de la renta al propietario (enum `periodicidad_pago` en la BD)
 // y su equivalencia a mensual: ambas vienen de lib/renta-periodicidad.ts, la
@@ -80,65 +96,277 @@ const PERIODICIDADES_RENTA = PERIODICIDADES
 const inputCls =
   'h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 
-const EST: Record<EstPropuesta, { label: string; cls: string }> = {
-  BORRADOR: { label: 'Borrador', cls: 'border-border text-muted' },
-  ENVIADA: { label: 'Enviada', cls: 'border-[#0a66ff40] text-info' },
-  APROBADA: { label: 'Aprobada', cls: 'border-[#10b98140] text-[#0f7a55]' },
-  RECHAZADA: { label: 'Rechazada', cls: 'border-[#ef444440] text-error' },
-}
+// La tabla de estatus vive en `components/demo/propuestas/estatus.ts`: la
+// comparten la lista y el detalle, que antes tenían cada uno su copia.
 
 export default function PropuestasPage() {
+  const { t, idioma } = useIdioma()
   const propuestas = usePropuestas()
   const funnel = useFunnelPropuestas()
+  const clientes = useClientes()
   const puedeEditar = usePuede('comercial', 'crear')
   const [nuevoOpen, setNuevoOpen] = useState(false)
+  const router = useRouter()
+  // PROP-COMPLETA (29/10) · «Agregar sitios» y «Duplicar» se piden desde la
+  // ficha con `?agregar=<id>` / `?duplicar=<id>` y abren ESTE formulario
+  // precargado: el formulario es el único sitio que sabe cotizar una línea
+  // (tarifa, franja, calculadora, renta), y una segunda copia divergiría.
+  const [modo, setModo] = useState<ModoDialogo | null>(null)
+  const pedido = useRef<{ tipo: 'agregar' | 'duplicar'; id: string } | null | undefined>(undefined)
+  useEffect(() => {
+    if (pedido.current === undefined) {
+      const q = new URLSearchParams(window.location.search)
+      const ag = q.get('agregar')
+      const du = q.get('duplicar')
+      pedido.current = ag ? { tipo: 'agregar', id: ag } : du ? { tipo: 'duplicar', id: du } : null
+    }
+    const ped = pedido.current
+    if (!ped || !propuestas) return
+    pedido.current = null
+    const base = propuestas.find((x) => x.id === ped.id)
+    if (base) setModo({ tipo: ped.tipo, propuesta: base })
+    else toast.error(t('propuestas.lista.no-encontrada'))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [propuestas])
+  function cerrarModo(nuevaId?: string | null) {
+    const m = modo
+    setModo(null)
+    if (!m) return
+    // Se vuelve a la ficha: a la de siempre al agregar, a la copia al duplicar
+    // (si se creó). Cancelar un duplicado vuelve a la original.
+    router.push(`/propuestas/${nuevaId ?? m.propuesta.id}`)
+  }
   const [abierta, setAbierta] = useState<string | null>(null)
+  // Filtros de la lista (rediseño del 26/10). Filtran EN EL NAVEGADOR la lista
+  // que ya está cargada: no viajan al servidor ni cambian ninguna cifra de
+  // arriba, que sigue siendo de todas las propuestas.
+  const [filtroEstatus, setFiltroEstatus] = useState<EstPropuesta | ''>('')
+  const [filtroCliente, setFiltroCliente] = useState('')
+  const [busqueda, setBusqueda] = useState('')
+
+  const filtradas = useMemo(() => {
+    if (!propuestas) return []
+    const t = busqueda.trim().toLowerCase()
+    return propuestas.filter(
+      (p) =>
+        (!filtroEstatus || p.estatus === filtroEstatus) &&
+        (!filtroCliente || p.clienteId === filtroCliente || p.agenciaId === filtroCliente) &&
+        (!t || p.folio.toLowerCase().includes(t) || p.nombre.toLowerCase().includes(t)),
+    )
+  }, [propuestas, filtroEstatus, filtroCliente, busqueda])
+  const hayFiltro = !!filtroEstatus || !!filtroCliente || !!busqueda.trim()
+  const cuentaPor = (e: EstPropuesta) => (propuestas ?? []).filter((p) => p.estatus === e).length
+  // Solo los clientes que tienen alguna propuesta (como anunciante o agencia):
+  // el selector no ofrece opciones que siempre devolverían la lista vacía.
+  const clientesConPropuesta = useMemo(() => {
+    const ids = new Set((propuestas ?? []).flatMap((p) => [p.clienteId, p.agenciaId]).filter(Boolean))
+    return (clientes ?? []).filter((c) => ids.has(c.id)).sort((a, b) => a.nombre.localeCompare(b.nombre))
+  }, [propuestas, clientes])
 
   return (
-    <div className="w-full space-y-4">
+    <div className="w-full space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl text-ink">Propuestas</h1>
-          <p className="mt-1 text-[13px] text-muted">Cotizaciones con método del divisor (bruto / neto)</p>
+          <h1 className="text-2xl text-ink">{t('propuestas.lista.titulo')}</h1>
+          <p className="mt-1 text-[13px] text-muted">{t('propuestas.lista.subtitulo')}</p>
         </div>
         {puedeEditar && (
           <Button variant="success" size="sm" onClick={() => setNuevoOpen(true)}>
-            <Plus className="h-3.5 w-3.5" /> Nueva propuesta
+            <Plus className="h-3.5 w-3.5" /> {t('propuestas.lista.nueva')}
           </Button>
         )}
       </div>
 
-      {/* Cómo va el periodo: generadas, aprobadas, rechazadas y ganancia (06/10). */}
-      <TableroPropuestas />
-
-      {funnel && funnel.total > 0 && <FunnelStrip f={funnel} />}
+      {/* Rediseño del 26/10: KPIs → lista → análisis. Las cuatro cifras del
+          antiguo «Embudo de propuestas» suben aquí como tarjetas, con las
+          mismas fuentes (`useFunnelPropuestas`). Son HISTÓRICAS —todas las
+          propuestas—, y así lo dicen: el Dashboard mide la tasa de cierre en
+          una ventana de días y el Resumen de abajo en el periodo elegido. */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {!funnel ? (
+          <>
+            <KPICardSkeleton />
+            <KPICardSkeleton />
+            <KPICardSkeleton />
+            <KPICardSkeleton />
+          </>
+        ) : (
+          <>
+            <KPICard
+              label={t('propuestas.lista.kpi.pipeline')}
+              value={formatMonto(funnel.pipelineValue, idioma)}
+              sub={t('propuestas.lista.kpi.pipeline.sub', {
+                propuestas: conteo(
+                  funnel.borrador + funnel.enviadas,
+                  t('propuestas.unidad.propuesta'),
+                  t('propuestas.unidad.propuestas'),
+                ),
+              })}
+              tono="ambar"
+              icon={<FileText className="h-4 w-4" />}
+            />
+            <KPICard
+              label={t('propuestas.lista.kpi.enviadas')}
+              value={formatNumero(funnel.enviadas, 0, idioma)}
+              sub={t('propuestas.lista.kpi.enviadas.sub')}
+              tono={funnel.enviadas > 0 ? 'azul' : 'neutro'}
+              icon={<Send className="h-4 w-4" />}
+            />
+            <KPICard
+              label={t('propuestas.lista.kpi.ganado')}
+              value={formatMonto(funnel.ganadoValue, idioma)}
+              sub={t('propuestas.lista.kpi.ganado.sub', {
+                aprobadas: conteo(funnel.aprobadas, t('propuestas.unidad.aprobada'), t('propuestas.unidad.aprobadas')),
+                perdido: formatMontoCorto(funnel.perdidoValue, idioma),
+                rechazadas: conteo(funnel.rechazadas, t('propuestas.unidad.rechazada'), t('propuestas.unidad.rechazadas')),
+              })}
+              tono="verde"
+              icon={<Trophy className="h-4 w-4" />}
+            />
+            <KPICard
+              label={t('propuestas.lista.kpi.tasa')}
+              value={funnel.winRate != null ? `${Math.round(funnel.winRate * 100)}%` : '—'}
+              sub={
+                funnel.winRate != null
+                  ? t('propuestas.lista.kpi.tasa.sub', { n: funnel.aprobadas + funnel.rechazadas })
+                  : t('propuestas.lista.kpi.tasa.sin-cierres')
+              }
+              icon={<Target className="h-4 w-4" />}
+            />
+          </>
+        )}
+      </div>
 
       {!propuestas ? (
         <div className="h-40 animate-pulse rounded-md bg-surface-2" />
       ) : propuestas.length === 0 ? (
-        <p className="py-10 text-center text-[13px] text-muted">Aún no hay propuestas.</p>
+        <p className="py-10 text-center text-[13px] text-muted">
+          {t('propuestas.lista.vacia')}
+          {puedeEditar ? t('propuestas.lista.vacia.arma') : ''}
+        </p>
       ) : (
-        <ul className="space-y-3">
-          {propuestas.map((p) => (
-            <PropuestaCard
-              key={p.id}
-              p={p}
-              abierta={abierta === p.id}
-              onToggle={() => setAbierta(abierta === p.id ? null : p.id)}
-              puedeEditar={puedeEditar}
-            />
-          ))}
-        </ul>
+        // PLEG-02 · qué propuesta está desplegada vive en `abierta`, en esta
+        // página: plegar la lista y volver a abrirla la deja como estaba.
+        <CardColapsable
+          id="propuestas.lista"
+          titulo={t('propuestas.lista.tarjeta')}
+          resumen={
+            <span className="text-[12px] text-muted">
+              {t(hayFiltro ? 'propuestas.lista.resumen.filtrado' : 'propuestas.lista.resumen', {
+                n: filtradas.length,
+                total: propuestas.length,
+                propuestas: plural(propuestas.length, t('propuestas.unidad.propuesta'), t('propuestas.unidad.propuestas')),
+              })}
+            </span>
+          }
+        >
+          {/* Filtros en una fila: estatus con su conteo, cliente y búsqueda. */}
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={t('propuestas.lista.filtro.estatus')}>
+              <ChipFiltro activo={!filtroEstatus} onClick={() => setFiltroEstatus('')}>
+                {t('propuestas.lista.filtro.todas')} <span className="demo-num">{propuestas.length}</span>
+              </ChipFiltro>
+              {ORDEN_ESTATUS.map((e) => (
+                <ChipFiltro key={e} activo={filtroEstatus === e} onClick={() => setFiltroEstatus(filtroEstatus === e ? '' : e)}>
+                  {t(CLAVE_ESTATUS[e])} <span className="demo-num">{cuentaPor(e)}</span>
+                </ChipFiltro>
+              ))}
+            </div>
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              <select
+                aria-label={t('propuestas.comun.cliente')}
+                value={filtroCliente}
+                onChange={(e) => setFiltroCliente(e.target.value)}
+                className="h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                <option value="">{t('propuestas.lista.filtro.todos-clientes')}</option>
+                {clientesConPropuesta.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nombre}
+                  </option>
+                ))}
+              </select>
+              <input
+                aria-label={t('propuestas.lista.filtro.buscar')}
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                placeholder={t('propuestas.lista.filtro.buscar.ejemplo')}
+                className="h-8 w-48 rounded border border-border-strong bg-surface px-2.5 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              />
+            </div>
+          </div>
+
+          {/* El embudo, ahora franja secundaria: sus cifras grandes subieron a
+              las tarjetas de arriba. */}
+          {funnel && funnel.total > 0 && <FunnelStrip f={funnel} />}
+
+          {filtradas.length === 0 ? (
+            <p className="py-8 text-center text-[13px] text-muted">
+              {/* Una sola frase con huecos, no trozos pegados: en ingles el
+                  estatus va ANTES del sustantivo («No approved proposals»). */}
+              {t('propuestas.lista.sin-resultados', {
+                estatus: filtroEstatus ? ` ${t(CLAVE_ESTATUS[filtroEstatus]).toLowerCase()}` : '',
+                cliente: filtroCliente
+                  ? t('propuestas.lista.sin-resultados.cliente', {
+                      cliente:
+                        clientes?.find((c) => c.id === filtroCliente)?.nombre ??
+                        t('propuestas.lista.sin-resultados.ese-cliente'),
+                    })
+                  : '',
+                busqueda: busqueda.trim() ? t('propuestas.lista.sin-resultados.busqueda', { q: busqueda.trim() }) : '',
+                n: propuestas.length,
+              })}
+            </p>
+          ) : (
+            <ul className="m-0 list-none divide-y divide-border p-0">
+              {filtradas.map((p) => (
+                <PropuestaCard
+                  key={p.id}
+                  p={p}
+                  abierta={abierta === p.id}
+                  onToggle={() => setAbierta(abierta === p.id ? null : p.id)}
+                  puedeEditar={puedeEditar}
+                />
+              ))}
+            </ul>
+          )}
+        </CardColapsable>
       )}
 
+      {/* Cómo va el periodo: generadas, aprobadas, rechazadas y ganancia (06/10).
+          Va DEBAJO de la lista desde el 26/10: es análisis, y la lista es lo
+          que se trabaja. */}
+      <TableroPropuestas />
+
       {nuevoOpen && <NuevaPropuestaDialog onClose={() => setNuevoOpen(false)} />}
+      {modo && <NuevaPropuestaDialog modo={modo} onClose={cerrarModo} />}
     </div>
+  )
+}
+
+// Chip de filtro. Fondo y borde explícitos: con `preflight: false` un
+// `<button>` sin ellos sale con el gris del navegador.
+function ChipFiltro({ activo, onClick, children }: { activo: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={activo}
+      className={cn(
+        'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[12px] transition-colors',
+        activo ? 'border-accent bg-accent-soft font-medium text-ink' : 'border-border bg-surface text-muted hover:text-ink',
+      )}
+    >
+      {children}
+    </button>
   )
 }
 
 function PropuestaCard({
   p, abierta, onToggle, puedeEditar,
 }: { p: Propuesta; abierta: boolean; onToggle: () => void; puedeEditar: boolean }) {
+  const { t, idioma } = useIdioma()
+  const nSitios = (n: number) => conteo(n, t('propuestas.unidad.sitio'), t('propuestas.unidad.sitios'))
   const clientes = useClientes()
   const sitios = useSitios()
   const campanas = useCampanas()
@@ -148,8 +376,10 @@ function PropuestaCard({
   // de crear campaña y ofrece verla.
   const campanaGenerada = campanas?.find((c) => c.propuestaId === p.id) ?? null
   const est = EST[p.estatus]
+  const etiquetaEst = t(CLAVE_ESTATUS[p.estatus])
   const router = useRouter()
   const [generando, setGenerando] = useState(false)
+  const [elegirCliente, setElegirCliente] = useState(false)
 
   // ADR 0008 · pantallas de esta propuesta que ya tienen su cupo de clientes
   // lleno en las fechas propuestas, para un cliente que no está entre ellos.
@@ -184,39 +414,65 @@ function PropuestaCard({
       await cambiarEstatusPropuestaApi(p.id, estatus, confirmarCero)
     } catch (e) {
       if (e instanceof ConfirmacionCeroError) {
-        if (window.confirm(`${e.message}\n\n¿Aprobar de todas formas?`)) return cambiar(estatus, true)
+        // I18N (2026-11-02) · la pregunta la pinta la pantalla con su clave, como
+        // el cupon pendiente: el `error` de la ruta llega siempre en español (no
+        // pasa por `respuestaError()`). Se reconoce por la bandera
+        // `requiereConfirmacionCero`, y confirmar reintenta igual que antes.
+        if (window.confirm(`${t('servidor.propuesta.aprobar-en-cero', { total: formatearDineroRedondo(0, idioma) })}\n\n${t('propuestas.comun.aprobar-igual')}`)) return cambiar(estatus, true)
         return
       }
-      toast.error(e instanceof Error ? e.message : 'Error')
+      if (e instanceof CodigoPendienteApiError) return void toast.error(t('servidor.codigo.aprobar-con-pendiente'))
+      toast.error(e instanceof Error ? e.message : t('propuestas.comun.error'))
     }
   }
-  async function generarCampana() {
+  // Sin cliente no se genera: primero se elige (ElegirClienteDialog).
+  async function generarCampana(clienteId?: string) {
+    if (!p.clienteId && !clienteId) {
+      setElegirCliente(true)
+      return
+    }
     setGenerando(true)
     try {
-      const camp = await generarCampanaDesdePropuestaApi(p.id)
+      const camp = await generarCampanaDesdePropuestaApi(p.id, clienteId)
+      setElegirCliente(false)
       if (camp?.id) router.push(`/campanas/${camp.id}`)
-    } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
+    } catch (e) { toast.error(e instanceof Error ? e.message : t('propuestas.comun.error')) }
     setGenerando(false)
   }
   async function aprobar(itemId: string, aprobado: boolean) {
-    try { await aprobarItemPropuestaApi(itemId, aprobado) } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
+    try { await aprobarItemPropuestaApi(itemId, aprobado) } catch (e) { toast.error(e instanceof Error ? e.message : t('propuestas.comun.error')) }
   }
 
+  // Fechas de la propuesta (min/max de los items), igual que el detalle: en la
+  // fila no aparecían y son lo primero que se pregunta de una cotización.
+  const inicios = p.items.map((i) => i.fechaInicio).filter(Boolean).sort()
+  const fines = p.items.map((i) => i.fechaFin).filter(Boolean).sort()
+  const desde = inicios[0]
+  const hasta = fines.at(-1)
+
   return (
-    <li>
-      <Card className="p-4">
+    // Fila de lista con el lenguaje del Dashboard (26/10): renglón dentro de un
+    // `divide-y`, no una tarjeta apilada dentro de otra tarjeta.
+    <li className="py-3">
         <div className="flex flex-wrap items-start justify-between gap-2">
-          <button type="button" onClick={onToggle} className="flex min-w-0 items-center gap-2 text-left">
-            {abierta ? <ChevronDown className="h-4 w-4 text-muted" /> : <ChevronRight className="h-4 w-4 text-muted" />}
+          {/* Fondo, borde y relleno explícitos: con `preflight: false` el botón
+              pintaba el gris del navegador detrás de toda la fila. */}
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-expanded={abierta}
+            className="flex min-w-0 flex-1 items-start gap-2 border-0 bg-transparent p-0 text-left"
+          >
+            {abierta ? <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-muted" /> : <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted" />}
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <span className="demo-num text-[12px] text-muted">{p.folio}</span>
-                <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${est.cls}`}>{est.label}</span>
+                <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${est.cls}`}>{etiquetaEst}</span>
                 {p.version > 1 && (
                   <span className="rounded-full border border-border px-1.5 py-0.5 text-[10px] font-medium text-muted">v{p.version}</span>
                 )}
                 {p.descuentoPct > 0 && (
-                  <span className="rounded-full border border-[#f59e0b40] px-1.5 py-0.5 text-[10px] font-medium text-[#9a6700]">−{p.descuentoPct}%</span>
+                  <span className="rounded-full border border-[#f59e0b40] px-1.5 py-0.5 text-[10px] font-medium text-[#9a6700]">−{cifraEnEtiqueta(p.descuentoPct, idioma)}%</span>
                 )}
                 {/* COD-03 · la marca de la lista: hay un cupón esperando a que
                     alguien con `comercial.aprobar` lo decida. Sin ella, el
@@ -225,54 +481,79 @@ function PropuestaCard({
                     cotización sin el descuento que el vendedor le ofreció. */}
                 {p.codigoEstado === 'PENDIENTE' && (
                   <span
-                    title={`El código ${p.codigoTexto ?? ''} espera aprobación; el cliente todavía no lo ve`}
+                    title={t('propuestas.fila.cupon-pendiente.titulo', { codigo: p.codigoTexto ?? '' })}
                     className="rounded-full border border-[#f59e0b40] bg-[#f59e0b14] px-1.5 py-0.5 text-[10px] font-medium text-[#9a6700]"
                   >
-                    Cupón pendiente
+                    {t('propuestas.fila.cupon-pendiente')}
                   </span>
                 )}
               </div>
               <div className="mt-0.5 text-[14px] font-medium text-ink">{p.nombre}</div>
               <div className="text-[12px] text-muted">
-                {cliente?.nombre ?? 'Sin cliente'}
-                {agencia ? <> · vía <span className="text-ink">{agencia.nombre}</span></> : ''}
-                {' '}· {conteo(p.items.length, 'sitio')}
+                {cliente?.nombre ?? t('propuestas.comun.sin-cliente')}
+                {agencia
+                  ? interpolarNodos(t('propuestas.comun.via'), { agencia: <span className="text-ink">{agencia.nombre}</span> })
+                  : ''}
+                {desde && hasta ? <> · <span className="demo-num">{formatFecha(desde, idioma)} – {formatFecha(hasta, idioma)}</span></> : ''}
+                {' '}· {nSitios(p.items.length)}
               </div>
             </div>
           </button>
           <div className="flex items-center gap-3">
             <div className="text-right">
-              <div className="demo-num text-[15px] font-semibold text-ink">{formatMonto(p.total)}</div>
-              <div className="text-[11px] text-muted">total c/IVA</div>
+              <div className="demo-num text-[15px] font-semibold text-ink">{formatMonto(p.total, idioma)}</div>
+              <div className="text-[11px] text-muted">{t('propuestas.comun.total-con-iva')}</div>
             </div>
             <Link
-              href={withTrail(`/propuestas/${p.id}`, [{ label: 'Propuestas', href: '/propuestas' }])}
+              href={withTrail(`/propuestas/${p.id}`, [{ label: t('propuestas.lista.titulo'), href: '/propuestas' }])}
               className="inline-flex items-center gap-1 rounded border border-border-strong px-2.5 py-1.5 text-[12px] font-medium text-info hover:bg-surface-2"
             >
-              Abrir <ArrowUpRight className="h-3.5 w-3.5" />
+              {t('propuestas.fila.abrir')} <ArrowUpRight className="h-3.5 w-3.5" />
             </Link>
           </div>
         </div>
 
         {abierta && (
           <div className="mt-3 space-y-3 border-t border-border pt-3">
-            {/* Presupuesto (método del divisor) */}
-            <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-[12px] sm:grid-cols-4">
-              <Dato label="Bruto (lista)" valor={formatMonto(p.bruto)} />
-              <Dato label={`Comisión ${(100 - p.divisor * 100).toFixed(0)}% · divisor ${p.divisor.toFixed(2)}`} valor={`× ${p.divisor.toFixed(2)}`} />
-              <Dato label="Neto propuesto" valor={formatMonto(p.neto)} />
-              <Dato label={`IVA ${p.bruto ? Math.round((p.iva / p.bruto) * 100) : 16}%`} valor={formatMonto(p.iva)} />
-            </div>
-            {/* Neto vs aprobado (aprobación granular) */}
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-[#10b98133] bg-[#10b9810d] px-3 py-2 text-[12px]">
-              <span className="font-medium text-ink">Aprobado · {p.itemsAprobados}/{conteo(p.items.length, 'sitio')}</span>
-              <span className="text-muted">
-                Neto aprobado <b className="demo-num text-[#0f7a55]">{formatMonto(p.netoAprobado)}</b>
-                {' '}de {formatMonto(p.neto)} · Total <b className="demo-num text-ink">{formatMonto(p.totalAprobado)}</b>
-              </span>
+            {/* Presupuesto (método del divisor) y lo aprobado, en UNA franja
+                secundaria como los desgloses del Dashboard (26/10). Mismos
+                valores y mismas etiquetas que las cuatro `Dato` y la franja
+                verde que había. */}
+            <div className="space-y-1 rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px]">
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
+                <Dato label={t('propuestas.fila.bruto-lista')} valor={formatMonto(p.bruto, idioma)} />
+                <Dato
+                  label={t('propuestas.fila.comision', { pct: (100 - p.divisor * 100).toFixed(0), divisor: cifraEnEtiqueta(p.divisor, idioma, 2) })}
+                  valor={`× ${cifraEnEtiqueta(p.divisor, idioma, 2)}`}
+                />
+                <Dato label={t('propuestas.fila.neto-propuesto')} valor={formatMonto(p.neto, idioma)} />
+                <Dato label={t('propuestas.comun.iva', { pct: p.bruto ? Math.round((p.iva / p.bruto) * 100) : 16 })} valor={formatMonto(p.iva, idioma)} />
+              </div>
+              {/* Neto vs aprobado (aprobación granular). Con nada aprobado se
+                  dice, en vez de enseñar tres ceros que parecen cifras. */}
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
+                <span className="font-medium text-ink">
+                  {t('propuestas.fila.aprobado', { aprobados: p.itemsAprobados, sitios: nSitios(p.items.length) })}
+                </span>
+                {p.itemsAprobados === 0 ? (
+                  <span className="text-muted">
+                    {t('propuestas.fila.ninguno-aprobado', {
+                      marca: puedeEditar ? t('propuestas.fila.ninguno-aprobado.marca') : '',
+                    })}
+                  </span>
+                ) : (
+                  <span className="text-muted">
+                    {interpolarNodos(t('propuestas.fila.neto-aprobado'), {
+                      aprobado: <b className="demo-num text-[#0f7a55]">{formatMonto(p.netoAprobado, idioma)}</b>,
+                      neto: formatMonto(p.neto, idioma),
+                      total: <b className="demo-num text-ink">{formatMonto(p.totalAprobado, idioma)}</b>,
+                    })}
+                  </span>
+                )}
+              </div>
             </div>
             {/* Items con aprobación sitio por sitio */}
-            <ul className="divide-y divide-border rounded-md border border-border">
+            <ul className="m-0 list-none divide-y divide-border rounded-md border border-border p-0">
               {p.items.map((it) => {
                 const s = sitios?.find((x) => x.id === it.sitioId)
                 return (
@@ -288,7 +569,7 @@ function PropuestaCard({
                       )}
                       <span className={`truncate ${it.aprobado ? 'text-ink' : 'text-muted'}`}>{s?.nombre ?? it.sitioId}</span>
                       {it.aprobado && (
-                        <span className="rounded-full border border-[#10b98140] px-1.5 text-[10px] text-[#0f7a55]">aprobado</span>
+                        <span className="rounded-full border border-[#10b98140] px-1.5 text-[10px] text-[#0f7a55]">{t('propuestas.fila.chip-aprobado')}</span>
                       )}
                       {/* ADR 0008: AVISO, no bloqueo. Una propuesta es una
                           intención comercial y el inventario puede liberarse
@@ -298,13 +579,13 @@ function PropuestaCard({
                       {sinCupo.has(it.sitioId) && (
                         <span
                           className="rounded-full border border-[#f59e0b66] bg-warning-soft px-1.5 text-[10px] text-[#9a6700]"
-                          title={`La pantalla ya tiene su cupo de clientes en estas fechas (${sinCupo.get(it.sitioId)}). Al reservar se rechazará salvo que se libere o se suba el cupo.`}
+                          title={t('propuestas.fila.cupo-lleno.titulo', { clientes: sinCupo.get(it.sitioId) ?? '' })}
                         >
-                          cupo lleno
+                          {t('propuestas.fila.cupo-lleno')}
                         </span>
                       )}
                     </label>
-                    <span className="demo-num text-muted">{formatMonto(it.precio)}</span>
+                    <span className="demo-num text-muted">{formatMonto(it.precio, idioma)}</span>
                   </li>
                 )
               })}
@@ -313,27 +594,28 @@ function PropuestaCard({
             {puedeEditar && (
               <div className="flex flex-wrap gap-2">
                 {p.estatus === 'BORRADOR' && (
-                  <Button size="sm" variant="primary" onClick={() => cambiar('ENVIADA')}><Send className="h-3.5 w-3.5" /> Enviar</Button>
+                  <Button size="sm" variant="primary" onClick={() => cambiar('ENVIADA')}><Send className="h-3.5 w-3.5" /> {t('propuestas.comun.enviar')}</Button>
                 )}
                 {(p.estatus === 'ENVIADA' || p.estatus === 'BORRADOR') && (
                   <>
-                    <Button size="sm" onClick={() => cambiar('APROBADA')}><Check className="h-3.5 w-3.5" /> Aprobar</Button>
-                    <Button size="sm" variant="danger" onClick={() => cambiar('RECHAZADA')}><X className="h-3.5 w-3.5" /> Rechazar</Button>
+                    <Button size="sm" onClick={() => cambiar('APROBADA')}><Check className="h-3.5 w-3.5" /> {t('propuestas.comun.aprobar')}</Button>
+                    <Button size="sm" variant="danger" onClick={() => cambiar('RECHAZADA')}><X className="h-3.5 w-3.5" /> {t('propuestas.comun.rechazar')}</Button>
                   </>
                 )}
                 {p.estatus === 'APROBADA' && (
                   campanaGenerada ? (
                     <>
-                      <Button size="sm" disabled title="Esta propuesta ya generó su campaña">
-                        <Check className="h-3.5 w-3.5" /> Campaña generada
+                      <Button size="sm" disabled title={t('propuestas.fila.ya-generada')}>
+                        <Check className="h-3.5 w-3.5" /> {t('propuestas.comun.campana-generada')}
                       </Button>
                       <Button size="sm" variant="secondary" onClick={() => router.push(`/campanas/${campanaGenerada.id}`)}>
-                        Ver campaña
+                        {t('propuestas.fila.ver-campana')}
                       </Button>
                     </>
                   ) : (
-                    <Button size="sm" disabled={generando} onClick={generarCampana}>
-                      <ChevronRight className="h-3.5 w-3.5" /> {generando ? 'Generando…' : 'Generar campaña'}
+                    <Button size="sm" disabled={generando} onClick={() => void generarCampana()}>
+                      <ChevronRight className="h-3.5 w-3.5" />{' '}
+                      {generando ? t('propuestas.comun.generando') : t('propuestas.comun.generar-campana')}
                     </Button>
                   )
                 )}
@@ -341,23 +623,52 @@ function PropuestaCard({
             )}
           </div>
         )}
-      </Card>
+      <ElegirClienteDialog
+        open={elegirCliente}
+        onOpenChange={setElegirCliente}
+        clientes={clientes}
+        onElegir={(clienteId) => generarCampana(clienteId)}
+      />
     </li>
   )
 }
 
 // ─── Nueva propuesta (builder con divisor en vivo) ───────────────────────────
-function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
+/** PROP-COMPLETA (29/10) · con qué se abre el formulario además de «nueva». */
+type ModoDialogo = { tipo: 'agregar' | 'duplicar'; propuesta: Propuesta }
+
+// El periodo de una propuesta = el de sus líneas (el alta usa uno solo).
+const periodoDe = (p: Propuesta) => ({
+  desde: p.items.map((i) => String(i.fechaInicio).slice(0, 10)).sort()[0] ?? '',
+  hasta: p.items.map((i) => String(i.fechaFin).slice(0, 10)).sort().at(-1) ?? '',
+})
+
+function NuevaPropuestaDialog({
+  onClose,
+  modo,
+}: {
+  onClose: (nuevaId?: string | null) => void
+  modo?: ModoDialogo
+}) {
+  const { t, idioma } = useIdioma()
+  const base = modo?.propuesta ?? null
+  const agregando = modo?.tipo === 'agregar'
+  const periodoBase = base ? periodoDe(base) : { desde: '', hasta: '' }
+  const duracionBase = base ? duracionDesdeFechas(periodoBase.desde, periodoBase.hasta) : null
   const clientes = useClientes()
   const sitios = useSitios()
   // Para la captura de renta: saber qué pantalla ya tiene contrato y a qué
   // propietarios se puede asignar.
   const contratos = useContratos()
   const arrendadores = useArrendadores()
-  const [clienteId, setClienteId] = useState('')
-  const [agenciaId, setAgenciaId] = useState('')
-  const [nombre, setNombre] = useState('')
-  const [comision, setComision] = useState('0')
+  const [clienteId, setClienteId] = useState(base?.clienteId ?? '')
+  const [agenciaId, setAgenciaId] = useState(base?.agenciaId ?? '')
+  // Al agregar, el nombre no se edita (no se pinta) pero cuenta como «tiene
+  // nombre» para los obligatorios. Al duplicar se marca como copia.
+  const [nombre, setNombre] = useState(
+    !base ? '' : agregando ? base.nombre : t('propuestas.alta.nombre-copia', { nombre: base.nombre }),
+  )
+  const [comision, setComision] = useState(base ? String(base.comisionPct ?? 0) : '0')
 
   // Agencias = clientes tipo AGENCIA (una agencia se asocia a un cliente directo).
   const agencias = (clientes ?? []).filter((c) => c.tipo === 'AGENCIA')
@@ -368,14 +679,21 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
     const ag = clientes?.find((c) => c.id === agId)
     setComision(String(ag?.comisionAgenciaPct ?? 0))
   }
-  const [fechaInicio, setFechaInicio] = useState('')
-  const [fechaFin, setFechaFin] = useState('')
+  const [fechaInicio, setFechaInicio] = useState(periodoBase.desde)
+  const [fechaFin, setFechaFin] = useState(periodoBase.hasta)
   // Duración de la campaña: N + unidad. Con la fecha "Desde" completa la fecha
   // "Hasta" automáticamente, con la MISMA cuenta que el precio: meses de
   // calendario desde el 2026-10-02 (`lib/periodos.ts`), semanas de 7 y catorcenas de 14.
-  const [duracionN, setDuracionN] = useState('1')
-  const [duracionUnidad, setDuracionUnidad] = useState<Unidad>('mensual')
-  const [sel, setSel] = useState<Set<string>>(new Set())
+  const [duracionN, setDuracionN] = useState(duracionBase ? String(duracionBase.cantidad) : '1')
+  const [duracionUnidad, setDuracionUnidad] = useState<Unidad>(duracionBase?.unidad ?? 'mensual')
+  // Al duplicar se parte de las mismas pantallas (una vez cada una: si la
+  // original repetía pantalla con dos franjas, la copia trae la primera).
+  const [sel, setSel] = useState<Set<string>>(
+    () => new Set(modo?.tipo === 'duplicar' ? base!.items.map((i) => i.sitioId) : []),
+  )
+  // PROP-COMPLETA · con un periodo precargado, la primera pasada del efecto de
+  // abajo no debe reescribir «Hasta» (la duración puede no cuadrar exacta).
+  const respetarFin = useRef(!!base)
   // Cómo elegir los sitios: lista (por default) o mapa. Se alterna con el switch.
   const [vistaSitios, setVistaSitios] = useState<'lista' | 'mapa'>('lista')
   // Zona dibujada en el mapa (polígono [lng,lat][]) o null si no hay. Cuando hay
@@ -390,6 +708,10 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
   // algo, así que al teclear -2 la fecha vieja se quedaba en pantalla y parecía
   // que el sistema había aceptado la duración negativa (C-2 de la auditoría).
   useEffect(() => {
+    if (respetarFin.current) {
+      respetarFin.current = false
+      return
+    }
     const n = parseInt(duracionN, 10)
     if (!fechaInicio || !Number.isFinite(n) || n <= 0) {
       setFechaFin('')
@@ -417,6 +739,9 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
   // en vez de como pendiente sin importe (ADR 0001).
   type CfgSitio = {
     unidad: Unidad; cantidadManual: number; spotsPorDia: string
+    // H1 · lo que entregó el campo de la cantidad cuando NO es una cantidad
+    // ('NaN' o ''). Ausente = vale `cantidadManual`. Ver `lib/cantidad-propuesta.ts`.
+    cantidadCruda?: string
     rentaMonto: string; rentaPeriodicidad: string; rentaArrendadorId: string
     // REJILLA-01 · la franja CONTRATADA (ADR 0039, Fase 1). Cadena vacía = sin
     // franja, que es como se ha vendido todo hasta hoy y como se sigue
@@ -509,9 +834,11 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
     franjaId: '',
     tarifaManual: '',
     ...CALC_POR_OMISION,
+    // v0.12.3 · una pantalla PROPIA no lleva renta: ni autollenada de los campos
+    // viejos del sitio, ni costo en el margen de la propuesta.
     ...(({ monto, per, arr }) => ({
       rentaMonto: monto, rentaPeriodicidad: per, rentaArrendadorId: arr,
-    }))(rentaPrevia(s)),
+    }))(s.propio ? { monto: '', per: 'MENSUAL', arr: '' } : rentaPrevia(s)),
   }
 
   /**
@@ -585,7 +912,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
       horasDia: num(c.horasDia),
       roadblock: c.roadblock,
       primaRoadblockPct: c.roadblock ? primaDe(s) : null,
-    })
+    }, idioma)
   }
 
   // ADR 0043 · la tarifa BASE de una línea: con calculadora, la tarifa mensual
@@ -710,8 +1037,41 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
   const setCfgSitio = (id: string, patch: Partial<CfgSitio>) => {
     const s = (sitios ?? []).find((x) => x.id === id)
     const base = s ? cfgDe(s) : { unidad: 'mensual' as Unidad, cantidadManual: 1, spotsPorDia: '', rentaMonto: '', rentaPeriodicidad: 'MENSUAL', rentaArrendadorId: '', franjaId: '', tarifaManual: '', ...CALC_POR_OMISION }
-    setCfg((prev) => ({ ...prev, [id]: { ...base, ...prev[id], ...patch } }))
+    // H1 · cambiar la unidad o encender la calculadora quita (o vuelve a
+    // montar) el campo de la cantidad. Lo ilegible que tuviera se descarta y
+    // vale la última cantidad buena: si no, el campo nuevo pintaría «NaN» y
+    // `errCifras` bloquearía por un campo que ya no se ve.
+    const limpia = ('unidad' in patch || 'manual' in patch) && !('cantidadCruda' in patch) ? { cantidadCruda: undefined } : {}
+    setCfg((prev) => ({ ...prev, [id]: { ...base, ...prev[id], ...patch, ...limpia } }))
   }
+
+  // PROP-COMPLETA · al DUPLICAR, cada pantalla arranca con CÓMO se contrató en
+  // la original: unidad, franja, programación y los parámetros de la
+  // calculadora. NO se copian la tarifa manual ni la prima del Roadblock: la
+  // copia se cotiza a la tarifa de HOY (decisión del dueño), y un ajuste de
+  // gerente se vuelve a decidir. Una vez, cuando ya están los sitios.
+  const precargado = useRef(false)
+  useEffect(() => {
+    if (precargado.current || modo?.tipo !== 'duplicar' || !sitios) return
+    precargado.current = true
+    const vistos = new Set<string>()
+    for (const it of base!.items) {
+      if (vistos.has(it.sitioId)) continue
+      vistos.add(it.sitioId)
+      const calc = it.espaciosComprados != null || !!it.roadblock
+      setCfgSitio(it.sitioId, {
+        unidad: it.unidad as Unidad,
+        franjaId: it.franjaId ?? '',
+        spotsPorDia: it.spotsPorDia != null && !calc ? String(it.spotsPorDia) : '',
+        cantidadManual: it.cantidad || 1,
+        manual: it.unidad === 'spot' && !calc,
+        espacios: it.espaciosComprados != null ? String(it.espaciosComprados) : '',
+        horasDia: it.horasDia != null ? String(it.horasDia) : '',
+        roadblock: !!it.roadblock,
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sitios])
 
   const seleccionados = (sitios ?? []).filter((s) => sel.has(s.id))
   const bruto = seleccionados.reduce((acc, s) => acc + precioDe(s), 0)
@@ -734,7 +1094,9 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
   const total = brutoConVolumen + iva
   // Gate de negociación: si la agencia tiene negociación sin validar, se bloquea.
   const agenciaSel = clientes?.find((c) => c.id === agenciaId)
-  const negociacionPendiente = !!agenciaSel?.tieneNegociacion && !agenciaSel?.negociacionValidada
+  // Al AGREGAR sitios la agencia ya pasó el filtro al crear la propuesta, y el
+  // servidor no lo vuelve a pedir: no se bloquea aquí lo que allá se acepta.
+  const negociacionPendiente = !agregando && !!agenciaSel?.tieneNegociacion && !agenciaSel?.negociacionValidada
 
   // Validación de dominio en el CLIENTE, con el mismo criterio que el servidor
   // (propuestas-controller: comisión 0–100, fechaFin ≥ fechaInicio). El servidor
@@ -743,18 +1105,18 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
   const comisionNum = Number(comision)
   const errComision =
     comision.trim() === '' || !Number.isFinite(comisionNum)
-      ? 'Escribe un porcentaje de comisión (0 si no hay).'
+      ? t('propuestas.alta.error.comision-vacia')
       : comisionNum < 0
-        ? 'La comisión no puede ser negativa.'
+        ? t('propuestas.alta.error.comision-negativa')
         : comisionNum >= 100
-          ? 'La comisión debe ser menor que 100%: al 100% el neto de la propuesta sería cero.'
+          ? t('propuestas.alta.error.comision-cien')
           : null
   const duracionNum = parseInt(duracionN, 10)
   const errDuracion =
-    !Number.isFinite(duracionNum) || duracionNum <= 0 ? 'La duración debe ser de al menos 1 periodo.' : null
+    !Number.isFinite(duracionNum) || duracionNum <= 0 ? t('propuestas.alta.error.duracion') : null
   const errFechas =
     fechaInicio && fechaFin && new Date(fechaFin) < new Date(fechaInicio)
-      ? 'La fecha de fin no puede ser anterior a la de inicio.'
+      ? t('propuestas.alta.error.fechas')
       : null
   // ADR 0042 · una línea de la calculadora que el servidor rechazaría (más
   // espacios que los libres, horas de más, un Roadblock sin el loop entero…) se
@@ -777,16 +1139,35 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
   const errCifras = (() => {
     for (const s of seleccionados) {
       const c = cfgDe(s)
-      if (c.tarifaManual === CRUDO_INVALIDO) return `${s.nombre}: la tarifa no se entiende. Corrígela antes de guardar.`
-      if (c.rentaMonto === CRUDO_INVALIDO) return `${s.nombre}: la renta no se entiende. Corrígela antes de guardar.`
-      if (c.spotsPorDia === CRUDO_INVALIDO && !usaCalcDe(s)) return `${s.nombre}: los spots por día no se entienden. Corrígelos antes de guardar.`
+      if (c.tarifaManual === CRUDO_INVALIDO) return t('propuestas.alta.error.tarifa', { sitio: s.nombre })
+      if (c.rentaMonto === CRUDO_INVALIDO) return t('propuestas.alta.error.renta', { sitio: s.nombre })
+      if (c.spotsPorDia === CRUDO_INVALIDO && !usaCalcDe(s)) return t('propuestas.alta.error.spots', { sitio: s.nombre })
+      // H1 (05/11, DINERO) · la cantidad manual que no se entiende (o vacía).
+      // Antes no llegaba aquí: el formulario se quedaba con la última buena y
+      // el campo la repintaba a media escritura («1.500» → 100).
+      if (cantidadIlegible(c) && periodosEnRango(c.unidad, fechaInicio, fechaFin) === null && !usaCalcDe(s)) {
+        return t('propuestas.alta.error.cantidad', { sitio: s.nombre })
+      }
+      // P-L2-1 · en italiano los espacios, las horas y la prima van por
+      // `EntradaCifra`; lo ilegible llega como 'NaN' y caería en silencio a 1
+      // espacio o a prima 0. En español e inglés `cifraIlegible` es `false`.
+      if (usaCalcDe(s) && [c.espacios, c.horasDia, c.prima].some((x) => cifraIlegible(x, idioma))) {
+        return t('propuestas.alta.error.calculadora', { sitio: s.nombre })
+      }
     }
     return null
   })()
   const errFormulario = errComision ?? errDuracion ?? errFechas ?? errCalculadora ?? errCifras
 
-  const valido =
-    !!nombre.trim() && !!fechaInicio && !!fechaFin && sel.size > 0 && !negociacionPendiente && !errFormulario
+  // OBLIG-01 · los obligatorios son los del servidor (`crearSchema`,
+  // propuestas-controller.ts:143-157): nombre, las dos fechas y al menos un
+  // sitio. NO deshabilitan el botón: se pulsa, se pinta en rojo el que falta y
+  // no se manda nada. Lo que sigue bloqueando es lo que no es «falta un dato».
+  const ob = useObligatorios(
+    { nombre, fechaInicio, fechaFin, sitios: [...sel] },
+    ['nombre', 'fechaInicio', 'fechaFin', 'sitios'],
+  )
+  const valido = !negociacionPendiente && !errFormulario
 
   function toggle(id: string) {
     setSel((prev) => {
@@ -797,18 +1178,11 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
   }
 
   async function guardar() {
-    if (!valido) return
+    if (!ob.validar() || !valido) return
     setGuardando(true)
     setError(null)
     try {
-      await crearPropuestaApi({
-        clienteId: clienteId || null,
-        agenciaId: agenciaId || null,
-        nombre: nombre.trim(),
-        comisionPct: Number(comision) || 0,
-        fechaInicio,
-        fechaFin,
-        items: seleccionados.map((s) => {
+      const items = seleccionados.map((s) => {
           const c = cfgDe(s)
           const spots = parseInt(c.spotsPorDia, 10)
           const renta = Number(c.rentaMonto) || 0
@@ -845,11 +1219,34 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
             rentaPeriodicidad: renta > 0 ? c.rentaPeriodicidad : null,
             rentaArrendadorId: renta > 0 && c.rentaArrendadorId ? c.rentaArrendadorId : null,
           }
-        }),
+        })
+      // PROP-COMPLETA · agregar: solo las líneas, con el periodo de la propuesta
+      // (lo pone el servidor). Nueva o duplicada: el alta de siempre.
+      if (agregando) {
+        await agregarSitiosPropuestaApi(base!.id, items)
+        toast.success(
+          t(items.length === 1 ? 'propuestas.alta.agregados.uno' : 'propuestas.alta.agregados.otros', {
+            sitios: conteo(items.length, t('propuestas.unidad.sitio'), t('propuestas.unidad.sitios')),
+          }),
+        )
+        onClose()
+        return
+      }
+      const creada = await crearPropuestaApi({
+        clienteId: clienteId || null,
+        agenciaId: agenciaId || null,
+        nombre: nombre.trim(),
+        comisionPct: Number(comision) || 0,
+        fechaInicio,
+        fechaFin,
+        // Al duplicar viajan también las notas; las condiciones las pone la
+        // plantilla vigente, como a toda propuesta nueva.
+        ...(modo?.tipo === 'duplicar' ? { notas: base!.notas ?? null } : {}),
+        items,
       })
-      onClose()
+      onClose(creada.id)
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'No se pudo crear la propuesta'
+      const msg = e instanceof Error ? e.message : t('propuestas.alta.error.crear')
       setError(msg)
       toast.error(msg) // notificación (sonner), además del aviso en el pie del modal
       setGuardando(false)
@@ -861,8 +1258,22 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
       open
       onOpenChange={(v) => !v && onClose()}
       size="lg"
-      title="Nueva propuesta"
-      subtitle="Selecciona sitios; el método del divisor calcula bruto → neto"
+      title={
+        agregando
+          ? t('propuestas.alta.titulo.agregar', { nombre: base!.nombre })
+          : modo?.tipo === 'duplicar'
+            ? t('propuestas.alta.titulo.duplicar')
+            : t('propuestas.alta.titulo.nueva')
+      }
+      subtitle={
+        agregando
+          ? base!.estatus === 'ENVIADA'
+            ? t('propuestas.alta.subtitulo.agregar-enviada')
+            : t('propuestas.alta.subtitulo.agregar')
+          : modo?.tipo === 'duplicar'
+            ? t('propuestas.alta.subtitulo.duplicar')
+            : t('propuestas.alta.subtitulo.nueva')
+      }
       footer={
         <div className="flex items-center justify-between">
           {/* El error del servidor manda; si no lo hay, se avisa del problema de
@@ -876,110 +1287,155 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                   renglones de arriba y se lee como un defecto. */}
               {volumenMonto > 0 && (
                 <>
-                  Volumen: <b className="demo-num text-ink">− {formatMonto(volumenMonto)}</b>
+                  {interpolarNodos(t('propuestas.alta.pie.volumen'), {
+                    monto: <b className="demo-num text-ink">− {formatMonto(volumenMonto, idioma)}</b>,
+                  })}
                   {' · '}
                 </>
               )}
-              Total c/IVA: <b className="demo-num text-ink">{formatMonto(total)}</b>
+              {interpolarNodos(t('propuestas.alta.pie.total'), {
+                total: <b className="demo-num text-ink">{formatMonto(total, idioma)}</b>,
+              })}
             </span>
           )}
           <div className="flex gap-2">
-            <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
+            <Button variant="secondary" size="sm" onClick={() => onClose()}>{t('comun.cancelar')}</Button>
             <Button variant="success" size="sm" disabled={!valido || guardando} onClick={guardar}>
-              {guardando ? 'Guardando…' : 'Crear propuesta'}
+              {guardando
+                ? t('propuestas.comun.guardando')
+                : agregando
+                  ? t('propuestas.comun.agregar-sitios')
+                  : t('propuestas.alta.crear')}
             </Button>
           </div>
         </div>
       }
     >
       <div className="space-y-3">
-        <Campo label="Nombre de la propuesta">
-          <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus />
-        </Campo>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Campo label="Cliente">
-            <select
-              className={inputCls}
-              value={clienteId}
-              onChange={(e) => {
-                const id = e.target.value
-                setClienteId(id)
-                // Precarga la agencia asociada al cliente; la comisión viene de ella.
-                const c = clientes?.find((x) => x.id === id)
-                if (c?.agenciaId) aplicarAgencia(c.agenciaId)
-              }}
-            >
-              <option value="">— Sin cliente —</option>
-              {/* Solo clientes directos como anunciante; las agencias van aparte. */}
-              {clientes?.filter((c) => c.tipo !== 'AGENCIA').map((c) => (
-                <option key={c.id} value={c.id}>{c.nombre}</option>
-              ))}
-            </select>
+        {/* PROP-COMPLETA · al AGREGAR sitios, nombre, cliente, agencia, fechas y
+            comisión son los de la propuesta y no se tocan aquí. */}
+        {agregando ? (
+          <p className="rounded-md border border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">
+            {interpolarNodos(t('propuestas.alta.periodo'), {
+              periodo: <b className="text-ink">{formatFecha(fechaInicio, idioma)} – {formatFecha(fechaFin, idioma)}</b>,
+            })}
+          </p>
+        ) : (
+          <>
+          <Campo label={t('propuestas.alta.nombre')} obligatorio falta={ob.falta('nombre')}>
+            <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus />
           </Campo>
-          <Campo label="Agencia">
-            {agencias.length === 0 ? (
-              <div className="flex h-9 items-center rounded border border-dashed border-border-strong px-3 text-[12px] text-muted">
-                Crea un cliente tipo «Agencia» para asociarla
-              </div>
-            ) : (
-              <select className={inputCls} value={agenciaId} onChange={(e) => aplicarAgencia(e.target.value)}>
-                <option value="">— Sin agencia (directo) —</option>
-                {agencias.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Campo label={t('propuestas.comun.cliente')}>
+              <select
+                className={inputCls}
+                value={clienteId}
+                onChange={(e) => {
+                  const id = e.target.value
+                  setClienteId(id)
+                  // Precarga la agencia asociada al cliente; la comisión viene de ella.
+                  const c = clientes?.find((x) => x.id === id)
+                  if (c?.agenciaId) aplicarAgencia(c.agenciaId)
+                }}
+              >
+                <option value="">{t('propuestas.alta.sin-cliente')}</option>
+                {/* Solo clientes directos como anunciante; las agencias van aparte. */}
+                {clientes?.filter((c) => c.tipo !== 'AGENCIA').map((c) => (
+                  <option key={c.id} value={c.id}>{c.nombre}</option>
+                ))}
               </select>
-            )}
-          </Campo>
-        </div>
-        {/* Aviso de negociación sin validar (bloquea crear la propuesta) */}
-        {negociacionPendiente && (
-          <div className="flex items-start gap-2 rounded-md border border-[#f59e0b40] bg-[#f59e0b0d] p-2.5 text-[12px]">
-            <span className="mt-0.5 text-[#9a6700]">⚠</span>
-            <div>
-              <div className="font-medium text-ink">
-                La negociación con «{agenciaSel?.nombre}» no está validada
-              </div>
-              <div className="text-muted">
-                Valida la negociación de la agencia en Clientes para poder crear la propuesta.
+            </Campo>
+            <Campo label={t('propuestas.comun.agencia')}>
+              {agencias.length === 0 ? (
+                <div className="flex h-9 items-center rounded border border-dashed border-border-strong px-3 text-[12px] text-muted">
+                  {t('propuestas.alta.sin-agencias')}
+                </div>
+              ) : (
+                <select className={inputCls} value={agenciaId} onChange={(e) => aplicarAgencia(e.target.value)}>
+                  <option value="">{t('propuestas.alta.sin-agencia')}</option>
+                  {agencias.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+                </select>
+              )}
+            </Campo>
+          </div>
+          {/* Aviso de negociación sin validar (bloquea crear la propuesta) */}
+          {negociacionPendiente && (
+            <div className="flex items-start gap-2 rounded-md border border-[#f59e0b40] bg-[#f59e0b0d] p-2.5 text-[12px]">
+              <span className="mt-0.5 text-[#9a6700]">⚠</span>
+              <div>
+                <div className="font-medium text-ink">
+                  {t('propuestas.alta.negociacion.titulo', { agencia: agenciaSel?.nombre ?? '' })}
+                </div>
+                <div className="text-muted">
+                  {t('propuestas.alta.negociacion.texto')}
+                </div>
               </div>
             </div>
+          )}
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Campo label={t('propuestas.comun.desde')} obligatorio falta={ob.falta('fechaInicio')}><input type="date" className={inputCls} value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} /></Campo>
+            <Campo label={t('propuestas.alta.duracion')}>
+              <div className="flex gap-2">
+                {/* P-L2-1 · en italiano, `CampoCifra`; lo ilegible ('NaN') lo
+                    para `errDuracion`. */}
+                <EntradaCifra
+                  type="number"
+                  min={1}
+                  className={`${inputCls} w-20`}
+                  valor={duracionN}
+                  onCambio={setDuracionN}
+                  decimales={0}
+                  minimo={1}
+                />
+                <select className={inputCls} value={duracionUnidad} onChange={(e) => setDuracionUnidad(e.target.value as Unidad)}>
+                  {UNIDADES.filter((u) => !esCantidadManual(u.unidad)).map((u) => {
+                    const n = parseInt(duracionN, 10) || 1
+                    return (
+                      <option key={u.unidad} value={u.unidad}>
+                        {unidadCorta(u.unidad, n, idioma)}
+                      </option>
+                    )
+                  })}
+                </select>
+              </div>
+            </Campo>
           </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Campo label={t('propuestas.alta.hasta')} obligatorio falta={ob.falta('fechaFin')}>
+              <input
+                type="date"
+                className={inputCls}
+                value={fechaFin}
+                onChange={(e) => {
+                  // v0.12.3 · al escribir «Hasta» a mano, la duración se pone sola
+                  // (meses, catorcenas, semanas o días, la que cuadre exacta).
+                  // Antes se quedaba la duración vieja —«1 mes» con un rango de
+                  // tres—. Como la ida y vuelta da la misma fecha
+                  // (`duracionDesdeFechas`, con prueba), el efecto que recalcula
+                  // «Hasta» no se come lo escrito.
+                  const v = e.target.value
+                  setFechaFin(v)
+                  const d = duracionDesdeFechas(fechaInicio, v)
+                  if (d) {
+                    setDuracionUnidad(d.unidad)
+                    setDuracionN(String(d.cantidad))
+                  }
+                }}
+              />
+            </Campo>
+            <Campo label={t('propuestas.alta.comision')}><EntradaCifra className={inputCls} valor={comision} onCambio={setComision} decimales={2} minimo={0} /></Campo>
+          </div>
+
+          </>
         )}
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Campo label="Desde"><input type="date" className={inputCls} value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} /></Campo>
-          <Campo label="Duración de la campaña">
-            <div className="flex gap-2">
-              <input
-                type="number"
-                min={1}
-                className={`${inputCls} w-20`}
-                value={duracionN}
-                onChange={(e) => setDuracionN(e.target.value)}
-              />
-              <select className={inputCls} value={duracionUnidad} onChange={(e) => setDuracionUnidad(e.target.value as Unidad)}>
-                {UNIDADES.filter((u) => !esCantidadManual(u.unidad)).map((u) => {
-                  const n = parseInt(duracionN, 10) || 1
-                  return (
-                    <option key={u.unidad} value={u.unidad}>
-                      {unidadCorta(u.unidad, n)}
-                    </option>
-                  )
-                })}
-              </select>
-            </div>
-          </Campo>
-        </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Campo label="Hasta (se calcula de la duración)">
-            <input type="date" className={inputCls} value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} />
-          </Campo>
-          <Campo label="Comisión de la agencia (%)"><input className={inputCls} value={comision} onChange={(e) => setComision(e.target.value)} /></Campo>
-        </div>
-
-        {/* Selección de sitios: dos vistas alternables (lista / mapa) */}
-        <div>
-          <div className="mb-1 flex items-center justify-between gap-2">
-            <span className="text-[12px] font-medium text-ink">Sitios ({sel.size})</span>
-            {/* Switch de vista */}
+        {/* Selección de sitios: dos vistas alternables (lista / mapa). `div` y no
+            `label`: dentro hay botones, y un <label> que los envuelve dispara el
+            primero al pulsar el texto. */}
+        <Campo como="div" className="relative" label={t('propuestas.alta.sitios', { n: sel.size })} obligatorio falta={ob.falta('sitios')}>
+          {/* Switch de vista, a la altura de la etiqueta como antes */}
+          <div className="absolute -top-1 right-0">
             <div className="inline-flex overflow-hidden rounded-md border border-border-strong text-[11px]">
               <button
                 type="button"
@@ -988,7 +1444,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                   vistaSitios === 'lista' ? 'bg-accent text-white' : 'text-muted hover:bg-surface-2'
                 }`}
               >
-                <List className="h-3 w-3" /> Lista
+                <List className="h-3 w-3" /> {t('propuestas.alta.vista.lista')}
               </button>
               <button
                 type="button"
@@ -997,7 +1453,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                   vistaSitios === 'mapa' ? 'bg-accent text-white' : 'text-muted hover:bg-surface-2'
                 }`}
               >
-                <MapIcon className="h-3 w-3" /> Mapa
+                <MapIcon className="h-3 w-3" /> {t('propuestas.alta.vista.mapa')}
               </button>
             </div>
           </div>
@@ -1015,6 +1471,9 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                     <span className="flex min-w-0 items-center gap-2">
                       <input type="checkbox" checked={sel.has(s.id)} onChange={() => toggle(s.id)} className="h-4 w-4 shrink-0 accent-[var(--accent)]" />
                       <span className="truncate text-ink">{s.nombre}</span>
+                      {agregando && base!.items.some((i) => i.sitioId === s.id) && (
+                        <span className="shrink-0 text-[10px] text-muted">{t('propuestas.alta.ya-en-propuesta')}</span>
+                      )}
                       <span
                         className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium leading-none ${
                           digital
@@ -1023,10 +1482,10 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                         }`}
                       >
                         {digital ? <Monitor className="h-2.5 w-2.5" /> : <Square className="h-2.5 w-2.5" />}
-                        {digital ? 'Digital' : 'Fija'}
+                        {digital ? t('propuestas.comun.digital') : t('propuestas.comun.fija')}
                       </span>
                     </span>
-                    <span className="demo-num shrink-0 text-muted">{sel.has(s.id) ? formatMonto(precioDe(s)) : ''}</span>
+                    <span className="demo-num shrink-0 text-muted">{sel.has(s.id) ? formatMonto(precioDe(s), idioma) : ''}</span>
                   </label>
                 )
               })}
@@ -1055,17 +1514,18 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                 />
               </div>
               <p className="mt-1 text-[11px] text-muted">
-                Toca un punto para agregar o quitar el sitio. O usa <b className="text-ink">Dibujar zona</b> para
-                quedarte solo con las pantallas de esa área (se descartan las demás).
+                {interpolarNodos(t('propuestas.alta.mapa.ayuda'), {
+                  dibujar: <b className="text-ink">{t('propuestas.alta.mapa.dibujar')}</b>,
+                })}
               </p>
             </>
           )}
-        </div>
+        </Campo>
 
         {/* Configuración por tiempo de cada sitio seleccionado */}
         {seleccionados.length > 0 && (
           <div>
-            <span className="mb-1 block text-[12px] font-medium text-ink">Contratación por sitio</span>
+            <span className="mb-1 block text-[12px] font-medium text-ink">{t('propuestas.alta.contratacion')}</span>
             {/* REJILLA-01 · el aviso va PEGADO al selector y solo cuando alguien
                 ya eligió una franja: es el momento en que sirve. Puesto siempre,
                 se convertiría en decorado y dejaría de leerse. */}
@@ -1098,7 +1558,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                     >
                       {mods.map((m) => (
                         <option key={m.unidad} value={m.unidad}>
-                          {UNIDADES.find((u) => u.unidad === m.unidad)?.label ?? m.unidad}
+                          {etiquetaUnidad(m.unidad, idioma)}
                         </option>
                       ))}
                     </select>
@@ -1112,9 +1572,9 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                         className="h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
                         value={c.franjaId}
                         onChange={(e) => setCfgSitio(s.id, { franjaId: e.target.value, tarifaManual: '' })}
-                        title="Franja horaria contratada. Es un compromiso comercial: no se envía al CMS."
+                        title={t('propuestas.alta.franja.titulo')}
                       >
-                        <option value="">Todo el día</option>
+                        <option value="">{t('propuestas.alta.franja.todo-el-dia')}</option>
                         {franjas.map((f) => (
                           <option key={f.id} value={f.id}>
                             {f.nombre} · {f.horaInicio}–{f.horaFin}
@@ -1125,27 +1585,37 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                     {/* Cantidad: auto (periodos del rango), de la calculadora
                         (digital por spot) o manual (spot/hora/cpm) */}
                     {usaCalcDe(s) ? (
-                      <span className="demo-num whitespace-nowrap text-muted" title="Salidas que salen de la calculadora de abajo">
-                        {calcDe(s)?.ok ? `${cantidadDe(s).toLocaleString('es-MX')} salidas` : '— salidas'}
+                      <span className="demo-num whitespace-nowrap text-muted" title={t('propuestas.alta.salidas.titulo')}>
+                        {calcDe(s)?.ok
+                          ? t(cantidadDe(s) === 1 ? 'propuestas.alta.salidas.uno' : 'propuestas.alta.salidas.otros', {
+                              n: numeroEnIdioma(cantidadDe(s), idioma),
+                            })
+                          : t('propuestas.alta.salidas.otros', { n: '—' })}
                       </span>
                     ) : esManual ? (
-                      // Entera y con coma de miles (2,500 millares). Vacío
-                      // vuelve a 1, como hacía el `parseInt(...) || 1` de antes,
-                      // y lo que no se entiende no cambia nada: el campo vuelve
-                      // a enseñar la cantidad guardada (CampoCifra se resincroniza).
+                      // Entera y con coma de miles (2,500 millares). H1 (05/11):
+                      // lo que no se entiende, o el campo vacío, se guarda COMO
+                      // TAL y bloquea el botón (`errCifras`). Antes se quedaba
+                      // la última cantidad buena, el campo la repintaba a
+                      // media escritura y «1.500» acababa guardado como 100.
                       <CampoCifra
                         decimales={0}
                         mostrarError={false}
                         className="h-8 w-20 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
-                        valor={c.cantidadManual}
-                        onCambio={(_crudo, lectura) => {
-                          if (lectura.ok) setCfgSitio(s.id, { cantidadManual: Math.max(1, lectura.valor ?? 1) })
-                        }}
-                        title={c.unidad === 'cpm' ? 'Millares de impactos contratados (1 millar = 1,000 impactos)' : `Nº de ${unidadCorta(c.unidad, 2)}`}
+                        valor={valorCampoCantidad(c)}
+                        onCambio={(_crudo, lectura) => setCfgSitio(s.id, parcheCantidad(lectura))}
+                        // El «1,000» va por hueco y no escrito en el diccionario:
+                        // una cifra con separador de miles ahi la rechaza la
+                        // GUARDIA 2 de `dinero.test.ts`.
+                        title={
+                          c.unidad === 'cpm'
+                            ? t('propuestas.alta.cpm.titulo', { mil: numeroEnIdioma(1000, idioma) })
+                            : t('propuestas.alta.cantidad.titulo', { unidad: unidadCorta(c.unidad, 2, idioma) })
+                        }
                       />
                     ) : (
-                      <span className="whitespace-nowrap text-muted" title="Periodos calculados del rango de fechas">
-                        {periodos} {unidadCorta(c.unidad, periodos)}
+                      <span className="whitespace-nowrap text-muted" title={t('propuestas.alta.periodos.titulo')}>
+                        {periodos} {unidadCorta(c.unidad, periodos, idioma)}
                       </span>
                     )}
                     {/* CPS-CPM · el CPM se captura en MILLARES. Se escribe a cuántos
@@ -1153,30 +1623,32 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                         van 2,500: cobraría mil veces de más. */}
                     {esManual && !usaCalcDe(s) && c.unidad === 'cpm' && (
                       <span className="demo-num whitespace-nowrap text-muted">
-                        millares = {(c.cantidadManual * 1000).toLocaleString('es-MX')} impactos
+                        {t('propuestas.alta.cpm.equivale', { n: numeroEnIdioma(c.cantidadManual * 1000, idioma) })}
                       </span>
                     )}
                     {/* Programación: spots por día — solo pantallas digitales.
                         Con la calculadora sale de la misma cuenta. */}
                     {usaCalcDe(s) ? (
-                      <span className="demo-num w-24 text-center text-[11px] text-muted" title="Programación que sale de la calculadora">
+                      <span className="demo-num w-24 text-center text-[11px] text-muted" title={t('propuestas.alta.programacion.titulo')}>
                         {(() => {
                           const p = calcDe(s)
-                          return p?.ok ? `${p.spotsDia.toLocaleString('es-MX')} pases/día` : '—'
+                          return p?.ok ? t('propuestas.alta.pases-dia', { n: numeroEnIdioma(p.spotsDia, idioma) }) : '—'
                         })()}
                       </span>
                     ) : digital ? (
                       <CampoCifra
                         decimales={0}
                         mostrarError={false}
-                        placeholder="spots/día"
+                        placeholder={t('propuestas.alta.spots-dia.ejemplo')}
                         className="h-8 w-24 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
                         valor={c.spotsPorDia}
                         onCambio={(crudo) => setCfgSitio(s.id, { spotsPorDia: crudo })}
-                        title="Programación: cuántas veces al día se muestra (opcional)"
+                        title={t('propuestas.alta.spots-dia.titulo')}
                       />
                     ) : (
-                      <span className="w-24 text-center text-[11px] text-muted" title="Las pantallas fijas no manejan spots">Fija · sin spots</span>
+                      <span className="w-24 text-center text-[11px] text-muted" title={t('propuestas.alta.fija.titulo')}>
+                        {t('propuestas.alta.fija.sin-spots')}
+                      </span>
                     )}
                     {/* PRECIO-01 · la TARIFA por unidad. Calculada por el
                         sistema; solo un gerente o superior la puede cambiar.
@@ -1187,11 +1659,11 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                       const manual = tarifaManualDe(c)
                       const ajustada = manual != null && Math.round(manual * 100) !== Math.round(calc.tarifa * 100)
                       return puedeAjustarTarifa ? (
-                        <span className="flex items-center gap-1" title="Tarifa por unidad. Déjala vacía para usar la calculada.">
-                          <span className="text-[11px] text-muted">Tarifa</span>
+                        <span className="flex items-center gap-1" title={t('propuestas.alta.tarifa.ayuda')}>
+                          <span className="text-[11px] text-muted">{t('propuestas.alta.tarifa')}</span>
                           <CampoCifra
-                            aria-label={`Tarifa por unidad de ${s.nombre}`}
-                            placeholder={calc.calculable ? String(calc.tarifa) : 'sin tarifa'}
+                            aria-label={t('propuestas.alta.tarifa.aria', { sitio: s.nombre })}
+                            placeholder={calc.calculable ? String(calc.tarifa) : t('propuestas.alta.tarifa.sin')}
                             className={`h-8 w-24 rounded border bg-surface px-2 text-[12px] text-ink ${
                               ajustada ? 'border-[#f59e0b]' : 'border-border-strong'
                             }`}
@@ -1201,22 +1673,22 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                           />
                           {ajustada && (
                             <span className="text-[10px] font-medium text-[#9a6700]">
-                              calculada {calc.calculable ? formatMonto(calc.tarifa) : '—'}
+                              {t('propuestas.alta.tarifa.calculada', { monto: calc.calculable ? formatMonto(calc.tarifa, idioma) : '—' })}
                             </span>
                           )}
                         </span>
                       ) : (
                         <span
                           className="whitespace-nowrap text-[11px] text-muted"
-                          title="Tarifa calculada por el sistema. Solo un gerente o superior puede cambiarla."
+                          title={t('propuestas.alta.tarifa.sistema')}
                         >
                           {calc.calculable
-                            ? `Tarifa ${formatMonto(calc.tarifa)}`
-                            : 'Sin tarifa · pide a un gerente'}
+                            ? t('propuestas.alta.tarifa.monto', { monto: formatMonto(calc.tarifa, idioma) })
+                            : t('propuestas.alta.tarifa.pide-gerente')}
                         </span>
                       )
                     })()}
-                    <span className="demo-num w-24 text-right font-medium text-ink">{formatMonto(precioDe(s))}</span>
+                    <span className="demo-num w-24 text-right font-medium text-ink">{formatMonto(precioDe(s), idioma)}</span>
 
                     {/* ADR 0042 · la CALCULADORA DE SPOTS. Solo en pantalla
                         digital vendida por spot. Da la CANTIDAD y, desde el ADR
@@ -1252,32 +1724,46 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                       const mes = Math.round((cv.montoRenta ?? 0) * factorMensual(cv.periodicidad))
                       return (
                         <div className="flex w-full items-center gap-2 rounded bg-surface-2 px-2 py-1.5 text-[11px] text-muted">
-                          <span className="font-medium">Renta al arrendador</span>
+                          <span className="font-medium">{t('propuestas.alta.renta.titulo')}</span>
                           <span className="text-ink">
-                            {formatMonto(cv.montoRenta ?? 0)} {String(cv.periodicidad ?? '').toLowerCase()}
+                            {/* Ola 5: en ingles, la etiqueta traducida; en español, el dato crudo de siempre. */}
+                            {formatMonto(cv.montoRenta ?? 0, idioma)}{' '}
+                            {idioma === 'es'
+                              ? String(cv.periodicidad ?? '').toLowerCase()
+                              : periodicidadLabel(cv.periodicidad, '', idioma).toLowerCase()}
                           </span>
                           <span className="ml-auto">
-                            ya pactada en el contrato{cv.predioId ? ' del predio' : ''} · costo {formatMonto(mes)}/mes
+                            {t('propuestas.alta.renta.pactada', {
+                              predio: cv.predioId ? t('propuestas.alta.renta.pactada.predio') : '',
+                              costo: formatMonto(mes, idioma),
+                            })}
                           </span>
                         </div>
                       )
                     })()}
-                    {!tieneContrato(s) && (
+                    {/* v0.12.3 · una pantalla PROPIA no tiene renta que pedir. */}
+                    {s.propio && (
+                      <div className="flex w-full items-center gap-2 rounded bg-surface-2 px-2 py-1.5 text-[11px] text-muted">
+                        <span className="font-medium">{t('propuestas.alta.propia')}</span>
+                        <span className="ml-auto">{t('propuestas.alta.propia.texto')}</span>
+                      </div>
+                    )}
+                    {!s.propio && !tieneContrato(s) && (
                       <div className="flex w-full flex-wrap items-center gap-2 rounded bg-surface-2 px-2 py-1.5">
-                        <span className="text-[11px] font-medium text-muted">Renta al arrendador</span>
+                        <span className="text-[11px] font-medium text-muted">{t('propuestas.alta.renta.titulo')}</span>
                         <select
                           className="h-8 min-w-[9rem] rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
                           value={c.rentaArrendadorId}
                           onChange={(e) => setCfgSitio(s.id, { rentaArrendadorId: e.target.value })}
-                          title="A quién se le paga"
+                          title={t('propuestas.alta.renta.a-quien')}
                         >
-                          <option value="">Arrendador…</option>
+                          <option value="">{t('propuestas.alta.renta.arrendador')}</option>
                           {(arrendadores ?? []).map((a) => (
                             <option key={a.id} value={a.id}>{a.nombre}</option>
                           ))}
                         </select>
                         <CampoCifra
-                          placeholder="importe"
+                          placeholder={t('propuestas.alta.renta.importe')}
                           className="h-8 w-28 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
                           valor={c.rentaMonto}
                           mostrarError={false}
@@ -1287,10 +1773,10 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                           className="h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
                           value={c.rentaPeriodicidad}
                           onChange={(e) => setCfgSitio(s.id, { rentaPeriodicidad: e.target.value })}
-                          title="Cada cuándo se paga"
+                          title={t('propuestas.alta.renta.cada-cuando')}
                         >
                           {PERIODICIDADES_RENTA.map((x) => (
-                            <option key={x.value} value={x.value}>{x.label}</option>
+                            <option key={x.value} value={x.value}>{periodicidadLabel(x.value, '—', idioma)}</option>
                           ))}
                         </select>
                         {/* El aviso iba en gris al final de la fila y pasaba
@@ -1301,24 +1787,24 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                         <span className="w-full text-[11px]">
                           {rentaSospechosa(s) ? (
                             <span className="font-medium text-warning">
-                              ⚠ La renta ({formatMonto(Number(c.rentaMonto))}) iguala o supera lo que
-                              le cobras al cliente ({formatMonto(precioDe(s))}): la campaña saldría a
-                              pérdida. Aquí va lo que le pagas al PROPIETARIO, no el precio de venta.
+                              {t('propuestas.alta.renta.sospechosa', {
+                                renta: formatMonto(Number(c.rentaMonto), idioma),
+                                precio: formatMonto(precioDe(s), idioma),
+                              })}
                             </span>
                           ) : rentaIncompleta(s) ? (
                             <span className="font-medium text-warning">
-                              ⚠ Falta {!c.rentaArrendadorId ? 'elegir el propietario' : 'el importe'}:
-                              el contrato nacerá pendiente y no se generará el calendario de pagos.
+                              {!c.rentaArrendadorId
+                                ? t('propuestas.alta.renta.falta-propietario')
+                                : t('propuestas.alta.renta.falta-importe')}
                             </span>
                           ) : Number(c.rentaMonto) > 0 ? (
                             <span className="text-muted">
-                              Costo {formatMonto(rentaMensualDe(s))}/mes · el contrato nacerá completo
-                              y con su calendario de pagos
+                              {t('propuestas.alta.renta.completo', { costo: formatMonto(rentaMensualDe(s), idioma) })}
                             </span>
                           ) : (
                             <span className="text-muted">
-                              Opcional · sin esto el contrato nace pendiente y habrá que capturarlo
-                              después en Arrendadores
+                              {t('propuestas.alta.renta.opcional')}
                             </span>
                           )}
                         </span>
@@ -1329,17 +1815,17 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
               })}
             </div>
             {!fechaInicio || !fechaFin ? (
-              <p className="mt-1 text-[11px] text-muted">Elige las fechas para calcular los periodos y el precio.</p>
+              <p className="mt-1 text-[11px] text-muted">{t('propuestas.alta.elige-fechas')}</p>
             ) : null}
           </div>
         )}
 
         {/* Resumen del divisor en vivo */}
         <div className="grid grid-cols-2 gap-x-6 gap-y-1 rounded-md border border-border bg-surface-2 p-3 text-[12px] sm:grid-cols-4">
-          <Dato label="Bruto" valor={formatMonto(bruto)} />
-          <Dato label={`Divisor (${comision || 0}%)`} valor={`× ${divisor.toFixed(2)}`} />
-          <Dato label="Neto" valor={formatMonto(neto)} />
-          <Dato label={`IVA ${ivaPctSel}%`} valor={formatMonto(iva)} />
+          <Dato label={t('propuestas.comun.bruto')} valor={formatMonto(bruto, idioma)} />
+          <Dato label={t('propuestas.alta.divisor', { pct: comision || 0 })} valor={`× ${cifraEnEtiqueta(divisor, idioma, 2)}`} />
+          <Dato label={t('propuestas.comun.neto')} valor={formatMonto(neto, idioma)} />
+          <Dato label={t('propuestas.comun.iva', { pct: ivaPctSel })} valor={formatMonto(iva, idioma)} />
         </div>
       </div>
     </Modal>
@@ -1365,7 +1851,13 @@ function puntoEnPoligono(p: [number, number], poly: [number, number][]): boolean
 // `lib/calculadora-spots.ts`, que es donde lo vigila su prueba.
 const CALC_POR_OMISION = { ...CALCULADORA_POR_OMISION }
 
-const fmtNum = (n: number, dec = 2) => n.toLocaleString('es-MX', { maximumFractionDigits: dec })
+// Italiano (lote L2, 2026-11-03): con el idioma. En es y en sigue siendo el
+// `es-MX` de siempre (escribe las cifras igual que `en-US`); en italiano, la
+// tabla de `formato-idioma.ts` («3.240», «1,5»).
+const fmtNum = (n: number, dec = 2, idioma: Idioma = 'es') =>
+  idioma === 'es' || idioma === 'en'
+    ? n.toLocaleString('es-MX', { maximumFractionDigits: dec })
+    : numeroEnIdioma(n, idioma, { maximumFractionDigits: dec })
 
 type CfgCalculadora = { manual: boolean; espacios: string; horasDia: string; roadblock: boolean; prima: string }
 
@@ -1402,6 +1894,7 @@ function CalculadoraSpotsLinea({
   puedePrima: boolean
   cambiar: (patch: Partial<CfgCalculadora>) => void
 }) {
+  const { t, idioma } = useIdioma()
   const total = Number(sitio.totalSpots ?? 0)
   const libres = sitio.spotsDisponibles
   const horasMax = horasPorOmision({ franja, horario: sitio.horario })
@@ -1418,54 +1911,61 @@ function CalculadoraSpotsLinea({
     <div className="w-full rounded bg-surface-2 px-2 py-1.5 text-[11px] text-muted">
       <label className="inline-flex items-center gap-1.5 font-medium text-ink">
         <input type="checkbox" checked={!cfg.manual} onChange={(e) => cambiar({ manual: !e.target.checked })} />
-        Calculadora de spots
+        {t('propuestas.calc.titulo')}
       </label>
       {cfg.manual ? (
-        <span className="ml-2">Apagada: la cantidad de spots se captura a mano.</span>
+        <span className="ml-2">{t('propuestas.calc.apagada')}</span>
       ) : (
         <>
           <div className="mt-1 flex flex-wrap items-center gap-3">
-            <label className="inline-flex items-center gap-1" title="Cuántos espacios del loop compra esta línea">
-              Espacios del loop
-              <input
+            <label className="inline-flex items-center gap-1" title={t('propuestas.calc.espacios.titulo')}>
+              {t('propuestas.calc.espacios')}
+              <EntradaCifra
                 type="number"
                 min={1}
                 max={total || undefined}
                 step={1}
-                aria-label={`Espacios del loop de ${sitio.nombre}`}
+                aria-label={t('propuestas.calc.espacios.aria', { sitio: sitio.nombre })}
                 className={inputCls}
-                value={cfg.roadblock ? String(total) : cfg.espacios}
+                valor={cfg.roadblock ? String(total) : cfg.espacios}
                 disabled={cfg.roadblock}
-                onChange={(e) => cambiar({ espacios: e.target.value })}
+                onCambio={(crudo) => cambiar({ espacios: crudo })}
+                decimales={0}
+                minimo={1}
               />
               <span className="demo-num">
-                de {total || '—'} · {libres != null ? `${libres} libres` : 'libres sin dato'}
+                {t('propuestas.calc.de-total', {
+                  total: total || '—',
+                  libres: libres != null ? t('propuestas.calc.libres', { n: libres }) : t('propuestas.calc.libres-sin-dato'),
+                })}
               </span>
             </label>
             <label
               className="inline-flex items-center gap-1"
               title={
                 franja
-                  ? `Las horas de la franja ${franja.nombre}; se pueden bajar`
-                  : 'Las horas del horario de la pantalla; se pueden bajar'
+                  ? t('propuestas.calc.horas.franja', { franja: franja.nombre })
+                  : t('propuestas.calc.horas.horario')
               }
             >
-              Horas al día
-              <input
+              {t('propuestas.calc.horas')}
+              <EntradaCifra
                 type="number"
                 min={0.25}
                 max={horasMax}
                 step={0.25}
-                aria-label={`Horas al día de ${sitio.nombre}`}
-                placeholder={fmtNum(horasMax)}
+                aria-label={t('propuestas.calc.horas.aria', { sitio: sitio.nombre })}
+                placeholder={fmtNum(horasMax, 2, idioma)}
                 className={inputCls}
-                value={cfg.horasDia}
-                onChange={(e) => cambiar({ horasDia: e.target.value })}
+                valor={cfg.horasDia}
+                onCambio={(crudo) => cambiar({ horasDia: crudo })}
+                decimales={2}
+                minimo={0}
               />
             </label>
             <label
               className="inline-flex items-center gap-1"
-              title="Compra TODOS los espacios del loop; exige que estén libres"
+              title={t('propuestas.calc.roadblock.titulo')}
             >
               <input
                 type="checkbox"
@@ -1478,56 +1978,88 @@ function CalculadoraSpotsLinea({
               className="inline-flex items-center gap-1"
               title={
                 puedePrima
-                  ? 'Porcentaje encima de la tarifa por spot. Queda como ajuste a tu nombre.'
-                  : 'Solo un gerente o superior puede poner prima a un Roadblock.'
+                  ? t('propuestas.calc.prima.puede')
+                  : t('propuestas.calc.prima.no-puede')
               }
             >
-              Prima %
-              <input
+              {t('propuestas.calc.prima')}
+              <EntradaCifra
                 type="number"
                 min={0}
                 max={100}
                 step={0.5}
-                aria-label={`Prima de Roadblock de ${sitio.nombre}`}
+                aria-label={t('propuestas.calc.prima.aria', { sitio: sitio.nombre })}
                 placeholder="0"
                 className={inputCls}
-                value={puedePrima ? cfg.prima : ''}
+                valor={puedePrima ? cfg.prima : ''}
                 disabled={!cfg.roadblock || !puedePrima}
-                onChange={(e) => cambiar({ prima: e.target.value })}
+                onCambio={(crudo) => cambiar({ prima: crudo })}
+                decimales={2}
+                minimo={0}
+                maximo={100}
               />
             </label>
           </div>
           {resultado?.ok ? (
             <>
               <div className="demo-num mt-1">
-                Loop de {resultado.loop} {resultado.loop === 1 ? 'anunciante' : 'anunciantes'}
-                {!resultado.roadblock && resultado.loop < total && ` (${resultado.loop - resultado.espaciosComprados} hoy + esta línea)`}
+                {t('propuestas.calc.loop', {
+                  n: resultado.loop,
+                  anunciantes: plural(resultado.loop, t('propuestas.calc.anunciante'), t('propuestas.calc.anunciantes')),
+                })}
+                {!resultado.roadblock &&
+                  resultado.loop < total &&
+                  t('propuestas.calc.loop.hoy', { n: resultado.loop - resultado.espaciosComprados })}
                 {' · '}
                 {Math.floor((resultado.loop * duracionSeg) / 60)}:
                 {String((resultado.loop * duracionSeg) % 60).padStart(2, '0')} min
               </div>
               <div className="demo-num text-ink">
                 {resultado.roadblock
-                  ? `${spotsHoraRB.toLocaleString('es-MX')} spots/h`
-                  : `${fmtNum(resultado.rotacionesHora)} rotaciones/h`}{' '}
-                · {fmtNum(resultado.spotsDiaExactos)} spots/día × {dias} {dias === 1 ? 'día' : 'días'} ={' '}
-                <b>{resultado.cantidad.toLocaleString('es-MX')} spots</b>
+                  ? t('propuestas.calc.spots-hora', { n: numeroEnIdioma(spotsHoraRB, idioma) })
+                  : t('propuestas.calc.rotaciones', { n: fmtNum(resultado.rotacionesHora, 2, idioma) })}{' '}
+                {t('propuestas.calc.spots-dia', {
+                  spots: fmtNum(resultado.spotsDiaExactos, 2, idioma),
+                  dias,
+                  unidad: plural(dias, t('propuestas.calc.dia'), t('propuestas.calc.dias')),
+                })}{' '}
+                <b>{numeroEnIdioma(resultado.cantidad, idioma)}{t('propuestas.calc.spots-sufijo')}</b>
               </div>
               {tarifaSpot.calculable && (
                 <div className="demo-num">
                   {resultado.roadblock && ingresoHora != null ? (
                     <>
-                      Hora del loop: {formatMonto(tarifaMensual)} × {resultado.loop} ÷ {fmtNum(horasMes)} h ={' '}
-                      {formatMonto(ingresoHora)}
-                      {prima > 0 && ` + prima ${fmtNum(prima)} % = ${formatMonto(ingresoHora * (1 + prima / 100))}`} ÷{' '}
-                      {formatNumero(spotsHoraRB)} spots ={' '}
-                      <b className="text-ink">{formatMonto(prima > 0 ? tarifaConPrima(tarifaSpot.tarifa, prima) : tarifaSpot.tarifa)} por spot</b>
+                      {interpolarNodos(t('propuestas.calc.rb.hora'), {
+                        tarifa: formatMonto(tarifaMensual, idioma),
+                        loop: resultado.loop,
+                        horas: fmtNum(horasMes, 2, idioma),
+                        ingreso: formatMonto(ingresoHora, idioma),
+                        prima:
+                          prima > 0
+                            ? t('propuestas.calc.rb.prima', {
+                                pct: fmtNum(prima, 2, idioma),
+                                monto: formatMonto(ingresoHora * (1 + prima / 100), idioma),
+                              })
+                            : '',
+                        spots: formatNumero(spotsHoraRB, 0, idioma),
+                        precio: (
+                          <b className="text-ink">
+                            {t('propuestas.calc.por-spot', {
+                              monto: formatMonto(prima > 0 ? tarifaConPrima(tarifaSpot.tarifa, prima) : tarifaSpot.tarifa, idioma),
+                            })}
+                          </b>
+                        ),
+                      })}
                     </>
                   ) : (
                     <>
-                      Tarifa mensual {formatMonto(tarifaMensual)} ÷{' '}
-                      {fmtNum(rotacionesPorHora(resultado.loop, duracionSeg) * horario.horas * DIAS_DEL_MES, 0)} spots de un
-                      anunciante al mes = <b className="text-ink">{formatMonto(tarifaSpot.tarifa)} por spot</b>
+                      {interpolarNodos(t('propuestas.calc.mensual'), {
+                        tarifa: formatMonto(tarifaMensual, idioma),
+                        spots: fmtNum(rotacionesPorHora(resultado.loop, duracionSeg) * horario.horas * DIAS_DEL_MES, 0, idioma),
+                        precio: (
+                          <b className="text-ink">{t('propuestas.calc.por-spot', { monto: formatMonto(tarifaSpot.tarifa, idioma) })}</b>
+                        ),
+                      })}
                     </>
                   )}
                 </div>
@@ -1536,16 +2068,16 @@ function CalculadoraSpotsLinea({
           ) : resultado && conFechas ? (
             <div className="mt-1 text-error">{resultado.motivo}</div>
           ) : !conFechas ? (
-            <div className="mt-1">Pon las fechas para calcular los spots.</div>
+            <div className="mt-1">{t('propuestas.calc.pon-fechas')}</div>
           ) : null}
           {!franja && !horario.reconocido && (
             <div className="mt-0.5 text-[#9a6700]">
-              No se entiende el horario de la pantalla («{sitio.horario || 'vacío'}»): se toman 18 h al día.
+              {t('propuestas.calc.horario-ilegible', { horario: sitio.horario || t('propuestas.calc.horario-vacio') })}
             </div>
           )}
           {!tarifaSpot.calculable && (
             <div className="mt-0.5 text-[#9a6700]">
-              La pantalla no tiene tarifa mensual: el precio por spot sale de ella. Pide a un gerente que lo ponga.
+              {t('propuestas.calc.sin-tarifa')}
             </div>
           )}
         </>
@@ -1563,51 +2095,27 @@ function Dato({ label, valor }: { label: string; valor: string }) {
   )
 }
 
-function Campo({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-[12px] font-medium text-ink">{label}</span>
-      {children}
-    </label>
-  )
-}
-
-// Tira de funnel comercial: enviadas → aprobadas → perdidas, win rate y pipeline.
+// Tira de funnel comercial: enviadas → aprobadas → perdidas.
+// Desde el 26/10 es una franja secundaria DENTRO de la lista y no una tarjeta:
+// el pipeline, lo ganado y la tasa de cierre subieron a las `KPICard` de arriba
+// (eran las mismas cuatro cifras), y aquí queda solo el embudo en barras.
 function FunnelStrip({ f }: { f: FunnelPropuestas }) {
-  const winPct = f.winRate != null ? Math.round(f.winRate * 100) : null
-  const enPipeline = f.borrador + f.enviadas
+  const t = useTexto()
   // Ancho relativo del embudo (enviadas alguna vez = base).
   const base = Math.max(1, f.enviadas + f.aprobadas + f.rechazadas)
   const barra = (n: number, cls: string) => (
-    <div className="h-2 rounded-full bg-surface-2">
-      <div className={`h-2 rounded-full ${cls}`} style={{ width: `${Math.round((n / base) * 100)}%` }} />
+    <div className="h-1.5 rounded-full bg-surface">
+      <div className={`h-1.5 rounded-full ${cls}`} style={{ width: `${Math.round((n / base) * 100)}%` }} />
     </div>
   )
   return (
-    <Card>
-      <CardContent>
-        <div className="grid grid-cols-2 gap-4 py-1 lg:grid-cols-4">
-          <Tile label="En pipeline" valor={formatMontoCorto(f.pipelineValue)} sub={`${enPipeline} propuesta${enPipeline === 1 ? '' : 's'} (borrador + enviada)`} />
-          <Tile label="Ganado" tono="text-[#0f7a55]" valor={formatMontoCorto(f.ganadoValue)} sub={`${f.aprobadas} aprobada${f.aprobadas === 1 ? '' : 's'}`} />
-          <Tile label="Perdido" tono="text-error" valor={formatMontoCorto(f.perdidoValue)} sub={`${f.rechazadas} rechazada${f.rechazadas === 1 ? '' : 's'}`} />
-          <Tile label="Win rate" valor={winPct != null ? `${winPct}%` : '—'} sub={winPct != null ? `sobre ${f.aprobadas + f.rechazadas} cerradas` : 'sin cierres aún'} />
-        </div>
-        <div className="mt-3 space-y-1.5 border-t border-border pt-3">
-          <FunnelRow label="Enviadas" n={f.enviadas + f.aprobadas + f.rechazadas} bar={barra(f.enviadas + f.aprobadas + f.rechazadas, 'bg-info')} />
-          <FunnelRow label="Aprobadas" n={f.aprobadas} bar={barra(f.aprobadas, 'bg-[#10b981]')} />
-          <FunnelRow label="Perdidas" n={f.rechazadas} bar={barra(f.rechazadas, 'bg-[#ef4444]')} />
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-function Tile({ label, valor, sub, tono }: { label: string; valor: string; sub?: string; tono?: string }) {
-  return (
-    <div>
-      <div className="text-[10px] font-medium uppercase tracking-wide text-muted">{label}</div>
-      <div className={`demo-num text-[20px] font-semibold ${tono ?? 'text-ink'}`}>{valor}</div>
-      {sub && <div className="text-[11px] text-muted">{sub}</div>}
+    <div className="mb-3 rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px]">
+      <div className="mb-1 font-medium text-ink">{t('propuestas.embudo.titulo')}</div>
+      <div className="grid gap-x-6 gap-y-1 sm:grid-cols-3">
+        <FunnelRow label={t('propuestas.embudo.enviadas')} n={f.enviadas + f.aprobadas + f.rechazadas} bar={barra(f.enviadas + f.aprobadas + f.rechazadas, 'bg-info')} />
+        <FunnelRow label={t('propuestas.embudo.aprobadas')} n={f.aprobadas} bar={barra(f.aprobadas, 'bg-success')} />
+        <FunnelRow label={t('propuestas.embudo.perdidas')} n={f.rechazadas} bar={barra(f.rechazadas, 'bg-error')} />
+      </div>
     </div>
   )
 }

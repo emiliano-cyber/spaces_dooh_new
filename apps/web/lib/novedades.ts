@@ -26,12 +26,17 @@ import {
   notasDe as notasDeReglas,
   versionBase as versionBaseReglas,
 } from './novedades-reglas.mjs'
+import type { Idioma } from './i18n/idiomas'
 
 export type TipoNovedad = 'NUEVO' | 'AJUSTADO' | 'CORREGIDO'
 
 export interface ItemNovedad {
   tipo: TipoNovedad
+  /** El espanol: el original, el que se escribe primero. */
   texto: string
+  /** Traducciones opcionales (2026-11-05). Ver `textoDeItem`. */
+  en?: string
+  it?: string
 }
 
 export interface EntradaNovedades {
@@ -79,12 +84,29 @@ export interface GrupoNovedades {
   textos: string[]
 }
 
+/**
+ * El texto de un item en el idioma de quien lee (2026-11-05). Hasta ese dia
+ * las notas se pintaban en espanol en los tres idiomas, «a proposito».
+ *
+ *  · Espanol: `texto`, SIEMPRE: el original no depende de las traducciones.
+ *  · Ingles: `en`, y si falta, `texto`.
+ *  · Italiano: `it`; si falta, `en` -la misma caida del resto del italiano,
+ *    que cae al ingles (`diccionario.ts`)-; si faltan los dos, `texto`.
+ *
+ * Una entrada vieja sin traducciones se pinta como siempre.
+ */
+export function textoDeItem(item: ItemNovedad, idioma: Idioma): string {
+  if (idioma === 'en') return item.en || item.texto
+  if (idioma === 'it') return item.it || item.en || item.texto
+  return item.texto
+}
+
 /** Agrupa en el orden fijo Nuevo → Ajustado → Corregido, sin grupos vacios. */
-export function agruparPorTipo(items: ItemNovedad[]): GrupoNovedades[] {
+export function agruparPorTipo(items: ItemNovedad[], idioma: Idioma = 'es'): GrupoNovedades[] {
   return TIPOS_NOVEDAD.map((tipo) => ({
     tipo,
     etiqueta: ETIQUETA_TIPO[tipo],
-    textos: items.filter((i) => i.tipo === tipo).map((i) => i.texto),
+    textos: items.filter((i) => i.tipo === tipo).map((i) => textoDeItem(i, idioma)),
   })).filter((g) => g.textos.length > 0)
 }
 

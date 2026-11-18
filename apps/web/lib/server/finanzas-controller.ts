@@ -3,9 +3,11 @@ import { z } from 'zod'
 import { AppError, validar } from './errores'
 import { plazosCobranzaDelTenant, plazoPorDefecto } from './config-repo'
 import { fechaZod } from './fechas'
+import { uploadZod, LIMITES } from './uploads'
 import {
   generarFactura, registrarPagoCobranza, FacturaError,
   datosFinanzas, clienteDeMiOrganizacion, hoyDeLaBase,
+  listarAbonosCobranza, adjuntarComprobanteAbono, obtenerComprobanteAbono,
 } from './finanzas-repo'
 import { periodoDe, resumirPeriodo, movimientosDelPeriodo, type TipoPeriodo } from '@/lib/finanzas-periodo'
 import { obtenerEntidad } from './entidades-repo'
@@ -16,6 +18,9 @@ import { obtenerEntidad } from './entidades-repo'
 //  además acota el abono al saldo pendiente.
 // ============================================================================
 
+// COB-COMP · límites de renta; recortado ANTES: «␠data:…» se guardaba así y salía con Content-Type roto.
+const comprobante = z.string().trim().pipe(uploadZod(LIMITES.adjuntoPago.allowlist, LIMITES.adjuntoPago.maxMB))
+
 const pagoSchema = z.object({
   // Abono opcional (>0). Ausente/null = liquidar el saldo completo.
   monto: z.coerce.number().positive('El monto del abono debe ser mayor a 0').nullish(),
@@ -23,6 +28,10 @@ const pagoSchema = z.object({
   // lo comprueba el repo contra el «hoy» de la base, no contra el reloj de
   // este servidor, que está en UTC.
   fecha: fechaZod('Falta la fecha del pago').nullish(),
+  // COB-COMP · el recibo o la transferencia del cliente. Se valida AQUÍ, antes
+  // de tocar la base: un archivo inválido no puede dejar el pago registrado y
+  // el comprobante perdido.
+  comprobanteUrl: comprobante.nullish(),
 })
 
 // `usuarioId` sale de la SESIÓN (lo pone la ruta), nunca del cuerpo.
@@ -31,9 +40,39 @@ export async function registrarPagoCtrl(cobranzaId: string, body: unknown, usuar
   const c = await registrarPagoCobranza(cobranzaId, d.monto ?? null, {
     fecha: d.fecha ? d.fecha.slice(0, 10) : null,
     usuarioId: usuarioId ?? null,
+    comprobanteUrl: d.comprobanteUrl ?? null,
   })
   if (!c) throw new AppError('Cobranza no encontrada', 404)
   return c
+}
+
+// ─── El comprobante de cada abono (COB-COMP) ────────────────────────────────
+//
+// Subirlo DESPUÉS es el caso normal: el cliente manda la transferencia días
+// más tarde. Solo cambia el archivo —el cuerpo es `.strict()`, así que no se
+// cuela un importe ni una fecha—: corregir un comprobante no es volver a
+// cobrar. No hay «borrar»: un archivo equivocado se reemplaza.
+const adjuntarComprobanteSchema = z.object({ comprobanteUrl: comprobante }).strict()
+
+export async function listarAbonosCtrl(cobranzaId: string) {
+  const abonos = await listarAbonosCobranza(cobranzaId)
+  if (!abonos) throw new AppError('Cobranza no encontrada', 404)
+  return abonos
+}
+
+export async function adjuntarComprobanteCtrl(cobranzaId: string, abonoId: string, body: unknown) {
+  const cuerpo = body && typeof body === 'object' ? (body as Record<string, unknown>) : {}
+  if (!Object.keys(cuerpo).length) throw new AppError('Falta el comprobante', 400)
+  const d = validar(adjuntarComprobanteSchema, cuerpo)
+  const r = await adjuntarComprobanteAbono(cobranzaId, abonoId, d.comprobanteUrl)
+  if (!r) throw new AppError('Pago no encontrado', 404)
+  return r
+}
+
+export async function obtenerComprobanteAbonoCtrl(cobranzaId: string, abonoId: string) {
+  const url = await obtenerComprobanteAbono(cobranzaId, abonoId)
+  if (!url) throw new AppError('Comprobante no encontrado', 404)
+  return url
 }
 
 // «60, 90 o 120» — la enumeración como la diría una persona. El mensaje de

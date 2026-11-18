@@ -51,7 +51,7 @@ cookies. Cero cambios en `exigir()`, en el middleware o en los **90** handlers.
 > con `usuarios.solo_google` (ADR 0028 · B3, `20260907_solo_google.sql`) **no
 > puede entrar con contraseña**: el login por contraseña la verifica y, si es
 > correcta, contesta 403 «Esta cuenta entra con Google»
-> (`app/api/auth/login/route.ts:89-105`). La contraseña sigue existiendo y
+> (`app/api/auth/login/route.ts:111-127`). La contraseña sigue existiendo y
 > sigue pidiéndose para los cambios sensibles; lo que deja de hacer es abrir
 > sesión. Detalle en [[flujo-login]].
 
@@ -237,6 +237,11 @@ hiciera.
    > vieja. DEMO es `pruebas.space-os.io` desde el 31/08, y cada instancia de
    > owner lleva el suyo. La plantilla no debe traer ningún dominio quemado:
    > `infra/env/app.env.example:104` es donde vive `GOOGLE_REDIRECT_URI`.
+   >
+   > **2026-11-05:** el ADR 0024 lo sustituye el [ADR 0050](../../docs/adr/0050-demo-space-os-io-vuelve-como-la-demo-en-el-droplet-viejo-de-g500.md): `demo.space-os.io`
+   > vuelve como la DEMO, en el droplet viejo de g500. La regla de arriba no cambia:
+   > la DEMO nueva nace con `GOOGLE_OAUTH=0`, y si algún día lleva Google, su URI es
+   > la de su dominio.
 3. `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` en el
    entorno del proceso. **No hace falta recompilar.**
 

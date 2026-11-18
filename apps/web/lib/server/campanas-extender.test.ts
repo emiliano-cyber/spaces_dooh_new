@@ -32,6 +32,7 @@ const campanasRepo = {
   validarPublicacion: vi.fn(async () => ({ id: 'cmp-1' })),
   enviarADominio: vi.fn(async () => ({ id: 'cmp-1' })),
   extenderCampana: vi.fn(async (id: string, fechaFin: string) => ({ id, fechaFin })),
+  extensionesCampana: vi.fn(async () => []),
   guardarContratoCampana: vi.fn(async () => ({ id: 'cmp-1' })),
   ValidacionError: class ValidacionError extends Error {},
 }
@@ -42,9 +43,14 @@ const { extenderCampanaCtrl } = await import('./campanas-controller')
 
 beforeEach(() => vi.clearAllMocks())
 
+// EXT-CONTRATO (29/10) · sin contrato no hay extensión. Un PDF mínimo de
+// verdad (`%PDF-1.4`): el validador mira los bytes, no la etiqueta.
+const PDF = 'data:application/pdf;base64,JVBERi0xLjQK'
+const USUARIO = { id: 'u-1', nombre: 'Ana' }
+
 async function extender(cuerpo: unknown) {
   try {
-    await extenderCampanaCtrl('cmp-1', cuerpo)
+    await extenderCampanaCtrl('cmp-1', cuerpo, USUARIO)
     return { ok: true as const, mensaje: '', status: 200 }
   } catch (e) {
     const err = e as Error & { status?: number }
@@ -53,16 +59,16 @@ async function extender(cuerpo: unknown) {
 }
 
 describe('control · extender con una fecha de verdad sigue funcionando', () => {
-  it('la fecha llega al model tal cual', async () => {
-    const r = await extender({ fechaFin: '2026-12-31' })
+  it('la fecha y el contrato llegan al model tal cual, con quién lo hizo', async () => {
+    const r = await extender({ fechaFin: '2026-12-31', contratoUrl: PDF })
     expect(r.ok, r.mensaje).toBe(true)
-    expect(campanasRepo.extenderCampana).toHaveBeenCalledWith('cmp-1', '2026-12-31')
+    expect(campanasRepo.extenderCampana).toHaveBeenCalledWith('cmp-1', '2026-12-31', PDF, USUARIO)
   })
 })
 
 describe('VAL-07 · la fecha tiene que ser una fecha', () => {
   it('rechaza «mañana» con 400 y NO toca el model', async () => {
-    const r = await extender({ fechaFin: 'mañana' })
+    const r = await extender({ fechaFin: 'mañana', contratoUrl: PDF })
     expect(r.ok).toBe(false)
     expect(r.status).toBe(400)
     expect(campanasRepo.extenderCampana).not.toHaveBeenCalled()
@@ -72,5 +78,45 @@ describe('VAL-07 · la fecha tiene que ser una fecha', () => {
     const r = await extender({})
     expect(r.ok).toBe(false)
     expect(r.status).toBe(400)
+  })
+})
+
+// ─── EXT-CONTRATO (29/10) · regla del dueño: no se extiende sin contrato ─────
+//  Una extensión cambia la fecha fin y, con ella, lo que se factura (R4). El
+//  dueño decidió el 29/10 que solo se hace con el contrato firmado de la
+//  extensión adjunto EN EL MISMO PASO; sin él, el servidor la rechaza. Se exige
+//  aquí y no solo en la pantalla: la API se puede llamar sin pasar por ella.
+const MSG = 'Para extender la campaña adjunta el contrato firmado de la extensión'
+
+describe('EXT-CONTRATO · sin contrato no se extiende', () => {
+  it('NEGATIVO · sin contratoUrl: 422 con el mensaje, y el model NO se toca', async () => {
+    const r = await extender({ fechaFin: '2026-12-31' })
+    expect(r.ok).toBe(false)
+    expect(r.status).toBe(422)
+    expect(r.mensaje).toBe(MSG)
+    expect(campanasRepo.extenderCampana).not.toHaveBeenCalled()
+  })
+
+  it('NEGATIVO · contratoUrl vacío, en blanco o null cuenta como que no viene', async () => {
+    for (const contratoUrl of ['', '   ', null]) {
+      const r = await extender({ fechaFin: '2026-12-31', contratoUrl })
+      expect(r.status, String(contratoUrl)).toBe(422)
+      expect(r.mensaje).toBe(MSG)
+    }
+    expect(campanasRepo.extenderCampana).not.toHaveBeenCalled()
+  })
+
+  it('NEGATIVO · una imagen no pasa por contrato: solo PDF, como el del cliente', async () => {
+    const png =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
+    const r = await extender({ fechaFin: '2026-12-31', contratoUrl: png })
+    expect(r.ok).toBe(false)
+    expect(r.status).toBe(422)
+    expect(campanasRepo.extenderCampana).not.toHaveBeenCalled()
+  })
+
+  it('el mensaje tiene su traducción (I18N-05)', async () => {
+    const { traducirError } = await import('@/lib/i18n/errores-servidor')
+    expect(traducirError(MSG, 'en')).not.toBe(MSG)
   })
 })

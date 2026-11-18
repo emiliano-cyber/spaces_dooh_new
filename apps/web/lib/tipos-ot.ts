@@ -21,6 +21,8 @@
 // ============================================================================
 
 import type { TipoOT } from '@/lib/data/types'
+import type { Idioma } from '@/lib/i18n/idiomas'
+import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
 
 export const TIPO_OT_LABEL: Record<TipoOT, string> = {
   MONTAJE_LONA: 'Montaje de lona',
@@ -32,6 +34,15 @@ export const TIPO_OT_LABEL: Record<TipoOT, string> = {
   ELECTRICO: 'Eléctrico',
   INSPECCION: 'Inspección',
   OTRO: 'Otro',
+}
+
+// I18N (lote administracion, 2026-11-02) · la etiqueta en un idioma. En espanol
+// es `TIPO_OT_LABEL` tal cual (Operaciones y el servidor la siguen leyendo
+// directo); en otro idioma, `admin.tipo-ot.<tipo>`, cuyo espanol
+// `textos/admin.test.ts` ata a esta tabla.
+export function etiquetaTipoOt(t: TipoOT, idioma: Idioma = 'es'): string {
+  if (idioma === 'es' || !(t in TIPO_OT_LABEL)) return TIPO_OT_LABEL[t] ?? t
+  return traducir(idioma, `admin.tipo-ot.${t.toLowerCase().replace(/_/g, '-')}` as ClaveTexto)
 }
 
 // Tareas que solo tienen sentido en una pantalla FIJA: lona y estructura de

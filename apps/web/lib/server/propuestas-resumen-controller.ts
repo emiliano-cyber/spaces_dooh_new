@@ -79,9 +79,16 @@ function costosDeRenta(
   const estado = { sitios, contratos } as unknown as DatosAtribucion
   const vigente = contratoVigentePorSitio(estado)
   const mensual = rentaAtribuidaPorSitio(estado)
+  // v0.12.3 · una pantalla PROPIA tiene costo de renta CONOCIDO: cero. No deja
+  // la propuesta «sin costo» como una rentada sin contrato.
+  const propias = new Set(sitios.filter((s) => s.propio === true).map((s) => s.id))
   const out = new Map<string, number | null>()
   for (const it of items) {
     if (out.get(it.propuestaId) === null) continue // ya sin costo conocido
+    if (propias.has(it.sitioId)) {
+      out.set(it.propuestaId, out.get(it.propuestaId) ?? 0)
+      continue
+    }
     if (!vigente.has(it.sitioId)) {
       out.set(it.propuestaId, null)
       continue

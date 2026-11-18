@@ -7,6 +7,7 @@ import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
 import { NotasDeVersion } from '@/components/demo/novedades/NotasDeVersion'
 import { useSesionCtx } from '@/components/demo/shell/SesionContext'
+import { useTexto } from '@/lib/i18n/contexto'
 import { getNovedadesApi } from '@/lib/data/novedades-api'
 import {
   claveVistas,
@@ -53,6 +54,7 @@ function guardar(usuarioId: string, version: string) {
 export function NovedadesDeVersion() {
   const { sesion } = useSesionCtx()
   const router = useRouter()
+  const t = useTexto()
   const usuarioId = sesion?.usuario.id
   const [notas, setNotas] = useState<EntradaNovedades | null>(null)
   const [abierto, setAbierto] = useState(false)
@@ -89,8 +91,8 @@ export function NovedadesDeVersion() {
     <Modal
       open={abierto}
       onOpenChange={(v) => (v ? setAbierto(true) : cerrar())}
-      title={`Qué hay de nuevo en ${notas.version}`}
-      subtitle={`Esta instancia se actualizó. Esto es lo que cambió (${notas.fecha}).`}
+      title={t('shell.novedades.titulo', { version: notas.version })}
+      subtitle={t('shell.novedades.subtitulo', { fecha: notas.fecha })}
       footer={
         <div className="flex items-center justify-between gap-2">
           {/* Navegar no es aceptar: neutro (`convenciones.md`, «Color de los botones»). */}
@@ -102,11 +104,11 @@ export function NovedadesDeVersion() {
               router.push('/novedades')
             }}
           >
-            Ver todas las novedades
+            {t('shell.novedades.ver-todas')}
           </Button>
           {/* Aceptar: azul. */}
           <Button size="sm" onClick={cerrar}>
-            <Sparkles className="h-3.5 w-3.5" /> Entendido
+            <Sparkles className="h-3.5 w-3.5" /> {t('shell.novedades.entendido')}
           </Button>
         </div>
       }

@@ -1,13 +1,18 @@
 import { notFound } from 'next/navigation'
 import { exigir, tienePermiso } from '@/lib/server/auth'
-import { expedienteContrato } from '@/lib/server/contrato-expediente'
-import { FALTA } from '@/lib/contrato-documento'
+import { datosContrato, expedienteContrato } from '@/lib/server/contrato-expediente'
+import { FALTA, encabezadosDocumento, type DocumentoContrato } from '@/lib/contrato-documento'
 import { BarraDocumento } from '@/components/demo/arrendadores/BarraDocumento'
 import { PanelFirmas } from '@/components/demo/arrendadores/PanelFirmas'
 import { ConstanciaFirmas, type FirmaConstancia } from '@/components/demo/arrendadores/ConstanciaFirmas'
 import { cn } from '@/lib/cn'
-import { firmasDeContrato } from '@/lib/server/firmas-repo'
+import { firmasDeContrato, huellaDatosContrato } from '@/lib/server/firmas-repo'
 import { obtenerConfig } from '@/lib/server/config-repo'
+import { traducir } from '@/lib/i18n/diccionario'
+import { idiomaDeLaPeticion } from '@/lib/i18n/servidor'
+import { localeDe } from '@/lib/i18n/formato-idioma'
+import { ParteEnIdioma } from '@/lib/i18n/parte-en-idioma'
+import type { Idioma } from '@/lib/i18n/idiomas'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -19,14 +24,20 @@ export const dynamic = 'force-dynamic'
 
 // El documento nombra los roles en prosa («EL ARRENDADOR»); las firmas usan el
 // enum. Se emparejan aquí para no acoplar el redactor puro al modelo de firmas.
-function firmaDe(firmas: FirmaConstancia[], rol: string): FirmaConstancia | undefined {
-  const parte = rol.includes('ARRENDATARIO') ? 'ARRENDATARIO' : 'ARRENDADOR'
-  return firmas.find((f) => f.parte === parte)
+//
+// ADR 0049: por `parte`, no leyendo el rol — en inglés es «THE LESSEE» y en
+// italiano «IL CONDUTTORE», y `includes('ARRENDATARIO')` habría puesto el sello
+// del arrendador sobre las dos firmas. La lectura del rol queda como respaldo.
+function firmaDe(firmas: FirmaConstancia[], f: DocumentoContrato['firmas'][number]): FirmaConstancia | undefined {
+  const parte = f.parte ?? (f.rol.includes('ARRENDATARIO') ? 'ARRENDATARIO' : 'ARRENDADOR')
+  return firmas.find((x) => x.parte === parte)
 }
 
-function fechaHora(iso: string | null): string {
+// En el locale del DOCUMENTO (ADR 0049): el sello se imprime dentro del
+// contrato. En una instancia en español es el `es-MX` de siempre.
+function fechaHora(iso: string | null, idioma: Idioma): string {
   if (!iso) return '—'
-  return new Date(iso).toLocaleString('es-MX', {
+  return new Date(iso).toLocaleString(localeDe(idioma), {
     dateStyle: 'long',
     timeStyle: 'short',
     timeZone: 'America/Mexico_City',
@@ -34,6 +45,9 @@ function fechaHora(iso: string | null): string {
 }
 
 // Resalta los huecos para que salten a la vista al revisar antes de firmar.
+//
+// I18N (2026-11-02) · el DOCUMENTO no se traduce (va ligado al hash de las
+// firmas): solo el `title` del hueco, que es ayuda de pantalla y no se imprime.
 function Texto({ children }: { children: string }) {
   if (!children.includes(FALTA)) return <>{children}</>
   return (
@@ -42,7 +56,7 @@ function Texto({ children }: { children: string }) {
         <span key={i}>
           {trozo}
           {i < arr.length - 1 && (
-            <span className="doc-falta" title="Dato pendiente de capturar">
+            <span className="doc-falta" title={traducir(idiomaDeLaPeticion(), 'arrendadores.documento.falta-title')}>
               {FALTA}
             </span>
           )}
@@ -57,7 +71,7 @@ export default async function ContratoDocumentoPage({ params }: { params: { id: 
   if (!g.ok) {
     return (
       <div className="mx-auto max-w-2xl p-10 text-[14px] text-ink">
-        No tienes permiso para ver este contrato.
+        {traducir(idiomaDeLaPeticion(), 'arrendadores.documento.sin-permiso')}
       </div>
     )
   }
@@ -73,18 +87,35 @@ export default async function ContratoDocumentoPage({ params }: { params: { id: 
   // aquí con permiso de solo `ver`.
   const incluirToken = await tienePermiso(g.usuario.rol, 'arrendadores', 'crear')
   const estadoFirmas = await firmasDeContrato(params.id, { incluirToken })
+  // Lo que el paso de revisión enseña antes de enviar a firma, con su huella:
+  // `enviarAFirma` la recalcula y no congela nada si los datos cambiaron
+  // mientras se revisaban (CONTRATO-FIRMADO-EDITABLE, 23/10).
+  const datos = await datosContrato(params.id)
+  const revision = datos ? { huella: huellaDatosContrato(datos), datos } : null
   // El logo es MEMBRETE: papelería, no contenido del contrato. Por eso se lee
   // aquí y no entra en `DocumentoContrato` — `documentoATexto()` es la cadena que
   // se SHA-256'ea al firmar, y meterle el logo invalidaría todas las firmas ya
   // emitidas (sus hashes dejarían de coincidir). Cambiar el logo de la empresa no
   // debe alterar lo que dice el documento.
   const { logoUrl } = await obtenerConfig()
+  // ADR 0049 · el idioma del DOCUMENTO es el de la instancia (lo trae el
+  // propio documento), y no el de quien mira: todo lo que se IMPRIME —el
+  // texto, sus encabezados, los sellos, la constancia y el aviso del pie— va
+  // en él. Lo que no se imprime (la barra, el panel de firmas, el `title` de
+  // los huecos) sigue el idioma de la persona.
+  const idiomaDoc: Idioma = doc.idioma ?? 'es'
+  const e = encabezadosDocumento(idiomaDoc)
+  // B72 · lo que se imprime declara el idioma de la instancia cuando no es el
+  // de la persona (dos partes: el panel de firmas, en medio, no se imprime y
+  // habla en el de la persona). Si coinciden, el HTML de siempre.
+  const idiomaPersona = idiomaDeLaPeticion()
 
   return (
     <div className="doc-wrap">
       <BarraDocumento faltantes={doc.faltantes} />
 
       <article className="doc-hoja">
+        <ParteEnIdioma idioma={idiomaDoc} de={idiomaPersona}>
         {logoUrl && (
           <div className="doc-membrete">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -98,7 +129,7 @@ export default async function ContratoDocumentoPage({ params }: { params: { id: 
           <Texto>{doc.preambulo}</Texto>
         </p>
 
-        <h2 className="doc-h2">DECLARACIONES</h2>
+        <h2 className="doc-h2">{e.declaraciones}</h2>
         {doc.declaraciones.map((d) => (
           <section key={d.encabezado} className="doc-bloque">
             <p className="doc-p doc-strong">{d.encabezado}</p>
@@ -110,7 +141,7 @@ export default async function ContratoDocumentoPage({ params }: { params: { id: 
           </section>
         ))}
 
-        <h2 className="doc-h2">CLÁUSULAS</h2>
+        <h2 className="doc-h2">{e.clausulas}</h2>
         {doc.clausulas.map((c) => (
           <section key={c.ordinal} className="doc-bloque">
             <p className="doc-p doc-strong">
@@ -133,17 +164,17 @@ export default async function ContratoDocumentoPage({ params }: { params: { id: 
             que ya existe invita a firmar dos veces el mismo documento. */}
         <div className="doc-firmas">
           {doc.firmas.map((f) => {
-            const firma = firmaDe(estadoFirmas.firmas, f.rol)
+            const firma = firmaDe(estadoFirmas.firmas, f)
             const electronica = firma?.estatus === 'FIRMADA'
             return (
               <div key={f.rol} className="doc-firma">
                 {electronica ? (
                   <div className={cn('doc-sello', firma!.invalidada && 'doc-sello-mal')}>
                     <p className="doc-sello-titulo">
-                      {firma!.invalidada ? 'FIRMA INVALIDADA' : 'FIRMADO ELECTRÓNICAMENTE'}
+                      {firma!.invalidada ? e.selloInvalidada : e.selloFirmado}
                     </p>
                     <p className="doc-sello-nombre">{firma!.nombreFirmante}</p>
-                    <p className="doc-sello-fecha">{fechaHora(firma!.firmadoEn)}</p>
+                    <p className="doc-sello-fecha">{fechaHora(firma!.firmadoEn, idiomaDoc)}</p>
                   </div>
                 ) : (
                   <div className="doc-linea" />
@@ -161,19 +192,23 @@ export default async function ContratoDocumentoPage({ params }: { params: { id: 
 
         {/* Constancia: ESTO SÍ SE IMPRIME. Es lo que hace del PDF un documento
             probatorio y no solo una copia bonita del texto. */}
-        <ConstanciaFirmas estado={estadoFirmas} />
+        {/* ADR 0049 (03/11): en el idioma de los DOCUMENTOS de la instancia, como
+            el contrato que acompaña. Hasta hoy iba en el de la petición
+            (decisión del 02/11); la regla nueva del dueño es que los papeles
+            van fijos en el idioma de la instancia. No entra en ningún hash. */}
+        <ConstanciaFirmas estado={estadoFirmas} idioma={idiomaDoc} />
+        </ParteEnIdioma>
 
         <PanelFirmas
           contratoId={params.id}
           inicial={estadoFirmas}
           hayFaltantes={doc.faltantes.length > 0}
+          revision={revision}
         />
 
-        <p className="doc-aviso">
-          Documento generado automáticamente por SPACE OS a partir del expediente del contrato.
-          Es un BORRADOR basado en cláusulas de uso común; debe ser revisado y validado por un
-          abogado antes de su firma.
-        </p>
+        <ParteEnIdioma idioma={idiomaDoc} de={idiomaPersona}>
+          <p className="doc-aviso">{e.aviso}</p>
+        </ParteEnIdioma>
       </article>
     </div>
   )

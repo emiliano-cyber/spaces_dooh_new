@@ -15,6 +15,7 @@ import {
 import type { PuntoOcupacion } from '@/lib/data/client'
 import { formatMonto, formatMontoCorto } from '@/lib/data/derive'
 import { formatNumero } from '@/lib/formato-numero'
+import { useIdioma } from '@/lib/i18n/contexto'
 
 // Gráficas de la demo con los tokens de color de SET. Planas, sin sombras.
 
@@ -84,9 +85,13 @@ export function ReservasChart({
   tentativo: number
   confirmado: number
 }) {
+  // I18N (2026-11-02) · los rotulos de las barras y el dinero, en el idioma
+  // de la pantalla. Hoy ninguna pagina monta esta grafica (el Dashboard la
+  // sustituyo por el pipeline); se deja lista por si vuelve.
+  const { t, idioma } = useIdioma()
   const data = [
-    { name: 'Tentativas', valor: tentativo, color: AMBAR },
-    { name: 'Confirmadas', valor: confirmado, color: VERDE },
+    { name: t('inicio.grafica.tentativas'), valor: tentativo, color: AMBAR },
+    { name: t('inicio.grafica.confirmadas'), valor: confirmado, color: VERDE },
   ]
   return (
     <ResponsiveContainer width="100%" height={150}>
@@ -98,9 +103,9 @@ export function ReservasChart({
           tickLine={false}
           axisLine={false}
           // Dinero compacto con su coma: «$ 2,500k» salía como «2500k».
-          tickFormatter={(v) => formatMontoCorto(v)}
+          tickFormatter={(v) => formatMontoCorto(v, idioma)}
         />
-        <Tooltip content={<TooltipBox suffix="" formato={formatMonto} />} cursor={{ fill: '#0000000a' }} />
+        <Tooltip content={<TooltipBox suffix="" formato={(n: number) => formatMonto(n, idioma)} />} cursor={{ fill: '#0000000a' }} />
         <Bar dataKey="valor" radius={[3, 3, 0, 0]}>
           {data.map((d) => (
             <Cell key={d.name} fill={d.color} />

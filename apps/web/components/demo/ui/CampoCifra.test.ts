@@ -53,3 +53,24 @@ describe('CampoCifra', () => {
     expect(html).toContain('placeholder="Ej. 8000"')
   })
 })
+
+// P-L2-1 (04/11): en italiano el campo pinta y entiende punto de millar y coma
+// decimal. El formulario guarda lo mismo que en español («1500.5»).
+describe('CampoCifra en italiano', () => {
+  it('pinta lo guardado con punto de millar y coma decimal', () => {
+    expect(rendir({ valor: '1500.5', idioma: 'it' })).toContain('value="1.500,5"')
+    expect(rendir({ valor: 12.9, idioma: 'it' })).toContain('value="12,9"')
+    expect(rendir({ valor: '212500', idioma: 'it' })).toContain('value="212.500"')
+  })
+
+  it('NEGATIVO · lo que no se entiende en italiano se enseña con su motivo italiano', () => {
+    const html = rendir({ valor: 'NaN', idioma: 'it' })
+    expect(html).toContain('role="alert"')
+    expect(html).toContain('Scrivi solo cifre: il punto separa le migliaia e la virgola i decimali')
+  })
+
+  it('en español e inglés, como siempre', () => {
+    expect(rendir({ valor: '1500.5', idioma: 'es' })).toContain('value="1,500.5"')
+    expect(rendir({ valor: '1500.5', idioma: 'en' })).toContain('value="1,500.5"')
+  })
+})

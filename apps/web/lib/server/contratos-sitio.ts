@@ -84,6 +84,35 @@ export async function resolverPredio(
   return rows[0].id as string
 }
 
+// v0.12.3 · el predio de un lote de pantallas PROPIAS: un LUGAR propio, sin
+// arrendador (`predios_propio_o_arrendador_ck`). Uno existente tiene que ser
+// propio: colgar pantallas propias de un predio rentado mezclaría su renta con
+// pantallas que no la pagan. Uno nuevo nace propio. null si el lote no marcó
+// predio (pantallas sueltas).
+export async function resolverPredioPropio(
+  client: PoolClient,
+  tenantId: string | null,
+  predio: PredioDeCarga | null | undefined,
+): Promise<string | null> {
+  if (!predio) return null
+  if ('id' in predio) {
+    const { rows } = await client.query(
+      'select id from predios where id = $1 and tenant_id = $2 and propio',
+      [predio.id, tenantId],
+    )
+    if (!rows[0]) throw new AppError('El lugar elegido no existe o no es propio.', 404)
+    return rows[0].id as string
+  }
+  const nombre = String(predio.nombre ?? '').trim()
+  if (!nombre) throw new AppError('El predio nuevo necesita un nombre.', 400)
+  const { rows } = await client.query(
+    `insert into predios (arrendador_id, nombre, direccion, tenant_id, propio)
+     values (null, $1, $2, $3, true) returning id`,
+    [nombre, predio.direccion?.trim() || null, tenantId],
+  )
+  return rows[0].id as string
+}
+
 // ─── ¿La pantalla está donde dice el predio? ────────────────────────────────
 //
 // Un predio es un inmueble físico y su renta es UNA sola, repartida entre sus
@@ -237,7 +266,7 @@ export async function exigirContratoCompleto(
 ): Promise<void> {
   const { tenantId, sitioId } = args
   const { rows } = await client.query(
-    `select s.nombre,
+    `select s.nombre, s.propio,
             exists (
               select 1 from contratos_arrendamiento c
                where c.tenant_id = $2
@@ -251,6 +280,10 @@ export async function exigirContratoCompleto(
   )
   const fila = rows[0]
   if (!fila) throw new AppError('La pantalla no existe.', 404)
+  // v0.12.3 · una pantalla PROPIA no tiene contrato que completar: no se le paga
+  // renta a nadie. Está cubierta por ser de la organización
+  // (`20261022_pantallas_propias.sql`).
+  if (fila.propio === true) return
   if (!fila.cubierta) {
     throw new AppError(
       `"${fila.nombre}" todavía no se puede vender: su contrato de arrendamiento está incompleto. ` +

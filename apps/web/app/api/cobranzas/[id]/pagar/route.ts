@@ -4,6 +4,8 @@ import { registrarPagoCtrl } from '@/lib/server/finanzas-controller'
 import { respuestaError } from '@/lib/server/errores'
 import { registrarAccion } from '@/lib/server/acciones-repo'
 import { notificar } from '@/lib/server/notificaciones-repo'
+import { monedaDeLaInstancia } from '@/lib/server/moneda-instancia'
+import { simboloMoneda } from '@/lib/i18n/dinero'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -17,7 +19,10 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   const g = { usuario: gc.usuario }
   try {
     const c = await registrarPagoCtrl(params.id, await req.json().catch(() => ({})), g.usuario.id)
-    const montoTxt = `$${Math.round(c.abono ?? 0).toLocaleString('es-MX')}`
+    // ADR 0048 · el importe de la bitacora lleva el simbolo de la moneda de la
+    // instancia; en servidor hay que pedirla antes de escribirlo.
+    await monedaDeLaInstancia()
+    const montoTxt = `${simboloMoneda()}${Math.round(c.abono ?? 0).toLocaleString('es-MX')}`
     await registrarAccion(
       g.usuario,
       c.liquidado ? `Registró pago ${montoTxt} (liquidado)` : `Registró abono ${montoTxt}`,

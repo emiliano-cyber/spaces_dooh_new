@@ -8,6 +8,7 @@ import {
   interpretarRecibosCtrl,
 } from '@/lib/server/recibos-cfe/controller'
 import { MAXIMO_BYTES } from '@/lib/server/recibos-cfe/lector-pdf'
+import { monedaDeLaInstancia } from '@/lib/server/moneda-instancia'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -109,6 +110,8 @@ export async function POST(req: Request) {
       })
     }
 
+    // ADR 0048 · los avisos del interprete nombran importes (`formatMonto`).
+    await monedaDeLaInstancia()
     return NextResponse.json(await interpretarRecibosCtrl(archivos, mesesEsperados))
   } catch (e) {
     return respuestaError(e)

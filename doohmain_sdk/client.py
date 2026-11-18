@@ -143,6 +143,7 @@ class DOOHmainClient:
         start_date: str,
         end_date: str,
         status: str = "active",
+        cliente: dict[str, str] | None = None,
     ) -> dict:
         data = {
             "name": name,
@@ -151,6 +152,11 @@ class DOOHmainClient:
             "status": status,
             "client[name]": anunciante,
         }
+        # 22/10: el resto de los datos del cliente que la API recibe (cuit,
+        # real_name, address, client_type). Solo los que traen valor.
+        for clave, valor in (cliente or {}).items():
+            if valor:
+                data[f"client[{clave}]"] = valor
         body = self._request("POST", "create_campaign", data=data)
         # Normaliza formato antiguo {"auth","client_id"} y actual
         # {"success":{"auth","client"}} a {"auth","client_id"}.
@@ -168,6 +174,12 @@ class DOOHmainClient:
     def update_campaign(self, auth: str, **kwargs: Any) -> dict:
         data = {"auth": auth, **kwargs}
         return self._request("POST", "update_campaign", data=data)
+
+    def update_client(self, auth: str, **kwargs: Any) -> dict:
+        """Actualiza el cliente de la campaña `auth` (name, cuit, real_name,
+        address, client_type). La API lo indexa por el auth de la CAMPAÑA."""
+        data = {"auth": auth, **{k: v for k, v in kwargs.items() if v}}
+        return self._request("POST", "update_client", data=data)
 
     def get_campaigns(self, auths: Sequence[str]) -> dict:
         params = {"auth[]": list(auths)} if len(auths) > 1 else {"auth": auths[0]}

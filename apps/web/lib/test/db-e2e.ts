@@ -81,13 +81,30 @@ export const URL_APP =
   process.env.DATABASE_URL_TEST_APP ??
   'postgresql://spaces_app:spaces_app_dev@localhost:5433/spaces_e2e'
 
+// LA BASE DE PRUEBAS HABLA EN UTC, sea cual sea el huso del servidor.
+//
+// El Postgres de docker-compose y el del CI corren en UTC, y las pruebas se
+// escribieron contra eso: las semillas calculan las fechas con
+// `toISOString()` (UTC) y la base las compara con `current_date` o `now()`.
+// Con un Postgres en la hora de la maquina (el portatil de Windows arranca en
+// America/Mexico_City), a partir de las 18:00 locales el dia UTC ya es
+// MANANA y el de la base todavia es HOY: diez e2e caian en rojo cada tarde
+// sin nada mal en el codigo (02/11/2026), y en verde a la manana siguiente.
+//
+// Se fija en los dos lados: `options` para las conexiones de este arnes, y
+// `alter database` en `recrearEsquema()` para las del Next de pruebas, que
+// abre las suyas sin pasar por aqui. Reproducido con la base en
+// Pacific/Kiritimati: sin esto, `estado-campanas` cae en rojo.
+export const HUSO_E2E = 'UTC'
+const OPCIONES_HUSO = `-c timezone=${HUSO_E2E}`
+
 let poolAdminRef: Pool | null = null
 let poolAppRef: Pool | null = null
 
 export function poolTest(): Pool {
   if (!poolAdminRef) {
     exigirBaseDePrueba(URL_TEST)
-    poolAdminRef = new Pool({ connectionString: URL_TEST, max: 4 })
+    poolAdminRef = new Pool({ connectionString: URL_TEST, max: 4, options: OPCIONES_HUSO })
     vigilarPool(poolAdminRef, 'admin (URL_TEST)')
   }
   return poolAdminRef
@@ -98,7 +115,7 @@ export function poolTest(): Pool {
 export function poolApp(): Pool {
   if (!poolAppRef) {
     exigirBaseDePrueba(URL_APP)
-    poolAppRef = new Pool({ connectionString: URL_APP, max: 4 })
+    poolAppRef = new Pool({ connectionString: URL_APP, max: 4, options: OPCIONES_HUSO })
     vigilarPool(poolAppRef, 'app (URL_APP)')
   }
   return poolAppRef
@@ -134,6 +151,11 @@ export async function recrearEsquema(): Promise<void> {
   // consultas del pool de app fallarían por permiso en vez de por RLS.
   // El rol vive en el CLUSTER, así que sobrevive al drop del esquema.
   await p.query(readFileSync(join(raizDb, 'dev-rol-app.sql'), 'utf8'))
+
+  // Ver HUSO_E2E. Vive en la BASE, no en el esquema: sobrevive al drop de abajo.
+  await p.query(
+    `do $$ begin execute format('alter database %I set timezone to %L', current_database(), '${HUSO_E2E}'); end $$`,
+  )
 
   await p.query('drop schema if exists public cascade')
   await p.query('create schema public')

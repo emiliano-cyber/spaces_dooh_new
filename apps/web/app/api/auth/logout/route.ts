@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { SESSION_COOKIE, CSRF_COOKIE, destruirSesion } from '@/lib/server/auth'
 import { respuestaError } from '@/lib/server/errores'
+import { cookieIdiomaCuentaBorrada } from '@/lib/server/idioma-cuenta'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -22,5 +23,9 @@ export async function POST() {
   const res = NextResponse.json({ ok: true })
   res.cookies.set({ name: SESSION_COOKIE, value: '', maxAge: 0, path: '/' })
   res.cookies.set({ name: CSRF_COOKIE, value: '', maxAge: 0, path: '/' })
+  // La preferencia de idioma de la cuenta (IDIOMA-USUARIO, 03/11). Atada a la
+  // sesión ya no casaría con nada, pero se borra igual: lo que se queda en el
+  // navegador es la elección DEL NAVEGADOR (`spaces_idioma`), no la de la cuenta.
+  res.cookies.set(cookieIdiomaCuentaBorrada())
   return res
 }

@@ -1,4 +1,6 @@
 import { motivoInvalido, type FiltrosReporte } from './consulta'
+import { traducir } from '@/lib/i18n/diccionario'
+import type { Idioma } from '@/lib/i18n/idiomas'
 
 // ============================================================================
 //  components/demo/reportes/estado.ts — Qué se pinta, y por qué.
@@ -64,7 +66,10 @@ export function debePedir(f: FiltrosReporte): boolean {
   return motivoInvalido(f) === null
 }
 
-export function estadoDeReporte(e: EntradaEstado): EstadoReporte {
+// `idioma` ('es' por omision) es el de los dos mensajes que pone la pantalla
+// cuando el servidor no manda el suyo. El del servidor llega ya traducido por
+// la peticion (I18N-05) y pasa tal cual.
+export function estadoDeReporte(e: EntradaEstado, idioma: Idioma = 'es'): EstadoReporte {
   // Manda sobre `cargando` a propósito: un rango que se sabe malo no se pide,
   // así que no puede haber nada en vuelo que valga la pena esperar.
   if (e.motivoInvalido) return { fase: 'invalido', mensaje: e.motivoInvalido }
@@ -90,7 +95,12 @@ export function estadoDeReporte(e: EntradaEstado): EstadoReporte {
     // manda al usuario a revisar sus filtros por un problema que no es suyo.
     return {
       fase: 'error',
-      mensaje: mensaje ?? 'No se pudo calcular el reporte. La petición no llegó a buen término.',
+      // `status: 0` sin mensaje es la red caida: la pantalla ya no guarda la
+      // frase en el estado (quedaria en el idioma del momento del fallo) y la
+      // pone aqui. En espanol es la misma que ponia ella.
+      mensaje:
+        mensaje ??
+        traducir(idioma, status === 0 ? 'reportes.error.red' : 'reportes.error.sin-mensaje'),
     }
   }
 

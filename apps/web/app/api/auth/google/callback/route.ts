@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { qRaw1 } from '@/lib/server/db'
 import { crearSesion, cookieSesion, cookieCsrf, nuevoCsrfToken, passwordAleatoria } from '@/lib/server/auth'
+import { cookieIdiomaCuenta } from '@/lib/server/idioma-cuenta'
+import { idiomaPreferidoAlEntrar } from '@/lib/server/usuarios-repo'
+import { normalizarIdioma } from '@/lib/i18n/idiomas'
 import { crearOrgConDueno } from '@/lib/server/cuentas-controller'
 import { limitar, ipDe } from '@/lib/server/rate-limit'
 import {
@@ -76,12 +79,18 @@ function limpiar(res: NextResponse): NextResponse {
 // una función porque ahora hay dos caminos que llegan aquí —entrar y darse de
 // alta—, y son justo los sitios donde es fácil que uno se quede sin la cookie
 // anti-CSRF o sin limpiar las de un solo uso.
-async function abrirSesion(req: Request, usuarioId: string): Promise<NextResponse> {
+//
+// El tenant entra para leer la preferencia de idioma de la cuenta con la RLS
+// puesta (IDIOMA-USUARIO, 03/11). Aquí la redirección es una carga completa,
+// así que la página de destino ya sale en ese idioma sin hacer nada más.
+async function abrirSesion(req: Request, usuarioId: string, tenantId: string): Promise<NextResponse> {
   const token = await crearSesion(usuarioId, 'google')
+  const idioma = normalizarIdioma(await idiomaPreferidoAlEntrar(usuarioId, tenantId))
   const base = process.env.APP_URL || new URL(req.url).origin
   const res = NextResponse.redirect(`${base}/spaces-dooh/inicio/`, 302)
   res.cookies.set(cookieSesion(token))
   res.cookies.set(cookieCsrf(nuevoCsrfToken()))
+  res.cookies.set(cookieIdiomaCuenta(token, idioma))
   return limpiar(res)
 }
 
@@ -184,7 +193,7 @@ async function resolverYEntrar(req: Request, identidad: IdentidadGoogle) {
         tenantId: tenant.id,
         emailExterno: identidad.email,
       })
-      return abrirSesion(req, usuario.id)
+      return abrirSesion(req, usuario.id, tenant.id)
     }
 
     if (!porCorreo.activo) return alLogin(req, 'inactivo')
@@ -220,5 +229,5 @@ async function resolverYEntrar(req: Request, identidad: IdentidadGoogle) {
     await marcarUso(PROVEEDOR_GOOGLE, identidad.sub, u.tenant_id)
   }
 
-  return abrirSesion(req, u.id)
+  return abrirSesion(req, u.id, u.tenant_id)
 }

@@ -6,12 +6,15 @@ import {
   exigirArrendador,
   asignarArrendadorYAbrirContrato,
   resolverPredio,
+  resolverPredioPropio,
   ligarSitioAPredio,
   abrirContratoDePredio,
   exigirSitioEnElPredio,
   type PredioDeCarga,
 } from './contratos-sitio'
 import type { PoolClient } from 'pg'
+import { pantallaDoohmainDe } from './doohmain'
+import { AppError } from './errores'
 
 // ============================================================================
 //  lib/server/sitios-repo.ts — Persistencia de sitios + modalidades.
@@ -89,6 +92,18 @@ export function rowToSitio(r: any, modalidades: any[] = [], conMedia = true, rej
     comercializacion: r.comercializacion,
     enNetwork: !!r.en_network,
     cms: r.cms,
+    doohmainPantalla: r.doohmain_pantalla ?? null,
+    // v0.12.3 · de la organización: sin renta ni contrato (luz + operación).
+    propio: r.propio === true,
+    // 22/10 · el id de DOOHmain que SE USA al publicar y de dónde sale (la
+    // ficha, el mapa del servidor o la pantalla por omisión). Solo en las que
+    // van a DOOHmain: una de otro CMS no publica por aquí. Sin esto, una
+    // pantalla publicada por el mapa se veía en Inventario con el campo vacío.
+    ...(() => {
+      if (r.cms && r.cms !== 'DOOHMAIN') return { doohmainEfectiva: null, doohmainOrigen: null }
+      const e = pantallaDoohmainDe({ doohmain_pantalla: r.doohmain_pantalla ?? null, clave_interna: r.clave_interna ?? null })
+      return { doohmainEfectiva: e.pantalla, doohmainOrigen: e.origen }
+    })(),
     predioId: r.predio_id ?? null,
     arrendadorId: r.arrendador_id ?? null,
     rentaArrendador: n(r.renta_arrendador),
@@ -103,7 +118,8 @@ export function rowToSitio(r: any, modalidades: any[] = [], conMedia = true, rej
     imagenPromocional: conMedia ? r.imagen_promocional : null,
     // Para que la ficha sepa si hay galería que pedir sin traérsela: sin esto,
     // «todavía no cargó» y «no tiene fotos» se ven igual.
-    tieneFotos: (r.fotos?.length ?? 0) > 0,
+    // Los listados no traen `fotos` y mandan `tiene_fotos` ya calculado.
+    tieneFotos: r.tiene_fotos ?? (r.fotos?.length ?? 0) > 0,
     notas: r.notas,
     modalidades: modalidades.map((m) => m.unidad),
     modalidadesDetalle: modalidades.map((m) => ({
@@ -221,13 +237,47 @@ function valoresDe(s: any): unknown[] {
 // mismo texto libre que pudieran divergir.
 
 // ─── Lectura ────────────────────────────────────────────────────────────────
+
+// Las columnas de `sitios` MENOS la media, para los listados. Cierra el
+// pendiente que dejaba el comentario de `conMedia`: el tráfico Postgres→Node.
+// Medido en g500 el 12/10: una pantalla con 10.4 MB de fotos dejaba
+// `/api/sitios` en 3.1 s y `/api/estado` en 7 s, porque `s.*` las sacaba de
+// Postgres para tirarlas en `rowToSitio`. En local: 1069 ms con `s.*`, 1 ms sin.
+//
+// Se leen del catálogo y no se escriben a mano por lo mismo que allí se dice:
+// una columna olvidada pasaría a `undefined` en todo el inventario sin que nada
+// falle. Una vez por proceso; una migración nueva llega con un proceso nuevo.
+// Los nombres vienen de `pg_attribute` y van con `quote_ident`.
+let columnasSinMedia: Promise<string> | null = null
+function columnasDeListado(): Promise<string> {
+  columnasSinMedia ??= q<{ c: string }>(
+    `select string_agg('s.' || quote_ident(attname), ', ' order by attnum) as c
+       from pg_attribute
+      where attrelid = 'sitios'::regclass and attnum > 0 and not attisdropped
+        and attname not in ('fotos', 'imagen_promocional')`,
+  ).then(
+    (r) => r[0].c,
+    (e) => {
+      columnasSinMedia = null
+      throw e
+    },
+  )
+  return columnasSinMedia
+}
+// `pg_column_size` lee el tamaño guardado sin traer el valor. Medido en
+// Postgres el 12/10: un `text[]` vacío ocupa 13 bytes en disco (cabecera corta)
+// y 16 como literal; con UN elemento, aunque sea '', ya son 25. El corte en 20
+// separa los dos casos con margen. No se compara contra `'{}'::text[]`: ése
+// mide 16 y no 13, y acertaba solo por casualidad.
+const TIENE_FOTOS = `pg_column_size(s.fotos) > 20 as tiene_fotos`
+
 export async function listarSitios(): Promise<any[]> {
   // ADR 0008: los dos conteos miran FECHAS (`fecha_fin >= current_date`). Sin
   // ese filtro, una campaña terminada hace dos años seguía ocupando su slot y el
   // inventario envejecía hacia "todo lleno". Aquí no hay un periodo que vender,
   // así que el criterio es "vigente hoy o a futuro".
   const sitios = await q(
-    `select s.*,
+    `select ${await columnasDeListado()}, ${TIENE_FOTOS},
             (select count(distinct r.campana_id) from reservas r
               where r.sitio_id = s.id and r.estatus <> 'CANCELADA'
                 and r.fecha_fin >= current_date) as campanas_activas,
@@ -269,7 +319,8 @@ export async function listarSitios(): Promise<any[]> {
 export async function listarSitiosRed(): Promise<any[]> {
   const yo = await tenantActual()
   const sitios = await q(
-    `select s.*, t.nombre as dueno_tenant, (s.tenant_id = $1) as es_propio
+    `select ${await columnasDeListado()}, ${TIENE_FOTOS},
+            t.nombre as dueno_tenant, (s.tenant_id = $1) as es_propio
        from sitios s left join tenants t on t.id = s.tenant_id
       order by s.creado_en asc`,
     [yo],
@@ -296,10 +347,20 @@ export async function listarSitiosRed(): Promise<any[]> {
 }
 
 export async function getSitio(id: string): Promise<any | null> {
-  const r = await q1('select * from sitios where id = $1', [id])
+  // B44 (2026-10-29) · las tres lecturas por id llevan `and tenant_id` como
+  // segunda capa sobre la RLS. Con la RLS sola, el día que falle, la rejilla de
+  // otra organización le pondría el precio a esta pantalla sin dar error.
+  const tenant = await tenantActual()
+  const r = await q1('select * from sitios where id = $1 and tenant_id = $2', [id, tenant])
   if (!r) return null
-  const mods = await q('select unidad, tarifa_publicada, costo_compra from sitio_modalidades where sitio_id=$1', [id])
-  const rej = await q('select unidad, franja_id, temporada_id, tarifa_publicada from sitio_tarifas where sitio_id=$1', [id])
+  const mods = await q(
+    'select unidad, tarifa_publicada, costo_compra from sitio_modalidades where sitio_id=$1 and tenant_id=$2',
+    [id, tenant],
+  )
+  const rej = await q(
+    'select unidad, franja_id, temporada_id, tarifa_publicada from sitio_tarifas where sitio_id=$1 and tenant_id=$2',
+    [id, tenant],
+  )
   return rowToSitio(r, mods, true, rej)
 }
 
@@ -379,6 +440,15 @@ export async function crearSitio(s: any): Promise<any> {
   try {
     await client.query('begin')
     await fijarTenant(client)
+    // v0.12.3 · una pantalla PROPIA no tiene arrendador ni contrato: no se le
+    // paga renta a nadie. Se marca y listo; su costo será luz + operación.
+    if (s?.propio === true) {
+      const sitio = await insertarSitio(client, s)
+      await client.query('update sitios set propio = true where id = $1 and tenant_id = $2', [sitio.id, tenantId])
+      sitio.propio = true
+      await client.query('commit')
+      return sitio
+    }
     // ADR 0002: igual que el import, el alta manual exige arrendador y abre su
     // contrato pendiente en la misma transacción.
     const arrendadorId = await exigirArrendador(client, tenantId, s?.arrendadorId)
@@ -445,6 +515,10 @@ const CAMPO_COL: Record<string, string> = {
   // ADR 0008. Editable desde la ficha: quien puede tocar el inventario puede
   // fijar el cupo. El valor se valida en el controller (entero ≥ 1 o null).
   maxClientes: 'max_clientes',
+  // 13/10 · a qué pantalla de DOOHmain se publica (`20261013_sitios_pantalla_doohmain.sql`).
+  // Solo por aquí: no está en `COLS`, así que el alta y la re-importación no la pisan.
+  // El controller la normaliza (recorta, vacío → null, tope de 120).
+  doohmainPantalla: 'doohmain_pantalla',
 }
 export async function actualizarSitio(id: string, cambios: Record<string, unknown>): Promise<any | null> {
   const sets: string[] = []
@@ -459,6 +533,56 @@ export async function actualizarSitio(id: string, cambios: Record<string, unknow
   vals.push(id)
   await q(`update sitios set ${sets.join(', ')} where id = $${vals.length}`, vals)
   return getSitio(id)
+}
+
+/**
+ * v0.12.3 · marca o desmarca una pantalla como PROPIA (sin renta ni contrato).
+ *
+ * Marcarla propia CANCELA su contrato pendiente (INCOMPLETO) —el que el alta
+ * abre siempre y que ya no tiene sentido completar—, pero NO uno real: si tiene
+ * un contrato vigente, por vencer o renovado, se le paga renta a alguien, y
+ * declararla propia borraría ese costo en silencio. Ahí es 409: que se termine el
+ * contrato antes, en Arrendadores. Desmarcarla no abre nada: vuelve a necesitar
+ * contrato para venderse, y el guard lo dirá.
+ */
+export async function marcarPropio(id: string, propio: boolean): Promise<any | null> {
+  const tenant = await tenantActual()
+  return withTenantTx(async (client) => {
+    const { rows } = await client.query('select id from sitios where id = $1 and tenant_id = $2 for update', [id, tenant])
+    if (!rows[0]) return null
+    if (propio) await volverPropiaEnTx(client, tenant, id)
+    else await client.query('update sitios set propio = false where id = $1 and tenant_id = $2', [id, tenant])
+    return true
+  }).then(async (ok) => (ok ? getSitio(id) : null))
+}
+
+// La mitad «marcar propia» de `marcarPropio`, dentro de una transacción ajena.
+// Vive aparte porque la usan DOS altas: la ficha y la re-importación de un lote
+// propio sobre pantallas que ya existen. Antes de separarla, el import en modo
+// ACTUALIZAR pisaba los datos de la pantalla y se olvidaba de `propio`: el lote
+// decía «propias» y salían rentadas, con su contrato pendiente bloqueando la
+// venta. Una sola regla para las dos, o dirían cosas distintas.
+async function volverPropiaEnTx(client: PoolClient, tenant: string | null, id: string): Promise<void> {
+  const vivo = await client.query(
+    `select 1 from contratos_arrendamiento c
+      where c.tenant_id = $2 and c.estatus in ('VIGENTE','POR_VENCER','RENOVADO')
+        and ((c.predio_id is null and c.sitio_id = $1)
+          or (c.predio_id is not null and c.predio_id = (select predio_id from sitios where id = $1)))
+      limit 1`,
+    [id, tenant],
+  )
+  if (vivo.rowCount) {
+    throw new AppError(
+      'Esta pantalla tiene un contrato de renta vigente: termínalo en Arrendadores antes de marcarla como propia.',
+      409,
+    )
+  }
+  await client.query(
+    `update contratos_arrendamiento set estatus = 'CANCELADO'
+      where tenant_id = $2 and estatus = 'INCOMPLETO' and predio_id is null and sitio_id = $1`,
+    [id, tenant],
+  )
+  await client.query('update sitios set propio = true where id = $1 and tenant_id = $2', [id, tenant])
 }
 
 // ─── Modalidades por unidad de venta, DESDE LA FICHA ────────────────────────
@@ -567,7 +691,10 @@ export async function importarSitios(args: {
   // Arrendador dueño de TODAS las pantallas del archivo (ADR 0002). Es de lote y
   // no por fila porque la plantilla no tiene columna de propietario: un Excel se
   // carga por origen, y mezclar propietarios en uno solo no es el caso de uso.
-  arrendadorId: string
+  arrendadorId: string | null
+  // v0.12.3 · el lote son pantallas PROPIAS: sin arrendador ni contrato, y su
+  // predio (si lo hay) es un lugar propio.
+  propio?: boolean
   // OPCIONAL. Si la carga marca que todas las pantallas están en el mismo predio,
   // se cuelgan de él y comparten UN contrato. Sin predio, cada pantalla es suelta
   // y lleva el suyo.
@@ -601,8 +728,11 @@ export async function importarSitios(args: {
     // Se valida DENTRO de la transacción y con el tenant ya fijado: la RLS
     // fail-closed hace que un arrendador de otra organización sea invisible aquí,
     // así que la comprobación de pertenencia es la propia consulta.
-    const arrendadorId = await exigirArrendador(client, yo, args.arrendadorId)
-    const predioId = await resolverPredio(client, yo, arrendadorId, args.predio)
+    const propio = args.propio === true
+    const arrendadorId = propio ? null : await exigirArrendador(client, yo, args.arrendadorId)
+    const predioId = propio
+      ? await resolverPredioPropio(client, yo, args.predio)
+      : await resolverPredio(client, yo, arrendadorId!, args.predio)
     // Pantalla representante del predio: `contratos_arrendamiento.sitio_id` es
     // NOT NULL, así que el contrato del predio guarda una de sus pantallas.
     let primerSitioDelPredio: string | null = null
@@ -637,7 +767,7 @@ export async function importarSitios(args: {
       }
       const conAdv = rows.some((r: any) => r.status === 'advertencia')
       const existente = p.codigo_proveedor
-        ? (await client.query('select id, fotos, imagen_promocional, tenant_id from sitios where codigo_proveedor=$1', [p.codigo_proveedor])).rows[0]
+        ? (await client.query('select id, fotos, imagen_promocional, tenant_id, propio from sitios where codigo_proveedor=$1', [p.codigo_proveedor])).rows[0]
         : null
       // Propiedad: si la pantalla ya existe y es de OTRO operador, no se puede
       // añadir ni sobreescribir — es de alguien más (red compartida con dueño).
@@ -665,7 +795,34 @@ export async function importarSitios(args: {
       const sufijoMod = rows.length > 1 ? ` (${rows.length} modalidades)` : ''
 
       if (existente && modoDuplicado === 'ACTUALIZAR') {
+        // Un lote PROPIA vale también para las que ya existían: se marcan con la
+        // misma regla que la ficha (`volverPropiaEnTx`). Va ANTES de pisar los
+        // datos para que una con renta vigente quede intacta entera, no a medias.
+        // La comprobación solo lee antes de lanzar, así que la transacción del
+        // lote sigue sana y las demás filas entran.
+        if (propio && existente.propio !== true) {
+          try {
+            await volverPropiaEnTx(client, yo, existente.id)
+          } catch (e) {
+            if (!(e instanceof AppError)) throw e
+            errores++
+            detalle.push({ codigo_proveedor: p.codigo_proveedor, status: 'error', mensaje: e.message })
+            continue
+          }
+        }
         await actualizarSitioCompleto(client, existente.id, base) // UPDATE en sitio (conserva reservas)
+        // Al revés NO se desmarca: volverla rentada exige elegir arrendador y
+        // abrir contrato, y eso es una decisión de su ficha, no de un Excel. Pero
+        // tampoco se calla: el lote decía «rentadas» y esta sigue siendo propia.
+        if (!propio && existente.propio === true) {
+          con_advertencias++
+          detalle.push({
+            codigo_proveedor: p.codigo_proveedor,
+            status: 'advertencia',
+            mensaje: `Actualizado${sufijoMod}${conImg}. Sigue como PROPIA: para que sea rentada, desmárcala en su ficha.`,
+          })
+          continue
+        }
         conAdv ? con_advertencias++ : actualizadas++
         detalle.push({ codigo_proveedor: p.codigo_proveedor, status: conAdv ? 'advertencia' : 'actualizado', mensaje: `Actualizado${sufijoMod}${conImg}` })
       } else {
@@ -680,7 +837,21 @@ export async function importarSitios(args: {
         // puede abrir, la pantalla tampoco entra. Media pantalla —cargada pero
         // sin rastro de a quién se le paga— es justo lo que este cambio evita.
         const nuevo = await insertarSitio(client, { ...base, codigoProveedor: codigo || null })
-        if (predioId) {
+        if (propio) {
+          // v0.12.3 · pantalla PROPIA: sin arrendador ni contrato. Si el lote va a
+          // un lugar propio, se cuelga de él (y tiene que estar donde está).
+          if (predioId) {
+            await exigirSitioEnElPredio(client, {
+              tenantId: yo,
+              predioId,
+              sitio: { lat: p.latitud, lng: p.longitud, direccion: p.direccion, nombre: p.nombre },
+            })
+          }
+          await client.query(
+            'update sitios set propio = true, predio_id = coalesce($3, predio_id) where id = $1 and tenant_id = $2',
+            [nuevo.id, yo, predioId],
+          )
+        } else if (predioId) {
           // Todas las pantallas del lote van al MISMO predio, así que cada una
           // tiene que estar donde está el predio. Si una viene de otra colonia
           // —un copiar/pegar en el Excel— aborta la carga entera: la
@@ -692,7 +863,7 @@ export async function importarSitios(args: {
           })
           // Un predio, un contrato: aquí solo se cuelga la pantalla. El contrato
           // se abre una vez al terminar el lote.
-          await ligarSitioAPredio(client, { tenantId: yo, sitioId: nuevo.id, arrendadorId, predioId })
+          await ligarSitioAPredio(client, { tenantId: yo, sitioId: nuevo.id, arrendadorId: arrendadorId!, predioId })
           primerSitioDelPredio ??= nuevo.id
           // Un predio tiene UN contrato para todas sus caras, así que su renta
           // es la del inmueble entero: se acumula la de cada pantalla del lote.
@@ -704,7 +875,7 @@ export async function importarSitios(args: {
           nuevasEnPredio++
         } else {
           await asignarArrendadorYAbrirContrato(client, {
-            tenantId: yo, sitioId: nuevo.id, arrendadorId,
+            tenantId: yo, sitioId: nuevo.id, arrendadorId: arrendadorId!,
             // Columna `renta_arrendador` del Excel. Una pantalla suelta tiene su
             // propio contrato, así que su renta va tal cual, sin ambigüedad.
             montoRenta: p.renta_arrendador ?? null,
@@ -717,9 +888,9 @@ export async function importarSitios(args: {
     // El contrato del predio, UNO para todo el lote. Si el predio ya tenía
     // contrato (lo comprueba abrirContratoDePredio) no se abre otro, y si la
     // carga no creó ninguna pantalla nueva no hay representante que anclar.
-    if (predioId && primerSitioDelPredio) {
+    if (!propio && predioId && primerSitioDelPredio) {
       await abrirContratoDePredio(client, {
-        tenantId: yo, predioId, arrendadorId, sitioId: primerSitioDelPredio,
+        tenantId: yo, predioId, arrendadorId: arrendadorId!, sitioId: primerSitioDelPredio,
         // Solo se fija el importe si TODAS las pantallas nuevas del lote lo
         // trajeron. Con una sola sin renta, la suma sería un total parcial —y un
         // total parcial es peor que ninguno: se leería como la renta completa del

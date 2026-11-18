@@ -1,5 +1,5 @@
 import 'server-only'
-import { q } from './db'
+import { q, q as qSesion, qConTenant } from './db'
 import { tenantActual } from './tenant'
 import type { SitioTarifable } from '@/lib/tarifa-calculada'
 import type { Temporada } from '@/lib/rejilla'
@@ -42,8 +42,13 @@ export type DatosParaTarifar = {
  * que no existe ya tiene su respuesta —«no tiene tarifa»— sin preguntarle a la
  * base.
  */
-export async function datosParaTarifar(sitioIds: string[]): Promise<DatosParaTarifar> {
-  const tenant = await tenantActual()
+export async function datosParaTarifar(sitioIds: string[], tenantId?: string): Promise<DatosParaTarifar> {
+  // `tenantId` solo lo pasa el congelado del snapshot cuando se aprueba por la
+  // liga PÚBLICA (B43): ahí no hay sesión de la que sacar el tenant. Mismo
+  // patrón que `congelarSnapshotEconomico`. Sin él, el de la sesión.
+  const tenant = tenantId ?? (await tenantActual())
+  const q = <T = any>(sql: string, params?: unknown[]) =>
+    tenantId ? qConTenant<T>(tenantId, sql, params) : qSesion<T>(sql, params)
   const ids = [...new Set(sitioIds.filter((s) => UUID_RE.test(s)))]
   // Mismo `where activo` y mismo orden que `listarTemporadas()` de
   // `rejilla-repo.ts`, que es de donde la pantalla saca las suyas: con el

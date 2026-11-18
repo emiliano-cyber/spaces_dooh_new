@@ -2,10 +2,14 @@
 
 import { toast } from 'sonner'
 import { useEffect, useRef, useState } from 'react'
-import { Images, Upload, Check, X, Clock, Code2, Eye, Download, RefreshCw, Trash2, AlertTriangle, Search } from 'lucide-react'
-import { Card } from '@/components/demo/ui/Card'
+import Link from 'next/link'
+import { Images, Upload, Check, X, Code2, Eye, Download, RefreshCw, Trash2, AlertTriangle, Search } from 'lucide-react'
+import { KPICard } from '@/components/demo/KPICard'
+import { StatusBadge, CREATIVIDAD_TONO } from '@/components/demo/StatusBadge'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { ConfirmDialog } from '@/components/demo/ui/ConfirmDialog'
 import { EmptyState } from '@/components/demo/EmptyState'
 import { usePuede } from '@/components/demo/shell/SesionContext'
@@ -21,6 +25,12 @@ import { imagenAHtml, IMAGEN_CREATIVO_MAX_MB } from '@/lib/creativo-html'
 import { soloDigitales } from '@/lib/creativos-digitales'
 import type { Campana, Creatividad, Reserva, Sitio, EstValidacionCreatividad } from '@/lib/data/types'
 import { formatNumero } from '@/lib/formato-numero'
+import { rotacionEnSpot } from '@/lib/reparto-creativos'
+import { useIdioma } from '@/lib/i18n/contexto'
+import type { ClaveTexto } from '@/lib/i18n/diccionario'
+import { interpolarNodos } from '@/lib/i18n/nodos'
+import { CLAVE_TIPO_CAMPANA } from '@/components/demo/campanas/etiquetas'
+import { numeroEnIdioma } from '@/lib/i18n/formato-idioma'
 
 // Si un creativo HTML es una imagen envuelta (ver imagenAHtml), devuelve su data
 // URL para mostrarlo como imagen en previews/miniaturas; si no, null.
@@ -95,6 +105,7 @@ export default function CreativosPage() {
   // de un return condicional.
   const [q, setQ] = useState('')
   const [filtro, setFiltro] = useState('')
+  const t = useIdioma().t
 
   if (!campanas || !creatividades || !reservas || !sitios) {
     return (
@@ -153,14 +164,50 @@ export default function CreativosPage() {
         b.creadoEn.localeCompare(a.creadoEn) || b.folio.localeCompare(a.folio),
     )
 
+  // Indicadores de la red (solo presentación, sobre lo ya cargado): los
+  // creativos y los spots de las campañas que esta pantalla gestiona. Un
+  // creativo pendiente frena la publicación, y antes había que abrir campaña
+  // por campaña para saber cuántos esperaban.
+  const idsGestionables = new Set(gestionables.map((c) => c.id))
+  const creasRed = creatividades.filter((cr) => idsGestionables.has(cr.campanaId))
+  const porAprobar = creasRed.filter((cr) => cr.estatusValidacion === 'PENDIENTE' && !cr.retiradoEn).length
+  const aprobadosRed = creasRed.filter((cr) => cr.estatusValidacion === 'VALIDADA' && !cr.retiradoEn).length
+  const rechazados = creasRed.filter((cr) => cr.estatusValidacion === 'RECHAZADA' && !cr.retiradoEn).length
+  const spotsRed = reservasDigitales.filter((r) => idsGestionables.has(r.campanaId))
+  const spotsSin = spotsRed.filter((r) => r.creativos.length === 0).length
+
   return (
     <div className="w-full space-y-4">
       <div>
-        <h1 className="text-2xl text-ink">Creativos</h1>
+        <h1 className="text-2xl text-ink">{t('nav.creativos')}</h1>
         <p className="mt-1 text-[13px] text-muted">
-          Sube y aprueba las imágenes de cada campaña, y asigna cuál va en cada slot reservado.
+          {t('operaciones2.creativos.descripcion')}
         </p>
       </div>
+
+      {gestionables.length > 0 && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <KPICard
+            label={t('operaciones2.creativos.kpi.por-aprobar')}
+            value={formatNumero(porAprobar)}
+            sub={t('operaciones2.creativos.kpi.frenan')}
+            tono={porAprobar > 0 ? 'ambar' : 'neutro'}
+          />
+          <KPICard label={t('operaciones2.creativos.kpi.aprobados')} value={formatNumero(aprobadosRed)} sub={t('operaciones2.creativos.kpi.listos')} />
+          <KPICard
+            label={t('operaciones2.creativos.kpi.rechazados')}
+            value={formatNumero(rechazados)}
+            sub={t('operaciones2.creativos.kpi.reemplazar')}
+            tono={rechazados > 0 ? 'rojo' : 'neutro'}
+          />
+          <KPICard
+            label={t('operaciones2.creativos.kpi.sin-creativo')}
+            value={formatNumero(spotsSin)}
+            sub={t(spotsRed.length === 1 ? 'operaciones2.creativos.kpi.de-spots.uno' : 'operaciones2.creativos.kpi.de-spots.otros', { n: formatNumero(spotsRed.length) })}
+            tono={spotsSin > 0 ? 'ambar' : 'neutro'}
+          />
+        </div>
+      )}
 
       {/* Filtro / búsqueda */}
       {gestionables.length > 0 && (
@@ -173,7 +220,7 @@ export default function CreativosPage() {
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Buscar por campaña, folio, cliente o nombre del creativo…"
+              placeholder={t('operaciones2.creativos.buscar')}
               className="h-9 w-full rounded border border-border-strong bg-surface pl-9 pr-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
             />
           </div>
@@ -182,31 +229,64 @@ export default function CreativosPage() {
             onChange={(e) => setFiltro(e.target.value)}
             className="h-9 rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
-            <option value="">Todos los creativos</option>
-            <option value="PENDIENTE">Con pendientes de aprobar</option>
-            <option value="VALIDADA">Con aprobados</option>
-            <option value="RECHAZADA">Con rechazados</option>
-            <option value="SIN">Sin creativos todavía</option>
+            <option value="">{t('operaciones2.creativos.filtro.todos')}</option>
+            <option value="PENDIENTE">{t('operaciones2.creativos.filtro.pendientes')}</option>
+            <option value="VALIDADA">{t('operaciones2.creativos.filtro.aprobados')}</option>
+            <option value="RECHAZADA">{t('operaciones2.creativos.filtro.rechazados')}</option>
+            <option value="SIN">{t('operaciones2.creativos.filtro.sin')}</option>
           </select>
           <span className="demo-num ml-auto text-[12px] text-muted">
-            {visibles.length} de {gestionables.length}
+            {t('operaciones2.comun.de', { a: visibles.length, b: gestionables.length })}
           </span>
         </div>
       )}
 
       {gestionables.length === 0 ? (
-        <EmptyState
-          icon={Images}
-          titulo="Sin campañas con slots o creativos"
-          detalle="Reserva sitios en Comercial o sube un creativo para gestionarlos aquí."
-        />
+        // Vacío honesto: si HAY campañas pero ninguna tiene pantallas
+        // digitales, la razón es esa (esta pantalla solo gestiona digitales,
+        // `soloDigitales`), y mandar a «reservar sitios» era inútil. El arte de
+        // los medios fijos se lleva en Imprenta.
+        campanas.length > 0 && campanasDigitales.length === 0 ? (
+          <EmptyState
+            icon={Images}
+            titulo={t('operaciones2.creativos.vacio.sin-digitales')}
+            detalle={t(
+              campanas.length === 1
+                ? 'operaciones2.creativos.vacio.sin-digitales-detalle.uno'
+                : 'operaciones2.creativos.vacio.sin-digitales-detalle.otros',
+              { n: formatNumero(campanas.length) },
+            )}
+            accion={
+              <Link href="/imprenta">
+                <Button variant="secondary">{t('operaciones2.creativos.vacio.ir-imprenta')}</Button>
+              </Link>
+            }
+          />
+        ) : (
+          <EmptyState
+            icon={Images}
+            titulo={t('operaciones2.creativos.vacio.sin-campanas')}
+            detalle={t('operaciones2.creativos.vacio.sin-campanas-detalle')}
+          />
+        )
       ) : visibles.length === 0 ? (
         // Distinto del vacío de arriba: aquí SÍ hay campañas, solo que ninguna
         // pasa el filtro. Decirlo evita que parezca que se perdieron los datos.
         <EmptyState
           icon={Search}
-          titulo="Ninguna campaña coincide"
-          detalle="Prueba con otro texto de búsqueda o quita el filtro de estado."
+          titulo={t('operaciones2.creativos.vacio.ninguna')}
+          detalle={t('operaciones2.creativos.vacio.ninguna-detalle')}
+          accion={
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setQ('')
+                setFiltro('')
+              }}
+            >
+              {t('operaciones2.creativos.limpiar')}
+            </Button>
+          }
         />
       ) : (
         visibles.map((c) => (
@@ -237,6 +317,13 @@ function CampanaCard({
   sitios: Sitio[]
   puede: boolean
 }) {
+  const { t, idioma } = useIdioma()
+  // El tipo de campaña (OOH/DOOH/HIBRIDA) es un enum: en español, el dato tal
+  // cual, como siempre; en inglés, la clave de Campañas («Hybrid»).
+  const tipoCampana =
+    idioma !== 'es' && campana.tipoCampana && CLAVE_TIPO_CAMPANA[campana.tipoCampana]
+      ? t(CLAVE_TIPO_CAMPANA[campana.tipoCampana])
+      : campana.tipoCampana
   const fileRef = useRef<HTMLInputElement | null>(null)
   const reemplazarRef = useRef<HTMLInputElement | null>(null)
   const [subiendo, setSubiendo] = useState(false)
@@ -244,6 +331,9 @@ function CampanaCard({
   const [codeOpen, setCodeOpen] = useState(false)
   const [codeNombre, setCodeNombre] = useState('')
   const [codigo, setCodigo] = useState('')
+  // OBLIG-01 · en el alta por código, el código es lo único obligatorio; el
+  // nombre cae a «Creativo (código)» (el servidor sí lo exige, y lo recibe así).
+  const ob = useObligatorios({ codigo }, ['codigo'])
   // Creativo cuyo HTML se está viendo en el modal (null = cerrado).
   const [verFuente, setVerFuente] = useState<Creatividad | null>(null)
   // La fuente se PIDE al abrir el modal. Antes venía dentro del payload de
@@ -274,17 +364,22 @@ function CampanaCard({
   const [reemplazarId, setReemplazarId] = useState<string | null>(null)
   // Creativo cuya eliminación se está confirmando (null = cerrado).
   const [confirmarEliminar, setConfirmarEliminar] = useState<Creatividad | null>(null)
+  // Creativo aprobado cuyo reemplazo se está confirmando (recordatorio DOOHmain).
+  const [confirmarReemplazo, setConfirmarReemplazo] = useState<Creatividad | null>(null)
 
   // Aprobados y asignables: excluye los retirados (siguen en DOOHmain, pero ya no
   // se pueden asignar a spots desde aquí).
   const aprobados = creativos.filter((cr) => cr.estatusValidacion === 'VALIDADA' && !cr.retiradoEn)
+  // Para los chips del encabezado de la tarjeta (solo presentación).
+  const pendientesAqui = creativos.filter((cr) => cr.estatusValidacion === 'PENDIENTE' && !cr.retiradoEn).length
+  const spotsSinAqui = reservas.filter((r) => r.creativos.length === 0).length
 
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
     e.target.value = ''
     if (!f) return
     if (f.size > IMAGEN_CREATIVO_MAX_MB * 1024 * 1024) {
-      toast.error(`La imagen supera ${IMAGEN_CREATIVO_MAX_MB} MB`)
+      toast.error(t('operaciones2.creativos.imagen-supera', { mb: IMAGEN_CREATIVO_MAX_MB }))
       return
     }
     setSubiendo(true)
@@ -300,7 +395,7 @@ function CampanaCard({
           formato: 'text/html',
         })
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'No se pudo subir')
+        toast.error(err instanceof Error ? err.message : t('operaciones2.creativos.no-subir'))
       }
       setSubiendo(false)
     }
@@ -308,7 +403,7 @@ function CampanaCard({
   }
 
   async function guardarCodigo() {
-    if (!codigo.trim()) return
+    if (!ob.validar()) return
     setSubiendo(true)
     try {
       await crearCreatividadApi({
@@ -320,20 +415,21 @@ function CampanaCard({
       setCodigo('')
       setCodeNombre('')
       setCodeOpen(false)
+      ob.reiniciar()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'No se pudo guardar')
+      toast.error(err instanceof Error ? err.message : t('operaciones2.creativos.no-guardar'))
     }
     setSubiendo(false)
   }
 
   async function validar(id: string, aprobar: boolean) {
     let motivo: string | undefined
-    if (!aprobar) motivo = window.prompt('Motivo de rechazo (opcional):') ?? undefined
+    if (!aprobar) motivo = window.prompt(t('operaciones2.creativos.motivo-rechazo')) ?? undefined
     setBusy(id)
     try {
       await validarCreatividadApi(id, aprobar, motivo)
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'No se pudo validar')
+      toast.error(e instanceof Error ? e.message : t('operaciones2.creativos.no-validar'))
     }
     setBusy(null)
   }
@@ -348,18 +444,34 @@ function CampanaCard({
       const res = await eliminarCreatividadApi(cr.id)
       toast.success(
         res?.pendienteEnDoohmain
-          ? `“${cr.nombre}” se retiró. Su arte sigue en DOOHmain — quítalo en su panel`
-          : `“${cr.nombre}” se eliminó`,
+          ? t('operaciones2.creativos.retirado-doohmain', { nombre: cr.nombre })
+          : t('operaciones2.creativos.eliminado', { nombre: cr.nombre }),
       )
       setConfirmarEliminar(null)
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'No se pudo eliminar')
+      toast.error(e instanceof Error ? e.message : t('operaciones2.creativos.no-eliminar'))
     }
     setBusy(null)
   }
 
   // Reemplaza el arte de un creativo: abre el selector de imagen.
+  //
+  // 29/10 · pedido del dueño: si el creativo ya está aprobado (y por tanto
+  // puede estar publicado en DOOHmain), ANTES de elegir el arte nuevo se avisa
+  // que el anterior se baja del aire solo y se recuerda eliminar su campaña
+  // en el panel de DOOHmain: la API no deja quitarla desde aquí, y la nueva
+  // lleva el mismo nombre, así que en la lista quedarían las dos.
   function pedirReemplazo(cr: Creatividad) {
+    if (cr.estatusValidacion === 'VALIDADA') {
+      setConfirmarReemplazo(cr)
+      return
+    }
+    abrirSelectorReemplazo(cr)
+  }
+
+  // Síncrono a propósito: el navegador solo abre el selector de archivos si
+  // el `click()` sale del mismo gesto del usuario (el botón o la confirmación).
+  function abrirSelectorReemplazo(cr: Creatividad) {
     setReemplazarId(cr.id)
     reemplazarRef.current?.click()
   }
@@ -370,7 +482,7 @@ function CampanaCard({
     const id = reemplazarId
     if (!f || !id) return
     if (f.size > IMAGEN_CREATIVO_MAX_MB * 1024 * 1024) {
-      toast.error(`La imagen supera ${IMAGEN_CREATIVO_MAX_MB} MB`)
+      toast.error(t('operaciones2.creativos.imagen-supera', { mb: IMAGEN_CREATIVO_MAX_MB }))
       return
     }
     setBusy(id)
@@ -383,13 +495,18 @@ function CampanaCard({
           codigo: imagenAHtml(dataUrl, f.name),
           formato: 'text/html',
         })
+        // v0.12.3 · el dueño vio en DOOHmain «las 3 imágenes»: el arte viejo
+        // SIGUE en la lista de DOOHmain, porque su API no deja quitarlo; lo que
+        // se hace es finalizar su campaña para que no se reproduzca. Se dice,
+        // para que no parezca que se subió de más.
         toast.success(
           res?.doohmain?.estado === 'retirado'
-            ? 'Arte reemplazado. El anterior se retiró de DOOHmain; apruébalo de nuevo para publicar el nuevo.'
-            : 'Arte reemplazado. Apruébalo de nuevo para publicarlo.',
+            ? t('operaciones2.creativos.reemplazado-doohmain')
+            : t('operaciones2.creativos.reemplazado'),
+          { duration: 10000 },
         )
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'No se pudo reemplazar')
+        toast.error(err instanceof Error ? err.message : t('operaciones2.creativos.no-reemplazar'))
       }
       setBusy(null)
       setReemplazarId(null)
@@ -403,16 +520,23 @@ function CampanaCard({
     try {
       await asignarCreativosApi(reserva.id, creativos)
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'No se pudo asignar')
+      toast.error(e instanceof Error ? e.message : t('operaciones2.creativos.no-asignar'))
     }
     setBusy(null)
   }
 
-  // Spot DIGITAL: ajusta cuántas veces se reproduce un creativo (0 = lo quita).
-  function setVeces(reserva: Reserva, creatividadId: string, veces: number) {
-    const otros = reserva.creativos.filter((c) => c.creatividadId !== creatividadId)
-    const next = veces > 0 ? [...otros, { creatividadId, veces }] : otros
-    void guardarCreativos(reserva, next)
+  // Spot DIGITAL (v0.12.3, pedido del dueño): se marca o se desmarca un creativo
+  // y las veces se calculan solas —todos los marcados rotan en partes iguales,
+  // `rotacionEnSpot`—. Antes había que escribir un número por creativo, y con
+  // dos creativos en un spot de 1 la cuenta «2 de 1» salía en rojo.
+  function alternarEnRotacion(reserva: Reserva, creatividadId: string) {
+    const marcados = new Set(reserva.creativos.map((c) => c.creatividadId))
+    if (marcados.has(creatividadId)) marcados.delete(creatividadId)
+    else marcados.add(creatividadId)
+    // El orden de los aprobados manda: así el reparto sale igual que el que hace
+    // el servidor al aprobar, y se sigue reconociendo como automático.
+    const ids = aprobados.map((cr) => cr.id).filter((id) => marcados.has(id))
+    void guardarCreativos(reserva, rotacionEnSpot(ids, reserva.spotsPorDia ?? null))
   }
 
   // Spot FIJO: una sola imagen (o ninguna).
@@ -420,49 +544,82 @@ function CampanaCard({
     void guardarCreativos(reserva, creatividadId ? [{ creatividadId, veces: 1 }] : [])
   }
 
+  // PLEG-01 · cada campaña se pliega por separado y lo recuerda por su id. Los
+  // `input` de archivo van en `accion`, que no se desmonta al plegar: el de
+  // «Reemplazar» se dispara desde dentro del contenido. El alta por código
+  // sobrevive al plegado porque su texto vive en el estado de este componente,
+  // no en el contenido que se desmonta. Los diálogos quedan FUERA de la tarjeta.
   return (
-    <Card className="space-y-4 p-4">
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <div className="truncate text-[14px] font-medium text-ink">{campana.nombre}</div>
-          <div className="demo-num text-[12px] text-muted">
-            {campana.folio} · {campana.tipoCampana}
-          </div>
-        </div>
-        {puede && (
+    <>
+    <CardColapsable
+      id={`creativos.campana.${campana.id}`}
+      titulo={campana.nombre}
+      subtitulo={
+        // Conteos de la campaña en chips (lenguaje del Dashboard), para ver lo
+        // pendiente sin desplegar. `CardColapsable` no cambia: solo el nodo.
+        <span className="inline-flex flex-wrap items-center gap-1.5">
+          <span className="demo-num">{[campana.folio, tipoCampana].filter(Boolean).join(' · ')}</span>
+          {pendientesAqui > 0 && (
+            <span className="rounded-full border border-transparent bg-warning-soft px-2 py-0.5 text-[11px] font-medium text-[#9a6700]">
+              {t('operaciones2.creativos.chip.por-aprobar', { n: pendientesAqui })}
+            </span>
+          )}
+          {reservas.length > 0 && (
+            <span className="demo-num rounded-full border border-border px-2 py-0.5 text-[11px] text-muted">
+              {t('operaciones2.creativos.chip.spots-con', { con: reservas.length - spotsSinAqui, total: reservas.length })}
+            </span>
+          )}
+        </span>
+      }
+      contentClassName="space-y-4"
+      accion={
+        puede ? (
           <div className="flex shrink-0 gap-2">
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
             <input ref={reemplazarRef} type="file" accept="image/*" className="hidden" onChange={onReemplazoFile} />
             <Button variant="success" size="sm" disabled={subiendo} onClick={() => fileRef.current?.click()}>
-              <Upload className="h-3.5 w-3.5" /> Imagen
+              <Upload className="h-3.5 w-3.5" /> {t('operaciones2.creativos.imagen')}
             </Button>
             <Button size="sm" variant="secondary" disabled={subiendo} onClick={() => setCodeOpen((v) => !v)}>
-              <Code2 className="h-3.5 w-3.5" /> Código
+              <Code2 className="h-3.5 w-3.5" /> {t('operaciones2.creativos.codigo')}
             </Button>
           </div>
-        )}
-      </div>
+        ) : undefined
+      }
+    >
 
       {/* Alta por código (HTML/UTF) */}
       {puede && codeOpen && (
         <div className="space-y-2 rounded-md border border-border bg-surface-2 p-2.5">
-          <input
-            value={codeNombre}
-            onChange={(e) => setCodeNombre(e.target.value)}
-            placeholder="Nombre del creativo (opcional)"
-            className="h-8 w-full rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          />
-          <textarea
-            value={codigo}
-            onChange={(e) => setCodigo(e.target.value)}
-            placeholder="Pega aquí el código del creativo (HTML/UTF)…"
-            rows={5}
-            className="w-full rounded border border-border-strong bg-surface px-2 py-1.5 font-mono text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          />
+          <Campo label={t('operaciones2.creativos.nombre')}>
+            <input
+              value={codeNombre}
+              onChange={(e) => setCodeNombre(e.target.value)}
+              className="h-8 w-full rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            />
+          </Campo>
+          <Campo label={t('operaciones2.creativos.codigo')} obligatorio falta={ob.falta('codigo')}>
+            <textarea
+              value={codigo}
+              onChange={(e) => setCodigo(e.target.value)}
+              placeholder={t('operaciones2.creativos.codigo-ej')}
+              rows={5}
+              className="w-full rounded border border-border-strong bg-surface px-2 py-1.5 font-mono text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            />
+          </Campo>
           <div className="flex justify-end gap-2">
-            <Button size="sm" variant="secondary" onClick={() => setCodeOpen(false)}>Cancelar</Button>
-            <Button size="sm" disabled={!codigo.trim() || subiendo} onClick={guardarCodigo}>
-              {subiendo ? 'Guardando…' : 'Guardar código'}
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                setCodeOpen(false)
+                ob.reiniciar()
+              }}
+            >
+              {t('comun.cancelar')}
+            </Button>
+            <Button size="sm" disabled={subiendo} onClick={guardarCodigo}>
+              {subiendo ? t('operaciones2.comun.guardando') : t('operaciones2.creativos.guardar-codigo')}
             </Button>
           </div>
         </div>
@@ -470,9 +627,9 @@ function CampanaCard({
 
       {/* Creativos */}
       <div>
-        <div className="mb-2 text-[12px] font-medium text-muted">Creativos ({creativos.length})</div>
+        <div className="mb-2 text-[12px] font-medium text-muted">{t('operaciones2.creativos.lista', { n: creativos.length })}</div>
         {creativos.length === 0 ? (
-          <p className="text-[12px] text-muted">Sin creativos. Sube una imagen para aprobarla.</p>
+          <p className="text-[12px] text-muted">{t('operaciones2.creativos.sin-creativos')}</p>
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {creativos.map((cr) => (
@@ -521,16 +678,16 @@ function CampanaCard({
                         código. */}
                     {esCreativoHtml(cr) && (
                       <span className="inline-flex shrink-0 items-center gap-0.5 rounded bg-surface-2 px-1 text-[10px] text-muted">
-                        <Code2 className="h-2.5 w-2.5" /> código
+                        <Code2 className="h-2.5 w-2.5" /> {t('operaciones2.creativos.etiqueta-codigo')}
                       </span>
                     )}
                   </div>
                   {cr.retiradoEn ? (
                     <div
-                      className="inline-flex items-center gap-1 rounded-full border border-[#f59e0b40] bg-warning-soft px-2 py-0.5 text-[10px] font-medium text-[#9a6700]"
-                      title="Retirado del sistema; su arte sigue en DOOHmain (quítalo en su panel)"
+                      className="inline-flex items-center gap-1 rounded-full border border-transparent bg-warning-soft px-2 py-0.5 text-[10px] font-medium text-[#9a6700]"
+                      title={t('operaciones2.creativos.retirado-title')}
                     >
-                      <AlertTriangle className="h-2.5 w-2.5" /> Retirado · pendiente en DOOHmain
+                      <AlertTriangle className="h-2.5 w-2.5" /> {t('operaciones2.creativos.retirado')}
                     </div>
                   ) : (
                     <EstadoCrea estatus={cr.estatusValidacion} motivo={cr.rechazadoMotivo} />
@@ -538,63 +695,75 @@ function CampanaCard({
                   {/* Por `formato`, no por el contenido: la fuente ya no viaja
                       en el payload, así que preguntar por ella aquí escondería
                       el botón en todos los creativos de código. */}
+                  {/* «Ver HTML» como enlace pequeño, junto a la etiqueta
+                      «código» de arriba: no compite con las acciones. */}
                   {esCreativoHtml(cr) && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 gap-1 px-2 text-[12px]"
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 bg-transparent text-[11px] font-medium text-info hover:underline"
                       onClick={() => setVerFuente(cr)}
                     >
-                      <Eye className="h-3 w-3" /> Ver HTML
-                    </Button>
+                      <Eye className="h-3 w-3" /> {t('operaciones2.creativos.ver-html')}
+                    </button>
                   )}
+                  {/* UNA fila de acciones (antes, cuatro botones en dos filas
+                      bajo una miniatura de 112 px). Mismos handlers, mismo
+                      `disabled` y mismo permiso; Reemplazar y Eliminar pasan a
+                      iconos con su nombre en `aria-label` y `title`. */}
                   {puede && !cr.retiradoEn && (
-                    <div className="space-y-1.5">
-                      <div className="flex gap-1.5">
-                        {/* Aprobar es definitivo: una vez aprobado, el botón queda
-                            deshabilitado hasta que se reemplace o elimine el creativo
-                            (al reemplazar vuelve a PENDIENTE). */}
+                    <div className="flex flex-wrap items-center gap-1">
+                      {/* Aprobar es definitivo: una vez aprobado, el botón queda
+                          deshabilitado hasta que se reemplace o elimine el creativo
+                          (al reemplazar vuelve a PENDIENTE). Se queda VISIBLE con su
+                          explicación en `title`: el rediseño del 26/10 lo había
+                          escondido y con él se perdía el porqué (lo cazó la
+                          validación). */}
+                      <Button
+                        size="sm"
+                        variant={cr.estatusValidacion === 'VALIDADA' ? 'secondary' : 'primary'}
+                        className="px-2"
+                        disabled={busy === cr.id || cr.estatusValidacion === 'VALIDADA'}
+                        title={cr.estatusValidacion === 'VALIDADA' ? t('operaciones2.creativos.ya-aprobado') : undefined}
+                        onClick={() => validar(cr.id, true)}
+                      >
+                        <Check className="h-3 w-3" /> {t('operaciones2.creativos.aprobar')}
+                      </Button>
+                      {/* Rechazar: se quita cuando el creativo ya fue aprobado. */}
+                      {cr.estatusValidacion !== 'VALIDADA' && (
                         <Button
                           size="sm"
-                          variant={cr.estatusValidacion === 'VALIDADA' ? 'secondary' : 'primary'}
-                          disabled={busy === cr.id || cr.estatusValidacion === 'VALIDADA'}
-                          title={cr.estatusValidacion === 'VALIDADA' ? 'El creativo ya fue aprobado — reemplázalo o elimínalo para cambiarlo' : undefined}
-                          onClick={() => validar(cr.id, true)}
+                          variant="ghost"
+                          className="px-2 text-error hover:bg-error-soft"
+                          disabled={busy === cr.id}
+                          onClick={() => validar(cr.id, false)}
                         >
-                          <Check className="h-3 w-3" /> Aprobar
+                          <X className="h-3 w-3" /> {t('operaciones2.creativos.rechazar')}
                         </Button>
-                        {/* Rechazar: se quita cuando el creativo ya fue aprobado. */}
-                        {cr.estatusValidacion !== 'VALIDADA' && (
-                          <Button
-                            size="sm"
-                            variant="danger"
-                            disabled={busy === cr.id}
-                            onClick={() => validar(cr.id, false)}
-                          >
-                            <X className="h-3 w-3" /> Rechazar
-                          </Button>
-                        )}
-                      </div>
-                      <div className="flex gap-1.5">
+                      )}
+                      <span className="ml-auto inline-flex items-center">
                         <Button
                           size="sm"
-                          variant="secondary"
-                          className="h-7 gap-1 px-2 text-[12px]"
+                          variant="ghost"
+                          className="px-1.5"
+                          aria-label={t('operaciones2.creativos.reemplazar-de', { nombre: cr.nombre })}
+                          title={t('operaciones2.creativos.reemplazar')}
                           disabled={busy === cr.id}
                           onClick={() => pedirReemplazo(cr)}
                         >
-                          <RefreshCw className="h-3 w-3" /> Reemplazar
+                          <RefreshCw className="h-3.5 w-3.5" />
                         </Button>
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="h-7 gap-1 px-2 text-[12px] text-error hover:bg-error-soft"
+                          className="px-1.5 text-error hover:bg-error-soft"
+                          aria-label={t('operaciones2.creativos.eliminar-de', { nombre: cr.nombre })}
+                          title={t('operaciones2.creativos.eliminar')}
                           disabled={busy === cr.id}
                           onClick={() => setConfirmarEliminar(cr)}
                         >
-                          <Trash2 className="h-3 w-3" /> Eliminar
+                          <Trash2 className="h-3.5 w-3.5" />
                         </Button>
-                      </div>
+                      </span>
                     </div>
                   )}
                 </div>
@@ -607,61 +776,63 @@ function CampanaCard({
       {/* Spots reservados */}
       <div className="border-t border-border pt-3">
         <div className="mb-2 flex items-center justify-between gap-2">
-          <div className="text-[12px] font-medium text-muted">Slots reservados ({reservas.length})</div>
+          <div className="text-[12px] font-medium text-muted">{t('operaciones2.creativos.slots', { n: reservas.length })}</div>
           {/* El botón de reparto masivo se quitó el 2026-09-30 a pedido del
               dueño. La ruta de reparto y su repo siguen; para volver, revertir
               ese commit. */}
         </div>
         {reservas.length === 0 ? (
-          <p className="text-[12px] text-muted">Sin slots reservados todavía.</p>
+          <p className="text-[12px] text-muted">{t('operaciones2.creativos.sin-slots')}</p>
         ) : (
-          <ul className="space-y-3">
+          // Lista `divide-y` en vez de una caja con borde por spot (bordes
+          // anidados dentro de la tarjeta), y lo que falta —«Sin creativo»— en
+          // una pastilla a la derecha, no en gris pequeño.
+          <ul className="m-0 list-none divide-y divide-border p-0">
             {reservas.map((r) => {
               const sitio = sitios.find((s) => s.id === r.sitioId)
               const digital = r.spotsReservados != null
-              const usados = r.creativos.reduce((a, c) => a + c.veces, 0)
-              const excede = r.spotsReservados != null && usados > r.spotsReservados
               const unico = aprobados.find((cr) => cr.id === r.creativos[0]?.creatividadId)
               return (
-                <li key={r.id} className="rounded border border-border bg-surface p-2.5">
+                <li key={r.id} className="py-2.5 first:pt-0 last:pb-0">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="truncate text-[13px] font-medium text-ink">{sitio?.nombre ?? 'Sitio'}</div>
+                    <div className="truncate text-[13px] font-medium text-ink">{sitio?.nombre ?? t('operaciones2.creativos.sitio')}</div>
                     {digital && (
-                      <div className="demo-num text-[11px] text-muted">
-                        <span className={excede ? 'font-semibold text-error' : 'text-ink'}>{formatNumero(usados)}</span>
-                        /{formatNumero(r.spotsReservados)} spots asignados
-                      </div>
+                      r.creativos.length === 0 ? (
+                        <span className="shrink-0 rounded-full border border-transparent bg-warning-soft px-2 py-0.5 text-[11px] font-medium text-[#9a6700]">
+                          {t('operaciones2.creativos.sin-creativo')}
+                        </span>
+                      ) : (
+                        <span className="demo-num shrink-0 rounded-full border border-border px-2 py-0.5 text-[11px] text-muted">
+                          {r.creativos.length === 1 ? t('operaciones2.creativos.rotan.uno') : t('operaciones2.creativos.rotan.otros', { n: r.creativos.length })}
+                        </span>
+                      )
                     )}
                   </div>
 
                   {aprobados.length === 0 ? (
-                    <p className="mt-1 text-[11px] text-muted">Aprueba un creativo para asignarlo aquí.</p>
+                    <p className="mt-1 text-[11px] text-muted">{t('operaciones2.creativos.aprueba-uno')}</p>
                   ) : digital ? (
-                    // Spot digital: cada creativo con cuántas veces se reproduce.
+                    // Spot digital: se marcan los creativos que van; rotan solos.
                     <div className="mt-2 space-y-1.5">
                       {aprobados.map((cr) => {
                         const veces = r.creativos.find((x) => x.creatividadId === cr.id)?.veces ?? 0
                         return (
-                          <div key={cr.id} className="flex items-center justify-between gap-2">
+                          <label key={cr.id} className="flex cursor-pointer items-center justify-between gap-2">
                             <div className="flex min-w-0 items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={veces > 0}
+                                disabled={!puede || busy === r.id}
+                                onChange={() => alternarEnRotacion(r, cr.id)}
+                                className="h-4 w-4 shrink-0"
+                              />
                               <Thumb cr={cr} className="h-7 w-7" />
                               <span className="truncate text-[12px] text-ink">{cr.nombre}</span>
                             </div>
-                            <div className="flex shrink-0 items-center gap-1">
-                              <input
-                                type="number"
-                                min={0}
-                                max={r.spotsReservados ?? undefined}
-                                value={veces}
-                                disabled={!puede || busy === r.id}
-                                onChange={(e) =>
-                                  setVeces(r, cr.id, Math.max(0, Math.round(Number(e.target.value) || 0)))
-                                }
-                                className="demo-num h-7 w-16 rounded border border-border-strong bg-surface px-2 text-right text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                              />
-                              <span className="text-[11px] text-muted">veces</span>
-                            </div>
-                          </div>
+                            {veces > 0 && r.spotsPorDia != null && (
+                              <span className="demo-num shrink-0 text-[11px] text-muted">×{formatNumero(veces)}</span>
+                            )}
+                          </label>
                         )
                       })}
                     </div>
@@ -670,7 +841,7 @@ function CampanaCard({
                     <div className="mt-2 flex items-center justify-between gap-2">
                       <div className="flex min-w-0 items-center gap-2">
                         <Thumb cr={unico} className="h-8 w-8" />
-                        <span className="text-[12px] text-muted">Creativo del sitio</span>
+                        <span className="text-[12px] text-muted">{t('operaciones2.creativos.del-sitio')}</span>
                       </div>
                       {puede && (
                         <select
@@ -679,7 +850,7 @@ function CampanaCard({
                           onChange={(e) => setUnico(r, e.target.value)}
                           className="h-8 max-w-[180px] rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
                         >
-                          <option value="">Sin asignar</option>
+                          <option value="">{t('operaciones2.comun.sin-asignar')}</option>
                           {aprobados.map((cr) => (
                             <option key={cr.id} value={cr.id}>{cr.nombre}</option>
                           ))}
@@ -694,10 +865,11 @@ function CampanaCard({
         )}
         {aprobados.length === 0 && reservas.length > 0 && (
           <p className="mt-2 text-[11px] text-muted">
-            Aprueba al menos un creativo para poder asignarlo a los slots.
+            {t('operaciones2.creativos.aprueba-al-menos')}
           </p>
         )}
       </div>
+    </CardColapsable>
 
       {/* Fuente HTML del creativo. Se pinta como texto ({fuente} en un <pre>, que
           React escapa), nunca como HTML: los creativos pueden venir de clientes
@@ -705,12 +877,15 @@ function CampanaCard({
       <Modal
         open={verFuente !== null}
         onOpenChange={(v) => !v && setVerFuente(null)}
-        title={verFuente?.nombre ?? 'Creativo'}
+        title={verFuente?.nombre ?? t('operaciones2.creativos.creativo')}
         subtitle={
           verFuente
             ? cargandoFuente
-              ? `${verFuente.formato ?? 'HTML'} · cargando…`
-              : `${verFuente.formato ?? 'HTML'} · ${(fuente ?? '').length.toLocaleString('es-MX')} caracteres`
+              ? t('operaciones2.creativos.fuente.cargando', { formato: verFuente.formato ?? 'HTML' })
+              : t('operaciones2.creativos.fuente.caracteres', {
+                  formato: verFuente.formato ?? 'HTML',
+                  n: numeroEnIdioma((fuente ?? '').length, idioma),
+                })
             : undefined
         }
         size="xl"
@@ -724,40 +899,66 @@ function CampanaCard({
                 if (fuente && verFuente) descargarHtml(verFuente.nombre, fuente)
               }}
             >
-              <Download className="h-3.5 w-3.5" /> Descargar .html
+              <Download className="h-3.5 w-3.5" /> {t('operaciones2.creativos.descargar')}
             </Button>
-            <Button size="sm" onClick={() => setVerFuente(null)}>Cerrar</Button>
+            <Button size="sm" onClick={() => setVerFuente(null)}>{t('comun.cerrar')}</Button>
           </div>
         }
       >
         <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap break-all rounded border border-border bg-surface-2 p-3 font-mono text-[12px] leading-relaxed text-ink">
           {cargandoFuente
-            ? 'Cargando la fuente…'
-            : fuente ?? 'No se pudo cargar la fuente de este creativo.'}
+            ? t('operaciones2.creativos.fuente.cargando-texto')
+            : fuente ?? t('operaciones2.creativos.fuente.no-cargar')}
         </pre>
       </Modal>
 
       <ConfirmDialog
         open={confirmarEliminar !== null}
         onOpenChange={(v) => !v && setConfirmarEliminar(null)}
-        title="Eliminar creativo"
-        confirmLabel="Sí, eliminar"
+        title={t('operaciones2.creativos.eliminar.titulo')}
+        confirmLabel={t('operaciones2.creativos.eliminar.si')}
         busy={busy !== null && busy === confirmarEliminar?.id}
         onConfirm={confirmarEliminarDo}
       >
-        ¿Seguro que quieres bajar{' '}
-        <span className="font-medium text-ink">“{confirmarEliminar?.nombre}”</span>? Si ya está
-        publicado, su campaña se finaliza, pero <span className="text-ink">el arte no se puede
-        quitar de DOOHmain</span> (su API no lo permite): quedará marcado como “pendiente en DOOHmain”
-        para que lo quites en su panel.
+        {interpolarNodos(t('operaciones2.creativos.eliminar.cuerpo'), {
+          nombre: <span className="font-medium text-ink">“{confirmarEliminar?.nombre}”</span>,
+          arte: <span className="text-ink">{t('operaciones2.creativos.eliminar.arte')}</span>,
+        })}
       </ConfirmDialog>
-    </Card>
+
+      <ConfirmDialog
+        open={confirmarReemplazo !== null}
+        onOpenChange={(v) => !v && setConfirmarReemplazo(null)}
+        title={t('operaciones2.creativos.reemplazar')}
+        confirmLabel={t('operaciones2.creativos.reemplazo.elegir')}
+        variant="primary"
+        onConfirm={() => {
+          const cr = confirmarReemplazo
+          setConfirmarReemplazo(null)
+          if (cr) abrirSelectorReemplazo(cr)
+        }}
+      >
+        <p>
+          {interpolarNodos(t('operaciones2.creativos.reemplazo.cuerpo'), {
+            nombre: <span className="font-medium text-ink">“{confirmarReemplazo?.nombre}”</span>,
+            orden: <span className="text-ink">{t('operaciones2.creativos.reemplazo.orden')}</span>,
+          })}
+        </p>
+        <p className="mt-2 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-[12px] text-amber-900">
+          {interpolarNodos(t('operaciones2.creativos.reemplazo.recordatorio'), {
+            recordatorio: <span className="font-medium">{t('operaciones2.creativos.reemplazo.recordatorio-etiqueta')}</span>,
+            elimina: <span className="font-medium">{t('operaciones2.creativos.reemplazo.elimina')}</span>,
+          })}
+        </p>
+      </ConfirmDialog>
+    </>
   )
 }
 
 // Miniatura de un creativo: imagen si la hay, icono de código si es código,
 // o placeholder si no hay nada asignado.
 function Thumb({ cr, className }: { cr?: Creatividad; className: string }) {
+  const t = useIdioma().t
   // Igual que en la rejilla, y aquí importa MÁS: esta miniatura se repite por
   // cada creativo Y por cada pantalla en la asignación de slots, así que un
   // <iframe> de 1 MB por pieza se multiplica rápido.
@@ -768,7 +969,7 @@ function Thumb({ cr, className }: { cr?: Creatividad; className: string }) {
   if (esCreativoHtml(cr)) {
     return (
       <iframe
-        title={cr?.nombre ?? 'creativo'}
+        title={cr?.nombre ?? t('operaciones2.creativos.creativo-min')}
         src={cr!.archivoUrl!}
         sandbox=""
         className={`${className} shrink-0 rounded border border-border bg-white`}
@@ -789,18 +990,29 @@ function Thumb({ cr, className }: { cr?: Creatividad; className: string }) {
   )
 }
 
+// El estado en el mismo chip (`StatusBadge` con `CREATIVIDAD_TONO`) que usa el
+// detalle de la campaña: antes aquí era texto con icono y allá un chip, lo mismo
+// dicho de dos formas. Se conservan las palabras de esta pantalla («Aprobado»),
+// que son las de sus botones. El motivo de un rechazo va en su propia línea, a
+// la vista, y no escondido en un `title`.
 function EstadoCrea({ estatus, motivo }: { estatus: EstValidacionCreatividad; motivo: string | null }) {
-  const map: Record<string, { label: string; cls: string; Icon: typeof Check }> = {
-    PENDIENTE: { label: 'Pendiente', cls: 'text-warning', Icon: Clock },
-    VALIDADA: { label: 'Aprobado', cls: 'text-success', Icon: Check },
-    RECHAZADA: { label: 'Rechazado', cls: 'text-error', Icon: X },
+  const t = useIdioma().t
+  const label: Record<string, string> = {
+    PENDIENTE: 'Pendiente',
+    VALIDADA: 'Aprobado',
+    RECHAZADA: 'Rechazado',
   }
-  const m = map[estatus] ?? map.PENDIENTE
-  const Icon = m.Icon
+  // I18N · `label` sigue siendo el espanol de esta pantalla; se pinta su clave.
+  const clave: Record<string, ClaveTexto> = {
+    PENDIENTE: 'operaciones2.creativos.estado.pendiente',
+    VALIDADA: 'operaciones2.creativos.estado.validada',
+    RECHAZADA: 'operaciones2.creativos.estado.rechazada',
+  }
+  const tono = CREATIVIDAD_TONO[estatus] ?? CREATIVIDAD_TONO.PENDIENTE
   return (
-    <div className={`inline-flex items-center gap-1 text-[11px] font-medium ${m.cls}`} title={motivo ?? ''}>
-      <Icon className="h-3 w-3" /> {m.label}
-      {estatus === 'RECHAZADA' && motivo ? ` · ${motivo}` : ''}
+    <div className="space-y-1">
+      <StatusBadge tono={tono}>{t(label[estatus] ? clave[estatus] : clave.PENDIENTE)}</StatusBadge>
+      {estatus === 'RECHAZADA' && motivo && <p className="m-0 text-[11px] text-error">{motivo}</p>}
     </div>
   )
 }

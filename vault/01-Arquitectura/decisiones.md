@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-11-05
 tags: [adr, decisiones, reglas-de-negocio]
 archivos:
   - docs/adr/
@@ -59,7 +59,7 @@ se escribe uno nuevo que lo reemplace (`~/.claude/skills/eng-architecture`).
 | 0021 | ~~`demo.space-os.io` se queda~~ **SUPERADA por el 0024 (27/08)** | Aceptada (26/08) | `infra/nginx/space-os.io.conf:188` (hoy `:213`). **Canceló TH-F4.5** (borrar su registro A) |
 | 0022 | **Una instancia dedicada por owner**; la RLS pasa a defensa en profundidad | Aceptada (26/08) | Toda la Fase 5: `infra/scripts/provision-instancia.sh`, `/api/bootstrap`, `/api/version`. Ver [[modelo-instancias-soberanas]] |
 | 0023 | **El droplet viejo sale del modelo**, y sus datos no se rescatan | Aceptada (27/08) | Retira `F0.2`, `F1.1`, `F1.5`, `F7.1`, `F7.2` y `F7.3`: **la Fase 7 entera**. El plan queda en **40 tareas con objeto**. Extiende el 0017 |
-| 0024 | **`demo.space-os.io` es la demo ORIGINAL y se eliminará** | Aceptada (27/08) — **sustituye al 0021** | No se mueve al PADRE ni se le emite certificado. **`F4.3` queda sin objeto**: el plan baja a **39 tareas con objeto**. Su certificado (26/10) pasa a ser caducidad natural, no plazo |
+| 0024 | ~~**`demo.space-os.io` es la demo ORIGINAL y se eliminará**~~ **SUSTITUIDA por el 0050 (05/11)** | Aceptada (27/08) — **sustituye al 0021** | No se mueve al PADRE ni se le emite certificado. **`F4.3` queda sin objeto**: el plan baja a **39 tareas con objeto**. Su certificado (26/10) pasa a ser caducidad natural, no plazo |
 | 0025 | **El acceso de soporte a la instancia de un owner** | Aceptada | Cómo entra soporte sin quedarse con una llave permanente |
 | 0026 | **El panel de flota tiene pantalla propia, fuera del artefacto** | Aceptada | No viaja en la imagen que corre cada instancia |
 | 0027 | **El alta de una instancia se pide desde el panel, y la ejecuta otro proceso** | Aceptada | Separa pedir de ejecutar |
@@ -76,8 +76,12 @@ se escribe uno nuevo que lo reemplace (`~/.claude/skills/eng-architecture`).
 | 0038 | **Los tickets de soporte viven en la instancia, y el panel los jala** | Aceptada (22/09) | Tabla `tickets` con `tenant_id` y RLS (`20260923_tickets.sql`), `app/api/tickets/`; el PADRE los lee agrupados por instancia en una pantalla hermana de `/flota/` |
 | 0039 | **La cadena de precio del spot**: franja, temporada, volumen, código y paquete | Escrito «aprobado para diseño · fases 1–4 una detrás de otra» (28/09). **Las cuatro fases tienen migración en el árbol**: `20260928_rejilla_franja_temporada.sql`, `_descuento_por_volumen.sql`, `_codigo_promocional.sql`, `_paquete_cerrado.sql` | [[02-Backend/rejilla-franja-y-temporada]] · [[02-Backend/descuento-por-volumen]] · [[02-Backend/codigo-promocional]] · [[02-Backend/paquete-cerrado]] |
 | 0040 | **Roles de venta y la autorización de descuentos** | Escrito «en diseño · nada construido · la migración espera aprobación» (29/09). **Desfase con el código:** las dos migraciones existen (`20260929_roles_de_venta_enum.sql` y `_matriz.sql`). El estado del documento no se actualizó — mismo vicio que el `0011` y el `0014` | Cuatro roles nuevos en `rol_demo` (`ADMINISTRADOR`, `DIRECTOR_COMERCIAL`, `GERENTE_VENTAS`, `VENDEDOR`, este último default de `usuarios.rol`); `COMERCIAL` se retira de uso. Ver [[02-Backend/roles-de-venta]] |
-| 0041 | **Google Maps solo donde aporta, con la clave en tiempo de ejecución** | **Propuesta** (01/10), pendiente del dueño | **Ninguno todavía**: no hay código de Google Maps en `apps/web` (búsqueda del 05/10). Complementa —no reemplaza— el `0030`. Pendiente también en [[preguntas-abiertas]] (P22) |
+| 0041 | **Google Maps solo donde aporta, con la clave en tiempo de ejecución** | **Aceptada en parte** (29/10, el dueño): solo la ubicación de Comercial negociación; el resto sigue en Propuesta | (29/10, UBIC-01) Pegar coordenadas o un enlace de Google Maps pone el pin (`lib/interpretar-ubicacion.ts`; los cortos los sigue `lib/server/geo-enlace.ts`), y con `GOOGLE_MAPS_SERVIDOR_KEY` el buscador de calles es la Geocoding API de Google, por el servidor (`lib/server/geo-buscar.ts`); sin clave, Nominatim. Ningún mapa de Google en pantalla. Complementa —no reemplaza— el `0030`. Pendiente también en [[preguntas-abiertas]] (P22) |
 | 0042 | **La calculadora de spots da la CANTIDAD; el precio sigue siendo el de la pantalla** | Aceptada (01/10) | Cuatro columnas en `propuesta_items` (`20261007_calculadora_spots.sql`); la prima del Roadblock solo con `comercial.aprobar`. Ver [[02-Backend/calculadora-de-spots]] |
+| 0047 | **Comercial negociación encima de `prospectos`, y la ubicación la confirma la persona** | Aceptada (21/10, el dueño; GPS pendiente el 22/10) | `20261022_comercial_negociacion.sql`: ficha en `prospectos` y cuatro tablas hijas; buscador Nominatim por el servidor (`lib/server/geo-buscar.ts`) mientras no haya clave de Google; se guarda el punto que confirma la persona. Toma el plan B del `0041` sin aceptarlo. Ver [[03-Frontend/comercial-opex]] |
+| 0048 | **La moneda es de la instancia, se elige al crearla y no se puede cambiar** | Aceptada (02/11, el dueño; ROJO R3+R4) | MXN o USD, una por instancia. Se elige en `POST /api/bootstrap` (`provision-instancia.sh --moneda`); sin valor, MXN. `20261102_moneda_inmutable_por_instancia.sql`: CHECK y triggers que impiden cambiarla y una segunda moneda; `PATCH /api/config` la rechaza. `MONEDA` deja de ser constante: `monedaInstancia()` en `lib/i18n/dinero.ts`. Ver [[03-Frontend/idiomas-es-en]] §7 |
+| 0049 | **El idioma de los documentos es de la instancia, se elige al crearla y no se cambia** | Aceptada (03/11, el dueño; ROJO R3 + firmas) | `es`/`en`/`it` en `tenants.idioma_documentos` (DEFAULT `es`: las instancias existentes no cambian). Se elige en `POST /api/bootstrap` (`provision-instancia.sh --idioma`); triggers que impiden cambiarlo y un segundo idioma. El contrato, lo que su página imprime y la constancia de firmas van en él; **segunda vuelta (03/11, el dueño): todos los papeles** —propuesta impresa, `/p`, portal, comprobante y correos—, salvo el CSV del estado de cuenta; la interfaz sigue a la persona. `idiomaDeLaInstancia()`, fail-closed. Contrato en/it: **plantillas de ejemplo** que cada cliente irá adaptando (D13, el dueño, 04/11). Ver [[03-Frontend/idiomas-es-en]] §12 |
+| 0050 | **`demo.space-os.io` vuelve: es la DEMO, servida por el droplet viejo de g500 y con una copia de sus datos** | Aceptada (05/11, el dueño) — **sustituye al 0024** | `142.93.113.106` (libre tras la guía 30) pasa de instancia `g500` a instancia `demo` **sobre la misma base**: se conservan los datos de g500 al 04/11 (y la copia de Space Eyes, parada) y se quita su identidad (`INSTANCIA`, `FLOTA_TOKEN`, claves de Postgres rotadas, Spaces a `demo/`, sin DOOHmain, Resend, Google ni Maps, certificado de g500 borrado). `CANAL=beta`, `modo = automatica`. `DEMO_URL` pasa a `https://demo.space-os.io/spaces-dooh`; la DEMO del PADRE se apaga tras la primera promoción validada contra la nueva. Riesgo aceptado: datos reales de un cliente en una dirección pública. Guía `docs/evidencias/31-g500-viejo-como-demo-20261105.md`, sin correr |
 
 > [!danger] Cuatro de estos ADR se superaron entre sí en 48 horas — lee el estado, no el número
 > `0015` → `0016` → `0017` y `0020` → `0021` cambiaron de decisión **el mismo día
@@ -86,6 +90,9 @@ se escribe uno nuevo que lo reemplace (`~/.claude/skills/eng-architecture`).
 > 27/08, sigue cierta al 05/10 para este asunto) es
 > `0017` (todo en el PADRE), `0022` (una instancia por owner), `0023` (el
 > droplet viejo sale del modelo) y `0024` (`demo.space-os.io` se eliminará)**.
+> **Y desde el 05/11 el `0024` tampoco manda: lo sustituye el `0050`** —
+> `demo.space-os.io` vuelve como la DEMO, en el droplet viejo de g500 y con una
+> copia de sus datos—.
 > Citar el `0016`, el `0020` o el `0021` como si mandaran es el error que ya
 > dejó falso un reporte entero (`d506725`, 26/08).
 >

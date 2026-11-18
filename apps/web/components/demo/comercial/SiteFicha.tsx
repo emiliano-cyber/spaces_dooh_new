@@ -31,35 +31,51 @@ import { Modal } from '@/components/demo/ui/Modal'
 import { ConfirmDialog } from '@/components/demo/ui/ConfirmDialog'
 import { Button } from '@/components/demo/ui/Button'
 import { CampoCifra } from '@/components/demo/ui/CampoCifra'
-import { CRUDO_INVALIDO } from '@/lib/captura-cifra'
+import { EntradaCifra } from '@/components/demo/ui/EntradaCifra'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
+import { CRUDO_INVALIDO, cifraIlegible, ejemploCifra } from '@/lib/captura-cifra'
+import { textoOrigenDoohmain } from '@/lib/doohmain-programacion'
 import { FotoUploaderMock } from '@/components/demo/FotoUploaderMock'
 import { CalendarioDisponibilidad } from '@/components/demo/CalendarioDisponibilidad'
 import { SpaceEyeVision } from '@/components/demo/comercial/SpaceEyeVision'
 import {
   StatusBadge,
   SITIO_TONO,
-  SITIO_LABEL,
   CONTRATO_TONO,
-  CONTRATO_LABEL,
   PAGO_TONO,
-  PAGO_LABEL,
 } from '@/components/demo/StatusBadge'
+import { useIdioma } from '@/lib/i18n/contexto'
+import type { Idioma } from '@/lib/i18n/idiomas'
+import { interpolarNodos } from '@/lib/i18n/nodos'
+import type { ClaveTexto } from '@/lib/i18n/diccionario'
+import {
+  CLAVE_SITIO_ESTATUS,
+  CLAVE_CONTRATO_ESTATUS,
+  CLAVE_PAGO_ESTATUS,
+  CLAVE_TIPO_MEDIO,
+  claveTipoMedio,
+} from '@/components/demo/comercial/claves'
 import { usePuede } from '@/components/demo/shell/SesionContext'
-import { actualizarSitioApi, actualizarModalidadesApi, borrarSitioApi, pausarSitioLegalApi, reanudarSitioLegalApi, reubicarSitioApi } from '@/lib/data/sitios-api'
+import { actualizarSitioApi, actualizarModalidadesApi, borrarSitioApi, pausarSitioLegalApi, reanudarSitioLegalApi, reubicarSitioApi, pantallasDoohmainApi } from '@/lib/data/sitios-api'
 import { useCandado, PasoContrasena } from '@/components/demo/ui/candado'
 import { RejillaDialog } from '@/components/demo/rejilla/RejillaDialog'
 // Las mismas reglas que aplica el importador y que impone el servidor: qué
 // unidades existen y cuáles admite esta pantalla. Se importan en vez de
 // repetirse — dos copias de la misma regla divergen (ver `lib/modalidades.ts`).
 import { UNIDADES_VENTA, motivoModalidadInvalida } from '@/lib/modalidades'
-import { UNIDAD_LABEL } from '@/lib/periodos'
+import { etiquetaUnidad } from '@/lib/periodos'
 
 // CPS-CPM (07/10) · la unidad se lee con su nombre de venta («CPS · costo por
 // salida», «CPM · costo por millar») y no con la clave guardada. Las que no
 // tienen nombre (programático) se quedan con la clave, como antes.
-const nombreUnidad = (u: string) => UNIDAD_LABEL[u] ?? u
+// El nombre de la unidad («Mensual», «CPS · costo por salida»). Costura
+// (2026-11-02): `etiquetaUnidad` es la misma tabla `UNIDAD_LABEL` en espanol y
+// el diccionario en otro idioma; lo que no reconoce lo deja como llego.
+const nombreUnidad = (u: string, idioma: Idioma) => etiquetaUnidad(u, idioma)
 import {
   useReservas,
+  usePropuestas,
+  useClientes,
   useIncidencias,
   useContratos,
   useArrendadores,
@@ -73,34 +89,48 @@ import {
   type TipoMedio,
 } from '@/lib/data/client'
 import type { FotoMeta } from '@/lib/data/types'
+import { itemsEnPropuesta } from '@/lib/data/en-propuesta'
 import { periodicidadLabel } from '@/lib/renta-periodicidad'
 import { ubicacion } from '@/lib/ubicacion'
-import { etiquetaTipoMedio, TIPO_MEDIO_LABEL } from '@/lib/tipo-medio'
+import { etiquetaTipoMedio } from '@/lib/tipo-medio'
 import { formatNumero } from '@/lib/formato-numero'
 
+// Las marcas no se traducen; «Otros» sí (`comercial.comun.cms-otro`).
 const CMS_LABEL: Record<string, string> = {
   BROADSIGN: 'Broadsign',
   INVIDIS: 'Invidis',
   DOOHMAIN: 'Doohmain',
   OTRO: 'Otros',
 }
+const cmsEtiqueta = (t: (c: ClaveTexto) => string, cms: string) =>
+  cms === 'OTRO' ? t('comercial.comun.cms-otro') : CMS_LABEL[cms]
 
 // Periodicidad de pago al propietario ("cada cuándo se le paga"): la tabla de
 // etiquetas vive en lib/renta-periodicidad.ts, junto al enum que las define.
 
-const OPERATIVO_LABEL: Record<string, string> = {
-  ACTIVO: 'Operativo',
-  EN_MANTENIMIENTO: 'En mantenimiento',
-  APAGADO: 'Apagado',
-  DAÑADO: 'Dañado',
-  BAJA: 'Baja',
+const OPERATIVO_LABEL: Record<string, ClaveTexto> = {
+  ACTIVO: 'comercial.ficha.operativo.activo',
+  EN_MANTENIMIENTO: 'comercial.ficha.operativo.en-mantenimiento',
+  APAGADO: 'comercial.ficha.operativo.apagado',
+  DAÑADO: 'comercial.ficha.operativo.danado',
+  BAJA: 'comercial.ficha.operativo.baja',
 }
-const LEGAL_LABEL: Record<string, string> = {
-  EN_ORDEN: 'Permiso en orden',
-  PERMISO_VENCIDO: 'Permiso vencido',
-  EN_TRAMITE: 'Permiso en trámite',
-  SUSPENDIDO: 'Permiso suspendido',
-  SIN_PERMISO: 'Sin permiso',
+const LEGAL_LABEL: Record<string, ClaveTexto> = {
+  EN_ORDEN: 'comercial.ficha.legal.en-orden',
+  PERMISO_VENCIDO: 'comercial.ficha.legal.permiso-vencido',
+  EN_TRAMITE: 'comercial.ficha.legal.en-tramite',
+  SUSPENDIDO: 'comercial.ficha.legal.suspendido',
+  SIN_PERMISO: 'comercial.ficha.legal.sin-permiso',
+}
+// La exhibicion es un dato del sitio; las tres conocidas se traducen y
+// cualquier otra se pinta tal cual, como antes.
+const EXHIBICION: Record<string, ClaveTexto> = {
+  digital: 'comercial.ficha.exhibicion.digital',
+  fija: 'comercial.ficha.exhibicion.fija',
+  // Ola 5: el dato real de las fijas es `fijo` (migracion g500_estaticas y el
+  // importador). Su clave dice «fijo» en español, asi que el español no cambia.
+  fijo: 'comercial.ficha.exhibicion.fijo',
+  rotativo: 'comercial.ficha.exhibicion.rotativo',
 }
 
 export function SiteFicha({
@@ -114,7 +144,10 @@ export function SiteFicha({
   onOpenChange: (v: boolean) => void
   onReservar?: (sitioId: string) => void
 }) {
+  const { t, idioma } = useIdioma()
   const reservas = useReservas()
+  const propuestas = usePropuestas()
+  const clientes = useClientes()
   const incidencias = useIncidencias()
   const contratos = useContratos()
   const arrendadores = useArrendadores()
@@ -165,43 +198,57 @@ export function SiteFicha({
   // donde estaba, sin decir nada. La contraseña se pide DENTRO del
   // `ConfirmDialog`, que ya es el cuadro donde se confirma.
   const candado = useCandado()
+  // OBLIG-01 · el motivo de la pausa y el predio destino los exige el servidor
+  // (`app/api/sitios/[id]/pausa-legal/route.ts:18` y `.../reubicar/route.ts:19`).
+  // El botón ya no se apaga por ellos: se pulsa y se pinta el que falta.
+  const obPausa = useObligatorios({ motivoPausa }, ['motivoPausa'])
+  const obReubicar = useObligatorios({ predioDestino }, ['predioDestino'])
+  // Cerrar OLVIDA el intento: reabrir el cuadro vacío no debe llegar ya en rojo.
+  function cerrarPausa() {
+    setPausaOpen(false)
+    setMotivoPausa('')
+    obPausa.reiniciar()
+  }
+  function cerrarReubicar() {
+    setReubicarOpen(false)
+    setPredioDestino('')
+    obReubicar.reiniciar()
+  }
 
   async function reubicar() {
-    if (!sitio || !predioDestino) return
+    if (!obReubicar.validar() || !sitio) return
     setReubicando(true)
     try {
       const { otFolio } = await reubicarSitioApi(sitio.id, predioDestino)
-      toast.success(otFolio ? `Pantalla reubicada · OT ${otFolio} generada` : 'Pantalla reubicada')
-      setReubicarOpen(false)
-      setPredioDestino('')
+      toast.success(otFolio ? t('comercial.ficha.reubicada.ot', { folio: otFolio }) : t('comercial.ficha.reubicada'))
+      cerrarReubicar()
       onOpenChange(false)
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'No se pudo reubicar')
+      toast.error(e instanceof Error ? e.message : t('comercial.ficha.reubicar-error'))
     }
     setReubicando(false)
   }
 
   async function pausar() {
-    if (!sitio || !motivoPausa.trim()) return
+    if (!obPausa.validar() || !sitio) return
     setPausando(true)
     try {
       await pausarSitioLegalApi(sitio.id, motivoPausa.trim())
-      setPausaOpen(false)
-      setMotivoPausa('')
+      cerrarPausa()
       onOpenChange(false)
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'No se pudo pausar')
+      toast.error(e instanceof Error ? e.message : t('comercial.ficha.pausar-error'))
     }
     setPausando(false)
   }
   async function reanudar() {
     if (!sitio) return
-    if (!window.confirm(`¿Reanudar "${sitio.nombre}"? Volverá a estar disponible comercialmente.`)) return
+    if (!window.confirm(t('comercial.ficha.reanudar-confirmar', { nombre: sitio.nombre }))) return
     try {
       await reanudarSitioLegalApi(sitio.id)
       onOpenChange(false)
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'No se pudo reanudar')
+      toast.error(e instanceof Error ? e.message : t('comercial.ficha.reanudar-error'))
     }
   }
 
@@ -212,7 +259,7 @@ export function SiteFicha({
       guardar: () => borrarSitioApi(sitio.id),
       alLograr: () => onOpenChange(false),
       alFallar: (m) => toast.error(m),
-      mensajeSiFalla: 'No se pudo eliminar la pantalla',
+      mensajeSiFalla: t('comercial.ficha.eliminar-error'),
     })
     setBorrando(false)
     // El cuadro de confirmar se queda ABIERTO si el servidor pidió la
@@ -259,22 +306,26 @@ export function SiteFicha({
     const urls = next.map((f) => f.url)
     try {
       await actualizarSitioApi(sitio.id, { fotos: urls, imagenPromocional: urls[0] ?? null })
-      toast.success('Galería guardada')
+      toast.success(t('comercial.ficha.galeria-guardada'))
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'No se pudo guardar la imagen')
+      toast.error(e instanceof Error ? e.message : t('comercial.ficha.galeria-error'))
     }
   }
 
   if (!sitio) return null
 
-  const rangos =
-    reservas
-      ?.filter((r) => r.sitioId === sitio.id && r.estatus !== 'CANCELADA')
-      .map((r) => ({
-        fechaInicio: r.fechaInicio,
-        fechaFin: r.fechaFin,
-        estatus: r.estatus === 'CONFIRMADA' ? ('CONFIRMADA' as const) : ('TENTATIVA' as const),
-      })) ?? []
+  // TENT-PROP (26/10) · en el calendario, lo vendido sale de las reservas y lo
+  // TENTATIVO de las propuestas abiertas que piden esta pantalla (ya no de la
+  // reserva TENTATIVA, que ningún flujo creaba). Una reserva no cancelada sigue
+  // pintándose como vendida: es lo que bloquea en el servidor.
+  const rangos = [
+    ...(reservas ?? [])
+      .filter((r) => r.sitioId === sitio.id && r.estatus !== 'CANCELADA')
+      .map((r) => ({ fechaInicio: r.fechaInicio, fechaFin: r.fechaFin, estatus: 'CONFIRMADA' as const })),
+    ...itemsEnPropuesta(propuestas ?? [], clientes ?? [])
+      .filter((x) => x.sitioId === sitio.id)
+      .map((x) => ({ fechaInicio: x.fechaInicio, fechaFin: x.fechaFin, estatus: 'TENTATIVA' as const, etiqueta: x.folio })),
+  ]
 
   const incidencia = incidencias?.find(
     (i) => i.sitioId === sitio.id && (i.estatus === 'ABIERTA' || i.estatus === 'EN_PROCESO'),
@@ -315,11 +366,19 @@ export function SiteFicha({
       footer={
         sitio.estatusComercial === 'DISPONIBLE' && onReservar ? (
           <Button className="w-full" onClick={() => onReservar(sitio.id)}>
-            Reservar este sitio
+            {t('comercial.ficha.reservar')}
           </Button>
         ) : (
           <p className="text-center text-[12px] text-muted">
-            Sitio {SITIO_LABEL[sitio.estatusComercial].toLowerCase()} · no disponible para reservar
+            {/* Minúsculas SOLO en español («Sitio ocupado · …», como siempre): en
+                inglés el estatus va tal cual y entre paréntesis, porque en
+                minúsculas «Booked · no PO» pintaba «no po». */}
+            {t('comercial.ficha.no-reservable', {
+              estatus:
+                idioma === 'es'
+                  ? t(CLAVE_SITIO_ESTATUS[sitio.estatusComercial]).toLowerCase()
+                  : t(CLAVE_SITIO_ESTATUS[sitio.estatusComercial]),
+            })}
           </p>
         )
       }
@@ -328,13 +387,13 @@ export function SiteFicha({
         {/* Estatus */}
         <div className="flex flex-wrap gap-2">
           <StatusBadge tono={SITIO_TONO[sitio.estatusComercial]}>
-            {SITIO_LABEL[sitio.estatusComercial]}
+            {t(CLAVE_SITIO_ESTATUS[sitio.estatusComercial])}
           </StatusBadge>
           <StatusBadge tono={sitio.estatusOperativo === 'ACTIVO' ? 'verde' : 'ambar'}>
-            {OPERATIVO_LABEL[sitio.estatusOperativo]}
+            {OPERATIVO_LABEL[sitio.estatusOperativo] ? t(OPERATIVO_LABEL[sitio.estatusOperativo]) : undefined}
           </StatusBadge>
           <StatusBadge tono={sitio.estatusLegal === 'EN_ORDEN' ? 'verde' : 'rojo'}>
-            {LEGAL_LABEL[sitio.estatusLegal]}
+            {LEGAL_LABEL[sitio.estatusLegal] ? t(LEGAL_LABEL[sitio.estatusLegal]) : undefined}
           </StatusBadge>
         </div>
 
@@ -343,17 +402,17 @@ export function SiteFicha({
           <div className="flex flex-wrap gap-2">
             {puedeEditar && (
               <Button size="sm" variant="secondary" onClick={() => setEditOpen(true)}>
-                <Pencil className="h-3.5 w-3.5" /> Editar
+                <Pencil className="h-3.5 w-3.5" /> {t('comercial.comun.editar')}
               </Button>
             )}
             {puedePausar && !sitio.pausaLegal && (
               <Button size="sm" variant="secondary" onClick={() => setPausaOpen(true)}>
-                <Gavel className="h-3.5 w-3.5" /> Pausar por situación legal
+                <Gavel className="h-3.5 w-3.5" /> {t('comercial.ficha.pausar-legal')}
               </Button>
             )}
             {puedePausar && (
               <Button size="sm" variant="secondary" onClick={() => setReubicarOpen(true)}>
-                <ArrowLeftRight className="h-3.5 w-3.5" /> Reubicar
+                <ArrowLeftRight className="h-3.5 w-3.5" /> {t('comercial.ficha.reubicar')}
               </Button>
             )}
             {/* B7: «Eliminar» era un botón rojo sólido al lado de «Editar», con el
@@ -369,7 +428,7 @@ export function SiteFicha({
                 disabled={borrando}
                 onClick={() => setBorrarOpen(true)}
               >
-                <Trash2 className="h-3.5 w-3.5" /> {borrando ? 'Eliminando…' : 'Eliminar'}
+                <Trash2 className="h-3.5 w-3.5" /> {borrando ? t('comercial.comun.eliminando') : t('comercial.comun.eliminar')}
               </Button>
             )}
           </div>
@@ -380,16 +439,16 @@ export function SiteFicha({
           <div className="flex gap-2.5 rounded-md border border-[#ef444440] bg-[#ef44440d] p-3">
             <Gavel className="mt-0.5 h-4 w-4 shrink-0 text-error" strokeWidth={1.75} />
             <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-medium text-ink">Pausada por situación legal</div>
+              <div className="text-[13px] font-medium text-ink">{t('comercial.ficha.pausada')}</div>
               <p className="mt-0.5 text-[12px] text-muted">
                 {sitio.motivoPausaLegal}
-                {sitio.pausaLegalEn ? ` · desde ${formatFecha(sitio.pausaLegalEn)}` : ''}
+                {sitio.pausaLegalEn ? t('comercial.ficha.pausada.desde', { fecha: formatFecha(sitio.pausaLegalEn, idioma) }) : ''}
               </p>
-              <p className="text-[11px] text-muted">No disponible comercialmente mientras esté en pausa.</p>
+              <p className="text-[11px] text-muted">{t('comercial.ficha.pausada.nota')}</p>
             </div>
             {puedePausar && (
               <Button size="sm" variant="secondary" onClick={reanudar}>
-                <Undo2 className="h-3.5 w-3.5" /> Reanudar
+                <Undo2 className="h-3.5 w-3.5" /> {t('comercial.ficha.reanudar')}
               </Button>
             )}
           </div>
@@ -400,7 +459,7 @@ export function SiteFicha({
           <div className="flex gap-2.5 rounded-md border border-[#ef444440] bg-[#ef44440d] p-3">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-error" strokeWidth={1.75} />
             <div>
-              <div className="text-[13px] font-medium text-ink">Incidencia activa</div>
+              <div className="text-[13px] font-medium text-ink">{t('comercial.ficha.incidencia')}</div>
               <p className="mt-0.5 text-[12px] text-muted">{incidencia.descripcion}</p>
             </div>
           </div>
@@ -408,43 +467,78 @@ export function SiteFicha({
 
         {/* Galería */}
         <div>
-          <h4 className="mb-2 text-[13px] font-medium text-ink">Galería</h4>
-          <FotoUploaderMock fotos={fotos} onChange={guardarFotos} label="Agregar foto" />
+          <h4 className="mb-2 text-[13px] font-medium text-ink">{t('comercial.ficha.galeria')}</h4>
+          <FotoUploaderMock fotos={fotos} onChange={guardarFotos} label={t('comercial.ficha.agregar-foto')} />
         </div>
 
         {/* Características técnicas */}
         <div>
-          <h4 className="mb-2 text-[13px] font-medium text-ink">Características</h4>
+          <h4 className="mb-2 text-[13px] font-medium text-ink">{t('comercial.comun.caracteristicas')}</h4>
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-[13px]">
-            <Caracteristica icon={<Hash className="h-4 w-4" />} label="Código proveedor" valor={sitio.codigoProveedor} mono />
-            <Caracteristica icon={<MapPin className="h-4 w-4" />} label="Tipo" valor={etiquetaTipoMedio(sitio.tipoMedio)} />
+            <Caracteristica icon={<Hash className="h-4 w-4" />} label={t('comercial.ficha.codigo-proveedor')} valor={sitio.codigoProveedor} mono />
+            <Caracteristica
+              icon={<MapPin className="h-4 w-4" />}
+              label={t('comercial.ficha.tipo')}
+              valor={claveTipoMedio(sitio.tipoMedio) ? t(claveTipoMedio(sitio.tipoMedio)!) : etiquetaTipoMedio(sitio.tipoMedio)}
+            />
             <Caracteristica
               icon={<Ruler className="h-4 w-4" />}
-              label="Medidas"
+              label={t('comercial.ficha.medidas')}
               valor={sitio.alto && sitio.ancho ? `${sitio.ancho} × ${sitio.alto} m` : '—'}
               mono
             />
-            <Caracteristica icon={<Layers className="h-4 w-4" />} label="Caras" valor={String(sitio.caras)} mono />
-            <Caracteristica icon={<Building2 className="h-4 w-4" />} label="Estructura" valor={sitio.tipoEstructura} />
+            <Caracteristica icon={<Layers className="h-4 w-4" />} label={t('comercial.ficha.caras')} valor={String(sitio.caras)} mono />
+            <Caracteristica icon={<Building2 className="h-4 w-4" />} label={t('comercial.ficha.estructura')} valor={sitio.tipoEstructura} />
             {/* Vista = hacia dónde ve la pantalla (dirección cardinal). Reemplaza
                 a "Orientación", que se retiró. */}
-            <Caracteristica icon={<Compass className="h-4 w-4" />} label="Vista" valor={sitio.vista || '—'} />
-            <Caracteristica icon={<Route className="h-4 w-4" />} label="Tramo" valor={sitio.tramo} />
-            <Caracteristica icon={<Repeat className="h-4 w-4" />} label="Exhibición" valor={`${sitio.exhibicion}${sitio.esRotativo ? ' · rotativo' : ''}`} />
-            <Caracteristica icon={<Lightbulb className="h-4 w-4" />} label="Iluminado" valor={sitio.iluminado ? 'Sí' : 'No'} />
+            <Caracteristica
+              icon={<Compass className="h-4 w-4" />}
+              label={t('comercial.ficha.vista')}
+              valor={sitio.vista && VISTA_CLAVE[sitio.vista] ? t(VISTA_CLAVE[sitio.vista]) : sitio.vista || '—'}
+            />
+            <Caracteristica icon={<Route className="h-4 w-4" />} label={t('comercial.ficha.tramo')} valor={sitio.tramo} />
+            <Caracteristica
+              icon={<Repeat className="h-4 w-4" />}
+              label={t('comercial.ficha.exhibicion')}
+              valor={`${EXHIBICION[sitio.exhibicion] ? t(EXHIBICION[sitio.exhibicion]) : sitio.exhibicion}${sitio.esRotativo ? t('comercial.ficha.exhibicion.rotativa') : ''}`}
+            />
+            <Caracteristica
+              icon={<Lightbulb className="h-4 w-4" />}
+              label={t('comercial.ficha.iluminado')}
+              valor={sitio.iluminado ? t('comercial.comun.si') : t('comercial.comun.no')}
+            />
           </dl>
 
           {/* Datos DOOH solo si aplica */}
           {sitio.esRotativo && (
             <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2.5 border-t border-border pt-2.5 text-[13px]">
-              <Caracteristica icon={<Monitor className="h-4 w-4" />} label="Resolución" valor={sitio.resolucionPx ?? '—'} mono />
-              <Caracteristica icon={<Monitor className="h-4 w-4" />} label="Contenido" valor={sitio.tipoContenido === 'VIDEO' ? 'Video' : sitio.tipoContenido === 'IMAGEN' ? 'Imagen' : '—'} />
-              <Caracteristica icon={<Monitor className="h-4 w-4" />} label="Total de slots" valor={formatNumero(sitio.totalSpots)} mono />
-              <Caracteristica icon={<Monitor className="h-4 w-4" />} label="Slots disponibles" valor={formatNumero(sitio.spotsDisponibles)} mono />
-              <Caracteristica icon={<Monitor className="h-4 w-4" />} label="Slots por hora" valor={formatNumero(sitio.spotsPorHora)} mono />
-              <Caracteristica icon={<Clock className="h-4 w-4" />} label="Duración por slot" valor={sitio.duracionSpotSeg != null ? `${sitio.duracionSpotSeg} s` : '—'} mono />
-              <Caracteristica icon={<Clock className="h-4 w-4" />} label="Horario" valor={sitio.horario ?? '—'} mono />
-              <Caracteristica icon={<Monitor className="h-4 w-4" />} label="CMS" valor={sitio.cms ? CMS_LABEL[sitio.cms] : '—'} />
+              <Caracteristica icon={<Monitor className="h-4 w-4" />} label={t('comercial.ficha.resolucion')} valor={sitio.resolucionPx ?? '—'} mono />
+              <Caracteristica
+                icon={<Monitor className="h-4 w-4" />}
+                label={t('comercial.ficha.contenido')}
+                valor={sitio.tipoContenido === 'VIDEO' ? t('comercial.comun.video') : sitio.tipoContenido === 'IMAGEN' ? t('comercial.comun.imagen') : '—'}
+              />
+              <Caracteristica icon={<Monitor className="h-4 w-4" />} label={t('comercial.ficha.total-slots')} valor={formatNumero(sitio.totalSpots, 0, idioma)} mono />
+              <Caracteristica icon={<Monitor className="h-4 w-4" />} label={t('comercial.ficha.slots-disponibles')} valor={formatNumero(sitio.spotsDisponibles, 0, idioma)} mono />
+              <Caracteristica icon={<Monitor className="h-4 w-4" />} label={t('comercial.ficha.slots-hora')} valor={formatNumero(sitio.spotsPorHora, 0, idioma)} mono />
+              <Caracteristica icon={<Clock className="h-4 w-4" />} label={t('comercial.ficha.duracion-slot')} valor={sitio.duracionSpotSeg != null ? `${sitio.duracionSpotSeg} s` : '—'} mono />
+              <Caracteristica icon={<Clock className="h-4 w-4" />} label={t('comercial.ficha.horario')} valor={sitio.horario ?? '—'} mono />
+              <Caracteristica icon={<Monitor className="h-4 w-4" />} label="CMS" valor={sitio.cms ? cmsEtiqueta(t, sitio.cms) : '—'} />
+              {(!sitio.cms || sitio.cms === 'DOOHMAIN') && (
+                // 22/10 · el id que SE USA, aunque no esté escrito en la ficha:
+                // «La decide el servidor» escondía cuál, y una pantalla publicada
+                // por el mapa del servidor parecía no tener ninguno.
+                <Caracteristica
+                  icon={<Monitor className="h-4 w-4" />}
+                  label={t('comercial.ficha.id-doohmain')}
+                  valor={
+                    sitio.doohmainEfectiva
+                      ? `${sitio.doohmainEfectiva} · ${textoOrigenDoohmain(sitio.doohmainOrigen ?? null, idioma)}`
+                      : textoOrigenDoohmain(null, idioma)
+                  }
+                  mono={!!sitio.doohmainEfectiva}
+                />
+              )}
             </dl>
           )}
 
@@ -452,10 +546,14 @@ export function SiteFicha({
           <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2.5 border-t border-border pt-2.5 text-[13px]">
             <Caracteristica
               icon={<Network className="h-4 w-4" />}
-              label="Comercialización"
-              valor={sitio.comercializacion === 'PROGRAMATICO' ? 'Programático' : 'Tradicional'}
+              label={t('comercial.comun.comercializacion')}
+              valor={sitio.comercializacion === 'PROGRAMATICO' ? t('comercial.comun.programatico') : t('comercial.comun.tradicional')}
             />
-            <Caracteristica icon={<Share2 className="h-4 w-4" />} label="En Network" valor={sitio.enNetwork ? 'Sí' : 'No'} />
+            <Caracteristica
+              icon={<Share2 className="h-4 w-4" />}
+              label={t('comercial.ficha.en-network')}
+              valor={sitio.enNetwork ? t('comercial.comun.si') : t('comercial.comun.no')}
+            />
           </dl>
         </div>
 
@@ -465,26 +563,53 @@ export function SiteFicha({
 
         {/* Datos comerciales (interno — el portal no muestra financieros) */}
         <div>
-          <h4 className="mb-2 text-[13px] font-medium text-ink">Datos comerciales</h4>
+          <h4 className="mb-2 text-[13px] font-medium text-ink">{t('comercial.ficha.datos-comerciales')}</h4>
           <div className="space-y-2">
-            <DatoComercial label={`Tarifa publicada (${sitio.unidad})`} valor={formatMonto(sitio.tarifaPublicada)} />
+            {/* `sitio.unidad` es el CODIGO de la unidad («mensual») y en espanol se
+                pinta tal cual, como siempre. En otro idioma, su nombre en
+                minusculas («monthly»); las que llevan sigla («CPS · …») se
+                dejan como estan (costura, 2026-11-02). */}
+            <DatoComercial
+              label={t('comercial.ficha.tarifa-publicada', {
+                unidad:
+                  idioma === 'es'
+                    ? sitio.unidad
+                    : etiquetaUnidad(sitio.unidad, idioma).includes('·')
+                    ? etiquetaUnidad(sitio.unidad, idioma)
+                    : etiquetaUnidad(sitio.unidad, idioma).toLowerCase(),
+              })}
+              valor={formatMonto(sitio.tarifaPublicada, idioma)}
+            />
             {/* El costo es la renta ATRIBUIDA a esta pantalla, la misma cifra que
                 usa el P&L (`rentaAtribuidaPorSitio`, vía useMargenPorSitio). Antes
                 aquí se restaba `costoCompra`, que nadie más usaba: la ficha y el
                 P&L mostraban dos márgenes distintos del mismo espacio (ADR 0006). */}
             <DatoComercial
-              label="Renta al arrendador (mensual)"
+              label={t('comercial.ficha.renta-mensual')}
               valor={
-                cargandoMargen ? '—' : margenSitio?.tieneContrato ? formatMonto(rentaMensual) : 'Sin contrato activo'
+                sitio.propio
+                  ? t('comercial.ficha.propia-sin-renta')
+                  : cargandoMargen ? '—' : margenSitio?.tieneContrato ? formatMonto(rentaMensual, idioma) : t('comercial.ficha.sin-contrato-activo')
               }
             />
             {(() => {
+              // v0.12.3 · una pantalla PROPIA no paga renta: su costo es luz +
+              // operación, que no se conocen de antemano. El margen real sale en
+              // Reportes, donde sí entran los recibos de luz y las OT.
+              if (sitio.propio) {
+                return (
+                  <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-[12px] text-emerald-900">
+                    {interpolarNodos(t('comercial.ficha.propia.aviso'), { reportes: <b>{t('comercial.ficha.propia.reportes')}</b> })}
+                  </div>
+                )
+              }
               if (cargandoMargen) return null
               if (!margenSitio?.tieneContrato) {
                 return (
                   <div className="rounded-md border border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">
-                    Sin contrato de arrendamiento activo no se puede calcular el margen: falta saber
-                    qué se paga por el espacio. Complétalo en <b className="text-ink">Arrendadores</b>.
+                    {interpolarNodos(t('comercial.ficha.sin-contrato.aviso'), {
+                      arrendadores: <b className="text-ink">{t('comercial.ficha.arrendadores')}</b>,
+                    })}
                   </div>
                 )
               }
@@ -493,9 +618,9 @@ export function SiteFicha({
               const color = pct >= 30 ? 'text-success' : pct >= 10 ? 'text-ink' : 'text-error'
               return (
                 <div className="flex items-center justify-between rounded-md border border-border bg-surface-2 px-3 py-2">
-                  <span className="text-[12px] text-muted">Margen</span>
+                  <span className="text-[12px] text-muted">{t('comercial.ficha.margen')}</span>
                   <span className={`demo-num text-sm font-semibold ${color}`}>
-                    {formatMonto(margen)} · {pct.toFixed(0)}%
+                    {formatMonto(margen, idioma)} · {pct.toFixed(0)}%
                   </span>
                 </div>
               )
@@ -512,7 +637,7 @@ export function SiteFicha({
             <div className="mt-3">
               <div className="mb-1.5 flex items-center justify-between">
                 <span className="text-[12px] font-medium text-ink">
-                  Tarifas por unidad {modalidades.length > 0 && `(${modalidades.length})`}
+                  {t('comercial.ficha.tarifas-unidad')} {modalidades.length > 0 && `(${modalidades.length})`}
                 </span>
                 {puedeTocarInventario && (
                   <button
@@ -520,7 +645,7 @@ export function SiteFicha({
                     onClick={() => setModalidadesOpen(true)}
                     className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline"
                   >
-                    <Pencil className="h-3 w-3" /> Editar
+                    <Pencil className="h-3 w-3" /> {t('comercial.comun.editar')}
                   </button>
                 )}
               </div>
@@ -528,16 +653,14 @@ export function SiteFicha({
                 <ul className="divide-y divide-border rounded-md border border-border">
                   {modalidades.map((m, i) => (
                     <li key={i} className="flex items-center justify-between px-3 py-1.5 text-[12px]">
-                      <span className="capitalize text-ink">{nombreUnidad(m.unidad)}</span>
-                      <span className="demo-num text-muted">{formatMonto(m.tarifaPublicada)}</span>
+                      <span className="capitalize text-ink">{nombreUnidad(m.unidad, idioma)}</span>
+                      <span className="demo-num text-muted">{formatMonto(m.tarifaPublicada, idioma)}</span>
                     </li>
                   ))}
                 </ul>
               ) : (
                 <div className="rounded-md border border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">
-                  Sin tarifas por unidad. Se vende solo con la tarifa publicada de
-                  arriba; para cotizar por spot, hora o programático hay que
-                  añadirlas aquí.
+                  {t('comercial.ficha.tarifas-unidad.vacio')}
                 </div>
               )}
             </div>
@@ -552,21 +675,19 @@ export function SiteFicha({
             <div className="mt-3">
               <div className="mb-1.5 flex items-center justify-between">
                 <span className="text-[12px] font-medium text-ink">
-                  Tarifas por franja {rejillaFilas > 0 && `(${rejillaFilas})`}
+                  {t('comercial.ficha.tarifas-franja')} {rejillaFilas > 0 && `(${rejillaFilas})`}
                 </span>
                 <button
                   type="button"
                   onClick={() => setRejillaOpen(true)}
                   className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline"
                 >
-                  <Pencil className="h-3 w-3" /> Editar
+                  <Pencil className="h-3 w-3" /> {t('comercial.comun.editar')}
                 </button>
               </div>
               {rejillaFilas === 0 && (
                 <div className="rounded-md border border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">
-                  Sin rejilla: esta pantalla se vende con las tarifas de arriba a
-                  cualquier hora y en cualquier época. Añade una solo si el prime
-                  o una temporada cuestan distinto.
+                  {t('comercial.ficha.tarifas-franja.vacio')}
                 </div>
               )}
             </div>
@@ -575,32 +696,41 @@ export function SiteFicha({
 
         {/* Propietario y renta (cada cuándo se le paga) */}
         <div>
-          <h4 className="mb-2 text-[13px] font-medium text-ink">Arrendador y renta</h4>
+          <h4 className="mb-2 text-[13px] font-medium text-ink">{t('comercial.ficha.arrendador-renta')}</h4>
           {tienePropRenta ? (
             <div className="space-y-2.5">
               <div className="flex items-start gap-2.5 rounded-md border border-border bg-surface-2 p-3">
                 <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-muted" />
                 <div className="min-w-0">
-                  <div className="text-[13px] font-medium text-ink">{propietarioEfectivo?.nombre ?? 'Arrendador sin asignar'}</div>
+                  <div className="text-[13px] font-medium text-ink">{propietarioEfectivo?.nombre ?? t('comercial.ficha.arrendador-sin-asignar')}</div>
                   <div className="text-[11px] text-muted">
-                    {[propietarioEfectivo?.telefono, propietarioEfectivo?.email].filter(Boolean).join(' · ') || 'Arrendador del predio / pantalla'}
+                    {[propietarioEfectivo?.telefono, propietarioEfectivo?.email].filter(Boolean).join(' · ') || t('comercial.ficha.arrendador-del-predio')}
                   </div>
                 </div>
                 {contrato && (
                   <StatusBadge tono={CONTRATO_TONO[contrato.estatus]} className="ml-auto shrink-0">
-                    {CONTRATO_LABEL[contrato.estatus]}
+                    {t(CLAVE_CONTRATO_ESTATUS[contrato.estatus])}
                   </StatusBadge>
                 )}
               </div>
 
               <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-[13px]">
-                <Caracteristica icon={<Wallet className="h-4 w-4" />} label="Renta" valor={rentaEfectiva != null ? formatMonto(rentaEfectiva) : '—'} mono />
-                <Caracteristica icon={<Repeat className="h-4 w-4" />} label="Cada cuándo se paga" valor={periodicidadEfectiva ? periodicidadLabel(periodicidadEfectiva) : '—'} />
+                <Caracteristica icon={<Wallet className="h-4 w-4" />} label={t('comercial.ficha.renta')} valor={rentaEfectiva != null ? formatMonto(rentaEfectiva, idioma) : '—'} mono />
+                <Caracteristica icon={<Repeat className="h-4 w-4" />} label={t('comercial.ficha.periodicidad')} valor={periodicidadEfectiva ? periodicidadLabel(periodicidadEfectiva, '—', idioma) : '—'} />
                 {contrato && (
-                  <Caracteristica icon={<CalendarClock className="h-4 w-4" />} label="Vigencia" valor={`${formatFecha(contrato.fechaInicio)} – ${contrato.fechaFin ? formatFecha(contrato.fechaFin) : 'por definir'}`} mono />
+                  <Caracteristica
+                    icon={<CalendarClock className="h-4 w-4" />}
+                    label={t('comercial.ficha.vigencia')}
+                    valor={`${formatFecha(contrato.fechaInicio, idioma)} – ${contrato.fechaFin ? formatFecha(contrato.fechaFin, idioma) : t('comercial.ficha.por-definir')}`}
+                    mono
+                  />
                 )}
                 {contrato && (
-                  <Caracteristica icon={<Repeat className="h-4 w-4" />} label="Renovación" valor={contrato.autoRenovable ? 'Automática' : 'Manual'} />
+                  <Caracteristica
+                    icon={<Repeat className="h-4 w-4" />}
+                    label={t('comercial.ficha.renovacion')}
+                    valor={contrato.autoRenovable ? t('comercial.ficha.renovacion.automatica') : t('comercial.ficha.renovacion.manual')}
+                  />
                 )}
               </dl>
 
@@ -608,39 +738,43 @@ export function SiteFicha({
               {contrato && (
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-[12px]">
                   <span className="inline-flex items-center gap-1.5 text-muted">
-                    Último pago
-                    <span className="demo-num text-ink">{ultimoPago?.fechaPago ? formatFecha(ultimoPago.fechaPago) : '—'}</span>
+                    {t('comercial.ficha.ultimo-pago')}
+                    <span className="demo-num text-ink">{ultimoPago?.fechaPago ? formatFecha(ultimoPago.fechaPago, idioma) : '—'}</span>
                   </span>
                   {proximoPago ? (
                     <span className="inline-flex items-center gap-1.5 text-muted">
-                      Próximo: <span className="text-ink">{formatFecha(proximoPago.periodo)}</span>
-                      <StatusBadge tono={PAGO_TONO[proximoPago.estatus]}>{PAGO_LABEL[proximoPago.estatus]}</StatusBadge>
+                      {t('comercial.ficha.proximo')} <span className="text-ink">{formatFecha(proximoPago.periodo, idioma)}</span>
+                      <StatusBadge tono={PAGO_TONO[proximoPago.estatus]}>{t(CLAVE_PAGO_ESTATUS[proximoPago.estatus])}</StatusBadge>
                     </span>
                   ) : (
-                    <span className="text-muted">Sin pagos pendientes</span>
+                    <span className="text-muted">{t('comercial.ficha.sin-pagos')}</span>
                   )}
                 </div>
               )}
             </div>
           ) : (
-            <p className="text-[12px] text-muted">Sin arrendador ni renta registrados para este espacio.</p>
+            <p className="text-[12px] text-muted">
+              {sitio.propio
+                ? t('comercial.ficha.propia.sin-renta')
+                : t('comercial.ficha.sin-renta')}
+            </p>
           )}
         </div>
 
         {/* Dirección */}
         <div>
-          <h4 className="mb-1.5 text-[13px] font-medium text-ink">Ubicación</h4>
+          <h4 className="mb-1.5 text-[13px] font-medium text-ink">{t('comercial.comun.ubicacion')}</h4>
           <dl className="space-y-1.5 text-[13px]">
             <div>
-              <dt className="text-[11px] text-muted">Dirección comercial</dt>
+              <dt className="text-[11px] text-muted">{t('comercial.comun.direccion-comercial')}</dt>
               <dd className="text-ink">{sitio.direccionComercial}</dd>
             </div>
             <div>
-              <dt className="text-[11px] text-muted">Dirección del predio</dt>
+              <dt className="text-[11px] text-muted">{t('comercial.comun.direccion-predio')}</dt>
               <dd className="text-ink">{sitio.direccionPredio}</dd>
             </div>
             <div>
-              <dt className="text-[11px] text-muted">Coordenadas</dt>
+              <dt className="text-[11px] text-muted">{t('comercial.ficha.coordenadas')}</dt>
               <dd className="demo-num text-ink">{sitio.lat.toFixed(4)}, {sitio.lng.toFixed(4)}</dd>
             </div>
           </dl>
@@ -648,7 +782,7 @@ export function SiteFicha({
 
         {/* Disponibilidad por fechas */}
         <div>
-          <h4 className="mb-2 text-[13px] font-medium text-ink">Disponibilidad</h4>
+          <h4 className="mb-2 text-[13px] font-medium text-ink">{t('comercial.comun.disponibilidad')}</h4>
           <CalendarioDisponibilidad rangos={rangos} />
         </div>
       </div>
@@ -674,63 +808,61 @@ export function SiteFicha({
 
       <Modal
         open={pausaOpen}
-        onOpenChange={(v) => { if (!v) { setPausaOpen(false); setMotivoPausa('') } }}
-        title="Pausar por situación legal"
+        onOpenChange={(v) => { if (!v) cerrarPausa() }}
+        title={t('comercial.ficha.pausar-legal')}
         subtitle={sitio.nombre}
         footer={
           <div className="flex justify-end gap-2">
-            <Button variant="secondary" size="sm" onClick={() => { setPausaOpen(false); setMotivoPausa('') }}>Cancelar</Button>
-            <Button variant="danger" size="sm" disabled={pausando || !motivoPausa.trim()} onClick={pausar}>
-              {pausando ? 'Pausando…' : 'Pausar'}
+            <Button variant="secondary" size="sm" onClick={cerrarPausa}>{t('comun.cancelar')}</Button>
+            <Button variant="danger" size="sm" disabled={pausando} onClick={pausar}>
+              {pausando ? t('comercial.ficha.pausar.pausando') : t('comercial.ficha.pausar.boton')}
             </Button>
           </div>
         }
       >
         <div className="space-y-2">
           <p className="text-[12px] text-muted">
-            La pantalla saldrá de la disponibilidad comercial (queda bloqueada) hasta que la reanudes.
+            {t('comercial.ficha.pausar.ayuda')}
           </p>
-          <label className="block">
-            <span className="mb-1 block text-[12px] font-medium text-ink">Motivo</span>
+          <Campo label={t('comercial.ficha.pausar.motivo')} obligatorio falta={obPausa.falta('motivoPausa')}>
             <textarea
               value={motivoPausa}
               onChange={(e) => setMotivoPausa(e.target.value)}
               rows={3}
-              placeholder="Ej. Litigio del predio, permiso suspendido, orden de autoridad…"
+              placeholder={t('comercial.ficha.pausar.motivo-ej')}
               className={inputCls}
               autoFocus
             />
-          </label>
+          </Campo>
         </div>
       </Modal>
 
       <Modal
         open={reubicarOpen}
-        onOpenChange={(v) => { if (!v) { setReubicarOpen(false); setPredioDestino('') } }}
-        title="Reubicar pantalla"
+        onOpenChange={(v) => { if (!v) cerrarReubicar() }}
+        title={t('comercial.ficha.reubicar.titulo')}
         subtitle={sitio.nombre}
         footer={
           <div className="flex justify-end gap-2">
-            <Button variant="secondary" size="sm" onClick={() => { setReubicarOpen(false); setPredioDestino('') }}>Cancelar</Button>
-            <Button size="sm" disabled={reubicando || !predioDestino} onClick={reubicar}>
-              {reubicando ? 'Reubicando…' : 'Reubicar'}
+            <Button variant="secondary" size="sm" onClick={cerrarReubicar}>{t('comun.cancelar')}</Button>
+            <Button size="sm" disabled={reubicando} onClick={reubicar}>
+              {reubicando ? t('comercial.ficha.reubicar.reubicando') : t('comercial.ficha.reubicar')}
             </Button>
           </div>
         }
       >
         <div className="space-y-2">
           <p className="text-[12px] text-muted">
-            Mueve la pantalla a otro predio. Se generará una OT de reubicación en Operaciones.
+            {t('comercial.ficha.reubicar.ayuda')}
           </p>
-          <label className="block">
-            <span className="mb-1 block text-[12px] font-medium text-ink">Predio destino</span>
+          <Campo label={t('comercial.ficha.reubicar.destino')} obligatorio falta={obReubicar.falta('predioDestino')}>
             <select value={predioDestino} onChange={(e) => setPredioDestino(e.target.value)} className={inputCls}>
-              <option value="">— Elige el predio —</option>
+              <option value="">{t('comercial.ficha.reubicar.elige')}</option>
               {(predios ?? [])
                 .filter((p) => p.id !== sitio.predioId)
                 .map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
             </select>
-          </label>
+          </Campo>
         </div>
       </Modal>
 
@@ -745,8 +877,8 @@ export function SiteFicha({
           if (!v) candado.olvidar()
           setBorrarOpen(v)
         }}
-        title={`Eliminar ${sitio.nombre}`}
-        confirmLabel={candado.reautenticando ? 'Confirmar y eliminar' : 'Eliminar pantalla'}
+        title={t('comercial.ficha.eliminar.titulo', { nombre: sitio.nombre })}
+        confirmLabel={candado.reautenticando ? t('comercial.ficha.eliminar.confirmar') : t('comercial.ficha.eliminar.boton')}
         busy={borrando || candado.enviando}
         // Confirmar REPITE el borrado pendiente en vez de armar otro: `eliminar`
         // volvería a entrar sin contraseña y chocaría otra vez con el candado.
@@ -754,8 +886,9 @@ export function SiteFicha({
         confirmDeshabilitado={candado.reautenticando && !candado.pass}
         confirmarEscribiendo={sitio.nombre}
       >
-        Se elimina la pantalla y deja de poder reservarse. Sus reservas y su historial
-        quedan como estén: <span className="text-ink">esta acción no se puede deshacer</span>.
+        {interpolarNodos(t('comercial.ficha.eliminar.texto'), {
+          aviso: <span className="text-ink">{t('comercial.ficha.eliminar.aviso')}</span>,
+        })}
         {/* B38 · el campo va AQUÍ, dentro del cuadro que ya existía, y no en uno
             nuevo encima: lo que se confirma —el nombre tecleado y el aviso de que
             no se puede deshacer— tiene que seguir a la vista mientras se teclea
@@ -769,17 +902,29 @@ export function SiteFicha({
 const TIPOS: TipoMedio[] = [
   'ESPECTACULAR', 'PANTALLA_DIGITAL', 'PUENTE_PEATONAL', 'MOBILIARIO_URBANO', 'MURAL', 'VALLA', 'OTRO',
 ]
-const ESTATUS: { v: string; label: string }[] = [
-  { v: 'DISPONIBLE', label: 'Disponible' },
-  { v: 'RESERVADO', label: 'Reservado' },
-  { v: 'OCUPADO', label: 'Ocupado' },
-  { v: 'BLOQUEADO', label: 'Bloqueado' },
+const ESTATUS: { v: string; label: ClaveTexto }[] = [
+  { v: 'DISPONIBLE', label: 'comercial.editar.estatus.disponible' },
+  { v: 'RESERVADO', label: 'comercial.editar.estatus.reservado' },
+  { v: 'OCUPADO', label: 'comercial.editar.estatus.ocupado' },
+  { v: 'BLOQUEADO', label: 'comercial.editar.estatus.bloqueado' },
 ]
 // Vista = dirección cardinal hacia la que apunta la pantalla (reemplaza a
-// "Orientación"). Los ocho rumbos de la rosa de los vientos.
+// "Orientación"). Los ocho rumbos de la rosa de los vientos. El VALOR que se
+// guarda es la palabra en español (es un dato, ya hay filas con él); lo que se
+// traduce es solo lo que se pinta.
 const VISTAS_CARDINALES = [
   'Norte', 'Sur', 'Este', 'Oeste', 'Noreste', 'Noroeste', 'Sureste', 'Suroeste',
 ]
+const VISTA_CLAVE: Record<string, ClaveTexto> = {
+  Norte: 'comercial.vista.norte',
+  Sur: 'comercial.vista.sur',
+  Este: 'comercial.vista.este',
+  Oeste: 'comercial.vista.oeste',
+  Noreste: 'comercial.vista.noreste',
+  Noroeste: 'comercial.vista.noroeste',
+  Sureste: 'comercial.vista.sureste',
+  Suroeste: 'comercial.vista.suroeste',
+}
 const inputCls =
   'w-full rounded border border-border-strong bg-surface px-2.5 py-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 
@@ -808,6 +953,7 @@ const inputCls =
 //  acción tiene cuadro propio, así que no hace falta que el 403 abra otro.
 // ============================================================================
 function ModalidadesDialog({ sitio, open, onClose }: { sitio: Sitio; open: boolean; onClose: () => void }) {
+  const { t, idioma } = useIdioma()
   const previas = sitio.modalidadesDetalle ?? []
   // Las tarifas se editan como TEXTO y no como número: un `<input type=number>`
   // controlado con `Number('')` convierte un campo vacío en 0, y un 0 aquí es un
@@ -853,6 +999,7 @@ function ModalidadesDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
   }
 
   async function guardar() {
+    if (!obNuevas.validar()) return
     setEnviando(true)
     // Bloque sin `try`: `candado.ejecutar` DEVUELVE el fallo en vez de lanzarlo
     // (lo entrega por `alFallar`). Mismo criterio que `EditarSitioDialog`.
@@ -886,17 +1033,25 @@ function ModalidadesDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
       await candado.ejecutar({
         guardar: () => actualizarModalidadesApi(sitio.id, { guardar: guardarLista, quitar: quitadas }),
         alLograr: () => {
-          toast.success('Tarifas por unidad guardadas')
+          toast.success(t('comercial.tarifas.guardadas'))
           onClose()
         },
         alFallar: (m) => toast.error(m),
-        mensajeSiFalla: 'No se pudieron guardar las tarifas',
+        mensajeSiFalla: t('comercial.tarifas.error'),
       })
     }
     setEnviando(false)
   }
 
-  const nuevaSinTarifa = nuevas.some((n) => n.tarifa.trim() === '' || !Number.isFinite(Number(n.tarifa)))
+  // OBLIG-01 · una unidad recién añadida necesita su tarifa (`modalidadSchema`,
+  // `lib/server/sitios-controller.ts:102-111`). Vacía ya no apaga el botón: se
+  // pulsa y se pinta en rojo la fila que falta. La que no se entiende ('NaN') sí
+  // lo apaga, porque eso es formato y no un hueco.
+  const obNuevas = useObligatorios(
+    Object.fromEntries(nuevas.map((n) => [n.unidad, n.tarifa])),
+    nuevas.map((n) => n.unidad),
+  )
+  const nuevaInvalida = nuevas.some((n) => n.tarifa.trim() !== '' && !Number.isFinite(Number(n.tarifa)))
   // Una tarifa YA puesta que no se entiende llega como 'NaN' (CampoCifra), y
   // `guardar` se la salta (`!Number.isFinite → continue`): se guardaría todo lo
   // demás y ESA tarifa se quedaría como estaba sin que nadie lo notara.
@@ -911,29 +1066,29 @@ function ModalidadesDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
           onClose()
         }
       }}
-      title="Tarifas por unidad de venta"
+      title={t('comercial.tarifas.titulo')}
       subtitle={sitio.nombre}
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="secondary" size="sm" onClick={onClose} disabled={candado.enviando}>
-            Cancelar
+            {t('comun.cancelar')}
           </Button>
           <Button
             size="sm"
             disabled={
               enviando ||
               candado.enviando ||
-              nuevaSinTarifa ||
+              nuevaInvalida ||
               previaInvalida ||
               (candado.reautenticando && !candado.pass)
             }
             onClick={candado.reautenticando ? () => void candado.reintentar() : guardar}
           >
             {enviando || candado.enviando
-              ? 'Guardando…'
+              ? t('comercial.comun.guardando')
               : candado.reautenticando
-                ? 'Confirmar y guardar'
-                : 'Guardar tarifas'}
+                ? t('comercial.comun.confirmar-guardar')
+                : t('comercial.tarifas.guardar')}
           </Button>
         </div>
       }
@@ -942,21 +1097,16 @@ function ModalidadesDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
         <PasoContrasena candado={candado} onEnter={() => void candado.reintentar()} />
 
         <p className="text-[12px] text-muted">
-          Una tarifa por cada forma de vender esta pantalla. Es lo que usa el
-          cotizador de Propuestas: sin una tarifa de «spot» no se puede cotizar
-          por spot.
-          {!admitidas.includes('spot') && (
-            <>
-              {' '}
-              Esta pantalla es <b className="text-ink">fija</b>, así que solo se
-              vende por mensual o catorcenal.
-            </>
-          )}
+          {t('comercial.tarifas.ayuda')}
+          {!admitidas.includes('spot') &&
+            interpolarNodos(t('comercial.tarifas.fija'), {
+              fija: <b className="text-ink">{t('comercial.tarifas.fija.palabra')}</b>,
+            })}
         </p>
 
         {previas.length === 0 && nuevas.length === 0 && (
           <div className="rounded-md border border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">
-            Todavía no hay ninguna. Añade la primera abajo.
+            {t('comercial.tarifas.vacio')}
           </div>
         )}
 
@@ -965,7 +1115,7 @@ function ModalidadesDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
           return (
             <div key={m.unidad} className="flex items-center gap-2">
               <span className={`w-44 shrink-0 text-[13px] capitalize ${quitada ? 'text-muted line-through' : 'text-ink'}`}>
-                {nombreUnidad(m.unidad)}
+                {nombreUnidad(m.unidad, idioma)}
               </span>
               <CampoCifra
                 valor={tarifas[m.unidad] ?? ''}
@@ -976,7 +1126,7 @@ function ModalidadesDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
               />
               <button
                 type="button"
-                title={quitada ? 'Conservar esta unidad' : 'Dejar de vender por esta unidad'}
+                title={quitada ? t('comercial.tarifas.conservar') : t('comercial.tarifas.dejar')}
                 onClick={() =>
                   setQuitadas((q) => (q.includes(m.unidad) ? q.filter((u) => u !== m.unidad) : [...q, m.unidad]))
                 }
@@ -989,11 +1139,22 @@ function ModalidadesDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
         })}
 
         {nuevas.map((n, i) => (
-          <div key={`nueva-${n.unidad}`} className="flex items-center gap-2">
-            <span className="w-44 shrink-0 text-[13px] capitalize text-ink">{nombreUnidad(n.unidad)}</span>
+          // Fila sin etiqueta de `Campo` (el nombre de la unidad hace de
+          // etiqueta a la izquierda): lleva el `data-falta` a mano, que es lo
+          // que pinta el borde rojo en `globals.css`.
+          <div
+            key={`nueva-${n.unidad}`}
+            data-falta={obNuevas.falta(n.unidad) ? 'true' : undefined}
+            className="flex items-center gap-2"
+          >
+            <span className={`w-44 shrink-0 text-[13px] capitalize ${obNuevas.falta(n.unidad) ? 'text-error' : 'text-ink'}`}>
+              {nombreUnidad(n.unidad, idioma)}
+              <span aria-hidden="true" className="ml-0.5 text-error">*</span>
+              <span className="sr-only">{t('comercial.comun.obligatorio')}</span>
+            </span>
             <CampoCifra
               autoFocus
-              placeholder="Tarifa"
+              placeholder={t('comercial.tarifas.tarifa')}
               valor={n.tarifa}
               mostrarError={false}
               onCambio={(crudo) =>
@@ -1003,7 +1164,7 @@ function ModalidadesDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
             />
             <button
               type="button"
-              title="Quitar"
+              title={t('comercial.tarifas.quitar')}
               onClick={() => setNuevas((prev) => prev.filter((_, j) => j !== i))}
               className="shrink-0 rounded p-1.5 text-muted hover:bg-surface-2 hover:text-ink"
             >
@@ -1012,9 +1173,14 @@ function ModalidadesDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
           </div>
         ))}
 
+        {obNuevas.intento && obNuevas.faltan.length > 0 && (
+          <p role="alert" className="text-[11px] text-error">
+            {t('comercial.tarifas.falta')}
+          </p>
+        )}
         {(previaInvalida || nuevas.some((n) => n.tarifa === CRUDO_INVALIDO)) && (
           <p className="text-[11px] text-error">
-            Hay una tarifa en rojo que no se entiende: la coma separa miles y el punto, decimales (15,000.50).
+            {t('comercial.tarifas.no-se-entiende', { ejemplo: ejemploCifra('15,000.50', idioma) })}
           </p>
         )}
 
@@ -1025,13 +1191,13 @@ function ModalidadesDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
               onChange={(e) => setPorAnadir(e.target.value)}
               className={`${inputCls} flex-1`}
             >
-              <option value="">Añadir unidad…</option>
+              <option value="">{t('comercial.tarifas.anadir-unidad')}</option>
               {disponibles.map((u) => (
-                <option key={u} value={u} className="capitalize">{nombreUnidad(u)}</option>
+                <option key={u} value={u} className="capitalize">{nombreUnidad(u, idioma)}</option>
               ))}
             </select>
             <Button variant="success" size="sm" onClick={anadir} disabled={!porAnadir}>
-              Añadir
+              {t('comercial.tarifas.anadir')}
             </Button>
           </div>
         )}
@@ -1040,7 +1206,9 @@ function ModalidadesDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
   )
 }
 
-function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boolean; onClose: () => void }) {
+// Exportado para `lib/i18n/cifras-formularios.test.ts` (B79): se monta sin la ficha.
+export function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boolean; onClose: () => void }) {
+  const { t, idioma } = useIdioma()
   // Una pantalla digital tiene inventario de slots editable.
   const digital =
     sitio.esRotativo ||
@@ -1076,6 +1244,13 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
   const [spotsPorHora, setSpotsPorHora] = useState(sitio.spotsPorHora != null ? String(sitio.spotsPorHora) : '')
   const [horario, setHorario] = useState(sitio.horario ?? '')
   const [cms, setCms] = useState<string>(sitio.cms ?? '')
+  // 13/10 · a qué pantalla de DOOHmain se publica. Antes solo se podía decir en
+  // el `.env` del servidor (DOOHMAIN_SCREEN_MAP). Las sugerencias son las
+  // pantallas que ve la cuenta; si DOOHmain no contesta, se escribe a mano.
+  const [doohmainPantalla, setDoohmainPantalla] = useState(sitio.doohmainPantalla ?? '')
+  // v0.12.3 · pantalla PROPIA (sin renta ni contrato). Es cambio sensible: mueve el costo.
+  const [propio, setPropio] = useState(sitio.propio === true)
+  const [pantallasDm, setPantallasDm] = useState<{ habilitado: boolean; pantallas: string[]; error?: string } | null>(null)
   const [enviando, setEnviando] = useState(false)
   // B38 · el `guardar` de abajo manda un DIFF, así que solo dispara el candado
   // cuando el diff toca tarifa, costo o arrendador (`CAMPOS_SENSIBLES` en
@@ -1110,10 +1285,35 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
     setSpotsPorHora(sitio.spotsPorHora != null ? String(sitio.spotsPorHora) : '')
     setHorario(sitio.horario ?? '')
     setCms(sitio.cms ?? '')
+    setDoohmainPantalla(sitio.doohmainPantalla ?? '')
+    setPropio(sitio.propio === true)
   }, [sitio.id, open])
 
+  // La lista se pide al abrir, y solo para pantallas digitales: es una llamada
+  // al SDK de DOOHmain, no algo que convenga hacer por cada ficha que se mira.
+  useEffect(() => {
+    if (!open || !digital || pantallasDm) return
+    let vivo = true
+    pantallasDoohmainApi().then((r) => vivo && setPantallasDm(r))
+    return () => {
+      vivo = false
+    }
+  }, [open, digital, pantallasDm])
+
+  // OBLIG-01 · el nombre es el único obligatorio de la edición: el resto de
+  // campos admite quedarse vacío (se manda como null o no se manda).
+  const ob = useObligatorios({ nombre }, ['nombre'])
+  // P-L2-1 · las medidas, las caras, el cupo y los slots son `EntradaCifra`:
+  // en italiano llegan canónicos («12,9» → '12.9') o como 'NaN', y el 'NaN'
+  // para aquí. Sin esto, `Number('NaN')` viajaría en el diff como NaN → null
+  // en JSON y BORRARÍA el ancho guardado. En español e inglés es `false`.
+  const medidaIlegible = [ancho, alto, caras, cupoClientes, ...(digital ? [slots, duracionSlot] : [])].some((x) =>
+    cifraIlegible(x, idioma),
+  )
+
   async function guardar() {
-    if (tarifa === CRUDO_INVALIDO || (digital && spotsPorHora === CRUDO_INVALIDO)) return
+    if (!ob.validar()) return
+    if (tarifa === CRUDO_INVALIDO || (digital && spotsPorHora === CRUDO_INVALIDO) || medidaIlegible) return
     setEnviando(true)
     // Bloque sin `try`: era uno, y el `catch` se retiró porque `candado.ejecutar`
     // DEVUELVE el fallo en vez de lanzarlo (lo enseña `alFallar`). Se conserva
@@ -1189,7 +1389,11 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
         }
         if ((horario.trim() || null) !== (sitio.horario ?? null)) cambios.horario = horario.trim() || null
         if ((cms || null) !== (sitio.cms ?? null)) cambios.cms = cms || null
+        if ((doohmainPantalla.trim() || null) !== (sitio.doohmainPantalla ?? null)) {
+          cambios.doohmainPantalla = doohmainPantalla.trim() || null
+        }
       }
+      if (propio !== (sitio.propio === true)) cambios.propio = propio
 
       if (Object.keys(cambios).length === 0) {
         onClose()
@@ -1202,7 +1406,7 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
         guardar: () => actualizarSitioApi(sitio.id, cambios),
         alLograr: onClose,
         alFallar: (m) => toast.error(m),
-        mensajeSiFalla: 'No se pudo guardar',
+        mensajeSiFalla: t('comercial.comun.no-se-pudo-guardar'),
       })
     }
     setEnviando(false)
@@ -1219,11 +1423,11 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
           onClose()
         }
       }}
-      title="Editar pantalla"
+      title={t('comercial.editar.titulo')}
       subtitle={sitio.codigoProveedor}
       footer={
         <div className="flex justify-end gap-2">
-          <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
+          <Button variant="secondary" size="sm" onClick={onClose}>{t('comun.cancelar')}</Button>
           {/* Confirmar REPITE el diff pendiente en vez de recalcularlo: `guardar`
               volvería a leer el formulario, que el usuario pudo tocar mientras
               tecleaba la contraseña. */}
@@ -1232,21 +1436,21 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
             disabled={
               enviando ||
               candado.enviando ||
-              !nombre.trim() ||
               // 'NaN' = la tarifa no se entiende (CampoCifra). Sin esto,
               // `Number(tarifa) || 0` la guardaría como CERO.
               tarifa === CRUDO_INVALIDO ||
               // Lo mismo con los slots por hora: `Number(x) || 0` los pondría en 0.
               (digital && spotsPorHora === CRUDO_INVALIDO) ||
+              medidaIlegible ||
               (candado.reautenticando && !candado.pass)
             }
             onClick={candado.reautenticando ? () => void candado.reintentar() : guardar}
           >
             {enviando || candado.enviando
-              ? 'Guardando…'
+              ? t('comercial.comun.guardando')
               : candado.reautenticando
-                ? 'Confirmar y guardar'
-                : 'Guardar cambios'}
+                ? t('comercial.comun.confirmar-guardar')
+                : t('comercial.editar.guardar')}
           </Button>
         </div>
       }
@@ -1255,86 +1459,97 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
         {/* B38 · el campo, dentro del cuadro que ya existía. Arriba del todo a
             propósito: el formulario es largo y el pie está lejos. */}
         <PasoContrasena candado={candado} onEnter={() => void candado.reintentar()} />
-        <CampoEdit label="Nombre">
+        {/* v0.12.3 · pantalla PROPIA. Es un cambio sensible (pide contraseña):
+            quita la renta del costo y cancela su contrato pendiente. Si tiene
+            un contrato de renta vigente, el servidor pide terminarlo antes. */}
+        <label className="flex items-start gap-2 rounded border border-border bg-surface-2 p-2 text-[13px] text-ink">
+          <input type="checkbox" className="mt-0.5" checked={propio} onChange={(e) => setPropio(e.target.checked)} />
+          <span>
+            <span className="font-medium">{t('comercial.comun.pantalla-propia')}</span>
+            <span className="block text-[11px] text-muted">
+              {t('comercial.editar.propia.ayuda')}
+            </span>
+          </span>
+        </label>
+        <Campo label={t('comercial.comun.nombre')} obligatorio falta={ob.falta('nombre')}>
           <input value={nombre} onChange={(e) => setNombre(e.target.value)} className={inputCls} />
-        </CampoEdit>
+        </Campo>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <CampoEdit label="Tipo de medio">
+          <Campo label={t('comercial.editar.tipo-medio')}>
             <select value={tipoMedio} onChange={(e) => setTipoMedio(e.target.value as TipoMedio)} className={inputCls}>
-              {TIPOS.map((t) => <option key={t} value={t}>{TIPO_MEDIO_LABEL[t]}</option>)}
+              {TIPOS.map((tm) => <option key={tm} value={tm}>{t(CLAVE_TIPO_MEDIO[tm])}</option>)}
             </select>
-          </CampoEdit>
-          <CampoEdit label="Disponibilidad">
+          </Campo>
+          <Campo label={t('comercial.comun.disponibilidad')}>
             <select value={estatusComercial} onChange={(e) => setEstatusComercial(e.target.value as Sitio['estatusComercial'])} className={inputCls}>
-              {ESTATUS.map((s) => <option key={s.v} value={s.v}>{s.label}</option>)}
+              {ESTATUS.map((s) => <option key={s.v} value={s.v}>{t(s.label)}</option>)}
             </select>
-          </CampoEdit>
-          <CampoEdit label="Vista (dirección)">
+          </Campo>
+          <Campo label={t('comercial.editar.vista')}>
             <select value={vista} onChange={(e) => setVista(e.target.value)} className={inputCls}>
-              <option value="">— Sin definir —</option>
-              {VISTAS_CARDINALES.map((d) => <option key={d} value={d}>{d}</option>)}
+              <option value="">{t('comercial.editar.sin-definir')}</option>
+              {VISTAS_CARDINALES.map((d) => <option key={d} value={d}>{t(VISTA_CLAVE[d])}</option>)}
               {/* Conserva un valor previo que no esté en la rosa de los vientos */}
               {vista && !VISTAS_CARDINALES.includes(vista) && <option value={vista}>{vista}</option>}
             </select>
-          </CampoEdit>
+          </Campo>
         </div>
-        <CampoEdit label="Distrito / alcaldía">
+        <Campo label={t('comercial.editar.alcaldia')}>
           <input value={alcaldia} onChange={(e) => setAlcaldia(e.target.value)} className={inputCls} />
-        </CampoEdit>
-        <CampoEdit label="Dirección comercial">
+        </Campo>
+        <Campo label={t('comercial.comun.direccion-comercial')}>
           <input value={direccionComercial} onChange={(e) => setDireccionComercial(e.target.value)} className={inputCls} />
-        </CampoEdit>
+        </Campo>
 
         {/* Características físicas de la pantalla (detalles editables) */}
         <div className="rounded-md border border-border bg-surface-2 p-3">
-          <div className="mb-2 text-[12px] font-medium text-ink">Características</div>
+          <div className="mb-2 text-[12px] font-medium text-ink">{t('comercial.comun.caracteristicas')}</div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <CampoEdit label="Ancho (m)">
-              <input type="number" inputMode="decimal" min={0} value={ancho} onChange={(e) => setAncho(e.target.value)} className={`demo-num ${inputCls}`} />
-            </CampoEdit>
-            <CampoEdit label="Alto (m)">
-              <input type="number" inputMode="decimal" min={0} value={alto} onChange={(e) => setAlto(e.target.value)} className={`demo-num ${inputCls}`} />
-            </CampoEdit>
-            <CampoEdit label="Caras">
-              <input type="number" inputMode="numeric" min={0} value={caras} onChange={(e) => setCaras(e.target.value)} className={`demo-num ${inputCls}`} />
-            </CampoEdit>
-            <CampoEdit label="Estructura">
-              <input value={tipoEstructura} onChange={(e) => setTipoEstructura(e.target.value)} placeholder="unipolar, mupi…" className={inputCls} />
-            </CampoEdit>
-            <CampoEdit label="Tramo">
+            <Campo label={t('comercial.comun.ancho')}>
+              <EntradaCifra type="number" inputMode="decimal" min={0} valor={ancho} onCambio={setAncho} decimales={2} minimo={0} className={`demo-num ${inputCls}`} />
+            </Campo>
+            <Campo label={t('comercial.comun.alto')}>
+              <EntradaCifra type="number" inputMode="decimal" min={0} valor={alto} onCambio={setAlto} decimales={2} minimo={0} className={`demo-num ${inputCls}`} />
+            </Campo>
+            <Campo label={t('comercial.ficha.caras')}>
+              <EntradaCifra type="number" inputMode="numeric" min={0} valor={caras} onCambio={setCaras} decimales={0} minimo={0} className={`demo-num ${inputCls}`} />
+            </Campo>
+            <Campo label={t('comercial.ficha.estructura')}>
+              <input value={tipoEstructura} onChange={(e) => setTipoEstructura(e.target.value)} placeholder={t('comercial.editar.estructura-ej')} className={inputCls} />
+            </Campo>
+            <Campo label={t('comercial.ficha.tramo')}>
               <input value={tramo} onChange={(e) => setTramo(e.target.value)} className={inputCls} />
-            </CampoEdit>
-            <CampoEdit label="Iluminado">
+            </Campo>
+            <Campo label={t('comercial.ficha.iluminado')}>
               <select value={iluminado ? 'si' : 'no'} onChange={(e) => setIluminado(e.target.value === 'si')} className={inputCls}>
-                <option value="si">Sí</option>
-                <option value="no">No</option>
+                <option value="si">{t('comercial.comun.si')}</option>
+                <option value="no">{t('comercial.comun.no')}</option>
               </select>
-            </CampoEdit>
+            </Campo>
           </div>
         </div>
 
         <div className="grid grid-cols-1 gap-3">
-          <CampoEdit label="Tarifa publicada (mensual)">
+          <Campo label={t('comercial.editar.tarifa')}>
             <CampoCifra valor={tarifa} onCambio={(crudo) => setTarifa(crudo)} className={`demo-num ${inputCls}`} />
-          </CampoEdit>
+          </Campo>
         </div>
 
         {/* Propietario/arrendador de la pantalla. La RENTA no se edita aquí: vive
             en el contrato del predio (módulo Arrendadores), que es su única
             fuente para el P&L. */}
         <div className="rounded-md border border-border bg-surface-2 p-3">
-          <div className="mb-2 text-[12px] font-medium text-ink">Arrendador</div>
-          <CampoEdit label="Arrendador">
+          <div className="mb-2 text-[12px] font-medium text-ink">{t('comercial.editar.arrendador')}</div>
+          <Campo label={t('comercial.editar.arrendador')}>
             <select value={arrendadorSel} onChange={(e) => setArrendadorSel(e.target.value)} className={inputCls}>
-              <option value="">— Sin asignar —</option>
+              <option value="">{t('comercial.editar.sin-asignar')}</option>
               {(arrendadores ?? []).map((a) => (
                 <option key={a.id} value={a.id}>{a.nombre}</option>
               ))}
             </select>
-          </CampoEdit>
+          </Campo>
           <p className="mt-2 text-[11px] text-muted">
-            La renta y su periodicidad viven en el contrato, no en la pantalla. El importe se puede
-            corregir desde la tabla de Inventario; la periodicidad y la vigencia, en Arrendadores.
+            {t('comercial.editar.renta.ayuda')}
           </p>
         </div>
         {/* ADR 0008 · cupo de clientes. Fuera del bloque DOOH a propósito: aplica
@@ -1342,78 +1557,114 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
             ya es exclusiva por fechas). No es capacidad técnica —eso son los
             slots— sino política comercial: cuántos anunciantes conviven. */}
         <div className="rounded-md border border-border bg-surface-2 p-3">
-          <div className="mb-2 text-[12px] font-medium text-ink">Cupo de clientes</div>
-          <CampoEdit label="Máximo de clientes distintos">
-            <input
+          <div className="mb-2 text-[12px] font-medium text-ink">{t('comercial.editar.cupo')}</div>
+          <Campo label={t('comercial.editar.cupo.maximo')}>
+            <EntradaCifra
               type="number"
               inputMode="numeric"
               min={1}
-              value={cupoClientes}
-              onChange={(e) => setCupoClientes(e.target.value)}
-              placeholder={cupoGlobal != null ? `Global: ${cupoGlobal}` : 'Sin límite'}
+              valor={cupoClientes}
+              onCambio={setCupoClientes}
+              decimales={0}
+              minimo={1}
+              placeholder={cupoGlobal != null ? t('comercial.editar.cupo.global-ph', { n: cupoGlobal }) : t('comercial.editar.cupo.sin-limite')}
               className={`demo-num ${inputCls}`}
             />
-          </CampoEdit>
+          </Campo>
           <p className="mt-2 text-[11px] text-muted">
-            Cuántos anunciantes distintos pueden compartir esta pantalla a la vez. Vacío ={' '}
-            {cupoGlobal != null
-              ? `usa el valor global (${cupoGlobal}), que se fija en Administración.`
-              : 'sin límite (no hay valor global configurado).'}{' '}
-            Un cliente que ya está en la pantalla puede seguir metiendo campañas mientras queden slots.
-            {sitio.clientesActivos != null && sitio.clientesActivos > 0 && (
-              <> Ahora mismo tiene <span className="demo-num font-medium text-ink">{sitio.clientesActivos}</span>.</>
-            )}
+            {t('comercial.editar.cupo.ayuda', {
+              vacio:
+                cupoGlobal != null
+                  ? t('comercial.editar.cupo.global', { n: cupoGlobal })
+                  : t('comercial.editar.cupo.sin-global'),
+            })}
+            {sitio.clientesActivos != null &&
+              sitio.clientesActivos > 0 &&
+              interpolarNodos(t(sitio.clientesActivos === 1 ? 'comercial.editar.cupo.ahora.uno' : 'comercial.editar.cupo.ahora.otros'), {
+                n: <span className="demo-num font-medium text-ink">{sitio.clientesActivos}</span>,
+              })}
           </p>
         </div>
         {digital && (
           <div className="rounded-md border border-border bg-surface-2 p-3">
-            <div className="mb-2 text-[12px] font-medium text-ink">Especificaciones DOOH</div>
+            <div className="mb-2 text-[12px] font-medium text-ink">{t('comercial.editar.dooh')}</div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <CampoEdit label="Cantidad de slots">
-                <input type="number" inputMode="numeric" min={0} value={slots} onChange={(e) => setSlots(e.target.value)} placeholder="Ej. 12" className={`demo-num ${inputCls}`} />
-              </CampoEdit>
-              <CampoEdit label="Duración por slot (s)">
-                <input type="number" inputMode="numeric" min={0} value={duracionSlot} onChange={(e) => setDuracionSlot(e.target.value)} placeholder="Ej. 20" className={`demo-num ${inputCls}`} />
-              </CampoEdit>
-              <CampoEdit label="Slots por hora">
-                <CampoCifra decimales={0} valor={spotsPorHora} onCambio={(crudo) => setSpotsPorHora(crudo)} placeholder="Ej. 180" className={`demo-num ${inputCls}`} />
-              </CampoEdit>
-              <CampoEdit label="Resolución (px)">
+              <Campo label={t('comercial.editar.cantidad-slots')}>
+                <EntradaCifra type="number" inputMode="numeric" min={0} valor={slots} onCambio={setSlots} decimales={0} minimo={0} placeholder={t('comercial.comun.ej', { valor: '12' })} className={`demo-num ${inputCls}`} />
+              </Campo>
+              <Campo label={t('comercial.editar.duracion-slot')}>
+                <EntradaCifra type="number" inputMode="numeric" min={0} valor={duracionSlot} onCambio={setDuracionSlot} decimales={0} minimo={0} placeholder={t('comercial.comun.ej', { valor: '20' })} className={`demo-num ${inputCls}`} />
+              </Campo>
+              <Campo label={t('comercial.ficha.slots-hora')}>
+                <CampoCifra decimales={0} valor={spotsPorHora} onCambio={(crudo) => setSpotsPorHora(crudo)} placeholder={t('comercial.comun.ej', { valor: '180' })} className={`demo-num ${inputCls}`} />
+              </Campo>
+              <Campo label={t('comercial.comun.resolucion-px')}>
                 <input value={resolucionPx} onChange={(e) => setResolucionPx(e.target.value)} placeholder="1920x1080" className={inputCls} />
-              </CampoEdit>
-              <CampoEdit label="Contenido">
+              </Campo>
+              <Campo label={t('comercial.ficha.contenido')}>
                 <select value={tipoContenido} onChange={(e) => setTipoContenido(e.target.value)} className={inputCls}>
-                  <option value="">— Sin definir —</option>
-                  <option value="VIDEO">Video</option>
-                  <option value="IMAGEN">Imagen</option>
+                  <option value="">{t('comercial.editar.sin-definir')}</option>
+                  <option value="VIDEO">{t('comercial.comun.video')}</option>
+                  <option value="IMAGEN">{t('comercial.comun.imagen')}</option>
                 </select>
-              </CampoEdit>
-              <CampoEdit label="CMS">
+              </Campo>
+              <Campo label="CMS">
                 <select value={cms} onChange={(e) => setCms(e.target.value)} className={inputCls}>
-                  <option value="">— Sin definir —</option>
-                  {Object.entries(CMS_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  <option value="">{t('comercial.editar.sin-definir')}</option>
+                  {Object.keys(CMS_LABEL).map((v) => <option key={v} value={v}>{cmsEtiqueta(t, v)}</option>)}
                 </select>
-              </CampoEdit>
-              <CampoEdit label="Horario">
-                <input value={horario} onChange={(e) => setHorario(e.target.value)} placeholder="Ej. 06:00–24:00" className={inputCls} />
-              </CampoEdit>
+              </Campo>
+              {(cms === '' || cms === 'DOOHMAIN') && (
+                <Campo label={t('comercial.ficha.id-doohmain')}>
+                  <input
+                    value={doohmainPantalla}
+                    onChange={(e) => setDoohmainPantalla(e.target.value)}
+                    list={`pantallas-doohmain-${sitio.id}`}
+                    placeholder={
+                      sitio.doohmainEfectiva && sitio.doohmainOrigen !== 'ficha'
+                        ? t('comercial.editar.doohmain.hoy', {
+                            id: sitio.doohmainEfectiva,
+                            origen:
+                              sitio.doohmainOrigen === 'mapa'
+                                ? t('comercial.editar.doohmain.mapa')
+                                : t('comercial.editar.doohmain.omision'),
+                          })
+                        : t('comercial.editar.doohmain.vacio')
+                    }
+                    className={inputCls}
+                  />
+                  {/* 22/10 · el campo vacío NO significa que no tenga: decía «la
+                      decide el servidor» sin decir cuál, y se leía como que el id
+                      se había perdido. */}
+                  {!doohmainPantalla.trim() && sitio.doohmainEfectiva && sitio.doohmainOrigen !== 'ficha' && (
+                    <span className="mt-1 block text-[11px] text-muted">
+                      {interpolarNodos(t('comercial.editar.doohmain.al-publicar'), {
+                        id: <span className="font-mono text-ink">{sitio.doohmainEfectiva}</span>,
+                        origen: textoOrigenDoohmain(sitio.doohmainOrigen ?? null, idioma),
+                      })}
+                    </span>
+                  )}
+                  <datalist id={`pantallas-doohmain-${sitio.id}`}>
+                    {(pantallasDm?.pantallas ?? []).map((p) => <option key={p} value={p} />)}
+                  </datalist>
+                  {pantallasDm?.habilitado && pantallasDm.error ? (
+                    <span className="mt-1 block text-[11px] text-muted">
+                      {t('comercial.editar.doohmain.error', { error: pantallasDm.error })}
+                    </span>
+                  ) : null}
+                </Campo>
+              )}
+              <Campo label={t('comercial.ficha.horario')}>
+                <input value={horario} onChange={(e) => setHorario(e.target.value)} placeholder={t('comercial.comun.ej', { valor: '06:00–24:00' })} className={inputCls} />
+              </Campo>
             </div>
           </div>
         )}
-        <CampoEdit label="Notas">
+        <Campo label={t('comercial.comun.notas')}>
           <textarea value={notas} onChange={(e) => setNotas(e.target.value)} rows={2} className={inputCls} />
-        </CampoEdit>
+        </Campo>
       </div>
     </Modal>
-  )
-}
-
-function CampoEdit({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-[12px] font-medium text-ink">{label}</span>
-      {children}
-    </label>
   )
 }
 

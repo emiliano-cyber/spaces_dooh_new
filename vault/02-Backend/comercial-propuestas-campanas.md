@@ -1,8 +1,8 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-07
-tags: [backend, comercial, propuestas, campanas, amarillo, precio]
+actualizado: 2026-11-05
+tags: [backend, comercial, propuestas, campanas, amarillo, precio, extension, contrato]
 archivos:
   - apps/web/lib/server/propuestas-repo.ts
   - apps/web/lib/server/propuestas-controller.ts
@@ -12,12 +12,16 @@ archivos:
   - db/migrations/20261007_calculadora_spots.sql
   - apps/web/app/api/propuestas/route.ts
   - apps/web/app/(app)/(shell)/propuestas/page.tsx
+  - apps/web/lib/cantidad-propuesta.ts
+  - apps/web/lib/slots-reserva.ts
+  - apps/web/components/demo/comercial/ReservaDialog.tsx
   - db/migrations/20261006_precio_ajustado_por_gerente.sql
   - apps/web/lib/descuento.ts
   - apps/web/lib/server/config-repo.ts
   - apps/web/app/api/propuestas/[id]/route.ts
   - db/migrations/20260928_tope_descuento_propuestas.sql
   - apps/web/lib/server/campanas-repo.ts
+  - apps/web/lib/neto-de-linea.ts
   - apps/web/lib/server/campanas-controller.ts
   - apps/web/lib/server/creativos-repo.ts
   - apps/web/lib/server/reservas-controller.ts
@@ -26,14 +30,31 @@ archivos:
   - apps/web/lib/folio-venta.ts
   - apps/web/lib/modalidades.ts
   - apps/web/app/api/campanas/[id]/extender/route.ts
+  - db/migrations/20261029_campana_extensiones.sql
+  - apps/web/components/demo/campanas/ExtenderCampanaDialog.tsx
+  - apps/web/components/demo/campanas/ExtensionesCampana.tsx
   - apps/web/lib/data/types.ts
   - apps/web/app/(app)/(shell)/propuestas/[id]/page.tsx
   - apps/web/app/(app)/(shell)/campanas/[id]/page.tsx
+  - apps/web/app/(app)/(shell)/campanas/page.tsx
+  - apps/web/app/(app)/(shell)/creativos/page.tsx
   - apps/web/components/demo/campanas/FranjaProgramadaCampana.tsx
+  - apps/web/components/demo/campanas/IndicadoresCampanas.tsx
+  - apps/web/components/demo/campanas/ResumenCampana.tsx
+  - apps/web/components/demo/campanas/ListasCampana.tsx
+  - apps/web/components/demo/campanas/CandadoPanel.tsx
   - apps/web/lib/server/programacion-repo.ts
   - apps/web/lib/server/contratos-sitio.ts
   - apps/web/lib/server/portal-repo.ts
   - apps/web/lib/server/paquetes-repo.ts
+  - db/migrations/20261029_propuestas_condiciones_vigencia_vendedor.sql
+  - apps/web/lib/propuesta-vigencia.ts
+  - apps/web/lib/server/propuestas-envio.ts
+  - apps/web/components/demo/propuestas/BloqueCondicionesVigencia.tsx
+  - apps/web/app/(app)/p/[id]/page.tsx
+  - apps/web/app/(app)/propuesta/[id]/page.tsx
+  - apps/web/components/demo/propuestas/DocumentoPropuestaCliente.tsx
+  - apps/web/app/api/propuestas/[id]/route.ts
 ---
 
 # Comercial: propuestas, reservas y campañas
@@ -53,7 +74,7 @@ Ver «CPS, CPM y el folio de venta» más abajo.
 
 | Archivo | Líneas | Responsabilidad |
 |---|---|---|
-| `campanas-repo.ts` | 1392 | Clientes, campañas, reservas, confirmar/extender |
+| `campanas-repo.ts` | 1541 | Clientes, campañas, reservas, confirmar/extender (con contrato) |
 | `propuestas-repo.ts` | 1461 | Propuestas, ítems, liga pública, aceptación |
 | `lib/descuento.ts` | 321 | Descuento válido **y bajo el tope**, y el texto de bitácora (puro, con tests) |
 | `creativos-repo.ts` | 366 | Alta, validación y asignación de creativos |
@@ -180,6 +201,13 @@ porque anotarlo siempre haría inútil el filtro por persona de Actividad.
 
 El tenant de esas peticiones lo resuelve Postgres con
 `propuesta_tenant_por_token()`, nunca el cliente. Ver [[multi-tenancy-y-rls]].
+
+**DASH-REF (26/10).** `armarPropuesta` devuelve además `aprobadaEn`,
+`rechazadaEn` y `vendedorId` (de `usuario_id`), que el Dashboard usa para lo
+ganado en el mes y por vendedor ([[03-Frontend/dashboard-inicio]]). La liga
+pública arma su respuesta **campo por campo** en `obtenerPropuestaPublica`, así
+que no los lleva; lo fija la sección DASH-REF de
+`lib/test/vendedor-en-propuesta.e2e.test.ts`.
 
 ## Creativos
 
@@ -323,10 +351,10 @@ campaña y **no se elige aquí**. `campanas.franja_programada_id` es en qué
 horario **se transmite**, y la escribe solo
 `PUT /api/campanas/franja-programada` (`comercial.aprobar`, en bloque y atómico).
 Programar no toca precio, snapshot ni reservas; si difiere de lo contratado,
-se **avisa** y no se bloquea (decisión pendiente del dueño). En la ficha lo
-enseña `FranjaProgramadaCampana`, montado con una línea bajo el Pipeline.
-**Sin fusionar**: la columna espera la aprobación del dueño. Detalle completo en
-[[rejilla-franja-y-temporada]].
+se **avisa** y no se bloquea — **decidido por el dueño el 29/10: solo avisar**.
+En la ficha lo enseña `FranjaProgramadaCampana`, montado con una línea bajo el
+Pipeline. Está en `main` desde `16c4d367` (antes decía «sin fusionar»,
+comprobado el 29/10). Detalle completo en [[rejilla-franja-y-temporada]].
 
 ## El cupón aplicado necesita aprobación (COD-03, 30/09)
 
@@ -363,6 +391,10 @@ mandaba el navegador y se podía cerrar un prime a 1 peso con un `curl`.
 - **El servidor la recalcula** en `crearPropuestaCtrl` con los datos de ESTA
   organización (`lib/server/tarifas-repo.ts`: pantallas, `sitio_modalidades`,
   `sitio_tarifas` y temporadas activas, bajo RLS **y** con `and tenant_id`).
+  *(2026-10-29, B43: el congelado del snapshot usa también estas dos piezas
+  —`datosParaTarifar`, que acepta el tenant de la liga pública, y
+  `tarifaCalculada().temporadaQuePuso`— para nombrar la temporada solo si fue
+  la que puso el precio; ver [[rejilla-franja-y-temporada]].)*
   Compara **al centavo** (`centavos`) y decide con `decidirPrecioItem`:
 
 | Precio enviado | Sin `comercial.aprobar` (VENDEDOR) | Con `comercial.aprobar` (GERENTE_VENTAS y superiores) |
@@ -489,15 +521,54 @@ se alarga la campaña, añadir un .1». Decisiones del dueño, el 07/10:
 - Las unidades de cantidad manual están en UNA lista, `esCantidadManual()`.
   Antes eran tres comparaciones sueltas `spot || hora`, y añadir CPM a dos de
   las tres habría derivado sus millares de las fechas en la tercera.
+
+> [!danger] 2026-11-05 · H1 · la cantidad manual se guardaba DISTINTA de la tecleada (publicado en la v0.12.6)
+> En el campo de la cantidad de una línea (spots, horas o millares de CPM),
+> «1.500» tecleado en español se guardaba como **100**; en italiano «1,500»
+> como 100, «2.5» como 25 y «1.5000» como 15 000. Sin aviso: el campo de la
+> fila va con `mostrarError={false}`. Y la cantidad multiplica la tarifa: en
+> CPM, un ×10 cobra diez veces más.
+>
+> **El mecanismo.** La página hacía `if (lectura.ok) guardar(...)`: lo que no
+> se entendía no cambiaba nada y se quedaba la ÚLTIMA CANTIDAD BUENA. Eso rompe
+> el contrato de `CampoCifra` (lo ilegible llega como `'NaN'` y el formulario
+> bloquea con él), y el campo, al ver que el formulario guardaba otra cosa,
+> **repintaba esa cifra a media escritura**: el separador desaparecía y las
+> cifras siguientes se pegaban. Lo mismo al borrar: «5 → borrar → 8» daba 18,
+> porque el vacío volvía a 1 y se repintaba.
+>
+> **El arreglo** (`lib/cantidad-propuesta.ts`): lo que no es una cantidad
+> (ilegible o vacío) se guarda TAL CUAL en `cantidadCruda` y se le devuelve al
+> campo, que entonces no repinta; `errCifras` bloquea «Crear propuesta» con
+> «la cantidad no se entiende». Cambiar la unidad o encender la calculadora
+> descarta lo ilegible, porque el campo desaparece.
+>
+> **Cómo se prueba sin DOM:** `lib/test/sesion-campo-cifra.ts` reproduce el
+> bucle campo↔formulario con las funciones REALES de `captura-cifra.ts`, en el
+> orden de `CampoCifra.tsx` (su efecto de resincronización incluido), y cuenta
+> los repintados sobre algo ilegible. Lo usan `cantidad-propuesta.test.ts` y
+> `slots-reserva.test.ts`, cada una con 9000 sesiones al azar en es/en/it. Si
+> cambia ese efecto, el espejo tiene que cambiar con él.
+> Recorrido en el navegador real: «1.500» se queda en rojo con el botón
+> bloqueado, «1,500» guarda **1500.00** en `propuesta_items.cantidad`.
+>
+> **Y su gemelo en la reserva (B93, arreglado el mismo día):** los slots por
+> pantalla digital de `ReservaDialog` caían a 0 cuando no se entendían
+> (`Number(crudo) || 0`), y el campo repintaba ese 0 a media escritura. Ahora
+> van por `lib/slots-reserva.ts` con la misma regla: lo ilegible o vacío se
+> queda a la vista y bloquea «Reservar (tentativa)» con «los slots no se
+> entienden». Lo que no cambia, a propósito: una cifra válida por encima de
+> los disponibles se acota a ellos y se ve. Recorrido en el navegador: «1.5»
+> en rojo con el botón bloqueado, y 4 → `reservas.spots_reservados = 4`.
 - **El folio de la campaña es el de su propuesta** (`campanas-repo.ts`,
   `generarCampanaDesdePropuesta`). No choca: `propuestas.folio` es único y una
   propuesta da una sola campaña. Una campaña creada sin propuesta conserva su
   folio propio (`folioCampana`).
 - **Extender le suma un tramo** en el MISMO `update` que alarga la fecha,
   calculado por la base con la fecha que la fila tiene al escribir. Repetir la
-  misma fecha no sube el tramo. La bitácora deja «Extendió campaña
-  PR-2026-0042.1 hasta 2026-12-31»: leídas en orden, las entradas dicen qué
-  cubre cada tramo.
+  misma fecha no sube el tramo (y desde EXT-CONTRATO, 29/10, se rechaza con
+  400). La bitácora deja «Extendió campaña PR-2026-0042.1 hasta 2026-12-31 con
+  contrato»: leídas en orden, las entradas dicen qué cubre cada tramo.
 - **Lo que apareció al hacerlo:** `extenderCampana` leía la fecha y escribía en
   dos pasos, así que dos extensiones a la vez podían **acortar** la campaña (la
   de 60 días pisando a la de 90). El `update` ahora exige `fecha_fin <= nueva`;
@@ -512,6 +583,269 @@ Probado en `lib/periodos.cps-cpm.test.ts`, `lib/folio-venta.test.ts`,
 `lib/test/folio-venta-cpm.e2e.test.ts` (folio heredado, .1/.2, la carrera, la
 bitácora, CPM hasta la reserva y CPM rechazado en una fija). Ocho mutantes,
 todos muertos; el del folio heredado, contra build reconstruido.
+
+## Cómo se ven la lista y la ficha de campaña (rediseño del 26/10)
+
+Solo presentación, con el lenguaje del Dashboard (`inicio/page.tsx`). Ningún
+dato nuevo: todo sale de los hooks que las pantallas ya usaban.
+
+**Lista `/campanas`.** Abre con cuatro indicadores (`IndicadoresCampanas`):
+activas, por validar publicación, listas para facturar (candado abierto y ni
+completada ni cancelada) y contratado vigente (suma de `presupuestoBruto` de las
+activas; **«—» si ninguna tiene presupuesto**, nunca $0). La cola «Por validar»
+enseña 5 y «Ver todas (N)». El filtro de estado dice cuántas hay en cada uno.
+Cada tarjeta lleva la etapa en un chip («Confirmada · 2/9») y el candado
+**con texto** («Lista para facturar»); la línea «Etapa actual» sobre el pipeline
+se quitó porque repetía el chip. El presupuesto que falta es «—» con su motivo
+en `title`. `useVistaCampanas` (compacta, minimizar, ocultar) no cambió de
+significado.
+
+**Ficha `/campanas/[id]`.** Bajo el encabezado, una franja (`ResumenCampana`)
+con total, margen, % entregado, candado, OT abiertas de N y evidencias (solo si
+hay medio fijo). Es componente aparte y entra en la página con **una línea**,
+porque otra rama (la «Validación de publicación» siempre abierta, decisión del
+23/10) toca el mismo archivo. Las listas de Imprenta y OT de sus secciones son
+`ListasCampana` (`divide-y`, fecha compromiso y «Vencida» con `estadoSLAOT`,
+«Ver todas (N)» pasadas 5). `CandadoPanel` ya no pinta borde ni título propios
+—vive dentro de la sección «Candado de facturación», que los pone— y dice «se
+abre cuando se cumplen estas condiciones» en vez de «las tres». Las migas: en
+escritorio solo `Breadcrumbs`; el «← volver» queda para el teléfono.
+
+**`/creativos`.** Cuatro indicadores (por aprobar, aprobados, rechazados, spots
+sin creativo). Si hay campañas pero **ninguna digital**, el vacío lo dice y manda
+a Imprenta, en vez de pedir que se reserven sitios. El estado de cada creativo es
+el mismo chip (`StatusBadge` + `CREATIVIDAD_TONO`) que en la ficha, con el motivo
+del rechazo a la vista; las acciones caben en una fila (Reemplazar y Eliminar
+como iconos con `aria-label`); los spots son una lista con la pastilla «Sin
+creativo». El vacío con filtro trae «Limpiar filtros».
+
+> [!warning] Las clases `border-warning/40`, `bg-warning/10` y similares NO existen
+> Los colores del tema son `var(--warning)` sin canales, y Tailwind 3 no sabe
+> aplicarles opacidad: esas clases **no se generan** (medido en
+> `.next/static/css` el 26/10: cero apariciones). Para un tinte se usan los
+> `*-soft` (`bg-warning-soft`, `bg-success-soft`, `bg-error-soft`).
+
+## Lo tentativo es lo que está en una propuesta abierta (TENT-PROP, 26/10)
+
+> [!important] Regla del dueño, 2026-10-26
+> «Lo tentativo debe ser un spot o una pantalla fija que está en veremos en una
+> propuesta, es decir, solo es propuesta: aún no está aprobada ni creada la
+> campaña.» Y **solo avisa**: una pantalla en propuesta se puede seguir
+> cotizando y vendiendo a otro cliente; varias propuestas pueden competir por
+> ella. Bloquea solo lo confirmado.
+
+**Antes** «tentativo» era un estado de la reserva (`TENTATIVA`, con caducidad de
+7 días y botones Confirmar/Extender en Comercial). **Ningún flujo lo creaba**:
+reservar desde Comercial y generar la campaña insertan `CONFIRMADA`
+(`campanas-repo.ts`). Solo nacían tentativas por el `default 'TENTATIVA'` de la
+columna, y aun así el motor de Reportes las contaba como ingreso mientras la
+ocupación del Dashboard no.
+
+**Ahora:**
+
+- La regla vive una vez en `apps/web/lib/data/en-propuesta.ts`
+  (`itemsEnPropuesta`, `enPropuestaEntre`, `agruparPorPropuesta`): ítems de
+  propuestas en `BORRADOR` o `ENVIADA`, con folio, cliente, fechas y, en una
+  digital, los spots pedidos (`espacios_comprados ?? spots_por_dia`, la misma
+  precedencia con la que una aprobada reserva slots).
+- Disponibilidad: cada celda trae `enPropuesta` (no cambia `estado` ni los
+  conteos). Una libre que alguien pide sale «En propuesta» en ámbar punteado.
+- Comercial: la tarjeta «Reservas tentativas» pasó a «En propuesta» (una fila
+  por propuesta abierta con algo por delante, con enlace a la propuesta). El
+  indicador «Tentativas por confirmar» pasó a «En propuesta».
+- Ficha del sitio: el calendario pinta en ámbar los rangos de propuestas
+  abiertas.
+- Dashboard: el pin ámbar es «en propuesta hoy», y un hueco avisa los folios que
+  piden la cara.
+- Reportes: solo `CONFIRMADA` es venta (`cuentaComoVenta`, `lib/data/reportes.ts`).
+- `20261026_reserva_estatus_por_omision.sql`: la columna nace `CONFIRMADA` por
+  omisión. No toca filas ni el enum.
+- `sitios.estatus_comercial = 'RESERVADO'` **no es tentativo**: lo pone el
+  servidor al generar la campaña, «hasta la OC». Su etiqueta pasó de «Reservado ·
+  tentativo» a «Reservado · sin OC».
+
+> [!note] «Extender campaña» quedó sin entrada en la interfaz (26/10) — resuelto el 29/10
+> El diálogo vivía en la tarjeta de tentativas, que solo aparecía con reservas
+> TENTATIVA, así que **ya era inalcanzable**. El dueño decidió el 29/10 dónde
+> ofrecerlo y con qué condición: ver la sección siguiente.
+
+## Extender solo con contrato nuevo (EXT-CONTRATO, 29/10)
+
+Regla del dueño: **una campaña no se extiende sin un contrato nuevo.** Es ROJO
+R4 (cambia la fecha fin y lo que se factura) y R3 (tabla nueva), los dos
+aprobados por el dueño el 29/10.
+
+- **El contrato es obligatorio en el mismo paso.** `POST
+  /api/campanas/[id]/extender` pide `{ fechaFin, contratoUrl }`. Sin
+  `contratoUrl` (o vacío) responde **422** «Para extender la campaña adjunta el
+  contrato firmado de la extensión», con su traducción en
+  `lib/i18n/errores-servidor.ts`. El archivo pasa por el mismo validador que el
+  contrato del cliente (`LIMITES.contratoPdf`: PDF de hasta 10 MB, bytes
+  verificados). El chequeo vive en `extenderCampanaCtrl`
+  (`campanas-controller.ts`), antes de zod para que el mensaje no lleve el
+  nombre del campo delante.
+- **Dónde vive el contrato: `campana_extensiones`, no `campanas.contrato_url`.**
+  Esa columna es UNA por campaña y `guardarContratoCampana` la sobrescribe:
+  escribir ahí el de la extensión borraba el original. `acciones` es texto y
+  `ordenes_compra` son OC con folio y monto (finanzas). La tabla nueva
+  (`20261029_campana_extensiones.sql`) guarda una fila por extensión: folio del
+  tramo que abrió, fecha de y hasta, el PDF y quién. **Solo inserción** (sin
+  update ni delete para el rol de la app), RLS forzada, y `campana_id` **on
+  delete restrict**: una campaña con extensiones no se puede borrar, los
+  contratos no se pierden nunca (decisión del dueño).
+- **Una sola transacción.** `extenderCampana` hacía tres `q()` sueltos; ahora
+  lee con `for update`, escribe fecha y tramo, inserta la extensión, alarga las
+  reservas y recalcula el presupuesto dentro del mismo `begin … commit`. Si algo
+  falla no queda una campaña extendida (que factura más) sin su contrato.
+- **La misma fecha ya no es una extensión**: antes pasaba sin subir el tramo;
+  ahora es 400, porque dejaría un contrato firmado que no alarga nada. El
+  `where` del update pasó de `fecha_fin <= $2` a `fecha_fin < $2`.
+- **La ficha** (`campanas/[id]/page.tsx`) monta la tarjeta «Extensiones»
+  (`ExtensionesCampana.tsx`): el botón «Extender campaña» (quien tiene
+  `comercial:crear`, y no en una cancelada) abre `ExtenderCampanaDialog` con la
+  fecha y el PDF obligatorios —la subida es la de «Contrato del cliente»: data
+  URL leída en el navegador—, y debajo la lista de extensiones con su contrato,
+  de `GET /api/campanas/[id]/extender` (`comercial:ver`).
+- Las extensiones de antes del 29/10 no tienen fila: no pedían contrato, y su
+  rastro está solo en la bitácora.
+
+Probado en `lib/server/campanas-extender.test.ts` (422 sin contrato, vacío o
+imagen; el mensaje traducido) y `lib/server/campanas-repo.extender.test.ts`
+(la fila con sus datos, el orden dentro de la transacción, `for update`,
+rollback sin fila en el 409). Contra Postgres, la §2b de
+`lib/test/folio-venta-cpm.e2e.test.ts` (sin contrato nada cambia; con contrato
+la fila y el original intacto; restrict; permisos de solo inserción) —
+**escrita y no corrida aquí**: en esta máquina no hay Postgres, la corre el CI.
+
+## Cada reserva hereda el neto de SU línea (B56, 29/10, R4 aprobado por el dueño)
+
+Al generar la campaña de una propuesta aprobada, el precio de cada reserva sale
+del neto congelado en `snapshot_economico.porSitio`. Hasta el 29/10
+`generarCampanaDesdePropuesta` (`lib/server/campanas-repo.ts`) lo buscaba en un
+`Map` **por pantalla**. Con la misma pantalla dos veces —dos franjas o dos
+periodos— ganaba la última entrada, y **las dos reservas se cobraban con ese
+neto** (prime 27 000 + madrugada 7 200 salían 7 200 + 7 200).
+
+Ahora lo empareja `netosDelSnapshot` (`lib/neto-de-linea.ts`, puro):
+
+- **Snapshots desde el 29/10:** por `porSitio[].itemId`, el id del ítem que
+  `congelarSnapshotEconomico` guarda en cada línea. Es lo que identifica la
+  línea de verdad.
+- **Snapshots anteriores** (inmutables, no se reescriben): pantalla única → su
+  neto, como siempre. Pantalla repetida → se desempata por `franja.id` y por la
+  lista (= `precio` del ítem). Si queda un solo neto, ése; si no, `null`.
+- `null` → el **cálculo de respaldo** de siempre (lista × volumen × descuento ×
+  código × comisión, o la parte del paquete). **Nunca el neto de otra línea.**
+
+Las campañas ya generadas **no se tocan**. Para encontrar las afectadas está el
+diagnóstico de solo lectura `docs/datos/20261029_diagnostico_neto_linea_repetida.sql`.
+Pruebas: `lib/neto-de-linea.test.ts`.
+
+## Vigencia y condiciones (PROP-COMPLETA, 29/10)
+
+Decisiones del dueño del 29/10. Migración
+`20261029_propuestas_condiciones_vigencia_vendedor.sql`.
+
+- **Vigencia.** `propuestas.vigente_hasta` la pone `cambiarEstatusPropuesta`
+  al pasar a **ENVIADA**: el día del negocio + `config_negocio.vigencia_propuesta_dias`
+  (30 por omisión, 1–365, en Administración → «Propuestas: vigencia y
+  condiciones»). Una fecha vigente se respeta; **reenviar una vencida la
+  renueva**. Se edita por dentro con `PATCH /api/propuestas/[id]`
+  `{ vigenteHasta }` (fecha validada; no sube versión).
+- **Vencida, la liga no acepta.** `aceptarPropuestaPublica` lo decide en el
+  servidor (`vigente_hasta < $2::date` con `hoyDeVigencia()`), después del idempotente (una ya
+  aceptada sigue diciendo que se aceptó) → `PropuestaVencidaError`, 409. **El
+  último día todavía vale.** `null` = sin vigencia: todo lo enviado antes del
+  29/10 se sigue aceptando como siempre. La liga y la ficha lo avisan con
+  `lib/propuesta-vigencia.ts`, la misma regla.
+- **Qué es «hoy» (05/11): el día de la ZONA DEL NEGOCIO**, la `TZ` del
+  proceso (`app.env`, `America/Mexico_City`), con `hoyDeVigencia()`
+  (`lib/propuesta-vigencia.ts`). Es la única fuente: la ficha, la liga, aceptar,
+  el correo de «Enviar» y la vigencia al enviar la usan, y la base la recibe como
+  parámetro — **ninguna consulta de vigencia usa `current_date`**. Antes había
+  dos relojes: la base de g500 va en `Etc/UTC`, y desde las 18:00 de México una
+  propuesta «válida hasta hoy» salía vigente en la liga y aceptarla daba 409
+  «venció»; la enviada a las 19:00 se guardaba con un día más del que decía su
+  correo. Lo fijan `lib/server/propuesta-vigencia-hora.test.ts` (base simulada
+  en UTC, reloj a las 19:00 de México, y una guardia contra `current_date` en
+  `propuestas-repo.ts` y `propuestas-envio.ts`) y la e2e, que ya no depende de
+  la hora.
+- **Si falta `TZ` (B88 · H4, 05/11).** `hoyDeVigencia()` cuenta con `Intl` y la
+  zona explícita de `zonaDelNegocio()`: la `TZ` del proceso si es válida y, si
+  falta o no vale, `ZONA_DEL_NEGOCIO_POR_OMISION` (`America/Mexico_City`, la de
+  la plantilla `app.env.example`) con un aviso en el log una sola vez. Antes
+  caía a UTC en silencio. La fecha del correo de «Enviar» la fija
+  `lib/server/propuestas-envio-hora.test.ts` (B89).
+- **Condiciones.** `config_negocio.condiciones_propuesta` es una PLANTILLA que
+  `crearPropuesta` **copia** a `propuestas.condiciones`: cambiarla no toca las ya
+  creadas. Se editan por propuesta en la ficha («Condiciones y vigencia») y
+  salen en la liga pública antes del botón de aceptar. Vaciarlas las quita.
+- Pruebas: `lib/propuesta-vigencia.test.ts` y
+  `lib/test/propuesta-vigencia.e2e.test.ts` (incluye R2: la plantilla y los días
+  de una organización no se cuelan en otra).
+
+## El documento imprimible: «Generar PDF» (PROP-COMPLETA, 29/10)
+
+«Generar PDF» abre `app/(app)/propuesta/[id]` en otra pestaña: fuera de
+(shell), como el contrato, y se guarda como PDF desde el diálogo de impresión
+(sin librería en el servidor). Se arma con la **vista del cliente**
+(`obtenerPropuestaPublica(token, { conFotos: true })`): sin tarifas internas y
+**sin el cupón pendiente** (COD-03). Lleva membrete, pantallas con su primera
+foto, mapa (`MapView imprimible`: `preserveDrawingBuffer`, sin él el lienzo
+WebGL sale en blanco), la misma escalera de importes que la liga, condiciones,
+la liga con QR y el espacio de aceptación (o el sello si ya se aceptó). La liga
+pública NO carga fotos (pesan). R2: el token se busca con el tenant de la
+sesión; otra organización recibe 404. Pruebas en
+`lib/test/propuestas-gestion.e2e.test.ts`. Revisado en el navegador el 29/10
+(Chrome, `next start` contra Postgres local): foto, mapa con mosaicos, QR,
+condiciones y escalera. **No se revisó la salida impresa** (vista previa de
+impresión ni PDF guardado): el lienzo del mapa depende de
+`preserveDrawingBuffer` y eso solo se ve imprimiendo.
+
+## Agregar, quitar y duplicar (PROP-COMPLETA, 29/10)
+
+- **Agregar sitios** — `POST /api/propuestas/[id]/items` → `agregarSitiosCtrl`.
+  BORRADOR o ENVIADA (en ENVIADA **sube la versión**). Las líneas usan el
+  periodo de la propuesta (`rangoDePropuesta`) y pasan por `prepararLineas`, la
+  MISMA función del alta (franja, volumen, calculadora, tarifa del servidor y
+  permiso de `comercial.aprobar`): un sitio agregado no es otra puerta para B40.
+  El INSERT de la línea es uno (`insertarItem`), compartido con el alta.
+- **Quitar** — `DELETE /api/propuestas/items/[id]` → `quitarItem`. Mismos
+  estatus, sube versión en ENVIADA, **nunca el último sitio** (409). Con la fila
+  de la propuesta bloqueada para que dos no quiten a la vez el penúltimo.
+- Ni agregar ni quitar recalculan el paquete aplicado: su precio no se mueve y
+  `avisoPaqueteIncompleto` avisa (PAQ-01).
+- **Duplicar** — solo del lado de la pantalla: la ficha abre
+  `/propuestas?duplicar=<id>` y el formulario de alta se precarga (cliente,
+  agencia, comisión, periodo, notas y, por pantalla, unidad, franja,
+  programación y calculadora). **No** copia tarifa manual, prima de Roadblock ni
+  cupón: la copia se cotiza a la tarifa de hoy. Una pantalla repetida en la
+  original entra una vez. «Agregar sitios» usa el mismo formulario
+  (`?agregar=<id>`), con nombre, cliente, fechas y comisión fijos.
+- Pruebas: `lib/test/propuestas-gestion.e2e.test.ts` (incluye la vendedora a
+  1 peso por la puerta nueva → 403, y R2).
+
+## Borrar un borrador (PROP-COMPLETA, 29/10 · R5 aprobado)
+
+`DELETE /api/propuestas/[id]` → `borrarPropuestaBorrador`. **Solo BORRADOR**:
+una enviada se rechaza (el cliente ya tiene la liga) y una aprobada no se toca
+(409 con esa frase). En una transacción con la fila bloqueada y `estatus` en el
+`delete` como segunda red. Se van por `cascade` las líneas, el canje del cupón
+—y con él **el uso vuelve**: los usos son `count(*)` de `canjes_codigo`— y la
+aplicación del paquete. El folio no se reutiliza (queda un hueco en la serie).
+Pruebas: `lib/test/propuestas-gestion.e2e.test.ts`.
+
+## Enviar por correo (PROP-COMPLETA, 29/10)
+
+«Enviar» ya no es solo un cambio de estatus: abre un diálogo con el correo del
+contacto del cliente y un mensaje opcional, y `POST /api/propuestas/[id]/enviar`
+(`lib/server/propuestas-envio.ts`) manda **la liga, no los importes** —los
+importes viven en la liga, que sabe si el cupón está pendiente y si venció—
+por el canal de OPERACIÓN, con copia a quien envía. **El orden es la regla:**
+primero el correo, después ENVIADA; un Resend caído da 502 y la propuesta no
+cambia. Sin correo configurado solo cambia el estatus y la pantalla copia la
+liga. En una ENVIADA el botón es «Reenviar» (renueva la vigencia si venció).
+Pruebas: `lib/server/propuestas-envio.test.ts` (el 502 se comprobó por mutación).
 
 ## Portal del cliente
 

@@ -7,6 +7,15 @@
 > **Nace el 2026-09-18**, sobre `integra/entidades-y-reportes` medida en el worktree
 > `.claude/worktrees/entidades`. Fecha dura: **2026-10-14, OOH SUMMIT** — 26 días.
 
+> **2026-10-29 · decisión del dueño y cierre de la auditoría del ADR 0039 Fase 1.**
+> **D6 decidida** (tope de 24 meses, implementado) y **B40 a B45 cerradas**, todas en la
+> rama `fix/abiertos-b41-b45-d6` (sin fusionar). B40 ya estaba resuelta en código
+> desde PRECIO-01 y solo faltaba tacharla. **Apareció una nueva de dinero, B56**
+> (`campanas-repo` guardaba en las dos reservas el neto de la última línea cuando
+> una propuesta trae la misma pantalla dos veces): **el dueño aprobó arreglarla el
+> 29/10 y quedó cerrada ese día**. Las campañas ya generadas no se tocan; hay un
+> diagnóstico de solo lectura en `docs/datos/`.
+
 ~~**Veredicto vigente de la rama: 🔴 ROJO.**~~ **Superado el 2026-09-18, tarde.** Los
 dos motivos del rojo están cerrados y medidos:
 
@@ -106,6 +115,26 @@ esto.
 **Lo que abre esta auditoría:** decisiones **D11** y **D12**; advertencias **B40** a
 **B45**. La que de verdad importa de las seis es **B40**.
 
+> **2026-11-05, noche · DINERO en la v0.12.6 publicada: la cantidad manual de la propuesta (H1 de
+> `docs/i18n/validacion-portugues-cifras.md`).** Dos entradas nuevas. Se numeran desde **B92**
+> porque `integra/portugues` ya usa B91.
+>
+> - **B92 · ARREGLADA en rama, SIN PUBLICAR.** En la cantidad de una línea de propuesta,
+>   «1.500» tecleado en español se guardaba como 100 (en italiano «1,500» → 100, «1.5000» →
+>   15 000), sin aviso. Rama `fix/cantidad-propuesta` (`519a7a54`, desde `origin/main`
+>   34f36a54), con notas de la **v0.12.7**. Verificada con unitarias (rojo a la vista: 11 de 14)
+>   y en el navegador real (`propuesta_items.cantidad = 1500.00`). **Se cierra cuando la
+>   v0.12.7 esté en g500**. El dueño dijo «aún no» a publicarla (05/11). Al publicar, revisar
+>   en g500 las propuestas de la v0.12.6 con cantidades tecleadas a mano.
+> - ~~**B93 · BAJA.** `ReservaDialog.tsx:331` tiene el mismo patrón: acota a 0 lo
+>   ilegible (`Number(crudo) || 0`) y el campo lo repinta a media escritura. Son slots
+>   reservados, no dinero.~~ **ARREGLADA en la misma rama el 05/11**, a petición del dueño
+>   («arregla también el de reservas»), con `lib/slots-reserva.ts`. Rojo a la vista: 7 de 11.
+>   En el navegador real, 4 slots → `reservas.spots_reservados = 4`. Se cierra con B92, al
+>   publicar la v0.12.7.
+> - Al integrar `fix/cantidad-propuesta` en `integra/portugues`, el typecheck exige la clave
+>   `propuestas.alta.error.cantidad` en `PT_PROPUESTAS`.
+
 ---
 
 ## A · Decisiones del dueño
@@ -120,9 +149,314 @@ archivo dentro de la pregunta.
 > la nueva **D7**. Las contestadas se conservan tachadas, con la elección y con qué
 > se comprobó que está aplicada y no solo escrita.
 
+> **2026-11-03/04 · ADR 0049 (idioma de los documentos por instancia).** Informe en
+> `docs/Supervision/idioma-instancia.md`. La primera pasada abrió D13, D14 y D15. El 03/11 el dueño
+> contestó D14 y D15 de una vez: **todos los papeles en el idioma de la instancia, salvo el CSV del
+> estado de cuenta**. ~~**Sigue viva D13.**~~ **D13 contestada el 04/11** (abajo). (La primera
+> versión de estas tarjetas quedó sin commitear en el worktree `integra-ingles`; esta es la que vale.)
+
+### ~~D13 · ¿Se puede dar de alta un servidor con los contratos en inglés o en italiano antes de que un abogado revise esa traducción?~~
+
+> ✅ **CONTESTADA el 2026-11-04 por el dueño:** «Los contratos en inglés e italiano son
+> EJEMPLOS: cada cliente los irá armando según contrate la app». O sea: **no hay revisión de
+> abogado que esperar** y no bloquea dar de alta un servidor en inglés o italiano. El contrato
+> en/it es una **plantilla de ejemplo** que cada owner adapta a su caso. Ninguna de las opciones
+> (a)–(c) tal cual: el sistema no bloquea nada (como la (b)), y el texto no se «da por bueno»
+> como contrato definitivo (no es la (c)), es un punto de partida.
+>
+> **Aplicado en `feat/idiomas-cierre`:** nota fechada en el ADR 0049, el runbook del alta
+> (`docs/runbook-alta-de-owner.md`) sin la prohibición, y los comentarios de
+> `lib/contrato-documento.ts` que decían «requiere revisión de un abogado». **Sin tocar el texto
+> legal ni ningún hash**: el aviso impreso del pie («BORRADOR … revisado por un abogado antes de
+> su firma») es el mismo en los tres idiomas y vale igual para una plantilla de ejemplo, así que
+> se queda. **Lo que sigue en pie:** si un owner ya firmó contratos en/it y la plantilla cambia,
+> hay que conservar la redacción anterior para cotejar (`hashParaCotejar`, como el ADR 0048).
+>
+> La tarjeta original se conserva debajo como historia.
+
+- **Bloquea:** dar de alta para un cliente real cualquier servidor en inglés o italiano. **Lo que
+  SÍ se puede mientras:** fusionar el trabajo (los servidores que ya existen siguen en español, sin
+  cambios) y probar en servidores de prueba.
+- **Por qué importa:** el idioma del servidor se elige al crearlo y **no se puede cambiar nunca**.
+  Hoy la única barrera es una nota en la guía del alta: el sistema acepta inglés o italiano sin
+  preguntar. En cuanto un cliente firme en esa traducción, corregirla obliga a guardar también la
+  redacción vieja, o todas sus firmas anteriores aparecerían «alteradas». La traducción es el mismo
+  contrato de ley mexicana en otro idioma, no un contrato adaptado a otro país. En italiano, desde la
+  integración con `integra/idiomas` (04/11, B67 cerrada), todos los papeles salen en italiano; el
+  texto legal sigue sin revisión de abogado. **04/11, recorrido del italiano
+  (`feat/italiano-recorrido`):** se corrigió solo la lengua del contrato italiano, sin tocar su
+  contenido:
+  - el apóstrofo tipográfico en todo el texto;
+  - «esclusivamente all’installazione…» (antes «a l’installazione»), y un uso escrito por una
+    persona va tras «al seguente uso:»;
+  - ninguna fecha con preposición articulada delante: «a decorrere dal giorno … e fino al giorno …»
+    e «in data …».
+
+  Cambia el hash del contrato italiano, pero no había ninguno firmado. El español y el inglés no
+  cambian: los 14 hashes españoles siguen en verde. **La revisión del abogado sigue pendiente: esto
+  no la sustituye.**
+- **Opciones:**
+  - **(a) Bloquearlo en el sistema hasta que el abogado firme**, con una confirmación expresa en el
+    alta. Medio día.
+  - **(b) Dejarlo con el aviso escrito.** Cero días. Depende de que quien da de alta lea la guía.
+  - **(c) Dar la traducción por buena ya.** Cero días ahora; trabajo extra por cada servidor que ya
+    firmó si el abogado pide cambios.
+- **Recomendación:** **(a)** si hay un cliente extranjero en la mira antes de la revisión; **(b)** si
+  no lo hay.
+- **Si nadie contesta:** queda la (b). Es aceptable mientras no se dé de alta ningún servidor en
+  inglés o italiano para un cliente real.
+- **Caduca:** el día que se dé de alta el primer servidor en inglés o italiano para un cliente.
+
+### ~~D14 · Además del contrato, ¿qué otros papeles deben salir siempre en el idioma del servidor y cuáles en el de quien los abre?~~
+
+> ✅ **CONTESTADA el 2026-11-03 y CONSTRUIDA (e82bbdd6).** El dueño eligió **todos en el idioma de
+> la instancia** (propuesta impresa y su QR, enlace `/p`, portal, recibo de cobro, correos de
+> propuesta, invitación y recordatorios), **salvo el CSV del estado de cuenta**, que sigue la
+> pantalla. Fue más lejos que la recomendación, que dejaba el enlace y el portal al navegador.
+> Medido: los 6 hashes de correos en español, idénticos a los del código de antes; el volcado HTML
+> de 9d404205 contra el de HEAD no cambia ningún archivo existente. Queda fuera el correo de
+> restablecer contraseña (`app/api/auth/forgot`), que sigue en español y necesita aprobación
+> aparte.
+
+### ~~D15 · La constancia de firmas, ¿en el idioma del servidor o en el de quien la imprime?~~
+
+> ✅ **CONTESTADA el 2026-11-03**, dentro de la misma decisión: todos los papeles en el idioma de la
+> instancia. La constancia va con el contrato (5f23aeda), y «THE LANDLORD» pasa a «THE LESSOR».
+
+> **2026-11-04 · IDIOMA-USUARIO (el idioma de la interfaz por persona).** Supervisión de
+> `feat/idioma-por-usuario` en ÁMBAR — informe en `docs/Supervision/idioma-por-usuario.md`.
+> Una decisión nueva, **D16**, y advertencias **B61 a B66**. La que importa es **B61** (las e2e de
+> una rama ROJA medidas solo por su autor).
+> *(04/11, al integrar en `integra/idiomas`: **B61, B63 y B64 cerradas**; B62, B65 y B66 siguen
+> abiertas.)*
+
+### D16 · Si alguien eligió un idioma en «Mi cuenta» y entra desde un navegador que está en otro idioma, ¿cuál manda?
+
+- **Bloquea:** nada de lo construido; se puede fusionar con cualquiera de las respuestas. Bloquea
+  solo dar por cerrada la regla antes de encender un segundo idioma en un servidor con clientes.
+  **Lo que SÍ se puede mientras:** todo. Con un solo idioma encendido la opción ni siquiera aparece.
+- **Por qué importa:** la decisión del 3 de noviembre dice «por usuario **y** navegador», y hay dos
+  maneras de leerla. Lo construido hace que **mande la cuenta**: la persona ve su idioma en cualquier
+  equipo, y lo elegido en el navegador solo cuenta si la cuenta no tiene preferencia. Consecuencias que
+  el dueño debe conocer: (1) dentro de la aplicación no hay un botón rápido de idioma; para cambiarlo
+  hay que ir a «Mi cuenta»; (2) si la persona lo cambia en el teléfono, la computadora no se entera
+  hasta que vuelva a iniciar sesión allí.
+- **Opciones:**
+  - **(a) Manda la cuenta (lo construido).** Cero días. La persona ve siempre su idioma; nadie le
+    cambia la pantalla por usar un equipo ajeno.
+  - **(b) Manda el navegador si alguien lo eligió a mano en ese equipo; si no, la cuenta.** Medio día.
+    Sirve a quien comparte un equipo con alguien que habla otro idioma, pero una misma persona puede
+    ver dos idiomas según el equipo.
+  - **(c) La (a) más un botón de idioma dentro de la aplicación que guarda en la cuenta.** Un día. Lo
+    más cómodo, y es pantalla nueva que mantener en tres idiomas.
+- **Recomendación:** **(a)**. Es la lectura más simple de «por usuario», no deja que un equipo ajeno
+  le cambie el idioma a nadie, y si la gente pide el botón rápido, (c) se añade encima sin deshacer
+  nada.
+- **Si nadie contesta:** queda la (a). Aceptable: es lo que hay hoy en la rama y es reversible.
+- **Caduca:** el día que un servidor con clientes encienda un segundo idioma de interfaz; desde ese
+  día la gente ya se acostumbró a una regla.
+
+> **2026-11-04 · Cierre de idiomas (`feat/idiomas-cierre`).** Informe en
+> `docs/Supervision/idiomas-cierre.md`. D13 se contestó (arriba). La respuesta abre **D17**, y queda
+> una advertencia preexistente, **B75**.
+
+### ~~D17 · Cada cliente irá armando su contrato en inglés o italiano: ¿quién lo cambia, y dónde?~~ — CERRADA (c)
+
+> [!success] D17 CONTESTADA por el dueño el 2026-11-04: opción (c)
+> «El cliente arma su contrato fuera del sistema y lo sube como documento. Pierde la
+> firma electrónica del texto generado.» En servidores en inglés o italiano el texto que
+> genera el programa queda como EJEMPLO; el contrato que vale es el documento que el
+> cliente sube (el PDF del contrato, `GET /api/contratos/[id]/documento`, que ya existe).
+> No se construye plantilla editable por servidor ni se cambia la plantilla compartida por
+> un cliente, así que no hay riesgo de firmas «alteradas» por cambios de cláusulas.
+
+
+- **Bloquea:** nada de lo construido; la rama puede aterrizar. Bloquea **el primer cambio de texto**
+  que pida un cliente con servidor en inglés o italiano. **Lo que SÍ se puede mientras:** dar de alta
+  servidores en/it con la plantilla de ejemplo tal cual, y firmar con ella.
+- **Por qué importa:** el dueño dijo que los contratos en inglés e italiano son ejemplos que cada
+  cliente irá armando. Pero hoy la plantilla no es de cada cliente: es **una sola, dentro del
+  programa, igual para todos los servidores**. Si se cambia una cláusula para el cliente A, cambia
+  también para todos los demás servidores en ese idioma en la siguiente actualización. Y como las
+  firmas se comprueban volviendo a redactar el contrato, **los contratos que ya firmó cualquiera de
+  ellos aparecerían como «alterados»** si no se guarda antes la redacción anterior (lo mismo que se
+  hizo con la cantidad con letra en la decisión de la moneda).
+- **Opciones:**
+  - **(a) Cada cambio lo hace el equipo en el programa, igual para todos, con la redacción anterior
+    guardada para las firmas viejas.** Cero días hoy; cada cambio cuesta medio día a un día y lo
+    reciben todos los clientes de ese idioma, lo pidan o no.
+  - **(b) Que cada servidor tenga su propia plantilla editable** (el dueño de la instancia escribe o
+    pega sus cláusulas y el sistema las sella al firmar). Es trabajo nuevo de varios días y toca lo
+    que se firma; es la que coincide con «cada cliente lo irá armando».
+  - **(c) Que el cliente arme su contrato fuera del sistema y lo suba como documento**, y la
+    plantilla quede solo como ejemplo. Cero días en el programa; el cliente pierde la firma
+    electrónica del texto generado.
+- **Recomendación:** **(a) mientras no haya un segundo cliente en/it**, y decidir (b) el día que dos
+  clientes de un mismo idioma pidan textos distintos. Hoy no hay ningún servidor en/it con clientes,
+  y (b) es caro para un problema que aún no ha aparecido.
+- **Si nadie contesta:** queda la (a) de hecho, pero **sin la parte de guardar la redacción
+  anterior**, y eso no es aceptable: el primer cambio rompería las firmas ya hechas sin avisar.
+- **Caduca:** el día que el primer cliente con servidor en inglés o italiano pida cambiar una
+  cláusula.
+
+> **2026-11-04 · supervisión de `feat/cifras-por-idioma` (P-L2-1)**, ÁMBAR — informe en
+> `docs/Supervision/cifras-por-idioma.md`. Una decisión nueva, **D18**, y advertencias **B77 a
+> B82**. La que importa es **B77**, que se arregla sin preguntar nada porque solo toca el italiano.
+> D18 es la misma trampa en español, que el dueño pidió no tocar. (Numeradas tras D17 y B76, que
+> ya existen en `integra/idiomas`.)
+
+### ~~D18 · En un campo de dinero, si alguien escribe «2,5» en español, hoy se queda en 25 sin ningún aviso. ¿Se cambia para que avise, aunque eso cambie el comportamiento en español?~~ — CERRADA (b)
+
+> ✅ **CONTESTADA el 2026-11-05 por el dueño (opción b) y CONSTRUIDA** en
+> `feat/d18-aviso-al-teclear` (sale de `verificacion` `a91580bb`; rojo a la vista `6dce3b0f`, 28
+> rojas en formularios y las unitarias; arreglo en el commit siguiente). Sin validar todavía.
+>
+> **La regla exacta**, en español e inglés y en todos los campos `CampoCifra` (dinero y
+> cantidades enteras): las comas que pone el CAMPO al teclear la cuarta cifra se recolocan como
+> siempre; una coma que pone la PERSONA —tecleada, o en un texto pegado— se queda donde la puso,
+> y mientras quede alguna el campo no recoloca ninguna (`teclearCifra`, `lib/captura-cifra.ts`).
+> Decide `leerCifra`, la misma de pegar: «1,500» y «12,500.50» valen; «2,5», «12,34», «1,5000»
+> y «15000,50» se quedan a la vista, se rechazan con «las comas van cada tres cifras» y el
+> formulario recibe `'NaN'` (no envía, con las guardias de siempre). **A media escritura no se
+> avisa**: lo que acaba en un grupo de millar incompleto («1,», «1,5», «12,50») va camino de
+> «1,500» (`cifraAMedias`); el aviso sale al salir del campo o con Enter. Lo pegado avisa en el
+> acto, como antes. El italiano no cambia.
+>
+> **Qué cambia en español, medido** contra la función de `a91580bb`, tecleando de corrido todas
+> las secuencias de hasta 7 teclas sobre `0 1 2 5 , .` (335 922 por idioma; inglés idéntico):
+> sin una coma tecleada, **ninguna** cambia; con alguna, en dinero 125 259 pasan de una cifra a
+> un rechazo y 84 799 solo cambian el texto (ya se rechazaban); en cantidades enteras, 88 399 y
+> 121 659. **Ninguna** pasa de rechazo a cifra ni de una cifra a otra. En la batería de la
+> huella cambian exactamente 68 filas de 116 000, todas una coma insertada que ahora se queda
+> (apuntadas en `captura-cifra.es-en.test.ts`). Volcado `I18N_VOLCAR_TODO` de toda la suite:
+> 0 HTML distintos (ninguna prueba de pantalla teclea una coma mal puesta).
+>
+> **Lo que NO cubre, y es otro defecto:** los campos `EntradaCifra` en español e inglés
+> (medidas, porcentajes —comisiones, el descuento de la propuesta—, caras, plazos) son el
+> `<input>` de siempre: no reagrupaban nada, así que no tenían la diferencia entre teclear y
+> pegar que decide D18. Ahí «12,5» sigue siendo `Number('12,5') || 0` = 0, tecleado o pegado,
+> como se dejó a propósito el 04/11. Cambiarlo cambia su HTML y su contrato: si se quiere, es
+> una decisión nueva.
+>
+> **Supervisión 2026-11-04 (hora local): ÁMBAR** — `docs/Supervision/d18-aviso-al-teclear.md`.
+> Medido aparte contra la función de `a91580bb`: las cifras de arriba se reproducen exactas
+> (125 259 / 84 799 / 88 399 / 121 659, 0 rechazo→cifra); la huella de antes es `e5240e24…` y las
+> 68 filas distintas son exactamente `CAMBIOS_D18`; volcado de toda la suite, 0 HTML distintos;
+> 100 000 secuencias al azar sin coma de la persona, 0 distintas; 11 de 13 mutantes mueren.
+> **Una precisión:** «ninguna pasa de una cifra a otra» vale solo para teclear de corrido. Con
+> retroceso sí cambian (24 069 de 3 257 436 desde vacío), y es a favor del arreglo: antes el
+> retroceso tras una coma tragada borraba una cifra (143 150 casos perdían una cifra con la función
+> vieja, 0 con la nueva). Deuda nueva: **B87** (el gemelo italiano; el supervisor la numeró B84, número ya usado), **B85** (pegar sobre una
+> selección), **B86** (dos mutantes vivos), y la decisión **D19** (`EntradaCifra` en es/en).
+
+
+- **Bloquea:** nada de lo construido ni de la rama italiana. El arreglo del italiano (B77) se
+  puede hacer ya sin esta respuesta. **Lo que SÍ se puede mientras:** todo.
+- **Por qué importa:** en español la coma separa miles. Quien teclea «2,5» pensando en «dos y
+  medio» —costumbre de Europa o de una calculadora— ve que la coma no aparece y la cifra queda en
+  **25**; «15000,50» queda en **1,500,050**, cien veces más. La pantalla enseña la cifra, pero no
+  avisa. Si la misma persona **pega** «2,5», en cambio, el campo la rechaza y explica por qué.
+  Medido en el código de hoy; no lo introdujo el italiano (el camino español de esta rama es
+  idéntico al de antes, comprobado con su huella).
+- **Opciones:**
+  - **(a) Dejarlo como está.** Cero días. El español no cambia, que es lo que se pidió el 04/11. El
+    riesgo queda en quien teclee con costumbre europea.
+  - **(b) Que la coma mal puesta se quede a la vista y el campo diga «las comas van cada tres
+    cifras».** Medio día con sus pruebas. Mismo trato al teclear que al pegar. Cambia el español:
+    alguien que hoy teclea «1,500» de corrido no nota nada (la coma bien puesta sigue igual); solo
+    cambia el caso mal puesto, que hoy se corrige solo.
+  - **(c) Lo de (b) solo en los campos de dinero**, no en cantidades enteras. Medio día. Menos
+    superficie, pero dos comportamientos que explicar.
+- **Recomendación:** **(b)**. Es el mismo principio que el dueño ya fijó («lo ambiguo se rechaza»)
+  y que el campo ya cumple cuando se pega; hoy lo incumple solo cuando se teclea. El único
+  comportamiento español que cambia es el que guarda una cifra que nadie escribió.
+- **Si nadie contesta:** queda la (a). Aceptable a corto plazo: es lo de siempre y la cifra se ve en
+  pantalla. Deja de serlo si entra un cliente que teclee con costumbre europea en español.
+- **Caduca:** no caduca por fecha; pierde valor cada factura o propuesta que se capture así.
+
+### D19 · En español e inglés, si alguien escribe «12,5» en el porcentaje de comisión de una agencia o de una propuesta, hoy se guarda 0 % sin ningún aviso. ¿Se cambia para que avise y no guarde?
+
+- **Bloquea:** nada de lo construido; D18 aterriza sin esta respuesta. **Lo que SÍ se puede
+  mientras:** todo. Solo queda abierto que esos campos sigan guardando 0.
+- **Por qué importa:** la comisión de la agencia y la de la propuesta entran en el precio. Quien
+  escribe «12,5» pensando en «doce y medio» —costumbre europea o de calculadora— guarda **0 %**: la
+  agencia queda sin comisión y la propuesta sale con otro precio, y la pantalla no dice nada. Es el
+  mismo error que D18 acaba de quitar de los campos de importe, en los campos de porcentaje, que
+  son de otra clase y D18 no tocaba. Pasa hoy, en el idioma con clientes. En los campos de
+  porcentaje con flechas (descuento, tope, cupones) depende del navegador y no está medido.
+- **Opciones:**
+  - **(a) Dejarlo como está.** Cero días. El riesgo queda en quien escriba con coma decimal.
+  - **(b) Que esos campos rechacen lo que no es una cifra y no dejen guardar, con un aviso.** Medio
+    día con sus pruebas, solo en los campos de porcentaje y de dinero (comisiones, descuento, tope,
+    cupones, descuento por volumen). Cambia cómo se ven esos campos cuando hay un error; con una
+    cifra bien escrita, nada.
+  - **(c) Pasar todos esos campos al campo de cifras que ya usan los importes** (el mismo de D18).
+    Uno o dos días. Un solo comportamiento en toda la aplicación, pero cambia también cómo se ven
+    con cifras correctas (comas de miles) y hay que revisarlos uno por uno.
+- **Recomendación:** **(b)** ahora, en los campos que tocan dinero. Es el principio que el dueño ya
+  fijó dos veces («lo ambiguo se rechaza», B77 y D18) y es el arreglo más pequeño que lo cumple. (c)
+  queda para cuando haya tiempo de revisar campo por campo.
+- **Si nadie contesta:** queda la (a). Aceptable solo mientras nadie capture comisiones con coma
+  decimal; un 0 % en una comisión no se ve hasta que alguien revise el precio o el pago a la agencia.
+- **Caduca:** no caduca por fecha; pierde valor con cada comisión o propuesta capturada así.
+
+
 ---
 
-### D11 · La rejilla de precios deja que el precio se decida en el navegador del vendedor. Antes de meter descuentos por volumen y códigos promocionales, ¿se pasa el cálculo al servidor?
+### D20 · Entre las 6 de la tarde y la medianoche, los cupones, las facturas y los cobros ya cuentan como si fuera mañana. ¿Se arreglan para que cuenten con el día de México, como se acaba de hacer con las propuestas?
+
+> Abierta el 2026-11-04 (noche) por el supervisor, al revisar `feat/verificacion-ajustes`.
+> Expediente: `docs/Supervision/verificacion-ajustes.md` §3 (H1, H2).
+
+- **Bloquea:** nada de lo que ya está hecho. La rama de las propuestas puede fusionarse sin esta
+  respuesta. **Lo que SÍ se puede mientras:** todo; esta pregunta decide trabajo nuevo.
+- **Por qué importa:** el sistema lleva dos relojes. La pantalla usa el día de México; varias
+  cuentas de dinero usan el reloj de la base de datos, que en el servidor de g500 sigue la hora
+  universal (la de Londres en invierno): de 6 de la tarde a medianoche para ella ya es mañana.
+  Con las propuestas pasaba que el cliente veía el botón de aceptar y al pulsarlo le decían que ya
+  había vencido; eso ya se arregló. Lo mismo sigue pasando con:
+  - **los cupones:** el último día de un cupón, desde las 6 de la tarde, el panel dice «vigente»
+    pero al aplicarlo dice «venció»; y **la víspera** de que empiece, desde las 6 de la tarde, el
+    sistema **ya deja aplicarlo**: un descuento cobrable seis horas antes de lo que se configuró;
+  - **las facturas:** una factura emitida el día 30 a las 7 de la noche queda fechada el 1 del mes
+    siguiente, y cae en el reporte del mes equivocado;
+  - **los cobros** que se registran sin fecha, y **el corte del tablero de finanzas**, igual.
+  Está leído en el código, no provocado en el servidor; y la zona exacta de la base de g500 falta
+  confirmarla (una persona con acceso, dos comandos; está escrito en las advertencias).
+- **Opciones:**
+  - **(a) Arreglar todo lo de dinero ya** (cupones, facturas, cobros y el tablero de finanzas), con
+    la misma regla que las propuestas. Entre uno y dos días con sus pruebas. Quedan fuera las
+    cuentas de estado (campañas activas, órdenes de trabajo), que no mueven dinero.
+  - **(b) Solo los cupones ahora**, porque son un descuento que se le promete a alguien de fuera; lo
+    demás después. Medio día. Las facturas del último día del mes a partir de las 6 de la tarde
+    siguen cayendo en el mes siguiente hasta entonces.
+  - **(c) Poner la base de cada servidor en la hora del dueño**, sin tocar el programa. Unos minutos
+    por servidor, lo hace una persona. Arregla las treinta cuentas de golpe, pero depende de que
+    nadie se olvide al instalar un servidor nuevo, y las pruebas automáticas no lo ven (corren en
+    hora universal a propósito).
+  - **(d) Dejarlo así.** Cero días. El riesgo queda en lo que se haga entre las 6 de la tarde y la
+    medianoche.
+- **Recomendación:** **(b) ya, y (a) a continuación.** Los cupones son lo único de la lista que
+  promete dinero a un tercero y que hoy deja hacer algo antes de tiempo; es medio día y usa la misma
+  pieza que ya se probó en las propuestas. La (c) es tentadora por barata, pero es la misma clase de
+  ajuste que se pierde en silencio al reinstalar un servidor, y ya hay escrita una guía para mudar g500 a un servidor limpio.
+- **Si nadie contesta:** queda la (d). Es aceptable unas semanas porque los casos caen en una
+  franja de horas y se ven; deja de serlo en el primer cierre de mes en que se facture de noche, y
+  con el primer cupón que alguien use la víspera.
+- **Caduca:** el próximo cierre de mes, **30/11/2026**: lo facturado esa noche ya quedaría en
+  diciembre.
+
+---
+
+### ~~D11 · La rejilla de precios deja que el precio se decida en el navegador del vendedor. Antes de meter descuentos por volumen y códigos promocionales, ¿se pasa el cálculo al servidor?~~
+
+> ✅ **CONTESTADA y CONSTRUIDA — tachada el 2026-10-29.** El dueño eligió la (a)
+> el 01/10 (PRECIO-01): el servidor calcula la tarifa y solo `comercial.aprobar`
+> pone otra. Está en `main` y medido en B40 (tachada el mismo día). Desde el 29/10
+> agregar sitios a una propuesta ya creada pasa por la misma función
+> (`prepararLineas`), con su prueba de la vendedora a 1 peso → 403
+> (`lib/test/propuestas-gestion.e2e.test.ts`). Lo de abajo se conserva como historia.
+
 
 - **Bloquea:** el **código promocional con vencimiento y tope de usos** (la fase 3) no
   se puede construir honestamente hasta que esto se decida: un cupón cuyo descuento y
@@ -442,7 +776,24 @@ archivo dentro de la pregunta.
 
 ---
 
-### D6 · El reporte no limita cuántos meses se le pueden pedir de una vez. ¿Se le pone un tope?
+### ~~D6 · El reporte no limita cuántos meses se le pueden pedir de una vez. ¿Se le pone un tope?~~
+
+> ✅ **DECIDIDA el 2026-10-29 por el dueño: tope de 24 MESES por consulta** (la ficha
+> recomendaba 36; el dueño eligió 24). **Implementada el mismo día** (rama
+> `fix/abiertos-b41-b45-d6`, sin fusionar):
+> - `lib/data/reportes.ts` · `TOPE_MESES_REPORTE = 24`, `excedeTopeDeMeses(desde, hasta)`
+>   y `MSJ_TOPE_MESES_REPORTE`, en el motor puro para que la usen los dos lados.
+> - `lib/server/reportes-controller.ts` · `validarConsultaRentabilidad` rechaza con
+>   **400** y «El reporte abarca como máximo 24 meses por consulta. Acorta el rango de
+>   fechas.» **antes de leer la base**; traducida en `lib/i18n/errores-servidor.ts`.
+> - `components/demo/reportes/consulta.ts` · `motivoInvalido` devuelve la misma frase,
+>   así que la pantalla de Reportes la pinta junto a los filtros y `debePedir` no
+>   manda la consulta.
+>
+> **Con qué se midió:** `lib/server/reportes-controller.tope-meses.test.ts` (8) y
+> `components/demo/reportes/consulta.tope-meses.test.ts` (3), en ROJO antes del
+> arreglo; incluyen el 29 de febrero y fechas sin cero a la izquierda. **No se vio
+> en el navegador.**
 
 - **Bloquea:** nada. Es un riesgo de producción, no un trabajo detenido.
 - **Por qué importa:** el reporte construye una casilla por pantalla y por periodo.
@@ -591,7 +942,19 @@ calendario.
 
 ### B · i — Críticas por SEVERIDAD (fallo silencioso · dato que miente)
 
-#### B40 · 🔴 El servidor NO comprueba que el precio vendido salga de la rejilla · **es la que importa de las seis**
+#### ~~B40 · 🔴 El servidor NO comprueba que el precio vendido salga de la rejilla · **es la que importa de las seis**~~
+
+> ✅ **CERRADA — tachada el 2026-10-29, medida en `main` @ `cb86b7f6`.** El arreglo
+> del 01/10 (PRECIO-01) ya no está «sin fusionar»: vive en `main`.
+> `apps/web/lib/server/propuestas-controller.ts:10` importa `tarifaCalculada` de
+> `@/lib/tarifa-calculada`; `:388` la recalcula en el servidor por línea (y
+> `tarifaBaseCalculadora` para las de calculadora, ADR 0042) con los datos de
+> `datosParaTarifar` (`:350`); y sin `comercial.aprobar` un precio distinto da
+> **403** sin escribir nada (`:420`, y `:416` cuando no hay tarifa calculable).
+> **Pruebas que lo cubren:** `lib/server/propuestas-precio.test.ts:142` («VENDEDOR a
+> 1 peso → 403… el repo no se llama») y `:159` (el prime a tarifa base), y contra
+> Postgres `lib/test/precio-ajustado.e2e.test.ts:184` y `:202`. Desde el 29/10 el
+> congelado usa la misma función para nombrar la temporada (B43).
 
 > **2026-10-01 · cerrada para la TARIFA BASE (PRECIO-01, rama
 > `feat/precio-ajustado-por-gerente`, sin fusionar).** El dueño decidió la
@@ -638,7 +1001,19 @@ calendario.
   toca este camino— pero **la Fase 3 no se puede construir bien encima**, y ése es
   todo el motivo de esta auditoría.
 
-#### B41 · 🟠 La pantalla donde se configuran las franjas se queda sin salida cuando el candado de cambios está encendido
+#### ~~B41 · 🟠 La pantalla donde se configuran las franjas se queda sin salida cuando el candado de cambios está encendido~~
+
+> ✅ **CERRADA el 2026-10-29** (rama `fix/abiertos-b41-b45-d6`, sin fusionar), como
+> decía la ficha. `components/demo/rejilla/GestionRejilla.tsx` monta `useCandado()`
+> y un `DialogoCandado` —sus botones son de un clic, sin cuadro propio, así que se
+> aplica la regla de `ui/candado.tsx`: el 403 abre uno atado a esa acción—, y sus
+> tres manejadores (`anadirFranja`, `anadirTemporada`, `darDeBaja`) pasan por
+> `candado.ejecutar`, con `alFallar → setError` para lo que no es el candado.
+> **Con qué se midió:** `components/demo/rejilla/GestionRejilla.candado.test.ts`,
+> 5 pruebas; las 3 que leen el fuente salieron en ROJO antes del arreglo y las 2
+> que corren `confirmarConCandado` con el `rejilla-api` real y `fetch` espiado
+> comprueban que el 403 llega como «pide la contraseña» y que el desbloqueo va
+> primero. **Lo que NO se midió:** no hay navegador; no se vio el cuadro abrirse.
 
 - **Qué es:** `/franjas-y-temporadas` escribe contra rutas marcadas como cambio
   sensible, pero **no monta el cuadro de contraseña**. Su hermana de la ficha de
@@ -669,7 +1044,58 @@ calendario.
   enciende, la pantalla nueva de la Fase 1 es la única del producto donde el dueño
   no puede dar de alta nada y no se le dice por qué.
 
-#### B42 · 🟠 Vender dos franjas de la misma pantalla en una propuesta saca esa pantalla del reporte de tarifas
+#### ~~B42 · 🟠 Vender dos franjas de la misma pantalla en una propuesta saca esa pantalla del reporte de tarifas~~
+
+> ✅ **CERRADA el 2026-10-29** (rama `fix/abiertos-b41-b45-d6`, sin fusionar), como
+> decía la ficha. Las líneas habían derivado (`AMBIGUA` estaba en ~:1197 y el tipo
+> en ~:420); reubicadas:
+> - `lib/data/reportes.ts` · `matriz()` desempata con `llaveTarifa(sitioId, franjaId)`
+>   en vez de `sitioId`; `TarifaPublicada.porSitio[]` y `ReservaReporte` ganan
+>   `franjaId`. Misma pantalla **y misma franja** dos veces sigue siendo `AMBIGUA`.
+> - `lib/server/reportes-repo.ts` · el borde pasa `porSitio[].franja.id` del snapshot
+>   como `franjaId` (`null` en snapshots anteriores a la Fase 1) y lee
+>   `reservas.franja_id`, que la reserva hereda del ítem.
+>
+> **Con qué se midió:** `lib/data/reportes.tarifa.test.ts` (3 casos B42) y
+> `lib/server/reportes-repo.franja.test.ts` (3, el puente); 5 de los 6 en ROJO
+> antes del arreglo (el de «misma franja dos veces» ya pasaba, es el negativo de
+> control). **No se construyó una propuesta de dos franjas contra Postgres.**
+>
+> **Y apareció algo de dinero:** `campanas-repo.ts` copiaba en las reservas el neto
+> de la última línea cuando la pantalla se repetía. Tiene ficha propia, **B56**,
+> cerrada el mismo 29/10 con aprobación del dueño.
+
+#### ~~B56 · 🔴 Una propuesta con la misma pantalla dos veces genera reservas con el neto de la ÚLTIMA línea~~
+
+> ✅ **Abierta y CERRADA el 2026-10-29 — aprobado por el dueño el 29/10 (R4).** Rama
+> `fix/abiertos-b41-b45-d6`, sin fusionar. Sin migración.
+
+- **Qué era:** `generarCampanaDesdePropuesta` (`lib/server/campanas-repo.ts`) armaba
+  `netoDeSnap` como un `Map` por `sitioId` sola. Con la misma pantalla dos veces en
+  la propuesta —dos franjas (prime y madrugada) o dos periodos—, el `Map` se quedaba
+  con la última entrada del snapshot y **las dos reservas se guardaban con ese
+  neto**. Ejemplo: prime 27 000 y madrugada 7 200 se facturaban como 7 200 + 7 200.
+  No daba error: el importe es plausible. Lo encontró B42 el mismo día.
+- **El arreglo:**
+  - `lib/neto-de-linea.ts` (nuevo, puro) · `netosDelSnapshot(items, porSitio)` da un
+    neto por ítem, o `null` si no se puede atribuir.
+  - **Qué identifica la línea:** `porSitio[].itemId`, el id del ítem de la propuesta,
+    que `congelarSnapshotEconomico` (`propuestas-repo.ts`) guarda **desde hoy**.
+  - **Snapshots viejos sin `itemId`** (no se reescriben, son inmutables): una sola
+    línea de esa pantalla → su neto, como siempre. Si la pantalla se repite, se
+    desempata con lo que el snapshot ya guarda: la franja congelada (`franja.id`)
+    y la lista (= `precio` del ítem). Si lo que queda señala **un solo** neto, ése
+    se usa. Si no, `null`, y la campaña cae a su **cálculo de respaldo**
+    (lista × volumen × descuento × código × comisión, o la parte del paquete),
+    nunca al neto de otra línea.
+  - `campanas-repo.ts` usa `netoDeLinea[idxItem] ?? <respaldo>`.
+- **Lo que NO se hizo, a propósito:** las campañas ya generadas no se tocan. Para
+  encontrarlas, el diagnóstico de solo lectura
+  `docs/datos/20261029_diagnostico_neto_linea_repetida.sql`, que corre el dueño.
+- **Con qué se midió:** `lib/neto-de-linea.test.ts`, 11 pruebas. Primero en ROJO
+  contra un esbozo con la regla vieja: «expected [7200, 7200] to deeply equal
+  [27000, 7200]», 8 de 11 en rojo. Después en verde. **No se generó una campaña
+  real contra Postgres**: falta la e2e en CI.
 
 - **Qué es:** la dimensión «tarifa publicada vs neta» del reporte se declara
   incapaz cuando la misma pantalla aparece dos veces en el congelado. La rejilla
@@ -697,7 +1123,33 @@ calendario.
 - **Declarado:** esto está **deducido leyendo el código, no medido**. No se construyó
   una propuesta de dos franjas para verlo salir del reporte.
 
-#### B43 · 🟠 El snapshot afirma una temporada aunque esa temporada no haya puesto el precio
+#### ~~B43 · 🟠 El snapshot afirma una temporada aunque esa temporada no haya puesto el precio~~
+
+> ✅ **CERRADA el 2026-10-29** (rama `fix/abiertos-b41-b45-d6`, sin fusionar) con el
+> **arreglo bueno**, que eligió el dueño: congelar la temporada que devuelve la
+> resolución, ahora que el servidor ya calcula (B40). Es dinero (el snapshot) y va
+> **sin migración**, aprobado por el dueño.
+> - `lib/tarifa-calculada.ts` · `TarifaCalculada` gana `temporadaQuePuso`: la
+>   temporada de la **fila ganadora** (`resolverTarifa().temporadaId`), `null` si
+>   ganó una fila sin temporada o la tarifa base. `temporadaId` sigue siendo la de
+>   la fecha, para no mover lo que ya la usa.
+> - `lib/server/propuestas-repo.ts` · `congelarSnapshotEconomico` ya no usa
+>   `temporadaDeFecha`: lee pantalla, modalidades, rejilla y temporadas con
+>   `datosParaTarifar` (`tarifas-repo.ts`, que acepta ahora el tenant de la liga
+>   pública) y congela `temporadaQuePuso` **solo si** la resolución da al centavo la
+>   `tarifa_unitaria` vendida. Si no —rejilla o temporadas movidas entre cotizar y
+>   aprobar, o un gerente que puso otro precio—, `temporada: null`.
+> - **Residuo declarado:** una línea de calculadora (ADR 0042) se tarifa desde la
+>   mensual repartida en el loop y no se puede recomprobar sin él; para ella se
+>   nombra la temporada solo si `precio_ajustado_por` es nulo.
+> - **Lo ya congelado no se reescribe** (`if (prop.snapshot_economico) return …`):
+>   las propuestas aprobadas antes de hoy conservan la temporada de la fecha.
+>
+> **Con qué se midió:** `propuestas-snapshot-franja.test.ts` §2b (4 negativas en
+> ROJO antes del arreglo: tarifa base en fecha del Buen Fin, gana la franja sin
+> temporada, precio de gerente, rejilla cambiada) y `tarifa-calculada.test.ts`
+> (`temporadaQuePuso`, en rojo antes). **No se midió contra Postgres** ni por la
+> liga pública de verdad: falta `rejilla-franja-temporada.e2e.test.ts` en CI.
 
 - **Qué es:** el congelado guarda `temporada: {id, nombre}` calculándola con la
   temporada que **cubre la fecha de inicio del ítem**, no con la que **ganó la
@@ -727,7 +1179,26 @@ calendario.
 - **Si no se cierra antes del 14/10:** solo muerde en organizaciones que hayan
   capturado temporadas. Si el 14/10 se enseña una temporada, muerde ese día.
 
-#### B44 · 🟡 Dos consultas nuevas por `id` no llevan el `and tenant_id` que la cabecera de su propio archivo promete
+#### ~~B44 · 🟡 Dos consultas nuevas por `id` no llevan el `and tenant_id` que la cabecera de su propio archivo promete~~
+
+> ✅ **CERRADA el 2026-10-29** (rama `fix/abiertos-b41-b45-d6`, sin fusionar), con la
+> opción que la ficha llamaba la barata: añadir el filtro. Las líneas habían
+> derivado; reubicadas hoy:
+> - `lib/server/rejilla-repo.ts` · `rejillaDeSitio` → `where t.sitio_id = $1 and t.tenant_id = $2`,
+>   y la lectura de la pantalla en `actualizarRejilla` → `from sitios where id = $1 and tenant_id = $2`.
+> - `lib/server/sitios-repo.ts` · `getSitio`: **eran tres, no una** —la pantalla
+>   (`select * from sitios where id = $1`), sus modalidades y su rejilla—; las tres
+>   llevan ahora `and tenant_id`.
+> - `lib/server/propuestas-repo.ts` · las temporadas de `congelarSnapshotEconomico` →
+>   `where activo = true and tenant_id = $1`, con el tenant de la liga pública cuando
+>   se aprueba por ella y el de la sesión si no.
+>
+> **Con qué se midió:** 7 pruebas nuevas del SQL (`rejilla-repo.test.ts`,
+> `sitios-repo.rejilla.test.ts` §3, `propuestas-snapshot-franja.test.ts` §3), las 7
+> en ROJO antes del arreglo. **Lo que NO se midió:** las unitarias simulan la base y
+> no ven la RLS; aquí no hay Postgres. Hay que correr en CI
+> `rejilla-franja-temporada.e2e.test.ts`, `precio-ajustado.e2e.test.ts` y
+> `aislamiento.e2e.test.ts` antes de fusionar.
 
 - **Qué es:** la convención del repositorio —y la cabecera de `rejilla-repo.ts`—
   exigen `and tenant_id = $n` como segunda capa sobre la RLS en toda operación por
@@ -748,7 +1219,20 @@ calendario.
 - **Quién puede cerrarla:** técnica.
 - **Si no se cierra antes del 14/10:** no pasa nada el 14/10.
 
-#### B45 · 🟡 La ruta de la rejilla acepta cualquier «unidad de venta»; la de las modalidades no
+#### ~~B45 · 🟡 La ruta de la rejilla acepta cualquier «unidad de venta»; la de las modalidades no~~
+
+> ✅ **CERRADA el 2026-10-29** (rama `fix/abiertos-b41-b45-d6`, sin fusionar).
+> `lib/server/rejilla-controller.ts` importa `motivoModalidadInvalida` de
+> `@/lib/modalidades` y, antes de escribir, valida cada unidad a **guardar**
+> contra la exhibición de la pantalla, que lee `exhibicionDeSitio`
+> (`lib/server/rejilla-repo.ts`, `where id = $1 and tenant_id = $2`). Pantalla
+> inexistente o ajena → 404 sin escribir. **Una diferencia deliberada con la ficha:**
+> las bajas (`quitar`) NO se validan, porque son la única forma de limpiar una fila
+> con unidad basura escrita antes de hoy. **Con qué se midió:**
+> `lib/server/rejilla-controller.test.ts` §3, 5 pruebas; las 3 negativas salieron
+> en ROJO antes del arreglo. Las e2e de la rejilla usan `spot` sobre una pantalla
+> `digital` (`semillas-e2e.ts`), así que no deberían cambiar; **no se corrieron
+> aquí** (sin Postgres).
 
 - **Qué es:** asimetría de validación entre las dos rutas que escriben precios de la
   misma pantalla.
@@ -1772,7 +2256,91 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
 
 ---
 
+#### B88 · 🟠 ABIERTA (2026-11-04) · La zona horaria de g500 no está medida, el código se contradice sobre ella, y una instancia sin `TZ` cuenta en UTC sin avisar
+
+- **Qué es:** el arreglo de la vigencia (`feat/verificacion-ajustes`, B84) da por hecho «base en
+  UTC, aplicación en `TZ=America/Mexico_City`». Lo escrito es la zona **del sistema**
+  (`docs/evidencias/30-mudar-g500-a-droplet-limpio-20261104.md:140` y `:145`), no el
+  `show timezone` de Postgres, y la `TZ` de `app.env` está descrita, no impresa. Y el código afirma
+  lo contrario en dos sitios: `lib/server/finanzas-repo.ts:319-320` («zona America/Mexico_City en
+  producción … el reloj del servidor de la app está en UTC») y `lib/server/notificaciones-repo.ts:64-66`.
+  Uno de los dos lados es falso. Además `hoyDeVigencia()` toma la `TZ` del proceso sin comprobarla
+  (`grep process.env.TZ` en `lib/` y `app/`: solo pruebas): sin la línea de
+  `infra/env/app.env.example:186`, la instancia cuenta en UTC en silencio.
+- **Por qué es de severidad:** si g500 tuviera la base en México y la app sin `TZ`, la rama haría
+  que aceptar una propuesta y su correo pasaran a contar en UTC — **empeoraría** algo que hoy está
+  bien. Con la app en México (lo que dice la plantilla) el arreglo es correcto sea cual sea la base.
+- **Cómo se cierra:** una persona en g500 (no un agente: nada de `ssh` desde aquí):
+  `docker exec <contenedor de la app> printenv TZ` y
+  `docker exec <contenedor de la app> date`, y en la base `show timezone;`. Con la salida pegada:
+  corregir el comentario falso (`finanzas-repo.ts` o la propia rama) y, si se quiere red, un aviso al
+  arrancar o en `/api/version` cuando `TZ` falte.
+- **Quién:** el dueño o quien opere g500, para medir; el ejecutor, para el comentario y el aviso.
+- **Si no se cierra antes de fusionar:** la vigencia queda bien en la hipótesis de la plantilla y
+  sin red en la otra. Y D20 se decide sobre una premisa sin medir.
+- **2026-11-05 · H4 hecho en la rama** (`475e6403` rojo, arreglo en el commit siguiente): `hoyDeVigencia()`
+  cuenta con `Intl` y la zona EXPLÍCITA (`zonaDelNegocio()`, `lib/propuesta-vigencia.ts`): la `TZ` del
+  proceso si es válida (también con los dos puntos de glibc) y, si falta o no vale,
+  `ZONA_DEL_NEGOCIO_POR_OMISION = America/Mexico_City` con un `console.warn` una sola vez. Ya no
+  cae a UTC en silencio, y no depende de que el runtime honre `TZ` (Node en Windows no la honra
+  para `America/Los_Angeles`: medido). 6/6 mutantes. **Sigue abierta** por la medición de g500
+  (`printenv TZ`, `date` y `show timezone;`), que corre una persona, y por el comentario de
+  `finanzas-repo.ts:319-320` que se corrige con esa salida. El comentario de la rama ya no afirma
+  la zona de Postgres de g500 como medida.
+
+#### ~~B89 · «Enviar» no tiene prueba que muerda la fecha del correo~~ ✅ CERRADA el 2026-11-05 en `feat/verificacion-ajustes`
+
+- **Cerrada con** `lib/server/propuestas-envio-hora.test.ts` (`2070b34a`): llama a
+  `enviarPropuestaCtrl` con el reloj a las 19:00 de México y la base simulada comparando con el día
+  que le llega (vence hoy, sin vigencia, vencida ayer). M5 (`:65`) y M4 (`:87`) del supervisor
+  mueren, 2 rojas cada uno. Lo de abajo es el texto con que se abrió.
+
+
+- **Qué es:** de la regla única de la vigencia, la mitad del correo de «Enviar» solo la vigila una
+  guardia de texto contra `current_date`. Dos mutantes que leen el día con `toISOString()` en
+  `propuestas-envio.ts` (el de la fecha prometida, `:87`, y el de `vencida`, `:65`) **sobreviven**
+  a las 1442 unitarias de `lib/server` (`docs/Supervision/verificacion-ajustes.md` §1, M4 y M5).
+- **Cómo se cierra:** un caso en `lib/server/propuesta-vigencia-hora.test.ts` que llame a
+  `enviarPropuestaCtrl` con el reloj a las 19:00 de México y compare la fecha del correo con la del
+  `update`. Medio rato. **Quién:** el ejecutor de la rama.
+- **Si no se cierra:** el día que alguien toque ese archivo puede volver el «el correo dice un día y
+  la base otro» y nada se pone rojo.
+
+---
+
 ### B · ii — Críticas por CALENDARIO (no hay fallo silencioso; aprieta la fecha)
+
+#### B55 · 🔴 **ABIERTA (2026-10-21) · Node 22 y PHP en los servidores: la `v0.12.1` está en `estable`, pero NINGÚN servidor la tiene todavía**
+
+> El dueño decidió **no ejecutarlo aún en DigitalOcean** (21/10, noche). Queda aquí
+> hasta que se corra. Guía paso a paso:
+> `docs/evidencias/28-node-22-y-php-servidores-20261021.txt` (copia en Descargas).
+
+- **Qué es:** los avisos de seguridad de Node del 21/10 traen diez CVE —el peor,
+  ejecución de código en el decodificador Brotli (CVE-2026-111497)— **sin parche
+  para Node 20**, que era el de la imagen, el CI y el PADRE. El código ya está
+  arreglado: `main` `a752a33c`, imagen `node:22.23.4-alpine3.23`, `v0.12.1` en
+  `estable` (digest `aa990af6…`, promover `39690462023`; vuelta atrás `16dc61d4…`,
+  la `v0.12.0`). El aviso de PHP del mismo día (CVE-2026-109618/109619) **no
+  aplica al código**: SPACE OS no usa PHP.
+- **Lo que falta, y lo corre una persona** (pasos de la guía 28):
+  1. **Paso 0 · cada droplet (PADRE y g500):** comprobar que no haya PHP
+     instalado (`php -v`, `dpkg -l`). Si aparece, se avisa antes de tocar.
+  2. **Paso 1 · g500:** Administración → Actualizaciones → instalar `v0.12.1`;
+     `node -v` dentro del contenedor = `v22.23.4`. DEMO la toma sola con su cron.
+  3. **Paso 2 · PADRE:** las DOS instalaciones de Node (nvm de root y
+     `/usr/local/bin/node`) a 22.23.4, `npm ci`, build, reiniciar `spaces-web`,
+     `flota-panel` y `flota-reporte`. Hasta entonces **el PADRE sigue en Node 20
+     sin parches**, y la imagen no lo arregla porque corre `next start` en el
+     anfitrión.
+  4. **Paso 3 · Space Eye (José):** reconstruir `eyes-<versión>` con
+     `docker build --pull` y correr `update-eyes.sh` en g500.
+  5. **Paso 4 · máquina de desarrollo:** Node 24.16.0 → 24.22.1 o mayor.
+- **Por qué es por CALENDARIO:** no hay fallo silencioso, pero el riesgo crece cada
+  día que el PADRE y g500 sigan en Node 20 con los CVE ya publicados.
+- **Cómo se cierra:** tacharla con la salida de `node -v` en el PADRE (las dos
+  instalaciones) y en el contenedor de g500, y el resultado del paso 0 en cada
+  droplet.
 
 #### ~~B23 · 🟠 **El arreglo de los checksums funcionó, y por eso la base de demostración del SUMMIT dejó de aceptar migraciones.** Pasó de 0 divergencias a 80~~
 
@@ -2162,7 +2730,358 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
 - **Si no se cierra antes del 14/10:** la dimensión «por operación» enseña costos
   que el dueño no puede ajustar, y el reporte usa los de respaldo sin que se vea.
 
+#### ~~B58 · ADR 0049: las e2e de `feat/idioma-instancia` no las había medido nadie más que el autor~~
+
+> ✅ **CERRADA el 2026-11-04 por el supervisor.** Build hecho antes (BUILD_ID SVonTAZJZofIvInrFjfV2) y corrida
+> `npm run test:e2e` con `PUERTO_E2E=3341`, `PUERTO_DOBLE_GOOGLE=3342` y la base `spaces_instancia_e2e` sobre
+> HEAD 873ac6dc: **1206 en verde, 1 en rojo, 21 omitidas (86 archivos)**. El rojo es `grants-rol-app.e2e`, con
+> `connect ECONNREFUSED 127.0.0.1:55471`: es el Postgres efímero que esta máquina no levanta, o sea entorno y no código.
+> Coincide con lo que afirmaba el autor (1206 y la misma roja).
+
+#### ~~B61 · IDIOMA-USUARIO: las e2e de `feat/idioma-por-usuario` no las midió nadie más que el autor~~
+
+> ✅ **CERRADA el 2026-11-04 al integrar en `integra/idiomas`** (merge `afa2e490`, más el arreglo de
+> B64 en `1fb57e39`). Build hecho antes y corrida `npm run test:e2e` con `PUERTO_E2E=3351`,
+> `PUERTO_DOBLE_GOOGLE=3352` y la base `spaces_idiomas_e2e` sobre el árbol fusionado:
+> **`Test Files 1 failed | 85 passed | 1 skipped (87)` · `Tests 1 failed | 1220 passed | 21 skipped
+> (1242)`**. El rojo es `grants-rol-app.e2e` con `connect ECONNREFUSED 127.0.0.1:55471` (el Postgres
+> efímero que esta máquina no levanta: entorno). Repetidas aparte con `--reporter=verbose`:
+> `aislamiento.e2e.test.ts` **7 en verde** (+1 omitida de siempre, el autoregistro A6) e
+> `idioma-por-usuario.e2e.test.ts` **14 en verde**. **Mutante «guardar con `qRaw`»**
+> (`guardarIdiomaPreferido`), con `npm run build` antes: **muere**, 5 de 14 en rojo (guardar, seguir a
+> otra sesión, la otra empresa, «Usar el idioma del navegador» y el logout); restaurado y
+> reconstruido. Unitarias en el mismo árbol: **8353/8353** (400 archivos), typecheck limpio.
+
+#### B62 · 🟠 ABIERTA (2026-11-04) · `npm test` sale ROJO por carga de la máquina, sin que el código cambie
+
+- **Qué es:** las suites de pantallas (`lib/i18n/pantallas*.test.ts`, `textos/*.test.ts`) pintan
+  React entero por prueba y rozan el límite de 5000 ms de Vitest. Con otros agentes trabajando en la
+  misma máquina, fallan por tiempo, y de rebote fallan aserciones de texto en las mismas pantallas.
+- **Evidencia (rama `feat/idioma-por-usuario`, 85d838fc, sin cambiar nada entre corridas):**
+  1.ª corrida `1 failed | 7030 passed`; 2.ª `19 failed | 7012 passed` (10 «Test timed out in 5000ms»
+  y 9 aserciones), con 24 `node.exe` vivos; los 10 archivos que fallaron, corridos solos,
+  `1323 passed (1323)`. En la medición del HTML antes/después dos suites dieron exit 1 y, repetidas,
+  247/247 y 123/123.
+- **Cómo se cierra:** subir `testTimeout` solo para esas suites (o para todo `lib/i18n/`), o
+  correrlas en un proyecto de Vitest aparte con menos hilos. Medir con dos corridas seguidas en verde
+  con carga.
+- **Quién:** el dueño de la zona de pruebas / i18n.
+- **Si no se cierra:** un rojo que no dice nada del código. El daño real es el contrario: quien se
+  acostumbra a «es la carga» deja de mirar el día que el rojo sí es suyo.
+- **2026-11-04 noche, otra vez y con OTRO archivo** (`feat/verificacion-ajustes` @ `aed31579`):
+  dos de tres corridas de `npm test` dieron `1 failed | 8672 passed` por
+  `scripts/semilla-catalogo-demo.test.ts` «el calendario se mueve con el ancla…», «Test timed out
+  in 5000ms»; la tercera, `8673 passed`. Sola: `29 passed (29)`, y esa prueba en 2197 ms. La rama no
+  toca `scripts/`. Ya no son solo las suites de pantallas: el arreglo de `lib/i18n/` no bastaría.
+
 ### B · iii — Menores, para que no se pierdan
+
+- **B91 · ⚪ ABIERTA (2026-11-05) · `numeroALetras` sin acarreo de centavos y vacía desde mil
+  millones, en los CUATRO idiomas** (H3 de `docs/i18n/validacion-portugues-documentos.md`;
+  heredado, no lo introdujo P3). `numeroALetras(1.995)` da «… 100/100» (redondea los centavos sin
+  sumar el peso) y `1 000 000 000` deja el número vacío (« MILHÕES», « MILLONES»…). Pasa igual en
+  es/en/it desde antes. **No se toca**: arreglarlo cambia el hash de los contratos congelados
+  con esos importes, y en un contrato la letra prevalece. Si se arregla, hay que conservar la
+  regla vieja para cotejar (como hizo el ADR 0048 con «PESOS … M.N.», `hashParaCotejar`).
+  Importes así (centavos que redondean a 100, rentas de mil millones) no se han visto.
+
+- ~~**B63 · `feat/idioma-por-usuario` choca al fusionar con L5 del italiano y con `feat/idioma-instancia`.**~~ ✅ **CERRADA el 2026-11-04 al fusionar en `integra/idiomas` (merge `afa2e490`).** Seis conflictos, todos aditivos: `diccionario.ts` (las dos partes), `cobertura-italiano.test.ts` (la de L5, sin recuento fijo), `CLAUDE.md`, MOC, `esquema.md` (la fila `tenants` de ADR 0049 y la de `usuarios` de esta rama) y el diario (§7.4). `idiomas.ts` se fusionó solo: `resolverIdioma` sigue usando `idiomasPorOmision()` por omisión y la cuenta entra delante. `errores-servidor.ts` ganó el italiano de «Ese idioma no está disponible en este servidor.» («Questa lingua non è disponibile su questo server.»; el inglés ya venía). Recuentos medidos con `node scripts/recuentos.mjs`: **125 migraciones**, 160 endpoints, 66 tablas.
+- ~~**B64 · Al cerrar sesión, la pantalla de entrar puede quedarse en el idioma de la cuenta que salió hasta recargar.**~~ ✅ **CERRADA el 2026-11-04 por código, no por navegador.** Se confirmó por lectura que aplicaba (`Topbar.tsx` salía con `router.push('/login')`) y se cambió a una carga completa: `components/demo/shell/salir.ts` (`cerrarSesionYSalir`: logout y `window.location.assign('/spaces-dooh/login/')`, sale aunque el logout falle). Rojo en su propio commit (`78a42ec4`) y arreglo en `1fb57e39`; `salir.test.ts` exige el orden logout → carga completa y que el Topbar no vuelva a `router.push`. **No se miró en un navegador**: queda para el recorrido del italiano (§4 de `italiano-olas`).
+- **B65 · ⚪ ABIERTA (2026-11-04) · IDIOMA-USUARIO sin entrada en `docs/Registro_Cambios.md`, y los
+  textos italianos de la tarjeta sin validar** (`lib/i18n/diccionario.ts:508` lo dice). Invisible
+  mientras haya un solo idioma encendido.
+  *(04/11, al integrar en `integra/idiomas`: los cinco textos italianos se revisaron con las reglas de
+  L5 —registro «tu», ’, «Impossibile …»— sin cambiar nada; sigue faltando la pasada de un
+  validador independiente y la entrada en la bitácora.)*
+  *(04/11, pulido del italiano, `feat/italiano-pulido`: las cinco claves y sus valores italianos
+  están listados en `docs/i18n/revision-italiano-pulido.md` §5 para que las valide el validador
+  de ese pulido. Sin cambios. Con B69 cerrada, «Lingua salvata» es lo que ve quien PASA a
+  italiano. Sigue faltando la entrada en la bitácora.)*
+- **B66 · ⚪ ABIERTA (2026-11-04) · El rojo del TDD de IDIOMA-USUARIO no está en el historial.**
+  Pruebas e implementación en el mismo commit (4b6134f3, dd547287) y la e2e después de la
+  implementación (af03b410); los cinco commits entre 15:13:19 y 15:13:45. Compensado por mutación:
+  el supervisor mató 5 de 5 mutantes unitarios (huella ignorada, cuenta sin filtrar, guardar un
+  idioma apagado, cookie sin `httpOnly`, navegador antes que cuenta). Se apunta para que la próxima
+  tarea ROJA deje el rojo en un commit propio.
+- ~~**B67 · Una instancia en italiano manda los papeles en dos idiomas.**~~ ✅ **CERRADA el
+  2026-11-04 al fusionar `feat/idioma-instancia` en `integra/idiomas`.** La constancia ya venía en
+  italiano en la rama; faltaban 6 `propuestas.correo.*`, 5 `cuenta.correo.*`, 7
+  `notificaciones.correo.*` y 3 mensajes del servidor, ahora traducidos. `IT_ARRENDADORES` deja de
+  excluir la constancia y es `Record` completo. **Medido:** cobertura italiana 5920/5920, 0
+  pendientes; prueba nueva del documento imprimible con instancia `it` y persona en español
+  (`pantallas-propuestas.test.ts`) y de los tres correos en italiano (`correos-idioma.test.ts`).
+  ~~Sigue en pie D13: el texto legal italiano no lo ha revisado un abogado.~~ D13 contestada el
+  04/11: los contratos en/it son ejemplos que cada cliente adapta.
+- **B68 · ⚪ MITIGADA (2026-11-04) · `<html lang>` de `/p` y `/portal` va en el idioma de la
+  petición y el contenido en el de la instancia.** El `<html>` lo pone el layout raíz, que no conoce
+  la ruta sin tocar `middleware.ts` (alto contacto), así que **sigue igual**. Lo que sí se hizo:
+  los dos layouts envuelven el contenido en `<div lang={idioma de la instancia}
+  style="display:contents">` (WCAG 3.1.2, idioma de las partes), con su prueba en
+  `papeles-idioma-instancia.test.ts`. Los lectores de pantalla ya leen el papel con la voz
+  correcta; el ofrecimiento de traducir del navegador sigue mirando el `<html>`. **Cómo se cierra
+  del todo:** que `middleware.ts` pase la ruta en una cabecera y el layout raíz la use, en una tarea
+  que reclame ese archivo. Menor.
+- ~~**B69 · El aviso «Idioma guardado» sale en el idioma ANTERIOR al cambio.**~~ ✅ **CERRADA el
+  2026-11-04 en `feat/italiano-pulido`** (`bae90b5f` rojo, `8451b1d3` arreglo). El aviso se
+  traduce con el idioma de DESTINO, que el cliente ya conoce: el elegido o, con «Usar el idioma
+  del navegador», la regla de `resolverIdioma` (cookie > `navigator.languages` > español, entre
+  los encendidos). Sin cambio de idioma sale el texto de siempre; el diccionario no cambia. 8/8
+  mutantes. Pendiente de su validador.
+- ~~**B70 · Los controles del mapa y del *toaster* salen en inglés en todos los idiomas.**~~ ✅
+  **CERRADA el 2026-11-05 en `feat/verificacion-ajustes`** (autorizada por el dueño el 05/11, cambia
+  el español a propósito). `lib/i18n/librerias.ts`: `localeMapa(idioma)` para el `locale` de los
+  tres `new maplibregl.Map` (`MapView`, `SelectorUbicacion` y el `SitiosMap` sin uso) y
+  `propsAvisos(idioma)` para el `Toaster` del layout de `(app)`. Claves nuevas
+  `compartidos.mapa.lib.*` (20) y `compartidos.avisos.*` (2) en es/en/it. El inglés del mapa es el
+  de MapLibre tal cual (la prueba lo lee del paquete instalado y pide clave si llega un texto
+  nuevo); el de sonner conserva «Notifications» y cambia «Close toast» por «Close notification»
+  («toast» es jerga). La escala («km», «ft») se queda: unidades, y no se usa. Detalle y medición
+  en [[idiomas-es-en]] §13. Pendiente de su validador.
+- ~~**B71 · El botón de cerrar de los diálogos no tiene nombre accesible.**~~ ✅ **CERRADA el
+  2026-11-05 en `feat/verificacion-ajustes`** (autorizada por el dueño el 05/11). La X de `Modal` y
+  de `Sheet` lleva `aria-label` y `title` con `comun.cerrar` («Cerrar» / «Close» / «Chiudi»), y los
+  dos botones de solo icono que también estaban sin nombre (quitar una tasa de IVA y un plazo de
+  cobranza en Administración) llevan `admin.iva.quitar` y `admin.plazos.quitar`. Una guardia
+  (`components/demo/ui/cerrar-accesible.test.ts`) recorre `components/` y `app/` y no deja otro.
+  Detalle en [[idiomas-es-en]] §13. Pendiente de su validador.
+- ~~**B72 · La propuesta imprimible, el contrato y el comprobante no llevan su propio `lang`
+  cuando el idioma de la instancia no es el de la persona.**~~ ✅ **CERRADA el 2026-11-04 en
+  `feat/italiano-pulido`** (`edea7c08` rojo, `df44ec0c` arreglo). `lib/i18n/parte-en-idioma.tsx`
+  pone `<div lang style="display:contents">` SOLO cuando difieren: la propuesta envuelve el
+  artículo, el contrato lo que se imprime en dos partes (el panel de firmas queda fuera) y el
+  comprobante va por `EnIdiomaDeLosDocumentos`. **Medido** con `I18N_VOLCAR_TODO` contra
+  `49eaf1e4`: 23 estados cambian, todos de idiomas distintos y solo por el envoltorio; los de
+  idiomas iguales (el caso de hoy en todas las instancias) no cambian ni un byte. 7/7 mutantes.
+  Pendiente de su validador.
+- **B73 · ⚪ ABIERTA (2026-11-04) · El 404 de las rutas fuera del armazón sale sin estilos.**
+  Visto en `/propuesta/[id]` con una propuesta sin `token_publico`: el icono ocupa la pantalla
+  entera y los enlaces salen en crudo. **Por qué:** esa página no hereda la hoja de estilos del
+  armazón. Ajeno al idioma. No se tocó. Menor.
+- **B74 · ⚪ ABIERTA (2026-11-04) · Las semillas no pueden sembrar una instancia en italiano o en
+  inglés.** `semilla-demo.mjs`, `semilla-catalogo-demo.mjs` y `bootstrap-auth.mjs` insertan la
+  organización sin `idioma_documentos` (o sea `es`). **Por qué falla:** el trigger
+  `trg_tenants_idioma_documentos_unico` salta ANTES que el `on conflict do nothing`, así que la
+  rechaza aunque ya exista. Para el recorrido se apagó ese trigger solo mientras corrían las
+  semillas en `spaces_demo_it`. El ADR 0049 ya lo daba por sabido («son para instancias españolas
+  de prueba»). Si se quiere una demo italiana reproducible, las semillas deben aceptar `--idioma` o
+  comprobar la organización antes del `insert`. Además, `semilla-catalogo-demo` deja las propuestas
+  sin `token_publico` y «Genera PDF» da 404 sobre ella. Menor.
+- **B75 · 🟡 ABIERTA (2026-11-04, preexistente) · `/api/auth/forgot` delata por TIEMPO si un correo
+  está registrado.** La respuesta es la misma (anti-enumeración por contenido, bien), pero con el
+  correo registrado la ruta hace `insert into password_resets` (`password-reset-repo.ts:76-80`) y
+  **espera** la llamada HTTP a Resend (`email.ts:52`, `await enviarEmail` en `forgot/route.ts:60`);
+  sin correo, solo un `select` (`password-reset-repo.ts:65-69`). **Ya estaba en `cb116dde`**; el
+  cierre de idiomas añade una consulta del idioma solo en la rama «existe», pero cacheada en
+  `globalThis` (una por proceso), así que no la agranda en régimen. **Evidencia:** lectura de
+  código; **no cronometrado**. **Cómo se cierra:** mandar el correo sin esperarlo (encolarlo o
+  `void` con su `catch`) o igualar el tiempo de las dos ramas. Es R1: necesita aprobación.
+  **Quién:** el ejecutor con aprobación del dueño. **Si no se cierra antes del 14/10 (ya pasado):**
+  según `vault/02-Backend/autenticacion-y-sesion.md:565` la recuperación está apagada en producción
+  (`NEXT_PUBLIC_RECUPERAR_PASSWORD`; no verificado en el servidor) y hay límite de 5 peticiones por
+  IP cada 15 min (`forgot/route.ts:31`); el riesgo vive el día que se encienda el correo saliente.
+- **B76 · ⚪ ABIERTA (2026-11-04) · Dos citas y un recuento que deja caducos `feat/idiomas-cierre`.**
+  `vault/01-Arquitectura/entorno-y-despliegue.md:2250` cita `forgot/route.ts:50` (`APP_URL`, hoy
+  `:51`) y `:2255` cita `:18` (`NEXT_PUBLIC_RECUPERAR_PASSWORD`, hoy `:19`): la ruta creció un
+  import. Y `CLAUDE.md:42` dice 1656 enlaces; `node scripts/recuentos.mjs` en la rama da **1657**.
+  **Cómo se cierra:** corregir las dos citas y el recuento en la misma rama. Menor.
+
+- ~~**P-L2-1 · La captura de cifras no es italiana: «12,9» en el ancho de una pantalla se
+  guardaba como 0 y «1.500,50» como otra cifra.**~~ ✅ **CERRADA el 2026-11-04 en
+  `feat/cifras-por-idioma`** (ZONA ROJA, dinero; autorizada por el dueño el 04/11). En italiano
+  se teclea con punto de millar y coma decimal (`lib/captura-cifra.ts`, espejo exacto de la
+  regla mexicana; lo ambiguo se rechaza con su motivo) y los campos que hacían `Number(texto)`
+  o eran `type="number"` pasan por `EntradaCifra`, que en español e inglés es el `<input>` de
+  siempre. **Medido:** huella de la captura es/en contra `cb116dde`; volcado `I18N_VOLCAR_TODO`
+  contra `cb116dde` con 187 estados distintos, todos italianos; `DICCIONARIOS` es/en 0 valores
+  cambiados (1 clave nueva); barrido italiano 0 sin declarar sin la excepción P-L2-1; siete
+  formularios montados que mandan 12.9 y 1500.5 a la API; 21/21 mutantes. Pendiente de su
+  validador. Fuera, a propósito: coordenadas, Space Eyes y los enteros sin control de
+  Administración (ver `vault/06-Operacion/convenciones.md`).
+  > **Supervisión 2026-11-04: ÁMBAR** — `docs/Supervision/cifras-por-idioma.md`. Confirmado
+  > midiendo: la huella es/en recalculada con la función de `cb116dde` cuadra (`e5240e24…`); el
+  > volcado de toda la suite da 187 distintos, 0 fuera de `_italiano.txt`; el árbol fusionado con
+  > `integra/idiomas` `f92b9b26` da 8527 + 1 en verde. **Pero el cierre es solo para lo PEGADO:**
+  > tecleado tecla a tecla, un punto a la inglesa se traga y «2.5» queda en 25 (**B77**). P-L2-1
+  > sigue cerrada en lo que decía; la deuda nueva es B77–B82 y la decisión D18.
+
+- ~~**B77 · En italiano, un punto tecleado tecla a tecla desaparece y la cifra sale 10 o 100
+  veces mayor, sin aviso.**~~ ✅ **CERRADA el 2026-11-04** (`468ee616` rojo a la vista, 4 rojas;
+  `0281f9a8` arreglo). En italiano, un PUNTO tecleado no se recoloca: se queda donde se tecleó y
+  `leerCifra` lo acepta («1.500») o lo rechaza con su motivo. **Medido tecla a tecla**
+  (`insertText`): «2.5», «12.9», «15000.50» → rechazados (crudo `NaN`, el texto como se tecleó);
+  «1.500,50» → 1500.5; «12,9» → 12.9; «1500,50» → «1.500,50» → 1500.5; cursor en medio: «.» tras
+  el 5 de «1.500» → «1.5.00» rechazado, «2» tras el 1 → 12.500. Alta de Comercial tecleada: «12.9»
+  y «2.5» ya no se mandan. Huella es/en `e5240e24…` intacta; dos mutantes de la guardia, muertos.
+  Lo que decía la advertencia: **Qué es:** «2.5» tecleado
+  en italiano queda en **25**, «12.9» en **129** y «15000.50» en **1.500.050**; pegado, el mismo
+  texto se rechaza con su motivo. **Evidencia:** `formatearMientrasEscribe` llamada tecla a tecla
+  como la llama `CampoCifra` (`insertText`): pasos `["2","2","25"]`, crudo `"25"`; mecanismo en
+  `lib/captura-cifra.ts:282` (rama italiana que intercambia) y `:311` (quita los separadores al
+  recolocar). Ninguna prueba lo ve: el arnés teclea como pegar (`lib/test/formulario-sin-dom.ts:165`).
+  **Es una regresión** en los 37 usos de `EntradaCifra` (antes `Number('2.5')` = 2.5): p. ej. el
+  descuento de la ficha de una propuesta, «2.5» → **25 %**, que solo para el tope si es menor.
+  **Cómo se cierra:** solo en italiano, no recolocar cuando la tecla es un punto fuera de posición
+  de millar (dejarlo, que `leerCifra` lo rechace); prueba roja primero con la secuencia «2», «.»,
+  «5». La huella es/en no cambia porque el camino español no se toca. **Quién:** el ejecutor de la
+  rama (ZONA ROJA ya autorizada para la captura italiana); verificador aparte. **Si no se cierra antes
+  del 14/10:** la fecha ya pasó; lo que importa es **antes de encender el italiano en cualquier
+  servidor con clientes** — si se enciende así, un importe o un porcentaje puede guardarse 10 o 100
+  veces mayor con la cifra a la vista pero sin un solo aviso.
+- ~~**B78 · `feat/cifras-por-idioma` no fusiona limpia con `integra/idiomas` de hoy.**~~ ✅
+  **CERRADA el 2026-11-04** (`5c771163`): los cuatro conflictos a mano; el snapshot con las dos
+  cosas y sin `vitest -u` (contra la rama, solo «commissione» → «provvigione»); 8552 + 1 en verde. **Evidencia:** `git merge-tree` contra `f92b9b26`: conflictos en
+  `italiano-l2.test.ts.snap`, `ABIERTOS.md`, `italiano-olas.md` y el diario del 04/11. El snapshot
+  se resuelve con las dos cosas (la clave `propuestas.alta.error.calculadora` + las tres de
+  «provvigione»); así el árbol fusionado da `tsc` limpio y 8527 + 1 unitarias. **Cómo se cierra:**
+  resolverlo a mano, **nunca con `vitest -u`**, y volver a correr la suite. **Quién:** quien
+  integre. **Si no:** no se puede fusionar; no es silencioso.
+- ~~**B79 · Seis guardias nuevas de cifra ilegible sin prueba que las defienda.**~~ ✅
+  **CERRADA el 2026-11-04** (`03db5ea4`): las seis montadas en `cifras-formularios.test.ts` y
+  `pantallas-propuestas.test.ts` (la prima de un Roadblock, que la calculadora no rechaza). M8–M13,
+  contra la suite entera: los seis MUEREN. **Evidencia:** mutantes que las apagan **sobreviven** a la suite entera: editar sitio
+  (`SiteFicha.tsx:1309`), asistente de contrato (`ContratoWizard.tsx:189`), captación
+  (`Captacion.tsx:568`), negociación (`ComercialOpex.tsx:315`), clientes (`clientes/page.tsx:483`),
+  calculadora de propuestas (`propuestas/page.tsx:1139`). Leídas a mano: las seis están bien hoy.
+  **Por qué importa:** sin ellas, en italiano, `NaN` viaja como `null` y **borra** el dato guardado
+  (editar sitio, negociación) o lo cambia por el valor por omisión (asistente). **Cómo se cierra:**
+  añadirlas a `cifras-formularios.test.ts` con el mismo arnés. **Quién:** el ejecutor. **Si no:** una
+  regresión futura en cualquiera de las seis pasa en verde.
+- ~~**B80 · `crudoTecleado` es código muerto con prueba propia.**~~ ✅ **CERRADA el 2026-11-04**
+  (`c5ffe82d`): borrado con su prueba.
+  `lib/captura-cifra.ts:338`; solo la usa `EntradaCifra.test.ts`. `EntradaCifra` no la llama. Da una
+  cobertura que no es la del camino real. **Cómo se cierra:** borrarla (y su prueba) o que
+  `EntradaCifra` la use. Menor.
+- ~~**B81 · La rama no tiene entrada en la bitácora y deja el recuento de enlaces viejo.**~~ ✅
+  **CERRADA el 2026-11-04**: recuentos medidos tras fusionar y puestos en `CLAUDE.md`. La entrada en
+  `docs/Registro_Cambios.md` no se hace mientras el italiano esté apagado (indicación del
+  coordinador, anotada en el diario del 04/11). `docs/Registro_Cambios.md` no está en el diff y el cambio se nota en italiano.
+  `node scripts/recuentos.mjs`: 1656 en `cb116dde`, **1659** en la rama; `CLAUDE.md:42` dice 1656.
+  **Cómo se cierra:** entrada en lenguaje llano y medir de nuevo **tras fusionar**. **Quién:** quien
+  integre. Documental.
+  > **Supervisión, 2.ª pasada (2026-11-04): B77, B78, B79 y B80 confirmadas como cerradas MIDIENDO**
+  > (detalle en `docs/Supervision/cifras-por-idioma.md`, «2.ª pasada»). **B81 queda a medias:** el
+  > recuento sí (1660 medido = `CLAUDE.md:42`); la entrada de la bitácora **no está hecha, está
+  > aplazada** por indicación del coordinador hasta encender el italiano. Al encenderlo, esa entrada
+  > es obligatoria: que nadie lea «B81 cerrada» como «bitácora escrita».
+- ~~**B82 · Cambiar de idioma con un diálogo de cifras abierto.**~~ ✅ **CERRADA el 2026-11-05**
+  en `feat/italiano-novedades` (`01b9c273` rojo a la vista, 2 rojas; `19938be0` arreglo), **sin
+  validar**. Al pasar a italiano, `CampoCifra` relee el crudo con `pintarCrudo`
+  (`lib/captura-cifra.ts`): canónico → como siempre («12.9» → «12,9», «1500» → «1.500»); no
+  canónico pero `Number()` lo entiende → pinta ESA cifra, que es la que se mandará («1e3» →
+  «1.000»); y si no es una cifra («1,500», «12,9» tecleados en es/en) → **lo deja como se tecleó y
+  avisa** (borde rojo + el motivo de forma italiano) hasta que se teclee de nuevo; al salir del campo
+  no lo canoniza. **Lo que se manda no cambia** (`Number('1,500') || 0` = 0, lo mismo que en es/en):
+  se eligió avisar y no bloquear, porque bloquear cambiaría lo que el formulario manda. Medido
+  **tecla a tecla** con el arnés (`lib/i18n/cifras-formularios.test.ts`, «B82», es→it y en→it) y en
+  la función pura (`captura-cifra.italiano.test.ts`); en es/en `pintarCrudo` es la identidad con
+  `textoDesdeCrudo` (8 crudos por idioma) y el volcado de toda la suite no cambia. El arnés no
+  puede montar el alta de Comercial entera con el cambio de idioma (el estado se recuerda por
+  posición y el `<input>` → `CampoCifra` corre los de después): se monta un formulario mínimo con
+  su misma forma. Sigue sin verificar si la interfaz deja cambiar de idioma con un diálogo abierto
+  (el selector está detrás del modal; el caso real es el refresco que trae otro idioma).
+  Lo que decía: en es/en `EntradaCifra` guarda lo tecleado; si se cambia a italiano con «1,500»
+  escrito, el campo pinta «1.500» (medido: `textoDesdeCrudo('1,500','it')`) y el formulario manda
+  `Number('1,500') || 0` = 0, igual que habría mandado en español. Menor.
+- **B83 · ⚪ ABIERTA (2026-11-05) · Las notas de la versión PENDIENTE salen en español en el panel
+  de Actualizaciones, aunque la interfaz esté en inglés o italiano.** Desde `feat/italiano-novedades`
+  cada item de `novedades.json` trae `en` e `it`, y el diálogo y `/novedades` los pintan. Pero
+  `notasParaVersion()` (`scripts/actualizaciones.mjs`) los **quita** de lo que escribe en
+  `notas_disponibles`, a propósito: esa columna la lee la aplicación VIEJA, que rechaza los campos
+  de item que no conoce (`entradaValida` → `null`) y el panel enseñaría la **alarma** de
+  `avisoSinNotas` (`actualizaciones-ui.ts:130-134`, pintada en `ActualizacionesPanel.tsx:210-218`:
+  «No llegaron las notas de {version}… Avisa a soporte antes de aprobarla») justo en la versión que sí las trae.
+  **Cómo se cierra:** dejar de quitarlos cuando ninguna instancia corra una versión anterior a la
+  que entiende `en`/`it` (la prueba «notas_disponibles» de `lib/novedades-idiomas.test.ts` se
+  invierte entonces). **Quién:** quien publique, tras comprobar la versión de la flota. Menor.
+- ~~**B84 · `propuesta-vigencia.e2e` («la liga dice «vencida»…») cae en rojo entre las 18:00 y las
+  24:00 de México.**~~ ✅ **CERRADA el 2026-11-05 en `feat/verificacion-ajustes`. Era un defecto de
+  PRODUCCIÓN, no del arnés.** En g500 la base va en `Etc/UTC` y la aplicación con
+  `TZ=America/Mexico_City`: la ficha y la liga decían «vencida» con el día local de la aplicación,
+  y aceptar, el correo de «Enviar» y la vigencia al enviar usaban el `current_date` de la base.
+  Desde las 18:00 de México, una propuesta «válida hasta hoy» salía vigente en la liga con su botón
+  y aceptarla daba 409 «venció»; y la enviada a esa hora se guardaba con un día más del que decía
+  su correo. **Regla única:** el día de la vigencia es el de la zona del negocio (`hoyDeVigencia()`,
+  `lib/propuesta-vigencia.ts`), y la base lo recibe como parámetro (`propuestas-repo.ts`,
+  `propuestas-envio.ts`, sin un solo `current_date`). Prueba unitaria con la base simulada en UTC y
+  el reloj a las 19:00 de México (`lib/server/propuesta-vigencia-hora.test.ts`, 4/6 en rojo antes,
+  5/5 mutantes); la e2e pasa a usar el día del negocio en vez de `current_date`. Detalle en
+  [[comercial-propuestas-campanas]]. **Queda:** otras 30 consultas de `lib/server` usan
+  `current_date`/`now()` de la base para otras fechas (campañas, cobranza, OT…); no se revisaron
+  aquí. Pendiente de su validador.
+  **Supervisor, 04/11 noche (`docs/Supervision/verificacion-ajustes.md`): el arreglo se sostiene,
+  medido.** Rojo de `22e30e5f` repetido (`4 failed | 2 passed`, el del 409 por aserción); e2e
+  `11 passed` a las 22:40 de México (día local ≠ día de la base) y, con aceptar devuelto a
+  `current_date` y build, `3 failed`; 5 de 7 mutantes de vigencia mueren. **Lo que deja abierto:**
+  la premisa de g500 sin medir (B88), la fecha del correo sin prueba que muerda (B89), y del
+  «resto», lo de dinero —cupones, facturas, cobros, tablero de finanzas— va a **D20**.
+- ~~**B90 · `CLAUDE.md:42` dice 1671 enlaces y `feat/verificacion-ajustes`
+  tiene 1674**~~ ✅ **CERRADA el 2026-11-05**: `CLAUDE.md` lleva la cifra medida con
+  `node scripts/recuentos.mjs` al cerrar la rama (`node scripts/recuentos.mjs`: 1671 en `a91580bb`, 1674 en `aed31579`; el diario
+  ya dice 1674). La rama añade tres enlaces en el diario y no tocó `CLAUDE.md`. **Cómo se cierra:**
+  correr el script y poner la cifra, en esta rama antes de fusionar. **Quién:** el ejecutor. Menor.
+
+  > **2026-11-04 · supervisión de `feat/d18-aviso-al-teclear`** (`6dce3b0f` + `598a3a25`), ÁMBAR —
+  > `docs/Supervision/d18-aviso-al-teclear.md`. Tres advertencias nuevas; la decisión nueva es D19.
+
+- ~~**B87 · En italiano, «1.500» tecleado y luego un «0» se vuelve «15.000» sin aviso.**~~ ✅ **CERRADA el 2026-11-05** (`3a040dec` rojo a la vista; arreglo en el commit
+  siguiente de `feat/d18-aviso-al-teclear`). La rama italiana de `teclearCifra` es el espejo de la española con los signos intercambiados: un
+  punto de millar que pone la persona no se recoloca. «1.5000» y «1.2345» tecleados se quedan y se
+  rechazan, como pegados; «1.500», «1.500,50», «1500» → «1.500» igual que antes; pegar «1.500» sobre
+  «2.000» + 0 → «1.5000» rechazado. Lo único que cambia en las pruebas italianas de antes son esos
+  dos casos (`captura-cifra.d18.test.ts`). `cifraAMedias` sigue en `false` en italiano. Numerada
+  **B84** por el supervisor; ese número ya lo usaba otra rama.
+  Lo que decía la advertencia: Qué es:** el gemelo exacto de lo
+  que D18 corrige en español. B77 deja el punto tecleado donde cae, pero cuando el texto vuelve a
+  parecer canónico («1.500») la tecla siguiente lo regrupa. **Evidencia:** `teclearCifra(…, 'it')`
+  tecla a tecla: `1 > 1. > 1.5 > 1.50 > 1.500 > 15.000` → 15000; `1.2345` → 12345; en español la
+  misma secuencia con coma da `1,5000` → rechazado. Pegado, «1.5000» se rechaza también en italiano.
+  La rama italiana de `teclearCifra` devuelve `comasPropias: false` siempre (`lib/captura-cifra.ts:439`
+  y siguientes). **Cómo se cierra:** el mismo estado de D18 («separadores propios») en la rama
+  italiana; prueba roja con «1.500» + «0». No hace falta decisión nueva: el principio del dueño para
+  el italiano ya es «lo tecleado acaba igual que lo pegado» (B77). **Quién:** el ejecutor de la
+  captura italiana (ZONA ROJA ya autorizada en B77), verificador aparte. **Si no se cierra antes del
+  14/10:** la fecha pasó; lo que importa es **antes de encender el italiano** en un servidor con
+  clientes: un importe tecleado así se guarda 10 veces mayor, a la vista pero sin aviso.
+- ~~**B85 · Pegar una cifra con comas ENCIMA de otra con las mismas comas no cuenta como «coma de la persona».**~~ ✅ **CERRADA el 2026-11-05** (`3a040dec` rojo a la vista; arreglo en el commit
+  siguiente de `feat/d18-aviso-al-teclear`). Lo pegado o soltado (`insertFromPaste`/`insertFromDrop`) con coma cuenta como de la persona siempre;
+  «2,000» → pegar «1,500» → «0» da «1,5000» rechazado (unitaria y en el campo).
+  Lo que decía la advertencia: Qué es:** `teclearCifra` marca la coma
+  como de la persona solo si el cambio trae **más** comas que antes (`lib/captura-cifra.ts:453`).
+  **Evidencia:** `""` → pegar «1,500» → «0» da `1,5000` rechazado; `"2,000"` → pegar «1,500» (sobre
+  la selección) → «0» da `15,000` = 15000. La regla escrita en la función («tecleada, o en un texto
+  pegado») y la prueba «lo pegado con coma cuenta como de la persona» solo se cumplen pegando en
+  vacío. Reemplazar una tarifa seleccionándola y pegando es la edición normal. Lo que se ve es lo que
+  se manda y es el comportamiento de antes de D18, por eso no es rojo. **Cómo se cierra:** en
+  `insertFromPaste`/`insertFromDrop`, marcar como propio si el texto resultante lleva coma; prueba
+  roja con «2,000» → pegar «1,500» → «0». **Quién:** el ejecutor de `feat/d18-aviso-al-teclear`.
+  **Si no:** queda un camino por el que «1,500» + 0 da 15,000 sin aviso, el patrón que D18 cerró.
+- ~~**B86 · Dos mutantes de D18 sobreviven a las unitarias.**~~ ✅ **CERRADA el 2026-11-05** (`3a040dec` rojo a la vista; arreglo en el commit
+  siguiente de `feat/d18-aviso-al-teclear`). Dos pruebas en `cifras-d18.test.ts`: «1,000» bajo un mínimo de 1500, salir y «0» → «1,0000»; y un
+  repintado del padre («1,500,5» → «1,500») vuelve a reagrupar («15,000»). Los dos mutantes mueren
+  (2 rojas cada uno), igual que otros seis sobre B85 y B87 (8/8).
+  Lo que decía la advertencia: Qué es:**
+  M11 (salir del campo con una cifra INVÁLIDA también apaga `comasPropias`) y M13 (el repintado del
+  padre deja de apagarlo) pasan las 260 pruebas de captura de cifras. El código de hoy hace lo
+  correcto (`components/demo/ui/CampoCifra.tsx:206` y `:144`); nada lo protege. Con M11, un campo con
+  mínimo 1500, «1,000» tecleado, salir, volver y «0» daría 10,000 válido. **Cómo se cierra:** una
+  prueba por cada uno en `lib/i18n/cifras-d18.test.ts` (el arnés ya tiene `salir()` y `refs: true`).
+  **Quién:** el ejecutor. Menor.
+
+- **B57 · 🟠 ABIERTA (2026-10-29) · Un usuario que ya usó el sistema NO se puede
+  borrar: la bitácora lo impide.** Encontrada escribiendo la prueba de P19.
+  `acciones.usuario_id` es `on delete set null` y `acciones` es solo-inserción
+  (`20260629_bitacora_append_only.sql`): borrar al usuario intenta poner su id en
+  null en cada línea de su bitácora, el disparador lo rechaza («bitacora es
+  append-only: UPDATE no permitido sobre acciones») y `borrarUsuario`
+  (`usuarios-repo.ts:307`) falla entero. Medido contra Postgres 16 en
+  `vendedor-en-propuesta.e2e.test.ts`: con una sola acción registrada el `delete`
+  revienta. **Consecuencia:** en la práctica solo se borra a quien nunca hizo nada;
+  a los demás se les desactiva (`activo = false`), que no toca nada. **P19 sigue
+  valiendo** para el día que el borrado funcione, pero hoy casi nunca se dispara.
+  **Quién la cierra:** decisión del dueño — o el borrado de usuarios pasa a ser
+  baja lógica siempre (y el botón lo dice), o la FK de `acciones` deja de tocar
+  la fila (guardar el id sin FK, como ya guarda el nombre). Ninguna de las dos se
+  hizo sin preguntar.
 
 - **B27 · La pantalla de reportes ignora la querystring, así que un reporte no se
   puede compartir por enlace.** `reportes/page.tsx:72-76` inicializa el estado con
@@ -2320,9 +3239,94 @@ tiene `rgb` y `prueba`—. Dos clientes con un inventario numerado igual
   `:72` es un control positivo de ≥4 consultas con 5 reales, o sea al filo a
   propósito.
 
+> **2026-10-19 · supervisión de `feat/comprobante-cobranza` (`95dae737` sobre
+> `main` `7816e8e2`) — veredicto ÁMBAR.** Medido en su worktree: typecheck limpio,
+> `278 archivos · 3704 unitarias` en verde, recuentos 142/59/114/1542. Dos mutantes
+> propios contra las unitarias, muertos y revertidos. e2e NO corridas (5433/3311
+> ocupados por otro proceso). No mirado en navegador.
+
+- ~~**B48 · COB-COMP no fusiona limpio sobre `integra/v0-11-10`.**~~ **CERRADA el 20/10** en `integra/v0-12-0` (`35f5aebd`): conflictos resueltos leyendo los marcadores enteros, `git grep` vacío y recuentos medidos en el árbol fusionado (1544 enlaces).
+  `git merge-tree --write-tree --name-only integra/v0-11-10 95dae737` → exit 1,
+  `CONFLICT (content)` en `docs/Registro_Cambios.md` y `vault/07-Agentes/tablero.md`.
+  Las cifras de CLAUDE.md/MOC (1542 enlaces) se midieron sobre `7816e8e2`, no sobre
+  el árbol fusionado. **Cómo se cierra:** rebasar/fusionar sobre la rama que aterrice
+  primero, resolver los dos archivos leyendo los marcadores enteros (sin `| tail`),
+  `git grep -l "^<<<<<<< HEAD$"` vacío y `node scripts/recuentos.mjs` en ese árbol.
+  **Quién:** el autor de la rama. **Si no antes del 14/10:** ya pasó; no aplica.
+- ~~**B49 · Citas de línea rotas por el crecimiento de `finanzas-controller.ts`.**~~ **CERRADA el 19/10** en `fb7b5f6f`: las cinco citas medidas contra el archivo de ese día.
+  `lib/i18n/errores-servidor.ts:92` dice «1 sitio · finanzas-controller.ts:35» para
+  `'Cobranza no encontrada'`; tras `95dae737` son dos sitios, `:45` y `:59`.
+  Preexistente y agravado (+39 líneas): `vault/02-Backend/finanzas-y-cobranza.md:128`
+  (`:69`) y `:132` (`:74-80`), y `vault/05-Flujos/flujo-facturacion-y-cobranza.md:66,70,102`
+  ya no apuntaban a `entidadEmisoraId` (en `7816e8e2` estaba en `:81`; hoy en `:120`).
+  La nota de finanzas se sello `actualizado: 2026-10-19` sin revalidarlas.
+  **Quién:** ejecutor de docs. Menor.
+- ~~**B50 · Hueco de cobertura: servir el comprobante de un abono por OTRA cobranza**~~ **CERRADA el 19/10** en `fb7b5f6f`: caso e2e nuevo, y el mutante que quita el filtro MUERE con build reconstruido.
+  del mismo tenant.** `obtenerComprobanteAbono` filtra `cobranza_id`
+  (`finanzas-repo.ts:423-426`), pero ningún caso de
+  `lib/test/comprobante-cobranza.e2e.test.ts` pide `GET …/cobranzas/B/abonos/<de A>/comprobante`
+  (el de cobranza ajena, `:193`, solo cubre el PATCH). Quitar ese filtro **no está
+  medido**; por lectura, sobreviviría. No es fuga entre organizaciones (tenant
+  filtrado y RLS). Menor.
+
+> **2026-10-20 · supervisión de `integra/v0-12-0` (`434656b3` = `main` `7816e8e2` +
+> cinco ramas) para publicar `v0.12.0` — veredicto ÁMBAR, sin bloqueantes.** Medido en
+> el worktree `comprobante-cobranza`: ningún commit de las cinco ramas fuera
+> (`git log HEAD..<rama>` vacío en las cinco y en `origin/fix/space-eyes-fotos-rapidas`);
+> cero marcadores de conflicto; `PagoModal` fusionado bien (`finanzas/page.tsx:884-914`);
+> `rules-of-hooks` limpio en todos los `.tsx/.ts` del diff; 5 archivos unitarios
+> afectados 66/66; el guard del encuadre del proxy MUERDE (mutante `if (false && …)`
+> → 4 rojas, revertido). Typecheck, 3761 unitarias, build y e2e 1009/1010 los midió el
+> orquestador, no yo. No mirado en navegador.
+
+- ✅ **CERRADA el 20/10** (id por campaña, `campana.<id>.<sección>`): **B51 · La ficha de campaña ahora recuerda las secciones plegadas para TODAS las
+  campañas, y puede esconder un paso pendiente.** `Seccion`
+  (`app/(app)/(shell)/campanas/[id]/page.tsx:509-518`) abre según `estado ===
+  'pendiente'` y luego, en el efecto, la pliega si su `id` está en la lista; los `id`
+  son fijos (`campana.candado`, `campana.facturacion`…), no llevan el id de la campaña.
+  Escenario: alguien pliega «Candado» en una campaña ya cerrada; en la siguiente
+  campaña, donde el candado está PENDIENTE, la sección sale plegada. En `main` siempre
+  abría lo pendiente. **Cómo se cierra:** que lo pendiente ignore la preferencia, o
+  meter el id de la campaña en el `id`. **Quién:** técnica (Z10). **Si no antes del
+  14/10:** ya pasó; no rompe datos, puede hacer que un paso se pase por alto. Menor.
+- ✅ **CERRADA el 20/10** (bitácora con un solo 20/10 encima del 19/10; tablero sin clave duplicada y con línea en blanco entre recuadros): **B52 · Bitácora fuera de orden y tablero con frontmatter duplicado tras la
+  unión.** `docs/Registro_Cambios.md:8` `## 2026-10-19` va ARRIBA de dos `## 2026-10-20`
+  (`:36` y `:47`) y la cabecera del archivo dice «la más reciente va arriba»; además
+  `:36` va pegada a la lista sin línea en blanco. `vault/07-Agentes/tablero.md:4-5`
+  lleva `actualizado:` dos veces (clave YAML duplicada), y los recuadros de `:18`,
+  `:25` y `:30` van pegados sin línea en blanco, así que Obsidian los pinta como UNO.
+  Ninguna prueba lo ve (3761 en verde). **Quién:** docs. Menor.
+- ✅ **CERRADA el 20/10** (la comisión de agencia vuelve a ser opcional en Clientes y Comisiones; vacía se guarda como 0, como antes): **B53 · Obligatorios que el servidor no exige y antes no bloqueaban.** La comisión
+  de la agencia (`comisiones/page.tsx:140`, `clientes/page.tsx:315-317`): vaciada,
+  antes se guardaba como 0 (`Number('') || 0`); ahora sale «Falta este dato». La
+  descripción de la incidencia se pasó a obligatoria a propósito (bitácora `:58-59`).
+  Es la regla escrita en `convenciones.md` («lo que exige el servidor más lo que la
+  pantalla ya pedía»), y la comisión NO estaba en ninguna de las dos. Menor.
+- ✅ **CUBIERTA**: `update-eyes.sh` respalda MySQL y verifica el volcado ANTES de migrar, y restaura si la migración falla (guía 25, Paso 2); la 027 corre después de ese respaldo. **B54 · `027_fotos_de_vigilancia_derechas.sql` de Space Eye es idempotente pero NO
+  aditiva.** `UPDATE photos SET display_rotation = 0 WHERE source IN (…)`: pone a cero
+  un valor sin respaldo de lo que había. Sin vuelta atrás si algo de esas fotos sí
+  necesitaba el giro. La 026 sí es aditiva (`ADD COLUMN` dentro de `IF NOT EXISTS`).
+  **Cómo se cierra:** capturar antes `select id, display_rotation from photos where
+  source in (…) and display_rotation <> 0` en g500. **Quién:** quien corra
+  `update-eyes.sh`. Menor (son datos de visualización).
+
 ---
 
 ## C · Cerradas
+
+#### ✅ B59 · `bootstrap-auth.mjs` no podía elegir idioma ni moneda — **CERRADA el 2026-11-04, documentada**
+
+Abierta el 03/11. Se cerró en 49d7af51 declarándolo, no cambiando el script: es la ruta de
+**desarrollo**, solo español y MXN. Lo dicen el comentario de `apps/web/scripts/bootstrap-auth.mjs`
+y `vault/01-Arquitectura/entorno-y-despliegue.md`. Una instancia en USD, en/it nace por
+`POST /api/bootstrap`. Sobre una base en otro idioma, el trigger de unicidad rechaza su INSERT.
+**Medido:** el diff de 49d7af51.
+
+#### ✅ B60 · `provision-instancia.sh --ayuda` imprimía una línea de más — **CERRADA el 2026-11-04**
+
+Abierta el 03/11. Rojo en 94189547 y arreglo en 49d7af51 (`uso()` en `2,58p`). **Medido:**
+`bash infra/scripts/pruebas-provision.sh` → `47 escenarios · 164 comprobaciones · 0 fallos`, y
+`--ayuda` termina en la línea de `SPACES_REGION`.
 
 #### ✅ C12 · «La migración de la rejilla en PostgreSQL 14 está razonada, no ejecutada» — **CERRADA el 2026-09-28, y ejecutada**
 

@@ -103,3 +103,23 @@ describe('3 · el sello sobre la foto', () => {
     expect(selloDeFoto(null, 'Dessea')).toBeNull()
   })
 })
+
+describe('4 · en el idioma de quien mira (integración en verificacion)', () => {
+  it('la campaña se nombra en inglés y en italiano; el nombre de la campaña va tal cual', () => {
+    expect(selloDeFoto('campana', 'Dessea', 'en')).toBe('Campaign · Dessea')
+    expect(selloDeFoto('campana', 'Dessea', 'it')).toBe('Campagna · Dessea')
+  })
+
+  it('cada origen tiene nombre en los tres idiomas, y ninguno repite el de otro', () => {
+    for (const idioma of ['es', 'en', 'it'] as const) {
+      const nombres = ORIGENES_FOTO.map((o) => textoOrigen(o.valor, idioma))
+      for (const n of nombres) expect(n).toBeTruthy()
+      expect(new Set(nombres).size).toBe(nombres.length)
+    }
+  })
+
+  it('un origen desconocido tampoco se enseña crudo en otro idioma', () => {
+    expect(textoOrigen('timelapse', 'en')).toBeNull()
+    expect(selloDeFoto('timelapse', 'Dessea', 'it')).toBeNull()
+  })
+})

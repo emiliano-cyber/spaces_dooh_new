@@ -248,6 +248,32 @@ describe('la migración dejó la columna como se pidió', () => {
       c.release()
     }
   })
+
+  it('P19 · borrado el vendedor, el REPORTE lo sigue nombrando y no lo manda a «Sin vendedor»', async () => {
+    // Decisión del dueño (29/10). En una transacción que se deshace, igual que
+    // la prueba del `on delete set null`: el resto del archivo cuenta con la
+    // vendedora viva. El reporte se arma con el mismo `datosRentabilidad` que la
+    // ruta, así que esto se mide en SQL: el nombre congelado tiene que quedar.
+    const p = poolTest()
+    const c = await p.connect()
+    try {
+      await c.query('begin')
+      await c.query(
+        `update propuestas set vendedor_nombre = $2 where tenant_id = $1 and folio like 'PROP-CON-%'`,
+        [alfa.id, datosAlfa.vendedorNombre],
+      )
+      await c.query('delete from usuarios where id = $1', [datosAlfa.vendedorId])
+      const r = await c.query(
+        `select usuario_id, vendedor_nombre from propuestas where tenant_id = $1 and folio like 'PROP-CON-%'`,
+        [alfa.id],
+      )
+      expect(r.rows[0].usuario_id).toBeNull()
+      expect(r.rows[0].vendedor_nombre).toBe(datosAlfa.vendedorNombre)
+    } finally {
+      await c.query('rollback')
+      c.release()
+    }
+  })
 })
 
 // ─── 2 · EL CASO NEGATIVO QUE DA NOMBRE A LA TAREA ──────────────────────────
@@ -299,11 +325,14 @@ describe('el vendedor NO se puede falsear desde el cliente', () => {
       },
     })
     expect(r.status, JSON.stringify(r.datos)).toBe(201)
-    const fila = await poolTest().query('select usuario_id from propuestas where id = $1', [
+    const fila = await poolTest().query('select usuario_id, vendedor_nombre from propuestas where id = $1', [
       r.datos.id,
     ])
     expect(fila.rows[0].usuario_id).toBe(datosAlfa.vendedorId)
+    // P19 (29/10) · y su NOMBRE, de la misma sesión, en el mismo INSERT.
+    expect(fila.rows[0].vendedor_nombre).toBe(datosAlfa.vendedorNombre)
   })
+
 
   it('y el dueño de alfa crea las suyas a SU nombre, no al de la vendedora', async () => {
     // Dos sesiones vivas a la vez sobre la misma organización: lo que decide la
@@ -443,5 +472,40 @@ describe('la dimensión es parte del contrato, no un extra', () => {
     )
     expect(r.status).toBe(401)
     expect(JSON.stringify(r.datos)).not.toContain(datosAlfa.vendedorNombre)
+  })
+})
+
+// ─── DASH-REF (26/10) · el Dashboard reparte lo ganado por vendedor ─────────
+// La propuesta viaja al navegador con `vendedorId` y sus fechas de decisión
+// para el pipeline de Inicio. La liga PÚBLICA es lo que lee el cliente final, y
+// ahí no tiene nada que hacer el id de un usuario interno.
+describe('DASH-REF · el vendedor y las fechas viajan al Dashboard, no a la liga pública', () => {
+  it('la propuesta en `/api/estado` trae `vendedorId` y `aprobadaEn`', async () => {
+    const r = await cVendedor.pedir('/api/propuestas/', {
+      cuerpo: {
+        nombre: 'Propuesta para el pipeline',
+        fechaInicio: enDias(1),
+        fechaFin: enDias(30),
+        items: [{ sitioId: datosAlfa.sitioId, precio: 10_000 }],
+      },
+    })
+    expect(r.status, JSON.stringify(r.datos)).toBe(201)
+    await poolTest().query(`update propuestas set estatus = 'APROBADA', aprobada_en = now() where id = $1`, [r.datos.id])
+    const e = await ca.pedir('/api/estado/')
+    const p = e.datos.propuestas.find((x: any) => x.id === r.datos.id)
+    expect(p.vendedorId).toBe(datosAlfa.vendedorId)
+    expect(typeof p.aprobadaEn).toBe('string')
+    expect(p.rechazadaEn).toBeNull()
+  })
+
+  it('NEGATIVO · la liga pública NO lleva el id del vendedor', async () => {
+    const f = await poolTest().query(
+      `select token_publico from propuestas where tenant_id = $1 and usuario_id = $2 and token_publico is not null limit 1`,
+      [alfa.id, datosAlfa.vendedorId],
+    )
+    const pub = await new Cliente().pedir(`/api/propuestas/publica/${f.rows[0].token_publico}/`)
+    expect(pub.status).toBe(200)
+    expect(JSON.stringify(pub.datos)).not.toContain(datosAlfa.vendedorId)
+    expect(pub.datos).not.toHaveProperty('vendedorId')
   })
 })

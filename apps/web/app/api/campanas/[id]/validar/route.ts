@@ -5,6 +5,7 @@ import { respuestaError } from '@/lib/server/errores'
 import { registrarAccion } from '@/lib/server/acciones-repo'
 import { notificar } from '@/lib/server/notificaciones-repo'
 import { doohmainHabilitado, publicarCampanaEnDoohmain } from '@/lib/server/doohmain'
+import { textoAccionPublicacion } from '@/lib/doohmain-resultado'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -38,12 +39,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     if (body?.aprobar && doohmainHabilitado()) {
       try {
         doohmain = await publicarCampanaEnDoohmain(params.id)
-        const fallos = doohmain.filter((r) => !r.ok)
-        await registrarAccion(
-          g.usuario,
-          fallos.length ? `Publicación en DOOHmain con ${fallos.length} error(es)` : 'Publicó campaña en DOOHmain',
-          c.nombre,
-        )
+        await registrarAccion(g.usuario, textoAccionPublicacion(doohmain), c.nombre)
       } catch (e) {
         doohmain = { error: e instanceof Error ? e.message : 'Fallo al publicar en DOOHmain' }
       }

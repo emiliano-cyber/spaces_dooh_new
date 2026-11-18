@@ -134,3 +134,39 @@ describe('FUERA de una peticion · el caso que mas facil se escapa', () => {
     }
   })
 })
+
+// Ola 0 del italiano (2026-11-03): su propio interruptor, `IDIOMA_ITALIANO`.
+describe('el italiano, detras de IDIOMA_ITALIANO', () => {
+  beforeEach(() => {
+    delete process.env.IDIOMA_ITALIANO
+  })
+
+  it('APAGADO (omision): ni la cookie ni el navegador lo consiguen', async () => {
+    estado.modo = 'peticion'
+    estado.cookie = 'it'
+    estado.accept = 'it-IT,it;q=0.9'
+    expect(await idioma()).toBe('es')
+    // Con el ingles encendido, una cookie italiana es basura y manda la cabecera.
+    estado.accept = 'it-IT,en;q=0.5'
+    expect(await idioma()).toBe('en')
+  })
+
+  it('encendido, la cookie italiana gana', async () => {
+    process.env.IDIOMA_ITALIANO = '1'
+    estado.modo = 'peticion'
+    estado.cookie = 'it'
+    estado.accept = 'en-US'
+    expect(await idioma()).toBe('it')
+  })
+
+  it('encendido SOLO el italiano: una cookie inglesa no consigue el ingles', async () => {
+    delete process.env.IDIOMA_INGLES
+    process.env.IDIOMA_ITALIANO = '1'
+    estado.modo = 'peticion'
+    estado.cookie = 'en'
+    estado.accept = 'it-IT'
+    expect(await idioma()).toBe('it')
+    estado.accept = null
+    expect(await idioma()).toBe('es')
+  })
+})

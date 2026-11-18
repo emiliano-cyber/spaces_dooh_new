@@ -1,5 +1,8 @@
 import { etiquetaBucket } from '@/lib/data/derive'
 import { diaComparable, esFechaValida, ordenInvertido } from '@/lib/server/fechas'
+import { excedeTopeDeMeses, MSJ_TOPE_MESES_REPORTE } from '@/lib/data/reportes'
+import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
+import type { Idioma } from '@/lib/i18n/idiomas'
 
 // ============================================================================
 //  components/demo/reportes/consulta.ts — Qué se le pide al endpoint.
@@ -130,6 +133,26 @@ export const DIMENSIONES_UI: { valor: DimensionUI; label: string; ayuda: string 
 // valen aquí: una rentabilidad por día sobre años de historia es la consulta
 // sin límite que este endpoint viene a evitar. El zod del controller las
 // rechaza, así que ofrecerlas sería ofrecer un 400.
+// La clave del diccionario de cada opcion (lote de ingles «reportes»). Los
+// `label` y `ayuda` de arriba siguen siendo la verdad en espanol y
+// `textos/reportes.test.ts` exige que el diccionario los reproduzca letra por
+// letra, como el menu con `nav.ts`.
+export const CLAVE_DIMENSION: Record<DimensionUI, { label: ClaveTexto; ayuda: ClaveTexto }> = {
+  sitio: { label: 'reportes.dim.sitio', ayuda: 'reportes.dim.sitio.ayuda' },
+  trimestre: { label: 'reportes.dim.trimestre', ayuda: 'reportes.dim.trimestre.ayuda' },
+  operacion: { label: 'reportes.dim.operacion', ayuda: 'reportes.dim.operacion.ayuda' },
+  m2: { label: 'reportes.dim.m2', ayuda: 'reportes.dim.m2.ayuda' },
+  luz: { label: 'reportes.dim.luz', ayuda: 'reportes.dim.luz.ayuda' },
+  entidad: { label: 'reportes.dim.entidad', ayuda: 'reportes.dim.entidad.ayuda' },
+  tarifa: { label: 'reportes.dim.tarifa', ayuda: 'reportes.dim.tarifa.ayuda' },
+  vendedor: { label: 'reportes.dim.vendedor', ayuda: 'reportes.dim.vendedor.ayuda' },
+}
+
+export const CLAVE_GRANULARIDAD: Record<GranularidadUI, ClaveTexto> = {
+  mes: 'reportes.gran.mes',
+  trimestre: 'reportes.gran.trimestre',
+}
+
 export const GRANULARIDADES_UI: { valor: GranularidadUI; label: string }[] = [
   { valor: 'mes', label: 'Mensual' },
   { valor: 'trimestre', label: 'Trimestral' },
@@ -158,8 +181,33 @@ export function sustantivoFila(d: DimensionUI): { singular: string; plural: stri
   return SUSTANTIVO_FILA[d]
 }
 
-/** `1 pantalla` · `3 trimestres`. El número con su sustantivo, ya concordado. */
-export function cuenta(n: number, d: DimensionUI): string {
+// El grupo de claves de cada sustantivo, para el ingles. Cuatro y no ocho: las
+// cinco dimensiones cuyas filas son pantallas dicen lo mismo.
+const GRUPO_CUENTA: Record<DimensionUI, 'pantalla' | 'trimestre' | 'razon-social' | 'vendedor'> = {
+  entidad: 'razon-social',
+  sitio: 'pantalla',
+  trimestre: 'trimestre',
+  operacion: 'pantalla',
+  m2: 'pantalla',
+  luz: 'pantalla',
+  tarifa: 'pantalla',
+  vendedor: 'vendedor',
+}
+
+/** La clave de `cuenta` en el diccionario. La exporta para su prueba. */
+export function claveCuenta(n: number, d: DimensionUI): ClaveTexto {
+  return `reportes.cuenta.${GRUPO_CUENTA[d]}.${n === 1 ? 'uno' : 'otros'}` as ClaveTexto
+}
+
+/**
+ * `1 pantalla` · `3 trimestres`. El número con su sustantivo, ya concordado.
+ *
+ * `idioma` va con 'es' por omision y en espanol devuelve el literal de siempre,
+ * armado con `SUSTANTIVO_FILA`; `textos/reportes.test.ts` exige que el
+ * diccionario diga lo mismo para cada dimension.
+ */
+export function cuenta(n: number, d: DimensionUI, idioma: Idioma = 'es'): string {
+  if (idioma !== 'es') return traducir(idioma, claveCuenta(n, d), { n })
   const s = SUSTANTIVO_FILA[d]
   return `${n} ${n === 1 ? s.singular : s.plural}`
 }
@@ -187,22 +235,31 @@ export function construirConsulta(f: FiltrosReporte): string {
 // MISMA regla —`ordenInvertido` de `lib/server/fechas.ts`, que el controller
 // también usa— y no con una copia: dos reglas divergen, y aquí divergir
 // significa rechazar periodos correctos.
-export function motivoInvalido(f: FiltrosReporte): string | null {
+export function motivoInvalido(f: FiltrosReporte, idioma: Idioma = 'es'): string | null {
+  // `idioma` ('es' por omision) solo cambia el TEXTO del motivo; la decision es
+  // la misma. El tope es `MSJ_TOPE_MESES_REPORTE`, el mismo que lanza el
+  // servidor: en espanol se devuelve la constante y en ingles su clave, que
+  // dice lo mismo que el catalogo de errores (`errores-servidor.ts`).
+  const m = (clave: ClaveTexto) => traducir(idioma, clave)
   const desde = f.desde.trim()
   const hasta = f.hasta.trim()
   // Las fechas son obligatorias y no tienen valor por omisión: un rango por
   // omisión sobre historia de años es una consulta sin límite disfrazada de
   // comodidad, que es el problema del que este endpoint nace.
-  if (!desde) return 'Falta la fecha de inicio del reporte'
-  if (!hasta) return 'Falta la fecha de fin del reporte'
-  if (!esFechaValida(desde) || !esFechaValida(hasta)) return 'Usa fechas con formato AAAA-MM-DD'
+  if (!desde) return m('reportes.motivo.sin-inicio')
+  if (!hasta) return m('reportes.motivo.sin-fin')
+  if (!esFechaValida(desde) || !esFechaValida(hasta)) return m('reportes.motivo.formato')
   // `esFechaValida` acepta formas que no se pueden ordenar («March 3, 2026»).
   // Si no se pueden comparar no se puede garantizar que el rango no esté
   // invertido, y el endpoint las rechaza igual.
   if (!/^\d{4}-\d{1,2}-\d{1,2}$/.test(desde) || !/^\d{4}-\d{1,2}-\d{1,2}$/.test(hasta)) {
-    return 'Usa fechas con formato AAAA-MM-DD'
+    return m('reportes.motivo.formato')
   }
-  if (ordenInvertido(desde, hasta)) return 'La fecha de fin no puede ser anterior a la de inicio'
+  if (ordenInvertido(desde, hasta)) return m('reportes.motivo.invertido')
+  // D6 · decisión del dueño (29/10): tope de 24 meses. La MISMA regla y la
+  // MISMA frase que el controller: con esto `debePedir` no manda la consulta y
+  // la frase sale junto a los filtros, en vez de un 400 después de esperar.
+  if (excedeTopeDeMeses(desde, hasta)) return idioma === 'es' ? MSJ_TOPE_MESES_REPORTE : m('reportes.motivo.tope')
   return null
 }
 
@@ -317,7 +374,7 @@ const diasEntre = (a: Date, b: Date) =>
 // La etiqueta sale de `etiquetaBucket`, la misma que pinta la gráfica de
 // ocupación y la dimensión `trimestre`: dos etiquetados del mismo trimestre
 // acabarían diciendo «T3 2026» en un sitio y «3er trimestre» en el otro.
-export function avanceDelTrimestreEnCurso(hoy: Date): {
+export function avanceDelTrimestreEnCurso(hoy: Date, idioma: Idioma = 'es'): {
   corridos: number
   totales: number
   etiqueta: string
@@ -329,7 +386,7 @@ export function avanceDelTrimestreEnCurso(hoy: Date): {
   return {
     corridos: diasEntre(inicio, hoy) + 1,
     totales: diasEntre(inicio, fin) + 1,
-    etiqueta: etiquetaBucket(inicio, 'trimestre'),
+    etiqueta: etiquetaBucket(inicio, 'trimestre', idioma),
   }
 }
 

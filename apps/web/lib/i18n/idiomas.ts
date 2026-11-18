@@ -44,7 +44,14 @@
 //  que llega a tiempo.
 // ============================================================================
 
-export const IDIOMAS = ['es', 'en'] as const
+// El italiano entra el 2026-11-03 (ola 0 del italiano, pedido del dueno:
+// «ahora version en italiano»). Va TERCERO a proposito: el orden de esta lista
+// es el del selector, y los dos que ya existian no se mueven.
+//
+// El portugues (pt-BR) entra el 2026-11-05 (ola 0 del portugues), CUARTO por
+// el mismo motivo. `pt` y no `pt-BR`: la clave es la subetiqueta primaria
+// (`normalizarIdioma`), y el locale vive en `formato-idioma.ts`.
+export const IDIOMAS = ['es', 'en', 'it', 'pt'] as const
 export type Idioma = (typeof IDIOMAS)[number]
 
 // El espanol es el idioma ORIGINAL del producto y el unico que esta completo.
@@ -77,6 +84,120 @@ export function inglesActivo(
   return entorno.IDIOMA_INGLES === '1'
 }
 
+/**
+ * ¿Está ENCENDIDO el italiano? APAGADO por omisión (2026-11-03), con la MISMA
+ * regla que el inglés y por el mismo motivo: hasta que los lotes de traducción
+ * terminen, encenderlo enseñaría una aplicación a medias (lo que falta cae al
+ * inglés, ver `diccionario.ts`). Apagado, nadie ve italiano aunque su cookie o
+ * su navegador lo pidan. Solo el valor exacto `1` lo enciende.
+ *
+ * Es SU interruptor y no uno compartido: encender el italiano no enciende el
+ * inglés, ni al revés. Cada idioma se publica cuando está listo.
+ */
+export function italianoActivo(
+  entorno: Record<string, string | undefined> = process.env,
+): boolean {
+  return entorno.IDIOMA_ITALIANO === '1'
+}
+
+/**
+ * ¿Está ENCENDIDO el portugués (pt-BR)? APAGADO por omisión (2026-11-05), con
+ * la MISMA regla que el inglés y el italiano: solo el valor exacto `1`. Es SU
+ * interruptor: encenderlo no enciende ningún otro, ni al revés.
+ *
+ * Mientras los lotes de traducción no terminen, lo que falta se pinta en
+ * ESPAÑOL (decisión del dueño del 05/11, `diccionario.ts`), no en inglés como
+ * el italiano.
+ */
+export function portuguesActivo(
+  entorno: Record<string, string | undefined> = process.env,
+): boolean {
+  return entorno.IDIOMA_PORTUGUES === '1'
+}
+
+/**
+ * Los idiomas que ESTA instancia ofrece, en el orden del selector. El español
+ * siempre, y cada uno de los otros si su interruptor está encendido. Es lo
+ * único que mira el resto del código (el layout raíz, `servidor.ts`,
+ * `pages/_error.tsx`): un cuarto idioma se añade aquí y en `IDIOMAS`.
+ */
+export function idiomasActivos(
+  entorno?: Record<string, string | undefined>,
+): Idioma[] {
+  // APARIENCIA-01 (10/11): lo elegido en «Administracion → Apariencia e
+  // idiomas» MANDA sobre las variables. Lo deja aqui
+  // `lib/server/apariencia-instancia.ts` al leer la base; `null` = nadie eligio
+  // y se sigue con `IDIOMA_*` como hasta hoy. Solo cuando no se pasa `entorno`:
+  // las pruebas que pasan uno explicito siguen midiendo las variables.
+  if (entorno === undefined) {
+    const elegidos = idiomasElegidosEnLaInstancia()
+    if (elegidos) return IDIOMAS.filter((i) => elegidos.includes(i))
+  }
+  entorno ??= typeof process === 'undefined' ? {} : process.env
+  const encendido: Record<Idioma, boolean> = {
+    es: true,
+    en: inglesActivo(entorno),
+    it: italianoActivo(entorno),
+    pt: portuguesActivo(entorno),
+  }
+  return IDIOMAS.filter((i) => encendido[i])
+}
+
+// ─── LOS IDIOMAS ELEGIDOS DESDE ADMINISTRACION (APARIENCIA-01) ──────────────
+//
+// En `globalThis` y con `Symbol.for`, como la moneda (`dinero.ts`): el layout,
+// las rutas y `_error` tienen cada uno su copia empaquetada de este modulo, y
+// todos tienen que ver la misma eleccion. Una por PROCESO = una por servidor.
+const CLAVE_IDIOMAS = Symbol.for('space-os.idiomas-elegidos-instancia')
+const almacenIdiomas = globalThis as unknown as { [CLAVE_IDIOMAS]?: Idioma[] | null }
+
+/** Lo elegido en la instancia, o `null` si manda lo de las variables. */
+export function idiomasElegidosEnLaInstancia(): Idioma[] | null {
+  return almacenIdiomas[CLAVE_IDIOMAS] ?? null
+}
+
+/** La llama `lib/server/apariencia-instancia.ts`; el espanol se garantiza aqui. */
+export function fijarIdiomasDeLaInstancia(idiomas: readonly string[] | null): void {
+  almacenIdiomas[CLAVE_IDIOMAS] = idiomas
+    ? IDIOMAS.filter((i) => i === IDIOMA_POR_OMISION || idiomas.includes(i))
+    : null
+}
+
+// ─── LO QUE LA BASE ACEPTA ──────────────────────────────────────────────────
+//
+//  La ola 0 del portugues (05/11) metio `pt` en la INTERFAZ antes que en la
+//  BASE, y quien escribia en `usuarios.idioma_preferido` o en
+//  `tenants.idioma_documentos` validaba contra una lista aparte
+//  (`IDIOMAS_EN_LA_BASE`, es/en/it). La tarea ROJA P3 (05/11,
+//  `20261105_idioma_portugues.sql`) abrio los dos CHECK a `pt` y esa lista se
+//  retiro: desde entonces la base acepta exactamente `IDIOMAS`, y quien
+//  escribe valida contra `IDIOMAS` (alta) o contra `idiomasActivos()`
+//  (Mi cuenta). Un quinto idioma vuelve a pedir migracion: el CHECK no se abre
+//  solo.
+
+/**
+ * Lo que se acepta cuando quien llama NO pasa `permitidos` (lote L5 del
+ * italiano, 2026-11-03, a propuesta del validador de la ola 0).
+ *
+ * Hasta hoy la omision era TODO `IDIOMAS`, y un llamador nuevo que olvidara
+ * la lista dejaba pasar el italiano apagado sin ningun error. Ahora el
+ * italiano solo entra si su interruptor esta encendido. El espanol y el
+ * ingles se aceptan siempre, COMO ANTES: el ingles apagado lo filtra quien
+ * decide (el layout, `servidor.ts`, `_error`), que siempre pasa la lista, y
+ * cambiarlo aqui moveria la conducta de hoy.
+ *
+ * En el navegador no hay `IDIOMA_ITALIANO` (no es `NEXT_PUBLIC_`): quien lea
+ * ahi un idioma ya decidido por el servidor —`global-error.tsx`— pasa
+ * `IDIOMAS` a mano.
+ */
+export function idiomasPorOmision(): Idioma[] {
+  const entorno = typeof process === 'undefined' ? {} : process.env
+  // El portugues (05/11), con la regla del italiano: solo si esta encendido.
+  return IDIOMAS.filter(
+    (i) => (i !== 'it' || italianoActivo(entorno)) && (i !== 'pt' || portuguesActivo(entorno)),
+  )
+}
+
 // Mismo prefijo que `spaces_sesion` y `spaces_csrf`. NO es `httpOnly`: es una
 // preferencia de presentacion, no una credencial, y el selector de idioma la
 // escribe desde el navegador.
@@ -87,16 +208,35 @@ function esIdioma(v: string): v is Idioma {
 }
 
 /**
+ * El `lang` del `<html>`. H3 de la validacion de la ola 0 del portugues
+ * (decision del dueno, 05/11): `pt` a secas no dice que variante es, y el
+ * corrector, el guionado y los lectores de pantalla la necesitan; el dueno
+ * decidio Brasil (D1). Los otros tres se quedan como siempre, a proposito:
+ * cambiarlos moveria el HTML de es/en/it. Se lee de vuelta con
+ * `normalizarIdioma` («pt-BR» → `pt`), que es lo que hace `global-error`.
+ */
+export function langDelHtml(idioma: Idioma): string {
+  return idioma === 'pt' ? 'pt-BR' : idioma
+}
+
+/**
  * Convierte una etiqueta de idioma (BCP 47) en uno de los idiomas soportados.
  *
  * Se queda con la SUBETIQUETA primaria —lo anterior al primer guion— en vez de
  * comparar por prefijo de texto. La diferencia importa: con `startsWith('es')`,
  * «esperanto» seria espanol.
  */
-export function normalizarIdioma(valor: string | null | undefined): Idioma | null {
+export function normalizarIdioma(
+  valor: string | null | undefined,
+  // Los idiomas que se aceptan. Por omision `idiomasPorOmision()` (el
+  // italiano solo encendido); quien decide de verdad (`resolverIdioma`) pasa
+  // solo los ENCENDIDOS, y asi un idioma apagado se comporta exactamente
+  // como uno que no hablamos.
+  permitidos: readonly Idioma[] = idiomasPorOmision(),
+): Idioma | null {
   if (typeof valor !== 'string') return null
   const primaria = valor.trim().toLowerCase().split('-')[0]
-  return primaria && esIdioma(primaria) ? primaria : null
+  return primaria && esIdioma(primaria) && permitidos.includes(primaria) ? primaria : null
 }
 
 /**
@@ -107,7 +247,10 @@ export function normalizarIdioma(valor: string | null | undefined): Idioma | nul
  * configuro su navegador. Una entrada con `q=0` es un RECHAZO explicito y se
  * descarta; el comodin `*` no es una eleccion y se ignora.
  */
-export function idiomaDeCabecera(cabecera: string | null | undefined): Idioma | null {
+export function idiomaDeCabecera(
+  cabecera: string | null | undefined,
+  permitidos: readonly Idioma[] = idiomasPorOmision(),
+): Idioma | null {
   if (typeof cabecera !== 'string' || cabecera.trim() === '') return null
 
   const candidatos = cabecera
@@ -122,7 +265,7 @@ export function idiomaDeCabecera(cabecera: string | null | undefined): Idioma | 
       // no puede pasar es que tumbe el render de la pagina.
       const calidad = q ? Number(q[1]) : 1
       return {
-        idioma: normalizarIdioma(etiqueta),
+        idioma: normalizarIdioma(etiqueta, permitidos),
         calidad: Number.isFinite(calidad) ? calidad : 1,
         orden,
       }
@@ -137,7 +280,15 @@ export function idiomaDeCabecera(cabecera: string | null | undefined): Idioma | 
  * LA REGLA DE PRECEDENCIA, que es lo unico que hay que recordar de este
  * archivo:
  *
- *     cookie  >  Accept-Language  >  espanol
+ *     cuenta  >  cookie  >  Accept-Language  >  espanol
+ *
+ * La CUENTA entra el 2026-11-03 (IDIOMA-USUARIO). Decision del dueno: «el
+ * idioma de lo demas se debe poder configurar por usuario y navegador». Es lo
+ * que la persona eligio en «Mi cuenta» y la sigue a cualquier dispositivo; solo
+ * llega aqui si hay sesion (`servidor.ts` la descarta si la cookie que la lleva
+ * no es de la sesion de ESTA peticion). Sin preferencia —`null`, el valor de
+ * todas las cuentas que no la tocan— la regla es exactamente la de antes, y
+ * `idioma-cuenta.test.ts` lo recorre combinacion por combinacion.
  *
  * La cookie gana SIEMPRE porque es una persona que eligio a mano en esta
  * pantalla. La cabecera es una preferencia del sistema operativo que esa
@@ -149,12 +300,27 @@ export function idiomaDeCabecera(cabecera: string | null | undefined): Idioma | 
  * del navegador apagaria la deteccion para todo el mundo que la tuviera asi.
  */
 export function resolverIdioma(entrada: {
+  /**
+   * La preferencia guardada en la cuenta (`usuarios.idioma_preferido`), ya
+   * desatada de su cookie. Un idioma apagado o un valor ilegible se ignoran
+   * SIN error y se pasa a la cookie: si el idioma se vuelve a encender, la
+   * persona lo recupera sin tocar nada.
+   */
+  cuenta?: string | null
   cookie?: string | null
   cabecera?: string | null
+  /**
+   * Los idiomas ENCENDIDOS (`idiomasActivos()`). Un idioma fuera de esta lista
+   * se trata como uno que no hablamos: una cookie que lo pide es basura y se
+   * cae a la cabecera. El español no se puede apagar: es el destino final.
+   */
+  permitidos?: readonly Idioma[]
 }): Idioma {
+  const permitidos = entrada.permitidos ?? idiomasPorOmision()
   return (
-    normalizarIdioma(entrada.cookie) ??
-    idiomaDeCabecera(entrada.cabecera) ??
+    normalizarIdioma(entrada.cuenta, permitidos) ??
+    normalizarIdioma(entrada.cookie, permitidos) ??
+    idiomaDeCabecera(entrada.cabecera, permitidos) ??
     IDIOMA_POR_OMISION
   )
 }
@@ -187,4 +353,89 @@ export function cadenaCookieIdioma(idioma: Idioma, seguro: boolean): string {
     `${COOKIE_IDIOMA}=${idioma}; path=/; max-age=${COOKIE_IDIOMA_MAX_AGE}; SameSite=Lax` +
     (seguro ? '; Secure' : '')
   )
+}
+
+// ─── LA PREFERENCIA DE LA CUENTA (IDIOMA-USUARIO, 2026-11-03) ───────────────
+//
+//  La preferencia vive en `usuarios.idioma_preferido`, pero leerla de la base
+//  en CADA peticion costaria una consulta en el layout raiz y —peor— no llegaria
+//  a quien decide el idioma sin poder esperar: `idiomaDeLaPeticion()` es
+//  SINCRONA y la llaman `respuestaError()` (el `catch` de cada ruta) y media
+//  docena de Server Components. Volverla asincrona tocaba cientos de llamadas.
+//
+//  Asi que la preferencia VIAJA CON LA SESION en una cookie aparte, que pone el
+//  SERVIDOR al abrir sesion (login, Google, codigo de recuperacion) y al
+//  guardarla en «Mi cuenta», y que borra el logout:
+//
+//      spaces_idioma_cuenta = <idioma>.<huella de la sesion>
+//
+//  La huella (`lib/server/idioma-cuenta.ts`) es un resumen del token de
+//  `spaces_sesion`. Atarla a la sesion es lo que impide que, en un navegador
+//  compartido, la preferencia de una persona se le aplique a la siguiente: al
+//  cambiar la sesion la huella deja de casar y la cookie se ignora, aunque nadie
+//  la haya borrado. Sin sesion (login, paginas publicas) tampoco casa con nada,
+//  y manda el navegador.
+//
+//  No es una credencial: falsificarla solo cambia el idioma de quien la
+//  falsifica. Va `httpOnly` porque nadie en el navegador necesita leerla.
+//
+//  Lo que cuesta, y se acepta: si la persona cambia su preferencia desde OTRO
+//  dispositivo, este no se entera hasta su siguiente inicio de sesion (o hasta
+//  que la vuelva a guardar aqui). Ver `vault/03-Frontend/idiomas-es-en.md`.
+
+export const COOKIE_IDIOMA_CUENTA = 'spaces_idioma_cuenta'
+
+/** El valor de la cookie de la cuenta: `<idioma>.<huella>`. */
+export function valorCookieIdiomaCuenta(idioma: Idioma, huella: string): string {
+  return `${idioma}.${huella}`
+}
+
+/**
+ * El idioma que lleva la cookie de la cuenta, SOLO si es de la sesion de esta
+ * peticion. Cualquier otra cosa —sin sesion, otra sesion, mal formada, un
+ * idioma que no existe— da `null`, y entonces manda el navegador.
+ */
+export function idiomaDeCookieCuenta(
+  valor: string | null | undefined,
+  huella: string | null | undefined,
+): Idioma | null {
+  if (typeof valor !== 'string' || typeof huella !== 'string' || huella === '') return null
+  const punto = valor.indexOf('.')
+  if (punto < 0) return null
+  const idioma = valor.slice(0, punto)
+  if (valor.slice(punto + 1) !== huella) return null
+  return esIdioma(idioma) ? idioma : null
+}
+
+/**
+ * Lo que «Mi cuenta» acepta guardar. `null` o `'navegador'` = no elegir (seguir
+ * al navegador). Un idioma solo si esta ENCENDIDO: la pantalla no ofrece los
+ * apagados, y guardar algo que no se va a aplicar seria mentirle a quien lo
+ * elige. Sin normalizar a proposito —ni regiones ni mayusculas—: quien llama es
+ * nuestra pantalla, y un valor raro es un error, no una preferencia.
+ */
+export function preferenciaDeIdioma(
+  valor: unknown,
+  permitidos: readonly Idioma[],
+): { ok: true; idioma: Idioma | null } | { ok: false } {
+  if (valor === null || valor === 'navegador') return { ok: true, idioma: null }
+  if (typeof valor === 'string' && esIdioma(valor) && permitidos.includes(valor)) {
+    return { ok: true, idioma: valor }
+  }
+  return { ok: false }
+}
+
+/**
+ * ¿La pantalla de entrar tiene que hacer una carga COMPLETA tras el login?
+ * Solo si la cuenta trae un idioma encendido distinto del que se está viendo:
+ * `router.push` no vuelve a pintar el layout raíz, que es quien lleva el
+ * idioma. Sin preferencia, la navegación suave de siempre.
+ */
+export function cambiaIdiomaAlEntrar(
+  idiomaCuenta: string | null | undefined,
+  actual: Idioma,
+  disponibles: readonly Idioma[],
+): boolean {
+  const deCuenta = normalizarIdioma(idiomaCuenta, disponibles)
+  return deCuenta !== null && deCuenta !== actual
 }

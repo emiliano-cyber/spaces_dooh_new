@@ -16,6 +16,8 @@
 // ============================================================================
 
 import { seApi, ErrorSE } from '@/lib/data/space-eyes-se'
+import { traducir } from '@/lib/i18n/diccionario'
+import type { Idioma } from '@/lib/i18n/idiomas'
 
 // El equipo tarda en abrir la cámara; hasta que publica, el servidor de medios
 // contesta 404. Se le pregunta al backend (stream-status) en vez de tocarle la
@@ -59,6 +61,11 @@ export class VisorWhep {
     private readonly video: HTMLVideoElement,
     /** Fallas que llegan DESPUÉS de conectar (se cayó el ICE). */
     private readonly alPerderse: (motivo: string) => void,
+    /**
+     * El idioma de los motivos que se le enseñan a la persona (son interfaz,
+     * decision del orquestador del 02/11). `'es'` por omision: los de siempre.
+     */
+    private readonly idioma: Idioma = 'es',
   ) {}
 
   /**
@@ -87,7 +94,7 @@ export class VisorWhep {
         },
       },
     )
-    if (!res?.stream?.whep) throw new Error('Space Eye no entregó la dirección de la transmisión')
+    if (!res?.stream?.whep) throw new Error(traducir(this.idioma, 'spaceeyes.whep.sin-direccion'))
     this.whepUrl = res.stream.whep
     this.clave = (res.stream.whep.match(/\/([0-9a-f]{8,})\/whep$/) || [])[1] || null
     this.compartida = res.compartida === true
@@ -95,13 +102,13 @@ export class VisorWhep {
 
     if (this.clave && !(await this.esperarAlEquipo())) {
       if (this.detenido) return
-      throw new Error('El equipo no comenzó a transmitir. Puede estar sin señal o con la cámara ocupada.')
+      throw new Error(traducir(this.idioma, 'spaceeyes.whep.no-transmite'))
     }
     if (this.detenido) return
     try {
       await this.conectar()
     } catch (e) {
-      throw new Error(`No se pudo conectar el video (${e instanceof Error ? e.message : 'error'}).`)
+      throw new Error(traducir(this.idioma, 'spaceeyes.whep.no-conectar', { motivo: e instanceof Error ? e.message : 'error' }))
     }
   }
 
@@ -134,7 +141,7 @@ export class VisorWhep {
     }
     pc.oniceconnectionstatechange = () => {
       if (pc.iceConnectionState === 'failed' && !this.detenido) {
-        this.alPerderse('Se perdió la conexión de video con el servidor.')
+        this.alPerderse(traducir(this.idioma, 'spaceeyes.whep.perdida'))
       }
     }
 

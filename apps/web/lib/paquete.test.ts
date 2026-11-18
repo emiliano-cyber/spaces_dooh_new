@@ -164,7 +164,7 @@ describe('motivoPaqueteInvalido · lo que no se puede guardar', () => {
   })
 
   it('un precio con centavos, no: el reparto es en pesos enteros', () => {
-    expect(motivoPaqueteInvalido({ ...ok, precioCerrado: 180_000.5 })).toMatch(/entero/i)
+    expect(motivoPaqueteInvalido({ ...ok, precioCerrado: 180_000.5 })).toMatch(/cantidad entera/i)
   })
 
   it('un precio ilegible, no', () => {

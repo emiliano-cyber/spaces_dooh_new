@@ -3,6 +3,8 @@ import { exigir } from '@/lib/server/auth'
 import { aplicarPaqueteCtrl, quitarPaqueteCtrl } from '@/lib/server/paquetes-controller'
 import { respuestaError } from '@/lib/server/errores'
 import { registrarAccion } from '@/lib/server/acciones-repo'
+import { monedaDeLaInstancia } from '@/lib/server/moneda-instancia'
+import { simboloMoneda } from '@/lib/i18n/dinero'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -41,12 +43,15 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   try {
     const r = await aplicarPaqueteCtrl(params.id, await req.json().catch(() => ({})))
+    // ADR 0048 · el importe de la bitacora lleva el simbolo de la moneda de la
+    // instancia; en servidor hay que pedirla antes de escribirlo.
+    await monedaDeLaInstancia()
     // La bitácora DICE EL PRECIO. Es el número que sustituyó a la suma de las
     // tarifas, y sin él nadie podrá explicar la venta seis meses después.
     await registrarAccion(
       g.usuario,
       'Aplicó un paquete cerrado a la propuesta',
-      `${r.nombre}: $${r.precio.toLocaleString('es-MX')} por ${r.composicion.length} pantalla(s)` +
+      `${r.nombre}: ${simboloMoneda()}${r.precio.toLocaleString('es-MX')} por ${r.composicion.length} pantalla(s)` +
         ' — el precio del paquete SUSTITUYE la suma de las tarifas de lista',
     )
     return NextResponse.json(r)

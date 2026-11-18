@@ -1,22 +1,37 @@
 import { NextResponse } from 'next/server'
 import { qRaw1 as q1, qConTenant } from '@/lib/server/db'
 import { verifyPassword, crearSesion, cookieSesion, cookieCsrf, nuevoCsrfToken, permisosDeRol } from '@/lib/server/auth'
-import { limitar, ipDe } from '@/lib/server/rate-limit'
+import { limitar, consultar, olvidar, ipDe } from '@/lib/server/rate-limit'
 import { respuestaError } from '@/lib/server/errores'
+import { cookieIdiomaCuenta } from '@/lib/server/idioma-cuenta'
+import { idiomasActivos, normalizarIdioma } from '@/lib/i18n/idiomas'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+
+// Fallos por CUENTA (SEG-21OCT, 21/10). El límite por IP de abajo no frena a
+// quien cambia de dirección —un /64 de IPv6 son millones—, así que contra el
+// correo de una persona concreta no había tope. Éste cuenta solo los FALLOS, lo
+// vacía un login correcto, y cuenta igual un correo que no existe: si no, el
+// 429 diría qué correos tienen cuenta. Lo que cuesta, y se acepta: quien sabe
+// el correo de alguien puede dejarle la CONTRASEÑA sin servir durante la
+// ventana. Google y los códigos de recuperación no pasan por aquí.
+const FALLOS_POR_CUENTA = 10
+const VENTANA_CUENTA_MS = 15 * 60_000
+const claveCuenta = (email: string) => `login:cuenta:${email.trim().toLowerCase()}`
+
+function demasiados(retrySeg: number) {
+  return NextResponse.json(
+    { error: `Demasiados intentos. Espera ${retrySeg}s e intenta de nuevo.` },
+    { status: 429, headers: { 'Retry-After': String(retrySeg) } },
+  )
+}
 
 // POST /api/auth/login  { email, password } → set cookie + { usuario, permisos }
 export async function POST(req: Request) {
   // Anti fuerza bruta: máx. 10 intentos por IP cada 5 minutos.
   const lim = limitar(`login:${ipDe(req)}`, 10, 5 * 60_000)
-  if (!lim.ok) {
-    return NextResponse.json(
-      { error: `Demasiados intentos. Espera ${lim.retrySeg}s e intenta de nuevo.` },
-      { status: 429, headers: { 'Retry-After': String(lim.retrySeg) } },
-    )
-  }
+  if (!lim.ok) return demasiados(lim.retrySeg)
   let body: { email?: string; password?: string }
   try {
     body = await req.json()
@@ -24,9 +39,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Cuerpo inválido' }, { status: 400 })
   }
   const { email, password } = body
-  if (!email || !password) {
+  // `typeof` y no solo `!email`: un `{"email":5}` llegaba hasta `claveCuenta`,
+  // cuyo `.trim()` lanzaba FUERA del try de abajo, y Next contestaba un 500 sin
+  // cuerpo — el mismo fallo que se corrigió el 30/09 con la base caída.
+  if (typeof email !== 'string' || typeof password !== 'string' || !email || !password) {
     return NextResponse.json({ error: 'Correo y contraseña requeridos' }, { status: 400 })
   }
+  // Se mira ANTES de verificar la contraseña: con la cuenta bloqueada, ni la
+  // correcta entra, o el bloqueo solo frenaría al que se equivoca.
+  const cuenta = consultar(claveCuenta(email), FALLOS_POR_CUENTA)
+  if (!cuenta.ok) return demasiados(cuenta.retrySeg)
 
   // TODO lo que toca la base va dentro del try. El 2026-09-30, con Postgres
   // apagado, la consulta de abajo lanzaba fuera de cualquier try, la excepción
@@ -58,8 +80,10 @@ async function entrar(email: string, password: string): Promise<NextResponse> {
 
   const ok = u && u.activo && (await verifyPassword(password, u.password_hash))
   if (!u || !ok) {
+    limitar(claveCuenta(email), FALLOS_POR_CUENTA, VENTANA_CUENTA_MS)
     return NextResponse.json({ error: 'Correo o contraseña inválidos' }, { status: 401 })
   }
+  olvidar(claveCuenta(email))
 
   // ADR 0028 · B3 — esta cuenta no entra con contraseña.
   //
@@ -86,9 +110,11 @@ async function entrar(email: string, password: string): Promise<NextResponse> {
   // ABIERTO, y un candado que se abre solo cuando el dato falta no es un candado.
   // Si algún día llegara null, `qConTenant` revienta y el login da 500. Es la
   // respuesta correcta: no entra nadie hasta que se sepa por qué.
-  const [banderas] = await qConTenant<{ solo_google: boolean }>(
+  // `idioma_preferido` viaja en ESTA misma consulta (IDIOMA-USUARIO, 03/11):
+  // el login no paga una consulta más por la preferencia de idioma.
+  const [banderas] = await qConTenant<{ solo_google: boolean; idioma_preferido: string | null }>(
     u.tenant_id,
-    `select solo_google from usuarios where id = $1 and tenant_id = $2`,
+    `select solo_google, idioma_preferido from usuarios where id = $1 and tenant_id = $2`,
     [u.id, u.tenant_id],
   )
 
@@ -109,8 +135,15 @@ async function entrar(email: string, password: string): Promise<NextResponse> {
   const res = NextResponse.json({
     usuario: { id: u.id, nombre: u.nombre, email: u.email, cargo: u.cargo, rol: u.rol, activo: u.activo },
     permisos,
+    // El idioma de la cuenta, si está encendido. La pantalla de entrar lo usa
+    // para saber si tiene que recargar: la navegación de Next no vuelve a pintar
+    // el layout raíz, que es quien lleva el idioma.
+    idioma: normalizarIdioma(banderas?.idioma_preferido, idiomasActivos()),
   })
   res.cookies.set(cookieSesion(token))
+  // La preferencia de la cuenta, atada a ESTA sesión. Sin preferencia la
+  // borra: si alguien usó antes este navegador, su elección no se hereda.
+  res.cookies.set(cookieIdiomaCuenta(token, normalizarIdioma(banderas?.idioma_preferido)))
   // Emite el token anti-CSRF junto con la sesión (double-submit). El front lo
   // lee de esta cookie y lo reenvía en X-CSRF-Token; el middleware lo exige.
   res.cookies.set(cookieCsrf(nuevoCsrfToken()))

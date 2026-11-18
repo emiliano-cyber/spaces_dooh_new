@@ -118,6 +118,11 @@ server {
   # para el sobre multipart sin abrir la puerta a subidas enormes.
   client_max_body_size 12M;
 
+  # Space Eye de ESTA instancia (ADR 0045), por este mismo dominio: los
+  # equipos de la empresa hablan con su droplet y con nadie mas. El comodin no
+  # incluye nada si la instancia no tiene Space Eye. Ver infra/nginx/space-eyes.conf.
+  include /etc/nginx/snippets/space-eyes*.conf;
+
   # ── Cabeceras de seguridad ────────────────────────────────────────────────
   # HSTS vive AQUÍ y no en next.config.mjs (que lo emite con HSTS=1): en un solo
   # sitio, y así aplica también a las respuestas que no pasan por la app.
@@ -188,78 +193,5 @@ server {
   # docs/runbook-dominio-https.md) esta línea es lo único que cambia aquí.
   location = / {
     return 302 /spaces-dooh/login/;
-  }
-}
-
-# ============================================================================
-#  eyes.__DOMINIO__ — el Space Eye de ESTA instancia (ADR 0045).
-# ----------------------------------------------------------------------------
-#  Por aqui entran los equipos de la empresa (APK, Raspberry, PC) y nuestro
-#  panel de operacion. Mismo certificado que el dominio de la app: el alta lo
-#  pide con los dos nombres (`certbot -d __DOMINIO__ -d eyes.__DOMINIO__`). Sin
-#  ese segundo nombre los equipos verian un certificado ajeno y no conectarian.
-#
-#  La app NO pasa por aqui: le habla a Space Eye por 127.0.0.1:4200.
-#  El video no pasa por nginx (RTSP 8554, UDP 8189, TURN 3478): solo el
-#  intercambio de SDP del vivo (/whep/), que va a MediaMTX.
-# ============================================================================
-upstream space_eyes {
-  server 127.0.0.1:4200;
-  keepalive 16;
-}
-
-server {
-  listen 80;
-  listen [::]:80;
-  server_name eyes.__DOMINIO__;
-  location ^~ /.well-known/acme-challenge/ {
-    root /var/www/html;
-  }
-  location / {
-    return 301 https://eyes.__DOMINIO__$request_uri;
-  }
-}
-
-server {
-  listen 443 ssl http2;
-  listen [::]:443 ssl http2;
-  server_name eyes.__DOMINIO__;
-
-  ssl_certificate     /etc/letsencrypt/live/__DOMINIO__/fullchain.pem;
-  ssl_certificate_key /etc/letsencrypt/live/__DOMINIO__/privkey.pem;
-  ssl_protocols             TLSv1.2 TLSv1.3;
-  ssl_prefer_server_ciphers off;
-  ssl_session_cache         shared:SSL:10m;
-  ssl_session_timeout       1d;
-  ssl_session_tickets       off;
-
-  # Las fotos de los equipos llegan a resolucion completa (3-5 MB, tope del
-  # servidor 20 MB). Con los 12M del dominio de la app, una foto grande moriria
-  # en nginx con 413 y el equipo la reintentaria para siempre.
-  client_max_body_size 25M;
-  add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
-
-  # El vivo: solo el SDP, los medios van por UDP directo a MediaMTX.
-  location /whep/ {
-    proxy_pass         http://127.0.0.1:8889/;
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_buffering off;
-  }
-
-  # API de los equipos, socket.io (ordenes en tiempo real) y el panel.
-  location / {
-    proxy_pass         http://space_eyes;
-    proxy_http_version 1.1;
-    proxy_set_header Host              $host;
-    proxy_set_header X-Real-IP         $remote_addr;
-    proxy_set_header X-Forwarded-For   $remote_addr;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_set_header Upgrade    $http_upgrade;
-    proxy_set_header Connection $connection_upgrade;
-    proxy_connect_timeout 10s;
-    # socket.io mantiene la conexion abierta: con 75 s se cortaria cada minuto.
-    proxy_read_timeout    3600s;
-    proxy_send_timeout    120s;
   }
 }

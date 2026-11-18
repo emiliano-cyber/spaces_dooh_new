@@ -4,6 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, CalendarSearch, CheckCircle2, Info, ServerCrash, Zap } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/demo/ui/Card'
+import { IndicadoresEnergia } from '@/components/demo/energia/IndicadoresEnergia'
+import { formatNumero } from '@/lib/formato-numero'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { EmptyState } from '@/components/demo/EmptyState'
 import { FormularioRecibo } from '@/components/demo/energia/FormularioRecibo'
 import { RejillaCaptura } from '@/components/demo/energia/RejillaCaptura'
@@ -20,6 +23,7 @@ import {
   type ReciboEnFormulario,
   type TableroUI,
 } from '@/components/demo/energia/captura'
+import { useIdioma } from '@/lib/i18n/contexto'
 
 // ============================================================================
 //  /energia — Captura mensual del recibo de luz, por predio.
@@ -51,6 +55,7 @@ import {
 // ============================================================================
 
 export default function EnergiaPage() {
+  const { t, idioma } = useIdioma()
   const [rango, setRango] = useState<RangoCaptura>(() => RANGO_DE_APERTURA(new Date()))
   const [cargando, setCargando] = useState(false)
   const [tablero, setTablero] = useState<TableroUI | null>(null)
@@ -64,7 +69,7 @@ export default function EnergiaPage() {
   // la lógica del efecto en dos sitios.
   const [version, setVersion] = useState(0)
 
-  const motivo = motivoInvalido(rango)
+  const motivo = motivoInvalido(rango, idioma)
 
   useEffect(() => {
     if (motivo) return
@@ -83,7 +88,7 @@ export default function EnergiaPage() {
         if (control.signal.aborted) return
         if (!r.ok) {
           setTablero(null)
-          setErrorCarga(cuerpo?.error ?? 'No se pudo cargar la captura de consumos')
+          setErrorCarga(cuerpo?.error ?? t('energia.error.cargar'))
           return
         }
         setTablero(cuerpo)
@@ -91,13 +96,15 @@ export default function EnergiaPage() {
       } catch {
         if (control.signal.aborted) return
         setTablero(null)
-        setErrorCarga('No se pudo contactar al servidor. Revisa la conexión y vuelve a intentar.')
+        setErrorCarga(t('energia.error.contactar'))
       } finally {
         // En el `finally`: es lo que impide el spinner infinito pase lo que pase.
         if (!control.signal.aborted) setCargando(false)
       }
     })()
     return () => control.abort()
+    // `t` solo pone el texto del fallo; no cambia mientras no cambia el idioma.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rango, motivo, version])
 
   const recargar = useCallback(() => setVersion((v) => v + 1), [])
@@ -124,11 +131,11 @@ export default function EnergiaPage() {
         const cuerpo = (await r.json().catch(() => null)) as { error?: string } | null
         // El 409 del índice único llega con su mensaje: capturar dos veces el
         // mismo recibo duplicaría el costo de la luz de ese mes sin dar error.
-        throw new Error(cuerpo?.error ?? 'No se pudo guardar el recibo')
+        throw new Error(cuerpo?.error ?? t('energia.error.guardar-recibo'))
       }
       recargar()
     },
-    [recargar],
+    [recargar, t],
   )
 
   const borrar = useCallback(
@@ -139,69 +146,84 @@ export default function EnergiaPage() {
         // A SU PROPIO estado. El 403 de aqui —Operaciones no tiene `aprobar`—
         // no tiene nada que ver con si el tablero cargo, y mandarlo al estado
         // de la carga vaciaba la rejilla entera. B33.
-        setErrorBorrado(cuerpo?.error ?? 'No se pudo borrar el recibo')
+        setErrorBorrado(cuerpo?.error ?? t('energia.error.borrar-recibo'))
         return
       }
       setErrorBorrado(null)
       recargar()
     },
-    [recargar],
+    [recargar, t],
   )
 
-  const resumen = useMemo(() => (tablero ? resumenDeCobertura(tablero) : null), [tablero])
+  const resumen = useMemo(() => (tablero ? resumenDeCobertura(tablero, idioma) : null), [tablero, idioma])
   const vista = vistaDeCaptura({ cargando, errorCarga, errorBorrado, motivo, tablero })
 
   return (
     <div className="w-full space-y-4">
-      <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[#f59e0b1a] text-warning">
-          <Zap className="h-5 w-5" strokeWidth={1.75} />
-        </span>
-        <div>
-          <h1 className="text-2xl text-ink">Consumo de luz</h1>
-          <p className="text-[13px] text-muted">
-            Un recibo por predio y por mes. Se reparte entre sus pantallas igual que la renta.
-          </p>
-        </div>
+      {/* Encabezado como el Dashboard: título y subtítulo, sin la caja ámbar
+          con el icono (era el único módulo que la llevaba). */}
+      <div>
+        <h1 className="text-2xl text-ink">{t('nav.energia')}</h1>
+        <p className="mt-1 text-[13px] text-muted">
+          {t('energia.descripcion')}
+        </p>
       </div>
 
-      <Card>
-        <CardContent className="pt-4">
-          <div className="mb-3 grid grid-cols-2 gap-2 lg:w-1/3">
-            <div>
-              <label className="mb-1 block text-[11px] uppercase tracking-wide text-muted" htmlFor="desde">
-                Desde
-              </label>
-              <input
-                id="desde"
-                type="date"
-                className="h-9 w-full rounded-md border border-border bg-surface px-2 text-[13px] text-ink"
-                value={rango.desde}
-                onChange={(e) => setRango((r) => ({ ...r, desde: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-[11px] uppercase tracking-wide text-muted" htmlFor="hasta">
-                Hasta
-              </label>
-              <input
-                id="hasta"
-                type="date"
-                className="h-9 w-full rounded-md border border-border bg-surface px-2 text-[13px] text-ink"
-                value={rango.hasta}
-                onChange={(e) => setRango((r) => ({ ...r, hasta: e.target.value }))}
-              />
-            </div>
-          </div>
-          {motivo ? <p className="text-[12px] text-error">{motivo}</p> : null}
+      <IndicadoresEnergia tablero={tablero} cargando={cargando} errorCarga={errorCarga} />
 
+      {/* El periodo es un FILTRO de la rejilla y los indicadores, no un campo
+          del recibo: dentro de la tarjeta de captura se leía como un formulario
+          de cinco campos más dos fechas. Mismo `setRango` y mismos `id`. */}
+      <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
+        <span className="pb-2 text-[13px] font-medium text-ink">{t('compartidos.periodo.aria')}</span>
+        <div>
+          <label className="mb-1 block text-[11px] text-muted" htmlFor="desde">
+            {t('compartidos.periodo.desde')}
+          </label>
+          <input
+            id="desde"
+            type="date"
+            className="h-9 w-full rounded-md border border-border bg-surface px-2 text-[13px] text-ink"
+            value={rango.desde}
+            onChange={(e) => setRango((r) => ({ ...r, desde: e.target.value }))}
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-[11px] text-muted" htmlFor="hasta">
+            {t('compartidos.periodo.hasta')}
+          </label>
+          <input
+            id="hasta"
+            type="date"
+            className="h-9 w-full rounded-md border border-border bg-surface px-2 text-[13px] text-ink"
+            value={rango.hasta}
+            onChange={(e) => setRango((r) => ({ ...r, hasta: e.target.value }))}
+          />
+        </div>
+        {motivo ? <p className="m-0 basis-full text-[12px] text-error">{motivo}</p> : null}
+      </div>
+
+      {/* Con título, sin plegar (ver el comentario de la cobertura: plegarla
+          desmontaría un recibo a medio teclear). */}
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('energia.capturar')}</CardTitle>
+        </CardHeader>
+        <CardContent>
           {tablero && tablero.puntos.length > 0 ? (
             <FormularioRecibo
               puntos={tablero.puntos}
               mesInicial={(tablero.meses[tablero.meses.length - 1] ?? '').slice(0, 7)}
               onGuardar={guardar}
             />
-          ) : null}
+          ) : (
+            // Con título, la tarjeta ya no puede quedar vacía sin decir por qué.
+            <p className="m-0 text-[12px] text-muted">
+              {cargando || (!tablero && !errorCarga)
+                ? t('energia.cargando-puntos')
+                : t('energia.sin-donde-abajo')}
+            </p>
+          )}
 
           {/* Subir el PDF va DEBAJO del formulario y no encima: quien tiene un
               recibo en la mano sigue teniendo el camino de teclearlo, que es el
@@ -214,21 +236,29 @@ export default function EnergiaPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-2">
-          <CardTitle>Qué está capturado y qué falta</CardTitle>
-          {tablero ? (
-            <span className="text-[11px] uppercase tracking-wide text-muted">
-              {tablero.meses.length} {tablero.meses.length === 1 ? 'mes' : 'meses'}
+      {/* Plegable (pedido del 20/10). La tarjeta de captura de arriba NO se
+          pliega: es un formulario, y plegarlo desmontaría un recibo a medio
+          teclear. Esta es solo lectura (más el borrado por fila). */}
+      <CardColapsable
+        id="energia.cobertura"
+        titulo={t('energia.cobertura.titulo')}
+        contentClassName="space-y-3"
+        resumen={
+          tablero ? (
+            <span className="demo-num text-[12px] text-muted">
+              {t('energia.resumen', {
+                meses: t(tablero.meses.length === 1 ? 'energia.meses.uno' : 'energia.meses.otros', { n: formatNumero(tablero.meses.length, 0, idioma) }),
+                puntos: t(tablero.puntos.length === 1 ? 'energia.puntos.uno' : 'energia.puntos.otros', { n: formatNumero(tablero.puntos.length, 0, idioma) }),
+              })}
             </span>
-          ) : null}
-        </CardHeader>
-        <CardContent className="space-y-3">
+          ) : null
+        }
+      >
           {/* El resumen va ARRIBA de la rejilla, no debajo: dice si las cifras
               que se están mirando son el total o solo una parte, y eso llega
               tarde puesto después de la tabla. */}
           {resumen ? (
-            <ul className="space-y-1.5 rounded-md border border-dashed border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">
+            <ul className="m-0 list-none space-y-1.5 rounded-md border border-dashed border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">
               <li
                 className={cn(
                   'flex items-start gap-1.5',
@@ -270,23 +300,22 @@ export default function EnergiaPage() {
           {vista === 'cargando' ? (
             <div className="h-48 w-full animate-pulse rounded-md bg-surface-2" />
           ) : vista === 'error-carga' ? (
-            <EmptyState icon={ServerCrash} titulo="No se pudo cargar la captura" detalle={errorCarga ?? ''} />
+            <EmptyState icon={ServerCrash} titulo={t('energia.vacio.error')} detalle={errorCarga ?? ''} />
           ) : vista === 'periodo-invalido' ? (
-            <EmptyState icon={CalendarSearch} titulo="Revisa el periodo" detalle={motivo ?? ''} />
+            <EmptyState icon={CalendarSearch} titulo={t('energia.vacio.periodo')} detalle={motivo ?? ''} />
           ) : vista === 'sin-puntos' ? (
             /* Vacío HONESTO: se dice POR QUÉ está vacío y qué hacer, en vez de
                un «no hay datos» que deja sin saber si el problema es el rango o
                el inventario. */
             <EmptyState
               icon={Zap}
-              titulo="Todavía no hay dónde capturar"
-              detalle="Un recibo de luz cuelga de un predio con pantallas, o de una pantalla sin predio. Da de alta el inventario y esta pantalla se llena sola."
+              titulo={t('energia.vacio.sin-puntos')}
+              detalle={t('energia.vacio.sin-puntos-detalle')}
             />
           ) : vista === 'rejilla' && tablero ? (
             <RejillaCaptura tablero={tablero} onBorrar={borrar} />
           ) : null}
-        </CardContent>
-      </Card>
+      </CardColapsable>
     </div>
   )
 }

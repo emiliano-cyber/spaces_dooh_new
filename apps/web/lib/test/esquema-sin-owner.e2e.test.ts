@@ -194,7 +194,29 @@ describe('el esquema base no trae la organización de nadie', () => {
     //     arrendamiento con quien los propuso (CONTRATO-CAMBIOS). Duodecima
     //     vez, y otra vez desde la corrida completa: las 9 e2e propias de la
     //     tarea estaban en verde.
-    expect(trasMigrar.tablas).toBe(59)
+    //   · 60 el 2026-10-21: `20261021_notificaciones_por_usuario.sql` anade
+    //     `notificaciones_usuario`, lo que cada persona hizo con cada aviso de la
+    //     campanita (NOTIF-USUARIO). Decimotercera vez, y otra vez desde la
+    //     corrida completa del CI: las 17 e2e propias de la tarea estaban en
+    //     verde (run 39656217384).
+    //   · 64 el 2026-10-22: `20261022_comercial_negociacion.sql` anade CUATRO
+    //     --`prospecto_contactos`, `prospecto_ofertas`, `prospecto_competencia`
+    //     y `prospecto_notas`--, Comercial negociacion encima de `prospectos`
+    //     (NEG-01). Esta vez se subio a la vez que la migracion, no despues de
+    //     que el CI lo cazara.
+    //   · 65 el 2026-10-23: `20261023_contrato_versiones_firmadas.sql` anade
+    //     `contrato_versiones_firmadas`, cada version firmada de un contrato
+    //     que se archivo al editarlo o reenviarlo a firma
+    //     (CONTRATO-FIRMADO-EDITABLE). Subido a la vez que la migracion.
+    //   · 66 el 2026-10-29: `20261029_campana_extensiones.sql` anade
+    //     `campana_extensiones`, cada extension de una campana con el contrato
+    //     firmado que la respalda (EXT-CONTRATO). Subido a la vez que la
+    //     migracion; aqui no hay Postgres, lo confirma el CI.
+    //   · 67 el 2026-11-10: `20261110_idiomas_del_servidor.sql` anade
+    //     `apariencia_instancia`, los idiomas que ofrece el servidor elegidos
+    //     con un boton desde Administracion (IDIOMAS-SERVIDOR). Subido a la vez
+    //     que la migracion.
+    expect(trasMigrar.tablas).toBe(67)
     // Lo que de verdad importa: ni las migraciones resucitan al owner.
     expect(trasMigrar.tenants).toBe(0)
   })

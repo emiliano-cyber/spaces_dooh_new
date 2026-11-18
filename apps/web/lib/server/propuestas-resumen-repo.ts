@@ -1,6 +1,7 @@
 import 'server-only'
 import { q } from './db'
 import { tenantActual } from './tenant'
+import { PREFIJO_BAJA } from '@/lib/vendedor-de-baja'
 
 // ============================================================================
 //  lib/server/propuestas-resumen-repo.ts — Las filas del tablero de propuestas
@@ -42,7 +43,9 @@ export async function filasPropuestasResumen(): Promise<{
               to_char(p.aprobada_en, 'YYYY-MM-DD')  as aprobada,
               to_char(p.rechazada_en, 'YYYY-MM-DD') as rechazada,
               p.usuario_id,
-              u.nombre as vendedor,
+              p.vendedor_nombre,
+              -- P19 (29/10) · si el usuario se borró, el nombre congelado.
+              coalesce(u.nombre, p.vendedor_nombre) as vendedor,
               (p.snapshot_economico->>'neto')::numeric as venta
          from propuestas p
          -- El nombre de quien vende, con el tenant como segunda capa: un id de
@@ -71,7 +74,10 @@ export async function filasPropuestasResumen(): Promise<{
       creada: r.creada,
       aprobada: r.aprobada,
       rechazada: r.rechazada,
-      vendedorId: r.usuario_id ?? null,
+      // P19 (29/10) · un vendedor BORRADO se agrupa por su nombre congelado y
+      // no se revuelve con las históricas («Sin vendedor»), igual que en el
+      // reporte (`lib/vendedor-de-baja.ts`).
+      vendedorId: r.usuario_id ?? (r.vendedor_nombre ? PREFIJO_BAJA + r.vendedor_nombre : null),
       vendedor: r.vendedor ?? null,
       venta: r.venta != null ? Number(r.venta) : null,
     })),
@@ -97,7 +103,7 @@ export async function filasPropuestasResumen(): Promise<{
 // su renta. `caras ?? 1` y el `null` de la renta se conservan igual que en
 // `rowToSitio` y `rowToContrato`: un contrato sin importe no es renta 0.
 export async function filasAtribucionRenta(): Promise<{
-  sitios: { id: string; predioId: string | null; caras: number }[]
+  sitios: { id: string; predioId: string | null; caras: number; propio?: boolean }[]
   contratos: {
     id: string
     sitioId: string | null
@@ -109,7 +115,7 @@ export async function filasAtribucionRenta(): Promise<{
 }> {
   const tenant = await tenantActual()
   const [sitios, contratos] = await Promise.all([
-    q<any>(`select s.id, s.predio_id, s.caras from sitios s where s.tenant_id = $1`, [tenant]),
+    q<any>(`select s.id, s.predio_id, s.caras, s.propio from sitios s where s.tenant_id = $1`, [tenant]),
     q<any>(
       `select c.id, c.sitio_id, c.predio_id, c.estatus, c.monto_renta, c.periodicidad
          from contratos_arrendamiento c
@@ -118,7 +124,7 @@ export async function filasAtribucionRenta(): Promise<{
     ),
   ])
   return {
-    sitios: sitios.map((r) => ({ id: r.id, predioId: r.predio_id ?? null, caras: r.caras ?? 1 })),
+    sitios: sitios.map((r) => ({ id: r.id, predioId: r.predio_id ?? null, caras: r.caras ?? 1, propio: r.propio === true })),
     contratos: contratos.map((r) => ({
       id: r.id,
       sitioId: r.sitio_id ?? null,

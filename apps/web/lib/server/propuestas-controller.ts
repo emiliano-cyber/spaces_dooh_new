@@ -1,7 +1,15 @@
 import 'server-only'
 import { z } from 'zod'
 import { AppError, validar } from './errores'
-import { crearPropuesta, aprobarItem, PropuestaError, type PropuestaInput } from './propuestas-repo'
+import {
+  crearPropuesta,
+  aprobarItem,
+  agregarItems,
+  quitarItem,
+  rangoDePropuesta,
+  PropuestaError,
+  type PropuestaInput,
+} from './propuestas-repo'
 import { cantidadEfectiva, diasInclusivos, precioItem, UNIDADES, type Unidad } from '@/lib/periodos'
 import { PERIODICIDAD_VALUES } from '@/lib/renta-periodicidad'
 import { listarFranjas } from './rejilla-repo'
@@ -172,8 +180,18 @@ export type AjusteTarifa = {
   primaRoadblockPct?: number | null
 }
 
-export async function crearPropuestaCtrl(body: unknown) {
-  const d = validar(crearSchema, body)
+type ItemEntrada = z.infer<typeof itemSchema>
+
+/**
+ * Las LÍNEAS de una propuesta, resueltas en el servidor: franja contra el
+ * catálogo, volumen, calculadora de spots, tarifa calculada y quién puede
+ * apartarse de ella. La usan el alta (`crearPropuestaCtrl`) y, desde el 29/10,
+ * agregar sitios a una propuesta ya creada (`agregarSitiosCtrl`): un sitio
+ * agregado después pasa EXACTAMENTE por las mismas reglas que uno del alta. Dos
+ * copias de esto divergirían, y la que se quedara atrás sería la puerta para
+ * vender a 1 peso (B40).
+ */
+async function prepararLineas(d: { fechaInicio: string; fechaFin: string; items: ItemEntrada[] }) {
 
   // REJILLA-01 · la franja contratada se comprueba contra el catálogo ACTIVO de
   // esta organización, y solo si alguien la usa.
@@ -433,6 +451,12 @@ export async function crearPropuestaCtrl(body: unknown) {
     }
   }
 
+  return { items, ajustes }
+}
+
+export async function crearPropuestaCtrl(body: unknown) {
+  const d = validar(crearSchema, body)
+  const { items, ajustes } = await prepararLineas(d)
   try {
     const propuesta = await crearPropuesta({ ...d, items } as PropuestaInput)
     return { propuesta, ajustes }
@@ -449,6 +473,42 @@ export async function aprobarItemCtrl(itemId: string, body: unknown) {
   try {
     const prop = await aprobarItem(itemId, !!d.aprobado)
     if (!prop) throw new AppError('Ítem no encontrado', 404)
+    return prop
+  } catch (e) {
+    if (e instanceof PropuestaError) throw new AppError(e.message, 409)
+    throw e
+  }
+}
+
+// ─── PROP-COMPLETA (29/10) · agregar y quitar sitios ────────────────────────
+// Decisión del dueño: en BORRADOR y en ENVIADA (en ENVIADA sube la versión, es
+// una renegociación). Las líneas nuevas usan el periodo de la propuesta —el
+// formulario de alta cotiza todas con un solo rango— y pasan por
+// `prepararLineas`, o sea por la tarifa del servidor y sus permisos.
+const agregarSchema = z.object({ items: z.array(itemSchema).min(1, 'Elige al menos un sitio') })
+
+export async function agregarSitiosCtrl(propuestaId: string, body: unknown) {
+  const d = validar(agregarSchema, body)
+  const rango = await rangoDePropuesta(propuestaId)
+  if (!rango) throw new AppError('Propuesta no encontrada', 404)
+  if (rango.estatus !== 'BORRADOR' && rango.estatus !== 'ENVIADA') {
+    throw new AppError('Solo se agregan sitios a una propuesta en borrador o enviada', 409)
+  }
+  const { items, ajustes } = await prepararLineas({ fechaInicio: rango.fechaInicio, fechaFin: rango.fechaFin, items: d.items })
+  try {
+    const propuesta = await agregarItems(propuestaId, items as PropuestaInput['items'], rango)
+    if (!propuesta) throw new AppError('Propuesta no encontrada', 404)
+    return { propuesta, ajustes }
+  } catch (e) {
+    if (e instanceof PropuestaError) throw new AppError(e.message, 409)
+    throw e
+  }
+}
+
+export async function quitarSitioCtrl(itemId: string) {
+  try {
+    const prop = await quitarItem(itemId)
+    if (!prop) throw new AppError('Sitio de la propuesta no encontrado', 404)
     return prop
   } catch (e) {
     if (e instanceof PropuestaError) throw new AppError(e.message, 409)

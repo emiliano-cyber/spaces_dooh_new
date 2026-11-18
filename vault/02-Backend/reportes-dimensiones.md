@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-14
 tags: [backend, reportes, rentabilidad, finanzas, dinero, contratos, m2, operaciones, rojo]
 archivos:
   - apps/web/lib/data/reportes.ts
@@ -52,7 +52,7 @@ reporte de un periodo pasado.
 ## 1 · El defecto que se arregló primero, porque sin él lo demás miente
 
 El costo del espacio se resolvía con `contratoVigentePorSitio()`
-(`derive.ts:1239`), que filtra por `contratoActivo()` (`derive.ts:1133`) — o sea
+(`derive.ts:1247`), que filtra por `contratoActivo()` (`derive.ts:1141`) — o sea
 `VIGENTE`, `POR_VENCER` o `RENOVADO`: **el estatus de HOY**. Sobre un reporte con
 eje de tiempo eso producía dos mentiras a la vez, y **ninguna daba error**:
 
@@ -105,7 +105,7 @@ vuelva a decidir lo que ya está decidido.
 > llamada**. No se escribe nada en la base ni en la respuesta. La alternativa era
 > copiar la atribución al servidor, y este repo documenta esa clase de error como
 > su error de raíz (`lib/server/tenant.ts:87-89`; al 05/10 el texto está en
-> `:86-88`, y el comentario de `derive.ts:1233` repite la cita vieja): dos implementaciones divergen,
+> `:86-88`, y el comentario de `derive.ts:1241` repite la cita vieja): dos implementaciones divergen,
 > y aquí divergir significa que **el reporte y el dashboard darían dos costos
 > distintos para la misma pantalla**. El guard de
 > `reportes-repo.aislamiento.test.ts` ya lo vigilaba y sigue en verde.
@@ -174,7 +174,7 @@ fila no es una pantalla. `arrendador` es nulo — son todos los del periodo. Y
 `detalle` trae el rango **real** cubierto, porque un reporte que arranca el 10 de
 febrero no cubre el T1 completo.
 
-La etiqueta sale de `etiquetaBucket()` (`derive.ts:1590` al 05/10; decía `:1551`), la misma que pinta la
+La etiqueta sale de `etiquetaBucket()` (`derive.ts:1598` al 14/10; decía `:1551`), la misma que pinta la
 gráfica de ocupación: dos etiquetados del mismo trimestre acabarían diciendo
 «T1» en una pantalla y «1er trimestre» en la otra.
 
@@ -249,7 +249,7 @@ misma superficie. Mezclarlas produce **un ranking sin sentido y sin error**.
 Se usa la regla **de presentación** (`medioLabel`: el tipo de medio digital, **o**
 `es_rotativo`, **o** la exhibición digital o rotativa) y **no** la de booking
 (`esDigital`, que por S0-3 solo mira el tipo de medio). Las dos difieren a
-propósito (`derive.ts:1415`, junto a `medioLabel` en `:1416`; decía `:1373`) y aquí manda la primera porque la pregunta es **qué
+propósito (`derive.ts:1423`, junto a `medioLabel` en `:1424`; decía `:1373`) y aquí manda la primera porque la pregunta es **qué
 vende** la pantalla: un rotativo sobre estructura estática vende rotación.
 
 > [!danger] Hay un guard, y es por el modo de fallo

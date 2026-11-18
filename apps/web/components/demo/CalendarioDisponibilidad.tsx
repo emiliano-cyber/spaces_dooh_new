@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/cn'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { localeDe } from '@/lib/i18n/formato-idioma'
 
 // ============================================================================
 //  CalendarioDisponibilidad — grilla mensual que pinta los días según reservas
@@ -33,6 +35,7 @@ export function CalendarioDisponibilidad({
   rangos: RangoOcupacion[]
   className?: string
 }) {
+  const { t, idioma } = useIdioma()
   const hoy = new Date()
   const [offset, setOffset] = useState(0)
   const base = new Date(hoy.getFullYear(), hoy.getMonth() + offset, 1)
@@ -70,24 +73,27 @@ export function CalendarioDisponibilidad({
           type="button"
           onClick={() => setOffset((o) => o - 1)}
           className="flex h-7 w-7 items-center justify-center rounded border border-border text-muted hover:bg-surface-2"
-          aria-label="Mes anterior"
+          aria-label={t('operaciones.calendario.anterior')}
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
         <span className="text-[13px] font-medium capitalize text-ink">
-          {MESES[month]} {year}
+          {/* Fuera del espanol el nombre del mes lo da `Intl` con el locale del
+              idioma (`formato-idioma.ts`); el espanol sigue saliendo de
+              `MESES`, como siempre. */}
+          {idioma !== 'es' ? new Intl.DateTimeFormat(localeDe(idioma), { month: 'long' }).format(base) : MESES[month]} {year}
         </span>
         <button
           type="button"
           onClick={() => setOffset((o) => o + 1)}
           className="flex h-7 w-7 items-center justify-center rounded border border-border text-muted hover:bg-surface-2"
-          aria-label="Mes siguiente"
+          aria-label={t('operaciones.calendario.siguiente')}
         >
           <ChevronRight className="h-4 w-4" />
         </button>
       </div>
       <div className="grid grid-cols-7 gap-1">
-        {DIAS.map((d, i) => (
+        {(idioma === 'es' ? DIAS : t('operaciones.calendario.dias').split(',')).map((d, i) => (
           <div key={i} className="pb-1 text-center text-[10px] font-medium text-muted">
             {d}
           </div>
@@ -102,8 +108,13 @@ export function CalendarioDisponibilidad({
               key={i}
               className={cn(
                 'demo-num flex h-8 items-center justify-center rounded text-[12px]',
-                est === 'CONFIRMADA' && 'bg-[#10b9811a] text-[#0f7a55]',
-                est === 'TENTATIVA' && 'bg-[#f59e0b1a] text-[#9a6700]',
+                // Mismo código que la rejilla de Disponibilidad (26/10): ocupada
+                // en rojo suave y tentativa en ámbar. Antes la confirmada iba en
+                // VERDE, y verde es «libre» en el mapa y en Disponibilidad. El
+                // ámbar del texto es el oscuro del Dashboard: `text-warning`
+                // (#f59e0b) sobre su tinte no se lee a 12 px.
+                est === 'CONFIRMADA' && 'bg-error-soft text-error',
+                est === 'TENTATIVA' && 'bg-warning-soft text-[#9a6700]',
                 !est && 'text-ink',
                 esHoy && 'ring-1 ring-accent',
               )}
@@ -115,10 +126,10 @@ export function CalendarioDisponibilidad({
       </div>
       <div className="mt-3 flex items-center gap-4 text-[11px] text-muted">
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-sm bg-[#10b981]" /> confirmada
+          <span className="h-2.5 w-2.5 rounded-sm bg-error" /> {t('operaciones.calendario.confirmada')}
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-sm bg-[#f59e0b]" /> tentativa
+          <span className="h-2.5 w-2.5 rounded-sm bg-warning" /> {t('operaciones.calendario.en-propuesta')}
         </span>
       </div>
     </div>

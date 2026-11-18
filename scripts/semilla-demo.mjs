@@ -1468,6 +1468,27 @@ export function sentenciasDelPlan(plan, tenantId) {
     })
   }
 
+  // El PAGO de lo cobrado, como abono. Sin él, Finanzas daba por VENCIDAS las
+  // facturas pagadas: desde el ADR 0046 lo cobrado se mide con
+  // `cobranza_abonos` (`lib/finanzas-periodo.ts`), y la invariante del
+  // servidor es `monto_pagado = sum(abonos)` (`finanzas-repo.ts`). Medido el
+  // 2026-11-03 sobre una base recién sembrada: «Vencido» enseñaba como deuda
+  // cada comprobante PAGADO del guion. Va fechado cinco días antes del
+  // vencimiento, que es lo que hace un cliente que paga a tiempo. No mueve
+  // ninguna cifra de rentabilidad: el reporte no mira la cobranza.
+  for (const f of plan.comprobantes.filter((x) => x.montoPagado > 0)) {
+    out.push({
+      etiqueta: `abono de ${f.folio}`,
+      sql: `insert into cobranza_abonos (tenant_id, cobranza_id, monto, fecha, origen)
+            select $1::uuid, co.id, $2::numeric, $3::date - 5, 'registro'
+              from cobranzas co
+              join facturas fa on fa.id = co.factura_id and fa.tenant_id = $1::uuid and fa.folio = $4::text
+             where co.tenant_id = $1::uuid
+               and not exists (select 1 from cobranza_abonos x where x.tenant_id = $1::uuid and x.cobranza_id = co.id)`,
+      valores: [T, f.montoPagado, f.fechaVencimiento, f.folio],
+    })
+  }
+
   // ─── Los recibos de luz ──────────────────────────────────────────────────
   //
   // El guard reproduce EL ÍNDICE ÚNICO de la tabla, incluido el

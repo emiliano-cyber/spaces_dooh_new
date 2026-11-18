@@ -1,9 +1,10 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-10-09
+actualizado: 2026-11-05
 tags: [despliegue, entorno, ci, env, instancias]
 archivos:
+  - apps/web/lib/test/db-e2e.ts
   - infra/scripts/pruebas-update.sh
   - infra/scripts/pruebas-vuelta-atras-real.sh
   - .env.example
@@ -78,7 +79,7 @@ archivos:
 > | `update.sh:74` (código 75, `flock`) | `infra/scripts/update.sh:75` |
 > | `next.config.mjs:17` (trazado desde la raíz) | `apps/web/next.config.mjs:124` (`outputFileTracingRoot`); `output: 'standalone'` en `:119` |
 > | `next.config.mjs:19-20` (`basePath`, `trailingSlash`) | `apps/web/next.config.mjs:145-146` |
-> | `next.config.mjs:51` (`HSTS`) | `apps/web/next.config.mjs:175-188` (comentario y la condición `process.env.HSTS === '1'`) |
+> | `next.config.mjs:51` (`HSTS`) | `apps/web/next.config.mjs:178-191` (comentario y la condición `process.env.HSTS === '1'`) |
 > | `space-os.io.conf:124` / `:188` | `infra/nginx/space-os.io.conf:133` (`space-os.io`) / `:213` (`demo.`); `prueba.` en `:288` |
 > | `ci.yml:74-75` («solo unitarias») | `ci.yml:81-82`, y ya **no** es todo: ver el punto 1 |
 > | `auth.ts:184-188` (`COOKIE_SECURE`) | `apps/web/lib/server/auth.ts:249-253` (`cookieSecure`) |
@@ -164,6 +165,60 @@ archivos:
 
 ---
 # Entorno y despliegue
+
+> [!important] 2026-11-05 · DEMO se muda al droplet viejo de g500, con el nombre `demo.space-os.io` y UNA COPIA DE LOS DATOS DE g500 (ADR 0050)
+> **Estado hoy:** la DEMO sigue siendo el contenedor `space-os-demo` **dentro del
+> PADRE** (`prueba.space-os.io`, `SPACE_OS_CONF=/etc/space-os/demo-instancia.env`),
+> y con ella se promueve la v0.12.6 el 05/11. Su certificado **caduca el 29/11 y
+> no se renueva** (aviso del 01/10, abajo).
+>
+> **El plan, decidido por el dueño el 05/11** ([ADR 0050](../../docs/adr/0050-demo-space-os-io-vuelve-como-la-demo-en-el-droplet-viejo-de-g500.md),
+> que **sustituye al 0024**: `demo.space-os.io` ya NO se elimina): el droplet viejo
+> de g500 (`142.93.113.106`, libre tras la guía 30) pasa a ser la DEMO **con los
+> datos de g500 al 04/11 tal cual** (base, fotos y volúmenes de Space Eyes: el
+> disco es además la única otra copia de Space Eyes de g500). Guía para una
+> persona: `docs/evidencias/31-g500-viejo-como-demo-20261105.md`, sin correr. Lo
+> que deja escrito:
+>
+> - **Se quita la identidad, no los datos**: `INSTANCIA=g500` → `demo`,
+>   `FLOTA_TOKEN` nuevo, claves de Postgres **rotadas**, Spaces al prefijo `demo/`,
+>   sin DOOHmain (`DOOHMAIN_PUBLISH_ENABLED=0`; todas las llamadas pasan por
+>   `doohmainHabilitado()`), sin Resend (`enviarCorreo` lanza `email_no_configurado`
+>   antes de llamar a nadie), sin Google ni Maps; certificado de `g500.space-os.io`
+>   borrado; contenedores de la app de g500 borrados (Docker guarda su
+>   `--env-file`). `app.env` e `instancia.env` se escriben **nuevos desde las
+>   plantillas** con `entorno-instancia.sh`. Comprobación con `grep` de los valores
+>   viejos sin imprimirlos.
+> - **Space Eyes** queda parado, sin borrar, con su configuración apartada en
+>   `/root/g500-eyes-copia/` y sin cron.
+> - **La base no guarda el dominio**: las URLs salen de `APP_URL` y del `Host`;
+>   el cambio de nombre no toca datos.
+> - **De v0.12.5 a la `beta` vigente con `update.sh`** (respaldo previo, tres
+>   migraciones), tras poner `modo = automatica`.
+> - **`DEMO_URL = https://demo.space-os.io/spaces-dooh`** (con *basePath*;
+>   `promover.yml:250-261`) y el secreto `FLOTA_TOKEN` de GitHub al de la DEMO nueva.
+> - **Riesgos aceptados** (recuadro al principio de la guía, nueve): datos reales
+>   de un cliente en una dirección pública; cuentas de g500 activas con sus
+>   contraseñas (Q2); ligas públicas de g500 que también funcionan en `demo.`; la
+>   copia deja de ser fiel en cuanto diverjan; `/root/g500-mudanza/` con la base y
+>   los secretos de g500 en claro, sin tocar (Q1); y **el almacén de medios real
+>   de g500 compartido con la DEMO** (Q3). En v0.12.6 nada borra en ese almacén
+>   (`storage.ts:2` solo importa `Put`/`Get`); cerrar una OT con foto en la DEMO
+>   **sube** un archivo al de g500 (`ot-repo.ts:309-311`).
+> - Hasta retirar la DEMO del PADRE habrá **dos DEMO** y cada release se instala
+>   en las dos.
+
+> [!important] 2026-11-04 · Mudar g500 a un droplet NUEVO instalado desde cero, con todos sus datos
+> Guía para una persona: `docs/evidencias/30-mudar-g500-a-droplet-limpio-20261104.md`.
+> Ubuntu 24.04 (PostgreSQL 16 como g500), base del sistema con `setup-droplet.sh`
+> de `v0.12.5`, y encima la base `spaces` restaurada en una base VACÍA (roles con
+> el mismo hash por `pg_dumpall --roles-only`, sin esquema ni bootstrap), `/etc/space-os`
+> copiado tal cual (solo cambia `IP_PUBLICA`), Space Eyes por volúmenes (`rsync` en
+> caliente y en el corte) con su imagen local por `docker save`, y el certificado
+> copiado y reemitido tras el DNS. Dos trampas que deja escritas: `update.sh` **no
+> levanta el contenedor** sobre una base que ya dice instalada (`sin-cambios`), y
+> `git archive` sin `-c core.autocrlf=false` entrega `update.sh` en CRLF (medido:
+> `6add877f…`). Alternativa por instantánea: guía 29. Sin correr todavía.
 
 > [!danger] 2026-10-02 · El registro de imágenes se LLENA: limpiar antes de publicar
 > `release.yml` de `v0.9.2` falló con `denied: quota exceeded`: 471.52 de 500 MiB
@@ -377,6 +432,8 @@ archivos:
 > Su certificado (26/10) pasa a ser **caducidad natural, no plazo**.
 > **Ya no se pregunta.**
 > Contexto: [[modelo-instancias-soberanas]] · `vault/07-Agentes/diario/2026-08-27`
+>
+> ⚠️ **SUSTITUIDO el 2026-11-05 por el [ADR 0050](../../docs/adr/0050-demo-space-os-io-vuelve-como-la-demo-en-el-droplet-viejo-de-g500.md)**: `demo.space-os.io` **no se elimina**, vuelve como la DEMO en el droplet viejo de g500 (guía `docs/evidencias/31-g500-viejo-como-demo-20261105.md`, sin correr). Lo de este recuadro es historia.
 
 
 ## Local
@@ -399,6 +456,10 @@ cd apps/web && DATABASE_URL=postgresql://spaces:spaces@localhost:5433/spaces \
   ORG_SLUG=rgb ORG_NOMBRE='RGB Catorce' \
   ADMIN_EMAIL=jose@pixeled.com.mx ADMIN_NOMBRE='Cliente_ RGB Catorce' \
   node scripts/bootstrap-auth.mjs
+#    OJO (B59, ADR 0048/0049): esta organizacion nace SIEMPRE en MXN y con los
+#    documentos en ESPANOL. Es una ruta de desarrollo, solo-es. Una instancia en
+#    USD o con contratos en/it nace por POST /api/bootstrap
+#    (provision-instancia.sh --moneda --idioma)
 
 # 4. La app
 cd apps/web && npm run dev     # http://localhost:3000/spaces-dooh/
@@ -582,6 +643,15 @@ no entran.
 Las e2e necesitan una base aparte cuyo nombre **debe** terminar en `_e2e` o
 `_test` (`apps/web/lib/test/db-e2e.ts`, `exigirBaseDePrueba()`). Ver
 [[convenciones]].
+
+> [!warning] La base de las e2e habla en UTC, la fije quien la fije (2026-11-03)
+> El arnés la pone en UTC él mismo (`HUSO_E2E` en `apps/web/lib/test/db-e2e.ts`:
+> `options` en sus pools y `alter database` en `recrearEsquema()`). Las
+> semillas calculan fechas en UTC y el Postgres de docker-compose y del CI ya
+> corría en UTC; un Postgres en la hora local (el portátil de Windows, en
+> America/Mexico_City) hacía caer **diez e2e cada tarde a partir de las 18:00**,
+> cuando el día UTC ya es mañana. Reproducido con la base en
+> Pacific/Kiritimati: sin el arreglo, `estado-campanas` cae en rojo.
 
 ### Hay DOS formas de arrancar, y las dos son válidas (13/08, F2.1)
 
@@ -814,6 +884,28 @@ Las tres variables tienen valor: `REGISTRY` y `REGISTRY_TIPO` desde el 31/08, y
 > compararía `desconocida` contra la versión promovida y fallaría siempre. El día
 > que DEMO se contenerice, la comprobación se vuelve estricta sola.
 
+> [!danger] 2026-10-21 · Node 20 sin parches: imagen y CI pasan a Node 22
+> Los avisos de seguridad de Node de octubre de 2026 traen diez CVE —el peor,
+> ejecución de código en el decodificador Brotli (CVE-2026-111497), y dos saltos
+> de la verificación del nombre en TLS— con parche para 22.x (**v22.23.4**), 24.x
+> y 26.x, y **ninguno para 20.x**, que es fin de vida desde abril. La imagen se
+> construía sobre `node:20-alpine` y el CI corría 20.
+>
+> - **Imagen:** `node:22.23.4-alpine3.23` en las tres etapas (`Dockerfile`).
+>   Alpine 3.23 a propósito: es la de `node:20-alpine`, y en la 3.24 Python es
+>   3.14, sin rueda de psycopg[binary] 3.2.3. Lo vigila
+>   `apps/web/lib/imagen-node-parcheado.test.ts`.
+> - **CI:** `ci.yml` y `release.yml` en `node-version: '22'`, como ya estaba
+>   `lockfile-check.yml`. Con eso el recuadro de abajo pierde hasta su premisa.
+> - **PADRE:** corre `next start` con el node **del anfitrión**, así que no lo
+>   arregla ninguna imagen. Hay **dos** instalaciones (nvm de root y
+>   `/usr/local/bin/node`, `infra/systemd/flota-reporte.service:48-54`) y se
+>   actualizan las dos. Lo corre una persona:
+>   `docs/evidencias/28-node-22-y-php-servidores-20261021.txt`.
+> - **PHP** (CVE-2026-109618/109619, el mismo día): **SPACE OS no usa PHP** —ni
+>   la imagen ni el repositorio—. La guía 28 incluye cómo comprobar que ningún
+>   droplet lo tenga instalado de antes.
+
 > [!warning] 2026-08-31 · «node 20 aquí, 22 en el CI» NO es cierto — la causa sigue sin identificar
 > El **efecto es real y está medido**: `npm install` en el PADRE poda entradas del
 > lockfile, y por eso la secuencia lleva el `git checkout --`. Lo que no se sostiene
@@ -959,7 +1051,8 @@ manual completo —configuración, códigos de salida, cron— está en
 > cron empezó a fallar con `/usr/bin/env: 'bash\r': No such file or directory`,
 > **código 127**, en cada `--comprobar`, que en g500 es el único cron activo
 > (su línea de las 04:17 está comentada, `#17 4 * * *`). g500 se
-> quedó en `v0.11.1` sin ver `v0.11.2` ni `v0.11.3`, y como el reporte a la
+> quedó en `v0.11.1` del 08/10 18:30 al 09/10 16:30 UTC, cuando ya arreglado
+> instaló `v0.11.3`, y como el reporte a la
 > flota lo manda el mismo `update.sh`, **no hubo ningún error a la vista**:
 > solo silencio. Se descubrió el 09/10, cuando `v0.11.3` no aparecía para
 > aprobar.
@@ -2142,9 +2235,9 @@ empuja: ver [[modelo-instancias-soberanas]] y
 | Entorno | Qué es | Cómo corre | Base | Dominio |
 |---|---|---|---|---|
 | **PADRE** | Plano de control de AS OOH y sitio institucional. **No sirve a ningún owner** | **systemd** `spaces-web`, puerto **3000**, usuario `padre` (`infra/systemd/spaces-web.service:83`; era pm2 hasta el 28/08 — corregido aquí el 05/10) | `spaces_prod` | `space-os.io` — `infra/nginx/space-os.io.conf:133` |
-| **DEMO** | Banco de pruebas. **Contenedor** dentro del PADRE desde el 2026-09-02 ([ADR 0015](../../docs/adr/0015-demo-dentro-del-padre.md), [ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md)) | **`update.sh` + Docker**, contenedor `space-os-demo` desde `…/space-os:beta`, `--network host` con `PORT=3001` y `HOSTNAME=127.0.0.1`, cron a las 4:31. Config en `/etc/space-os/demo-instancia.env` y `demo-app.env`. La unidad systemd `spaces-demo` queda **deshabilitada como vuelta atrás**, no borrada — ver el aviso de abajo, porque `disable` **retira el symlink** | `spaces_demo`, 75 migraciones | **`prueba.space-os.io`** — nombre nuevo (31/08). `demo.space-os.io` es la demo original y **se elimina** ([ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md), que sustituye al 0021) |
+| **DEMO** | Banco de pruebas. **Contenedor** dentro del PADRE desde el 2026-09-02 ([ADR 0015](../../docs/adr/0015-demo-dentro-del-padre.md), [ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md)) | **`update.sh` + Docker**, contenedor `space-os-demo` desde `…/space-os:beta`, `--network host` con `PORT=3001` y `HOSTNAME=127.0.0.1`, cron a las 4:31. Config en `/etc/space-os/demo-instancia.env` y `demo-app.env`. La unidad systemd `spaces-demo` queda **deshabilitada como vuelta atrás**, no borrada — ver el aviso de abajo, porque `disable` **retira el symlink** | `spaces_demo`, 75 migraciones | **`prueba.space-os.io`** — nombre nuevo (31/08). ~~`demo.space-os.io` es la demo original y **se elimina** ([ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md))~~ — **sustituido el 05/11 por el [ADR 0050](../../docs/adr/0050-demo-space-os-io-vuelve-como-la-demo-en-el-droplet-viejo-de-g500.md)**: la DEMO se muda al droplet viejo de g500 con el nombre `demo.space-os.io` y una copia de los datos de g500 al 04/11 (guía 31, sin correr) |
 | **Instancia de un owner** | Su copia completa: droplet, base y dominio propios | Contenedor Docker, lo levanta `infra/scripts/update.sh` | La suya | El **suyo**, en **su** zona DNS — plantilla `infra/nginx/instancia.conf.tpl` |
-| **Droplet de julio** | La máquina montada a mano en julio. **Fuera del modelo** ([ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md)) | pm2 `spaces-web`, usuario `emiliano`, `/var/www/Spaces` | `spaces_prod` propia, con cinco organizaciones dentro | Hoy sigue sirviendo `demo.space-os.io`. ~~Su destino es **decisión abierta**~~ — **cerrada**: sale del modelo por el ADR 0023 (27/08) y `demo.space-os.io` se elimina por el ADR 0024; los datos de g500 sí se rescataron (ADR 0031) |
+| **Droplet de julio** | La máquina montada a mano en julio. **Fuera del modelo** ([ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md)) | pm2 `spaces-web`, usuario `emiliano`, `/var/www/Spaces` | `spaces_prod` propia, con cinco organizaciones dentro | Hoy sigue sirviendo `demo.space-os.io`. ~~Su destino es **decisión abierta**~~ — **cerrada**: sale del modelo por el ADR 0023 (27/08) y `demo.space-os.io` se elimina por el ADR 0024 (**sustituido el 05/11 por el [ADR 0050](../../docs/adr/0050-demo-space-os-io-vuelve-como-la-demo-en-el-droplet-viejo-de-g500.md)**: el nombre vuelve como la DEMO, en el droplet viejo de g500); los datos de g500 sí se rescataron (ADR 0031) |
 
 > [!warning] Dos bases distintas se llaman igual: `spaces_prod`
 > La del PADRE (`docs/Runbook_Padre_Droplet_Nuevo.md:201`, creada el 24/08) y la
@@ -2210,12 +2303,12 @@ para el redirect URI de Google.
 | `DATABASE_URL` | Conexión Postgres | `lib/server/db.ts:23` |
 | `NODE_ENV` | Modo, default de `Secure`, pool en dev | `lib/server/auth.ts:252` |
 | `COOKIE_SECURE` | Fuerza/apaga `Secure` en cookies | `lib/server/auth.ts:249-253` (`cookieSecure`) |
-| `APP_URL` | Base de enlaces en correos y de la invitación de usuarios | `app/api/auth/forgot/route.ts:50`, `app/api/usuarios/route.ts:30` |
-| `HSTS` | Activa Strict-Transport-Security. **Bandera de BUILD**, no de ejecución | `next.config.mjs:175-188` |
+| `APP_URL` | Base de enlaces en correos y de la invitación de usuarios | `app/api/auth/forgot/route.ts:51`, `app/api/usuarios/route.ts:30` |
+| `HSTS` | Activa Strict-Transport-Security. **Bandera de BUILD**, no de ejecución | `next.config.mjs:178-191` |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Correo saliente | `lib/server/email.ts` |
 | `RECORDATORIOS_TOKEN` | Autentica el cron; sin él la ruta da 503 | `app/api/recordatorios/route.ts` |
 | **`AUTOREGISTRO`** | **solo `'1'` enciende** el alta pública; **ausente = apagado**. Se lee en cada petición, no se hornea (F2.6, 14/08) | `lib/entorno.ts` · `app/api/signup/route.ts:21-26` |
-| `NEXT_PUBLIC_RECUPERAR_PASSWORD` | Apaga **pedir** un enlace de recuperación; usarlo no (ADR 0044) | `app/api/auth/forgot/route.ts:18` |
+| `NEXT_PUBLIC_RECUPERAR_PASSWORD` | Apaga **pedir** un enlace de recuperación; usarlo no (ADR 0044) | `app/api/auth/forgot/route.ts:19` |
 | `NEXT_PUBLIC_MAPTILER_KEY` | Mapas. **Nadie la define, y en la flota NO PUEDE definirse**: `NEXT_PUBLIC_*` se hornea al compilar, así que sería una clave para toda la flota (ADR 0030). El basemap real es OpenFreeMap, sin clave | `components/demo/MapView.tsx` |
 | `DO_SPACES_KEY/SECRET/ENDPOINT/BUCKET/CDN_URL` | Almacenamiento S3 | `lib/server/storage.ts:12-16` |
 | `GOOGLE_OAUTH`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` | Acceso con Google | `lib/server/google-oauth.ts` |

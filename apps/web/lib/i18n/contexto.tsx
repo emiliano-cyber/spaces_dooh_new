@@ -37,6 +37,13 @@ import { formatearDinero, formatearDineroRedondo, formatearFecha, formatearNumer
 //  **No se vuelve a preguntar.** Si algun dia se quiere por persona, eso SI es
 //  una migracion y la aprueba el dueno antes de escribirla.
 //
+//  **Y el 2026-11-03 el dueno lo pidio** (IDIOMA-USUARIO): «el idioma de lo
+//  demas se debe poder configurar por usuario y navegador». La cuenta opina y
+//  MANDA (`usuarios.idioma_preferido`, «Mi cuenta → Idioma»); la cookie de
+//  aqui sigue siendo la eleccion DEL NAVEGADOR y manda cuando la cuenta no
+//  tiene preferencia. Este proveedor no cambio: el servidor ya le entrega el
+//  idioma resuelto con las dos. Ver `idiomas.ts` (`resolverIdioma`).
+//
 //  ─── POR QUE `router.refresh()` Y NO UNA RECARGA ───────────────────────────
 //
 //  Al cambiar de idioma hay que volver a pedirle al servidor el arbol, porque
@@ -67,7 +74,19 @@ export interface ContextoIdioma {
    * servidor va a ignorar sería mentirle a quien lo usa.
    */
   puedeElegir: boolean
+  /**
+   * Los idiomas que el selector ofrece, en su orden: los ENCENDIDOS en el
+   * servidor (`idiomasActivos()`, ola 0 del italiano). `cambiarIdioma` ignora
+   * cualquier otro, por la misma razon que `puedeElegir`.
+   */
+  disponibles: readonly Idioma[]
 }
+
+// Sin lista explicita, lo de antes del italiano: con el selector, espanol e
+// ingles; sin el, solo espanol. Es lo que reciben las pruebas de pantallas,
+// que pasan `puedeElegir: true` y nada mas, y asi su HTML no cambia.
+const ANTES_DEL_ITALIANO: readonly Idioma[] = ['es', 'en']
+const SOLO_ESPANOL: readonly Idioma[] = [IDIOMA_POR_OMISION]
 
 // El valor por omision existe para que un componente montado fuera del
 // proveedor —una prueba, un Storybook— siga pintando en espanol en vez de
@@ -82,12 +101,15 @@ const Contexto = createContext<ContextoIdioma | null>(null)
 export function ProveedorIdioma({
   idioma: idiomaDelServidor,
   puedeElegir = false,
+  disponibles: disponiblesDelServidor,
   children,
 }: {
   idioma: Idioma
   puedeElegir?: boolean
+  disponibles?: readonly Idioma[]
   children?: React.ReactNode
 }) {
+  const disponibles = disponiblesDelServidor ?? (puedeElegir ? ANTES_DEL_ITALIANO : SOLO_ESPANOL)
   const router = useRouter()
   const [idioma, setIdioma] = useState<Idioma>(idiomaDelServidor)
 
@@ -100,7 +122,7 @@ export function ProveedorIdioma({
 
   const cambiarIdioma = useCallback(
     (nuevo: Idioma) => {
-      if (!puedeElegir) return
+      if (!puedeElegir || !disponibles.includes(nuevo)) return
       // La CADENA la arma `cadenaCookieIdioma` (`idiomas.ts`) y no esta funcion.
       // El motivo es que se pueda probar: escribir en `document.cookie` es un
       // efecto que sin DOM no se observa, y el mutante que borraba esta linea
@@ -111,7 +133,7 @@ export function ProveedorIdioma({
       setIdioma(nuevo)
       router.refresh()
     },
-    [router, puedeElegir],
+    [router, puedeElegir, disponibles],
   )
 
   const valor = useMemo<ContextoIdioma>(
@@ -124,8 +146,9 @@ export function ProveedorIdioma({
       fecha: (f, opciones) => formatearFecha(f, idioma, opciones),
       cambiarIdioma,
       puedeElegir,
+      disponibles,
     }),
-    [idioma, cambiarIdioma, puedeElegir],
+    [idioma, cambiarIdioma, puedeElegir, disponibles],
   )
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>
@@ -151,6 +174,7 @@ export function useIdioma(): ContextoIdioma {
     fecha: (f, opciones) => formatearFecha(f, idioma, opciones),
     cambiarIdioma: () => {},
     puedeElegir: false,
+    disponibles: SOLO_ESPANOL,
   }
 }
 

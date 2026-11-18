@@ -1,3 +1,5 @@
+import type { ClaveTexto } from '@/lib/i18n/diccionario'
+
 // ============================================================================
 //  Presentación de las CAPACIDADES para la matriz de roles (Bloque F).
 //
@@ -41,4 +43,15 @@ export const CAP_CORTA: Record<Capacidad, string> = {
   // «C» ya es Crear. Una segunda «C» en la misma celda sería ilegible justo
   // donde se reparte quién toca el dinero.
   costear: '$',
+}
+
+// I18N (lote administracion, 2026-11-02) · la clave de cada capacidad para la
+// leyenda de la matriz. `CAP_LABEL` sigue siendo la verdad en espanol y
+// `textos/admin.test.ts` exige que `admin.cap.*` la reproduzca letra por letra.
+export const CLAVE_CAP: Record<Capacidad, ClaveTexto> = {
+  ver: 'admin.cap.ver',
+  crear: 'admin.cap.crear',
+  aprobar: 'admin.cap.aprobar',
+  facturar: 'admin.cap.facturar',
+  costear: 'admin.cap.costear',
 }

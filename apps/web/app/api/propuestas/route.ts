@@ -4,6 +4,7 @@ import { crearPropuestaCtrl } from '@/lib/server/propuestas-controller'
 import { respuestaError } from '@/lib/server/errores'
 import { registrarAccion } from '@/lib/server/acciones-repo'
 import { textoBitacoraAjusteTarifa } from '@/lib/tarifa-calculada'
+import { monedaDeLaInstancia } from '@/lib/server/moneda-instancia'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -21,6 +22,9 @@ export async function POST(req: Request) {
   try {
     const { propuesta, ajustes } = await crearPropuestaCtrl(await req.json().catch(() => ({})))
     await registrarAccion(g.usuario, 'Creó propuesta', propuesta.nombre)
+    // ADR 0048 · la frase lleva importes con el simbolo de la moneda de la
+    // instancia; en servidor hay que pedirla antes de escribirla.
+    await monedaDeLaInstancia()
     for (const a of ajustes) {
       await registrarAccion(g.usuario, textoBitacoraAjusteTarifa(a), propuesta.nombre)
     }

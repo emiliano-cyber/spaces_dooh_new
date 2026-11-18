@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, ExternalLink, Camera, Printer, ClipboardList, Cpu, MonitorPlay, ChevronDown, Check } from 'lucide-react'
+import { ArrowLeft, ExternalLink, Camera, Printer, ClipboardList, Cpu, MonitorPlay, ChevronDown, Check, CalendarClock } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
+import { CLAVE_PLEGADAS, leerPlegadas, conPlegada } from '@/lib/secciones-plegadas'
 import { Breadcrumbs, type Crumb } from '@/components/demo/ui/Breadcrumbs'
 import { withTrail, trailFromLocation } from '@/lib/nav-trail'
 import { resumenReserva, etiquetaFrecuencia } from '@/lib/periodos'
@@ -11,24 +13,22 @@ import { PipelineView } from '@/components/demo/campanas/PipelineView'
 import { CampanasNav } from '@/components/demo/campanas/CampanasNav'
 import { CandadoPanel } from '@/components/demo/campanas/CandadoPanel'
 import { DatosFacturacion } from '@/components/demo/campanas/DatosFacturacion'
+import { ExtensionesCampana } from '@/components/demo/campanas/ExtensionesCampana'
 import { ValidacionPanel } from '@/components/demo/campanas/ValidacionPanel'
 import { EvidenciaGaleria } from '@/components/demo/campanas/EvidenciaGaleria'
 import { PlaylogsPanel } from '@/components/demo/campanas/PlaylogsPanel'
 import { AgregarCreativo } from '@/components/demo/campanas/AgregarCreativo'
 import { FranjaProgramadaCampana } from '@/components/demo/campanas/FranjaProgramadaCampana'
+import { ResumenCampana } from '@/components/demo/campanas/ResumenCampana'
+import { ListaImpresionCampana, ListaOTCampana } from '@/components/demo/campanas/ListasCampana'
+import { CLAVE_ESTADO_CAMPANA, CLAVE_RESERVA, CLAVE_CREATIVIDAD } from '@/components/demo/campanas/etiquetas'
+import { useIdioma, useTexto } from '@/lib/i18n/contexto'
 import { formatNumero } from '@/lib/formato-numero'
 import {
   StatusBadge,
   CAMPANA_TONO,
-  CAMPANA_LABEL,
   RESERVA_TONO,
-  RESERVA_LABEL,
   CREATIVIDAD_TONO,
-  CREATIVIDAD_LABEL,
-  IMPRESION_TONO,
-  IMPRESION_LABEL,
-  OT_TONO,
-  OT_LABEL,
 } from '@/components/demo/StatusBadge'
 import {
   useCampana,
@@ -49,6 +49,7 @@ import {
 
 export default function CampanaDetallePage({ params }: { params: { id: string } }) {
   const id = params.id
+  const { t, idioma } = useIdioma()
   const c = useCampana(id)
   const clientes = useClientes()
   const reservas = useReservas()
@@ -64,12 +65,14 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
   // Rastro de cómo se llegó a esta campaña (param `from`); por defecto, Campañas.
   const [trail, setTrail] = useState<Crumb[]>([])
   useEffect(() => {
-    const t = trailFromLocation()
-    setTrail(t.length ? t : [{ label: 'Campañas', href: '/campanas' }])
+    // `rastro` y no `t`: `t` es ahora la funcion de traduccion.
+    const rastro = trailFromLocation()
+    setTrail(rastro.length ? rastro : [{ label: t('campanas.lista.titulo'), href: '/campanas' }])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  const volver = trail.length ? trail[trail.length - 1] : { label: 'Campañas', href: '/campanas' }
+  const volver = trail.length ? trail[trail.length - 1] : { label: t('campanas.lista.titulo'), href: '/campanas' }
   // Rastro a propagar hacia las OT de esta campaña (incluye la campaña actual).
-  const trailHaciaOT: Crumb[] = [...trail, { label: c && 'nombre' in c ? c.nombre : 'Campaña', href: `/campanas/${id}` }]
+  const trailHaciaOT: Crumb[] = [...trail, { label: c && 'nombre' in c ? c.nombre : t('campanas.comun.campana'), href: `/campanas/${id}` }]
 
   if (c === undefined) {
     return <div className="w-full h-64 animate-pulse rounded-md bg-surface-2" />
@@ -77,9 +80,9 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
   if (c === null) {
     return (
       <div className="w-full">
-        <p className="text-[13px] text-muted">Campaña no encontrada.</p>
+        <p className="text-[13px] text-muted">{t('campanas.ficha.no-encontrada')}</p>
         <Link href="/campanas" className="mt-2 inline-flex items-center gap-1 text-[13px] text-info">
-          <ArrowLeft className="h-3.5 w-3.5" /> Volver a campañas
+          <ArrowLeft className="h-3.5 w-3.5" /> {t('campanas.ficha.volver')}
         </Link>
       </div>
     )
@@ -109,15 +112,6 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
   // real del servidor (finanzas-repo) sí la dejara facturar. Se llama a la regla
   // única en vez de reimplementarla aquí.
   const candadoHecho = candadoFacturacion(c)
-  // Que la validación APLIQUE depende solo del medio: toda campaña digital pasa
-  // por revisión antes de salir al aire. Antes esto exigía además
-  // `c.enviadaDominio`, y el resultado era el contrario del buscado: una campaña
-  // digital todavía sin enviar quedaba marcada "No aplica", que deja la sección
-  // PLEGADA y al final de la página (ver `Seccion`) — escondiendo justo el botón
-  // "Enviar al dominio" que hay que pulsar para que se publique en DOOHmain.
-  // No haberla enviado es el estado PENDIENTE, no un "no aplica".
-  const validacionAplica = tieneDigital
-  const validacionHecha = c.validacionEstatus === 'APROBADA'
   const creativosHecho = misCreas.length > 0 && misCreas.every((cr) => cr.estatusValidacion === 'VALIDADA')
   const otsPendientes = misOts.length === 0 || misOts.some((o) => !['COMPLETADA', 'CANCELADA', 'RECHAZADA'].includes(o.estatus))
   const cliFiscal = (clientes ?? []).find((x) => x.id === c.clienteId)
@@ -131,14 +125,15 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
 
         <div className="min-w-0 flex-1 space-y-4">
       {/* Migas: de dónde vengo y cómo llegué a esta campaña */}
+      {/* En escritorio solo las migas: el «← Campañas» repetía la primera. El
+          enlace de volver queda para el teléfono, donde las migas se cortan. */}
       <div className="flex flex-wrap items-center gap-2">
         {volver.href && (
-          <Link href={volver.href} className="inline-flex items-center gap-1 text-[13px] font-medium text-info hover:underline">
+          <Link href={volver.href} className="inline-flex items-center gap-1 text-[13px] font-medium text-info hover:underline sm:hidden">
             <ArrowLeft className="h-3.5 w-3.5" /> {volver.label}
           </Link>
         )}
-        <span className="text-muted/50">·</span>
-        <Breadcrumbs items={[...trail, { label: c.nombre }]} />
+        <span className="hidden sm:contents"><Breadcrumbs items={[...trail, { label: c.nombre }]} /></span>
       </div>
 
       {/* Encabezado */}
@@ -146,12 +141,12 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
         <div>
           <h1 className="text-2xl text-ink">{c.nombre}</h1>
           <p className="demo-num mt-1 text-[12px] text-muted">
-            {c.folio} · {c.marca ?? ''} · {formatFecha(c.fechaInicio)}–{formatFecha(c.fechaFin)}
+            {[c.folio, c.marca, `${formatFecha(c.fechaInicio, idioma)}–${formatFecha(c.fechaFin, idioma)}`].filter(Boolean).join(' · ')}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <StatusBadge tono={CAMPANA_TONO[c.estadoComercial]}>
-            {CAMPANA_LABEL[c.estadoComercial]}
+            {t(CLAVE_ESTADO_CAMPANA[c.estadoComercial])}
           </StatusBadge>
           {c.portalActivo && c.portalToken && (
             <Link
@@ -159,11 +154,12 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
               target="_blank"
               className="inline-flex items-center gap-1 rounded border border-border-strong px-2.5 py-1 text-[12px] font-medium text-info hover:bg-surface-2"
             >
-              Portal del cliente <ExternalLink className="h-3.5 w-3.5" />
+              {t('campanas.ficha.portal')} <ExternalLink className="h-3.5 w-3.5" />
             </Link>
           )}
         </div>
       </div>
+      <ResumenCampana campanaId={id} />
 
       {/* Aviso: pantallas con IA / medición de audiencia */}
       {sitiosIA.length > 0 && (
@@ -171,7 +167,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
           <Cpu className="mt-0.5 h-4 w-4 shrink-0 text-info" />
           <div className="text-[12px]">
             <div className="text-[13px] font-medium text-ink">
-              Esta campaña incluye {sitiosIA.length} pantalla{sitiosIA.length === 1 ? '' : 's'} con IA · medición de audiencia (AdMobilize)
+              {t(sitiosIA.length === 1 ? 'campanas.ficha.ia.uno' : 'campanas.ficha.ia.otros', { n: sitiosIA.length })}
             </div>
             <div className="mt-0.5 text-muted">
               {sitiosIA
@@ -182,58 +178,120 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
         </div>
       )}
 
+      {/* Creativos — LO PRIMERO de la ficha (pedido del dueño, 22/10): verlos y
+          subirlos aquí mismo en cuanto la campaña existe, y en cualquier
+          momento, aunque ya se haya cerrado. Por eso NO es una `Seccion`: esas
+          se pliegan y se bajan al estar completas, y una campaña con todos sus
+          creativos aprobados los escondía al fondo y plegados. Aquí no se
+          pliega ni cambia de sitio. */}
+      <section
+        aria-labelledby={`creativos-${id}`}
+        className="rounded-md border border-border bg-surface p-4"
+      >
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h2 id={`creativos-${id}`} className="m-0 flex items-center gap-2 text-[15px] font-semibold text-ink">
+            {t('campanas.ficha.creativos')}
+            <StatusBadge tono={creativosHecho ? 'verde' : !tieneDigital && misCreas.length === 0 ? 'neutro' : 'ambar'}>
+              {misCreas.length === 0
+                ? t('campanas.ficha.creativos.sin')
+                : creativosHecho
+                  ? t('campanas.ficha.creativos.todos')
+                  : t('campanas.ficha.creativos.por-aprobar')}
+            </StatusBadge>
+          </h2>
+          <Link
+            href={withTrail('/creativos', trail)}
+            className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline"
+          >
+            {t('campanas.ficha.creativos.gestionar')} <ExternalLink className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+        <div className="space-y-3">
+          {misCreas.length > 0 ? (
+            <ul className="m-0 list-none space-y-2 p-0">
+              {misCreas.map((cr) => (
+                <li key={cr.id} className="flex items-center justify-between text-[13px]">
+                  <span className="text-ink">{cr.nombre}</span>
+                  <StatusBadge tono={CREATIVIDAD_TONO[cr.estatusValidacion]}>
+                    {t(CLAVE_CREATIVIDAD[cr.estatusValidacion])}
+                  </StatusBadge>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-[13px] text-muted">{t('campanas.ficha.creativos.vacio')}</p>
+          )}
+          <AgregarCreativo campanaId={id} />
+        </div>
+      </section>
+
+      {/* Validación de publicación — SIEMPRE abierta, sin importar el estatus
+          (pedido del dueño, 23/10). Era una `Seccion`: nacía abierta solo si
+          estaba pendiente, y aprobada —o en una campaña que no es digital— se
+          plegaba y se iba al fondo, escondiendo lo que se mandó a DOOHmain y el
+          botón para reenviar o bajar un creativo. (Ya pasó antes al revés: cuando
+          «aplicar» exigía `enviadaDominio`, una digital sin enviar quedaba como
+          «No aplica», plegada, y escondía el botón «Enviar al dominio».) Como
+          Creativos arriba, aquí no
+          se pliega ni cambia de sitio; `ValidacionPanel` trae su propio título y
+          su estatus. */}
+      <ValidacionPanel campanaId={id} />
+
       {/* Pipeline (pieza estrella) */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Pipeline</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <PipelineView campanaId={id} />
-        </CardContent>
-      </Card>
+      <CardColapsable id="campana.pipeline" titulo={t('campanas.ficha.pipeline')}>
+        <PipelineView campanaId={id} />
+      </CardColapsable>
 
       {/* PROG-01 · en qué franja se TRANSMITE (no toca lo vendido) */}
       <FranjaProgramadaCampana campanaId={id} />
 
+      {/* EXT-CONTRATO (29/10, decisión del dueño) · «Extender campaña» vuelve a
+          ofrecerse aquí, y solo con el contrato firmado de la extensión. No es
+          una `Seccion`: esas llevan chip Pendiente/Completo, y extender es
+          opcional — «Completo» sobre una campaña sin extensiones diría algo que
+          no es. Como el Pipeline, se pliega y se recuerda, pero no se reordena. */}
+      <CardColapsable
+        id={`campana.${id}.extensiones`}
+        titulo={t('campanas.ficha.extensiones')}
+        icono={<CalendarClock className="h-4 w-4 text-muted" />}
+      >
+        <ExtensionesCampana campana={c} />
+      </CardColapsable>
+
       {/* Secciones plegables. Flex + `order` para subir las pendientes. */}
       <div className="flex flex-col gap-4">
-      {/* Validación de publicación (verificar anuncios antes de salir al aire) */}
-      <Seccion
-        titulo="Validación de publicación"
-        estado={!validacionAplica ? 'na' : validacionHecha ? 'hecho' : 'pendiente'}
-      >
-        <ValidacionPanel campanaId={id} />
-      </Seccion>
-
       {/* Candado de facturación */}
-      <Seccion titulo="Candado de facturación" estado={candadoHecho ? 'hecho' : 'pendiente'}>
+      <Seccion id={`campana.${id}.candado`} titulo={t('campanas.ficha.candado')} estado={candadoHecho ? 'hecho' : 'pendiente'}>
         <CandadoPanel campanaId={id} />
       </Seccion>
 
       {/* Comercial (referencia) */}
-      <Seccion titulo="Comercial" estado="hecho">
+      <Seccion id={`campana.${id}.comercial`} titulo={t('campanas.ficha.comercial')} estado="hecho">
         <dl className="space-y-2 text-[13px]">
-          <Fila label="Subtotal (neto)" valor={c.presupuestoNeto ? formatMonto(c.presupuestoNeto) : '—'} mono />
+          <Fila label={t('campanas.ficha.subtotal-neto')} valor={c.presupuestoNeto ? formatMonto(c.presupuestoNeto, idioma) : '—'} mono />
           <Fila
-            label={`IVA (${c.presupuestoNeto ? Math.round(((c.presupuestoBruto ?? 0) - c.presupuestoNeto) / c.presupuestoNeto * 100) : 16}%)`}
-            valor={c.presupuestoNeto != null && c.presupuestoBruto != null ? formatMonto(c.presupuestoBruto - c.presupuestoNeto) : '—'}
+            label={t('campanas.ficha.iva-pct', {
+              pct: c.presupuestoNeto ? Math.round(((c.presupuestoBruto ?? 0) - c.presupuestoNeto) / c.presupuestoNeto * 100) : 16,
+            })}
+            valor={c.presupuestoNeto != null && c.presupuestoBruto != null ? formatMonto(c.presupuestoBruto - c.presupuestoNeto, idioma) : '—'}
             mono
           />
-          <Fila label="Total" valor={c.presupuestoBruto ? formatMonto(c.presupuestoBruto) : '—'} mono />
-          <Fila label="Agencia" valor={c.agencia ?? 'Directo'} />
-          <Fila label="OC recibida" valor={c.ocRecibida ? 'Sí' : 'No'} />
+          <Fila label={t('campanas.comun.total')} valor={c.presupuestoBruto ? formatMonto(c.presupuestoBruto, idioma) : '—'} mono />
+          <Fila label={t('campanas.ficha.agencia')} valor={c.agencia ?? t('campanas.ficha.directo')} />
+          <Fila label={t('campanas.ficha.oc-recibida')} valor={c.ocRecibida ? t('campanas.ficha.si') : t('campanas.ficha.no')} />
         </dl>
       </Seccion>
 
       {/* Datos de facturación: fiscales del cliente (auto-llenados) + contrato */}
-      <Seccion titulo="Datos de facturación" estado={fiscalHecho ? 'hecho' : 'pendiente'}>
+      <Seccion id={`campana.${id}.facturacion`} titulo={t('campanas.ficha.facturacion')} estado={fiscalHecho ? 'hecho' : 'pendiente'}>
         <DatosFacturacion campana={c} sinCard />
       </Seccion>
 
       {/* Rentabilidad (motor de costos: espacios + impresión + operación) */}
       {margen && (
         <Seccion
-          titulo="Rentabilidad"
+          id={`campana.${id}.rentabilidad`}
+          titulo={t('campanas.ficha.rentabilidad')}
           // Un margen NEGATIVO no es una seccion "Completa": la campaña pierde
           // dinero. Estaba fijo en "hecho", asi que se veia el check verde de
           // Completo junto a "Margen -93%" (A-3 de la auditoria QA). Queda
@@ -241,7 +299,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
           estado={margen.margen >= 0 ? 'hecho' : 'pendiente'}
           accion={
             <span className={`text-[13px] font-semibold ${margen.margen >= 0 ? 'text-[#0f7a55]' : 'text-error'}`}>
-              Margen {margen.margenPct.toFixed(0)}%
+              {t('campanas.ficha.margen-pct', { pct: margen.margenPct.toFixed(0) })}
             </span>
           }
         >
@@ -249,36 +307,36 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
               {c.presupuestoBruto ? (
                 <div className="flex items-center justify-between gap-3 border-b border-border pb-2">
                   <dt className="flex items-center gap-1.5 text-muted">
-                    Total contratado (cliente)
+                    {t('campanas.ficha.total-contratado')}
                     <span
                       className="rounded-full border border-border px-1.5 py-0.5 text-[9px] font-medium text-muted"
-                      title="Snapshot económico congelado en la aceptación — igual al total de la propuesta y de la factura (IVA incluido)"
+                      title={t('campanas.ficha.snapshot.title')}
                     >
-                      snapshot
+                      {t('campanas.ficha.snapshot')}
                     </span>
                   </dt>
-                  <dd className="demo-num font-medium text-ink">{formatMonto(c.presupuestoBruto)}</dd>
+                  <dd className="demo-num font-medium text-ink">{formatMonto(c.presupuestoBruto, idioma)}</dd>
                 </div>
               ) : null}
-              <Fila label="Ingreso del medio (neto)" valor={formatMonto(margen.ingreso)} mono />
+              <Fila label={t('campanas.ficha.ingreso')} valor={formatMonto(margen.ingreso, idioma)} mono />
               <div className="flex items-center justify-between gap-3">
                 <dt className="flex items-center gap-1.5 text-muted">
-                  − Costo de espacios
+                  {t('campanas.ficha.costo-espacios')}
                   {margen.costoEspacios > 0 && (
                     <span
-                      className="rounded-full border border-[#f59e0b55] px-1.5 py-0.5 text-[9px] font-medium text-[#9a6700]"
-                      title="Costo de compra interno estimado — no está ligado a un contrato de arrendador vigente"
+                      className="rounded-full border border-transparent bg-warning-soft px-1.5 py-0.5 text-[9px] font-medium text-[#9a6700]"
+                      title={t('campanas.ficha.estimado.title')}
                     >
-                      estimado
+                      {t('campanas.ficha.estimado')}
                     </span>
                   )}
                 </dt>
-                <dd className="demo-num text-ink">{formatMonto(margen.costoEspacios)}</dd>
+                <dd className="demo-num text-ink">{formatMonto(margen.costoEspacios, idioma)}</dd>
               </div>
-              <Fila label="− Costo de impresión" valor={formatMonto(margen.costoImpresion)} mono />
-              <Fila label="− Costo de operación" valor={formatMonto(margen.costoOperacion)} mono />
+              <Fila label={t('campanas.ficha.costo-impresion')} valor={formatMonto(margen.costoImpresion, idioma)} mono />
+              <Fila label={t('campanas.ficha.costo-operacion')} valor={formatMonto(margen.costoOperacion, idioma)} mono />
               <div className="mt-1 border-t border-border pt-2">
-                <Fila label="Margen" valor={formatMonto(margen.margen)} mono />
+                <Fila label={t('campanas.comun.margen')} valor={formatMonto(margen.margen, idioma)} mono />
               </div>
             </dl>
         </Seccion>
@@ -287,43 +345,44 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
       {/* Reporte de cumplimiento (contratado vs entregado + testigos) */}
       {reporte && (
         <Seccion
-          titulo="Reporte de cumplimiento"
+          id={`campana.${id}.cumplimiento`}
+          titulo={t('campanas.ficha.cumplimiento')}
           // "Completo" solo si se entrego todo lo contratado. Estaba fijo en
           // "hecho" y producia el sinsentido "Completo · 0% entregado" (A-3):
           // el badge no describia el cumplimiento, solo decia que habia datos.
           estado={reporte.cumplimientoPct >= 100 ? 'hecho' : 'pendiente'}
           accion={
             <span className={`text-[13px] font-semibold ${reporte.cumplimientoPct >= 100 ? 'text-[#0f7a55]' : 'text-[#9a6700]'}`}>
-              {reporte.cumplimientoPct.toFixed(0)}% entregado
+              {t('campanas.ficha.entregado-pct', { pct: reporte.cumplimientoPct.toFixed(0) })}
             </span>
           }
         >
             <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-[13px] sm:grid-cols-4">
-              <Fila label="Sitios contratados" valor={formatNumero(reporte.sitiosContratados)} mono />
-              <Fila label="Sitios entregados" valor={formatNumero(reporte.sitiosEntregados)} mono />
-              <Fila label="Testigos (fotos)" valor={formatNumero(reporte.testigos)} mono />
-              <Fila label="Días contratados" valor={formatNumero(reporte.diasContratados)} mono />
+              <Fila label={t('campanas.ficha.sitios-contratados')} valor={formatNumero(reporte.sitiosContratados)} mono />
+              <Fila label={t('campanas.ficha.sitios-entregados')} valor={formatNumero(reporte.sitiosEntregados)} mono />
+              <Fila label={t('campanas.ficha.testigos')} valor={formatNumero(reporte.testigos)} mono />
+              <Fila label={t('campanas.ficha.dias-contratados')} valor={formatNumero(reporte.diasContratados)} mono />
             </dl>
         </Seccion>
       )}
 
       {/* Orden de compra del cliente (ODC) */}
       {odc && (
-        <Seccion titulo="Orden de compra" estado="hecho">
+        <Seccion id={`campana.${id}.orden-compra`} titulo={t('campanas.ficha.orden-compra')} estado="hecho">
             <dl className="space-y-2 text-[13px]">
-              <Fila label="Folio ODC" valor={odc.folio} mono />
-              {odc.numeroOc && <Fila label="Número de OC (cliente)" valor={odc.numeroOc} mono />}
-              <Fila label="Monto" valor={formatMonto(odc.monto)} mono />
-              <Fila label="Fecha" valor={formatFecha(odc.fecha)} />
-              {odc.documentoUrl && <Fila label="Documento" valor={odc.documentoUrl} />}
+              <Fila label={t('campanas.ficha.folio-odc')} valor={odc.folio} mono />
+              {odc.numeroOc && <Fila label={t('campanas.ficha.numero-oc')} valor={odc.numeroOc} mono />}
+              <Fila label={t('campanas.comun.monto')} valor={formatMonto(odc.monto, idioma)} mono />
+              <Fila label={t('campanas.comun.fecha')} valor={formatFecha(odc.fecha, idioma)} />
+              {odc.documentoUrl && <Fila label={t('campanas.ficha.documento')} valor={odc.documentoUrl} />}
             </dl>
         </Seccion>
       )}
 
       {/* Sitios (referencia) */}
-      <Seccion titulo="Sitios de la campaña" estado="hecho">
+      <Seccion id={`campana.${id}.sitios`} titulo={t('campanas.ficha.sitios')} estado="hecho">
           {misSitios.length === 0 ? (
-            <p className="text-[13px] text-muted">Sin sitios asignados.</p>
+            <p className="text-[13px] text-muted">{t('campanas.ficha.sitios.vacio')}</p>
           ) : (
             <ul className="divide-y divide-border">
               {misSitios.map(({ reserva, sitio }) => (
@@ -344,19 +403,19 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
                         unidad: reserva.unidad,
                         cantidad: reserva.cantidad,
                         precio: reserva.precio,
-                      })}
+                      }, idioma)}
                     </div>
                     {/* La programación, con OTRO vocabulario: «pases al día», no
                         «spots». `cantidad` y `spotsPorDia` son dos números
                         distintos y fundirlos fue DATA-02. */}
-                    {etiquetaFrecuencia(reserva.spotsPorDia) && (
+                    {etiquetaFrecuencia(reserva.spotsPorDia, idioma) && (
                       <div className="text-[11px] text-muted">
-                        {etiquetaFrecuencia(reserva.spotsPorDia)}
+                        {etiquetaFrecuencia(reserva.spotsPorDia, idioma)}
                       </div>
                     )}
                   </div>
                   <StatusBadge tono={RESERVA_TONO[reserva.estatus]}>
-                    {RESERVA_LABEL[reserva.estatus]}
+                    {t(CLAVE_RESERVA[reserva.estatus])}
                   </StatusBadge>
                 </li>
               ))}
@@ -366,90 +425,28 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
 
       {/* Imprenta — solo para campañas con medios fijos (OOH/híbrida). */}
       <Seccion
-        titulo="Imprenta"
+        id={`campana.${id}.imprenta`}
+        titulo={t('campanas.ficha.imprenta')}
         icono={<Printer className="h-4 w-4 text-muted" />}
         estado={!tieneFija ? 'na' : misOis.length > 0 ? 'hecho' : 'pendiente'}
       >
-          {misOis.length === 0 ? (
-            <p className="text-[13px] text-muted">Sin órdenes de impresión.</p>
-          ) : (
-            <ul className="space-y-2">
-              {misOis.map((o) => (
-                <li key={o.id} className="flex items-center justify-between">
-                  <div className="min-w-0">
-                    <div className="demo-num truncate text-[12px] text-ink">{o.folio}</div>
-                    <div className="text-[11px] text-muted">{o.material}</div>
-                  </div>
-                  <StatusBadge tono={IMPRESION_TONO[o.estatus]}>{IMPRESION_LABEL[o.estatus]}</StatusBadge>
-                </li>
-              ))}
-            </ul>
-          )}
+          <ListaImpresionCampana ordenes={misOis} />
       </Seccion>
 
       {/* Órdenes de trabajo */}
       <Seccion
-        titulo="Órdenes de trabajo"
+        id={`campana.${id}.ots`}
+        titulo={t('campanas.ficha.ots')}
         icono={<ClipboardList className="h-4 w-4 text-muted" />}
         estado={otsPendientes ? 'pendiente' : 'hecho'}
       >
-            {misOts.length === 0 ? (
-              <p className="text-[13px] text-muted">Sin órdenes de trabajo.</p>
-            ) : (
-              <ul className="space-y-1">
-                {misOts.map((o) => (
-                  <li key={o.id}>
-                    <Link
-                      href={withTrail(`/operaciones/ot/${o.id}`, trailHaciaOT)}
-                      className="-mx-1 flex items-center justify-between rounded px-1 py-1.5 hover:bg-surface-2"
-                    >
-                      <div className="min-w-0">
-                        <div className="demo-num truncate text-[12px] text-ink">{o.folio}</div>
-                        <div className="text-[11px] text-muted">{o.descripcion}</div>
-                      </div>
-                      <StatusBadge tono={OT_TONO[o.estatus]}>{OT_LABEL[o.estatus]}</StatusBadge>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-      </Seccion>
-
-      {/* Creatividades — se pueden subir desde aquí, sin ir a Creativos. */}
-      <Seccion
-        titulo="Creatividades"
-        estado={creativosHecho ? 'hecho' : 'pendiente'}
-        accion={
-          <Link
-            href={withTrail('/creativos', trail)}
-            className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline"
-          >
-            Gestionar <ExternalLink className="h-3.5 w-3.5" />
-          </Link>
-        }
-      >
-        <div className="space-y-3">
-          {misCreas.length > 0 ? (
-            <ul className="space-y-2">
-              {misCreas.map((cr) => (
-                <li key={cr.id} className="flex items-center justify-between text-[13px]">
-                  <span className="text-ink">{cr.nombre}</span>
-                  <StatusBadge tono={CREATIVIDAD_TONO[cr.estatusValidacion]}>
-                    {CREATIVIDAD_LABEL[cr.estatusValidacion]}
-                  </StatusBadge>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-[13px] text-muted">Aún no hay creativos. Súbelos aquí mismo.</p>
-          )}
-          <AgregarCreativo campanaId={id} />
-        </div>
+            <ListaOTCampana ordenes={misOts} trail={trailHaciaOT} />
       </Seccion>
 
       {/* Evidencias fotográficas — de los medios FIJOS. */}
       <Seccion
-        titulo="Evidencias fotográficas"
+        id={`campana.${id}.evidencias`}
+        titulo={t('campanas.ficha.evidencias')}
         icono={<Camera className="h-4 w-4 text-muted" />}
         estado={!tieneFija ? 'na' : misEvid.length > 0 ? 'hecho' : 'pendiente'}
       >
@@ -460,7 +457,8 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
 
       {/* Proof of play — la prueba de los medios DIGITALES. */}
       <Seccion
-        titulo="Reproducciones (proof of play)"
+        id={`campana.${id}.reproducciones`}
+        titulo={t('campanas.ficha.reproducciones')}
         icono={<MonitorPlay className="h-4 w-4 text-muted" />}
         estado={!tieneDigital ? 'na' : c.validacionEstatus === 'APROBADA' ? 'hecho' : 'pendiente'}
       >
@@ -476,27 +474,59 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
 // Sección colapsable de la ficha. Arranca abierta o minimizada según su estado
 // (las pendientes abiertas, las hechas o que no aplican minimizadas). El usuario
 // puede abrir/cerrar con clic en el encabezado.
+//
+// PLEG-01 · no se sustituyó por `CardColapsable` porque no es equivalente: aquí
+// la apertura inicial DEPENDE DEL ESTADO (pendiente abierta, hecha o «no aplica»
+// plegada), el chip Pendiente/Completo va pegado al título y la tarjeta lleva
+// `order-*` para subir las pendientes. Lo que sí comparte es la memoria del
+// plegado, con el mismo almacén (`lib/secciones-plegadas.ts`). El `id` lleva LA
+// CAMPAÑA («campana.<id>.candado»): con uno común (B51, supervisión del 20/10),
+// plegar «Candado» en una campaña ya cerrada lo escondía en la siguiente, donde
+// estaba pendiente — y en esta ficha lo pendiente siempre se abría. Solo se
+// recuerda lo plegado: una sección no recordada sigue abriéndose según su estado.
 type EstadoSeccion = 'pendiente' | 'hecho' | 'na'
 function Seccion({
+  id,
   titulo,
   icono,
   estado,
   accion,
   children,
 }: {
+  id: string
   titulo: string
   icono?: React.ReactNode
   estado: EstadoSeccion
   accion?: React.ReactNode
   children: React.ReactNode
 }) {
+  const t = useTexto()
   const [abierto, setAbierto] = useState(estado === 'pendiente')
+  // Se lee DESPUÉS de montar, como en `CardColapsable`: el servidor no tiene
+  // localStorage y leerlo en el primer render rompería la hidratación.
+  useEffect(() => {
+    try {
+      if (leerPlegadas(localStorage.getItem(CLAVE_PLEGADAS)).includes(id)) setAbierto(false)
+    } catch {
+      // Modo privado o almacenamiento bloqueado: se queda según su estado.
+    }
+  }, [id])
+  function alternar() {
+    const nuevo = !abierto
+    setAbierto(nuevo)
+    try {
+      const lista = leerPlegadas(localStorage.getItem(CLAVE_PLEGADAS))
+      localStorage.setItem(CLAVE_PLEGADAS, JSON.stringify(conPlegada(lista, id, !nuevo)))
+    } catch {
+      // Sin almacenamiento se pliega igual; solo no lo recuerda.
+    }
+  }
   const chip =
     estado === 'hecho'
-      ? { txt: 'Completo', cls: 'border-[#10b98140] text-[#0f7a55]' }
+      ? { txt: t('campanas.ficha.seccion.completo'), cls: 'border-transparent bg-success-soft text-[#0f7a55]' }
       : estado === 'na'
-        ? { txt: 'No aplica', cls: 'border-border text-muted' }
-        : { txt: 'Pendiente', cls: 'border-[#f59e0b40] text-[#9a6700]' }
+        ? { txt: t('campanas.ficha.seccion.no-aplica'), cls: 'border-border text-muted' }
+        : { txt: t('campanas.comun.pendiente'), cls: 'border-transparent bg-warning-soft text-[#9a6700]' }
   // Orden visual: las pendientes suben, luego las completas y al final las que no
   // aplican (solo reordena la vista; el DOM/JSX no cambia).
   const orden = estado === 'pendiente' ? 'order-1' : estado === 'hecho' ? 'order-2' : 'order-3'
@@ -504,19 +534,19 @@ function Seccion({
     <Card className={orden}>
       <CardHeader
         className="flex cursor-pointer select-none flex-row items-center justify-between gap-2"
-        onClick={() => setAbierto((v) => !v)}
+        onClick={alternar}
       >
         <div className="flex min-w-0 items-center gap-2">
           {icono}
           <CardTitle>{titulo}</CardTitle>
-          <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${chip.cls}`}>
+          <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${chip.cls}`}>
             {estado === 'hecho' && <Check className="h-2.5 w-2.5" />}
             {chip.txt}
           </span>
         </div>
         <div className="flex shrink-0 items-center gap-2" onClick={(e) => e.stopPropagation()}>
           {accion}
-          <button type="button" aria-label={abierto ? 'Minimizar' : 'Expandir'} onClick={() => setAbierto((v) => !v)} className="text-muted hover:text-ink">
+          <button type="button" aria-label={abierto ? t('campanas.comun.minimizar') : t('campanas.ficha.seccion.expandir')} onClick={alternar} className="text-muted hover:text-ink">
             <ChevronDown className={`h-4 w-4 transition-transform ${abierto ? 'rotate-180' : ''}`} />
           </button>
         </div>

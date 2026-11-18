@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { estadoDelModulo } from '@/lib/server/space-eye'
 import { DemoSpaceEyes } from '@/components/demo/space-eyes/DemoSpaceEyes'
 import { SinRespuesta } from '@/components/demo/space-eyes/SinRespuesta'
+import { SolicitudesActivacion } from '@/components/demo/space-eyes/SolicitudesActivacion'
 
 // El estado se decide en CADA visita: activar el módulo o que su servidor vuelva
 // tiene que verse al recargar, sin esperar a un despliegue.
@@ -14,7 +15,10 @@ export const dynamic = 'force-dynamic'
 // saber de esto.
 export default async function SpaceEyesLayout({ children }: { children: ReactNode }) {
   const estado = await estadoDelModulo()
-  if (estado === 'no_contratado') return <DemoSpaceEyes />
-  if (estado === 'sin_respuesta') return <SinRespuesta />
-  return <>{children}</>
+  // Las solicitudes de activación de las empresas: solo se pintan en el padre
+  // (ver SolicitudesActivacion), y arriba de lo que toque mostrar.
+  const solicitudes = <SolicitudesActivacion />
+  if (estado === 'no_contratado') return <>{solicitudes}<DemoSpaceEyes /></>
+  if (estado === 'sin_respuesta') return <>{solicitudes}<SinRespuesta /></>
+  return <>{solicitudes}{children}</>
 }

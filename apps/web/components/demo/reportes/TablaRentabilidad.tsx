@@ -3,10 +3,16 @@
 import { useCallback, useState } from 'react'
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/cn'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
+import type { ClaveTexto } from '@/lib/i18n/diccionario'
 import type { FilaRentabilidad, ReporteRentabilidad } from '@/lib/data/reportes'
+import { formatFecha } from '@/lib/data/derive'
 import {
-  COLUMNAS_DESGLOSE,
+  columnasDesglose,
   columnasDeDimension,
+  etiquetaDePeriodo,
+  textoDeFila,
   desgloseDeFila,
   formatoCelda,
   ordenarFilas,
@@ -36,6 +42,12 @@ function Celda({ children, className }: { children: React.ReactNode; className?:
 // Rojo si pierde, verde si gana. El color lo pone quien pinta, no el
 // formateador (`formatMonto` ya mete los negativos entre paréntesis, que es la
 // convención contable: «$ -156,986.66» se lee mal en una columna de cifras).
+// La primera columna (el nombre) se queda FIJA al desplazar la tabla de lado:
+// en un teléfono, con nueve columnas, al llegar al margen ya no se sabía de qué
+// pantalla era la cifra. Lleva fondo propio para que las cifras no se
+// transparenten por debajo (rediseño del 2026-10-26).
+const FIJA = 'sticky left-0 z-[1] bg-surface'
+
 const tonoMargen = (n: number) => (n < 0 ? 'text-error' : n > 0 ? 'text-success' : 'text-ink')
 
 // Solo las columnas de margen se colorean. Pintar de rojo un costo alto diría
@@ -49,10 +61,13 @@ const COLOREADAS: ReadonlySet<ColumnaReporte> = new Set<ColumnaReporte>([
 // El porqué de la raya, en el título de la celda: sin él, una celda con «—» se
 // lee como un dato que falta por un fallo. Son los dos `null` con significado
 // que devuelve el motor.
-const MOTIVO_RAYA: Partial<Record<ColumnaReporte, string>> = {
-  margenBrutoPct: 'Sin ingreso en el rango: no hay porcentaje que calcular',
-  costoOperacionPct: 'Sin ingreso en el rango: no hay proporción que calcular',
-  horasEnSitio: 'Ninguna visita del rango tiene registradas sus dos marcas de tiempo',
+//
+// Desde el lote de ingles (2026-11-02) cada motivo es una clave del
+// diccionario; el espanol es el de siempre.
+const MOTIVO_RAYA: Partial<Record<ColumnaReporte, ClaveTexto>> = {
+  margenBrutoPct: 'reportes.tabla.raya.margen-pct',
+  costoOperacionPct: 'reportes.tabla.raya.operacion-pct',
+  horasEnSitio: 'reportes.tabla.raya.horas',
 }
 
 export function TablaRentabilidad({
@@ -64,7 +79,9 @@ export function TablaRentabilidad({
   orden: Orden
   onOrdenar: (columna: ColumnaReporte) => void
 }) {
-  const columnas = columnasDeDimension(reporte.dimension)
+  // `tr` y no `t`: aqui `t` ya son los totales del servidor.
+  const { t: tr, idioma } = useIdioma()
+  const columnas = columnasDeDimension(reporte.dimension, idioma)
   const filas = ordenarFilas(reporte.filas, orden, reporte.dimension)
   const t = reporte.totales
   // Qué filas tienen abierto su desglose por periodo. Es estado de PRESENTACIÓN
@@ -91,14 +108,18 @@ export function TablaRentabilidad({
                 // dos renglones, y una cifra partida no se lee de un vistazo
                 // —esto se presenta en un proyector—. La tabla ya tiene
                 // `overflow-x-auto`, así que el ancho que falte se desplaza.
-                className={cn('px-2 py-2 font-medium', c.numerica && 'whitespace-nowrap text-right')}
+                className={cn('px-2 py-2 font-medium', c.numerica && 'whitespace-nowrap text-right', c.clave === 'etiqueta' && FIJA)}
               >
                 <button
                   type="button"
                   onClick={() => onOrdenar(c.clave)}
                   className={cn(
-                    'inline-flex items-center gap-1 uppercase tracking-wide hover:text-ink',
-                    orden.columna === c.clave && 'text-ink',
+                    // `text-[11px]` también en el botón: sin él tomaba el tamaño
+                    // propio del botón y la cabecera se veía más grande que la
+                    // declarada en el `tr` (visto en pantalla el 2026-10-26).
+                    // La columna activa va en negrita además de la flecha.
+                    'inline-flex items-center gap-1 text-[11px] uppercase tracking-wide hover:text-ink',
+                    orden.columna === c.clave && 'font-semibold text-ink',
                   )}
                 >
                   {c.label}
@@ -143,8 +164,8 @@ export function TablaRentabilidad({
             {columnas.map((c) => {
               if (c.clave === 'etiqueta') {
                 return (
-                  <Celda key={c.clave} className="text-ink">
-                    Total ({filas.length})
+                  <Celda key={c.clave} className={cn('text-ink', FIJA)}>
+                    {interpolarNodos(tr('reportes.tabla.total'), { n: filas.length })}
                   </Celda>
                 )
               }
@@ -157,7 +178,7 @@ export function TablaRentabilidad({
                     c.totalizable && COLOREADAS.has(c.clave) && v != null && tonoMargen(v),
                   )}
                 >
-                  {c.totalizable ? formatoCelda(v, c.formato) : ''}
+                  {c.totalizable ? formatoCelda(v, c.formato, idioma) : ''}
                 </Celda>
               )
             })}
@@ -184,13 +205,17 @@ function FilaTabla({
   onAlternar: (clave: string) => void
 }) {
   const hayDesglose = periodos.length > 1
+  const { t, idioma } = useIdioma()
+  // La etiqueta y el detalle que escribe el motor (las filas «Sin asignar» y
+  // «Sin vendedor», el trimestre) en el idioma de la pantalla; lo demas es dato.
+  const texto = textoDeFila(dimension, fila, idioma)
   return (
     <>
-      <tr className="hover:bg-surface-2">
+      <tr className="group hover:bg-surface-2">
         {columnas.map((c) => {
           if (c.clave === 'etiqueta') {
             return (
-              <Celda key={c.clave}>
+              <Celda key={c.clave} className={cn(FIJA, 'group-hover:bg-surface-2')}>
                 <div className="flex items-start gap-1">
                   {/* El desglose se ofrece solo cuando hay más de un bucket: con
                       uno, la fila desplegable repetiría la fila de arriba. */}
@@ -200,7 +225,7 @@ function FilaTabla({
                       onClick={() => onAlternar(fila.clave)}
                       aria-expanded={abierta}
                       className="mt-0.5 text-muted hover:text-ink"
-                      title={abierta ? 'Ocultar el desglose por periodo' : 'Ver el desglose por periodo'}
+                      title={abierta ? t('reportes.tabla.desglose.ocultar') : t('reportes.tabla.desglose.ver')}
                     >
                       {abierta ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                     </button>
@@ -208,7 +233,7 @@ function FilaTabla({
                     <span className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                   )}
                   <span>
-                    <span className="text-ink">{fila.etiqueta}</span>
+                    <span className="text-ink">{texto.etiqueta}</span>
                     {/* El detalle desambigua nombres repetidos, y el arrendador dice
                         a quién se le paga la renta que sale en «costo del espacio».
                         DÓNDE se dice y dónde no lo decide `notaDeArrendador`, en
@@ -217,12 +242,12 @@ function FilaTabla({
                         social — donde afirma un problema que no existe. */}
                     <span className="block text-[11px] text-muted">
                       {[
-                        fila.detalle || null,
-                        notaDeArrendador(dimension, fila.tieneContrato, fila.arrendador),
+                        texto.detalle || null,
+                        notaDeArrendador(dimension, fila.tieneContrato, fila.arrendador, fila.propia === true, idioma),
                         // Las visitas por tipo van bajo el nombre y no en una
                         // columna: son un objeto tipo→conteo, y una columna con
                         // «Herrería 3 · Inspección 1» no se puede ordenar.
-                        resumenVisitasPorTipo(fila.visitasPorTipo) || null,
+                        resumenVisitasPorTipo(fila.visitasPorTipo, idioma) || null,
                       ]
                         .filter(Boolean)
                         .join(' · ')}
@@ -233,7 +258,8 @@ function FilaTabla({
             )
           }
           const v = valorDeColumna(fila, c)
-          const raya = v == null ? MOTIVO_RAYA[c.clave] : undefined
+          const motivoRaya = v == null ? MOTIVO_RAYA[c.clave] : undefined
+          const raya = motivoRaya ? t(motivoRaya) : undefined
           return (
             <Celda
               key={c.clave}
@@ -244,13 +270,16 @@ function FilaTabla({
                 v != null && COLOREADAS.has(c.clave) && tonoMargen(Number(v)),
               )}
             >
-              <span title={raya}>{formatoCelda(v, c.formato)}</span>
+              <span title={raya}>{formatoCelda(v, c.formato, idioma)}</span>
               {/* El denominador de las horas, pegado a la cifra: «12.5 h» sobre
                   cuatro visitas y sobre una no dicen lo mismo, y `horasEnSitio`
                   solo mide las que tienen las dos marcas de tiempo. */}
               {c.clave === 'horasEnSitio' && v != null && fila.visitasConDuracion != null ? (
                 <span className="block text-[10px] text-muted">
-                  de {fila.visitasConDuracion} {fila.visitasConDuracion === 1 ? 'visita' : 'visitas'}
+                  {interpolarNodos(t('reportes.tabla.horas-de'), {
+                    n: fila.visitasConDuracion,
+                    visitas: t(fila.visitasConDuracion === 1 ? 'reportes.tabla.visitas.uno' : 'reportes.tabla.visitas.otros'),
+                  })}
                 </span>
               ) : null}
             </Celda>
@@ -266,7 +295,7 @@ function FilaTabla({
             <table className="w-full text-left text-[12px]">
               <thead>
                 <tr className="text-[10px] uppercase tracking-wide text-muted">
-                  {COLUMNAS_DESGLOSE.map((c) => (
+                  {columnasDesglose(idioma).map((c) => (
                     <th
                       key={String(c.clave)}
                       className={cn('px-2 py-1 font-medium', c.formato !== 'texto' && 'text-right')}
@@ -279,7 +308,7 @@ function FilaTabla({
               <tbody>
                 {periodos.map((p) => (
                   <tr key={p.clave}>
-                    {COLUMNAS_DESGLOSE.map((c) => (
+                    {columnasDesglose(idioma).map((c) => (
                       <td
                         key={String(c.clave)}
                         className={cn(
@@ -287,9 +316,20 @@ function FilaTabla({
                           c.formato === 'texto' ? 'text-ink' : 'demo-num whitespace-nowrap text-right',
                           c.clave === 'margenBruto' && tonoMargen(p.margenBruto),
                         )}
-                        title={c.clave === 'etiqueta' ? `Del ${p.desde} al ${p.hasta}` : undefined}
+                        // En espanol, las fechas ISO de siempre; en ingles, como el
+                        // titulo de la tarjeta («Jan 1, 2026»).
+                        title={
+                          c.clave === 'etiqueta'
+                            ? t('reportes.rango', {
+                                desde: idioma === 'es' ? p.desde : formatFecha(p.desde, idioma),
+                                hasta: idioma === 'es' ? p.hasta : formatFecha(p.hasta, idioma),
+                              })
+                            : undefined
+                        }
                       >
-                        {formatoCelda(p[c.clave] as string | number | null, c.formato)}
+                        {c.clave === 'etiqueta'
+                          ? etiquetaDePeriodo(p, idioma)
+                          : formatoCelda(p[c.clave] as string | number | null, c.formato, idioma)}
                       </td>
                     ))}
                   </tr>

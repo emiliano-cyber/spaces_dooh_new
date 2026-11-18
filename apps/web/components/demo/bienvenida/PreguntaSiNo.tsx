@@ -1,6 +1,7 @@
 'use client'
 
 import { cn } from '@/lib/cn'
+import { useTexto } from '@/lib/i18n/contexto'
 
 // ============================================================================
 //  Una pregunta de sí/no del cuestionario de bienvenida.
@@ -30,6 +31,7 @@ export function PreguntaSiNo({
   onCambio: (v: boolean) => void
   deshabilitado?: boolean
 }) {
+  const t = useTexto()
   const opcion = (v: boolean, texto: string) => (
     <button
       type="button"
@@ -58,8 +60,8 @@ export function PreguntaSiNo({
       </legend>
       {ayuda && <p className="mb-3 text-[13px] leading-relaxed text-muted">{ayuda}</p>}
       <div role="radiogroup" aria-label={pregunta} className="flex gap-2">
-        {opcion(true, 'Sí')}
-        {opcion(false, 'No')}
+        {opcion(true, t('cuenta.cuestionario.si'))}
+        {opcion(false, t('cuenta.cuestionario.no'))}
       </div>
     </fieldset>
   )

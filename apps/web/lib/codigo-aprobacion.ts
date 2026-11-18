@@ -34,6 +34,9 @@
 //  arregla un gerente con un clic.
 // ============================================================================
 
+import { traducir } from './i18n/diccionario'
+import type { Idioma } from './i18n/idiomas'
+
 export const ESTADOS_CODIGO = ['PENDIENTE', 'APROBADO'] as const
 export type EstadoCodigo = (typeof ESTADOS_CODIGO)[number]
 
@@ -126,15 +129,20 @@ export const MSJ_APROBAR_CON_PENDIENTE =
   'Primero aprueba o rechaza el código promocional: está pendiente de aprobación y el cliente todavía no lo ve.'
 
 /** La etiqueta de la pantalla interna. `null` = no hay cupón. */
+//
+// I18N (lote compartidos, 2026-11-02) · `idioma` con `'es'` por omision.
 export function etiquetaEstadoCodigo(
   estado: EstadoCodigo | null,
   aprobadoPor: string | null,
+  idioma: Idioma = 'es',
 ): string | null {
   if (estado == null) return null
-  if (estado === 'PENDIENTE') return 'Pendiente de aprobación'
+  if (estado === 'PENDIENTE') return traducir(idioma, 'compartidos.codigo.pendiente')
   // APROBADO sin aprobador = el backfill de la migración (se veía solo por la
   // regla de antes) o un aprobador dado de baja. No se inventa un nombre.
-  return aprobadoPor ? `Aprobado por ${aprobadoPor}` : 'Aprobado'
+  return aprobadoPor
+    ? traducir(idioma, 'compartidos.codigo.aprobado-por', { nombre: aprobadoPor })
+    : traducir(idioma, 'compartidos.codigo.aprobado')
 }
 
 // ─── Lo que queda en Actividad (`acciones`) ────────────────────────────────

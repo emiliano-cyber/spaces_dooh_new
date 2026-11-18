@@ -76,10 +76,16 @@ describe('1 · la campaña lleva el folio de su venta', () => {
   })
 })
 
+// EXT-CONTRATO (29/10) · extender exige el contrato firmado de la extensión.
+// Un PDF mínimo de verdad (`%PDF-1.4`): el validador mira los bytes.
+const PDF = 'data:application/pdf;base64,JVBERi0xLjQK'
+const PDF2 = 'data:application/pdf;base64,JVBERi0xLjcK'
+
 describe('2 · extender suma un tramo: .1, .2…', () => {
-  it('cada extensión que alarga sube el tramo, y la misma fecha no', async () => {
+  it('cada extensión que alarga sube el tramo, y la misma fecha ya no es extensión', async () => {
     const { folioVenta, campana } = await propuestaAprobada('Venta que se alarga', { unidad: 'mensual', tarifaUnitaria: 45000 })
-    const extender = (fechaFin: string) => c.pedir(`/api/campanas/${campana.id}/extender/`, { cuerpo: { fechaFin } })
+    const extender = (fechaFin: string) =>
+      c.pedir(`/api/campanas/${campana.id}/extender/`, { cuerpo: { fechaFin, contratoUrl: PDF } })
 
     let r = await extender(enDias(66))
     expect(r.status, JSON.stringify(r.datos)).toBe(200)
@@ -88,17 +94,17 @@ describe('2 · extender suma un tramo: .1, .2…', () => {
     r = await extender(enDias(96))
     expect(r.datos.folio).toBe(`${folioVenta}.2`)
 
-    // Repetir la MISMA fecha no es una extensión: no inventa un .3.
+    // Repetir la MISMA fecha no es una extensión: no inventa un .3 y, desde
+    // EXT-CONTRATO, se rechaza (dejaría un contrato que no alarga nada).
     r = await extender(enDias(96))
-    expect(r.status).toBe(200)
-    expect(r.datos.folio).toBe(`${folioVenta}.2`)
+    expect(r.status).toBe(400)
 
     expect(await folioDe(campana.id)).toEqual({ folio: `${folioVenta}.2`, fin: enDias(96) })
   })
 
   it('NEGATIVO · acortar sigue rechazándose y no toca el folio', async () => {
     const { folioVenta, campana } = await propuestaAprobada('Venta que no se acorta', { unidad: 'mensual', tarifaUnitaria: 45000 })
-    const r = await c.pedir(`/api/campanas/${campana.id}/extender/`, { cuerpo: { fechaFin: enDias(10) } })
+    const r = await c.pedir(`/api/campanas/${campana.id}/extender/`, { cuerpo: { fechaFin: enDias(10), contratoUrl: PDF } })
     expect(r.status).toBe(400)
     expect((await folioDe(campana.id)).folio).toBe(folioVenta)
   })
@@ -106,25 +112,96 @@ describe('2 · extender suma un tramo: .1, .2…', () => {
   it('dos extensiones a la vez no escriben el mismo tramo', async () => {
     const { folioVenta, campana } = await propuestaAprobada('Venta con carrera', { unidad: 'mensual', tarifaUnitaria: 45000 })
     const [a, b] = await Promise.all([
-      c.pedir(`/api/campanas/${campana.id}/extender/`, { cuerpo: { fechaFin: enDias(60) } }),
-      c.pedir(`/api/campanas/${campana.id}/extender/`, { cuerpo: { fechaFin: enDias(90) } }),
+      c.pedir(`/api/campanas/${campana.id}/extender/`, { cuerpo: { fechaFin: enDias(60), contratoUrl: PDF } }),
+      c.pedir(`/api/campanas/${campana.id}/extender/`, { cuerpo: { fechaFin: enDias(90), contratoUrl: PDF2 } }),
     ])
-    // El orden de llegada lo decide la base. Si la de 90 días gana, la de 60
-    // ya no puede escribir —la acortaría— y recibe 409. Si gana la de 60, las
-    // dos escriben y la segunda ve el .1 de la primera.
+    // El orden de llegada lo decide la base. Desde EXT-CONTRATO la lectura
+    // bloquea la fila (`for update`): si la de 90 días gana, la de 60 lee ya los
+    // 90 y se rechaza como acortamiento (400); el 409 queda de última red. Si
+    // gana la de 60, las dos escriben y la segunda ve el .1 de la primera.
     expect(b.status, JSON.stringify(b.datos)).toBe(200)
-    expect([200, 409]).toContain(a.status)
+    expect([200, 400, 409]).toContain(a.status)
     const fin = await folioDe(campana.id)
     // Lo que no puede pasar: que la campaña acabe acortada, ni dos .1.
     expect(fin.fin).toBe(enDias(90))
     expect(fin.folio).toBe(a.status === 200 ? `${folioVenta}.2` : `${folioVenta}.1`)
+    // Y una fila de contrato por cada extensión que de verdad se escribió.
+    const n = (await poolTest().query('select count(*)::int n from campana_extensiones where campana_id = $1', [campana.id])).rows[0].n
+    expect(n).toBe(a.status === 200 ? 2 : 1)
   })
 
-  it('la bitácora dice qué folio quedó y hasta cuándo', async () => {
+  it('la bitácora dice qué folio quedó, hasta cuándo y que fue con contrato', async () => {
     const { folioVenta, campana } = await propuestaAprobada('Venta con bitácora', { unidad: 'mensual', tarifaUnitaria: 45000 })
-    await c.pedir(`/api/campanas/${campana.id}/extender/`, { cuerpo: { fechaFin: enDias(70) } })
+    await c.pedir(`/api/campanas/${campana.id}/extender/`, { cuerpo: { fechaFin: enDias(70), contratoUrl: PDF } })
     const r = await poolTest().query(`select accion, entidad from acciones where accion like 'Extendió campaña%' order by "timestamp" desc limit 1`)
-    expect(r.rows[0].accion).toBe(`Extendió campaña ${folioVenta}.1 hasta ${enDias(70)}`)
+    expect(r.rows[0].accion).toBe(`Extendió campaña ${folioVenta}.1 hasta ${enDias(70)} con contrato`)
+  })
+})
+
+describe('2b · EXT-CONTRATO (29/10) · no se extiende sin contrato nuevo', () => {
+  it('NEGATIVO · sin contrato: 422 con el mensaje, y ni la fecha, ni el folio, ni las reservas cambian', async () => {
+    const { folioVenta, campana } = await propuestaAprobada('Venta sin contrato', { unidad: 'mensual', tarifaUnitaria: 45000 })
+    const antes = await folioDe(campana.id)
+    const resAntes = (await poolTest().query('select to_char(fecha_fin, \'YYYY-MM-DD\') f from reservas where campana_id = $1', [campana.id])).rows
+    const r = await c.pedir(`/api/campanas/${campana.id}/extender/`, { cuerpo: { fechaFin: enDias(80) } })
+    expect(r.status, JSON.stringify(r.datos)).toBe(422)
+    expect(r.datos.error).toBe('Para extender la campaña adjunta el contrato firmado de la extensión')
+    expect(await folioDe(campana.id)).toEqual(antes)
+    expect(antes.folio).toBe(folioVenta)
+    const resDespues = (await poolTest().query('select to_char(fecha_fin, \'YYYY-MM-DD\') f from reservas where campana_id = $1', [campana.id])).rows
+    expect(resDespues).toEqual(resAntes)
+    const n = (await poolTest().query('select count(*)::int n from campana_extensiones where campana_id = $1', [campana.id])).rows[0].n
+    expect(n).toBe(0)
+  })
+
+  it('con contrato: la fila queda con el folio del tramo, las fechas, el PDF y quién, y el contrato original sigue intacto', async () => {
+    const { folioVenta, campana } = await propuestaAprobada('Venta con contrato', { unidad: 'mensual', tarifaUnitaria: 45000 })
+    const original = 'data:application/pdf;base64,JVBERi0xLjUK'
+    const ct = await c.pedir(`/api/campanas/${campana.id}/contrato/`, { cuerpo: { contratoUrl: original } })
+    expect(ct.status, JSON.stringify(ct.datos)).toBe(200)
+    const finAntes = (await folioDe(campana.id)).fin
+
+    const r = await c.pedir(`/api/campanas/${campana.id}/extender/`, { cuerpo: { fechaFin: enDias(75), contratoUrl: PDF } })
+    expect(r.status, JSON.stringify(r.datos)).toBe(200)
+
+    const fila = (
+      await poolTest().query(
+        `select folio, to_char(fecha_fin_anterior,'YYYY-MM-DD') de, to_char(fecha_fin_nueva,'YYYY-MM-DD') a,
+                contrato_url, usuario_nombre, tenant_id
+           from campana_extensiones where campana_id = $1`,
+        [campana.id],
+      )
+    ).rows
+    expect(fila).toHaveLength(1)
+    expect(fila[0]).toMatchObject({ folio: `${folioVenta}.1`, de: finAntes, a: enDias(75), contrato_url: PDF, tenant_id: org.id })
+    expect(fila[0].usuario_nombre).toBeTruthy()
+    // El contrato del cliente NO se sobrescribió: por eso existe la tabla.
+    const cu = (await poolTest().query('select contrato_url from campanas where id = $1', [campana.id])).rows[0]
+    expect(cu.contrato_url).toBe(original)
+
+    // Y la ficha lo lee por GET.
+    const g = await c.pedir(`/api/campanas/${campana.id}/extender/`, { metodo: 'GET' })
+    expect(g.status, JSON.stringify(g.datos)).toBe(200)
+    expect(g.datos).toHaveLength(1)
+    expect(g.datos[0]).toMatchObject({ folio: `${folioVenta}.1`, fechaFinNueva: enDias(75), contratoUrl: PDF })
+  })
+
+  it('NEGATIVO · restrict: la campaña con extensiones no se puede borrar (los contratos no se pierden)', async () => {
+    const { campana } = await propuestaAprobada('Venta que no se borra', { unidad: 'mensual', tarifaUnitaria: 45000 })
+    const r = await c.pedir(`/api/campanas/${campana.id}/extender/`, { cuerpo: { fechaFin: enDias(77), contratoUrl: PDF } })
+    expect(r.status, JSON.stringify(r.datos)).toBe(200)
+    await expect(poolTest().query('delete from campanas where id = $1', [campana.id])).rejects.toMatchObject({ code: '23503' })
+  })
+
+  it('el rol de la aplicación puede leer e insertar, y NO actualizar ni borrar', async () => {
+    // Mismo control que `contrato-firmado-editable.e2e` sobre su tabla gemela.
+    const priv = async (p: string) =>
+      (await poolTest().query(`select has_table_privilege('spaces_app', 'campana_extensiones', $1) as si`, [p])).rows[0].si
+    expect(await priv('SELECT')).toBe(true)
+    expect(await priv('INSERT')).toBe(true)
+    expect(await priv('UPDATE')).toBe(false)
+    expect(await priv('DELETE')).toBe(false)
+    expect(await priv('TRUNCATE')).toBe(false)
   })
 })
 

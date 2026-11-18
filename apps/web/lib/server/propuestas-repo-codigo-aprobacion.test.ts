@@ -62,7 +62,11 @@ vi.mock('./db', () => db)
 vi.mock('./tenant', () => ({ tenantActual: vi.fn(async () => 'T1') }))
 vi.mock('./auth', () => ({ usuarioActual: vi.fn(async () => ({ id: 'U1' })) }))
 vi.mock('./folios', () => ({ folioDocumento: vi.fn(async () => 'PR-2026-0001') }))
-vi.mock('./config-repo', () => ({ topeDescuentoDelTenant: vi.fn(async () => 100) }))
+// PROP-COMPLETA (29/10) · enviar lee los días de vigencia de la organización.
+vi.mock('./config-repo', () => ({
+  topeDescuentoDelTenant: vi.fn(async () => 100),
+  vigenciaPropuestaDelTenant: vi.fn(async () => 30),
+}))
 
 const {
   obtenerPropuestaPublica,

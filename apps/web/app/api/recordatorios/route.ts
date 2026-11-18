@@ -4,13 +4,12 @@ import {
   enviarEmail,
   emailHabilitado,
   remitenteDeOrganizacion,
-  htmlMembrete,
-  escaparHtml,
 } from '@/lib/server/email'
+import { htmlRecordatorios, asuntoRecordatorios, type IdentidadOrg } from '@/lib/server/correo-recordatorios'
+import { idiomaDeLaInstancia } from '@/lib/server/idioma-instancia'
 import { urlLogo } from '@/lib/medios-url'
 import {
   recordatoriosDeContratos,
-  resumenRecordatorios,
   type ContratoParaAviso,
   type Recordatorio,
 } from '@/lib/recordatorios-contratos'
@@ -155,11 +154,6 @@ export async function POST(req: Request) {
 // seguidos se archivan sin leer y el décimo, el que importaba, con ellos.
 // Solo se manda si hubo avisos NUEVOS hoy; si no, sería un correo diario que
 // dice lo mismo y que se aprende a ignorar.
-interface IdentidadOrg {
-  nombreOrg: string
-  replyTo: string | null
-  logoUrl: string | null
-}
 
 async function avisarPorCorreo(
   dest: { email: string }[],
@@ -171,8 +165,10 @@ async function avisarPorCorreo(
   if (!emailHabilitado()) return 'correo no configurado (solo notificación en la app)'
   if (!dest.length) return 'sin destinatarios'
 
-  const html = htmlRecordatorios(avisos, org)
-  const asunto = `Contratos que necesitan atención: ${resumenRecordatorios(avisos)}`
+  // ADR 0049 · en el idioma de los DOCUMENTOS de la instancia.
+  const idioma = await idiomaDeLaInstancia()
+  const html = htmlRecordatorios(avisos, org, idioma)
+  const asunto = asuntoRecordatorios(avisos, idioma)
   // Canal de OPERACIÓN: sale del buzón verificado de la plataforma pero a
   // nombre de la organización, y quien responda le contesta a ELLA. Si el Dueño
   // todavía no configuró su correo, `replyTo` va nulo y el aviso sale igual —
@@ -189,26 +185,3 @@ async function avisarPorCorreo(
   }
   return `${ok}/${dest.length} enviados`
 }
-
-function htmlRecordatorios(avisos: Recordatorio[], org: IdentidadOrg): string {
-  const item = (a: Recordatorio) => `
-    <li style="margin:0 0 10px;font-size:14px;line-height:1.45;color:#3f3f46">
-      <b style="color:#18181b">${escapar(a.titulo)}</b><br/>${escapar(a.detalle)}
-    </li>`
-  return `
-  <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;color:#18181b">
-    ${htmlMembrete(org.logoUrl, org.nombreOrg)}
-    <h2 style="font-size:18px;margin:0 0 12px">Contratos que necesitan atención</h2>
-    <ul style="padding-left:18px;margin:0">${avisos.map(item).join('')}</ul>
-    <p style="font-size:12px;color:#71717a;margin-top:20px">
-      ${escapar(org.nombreOrg)} · este aviso se envía una vez al día y solo cuando hay algo nuevo.
-    </p>
-  </div>`
-}
-
-// El título lleva nombres de predio y arrendador, que los escribe una persona.
-// Se reexporta el de `email.ts` en vez de tener una copia: dos escapadores para
-// lo mismo acaban divergiendo, y aquí el que se quedara corto no daría un fallo
-// visible — daría un correo con HTML inyectado. Es el mismo motivo por el que
-// `TIPO_LABEL` dejó de estar copiado en cinco componentes (M10).
-const escapar = escaparHtml

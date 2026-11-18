@@ -1,5 +1,6 @@
 import { Users } from 'lucide-react'
 import { cn } from '@/lib/cn'
+import { useTexto } from '@/lib/i18n/contexto'
 
 // ADR 0008 · cupo de clientes de una pantalla: cuántos ANUNCIANTES distintos la
 // comparten, contra el máximo que admite. Es un eje distinto del de slots
@@ -17,6 +18,7 @@ export function ClientesBadge({
   cupo: number | null
   className?: string
 }) {
+  const t = useTexto()
   if (cupo == null) return null
   const libres = cupo - ocupados
   const tono = libres <= 0 ? 'lleno' : libres === 1 ? 'ultimo' : 'ok'
@@ -34,15 +36,15 @@ export function ClientesBadge({
       )}
       title={
         libres > 0
-          ? `${libres} de ${cupo} lugares de cliente libres`
-          : `Cupo lleno: ${cupo} clientes. Solo admite campañas de los que ya están.`
+          ? t('operaciones.clientes-badge.libres', { libres, cupo })
+          : t('operaciones.clientes-badge.lleno', { cupo })
       }
     >
       <Users className="h-3 w-3" strokeWidth={2} />
       <span className="demo-num">
         {ocupados}/{cupo}
       </span>
-      clientes
+      {t('operaciones.clientes-badge.clientes')}
     </span>
   )
 }

@@ -40,11 +40,12 @@ export const AREAS: AreaProducto[] = [
   // `comercial.aprobar` el permiso de aprobar propuestas y el de aprobar
   // captaciones serian el mismo, y la matriz no podria separarlos.
   { clave: 'captacion', label: 'Captación', modulo: 'captacion', apiPropia: true },
-  // Maqueta del 2026-09-30: prospección de arrendadores. `apiPropia: false`
-  // porque HOY NO TIENE API NI BASE -- se pidió «solo html sin funciones». El
-  // día que la tenga, esto pasa a `true` y hay que decidir si su módulo sigue
-  // siendo `comercial` o se va con `captacion`, con la que se solapa.
-  { clave: 'comercial-opex', label: 'Comercial OPEX', modulo: 'comercial', apiPropia: false },
+  // Prospección de arrendadores. Fue maqueta del 30/09 al 22/10 (`apiPropia:
+  // false`, sin base). Desde NEG-01 tiene base y API, y se construyó ENCIMA de
+  // `prospectos` por decisión del dueño (21/10): sus rutas son las de
+  // `/api/captacion/*`, así que su permiso es el de `captacion`. Con
+  // `comercial` la pantalla se habría abierto a quien no puede leer su API.
+  { clave: 'comercial-opex', label: 'Comercial negociación', modulo: 'captacion', apiPropia: true },
   { clave: 'inventario', label: 'Inventario', modulo: 'inventario', apiPropia: true },
   // Las ocho pantallas de Space Eyes (equipos, galería, vivo, programación,
   // campañas, verificación, fallas) exigen `inventario.ver` / `inventario.crear`.
@@ -82,7 +83,7 @@ export const AREAS: AreaProducto[] = [
   // `crear`.
   { clave: 'franjas-y-temporadas', label: 'Franjas y temporadas', modulo: 'precios', apiPropia: true },
   { clave: 'descuentos-por-volumen', label: 'Descuentos por volumen', modulo: 'precios', apiPropia: true },
-  { clave: 'codigos-promocionales', label: 'Codigos promocionales', modulo: 'precios', apiPropia: true },
+  { clave: 'codigos-promocionales', label: 'Códigos de negociación', modulo: 'precios', apiPropia: true },
   // PAQ-01 · y aqui importa mas que en las otras tres: quien pueda escribir
   // aqui fija el precio de una venta entera saltandose la rejilla y el tope de
   // descuento.

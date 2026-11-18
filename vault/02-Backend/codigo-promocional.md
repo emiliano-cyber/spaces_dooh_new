@@ -1,7 +1,7 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-10-05
+actualizado: 2026-10-26
 tags: [backend, precios, descuentos, cupones, promociones, propuestas, dinero, snapshot, rls, concurrencia, aprobacion]
 archivos:
   - db/migrations/20260928_codigo_promocional.sql
@@ -423,6 +423,22 @@ sería ofrecer un botón que falla. **Verificado en navegador sin ventana el
 propuesta en borrador, quedó `PENDIENTE` y el cupón pasó de 1 a 2 usos.
 
 ---
+
+### La pantalla, rediseñada otra vez (26/10) — solo presentación
+
+`components/demo/codigos/GestionCodigos.tsx`, sin tocar `hoy()`,
+`normalizarCodigo`, `motivoCodigoInvalido`, `aplicarCodigoApi`,
+`vigentesParaSelector`/`propuestasParaAsignar` ni el permiso:
+
+- Chips de conteo por estado en el encabezado de la tarjeta («Vigentes · N»…),
+  calculados con el **mismo** `estadoDelCodigo(c, hoy())` que pinta cada fila.
+  Son un conteo, no un filtro.
+- Estado con `StatusBadge` (Vigente verde, Próximo azul, Agotado ámbar, Vencido
+  neutro); usos con barra de un solo color y «sin tope» en palabras en vez de
+  «∞»; vigencia con `formatFecha`.
+- El selector de propuesta ocupa el ancho en móvil (`w-full sm:min-w-[22rem]`).
+- Subtítulo de una frase y la explicación en la franja secundaria; «Nuevo
+  código» con el borde y el relleno de las demás tarjetas.
 
 ## 7 · Dónde mirar
 

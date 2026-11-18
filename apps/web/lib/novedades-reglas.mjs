@@ -39,7 +39,17 @@ const RE_VERSION_IMAGEN = /^(v(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))(?:
 const RE_FECHA = /^(\d{4})-(\d{2})-(\d{2})$/
 
 const CLAVES_ENTRADA = ['version', 'fecha', 'items']
-const CLAVES_ITEM = ['tipo', 'texto']
+
+/**
+ * Las traducciones OPCIONALES de un item (2026-11-05): `texto` es el espanol,
+ * el original, y `en` / `it` lo dicen en ingles e italiano. Opcionales a
+ * proposito: las entradas viejas no las traen y siguen valiendo (se pintan en
+ * espanol), y una release no se para por una traduccion que falta
+ * (`scripts/verificar-novedades.mjs` solo avisa). Lo que no vale es una
+ * traduccion VACIA: pintaria un renglon en blanco en ingles o en italiano.
+ */
+export const TRADUCCIONES_ITEM = Object.freeze(['en', 'it'])
+const CLAVES_ITEM = ['tipo', 'texto', ...TRADUCCIONES_ITEM]
 
 function esObjeto(x) {
   return x !== null && typeof x === 'object' && !Array.isArray(x)
@@ -113,6 +123,11 @@ export function erroresDeEntrada(e, donde = 'la entrada') {
     if (typeof it.texto !== 'string' || it.texto.trim() === '') {
       out.push(`${d}: el texto esta vacio`)
     }
+    for (const k of TRADUCCIONES_ITEM) {
+      if (k in it && (typeof it[k] !== 'string' || it[k].trim() === '')) {
+        out.push(`${d}: la traduccion «${k}» esta vacia o no es texto (si no la hay, se quita el campo)`)
+      }
+    }
   })
   return out
 }
@@ -146,6 +161,18 @@ export function validarNovedades(datos) {
     }
   })
   return errores.length ? { ok: false, errores } : { ok: true, novedades: datos }
+}
+
+/**
+ * Cuantos items de una entrada no traen cada traduccion: `{ en: n, it: m }`.
+ * Lo usa `verificar-novedades.mjs` para AVISAR, no para fallar.
+ */
+export function sinTraducir(entrada) {
+  const out = {}
+  for (const k of TRADUCCIONES_ITEM) {
+    out[k] = esObjeto(entrada) && Array.isArray(entrada.items) ? entrada.items.filter((i) => !esObjeto(i) || !(k in i)).length : 0
+  }
+  return out
 }
 
 /**

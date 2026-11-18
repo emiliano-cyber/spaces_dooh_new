@@ -2,12 +2,15 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Download } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { cn } from '@/lib/cn'
 import { useCobranzas, useFacturas, usePagosRenta, formatMonto, formatFecha, useClientes } from '@/lib/data/client'
 import { resumenFinanzasApi, type RespuestaResumen } from '@/lib/data/finanzas-periodo-api'
-import { csvEstadoCuenta } from './estado-cuenta-csv'
+import { esEtiquetaRango, etiquetaPeriodo } from '@/lib/finanzas-periodo'
+import { csvEstadoCuenta, nombreArchivoEstadoCuenta } from './estado-cuenta-csv'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { CLAVE_PERIODO } from './etiquetas'
 
 // ============================================================================
 //  Estado de cuenta: este mes y el mes pasado (06/10, ADR 0046).
@@ -20,6 +23,7 @@ import { csvEstadoCuenta } from './estado-cuenta-csv'
 type Mes = 'mes' | 'mes-anterior'
 
 export function EstadoCuenta() {
+  const { t, idioma } = useIdioma()
   const clientes = useClientes()
   const [mes, setMes] = useState<Mes>('mes')
   const [cliente, setCliente] = useState<string>('')
@@ -38,8 +42,9 @@ export function EstadoCuenta() {
     setError(null)
     resumenFinanzasApi({ periodo: mes, cliente: cliente || null })
       .then((d) => { if (vivo) setDatos(d) })
-      .catch((e) => { if (vivo) setError(e instanceof Error ? e.message : 'No se pudo calcular el estado de cuenta') })
+      .catch((e) => { if (vivo) setError(e instanceof Error ? e.message : t('finanzas.estado-cuenta.no-calcular')) })
     return () => { vivo = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mes, cliente, cobranzas, facturas, rentas])
 
   const nombreCliente = useMemo(() => {
@@ -47,16 +52,16 @@ export function EstadoCuenta() {
     return (id: string) => m.get(id) ?? '—'
   }, [clientes])
 
-  const titular = cliente ? nombreCliente(cliente) : 'Todos los clientes'
+  const titular = cliente ? nombreCliente(cliente) : t('finanzas.comun.todos-clientes')
 
   function descargar() {
     if (!datos) return
-    const csv = csvEstadoCuenta(datos, titular, nombreCliente, !cliente)
+    const csv = csvEstadoCuenta(datos, titular, nombreCliente, !cliente, idioma)
     // BOM para que Excel lea los acentos como UTF-8.
     const url = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }))
     const a = document.createElement('a')
     a.href = url
-    a.download = `estado-de-cuenta-${datos.periodo.desde.slice(0, 7)}${cliente ? '-cliente' : ''}.csv`
+    a.download = nombreArchivoEstadoCuenta(datos.periodo.desde, !!cliente, idioma)
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -64,13 +69,29 @@ export function EstadoCuenta() {
   const r = datos?.resumen
 
   return (
-    <Card>
-      <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <CardTitle>Estado de cuenta</CardTitle>
-          <p className="mt-0.5 text-[12px] text-muted">{titular}{datos ? ` · ${datos.periodo.etiqueta}` : ''}</p>
-        </div>
+    // Mes, cliente y CSV van en `accion`, fuera de lo que se pliega: su estado
+    // vive en este componente, así que plegar no pierde lo elegido.
+    <CardColapsable
+      id="finanzas.estado-cuenta"
+      titulo={t('finanzas.estado-cuenta.titulo')}
+      subtitulo={`${titular}${datos ? ` · ${etiquetaPeriodo(datos.periodo, idioma)}` : ''}`}
+      contentClassName="px-0 pb-0"
+      accion={
         <div className="flex flex-wrap items-center gap-1.5">
+          {/* En un teléfono los dos botones, el selector de 14rem y el CSV no
+              cabían en la cabecera y empujaban el chevrón fuera de la pantalla
+              (medido a 390 px el 2026-10-26). Ahí el mes va en un `<select>`
+              con los MISMOS dos valores y el MISMO `setMes`, y el de cliente
+              se angosta; desde `sm`, como siempre. */}
+          <select
+            value={mes}
+            onChange={(e) => setMes(e.target.value as Mes)}
+            aria-label={t('finanzas.estado-cuenta.mes')}
+            className="h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink sm:hidden"
+          >
+            <option value="mes">{t(CLAVE_PERIODO.mes)}</option>
+            <option value="mes-anterior">{t(CLAVE_PERIODO['mes-anterior'])}</option>
+          </select>
           {(['mes', 'mes-anterior'] as const).map((m) => (
             <button
               key={m}
@@ -78,74 +99,94 @@ export function EstadoCuenta() {
               onClick={() => setMes(m)}
               aria-pressed={mes === m}
               className={cn(
-                'rounded border px-2.5 py-1 text-[12px] font-medium',
+                'hidden rounded border px-2.5 py-1 text-[12px] font-medium sm:inline-block',
                 mes === m ? 'border-accent bg-accent text-white' : 'border-border-strong bg-surface text-ink hover:bg-surface-2',
               )}
             >
-              {m === 'mes' ? 'Este mes' : 'Mes pasado'}
+              {t(CLAVE_PERIODO[m])}
             </button>
           ))}
           <select
             value={cliente}
             onChange={(e) => setCliente(e.target.value)}
-            aria-label="Cliente"
-            className="h-8 max-w-[14rem] rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
+            aria-label={t('finanzas.comun.cliente')}
+            className="h-8 max-w-[8.5rem] rounded border border-border-strong bg-surface px-2 text-[12px] text-ink sm:max-w-[14rem]"
           >
-            <option value="">Todos los clientes</option>
+            <option value="">{t('finanzas.comun.todos-clientes')}</option>
             {(clientes ?? []).map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
           </select>
           <Button size="sm" variant="secondary" disabled={!datos} onClick={descargar}>
             <Download className="h-3.5 w-3.5" /> CSV
           </Button>
         </div>
-      </CardHeader>
-      <CardContent className="px-0 pb-0">
+      }
+    >
         {error ? (
           <p className="px-4 pb-4 text-[13px] text-error">{error}</p>
         ) : !r || !datos ? (
           <div className="mx-4 mb-4 h-24 animate-pulse rounded bg-surface-2" />
         ) : (
           <>
-            <dl className="grid grid-cols-2 gap-x-6 gap-y-1 px-4 pb-3 text-[13px] md:grid-cols-5">
-              <Renglon k="Saldo al inicio" v={formatMonto(r.saldoInicial)} />
-              <Renglon k="+ Facturado" v={formatMonto(r.facturado.monto)} />
-              <Renglon k="− Cobrado" v={formatMonto(r.cobrado)} />
-              <Renglon k="= Saldo al cierre" v={formatMonto(r.saldoFinal)} fuerte />
-              <Renglon k={`Vencido al ${formatFecha(r.corte)}`} v={formatMonto(r.vencido.monto)} tono={r.vencido.monto > 0} />
+            {/* Rediseño del 2026-10-26 · la cuenta se lee como una ecuación en
+                la franja secundaria del Dashboard: inicio + facturado − cobrado
+                = cierre. Son las mismas cinco cifras del servidor; aquí no se
+                suma nada, solo se ponen en una línea. */}
+            <dl className="mx-4 mb-3 flex flex-wrap items-baseline gap-x-4 gap-y-1 rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px]">
+              <Renglon k={t('finanzas.estado-cuenta.saldo-inicio')} v={formatMonto(r.saldoInicial, idioma)} />
+              <Renglon k={t('finanzas.estado-cuenta.facturado')} v={formatMonto(r.facturado.monto, idioma)} />
+              <Renglon k={t('finanzas.estado-cuenta.cobrado')} v={formatMonto(r.cobrado, idioma)} />
+              <Renglon k={t('finanzas.estado-cuenta.saldo-cierre')} v={formatMonto(r.saldoFinal, idioma)} fuerte />
+              {/* `div` y no `span`: dentro de un `dl` solo valen `div`, `dt` y `dd`. */}
+              <div className="hidden text-muted sm:block" aria-hidden>·</div>
+              <Renglon k={t('finanzas.estado-cuenta.vencido-al', { fecha: formatFecha(r.corte, idioma) })} v={formatMonto(r.vencido.monto, idioma)} tono={r.vencido.monto > 0} />
             </dl>
             {datos.movimientos.length === 0 ? (
-              <p className="border-t border-border px-4 py-4 text-[13px] text-muted">Sin facturas ni pagos en {datos.periodo.etiqueta.toLowerCase()}.</p>
+              <p className="border-t border-border px-4 py-4 text-[13px] text-muted">
+                {idioma !== 'es' && esEtiquetaRango(datos.periodo.etiqueta)
+                  ? // Con un rango a mano, «in {periodo}» saldria «in Jan 5, 2026
+                    // to Mar 9, 2026», que no se dice: el rango lleva su frase.
+                    t('finanzas.estado-cuenta.vacio-rango', {
+                      desde: formatFecha(datos.periodo.desde, idioma),
+                      hasta: formatFecha(datos.periodo.hasta, idioma),
+                    })
+                  : t('finanzas.estado-cuenta.vacio', {
+                      // En espanol, en minusculas a media frase («en noviembre
+                      // 2026»), como siempre; en ingles el mes va con mayuscula
+                      // y «Q4» no se baja.
+                      periodo: idioma === 'es' ? datos.periodo.etiqueta.toLowerCase() : etiquetaPeriodo(datos.periodo, idioma),
+                    })}
+              </p>
             ) : (
               <div className="overflow-x-auto border-t border-border">
                 <table className="w-full text-left text-[13px]">
                   <thead>
                     <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
-                      <th className="px-4 py-2 font-medium">Fecha</th>
-                      <th className="px-4 py-2 font-medium">Movimiento</th>
-                      <th className="px-4 py-2 font-medium">Folio</th>
-                      {!cliente && <th className="px-4 py-2 font-medium">Cliente</th>}
-                      <th className="px-4 py-2 text-right font-medium">Cargo</th>
-                      <th className="px-4 py-2 text-right font-medium">Abono</th>
-                      <th className="px-4 py-2 text-right font-medium">Saldo</th>
+                      <th className="px-4 py-2 font-medium">{t('finanzas.estado-cuenta.col.fecha')}</th>
+                      <th className="px-4 py-2 font-medium">{t('finanzas.estado-cuenta.col.movimiento')}</th>
+                      <th className="px-4 py-2 font-medium">{t('finanzas.comun.folio')}</th>
+                      {!cliente && <th className="px-4 py-2 font-medium">{t('finanzas.comun.cliente')}</th>}
+                      <th className="px-4 py-2 text-right font-medium">{t('finanzas.estado-cuenta.col.cargo')}</th>
+                      <th className="px-4 py-2 text-right font-medium">{t('finanzas.estado-cuenta.col.abono')}</th>
+                      <th className="px-4 py-2 text-right font-medium">{t('finanzas.estado-cuenta.col.saldo')}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {datos.movimientos.map((m, i) => (
                       <tr key={i} className="border-b border-border last:border-0">
-                        <td className="demo-num px-4 py-2 text-muted">{formatFecha(m.fecha)}</td>
+                        <td className="demo-num px-4 py-2 text-muted">{formatFecha(m.fecha, idioma)}</td>
                         <td className="px-4 py-2 text-ink">
-                          {m.tipo === 'factura' ? 'Factura' : 'Pago recibido'}
+                          {m.tipo === 'factura' ? t('finanzas.estado-cuenta.factura') : t('finanzas.estado-cuenta.pago')}
                           {m.aproximado && (
-                            <span className="block text-[10px] text-muted" title="Pago anterior a que el sistema guardara fechas: lleva la fecha de su factura">
-                              fecha aproximada
+                            <span className="block text-[10px] text-muted" title={t('finanzas.estado-cuenta.aproximada.title')}>
+                              {t('finanzas.estado-cuenta.aproximada')}
                             </span>
                           )}
                         </td>
                         <td className="demo-num px-4 py-2 text-ink">{m.folio}</td>
                         {!cliente && <td className="px-4 py-2 text-muted">{nombreCliente(m.clienteId)}</td>}
-                        <td className="demo-num px-4 py-2 text-right text-ink">{m.cargo ? formatMonto(m.cargo) : ''}</td>
-                        <td className="demo-num px-4 py-2 text-right text-success">{m.abono ? formatMonto(m.abono) : ''}</td>
-                        <td className="demo-num px-4 py-2 text-right text-ink">{formatMonto(m.saldo)}</td>
+                        <td className="demo-num px-4 py-2 text-right text-ink">{m.cargo ? formatMonto(m.cargo, idioma) : ''}</td>
+                        <td className="demo-num px-4 py-2 text-right text-success">{m.abono ? formatMonto(m.abono, idioma) : ''}</td>
+                        <td className="demo-num px-4 py-2 text-right text-ink">{formatMonto(m.saldo, idioma)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -154,15 +195,14 @@ export function EstadoCuenta() {
             )}
           </>
         )}
-      </CardContent>
-    </Card>
+    </CardColapsable>
   )
 }
 
 function Renglon({ k, v, fuerte, tono }: { k: string; v: string; fuerte?: boolean; tono?: boolean }) {
   return (
-    <div>
-      <dt className="text-[11px] text-muted">{k}</dt>
+    <div className="flex items-baseline gap-1.5 whitespace-nowrap">
+      <dt className="text-muted">{k}</dt>
       <dd className={cn('demo-num text-ink', fuerte && 'font-semibold', tono && 'text-error')}>{v}</dd>
     </div>
   )

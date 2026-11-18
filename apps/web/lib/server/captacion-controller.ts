@@ -18,6 +18,8 @@ import {
   type ProspectoReclamado,
 } from './captacion-repo'
 import { ETAPAS, TIPOS_PROSPECTO, type TipoProspecto } from '@/lib/captacion'
+import { CANALES } from '@/lib/negociacion'
+import { leerHijos } from './negociacion-repo'
 
 // ============================================================================
 //  lib/server/captacion-controller.ts — La forma de entrada de la bitácora de
@@ -132,8 +134,11 @@ function aInput(body: unknown, tipoFijo?: TipoProspecto): ProspectoInput & { not
   }
 }
 
-/** Solo lo suyo, si no puede aprobar. */
-async function soloDe(u: UsuarioSesion): Promise<string | null> {
+/**
+ * Solo lo suyo, si no puede aprobar. La usa también `negociacion-controller.ts`:
+ * una sola regla de quién ve qué para el prospecto y para todo lo que cuelga de él.
+ */
+export async function soloDe(u: UsuarioSesion): Promise<string | null> {
   return (await tienePermiso(u.rol, 'captacion', 'aprobar')) ? null : u.id
 }
 
@@ -143,6 +148,8 @@ const filtroSchema = z.object({
   // Lista separada por comas: una pestaña agrupa varias etapas.
   etapas: z.array(z.enum(ETAPAS)).max(ETAPAS.length).nullish(),
   tipo: z.enum(TIPOS_PROSPECTO).nullish(),
+  // NEG-01: Comercial negociación lista PREDIO y PANTALLA juntos.
+  tipos: z.array(z.enum(TIPOS_PROSPECTO)).max(TIPOS_PROSPECTO.length).nullish(),
   pagina: z.coerce.number().int().min(1).max(10_000).default(1),
   porPagina: z.coerce.number().int().min(1).max(100).default(50),
 })
@@ -151,6 +158,7 @@ export async function listarProspectosCtrl(u: UsuarioSesion, params: URLSearchPa
   const f = validar<z.output<typeof filtroSchema>>(filtroSchema as never, {
     etapas: params.get('etapas') ? params.get('etapas')!.split(',') : null,
     tipo: params.get('tipo') || null,
+    tipos: params.get('tipos') ? params.get('tipos')!.split(',') : null,
     pagina: params.get('pagina') ?? undefined,
     porPagina: params.get('porPagina') ?? undefined,
   })
@@ -159,6 +167,7 @@ export async function listarProspectosCtrl(u: UsuarioSesion, params: URLSearchPa
     soloDe: solo,
     etapas: f.etapas ?? null,
     tipo: f.tipo ?? null,
+    tipos: f.tipos ?? null,
     limite: f.porPagina,
     desplazamiento: (f.pagina - 1) * f.porPagina,
   })
@@ -168,7 +177,9 @@ export async function listarProspectosCtrl(u: UsuarioSesion, params: URLSearchPa
 export async function obtenerProspectoCtrl(u: UsuarioSesion, id: string) {
   const p = await obtenerProspecto(id, await soloDe(u))
   if (!p) throw new AppError(NO_EXISTE, 404)
-  return p
+  // Los hijos de NEG-01 se leen DESPUÉS de comprobar que el prospecto es de
+  // quien pregunta: `leerHijos` no filtra por vendedor, confía en esta línea.
+  return { ...p, ...(await leerHijos(id)) }
 }
 
 export async function crearProspectoCtrl(u: UsuarioSesion, body: unknown) {
@@ -193,6 +204,9 @@ const avanceSchema = z
     nota: z.string().trim().min(1, 'Escribe qué pasó').max(2000),
     siguientePaso: opcional(300).optional(),
     siguientePasoFecha: fecha.optional(),
+    // NEG-01: por dónde se habló y con quién. Opcionales: Captación no los pide.
+    canal: z.enum(CANALES).nullish(),
+    contactoNombre: opcional(200).optional(),
   })
   .strict()
 
@@ -200,7 +214,14 @@ export async function registrarAvanceCtrl(u: UsuarioSesion, id: string, body: un
   const d = validar(avanceSchema, body)
   const ok = await registrarAvance(
     id,
-    { etapaNueva: d.etapa, nota: d.nota, siguientePaso: d.siguientePaso, siguientePasoFecha: d.siguientePasoFecha },
+    {
+      etapaNueva: d.etapa,
+      nota: d.nota,
+      siguientePaso: d.siguientePaso,
+      siguientePasoFecha: d.siguientePasoFecha,
+      canal: d.canal ?? null,
+      contactoNombre: d.contactoNombre ?? null,
+    },
     u.id,
     await soloDe(u),
   )

@@ -1,13 +1,17 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-10-06
+actualizado: 2026-11-03
 tags: [datos, semilla, demo, rentabilidad, reportes, ooh-summit, entidades, energia, caras]
 archivos:
   - scripts/semilla-demo.mjs
   - scripts/semilla-demo.test.ts
   - scripts/semilla-catalogo-demo.mjs
   - scripts/semilla-catalogo-demo.test.ts
+  - scripts/semilla-catalogo-modulos.mjs
+  - scripts/semilla-arte-demo.mjs
+  - scripts/semilla-pdf-demo.mjs
+  - docs/datos/20261103_base_demo_nueva.md
   - infra/scripts/sembrar-catalogo-demo.sh
   - scripts/reiniciar-razones-sociales.mjs
   - db/semilla-desarrollo.sql
@@ -19,6 +23,30 @@ archivos:
 ---
 
 # La semilla de demostración
+
+> [!important] 2026-11-03 · el catálogo cubre TODOS los módulos (menos Space Eye)
+> Auditoría sobre una base nueva con el guion y el catálogo de `main`: **40 tablas
+> vacías**. Ahora el catálogo siembra 1224 filas, y la segunda corrida mete 0. Las
+> nuevas son creativos digitales (`creatividades`, con el PNG envuelto igual que lo hace
+> la pantalla) y el arte de las fijas (`ordenes_impresion.prueba_color_url`), y además
+> Comercial negociación, códigos, paquetes, franjas y temporadas, volumen, almacén,
+> incidencias, evidencias y costo de OT, abonos, extensión con contrato, órdenes de compra,
+> notificaciones, actividad, tickets y los campos de ficha vacíos. Lo de los módulos vive en
+> `scripts/semilla-catalogo-modulos.mjs`. La secuencia para el servidor, la tabla de
+> cobertura y lo que NO se siembra están en `docs/datos/20261103_base_demo_nueva.md`.
+>
+> Tres cosas que cambian cómo se usa:
+> - **El calendario se mueve con `--ancla`**, en meses enteros desde octubre de 2026. Antes,
+>   desde el 01/11 el catálogo se negaba a sembrar. El script **reutiliza el
+>   calendario con el que ya se sembró la base** (lo lee de la fecha de `CAT-CMP-001`):
+>   los contratos, las rentas y los recibos se reconocen por fecha, y otro calendario los
+>   duplicaría. Para moverlo, `--deshacer` primero.
+> - **Las dos semillas siembran abonos**: Finanzas mide lo cobrado con `cobranza_abonos`
+>   (ADR 0046) y sin ellos daba por vencidas las facturas pagadas.
+> - **`--deshacer` no puede borrar la bitácora**: `acciones` es append-only por trigger.
+>   Sus 12 entradas de ejemplo van sin `usuario_id` y se quedan. Tampoco borra un
+>   usuario demo con acciones, porque el `on delete set null` reescribiría la bitácora y
+>   tumbaría la transacción.
 
 > [!important] 2026-10-06 · hay DOS semillas, y conviven en la misma organización
 > **`scripts/semilla-demo.mjs` es el GUION** (todo lo de abajo): seis pantallas

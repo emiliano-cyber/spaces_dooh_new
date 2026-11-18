@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server'
 import { exigir } from '@/lib/server/auth'
 import { notificacionesDesde } from '@/lib/server/notificaciones-repo'
 import { avisarFallasEyes } from '@/lib/server/space-eyes-aviso-fallas'
-import { tenantActual } from '@/lib/server/tenant'
-import { permisosDeRol } from '@/lib/server/auth'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -27,16 +25,15 @@ export async function GET(req: Request) {
   // la misma pantalla, que es justo el caso—. Aparte de la respuesta, con
   // respiro de 2 min por empresa (da igual cuantas pestanas haya abiertas) y
   // sin lanzar nunca.
-  const permisos = await permisosDeRol(g.usuario.rol)
-  if ((permisos['inventario'] ?? []).includes('ver')) {
-    void avisarFallasEyes({ tenant: await tenantActual() })
-  }
+  void avisarFallasEyes({ rol: g.usuario.rol })
 
   const desde = new URL(req.url).searchParams.get('desde')
   if (!desde || Number.isNaN(Date.parse(desde))) {
     return NextResponse.json({ notificaciones: [], marca: null })
   }
-  // El repo filtra por tenant; un usuario nunca ve las de otra organización.
+  // El repo filtra por tenant; un usuario nunca ve las de otra organización. Y
+  // por el usuario de la sesión: lo que él borró no revive como aviso
+  // emergente (NOTIF-USUARIO, 21/10).
   // `marca` es la `desde` de la siguiente pregunta (ver notificacionesDesde).
-  return NextResponse.json(await notificacionesDesde(desde))
+  return NextResponse.json(await notificacionesDesde(desde, g.usuario.id))
 }

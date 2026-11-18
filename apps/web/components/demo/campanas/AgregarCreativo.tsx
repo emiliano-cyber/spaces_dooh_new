@@ -5,9 +5,11 @@ import { toast } from 'sonner'
 import { Upload, Code2, Eye } from 'lucide-react'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
+import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { crearCreatividadApi } from '@/lib/data/estado-api'
 import { imagenAHtml, IMAGEN_CREATIVO_MAX_MB } from '@/lib/creativo-html'
+import { useTexto } from '@/lib/i18n/contexto'
 
 // ============================================================================
 //  Alta rápida de creativos desde la FICHA DE CAMPAÑA: subir una imagen o pegar
@@ -24,6 +26,7 @@ type Previa = { nombre: string; codigo: string }
 
 export function AgregarCreativo({ campanaId }: { campanaId: string }) {
   const puede = usePuede('comercial', 'crear')
+  const t = useTexto()
   const fileRef = useRef<HTMLInputElement>(null)
   const [subiendo, setSubiendo] = useState(false)
   const [codeOpen, setCodeOpen] = useState(false)
@@ -31,6 +34,9 @@ export function AgregarCreativo({ campanaId }: { campanaId: string }) {
   const [codeNombre, setCodeNombre] = useState('')
   // Creativo en vista previa (null = modal cerrado).
   const [previa, setPrevia] = useState<Previa | null>(null)
+  // OBLIG-01 · al pegar código, el código es lo único obligatorio (sin él no
+  // hay creativo); el nombre cae a «Creativo (código)».
+  const ob = useObligatorios({ codigo }, ['codigo'])
 
   if (!puede) return null
 
@@ -39,7 +45,7 @@ export function AgregarCreativo({ campanaId }: { campanaId: string }) {
     e.target.value = ''
     if (!f) return
     if (f.size > IMAGEN_CREATIVO_MAX_MB * 1024 * 1024) {
-      toast.error(`La imagen supera ${IMAGEN_CREATIVO_MAX_MB} MB`)
+      toast.error(t('campanas.creativo.imagen-supera', { mb: IMAGEN_CREATIVO_MAX_MB }))
       return
     }
     const reader = new FileReader()
@@ -53,8 +59,8 @@ export function AgregarCreativo({ campanaId }: { campanaId: string }) {
   }
 
   function previsualizarCodigo() {
-    if (!codigo.trim()) return
-    setPrevia({ nombre: codeNombre.trim() || 'Creativo (código)', codigo })
+    if (!ob.validar()) return
+    setPrevia({ nombre: codeNombre.trim() || t('campanas.creativo.nombre-codigo'), codigo })
   }
 
   async function confirmarSubida() {
@@ -67,13 +73,14 @@ export function AgregarCreativo({ campanaId }: { campanaId: string }) {
         codigo: previa.codigo,
         formato: 'text/html',
       })
-      toast.success('Creativo agregado')
+      toast.success(t('campanas.creativo.agregado'))
       setPrevia(null)
       setCodigo('')
       setCodeNombre('')
       setCodeOpen(false)
+      ob.reiniciar()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'No se pudo subir')
+      toast.error(err instanceof Error ? err.message : t('campanas.creativo.no-subir'))
     }
     setSubiendo(false)
   }
@@ -83,32 +90,44 @@ export function AgregarCreativo({ campanaId }: { campanaId: string }) {
       <div className="flex gap-2">
         <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
         <Button variant="success" size="sm" disabled={subiendo} onClick={() => fileRef.current?.click()}>
-          <Upload className="h-3.5 w-3.5" /> Imagen
+          <Upload className="h-3.5 w-3.5" /> {t('campanas.creativo.imagen')}
         </Button>
         <Button size="sm" variant="secondary" disabled={subiendo} onClick={() => setCodeOpen((v) => !v)}>
-          <Code2 className="h-3.5 w-3.5" /> Código
+          <Code2 className="h-3.5 w-3.5" /> {t('campanas.creativo.codigo')}
         </Button>
       </div>
 
       {codeOpen && (
         <div className="space-y-2 rounded-md border border-border bg-surface-2 p-2.5">
-          <input
-            value={codeNombre}
-            onChange={(e) => setCodeNombre(e.target.value)}
-            placeholder="Nombre del creativo (opcional)"
-            className="h-8 w-full rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          />
-          <textarea
-            value={codigo}
-            onChange={(e) => setCodigo(e.target.value)}
-            placeholder="Pega aquí el código del creativo (HTML/UTF)…"
-            rows={5}
-            className="w-full rounded border border-border-strong bg-surface px-2 py-1.5 font-mono text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          />
+          <Campo label={t('campanas.creativo.nombre')}>
+            <input
+              value={codeNombre}
+              onChange={(e) => setCodeNombre(e.target.value)}
+              className="h-8 w-full rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            />
+          </Campo>
+          <Campo label={t('campanas.creativo.codigo')} obligatorio falta={ob.falta('codigo')}>
+            <textarea
+              value={codigo}
+              onChange={(e) => setCodigo(e.target.value)}
+              placeholder={t('campanas.creativo.pega')}
+              rows={5}
+              className="w-full rounded border border-border-strong bg-surface px-2 py-1.5 font-mono text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            />
+          </Campo>
           <div className="flex justify-end gap-2">
-            <Button size="sm" variant="secondary" onClick={() => setCodeOpen(false)}>Cancelar</Button>
-            <Button size="sm" disabled={!codigo.trim() || subiendo} onClick={previsualizarCodigo}>
-              <Eye className="h-3.5 w-3.5" /> Vista previa
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                setCodeOpen(false)
+                ob.reiniciar()
+              }}
+            >
+              {t('comun.cancelar')}
+            </Button>
+            <Button size="sm" disabled={subiendo} onClick={previsualizarCodigo}>
+              <Eye className="h-3.5 w-3.5" /> {t('campanas.creativo.vista-previa')}
             </Button>
           </div>
         </div>
@@ -118,23 +137,23 @@ export function AgregarCreativo({ campanaId }: { campanaId: string }) {
       <Modal
         open={!!previa}
         onOpenChange={(v) => { if (!v && !subiendo) setPrevia(null) }}
-        title="Vista previa del creativo"
+        title={t('campanas.creativo.vista-previa.titulo')}
         subtitle={previa?.nombre}
         footer={
           <div className="flex justify-end gap-2">
-            <Button variant="secondary" size="sm" disabled={subiendo} onClick={() => setPrevia(null)}>Cancelar</Button>
+            <Button variant="secondary" size="sm" disabled={subiendo} onClick={() => setPrevia(null)}>{t('comun.cancelar')}</Button>
             <Button size="sm" disabled={subiendo} onClick={confirmarSubida}>
-              <Upload className="h-3.5 w-3.5" /> {subiendo ? 'Subiendo…' : 'Subir creativo'}
+              <Upload className="h-3.5 w-3.5" /> {subiendo ? t('campanas.comun.subiendo') : t('campanas.creativo.subir')}
             </Button>
           </div>
         }
       >
         <div className="space-y-2">
-          <p className="text-[12px] text-muted">Así se verá el creativo en la pantalla:</p>
+          <p className="text-[12px] text-muted">{t('campanas.creativo.asi-se-vera')}</p>
           <div className="overflow-hidden rounded-md border border-border bg-black">
             {previa && (
               <iframe
-                title="Vista previa del creativo"
+                title={t('campanas.creativo.vista-previa.titulo')}
                 srcDoc={previa.codigo}
                 // Sandbox: renderiza el creativo pero aislado (sin acceso a la
                 // página ni navegación); permite scripts para que el HTML se vea

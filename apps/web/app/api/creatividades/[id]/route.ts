@@ -8,7 +8,8 @@ import {
   reemplazarCreatividad,
 } from '@/lib/server/creativos-repo'
 import { registrarAccion } from '@/lib/server/acciones-repo'
-import { doohmainHabilitado, retirarCreativoEnDoohmain } from '@/lib/server/doohmain'
+import { doohmainHabilitado, estaPublicadoEnDoohmain, retirarCreativoEnDoohmain } from '@/lib/server/doohmain'
+import { esCreativoPropio } from '@/lib/server/creativos-repo'
 import { validarReemplazoCreatividad } from '@/lib/server/creativos-controller'
 import { respuestaError } from '@/lib/server/errores'
 import { conteo } from '@/lib/plural'
@@ -35,7 +36,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (autoasignadas > 0) {
     await registrarAccion(
       g.usuario,
-      `Se asignó automáticamente a ${conteo(autoasignadas, 'pantalla')} por ser el único creativo aprobado`,
+      `Se asignó automáticamente a ${conteo(autoasignadas, 'pantalla')}: los creativos aprobados rotan en partes iguales`,
       crea.nombre,
     )
   }
@@ -52,6 +53,11 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
   const g = await exigir('comercial', 'crear')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
+  // v0.12.3 · PRIMERO que el creativo sea de esta organización, y DESPUÉS tocar
+  // DOOHmain. Antes se retiraba en DOOHmain con el id tal cual llegaba y la
+  // comprobación venía después: con el id de un creativo ajeno se finalizaba su
+  // campaña en DOOHmain y luego se contestaba 404.
+  if (!(await esCreativoPropio(params.id))) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
   const doohmain = doohmainHabilitado()
     ? ((await retirarCreativoEnDoohmain(params.id)) as { ok?: boolean; estado?: string })
     : undefined
@@ -79,9 +85,26 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     // Valida ANTES de tocar DOOHmain: si el arte nuevo es inválido, retirar el
     // anterior dejaría el creativo sin arte en ningún lado.
     const arte = validarReemplazoCreatividad(await req.json().catch(() => ({})))
-    let doohmain: unknown = undefined
-    if (doohmainHabilitado()) {
+    // Mismo orden que en DELETE: que sea propio ANTES de tocar DOOHmain.
+    if (!(await esCreativoPropio(params.id))) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+    let doohmain: { ok: boolean; estado?: string; error?: string } | undefined = undefined
+    // v0.12.3 · si estaba publicado y DOOHmain NO confirma que finalizó el arte
+    // anterior, NO se reemplaza. Antes se seguía igual y la pantalla decía «Arte
+    // reemplazado»: el viejo podía quedarse sonando junto al nuevo sin que
+    // nadie lo supiera. Uno que nunca se publicó se reemplaza sin preguntar.
+    if (doohmainHabilitado() && (await estaPublicadoEnDoohmain(params.id))) {
       doohmain = await retirarCreativoEnDoohmain(params.id)
+      if (doohmain?.ok !== true) {
+        return NextResponse.json(
+          {
+            error:
+              'No se pudo finalizar en DOOHmain el arte anterior' +
+              (doohmain?.error ? ` (${doohmain.error})` : '') +
+              '. No se reemplazó nada: vuelve a intentarlo cuando DOOHmain responda.',
+          },
+          { status: 502 },
+        )
+      }
     }
     const crea = await reemplazarCreatividad(params.id, arte)
     if (!crea) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })

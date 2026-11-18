@@ -1,6 +1,9 @@
 'use client'
 
 import { cn } from '@/lib/cn'
+import type { Idioma } from '@/lib/i18n/idiomas'
+import { traducir } from '@/lib/i18n/diccionario'
+import { CLAVE_SITIO_ESTATUS } from '@/components/demo/comercial/claves'
 import type {
   EstComercial,
   EstCobranza,
@@ -98,29 +101,35 @@ export function esDigital(s: {
 //   sola; esto es solo cómo se presenta el inventario.)
 // · BLOQUEADO / EN_MANTENIMIENTO / BAJA se conservan: son estados operativos
 //   reales, no comerciales, y esconderlos sí perdería información.
+//
+// I18N (lote shell, 2026-11-02) · `idioma` con `'es'` por omision: el espanol
+// es el literal de siempre (Inventario no pasa idioma); en otro idioma, el
+// estatus va por las claves de Comercial y el resto por `shell.disponibilidad.*`.
 export function disponibilidadInventario(s: {
   estatusComercial: EstComercial
   tipoMedio?: string; esRotativo?: boolean; exhibicion?: string
   totalSpots?: number | null; spotsDisponibles?: number | null
-}): { texto: string; tono: Tono } {
+}, idioma: Idioma = 'es'): { texto: string; tono: Tono } {
+  const es = idioma === 'es'
+  const estatus = (e: EstComercial) => (es ? SITIO_LABEL[e] : traducir(idioma, CLAVE_SITIO_ESTATUS[e]))
   if (s.estatusComercial === 'BLOQUEADO' || s.estatusComercial === 'EN_MANTENIMIENTO' || s.estatusComercial === 'BAJA') {
-    return { texto: SITIO_LABEL[s.estatusComercial], tono: SITIO_TONO[s.estatusComercial] }
+    return { texto: estatus(s.estatusComercial), tono: SITIO_TONO[s.estatusComercial] }
   }
   if (esDigital(s)) {
     const total = s.totalSpots ?? null
     const libres = s.spotsDisponibles ?? null
     if (total == null || libres == null) {
       // Digital sin slots capturados: no se puede decir cuántos quedan.
-      return { texto: 'Sin slots capturados', tono: 'neutro' }
+      return { texto: traducir(idioma, 'shell.disponibilidad.sin-capturar'), tono: 'neutro' }
     }
-    if (libres <= 0) return { texto: 'Sin slots libres', tono: 'rojo' }
+    if (libres <= 0) return { texto: traducir(idioma, 'shell.disponibilidad.sin-libres'), tono: 'rojo' }
     return {
-      texto: `${libres} de ${total} libres`,
+      texto: traducir(idioma, 'shell.disponibilidad.libres', { libres, total }),
       tono: libres < total ? 'ambar' : 'verde',
     }
   }
   const ocupada = s.estatusComercial === 'OCUPADO' || s.estatusComercial === 'RESERVADO'
-  return ocupada ? { texto: 'Ocupado', tono: 'rojo' } : { texto: 'Disponible', tono: 'verde' }
+  return ocupada ? { texto: estatus('OCUPADO'), tono: 'rojo' } : { texto: estatus('DISPONIBLE'), tono: 'verde' }
 }
 
 // Color del PIN en los mapas (dashboard y comercial). Distinto de SITIO_TONO
@@ -139,9 +148,12 @@ export function pinTono(s: {
 
 export const SITIO_LABEL: Record<EstComercial, string> = {
   DISPONIBLE: 'Disponible',
-  // Un sitio RESERVADO corresponde a una reserva TENTATIVA: se anota para que
-  // ambos vocabularios (sitio vs reserva) cuadren a la vista.
-  RESERVADO: 'Reservado · tentativo',
+  // RESERVADO lo pone el servidor al GENERAR la campaña desde una propuesta
+  // aprobada, «hasta la OC» (`campanas-repo.ts`): está vendido, no tentativo.
+  // Decía «Reservado · tentativo» de cuando se asociaba a la reserva
+  // TENTATIVA, que se retiró (TENT-PROP, 26/10): lo tentativo es ahora lo que
+  // está en una propuesta abierta (`lib/data/en-propuesta.ts`).
+  RESERVADO: 'Reservado · sin OC',
   OCUPADO: 'Ocupado',
   BLOQUEADO: 'Bloqueado',
   EN_MANTENIMIENTO: 'En mantenimiento',

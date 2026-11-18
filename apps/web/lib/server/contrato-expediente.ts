@@ -1,6 +1,8 @@
 import 'server-only'
 import { q1 } from './db'
 import { tenantActual } from './tenant'
+import { JOIN_PRINCIPAL } from './config-repo'
+import { idiomaDeLaInstancia } from './idioma-instancia'
 import { generarContrato, fechaISO, type DocumentoContrato } from '@/lib/contrato-documento'
 
 // ============================================================================
@@ -14,10 +16,21 @@ import { generarContrato, fechaISO, type DocumentoContrato } from '@/lib/contrat
 //  Es el mismo discriminador que usa el resto del módulo (ver derive.ts).
 // ============================================================================
 
+// Lo que el documento recita, SIN la fecha de firma. Va aparte del redactor
+// para que el paso de revisión previo al envío a firma (CONTRATO-FIRMADO-
+// EDITABLE, 23/10) enseñe y selle exactamente los mismos datos con los que se
+// va a congelar el texto, no una segunda consulta que podría decir otra cosa.
+export type DatosContrato = Omit<Parameters<typeof generarContrato>[0], 'fechaFirma'>
+
 export async function expedienteContrato(
   contratoId: string,
   fechaFirma: string,
 ): Promise<DocumentoContrato | null> {
+  const datos = await datosContrato(contratoId)
+  return datos ? generarContrato({ ...datos, fechaFirma }) : null
+}
+
+export async function datosContrato(contratoId: string): Promise<DatosContrato | null> {
   const tenantId = await tenantActual()
   const r = await q1<Record<string, any>>(
     `select c.fecha_inicio, c.fecha_fin, c.monto_renta, c.periodicidad, c.moneda,
@@ -26,7 +39,11 @@ export async function expedienteContrato(
             a.nombre  as arr_nombre,  a.rfc as arr_rfc, a.curp as arr_curp,
             a.direccion as arr_direccion, a.nacionalidad as arr_nacionalidad,
             rs.razon_social as arr_razon_social,
-            t.razon_social as ata_razon_social, t.nombre as ata_nombre, t.rfc as ata_rfc,
+            -- La razón social y el RFC de la parte arrendataria son los de la
+            -- entidad PRINCIPAL; ver JOIN_PRINCIPAL en config-repo.ts.
+            case when ep.id is not null then ep.razon_social else t.razon_social end as ata_razon_social,
+            t.nombre as ata_nombre,
+            case when ep.id is not null then ep.rfc else t.rfc end as ata_rfc,
             t.domicilio_fiscal as ata_domicilio, t.representante_legal as ata_representante,
             t.datos_constitucion as ata_constitucion,
             s.nombre as sitio_nombre, s.codigo_proveedor as sitio_codigo,
@@ -39,6 +56,7 @@ export async function expedienteContrato(
        left join sitios  s on s.id = c.sitio_id
        left join predios p on p.id = c.predio_id
        join tenants t on t.id = c.tenant_id
+       ${JOIN_PRINCIPAL}
       where c.id = $1 and c.tenant_id = $2`,
     [contratoId, tenantId],
   )
@@ -47,7 +65,7 @@ export async function expedienteContrato(
   const esDePredio = r.predio_id != null
   const num = (x: unknown) => (x == null ? null : Number(x))
 
-  return generarContrato({
+  return {
     arrendatario: {
       // `razon_social` es el nombre legal; `nombre` es el comercial y sirve de
       // respaldo para que el documento no salga con un hueco donde va la parte.
@@ -90,6 +108,12 @@ export async function expedienteContrato(
       autoRenovable: !!r.auto_renovable,
       ciudadFirma: r.ciudad_firma ?? null,
     },
-    fechaFirma,
-  })
+    // ADR 0049 · el idioma de los DOCUMENTOS de la instancia, nunca el de la
+    // peticion. Va con los datos, y no en cada llamador, porque por aqui pasan
+    // los CUATRO que redactan: la pagina, la huella de revision, el congelado
+    // y el cotejo de firmas. Si uno lo olvidara, redactaria en espanol y su
+    // hash no coincidiria con el de los demas. Fail-closed si la base no
+    // contesta (`idioma-instancia.ts`).
+    idioma: await idiomaDeLaInstancia(),
+  }
 }

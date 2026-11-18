@@ -76,3 +76,13 @@ describe('cuentaPorEstatus', () => {
     expect(c.ANULADA).toBe(1)
   })
 })
+
+// Costura del ingles (2026-11-02): la columna «La emite» de Finanzas decia
+// «Sin asignar» en ingles. No estaba en ninguna lista de pendientes: la
+// encontro el barrido con el diccionario de compartidos.
+describe('armarListaFacturas en ingles', () => {
+  it('sin emisora, «Unassigned»; en espanol, «Sin asignar»', () => {
+    expect(armarListaFacturas([F({ entidadEmisoraId: null })], CLIENTES, CAMPANAS, ENTIDADES, 'en')[0].emisora).toBe('Unassigned')
+    expect(armarListaFacturas([F({ entidadEmisoraId: null })], CLIENTES, CAMPANAS, ENTIDADES)[0].emisora).toBe('Sin asignar')
+  })
+})

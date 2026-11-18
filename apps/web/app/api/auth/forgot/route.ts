@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { limitar, ipDe } from '@/lib/server/rate-limit'
 import { crearReset } from '@/lib/server/password-reset-repo'
-import { enviarEmail, emailHabilitado, htmlCorreoReset } from '@/lib/server/email'
+import { enviarEmail, emailHabilitado, htmlCorreoReset, asuntoCorreoReset } from '@/lib/server/email'
+import { idiomaDeLaInstancia } from '@/lib/server/idioma-instancia'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -51,10 +52,15 @@ export async function POST(req: Request) {
       const link = `${base}/spaces-dooh/recuperar/${reset.token}`
       if (emailHabilitado()) {
         try {
+          // ADR 0049: en el idioma de la instancia, como la invitacion. Dentro
+          // de este try: si la base no contesta, `idiomaDeLaInstancia` LANZA
+          // (fail-closed) y el correo no sale en otro idioma; la respuesta es
+          // la misma de siempre (anti-enumeracion).
+          const idioma = await idiomaDeLaInstancia()
           await enviarEmail({
             to: reset.email,
-            subject: 'Restablece tu contraseña · Space OS',
-            html: htmlCorreoReset(reset.nombre, link),
+            subject: asuntoCorreoReset(idioma),
+            html: htmlCorreoReset(reset.nombre, link, idioma),
           })
         } catch (e) {
           // No revelamos el fallo al cliente (anti-enumeración); se registra.

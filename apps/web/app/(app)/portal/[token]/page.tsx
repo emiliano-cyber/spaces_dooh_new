@@ -17,6 +17,9 @@ import {
 } from '@/lib/data/client'
 import { ubicacion } from '@/lib/ubicacion'
 import { etiquetaTipoMedio } from '@/lib/tipo-medio'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { claveTipoMedio } from '@/components/demo/comercial/claves'
+import { CLAVE_ETAPA } from '@/components/demo/campanas/etiquetas'
 
 export default function PortalPage({ params }: { params: { token: string } }) {
   const campanas = useCampanas()
@@ -30,6 +33,7 @@ export default function PortalPage({ params }: { params: { token: string } }) {
   const [cargando, setCargando] = useState(true)
   // El membrete NO va al store: el store es del shell, y aquí no hay shell.
   const [org, setOrg] = useState<OrgPortal | null>(null)
+  const { t, idioma } = useIdioma()
   useEffect(() => {
     hidratarPortalPublico(params.token)
       .then(setOrg)
@@ -51,9 +55,9 @@ export default function PortalPage({ params }: { params: { token: string } }) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center px-4 text-center">
         <CircleHelp className="mb-3 h-8 w-8 text-muted" />
-        <h1 className="text-xl text-ink">Enlace no válido</h1>
+        <h1 className="text-xl text-ink">{t('cuenta.comun.enlace-invalido')}</h1>
         <p className="mt-1 text-[13px] text-muted">
-          Este enlace de portal no corresponde a ninguna campaña activa.
+          {t('cuenta.portal.no-corresponde')}
         </p>
       </div>
     )
@@ -91,10 +95,10 @@ export default function PortalPage({ params }: { params: { token: string } }) {
               <div className="font-display text-[15px] font-bold text-ink">
                 {org?.orgNombre || 'Spaces'}
               </div>
-              <div className="text-[10px] text-muted">Portal del cliente</div>
+              <div className="text-[10px] text-muted">{t('cuenta.portal.subtitulo')}</div>
             </div>
           </div>
-          <span className="text-[12px] text-muted">Seguimiento de campaña</span>
+          <span className="text-[12px] text-muted">{t('cuenta.portal.seguimiento')}</span>
         </div>
       </header>
 
@@ -105,12 +109,18 @@ export default function PortalPage({ params }: { params: { token: string } }) {
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted">
             <span className="inline-flex items-center gap-1.5">
               <CalendarDays className="h-3.5 w-3.5" />
-              {formatFecha(campana.fechaInicio)} – {formatFecha(campana.fechaFin)}
+              {formatFecha(campana.fechaInicio, idioma)} – {formatFecha(campana.fechaFin, idioma)}
             </span>
             {pipeline && (
               <span className="inline-flex items-center gap-1.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-                {pipeline.pasos[pipeline.index]?.label}
+                {/* La etapa la arma `usePipeline` en espanol (`ETAPA_LABEL`); en
+                    otro idioma, por `CLAVE_ETAPA`, como `PipelineView`. */}
+                {(() => {
+                  const paso = pipeline.pasos[pipeline.index]
+                  if (!paso) return null
+                  return idioma === 'es' ? paso.label : t(CLAVE_ETAPA[paso.key])
+                })()}
               </span>
             )}
           </div>
@@ -119,7 +129,7 @@ export default function PortalPage({ params }: { params: { token: string } }) {
         {/* Pipeline (sin financieros) */}
         <Card>
           <CardHeader>
-            <CardTitle>Avance de tu campaña</CardTitle>
+            <CardTitle>{t('cuenta.portal.avance')}</CardTitle>
           </CardHeader>
           <CardContent>
             <PipelineView campanaId={campana.id} />
@@ -129,7 +139,7 @@ export default function PortalPage({ params }: { params: { token: string } }) {
         {/* Ubicaciones (sin precios) */}
         <Card>
           <CardHeader>
-            <CardTitle>Ubicaciones</CardTitle>
+            <CardTitle>{t('cuenta.portal.ubicaciones')}</CardTitle>
           </CardHeader>
           <CardContent>
             <ul className="divide-y divide-border">
@@ -139,7 +149,7 @@ export default function PortalPage({ params }: { params: { token: string } }) {
                   <div className="min-w-0">
                     <div className="truncate text-[13px] text-ink">{s!.nombre}</div>
                     <div className="text-[11px] text-muted">
-                      {ubicacion([etiquetaTipoMedio(s!.tipoMedio), ubicacion([s!.alcaldia, s!.ciudad])], ' · ')}
+                      {ubicacion([idioma !== 'es' && claveTipoMedio(s!.tipoMedio) ? t(claveTipoMedio(s!.tipoMedio)!) : etiquetaTipoMedio(s!.tipoMedio), ubicacion([s!.alcaldia, s!.ciudad])], ' · ')}
                     </div>
                   </div>
                 </li>
@@ -151,7 +161,7 @@ export default function PortalPage({ params }: { params: { token: string } }) {
         {/* Evidencias */}
         <Card>
           <CardHeader>
-            <CardTitle>Evidencias de instalación</CardTitle>
+            <CardTitle>{t('cuenta.portal.evidencias')}</CardTitle>
           </CardHeader>
           <CardContent>
             <EvidenciaGaleria
@@ -166,7 +176,7 @@ export default function PortalPage({ params }: { params: { token: string } }) {
               una empresa que no es su proveedor (M5). Al corregirlo se dejó
               genérico —correcto pero mudo—; ahora dice el nombre de VERDAD, que
               es el de quien le presta el servicio a quien está leyendo. */}
-          {org?.orgNombre || 'Spaces'} · portal de seguimiento
+          {t('cuenta.portal.pie', { org: org?.orgNombre || 'Spaces' })}
         </p>
       </main>
     </div>

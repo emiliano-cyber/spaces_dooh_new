@@ -125,8 +125,8 @@ if (!solicitud) {
       await anotarEnEsa(`pidiendo el certificado de ${dominio}`)
       const { codigo } = await lanzarGuion({
         guion: GUION,
-        // Con Space Eyes el certificado lleva tambien eyes.<dominio>: si se
-        // reemitiera sin `--con-eyes`, se perderia ese nombre (ADR 0041).
+        // `--con-eyes` viaja igual: el certificado es de un solo nombre (los
+        // equipos entran por el mismo dominio), pero el guion lo sigue aceptando.
         argumentos: ['--host', String(aMedias.ip), '--dominio', String(dominio), '--emitir-certificado',
           ...(conEyes(aMedias) ? ['--con-eyes'] : []), '--confirmar'],
         entorno: process.env,
@@ -235,12 +235,8 @@ if (!esDeNuestraZona(solicitud.dominio, zonas)) {
       token: process.env.CLOUDFLARE_TOKEN ?? '',
     })
     await anotar(`registro A creado: ${solicitud.dominio} → ${ip} (sin proxy)`)
-    // Space Eyes vive en eyes.<dominio>, en el mismo droplet. Sin este nombre,
-    // el certificado (que lo lleva) no se puede emitir (ADR 0041).
-    if (conEyes(solicitud)) {
-      await crearRegistroA(`eyes.${solicitud.dominio}`, ip, { zonas, token: process.env.CLOUDFLARE_TOKEN ?? '' })
-      await anotar(`registro A creado: eyes.${solicitud.dominio} → ${ip} (sin proxy, Space Eyes)`)
-    }
+    // Space Eyes no necesita otro registro: sus equipos entran por este mismo
+    // dominio, que es el droplet de la empresa (infra/nginx/space-eyes.conf).
     await marcar(DIR, solicitud.id, ESPERANDO_DNS, { ip, dns: 'creado' })
   } catch (e) {
     await anotar(`el registro A no se pudo crear: ${e.message}`)

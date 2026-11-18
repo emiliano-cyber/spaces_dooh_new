@@ -55,6 +55,8 @@
 //  la pantalla de captura lo enseña como «a partir de N, X % sobre todo»; pero
 //  es una consecuencia real, no un detalle.
 // ============================================================================
+import { traducir, type ClaveTexto } from './i18n/diccionario'
+import type { Idioma } from './i18n/idiomas'
 
 /** Un peldaño de la escala: «a partir de `desdeCantidad`, `descuentoPct` %». */
 export type TramoVolumen = {
@@ -144,34 +146,42 @@ export function resolverVolumen(tramos: TramoVolumen[], cantidad: unknown): Volu
  * umbrales con el mismo porcentaje también se rechazan: el segundo no cambia
  * nada y solo sirve para hacer creer que sí.
  */
+// I18N (lote catalogos, 2026-11-02) · `idioma` es el ULTIMO parametro y vale
+// 'es' por omision: el servidor (el controlador, que es quien manda) no lo
+// pasa y sigue devolviendo el literal de siempre. La pantalla pasa el suyo; en
+// ingles el texto sale de `catalogos.motivo.*` y `textos/catalogos.test.ts`
+// ata el espanol del diccionario a estos literales.
 export function motivoTramoInvalido(
   tramo: TramoVolumen,
   otros: TramoVolumen[],
+  idioma: Idioma = 'es',
 ): string | null {
+  const m = (literal: string, clave: ClaveTexto, valores?: Record<string, string | number>) =>
+    idioma === 'es' ? literal : traducir(idioma, clave, valores)
   const unidad = String(tramo?.unidad ?? '').trim()
-  if (!unidad) return 'El tramo necesita una unidad de venta.'
+  if (!unidad) return m('El tramo necesita una unidad de venta.', 'catalogos.motivo.tramo.unidad')
 
   const bruto = tramo?.desdeCantidad
   if (typeof bruto !== 'number' && typeof bruto !== 'string') {
-    return 'La cantidad desde la que aplica tiene que ser un numero entero.'
+    return m('La cantidad desde la que aplica tiene que ser un numero entero.', 'catalogos.motivo.tramo.cantidad-entera')
   }
   const n = Number(bruto)
-  if (!Number.isFinite(n)) return 'La cantidad desde la que aplica tiene que ser un numero entero.'
+  if (!Number.isFinite(n)) return m('La cantidad desde la que aplica tiene que ser un numero entero.', 'catalogos.motivo.tramo.cantidad-entera')
   if (!Number.isInteger(n)) {
-    return 'La cantidad desde la que aplica tiene que ser un numero entero: no se venden fracciones de unidad.'
+    return m('La cantidad desde la que aplica tiene que ser un numero entero: no se venden fracciones de unidad.', 'catalogos.motivo.tramo.sin-fracciones')
   }
   // «Desde 1» aplicaría a TODA venta: eso no es un descuento por volumen, es
   // bajar el tarifario entero sin tocar una sola tarifa — y sin que se note.
-  if (n < 2) return 'Un tramo de volumen empieza desde 2 unidades o mas; "desde 1" seria bajar el tarifario entero.'
+  if (n < 2) return m('Un tramo de volumen empieza desde 2 unidades o mas; "desde 1" seria bajar el tarifario entero.', 'catalogos.motivo.tramo.desde-dos')
 
   const pctBruto = tramo?.descuentoPct
   if (typeof pctBruto !== 'number' && typeof pctBruto !== 'string') {
-    return 'El descuento tiene que ser un numero.'
+    return m('El descuento tiene que ser un numero.', 'catalogos.motivo.tramo.pct-numero')
   }
   const p = Number(pctBruto)
-  if (!Number.isFinite(p)) return 'El descuento tiene que ser un numero.'
-  if (p <= 0) return 'El descuento de un tramo tiene que ser mayor que 0 %: un tramo al 0 % no hace nada.'
-  if (p > 100) return 'El descuento de un tramo no puede pasar del 100 %.'
+  if (!Number.isFinite(p)) return m('El descuento tiene que ser un numero.', 'catalogos.motivo.tramo.pct-numero')
+  if (p <= 0) return m('El descuento de un tramo tiene que ser mayor que 0 %: un tramo al 0 % no hace nada.', 'catalogos.motivo.tramo.pct-cero')
+  if (p > 100) return m('El descuento de un tramo no puede pasar del 100 %.', 'catalogos.motivo.tramo.pct-cien')
 
   for (const otro of otros ?? []) {
     if (otro?.id && tramo?.id && otro.id === tramo.id) continue
@@ -180,16 +190,25 @@ export function motivoTramoInvalido(
     const op = Number(otro?.descuentoPct)
     if (!Number.isFinite(od) || !Number.isFinite(op)) continue
     if (od === n) {
-      return `Ya hay un tramo desde ${n} para esta unidad (${op} %). Dos tramos con el mismo umbral son dos precios para la misma compra.`
+      return m(
+        `Ya hay un tramo desde ${n} para esta unidad (${op} %). Dos tramos con el mismo umbral son dos precios para la misma compra.`,
+        'catalogos.motivo.tramo.mismo-umbral', { n, pct: op },
+      )
     }
     // Crecimiento estricto en las dos direcciones. Escrito con los dos casos
     // separados —y no con un `(od - n) * (op - p) <= 0`— porque el mensaje tiene
     // que poder nombrar el tramo con el que choca.
     if (od < n && op >= p) {
-      return `No se puede comprar mas y descontar menos: el tramo desde ${od} ya da ${op} % y este, desde ${n}, daria ${p} %.`
+      return m(
+        `No se puede comprar mas y descontar menos: el tramo desde ${od} ya da ${op} % y este, desde ${n}, daria ${p} %.`,
+        'catalogos.motivo.tramo.mas-y-menos', { otroDesde: od, otroPct: op, n, pct: p },
+      )
     }
     if (od > n && op <= p) {
-      return `No se puede comprar mas y descontar menos: el tramo desde ${od} da ${op} % y este, desde ${n}, daria ${p} %.`
+      return m(
+        `No se puede comprar mas y descontar menos: el tramo desde ${od} da ${op} % y este, desde ${n}, daria ${p} %.`,
+        'catalogos.motivo.tramo.menos-y-mas', { otroDesde: od, otroPct: op, n, pct: p },
+      )
     }
   }
   return null

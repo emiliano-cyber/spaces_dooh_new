@@ -140,6 +140,24 @@ describe('tarifaCalculada · casos representativos con su número', () => {
     expect(r).toMatchObject({ tarifa: 1500, origen: 'temporada', temporadaId: 'T-DIC' })
   })
 
+  it('B43 · `temporadaQuePuso` es la de la fila GANADORA, no la que cubre la fecha', () => {
+    // En el Buen Fin con el prime gana (F-PRIME, T-BUENFIN): la temporada SÍ puso el precio.
+    const exacta = tarifaCalculada({
+      sitio: CON_REJILLA, unidad: 'spot', franjaId: 'F-PRIME', temporadas: TEMPORADAS, fechaInicio: '2026-11-14',
+    })
+    expect(exacta.temporadaQuePuso).toBe('T-BUENFIN')
+    // La madrugada en el Buen Fin: gana (F-MADRUGADA, —). La temporada cubre la
+    // fecha —`temporadaId` lo sigue diciendo— pero NO puso el precio.
+    const porFranja = tarifaCalculada({
+      sitio: CON_REJILLA, unidad: 'spot', franjaId: 'F-MADRUGADA', temporadas: TEMPORADAS, fechaInicio: '2026-11-14',
+    })
+    expect(porFranja.temporadaId).toBe('T-BUENFIN')
+    expect(porFranja.temporadaQuePuso).toBeNull()
+    // Y a tarifa base, sin fila, tampoco.
+    const base = tarifaCalculada({ sitio: CON_MODALIDADES, unidad: 'spot', temporadas: TEMPORADAS, fechaInicio: '2026-11-14' })
+    expect(base.temporadaQuePuso).toBeNull()
+  })
+
   it('un CERO de la rejilla es un precio capturado, y es calculable', () => {
     // `lib/rejilla.ts`: «Un CERO de la rejilla es un precio, no un hueco». La
     // madrugada regalada la decidió el dueño; el vendedor la puede vender así.

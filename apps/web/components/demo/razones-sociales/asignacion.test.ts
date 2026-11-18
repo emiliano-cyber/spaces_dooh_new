@@ -174,3 +174,31 @@ describe('5 · etiquetaAsignacion', () => {
     expect(t).toMatch(/no disponible|desconocid/i)
   })
 })
+
+// Costura del ingles (2026-11-02): Finanzas ya estaba traducida pero pintaba
+// «Emite: Sin asignar» y las opciones del selector en espanol. `idioma` va al
+// final con 'es' por omision: Arrendadores y el servidor no lo pasan.
+describe('en ingles', () => {
+  const lista = [ent({ id: 'a', razonSocial: 'AS Media', activo: false }), ent({ id: 'b', razonSocial: 'Beta SA' })]
+
+  it('la etiqueta de la fila', () => {
+    expect(etiquetaAsignacion(lista, null, 'en')).toBe('Unassigned')
+    expect(etiquetaAsignacion(lista, 'a', 'en')).toBe('AS Media (deactivated)')
+    expect(etiquetaAsignacion(lista, 'zz', 'en')).toBe('Legal entity not available')
+    expect(etiquetaAsignacion(lista, 'b', 'en')).toBe('Beta SA')
+  })
+
+  it('las opciones del selector', () => {
+    const o = opcionesDeAsignacion(lista, ROL_COMPROBANTE, 'a', 'en').map((x) => x.etiqueta)
+    expect(o).toEqual(['Unassigned…', 'AS Media (deactivated)', 'Beta SA'])
+  })
+
+  it('en espanol, lo de siempre', () => {
+    expect(etiquetaAsignacion(lista, null, 'es')).toBe(ETIQUETA_SIN_ASIGNAR)
+    expect(etiquetaAsignacion(lista, 'a', 'es')).toBe('AS Media (dada de baja)')
+    expect(etiquetaAsignacion(lista, 'zz', 'es')).toBe('Razon social no disponible')
+    expect(opcionesDeAsignacion(lista, ROL_COMPROBANTE, 'a', 'es').map((x) => x.etiqueta)).toEqual(
+      opcionesDeAsignacion(lista, ROL_COMPROBANTE, 'a').map((x) => x.etiqueta),
+    )
+  })
+})

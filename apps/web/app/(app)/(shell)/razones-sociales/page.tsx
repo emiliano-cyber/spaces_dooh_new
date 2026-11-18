@@ -1,12 +1,12 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import Link from 'next/link'
-import { Building2 } from 'lucide-react'
-import { Card, CardContent } from '@/components/demo/ui/Card'
+import { AlertTriangle } from 'lucide-react'
+import { TONO } from '@/components/demo/admin/Chip'
 import { GestionEntidadesFiscales } from '@/components/demo/razones-sociales/GestionEntidadesFiscales'
 import type { EntidadUI } from '@/components/demo/razones-sociales/gestion'
 import type { RolCatalogo } from '@/lib/cuestionario-entidades'
+import { useTexto } from '@/lib/i18n/contexto'
 
 const API = '/spaces-dooh/api'
 
@@ -51,6 +51,7 @@ interface Respuesta {
 export default function RazonesSocialesPage() {
   const [datos, setDatos] = useState<Respuesta | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const t = useTexto()
 
   const cargar = useCallback(async () => {
     try {
@@ -65,16 +66,19 @@ export default function RazonesSocialesPage() {
         // buscando un fallo que no existe.
         setError(
           r.status === 403
-            ? 'Tu rol no tiene acceso a la administración de la organización.'
-            : (d?.error ?? 'No se pudieron cargar las razones sociales'),
+            ? t('admin.razones.sin-acceso')
+            : (d?.error ?? t('admin.razones.error')),
         )
         return
       }
       setError(null)
       setDatos({ entidades: d.entidades ?? [], catalogo: d.catalogo ?? [] })
     } catch {
-      setError('No se pudieron cargar las razones sociales')
+      setError(t('admin.razones.error'))
     }
+    // `t` fuera a proposito: el mensaje se elige al fallar, y releer la
+    // lista por un cambio de idioma no aporta nada.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -84,23 +88,20 @@ export default function RazonesSocialesPage() {
   return (
     <div className="w-full space-y-4">
       <div>
-        <h1 className="flex items-center gap-2 text-2xl text-ink">
-          <Building2 className="h-5 w-5 text-muted" /> Razones sociales
-        </h1>
+        {/* Sin icono delante, como el resto de los módulos. */}
+        <h1 className="text-2xl text-ink">{t('admin.razones.titulo')}</h1>
         <p className="mt-1 text-[13px] text-muted">
-          Las de tu empresa · con cuál pagas las rentas, compras los activos, tramitas licencias y
-          vendes
+          {t('admin.razones.subtitulo')}
         </p>
       </div>
 
       {error && (
-        <Card>
-          <CardContent className="pt-4">
-            <p role="alert" className="text-[13px] text-ink">
-              {error}
-            </p>
-          </CardContent>
-        </Card>
+        <div className={`flex items-start gap-2 rounded-md border px-4 py-3 ${TONO.error}`}>
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-error" />
+          <p role="alert" className="m-0 text-[13px] text-ink">
+            {error}
+          </p>
+        </div>
       )}
 
       {!error && !datos && <div className="h-40 animate-pulse rounded-md bg-surface-2" />}
@@ -118,15 +119,9 @@ export default function RazonesSocialesPage() {
             puedeEditar
             alCambiar={() => void cargar()}
           />
-          {datos.entidades.length === 0 && (
-            <p className="text-[12.5px] text-muted">
-              Si prefieres capturarlas contestando tres preguntas, el{' '}
-              <Link href="/bienvenida" className="underline hover:text-ink">
-                cuestionario de bienvenida
-              </Link>{' '}
-              las crea de una vez con sus papeles.
-            </p>
-          )}
+          {/* El enlace al cuestionario de bienvenida vivía aquí, suelto debajo
+              de la tarjeta. Ahora va DENTRO del estado vacío de
+              `GestionEntidadesFiscales`, junto a «Nueva razón social». */}
         </>
       )}
     </div>

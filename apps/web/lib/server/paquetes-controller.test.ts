@@ -92,7 +92,7 @@ describe('1 · la regla 2 del ADR: la bandera NACE APAGADA', () => {
 describe('2 · las reglas de formato vienen del módulo puro', () => {
   it('un precio con centavos se rechaza con la frase que dice qué hacer', async () => {
     await expect(guardarPaqueteCtrl({ ...CUERPO, precioCerrado: 180_000.5 })).rejects.toThrow(
-      /entero/i,
+      /cantidad entera/i,
     )
     expect(guardado).not.toHaveBeenCalled()
   })

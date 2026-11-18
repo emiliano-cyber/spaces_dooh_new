@@ -346,15 +346,16 @@ escrito_dice /opt/space-os/eyes/docker-compose.yml 'name: space-eyes'
 hubo 'ufw allow'
 # Que se CORRA, no solo que se copie: la copia tambien menciona la ruta.
 hubo_regex 'root@[^ ]+ /opt/space-os/update-eyes.sh$'
-dice "eyes.$DOM"
+no_hubo "eyes.$DOM"
 limpiar
 
-escenario 'EYES · --emitir-certificado --con-eyes pide el certificado con los DOS nombres'
+escenario 'EYES · --emitir-certificado --con-eyes pide el certificado con UN solo nombre'
 preparar
 correr -u REGISTRY -u REGISTRY_TOKEN CERTBOT_EMAIL=x@ejemplo.com -- \
   --host "$IP" --dominio "$DOM" --emitir-certificado --con-eyes --confirmar
 codigo_es 0
-hubo_regex "certbot certonly .*-d '$DOM' -d 'eyes\.$DOM'"
+hubo_regex "certbot certonly .*-d '$DOM'"
+no_hubo "eyes.$DOM"
 limpiar
 
 escenario 'EYES · sin --con-eyes, ni eyes.env ni segundo nombre en el certificado'
@@ -589,6 +590,147 @@ codigo_es 0
 hubo 'cuerpo-bootstrap'
 no_hubo '"password"'
 hubo '"email":"a@ejemplo.com"'
+limpiar
+
+# ============================================================================
+#  ADR 0048 · la moneda de la instancia se elige en el bootstrap y NO se cambia
+# ============================================================================
+escenario 'ADR 0048 · sin --moneda el cuerpo pide MXN, y la pantalla lo avisa'
+preparar
+correr D_CODIGO_BOOT=201 --   --host "$IP" --dominio "$DOM" --instancia p --email a@ejemplo.com --bootstrap --confirmar
+codigo_es 0
+hubo '"moneda":"MXN"'
+dice 'NO se podra cambiar'
+limpiar
+
+escenario 'ADR 0048 · --moneda USD viaja en el cuerpo del POST'
+preparar
+correr D_CODIGO_BOOT=201 --   --host "$IP" --dominio "$DOM" --instancia p --email a@ejemplo.com --bootstrap --moneda USD --confirmar
+codigo_es 0
+hubo '"moneda":"USD"'
+no_hubo '"moneda":"MXN"'
+limpiar
+
+escenario 'ADR 0048 · --moneda EUR se para ANTES de tocar el servidor'
+preparar
+correr D_CODIGO_BOOT=201 --   --host "$IP" --dominio "$DOM" --instancia p --email a@ejemplo.com --bootstrap --moneda EUR --confirmar
+codigo_es 64
+dice 'tiene que ser MXN o USD'
+no_hubo 'cuerpo-bootstrap'
+limpiar
+
+escenario 'ADR 0048 · --moneda sin --bootstrap se para, no se ignora'
+preparar
+correr -- --host "$IP" --dominio "$DOM" --instancia p --moneda USD --confirmar
+codigo_es 64
+dice 'solo vale junto con --bootstrap'
+no_hubo 'cuerpo-bootstrap'
+limpiar
+
+escenario 'ADR 0048 · usd en minusculas tambien se para (no se adivina)'
+preparar
+correr D_CODIGO_BOOT=201 --   --host "$IP" --dominio "$DOM" --instancia p --email a@ejemplo.com --bootstrap --moneda usd --confirmar
+codigo_es 64
+no_hubo 'cuerpo-bootstrap'
+limpiar
+
+# ============================================================================
+#  ADR 0049 · el idioma de los DOCUMENTOS se elige en el bootstrap y NO se cambia
+# ============================================================================
+escenario 'B60 · --ayuda imprime la cabecera hasta donde siempre, ahora con --idioma'
+preparar
+correr -- --ayuda
+codigo_es 0
+dice '[--idioma es|en|it|pt]'
+dice 'SPACES_REGION                 OBLIGATORIA'
+# Ni una linea de mas: la ventana de `uso()` se corre con la cabecera.
+if grep -qF 'del bucket se lee en su URL' "$SALIDA"; then mal 'la ayuda imprime una linea de mas'; else bien; fi
+limpiar
+
+escenario 'ADR 0049 · sin --idioma el cuerpo pide es, y la pantalla lo avisa'
+preparar
+correr D_CODIGO_BOOT=201 --   --host "$IP" --dominio "$DOM" --instancia p --email a@ejemplo.com --bootstrap --confirmar
+codigo_es 0
+hubo '"idiomaDocumentos":"es"'
+dice 'idioma de los documentos: es'
+limpiar
+
+escenario 'ADR 0049 · --idioma en viaja en el cuerpo del POST, junto con la moneda'
+preparar
+correr D_CODIGO_BOOT=201 --   --host "$IP" --dominio "$DOM" --instancia p --email a@ejemplo.com --bootstrap --moneda USD --idioma en --confirmar
+codigo_es 0
+hubo '"idiomaDocumentos":"en"'
+hubo '"moneda":"USD"'
+no_hubo '"idiomaDocumentos":"es"'
+limpiar
+
+escenario 'ADR 0049 · --idioma=it (con igual) tambien vale'
+preparar
+correr D_CODIGO_BOOT=201 --   --host "$IP" --dominio "$DOM" --instancia p --email a@ejemplo.com --bootstrap --idioma=it --confirmar
+codigo_es 0
+hubo '"idiomaDocumentos":"it"'
+limpiar
+
+escenario 'ADR 0049 · --idioma fr se para ANTES de tocar el servidor'
+preparar
+correr D_CODIGO_BOOT=201 --   --host "$IP" --dominio "$DOM" --instancia p --email a@ejemplo.com --bootstrap --idioma fr --confirmar
+codigo_es 64
+dice 'tiene que ser es, en, it o pt'
+no_hubo 'cuerpo-bootstrap'
+limpiar
+
+escenario 'P3 · --idioma pt (portugues de Brasil) viaja en el cuerpo del POST'
+preparar
+correr D_CODIGO_BOOT=201 --   --host "$IP" --dominio "$DOM" --instancia p --email a@ejemplo.com --bootstrap --idioma pt --confirmar
+codigo_es 0
+hubo '"idiomaDocumentos":"pt"'
+no_hubo '"idiomaDocumentos":"es"'
+dice 'idioma de los documentos: pt'
+limpiar
+
+escenario 'P3 · --idioma=pt (con igual) tambien vale'
+preparar
+correr D_CODIGO_BOOT=201 --   --host "$IP" --dominio "$DOM" --instancia p --email a@ejemplo.com --bootstrap --idioma=pt --confirmar
+codigo_es 0
+hubo '"idiomaDocumentos":"pt"'
+limpiar
+
+escenario 'P3 · --idioma pt-BR se para ANTES de tocar el servidor (la clave es pt, no la etiqueta)'
+preparar
+correr D_CODIGO_BOOT=201 --   --host "$IP" --dominio "$DOM" --instancia p --email a@ejemplo.com --bootstrap --idioma pt-BR --confirmar
+codigo_es 64
+dice 'tiene que ser es, en, it o pt'
+no_hubo 'cuerpo-bootstrap'
+limpiar
+
+escenario 'P3 · PT en mayusculas tambien se para'
+preparar
+correr D_CODIGO_BOOT=201 --   --host "$IP" --dominio "$DOM" --instancia p --email a@ejemplo.com --bootstrap --idioma PT --confirmar
+codigo_es 64
+no_hubo 'cuerpo-bootstrap'
+limpiar
+
+escenario 'P3 · --idioma pt sin --bootstrap se para, no se ignora'
+preparar
+correr -- --host "$IP" --dominio "$DOM" --instancia p --idioma pt --confirmar
+codigo_es 64
+dice 'solo vale junto con --bootstrap'
+no_hubo 'cuerpo-bootstrap'
+limpiar
+
+escenario 'ADR 0049 · EN en mayusculas tambien se para (no se adivina)'
+preparar
+correr D_CODIGO_BOOT=201 --   --host "$IP" --dominio "$DOM" --instancia p --email a@ejemplo.com --bootstrap --idioma EN --confirmar
+codigo_es 64
+no_hubo 'cuerpo-bootstrap'
+limpiar
+
+escenario 'ADR 0049 · --idioma sin --bootstrap se para, no se ignora'
+preparar
+correr -- --host "$IP" --dominio "$DOM" --instancia p --idioma en --confirmar
+codigo_es 64
+dice 'solo vale junto con --bootstrap'
+no_hubo 'cuerpo-bootstrap'
 limpiar
 
 escenario '36d · con 201 SI lo afirma, y sale bien'
@@ -1146,8 +1288,12 @@ if [ "${1:-}" = '--mutantes' ]; then
   probar_mutante 'el alta vuelve a imprimir una clave del Dueno' \
     's@La organizacion no lleva contrasena@    clave:    xxxx@'
 
+  # Desde los ADR 0048/0049 el cuerpo sigue con la moneda y el idioma DESPUES
+  # del correo, y la expresion vieja (`"email":"$EMAIL_DUENO"}`) dejo de casar:
+  # el mutante no se aplicaba y la barrida lo contaba como malo (CI del PR de
+  # la v0.12.6, 05/11). Se ancla en la coma que sigue al correo.
   probar_mutante 'el cuerpo del bootstrap vuelve a llevar password' \
-    's@"email":"$EMAIL_DUENO"}@"email":"$EMAIL_DUENO","password":"x"}@'
+    's@"email":"$EMAIL_DUENO",@"email":"$EMAIL_DUENO","password":"x",@'
 
   # ─── Lo que se ESCRIBE en la instancia (2026-09-11) ───────────────────────
   #  El primero es el mas grave de todo este archivo: deja la APLICACION

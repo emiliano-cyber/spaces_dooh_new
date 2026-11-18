@@ -15,33 +15,56 @@ let finActual: string | null = '2026-09-30'
 // ella es que otra extensión la llevó más lejos entre la lectura y el update.
 let escribeCampana = true
 
+// EXT-CONTRATO (29/10) · la extensión va en UNA transacción (cliente de
+// `pool.connect`), así que el mock responde igual por `q` y por el cliente, y
+// anota las dos en `consultas` para poder afirmar el ORDEN (begin … commit).
+function responder(texto: string): unknown[] {
+  if (/select fecha_fin/i.test(texto)) return finActual == null ? [] : [{ fecha_fin: finActual }]
+  if (/^\s*update campanas/i.test(texto)) return escribeCampana ? [{ id: 'cmp-1', folio: 'PR-2026-0042.1' }] : []
+  if (/select \* from campanas/i.test(texto)) {
+    return [{ id: 'cmp-1', nombre: 'Campaña', fecha_inicio: '2026-08-01', fecha_fin: finActual }]
+  }
+  return []
+}
+let liberado = 0
 vi.mock('./db', () => ({
   q: vi.fn(async (texto: string, params: unknown[] = []) => {
     consultas.push({ texto, params })
-    if (/select fecha_fin/i.test(texto)) return finActual == null ? [] : [{ fecha_fin: finActual }]
-    if (/^\s*update campanas/i.test(texto)) return escribeCampana ? [{ id: 'cmp-1' }] : []
-    if (/select \* from campanas/i.test(texto)) {
-      return [{ id: 'cmp-1', nombre: 'Campaña', fecha_inicio: '2026-08-01', fecha_fin: finActual }]
-    }
-    return []
+    return responder(texto)
   }),
   q1: vi.fn(async () => null),
-  pool: { connect: vi.fn() },
-  fijarTenant: vi.fn(async () => {}),
+  pool: {
+    connect: vi.fn(async () => ({
+      query: vi.fn(async (texto: string, params: unknown[] = []) => {
+        consultas.push({ texto, params })
+        return { rows: responder(texto) }
+      }),
+      release: () => {
+        liberado++
+      },
+    })),
+  },
+  fijarTenant: vi.fn(async () => {
+    consultas.push({ texto: 'fijarTenant', params: [] })
+  }),
 }))
 vi.mock('./tenant', () => ({ tenantActual: vi.fn(async () => 't1') }))
 
 const { extenderCampana } = await import('./campanas-repo')
 
+const PDF = 'data:application/pdf;base64,JVBERi0xLjQK'
+const USUARIO = { id: 'u-1', nombre: 'Ana' }
+
 beforeEach(() => {
   consultas.length = 0
   finActual = '2026-09-30'
   escribeCampana = true
+  liberado = 0
 })
 
 async function extender(nueva: string) {
   try {
-    const c = await extenderCampana('cmp-1', nueva)
+    const c = await extenderCampana('cmp-1', nueva, PDF, USUARIO)
     return { ok: true as const, campana: c, mensaje: '', status: 200 }
   } catch (e) {
     const err = e as Error & { status?: number }
@@ -59,9 +82,14 @@ describe('control · extender de verdad sigue funcionando', () => {
     expect(consultas.some((c) => /update reservas\s+set fecha_fin/i.test(c.texto))).toBe(true)
   })
 
-  it('la MISMA fecha no es un acortamiento: no se rechaza', async () => {
+  // EXT-CONTRATO (29/10) · hasta hoy la MISMA fecha pasaba (no acorta). Con el
+  // contrato obligatorio dejaría en el expediente una «extensión» firmada que
+  // no alarga nada, así que ahora se rechaza igual que acortar, sin escribir.
+  it('NEGATIVO · la MISMA fecha ya no es una extensión: 400 y no escribe nada', async () => {
     const r = await extender('2026-09-30')
-    expect(r.ok, r.mensaje).toBe(true)
+    expect(r.ok).toBe(false)
+    expect(r.status).toBe(400)
+    expect(consultas.filter((c) => /^\s*(update|insert)/i.test(c.texto))).toEqual([])
   })
 })
 
@@ -137,8 +165,71 @@ describe('FOLIO-VENTA (07/10) · el tramo .1/.2 lo pone el mismo update', () => 
     expect(consultas.some((c) => /update reservas/i.test(c.texto))).toBe(false)
   })
 
-  it('el update no acorta: lleva la condición sobre la fecha que tiene la fila', async () => {
+  it('el update no acorta ni repite: lleva la condición estricta sobre la fecha de la fila', async () => {
     await extender('2026-12-31')
-    expect(upd()).toMatch(/fecha_fin <= \$2::date/)
+    expect(upd()).toMatch(/fecha_fin < \$2::date/)
+  })
+})
+
+describe('EXT-CONTRATO (29/10) · la extensión deja su contrato en el expediente', () => {
+  const insercion = () => consultas.find((c) => /insert into campana_extensiones/i.test(c.texto))
+  const indice = (re: RegExp) => consultas.findIndex((c) => re.test(c.texto))
+
+  it('inserta la fila con el contrato, las dos fechas, el folio del tramo y quién', async () => {
+    const r = await extender('2026-12-31')
+    expect(r.ok, r.mensaje).toBe(true)
+    const ins = insercion()
+    expect(ins, 'no se insertó la extensión').toBeDefined()
+    expect(ins!.texto).toMatch(/tenant_id/)
+    for (const v of ['t1', 'cmp-1', 'PR-2026-0042.1', '2026-09-30', '2026-12-31', PDF, 'u-1', 'Ana']) {
+      expect(ins!.params, String(v)).toContain(v)
+    }
+  })
+
+  it('fecha, folio, contrato y reservas van en UNA transacción, en ese orden', async () => {
+    await extender('2026-12-31')
+    const begin = indice(/^begin$/i)
+    const tenant = indice(/^fijarTenant$/)
+    const lectura = indice(/select fecha_fin/i)
+    const camp = indice(/^\s*update campanas/i)
+    const ins = indice(/insert into campana_extensiones/i)
+    const res = indice(/update reservas/i)
+    const commit = indice(/^commit$/i)
+    expect(begin).toBeGreaterThanOrEqual(0)
+    expect([begin, tenant, lectura, camp, ins, res, commit]).toEqual(
+      [begin, tenant, lectura, camp, ins, res, commit].slice().sort((a, b) => a - b),
+    )
+    expect(new Set([begin, tenant, lectura, camp, ins, res, commit]).size).toBe(7)
+    expect(liberado).toBe(1)
+  })
+
+  it('la lectura de la fecha actual bloquea la fila (`for update`)', async () => {
+    await extender('2026-12-31')
+    expect(consultas.find((c) => /select fecha_fin/i.test(c.texto))?.texto).toMatch(/for update/i)
+  })
+
+  it('NEGATIVO · si otra extensión ganó: rollback, sin fila de extensión ni reservas', async () => {
+    escribeCampana = false
+    const r = await extender('2026-12-31')
+    expect(r.status).toBe(409)
+    expect(insercion()).toBeUndefined()
+    expect(indice(/^rollback$/i)).toBeGreaterThanOrEqual(0)
+    expect(indice(/^commit$/i)).toBe(-1)
+    expect(liberado).toBe(1)
+  })
+
+  it('NEGATIVO · acortar no deja fila de extensión', async () => {
+    const r = await extender('2026-08-15')
+    expect(r.status).toBe(400)
+    expect(insercion()).toBeUndefined()
+    expect(indice(/^commit$/i)).toBe(-1)
+  })
+
+  it('NEGATIVO · campaña inexistente: null, sin fila y sin commit', async () => {
+    finActual = null
+    const r = await extender('2026-12-31')
+    expect(r.campana).toBeNull()
+    expect(insercion()).toBeUndefined()
+    expect(indice(/^commit$/i)).toBe(-1)
   })
 })

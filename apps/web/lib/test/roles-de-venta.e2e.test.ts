@@ -432,6 +432,9 @@ describe('6 · GUARD 2 — la organización nunca se queda sin Dueño activo', (
       cuerpo: { rol: 'ADMINISTRADOR' },
     })
     expect(degradar.status).toBe(409)
+    // Desde el 2026-11-09 el DELETE exige reautenticación: sin ella daría 403 y
+    // este 409 —el del guard del último Dueño— no se llegaría a medir.
+    await desbloquear(c)
     const borrar = await c.pedir(`/api/usuarios/${d1}/`, { metodo: 'DELETE' })
     expect(borrar.status).toBe(409)
     expect(await duenosActivos()).toBe(1)
@@ -439,6 +442,7 @@ describe('6 · GUARD 2 — la organización nunca se queda sin Dueño activo', (
 
   it('un Dueño YA inactivo sí se puede eliminar: no quita a nadie', async () => {
     const c = await entrar('director')
+    await desbloquear(c)
     const r = await c.pedir(`/api/usuarios/${d3}/`, { metodo: 'DELETE' })
     expect(r.status).toBe(200)
     expect(await duenosActivos()).toBe(1)

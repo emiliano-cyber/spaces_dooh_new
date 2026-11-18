@@ -6,6 +6,9 @@ import { cookies } from 'next/headers'
 // Solo leen `tenants`, que NO tiene RLS. `usuarios` SÍ es fail-closed: ver la cabecera.
 import { qRaw as q, qRaw1 as q1 } from './db'
 import { usuarioActual } from './auth'
+import { MONEDA_POR_OMISION, type Moneda } from '@/lib/i18n/dinero'
+import { monedaDeLaInstancia } from './moneda-instancia'
+import { IDIOMA_POR_OMISION, type Idioma } from '@/lib/i18n/idiomas'
 
 // ============================================================================
 //  lib/server/tenant.ts — Multi-tenant a nivel aplicación.
@@ -31,6 +34,11 @@ export const tenantPlataforma = cache(async (): Promise<string | null> => {
 
 // Tenant activo de la request (memoizado). Null solo si no hay sesión.
 export const tenantActual = cache(async (): Promise<string | null> => {
+  // ADR 0048 · el PUNTO COMUN donde se fija la moneda de la instancia para el
+  // servidor: casi toda peticion con sesion pasa por aqui antes de formatear un
+  // importe. Va cacheada por proceso (`moneda-instancia.ts`): una consulta la
+  // primera vez, ninguna despues.
+  await monedaDeLaInstancia()
   const u = await usuarioActual()
   if (!u) return null
   const override = cookies().get(TENANT_COOKIE)?.value
@@ -86,10 +94,21 @@ export async function listarTenants(): Promise<TenantRow[]> {
 // No se duplica la función. Duplicarla habría separado en dos sitios la lógica
 // que resuelve el choque de slug, y ese es el error que `cuentas-controller.ts:36-40`
 // documenta como «la forma segura de que las tres divergieran».
+//
+// ADR 0048: `moneda` es la de la INSTANCIA y se escribe AQUI, al nacer, porque
+// despues la base no deja cambiarla. La decide `crearOrgConDueno` (la primera
+// organizacion la elige; las demas heredan la de la instancia).
+//
+// ADR 0049: lo mismo con el idioma de los DOCUMENTOS (contrato y constancia).
+// El tipo fue `IdiomaEnLaBase` mientras el CHECK solo admitia es/en/it (H2 de
+// la ola 0 del portugues). Desde la migracion de P3 (20261105) la columna
+// admite los cuatro, `IdiomaEnLaBase` ya no existe y el tipo vuelve a `Idioma`.
 export async function crearTenant(
   nombre: string,
   slug: string,
   client?: PoolClient,
+  moneda: Moneda = MONEDA_POR_OMISION,
+  idiomaDocumentos: Idioma = IDIOMA_POR_OMISION,
 ): Promise<TenantRow> {
   const base = slug.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'crm'
   const uno = async (texto: string, params: unknown[]) =>
@@ -100,8 +119,8 @@ export async function crearTenant(
     s = `${base}-${i}`
   }
   const row = await uno(
-    'insert into tenants (nombre, slug) values ($1,$2) returning id, nombre, slug, creado_en',
-    [nombre.trim(), s],
+    'insert into tenants (nombre, slug, moneda, idioma_documentos) values ($1,$2,$3,$4) returning id, nombre, slug, creado_en',
+    [nombre.trim(), s, moneda, idiomaDocumentos],
   )
   return { id: row.id, nombre: row.nombre, slug: row.slug, creadoEn: row.creado_en }
 }

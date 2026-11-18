@@ -44,7 +44,7 @@ eyes_env() {
   local h; h() { openssl rand -hex 32; }
   reescribir_env_docker "$plantilla" \
     "INSTANCIA_OWNER=$owner" \
-    "EYES_DOMINIO=eyes.$dominio" \
+    "EYES_DOMINIO=$dominio" \
     "IP_PUBLICA=$ip" \
     "EYES_IMAGEN=$imagen" \
     "INSTANCIA_LLAVE=$EYES_LLAVE" \
@@ -77,5 +77,6 @@ eyes_archivos() {
   printf '%s\t%s\t%s\n' \
     "$raiz/infra/eyes/docker-compose.yml" "/opt/space-os/eyes/docker-compose.yml" 640 \
     "$raiz/infra/eyes/mediamtx.yml"       "/opt/space-os/eyes/mediamtx.yml"       640 \
-    "$raiz/infra/scripts/update-eyes.sh"  "/opt/space-os/update-eyes.sh"          750
+    "$raiz/infra/scripts/update-eyes.sh"  "/opt/space-os/update-eyes.sh"          750 \
+    "$raiz/infra/nginx/space-eyes.conf"   "/etc/nginx/snippets/space-eyes.conf"   644
 }

@@ -145,17 +145,20 @@ const nextConfig = {
   basePath: '/spaces-dooh',
   trailingSlash: true,
   transpilePackages: ['@spaces-dooh/types'],
+  // El optimizador de imágenes, APAGADO (SEG-21OCT, 21/10). Next 14.2.29 arrastra
+  // GHSA-2xp9-vwfh-vxw4: ejecución remota de código SIN SESIÓN en `/_next/image`
+  // al optimizar un AVIF (`libheif` dentro de `sharp`), y no hay parche en la
+  // rama 14 — el primero es 15.5.24. Estaba alcanzable: `/_next/image` es público
+  // y `remotePatterns` aceptaba `*.digitaloceanspaces.com`, que es el bucket de
+  // CUALQUIERA, no el nuestro.
+  //
+  // La aplicación no usa `next/image`, así que no se pierde nada. Con
+  // `unoptimized`, Next contesta 404 antes de validar parámetros o pedir la
+  // imagen. Y sin `remotePatterns`, aunque alguien lo volviera a encender, no
+  // aceptaría un archivo de fuera. Lo fija `lib/imagenes-sin-optimizador.test.ts`.
+  // Se vuelve a encender DESPUÉS de subir a una versión con el parche, no antes.
   images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: '*.digitaloceanspaces.com',
-      },
-      {
-        protocol: 'https',
-        hostname: '*.cdn.digitaloceanspaces.com',
-      },
-    ],
+    unoptimized: true,
   },
   async redirects() {
     // La raíz del basePath (/spaces-dooh/) no renderiza una página propia

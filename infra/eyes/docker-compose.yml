@@ -11,11 +11,12 @@
 #  flota entera.
 #
 #  PUERTOS. Lo que solo usa este droplet va a 127.0.0.1 y lo publica nginx por
-#  eyes.<dominio> con el certificado de la instancia. Lo que tiene que llegar
+#  el MISMO dominio de la instancia (infra/nginx/space-eyes.conf): no hay
+#  subdominio aparte, cada empresa habla solo con su droplet. Lo que tiene que llegar
 #  desde los equipos, que es video, va abierto y lo deja pasar ufw:
 #
-#    127.0.0.1:4200   Space Eye (API, socket.io, panel)      → nginx eyes.<dominio>
-#    127.0.0.1:8889   MediaMTX WHEP (el navegador ve el vivo) → nginx eyes.<dominio>/whep/
+#    127.0.0.1:4200   Space Eye (API, socket.io, panel)      → nginx <dominio>/api, /socket.io, /storage
+#    127.0.0.1:8889   MediaMTX WHEP (el navegador ve el vivo) → nginx <dominio>/whep/
 #    8554/tcp         RTSP: aqui publican la Pi y la PC
 #    8189/udp         medios WebRTC
 #    3478 + 49160-49200/udp   coturn (TURN), red del host
@@ -57,11 +58,15 @@ services:
       REDIS_URL: redis://redis:6379
       NODE_ENV: production
       PUBLIC_BASE_URL: https://${EYES_DOMINIO:?falta EYES_DOMINIO}
-      MEDIAMTX_HOST: ${EYES_DOMINIO}
+      # El video (RTSP y TURN) va a la IP y no al dominio: si el dominio esta
+      # detras del proxy de Cloudflare, esos puertos no pasan por el. Los equipos
+      # la reciben del servidor cada vez, nunca la guardan: mudar el droplet no
+      # los toca.
+      MEDIAMTX_HOST: ${IP_PUBLICA:?falta IP_PUBLICA}
       MEDIAMTX_API: http://mediamtx:9997
       MEDIAMTX_WEBRTC_INTERNAL: http://mediamtx:8889
       MEDIAMTX_WHEP_PUBLIC: https://${EYES_DOMINIO}/whep
-      TURN_URL: turn:${EYES_DOMINIO}:3478
+      TURN_URL: turn:${IP_PUBLICA}:3478
       STORAGE_DIR: /app/storage
       DESCARGAS_DIR: /descargas
     ports:

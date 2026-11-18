@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-10-07
+actualizado: 2026-11-09
 tags: [datos, migraciones, despliegue, rojo]
 archivos:
   - db/migrations/
@@ -45,6 +45,16 @@ archivos:
   - db/migrations/20261005_notas_de_version.sql
   - db/migrations/20261006_precio_ajustado_por_gerente.sql
   - db/migrations/20261007_calculadora_spots.sql
+  - db/migrations/20261019_cobranza_abono_comprobante.sql
+  - db/migrations/20261021_notificaciones_por_usuario.sql
+  - db/migrations/20261022_comercial_negociacion.sql
+  - db/migrations/20261022_campana_horario_doohmain.sql
+  - db/migrations/20261022_pantallas_propias.sql
+  - db/migrations/20261102_moneda_inmutable_por_instancia.sql
+  - db/migrations/20261029_propuestas_condiciones_vigencia_vendedor.sql
+  - db/migrations/20261029_campana_extensiones.sql
+  - db/migrations/20261026_reserva_estatus_por_omision.sql
+  - db/migrations/20261023_contrato_versiones_firmadas.sql
 ---
 
 # Migraciones
@@ -52,7 +62,10 @@ archivos:
 > [!important] 2026-10-05 · puesta al día — ninguna de las de abajo está ya «sin fusionar»
 > Medido hoy con `node scripts/recuentos.mjs` sobre el árbol de
 > `integra/riesgos-presentacion-14-oct` (salida de `main` en `09c65ca2`):
-> **110 migraciones y 59 tablas** (07/10, con `20261011_contrato_cambios_solo_insercion.sql`; antes 109) (07/10, con `20261010_contrato_cambios.sql`; antes 108 y 58) (06/10, con `20261009_propuestas_fechas_estatus.sql`; antes 107) (06/10, con `20261008_cobranza_abonos.sql`). Es el recuento vigente; los de los recuadros
+> **127 migraciones y 66 tablas** (09/11, `feat/borrar-usuarios` con `20261109_acciones_sin_fk_usuario.sql`: ninguna tabla ni columna, solo quita una FK) (05/11, 126, `feat/portugues-documentos` con `20261105_idioma_portugues.sql` de P3 del portugués: ninguna columna ni tabla, solo los dos CHECK) (04/11, 125, `integra/idiomas` con `20261103_usuarios_idioma_preferido.sql` de IDIOMA-USUARIO, una columna y ninguna tabla) (03/11, 124, con `20261103_idioma_documentos_por_instancia.sql`, una columna y ninguna tabla) (02/11, 123, con `20261102_moneda_inmutable_por_instancia.sql`, ninguna tabla) (29/10, 122, con `20261029_propuestas_condiciones_vigencia_vendedor.sql`, cinco columnas y ninguna tabla) (29/10, 121, con `20261029_campana_extensiones.sql`, que crea `campana_extensiones`) (22/10, 117 y 64, con `20261022_campana_horario_doohmain.sql`, tres columnas en `campanas`) (22/10, 116 y 64, con `20261022_comercial_negociacion.sql`, que crea las cuatro tablas de Comercial negociación) (21/10, 115 y 60, con `20261021_notificaciones_por_usuario.sql`, que crea `notificaciones_usuario`: esta vez el 60 es una tabla de verdad) (19/10, 114 y 59, con `20261019_cobranza_abono_comprobante.sql`; antes 113) —el «60» que decía aquí el 13/10 era falso:
+> `recuentos.mjs` contaba como tabla la palabra `if` de un comentario de
+> `20261013_doohmain_seguimiento_unicas.sql`; corregido el 14/10 quitando los
+> comentarios antes de medir— (13/10, con `20261013_sitios_pantalla_doohmain.sql`; antes 112) (13/10, con `20261013_doohmain_seguimiento_unicas.sql`; antes 111) (12/10, con `20261012_razon_social_principal.sql`; antes 110) (07/10, con `20261011_contrato_cambios_solo_insercion.sql`; antes 109) (07/10, con `20261010_contrato_cambios.sql`; antes 108 y 58) (06/10, con `20261009_propuestas_fechas_estatus.sql`; antes 107) (06/10, con `20261008_cobranza_abonos.sql`). Es el recuento vigente; los de los recuadros
 > de abajo (92/52 del 28/09, 94, 99…) son fotos de su día y se dejan como tales.
 >
 > Lo que los recuadros dicen «sin fusionar» o «pendiente», con el commit de
@@ -60,6 +73,23 @@ archivos:
 >
 > | Migración | Decía | Entró en `main` |
 > |---|---|---|
+> | `20261109_acciones_sin_fk_usuario.sql` | rama `feat/borrar-usuarios`, **aprobada por el dueño el 09/11** (ROJO R3 y R5) | **Sin publicar.** Quita solo la FK `acciones.usuario_id → usuarios`; la bitácora y su trigger append-only no se tocan. Probada por la e2e `borrar-usuario` (la prueba 3 daba 500 sin ella) |
+> | `20261105_idioma_portugues.sql` | rama `feat/portugues-documentos` (P3 del portugués), **aprobada por el dueño el 05/11** (ROJO R3, y firmas) | **Sin publicar.** Ninguna tabla ni columna: suelta y vuelve a crear, con el MISMO nombre, `usuarios_idioma_preferido_valido` y `tenants_idioma_documentos_ck` con `pt` (es/en/it/pt). No toca los triggers del ADR 0049 ni ninguna fila. Aplicada dos veces sobre una base desechable y por la e2e `idioma-portugues` |
+> | `20261103_usuarios_idioma_preferido.sql` | rama `feat/idioma-por-usuario` (IDIOMA-USUARIO), decisión del dueño del 03/11 (ROJO R3; supervisor ÁMBAR) | **Sin publicar.** Integrada en `integra/idiomas` el 04/11. Una columna, `usuarios.idioma_preferido text` nullable sin default, y su CHECK (`es`/`en`/`it`); no toca la RLS. Aplicada por la e2e sobre `spaces_idiomas_e2e` |
+> | `20261103_idioma_documentos_por_instancia.sql` | rama `feat/idioma-instancia` (ADR 0049), **aprobada por el dueño el 03/11** (ROJO R3, y firmas) | **Sin publicar.** Una columna, `tenants.idioma_documentos text not null default 'es'` —todas las organizaciones que ya existen quedan en español—, `check in ('es','en','it')` y dos triggers: no se cambia, y uno solo por instancia. No toca contratos ni firmas. Ver [[04-Datos/esquema]] (Triggers) y [[03-Frontend/idiomas-es-en]] §12 |
+> | `20261102_moneda_inmutable_por_instancia.sql` | rama `feat/moneda-por-instancia` (ADR 0048), **aprobada por el dueño el 02/11** (ROJO R3 y R4) | **Sin publicar.** Ninguna tabla ni columna. Comprueba ANTES de restringir (para con un mensaje si hay organizaciones fuera de MXN/USD o dos monedas en la base; no corrige a ciegas), alinea `config_negocio.moneda` con su organización, pone `check (moneda in ('MXN','USD'))` en `tenants` y `config_negocio` y cuatro triggers: la moneda no se cambia, una sola por instancia, y `config_negocio` la copia de su organización al nacer. Ver [[04-Datos/esquema]] (Triggers) y [[03-Frontend/idiomas-es-en]] §7 |
+> | `20261029_propuestas_condiciones_vigencia_vendedor.sql` | rama `feat/propuestas-completas` (PROP-COMPLETA + P19), **aprobada por el dueño el 29/10** (ROJO R3) | **Sin publicar.** Cinco columnas, ninguna tabla: `config_negocio.condiciones_propuesta` y `vigencia_propuesta_dias` (30, check 1–365); `propuestas.condiciones`, `vigente_hasta` y `vendedor_nombre`. Rellena `vendedor_nombre` de las propuestas que ya tenían vendedor; no toca importes ni estatus. Ver [[02-Backend/comercial-propuestas-campanas]] y [[02-Backend/vendedor-en-propuesta]] |
+> | `20261029_campana_extensiones.sql` | rama `feat/extender-con-contrato` (EXT-CONTRATO), **aprobada por el dueño el 29/10** (ROJO R3, forma restrict; y R4) | **Sin publicar.** Crea `campana_extensiones` (solo select e insert para la aplicación, RLS forzada, `campana_id` on delete restrict): el contrato firmado de cada extensión de campaña, sin sobrescribir `campanas.contrato_url`. No toca filas existentes. Ver [[02-Backend/comercial-propuestas-campanas]] |
+> | `20261026_reserva_estatus_por_omision.sql` | rama `feat/tentativo-en-propuesta` (TENT-PROP), **aprobada por el dueño el 26/10** (ROJO R3) | **Sin publicar.** Solo cambia el `default` de `reservas.estatus` de TENTATIVA a CONFIRMADA: lo tentativo ya no es un estado de la reserva sino lo que está en una propuesta abierta. No toca filas ni el enum. Ver [[02-Backend/comercial-propuestas-campanas]] |
+> | `20261023_contrato_versiones_firmadas.sql` | rama local `test/venta-propia-o-arrendada`, **diseño aprobado por el dueño el 23/10** (ROJO R3 y R4) | **SIN publicar.** Crea `contrato_versiones_firmadas` (solo select e insert para la aplicación, RLS forzada) y agrega `contrato_cambios.version_firmada`. No toca filas existentes. Ver [[02-Backend/arrendadores-y-contratos]] |
+> | `20261022_pantallas_propias.sql` | rama local `fix/creativos-rotacion-y-reemplazo`, **forma aprobada por el dueño el 22/10** (ROJO R3) | **v0.12.3, SIN publicar.** Agrega `sitios.propio` y `predios.propio` (default false) y quita el NOT NULL de `predios.arrendador_id` con `predios_propio_o_arrendador_ck`. Ninguna fila existente cambia. Ver [[02-Backend/arrendadores-y-contratos]] |
+> | `20261022_campana_horario_doohmain.sql` | rama `feat/horario-doohmain-e-ids`, **forma aprobada por el dueño el 22/10** («horario + días») | Sale en la **v0.12.2** (decisión del dueño). Solo agrega `campanas.doohmain_hora_inicio`, `doohmain_hora_fin` (text HH:mm, las dos o ninguna, distintas) y `doohmain_dias` (`smallint[]` 0..6, solo con horario). Sin permisos nuevos: `campanas` ya tiene `select, update` de tabla. Sin `@pg-min`. Ver [[02-Backend/integraciones-externas]] |
+> | `20261022_comercial_negociacion.sql` | rama `feat/comercial-negociacion`, **forma aprobada por el dueño el 21/10** (ROJO R3; [ADR 0047](../../docs/adr/0047-comercial-negociacion-encima-de-prospectos.md)) | Sale en la **v0.12.2** (22/10, el dueño eligió fusionar y publicar). Solo agrega: 14 columnas en `prospectos`, `canal` y `contacto_nombre` en `prospecto_avances`, y `prospecto_contactos`, `prospecto_ofertas` (sin `delete`), `prospecto_competencia`, `prospecto_notas` (solo `insert`), con FK compuesta con tenant y RLS forzada. Copia el contacto `jsonb` de cada prospecto como su primer contacto (idempotente). Sin `@pg-min`: nada de PG 15. 42 e2e en verde en el CI (run `39698089041`). Ver [[03-Frontend/comercial-opex]] |
+> | `20261021_notificaciones_por_usuario.sql` | rama `feat/notificaciones-por-usuario`, **forma aprobada por el dueño el 21/10** (ROJO R3) | Sale en la v0.12.0 (reescrita el 21/10: la del 20/10 nunca llegó a ningún cliente). Tabla `notificaciones_usuario` (leída y borrada por persona) y la única `notificaciones (id, tenant_id)` para su FK compuesta. Solo agrega: no rellena nada ni toca `leida`/`archivada_en`, que se siguen leyendo; el código anterior funciona con este esquema |
+> | `20261019_cobranza_abono_comprobante.sql` | rama `feat/comprobante-cobranza`, **forma aprobada por el dueño el 19/10** (ROJO R3/R4; sin fusionar todavía) | `4a966305` (21/10, merge de `integra/v0-12-0`; sale en v0.12.0). `cobranza_abonos.comprobante_url` (texto, nace vacía): el recibo o la transferencia de cada pago de cliente. Solo agrega la columna; RLS y permisos ya estaban |
+> | `20261013_sitios_pantalla_doohmain.sql` | rama `feat/doohmain-pantalla-por-sitio`, **forma aprobada por el dueño el 13/10** (la subió a `main` en `84b589f3`; sale en v0.11.7) | `sitios.doohmain_pantalla` (texto, sin espacios en los extremos, 1–120): a qué pantalla de DOOHmain se publica cada pantalla, capturada en la ficha (13/10) |
+> | `20261013_doohmain_seguimiento_unicas.sql` | rama `fix/doohmain-publicacion`, **forma aprobada por el dueño el 13/10** | identidad en `id` y las tres únicas que el SDK de DOOHmain necesita: `20260805` creaba las tablas sin ellas y `20260901` (`if not exists`) no hacía nada, así que publicar fallaba en toda base levantada desde el repo (13/10) |
+> | `20261012_razon_social_principal.sql` | rama `feat/razon-social-principal`, **forma aprobada por el dueño el 12/10** | `tenants.entidad_principal_id`: la razón social de Identidad sale de «Razones sociales» (12/10) |
 > | `20261007_calculadora_spots.sql` | rama sin fusionar | `43082ac4` (01/10) |
 > | `20261011_contrato_cambios_solo_insercion.sql` | rama `fix/contrato-cambios-solo-insercion` | quita `update`/`delete` que el privilegio por omisión del 24/08 daba sobre `contrato_cambios`: la 20261010 decía «solo select e insert» y era falso (07/10) |
 > | `20261010_contrato_cambios.sql` | forma aprobada por el dueño el 07/10 | `47ee0a98` (07/10) |
@@ -1416,3 +1446,124 @@ de entidades añadía en paralelo. Si la necesitas, cuéntala, no la copies.
 >
 > Runner ×2 contra base desechable: **94 aplicadas** en la primera pasada, **0**
 > en la segunda, sin divergencia de checksum. Ver [[02-Backend/costo-real-de-ot]].
+
+## `20261109_acciones_sin_fk_usuario.sql` — la bitácora deja de colgar de `usuarios` (09/11)
+
+Aprobada por el dueño el 09/11, junto con el botón «Eliminar» de Administración
+(borrado REAL para cualquiera, tenga o no historial).
+
+**El choque que arregla.** `acciones.usuario_id` era `references usuarios(id) on
+delete set null`, y `acciones` es append-only por trigger
+(`20260629_bitacora_append_only.sql`, incluso para el superusuario). El `set null`
+es un UPDATE: el trigger lo rechazaba y el DELETE del usuario caía en 500. **Solo
+se podía borrar a quien nunca hizo nada**, desde junio, sin que se viera porque
+no había botón.
+
+**Por qué quitar la FK y no abrir el trigger.** Así la bitácora no se toca:
+conserva el id y el `usuario_nombre` congelado, y su garantía sigue entera. Un id
+que apunta a un usuario borrado es lo correcto en un registro histórico.
+
+- Busca la FK por lo que es (de `acciones.usuario_id` a `usuarios`) en
+  `pg_constraint`, no por nombre; no hace nada si ya no está. Idempotente y
+  transaccional. `@tipo: esquema`.
+- Lo prueba `apps/web/lib/test/borrar-usuario.e2e.test.ts`, prueba 3 (roja con 500
+  antes de la migración, verde después).
+
+## `20261105_idioma_portugues.sql` — la base aprende `pt` (05/11, P3 del portugués)
+
+Aprobada por el dueño el 05/11 («Sí, igual que italiano»). Las dos columnas que
+guardan un idioma nacieron el 03/11 con `check (… in ('es','en','it'))`. Esta
+migración las abre a `pt` y nada más:
+
+- `usuarios.idioma_preferido` → `usuarios_idioma_preferido_valido` admite
+  `null`, `es`, `en`, `it` y `pt`.
+- `tenants.idioma_documentos` → `tenants_idioma_documentos_ck` admite `es`,
+  `en`, `it` y `pt`. Los dos triggers del ADR 0049 (no se cambia, uno por
+  instancia) no se tocan: no nombran idiomas.
+
+**Mismo nombre de restricción a propósito.** Si alguien reaplicara la cadena
+entera, la del 03/11 de `usuarios` ve que la restricción existe y no la recrea
+corta; la de `tenants` sí la recrea corta, pero esta va detrás (orden
+lexicográfico) y la vuelve a abrir.
+
+No cambia ninguna fila: lo que existe sigue en `es`. Imprime tres filas para
+confirmarla (cuentas fuera de es/en/it/pt = 0; organizaciones fuera = 0;
+triggers = 2). Vuelta atrás en la cabecera (solo si ninguna fila tiene `pt`).
+
+Medido el 05/11: la cadena entera (125 de esquema) sobre una base desechable
+(`spaces_pt_mig_test`) y después esta migración dos veces más: mismas
+restricciones, mismas filas, `fr` y `pt-BR` rechazados. El archivo en disco va
+en LF. Y la e2e `apps/web/lib/test/idioma-portugues.e2e.test.ts` la reaplica
+sobre la base de integración.
+
+## `20261103_idioma_documentos_por_instancia.sql` — el idioma de los documentos de la instancia no se cambia (03/11, ADR 0049)
+
+Decisión del dueño (03/11): el idioma de los **papeles y contratos** (es, en o
+it) se elige al crear la instancia y no se cambia; el de la interfaz es de cada
+persona. Añade `tenants.idioma_documentos` con DEFAULT `'es'`, así que **toda
+instancia que ya existe queda en español** y sus contratos se redactan y cotejan
+como ayer. No hay paso de comprobación previa como en la moneda: no hay ningún
+valor viejo que validar.
+
+Lectura antes de aplicarla (no cambia nada): ninguna. Después, para
+confirmarla, la propia migración imprime tres filas (fuera de es/en/it = 0;
+idiomas distintos = 1; triggers = 2).
+
+Medido el 03/11 sobre la base de integración (`recrearEsquema()`): todas en
+`es`, dos triggers, y aplicarla dos veces no cambia nada
+(`apps/web/lib/test/idioma-instancia.e2e.test.ts`).
+
+## `20261102_moneda_inmutable_por_instancia.sql` — la moneda de la instancia no se cambia (02/11, ADR 0048)
+
+Decisión del dueño (02/11): cada instancia trabaja en **MXN o USD**, se elige al
+crearla y **no se puede cambiar**. Los importes guardados no llevan moneda
+propia: cambiarla los reinterpretaría sin convertirlos.
+
+**Antes de aplicarla en una instancia con datos**, que la corra una persona
+(lectura, no cambia nada):
+
+```sql
+select moneda, count(*) from tenants group by moneda;          -- una sola fila, MXN
+select c.tenant_id, c.moneda, t.moneda
+  from config_negocio c join tenants t on t.id = c.tenant_id
+ where c.moneda is distinct from t.moneda;                      -- la migración las alinea
+select count(*) from contratos_arrendamiento
+ where moneda = 'USD' and congelado_en is not null;             -- contratos USD ya congelados
+```
+
+La última no la usa la migración: cuenta los contratos cuyo texto firmado lleva
+la letra vieja («PESOS … M.N.» en un contrato USD). La app los coteja con esa
+regla y no aparecen alterados (ver [[02-Backend/arrendadores-y-contratos]]),
+pero conviene saber cuántos hay.
+
+Si la primera da algo que no sea **una** fila en `MXN` o `USD`, la migración
+**se para** (paso 0) con un mensaje y no aplica nada: hay que decidir la moneda
+y corregirla en `docs/datos/` con su rollback. Es a propósito: elegir la moneda
+de una organización es justo la decisión que esta migración protege.
+
+Medido el 02/11 sobre la base de integración (`recrearEsquema()`, que aplica
+las migraciones sobre una base con organización, como el droplet): todas en
+`MXN`, cuatro triggers creados, y aplicarla dos veces no cambia nada
+(`apps/web/lib/test/moneda-instancia.e2e.test.ts`).
+
+## `20261103_usuarios_idioma_preferido.sql` — el idioma de la interfaz, por persona (03/11)
+
+Decisión del dueño (03/11): «el idioma de papeles y contratos es fijo al crearse
+la app en cada server, pero el idioma de lo demás se debe poder configurar por
+usuario y navegador». Añade `usuarios.idioma_preferido` (`text`, **nullable,
+sin default**) y el CHECK `usuarios_idioma_preferido_valido` (`es`/`en`/`it`).
+
+- **`null` en todas las filas al aplicarla**: sin que nadie toque «Mi cuenta»
+  el comportamiento es el de antes. Sin assert de «todas en null» a propósito:
+  la reaplicación de la cadena (`deploy.yml`) la corre sobre bases donde la
+  gente ya eligió.
+- CHECK y no enum: un cuarto idioma es soltar y volver a crear el CHECK en una
+  transacción; `alter type … add value` no siempre corre dentro de una.
+- No toca la RLS (la columna hereda las políticas fail-closed de `usuarios`) ni
+  `auth_usuario_por_sesion()`/`auth_usuario_por_email()` (cambiar su
+  `returns table` rompe la reaplicación, ver `20260907_solo_google.sql`).
+- Idempotente (`add column if not exists` + el CHECK guardado por
+  `pg_constraint`) y transaccional. `@tipo: esquema`.
+
+Lo prueba `lib/test/idioma-por-usuario.e2e.test.ts` (la columna nace vacía,
+guardar/leer con la RLS de verdad, otra persona y otra empresa no la ven).

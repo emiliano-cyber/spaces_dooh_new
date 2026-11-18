@@ -18,6 +18,9 @@ export const TIPOS_ALERTA: { tipo: TipoAlerta; label: string }[] = [
   { tipo: 'cobranza', label: 'Facturas (cobranza)' },
   { tipo: 'incidencia', label: 'Sitios bloqueados por incidencia' },
   { tipo: 'ot', label: 'Órdenes de trabajo (SLA)' },
+  // Faltaba: `construirAlertas` genera las de licencia desde el 29/07 y no se
+  // podían ocultar (DASH-REF, 26/10).
+  { tipo: 'licencia', label: 'Licencias y permisos' },
 ]
 
 const STORAGE_KEY = 'spaces:alertas-ocultas'

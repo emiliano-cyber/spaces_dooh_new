@@ -1,7 +1,10 @@
 'use client'
 
 import { AlertTriangle } from 'lucide-react'
+import { useIdioma } from '@/lib/i18n/contexto'
 import {
+  CLAVE_DIMENSION,
+  CLAVE_GRANULARIDAD,
   DIMENSIONES_UI,
   GRANULARIDADES_UI,
   type DimensionUI,
@@ -35,11 +38,18 @@ export function FiltrosRentabilidad({
   motivo: string | null
   onCambio: (f: FiltrosReporte) => void
 }) {
+  // Los rotulos salen del diccionario por la clave de cada opcion
+  // (`CLAVE_DIMENSION`, `CLAVE_GRANULARIDAD`); el `valor` no cambia.
+  const { t } = useIdioma()
+  // Rediseño del 2026-10-26 · los controles van en UNA fila, con la etiqueta a
+  // su izquierda y no encima: la pantalla ya no los mete en una tarjeta propia
+  // y las etiquetas en mayúsculas sobre cada control duplicaban la altura. Los
+  // mismos `onCambio`, y el `motivo` sigue pegado a los controles.
   return (
     <div className="space-y-2">
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1">
-          <span className="text-[11px] uppercase tracking-wide text-muted">Agrupar</span>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <label className="flex items-center gap-1.5">
+          <span className="text-[12px] text-muted">{t('reportes.filtro.agrupar')}</span>
           <select
             className={campoCls}
             value={filtros.dimension}
@@ -53,14 +63,14 @@ export function FiltrosRentabilidad({
                 prueba — apareció al abrir la app en un navegador. */}
             {DIMENSIONES_UI.map((d) => (
               <option key={d.valor} value={d.valor}>
-                {d.label}
+                {t(CLAVE_DIMENSION[d.valor].label)}
               </option>
             ))}
           </select>
         </label>
 
-        <label className="flex flex-col gap-1">
-          <span className="text-[11px] uppercase tracking-wide text-muted">Desde</span>
+        <label className="flex items-center gap-1.5">
+          <span className="text-[12px] text-muted">{t('reportes.filtro.desde')}</span>
           <input
             type="date"
             className={campoCls}
@@ -69,8 +79,8 @@ export function FiltrosRentabilidad({
           />
         </label>
 
-        <label className="flex flex-col gap-1">
-          <span className="text-[11px] uppercase tracking-wide text-muted">Hasta</span>
+        <label className="flex items-center gap-1.5">
+          <span className="text-[12px] text-muted">{t('reportes.filtro.hasta')}</span>
           <input
             type="date"
             className={campoCls}
@@ -79,8 +89,8 @@ export function FiltrosRentabilidad({
           />
         </label>
 
-        <label className="flex flex-col gap-1">
-          <span className="text-[11px] uppercase tracking-wide text-muted">Periodos</span>
+        <label className="flex items-center gap-1.5">
+          <span className="text-[12px] text-muted">{t('reportes.filtro.periodos')}</span>
           <select
             className={campoCls}
             value={filtros.granularidad}
@@ -88,7 +98,7 @@ export function FiltrosRentabilidad({
           >
             {GRANULARIDADES_UI.map((g) => (
               <option key={g.valor} value={g.valor}>
-                {g.label}
+                {t(CLAVE_GRANULARIDAD[g.valor])}
               </option>
             ))}
           </select>
@@ -96,7 +106,7 @@ export function FiltrosRentabilidad({
       </div>
 
       <p className="text-[12px] text-muted">
-        {DIMENSIONES_UI.find((d) => d.valor === filtros.dimension)?.ayuda}
+        {DIMENSIONES_UI.some((d) => d.valor === filtros.dimension) ? t(CLAVE_DIMENSION[filtros.dimension].ayuda) : undefined}
       </p>
 
       {/* El motivo se pinta pegado a los controles que lo causan, no arriba en

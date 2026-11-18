@@ -1,10 +1,18 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-10-07
+actualizado: 2026-11-09
 tags: [datos, esquema, er, postgres]
 archivos:
   - db/schema.sql
+  - db/migrations/20261029_campana_extensiones.sql
+  - db/migrations/20261102_moneda_inmutable_por_instancia.sql
+  - db/migrations/20261105_idioma_portugues.sql
+  - db/migrations/20261022_comercial_negociacion.sql
+  - db/migrations/20261022_campana_horario_doohmain.sql
+  - db/migrations/20261022_pantallas_propias.sql
+  - db/migrations/20261023_contrato_versiones_firmadas.sql
+  - db/migrations/20261021_notificaciones_por_usuario.sql
   - db/semilla-desarrollo.sql
   - db/migrations/
   - db/migrations/20260921_actualizaciones_instancia.sql
@@ -18,6 +26,9 @@ archivos:
   - db/migrations/20261002_franja_programada_campana.sql
   - db/migrations/20261003_codigo_aprobacion.sql
   - db/migrations/20261005_notas_de_version.sql
+  - db/migrations/20261012_razon_social_principal.sql
+  - db/migrations/20261013_sitios_pantalla_doohmain.sql
+  - db/migrations/20261013_doohmain_seguimiento_unicas.sql
 ---
 
 # Esquema de datos
@@ -25,8 +36,17 @@ archivos:
 > [!important] 2026-10-05 · puesta al día — lo que abajo dice «pendiente» o «SIN FUSIONAR» YA ESTÁ en `main`
 > Medido hoy con `node scripts/recuentos.mjs` sobre el árbol de
 > `integra/riesgos-presentacion-14-oct` (salida de `main` en `09c65ca2`):
-> **59 tablas y 109 migraciones** (07/10, con `contrato_cambios`; antes 58 y 108) (06/10, con `cobranza_abonos`; antes 57 y 106). `db/schema.sql` tiene **679 líneas**
-> (`wc -l`) y **28** `create table`; las **29** restantes llegan por migración.
+> **66 tablas y 122 migraciones** (29/10, con `20261029_propuestas_condiciones_vigencia_vendedor.sql`: cinco columnas en `propuestas` y `config_negocio`, ninguna tabla) — antes **66 y 121** (29/10, con `20261029_campana_extensiones.sql`, que crea `campana_extensiones`, EXT-CONTRATO) — antes **64 tablas y 117 migraciones** (22/10, la 117 es `20261022_campana_horario_doohmain.sql`, tres columnas en `campanas` sin tabla nueva; con las cuatro de Comercial negociación
+> —`prospecto_contactos`, `prospecto_ofertas`, `prospecto_competencia`,
+> `prospecto_notas`— en `20261022_comercial_negociacion.sql`, NEG-01) — antes
+> **60 tablas y 115 migraciones** (21/10, con `notificaciones_usuario` y
+> `20261021_notificaciones_por_usuario.sql`; la tabla 60 es de verdad, no el
+> `if` de abajo) — antes **59 tablas y 113 migraciones** (14/10: las cuatro migraciones del 11 al 13/10
+> no crean tablas; el «60» que [[migraciones]] llegó a afirmar el 13/10 era un
+> `if` de un comentario contado como tabla por `recuentos.mjs`, ya corregido)
+> (07/10, con `contrato_cambios`; antes 58 y 108) (06/10, con `cobranza_abonos`; antes 57 y 106). `db/schema.sql` tiene **679 líneas**
+> (`wc -l`) y **28** `create table`; las **31** restantes llegan por migración
+> (decía 29 desde el 05/10, y ya no sumaba con las 59).
 >
 > Los recuadros de abajo se conservan como historia, pero su estado caducó:
 >
@@ -157,6 +177,27 @@ archivos:
 >   tenant_id)`. **Solo se añade**: la app tiene `select, insert` y nada más.
 >
 > RLS `enable` + `force` en las dos. Ver [[02-Backend/captacion]].
+
+> [!note] 2026-10-22 · CUATRO TABLAS NUEVAS y la ficha del espacio — NEG-01
+> `db/migrations/20261022_comercial_negociacion.sql` (forma aprobada por el dueño el
+> 21/10, [ADR 0047](../../docs/adr/0047-comercial-negociacion-encima-de-prospectos.md)).
+> Comercial negociación se monta ENCIMA de `prospectos`:
+> - **`prospectos`** gana 14 columnas opcionales: `tipo_espacio`, `etapa_responsable`
+>   (1..5), `visibilidad` (`CERCANA` · `MEDIA` · `LEJANA`), `ancho_m`, `alto_m`,
+>   `superficie_m2` (> 0), `presupuesto_min/max` (mín ≤ máx) y `_autoriza`, y la
+>   ubicación: `ubicacion_origen` (`GPS` · `PIN` · `BUSCADOR` — GPS en el CHECK pero
+>   pendiente en la API), `ubicacion_precision_m`, `ubicacion_place_id`,
+>   `ubicacion_fijada_por`, `ubicacion_fijada_en`. `lat`/`lng` ya existían.
+> - **`prospecto_avances`** gana `canal` (LLAMADA · VISITA · REUNION · CORREO ·
+>   WHATSAPP · OTRO) y `contacto_nombre` (copia del nombre, no FK).
+> - **`prospecto_contactos`** (varios por espacio, `es_legal` = quien firma),
+>   **`prospecto_ofertas`** (al DUEÑO del espacio: `version` única por espacio,
+>   importe > 0, plazo 1..240, estado ENVIADA · CONTRAOFERTA · RECHAZADA · ACEPTADA;
+>   **sin `delete`** para el rol de la app), **`prospecto_competencia`** y
+>   **`prospecto_notas`** (**solo `select, insert`**).
+> Las cuatro con FK compuesta `(prospecto_id, tenant_id)` → `prospectos (id,
+> tenant_id)`, índice `(tenant_id, prospecto_id)` y RLS `enable` + `force`. Ver
+> [[03-Frontend/comercial-opex]].
 
 > [!danger] 2026-09-28 · `codigos_promocionales` y `canjes_codigo` SIN FUSIONAR
 > Mismo caso que `escalas_volumen`, abajo: escritas y probadas contra bases
@@ -542,21 +583,32 @@ erDiagram
 ### Plataforma y acceso
 | Tabla | RLS | Nota |
 |---|---|---|
-| `tenants` | **Exenta** | Una fila por organización. **El esquema no siembra ninguna** (ver el aviso de arriba). Desde el 21/09 lleva `cambios_password_hash` — la contraseña compartida del candado de cambios (ADR 0036), `null` = sin asignar — ver [[02-Backend/autenticacion-y-sesion]] |
-| `usuarios` | fail-closed + FORCE | Correo UNIQUE **global** `lower(email)` |
+| `tenants` | **Exenta** | Una fila por organización. **El esquema no siembra ninguna** (ver el aviso de arriba). Desde el 21/09 lleva `cambios_password_hash` — la contraseña compartida del candado de cambios (ADR 0036), `null` = sin asignar — ver [[02-Backend/autenticacion-y-sesion]]. Desde el 12/10 lleva `entidad_principal_id`: la razón social de la empresa es una de `entidades_fiscales` y se lee de ahí (FK compuesta con `id`); `razon_social` y `rfc` quedan de respaldo — ver [[02-Backend/entidades-fiscales]]  **Desde el 02/11 (ADR 0048), `moneda` es la de la INSTANCIA:** `check (moneda in ('MXN','USD'))`, no se puede cambiar (trigger `trg_tenants_moneda_inmutable`) y todas las organizaciones de la instancia comparten la misma (`trg_tenants_moneda_unica`). **Desde el 03/11 (ADR 0049), `idioma_documentos`** (`es`/`en`/`it`, y `pt` desde el 05/11 con `20261105_idioma_portugues.sql`; DEFAULT `es`): el idioma del contrato y de la constancia de firmas de la INSTANCIA, con las mismas dos reglas (`trg_tenants_idioma_documentos_inmutable`, `trg_tenants_idioma_documentos_unico`) |
+| `usuarios` | fail-closed + FORCE | Correo UNIQUE **global** `lower(email)`. **(03/11, IDIOMA-USUARIO)** `idioma_preferido text null`, CHECK `usuarios_idioma_preferido_valido` (`es`/`en`/`it`, y `pt` desde el 05/11, `20261105_idioma_portugues.sql`); `null` = sigue al navegador. Se lee con `qConTenant` al abrir sesión y con `q` en «Mi cuenta» — ver [[03-Frontend/idiomas-es-en]] |
 | `sesiones` | **Exenta** | + `desbloqueo_expira_en` + `desbloqueo_es_propio` (ADR 0036: si el desbloqueo vigente fue con la contraseña propia o la compartida) |
 | `identidades_externas` | fail-closed + FORCE | ADR 0012 |
 | `password_resets` | fail-closed (desde 07/08) | Token único, 60 min |
 | `rol_permisos` | **Sin tenant_id** | RBAC global a la instalación. Desde el **29/09** (ADR 0040) son **86 filas · 10 módulos · 8 roles**: entran los cuatro roles de venta y el módulo `precios`, y `COMERCIAL` se queda **a cero** — el valor sigue en el enum porque no se puede quitar, pero sin filas no autoriza nada. Ver [[02-Backend/roles-de-venta]] |
-| `config_negocio` | fail-closed + FORCE | Una fila **por tenant**, sin DEFAULT. La crea quien da de alta la organización, o la app al primer acceso (`lib/server/config-repo.ts:59-61`). Desde el 17/09 lleva `costos_ot jsonb` —costo de mano de obra por tipo de OT, `{}` = sin configurar— con CHECK de forma; ver [[02-Backend/operaciones-y-ot]]. Desde el **28/09** lleva `tope_descuento_pct numeric(5,2) not null default 100` —el descuento máximo que esa organización autoriza en una propuesta, `100` = sin tope, que es como nace— con `check (>= 0 and <= 100)`; ver [[02-Backend/comercial-propuestas-campanas]] |
+| `config_negocio` | fail-closed + FORCE | Una fila **por tenant**, sin DEFAULT. La crea quien da de alta la organización, o la app al primer acceso (`lib/server/config-repo.ts:59-61`). Desde el 17/09 lleva `costos_ot jsonb` —costo de mano de obra por tipo de OT, `{}` = sin configurar— con CHECK de forma; ver [[02-Backend/operaciones-y-ot]]. Desde el **28/09** lleva `tope_descuento_pct numeric(5,2) not null default 100` —el descuento máximo que esa organización autoriza en una propuesta, `100` = sin tope, que es como nace— con `check (>= 0 and <= 100)`; ver [[02-Backend/comercial-propuestas-campanas]]  **Desde el 02/11 (ADR 0048), `moneda` es espejo de `tenants.moneda`:** se copia al insertar (`trg_config_negocio_moneda_espejo`, venga lo que venga en el INSERT), `check` MXN/USD y no se puede cambiar (`trg_config_negocio_moneda_inmutable`) |
 | `folios_consecutivos` | Sin tenant_id | Contador global |
 | `schema_migrations` | Sin tenant_id | Qué migraciones corrió **esta instancia**. Ver [[migraciones]] |
-| `acciones` | fail-closed | Bitácora append-only |
-| `notificaciones` | fail-closed | Dedupe por día |
+| `acciones` | fail-closed | Bitácora append-only. Desde el 09/11 `usuario_id` **no tiene FK** (`20261109_acciones_sin_fk_usuario.sql`): borrar un usuario no toca la bitácora |
+| `notificaciones` | fail-closed | Dedupe por día. **Una por empresa**: `leida` y `archivada_en` se siguen leyendo pero desde el 21/10 ya no se escriben (lo de cada persona va en la tabla de abajo). Lleva la única `(id, tenant_id)` para la FK compuesta |
+| `notificaciones_usuario` | fail-closed + FORCE | **(21/10, NOTIF-USUARIO)** Lo que UNA persona hizo con UN aviso: `leida_en`, `borrada_en` (oculta, no destruye). Clave `(notificacion_id, usuario_id)`; FK compuesta `(notificacion_id, tenant_id)` → `notificaciones` y `usuario_id` → `usuarios`, las dos `on delete cascade`; `check` de que al menos una fecha esté puesta (sin fila = sin leer y en la bandeja). Ver [[02-Backend/api-endpoints]] |
 
 ### Inventario
 `sitios`, `sitio_modalidades`, `predios`, `incidencias`, `licencias`,
 `almacen_activos`, `almacen_movimientos`.
+
+> [!note] `sitios.doohmain_pantalla` (2026-10-13, `20261013_sitios_pantalla_doohmain.sql`)
+> `text` NULL: el nombre de la pantalla **tal como lo conoce DOOHmain**, a la que
+> se publica esa pantalla. Al publicar manda sobre `DOOHMAIN_SCREEN_MAP` del
+> servidor; `NULL` = usa el mapa y `DOOHMAIN_DEFAULT_SCREEN` de respaldo.
+> `sitios_doohmain_pantalla_ck`: sin espacios en los extremos y de 1 a 120
+> caracteres (el vacío es `NULL`, nunca `''`). **No es única a propósito** —dos
+> caras pueden salir por el mismo reproductor— y **no entra** al alta ni a la
+> importación por archivo (`COLS` de `sitios-repo.ts`): una re-importación la
+> pisaría con `NULL`. Ver [[02-Backend/integraciones-externas]].
 
 > [!success] `almacen_activos` por tipo (2026-09-30) — la migración está **APROBADA por el dueño el 2026-09-30** (antes: pendiente de aprobación)
 > `tipo_activo` es `text` **sin CHECK** (`20260723_almacen.sql:26`); el
@@ -593,15 +645,35 @@ erDiagram
 ### Comercial · fechas de estatus
 `propuestas.aprobada_en` y `propuestas.rechazada_en` (06/10, PROP-PER): cuándo se aprobó o rechazó, para el tablero por periodo.
 
+### Comercial · extensiones de campaña con su contrato
+`campana_extensiones` (29/10, EXT-CONTRATO, aprobada por el dueño en forma restrict): una fila por extensión de una campaña — el `folio` con el tramo que abrió (FOLIO-VENTA, `.1`, `.2`…), `fecha_fin_anterior` y `fecha_fin_nueva` (CHECK: la nueva es posterior), `contrato_url` (el PDF firmado de la extensión, obligatorio y no vacío) y quién (`usuario_id` + `usuario_nombre` copiado). `campana_id` es **on delete restrict**: una campaña con extensiones no se puede borrar, los contratos no se pierden. Solo se inserta (el `revoke` de update/delete/truncate va en la misma migración) y RLS forzada. Existe porque `campanas.contrato_url` es una sola columna y escribir ahí el contrato de la extensión borraba el original. Ver [[02-Backend/comercial-propuestas-campanas]].
+
+### Arrendadores · versiones firmadas archivadas
+`contrato_versiones_firmadas` (23/10, CONTRATO-FIRMADO-EDITABLE): cada versión firmada de un contrato que se dejó de usar al editarlo o reenviarlo a firma — `version` (1, 2… por contrato, único con `contrato_id`), el texto exacto (`documento_congelado`) y su `documento_hash`, la evidencia de cada firma en `firmas` (jsonb: parte, firmante, fecha, IP, navegador, hash), `motivo` y quién (`usuario_id` + `usuario_nombre` copiado). Solo se inserta: el `revoke` de update/delete/truncate va en la misma migración, y lo comprueba `has_table_privilege` en la e2e. `contrato_cambios.version_firmada` liga cada cambio con la versión que archivó. Ver [[02-Backend/arrendadores-y-contratos]].
+
 ### Arrendadores · historial de cambios del contrato
 `contrato_cambios` (07/10, CONTRATO-CAMBIOS): un renglón por edición que cambió algo — qué parte lo propuso (`propuesto_por`: ARRENDADOR / ARRENDATARIO, NULL si no es negociación), quién lo capturó (`usuario_id` + `usuario_nombre` copiado), el motivo, la lista `cambios` (jsonb, antes/después ya legibles) y si anuló un envío a firma (`envio_anulado`). Solo se inserta: el rol de la aplicación tiene `select, insert` y nada más **desde `20261011_contrato_cambios_solo_insercion.sql`** — la 20261010 lo afirmaba, pero el privilegio por omisión de `20260824_grants_tablas_futuras.sql` le seguía dando `update` y `delete`; lo comprueba `has_table_privilege` en la e2e. Ver [[02-Backend/arrendadores-y-contratos]].
 
 ### Finanzas
-`facturas`, `cobranzas`, `cobranza_abonos` (06/10: cada pago con su fecha, ADR 0046).
+`facturas`, `cobranzas`, `cobranza_abonos` (06/10: cada pago con su fecha, ADR 0046; 19/10: `comprobante_url`, el recibo de cada pago, COB-COMP — ver [[02-Backend/finanzas-y-cobranza]]).
 
 ### Integraciones
 `doohmain_consultas_play`, `doohmain_remote_campaigns`, `doohmain_remote_lists`,
 `media_uploads`.
+
+> [!important] 2026-10-13 · las tres de seguimiento ya aceptan lo que escribe el SDK
+> `20260805_objetos_solo_en_prod.sql` las creaba con `id bigint primary key`
+> **sin identidad ni únicas**, y `20260901_doohmain_tracking.sql`, que las define
+> bien, no hacía nada por su `create table if not exists`. El SDK registra con
+> `ON CONFLICT (version)` y `ON CONFLICT (screen_name, list_name, media_id)`, así
+> que **en toda base levantada desde el repositorio publicar en DOOHmain fallaba
+> siempre**, y además después de `create_campaign`: dejaba una campaña vacía en
+> DOOHmain. `20261013_doohmain_seguimiento_unicas.sql` pone `id` como identidad
+> (la secuencia arranca después del mayor `id`), agrega `uniq_version`,
+> `uniq_screen_list_media` y `uniq_media_version` si no hay ya una única sobre
+> esas columnas, y da permiso de secuencias a `spaces_app`/`spaces_user`. **Con
+> registros repetidos aborta** en vez de borrar: cada fila es la prueba de algo
+> publicado. Prueba: `lib/test/doohmain-seguimiento.e2e.test.ts`.
 
 ## Enums
 
@@ -671,8 +743,8 @@ Restricciones **UNIQUE globales** (sin tenant): `sitios.clave_interna`,
 |---|---|
 | `usuarios` | `sesiones`, `identidades_externas`, `password_resets` |
 | `sitios` | `sitio_modalidades`, `incidencias` |
-| `campanas` | `reservas`, `creatividades`, `ordenes_compra`, `ordenes_impresion` |
-| `contratos_arrendamiento` | `pagos_renta`, `contrato_firmas`, `contrato_cambios` |
+| `campanas` | `reservas`, `creatividades`, `ordenes_compra`, `ordenes_impresion`, `campana_extensiones` (**restrict**: no borra, impide borrar) |
+| `contratos_arrendamiento` | `pagos_renta`, `contrato_firmas`, `contrato_cambios`, `contrato_versiones_firmadas` |
 | `propuestas` | `propuesta_items` |
 | `facturas` | `cobranzas` |
 | `cobranzas` | `cobranza_abonos` |
@@ -686,6 +758,33 @@ Restricciones **UNIQUE globales** (sin tenant): `sitios.clave_interna`,
 
 `set_actualizado_en()` mantiene `actualizado_en` en `config_negocio`, `sitios`,
 `campanas`, `ordenes_trabajo`, `ordenes_impresion`.
+
+**La moneda de la instancia (02/11, ADR 0048,
+`20261102_moneda_inmutable_por_instancia.sql`).** Cuatro triggers, y paran a
+todos los roles, superusuario incluido:
+
+| Trigger | Tabla | Qué impide |
+|---|---|---|
+| `trg_tenants_moneda_inmutable` | `tenants` (before update of moneda) | Cambiar la moneda. Reescribir el mismo valor pasa |
+| `trg_config_negocio_moneda_inmutable` | `config_negocio` (before update of moneda) | Lo mismo en el espejo |
+| `trg_tenants_moneda_unica` | `tenants` (before insert) | Una organización en otra moneda que las existentes; serializa con `pg_advisory_xact_lock` |
+| `trg_config_negocio_moneda_espejo` | `config_negocio` (before insert) | Que la fila nazca en otra moneda que su organización (la crea perezosa `obtenerConfigRow()` con el DEFAULT `'MXN'`) |
+
+Cambiar la moneda de una instancia que ya existe **no es un ajuste**: es una
+corrección de datos con tipo de cambio en `docs/datos/`, deshabilitando estos
+triggers a propósito. Ver [[03-Frontend/idiomas-es-en]] §7.
+
+**El idioma de los documentos de la instancia (03/11, ADR 0049,
+`20261103_idioma_documentos_por_instancia.sql`).** Dos triggers más, con la
+misma forma y para todos los roles:
+
+| Trigger | Tabla | Qué impide |
+|---|---|---|
+| `trg_tenants_idioma_documentos_inmutable` | `tenants` (before update of idioma_documentos) | Cambiar el idioma de los documentos. Reescribir el mismo pasa |
+| `trg_tenants_idioma_documentos_unico` | `tenants` (before insert) | Una organización en otro idioma de documentos que las existentes; serializa con `pg_advisory_xact_lock` |
+
+Cambiarlo no es un ajuste: los contratos firmados se cotejan regenerando su
+texto, y en otro idioma aparecerían alterados. Ver [[03-Frontend/idiomas-es-en]] §12.
 
 ## Relacionadas
 [[migraciones]] · [[multi-tenancy-y-rls]] · [[glosario]] ·

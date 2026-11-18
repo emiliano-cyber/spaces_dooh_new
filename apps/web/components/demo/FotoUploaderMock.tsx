@@ -6,6 +6,7 @@ import { cn } from '@/lib/cn'
 import { leerFechaCreacion } from '@/lib/exif'
 import { formatFechaHora } from '@/lib/data/client'
 import type { FotoMeta } from '@/lib/data/types'
+import { useIdioma } from '@/lib/i18n/contexto'
 
 // ============================================================================
 //  FotoUploaderMock — carga de fotografías mock con preview real. Cada imagen
@@ -18,7 +19,7 @@ export function FotoUploaderMock({
   fotos,
   onChange,
   capture = false,
-  label = 'Agregar foto',
+  label: labelProp,
   className,
 }: {
   fotos: FotoMeta[]
@@ -28,6 +29,9 @@ export function FotoUploaderMock({
   className?: string
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null)
+  // I18N (lote shell, 2026-11-02) · el rotulo por omision en el idioma vigente.
+  const { t, idioma } = useIdioma()
+  const label = labelProp ?? t('shell.fotos.agregar')
   // Cuántas fotos se están procesando. No es un booleano porque se admiten
   // VARIAS a la vez (`multiple`), y «leyendo 6 fotos» es una espera muy
   // distinta de «leyendo 1»: decir cuántas es la diferencia entre esperar
@@ -86,12 +90,12 @@ export function FotoUploaderMock({
           <div key={f.url} className="group relative">
             <div className="relative aspect-square overflow-hidden rounded border border-border">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={f.url} alt="evidencia" className="h-full w-full object-cover" />
+              <img src={f.url} alt={t('shell.fotos.alt')} className="h-full w-full object-cover" />
               <button
                 type="button"
                 onClick={() => quitar(f.url)}
                 className="absolute right-1 top-1 hidden h-6 w-6 items-center justify-center rounded bg-black/55 text-white group-hover:flex"
-                aria-label="Quitar foto"
+                aria-label={t('shell.fotos.quitar')}
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
@@ -100,11 +104,11 @@ export function FotoUploaderMock({
             <div className="mt-1 space-y-0.5">
               <div className="flex items-center gap-1 text-[10px] text-muted">
                 <Clock className="h-3 w-3 shrink-0" />
-                <span className="demo-num truncate">{formatFechaHora(f.tomadaEn)}</span>
+                <span className="demo-num truncate">{formatFechaHora(f.tomadaEn, idioma)}</span>
               </div>
               <div className="flex items-center gap-1 text-[10px] text-muted">
                 <Upload className="h-3 w-3 shrink-0" />
-                <span className="demo-num truncate">{formatFechaHora(f.subidaEn)}</span>
+                <span className="demo-num truncate">{formatFechaHora(f.subidaEn, idioma)}</span>
               </div>
             </div>
           </div>
@@ -125,7 +129,7 @@ export function FotoUploaderMock({
             <>
               <Loader2 className="h-5 w-5 animate-spin" />
               <span className="px-1 text-center text-[11px] leading-tight">
-                {procesando === 1 ? 'Cargando foto…' : `Cargando ${procesando} fotos…`}
+                {procesando === 1 ? t('shell.fotos.cargando.uno') : t('shell.fotos.cargando.otros', { n: procesando })}
               </span>
             </>
           ) : (

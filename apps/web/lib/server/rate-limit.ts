@@ -28,6 +28,23 @@ export function limitar(clave: string, max: number, ventanaMs: number): { ok: bo
   return { ok: true, retrySeg: 0 }
 }
 
+// ¿Está `clave` por encima de `max` AHORA? No cuenta nada: es para los cubos que
+// solo suman los FALLOS (SEG-21OCT, el login por cuenta), donde mirar y anotar
+// son dos momentos distintos — se mira antes de verificar la contraseña y se
+// anota solo si resultó mala.
+export function consultar(clave: string, max: number): { ok: boolean; retrySeg: number } {
+  const ahora = Date.now()
+  const e = cubos.get(clave)
+  if (!e || e.reset <= ahora || e.count < max) return { ok: true, retrySeg: 0 }
+  return { ok: false, retrySeg: Math.ceil((e.reset - ahora) / 1000) }
+}
+
+// Vacía `clave`. El login correcto lo usa para que dos tecleos malos al día no
+// se acumulen hasta bloquear a quien sí sabe su contraseña.
+export function olvidar(clave: string): void {
+  cubos.delete(clave)
+}
+
 // IP del cliente detrás de un proxy (Nginx). Cae a 'desconocida' si no hay.
 export function ipDe(req: Request): string {
   const fwd = req.headers.get('x-forwarded-for')

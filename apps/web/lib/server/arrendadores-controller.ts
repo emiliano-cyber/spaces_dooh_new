@@ -15,6 +15,7 @@ import {
   listarLicencias, crearLicencia, editarLicencia, borrarLicencia,
 } from './arrendadores-repo'
 import { otRetiroPorCancelacion, otMontajePorAlta } from './operaciones-eventos'
+import { monedaDeLaInstancia } from './moneda-instancia'
 
 // ============================================================================
 //  lib/server/arrendadores-controller.ts — Alta de propietarios/arrendadores.
@@ -90,7 +91,9 @@ const contratoSchema = z.object({
   // aparece como gratis, sin ninguna alerta que lo denuncie.
   montoRenta: z.coerce.number().positive('La renta debe ser mayor que cero'),
   periodicidad: z.enum(PERIODICIDADES).default('MENSUAL'),
-  moneda: z.string().trim().default('MXN'),
+  // ADR 0048 · opcional: sin ella, la de la instancia (la pone el repo). Si
+  // llega, tiene que SER la de la instancia: ver `exigirMonedaDeLaInstancia`.
+  moneda: z.string().trim().optional(),
   autoRenovable: z.boolean().default(false),
   // PDF del contrato: 10 MB, magic bytes %PDF (Bloque D).
   documentoUrl: uploadOUrlZod(LIMITES.contratoPdf.allowlist, LIMITES.contratoPdf.maxMB, 'documentoUrl').nullish(),
@@ -161,6 +164,23 @@ export async function editarPredioCtrl(id: string, body: unknown) {
   return p
 }
 
+// ─── ADR 0048 · un contrato va en la moneda de la INSTANCIA ─────────────────
+//
+// El importe de un contrato se PINTA con la moneda de la instancia
+// (`formatMonto`), asi que un contrato guardado en otra se leeria mal —el
+// mismo numero, otra divisa— sin ningun error. Era el motivo por el que el
+// selector MXN/USD salio del alta el 30/09; quedaba abierta la API, y la
+// pantalla de Cambios de contrato dejaba teclear cualquier codigo.
+//
+// Solo consulta la base si de verdad llega una moneda: sin ella, el repo pone
+// la de la instancia por SQL y aqui no hay nada que comparar.
+async function exigirMonedaDeLaInstancia(moneda: string | undefined): Promise<void> {
+  if (moneda === undefined) return
+  if (moneda !== (await monedaDeLaInstancia())) {
+    throw new AppError('Un contrato va en la moneda de la instancia: no se puede capturar en otra', 400)
+  }
+}
+
 const crearContratoSchema = z.object({
   arrendador: arrendadorRef,
   // El predio es OBLIGATORIO: el P&L atribuye la renta por predio, así que un
@@ -175,6 +195,7 @@ const crearContratoSchema = z.object({
 
 export async function crearContratoCtrl(body: unknown) {
   const d = validar(crearContratoSchema, body)
+  await exigirMonedaDeLaInstancia(d.contrato.moneda)
   // Regla de negocio: fin no puede ser anterior al inicio (fechas pasadas SÍ se permiten).
   if (ordenInvertido(d.contrato.fechaInicio, d.contrato.fechaFin)) {
     throw new AppError('La fecha de fin no puede ser anterior a la de inicio', 400)
@@ -263,6 +284,7 @@ export async function editarContratoCtrl(
   usuario?: { id: string; nombre: string },
 ) {
   const { propuestoPor, motivo, ...d } = validar(editarContratoSchema, body ?? {})
+  await exigirMonedaDeLaInstancia(d.moneda)
   // Atajo barato: con las dos fechas en el patch se sabe sin consultar la fila.
   // La comprobación de verdad —contra la fecha ya guardada cuando el patch trae
   // solo una— la hace el model; ver `fechasInvertidas` más abajo (UX-01).
@@ -289,11 +311,13 @@ export async function editarContratoCtrl(
     )
   }
   if ('cancelado' in r) throw new AppError('El contrato está CANCELADO; crea uno nuevo en su lugar', 409)
+  // Desde el 23/10 un contrato firmado SÍ se cambia, pero con motivo: la
+  // versión firmada se archiva y hay que firmar otra vez (`editarContrato`).
   if ('firmado' in r) {
     throw new AppError(
-      'Este contrato ya está firmado y su información no cambia: lo firmado dejaría de coincidir ' +
-        'con lo acordado. Si hay que modificar las condiciones, crea un contrato nuevo.',
-      409,
+      'Este contrato ya está firmado. Escribe el motivo del cambio: la versión firmada se archivará ' +
+        'y habrá que volver a firmarlo.',
+      400,
     )
   }
   return r.contrato

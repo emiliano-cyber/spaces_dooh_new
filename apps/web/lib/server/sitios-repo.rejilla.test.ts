@@ -103,3 +103,30 @@ describe('2 · el caso normal: una pantalla SIN rejilla', () => {
     ])
   })
 })
+
+describe('3 · B44 · las tres lecturas por id llevan `and tenant_id` (R2)', () => {
+  // La convención exige `and tenant_id = $n` como segunda capa sobre la RLS en
+  // toda operación por id. `getSitio` leía la pantalla, sus modalidades y su
+  // rejilla con `where … = $1` a secas: la RLS cortaba, pero si un día falla, la
+  // rejilla de otra organización le pondría el precio a esta.
+  it('la REJILLA se lee con el tenant de la sesión', async () => {
+    await getSitio('S1')
+    const c = consultas.find((x) => /from sitio_tarifas/.test(x.sql))!
+    expect(c.sql.replace(/\s+/g, ' ')).toMatch(/where sitio_id\s*=\s*\$1 and tenant_id\s*=\s*\$2/)
+    expect(c.params).toEqual(['S1', 'T1'])
+  })
+
+  it('las MODALIDADES, igual', async () => {
+    await getSitio('S1')
+    const c = consultas.find((x) => /from sitio_modalidades/.test(x.sql))!
+    expect(c.sql.replace(/\s+/g, ' ')).toMatch(/where sitio_id\s*=\s*\$1 and tenant_id\s*=\s*\$2/)
+    expect(c.params).toEqual(['S1', 'T1'])
+  })
+
+  it('y la PANTALLA misma', async () => {
+    await getSitio('S1')
+    const [sql, params] = db.q1.mock.calls[0] as unknown as [string, unknown[]]
+    expect(String(sql).replace(/\s+/g, ' ')).toMatch(/from sitios where id\s*=\s*\$1 and tenant_id\s*=\s*\$2/)
+    expect(params).toEqual(['S1', 'T1'])
+  })
+})

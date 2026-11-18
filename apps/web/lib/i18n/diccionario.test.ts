@@ -99,7 +99,9 @@ describe('los huecos {…} son los mismos en los dos idiomas', () => {
     const huecos = (t: string) => [...t.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort()
     const malas: string[] = []
     for (const clave of CLAVES) {
-      const a = huecos(DICCIONARIOS.es[clave])
+      // Una variante `.cero` (ola 7, «due today») no escribe la cifra en
+      // ingles: es el unico hueco que puede faltar, y solo en esas claves.
+      const a = huecos(DICCIONARIOS.es[clave]).filter((h) => !(clave.endsWith('.cero') && h === 'n'))
       const b = huecos(DICCIONARIOS.en[clave])
       if (JSON.stringify(a) !== JSON.stringify(b)) {
         malas.push(`${clave} · es=[${a}] en=[${b}]`)

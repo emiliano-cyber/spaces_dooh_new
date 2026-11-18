@@ -1,4 +1,5 @@
 'use client'
+import { cifraEnEtiqueta } from '@/lib/i18n/cifra-en-etiqueta'
 
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
@@ -11,6 +12,8 @@ import {
   type CodigoDePropuestaUI,
 } from '@/lib/data/codigo-aprobacion-api'
 import { admiteCupon, etiquetaEstadoCodigo, vigentesParaSelector } from '@/lib/codigo-aprobacion'
+import { useIdioma } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
 
 // ============================================================================
 //  El bloque del CÓDIGO PROMOCIONAL en el detalle de la propuesta.  COD-01 y
@@ -61,6 +64,7 @@ export function BloqueCodigoPropuesta({
   codigoEstado,
   puedeEditar,
 }: Props) {
+  const { t, idioma } = useIdioma()
   const [info, setInfo] = useState<CodigoDePropuestaUI | null>(null)
   const [catalogo, setCatalogo] = useState<CodigoPromocionalUI[]>([])
   const [codInput, setCodInput] = useState('')
@@ -94,7 +98,7 @@ export function BloqueCodigoPropuesta({
   }, [])
 
   const estado = info?.codigoEstado ?? codigoEstado ?? null
-  const etiqueta = etiquetaEstadoCodigo(estado, info?.codigoAprobadoPor ?? null)
+  const etiqueta = etiquetaEstadoCodigo(estado, info?.codigoAprobadoPor ?? null, idioma)
   const admite = admiteCupon(estatus)
   const puedeDecidir = info?.puedeAprobarCodigo === true && estado === 'PENDIENTE' && admite
   const vigentes = vigentesParaSelector(catalogo, hoyLocal())
@@ -115,7 +119,7 @@ export function BloqueCodigoPropuesta({
   async function aplicar() {
     const codigo = (codSel || codInput).trim()
     if (!codigo) {
-      toast.error('Elige o teclea el código promocional')
+      toast.error(t('propuestas.codigo.elige-o-teclea'))
       return
     }
     setGuardando(true)
@@ -124,14 +128,17 @@ export function BloqueCodigoPropuesta({
         ReturnType<typeof aplicarCodigoApi>
       > & { reactivada?: boolean }
       toast.success(
-        `Código ${r.codigo} aplicado (${r.descuentoPct} %): pendiente de aprobación` +
-          (r.reactivada ? '. La propuesta vuelve a borrador.' : ''),
+        t('propuestas.codigo.aplicado', {
+          codigo: r.codigo,
+          pct: cifraEnEtiqueta(r.descuentoPct, idioma),
+          reactivada: r.reactivada ? t('propuestas.codigo.aplicado.reactivada') : '',
+        }),
       )
       setCodInput('')
       setCodSel('')
       await despues()
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Error')
+      toast.error(e instanceof Error ? e.message : t('propuestas.comun.error'))
     } finally {
       setGuardando(false)
     }
@@ -142,10 +149,10 @@ export function BloqueCodigoPropuesta({
     setGuardando(true)
     try {
       await quitarCodigoApi(propuestaId)
-      toast.success('Código quitado; su uso vuelve al cupón')
+      toast.success(t('propuestas.codigo.quitado'))
       await despues()
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Error')
+      toast.error(e instanceof Error ? e.message : t('propuestas.comun.error'))
     } finally {
       setGuardando(false)
     }
@@ -155,10 +162,10 @@ export function BloqueCodigoPropuesta({
     setGuardando(true)
     try {
       await decidirCodigoApi(propuestaId, { decision: 'APROBAR' })
-      toast.success('Código aprobado: el cliente ya lo ve en su propuesta')
+      toast.success(t('propuestas.codigo.aprobado'))
       await despues()
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Error')
+      toast.error(e instanceof Error ? e.message : t('propuestas.comun.error'))
     } finally {
       setGuardando(false)
     }
@@ -166,18 +173,18 @@ export function BloqueCodigoPropuesta({
 
   async function rechazar() {
     if (motivo.trim().length < 3) {
-      toast.error('Escribe el motivo del rechazo')
+      toast.error(t('propuestas.codigo.motivo-falta'))
       return
     }
     setGuardando(true)
     try {
       await decidirCodigoApi(propuestaId, { decision: 'RECHAZAR', motivo: motivo.trim() })
-      toast.success('Código rechazado; se quitó y su uso vuelve al cupón')
+      toast.success(t('propuestas.codigo.rechazado'))
       setRechazando(false)
       setMotivo('')
       await despues()
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Error')
+      toast.error(e instanceof Error ? e.message : t('propuestas.comun.error'))
     } finally {
       setGuardando(false)
     }
@@ -189,7 +196,7 @@ export function BloqueCodigoPropuesta({
   return (
     <div className="rounded-md border border-border bg-surface-2/40 p-3">
       <div className="flex items-center gap-2">
-        <span className="text-[12px] font-medium text-ink">Código promocional</span>
+        <span className="text-[12px] font-medium text-ink">{t('propuestas.codigo.titulo')}</span>
         {etiqueta && (
           <span
             className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${
@@ -206,15 +213,16 @@ export function BloqueCodigoPropuesta({
       {codigoTexto ? (
         <>
           <p className="mt-0.5 text-[11px] text-muted">
-            Esta propuesta lleva el código <b className="font-mono">{codigoTexto}</b> con un{' '}
-            <b>{codigoDescuentoPct} %</b>, que ya está congelado: si el código cambia o se borra,
-            este precio no se mueve.
+            {interpolarNodos(t('propuestas.codigo.lleva'), {
+              codigo: <b className="font-mono">{codigoTexto}</b>,
+              pct: <b>{t('propuestas.comun.pct', { pct: cifraEnEtiqueta(codigoDescuentoPct, idioma) })}</b>,
+            })}
           </p>
           {estado === 'PENDIENTE' && (
             <p className="mt-1 text-[11px] text-[#9a6700]">
-              <b>El cliente todavía no lo ve:</b> su liga enseña la propuesta sin este descuento
-              hasta que un administrador o gerente lo apruebe. Si la acepta así, la acepta sin
-              cupón. Mientras esté pendiente, la propuesta no se puede aprobar por dentro.
+              {interpolarNodos(t('propuestas.codigo.pendiente'), {
+                aviso: <b>{t('propuestas.codigo.pendiente.aviso')}</b>,
+              })}
             </p>
           )}
           {admite ? (
@@ -222,82 +230,91 @@ export function BloqueCodigoPropuesta({
               {puedeDecidir && !rechazando && (
                 <>
                   <Button size="sm" onClick={aprobar} disabled={guardando}>
-                    {guardando ? 'Guardando…' : 'Aprobar código'}
+                    {guardando ? t('propuestas.comun.guardando') : t('propuestas.codigo.aprobar')}
                   </Button>
                   <Button size="sm" variant="ghost" onClick={() => setRechazando(true)} disabled={guardando}>
-                    Rechazar…
+                    {t('propuestas.codigo.rechazar')}
                   </Button>
                 </>
               )}
               {puedeDecidir && rechazando && (
                 <>
                   <input
-                    aria-label="Motivo del rechazo"
+                    aria-label={t('propuestas.codigo.motivo')}
                     value={motivo}
                     onChange={(e) => setMotivo(e.target.value)}
-                    placeholder="Motivo del rechazo"
+                    placeholder={t('propuestas.codigo.motivo')}
                     maxLength={500}
                     className={`${campo} w-64 px-3`}
                   />
                   <Button size="sm" onClick={rechazar} disabled={guardando || motivo.trim().length < 3}>
-                    {guardando ? 'Rechazando…' : 'Confirmar rechazo'}
+                    {guardando ? t('propuestas.codigo.rechazando') : t('propuestas.codigo.confirmar-rechazo')}
                   </Button>
                   <Button size="sm" variant="ghost" onClick={() => { setRechazando(false); setMotivo('') }}>
-                    Cancelar
+                    {t('comun.cancelar')}
                   </Button>
                 </>
               )}
               {puedeEditar && !rechazando && (
                 <>
                   <Button size="sm" variant="ghost" onClick={quitar} disabled={guardando}>
-                    {guardando ? 'Quitando…' : 'Quitar código'}
+                    {guardando ? t('propuestas.comun.quitando') : t('propuestas.codigo.quitar')}
                   </Button>
-                  <span className="text-[11px] text-muted">Quitarlo devuelve su uso al cupón.</span>
+                  <span className="text-[11px] text-muted">{t('propuestas.codigo.quitar.ayuda')}</span>
                 </>
               )}
             </div>
           ) : (
             <p className="mt-2 text-[12px] text-muted">
-              La propuesta ya está aprobada; el código quedó fijo.
+              {t('propuestas.codigo.fijo')}
             </p>
           )}
         </>
       ) : (
         <>
           <p className="mt-0.5 text-[11px] text-muted">
-            Se aplica <b>después</b> del descuento comercial y se <b>compone</b> con él: un 20 % y
-            un 20 % dejan al cliente pagando el 64 %, no el 60 %. Al aplicarlo se consume uno de
-            sus usos — quitarlo lo devuelve — y queda <b>pendiente de aprobación</b>: el cliente no
-            lo ve hasta que un administrador o gerente lo apruebe.
+            {interpolarNodos(t('propuestas.codigo.ayuda'), {
+              despues: <b>{t('propuestas.codigo.ayuda.despues')}</b>,
+              compone: <b>{t('propuestas.codigo.ayuda.compone')}</b>,
+              pendiente: <b>{t('propuestas.codigo.ayuda.pendiente')}</b>,
+            })}
           </p>
           {estatus === 'RECHAZADA' && (
             <p className="mt-1 text-[11px] text-[#9a6700]">
-              Esta propuesta está rechazada: <b>aplicar un cupón la reactiva a borrador.</b>
+              {interpolarNodos(t('propuestas.codigo.rechazada'), {
+                aviso: <b>{t('propuestas.codigo.rechazada.aviso')}</b>,
+              })}
             </p>
           )}
           {admite && puedeEditar ? (
             <div className="mt-2 flex flex-wrap items-center gap-2">
               {vigentes.length > 0 && (
                 <select
-                  aria-label="Cupón vigente"
+                  aria-label={t('propuestas.codigo.vigente')}
                   value={codSel}
                   onChange={(e) => { setCodSel(e.target.value); if (e.target.value) setCodInput('') }}
                   className={campo}
                 >
-                  <option value="">Elige un cupón vigente…</option>
+                  <option value="">{t('propuestas.codigo.vigente.elige')}</option>
                   {vigentes.map((c) => (
                     <option key={c.id} value={c.codigo}>
-                      {c.codigo} — {c.descuentoPct} % ·{' '}
-                      {c.usosMaximos == null ? 'sin tope de usos' : `quedan ${c.usosMaximos - c.usos}`}
+                      {t('propuestas.codigo.opcion', {
+                        codigo: c.codigo,
+                        pct: cifraEnEtiqueta(c.descuentoPct, idioma),
+                        usos:
+                          c.usosMaximos == null
+                            ? t('propuestas.codigo.sin-tope')
+                            : t('propuestas.codigo.quedan', { n: c.usosMaximos - c.usos }),
+                      })}
                     </option>
                   ))}
                 </select>
               )}
               <input
-                aria-label="Código promocional"
+                aria-label={t('propuestas.codigo.titulo')}
                 value={codInput}
                 onChange={(e) => { setCodInput(e.target.value); if (e.target.value) setCodSel('') }}
-                placeholder={vigentes.length > 0 ? 'o tecléalo' : 'VERANO20'}
+                placeholder={vigentes.length > 0 ? t('propuestas.codigo.o-teclealo') : t('propuestas.codigo.ejemplo')}
                 className={`${campo} w-36 px-3 font-mono uppercase`}
               />
               <Button
@@ -305,12 +322,12 @@ export function BloqueCodigoPropuesta({
                 onClick={aplicar}
                 disabled={guardando || (codSel === '' && codInput.trim() === '')}
               >
-                {guardando ? 'Aplicando…' : 'Aplicar'}
+                {guardando ? t('propuestas.comun.aplicando') : t('propuestas.comun.aplicar')}
               </Button>
             </div>
           ) : (
             <p className="mt-2 text-[12px] text-muted">
-              {admite ? 'No tienes permiso para aplicar códigos.' : 'La propuesta ya está aprobada; no admite código.'}
+              {admite ? t('propuestas.codigo.sin-permiso') : t('propuestas.codigo.no-admite')}
             </p>
           )}
         </>

@@ -2,22 +2,30 @@
 
 import { toast } from 'sonner'
 import { pctConDosDecimales } from '@/lib/descuento-comercial'
+import { cifraEnEtiqueta } from '@/lib/i18n/cifra-en-etiqueta'
 import { conteo } from '@/lib/plural'
+import { useIdioma, useTexto } from '@/lib/i18n/contexto'
+import { interpolarNodos } from '@/lib/i18n/nodos'
+import { formatearDineroRedondo } from '@/lib/i18n/dinero'
 import { resumenContratacion, etiquetaFrecuencia } from '@/lib/periodos'
+import { periodicidadLabel } from '@/lib/renta-periodicidad'
 import { etiquetaCalculadora } from '@/lib/calculadora-spots'
 import { AvisoFranjaCMS } from '@/components/demo/rejilla/AvisoFranjaCMS'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { KPICard } from '@/components/demo/KPICard'
+import { EST, CLAVE_ESTATUS } from '@/components/demo/propuestas/estatus'
+import { cn } from '@/lib/cn'
 import {
   ArrowLeft,
   Wallet,
   Coins,
-  Receipt,
   MapPin,
   Monitor,
   Square,
   Building2,
+  CheckCircle2,
   Send,
   Check,
   X,
@@ -26,9 +34,14 @@ import {
   Link2,
   FileDown,
   Check as CheckIcon,
+  Trash2,
+  Copy,
+  Plus,
 } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { Card } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
+import { EntradaCifra } from '@/components/demo/ui/EntradaCifra'
 import { Breadcrumbs, type Crumb } from '@/components/demo/ui/Breadcrumbs'
 import { MapView, type MapPoint } from '@/components/demo/MapView'
 import { pinTono } from '@/components/demo/StatusBadge'
@@ -36,13 +49,19 @@ import { trailFromLocation } from '@/lib/nav-trail'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import {
   cambiarEstatusPropuestaApi,
+  borrarPropuestaApi,
+  quitarSitioPropuestaApi,
   aprobarItemPropuestaApi,
   generarCampanaDesdePropuestaApi,
   actualizarPropuestaApi,
   refrescarEstado,
   ConfirmacionCeroError,
+  CodigoPendienteApiError,
 } from '@/lib/data/estado-api'
 import { BloqueCodigoPropuesta } from '@/components/demo/codigos/BloqueCodigoPropuesta'
+import { ElegirClienteDialog } from '@/components/demo/propuestas/ElegirClienteDialog'
+import { BloqueCondicionesVigencia } from '@/components/demo/propuestas/BloqueCondicionesVigencia'
+import { EnviarPropuestaDialog } from '@/components/demo/propuestas/EnviarPropuestaDialog'
 import {
   paquetesApi,
   aplicarPaqueteApi,
@@ -52,6 +71,7 @@ import {
 import {
   usePropuestas,
   useClientes,
+  useCampanas,
   useSitios,
   useContratos,
   useArrendadores,
@@ -67,17 +87,20 @@ function coordUtil(lat: number, lng: number): boolean {
   return Number.isFinite(lat) && Number.isFinite(lng) && !(lat === 0 && lng === 0)
 }
 
-const EST: Record<EstPropuesta, { label: string; cls: string }> = {
-  BORRADOR: { label: 'Borrador', cls: 'border-border text-muted' },
-  ENVIADA: { label: 'Enviada', cls: 'border-[#0a66ff40] text-info' },
-  APROBADA: { label: 'Aprobada', cls: 'border-[#10b98140] text-[#0f7a55]' },
-  RECHAZADA: { label: 'Rechazada', cls: 'border-[#ef444440] text-error' },
-}
+// La tabla de estatus (etiqueta y tono del chip) vive en
+// `components/demo/propuestas/estatus.ts`, compartida con la lista.
 
 export default function PropuestaDetallePage({ params }: { params: { id: string } }) {
   const id = params.id
+  const { t, idioma } = useIdioma()
+  // Los conteos («2 sitios») con las palabras del idioma vigente. `conteo()`
+  // pone la cifra y elige singular o plural; el espanol sale identico.
+  const nSitios = (n: number) => conteo(n, t('propuestas.unidad.sitio'), t('propuestas.unidad.sitios'))
   const propuestas = usePropuestas()
   const clientes = useClientes()
+  // Solo para pintar el paso «Campaña generada» de la barra de estado. No
+  // cambia qué botones se ofrecen (eso es el defecto D, decisión del dueño).
+  const campanas = useCampanas()
   const sitios = useSitios()
   const contratos = useContratos()
   const arrendadores = useArrendadores()
@@ -90,8 +113,11 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
   // adelanta el aviso.
   const topeDescuento = config?.topeDescuentoPct ?? 100
   const puedeEditar = usePuede('comercial', 'crear')
+  const veRentas = usePuede('arrendadores', 'ver')
   const router = useRouter()
   const [generando, setGenerando] = useState(false)
+  const [elegirCliente, setElegirCliente] = useState(false)
+  const [enviarAbierto, setEnviarAbierto] = useState(false)
   const [copiado, setCopiado] = useState(false)
   const [descInput, setDescInput] = useState('0.00')
   const [guardandoDesc, setGuardandoDesc] = useState(false)
@@ -123,22 +149,22 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
   async function aplicarDescuento() {
     const d = Number(descInput)
     if (descInput.trim() === '' || isNaN(d) || d < 0) {
-      toast.error('Descuento inválido (0–100)')
+      toast.error(t('propuestas.ficha.descuento.invalido'))
       return
     }
     // TOPE-01 · el mensaje DICE EL TOPE, no «valor inválido». Quien vende tiene
     // que saber qué número sí puede teclear sin preguntarle a nadie. El servidor
     // lo rechaza igualmente (`descuentoDentroDelTope`): esto solo evita el viaje.
     if (d > topeDescuento) {
-      toast.error(`El descuento máximo que autoriza tu organización es ${topeDescuento} %`)
+      toast.error(t('propuestas.ficha.descuento.tope', { tope: cifraEnEtiqueta(topeDescuento, idioma) }))
       return
     }
     setGuardandoDesc(true)
     try {
       await actualizarPropuestaApi(id, { descuentoPct: d })
-      toast.success('Descuento actualizado')
+      toast.success(t('propuestas.ficha.descuento.actualizado'))
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Error')
+      toast.error(e instanceof Error ? e.message : t('propuestas.comun.error'))
     } finally {
       setGuardandoDesc(false)
     }
@@ -161,19 +187,17 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
    */
   async function aplicarPaquete() {
     if (!paqSel) {
-      toast.error('Elige un paquete')
+      toast.error(t('propuestas.ficha.paquete.elige'))
       return
     }
     setGuardandoPaq(true)
     try {
       const r = await aplicarPaqueteApi(id, paqSel)
-      toast.success(
-        `Paquete ${r.nombre} aplicado: ${formatMonto(r.precio)} por el conjunto`,
-      )
+      toast.success(t('propuestas.ficha.paquete.aplicado', { nombre: r.nombre, precio: formatMonto(r.precio, idioma) }))
       setPaqSel('')
       await refrescarEstado()
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Error')
+      toast.error(e instanceof Error ? e.message : t('propuestas.comun.error'))
     } finally {
       setGuardandoPaq(false)
     }
@@ -184,21 +208,21 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
     setGuardandoPaq(true)
     try {
       await quitarPaqueteApi(id)
-      toast.success('Paquete quitado; vuelven los precios de lista de cada pantalla')
+      toast.success(t('propuestas.ficha.paquete.quitado'))
       await refrescarEstado()
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Error')
+      toast.error(e instanceof Error ? e.message : t('propuestas.comun.error'))
     } finally {
       setGuardandoPaq(false)
     }
   }
 
-  async function copiar(texto: string, marcar: (v: boolean) => void, mensaje = 'Copiado') {
+  async function copiar(texto: string, marcar: (v: boolean) => void, mensaje = t('propuestas.ficha.copiado')) {
     try {
       await navigator.clipboard.writeText(texto)
       toast.success(mensaje)
     } catch {
-      window.prompt('Copia esto:', texto)
+      window.prompt(t('propuestas.ficha.copia-esto'), texto)
     }
     marcar(true)
     setTimeout(() => marcar(false), 2200)
@@ -208,24 +232,28 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
   // quien tenga este link exacto puede abrir/aceptar la propuesta.
   function copiarLiga() {
     if (!p?.tokenPublico) {
-      toast.error('Esta propuesta aún no tiene liga; vuelve a guardarla.')
+      toast.error(t('propuestas.ficha.sin-liga'))
       return
     }
-    void copiar(`${window.location.origin}/spaces-dooh/p/${p.tokenPublico}`, setCopiado, 'Liga de la propuesta copiada')
+    void copiar(`${window.location.origin}/spaces-dooh/p/${p.tokenPublico}`, setCopiado, t('propuestas.ficha.liga-copiada'))
   }
 
-  // Generar PDF: por ahora no hace nada (placeholder de UI).
+  // PROP-COMPLETA (29/10) · «Generar PDF» abre el documento imprimible en otra
+  // pestaña (`app/(app)/propuesta/[id]`): la vista del CLIENTE con membrete,
+  // fotos, mapa, QR y condiciones, lista para «Imprimir → Guardar como PDF».
+  // Hasta hoy el botón no hacía nada.
   function generarPdf() {
-    /* TODO: generación de PDF de la propuesta */
+    window.open(`${window.location.origin}/spaces-dooh/propuesta/${id}/`, '_blank', 'noopener')
   }
 
   // Rastro de navegación (cómo llegué); por defecto, Propuestas.
   const [trail, setTrail] = useState<Crumb[]>([])
   useEffect(() => {
-    const t = trailFromLocation()
-    setTrail(t.length ? t : [{ label: 'Propuestas', href: '/propuestas' }])
+    const rastro = trailFromLocation()
+    setTrail(rastro.length ? rastro : [{ label: t('propuestas.lista.titulo'), href: '/propuestas' }])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  const volver = trail.length ? trail[trail.length - 1] : { label: 'Propuestas', href: '/propuestas' }
+  const volver = trail.length ? trail[trail.length - 1] : { label: t('propuestas.lista.titulo'), href: '/propuestas' }
 
   if (!propuestas) {
     return <div className="h-64 w-full animate-pulse rounded-md bg-surface-2" />
@@ -234,9 +262,9 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
   if (!p) {
     return (
       <div className="w-full">
-        <p className="text-[13px] text-muted">Propuesta no encontrada.</p>
+        <p className="text-[13px] text-muted">{t('propuestas.ficha.no-encontrada')}</p>
         <Link href="/propuestas" className="mt-2 inline-flex items-center gap-1 text-[13px] text-info">
-          <ArrowLeft className="h-3.5 w-3.5" /> Volver a propuestas
+          <ArrowLeft className="h-3.5 w-3.5" /> {t('propuestas.ficha.volver')}
         </Link>
       </div>
     )
@@ -245,9 +273,14 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
   const cliente = clientes?.find((c) => c.id === p.clienteId)
   const agencia = clientes?.find((c) => c.id === p.agenciaId)
   const est = EST[p.estatus]
+  // El rotulo del chip en el idioma vigente; en minusculas cuando va dentro de
+  // una frase («La propuesta ya está aprobada»), igual que hacia `est.label`.
+  const etiquetaEst = t(CLAVE_ESTATUS[p.estatus])
   const ivaPct = p.base ? Math.round((p.iva / p.base) * 100) : 16
   const comisionPct = Math.round(100 - p.divisor * 100)
   const editable = p.estatus !== 'APROBADA' && p.estatus !== 'RECHAZADA'
+  // PROP-COMPLETA · las pantallas se agregan o quitan en BORRADOR y ENVIADA.
+  const sitiosEditables = p.estatus === 'BORRADOR' || p.estatus === 'ENVIADA'
 
   // Fechas de la propuesta (min/max de los items).
   const fechas = p.items.map((i) => i.fechaInicio).filter(Boolean).sort()
@@ -266,6 +299,9 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
     return { monto: con.montoRenta, periodicidad: con.periodicidad ?? '—', propietario: arr?.nombre ?? '—' }
   }
   const rentaTotal = p.items.reduce((s, it) => s + (rentaDe(it.sitioId)?.monto ?? 0), 0)
+  // Cuántas pantallas no tienen renta capturada: las mismas filas que la tabla
+  // de «Sitios y renta» pinta como «Sin contrato de renta».
+  const sinContratoRenta = p.items.filter((it) => rentaDe(it.sitioId) === null).length
 
   // Puntos del mapa: ubicación de cada pantalla de la propuesta.
   // Los sitios sin coordenadas llegan como (0,0) desde sitios-repo (`n(r.lat) ?? 0`),
@@ -283,35 +319,76 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
       await cambiarEstatusPropuestaApi(id, estatus, confirmarCero)
     } catch (e) {
       if (e instanceof ConfirmacionCeroError) {
-        if (window.confirm(`${e.message}\n\n¿Aprobar de todas formas?`)) return cambiar(estatus, true)
+        // I18N (2026-11-02) · la pregunta la pinta la pantalla con su clave, como
+        // el cupon pendiente: el `error` de la ruta llega siempre en español (no
+        // pasa por `respuestaError()`). Se reconoce por la bandera
+        // `requiereConfirmacionCero`, y confirmar reintenta igual que antes.
+        if (window.confirm(`${t('servidor.propuesta.aprobar-en-cero', { total: formatearDineroRedondo(0, idioma) })}\n\n${t('propuestas.comun.aprobar-igual')}`)) return cambiar(estatus, true)
         return
       }
-      toast.error(e instanceof Error ? e.message : 'Error')
+      if (e instanceof CodigoPendienteApiError) return void toast.error(t('servidor.codigo.aprobar-con-pendiente'))
+      toast.error(e instanceof Error ? e.message : t('propuestas.comun.error'))
+    }
+  }
+  // PROP-COMPLETA · borrar un BORRADOR (decisión del dueño). Se confirma porque
+  // no tiene vuelta atrás; el servidor rechaza cualquier otro estatus.
+  async function borrar() {
+    if (!window.confirm(t('propuestas.ficha.borrar.confirmar', { nombre: p!.nombre }))) return
+    try {
+      await borrarPropuestaApi(id)
+      toast.success(t('propuestas.ficha.borrar.hecho'))
+      router.push('/propuestas')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t('propuestas.comun.error'))
+    }
+  }
+  // PROP-COMPLETA · quitar un sitio (BORRADOR o ENVIADA; nunca el último). En
+  // una enviada sube la versión, y se dice antes de hacerlo.
+  async function quitarSitio(itemId: string, nombreSitio: string) {
+    const aviso = p!.estatus === 'ENVIADA' ? t('propuestas.ficha.quitar-sitio.aviso') : ''
+    if (!window.confirm(t('propuestas.ficha.quitar-sitio.confirmar', { sitio: nombreSitio, aviso }))) return
+    try {
+      await quitarSitioPropuestaApi(itemId)
+      toast.success(t('propuestas.ficha.quitar-sitio.hecho'))
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t('propuestas.comun.error'))
     }
   }
   async function aprobar(itemId: string, aprobado: boolean) {
-    try { await aprobarItemPropuestaApi(itemId, aprobado) } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
+    try { await aprobarItemPropuestaApi(itemId, aprobado) } catch (e) { toast.error(e instanceof Error ? e.message : t('propuestas.comun.error')) }
   }
-  async function generarCampana() {
+  // Sin cliente no se genera: primero se elige (ElegirClienteDialog).
+  async function generarCampana(clienteId?: string) {
+    if (!p!.clienteId && !clienteId) {
+      setElegirCliente(true)
+      return
+    }
     setGenerando(true)
     try {
-      const camp = await generarCampanaDesdePropuestaApi(id)
+      const camp = await generarCampanaDesdePropuestaApi(id, clienteId)
+      setElegirCliente(false)
       if (camp?.id) router.push(`/campanas/${camp.id}`)
-    } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
+    } catch (e) { toast.error(e instanceof Error ? e.message : t('propuestas.comun.error')) }
     setGenerando(false)
   }
 
   return (
     <div className="w-full space-y-4">
-      {/* Migas */}
+      {/* Migas. Cuando el rastro es solo «Propuestas», las migas repetían el
+          enlace de volver («← Propuestas · Propuestas › …»): con un solo paso
+          basta el enlace. */}
       <div className="flex flex-wrap items-center gap-2">
         {volver.href && (
           <Link href={volver.href} className="inline-flex items-center gap-1 text-[13px] font-medium text-info hover:underline">
             <ArrowLeft className="h-3.5 w-3.5" /> {volver.label}
           </Link>
         )}
-        <span className="text-muted/50">·</span>
-        <Breadcrumbs items={[...trail, { label: p.nombre }]} />
+        {trail.length > 1 && (
+          <>
+            <span className="text-muted">·</span>
+            <Breadcrumbs items={[...trail, { label: p.nombre }]} />
+          </>
+        )}
       </div>
 
       {/* Encabezado: nombre de la campaña/propuesta + estatus + acciones */}
@@ -319,83 +396,191 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <h1 className="text-2xl text-ink">{p.nombre}</h1>
-            <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${est.cls}`}>{est.label}</span>
+            <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${est.cls}`}>{etiquetaEst}</span>
             {p.version > 1 && (
-              <span className="rounded-full border border-border px-2 py-0.5 text-[11px] font-medium text-muted" title="Versión (sube en cada renegociación)">
+              <span className="rounded-full border border-border px-2 py-0.5 text-[11px] font-medium text-muted" title={t('propuestas.ficha.version.titulo')}>
                 v{p.version}
+              </span>
+            )}
+            {/* PROP-COMPLETA · la vigencia solo importa mientras el cliente
+                puede aceptar: en una aprobada o rechazada sería ruido. */}
+            {p.vigenteHasta && (p.estatus === 'ENVIADA' || p.estatus === 'BORRADOR') && (
+              <span
+                className={cn(
+                  'rounded-full border px-2 py-0.5 text-[11px] font-medium',
+                  p.vencida ? 'border-[#ef444440] text-error' : 'border-border text-muted',
+                )}
+              >
+                {p.vencida
+                  ? t('propuestas.ficha.vencida', { fecha: formatFecha(p.vigenteHasta, idioma) })
+                  : t('propuestas.ficha.valida-hasta', { fecha: formatFecha(p.vigenteHasta, idioma) })}
               </span>
             )}
           </div>
           <p className="mt-1 text-[12px] text-muted">
-            Folio interno: <span className="demo-num font-medium text-ink">{p.folio}</span>
-            <span className="ml-1 text-muted">· el cliente accede solo por la liga (token)</span>
+            {t('propuestas.ficha.folio')} <span className="demo-num font-medium text-ink">{p.folio}</span>
+            <span className="ml-1 text-muted">{t('propuestas.ficha.folio.nota')}</span>
           </p>
+          <PasosEstatus estatus={p.estatus} conCampana={!!campanas?.some((c) => c.propuestaId === p.id)} />
         </div>
         <div className="flex flex-wrap gap-2">
           {/* Compartir + PDF (visibles siempre) */}
           <Button size="sm" variant="secondary" onClick={copiarLiga}>
-            {copiado ? <><CheckIcon className="h-3.5 w-3.5 text-success" /> ¡Copiado!</> : <><Link2 className="h-3.5 w-3.5" /> Copiar liga</>}
+            {copiado ? (
+              <><CheckIcon className="h-3.5 w-3.5 text-success" /> {t('propuestas.ficha.copiado-boton')}</>
+            ) : (
+              <><Link2 className="h-3.5 w-3.5" /> {t('propuestas.ficha.copiar-liga')}</>
+            )}
           </Button>
+          {/* PROP-COMPLETA · duplicar abre el formulario de alta precargado
+              (mismos sitios y contratación, tarifa de hoy, sin cupón). */}
+          {puedeEditar && (
+            <Button size="sm" variant="secondary" onClick={() => router.push(`/propuestas?duplicar=${p.id}`)}>
+              <Copy className="h-3.5 w-3.5" /> {t('propuestas.ficha.duplicar')}
+            </Button>
+          )}
           <Button size="sm" variant="secondary" onClick={generarPdf}>
-            <FileDown className="h-3.5 w-3.5" /> Generar PDF
+            <FileDown className="h-3.5 w-3.5" /> {t('propuestas.ficha.generar-pdf')}
           </Button>
 
           {/* Acciones de estatus (solo edición) */}
-          {puedeEditar && p.estatus === 'BORRADOR' && (
-            <Button size="sm" variant="primary" onClick={() => cambiar('ENVIADA')}><Send className="h-3.5 w-3.5" /> Enviar</Button>
+          {/* PROP-COMPLETA · «Enviar» manda la liga por correo (y la deja
+              ENVIADA); en una ya enviada es «Reenviar» (decisión del dueño). */}
+          {puedeEditar && (p.estatus === 'BORRADOR' || p.estatus === 'ENVIADA') && (
+            <Button size="sm" variant={p.estatus === 'BORRADOR' ? 'primary' : 'secondary'} onClick={() => setEnviarAbierto(true)}>
+              <Send className="h-3.5 w-3.5" />{' '}
+              {p.estatus === 'BORRADOR' ? t('propuestas.comun.enviar') : t('propuestas.comun.reenviar')}
+            </Button>
           )}
           {puedeEditar && (p.estatus === 'ENVIADA' || p.estatus === 'BORRADOR') && (
             <>
-              <Button size="sm" onClick={() => cambiar('APROBADA')}><Check className="h-3.5 w-3.5" /> Aprobar</Button>
-              <Button size="sm" variant="danger" onClick={() => cambiar('RECHAZADA')}><X className="h-3.5 w-3.5" /> Rechazar</Button>
+              <Button size="sm" onClick={() => cambiar('APROBADA')}><Check className="h-3.5 w-3.5" /> {t('propuestas.comun.aprobar')}</Button>
+              <Button size="sm" variant="danger" onClick={() => cambiar('RECHAZADA')}><X className="h-3.5 w-3.5" /> {t('propuestas.comun.rechazar')}</Button>
             </>
           )}
+          {puedeEditar && p.estatus === 'BORRADOR' && (
+            <Button size="sm" variant="ghost" onClick={borrar} title={t('propuestas.ficha.borrar.titulo')}>
+              <Trash2 className="h-3.5 w-3.5" /> {t('propuestas.ficha.borrar')}
+            </Button>
+          )}
           {puedeEditar && p.estatus === 'APROBADA' && (
-            <Button size="sm" disabled={generando} onClick={generarCampana}>
-              <ChevronRight className="h-3.5 w-3.5" /> {generando ? 'Generando…' : 'Generar campaña'}
+            <Button size="sm" disabled={generando} onClick={() => void generarCampana()}>
+              <ChevronRight className="h-3.5 w-3.5" />{' '}
+              {generando ? t('propuestas.comun.generando') : t('propuestas.comun.generar-campana')}
             </Button>
           )}
         </div>
       </div>
 
+      <EnviarPropuestaDialog
+        open={enviarAbierto}
+        onOpenChange={setEnviarAbierto}
+        propuestaId={p.id}
+        correoCliente={cliente?.contacto?.email ?? null}
+        reenvio={p.estatus === 'ENVIADA'}
+        onSinCorreo={copiarLiga}
+      />
+
+      <ElegirClienteDialog
+        open={elegirCliente}
+        onOpenChange={setElegirCliente}
+        clientes={clientes}
+        onElegir={(clienteId) => generarCampana(clienteId)}
+      />
+
       {/* Barra de metadatos (fechas / anunciante / agencia / comisión) */}
       <Card className="overflow-hidden p-0">
         <div className="grid grid-cols-2 divide-x divide-y divide-border sm:grid-cols-4 sm:divide-y-0">
-          <Meta icon={<CalendarDays className="h-4 w-4" />} label="Fechas"
-            value={desde && hasta ? `${formatFecha(desde)} – ${formatFecha(hasta)}` : '—'} />
-          <Meta label="Anunciante" value={cliente?.nombre ?? 'Sin cliente'} />
-          <Meta label="Agencia" value={agencia?.nombre ?? 'Directa'} />
-          <Meta label="Comisión" value={`${comisionPct}%`} />
+          <Meta icon={<CalendarDays className="h-4 w-4" />} label={t('propuestas.ficha.meta.fechas')}
+            value={desde && hasta ? `${formatFecha(desde, idioma)} – ${formatFecha(hasta, idioma)}` : '—'} />
+          <Meta label={t('propuestas.ficha.meta.anunciante')} value={cliente?.nombre ?? t('propuestas.comun.sin-cliente')} />
+          <Meta label={t('propuestas.comun.agencia')} value={agencia?.nombre ?? t('propuestas.ficha.meta.directa')} />
+          <Meta label={t('propuestas.ficha.meta.comision')} value={`${comisionPct}%`} />
         </div>
       </Card>
 
-      {/* Resumen económico (KPIs) */}
-      <Card>
-        <CardHeader><CardTitle>Resumen económico</CardTitle></CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <Kpi icon={<Wallet className="h-4 w-4" />} tono="info" label="Total c/IVA" value={formatMonto(p.total)} />
-            <Kpi icon={<Coins className="h-4 w-4" />} tono="success" label="Neto propuesto" value={formatMonto(p.neto)} />
-            <Kpi icon={<Receipt className="h-4 w-4" />} tono="ambar" label={`IVA ${ivaPct}%`} value={formatMonto(p.iva)} />
-            <Kpi icon={<Building2 className="h-4 w-4" />} tono="neutro" label="Sitios" value={`${p.items.length}`} />
+      {/* Resumen económico (KPIs). PLEG-02 · el descuento tecleado vive en
+          esta página y sobrevive a plegar; lo que se esté escribiendo en el
+          bloque del código de negociación, no (es estado de ese componente). */}
+      <CardColapsable id="propuesta.resumen-economico" titulo={t('propuestas.ficha.resumen')}>
+          {/* KPIs con la `KPICard` del Dashboard (26/10). Mismas cifras que ya
+              estaban en la página: el total y el neto de la propuesta, la renta
+              de referencia que enseñaba «Sitios y renta» en su encabezado, y lo
+              aprobado de «Sobre lo aprobado». El IVA sigue en la escalera.
+              NO hay tarjeta de margen a propósito: la renta es la del contrato
+              en su propia periodicidad, sin prorratear a las fechas de la
+              propuesta, y restarla del neto daría una cifra nueva y engañosa. */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <KPICard
+              label={t('propuestas.ficha.kpi.total')}
+              value={formatMonto(p.total, idioma)}
+              sub={t('propuestas.ficha.kpi.total.sub', { sitios: nSitios(p.items.length) })}
+              tono="azul"
+              icon={<Wallet className="h-4 w-4" />}
+            />
+            <KPICard
+              label={t('propuestas.ficha.kpi.neto')}
+              value={formatMonto(p.neto, idioma)}
+              sub={
+                comisionPct > 0
+                  ? t('propuestas.ficha.kpi.neto.sub', { pct: comisionPct })
+                  : t('propuestas.ficha.kpi.neto.directa')
+              }
+              icon={<Coins className="h-4 w-4" />}
+            />
+            {/* Sin `arrendadores:ver` los contratos llegan vacíos de
+                `/api/estado`: decirle a un vendedor «ninguna pantalla tiene renta
+                capturada» sería afirmar algo falso (lo cazó la validación del
+                26/10 con la propuesta PR-2026-0007, que sí tiene renta). */}
+            <KPICard
+              label={t('propuestas.ficha.kpi.renta')}
+              value={!veRentas || sinContratoRenta === p.items.length ? '—' : formatMonto(rentaTotal, idioma)}
+              sub={
+                !veRentas
+                  ? t('propuestas.ficha.kpi.renta.sin-permiso')
+                  : sinContratoRenta === p.items.length
+                  ? t('propuestas.ficha.kpi.renta.ninguna')
+                  : t('propuestas.ficha.kpi.renta.suma', {
+                      sin: sinContratoRenta ? t('propuestas.ficha.kpi.renta.sin-contrato', { n: sinContratoRenta }) : '',
+                    })
+              }
+              icon={<Building2 className="h-4 w-4" />}
+            />
+            <KPICard
+              label={t('propuestas.ficha.kpi.aprobado')}
+              value={p.itemsAprobados === 0 ? '—' : formatMonto(p.totalAprobado, idioma)}
+              sub={
+                p.itemsAprobados === 0
+                  ? t('propuestas.ficha.kpi.aprobado.ninguno', { n: p.items.length })
+                  : t('propuestas.ficha.kpi.aprobado.sub', { aprobados: p.itemsAprobados, sitios: nSitios(p.items.length) })
+              }
+              tono={p.itemsAprobados === 0 ? 'neutro' : 'verde'}
+              icon={<CheckCircle2 className="h-4 w-4" />}
+            />
           </div>
 
           {/* Desglose con descuento comercial + editor */}
+          {/* Desde el 26/10 esta es la ÚNICA escalera de bruto a total de la
+              página: la de «Costo · método del divisor» repetía la cuenta, y
+              además sin el descuento comercial, así que se leían dos versiones
+              distintas de lo mismo. Esta es la completa. */}
           <div className="mt-4 grid gap-4 border-t border-border pt-4 lg:grid-cols-2">
+            <div className="space-y-3">
             <dl className="space-y-1.5 text-[13px]">
-              <Fila label="Bruto (tarifa de lista)" valor={formatMonto(p.bruto)} />
+              <Fila label={t('propuestas.comun.bruto-lista')} valor={formatMonto(p.bruto, idioma)} />
               {/* PAQ-01 · EL PAQUETE VA PRIMERO Y NO ES UN DESCUENTO. Se pinta
                   como «precio del conjunto» y con el importe en positivo, no
                   como una resta: llamarlo descuento haría creer que el bruto de
                   arriba sigue mandando, y lo que pasa es que deja de mandar.
                   Sin este renglón la escalera no cuadra en pantalla, y una
                   cuenta que no da se lee como un defecto del sistema.
-                  Va en LOS DOS desgloses de esta página: el de «Resumen
-                  económico» y el de «Costo · método del divisor». */}
+                  Iba en LOS DOS desgloses de esta página hasta el 26/10, cuando
+                  quedó uno solo: el de «Resumen
+                  económico» (ver la nota de «Costo · método del divisor»). */}
               {p.paquete && (
                 <Fila
-                  label={`Paquete "${p.paquete.nombre}" — precio del conjunto`}
-                  valor={formatMonto(p.paquete.precio)}
+                  label={t('propuestas.comun.paquete-conjunto', { nombre: p.paquete.nombre })}
+                  valor={formatMonto(p.paquete.precio, idioma)}
                 />
               )}
               {/* VOL-01 · el renglón aparece SOLO cuando hay volumen, y tiene que
@@ -404,69 +589,112 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                   lee como un defecto del sistema. */}
               {p.descuentoVolumenMonto > 0 && (
                 <Fila
-                  label={`Descuento por volumen (${Math.round(p.descuentoVolumenPct * 10) / 10}%)`}
-                  valor={`− ${formatMonto(p.descuentoVolumenMonto)}`}
+                  label={t('propuestas.comun.descuento-volumen', { pct: cifraEnEtiqueta(Math.round(p.descuentoVolumenPct * 10) / 10, idioma) })}
+                  valor={`− ${formatMonto(p.descuentoVolumenMonto, idioma)}`}
                   tono="text-error"
                 />
               )}
-              <Fila label={`Descuento comercial (${pctConDosDecimales(p.descuentoPct)}%)`} valor={p.descuentoMonto ? `− ${formatMonto(p.descuentoMonto)}` : '—'} tono={p.descuentoMonto ? 'text-error' : undefined} />
+              <Fila label={t('propuestas.ficha.descuento-comercial-pct', { pct: cifraEnEtiqueta(Number(pctConDosDecimales(p.descuentoPct)), idioma, 2) })} valor={p.descuentoMonto ? `− ${formatMonto(p.descuentoMonto, idioma)}` : '—'} tono={p.descuentoMonto ? 'text-error' : undefined} />
               {/* COD-01 · el renglón aparece SOLO cuando hay código, y tiene que
                   aparecer con SU NOMBRE: un descuento sin decir de qué cupón salió
                   no se puede explicar seis meses después, y sin él la escalera no
                   cuadra en pantalla. */}
               {p.codigoDescuentoMonto > 0 && (
                 <Fila
-                  label={`Código ${p.codigoTexto ?? ''} (${p.codigoDescuentoPct}%)${
+                  label={`${t('propuestas.comun.codigo-pct', { codigo: p.codigoTexto ?? '', pct: cifraEnEtiqueta(p.codigoDescuentoPct, idioma) })}${
                     // COD-03 · el total INTERNO cuenta el cupón aunque esté
                     // pendiente (es lo que se ofrece); el renglón avisa de que
                     // el cliente todavía no lo ve.
-                    p.codigoEstado === 'PENDIENTE' ? ' · cupón pendiente de aprobación' : ''
+                    p.codigoEstado === 'PENDIENTE' ? t('propuestas.ficha.codigo-pendiente') : ''
                   }`}
-                  valor={`− ${formatMonto(p.codigoDescuentoMonto)}`}
+                  valor={`− ${formatMonto(p.codigoDescuentoMonto, idioma)}`}
                   tono="text-error"
                 />
               )}
-              <Fila label="Base con descuento" valor={formatMonto(p.base)} />
-              <Fila label={`Comisión de agencia (${comisionPct}%)`} valor={`− ${formatMonto(p.base - p.neto)}`} />
-              <Fila label="Neto (para el medio)" valor={formatMonto(p.neto)} />
-              <Fila label={`IVA ${ivaPct}%`} valor={formatMonto(p.iva)} />
+              <Fila label={t('propuestas.ficha.base')} valor={formatMonto(p.base, idioma)} />
+              <Fila label={t('propuestas.ficha.comision', { pct: comisionPct, divisor: cifraEnEtiqueta(p.divisor, idioma, 2) })} valor={`− ${formatMonto(p.base - p.neto, idioma)}`} />
+              <Fila label={t('propuestas.ficha.neto')} valor={formatMonto(p.neto, idioma)} />
+              <Fila label={t('propuestas.comun.iva', { pct: ivaPct })} valor={formatMonto(p.iva, idioma)} />
               <div className="border-t border-border pt-1.5">
-                <Fila label="Total que paga el cliente" valor={formatMonto(p.total)} fuerte />
+                <Fila label={t('propuestas.ficha.total')} valor={formatMonto(p.total, idioma)} fuerte />
               </div>
             </dl>
+            {/* «Sobre lo aprobado», que vivía en la tarjeta del método del
+                divisor, como franja secundaria bajo la escalera. Mismas tres
+                cifras; con nada aprobado se dice en vez de pintar tres ceros. */}
+            <div className="rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px]">
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
+                <span className="font-medium text-ink">
+                  {t('propuestas.ficha.aprobado', { aprobados: p.itemsAprobados, sitios: nSitios(p.items.length) })}
+                </span>
+                {p.itemsAprobados === 0 ? (
+                  <span className="text-muted">
+                    {t('propuestas.ficha.ninguno-aprobado', {
+                      marca: puedeEditar ? t('propuestas.ficha.ninguno-aprobado.marca') : '',
+                    })}
+                  </span>
+                ) : (
+                  <>
+                    <span className="text-muted">
+                      {interpolarNodos(t('propuestas.ficha.aprobado.bruto'), {
+                        monto: <span className="demo-num text-ink">{formatMonto(p.brutoAprobado, idioma)}</span>,
+                      })}
+                    </span>
+                    <span className="text-muted">
+                      {interpolarNodos(t('propuestas.ficha.aprobado.neto'), {
+                        monto: <span className="demo-num text-ink">{formatMonto(p.netoAprobado, idioma)}</span>,
+                      })}
+                    </span>
+                    <span className="text-muted">
+                      {interpolarNodos(t('propuestas.ficha.aprobado.total'), {
+                        monto: <span className="demo-num font-semibold text-ink">{formatMonto(p.totalAprobado, idioma)}</span>,
+                      })}
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+            </div>
 
             {puedeEditar && (
-              <div className="rounded-md border border-border bg-surface-2/40 p-3">
-                <div className="text-[12px] font-medium text-ink">Descuento comercial</div>
+              <div className="rounded-md border border-border bg-surface-2 p-3">
+                <div className="text-[12px] font-medium text-ink">{t('propuestas.ficha.descuento')}</div>
                 <p className="mt-0.5 text-[11px] text-muted">
-                  Rebaja sobre la tarifa de lista (distinta de la comisión de agencia).
-                  {' '}Cambiarlo en una propuesta ya <b>Enviada</b> sube la versión (renegociación).
+                  {interpolarNodos(t('propuestas.ficha.descuento.ayuda'), {
+                    enviada: <b>{t('propuestas.ficha.descuento.enviada')}</b>,
+                  })}
                   {/* TOPE-01 · el techo solo se anuncia cuando de verdad limita
                       algo. Escribir «máximo 100 %» en una organización sin tope
                       sería ruido, y peor: enseñaría un límite donde no lo hay. */}
                   {topeDescuento < 100 && (
-                    <> Tu organización autoriza hasta <b>{topeDescuento} %</b>; para más, Administración tiene que subir el tope.</>
+                    <>{interpolarNodos(t('propuestas.ficha.descuento.tope-aviso'), {
+                      tope: <b>{t('propuestas.comun.pct', { pct: cifraEnEtiqueta(topeDescuento, idioma) })}</b>,
+                    })}</>
                   )}
                 </p>
                 {editable ? (
                   <div className="mt-2 flex items-center gap-2">
                     <div className="relative">
-                      <input
+                      {/* P-L2-1 · en italiano «12,5»; lo ilegible llega como 'NaN'
+                          y `aplicarDescuento` lo rechaza («descuento invalido»). */}
+                      <EntradaCifra
                         type="number" min={0} max={topeDescuento} step={0.01}
-                        value={descInput}
-                        onChange={(e) => setDescInput(e.target.value)}
+                        valor={descInput}
+                        onCambio={setDescInput}
+                        decimales={2}
+                        minimo={0}
                         onBlur={() => { if (descInput.trim() === '') setDescInput('0.00') }}
                         className="h-9 w-24 rounded border border-border-strong bg-surface pl-3 pr-6 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
                       />
                       <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[12px] text-muted">%</span>
                     </div>
                     <Button size="sm" onClick={aplicarDescuento} disabled={guardandoDesc || Number(descInput) === p.descuentoPct}>
-                      {guardandoDesc ? 'Guardando…' : 'Aplicar'}
+                      {guardandoDesc ? t('propuestas.comun.guardando') : t('propuestas.comun.aplicar')}
                     </Button>
-                    {p.version > 1 && <span className="text-[11px] text-muted">versión actual: v{p.version}</span>}
+                    {p.version > 1 && <span className="text-[11px] text-muted">{t('propuestas.ficha.version-actual', { n: p.version })}</span>}
                   </div>
                 ) : (
-                  <p className="mt-2 text-[12px] text-muted">La propuesta ya está {est.label.toLowerCase()}; el descuento quedó fijo.</p>
+                  <p className="mt-2 text-[12px] text-muted">{t('propuestas.ficha.descuento.fijo', { estatus: etiquetaEst.toLowerCase() })}</p>
                 )}
               </div>
             )}
@@ -479,83 +707,88 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                 importe: solo se ELIGE uno del catálogo, y el precio sale de
                 ahí, del servidor y bajo RLS. */}
             {puedeEditar && (
-              <div className="rounded-md border border-border bg-surface-2/40 p-3">
-                <div className="text-[12px] font-medium text-ink">Paquete cerrado</div>
+              <div className="rounded-md border border-border bg-surface-2 p-3">
+                <div className="text-[12px] font-medium text-ink">{t('propuestas.ficha.paquete')}</div>
                 {p.paquete ? (
                   <>
                     <p className="mt-0.5 text-[11px] text-muted">
-                      Esta propuesta se vende como el paquete{' '}
-                      <b>{p.paquete.nombre}</b> por <b>{formatMonto(p.paquete.precio)}</b>, que ya
-                      está congelado: si el paquete cambia o se borra, este precio no se mueve.
+                      {interpolarNodos(t('propuestas.ficha.paquete.vendido'), {
+                        nombre: <b>{p.paquete.nombre}</b>,
+                        precio: <b>{formatMonto(p.paquete.precio, idioma)}</b>,
+                      })}
                       {' '}
                       {p.paquete.admiteCodigo
-                        ? 'Admite código promocional encima.'
-                        : 'Es precio final: no admite descuento por volumen ni código promocional.'}
+                        ? t('propuestas.ficha.paquete.admite-codigo')
+                        : t('propuestas.ficha.paquete.precio-final')}
                     </p>
                     {/* La frase que responde a «¿y si alguien quita una
                         pantalla?». Se enseña en cuanto la propuesta deja de
                         cuadrar con lo que se cotizó, porque el precio NO baja y
                         eso es sorprendente. Callarlo sería mentir por omisión. */}
                     {p.paquete.avisoComposicion && (
-                      <p className="mt-1 rounded border border-warning/40 bg-warning/10 px-2 py-1 text-[11px] text-ink">
+                      <p className="mt-1 rounded border border-[#f59e0b40] bg-warning-soft px-2 py-1 text-[11px] text-ink">
                         {p.paquete.avisoComposicion}
                       </p>
                     )}
-                    <ul className="mt-1 text-[11px] text-muted">
+                    <ul className="m-0 mt-1 list-none p-0 text-[11px] text-muted">
                       {p.paquete.sitios.map((s) => (
                         <li key={s.sitioId}>
                           {sitios?.find((x) => x.id === s.sitioId)?.nombre ?? s.sitioId}:{' '}
-                          {formatMonto(s.parte)}
+                          {formatMonto(s.parte, idioma)}
                         </li>
                       ))}
                     </ul>
                     {editable ? (
                       <div className="mt-2 flex items-center gap-2">
                         <Button size="sm" variant="ghost" onClick={quitarPaquete} disabled={guardandoPaq}>
-                          {guardandoPaq ? 'Quitando…' : 'Quitar paquete'}
+                          {guardandoPaq ? t('propuestas.comun.quitando') : t('propuestas.ficha.paquete.quitar')}
                         </Button>
                         <span className="text-[11px] text-muted">
-                          Quitarlo devuelve los precios de lista de cada pantalla.
+                          {t('propuestas.ficha.paquete.quitar.ayuda')}
                         </span>
                       </div>
                     ) : (
                       <p className="mt-2 text-[12px] text-muted">
-                        La propuesta ya está {est.label.toLowerCase()}; el paquete quedó fijo.
+                        {t('propuestas.ficha.paquete.fijo', { estatus: etiquetaEst.toLowerCase() })}
                       </p>
                     )}
                   </>
                 ) : (
                   <>
                     <p className="mt-0.5 text-[11px] text-muted">
-                      El precio del paquete <b>sustituye</b> la suma de las tarifas de lista: no la
-                      descuenta, la reemplaza. Y se reparte entre sus pantallas a prorrata, que es
-                      el ingreso que el reporte le atribuye a cada una. Solo se puede aplicar si
-                      esta propuesta tiene <b>exactamente</b> las pantallas del paquete.
+                      {interpolarNodos(t('propuestas.ficha.paquete.ayuda'), {
+                        sustituye: <b>{t('propuestas.ficha.paquete.sustituye')}</b>,
+                        exactamente: <b>{t('propuestas.ficha.paquete.exactamente')}</b>,
+                      })}
                     </p>
                     {editable && catalogoPaq.length > 0 ? (
                       <div className="mt-2 flex items-center gap-2">
                         <select
-                          aria-label="Paquete cerrado"
+                          aria-label={t('propuestas.ficha.paquete')}
                           value={paqSel}
                           onChange={(e) => setPaqSel(e.target.value)}
                           className="h-9 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
                         >
-                          <option value="">Elige un paquete…</option>
+                          <option value="">{t('propuestas.ficha.paquete.elige-opcion')}</option>
                           {catalogoPaq.map((x) => (
                             <option key={x.id} value={x.id}>
-                              {x.nombre} — {formatMonto(x.precioCerrado)} · {x.sitios.length} pantallas
+                              {t(x.sitios.length === 1 ? 'propuestas.ficha.paquete.opcion.uno' : 'propuestas.ficha.paquete.opcion.otros', {
+                                nombre: x.nombre,
+                                precio: formatMonto(x.precioCerrado, idioma),
+                                n: x.sitios.length,
+                              })}
                             </option>
                           ))}
                         </select>
                         <Button size="sm" onClick={aplicarPaquete} disabled={guardandoPaq || !paqSel}>
-                          {guardandoPaq ? 'Aplicando…' : 'Aplicar'}
+                          {guardandoPaq ? t('propuestas.comun.aplicando') : t('propuestas.comun.aplicar')}
                         </Button>
                       </div>
                     ) : (
                       <p className="mt-2 text-[12px] text-muted">
                         {!editable
-                          ? `La propuesta ya está ${est.label.toLowerCase()}; no admite paquete.`
-                          : 'No hay paquetes activos en el catálogo.'}
+                          ? t('propuestas.ficha.paquete.no-admite', { estatus: etiquetaEst.toLowerCase() })
+                          : t('propuestas.ficha.paquete.sin-catalogo')}
                       </p>
                     )}
                   </>
@@ -577,35 +810,52 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
               puedeEditar={puedeEditar}
             />
           </div>
-        </CardContent>
-      </Card>
+      </CardColapsable>
 
       {/* Sitios y renta (publishers) */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Sitios y renta</CardTitle>
+      <CardColapsable
+        id="propuesta.sitios"
+        titulo={t('propuestas.ficha.sitios')}
+        resumen={
           <span className="text-[12px] text-muted">
-            Renta total ref. <b className="demo-num text-ink">{formatMonto(rentaTotal)}</b>
+            {interpolarNodos(t('propuestas.ficha.sitios.renta-total'), {
+              monto: <b className="demo-num text-ink">{formatMonto(rentaTotal, idioma)}</b>,
+            })}
           </span>
-        </CardHeader>
-        <CardContent>
+        }
+      >
+          {/* PROP-COMPLETA · agregar sitios (BORRADOR o ENVIADA). Abre el
+              formulario de alta en modo «agregar», con el periodo de la propuesta. */}
+          {puedeEditar && sitiosEditables && (
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <Button size="sm" variant="secondary" onClick={() => router.push(`/propuestas?agregar=${p.id}`)}>
+                <Plus className="h-3.5 w-3.5" /> {t('propuestas.comun.agregar-sitios')}
+              </Button>
+              {p.estatus === 'ENVIADA' && (
+                <span className="text-[11px] text-muted">{t('propuestas.ficha.sitios.enviada')}</span>
+              )}
+            </div>
+          )}
           {p.items.length === 0 ? (
-            <p className="text-[13px] text-muted">Esta propuesta no tiene sitios.</p>
+            <p className="text-[13px] text-muted">{t('propuestas.ficha.sitios.vacia')}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-[12px]">
                 <thead>
                   <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-muted">
-                    <th className="py-2 pr-3 font-medium">Sitio</th>
-                    <th className="py-2 pr-3 font-medium">Arrendador · renta</th>
+                    <th className="py-2 pr-3 font-medium">{t('propuestas.ficha.tabla.sitio')}</th>
+                    <th className="py-2 pr-3 font-medium">{t('propuestas.ficha.tabla.arrendador')}</th>
                     {/* QUÉ se vendió, no solo cuánto. Se podían vender 50 spots
                         y el 50 no aparecía en ninguna pantalla posterior: esta
                         tabla enseñaba sitio, renta y precio, y un importe sin su
                         unidad no dice nada — «$60,000» puede ser un mes o
                         cincuenta spots. */}
-                    <th className="py-2 pr-3 font-medium">Contratación</th>
-                    <th className="py-2 pr-3 text-right font-medium">Precio propuesta</th>
-                    <th className="py-2 pl-3 text-right font-medium">Aprobado</th>
+                    <th className="py-2 pr-3 font-medium">{t('propuestas.ficha.tabla.contratacion')}</th>
+                    <th className="py-2 pr-3 text-right font-medium">{t('propuestas.ficha.tabla.precio')}</th>
+                    <th className="py-2 pl-3 text-right font-medium">{t('propuestas.ficha.tabla.aprobado')}</th>
+                    {puedeEditar && sitiosEditables && p.items.length > 1 && (
+                      <th className="py-2 pl-2" aria-label={t('propuestas.ficha.tabla.quitar')} />
+                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -632,7 +882,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                                 }`}
                               >
                                 {digital ? <Monitor className="h-2.5 w-2.5" /> : <Square className="h-2.5 w-2.5" />}
-                                {digital ? 'Digital' : 'Fija'}
+                                {digital ? t('propuestas.comun.digital') : t('propuestas.comun.fija')}
                               </span>
                             )}
                           </div>
@@ -645,11 +895,14 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                             <>
                               <div className="text-ink">{renta.propietario}</div>
                               <div className="demo-num text-[11px] text-muted">
-                                {formatMonto(renta.monto)} · {renta.periodicidad}
+                                {/* En espanol, el dato tal cual (`mensual`), como siempre. En
+                                    ingles no se puede: es una palabra espanola. Se traduce y se
+                                    deja en minusculas, igual que se ve en espanol. */}
+                                {formatMonto(renta.monto, idioma)} · {idioma === 'es' ? renta.periodicidad : periodicidadLabel(renta.periodicidad, '—', idioma).toLowerCase()}
                               </div>
                             </>
                           ) : (
-                            <span className="text-muted">Sin contrato de renta</span>
+                            <span className="text-muted">{t('propuestas.ficha.tabla.sin-contrato')}</span>
                           )}
                         </td>
                         {/* La multiplicación que produjo el importe de al lado,
@@ -661,11 +914,14 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                             una decisión escrita aquí dentro no la ve nadie. */}
                         <td className="py-2.5 pr-3">
                           <div className="demo-num text-ink">
-                            {resumenContratacion({
-                              unidad: it.unidad,
-                              cantidad: it.cantidad,
-                              tarifaUnitaria: it.tarifaUnitaria,
-                            })}
+                            {resumenContratacion(
+                              {
+                                unidad: it.unidad,
+                                cantidad: it.cantidad,
+                                tarifaUnitaria: it.tarifaUnitaria,
+                              },
+                              idioma,
+                            )}
                           </div>
                           {/* PRECIO-01 · la tarifa se apartó de la calculada.
                               Solo en esta pantalla INTERNA: la liga del
@@ -674,22 +930,24 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                               no deja saber cuánto se movió ni quién lo movió. */}
                           {it.precioAjustadoPor && (
                             <div className="text-[11px] font-medium text-[#9a6700]">
-                              {it.tarifaCalculada != null
-                                ? `Tarifa calculada ${formatMonto(it.tarifaCalculada)}`
-                                : 'Sin tarifa calculada'}
-                              {' · ajustada por '}
-                              {it.precioAjustadoPorNombre ?? 'un usuario dado de baja'}
+                              {t('propuestas.ficha.tabla.ajustada', {
+                                tarifa:
+                                  it.tarifaCalculada != null
+                                    ? t('propuestas.ficha.tabla.tarifa-calculada', { monto: formatMonto(it.tarifaCalculada, idioma) })
+                                    : t('propuestas.ficha.tabla.sin-tarifa-calculada'),
+                                quien: it.precioAjustadoPorNombre ?? t('propuestas.ficha.tabla.usuario-baja'),
+                              })}
                             </div>
                           )}
                           {/* ADR 0042 · con qué se calculó la cantidad: espacios
                               del loop, horas al día y, si lo es, Roadblock y su
                               prima. Solo aquí, en la pantalla INTERNA: la liga
                               del cliente enseña el precio final. */}
-                          {etiquetaCalculadora(it) && (
-                            <div className="text-[11px] text-muted">{etiquetaCalculadora(it)}</div>
+                          {etiquetaCalculadora(it, idioma) && (
+                            <div className="text-[11px] text-muted">{etiquetaCalculadora(it, idioma)}</div>
                           )}
-                          {etiquetaFrecuencia(it.spotsPorDia) && (
-                            <div className="text-[11px] text-muted">{etiquetaFrecuencia(it.spotsPorDia)}</div>
+                          {etiquetaFrecuencia(it.spotsPorDia, idioma) && (
+                            <div className="text-[11px] text-muted">{etiquetaFrecuencia(it.spotsPorDia, idioma)}</div>
                           )}
                           {/* REJILLA-01 · la franja CONTRATADA. Se pinta el
                               nombre CON su horario a propósito: «Prime» a secas
@@ -705,7 +963,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                             </div>
                           )}
                         </td>
-                        <td className="demo-num py-2.5 pr-3 text-right text-ink">{formatMonto(it.precio)}</td>
+                        <td className="demo-num py-2.5 pr-3 text-right text-ink">{formatMonto(it.precio, idioma)}</td>
                         <td className="py-2.5 pl-3 text-right">
                           {puedeEditar ? (
                             <input
@@ -720,6 +978,22 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                             <X className="ml-auto h-4 w-4 text-muted" />
                           )}
                         </td>
+                        {/* Nunca el último: sin sitios no hay periodo ni importe. */}
+                        {puedeEditar && sitiosEditables && p.items.length > 1 && (
+                          <td className="py-2.5 pl-2 text-right">
+                            <button
+                              type="button"
+                              onClick={() => quitarSitio(it.id, s?.nombre ?? t('propuestas.ficha.tabla.este-sitio'))}
+                              className="rounded p-1 text-muted hover:bg-surface-2 hover:text-error"
+                              aria-label={t('propuestas.ficha.tabla.quitar-sitio', {
+                                sitio: s?.nombre ?? t('propuestas.ficha.tabla.sitio-generico'),
+                              })}
+                              title={t('propuestas.ficha.tabla.quitar.titulo')}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     )
                   })}
@@ -739,111 +1013,55 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
               )}
             </div>
           )}
-        </CardContent>
-      </Card>
+      </CardColapsable>
 
-      {/* Mapa con la ubicación de las pantallas */}
-      <Card>
-        <CardHeader><CardTitle>Ubicación de las pantallas</CardTitle></CardHeader>
-        <CardContent>
+      {/* PROP-COMPLETA (29/10) · lo que el cliente lee además de los
+          importes: hasta cuándo puede aceptar y en qué términos. */}
+      <CardColapsable id="propuesta.condiciones" titulo={t('propuestas.ficha.condiciones')}>
+        <BloqueCondicionesVigencia
+          propuestaId={p.id}
+          condiciones={p.condiciones ?? null}
+          vigenteHasta={p.vigenteHasta ?? null}
+          vencida={!!p.vencida}
+          editable={puedeEditar && p.estatus !== 'APROBADA'}
+        />
+      </CardColapsable>
+
+      {/* Mapa con la ubicación de las pantallas. PLEG-02 · plegado, el mapa se
+          desmonta: al volver a abrirlo se redibuja con el encuadre inicial. */}
+      <CardColapsable id="propuesta.mapa" titulo={t('propuestas.ficha.mapa')}>
           <div className="h-[360px] w-full overflow-hidden rounded border border-border">
             {puntos.length ? (
               <MapView points={puntos} zoom={11} />
             ) : (
               <div className="flex h-full items-center justify-center px-4 text-center text-[13px] text-muted">
                 {sitios === undefined
-                  ? 'Cargando ubicaciones…'
-                  : `Ninguna de las ${p.items.length} pantalla${p.items.length === 1 ? '' : 's'} de esta propuesta tiene coordenadas capturadas.`}
+                  ? t('propuestas.ficha.mapa.cargando')
+                  : p.items.length === 1
+                    ? t('propuestas.ficha.mapa.sin-coords.uno')
+                    : t('propuestas.ficha.mapa.sin-coords.otros', { n: p.items.length })}
               </div>
             )}
           </div>
           {puntos.length > 0 && sinCoords > 0 && (
             <p className="mt-2 text-[11px] text-muted">
-              {sinCoords} de {conteo(p.items.length, 'pantalla')} no tienen coordenadas y no aparecen en el mapa.
+              {t('propuestas.ficha.mapa.parcial', {
+                n: sinCoords,
+                pantallas: conteo(p.items.length, t('propuestas.unidad.pantalla'), t('propuestas.unidad.pantallas')),
+              })}
             </p>
           )}
-        </CardContent>
-      </Card>
+      </CardColapsable>
 
-      {/* Costo (método del divisor) */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Costo · método del divisor</CardTitle>
-          <span className="text-[12px] text-muted">
-            Aprobado {p.itemsAprobados}/{conteo(p.items.length, 'sitio')}
-          </span>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {/* Desglose */}
-            <dl className="space-y-2 text-[13px]">
-              <Fila label="Bruto (tarifa de lista)" valor={formatMonto(p.bruto)} />
-              {/* PAQ-01 · EL PAQUETE VA PRIMERO Y NO ES UN DESCUENTO. Se pinta
-                  como «precio del conjunto» y con el importe en positivo, no
-                  como una resta: llamarlo descuento haría creer que el bruto de
-                  arriba sigue mandando, y lo que pasa es que deja de mandar.
-                  Sin este renglón la escalera no cuadra en pantalla, y una
-                  cuenta que no da se lee como un defecto del sistema.
-                  Va en LOS DOS desgloses de esta página: el de «Resumen
-                  económico» y el de «Costo · método del divisor». */}
-              {p.paquete && (
-                <Fila
-                  label={`Paquete "${p.paquete.nombre}" — precio del conjunto`}
-                  valor={formatMonto(p.paquete.precio)}
-                />
-              )}
-              {/* VOL-01 · el renglón aparece SOLO cuando hay volumen, y tiene que
-                  aparecer: sin él la escalera no cuadra en pantalla —bruto menos
-                  descuento comercial no daría la base— y una cuenta que no da se
-                  lee como un defecto del sistema. */}
-              {p.descuentoVolumenMonto > 0 && (
-                <Fila
-                  label={`Descuento por volumen (${Math.round(p.descuentoVolumenPct * 10) / 10}%)`}
-                  valor={`− ${formatMonto(p.descuentoVolumenMonto)}`}
-                  tono="text-error"
-                />
-              )}
-              {/* La comisión se mide desde el bruto YA con el volumen quitado.
-                  Con `p.bruto` a secas, el descuento por volumen se contaría dos
-                  veces en esta columna: una en el renglón de arriba y otra
-                  dentro de éste. (Este bloque tampoco desglosa el descuento
-                  comercial — eso viene de antes y no se toca aquí.) */}
-              {p.codigoDescuentoMonto > 0 && (
-                <Fila
-                  label={`Código ${p.codigoTexto ?? ''} (${p.codigoDescuentoPct}%)${
-                    // COD-03 · el total INTERNO cuenta el cupón aunque esté
-                    // pendiente (es lo que se ofrece); el renglón avisa de que
-                    // el cliente todavía no lo ve.
-                    p.codigoEstado === 'PENDIENTE' ? ' · cupón pendiente de aprobación' : ''
-                  }`}
-                  valor={`− ${formatMonto(p.codigoDescuentoMonto)}`}
-                  tono="text-error"
-                />
-              )}
-              {/* Y la comisión se mide QUITANDO también el código, por el mismo
-                  motivo por el que la Fase 2 cambió `p.bruto` por
-                  `p.brutoConVolumen`: con el bruto a secas, el descuento del
-                  cupón se contaría DOS VECES en esta columna — una en el renglón
-                  de arriba y otra dentro de éste. */}
-              <Fila label={`Comisión de agencia (${comisionPct}%) · divisor ×${p.divisor.toFixed(2)}`} valor={`− ${formatMonto(p.brutoConVolumen - p.codigoDescuentoMonto - p.neto)}`} />
-              <Fila label="Neto (lo que recibe el medio)" valor={formatMonto(p.neto)} />
-              <Fila label={`IVA ${ivaPct}%`} valor={formatMonto(p.iva)} />
-              <div className="mt-1 border-t border-border pt-2">
-                <Fila label="Total que paga el cliente" valor={formatMonto(p.total)} fuerte />
-              </div>
-            </dl>
-            {/* Aprobado */}
-            <div className="rounded-md border border-[#10b98133] bg-[#10b9810d] p-3">
-              <div className="mb-2 text-[12px] font-medium text-ink">Sobre lo aprobado</div>
-              <dl className="space-y-2 text-[13px]">
-                <Fila label="Bruto aprobado" valor={formatMonto(p.brutoAprobado)} />
-                <Fila label="Neto aprobado" valor={formatMonto(p.netoAprobado)} />
-                <Fila label="Total aprobado" valor={formatMonto(p.totalAprobado)} fuerte />
-              </dl>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* «Costo · método del divisor» se retiró el 26/10 (rediseño de módulos):
+          repetía la escalera de bruto a total de «Resumen económico», y su
+          «Sobre lo aprobado» pasó como franja debajo de aquella. Si alguien la
+          resucita, que lea lo que dejaron escrito sus comentarios: la comisión
+          se medía como `p.brutoConVolumen - p.codigoDescuentoMonto - p.neto`
+          porque con `p.bruto` a secas el descuento por volumen (VOL-01) y el
+          del cupón (COD-01) se contaban DOS VECES —una en su renglón y otra
+          dentro de la comisión—, y aun así NO quitaba el descuento comercial,
+          que es por qué no coincidía con la de arriba (`p.base - p.neto`). */}
     </div>
   )
 }
@@ -859,23 +1077,43 @@ function Meta({ icon, label, value }: { icon?: React.ReactNode; label: string; v
   )
 }
 
-const KPI_TONO: Record<string, string> = {
-  info: 'bg-[#0a66ff1a] text-info',
-  success: 'bg-[#10b9811a] text-[#0f7a55]',
-  ambar: 'bg-[#f59e0b1a] text-[#9a6700]',
-  neutro: 'bg-surface-2 text-muted',
-}
-function Kpi({ icon, tono, label, value }: { icon: React.ReactNode; tono: string; label: string; value: string }) {
+// Barra de estado tipo «Path» (Salesforce/Pipedrive): en qué paso del ciclo va
+// la propuesta, de un vistazo. Pasos NO clicables a propósito: los cambios de
+// estatus siguen siendo los botones de arriba, con sus permisos y sus
+// confirmaciones. Solo pinta `p.estatus` y si ya existe la campaña.
+function PasosEstatus({ estatus, conCampana }: { estatus: EstPropuesta; conCampana: boolean }) {
+  const t = useTexto()
+  const cerrada = estatus === 'APROBADA' || estatus === 'RECHAZADA'
+  const pasos: { label: string; hecho: boolean; actual: boolean; tono?: string }[] = [
+    { label: t(CLAVE_ESTATUS.BORRADOR), hecho: estatus !== 'BORRADOR', actual: estatus === 'BORRADOR' },
+    { label: t(CLAVE_ESTATUS.ENVIADA), hecho: cerrada, actual: estatus === 'ENVIADA' },
+    estatus === 'RECHAZADA'
+      ? { label: t(CLAVE_ESTATUS.RECHAZADA), hecho: false, actual: true, tono: 'border-[#ef444440] text-error' }
+      : { label: t(CLAVE_ESTATUS.APROBADA), hecho: conCampana, actual: estatus === 'APROBADA' && !conCampana },
+  ]
+  if (estatus === 'APROBADA') pasos.push({ label: t('propuestas.comun.campana-generada'), hecho: false, actual: conCampana })
   return (
-    <div className="flex items-center gap-3 rounded-md border border-border bg-surface p-3">
-      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-md ${KPI_TONO[tono] ?? KPI_TONO.neutro}`}>
-        {icon}
-      </span>
-      <div className="min-w-0">
-        <div className="text-[10px] font-medium uppercase tracking-wide text-muted">{label}</div>
-        <div className="demo-num truncate text-[16px] font-semibold text-ink">{value}</div>
-      </div>
-    </div>
+    <ol className="m-0 mt-2 flex list-none flex-wrap items-center gap-1 p-0 text-[11px]" aria-label={t('propuestas.ficha.pasos')}>
+      {pasos.map((x, i) => (
+        <li key={x.label} className="flex items-center gap-1">
+          {i > 0 && <ChevronRight className="h-3 w-3 text-muted" />}
+          <span
+            aria-current={x.actual ? 'step' : undefined}
+            className={cn(
+              'rounded-full border px-2 py-0.5',
+              x.actual
+                ? x.tono ?? 'border-accent bg-accent-soft font-medium text-ink'
+                : x.hecho
+                  ? 'border-border text-ink'
+                  : 'border-border text-muted',
+            )}
+          >
+            {x.hecho && <CheckIcon className="mr-0.5 inline h-3 w-3 text-[#0f7a55]" />}
+            {x.label}
+          </span>
+        </li>
+      ))}
+    </ol>
   )
 }
 

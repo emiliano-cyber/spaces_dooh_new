@@ -245,7 +245,10 @@ export async function actualizarUsuario(
   return conGuardasDeDueno(
     id,
     actorRol,
-    { rol: cambios.rol, activo: cambios.activo },
+    // `credenciales` sale de que se ESCRIBA un hash, no de quién llame: si un
+    // tercer camino de escritura le pasara `passwordHash` a esta función, el
+    // guard 4 lo vería igual que al restablecimiento.
+    { rol: cambios.rol, activo: cambios.activo, credenciales: cambios.passwordHash !== undefined },
     async (client, tenantId) => {
       const params = [...vals, id, tenantId]
       const filas = (
@@ -276,23 +279,46 @@ export async function cerrarSesionesDeUsuario(usuarioId: string): Promise<number
   return filas.length
 }
 
+// Igual que la de arriba, pero CONSERVA la sesión desde la que la persona hizo
+// el cambio (SEG-21OCT, 21/10). La usa el cambio de las credenciales PROPIAS:
+// quien cambia su contraseña porque sospecha que le robaron la cuenta necesita
+// que la cookie robada deje de servir, y no que lo echen a él en el mismo clic.
+//
+// `is distinct from` y no `<>`, a propósito: con un token nulo, `token <> null`
+// es null en cada fila y no borraría NINGUNA, sin error. Así, sin token actual
+// se borran todas, que es el lado seguro.
+export async function cerrarOtrasSesionesDeUsuario(
+  usuarioId: string,
+  tokenActual: string | null | undefined,
+): Promise<number> {
+  const filas = await qRaw(
+    'delete from sesiones where usuario_id = $1 and token is distinct from $2 returning token',
+    [usuarioId, tokenActual ?? null],
+  )
+  return filas.length
+}
+
 // Devuelve false si el usuario no existe o pertenece a otro tenant.
 //
 // Va por el MISMO guard que el PATCH, y eso no es simetría decorativa: sin él,
 // un administrador conseguiría con DELETE exactamente lo que el guard le impide
 // con PATCH, y quedarse sin Dueños se lograría borrando al último en vez de
 // desactivarlo. Un guard que se rodea cambiando de verbo HTTP no es un guard.
-export async function borrarUsuario(id: string, actorRol: string): Promise<boolean> {
+//
+// Devuelve el NOMBRE del borrado (o null): la bitácora lo necesita y después
+// del delete ya no hay fila de donde leerlo. Antes se registraba el id, y
+// «Eliminó usuario 3f2a…» no le dice nada a quien lee la bitácora.
+export async function borrarUsuario(id: string, actorRol: string): Promise<string | null> {
   const borrado = await conGuardasDeDueno(id, actorRol, { borrado: true }, async (client, tenantId) => {
-    const filas = (
-      await client.query('delete from usuarios where id = $1 and tenant_id = $2 returning id', [
+    const filas: { nombre: string }[] = (
+      await client.query('delete from usuarios where id = $1 and tenant_id = $2 returning nombre', [
         id,
         tenantId,
       ])
     ).rows
-    return filas.length > 0
+    return filas[0]?.nombre ?? null
   })
-  return borrado ?? false
+  return borrado ?? null
 }
 
 // Actualiza el propio perfil: correo y/o hash de contraseña (ya validados/hasheados
@@ -361,6 +387,43 @@ export async function passwordHashDe(id: string): Promise<string | null> {
     [id, await tenantOblig()],
   )
   return r?.password_hash ?? null
+}
+
+// ─── Idioma de la interfaz, por persona (IDIOMA-USUARIO, 03/11) ─────────────
+// `usuarios` es fail-closed + FORCE: todo va con el tenant puesto —`q` toma el
+// de la sesión, `qConTenant` el que ya se conoce al abrirla— y además con
+// `tenant_id = $n` explícito, como el resto de este archivo. Un `qRaw` aquí no
+// daría error: daría CERO filas, y la preferencia se perdería en silencio (R2).
+
+/** La preferencia del usuario en sesión. `null` = sigue a su navegador. */
+export async function idiomaPreferidoPropio(id: string): Promise<string | null> {
+  const r = await q1<{ idioma_preferido: string | null }>(
+    'select idioma_preferido from usuarios where id = $1 and tenant_id = $2',
+    [id, await tenantOblig()],
+  )
+  return r?.idioma_preferido ?? null
+}
+
+/** Guarda la preferencia del usuario en sesión. Devuelve si tocó una fila. */
+export async function guardarIdiomaPreferido(id: string, idioma: string | null): Promise<boolean> {
+  const filas = await q(
+    'update usuarios set idioma_preferido = $1 where id = $2 and tenant_id = $3 returning id',
+    [idioma, id, await tenantOblig()],
+  )
+  return filas.length > 0
+}
+
+/**
+ * La preferencia al ABRIR una sesión, cuando todavía no hay cookie de la que
+ * sacar el tenant pero ya se sabe cuál es (el callback de Google lo trae).
+ */
+export async function idiomaPreferidoAlEntrar(id: string, tenantId: string): Promise<string | null> {
+  const [r] = await qConTenant<{ idioma_preferido: string | null }>(
+    tenantId,
+    'select idioma_preferido from usuarios where id = $1 and tenant_id = $2',
+    [id, tenantId],
+  )
+  return r?.idioma_preferido ?? null
 }
 
 // Unicidad de correo: es GLOBAL a propósito, porque el login es por email sin

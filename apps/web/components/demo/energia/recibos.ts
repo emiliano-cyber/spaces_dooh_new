@@ -1,5 +1,15 @@
 import { formatNumero } from '@/lib/formato-numero'
 import { formatMonto } from '@/lib/data/derive'
+import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
+import type { Idioma } from '@/lib/i18n/idiomas'
+
+// I18N (lote operaciones parte 2, 2026-11-02) · las funciones de texto ganan
+// `idioma` como ULTIMO parametro, con 'es' por omision: el espanol es el
+// literal de siempre; el ingles, `energia.lectura.*` y `energia.leido.*`. Las
+// etiquetas de `OPCIONES_MESES` se quedan como la verdad en espanol y la
+// pantalla pinta `energia.subir.opcion.<meses>`.
+const msj = (idioma: Idioma, literal: string, clave: ClaveTexto, valores?: Record<string, string | number>) =>
+  idioma === 'es' ? literal : traducir(idioma, clave, valores)
 // ============================================================================
 //  components/demo/energia/recibos.ts — La logica de la pantalla de subir PDF.
 // ----------------------------------------------------------------------------
@@ -194,24 +204,24 @@ export function filasDeConfirmacion(propuestas: PropuestaUI[]): FilaDeConfirmaci
  * servidor**, no esto: a `POST /api/energia/consumos` se le puede llamar sin
  * pasar por esta pantalla.
  */
-export function motivoNoConfirmable(f: FilaDeConfirmacion): string | null {
-  if (!f.punto) return 'Elige a qué predio o pantalla corresponde este recibo'
-  const kwh = cifraInvalida(f.kwh, 'los kWh')
+export function motivoNoConfirmable(f: FilaDeConfirmacion, idioma: Idioma = 'es'): string | null {
+  if (!f.punto) return msj(idioma, 'Elige a qué predio o pantalla corresponde este recibo', 'energia.lectura.punto')
+  const kwh = cifraInvalida(f.kwh, 'los kWh', idioma, 'kwh')
   if (kwh) return kwh
-  const importe = cifraInvalida(f.importe, 'el importe')
+  const importe = cifraInvalida(f.importe, 'el importe', idioma, 'importe')
   if (importe) return importe
   return null
 }
 
-function cifraInvalida(v: string, etiqueta: string): string | null {
+function cifraInvalida(v: string, etiqueta: string, idioma: Idioma = 'es', campo: 'kwh' | 'importe' = 'kwh'): string | null {
   const t = v.trim()
-  if (!t) return `Escribe ${etiqueta}: no se pudieron leer del PDF`
+  if (!t) return msj(idioma, `Escribe ${etiqueta}: no se pudieron leer del PDF`, `energia.lectura.${campo}.falta` as const)
   const n = Number(t)
-  if (!Number.isFinite(n)) return `${etiqueta} tiene que ser un número`
+  if (!Number.isFinite(n)) return msj(idioma, `${etiqueta} tiene que ser un número`, `energia.motivo.${campo}.numero` as const)
   // Cero y negativo fuera, por la regla del dueño del 2026-09-29: un cero no
   // dice «no sé», dice «no consumió luz», y en el reporte de rentabilidad esos
   // dos hechos son el mismo número.
-  if (n <= 0) return `${etiqueta} tiene que ser mayor que cero`
+  if (n <= 0) return msj(idioma, `${etiqueta} tiene que ser mayor que cero`, `energia.motivo.${campo}.mayor` as const)
   return null
 }
 
@@ -239,7 +249,7 @@ export interface ResumenDeLectura {
  * 40 archivos necesita saber cuantos tiene que mirar a mano, no cuantos
  * funcionaron.
  */
-export function resumenDeLectura(r: RespuestaRecibosUI): ResumenDeLectura {
+export function resumenDeLectura(r: RespuestaRecibosUI, idioma: Idioma = 'es'): ResumenDeLectura {
   const noLeidos = r.total - r.leidos
   const filas = filasDeConfirmacion(r.propuestas)
   const sinPunto = filas.filter((f) => !f.punto).length
@@ -253,30 +263,50 @@ export function resumenDeLectura(r: RespuestaRecibosUI): ResumenDeLectura {
 
   const pegas: string[] = []
   if (noLeidos > 0) {
-    pegas.push(`${noLeidos} ${noLeidos === 1 ? 'archivo no es' : 'archivos no son'} un recibo de CFE`)
+    pegas.push(
+      msj(
+        idioma,
+        `${noLeidos} ${noLeidos === 1 ? 'archivo no es' : 'archivos no son'} un recibo de CFE`,
+        noLeidos === 1 ? 'energia.lectura.no-recibo.uno' : 'energia.lectura.no-recibo.otros',
+        { n: noLeidos },
+      ),
+    )
   }
-  if (desajustados.length > 0) pegas.push(explicarDesajuste(desajustados, r.mesesEsperados))
-  if (sinPunto > 0) pegas.push(`${sinPunto} sin predio: eligelo tú`)
-  if (sinCifra > 0) pegas.push(`${sinCifra} con una cifra que no se pudo leer`)
-  if (repetidos > 0) pegas.push(`${repetidos} ya capturados: volver a guardarlos DUPLICA el costo`)
+  if (desajustados.length > 0) pegas.push(explicarDesajuste(desajustados, r.mesesEsperados, idioma))
+  if (sinPunto > 0) pegas.push(msj(idioma, `${sinPunto} sin predio: eligelo tú`, 'energia.lectura.sin-predio', { n: sinPunto }))
+  if (sinCifra > 0) pegas.push(msj(idioma, `${sinCifra} con una cifra que no se pudo leer`, 'energia.lectura.sin-cifra', { n: sinCifra }))
+  if (repetidos > 0) pegas.push(msj(idioma, `${repetidos} ya capturados: volver a guardarlos DUPLICA el costo`, 'energia.lectura.repetidos', { n: repetidos }))
 
   if (pegas.length > 0) {
     return {
       tono: 'alerta',
-      texto:
+      texto: msj(
+        idioma,
         `Se leyeron ${r.leidos} de ${r.total} archivos y salen ${filas.length} renglones. ` +
-        `Revisa antes de confirmar: ${pegas.join('; ')}.`,
+          `Revisa antes de confirmar: ${pegas.join('; ')}.`,
+        'energia.lectura.alerta',
+        { leidos: r.leidos, total: r.total, filas: filas.length, pegas: pegas.join('; ') },
+      ),
     }
   }
   if (filas.length === 0) {
-    return { tono: 'neutro', texto: 'No salió ningún renglón de estos archivos.' }
+    return { tono: 'neutro', texto: msj(idioma, 'No salió ningún renglón de estos archivos.', 'energia.lectura.ninguno') }
   }
   return {
     tono: 'ok',
-    texto:
+    texto: msj(
+      idioma,
       `Se leyeron los ${r.total} ${r.total === 1 ? 'archivo' : 'archivos'} y salen ` +
-      `${filas.length} ${filas.length === 1 ? 'renglón' : 'renglones'}. ` +
-      'Míralos contra el recibo y confírmalos: nada se guarda hasta que le des a guardar.',
+        `${filas.length} ${filas.length === 1 ? 'renglón' : 'renglones'}. ` +
+        'Míralos contra el recibo y confírmalos: nada se guarda hasta que le des a guardar.',
+      r.total === 1 ? 'energia.lectura.ok.uno' : 'energia.lectura.ok.otros',
+      {
+        total: r.total,
+        archivos: traducir(idioma, r.total === 1 ? 'energia.lectura.archivo.uno' : 'energia.lectura.archivo.otros'),
+        filas: filas.length,
+        renglones: traducir(idioma, filas.length === 1 ? 'energia.lectura.renglon.uno' : 'energia.lectura.renglon.otros'),
+      },
+    ),
   }
 }
 
@@ -292,13 +322,23 @@ export function resumenDeLectura(r: RespuestaRecibosUI): ResumenDeLectura {
  * mezclada no tiene una sola causa y afirmar que la tiene seria peor que
  * callarse.
  */
-function explicarDesajuste(desajustados: PropuestaUI[], esperados: number | null): string {
+function explicarDesajuste(desajustados: PropuestaUI[], esperados: number | null, idioma: Idioma = 'es'): string {
   const n = desajustados.length
-  const base = `${n} no ${n === 1 ? 'coincide' : 'coinciden'} con los ${esperados} meses que declaraste`
+  const base = msj(
+    idioma,
+    `${n} no ${n === 1 ? 'coincide' : 'coinciden'} con los ${esperados} meses que declaraste`,
+    n === 1 ? 'energia.lectura.desajuste.uno' : 'energia.lectura.desajuste.otros',
+    { n, esperados: String(esperados) },
+  )
   const distintos = new Set(desajustados.map((p) => p.mesesDelPdf))
   if (distintos.size === 1) {
     const [unico] = [...distintos]
-    return `${base}: ${n === 1 ? 'cubre' : `los ${n} cubren`} ${unico} meses de calendario`
+    return msj(
+      idioma,
+      `${base}: ${n === 1 ? 'cubre' : `los ${n} cubren`} ${unico} meses de calendario`,
+      n === 1 ? 'energia.lectura.cubre.uno' : 'energia.lectura.cubre.otros',
+      { base, n, unico: String(unico) },
+    )
   }
   return base
 }
@@ -309,23 +349,26 @@ function explicarDesajuste(desajustados: PropuestaUI[], esperados: number | null
  * Es la mitad que hace util la pantalla: sin el valor original delante, quien
  * confirma esta aprobando un numero que no puede comprobar.
  */
-export function textoDeLoLeido(l: LecturaRecibo): string {
+export function textoDeLoLeido(l: LecturaRecibo, idioma: Idioma = 'es'): string {
   const partes: string[] = []
-  if (l.numeroServicio) partes.push(`servicio ${l.numeroServicio}`)
-  if (l.medidorFisico) partes.push(`medidor ${l.medidorFisico}`)
+  if (l.numeroServicio) partes.push(msj(idioma, `servicio ${l.numeroServicio}`, 'energia.leido.servicio', { n: l.numeroServicio }))
+  if (l.medidorFisico) partes.push(msj(idioma, `medidor ${l.medidorFisico}`, 'energia.leido.medidor', { n: l.medidorFisico }))
   if (l.tarifa) partes.push(l.tarifa)
-  if (l.desde && l.hasta) partes.push(`periodo ${l.desde} → ${l.hasta}`)
+  if (l.desde && l.hasta) partes.push(msj(idioma, `periodo ${l.desde} → ${l.hasta}`, 'energia.leido.periodo', { desde: l.desde, hasta: l.hasta }))
   // El cero LEIDO se enseña aunque no se acepte como dato: es la unica forma de
   // que quien captura entienda por que el campo salio vacio.
-  if (l.kwh == null && l.kwhLeido != null) partes.push(`el PDF dice ${formatNumero(l.kwhLeido)} kWh`)
-  else if (l.kwhLeido != null) partes.push(`${formatNumero(l.kwhLeido)} kWh`)
-  if (l.facturacionPeriodo != null) partes.push(`facturación ${formatMonto(l.facturacionPeriodo)}`)
-  if (l.alumbradoPublico != null) partes.push(`alumbrado ${formatMonto(l.alumbradoPublico)}`)
+  // La cifra en el idioma de quien lee (lote L1 del italiano): es-MX y en-US
+  // escriben igual, asi que el espanol y el ingles no cambian; el italiano
+  // sale «1.500 kWh» y no «1,500».
+  if (l.kwh == null && l.kwhLeido != null) partes.push(msj(idioma, `el PDF dice ${formatNumero(l.kwhLeido)} kWh`, 'energia.leido.pdf-dice', { kwh: formatNumero(l.kwhLeido, 0, idioma) }))
+  else if (l.kwhLeido != null) partes.push(`${formatNumero(l.kwhLeido, 0, idioma)} kWh`)
+  if (l.facturacionPeriodo != null) partes.push(msj(idioma, `facturación ${formatMonto(l.facturacionPeriodo)}`, 'energia.leido.facturacion', { monto: formatMonto(l.facturacionPeriodo, idioma) }))
+  if (l.alumbradoPublico != null) partes.push(msj(idioma, `alumbrado ${formatMonto(l.alumbradoPublico)}`, 'energia.leido.alumbrado', { monto: formatMonto(l.alumbradoPublico, idioma) }))
   // El Total se enseña SIEMPRE y marcado como lo que es: es el numero grande
   // del recibo, el que una persona buscaria, y NO es lo que se captura — lleva
   // adeudos, pagos y depositos de otros meses.
   if (l.totalDelRecibo != null) {
-    partes.push(`Total del recibo ${formatMonto(l.totalDelRecibo)} (incluye adeudos y pagos)`)
+    partes.push(msj(idioma, `Total del recibo ${formatMonto(l.totalDelRecibo)} (incluye adeudos y pagos)`, 'energia.leido.total', { monto: formatMonto(l.totalDelRecibo, idioma) }))
   }
   return partes.join(' · ')
 }

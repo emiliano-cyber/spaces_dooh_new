@@ -160,3 +160,6 @@ manuales/capturas/
 # La barrida las borra siempre, pero una corrida interrumpida deja una: es
 # basura y no tiene que poder colarse en un commit.
 infra/scripts/.mutante-*.sh
+
+# OneDrive escribe desktop.ini en cada carpeta; nunca son del proyecto
+desktop.ini

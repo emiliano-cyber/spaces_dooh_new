@@ -25,7 +25,7 @@ export const CAMPOS = ['instancia', 'dominio', 'email']
 /**
  * Opcionales: si faltan, la solicitud es la de siempre. `con_eyes` = 'si' pide
  * el hijo con Space Eyes dentro (ADR 0041): `--con-eyes` en el alta, el
- * registro `eyes.<dominio>` y un droplet de 2 GB. Cualquier otro valor que no
+ * un droplet de 2 GB (sus equipos entran por el mismo dominio). Cualquier otro valor que no
  * sea 'si' o 'no' se rechaza: un formulario raro no decide una factura.
  */
 export const CAMPOS_OPCIONALES = ['con_eyes']
