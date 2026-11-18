@@ -5,6 +5,13 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-17 · «Prospección» sube al primer lugar de Inventario
+
+- En el menú, **Prospección** ahora es la **primera** entrada del grupo **Inventario**, antes que Inventario y Arrendadores (antes iba debajo de Arrendadores).
+- Es la misma pantalla y la ven las mismas personas; solo cambia su lugar en el menú.
+
+---
+
 ## 2026-11-16 · v0.12.13 · «Comercial negociación» ahora se llama «Prospección» y está en Inventario
 
 - En el menú, **Comercial negociación** pasa a llamarse **Prospección** y se mueve del grupo Comercial al grupo **Inventario**, justo debajo de **Arrendadores**.
