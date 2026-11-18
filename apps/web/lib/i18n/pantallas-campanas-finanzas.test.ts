@@ -281,7 +281,9 @@ const VISTA_DOOHMAIN = {
   publicacionEncendida: false,
   horarioIndividual: { horaInicio: '08:00', horaFin: '20:00', dias: [1, 2] },
   franjaCampana: { origen: 'programada', nombre: 'Mañana', horaInicio: '06:00', horaFin: '12:00' },
-  cliente: { nombre: 'Refrescos del Norte', rfc: 'RFN010101AAA', razonSocial: 'Refrescos SA', direccion: null, tipo: null },
+  // `tipo` como lo escribe `clienteDoohmain` para DOOHmain: en italiano salía
+  // «Directo» tal cual (recorrido del 18/11).
+  cliente: { nombre: 'Refrescos del Norte', rfc: 'RFN010101AAA', razonSocial: 'Refrescos SA', direccion: null, tipo: 'Directo' },
   lista: 'L-1',
   filas: [
     { sitio: 's1', sitioNombre: 'Pantalla Reforma', destino: 'doohmain', screen: 'scr-1', creativoNombre: 'Arte 1',
@@ -1291,6 +1293,9 @@ describe('lote CAMPANAS y FINANZAS · en ITALIANO', () => {
       ['candado con el monto ilegible', ['L’importo non si capisce: il punto separa le migliaia e la virgola i decimali (212.500,50).']],
       ['generar factura en parcialidades', ['Incassa a rate']],
       ['estado de cuenta sin movimientos, con un rango a mano', ['Nessuna fattura né pagamento tra 5 gen 2026 e 9 mar 2026.']],
+      // Recorrido del 18/11: el tipo del cliente y las fechas del pie salían
+      // «Directo» y «2026-01-01 – 2026-06-30» con la interfaz en italiano.
+      ['lo que se manda a DOOHmain (con franja y horario propio)', ['Refrescos SA · Diretto', 'Periodo: 1 gen 2026 – 30 giu 2026.']],
     ]
     const faltan: string[] = []
     for (const [nombre, frases] of vistas) {
