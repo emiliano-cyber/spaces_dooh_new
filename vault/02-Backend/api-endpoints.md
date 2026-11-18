@@ -259,7 +259,8 @@ en `:230-237`) y **no** puede condicionarse a que la ruta
 |---|---|---|
 | POST | `/api/clientes` · PATCH `/api/clientes/[id]` | exigir |
 | DELETE | `/api/clientes/[id]` | **REAUTH** + `comercial:aprobar` |
-| GET | `/api/propuestas/resumen` | exigir (`comercial:ver`); costo y ganancia solo con `finanzas:ver` | (06/10, PROP-PER) tablero por periodo: generadas, aprobadas, rechazadas, tasa de cierre, ganancia (venta − renta del contrato) |
+| GET | `/api/propuestas/resumen` | exigir (`comercial:ver`); costo y ganancia solo con `finanzas:ver`; sin `comercial:aprobar`, solo las propias (17/11) | (06/10, PROP-PER) tablero por periodo: generadas, aprobadas, rechazadas, tasa de cierre, ganancia (venta − renta del contrato) |
+| GET | `/api/propuestas/conteo-diario` | exigir (`comercial:ver`); sin `comercial:aprobar`, solo lo propio (sale de la sesión) | (17/11, CONTEO-DIA) creadas y aprobadas por día y por vendedor, en la zona del negocio; 30 días por omisión, 92 como máximo. Ver [[conteo-campanas-por-dia]] |
 | POST | `/api/propuestas` · PATCH `/api/propuestas/[id]` | exigir (`comercial:crear`). Desde `17fbd252` (01/10) el `POST` **recalcula la tarifa** de cada línea en el servidor; un precio distinto al centavo exige además `comercial:aprobar` del rol de la sesión, o 403 y no se guarda nada |
 | POST | `/api/propuestas/[id]/items` | (29/10, PROP-COMPLETA) `comercial:crear`. Agrega sitios a una BORRADOR o ENVIADA (sube versión) con el periodo de la propuesta; cuerpo `{ items }` como el alta y la MISMA tarifa del servidor (403 si una vendedora se aparta); otro estatus → 409 |
 | DELETE | `/api/propuestas/items/[id]` | (29/10, PROP-COMPLETA) `comercial:crear`. Quita un sitio (BORRADOR o ENVIADA, sube versión); nunca el último (409); de otra organización → 404 |

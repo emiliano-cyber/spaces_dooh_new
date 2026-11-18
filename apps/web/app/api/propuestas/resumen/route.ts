@@ -19,7 +19,8 @@ export async function GET(req: Request) {
     const sp = new URL(req.url).searchParams
     const query = Object.fromEntries([...sp.entries()].filter(([, v]) => v !== ''))
     const conGanancia = await tienePermiso(g.usuario.rol, 'finanzas', 'ver')
-    // ADR 0051 · el vendedor ve el resumen de SUS propuestas.
+    // ADR 0051 · el vendedor ve el resumen de SUS propuestas. CONTEO-DIA llegó
+    // a la misma regla el mismo 17/11 (`soloVendedorDe`, idéntica): se unieron.
     return NextResponse.json(await resumenPropuestasCtrl(query, conGanancia, await soloDePropuestas(g.usuario)), {
       headers: { 'Cache-Control': 'no-store' },
     })

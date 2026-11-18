@@ -104,6 +104,7 @@ cobranza.
 - [[02-Backend/calculadora-de-spots]] — ADR 0043 (sustituye 1-3 del 0042): la calculadora cuenta como la calculadora HTML del dueño — la CANTIDAD (loop = ocupación de hoy + la línea, fracciones sumadas y un solo redondeo al final) y el PRECIO (tarifa mensual ÷ spots de un anunciante al mes); el servidor recalcula los dos y rechaza lo que no cuadre; el Roadblock compra el loop entero y su prima es solo de gerente
 - [[02-Backend/captacion]] — CAP-01: la bitácora de captación. Prospectos de cliente, arrendador, predio o pantalla con sus etapas; el vendedor ve lo suyo y no se aprueba solo; al aprobar nace el registro real, y dos aprobaciones a la vez crean UNO
 - [[02-Backend/vendedor-en-propuesta]] — el vendedor de una propuesta, y la octava dimensión de reportes
+- [[02-Backend/conteo-campanas-por-dia]] — creadas y aprobadas por día y por vendedor (17/11); el vendedor ve solo lo suyo y el día se corta en la zona del negocio
 - [[02-Backend/network-api]] — la API de Network (11/11): la nueva app consulta con `x-network-token` las pantallas con el switch encendido, ficha pública y días libres
 - [[02-Backend/avisos-por-canal]] — los avisos de la campana también por correo (12/11): Resend o Brevo por `EMAIL_PROVEEDOR`, cada quien elige en Configuración → Avisos; WhatsApp sembrado; recuperar contraseña solo por correo
 - [[02-Backend/tarifa-publicada-vs-neta]] — la séptima dimensión: tarifa publicada contra neta
