@@ -5,6 +5,14 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-19 · Imprenta: el formato que la imprenta no recibe lo dice claro
+
+- Cuando la imprenta tiene su lista de formatos y el archivo es de otro, la valoración del arte sale en rojo y ahora lo dice con sus palabras: por ejemplo, «Formato PNG: esta imprenta no lo recibe (acepta PDF, TIFF)».
+- Antes el punto salía rojo pero la frase era la de un aviso suave («no se puede medir aquí; revísalo con la imprenta»).
+- En español, inglés, italiano y portugués.
+
+---
+
 ## 2026-11-19 · Inventario: «Sin alcaldía» en el filtro de zona
 
 - En **Inventario**, al elegir una ciudad, la lista «Alcaldía o zona» trae ahora al final la opción **«Sin alcaldía»** con cuántas pantallas tiene.

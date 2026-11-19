@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-11-18
+actualizado: 2026-11-19
 tags: [backend, operaciones, ot, imprenta, amarillo, almacen, checklist]
 archivos:
   - apps/web/lib/server/ot-repo.ts
@@ -277,7 +277,7 @@ arte en rojo **sigue solo avisando**; el tope del arte OOH sigue en **15 MB**.
 |---|---|---|
 | **Migración (R3 + R2, aprobada)** | `db/migrations/20261118_imprentas_y_requisitos.sql` | Solo agrega: `config_negocio.requisitos_impresion jsonb` (`{}` = sin configurar), la tabla `imprentas` (RLS fail-closed + FORCE, nombre único por organización sin distinguir mayúsculas ni espacios) y `ordenes_impresion.imprenta_id` opcional. `proveedor` (texto) **se queda**: las órdenes de antes lo usan. La orden apunta con **FK compuesta** `(imprenta_id, tenant_id)` porque los chequeos de FK saltan la RLS. `on delete restrict` (y no `set null`, que con FK compuesta anularía `tenant_id`; `set null (col)` es PG 15 y g500 corre 14): la baja es **lógica** (`activo = false`) y el rol de la app no tiene DELETE |
 | **La regla** | `lib/requisitos-impresion.ts` (puro) | `resolverRequisitos(imprenta, empresa)`: imprenta > empresa > `REQUISITOS_RESPALDO`, **campo por campo**. `sanearRequisitos` al leer y al escribir (como `costos_ot`): un valor inválido cae al siguiente nivel, **nunca a 0** (0 DPI daría todo por bueno). Un ámbar por encima de su verde se descarta. Campos: DPI verde/ámbar de gran formato y de lona cercana, corte de gran formato (m), margen (cm) y formatos aceptados |
-| **La valoración** | `lib/valoracion-arte.ts` | `valorarArte(…, req)` y `valorarResolucion(…, req)` reciben los requisitos (por omisión, las constantes). Con lista de **formatos**, uno fuera de ella es rojo («esa imprenta no lo recibe»); sin lista, como antes |
+| **La valoración** | `lib/valoracion-arte.ts` | `valorarArte(…, req)` y `valorarResolucion(…, req)` reciben los requisitos (por omisión, las constantes). Con lista de **formatos**, uno fuera de ella es rojo («esa imprenta no lo recibe»); sin lista, como antes. **Desde el 19/11** el rojo tiene su propio texto en `PanelValoracion` (`…valoracion.formato.rojo`: «Formato PNG: esta imprenta no lo recibe (acepta PDF, TIFF)»); antes caía en el del ámbar y el punto rojo decía «revísalo con la imprenta» |
 | **Rutas** | `GET·POST /api/imprentas`, `PATCH /api/imprentas/[id]`, `PATCH /api/impresion/[id]/imprenta` | Capas `route.ts` → `imprentas-controller.ts` (zod `.strict()` con los mismos rangos que el saneo) → `imprentas-repo.ts` (`q` con `and tenant_id = $n`). Permisos **existentes**: ver con `imprenta.ver`, alta/edición/asignar con `imprenta.crear`. Asignar una imprenta ajena o dada de baja → 400; un id que no es uuid → 404 sin tocar la base. Los de la empresa van por `PATCH /api/config { requisitosImpresion }` (`administracion.crear`) |
 | **La orden** | `impresion-repo.ts` | El alta acepta `imprentaId`; el listado trae `imprentaNombre` e `imprentaRequisitos` (saneados) con un `left join` por `tenant_id` |
 | **Pantalla** | `components/operaciones/Imprentas.tsx` en `/imprenta` | Tarjeta «Imprentas»: los requisitos de la empresa y la lista de imprentas con alta, edición y baja. Cada orden tiene su selector de imprenta, y el diálogo de arte dice «Valorado con los requisitos de …». La ficha de campaña (`AgregarCreativo` → `lonasDeCampana`) valora la lona con los de la imprenta de la orden de ese sitio |
