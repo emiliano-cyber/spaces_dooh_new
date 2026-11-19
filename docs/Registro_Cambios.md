@@ -5,6 +5,17 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-19 · El creativo del cliente va solo a la pantalla que eligió
+
+Decisión del dueño: el creativo que manda el cliente desde la liga debe ir **solo a la pantalla que eligió**.
+
+- Al aprobar en la ficha de campaña un creativo enviado por el cliente, ahora se asigna **únicamente a la pantalla que el cliente escogió** al mandarlo. Antes se ponía en todas las pantallas digitales de la campaña que estaban vacías.
+- Si en esa pantalla ya rotaban otros creativos puestos automáticamente, el nuevo se suma y rotan en partes iguales. Si alguien la ajustó a mano, no se toca.
+- Las demás pantallas se llenan como siempre desde Creativos; mientras alguna esté sin creativo, la campaña no se puede mandar a publicar (igual que antes).
+- La actividad lo dice: «Se asignó solo a la pantalla que eligió el cliente».
+
+---
+
 ## 2026-11-19 · Imprenta: cada imprenta con lo que pide del arte
 
 Decisión del dueño: «la imprenta usada es de terceros por ahora y, como se vende el proyecto, la imprenta puede ser de cualquiera».

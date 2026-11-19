@@ -52,7 +52,9 @@ export async function POST(req: Request, { params }: { params: { id: string; env
       if (r.autoasignadas > 0) {
         await registrarAccion(
           g.usuario,
-          `Se asignó automáticamente a ${conteo(r.autoasignadas, 'pantalla')}: los creativos aprobados rotan en partes iguales`,
+          r.soloSuPantalla
+            ? 'Se asignó solo a la pantalla que eligió el cliente'
+            : `Se asignó automáticamente a ${conteo(r.autoasignadas, 'pantalla')}: los creativos aprobados rotan en partes iguales`,
           r.creativo.nombre,
         )
       }
