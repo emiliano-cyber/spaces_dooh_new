@@ -1,13 +1,19 @@
-import type { NivelRegla } from './tipos'
-
 // ============================================================================
 //  lib/vallas/reglas/configuracion.ts — cómo se comporta cada regla.
 // ----------------------------------------------------------------------------
-//  En el esqueleto vive en código. Bloqueo o aviso, y hasta dónde llega la
-//  competencia, son DECISIONES DEL DUEÑO pendientes (ver la nota
-//  `vault/02-Backend/vallas.md`). Si cada organización tiene que poder
-//  cambiarlo, va a `config_negocio` en una migración aparte, saneado al leer
-//  como `requisitos_impresion`.
+//  Vive en código. Si algún día cada organización tiene que poder cambiarlo, va
+//  a `config_negocio` en una migración aparte, saneado al leer como
+//  `requisitos_impresion`.
+//
+//  DECISIONES DEL DUEÑO (19/11) sobre la competencia de marcas:
+//   · SOLO AVISA, NUNCA BLOQUEA. Por eso `nivel` es el literal `'aviso'` y no
+//     `NivelRegla`: no existe una configuración que la haga bloquear, y la
+//     regla además lo escribe fijo al emitir (`competencia-marcas.ts`). El tipo
+//     `NivelRegla` conserva `'bloqueo'` porque el evaluador es común a todas
+//     las reglas y una regla futura sí podría necesitarlo. Cambiar esto es
+//     cambiar una decisión del dueño, no un ajuste técnico.
+//   · APLICA A TODO EL SITIO: dos marcas rivales en cualquier valla del mismo
+//     sitio, con fechas que se solapan, avisan.
 // ============================================================================
 
 /**
@@ -15,15 +21,15 @@ import type { NivelRegla } from './tipos'
  *  · `valla` ........ solo el mismo cuadro;
  *  · `grupo_imagen` . el cuadro y los de su grupo si el grupo es UNA IMAGEN;
  *  · `grupo` ........ el cuadro y los de su grupo, sea cual sea el modo;
- *  · `sitio` ........ cualquier valla del mismo sitio (vecinas).
+ *  · `sitio` ........ cualquier valla del mismo sitio, MÁS las de su grupo
+ *                     (un grupo se vende junto aunque cruce de sitio).
  */
 export const ALCANCES_COMPETENCIA = ['valla', 'grupo_imagen', 'grupo', 'sitio'] as const
 export type AlcanceCompetencia = (typeof ALCANCES_COMPETENCIA)[number]
 
-export type ConfigCompetencia = { nivel: NivelRegla; alcance: AlcanceCompetencia }
+export type ConfigCompetencia = { nivel: 'aviso'; alcance: AlcanceCompetencia }
 
 export const CONFIG_POR_OMISION: { competencia: ConfigCompetencia } = {
-  // AVISO hasta que el dueño decida; `grupo_imagen` porque es lo que pidió
-  // («la misma valla o el mismo conjunto de vallas que forman una imagen»).
-  competencia: { nivel: 'aviso', alcance: 'grupo_imagen' },
+  // Decisión del dueño del 19/11: solo avisa, y en todo el sitio.
+  competencia: { nivel: 'aviso', alcance: 'sitio' },
 }

@@ -5,6 +5,17 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-19 · Vallas: las marcas que compiten, como pidió el dueño
+
+- **Solo avisa**: si una marca va a quedar cerca de su competencia, el sistema lo advierte, pero **nunca impide** reservar.
+- **Todo el sitio**: ya no basta con mirar la misma valla. Si Coca-Cola y Pepsi quedarían en **cualquier valla del mismo sitio** con fechas que se cruzan, avisa. El aviso sale **una sola vez por campaña**, aunque esa campaña ocupe varias vallas del sitio.
+- **Solo el Dueño** puede crear, editar o dar de baja las categorías de marcas que compiten. Los demás las ven, pero no tienen los botones, y si lo intentan el sistema lo rechaza con «Solo el Dueño puede editar las marcas que compiten».
+- **Doce categorías de entrada**, en todas las organizaciones (las que ya existen y las nuevas): refrescos de cola, tiendas departamentales, telefonía, bancos, cerveza, comida rápida, pizzas, autoservicio, tiendas de conveniencia, automotriz, streaming y aerolíneas, con sus marcas más conocidas en México. El Dueño las puede cambiar.
+- En español, inglés, italiano y portugués.
+- Las categorías de entrada para las organizaciones que ya existen llegan con un cambio en la base de datos aprobado para la base local; **para los servidores sigue esperando al dueño**.
+
+---
+
 ## 2026-11-19 · Vallas: primera versión del módulo (para revisión del dueño)
 
 - En el menú **Inventario** hay una entrada nueva, **«Vallas»**. Ahí cada valla (cada cuadro o cara) se da de alta sobre un sitio del inventario con **su número** y **sus medidas** (ancho × alto en metros). El sistema sugiere el siguiente número (V-001, V-002…), pero se puede escribir cualquiera.

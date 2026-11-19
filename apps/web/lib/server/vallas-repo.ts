@@ -5,6 +5,7 @@ import { tenantActual } from './tenant'
 import { normalizarNumero } from '@/lib/vallas/numeracion'
 import { normalizarMarca } from '@/lib/vallas/reglas/competencia-marcas'
 import type { Valla, GrupoVallas, CategoriaCompetencia, Ocupacion, ModoGrupo } from '@/lib/vallas/tipos'
+import { CATEGORIAS_COMPETENCIA_POR_OMISION } from '@/lib/vallas/competencia-por-omision'
 import type { ContextoVallas, Candidata } from '@/lib/vallas/reglas'
 
 // ============================================================================
@@ -37,6 +38,8 @@ export const SITIO_AJENO = 'Ese sitio no es de tu organización'
 export const VALLAS_AJENAS = 'Alguna de esas vallas no es de tu organización'
 export const CATEGORIA_NO_ENCONTRADA = 'Categoría de competencia no encontrada'
 export const CATEGORIA_DUPLICADA = 'Ya existe una categoría de competencia con ese nombre'
+/** Decisión del dueño (19/11): el catálogo de competencia es del Dueño. */
+export const SOLO_DUENO_COMPETENCIA = 'Solo el Dueño puede editar las marcas que compiten'
 
 const num = (x: unknown): number | null => (x == null ? null : Number(x))
 
@@ -260,6 +263,35 @@ export function limpiarMarcas(marcas: string[]): string[] {
     out.push(t)
   }
   return out
+}
+
+/**
+ * Siembra en una organización las categorías de competencia por omisión
+ * (`lib/vallas/competencia-por-omision.ts`, decisión del dueño del 19/11).
+ *
+ * La llama el ALTA (`crearOrgConDueno`) con SU cliente de transacción y con
+ * `app.tenant_id` ya fijado al tenant nuevo: si el alta se deshace, las
+ * categorías se van con ella, y la RLS forzada de la tabla deja insertar
+ * porque el tenant coincide. Recibe el `tenantId` explícito por eso mismo:
+ * dentro del alta `tenantActual()` sería el de quien da de alta, no el nuevo.
+ *
+ * `on conflict do nothing`: una categoría con el mismo nombre se respeta.
+ * Las organizaciones que ya existían las reciben por la migración
+ * `20261119_vallas_sembrar_competencia_por_omision.sql`.
+ */
+export async function sembrarCompetenciaPorOmision(c: PoolClient, tenantId: string): Promise<void> {
+  const nombres = CATEGORIAS_COMPETENCIA_POR_OMISION.map((k) => k.nombre)
+  // Las marcas viajan como JSON: un `text[][]` exige que todas las filas midan
+  // lo mismo, y aquí cada categoría trae un número distinto de marcas.
+  const marcas = CATEGORIAS_COMPETENCIA_POR_OMISION.map((k) => JSON.stringify(k.marcas))
+  await c.query(
+    `insert into competencia_categorias (tenant_id, nombre, marcas)
+     select $1, v.nombre, array(select e from jsonb_array_elements_text(v.marcas::jsonb) with ordinality as x(e, i) order by x.i)
+       from unnest($2::text[], $3::text[]) with ordinality as v(nombre, marcas, orden)
+      order by v.orden
+     on conflict do nothing`,
+    [tenantId, nombres, marcas],
+  )
 }
 
 export async function listarCategorias(): Promise<CategoriaCompetencia[]> {

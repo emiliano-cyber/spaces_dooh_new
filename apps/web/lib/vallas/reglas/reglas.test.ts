@@ -7,8 +7,9 @@ import type { Valla, GrupoVallas } from '../tipos'
 
 // ============================================================================
 //  VALLAS · reglas de negocio. La primera: exclusión de competencia de marcas
-//  (Coca-Cola y Pepsi no van en la misma valla, ni en el mismo grupo que forma
-//  una sola imagen, con fechas que se solapan). En el esqueleto es AVISO.
+//  (Coca-Cola y Pepsi no van en el mismo SITIO con fechas que se solapan).
+//  Decisiones del dueño del 19/11: SOLO AVISA (nunca bloquea) y el alcance por
+//  omisión es el SITIO entero.
 // ============================================================================
 
 const valla = (id: string, o: Partial<Valla> = {}): Valla => ({
@@ -72,8 +73,11 @@ describe('competencia de marcas', () => {
     expect(h[0].mensaje).toContain('Pepsi')
   })
 
-  it('el nivel es configurable: bloqueo', () => {
-    expect(competencia({ nivel: 'bloqueo' }).evaluar(ctx())[0].nivel).toBe('bloqueo')
+  it('SOLO AVISA, nunca bloquea (decisión del dueño, 19/11): aunque alguien cuele «bloqueo»', () => {
+    expect(CONFIG_POR_OMISION.competencia).toEqual({ nivel: 'aviso', alcance: 'sitio' })
+    const h = competencia({ nivel: 'bloqueo' } as never).evaluar(ctx())
+    expect(h.map((x) => x.nivel)).toEqual(['aviso'])
+    expect(evaluarReglas(ctx()).bloquea).toBe(false)
   })
 
   it('sin solape de fechas no hay choque', () => {
@@ -98,8 +102,54 @@ describe('competencia de marcas', () => {
     expect(competencia().evaluar(ctx({ categorias: CATEGORIAS.map((c) => ({ ...c, activo: false })) }))).toEqual([])
   })
 
-  it('valla distinta, sin grupo: no hay choque', () => {
-    expect(competencia().evaluar(ctx({ candidata: { marca: 'Coca-Cola', inicio: '2026-12-15', fin: '2027-01-15', vallaIds: ['B'] } }))).toEqual([])
+  it('POR OMISIÓN aplica a todo el sitio: otra valla del MISMO sitio choca', () => {
+    const h = competencia().evaluar(ctx({ candidata: { marca: 'Coca-Cola', inicio: '2026-12-15', fin: '2027-01-15', vallaIds: ['B'] } }))
+    expect(h).toHaveLength(1)
+    expect(h[0]).toMatchObject({ nivel: 'aviso', datos: { vallaId: 'B', vallaOcupada: 'A', marcaExistente: 'Pepsi' } })
+  })
+
+  it('POR OMISIÓN, una valla de OTRO sitio no choca', () => {
+    expect(competencia().evaluar(ctx({ candidata: { marca: 'Coca-Cola', inicio: '2026-12-15', fin: '2027-01-15', vallaIds: ['C'] } }))).toEqual([])
+  })
+
+  it('alcance «valla» (más estrecho): valla distinta del mismo sitio no choca', () => {
+    expect(competencia({ alcance: 'valla' }).evaluar(ctx({ candidata: { marca: 'Coca-Cola', inicio: '2026-12-15', fin: '2027-01-15', vallaIds: ['B'] } }))).toEqual([])
+  })
+
+  it('por sitio, una MISMA campaña que ocupa varias vallas del sitio avisa UNA vez', () => {
+    // Las reservas son por sitio y ocupan todas sus vallas: sin agrupar, Pepsi
+    // en un sitio con A y B daría dos avisos idénticos.
+    const c = ctx({
+      ocupaciones: [
+        { vallaId: 'A', marca: 'Pepsi', inicio: '2026-12-01', fin: '2026-12-31', campanaId: 'k1', campanaNombre: 'Pepsi Navidad' },
+        { vallaId: 'B', marca: 'Pepsi', inicio: '2026-12-01', fin: '2026-12-31', campanaId: 'k1', campanaNombre: 'Pepsi Navidad' },
+      ],
+      candidata: { marca: 'Coca-Cola', inicio: '2026-12-15', fin: '2027-01-15', vallaIds: ['A', 'B'] },
+    })
+    const h = competencia().evaluar(c)
+    expect(h).toHaveLength(1)
+    // Y prefiere nombrar la valla propia cuando también está ocupada.
+    expect(h[0].datos).toMatchObject({ vallaId: 'A', vallaOcupada: 'A' })
+  })
+
+  it('por sitio, dos campañas rivales distintas en el mismo sitio dan dos avisos', () => {
+    const c = ctx({
+      categorias: [{ id: 'c1', nombre: 'Refrescos de cola', marcas: ['Coca-Cola', 'Pepsi', 'RC Cola'], activo: true }],
+      ocupaciones: [
+        { vallaId: 'A', marca: 'Pepsi', inicio: '2026-12-01', fin: '2026-12-31', campanaId: 'k1', campanaNombre: 'Pepsi' },
+        { vallaId: 'B', marca: 'RC Cola', inicio: '2026-12-01', fin: '2026-12-31', campanaId: 'k2', campanaNombre: 'RC' },
+      ],
+    })
+    expect(competencia().evaluar(c).map((h) => h.datos?.marcaExistente)).toEqual(['Pepsi', 'RC Cola'])
+  })
+
+  it('por sitio, el grupo sigue contando aunque una de sus vallas esté en otro sitio', () => {
+    const c = ctx({
+      vallas: [valla('A', { grupoId: 'G' }), valla('C', { sitioId: 's2', grupoId: 'G' })],
+      grupos: [grupo('G', 'una_imagen')],
+      candidata: { marca: 'Coca-Cola', inicio: '2026-12-15', fin: '2027-01-15', vallaIds: ['C'] },
+    })
+    expect(competencia().evaluar(c)).toHaveLength(1)
   })
 
   it('mismo grupo UNA IMAGEN: Coca en B choca con Pepsi en A', () => {
@@ -108,18 +158,18 @@ describe('competencia de marcas', () => {
       grupos: [grupo('G', 'una_imagen')],
       candidata: { marca: 'Coca-Cola', inicio: '2026-12-15', fin: '2027-01-15', vallaIds: ['B'] },
     })
-    const h = competencia().evaluar(c)
+    const h = competencia({ alcance: 'grupo_imagen' }).evaluar(c)
     expect(h).toHaveLength(1)
     expect(h[0].datos).toMatchObject({ vallaId: 'B', vallaOcupada: 'A', grupoId: 'G' })
   })
 
-  it('mismo grupo SEPARADAS: con el alcance por omisión no choca; con alcance «grupo» sí', () => {
+  it('mismo grupo SEPARADAS: con alcance «grupo_imagen» no choca; con «grupo» sí', () => {
     const c = ctx({
       vallas: [valla('A', { grupoId: 'G' }), valla('B', { grupoId: 'G' })],
       grupos: [grupo('G', 'separadas')],
       candidata: { marca: 'Coca-Cola', inicio: '2026-12-15', fin: '2027-01-15', vallaIds: ['B'] },
     })
-    expect(competencia().evaluar(c)).toEqual([])
+    expect(competencia({ alcance: 'grupo_imagen' }).evaluar(c)).toEqual([])
     expect(competencia({ alcance: 'grupo' }).evaluar(c)).toHaveLength(1)
   })
 

@@ -7,7 +7,8 @@ import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Campo } from '@/components/demo/ui/Campo'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
-import { usePuede } from '@/components/demo/shell/SesionContext'
+import { usePuede, useSesionCtx } from '@/components/demo/shell/SesionContext'
+import { puedeEditarCompetencia } from '@/lib/roles'
 import { useSitios } from '@/lib/data/client'
 import { useIdioma } from '@/lib/i18n/contexto'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
@@ -485,14 +486,21 @@ const partirMarcas = (s: string) => s.split(/[\n,]/).map((x) => x.trim()).filter
 
 function TarjetaCompetencia({ categorias, recargar }: { categorias: CategoriaCompetencia[] | null; recargar: () => Promise<void> }) {
   const { t } = useIdioma()
-  const puede = usePuede('inventario', 'crear')
+  // Decisión del dueño (19/11): el catálogo lo edita SOLO el Dueño. Aquí solo
+  // se esconden los botones; la puerta de verdad es `app/api/vallas/competencia/`.
+  const { sesion } = useSesionCtx()
+  const puede = puedeEditarCompetencia(sesion?.usuario?.rol)
   const [edicion, setEdicion] = useState<CategoriaCompetencia | 'nueva' | null>(null)
 
   return (
     <CardColapsable
       id="vallas.competencia"
       titulo={t('vallas.competencia.titulo')}
-      resumen={<span className="text-[12px] text-muted">{t('vallas.competencia.detalle')}</span>}
+      resumen={
+        <span className="text-[12px] text-muted">
+          {t('vallas.competencia.detalle')} · {t('vallas.competencia.solo-dueno')}
+        </span>
+      }
       accion={
         puede ? (
           <Button size="sm" variant="success" onClick={() => setEdicion('nueva')}>

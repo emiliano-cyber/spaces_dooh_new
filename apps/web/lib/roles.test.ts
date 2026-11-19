@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { puedeEncuadrar, puedeAprobarEnCampana, ROLES_ASIGNABLES, puedeVerControlCambios, rolLabel, VALORES_ROL } from './roles'
+import { puedeEncuadrar, puedeAprobarEnCampana, puedeEditarCompetencia, ROLES_ASIGNABLES, puedeVerControlCambios, rolLabel, VALORES_ROL } from './roles'
 import { landingDeRol } from './data/usuarios'
 import type { RolDemo } from './data/types'
 
@@ -193,5 +193,21 @@ describe('puedeAprobarEnCampana', () => {
     expect(puedeAprobarEnCampana(null)).toBe(false)
     expect(puedeAprobarEnCampana(undefined)).toBe(false)
     expect(puedeAprobarEnCampana('dueno')).toBe(false)
+  })
+})
+
+// Decisión del dueño (19/11): las categorías de marcas que compiten (vallas)
+// las crea, edita y da de baja SOLO el Dueño. Verlas, quien ve Inventario.
+describe('puedeEditarCompetencia', () => {
+  it('solo el Dueño', () => {
+    expect(puedeEditarCompetencia('DUENO')).toBe(true)
+    for (const rol of VALORES_ROL.filter((r) => r !== 'DUENO')) {
+      expect(puedeEditarCompetencia(rol), rol).toBe(false)
+    }
+  })
+  it('sin rol, o un texto desconocido, es no', () => {
+    expect(puedeEditarCompetencia(null)).toBe(false)
+    expect(puedeEditarCompetencia(undefined)).toBe(false)
+    expect(puedeEditarCompetencia('dueno')).toBe(false)
   })
 })
