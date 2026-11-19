@@ -8,6 +8,7 @@ import {
 import { htmlRecordatorios, asuntoRecordatorios, type IdentidadOrg } from '@/lib/server/correo-recordatorios'
 import { idiomaDeLaInstancia } from '@/lib/server/idioma-instancia'
 import { urlLogo } from '@/lib/medios-url'
+import { sqlTokenLogoServible } from '@/lib/server/logo-sql'
 import {
   recordatoriosDeContratos,
   type ContratoParaAviso,
@@ -123,7 +124,7 @@ export async function POST(req: Request) {
         email_remitente: string | null
         logo_token: string | null
       }>(
-        `select email_remitente, logo_token from config_negocio where tenant_id = $1`,
+        `select email_remitente, ${sqlTokenLogoServible()} from config_negocio where tenant_id = $1`,
         [t.id],
       )
       await client.query('commit')

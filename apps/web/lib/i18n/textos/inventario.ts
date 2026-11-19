@@ -67,6 +67,7 @@ export const ES_INVENTARIO = {
   'inventario.zona.alcaldia': 'Alcaldía o zona',
   'inventario.zona.todas-ciudades': 'Todas las ciudades',
   'inventario.zona.todas-alcaldias': 'Todas las zonas',
+  'inventario.zona.sin-alcaldia': 'Sin alcaldía',
   'inventario.zona.elige-ciudad': 'Elige primero una ciudad',
 
   // ── El medio y la disponibilidad de la fila (espejos, `etiquetas.ts`) ──
@@ -477,6 +478,7 @@ export const EN_INVENTARIO: Record<ClaveInventario, string> = {
   'inventario.zona.alcaldia': 'District or zone',
   'inventario.zona.todas-ciudades': 'All cities',
   'inventario.zona.todas-alcaldias': 'All zones',
+  'inventario.zona.sin-alcaldia': 'No district',
   'inventario.zona.elige-ciudad': 'Choose a city first',
 
   'inventario.medio.digital': 'Digital',
@@ -894,6 +896,7 @@ export const IT_INVENTARIO: Record<ClaveInventario, string> = {
   'inventario.zona.alcaldia': 'Quartiere o zona',
   'inventario.zona.todas-ciudades': 'Tutte le città',
   'inventario.zona.todas-alcaldias': 'Tutte le zone',
+  'inventario.zona.sin-alcaldia': 'Senza quartiere',
   'inventario.zona.elige-ciudad': 'Scegli prima una città',
 
   'inventario.medio.digital': 'Digitale',
@@ -1306,6 +1309,7 @@ export const PT_INVENTARIO: Record<ClaveInventario, string> = {
   'inventario.zona.alcaldia': 'Bairro ou zona',
   'inventario.zona.todas-ciudades': 'Todas as cidades',
   'inventario.zona.todas-alcaldias': 'Todas as zonas',
+  'inventario.zona.sin-alcaldia': 'Sem bairro',
   'inventario.zona.elige-ciudad': 'Escolha primeiro uma cidade',
 
   // ── A mídia e a disponibilidade da linha (`etiquetas.ts`) ──

@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-11-18
+actualizado: 2026-11-19
 tags: [frontend, publico, tokens, amarillo]
 archivos:
   - apps/web/app/(app)/portal/[token]/
@@ -10,6 +10,7 @@ archivos:
   - apps/web/app/(app)/m/ot/[id]/
   - apps/web/app/(app)/contrato/[id]/
   - apps/web/lib/server/portal-repo.ts
+  - apps/web/lib/server/logo-sql.ts
   - apps/web/middleware.ts
   - apps/web/components/demo/rejilla/AvisoFranjaCMS.tsx
   - apps/web/components/demo/propuestas/SeguimientoCampana.tsx
@@ -95,6 +96,11 @@ alguna empezara a leer la cookie, la exención se vuelve un agujero.
 >
 > - Los textos van por `cuenta.seguimiento.*` (es/en/it/pt); la regla de los pasos
 >   es pura en `lib/seguimiento-campana.ts`.
+>   - **Desde el 19/11 (hallazgo A2)** el formato de cada anuncio pasa por
+>     `formatoParaCliente()` en el repo: el tipo MIME interno no llega al cliente.
+>     Una imagen subida se guarda envuelta en HTML (`imagenAHtml`) y salía
+>     «text/html · 1920x1080»; ahora `text/*` es `null` (queda solo la medida) y
+>     los demás MIME se acortan (`image/png` → PNG, `video/mp4` → MP4).
 > - **El nombre de la imprenta llega `null` por omisión** (solo lo enciende el
 >   vendedor): sin nombre no se pinta ni «Imprime» ni hueco.
 >   El interruptor está en la ficha interna de la propuesta, solo si ya tiene
@@ -160,6 +166,18 @@ mira, así que no hay logo correcto que poner.
 
 El logo se sirve por `GET /api/logo/[token]` (público, token en
 `config_negocio.logo_token`).
+
+> [!warning] 2026-11-19 · el token existe SIEMPRE; el logo, no (hallazgo B)
+> `logo_token` es NOT NULL desde `20260805_logo_publico.sql`, así que toda
+> organización tiene uno aunque no haya cargado logo. Los membretes armaban la
+> URL con el token a secas y `/api/logo/<token>` respondía **404** → icono de
+> imagen rota en la cabecera de la liga pública. Ahora el token sale de la base
+> solo si hay imagen: `sqlTokenLogoServible()` (`apps/web/lib/server/logo-sql.ts`)
+> devuelve `case when logo_url ilike 'data:image/%' then logo_token end`, y la
+> usan los seis lectores —liga de propuesta, portal, hoja de firma, correo de la
+> propuesta, avisos y recordatorios—. Sin logo, `orgLogoUrl`/`logoUrl` es `null`
+> y no se pinta `<img>`. Lo cuidan `lib/server/logo-sql.test.ts` (ningún lector
+> vuelve a seleccionar `logo_token` a pelo) y `lib/test/logo-sin-imagen.e2e.test.ts`.
 
 > [!note] La barra final del logo ya costó un redespliegue
 > Commit `104c019`: *"la URL del logo termina en barra, o en el correo

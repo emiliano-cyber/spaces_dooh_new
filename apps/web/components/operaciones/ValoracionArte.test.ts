@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { RevisionArte } from './ValoracionArte'
+import { REQUISITOS_RESPALDO } from '@/lib/requisitos-impresion'
 
 // ============================================================================
 //  IMP-VAL (18/11) · lo que ve quien sube o revisa un arte para una lona.
@@ -47,6 +48,19 @@ describe('RevisionArte', () => {
     expect(s).toContain('Resolución baja')
     expect(s).toContain('se verá pixelado')
     expect(s).toMatch(/Pide al menos 5,0\d\d × 2,8\d\d px/)
+  })
+
+  // Hallazgo D (19/11): con la lista de formatos de la imprenta, un PNG fuera
+  // de ella salía con el punto ROJO y el texto del ÁMBAR («no se puede medir
+  // aquí; revísalo con la imprenta»): el color decía «no» y la frase «quizá».
+  it('un formato que la imprenta no recibe: rojo, lo dice y nombra lo que sí acepta', () => {
+    const s = html({
+      medida: { ancho: 12.9, alto: 7.2 }, src: PNG, imagen: true, pixeles: { ancho: 12900, alto: 7200 },
+      tipo: 'image/png', bytes: 1024,
+      requisitos: { ...REQUISITOS_RESPALDO, formatos: ['PDF', 'TIFF'] },
+    })
+    expect(s).toContain('Formato PNG: esta imprenta no lo recibe (acepta PDF, TIFF)')
+    expect(s).not.toContain('Formato PNG: no se puede medir aquí')
   })
 
   it('el archivo que pasa del tope de peso sale en rojo', () => {

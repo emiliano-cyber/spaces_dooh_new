@@ -316,11 +316,17 @@ export function PanelValoracion({
         )}
         {v.formato && (
           <Linea s={v.formato.semaforo}>
+            {/* Tres textos para tres colores. Antes el rojo caía en el texto
+                del ámbar y la pantalla decía «revísalo con la imprenta» de un
+                formato que esa imprenta ya dijo que no recibe (hallazgo D,
+                19/11). El rojo solo existe con la lista de la imprenta. */}
             {t(
               v.formato.semaforo === 'verde'
                 ? 'operaciones.imprenta.valoracion.formato.verde'
-                : 'operaciones.imprenta.valoracion.formato.ambar',
-              { nombre: v.formato.nombre },
+                : v.formato.semaforo === 'rojo'
+                  ? 'operaciones.imprenta.valoracion.formato.rojo'
+                  : 'operaciones.imprenta.valoracion.formato.ambar',
+              { nombre: v.formato.nombre, acepta: (requisitos.formatos ?? []).join(', ') },
             )}
           </Linea>
         )}

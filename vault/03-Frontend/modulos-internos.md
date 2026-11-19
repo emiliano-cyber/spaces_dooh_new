@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-11-18
+actualizado: 2026-11-19
 tags: [frontend, modulos, pantallas, verde]
 archivos:
   - apps/web/app/(app)/(shell)/
@@ -38,7 +38,7 @@ archivos:
 | `/actividad` | Bitácora | `acciones` | — |
 | `/comercial` | Buscador de inventario | `/api/sitios` | `SiteFicha`, `ReservaDialog`, `AltaSitioDialog`, `SpaceEyeVision` |
 | `/disponibilidad` | Calendario — en las **digitales**, cada celda dice los **slots que quedan libres** (06/10) | `/api/sitios` | `SlotsBadge`; la rejilla es local de la página y la calcula `disponibilidad()` (`lib/data/derive.ts`) |
-| `/inventario` | Alta y carga masiva | `/api/sitios`, `/api/sitios/import` | `InventarioTabla`, `ResumenInventario` (indicadores y chips de filtro, 26/10; **desde el 18/11** también las pestañas **Todos / Fijos / Digitales** —`PestanasMedio`, el medio deja de ser un chip— y el **selector de zona** ciudad → alcaldía —`SelectorZona`, con `zonasInventario()` y `enZona()` probadas en `zonas-inventario.test.ts`—, sacadas del propio inventario en memoria, sin endpoint nuevo), `ImportarInventarioDialog`, `NuevaPantallaForm`, `ContratoWizard`, `AgregarInventario`, `InfoAnadidaModal`. **Desde el 22/10** la tabla y la ficha enseñan el **id de DOOHmain que se usa** al publicar y de dónde sale (ficha, mapa del servidor o por omisión): antes, una pantalla publicada por el mapa se veía con el campo vacío |
+| `/inventario` | Alta y carga masiva | `/api/sitios`, `/api/sitios/import` | `InventarioTabla`, `ResumenInventario` (indicadores y chips de filtro, 26/10; **desde el 18/11** también las pestañas **Todos / Fijos / Digitales** —`PestanasMedio`, el medio deja de ser un chip— y el **selector de zona** ciudad → alcaldía —`SelectorZona`, con `zonasInventario()` y `enZona()` probadas en `zonas-inventario.test.ts`—, sacadas del propio inventario en memoria, sin endpoint nuevo; **desde el 19/11** la alcaldía ofrece al final «Sin alcaldía (n)» —`SIN_ALCALDIA`, con `sinAlcaldia` en cada zona— para que la suma de zonas cuadre con la ciudad: antes «CDMX (9)» sumaba 5 en sus zonas y las otras 4 no se podían filtrar), `ImportarInventarioDialog`, `NuevaPantallaForm`, `ContratoWizard`, `AgregarInventario`, `InfoAnadidaModal`. **Desde el 22/10** la tabla y la ficha enseñan el **id de DOOHmain que se usa** al publicar y de dónde sale (ficha, mapa del servidor o por omisión): antes, una pantalla publicada por el mapa se veía con el campo vacío |
 | `/network` | Pantallas en red | `sitios.en_network` | — |
 | `/arrendadores` | Arrendadores, predios, contratos | `/api/arrendadores`, `/api/contratos` | `ContratoSheet`, `PagosRentaCard`, `CompromisoRentaCard`, `ConciliacionCard`, `PanelFirmas`, `ConstanciaFirmas`, `LicenciasCard`, `GestionRazonesSociales`, `BarraDocumento`, `BajaPropietarioDialog` |
 | `/clientes` | Clientes — al pulsar el nombre, **ficha con su pipeline y sus campañas** (20/10) | `/api/clientes`; la ficha lee lo que ya trae `/api/estado` | `ClientesBadge`, `BorrarClienteDialog`, `FichaCliente`, `PipelineCliente`, `CampanasDelCliente` |
