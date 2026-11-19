@@ -53,6 +53,9 @@ export const AREAS: AreaProducto[] = [
   // `comercial` la pantalla se habría abierto a quien no puede leer su API.
   { clave: 'comercial-opex', label: 'Prospección', modulo: 'captacion', apiPropia: true },
   { clave: 'inventario', label: 'Inventario', modulo: 'inventario', apiPropia: true },
+  // VALLAS (esqueleto, 19/11): cuadros, grupos y competencia de marcas. Sus
+  // rutas (`/api/vallas/**`) exigen `inventario.ver` / `inventario.crear`.
+  { clave: 'vallas', label: 'Vallas', modulo: 'inventario', apiPropia: true },
   // Las ocho pantallas de Space Eyes (equipos, galería, vivo, programación,
   // campañas, verificación, fallas) exigen `inventario.ver` / `inventario.crear`.
   // Sin esta línea, quien marcaba «Inventario» abría las cámaras y las fotos de

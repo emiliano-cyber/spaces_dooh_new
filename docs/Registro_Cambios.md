@@ -5,6 +5,16 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-19 · Vallas: primera versión del módulo (para revisión del dueño)
+
+- En el menú **Inventario** hay una entrada nueva, **«Vallas»**. Ahí cada valla (cada cuadro o cara) se da de alta sobre un sitio del inventario con **su número** y **sus medidas** (ancho × alto en metros). El sistema sugiere el siguiente número (V-001, V-002…), pero se puede escribir cualquiera.
+- Varias vallas se pueden **agrupar** con un **número de grupo** propio y su **medida total**, eligiendo si se ven como **una sola imagen** o **separadas**. Con «una sola imagen», la medida que cuenta para el arte es la del grupo, y la pantalla lo dice en cada valla.
+- **Marcas que compiten**: se capturan categorías (por ejemplo «Refrescos de cola»: Coca-Cola, Pepsi). «Verificar una marca» avisa si la marca quedaría en la misma valla, o en el mismo grupo de una sola imagen, que una marca competidora con fechas que se cruzan. Por ahora **solo avisa** y no impide reservar.
+- La ven y la editan quienes ya pueden con Inventario. En español, inglés, italiano y portugués.
+- Necesita un cambio en la base de datos que **espera la aprobación del dueño** para los servidores.
+
+---
+
 ## 2026-11-19 · Propuestas: el Resumen enseña los prospectos nuevos y ya no se pliega
 
 - En **Propuestas → Resumen** hay un bloque nuevo, **«Prospectos nuevos»**: los clientes potenciales dados de alta en los **últimos 7 días**, los más recientes primero (hasta 6), cada uno con la etiqueta **«Nuevo»**.
