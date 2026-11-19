@@ -16,9 +16,14 @@
 //  llena y lo que sobra se pierde. La imprenta NO estira el arte (deformarlo no
 //  es una opción que el repo contemple); «sin recortar» (`contain`) se ofrece
 //  solo para ver el arte entero y las franjas en blanco que dejaría.
+//
+//  Desde el 18/11 (tarde) los umbrales son CONFIGURABLES por imprenta y por
+//  empresa (`lib/requisitos-impresion.ts`). Las constantes de abajo son el
+//  respaldo cuando nadie configuró nada, y cada función recibe `req` opcional.
 // ============================================================================
 
 import { TOLERANCIA_AJUSTE } from './proporcion-pantalla'
+import { REQUISITOS_RESPALDO, type Requisitos } from './requisitos-impresion'
 
 export type Semaforo = 'verde' | 'ambar' | 'rojo'
 export type Lona = { ancho: number; alto: number } // metros
@@ -30,14 +35,14 @@ export type Modo = 'cover' | 'contain'
  * esos 5 cm puede quedar doblado o tapado por el marco). Se dibuja y se rotula
  * como orientativo: cada imprenta tiene la suya.
  */
-export const MARGEN_SEGURIDAD_M = 0.05
+export const MARGEN_SEGURIDAD_M = REQUISITOS_RESPALDO.margenCm / 100
 
 /**
  * Una lona con un lado de 6 m o más se trata como gran formato (espectacular,
  * vista desde la calle a decenas de metros); por debajo, como lona cercana
  * (muro, valla, puente peatonal: se ve a pocos metros).
  */
-export const LADO_GRAN_FORMATO_M = 6
+export const LADO_GRAN_FORMATO_M = REQUISITOS_RESPALDO.corteGranM
 
 /**
  * DPI efectivos a tamaño real (píxeles ÷ pulgadas impresas). ORIENTATIVOS:
@@ -51,9 +56,17 @@ export const LADO_GRAN_FORMATO_M = 6
  * - Cercana: se ve a pocos metros, así que pide el triple.
  */
 export const UMBRALES_DPI = {
-  gran: { verde: 10, ambar: 5 },
-  cercana: { verde: 30, ambar: 15 },
+  gran: { verde: REQUISITOS_RESPALDO.dpiGranVerde, ambar: REQUISITOS_RESPALDO.dpiGranAmbar },
+  cercana: { verde: REQUISITOS_RESPALDO.dpiCercanaVerde, ambar: REQUISITOS_RESPALDO.dpiCercanaAmbar },
 } as const
+
+/** Los umbrales de DPI de unos requisitos, con la forma de `UMBRALES_DPI`. */
+export function umbralesDe(req: Requisitos = REQUISITOS_RESPALDO) {
+  return {
+    gran: { verde: req.dpiGranVerde, ambar: req.dpiGranAmbar },
+    cercana: { verde: req.dpiCercanaVerde, ambar: req.dpiCercanaAmbar },
+  }
+}
 
 /** Hasta este recorte (fracción del arte) es ámbar; por encima, rojo. */
 export const RECORTE_AMBAR_MAX = 0.15
@@ -115,13 +128,18 @@ export type ValorResolucion = {
   minimoPx: { ancho: number; alto: number }
 }
 
-export function valorarResolucion(lona: Lona, anchoPx: number, altoPx: number): ValorResolucion {
+export function valorarResolucion(
+  lona: Lona,
+  anchoPx: number,
+  altoPx: number,
+  req: Requisitos = REQUISITOS_RESPALDO,
+): ValorResolucion {
   // A sangre el arte cubre la lona: manda el lado con menos píxeles por metro,
   // que es el que se estira más.
   const pxPorMetro = Math.min(anchoPx / lona.ancho, altoPx / lona.alto)
   const dpi = pxPorMetro * PULGADA_M
-  const escala = Math.max(lona.ancho, lona.alto) >= LADO_GRAN_FORMATO_M ? 'gran' : 'cercana'
-  const u = UMBRALES_DPI[escala]
+  const escala = Math.max(lona.ancho, lona.alto) >= req.corteGranM ? 'gran' : 'cercana'
+  const u = umbralesDe(req)[escala]
   const pxmVerde = u.verde / PULGADA_M
   return {
     semaforo: dpi >= u.verde ? 'verde' : dpi >= u.ambar ? 'ambar' : 'rojo',
@@ -139,13 +157,20 @@ const IMAGENES: Record<string, string> = {
   'image/webp': 'WEBP',
 }
 
-/** PNG/JPG/WebP sirven; un PDF u otro tipo no se puede medir aquí (ámbar). */
-export function valorarFormato(tipo: string | null | undefined): { semaforo: Semaforo; nombre: string } | null {
+/**
+ * Sin formatos configurados: PNG/JPG/WebP sirven y un PDF u otro tipo no se
+ * puede medir aquí (ámbar). Con la lista de la imprenta: fuera de ella es rojo
+ * (esa imprenta no lo recibe); dentro, verde si se puede medir y ámbar si no.
+ */
+export function valorarFormato(
+  tipo: string | null | undefined,
+  formatos: readonly string[] | null = null,
+): { semaforo: Semaforo; nombre: string } | null {
   if (tipo == null) return null
   const t = tipo.toLowerCase().trim()
-  if (IMAGENES[t]) return { semaforo: 'verde', nombre: IMAGENES[t] }
-  if (t === 'application/pdf') return { semaforo: 'ambar', nombre: 'PDF' }
-  return { semaforo: 'ambar', nombre: (t.split('/')[1] ?? t).toUpperCase() || '?' }
+  const nombre = IMAGENES[t] ?? (t === 'application/pdf' ? 'PDF' : (t.split('/')[1] ?? t).toUpperCase() || '?')
+  if (formatos && !formatos.includes(nombre)) return { semaforo: 'rojo', nombre }
+  return { semaforo: IMAGENES[t] ? 'verde' : 'ambar', nombre }
 }
 
 /** Hasta el tope de subida verde; por encima rojo (el servidor lo rechazaría). */
@@ -177,6 +202,7 @@ export function valorarArte(
   lona: Lona | null,
   archivo: { anchoPx: number | null; altoPx: number | null; tipo?: string | null; bytes?: number | null },
   maxMb = 4,
+  req: Requisitos = REQUISITOS_RESPALDO,
 ): Valoracion {
   const medible =
     lona != null &&
@@ -187,8 +213,8 @@ export function valorarArte(
     archivo.anchoPx > 0 &&
     archivo.altoPx > 0
   const proporcion = medible ? valorarProporcion(lona!, archivo.anchoPx!, archivo.altoPx!) : null
-  const resolucion = medible ? valorarResolucion(lona!, archivo.anchoPx!, archivo.altoPx!) : null
-  const formato = valorarFormato(archivo.tipo)
+  const resolucion = medible ? valorarResolucion(lona!, archivo.anchoPx!, archivo.altoPx!, req) : null
+  const formato = valorarFormato(archivo.tipo, req.formatos)
   const peso = valorarPeso(archivo.bytes, maxMb)
   return {
     general: peorSemaforo([proporcion?.semaforo, resolucion?.semaforo, formato?.semaforo, peso?.semaforo]),

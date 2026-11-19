@@ -89,7 +89,11 @@ vi.mock('@/lib/data/client', async (importOriginal) => {
     // IMP-CREA (17/11) · Imprenta lee también los creativos (respaldo de la demo
     // en memoria). El real lleva su propio `useState(false)` y, llamado desde
     // `ImprentaPage`, se comía el forzado del alta.
-    useCreatividades: () => [] }
+    useCreatividades: () => [],
+    // IMP-REQ (18/11) · y la config, por los requisitos de arte de la empresa:
+    // el real pasa por `useMounted` (otro `useState(false)`) y se comía el
+    // mismo forzado.
+    useConfigNegocio: () => undefined }
 })
 
 beforeEach(() => {

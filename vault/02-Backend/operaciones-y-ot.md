@@ -29,6 +29,14 @@ archivos:
   - apps/web/components/operaciones/ValoracionArte.tsx
   - apps/web/lib/valoracion-arte.ts
   - apps/web/lib/arte-impresion.ts
+  - apps/web/lib/requisitos-impresion.ts
+  - apps/web/lib/server/imprentas-repo.ts
+  - apps/web/lib/server/imprentas-controller.ts
+  - apps/web/app/api/imprentas/route.ts
+  - apps/web/app/api/imprentas/[id]/route.ts
+  - apps/web/app/api/impresion/[id]/imprenta/route.ts
+  - apps/web/components/operaciones/Imprentas.tsx
+  - db/migrations/20261118_imprentas_y_requisitos.sql
   - apps/web/components/demo/campanas/AgregarCreativo.tsx
   - infra/nginx/instancia.conf.tpl
   - apps/web/app/api/creativos/[id]/arte/route.ts
@@ -248,16 +256,44 @@ es/en/it/pt (`operaciones.imprenta.valoracion.*`).
     `sudo systemctl reload nginx`. En una instancia, regenerar su conf desde
     `instancia.conf.tpl` con su dominio (el mismo paso de aprovisionamiento).
     Hasta que se haga, un arte de más de ~9 MB recibe 413 de nginx.
-- **Umbrales configurables (por imprenta): PARADO, pide migración.** No hay
-  tabla de imprentas (el proveedor de la orden es texto libre,
-  `ordenes_impresion.proveedor`) ni un JSON de configuración genérico en
-  `config_negocio` (`costos_ot` es jsonb pero saneado a su forma). Hasta que
-  se decida, mandan las constantes de `lib/valoracion-arte.ts`.
+- **Umbrales configurables (por imprenta)**: pedían migración y el dueño
+  eligió la **opción B** (R3 aprobado). Hecho en IMP-REQ, ver la sección
+  siguiente. Las constantes de `lib/valoracion-arte.ts` quedan como respaldo.
 - **Un arte en rojo solo avisa**, como estaba.
 
 > [!warning] Lo que NO se verificó
 > El navegador (lo prueba el orquestador en Chrome), `nginx -t` (no hay nginx
 > en esta máquina) ni una subida real de 15 MB contra el servidor.
+
+### Imprentas y sus requisitos de arte (IMP-REQ, 2026-11-18/19)
+
+Decisión del dueño: «la imprenta usada es de terceros por ahora y, como se
+vende el proyecto, la imprenta puede ser de cualquiera». Así que los umbrales de
+IMP-VAL dejan de ser fijos: **cada imprenta tiene los suyos, la empresa tiene
+unos por omisión y, si nadie dice nada, mandan las constantes de siempre**. Un
+arte en rojo **sigue solo avisando**; el tope del arte OOH sigue en **15 MB**.
+
+| Qué | Dónde | Por qué así |
+|---|---|---|
+| **Migración (R3 + R2, aprobada)** | `db/migrations/20261118_imprentas_y_requisitos.sql` | Solo agrega: `config_negocio.requisitos_impresion jsonb` (`{}` = sin configurar), la tabla `imprentas` (RLS fail-closed + FORCE, nombre único por organización sin distinguir mayúsculas ni espacios) y `ordenes_impresion.imprenta_id` opcional. `proveedor` (texto) **se queda**: las órdenes de antes lo usan. La orden apunta con **FK compuesta** `(imprenta_id, tenant_id)` porque los chequeos de FK saltan la RLS. `on delete restrict` (y no `set null`, que con FK compuesta anularía `tenant_id`; `set null (col)` es PG 15 y g500 corre 14): la baja es **lógica** (`activo = false`) y el rol de la app no tiene DELETE |
+| **La regla** | `lib/requisitos-impresion.ts` (puro) | `resolverRequisitos(imprenta, empresa)`: imprenta > empresa > `REQUISITOS_RESPALDO`, **campo por campo**. `sanearRequisitos` al leer y al escribir (como `costos_ot`): un valor inválido cae al siguiente nivel, **nunca a 0** (0 DPI daría todo por bueno). Un ámbar por encima de su verde se descarta. Campos: DPI verde/ámbar de gran formato y de lona cercana, corte de gran formato (m), margen (cm) y formatos aceptados |
+| **La valoración** | `lib/valoracion-arte.ts` | `valorarArte(…, req)` y `valorarResolucion(…, req)` reciben los requisitos (por omisión, las constantes). Con lista de **formatos**, uno fuera de ella es rojo («esa imprenta no lo recibe»); sin lista, como antes |
+| **Rutas** | `GET·POST /api/imprentas`, `PATCH /api/imprentas/[id]`, `PATCH /api/impresion/[id]/imprenta` | Capas `route.ts` → `imprentas-controller.ts` (zod `.strict()` con los mismos rangos que el saneo) → `imprentas-repo.ts` (`q` con `and tenant_id = $n`). Permisos **existentes**: ver con `imprenta.ver`, alta/edición/asignar con `imprenta.crear`. Asignar una imprenta ajena o dada de baja → 400; un id que no es uuid → 404 sin tocar la base. Los de la empresa van por `PATCH /api/config { requisitosImpresion }` (`administracion.crear`) |
+| **La orden** | `impresion-repo.ts` | El alta acepta `imprentaId`; el listado trae `imprentaNombre` e `imprentaRequisitos` (saneados) con un `left join` por `tenant_id` |
+| **Pantalla** | `components/operaciones/Imprentas.tsx` en `/imprenta` | Tarjeta «Imprentas»: los requisitos de la empresa y la lista de imprentas con alta, edición y baja. Cada orden tiene su selector de imprenta, y el diálogo de arte dice «Valorado con los requisitos de …». La ficha de campaña (`AgregarCreativo` → `lonasDeCampana`) valora la lona con los de la imprenta de la orden de ese sitio |
+
+Pruebas: `lib/requisitos-impresion.test.ts` (unitarias de saneo y resolución),
+`lib/arte-impresion.test.ts` (la lona trae los requisitos de su orden) y
+`lib/test/imprentas.e2e.test.ts` contra Postgres y Next reales: CRUD con y sin
+permiso, nombre único por organización, **aislamiento** por la API y con el rol
+de la app directo (sin tenant cero filas, no inserta en otra, no borra), la FK
+compuesta rechazando la imprenta ajena, y `PATCH /api/config` con basura → 400.
+Textos en es/en/it/pt (`operaciones.imprenta.imprentas.*`, errores en
+`errores-servidor.ts`).
+
+> [!warning] Lo que NO se verificó
+> El navegador (queda para el recorrido en Chrome) ni la migración contra una
+> base con historia de producción.
 
 ## Cómo se ven las pantallas (rediseño del 26/10)
 

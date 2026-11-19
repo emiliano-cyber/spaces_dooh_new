@@ -228,7 +228,10 @@ describe('el esquema base no trae la organización de nadie', () => {
     //     `envios_creativo_cliente`, la sala de espera del creativo que manda
     //     el cliente por la liga (ENVIO-CLIENTE). Subido a la vez que la
     //     migracion.
-    expect(trasMigrar.tablas).toBe(72)
+    //   · 73 el 2026-11-18: `20261118_imprentas_y_requisitos.sql` anade
+    //     `imprentas`, cada proveedor de impresion con sus requisitos de arte
+    //     (IMP-REQ). Subido a la vez que la migracion.
+    expect(trasMigrar.tablas).toBe(73)
     // Lo que de verdad importa: ni las migraciones resucitan al owner.
     expect(trasMigrar.tenants).toBe(0)
   })

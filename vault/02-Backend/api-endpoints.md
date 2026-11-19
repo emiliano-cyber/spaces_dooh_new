@@ -1,7 +1,7 @@
 ---
 tipo: referencia
 estado: verificado
-actualizado: 2026-11-18
+actualizado: 2026-11-19
 tags: [backend, api, endpoints]
 archivos:
   - apps/web/app/api/
@@ -43,6 +43,11 @@ archivos:
 
 # API — los 159 endpoints (medidos el 2026-10-29 con `recuentos.mjs`)
 
+> **2026-11-19 · 179 (IMP-REQ, rama `feat/imprentas-y-proporcion`):** tres
+> rutas para las imprentas y sus requisitos de arte —`GET·POST /api/imprentas`,
+> `PATCH /api/imprentas/[id]` y `PATCH /api/impresion/[id]/imprenta`—. Medido
+> con `recuentos.mjs`. Ver [[operaciones-y-ot]].
+>
 > **2026-11-18 · 176 (ENVIO-CLIENTE, rama `integra/18-11`):** tres rutas para el
 > creativo que manda el cliente por la liga —la pública `POST
 > /api/propuestas/publica/[id]/creativos` y, con sesión, `GET
@@ -177,7 +182,7 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 | GET·POST | `/api/tenants` | exigir | el admin acepta `entraConGoogle` |
 | POST | `/api/tenant-activo` | exigir | Cambio de CRM del super-admin |
 | PATCH | `/api/organizacion` | exigir | |
-| GET·PATCH | `/api/config` | exigir | Desde el 12/10 el `PATCH` toma `entidadPrincipalId` (uuid de una de [[entidades-fiscales]]) y **rechaza `razonSocial`** con 400 por el `.strict()` (`config/route.ts:92-94`). **Desde el 02/11 (ADR 0048) rechaza `moneda` con 400**, sea cual sea el valor y antes de guardar nada: la moneda de la instancia no se cambia |
+| GET·PATCH | `/api/config` | exigir | Desde el 12/10 el `PATCH` toma `entidadPrincipalId` (uuid de una de [[entidades-fiscales]]) y **rechaza `razonSocial`** con 400 por el `.strict()` (`config/route.ts:92-94`). **Desde el 02/11 (ADR 0048) rechaza `moneda` con 400**, sea cual sea el valor y antes de guardar nada: la moneda de la instancia no se cambia. **Desde el 19/11 (IMP-REQ)** acepta `requisitosImpresion` (los requisitos de arte por omisión de la empresa; mismo esquema que los de una imprenta, se guarda saneado) |
 | GET·PUT | `/api/cambios` | exigir | Interruptor de reautenticación |
 | POST·DELETE | `/api/cambios/desbloquear` | exigir | |
 | GET | `/api/estado` | exigir | Devuelve **todo** el tenant. Desde el 08/10 incluye `usuarios` (id, nombre, rol, activo; sin correo) para nombrar al responsable de cada OT — [[operaciones-y-ot]] |
@@ -363,6 +368,8 @@ agrupa las cuatro pantallas en `lib/modulos.ts:77-83`.
 | PATCH | `/api/ot/[id]/checklist` | exigir (`operaciones.crear`) — un punto por petición, 2026-09-30 |
 | GET·POST | `/api/impresion` · PATCH `/api/impresion/[id]` | exigir |
 | PATCH | `/api/impresion/[id]/prueba-color` | exigir |
+| PATCH | `/api/impresion/[id]/imprenta` | exigir `imprenta.crear` — (19/11, IMP-REQ) `{ imprentaId \| null }`: la imprenta que imprime la orden. Ajena o dada de baja → 400; id no uuid → 404 |
+| GET·POST | `/api/imprentas` · PATCH `/api/imprentas/[id]` | exigir `imprenta.ver` / `imprenta.crear` — (19/11, IMP-REQ) proveedores de impresión con sus requisitos de arte (`{ nombre, requisitos?, activo? }`, zod `.strict()`); nombre repetido en la organización → 409; **sin DELETE** (baja lógica). Capas `imprentas-controller.ts` → `imprentas-repo.ts`. El alta de `POST /api/impresion` acepta `imprentaId` |
 
 ## Finanzas
 

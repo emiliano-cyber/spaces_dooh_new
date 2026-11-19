@@ -55,12 +55,16 @@ describe('lonasDeCampana', () => {
   ]
   it('los sitios FIJOS con medida de la campaña; ni pantallas digitales ni sitios sin medida', () => {
     expect(lonasDeCampana('c1', reservas, sitios, [])).toEqual([
-      { id: 's1', nombre: 'Insurgentes', ancho: 12.9, alto: 7.2 },
+      { id: 's1', nombre: 'Insurgentes', ancho: 12.9, alto: 7.2, requisitos: null },
     ])
   })
   it('la medida de la orden de impresión manda sobre la del sitio', () => {
     const ois = [{ campanaId: 'c1', sitioId: 's1', ancho: 6, alto: 3 }]
-    expect(lonasDeCampana('c1', reservas, sitios, ois)[0]).toEqual({ id: 's1', nombre: 'Insurgentes', ancho: 6, alto: 3 })
+    expect(lonasDeCampana('c1', reservas, sitios, ois)[0]).toEqual({ id: 's1', nombre: 'Insurgentes', ancho: 6, alto: 3, requisitos: null })
+  })
+  it('IMP-REQ · la lona trae los requisitos de la imprenta de su orden', () => {
+    const ois = [{ campanaId: 'c1', sitioId: 's1', ancho: 6, alto: 3, imprentaRequisitos: { dpiGranVerde: 25 } }]
+    expect(lonasDeCampana('c1', reservas, sitios, ois)[0].requisitos).toEqual({ dpiGranVerde: 25 })
   })
 })
 
