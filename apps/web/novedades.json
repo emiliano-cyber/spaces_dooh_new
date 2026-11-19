@@ -4,6 +4,12 @@
     "fecha": "2026-11-19",
     "items": [
       {
+        "tipo": "NUEVO",
+        "texto": "El Resumen de Propuestas muestra los prospectos nuevos: los dados de alta en los últimos 7 días, marcados como «Nuevo», con su etapa, quién los lleva, cuándo se dieron de alta y su contacto. Al pulsar uno se abre el prospecto. El vendedor ve los suyos y quien aprueba en Comercial, los de todo el equipo. Además, el Resumen se ve siempre completo, sin secciones plegadas.",
+        "en": "The Proposals Summary now shows new prospects: those added in the last 7 days, marked “New”, with their stage, who handles them, when they were added and their contact. Clicking one opens the prospect. Salespeople see their own, and whoever approves in Sales sees the whole team’s. The Summary is also always fully shown, with no collapsed sections.",
+        "it": "Il Riepilogo delle Proposte mostra i nuovi prospect: quelli aggiunti negli ultimi 7 giorni, contrassegnati come «Nuovo», con la fase, chi li segue, quando sono stati aggiunti e il contatto. Facendo clic su uno si apre il prospect. Il venditore vede i propri e chi approva in Commerciale quelli di tutto il team. Inoltre il Riepilogo è sempre visibile per intero, senza sezioni chiuse."
+      },
+      {
         "tipo": "AJUSTADO",
         "texto": "El CRM vuelve a llamarse Propuestas y se ordena en cuatro pestañas: Resumen (la primera en abrirse), Propuestas, Seguimiento y Prospectos. El embudo pasa a llamarse Seguimiento, va por columnas y desaparece la pestaña Oportunidades. Quien tenga guardada la dirección anterior llega al mismo sitio.",
         "en": "The CRM is called Proposals again and is organised in four tabs: Summary (the first one to open), Proposals, Follow-up and Prospects. The pipeline is now called Follow-up, is laid out in columns, and the Opportunities tab is gone. Anyone with the old address saved still lands in the same place.",

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { AlertTriangle } from 'lucide-react'
-import { CardColapsable } from '@/components/demo/ui/CardColapsable'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/demo/ui/Card'
+import { ProspectosNuevos } from './ProspectosNuevos'
 import { cn } from '@/lib/cn'
 import { formatMonto, formatFecha, usePropuestas } from '@/lib/data/client'
 import { esEtiquetaRango, etiquetaPeriodo, type TipoPeriodo } from '@/lib/finanzas-periodo'
@@ -77,16 +78,22 @@ export function TableroPropuestas() {
     !!r && r.aprobadas.n > 0 && !r.aprobadas.ganancia && r.lista.length > 0 && r.lista.every((x) => x.ganancia === null)
 
   return (
-    // PLEG-02 · el selector de periodo va en `accion` (fuera del área que
-    // pliega) y su estado vive en este componente, no en la tarjeta: plegar y
-    // desplegar no devuelve el periodo a «mes».
-    <CardColapsable
-      id="propuestas.resumen"
-      titulo={t('propuestas.tablero.titulo')}
-      // Plegado al entrar desde el 26/10: va debajo de la lista y es análisis
-      // por periodo; quien lo quiera lo abre con un clic.
-      defaultAbierto={false}
-      subtitulo={
+    <>
+    {/* 19/11 · «Prospectos nuevos» viaja en la misma respuesta del tablero; el
+        error del tablero ya se pinta abajo, así que aquí solo se espera. */}
+    <ProspectosNuevos datos={datos?.prospectosNuevos ?? null} />
+    {/* 19/11, pedido del dueño: «el Resumen de Propuestas debe quedar SIEMPRE
+        desplegado». Hasta ese día esto era una `CardColapsable` que abría
+        PLEGADA (26/10: iba debajo de la lista y era análisis «para quien lo
+        quiera») y recordaba en localStorage (`propuestas.resumen`) si se
+        cerró. Desde el 18/11 es su propia pestaña: plegado, el Resumen se
+        abría casi vacío. Tarjeta fija, sin flecha; un `propuestas.resumen`
+        guardado de antes ya no lo lee nadie. */}
+    <Card>
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <CardTitle>{t('propuestas.tablero.titulo')}</CardTitle>
+          <div className="mt-0.5 text-[12px] text-muted">{
         // Con un rango a mano la etiqueta YA son las fechas: en ingles saldrian
         // dos veces identicas («Jan 5, 2026 to Mar 9, 2026 · Jan 5, 2026 to
         // Mar 9, 2026»), asi que se pintan una. El espanol queda como siempre.
@@ -98,9 +105,9 @@ export function TableroPropuestas() {
               desde: formatFecha(datos.periodo.desde, idioma),
               hasta: formatFecha(datos.periodo.hasta, idioma),
             })
-          : '—'
-      }
-      accion={
+          : '—'}
+          </div>
+        </div>
         <div className="flex flex-wrap items-center gap-1.5">
           {/* En un teléfono los seis botones desbordaban la página entera (516 px
               de contenido en 380, medido por la validación del 26/10). Mismo
@@ -140,8 +147,8 @@ export function TableroPropuestas() {
             </span>
           )}
         </div>
-      }
-    >
+      </CardHeader>
+      <CardContent>
         {!listo ? (
           <p className="text-[13px] text-muted">{t('compartidos.periodo.elige')}</p>
         ) : error !== null ? (
@@ -274,7 +281,9 @@ export function TableroPropuestas() {
             )}
           </div>
         )}
-    </CardColapsable>
+      </CardContent>
+    </Card>
+    </>
   )
 }
 

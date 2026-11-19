@@ -5,6 +5,16 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-19 · Propuestas: el Resumen enseña los prospectos nuevos y ya no se pliega
+
+- En **Propuestas → Resumen** hay un bloque nuevo, **«Prospectos nuevos»**: los clientes potenciales dados de alta en los **últimos 7 días**, los más recientes primero (hasta 6), cada uno con la etiqueta **«Nuevo»**.
+- De cada uno se ve el nombre, la razón social, en qué etapa va, quién lo lleva, cuándo se dio de alta («hace 2 días») y el contacto si se capturó. Al pulsarlo se abre el prospecto en la pestaña Prospectos. Si hay más de 6, un enlace lleva a todos.
+- El vendedor ve solo los suyos; quien aprueba en Comercial ve los de todo el equipo, igual que el resto de Propuestas.
+- Además, el Resumen queda **siempre abierto**: el «Resumen de propuestas» (el tablero por periodo) antes abría plegado y recordaba si alguien lo había cerrado; ahora se ve siempre completo y ya no tiene la flecha para plegarlo. Las demás pantallas no cambian.
+- En español, inglés, italiano y portugués.
+
+---
+
 ## 2026-11-19 · La liga ya no enseña «text/html» bajo el anuncio
 
 - En el seguimiento de la campaña que ve el cliente, bajo cada anuncio salía algo como «text/html · 1920x1080». Ese «text/html» es cómo se guarda la imagen por dentro y no le dice nada al cliente.

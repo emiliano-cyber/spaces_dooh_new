@@ -3,6 +3,7 @@ import { q } from './db'
 import { tenantActual } from './tenant'
 import { PREFIJO_BAJA } from '@/lib/vendedor-de-baja'
 import type { FilaConteo } from '@/lib/propuestas-por-dia'
+import { ETAPAS_FUERA_DE_NUEVOS, type FilaProspectoNuevo } from '@/lib/prospectos-nuevos'
 
 // ============================================================================
 //  lib/server/propuestas-resumen-repo.ts — Las filas del tablero de propuestas
@@ -183,5 +184,51 @@ export async function filasConteoDiario(f: {
     // P19 · el vendedor borrado, por su nombre congelado (igual que arriba).
     vendedorId: r.usuario_id ?? (r.vendedor_nombre ? PREFIJO_BAJA + r.vendedor_nombre : null),
     vendedor: r.vendedor ?? null,
+  }))
+}
+
+// ─── 19/11 · «Prospectos nuevos» del Resumen ───────────────────────────────
+//
+// Solo prospectos de CLIENTE: son los que la pestaña Prospectos de Propuestas
+// enseña (`<Captacion tipoFijo="CLIENTE">`); un predio o una pantalla en
+// captación no es venta. `soloDe` es el MISMO de las propuestas del Resumen
+// (`soloDePropuestas`, `comercial.aprobar`): el vendedor, los suyos.
+//
+// La ventana y las etapas se filtran aquí y otra vez en
+// `lib/prospectos-nuevos.ts`, que es la regla probada. El tope de 50 es solo de
+// peso: el bloque enseña seis y el total; más de 50 altas en una semana de un
+// mismo equipo diría «50 más» de menos, no algo falso de otro.
+export async function filasProspectosNuevos(soloDe: string | null, dias: number): Promise<FilaProspectoNuevo[]> {
+  const rows = await q<any>(
+    `select p.id, p.nombre, p.etapa, p.creado_en,
+            p.contacto->>'nombre'   as contacto_nombre,
+            p.contacto->>'telefono' as telefono,
+            p.contacto->>'email'    as email,
+            p.datos->>'razonSocial' as razon_social,
+            v.nombre as vendedor
+       from prospectos p
+       -- Con el tenant también en el join: un usuario de otra organización no
+       -- le pone nombre a un prospecto de ésta.
+       left join usuarios v on v.id = p.usuario_id and v.tenant_id = p.tenant_id
+      where p.tenant_id = $1
+        and p.tipo = 'CLIENTE'
+        and ($2::uuid is null or p.usuario_id = $2::uuid)
+        and p.creado_en >= now() - make_interval(days => $3::int)
+        and p.etapa <> all($4::text[])
+      order by p.creado_en desc, p.id
+      limit 50`,
+    [await tenantActual(), soloDe, dias, ETAPAS_FUERA_DE_NUEVOS],
+  )
+  const texto = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : null)
+  return rows.map((r) => ({
+    id: String(r.id),
+    nombre: String(r.nombre),
+    etapa: r.etapa,
+    vendedor: r.vendedor ?? null,
+    creadoEn: r.creado_en instanceof Date ? r.creado_en.toISOString() : String(r.creado_en),
+    contactoNombre: texto(r.contacto_nombre),
+    telefono: texto(r.telefono),
+    email: texto(r.email),
+    razonSocial: texto(r.razon_social),
   }))
 }
