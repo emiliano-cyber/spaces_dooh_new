@@ -5,6 +5,14 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-19 · Inventario: «Sin alcaldía» en el filtro de zona
+
+- En **Inventario**, al elegir una ciudad, la lista «Alcaldía o zona» trae ahora al final la opción **«Sin alcaldía»** con cuántas pantallas tiene.
+- Antes, las pantallas sin alcaldía no tenían opción propia: la ciudad decía, por ejemplo, 9 pantallas y sus zonas sumaban 5. Ahora los números cuadran y esas pantallas se pueden encontrar.
+- En español, inglés, italiano y portugués.
+
+---
+
 ## 2026-11-19 · Sin logo, la liga ya no enseña una imagen rota
 
 - Si la organización **no ha cargado su logo**, la cabecera de la liga de la propuesta mostraba un icono de imagen rota. Ahora, sin logo, simplemente no se pinta nada y queda el nombre de la organización.

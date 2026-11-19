@@ -368,6 +368,7 @@ exports[`diccionario de inventario · instantanea > el ESPANOL no cambia sin que
   "inventario.zona.alcaldia": "Alcaldía o zona",
   "inventario.zona.ciudad": "Ciudad",
   "inventario.zona.elige-ciudad": "Elige primero una ciudad",
+  "inventario.zona.sin-alcaldia": "Sin alcaldía",
   "inventario.zona.todas-alcaldias": "Todas las zonas",
   "inventario.zona.todas-ciudades": "Todas las ciudades",
 }
@@ -741,6 +742,7 @@ exports[`diccionario de inventario · instantanea > el INGLES tampoco 1`] = `
   "inventario.zona.alcaldia": "District or zone",
   "inventario.zona.ciudad": "City",
   "inventario.zona.elige-ciudad": "Choose a city first",
+  "inventario.zona.sin-alcaldia": "No district",
   "inventario.zona.todas-alcaldias": "All zones",
   "inventario.zona.todas-ciudades": "All cities",
 }

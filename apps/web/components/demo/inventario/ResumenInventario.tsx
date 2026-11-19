@@ -83,17 +83,31 @@ export function hayFiltros(f: FiltrosInventario): boolean {
 // veces un espacio al final, y «Lima » y «Lima» saldrían como dos zonas.
 const limpio = (v: string | null | undefined) => (v ?? '').trim()
 
+// Valor de la opción «Sin alcaldía» del selector (hallazgo C, 19/11). No es
+// la cadena vacía porque `''` ya significa «todas las zonas», y no puede
+// chocar con una alcaldía real: ninguna se llama así con los guiones bajos.
+export const SIN_ALCALDIA = '__sin_alcaldia__'
+
 /** ¿La pantalla cae en la zona elegida? Sin ciudad elegida, todas caen. */
 export function enZona(
   s: Pick<Sitio, 'ciudad' | 'alcaldia'>,
   f: Pick<FiltrosInventario, 'ciudad' | 'alcaldia'>,
 ): boolean {
   if (f.ciudad && limpio(s.ciudad) !== f.ciudad) return false
+  if (f.alcaldia === SIN_ALCALDIA) return !limpio(s.alcaldia)
   if (f.alcaldia && limpio(s.alcaldia) !== f.alcaldia) return false
   return true
 }
 
-export type ZonaInventario = { nombre: string; n: number; alcaldias: { nombre: string; n: number }[] }
+// `sinAlcaldia`: las pantallas de la ciudad que no tienen alcaldía. Sin esta
+// cuenta la ciudad decía «CDMX (9)» y sus zonas sumaban 5: las otras cuatro no
+// se podían encontrar desde el filtro (hallazgo C, 19/11).
+export type ZonaInventario = {
+  nombre: string
+  n: number
+  alcaldias: { nombre: string; n: number }[]
+  sinAlcaldia: number
+}
 
 /**
  * Las zonas que EXISTEN en el inventario, con cuántas pantallas tiene cada una,
@@ -102,6 +116,7 @@ export type ZonaInventario = { nombre: string; n: number; alcaldias: { nombre: s
  */
 export function zonasInventario(sitios: Pick<Sitio, 'ciudad' | 'alcaldia'>[]): ZonaInventario[] {
   const porCiudad = new Map<string, Map<string, number>>()
+  const sinAlcaldia = new Map<string, number>()
   for (const s of sitios) {
     const c = limpio(s.ciudad)
     if (!c) continue
@@ -109,6 +124,7 @@ export function zonasInventario(sitios: Pick<Sitio, 'ciudad' | 'alcaldia'>[]): Z
     porCiudad.set(c, m)
     const a = limpio(s.alcaldia)
     if (a) m.set(a, (m.get(a) ?? 0) + 1)
+    else sinAlcaldia.set(c, (sinAlcaldia.get(c) ?? 0) + 1)
   }
   const total = cuenta(sitios.map((s) => limpio(s.ciudad)).filter(Boolean))
   const orden = (a: { nombre: string; n: number }, b: { nombre: string; n: number }) =>
@@ -118,6 +134,7 @@ export function zonasInventario(sitios: Pick<Sitio, 'ciudad' | 'alcaldia'>[]): Z
       nombre,
       n: total.get(nombre) ?? 0,
       alcaldias: [...m.entries()].map(([a, n]) => ({ nombre: a, n })).sort(orden),
+      sinAlcaldia: sinAlcaldia.get(nombre) ?? 0,
     }))
     .sort(orden)
 }
@@ -368,10 +385,11 @@ export const SelectorZona = ({
   // ofreciendo con (0): quitarla de la lista dejaría el <select> mostrando otra.
   const ciudades =
     filtros.ciudad && !zonas.some((z) => z.nombre === filtros.ciudad)
-      ? [...zonas, { nombre: filtros.ciudad, n: 0, alcaldias: [] }]
+      ? [...zonas, { nombre: filtros.ciudad, n: 0, alcaldias: [], sinAlcaldia: 0 }]
       : zonas
   const actual = ciudades.find((z) => z.nombre === filtros.ciudad)
   const alcaldias = actual?.alcaldias ?? []
+  const sinAlcaldia = actual?.sinAlcaldia ?? 0
   if (ciudades.length === 0) return null
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -394,7 +412,7 @@ export const SelectorZona = ({
       <select
         aria-label={t('inventario.zona.alcaldia')}
         value={filtros.alcaldia ?? ''}
-        disabled={!filtros.ciudad || alcaldias.length === 0}
+        disabled={!filtros.ciudad || (alcaldias.length === 0 && sinAlcaldia === 0)}
         onChange={(e) => onCambio({ ...filtros, alcaldia: e.target.value || null })}
         title={!filtros.ciudad ? t('inventario.zona.elige-ciudad') : undefined}
         className={claseSelect}
@@ -405,6 +423,12 @@ export const SelectorZona = ({
             {a.nombre} ({a.n})
           </option>
         ))}
+        {/* Al final, y solo si hay alguna: es el resto, no una zona más. */}
+        {sinAlcaldia > 0 && (
+          <option value={SIN_ALCALDIA}>
+            {t('inventario.zona.sin-alcaldia')} ({sinAlcaldia})
+          </option>
+        )}
       </select>
     </div>
   )
