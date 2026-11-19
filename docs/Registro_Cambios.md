@@ -5,6 +5,32 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-19 · Imprenta: cada imprenta con lo que pide del arte
+
+Decisión del dueño: «la imprenta usada es de terceros por ahora y, como se vende el proyecto, la imprenta puede ser de cualquiera».
+
+- En **Imprenta** hay una tarjeta nueva, **«Imprentas»**, para dar de alta a cada proveedor de impresión con lo que pide del arte: la resolución mínima recomendada y aceptable (en lonas grandes y en lonas chicas), desde qué medida una lona cuenta como grande, el margen de seguridad y, si quiere, los formatos que recibe.
+- Ahí mismo están **los requisitos de la empresa**: los que se usan cuando la orden no tiene imprenta o la imprenta no dijo algo. Si nadie configura nada, siguen las cifras de siempre.
+- Cada **orden de impresión** puede llevar su imprenta (al crearla o después, desde la lista). El arte de esa orden se valora con los requisitos de su imprenta, y la ventana del arte dice con cuáles se valoró. En la ficha de la campaña pasa lo mismo.
+- Si la imprenta tiene una lista de formatos, un archivo de otro formato sale en rojo.
+- **Un arte en rojo sigue solo avisando**: se puede subir igual. El tope del arte de una campaña fija sigue en 15 MB.
+- Una imprenta **no se borra**: se da de baja y deja de ofrecerse en las órdenes nuevas; las órdenes que ya la tenían la conservan.
+- Pueden dar de alta y editar imprentas quienes ya podían crear órdenes de impresión; los requisitos de la empresa, quienes pueden cambiar la configuración. Cada organización ve solo las suyas.
+- En español, inglés, italiano y portugués.
+
+---
+
+## 2026-11-19 · La liga no acepta un creativo con otra proporción que el sitio
+
+Respuesta del dueño: «sí, rechazar» el creativo del cliente cuya proporción no coincide con la del sitio elegido.
+
+- Si la imagen que elige el cliente no tiene la forma del sitio (por ejemplo, una imagen horizontal para una pantalla vertical), la liga se lo dice antes de mandarla: qué medida tiene su imagen, qué pide el sitio y en qué medida en píxeles debería mandarla. El botón de enviar queda deshabilitado.
+- Se permite una diferencia pequeña (hasta 3 %), la misma con la que Imprenta da por buena la proporción de un arte.
+- El servidor lo vuelve a comprobar leyendo la medida del propio archivo, así que no se puede saltar.
+- Si el sitio no tiene medida capturada, no se rechaza por proporción.
+
+---
+
 ## 2026-11-18 · Imprenta: antes de subir un arte se ve cómo quedaría en la lona y si sirve
 
 Pedido del dueño: «se debe dejar en claro y mostrar el ejemplo de cómo se vería el arte en el tamaño de la lona».

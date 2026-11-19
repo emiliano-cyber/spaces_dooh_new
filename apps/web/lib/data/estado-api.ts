@@ -6,6 +6,7 @@ import { esErrorDeDesbloqueo } from '@/lib/cambios-candado'
 import type { ResultadoLote } from '@/lib/cambios-lote'
 import type { RespuestaPublicacion } from '@/lib/doohmain-resultado'
 import type { VistaPreviaDoohmain } from '@/lib/server/doohmain'
+import type { RequisitosParciales } from '@/lib/requisitos-impresion'
 
 // ============================================================================
 //  lib/data/estado-api.ts — Estado persistido (BD) → store, y mutaciones de
@@ -767,7 +768,7 @@ export async function reportarIncidenciaApi(input: {
 // ─── Imprenta (órdenes de impresión + OC) ───────────────────────────────────
 export async function crearOrdenImpresionApi(input: {
   campanaId: string; sitioId?: string | null; material?: string
-  alto?: number; ancho?: number; proveedor?: string
+  alto?: number; ancho?: number; proveedor?: string; imprentaId?: string | null
 }): Promise<void> {
   const r = await fetch(`${API}/impresion/`, {
     method: 'POST',
@@ -788,6 +789,72 @@ export async function aprobarPruebaColorApi(id: string, aprobada: boolean): Prom
   })
   const d = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(d.error ?? 'No se pudo registrar la prueba de color')
+  await refrescarEstado()
+}
+
+// ─── IMP-REQ (18/11) · imprentas y sus requisitos de arte ──────────────────
+export type ImprentaApi = { id: string; nombre: string; requisitos: RequisitosParciales; activo: boolean }
+
+async function jsonO(r: Response, porOmision: string) {
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? porOmision)
+  return d
+}
+
+export async function listarImprentasApi(): Promise<ImprentaApi[]> {
+  return jsonO(await fetch(`${API}/imprentas/`), 'No se pudieron leer las imprentas')
+}
+
+export async function crearImprentaApi(input: { nombre: string; requisitos?: RequisitosParciales }): Promise<ImprentaApi> {
+  return jsonO(
+    await fetch(`${API}/imprentas/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    }),
+    'No se pudo dar de alta la imprenta',
+  )
+}
+
+export async function actualizarImprentaApi(
+  id: string,
+  input: { nombre?: string; requisitos?: RequisitosParciales; activo?: boolean },
+): Promise<ImprentaApi> {
+  const d = await jsonO(
+    await fetch(`${API}/imprentas/${id}/`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    }),
+    'No se pudo guardar la imprenta',
+  )
+  // Las órdenes traen los requisitos de su imprenta: se releen.
+  await refrescarEstado()
+  return d
+}
+
+export async function asignarImprentaApi(ordenId: string, imprentaId: string | null): Promise<void> {
+  await jsonO(
+    await fetch(`${API}/impresion/${ordenId}/imprenta/`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imprentaId }),
+    }),
+    'No se pudo cambiar la imprenta de la orden',
+  )
+  await refrescarEstado()
+}
+
+/** Los requisitos POR OMISIÓN de la empresa (`PATCH /api/config`, administracion.crear). */
+export async function guardarRequisitosEmpresaApi(requisitos: RequisitosParciales): Promise<void> {
+  await jsonO(
+    await fetch(`${API}/config/`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requisitosImpresion: requisitos }),
+    }),
+    'No se pudieron guardar los requisitos',
+  )
   await refrescarEstado()
 }
 

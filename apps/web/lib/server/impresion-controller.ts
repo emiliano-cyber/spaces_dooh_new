@@ -2,6 +2,7 @@ import 'server-only'
 import { z } from 'zod'
 import { AppError, validar } from './errores'
 import { crearOrdenImpresion, avanzarOrdenImpresion, aprobarPruebaColor, ImpresionError } from './impresion-repo'
+import { comprobarImprentaDeOrden } from './imprentas-controller'
 
 // ============================================================================
 //  lib/server/impresion-controller.ts — Órdenes de impresión: alta, avance de
@@ -13,8 +14,10 @@ export async function crearOrdenImpresionCtrl(body: unknown) {
   if (!b.campanaId || typeof b.campanaId !== 'string') {
     throw new AppError('La campaña es requerida', 400)
   }
+  // IMP-REQ (18/11) · la imprenta, si viene, tiene que ser de esta organización.
+  const imprentaId = await comprobarImprentaDeOrden(b.imprentaId)
   try {
-    return await crearOrdenImpresion(b as Parameters<typeof crearOrdenImpresion>[0])
+    return await crearOrdenImpresion({ ...(b as Parameters<typeof crearOrdenImpresion>[0]), imprentaId })
   } catch (e) {
     if (e instanceof ImpresionError) throw new AppError(e.message, 409)
     throw e

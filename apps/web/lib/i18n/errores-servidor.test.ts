@@ -380,6 +380,14 @@ describe('GUARDIA · ningun mensaje de error puede quedarse fuera EN SILENCIO', 
       // variable (`AppError(v.error)`). Que no estén muertas lo vigila
       // `avisos.test.ts` («los mensajes llegan traducidos»).
       ...Object.values(MSG_AVISO),
+      // IMP-REQ (18/11) · las constantes de `imprentas-repo.ts`
+      // (`AppError(e.message)`, `AppError(IMPRENTA_AJENA, 400)`) y el `refine`
+      // de `requisitosSchema` en `imprentas-controller.ts`, que llega por
+      // `validar()`. Que lleguen con su status lo vigila `imprentas.e2e.test.ts`.
+      'Imprenta no encontrada',
+      'Ya existe una imprenta con ese nombre',
+      'Esa imprenta no es de tu organización o está dada de baja',
+      'El mínimo aceptable no puede ser mayor que el recomendado',
     ])
     const muertas = Object.keys(CATALOGO_ERRORES).filter(
       (k) => !vivos.has(k) && !EXENTAS.has(k),

@@ -10,7 +10,8 @@ import { usePuede } from '@/components/demo/shell/SesionContext'
 import { crearCreatividadApi } from '@/lib/data/estado-api'
 import { imagenAHtml } from '@/lib/creativo-html'
 import { useTexto } from '@/lib/i18n/contexto'
-import { useCampanas, useOrdenesImpresion, useReservas, useSitios } from '@/lib/data/client'
+import { useCampanas, useConfigNegocio, useOrdenesImpresion, useReservas, useSitios } from '@/lib/data/client'
+import { resolverRequisitos } from '@/lib/requisitos-impresion'
 import { cuerpoArte, lonasDeCampana, topeArteMb } from '@/lib/arte-impresion'
 import { RevisionArte, pixelesDeImagen } from '@/components/operaciones/ValoracionArte'
 
@@ -53,6 +54,9 @@ export function AgregarCreativo({ campanaId }: { campanaId: string }) {
   const reservas = useReservas()
   const sitios = useSitios()
   const ois = useOrdenesImpresion()
+  // IMP-REQ (18/11) · la lona se valora con los requisitos de la imprenta de
+  // la orden de ese sitio, si no con los de la empresa.
+  const config = useConfigNegocio()
   const tipoCampana = campanas?.find((c) => c.id === campanaId)?.tipoCampana ?? null
   const lonas = useMemo(
     () => lonasDeCampana(campanaId, reservas ?? [], sitios ?? [], ois ?? []),
@@ -212,6 +216,7 @@ export function AgregarCreativo({ campanaId }: { campanaId: string }) {
                 tipo={previa.imagen.tipo}
                 bytes={previa.imagen.bytes}
                 maxMb={tope}
+                requisitos={resolverRequisitos(lona.requisitos, config?.requisitosImpresion)}
               />
             </div>
           )}

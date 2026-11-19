@@ -28,6 +28,7 @@
 
 import { imagenAHtml, IMAGEN_CREATIVO_MAX_MB } from './creativo-html'
 import { medidaDeOrden } from './proporcion-pantalla'
+import type { RequisitosParciales } from './requisitos-impresion'
 
 export const ARTE_IMPRESION_MAX_MB = 15
 // 15 MB en base64 son 20 MB, más el sobre JSON: 22M deja margen sin abrir más.
@@ -54,7 +55,14 @@ export function cuerpoArte(a: {
   return { campanaId: a.campanaId, nombre: a.nombre, archivoUrl: a.dataUrl, formato: a.tipo }
 }
 
-export type LonaDeCampana = { id: string; nombre: string; ancho: number; alto: number }
+export type LonaDeCampana = {
+  id: string
+  nombre: string
+  ancho: number
+  alto: number
+  // IMP-REQ (18/11) · los de la imprenta de la orden de ese sitio, si la hay.
+  requisitos: RequisitosParciales | null
+}
 
 /**
  * Las lonas de una campaña, para revisar el arte desde su ficha: los sitios
@@ -65,7 +73,13 @@ export function lonasDeCampana(
   campanaId: string,
   reservas: { campanaId: string; sitioId: string }[],
   sitios: { id: string; nombre: string; tipoMedio: string; ancho: number | null; alto: number | null }[],
-  ordenes: { campanaId: string; sitioId?: string | null; ancho?: number | null; alto?: number | null }[],
+  ordenes: {
+    campanaId: string
+    sitioId?: string | null
+    ancho?: number | null
+    alto?: number | null
+    imprentaRequisitos?: RequisitosParciales | null
+  }[],
 ): LonaDeCampana[] {
   const vistos = new Set<string>()
   const lonas: LonaDeCampana[] = []
@@ -76,7 +90,7 @@ export function lonasDeCampana(
     if (!s || s.tipoMedio === 'PANTALLA_DIGITAL') continue
     const oi = ordenes.find((o) => o.campanaId === campanaId && o.sitioId === s.id)
     const m = medidaDeOrden(oi ?? {}, s)
-    if (m) lonas.push({ id: s.id, nombre: s.nombre, ancho: m.ancho, alto: m.alto })
+    if (m) lonas.push({ id: s.id, nombre: s.nombre, ancho: m.ancho, alto: m.alto, requisitos: oi?.imprentaRequisitos ?? null })
   }
   return lonas
 }

@@ -8,13 +8,13 @@ import { nombreProporcion } from '@/lib/proporcion-pantalla'
 import {
   colocarArte,
   valorarArte,
-  MARGEN_SEGURIDAD_M,
-  UMBRALES_DPI,
+  umbralesDe,
   type Lona,
   type Modo,
   type Semaforo,
   type Valoracion,
 } from '@/lib/valoracion-arte'
+import { REQUISITOS_RESPALDO, type Requisitos } from '@/lib/requisitos-impresion'
 import { IMAGEN_CREATIVO_MAX_MB } from '@/lib/creativo-html'
 import type { CreativoDeImpresion } from '@/lib/data/types'
 import { ArteEnSitio, decimalesDe, medidaEnIdioma } from './ArteEnSitio'
@@ -69,11 +69,14 @@ export function LonaAEscala({
   src,
   proporcionArte,
   modo,
+  margenM = REQUISITOS_RESPALDO.margenCm / 100,
 }: {
   lona: Lona
   src: string
   proporcionArte: number
   modo: Modo
+  // Margen de seguridad en metros: el de la imprenta, o el de la empresa.
+  margenM?: number
 }) {
   const { t, idioma } = useIdioma()
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, '')
@@ -95,8 +98,8 @@ export function LonaAEscala({
   const minY = Math.min(0, vista.y0, lona.alto - PERSONA_M) - pad
   const maxX = persona.x + persona.ancho + pad * 0.4
   const maxY = Math.max(lona.alto, vista.y1) + pad * 0.6
-  const margen = MARGEN_SEGURIDAD_M
-  const conMargen = margen * 4 < Math.min(lona.ancho, lona.alto)
+  const margen = margenM
+  const conMargen = margen > 0 && margen * 4 < Math.min(lona.ancho, lona.alto)
   const ancho = formatNumero(lona.ancho, decimalesDe(lona.ancho), idioma)
   const alto = formatNumero(lona.alto, decimalesDe(lona.alto), idioma)
   const trazo = { vectorEffect: 'non-scaling-stroke' as const }
@@ -230,6 +233,7 @@ export function PanelValoracion({
   pixeles,
   html,
   maxMb = IMAGEN_CREATIVO_MAX_MB,
+  requisitos = REQUISITOS_RESPALDO,
 }: {
   v: Valoracion
   lona: Lona | null
@@ -237,6 +241,9 @@ export function PanelValoracion({
   html?: boolean
   // Tope de subida para este arte (`topeArteMb`): 15 MB una OOH, 4 el resto.
   maxMb?: number
+  // IMP-REQ (18/11) · los de la imprenta de la orden, o los de la empresa
+  // (`resolverRequisitos`). Sin ellos, las constantes de siempre.
+  requisitos?: Requisitos
 }) {
   const { t, idioma } = useIdioma()
   const n = (x: number, d = 0) => formatNumero(x, d, idioma)
@@ -302,7 +309,7 @@ export function PanelValoracion({
                 r.escala === 'gran'
                   ? 'operaciones.imprenta.valoracion.resolucion.criterio-gran'
                   : 'operaciones.imprenta.valoracion.resolucion.criterio-cercana',
-                { verde: n(UMBRALES_DPI[r.escala].verde) },
+                { verde: n(umbralesDe(requisitos)[r.escala].verde) },
               )}
             </span>
           </Linea>
@@ -347,6 +354,7 @@ export function RevisionArte({
   bytes,
   creativo,
   maxMb = IMAGEN_CREATIVO_MAX_MB,
+  requisitos = REQUISITOS_RESPALDO,
 }: {
   medida: { ancho: number; alto: number } | null
   src: string | null
@@ -357,6 +365,9 @@ export function RevisionArte({
   // Para pintar un creativo en código con `ArteEnSitio` (no se puede medir).
   creativo?: CreativoDeImpresion
   maxMb?: number
+  // IMP-REQ (18/11) · los de la imprenta de la orden, o los de la empresa
+  // (`resolverRequisitos`). Sin ellos, las constantes de siempre.
+  requisitos?: Requisitos
 }) {
   const { t, idioma } = useIdioma()
   const [modo, setModo] = useState<Modo>('cover')
@@ -377,6 +388,7 @@ export function RevisionArte({
     lona,
     { anchoPx: imagen ? pixeles?.ancho ?? null : null, altoPx: imagen ? pixeles?.alto ?? null : null, tipo, bytes },
     maxMb,
+    requisitos,
   )
   const recorta = v.proporcion != null && v.proporcion.semaforo !== 'verde'
 
@@ -401,7 +413,13 @@ export function RevisionArte({
         </div>
         <div className="rounded-md bg-surface-2 p-3">
           {lona && imagen && src && pixeles ? (
-            <LonaAEscala lona={lona} src={src} proporcionArte={pixeles.ancho / pixeles.alto} modo={modo} />
+            <LonaAEscala
+              lona={lona}
+              src={src}
+              proporcionArte={pixeles.ancho / pixeles.alto}
+              modo={modo}
+              margenM={requisitos.margenCm / 100}
+            />
           ) : creativo ? (
             <div className="flex justify-center">
               <ArteEnSitio
@@ -421,13 +439,13 @@ export function RevisionArte({
           <ul className="space-y-0.5 text-[11px] text-muted">
             {modo === 'cover' && recorta && <li>{t('operaciones.imprenta.valoracion.leyenda.recorte')}</li>}
             {modo === 'contain' && recorta && <li>{t('operaciones.imprenta.valoracion.leyenda.relleno')}</li>}
-            <li>{t('operaciones.imprenta.valoracion.leyenda.margen', { cm: formatNumero(MARGEN_SEGURIDAD_M * 100, 0, idioma) })}</li>
+            <li>{t('operaciones.imprenta.valoracion.leyenda.margen', { cm: formatNumero(requisitos.margenCm, requisitos.margenCm % 1 ? 1 : 0, idioma) })}</li>
             <li>{t('operaciones.imprenta.valoracion.leyenda.persona', { m: formatNumero(PERSONA_M, 2, idioma) })}</li>
           </ul>
         )}
       </div>
       <div className="min-w-0">
-        <PanelValoracion v={v} lona={lona} pixeles={imagen ? pixeles : null} html={!imagen} maxMb={maxMb} />
+        <PanelValoracion v={v} lona={lona} pixeles={imagen ? pixeles : null} html={!imagen} maxMb={maxMb} requisitos={requisitos} />
       </div>
     </div>
   )

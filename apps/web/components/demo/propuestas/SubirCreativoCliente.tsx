@@ -12,7 +12,11 @@
 //  · Se ofrece solo si el servidor dice `puedeSubirCreativo` (mientras la
 //    campaña no esté al aire). El servidor lo vuelve a comprobar al recibir.
 //  · Con varias pantallas, el cliente elige a cuál va, y se le dice la
-//    proporción y la medida de esa pantalla, y si su imagen se recortará.
+//    proporción y la medida de esa pantalla.
+//  · Decisión del dueño (18/11): si la proporción de su imagen no coincide con
+//    la del sitio (tolerancia de la valoración del arte), NO se manda: se le
+//    dice qué medida en píxeles necesita y el botón queda deshabilitado. El
+//    servidor lo vuelve a comprobar leyendo la cabecera del archivo (422).
 //  · De lo enviado solo se enseña el nombre, el estatus y el motivo de un
 //    rechazo (que el equipo escribió PARA el cliente). Nada interno.
 // ============================================================================
@@ -24,8 +28,15 @@ import { useIdioma } from '@/lib/i18n/contexto'
 import { formatFecha } from '@/lib/data/client'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
 import type { Seguimiento } from '@/lib/seguimiento-campana'
-import { ENVIO_MAX_MB, TIPOS_ENVIO, orientacionDePantalla, type EnvioParaCliente } from '@/lib/envio-creativo-cliente'
-import { ajusteEnMarco, proporcion, proporcionDeResolucion } from '@/lib/proporcion-pantalla'
+import {
+  ENVIO_MAX_MB,
+  TIPOS_ENVIO,
+  orientacionDePantalla,
+  revisarProporcionEnvio,
+  type EnvioParaCliente,
+} from '@/lib/envio-creativo-cliente'
+import { traducirError } from '@/lib/i18n/errores-servidor'
+import { formatNumero } from '@/lib/formato-numero'
 
 type Elegido = { nombre: string; dataUrl: string; ancho: number | null; alto: number | null }
 
@@ -64,11 +75,12 @@ export function SubirCreativoCliente({ s, urlEnvio }: { s: Seguimiento; urlEnvio
 
   const pantalla = s.pantallas.find((p) => p.id === sitioId) ?? null
   const orientacion = pantalla ? orientacionDePantalla(pantalla) : null
-  // ¿La imagen elegida cae bien en la pantalla elegida? Mismo cálculo que la
-  // vista de Imprenta (`ajusteEnMarco`), dicho en una línea.
-  const marco = pantalla ? (proporcionDeResolucion(pantalla.resolucionPx) ?? proporcion(pantalla.ancho, pantalla.alto)) : null
-  const arte = elegido ? proporcion(elegido.ancho, elegido.alto) : null
-  const recorta = marco != null && arte != null && ajusteEnMarco(marco, arte).tipo === 'recorta'
+  // ¿Cuadra la imagen con el sitio elegido? La misma regla que el servidor.
+  // Sin medida del sitio (o sin poder medir la imagen) no se bloquea aquí.
+  const noCuadra =
+    elegido && pantalla && elegido.ancho && elegido.alto
+      ? revisarProporcionEnvio(pantalla, elegido.ancho, elegido.alto)
+      : null
   const usaCreativo = s.tipo === 'DOOH' || s.tipo === 'HIBRIDA'
 
   function onArchivo(e: React.ChangeEvent<HTMLInputElement>) {
@@ -111,8 +123,10 @@ export function SubirCreativoCliente({ s, urlEnvio }: { s: Seguimiento; urlEnvio
       })
       const d = await r.json().catch(() => null)
       if (!r.ok) {
+        // 422 trae el porqué (proporción, contenido): se dice en su idioma.
         const clave = ERROR_POR_STATUS[r.status] ?? 'cuenta.seguimiento.subir.error.generico'
-        setAviso({ ok: false, texto: t(clave, { mb: ENVIO_MAX_MB }) })
+        const texto = r.status === 422 && d?.error ? traducirError(String(d.error), idioma) : t(clave, { mb: ENVIO_MAX_MB })
+        setAviso({ ok: false, texto })
       } else {
         const nombre = String(d?.nombre ?? elegido.nombre)
         setPropios((xs) => [
@@ -129,6 +143,7 @@ export function SubirCreativoCliente({ s, urlEnvio }: { s: Seguimiento; urlEnvio
   }
 
   const faltaSitio = s.pantallas.length > 1 && !sitioId
+  const bloqueado = enviando || faltaSitio || !!noCuadra
 
   return (
     <Card>
@@ -180,10 +195,18 @@ export function SubirCreativoCliente({ s, urlEnvio }: { s: Seguimiento; urlEnvio
                   {elegido.ancho && elegido.alto ? (
                     <div className="demo-num text-[11px] text-muted">{`${elegido.ancho} × ${elegido.alto} px`}</div>
                   ) : null}
-                  {recorta && (
-                    <div className="mt-1 flex items-start gap-1 text-[12px] text-[#9a6700]">
+                  {noCuadra && (
+                    <div role="alert" className="mt-1 flex items-start gap-1 text-[12px] text-[#9a6700]">
                       <AlertTriangle aria-hidden="true" className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                      {t('cuenta.seguimiento.subir.recorta')}
+                      {t('cuenta.seguimiento.subir.no-cuadra', {
+                        ancho: formatNumero(elegido.ancho ?? 0, 0, idioma),
+                        alto: formatNumero(elegido.alto ?? 0, 0, idioma),
+                        arte: noCuadra.arte,
+                        medida: noCuadra.medida,
+                        sitio: noCuadra.sitio,
+                        sugAncho: formatNumero(noCuadra.sugerido.ancho, 0, idioma),
+                        sugAlto: formatNumero(noCuadra.sugerido.alto, 0, idioma),
+                      })}
                     </div>
                   )}
                 </div>
@@ -202,7 +225,7 @@ export function SubirCreativoCliente({ s, urlEnvio }: { s: Seguimiento; urlEnvio
                 <>
                   <button
                     type="button"
-                    disabled={enviando || faltaSitio}
+                    disabled={bloqueado}
                     onClick={enviar}
                     className="inline-flex min-h-[44px] items-center gap-2 rounded-md bg-accent px-4 text-[14px] font-medium text-accent-fg disabled:opacity-50"
                   >

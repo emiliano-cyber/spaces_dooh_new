@@ -3,6 +3,7 @@ import { q, q1 } from './db'
 import { tenantActual } from './tenant'
 import { folioDocumento } from './folios'
 import { rutaArteCreativo } from '@/lib/medios-url'
+import { sanearRequisitos } from '@/lib/requisitos-impresion'
 
 // ============================================================================
 //  lib/server/impresion-repo.ts — Imprenta: órdenes de impresión (arte→montaje)
@@ -30,6 +31,9 @@ function rowToOrdenImpresion(r: any) {
     ancho: r.ancho == null ? 0 : Number(r.ancho),
     estatus: r.estatus as EstOI,
     proveedor: r.proveedor ?? null,
+    // IMP-REQ (18/11) · la imprenta de la orden (sus requisitos mandan en la
+    // valoración del arte). Nombre y requisitos solo los trae el listado.
+    imprentaId: r.imprenta_id ?? null,
     pruebaColorUrl: r.prueba_color_url ?? null,
     pruebaColorAprobada: !!r.prueba_color_aprobada,
     creadoEn: r.creado_en instanceof Date ? r.creado_en.toISOString() : r.creado_en,
@@ -62,10 +66,12 @@ export async function listarOrdenesImpresion() {
     `select oi.*,
             c.nombre as campana_nombre, c.tipo_campana,
             c.fecha_inicio::text as campana_inicio, c.fecha_fin::text as campana_fin,
-            s.nombre as sitio_nombre, s.ancho as sitio_ancho, s.alto as sitio_alto
+            s.nombre as sitio_nombre, s.ancho as sitio_ancho, s.alto as sitio_alto,
+            im.nombre as imprenta_nombre, im.requisitos as imprenta_requisitos
        from ordenes_impresion oi
        left join campanas c on c.id = oi.campana_id and c.tenant_id = oi.tenant_id
        left join sitios s on s.id = oi.sitio_id and s.tenant_id = oi.tenant_id
+       left join imprentas im on im.id = oi.imprenta_id and im.tenant_id = oi.tenant_id
       where oi.tenant_id = $1
       order by oi.creado_en asc`,
     [tenant],
@@ -94,6 +100,8 @@ export async function listarOrdenesImpresion() {
     sitioNombre: r.sitio_nombre ?? null,
     sitioAncho: r.sitio_ancho == null ? null : Number(r.sitio_ancho),
     sitioAlto: r.sitio_alto == null ? null : Number(r.sitio_alto),
+    imprentaNombre: r.imprenta_nombre ?? null,
+    imprentaRequisitos: r.imprenta_id ? sanearRequisitos(r.imprenta_requisitos) : null,
     creativos: creas
       .filter((cr: any) => cr.campana_id === r.campana_id)
       .map((cr: any) => ({
@@ -133,6 +141,7 @@ export async function crearOrdenImpresion(input: {
   alto?: number | null
   ancho?: number | null
   proveedor?: string | null
+  imprentaId?: string | null
 }) {
   // Máquina de estados (server-side): una campaña digital (DOOH) NO genera
   // orden de impresión. Fija (OOH) e híbrida sí. La UI ya lo oculta; esto lo
@@ -143,8 +152,8 @@ export async function crearOrdenImpresion(input: {
     throw new ImpresionError('Una campaña digital (DOOH) no genera orden de impresión')
   }
   const rows = await q(
-    `insert into ordenes_impresion (folio, campana_id, sitio_id, material, alto, ancho, proveedor, tenant_id)
-     values ($1,$2,$3,$4,$5,$6,$7,$8) returning *`,
+    `insert into ordenes_impresion (folio, campana_id, sitio_id, material, alto, ancho, proveedor, tenant_id, imprenta_id)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9) returning *`,
     [
       await folioOI(),
       input.campanaId,
@@ -154,9 +163,23 @@ export async function crearOrdenImpresion(input: {
       input.ancho ?? null,
       input.proveedor ?? null,
       await tenantActual(),
+      input.imprentaId ?? null,
     ],
   )
   return rowToOrdenImpresion(rows[0])
+}
+
+/**
+ * IMP-REQ (18/11) · cambia (o quita, con null) la imprenta de una orden. Quien
+ * llama ya comprobó que la imprenta es de esta organización y está activa
+ * (`imprentaUsable`); la FK compuesta lo impide igual en la base.
+ */
+export async function asignarImprentaAOrden(id: string, imprentaId: string | null) {
+  const rows = await q(
+    'update ordenes_impresion set imprenta_id = $3 where id = $1 and tenant_id = $2 returning *',
+    [id, await tenantActual(), imprentaId],
+  )
+  return rows[0] ? rowToOrdenImpresion(rows[0]) : null
 }
 
 // Avanza la orden al siguiente estatus del proceso (no retrocede ni pasa el final).

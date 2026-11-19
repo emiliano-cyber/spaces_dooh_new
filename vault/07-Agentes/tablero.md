@@ -6,6 +6,11 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!important] 2026-11-19 · **`wip/18-11-pausa` retomada en `feat/imprentas-y-proporcion`**, desde `integra/18-11` `0fd07bb2`, sin empujar · ROJO R2/R3 aprobado
+> Dos commits: ENVIO-PROPORCION (la liga rechaza el creativo con otra proporción que el sitio) e IMP-REQ (imprentas con
+> requisitos de arte, `20261118_imprentas_y_requisitos.sql`). Verificada con typecheck, unitarias, build y e2e completas.
+> **Falta**: fusionarla a `integra/18-11` (lo decide el orquestador) y el recorrido en Chrome. Ver [[2026-11-18]] § «19/11».
+
 > [!warning] 2026-11-18 (cierre) · **`integra/18-11` PAUSADA por el dueño en `a40eb49b`, sin empujar** · incluye ROJOS R2/R3 aprobados
 > Junta `main` v0.12.14, `feat/propuestas-sin-crm`, `feat/inventario-filtros`, `feat/actualizar-campana` y las tres ramas
 > `i18n/*-18-11`, más lo hecho encima ese día (Seguimiento por columnas y arrastre, prospectos y Contactado, una oportunidad

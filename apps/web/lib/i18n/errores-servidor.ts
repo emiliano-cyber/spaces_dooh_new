@@ -510,6 +510,10 @@ export const CATALOGO_ERRORES: Record<string, string> = {
     'We have already received several files today for this campaign. Try again tomorrow or write to your account manager.',
   'Solo el Dueño o un Administrador pueden revisar los creativos que envía el cliente':
     'Only the Owner or an Administrator can review the creatives sent by the client',
+  'No pudimos leer la medida de la imagen':
+    'We could not read the size of the image',
+  'La proporción de la imagen no coincide con la del sitio elegido':
+    'The image’s aspect ratio does not match the chosen site',
   'Envío no encontrado':
     'Submission not found',
   'No se pudo aprobar el creativo':
@@ -553,6 +557,15 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 2 sitios · lib/server/impresion-controller.ts:26
   'Orden no encontrada':
     'Order not found',
+  // IMP-REQ (18/11) · imprentas-controller.ts / imprentas-repo.ts
+  'Imprenta no encontrada':
+    'Print shop not found',
+  'Ya existe una imprenta con ese nombre':
+    'A print shop with that name already exists',
+  'Esa imprenta no es de tu organización o está dada de baja':
+    'That print shop is not in your organization or is inactive',
+  'El mínimo aceptable no puede ser mayor que el recomendado':
+    'The acceptable minimum cannot be higher than the recommended one',
   // 2 sitios · lib/server/arrendadores-controller.ts:350
   'Pago no encontrado':
     'Payment not found',
@@ -1168,6 +1181,10 @@ export const CATALOGO_ERRORES_IT: Partial<Record<string, string>> = {
     'Oggi abbiamo già ricevuto diversi file per questa campagna. Riprova domani o scrivi al tuo consulente.',
   'Solo el Dueño o un Administrador pueden revisar los creativos que envía el cliente':
     'Solo il Titolare o un Amministratore possono rivedere le creatività inviate dal cliente',
+  'No pudimos leer la medida de la imagen':
+    'Non siamo riusciti a leggere la misura dell’immagine',
+  'La proporción de la imagen no coincide con la del sitio elegido':
+    'La proporzione dell’immagine non coincide con quella del sito scelto',
   'Envío no encontrado':
     'Invio non trovato',
   'No se pudo aprobar el creativo':
@@ -1202,6 +1219,15 @@ export const CATALOGO_ERRORES_IT: Partial<Record<string, string>> = {
     'Non si può eliminare: l’impianto ha prenotazioni o ordini associati.',
   'Orden no encontrada':
     'Ordine non trovato',
+  // IMP-REQ (18/11) · imprentas-controller.ts / imprentas-repo.ts
+  'Imprenta no encontrada':
+    'Tipografia non trovata',
+  'Ya existe una imprenta con ese nombre':
+    'Esiste già una tipografia con questo nome',
+  'Esa imprenta no es de tu organización o está dada de baja':
+    'Questa tipografia non è della tua organizzazione o è dismessa',
+  'El mínimo aceptable no puede ser mayor que el recomendado':
+    'Il minimo accettabile non può superare quello consigliato',
   'Pago no encontrado':
     'Pagamento non trovato',
   'Para cambiar tu propia contraseña usa Configuración.':
@@ -1627,6 +1653,10 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
     'Já recebemos vários arquivos hoje para esta campanha. Tente amanhã ou escreva ao seu consultor.',
   'Solo el Dueño o un Administrador pueden revisar los creativos que envía el cliente':
     'Somente o Titular ou um Administrador podem revisar os criativos enviados pelo cliente',
+  'No pudimos leer la medida de la imagen':
+    'Não conseguimos ler a medida da imagem',
+  'La proporción de la imagen no coincide con la del sitio elegido':
+    'A proporção da imagem não coincide com a do ponto escolhido',
   'Envío no encontrado':
     'Envio não encontrado',
   'No se pudo aprobar el creativo':
@@ -1657,6 +1687,10 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
   'No se puede eliminar: la pantalla tiene reservas u órdenes asociadas.':
     'Não é possível excluir: o ponto tem reservas ou ordens associadas.',
   'Orden no encontrada': 'Ordem não encontrada',
+  'Imprenta no encontrada': 'Gráfica não encontrada',
+  'Ya existe una imprenta con ese nombre': 'Já existe uma gráfica com esse nome',
+  'Esa imprenta no es de tu organización o está dada de baja': 'Essa gráfica não é da sua organização ou está inativa',
+  'El mínimo aceptable no puede ser mayor que el recomendado': 'O mínimo tolerado não pode ser maior que o indicado',
   'Pago no encontrado': 'Pagamento não encontrado',
   'Para cambiar tu propia contraseña usa Configuración.': 'Para alterar a sua própria senha, use Configurações.',
   'Predio no encontrado': 'Imóvel não encontrado',

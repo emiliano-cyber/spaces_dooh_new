@@ -22,6 +22,8 @@
 //  defaults son MX/MXN pero son sólo defaults — no requieren cambio de schema.
 // ============================================================================
 
+import type { RequisitosParciales } from '@/lib/requisitos-impresion'
+
 // ─── Enums (verbatim de Prisma) ─────────────────────────────────────────────
 
 export type TipoMedio =
@@ -859,6 +861,10 @@ export interface OrdenImpresion {
   sitioAncho?: number | null
   sitioAlto?: number | null
   creativos?: CreativoDeImpresion[]
+  // IMP-REQ (18/11) · la imprenta que imprime la orden y sus requisitos.
+  imprentaId?: string | null
+  imprentaNombre?: string | null
+  imprentaRequisitos?: RequisitosParciales | null
 }
 
 // El arte de la campaña de una orden de impresión, sin la fuente (la sirve
@@ -980,6 +986,9 @@ export interface ConfigNegocio {
   // dejaría al navegador calculando el costo con una tabla distinta a la del
   // servidor, que es la divergencia que se está cerrando.
   costosOt?: Partial<Record<TipoOT, number>>
+  // IMP-REQ (18/11) · requisitos de arte por omisión de la empresa (saneados;
+  // {} = mandan las constantes). Las imprentas pueden pisarlos.
+  requisitosImpresion?: RequisitosParciales
 }
 
 export interface Notificacion {

@@ -29,12 +29,15 @@ import {
   aprobarPruebaColorApi,
   crearCreatividadApi,
   validarCreatividadApi,
+  asignarImprentaApi,
+  type ImprentaApi,
 } from '@/lib/data/estado-api'
 import {
   useOrdenesImpresion,
   useCampanas,
   useSitios,
   useCreatividades,
+  useConfigNegocio,
   type EstOrdenImpresion,
 } from '@/lib/data/client'
 import type { OrdenImpresion, CreativoDeImpresion, EstValidacionCreatividad } from '@/lib/data/types'
@@ -51,6 +54,8 @@ import { medidaDeOrden } from '@/lib/proporcion-pantalla'
 import { ArteEnSitio, MiniaturaArte, TextoMedida, esHtml, medidaEnIdioma } from '@/components/operaciones/ArteEnSitio'
 import { RevisionArte, pixelesDeImagen } from '@/components/operaciones/ValoracionArte'
 import { valorarArte } from '@/lib/valoracion-arte'
+import { resolverRequisitos, type Requisitos } from '@/lib/requisitos-impresion'
+import { ImprentasCard, useImprentas } from '@/components/operaciones/Imprentas'
 
 const PROCESO: EstOrdenImpresion[] = [
   'ARTE_RECIBIDO',
@@ -86,6 +91,9 @@ type OrdenVista = OrdenImpresion & {
   medida: ReturnType<typeof medidaDeOrden>
   nombreCampana: string | null
   nombreSitio: string | null
+  // IMP-REQ (18/11) · los requisitos de arte que mandan para esta orden:
+  // los de su imprenta, si no los de la empresa, si no las constantes.
+  requisitos: Requisitos
 }
 
 export default function ImprentaPage() {
@@ -94,6 +102,7 @@ export default function ImprentaPage() {
   const campanas = useCampanas()
   const sitios = useSitios()
   const creatividades = useCreatividades()
+  const config = useConfigNegocio()
   const puedeCrear = usePuede('imprenta', 'crear')
   const puedeVerCampanas = usePuede('comercial', 'crear')
   // Subir y aprobar arte es de Comercial (`POST`/`PATCH /api/creatividades`
@@ -108,6 +117,9 @@ export default function ImprentaPage() {
   // IMP-VAL (18/11) · el archivo elegido espera aquí a que se revise su
   // valoración contra la lona; no se sube hasta confirmar.
   const [porSubir, setPorSubir] = useState<ArchivoPorSubir | null>(null)
+  // IMP-REQ (18/11) · las imprentas de la organización, para elegirlas en la
+  // orden y gestionarlas con sus requisitos.
+  const { imprentas, recargar: recargarImprentas } = useImprentas(true)
   const archivoRef = useRef<HTMLInputElement>(null)
   const destinoSubida = useRef<OrdenVista | null>(null)
 
@@ -143,10 +155,11 @@ export default function ImprentaPage() {
               ancho: o.sitioAncho ?? sitio?.ancho ?? null,
               alto: o.sitioAlto ?? sitio?.alto ?? null,
             }),
+            requisitos: resolverRequisitos(o.imprentaRequisitos, config?.requisitosImpresion),
           }
         })
         .filter((o) => o.tipoCampana !== 'DOOH'),
-    [ois, campanas, sitios, creatividades],
+    [ois, campanas, sitios, creatividades, config],
   )
 
   // IMP-PRIO · la cola por fecha de inicio de la campaña (`lib/prioridad-imprenta.ts`).
@@ -344,6 +357,9 @@ export default function ImprentaPage() {
         </CardColapsable>
       )}
 
+      {/* IMP-REQ (18/11) · imprentas y requisitos del arte. */}
+      <ImprentasCard imprentas={imprentas} recargar={recargarImprentas} requisitosEmpresa={config?.requisitosImpresion} />
+
       {/* PLEG-01 · la página es una sola lista: se pliega entera, como las
           secciones de Arrendadores. */}
       <CardColapsable
@@ -398,6 +414,7 @@ export default function ImprentaPage() {
                       puedeCrear={puedeCrear}
                       puedeVerCampanas={puedeVerCampanas}
                       puedeArte={puedeArte}
+                      imprentas={imprentas}
                       avanzando={avanzando}
                       subiendo={subiendoPara === p.orden.id}
                       onAvanzar={avanzar}
@@ -431,7 +448,7 @@ export default function ImprentaPage() {
         onElegir={(creativoId) => abierta && setVerArte({ ordenId: abierta.id, creativoId })}
       />
 
-      <NuevaOrdenDialog open={nueva} onClose={() => setNueva(false)} />
+      <NuevaOrdenDialog open={nueva} onClose={() => setNueva(false)} imprentas={imprentas} />
     </div>
   )
 }
@@ -441,6 +458,7 @@ function FilaOrden({
   puedeCrear,
   puedeVerCampanas,
   puedeArte,
+  imprentas,
   avanzando,
   subiendo,
   onAvanzar,
@@ -451,6 +469,7 @@ function FilaOrden({
   puedeCrear: boolean
   puedeVerCampanas: boolean
   puedeArte: boolean
+  imprentas: ImprentaApi[] | null
   avanzando: string | null
   subiendo: boolean
   onAvanzar: (id: string) => void
@@ -490,6 +509,30 @@ function FilaOrden({
               </span>
               {o.nombreSitio && <span>{o.nombreSitio}</span>}
               {o.proveedor && <span>· {o.proveedor}</span>}
+              {/* IMP-REQ · la imprenta de la orden: sus requisitos valoran el arte. */}
+              {puedeCrear && imprentas ? (
+                <select
+                  aria-label={t('operaciones.imprenta.imprentas.orden.imprenta')}
+                  value={o.imprentaId ?? ''}
+                  onChange={async (e) => {
+                    try {
+                      await asignarImprentaApi(o.id, e.target.value || null)
+                    } catch (err) {
+                      toast.error(err instanceof Error ? err.message : t('operaciones.imprenta.error'))
+                    }
+                  }}
+                  className="max-w-[220px] rounded border border-border bg-surface px-1.5 py-0.5 text-[12px] text-ink"
+                >
+                  <option value="">{t('operaciones.imprenta.imprentas.orden.sin')}</option>
+                  {imprentas
+                    .filter((im) => im.activo || im.id === o.imprentaId)
+                    .map((im) => (
+                      <option key={im.id} value={im.id}>{im.nombre}</option>
+                    ))}
+                </select>
+              ) : (
+                o.imprentaNombre && <span>· {o.imprentaNombre}</span>
+              )}
               {o.nombreCampana ? (
                 puedeVerCampanas ? (
                   <Link
@@ -686,7 +729,13 @@ function VerArteDialog({
           src={creativo.archivoUrl ?? null}
           imagen={imagen}
           creativo={creativo}
+          requisitos={orden.requisitos}
         />
+        {orden.imprentaNombre && (
+          <p className="text-[11px] text-muted">
+            {t('operaciones.imprenta.imprentas.orden.valora', { nombre: orden.imprentaNombre })}
+          </p>
+        )}
         {orden.arte.length > 1 && (
           <div className="flex flex-wrap gap-2">
             {orden.arte.map((cr) => (
@@ -735,6 +784,7 @@ function ConfirmarArteDialog({
     orden.medida,
     { anchoPx: pixeles?.ancho ?? null, altoPx: pixeles?.alto ?? null, tipo: archivo.type, bytes: archivo.size },
     tope,
+    orden.requisitos,
   )
   const pesoExcedido = v.peso?.semaforo === 'rojo'
   return (
@@ -766,13 +816,27 @@ function ConfirmarArteDialog({
           tipo={archivo.type}
           bytes={archivo.size}
           maxMb={tope}
+          requisitos={orden.requisitos}
         />
+        {orden.imprentaNombre && (
+          <p className="text-[11px] text-muted">
+            {t('operaciones.imprenta.imprentas.orden.valora', { nombre: orden.imprentaNombre })}
+          </p>
+        )}
       </div>
     </Modal>
   )
 }
 
-function NuevaOrdenDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+function NuevaOrdenDialog({
+  open,
+  onClose,
+  imprentas,
+}: {
+  open: boolean
+  onClose: () => void
+  imprentas: ImprentaApi[] | null
+}) {
   const t = useTexto()
   const { idioma } = useIdioma()
   const campanas = useCampanas()
@@ -783,6 +847,7 @@ function NuevaOrdenDialog({ open, onClose }: { open: boolean; onClose: () => voi
   const [ancho, setAncho] = useState('')
   const [alto, setAlto] = useState('')
   const [proveedor, setProveedor] = useState('')
+  const [imprentaId, setImprentaId] = useState('')
   const [enviando, setEnviando] = useState(false)
 
   // OBLIG-01 · la campaña es lo único que exige el servidor
@@ -804,8 +869,9 @@ function NuevaOrdenDialog({ open, onClose }: { open: boolean; onClose: () => voi
         ancho: ancho ? Number(ancho) : 0,
         alto: alto ? Number(alto) : 0,
         proveedor: proveedor.trim(),
+        imprentaId: imprentaId || null,
       })
-      setCampanaId(''); setSitioId(''); setMaterial(''); setAncho(''); setAlto(''); setProveedor('')
+      setCampanaId(''); setSitioId(''); setMaterial(''); setAncho(''); setAlto(''); setProveedor(''); setImprentaId('')
       ob.reiniciar()
       onClose()
     } catch (e) {
@@ -887,6 +953,22 @@ function NuevaOrdenDialog({ open, onClose }: { open: boolean; onClose: () => voi
             className="w-full rounded border border-border-strong bg-surface px-2.5 py-2 text-[13px] text-ink"
           />
         </Campo>
+        {imprentas && imprentas.some((im) => im.activo) && (
+          <Campo label={t('operaciones.imprenta.imprentas.orden.imprenta')}>
+            <select
+              value={imprentaId}
+              onChange={(e) => setImprentaId(e.target.value)}
+              className="w-full rounded border border-border-strong bg-surface px-2.5 py-2 text-[13px] text-ink"
+            >
+              <option value="">{t('operaciones.imprenta.imprentas.orden.sin')}</option>
+              {imprentas
+                .filter((im) => im.activo)
+                .map((im) => (
+                  <option key={im.id} value={im.id}>{im.nombre}</option>
+                ))}
+            </select>
+          </Campo>
+        )}
         <p className="text-[11px] text-muted">{t('operaciones.imprenta.digital-ayuda')}</p>
       </div>
     </Modal>

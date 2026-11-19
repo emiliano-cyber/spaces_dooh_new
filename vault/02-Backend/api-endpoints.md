@@ -1,7 +1,7 @@
 ---
 tipo: referencia
 estado: verificado
-actualizado: 2026-11-18
+actualizado: 2026-11-19
 tags: [backend, api, endpoints]
 archivos:
   - apps/web/app/api/
@@ -43,6 +43,11 @@ archivos:
 
 # API — los 159 endpoints (medidos el 2026-10-29 con `recuentos.mjs`)
 
+> **2026-11-19 · 179 (IMP-REQ, rama `feat/imprentas-y-proporcion`):** tres
+> rutas para las imprentas y sus requisitos de arte —`GET·POST /api/imprentas`,
+> `PATCH /api/imprentas/[id]` y `PATCH /api/impresion/[id]/imprenta`—. Medido
+> con `recuentos.mjs`. Ver [[operaciones-y-ot]].
+>
 > **2026-11-18 · 176 (ENVIO-CLIENTE, rama `integra/18-11`):** tres rutas para el
 > creativo que manda el cliente por la liga —la pública `POST
 > /api/propuestas/publica/[id]/creativos` y, con sesión, `GET
@@ -177,7 +182,7 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 | GET·POST | `/api/tenants` | exigir | el admin acepta `entraConGoogle` |
 | POST | `/api/tenant-activo` | exigir | Cambio de CRM del super-admin |
 | PATCH | `/api/organizacion` | exigir | |
-| GET·PATCH | `/api/config` | exigir | Desde el 12/10 el `PATCH` toma `entidadPrincipalId` (uuid de una de [[entidades-fiscales]]) y **rechaza `razonSocial`** con 400 por el `.strict()` (`config/route.ts:92-94`). **Desde el 02/11 (ADR 0048) rechaza `moneda` con 400**, sea cual sea el valor y antes de guardar nada: la moneda de la instancia no se cambia |
+| GET·PATCH | `/api/config` | exigir | Desde el 12/10 el `PATCH` toma `entidadPrincipalId` (uuid de una de [[entidades-fiscales]]) y **rechaza `razonSocial`** con 400 por el `.strict()` (`config/route.ts:92-94`). **Desde el 02/11 (ADR 0048) rechaza `moneda` con 400**, sea cual sea el valor y antes de guardar nada: la moneda de la instancia no se cambia. **Desde el 19/11 (IMP-REQ)** acepta `requisitosImpresion` (los requisitos de arte por omisión de la empresa; mismo esquema que los de una imprenta, se guarda saneado) |
 | GET·PUT | `/api/cambios` | exigir | Interruptor de reautenticación |
 | POST·DELETE | `/api/cambios/desbloquear` | exigir | |
 | GET | `/api/estado` | exigir | Devuelve **todo** el tenant. Desde el 08/10 incluye `usuarios` (id, nombre, rol, activo; sin correo) para nombrar al responsable de cada OT — [[operaciones-y-ot]] |
@@ -363,6 +368,8 @@ agrupa las cuatro pantallas en `lib/modulos.ts:77-83`.
 | PATCH | `/api/ot/[id]/checklist` | exigir (`operaciones.crear`) — un punto por petición, 2026-09-30 |
 | GET·POST | `/api/impresion` · PATCH `/api/impresion/[id]` | exigir |
 | PATCH | `/api/impresion/[id]/prueba-color` | exigir |
+| PATCH | `/api/impresion/[id]/imprenta` | exigir `imprenta.crear` — (19/11, IMP-REQ) `{ imprentaId \| null }`: la imprenta que imprime la orden. Ajena o dada de baja → 400; id no uuid → 404 |
+| GET·POST | `/api/imprentas` · PATCH `/api/imprentas/[id]` | exigir `imprenta.ver` / `imprenta.crear` — (19/11, IMP-REQ) proveedores de impresión con sus requisitos de arte (`{ nombre, requisitos?, activo? }`, zod `.strict()`); nombre repetido en la organización → 409; **sin DELETE** (baja lógica). Capas `imprentas-controller.ts` → `imprentas-repo.ts`. El alta de `POST /api/impresion` acepta `imprentaId` |
 
 ## Finanzas
 
@@ -537,7 +544,7 @@ el 26/08 y su cerrojo real es que `tenants` esté vacía, no el token).
 | GET·POST | `/api/firma/[token]` | token de firma del contrato |
 | GET·POST | `/api/propuestas/publica/[id]` | `propuestas.token_publico` — con el cupón **PENDIENTE** (COD-03) el GET no lo trae ni en el JSON y su total va sin él; el POST acepta **sin** cupón y devuelve el uso |
 | GET | `/api/propuestas/publica/[id]/sitios/[sitioId]` | `propuestas.token_publico` — (18/11, FOTOS-UBIC) fotos y ubicación de UNA pantalla que sea renglón de esa propuesta, para «Ver fotos y ubicación» de la liga: `{ nombre, tipoMedio, direccion, alcaldia, ciudad, estado, lat, lng, fotos }` en lista blanca. Mismo 404 para token falso y sitio ajeno. Límite 60/min por IP. Capas: `fotos-sitio-publico-controller.ts` → `fotos-sitio-publico-repo.ts` (bajo `qConTenant` con el tenant del token, R2) |
-| POST | `/api/propuestas/publica/[id]/creativos` | `propuestas.token_publico` — (18/11, ENVIO-CLIENTE) el cliente manda su creativo desde la liga: `{ archivo (data URL JPG/PNG/WebP), nombre?, sitioId?, ancho?, alto? }` → 201 `{ ok, nombre, estatus: 'PENDIENTE' }`, nada más. Escribe SOLO en `envios_creativo_cliente` (+ aviso y bitácora); **nunca** en `creatividades` ni DOOHmain. 404 token falso o mal formado · 409 sin campaña, o campaña que ya no admite material · 400 tipo, JSON o pantalla ajena (y falta elegir con varias) · 413 > 4 MB · 422 bytes que no son lo que dicen (la validación de `crearSchema`) · 429 por IP (10 cada 10 min) o por campaña (10 al día). Capas: `envio-cliente-publico-controller.ts` → `seguimiento-publico-repo.ts` + `envio-cliente-publico-repo.ts` (bajo `qConTenant`, R2) |
+| POST | `/api/propuestas/publica/[id]/creativos` | `propuestas.token_publico` — (18/11, ENVIO-CLIENTE) el cliente manda su creativo desde la liga: `{ archivo (data URL JPG/PNG/WebP), nombre?, sitioId?, ancho?, alto? }` → 201 `{ ok, nombre, estatus: 'PENDIENTE' }`, nada más. Escribe SOLO en `envios_creativo_cliente` (+ aviso y bitácora); **nunca** en `creatividades` ni DOOHmain. 404 token falso o mal formado · 409 sin campaña, o campaña que ya no admite material · 400 tipo, JSON o pantalla ajena (y falta elegir con varias) · 413 > 4 MB · 422 bytes que no son lo que dicen (la validación de `crearSchema`) o proporción fuera de ±3 % del sitio elegido, leída de la cabecera del archivo (un sitio sin medida no la exige) · 429 por IP (10 cada 10 min) o por campaña (10 al día). Capas: `envio-cliente-publico-controller.ts` → `seguimiento-publico-repo.ts` + `envio-cliente-publico-repo.ts` (bajo `qConTenant`, R2) |
 | GET | `/api/propuestas/publica/[id]/seguimiento` | `propuestas.token_publico` — (17/11, SEG-CLIENTE) el avance de la campaña que nació de la propuesta, estilo rastreo de pedido: `{ hayCampana:false }` o `{ hayCampana:true, seguimiento }` (6 pasos, creativos, órdenes de imprenta, `retrasada`). Límite 60/min por IP. Capas: `seguimiento-publico-controller.ts` → `seguimiento-publico-repo.ts` (bajo `qConTenant` con el tenant del token, R2) → regla pura `lib/seguimiento-campana.ts`. **No lee** montos, OC, facturas, motivos de rechazo ni URLs; el `proveedor` se anula en el SELECT salvo `imprenta_visible` |
 | GET | `/api/logo/[token]` | `config_negocio.logo_token` |
 

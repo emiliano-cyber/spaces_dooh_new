@@ -54,6 +54,12 @@ const AVISOS: Aviso[] = [
   { titulo: f('notificaciones.campana.generada') },
   { titulo: f('notificaciones.campana.no-generada'), detalleEsError: true },
   { titulo: f('notificaciones.campana.por-validar'), detalles: [f('notificaciones.campana.por-validar.detalle')] },
+  // ENVIO-CLIENTE (18/11) · `envio-cliente-publico-controller.ts`. La del sitio
+  // va primero: es la más larga y la otra también la casaría.
+  {
+    titulo: f('notificaciones.campana.envio-cliente'),
+    detalles: [f('notificaciones.campana.envio-cliente.sitio'), f('notificaciones.campana.envio-cliente.detalle')],
+  },
   { titulo: f('notificaciones.publicacion.aprobada'), detalles: [f('notificaciones.publicacion.aprobada.detalle')] },
   {
     titulo: f('notificaciones.publicacion.rechazada'),
