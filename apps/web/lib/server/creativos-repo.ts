@@ -2,7 +2,7 @@ import 'server-only'
 import { pool, q, q1, fijarTenant } from './db'
 import { tenantActual } from './tenant'
 import { esPantallaDigitalSql } from './pantalla-digital-sql'
-import { asignacionDePantalla, autollenadoDeSpot } from '@/lib/reparto-creativos'
+import { asignacionDePantalla, autollenadoDeSpot, sumarAlSpot } from '@/lib/reparto-creativos'
 
 // ============================================================================
 //  lib/server/creativos-repo.ts — Creativos (imágenes) por campaña: alta,
@@ -109,6 +109,40 @@ export async function validarCreatividad(id: string, aprobar: boolean, motivo?: 
   // bitácora A NOMBRE DE QUIEN APROBÓ. La asignación la calcula el sistema,
   // pero la provoca una persona con un clic, y en un historial que se usa como
   // prueba eso no es lo mismo que «Sistema».
+  return Object.assign(rowToCreatividad(rows[0]), { autoasignadas })
+}
+
+/**
+ * Aprueba un creativo y lo asigna SOLO a la(s) reserva(s) digital(es) de ESA
+ * pantalla de su campaña. Para el envío del cliente desde la liga (19/11,
+ * decisión del dueño): con `validarCreatividad` iba a todas las pantallas
+ * digitales vacías de la campaña, aunque el cliente lo hubiera mandado para
+ * una. `validarCreatividad` no cambia: los demás flujos siguen autoasignando
+ * a todas.
+ */
+export async function validarCreatividadEnSitio(id: string, sitioId: string) {
+  const rows = await q(
+    `update creatividades set estatus_validacion='VALIDADA', rechazado_motivo=null where id=$1 returning *`,
+    [id],
+  )
+  if (!rows[0]) return null
+  const reservas = await q<{ id: string; creativos: unknown; spots_por_dia: number | null }>(
+    `select r.id, r.creativos, r.spots_por_dia
+       from reservas r join sitios s on s.id = r.sitio_id
+      where r.campana_id = $1 and r.sitio_id = $2 and r.estatus <> 'CANCELADA' and ${esPantallaDigitalSql('s')}`,
+    [rows[0].campana_id, sitioId],
+  )
+  let autoasignadas = 0
+  for (const r of reservas) {
+    const actual = (Array.isArray(r.creativos) ? r.creativos : []).map((c: any) => ({
+      creatividadId: String(c?.creatividadId ?? ''),
+      veces: Number(c?.veces ?? 0),
+    }))
+    const nuevo = sumarAlSpot(actual, String(id), r.spots_por_dia != null ? Number(r.spots_por_dia) : null)
+    if (!nuevo) continue
+    await q(`update reservas set creativos = $2::jsonb where id = $1`, [r.id, JSON.stringify(nuevo)])
+    autoasignadas++
+  }
   return Object.assign(rowToCreatividad(rows[0]), { autoasignadas })
 }
 

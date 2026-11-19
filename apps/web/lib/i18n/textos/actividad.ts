@@ -123,6 +123,7 @@ const FILAS = [
   ['actividad.rechazo-creativo', 'Rechazó creativo', 'Rejected a creative', 'Ha rifiutato una creatività', 'Recusou um criativo'],
   ['actividad.envio-creativo-cliente', 'Envió un creativo para revisión', 'Sent a creative for review', 'Ha inviato una creatività per la revisione', 'Enviou um criativo para revisão'],
   ['actividad.aprobo-envio-cliente', 'Aprobó creativo enviado por el cliente', 'Approved a creative sent by the client', 'Ha approvato una creatività inviata dal cliente', 'Aprovou um criativo enviado pelo cliente'],
+  ['actividad.asigno-pantalla-cliente', 'Se asignó solo a la pantalla que eligió el cliente', 'Assigned only to the screen the client chose', 'Assegnata solo allo schermo scelto dal cliente', 'Atribuído apenas à tela escolhida pelo cliente'],
   ['actividad.rechazo-envio-cliente', 'Rechazó creativo enviado por el cliente', 'Rejected a creative sent by the client', 'Ha rifiutato una creatività inviata dal cliente', 'Recusou um criativo enviado pelo cliente'],
   ['actividad.retiro-creativo', 'Retiró creativo (pendiente en DOOHmain)', 'Withdrew a creative (pending in DOOHmain)', 'Ha ritirato una creatività (in sospeso in DOOHmain)', 'Retirou um criativo (pendente no DOOHmain)'],
   ['actividad.elimino-creativo', 'Eliminó creativo', 'Deleted a creative', 'Ha eliminato una creatività', 'Excluiu um criativo'],

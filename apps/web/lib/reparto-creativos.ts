@@ -99,6 +99,24 @@ export function autollenadoDeSpot(e: {
   return clave(e.actual) === clave(nuevo) ? null : nuevo
 }
 
+/**
+ * 19/11 · el creativo que mandó el CLIENTE para UNA pantalla, al aprobarlo:
+ * entra SOLO en ese spot, sumándose a lo que ya rota ahí (decisión del dueño:
+ * «debe ir solo a la pantalla que eligió el cliente»). A diferencia de
+ * `autollenadoDeSpot`, un spot vacío NO recibe todos los aprobados de la
+ * campaña: recibe éste — los demás pueden ser de otra pantalla del cliente.
+ *  · vacío → solo el nuevo;
+ *  · con la rotación automática de lo que ya tiene → se suma y rotan todos;
+ *  · ajustado a mano → null, no se pisa (la misma regla de v0.12.3);
+ *  · ya lo tiene → null.
+ */
+export function sumarAlSpot(actual: AsignacionSpot[], nuevoId: string, spots: number | null): AsignacionSpot[] | null {
+  if (!nuevoId || actual.some((a) => a.creatividadId === nuevoId)) return null
+  const ids = actual.map((a) => a.creatividadId)
+  if (ids.length > 0 && !esRotacionAutomatica(actual, ids, spots)) return null
+  return rotacionEnSpot([...ids, nuevoId], spots)
+}
+
 // La asignación completa de una pantalla.
 //
 // `spotsReservados` en null significa pantalla FIJA (una lona, no un loop): no

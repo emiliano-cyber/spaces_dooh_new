@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-11-18
+actualizado: 2026-11-19
 tags: [backend, comercial, propuestas, campanas, amarillo, precio, extension, contrato]
 archivos:
   - apps/web/lib/fotos-sitio.ts
@@ -1019,8 +1019,18 @@ dueño eligió **«Tabla temporal en la BD»**: `envios_creativo_cliente`
   `envios-cliente-repo.ts` (`q` + `and tenant_id` + `and campana_id`). Las
   tres dan 403 a otro rol.
 - **Aprobar, en un paso**: se TOMA el envío (se borra: un segundo clic da 404),
-  `crearCreatividadCtrl` (el alta normal) y `validarCreatividad(id, true)` (la
-  aprobación normal, con la autoasignación). Si falla, se borra el creativo a
+  `crearCreatividadCtrl` (el alta normal) y `validarCreatividadEnSitio(id,
+  sitioId)` (`creativos-repo.ts`). **Va SOLO a la pantalla que eligió el
+  cliente** (decisión del dueño, 19/11): hasta ese día se aprobaba con
+  `validarCreatividad(id, true)`, cuya autoasignación lo metía en TODAS las
+  pantallas digitales vacías de la campaña. En el spot elegido entra con
+  `sumarAlSpot` (`lib/reparto-creativos.ts`, con prueba): vacío → solo él (no
+  todos los aprobados, que pueden ser de otra pantalla); con rotación
+  automática → se suma y rotan; ajustado a mano → no se pisa. Las demás
+  pantallas se llenan como siempre (reparto de Creativos), y hasta entonces el
+  guard de M14 no deja publicar. `validarCreatividad` no cambió para los demás
+  flujos; un envío sin pantalla (anterior) sigue usándola. La bitácora dice «Se
+  asignó solo a la pantalla que eligió el cliente». Si falla, se borra el creativo a
   medias y se devuelve el envío. Después, si la campaña es digital y su
   publicación ya está aprobada, publica por el camino de «Volver a publicar»
   (`reintentarPublicacionCtrl` + `publicarCampanaEnDoohmain`); si aún no, entra

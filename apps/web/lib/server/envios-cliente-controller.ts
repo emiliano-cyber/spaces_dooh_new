@@ -2,7 +2,7 @@ import 'server-only'
 import { z } from 'zod'
 import { AppError, validar } from './errores'
 import { crearCreatividadCtrl } from './creativos-controller'
-import { validarCreatividad, eliminarCreatividad } from './creativos-repo'
+import { validarCreatividad, validarCreatividadEnSitio, eliminarCreatividad } from './creativos-repo'
 import { reintentarPublicacionCtrl } from './campanas-controller'
 import { doohmainHabilitado, publicarCampanaEnDoohmain } from './doohmain'
 import {
@@ -29,8 +29,9 @@ import { puedeAprobarEnCampana } from '@/lib/roles'
 //  APROBAR, en un paso y reusando las piezas de siempre:
 //   1. Se TOMA el envío (se borra; un segundo clic ya no lo encuentra).
 //   2. `crearCreatividadCtrl` — el alta normal, con sus validaciones.
-//   3. `validarCreatividad(id, true)` — la aprobación normal, que hace la
-//      autoasignación a las pantallas digitales.
+//   3. `validarCreatividadEnSitio` — la aprobación, asignándolo SOLO a la
+//      pantalla que eligió el cliente (19/11; antes `validarCreatividad`, que
+//      lo ponía en todas las digitales vacías de la campaña).
 //   4. Publicar: el mismo camino que «Volver a publicar»
 //      (`reintentarPublicacionCtrl` + `publicarCampanaEnDoohmain`), y SOLO si
 //      la campaña es digital y su publicación ya está aprobada. Si aún no lo
@@ -59,6 +60,8 @@ export interface ResultadoAprobacion {
   creativo: { id: string; nombre: string; estatusValidacion: string }
   campanaNombre: string
   autoasignadas: number
+  /** El cliente eligió pantalla: el creativo va solo ahí (19/11). */
+  soloSuPantalla: boolean
   publicacion: PublicacionTrasAprobar
 }
 
@@ -69,7 +72,7 @@ export async function aprobarEnvioCtrl(campanaId: string, envioId: string): Prom
   if (!e) throw new AppError('Envío no encontrado', 404)
 
   let creadoId: string | null = null
-  let aprobado: Awaited<ReturnType<typeof validarCreatividad>>
+  let aprobado: Awaited<ReturnType<typeof validarCreatividad>> | Awaited<ReturnType<typeof validarCreatividadEnSitio>>
   try {
     const crea = await crearCreatividadCtrl({
       campanaId,
@@ -79,7 +82,13 @@ export async function aprobarEnvioCtrl(campanaId: string, envioId: string): Prom
       resolucion: e.anchoPx && e.altoPx ? `${e.anchoPx}x${e.altoPx}` : null,
     })
     creadoId = crea.id
-    aprobado = await validarCreatividad(crea.id, true)
+    // 19/11 · decisión del dueño: SOLO a la pantalla que eligió el cliente.
+    // Con `validarCreatividad` iba a todas las digitales vacías de la campaña.
+    // Sin pantalla (un envío de antes, o una campaña sin pantallas) se queda
+    // la aprobación de siempre.
+    aprobado = e.sitioId
+      ? await validarCreatividadEnSitio(crea.id, e.sitioId)
+      : await validarCreatividad(crea.id, true)
     if (!aprobado) throw new AppError('No se pudo aprobar el creativo', 500)
   } catch (err) {
     // A medias no se queda nada: ni un creativo pendiente que nadie pidió, ni
@@ -107,6 +116,7 @@ export async function aprobarEnvioCtrl(campanaId: string, envioId: string): Prom
     creativo: { id: aprobado.id, nombre: aprobado.nombre, estatusValidacion: aprobado.estatusValidacion },
     campanaNombre: camp.nombre,
     autoasignadas: (aprobado as { autoasignadas?: number }).autoasignadas ?? 0,
+    soloSuPantalla: !!e.sitioId,
     publicacion,
   }
 }

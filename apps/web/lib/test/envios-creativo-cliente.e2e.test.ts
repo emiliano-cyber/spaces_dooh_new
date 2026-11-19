@@ -372,14 +372,26 @@ describe('3 · el Dueño revisa en la ficha', () => {
     expect(cr[0]).toMatchObject({ tenant_id: alfa.id, estatus_validacion: 'VALIDADA', nombre: 'arte final .png', formato: 'text/html', resolucion: '1080x1920' })
     expect(cr[0].codigo).toContain(VERTICAL)
     expect(await contar('select count(*)::int as n from envios_creativo_cliente where id=$1', [id])).toBe(0)
-    // La autoasignación de siempre: las dos pantallas digitales lo reciben.
-    const res = (await poolTest().query('select creativos from reservas where campana_id=$1', [camp])).rows
-    expect(res.every((x: any) => JSON.stringify(x.creativos).includes(cr[0].id))).toBe(true)
+    // 19/11 · decisión del dueño: va SOLO a la pantalla que eligió el cliente
+    // (la Vertical), no a todas las digitales vacías de la campaña. Hasta hoy
+    // la autoasignación de siempre lo ponía en las dos.
+    const res = (await poolTest().query('select sitio_id, creativos from reservas where campana_id=$1', [camp])).rows
+    expect(res).toHaveLength(2)
+    const deSitio = (s: string) => JSON.stringify(res.find((x: any) => x.sitio_id === s)!.creativos)
+    expect(deSitio(sitioB)).toContain(cr[0].id)
+    expect(deSitio(alfa.sitioId)).not.toContain(cr[0].id)
+    expect(r.datos.autoasignadas).toBe(1)
     // Un segundo clic ya no encuentra nada.
     expect((await dueno.pedir(`/api/campanas/${camp}/envios-cliente/${id}/`, { cuerpo: { accion: 'aprobar' } })).status).toBe(404)
   })
 
   it('APROBAR con la publicación ya aprobada: lo publica por «Volver a publicar»', async () => {
+    // Con el creativo solo en la Vertical, la otra pantalla está «Sin asignar»
+    // y el guard de M14 no deja publicar: el Dueño la llena como siempre, con
+    // el reparto de Creativos, solo en las vacías.
+    const arte = (await poolTest().query('select id from creatividades where campana_id=$1', [camp])).rows[0].id
+    const rep = await dueno.pedir(`/api/campanas/${camp}/creativos/repartir/`, { cuerpo: { creatividadIds: [arte], soloVacias: true } })
+    expect(rep.status, JSON.stringify(rep.datos)).toBe(200)
     expect((await dueno.pedir(`/api/campanas/${camp}/enviar-dominio/`, { cuerpo: {} })).status).toBe(200)
     expect((await dueno.pedir(`/api/campanas/${camp}/validar/`, { cuerpo: { aprobar: true } })).status).toBe(200)
     // Publicada y esperando su fecha: la liga todavía recibe (digital).
@@ -394,6 +406,15 @@ describe('3 · el Dueño revisa en la ficha', () => {
     expect(Array.isArray(r.datos.publicacion.doohmain)).toBe(true)
     expect(r.datos.publicacion.doohmain.length).toBeGreaterThan(0)
     expect(await contar(`select count(*)::int as n from creatividades where campana_id=$1 and estatus_validacion='VALIDADA'`, [camp])).toBe(2)
+    // Y esta segunda, mandada para la otra pantalla, entra SOLO en ésa (rota
+    // con lo que el Dueño ya había puesto ahí) y NO se mete en la Vertical.
+    const ids = Object.fromEntries(
+      (await poolTest().query('select nombre, id from creatividades where campana_id=$1', [camp])).rows.map((x: any) => [x.nombre, x.id]),
+    )
+    const res = (await poolTest().query('select sitio_id, creativos from reservas where campana_id=$1', [camp])).rows
+    const deSitio = (s: string) => (res.find((x: any) => x.sitio_id === s)!.creativos as any[]).map((c) => c.creatividadId)
+    expect(deSitio(alfa.sitioId).sort()).toEqual([ids['arte final .png'], ids['segunda.png']].sort())
+    expect(deSitio(sitioB)).toEqual([ids['arte final .png']])
   })
 
   it('RECHAZAR: queda el motivo para la liga, el archivo se borra y no hay creativo', async () => {
