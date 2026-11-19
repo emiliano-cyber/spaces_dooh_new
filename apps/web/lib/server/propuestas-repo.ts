@@ -29,6 +29,7 @@ import {
   repartirPaquete,
 } from '@/lib/paquete'
 import { rutaLogo } from '@/lib/medios-url'
+import { sqlTokenLogoServible } from '@/lib/server/logo-sql'
 import { fechaDia, hoyDeVigencia, propuestaVencida } from '@/lib/propuesta-vigencia'
 
 /**
@@ -812,7 +813,7 @@ export async function obtenerPropuestaPublica(codigo: string, opts: { conFotos?:
   // va por `/api/logo/<token>` y no como data URL para no meter hasta 2 MB de
   // base64 en un payload que se pide en cada apertura de la liga.
   const org = await qPub1<any>('select nombre from tenants where id = $1', [tenantId])
-  const cfg = await qPub1<any>('select logo_token from config_negocio where tenant_id = $1', [tenantId])
+  const cfg = await qPub1<any>(`select ${sqlTokenLogoServible()} from config_negocio where tenant_id = $1`, [tenantId])
 
   const sitioIds = (items as any[]).map((i) => i.sitio_id)
   const sitios = sitioIds.length

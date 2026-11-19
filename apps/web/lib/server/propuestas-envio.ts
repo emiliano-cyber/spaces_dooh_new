@@ -9,6 +9,7 @@ import { vigenciaPropuestaDelTenant } from './config-repo'
 import { asuntoCorreoPropuesta, htmlCorreoPropuesta } from './propuesta-correo'
 import { idiomaDeLaInstancia } from './idioma-instancia'
 import { urlLogo } from '@/lib/medios-url'
+import { sqlTokenLogoServible } from './logo-sql'
 import { esEmailValido, EMAIL_INVALIDO } from '@/lib/validacion'
 import { formatFecha } from '@/lib/data/derive'
 import { hoyDeVigencia, vigenciaDesde } from '@/lib/propuesta-vigencia'
@@ -73,7 +74,7 @@ export async function enviarPropuestaCtrl(
   let correo: ResultadoEnvio['correo'] = 'no_configurado'
   if (emailHabilitado()) {
     const org = await q1<any>(
-      `select t.nombre, c.email_remitente, c.logo_token
+      `select t.nombre, c.email_remitente, ${sqlTokenLogoServible('c')}
          from tenants t left join config_negocio c on c.tenant_id = t.id
         where t.id = $1`,
       [tenant],

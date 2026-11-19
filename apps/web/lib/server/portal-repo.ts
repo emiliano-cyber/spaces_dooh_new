@@ -4,6 +4,7 @@ import { rowToCampana, rowToReserva } from './campanas-repo'
 import { rowToSitio } from './sitios-repo'
 import { rowToOT } from './ot-repo'
 import { rutaLogo } from '@/lib/medios-url'
+import { sqlTokenLogoServible } from '@/lib/server/logo-sql'
 
 // ============================================================================
 //  lib/server/portal-repo.ts — Datos PÚBLICOS del portal de una campaña.
@@ -60,7 +61,7 @@ export async function obtenerPortalPublico(token: string) {
   // corregirlo se dejó genérico. Esto lo cierra: cada organización se presenta
   // con lo suyo.
   const org = await q1<any>('select nombre from tenants where id = $1', [tenantId])
-  const cfg = await q1<any>('select logo_token from config_negocio where tenant_id = $1', [tenantId])
+  const cfg = await q1<any>(`select ${sqlTokenLogoServible()} from config_negocio where tenant_id = $1`, [tenantId])
 
   return {
     orgNombre: org?.nombre ?? null,

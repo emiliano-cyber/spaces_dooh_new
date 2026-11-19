@@ -5,6 +5,14 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-19 · Sin logo, la liga ya no enseña una imagen rota
+
+- Si la organización **no ha cargado su logo**, la cabecera de la liga de la propuesta mostraba un icono de imagen rota. Ahora, sin logo, simplemente no se pinta nada y queda el nombre de la organización.
+- Lo mismo en el portal del cliente, la hoja de firma del contrato y los correos (propuesta, avisos y recordatorios): sin logo cargado no se intenta poner uno.
+- Con logo cargado todo sigue igual.
+
+---
+
 ## 2026-11-19 · El creativo del cliente va solo a la pantalla que eligió
 
 Decisión del dueño: el creativo que manda el cliente desde la liga debe ir **solo a la pantalla que eligió**.
