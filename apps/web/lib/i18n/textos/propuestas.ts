@@ -512,6 +512,14 @@ export const ES_PROPUESTAS = {
   'propuestas.tablero.col.renta': 'Renta',
   'propuestas.tablero.sin-contrato': 'sin contrato',
   'propuestas.tablero.mas': 'Y {n} más.',
+  // 19/11 · «Prospectos nuevos» del Resumen (`ProspectosNuevos` en `TableroPropuestas.tsx`).
+  'propuestas.nuevos.titulo': 'Prospectos nuevos',
+  'propuestas.nuevos.subtitulo': 'Dados de alta en los últimos {dias} días',
+  'propuestas.nuevos.etiqueta': 'Nuevo',
+  'propuestas.nuevos.vacio': 'No hay prospectos nuevos en los últimos {dias} días. Cuando alguien dé de alta uno, aparecerá aquí.',
+  'propuestas.nuevos.hoy': 'hoy',
+  'propuestas.nuevos.ayer': 'ayer',
+  'propuestas.nuevos.hace': 'hace {n} días',
 
   // ── Entrada publica por codigo (`app/(app)/propuesta/page.tsx`) ──
   'propuestas.publica.no-encontrada': 'No encontramos ninguna propuesta con ese código. Revísalo e inténtalo de nuevo.',
@@ -1040,6 +1048,14 @@ export const EN_PROPUESTAS: Record<ClavePropuestas, string> = {
   'propuestas.tablero.col.renta': 'Rent',
   'propuestas.tablero.sin-contrato': 'no contract',
   'propuestas.tablero.mas': 'And {n} more.',
+  // 19/11 · New prospects on the Summary.
+  'propuestas.nuevos.titulo': 'New prospects',
+  'propuestas.nuevos.subtitulo': 'Added in the last {dias} days',
+  'propuestas.nuevos.etiqueta': 'New',
+  'propuestas.nuevos.vacio': 'No new prospects in the last {dias} days. When someone adds one, it will show up here.',
+  'propuestas.nuevos.hoy': 'today',
+  'propuestas.nuevos.ayer': 'yesterday',
+  'propuestas.nuevos.hace': '{n} days ago',
 
   'propuestas.publica.no-encontrada': "We couldn’t find any proposal with that code. Check it and try again.",
   'propuestas.publica.error': 'The code could not be verified. Please try again.',
@@ -1577,6 +1593,14 @@ export const IT_PROPUESTAS: Record<ClavePropuestas, string> = {
   'propuestas.tablero.col.renta': 'Canone',
   'propuestas.tablero.sin-contrato': 'senza contratto',
   'propuestas.tablero.mas': 'E altre {n}.',
+  // 19/11 · Nuovi prospect nel Riepilogo.
+  'propuestas.nuevos.titulo': 'Nuovi prospect',
+  'propuestas.nuevos.subtitulo': 'Aggiunti negli ultimi {dias} giorni',
+  'propuestas.nuevos.etiqueta': 'Nuovo',
+  'propuestas.nuevos.vacio': 'Nessun nuovo prospect negli ultimi {dias} giorni. Quando qualcuno ne aggiunge uno, comparirà qui.',
+  'propuestas.nuevos.hoy': 'oggi',
+  'propuestas.nuevos.ayer': 'ieri',
+  'propuestas.nuevos.hace': '{n} giorni fa',
 
   'propuestas.publica.no-encontrada': 'Non abbiamo trovato nessuna proposta con quel codice. Controllalo e riprova.',
   'propuestas.publica.error': 'Impossibile verificare il codice. Riprova.',
@@ -2127,6 +2151,14 @@ export const PT_PROPUESTAS: Record<ClavePropuestas, string> = {
   'propuestas.tablero.col.renta': 'Aluguel',
   'propuestas.tablero.sin-contrato': 'sem contrato',
   'propuestas.tablero.mas': 'E mais {n}.',
+  // 19/11 · Novos prospectos no Resumo.
+  'propuestas.nuevos.titulo': 'Novos prospectos',
+  'propuestas.nuevos.subtitulo': 'Cadastrados nos últimos {dias} dias',
+  'propuestas.nuevos.etiqueta': 'Novo',
+  'propuestas.nuevos.vacio': 'Nenhum prospecto novo nos últimos {dias} dias. Quando alguém cadastrar um, ele aparecerá aqui.',
+  'propuestas.nuevos.hoy': 'hoje',
+  'propuestas.nuevos.ayer': 'ontem',
+  'propuestas.nuevos.hace': 'há {n} dias',
 
   // ── Entrada publica por codigo ──
   'propuestas.publica.no-encontrada': 'Não encontramos nenhuma proposta com esse código. Confira e tente de novo.',

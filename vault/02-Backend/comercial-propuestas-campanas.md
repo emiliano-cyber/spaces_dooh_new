@@ -4,6 +4,10 @@ estado: verificado
 actualizado: 2026-11-19
 tags: [backend, comercial, propuestas, campanas, amarillo, precio, extension, contrato]
 archivos:
+  - apps/web/lib/prospectos-nuevos.ts
+  - apps/web/components/demo/propuestas/ProspectosNuevos.tsx
+  - apps/web/components/demo/propuestas/TableroPropuestas.tsx
+  - apps/web/lib/server/propuestas-resumen-repo.ts
   - apps/web/lib/fotos-sitio.ts
   - apps/web/lib/server/fotos-sitio-publico-repo.ts
   - apps/web/lib/server/fotos-sitio-publico-controller.ts
@@ -578,6 +582,36 @@ Las cuentas, puras, en `lib/propuestas-periodo.ts`; la ruta,
 (con 4 mutantes muertos) y `lib/test/propuestas-tablero.e2e.test.ts` (fechas
 al aprobar/rechazar —con un mutante contra build reconstruido—, renta del
 contrato, permisos, migración).
+
+### Prospectos nuevos en el Resumen (19/11)
+
+Pedido del dueño: que en **Propuestas → Resumen** se vean los prospectos
+nuevos. La misma ruta trae ahora `prospectosNuevos: { dias, total, lista }`
+(sin ruta nueva ni migración):
+
+- **Criterio** (`lib/prospectos-nuevos.ts`): prospectos de tipo **CLIENTE**
+  (los de la pestaña Prospectos) dados de alta en los **últimos 7 días**
+  (`DIAS_NUEVO`), más recientes primero, **6 como máximo** (`MAX_NUEVOS`) y el
+  total para «y N más». Fuera PERDIDO y RECHAZADO, como en Seguimiento. No
+  depende del periodo elegido en el tablero.
+- **Quién ve qué**: el MISMO `soloDe` del Resumen (`soloDePropuestas`,
+  `comercial.aprobar`). El SQL está en `filasProspectosNuevos`
+  (`propuestas-resumen-repo.ts`), con `q`, `tenant_id = $1` y el tenant
+  también en el `join` a `usuarios`; tope de 50 filas por peso.
+- **Cada tarjeta**: etiqueta «Nuevo», nombre, razón social, etapa, vendedor,
+  «hace N días» y el contacto (nombre, teléfono o correo) si existe. Abre
+  `/propuestas?vista=prospectos&prospecto=<id>`, el panel del prospecto.
+  **No hay campo «origen»** en `prospectos`: no se enseña.
+- **Siempre desplegado** (pedido del 19/11): el Resumen ya no tiene nada que
+  se pliegue. `TableroPropuestas` dejó `CardColapsable` (abría plegado y
+  recordaba `propuestas.resumen` en `localStorage`) por una `Card` fija; un
+  `propuestas.resumen` guardado de antes simplemente se ignora. Las demás
+  pantallas siguen con su plegado.
+
+Cobertura: `lib/prospectos-nuevos.test.ts` y
+`lib/test/prospectos-nuevos.e2e.test.ts` (el vendedor no recibe los del
+otro, ni viejos, perdidos, predios ni de otra organización; rojo demostrado
+pasando `null` como `soloDe` contra build reconstruido).
 
 ## CPS, CPM y el folio de venta (07/10)
 

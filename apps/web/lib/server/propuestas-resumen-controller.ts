@@ -1,12 +1,13 @@
 import 'server-only'
 import { z } from 'zod'
 import { AppError, validar } from './errores'
-import { filasAtribucionRenta, filasPropuestasResumen } from './propuestas-resumen-repo'
+import { filasAtribucionRenta, filasPropuestasResumen, filasProspectosNuevos } from './propuestas-resumen-repo'
 import { hoyDeLaBase } from './finanzas-repo'
 import { periodoDe, type TipoPeriodo } from '@/lib/finanzas-periodo'
 import { resumirPropuestas, type PropuestaP } from '@/lib/propuestas-periodo'
 import { contratoVigentePorSitio, rentaAtribuidaPorSitio, type DatosAtribucion } from '@/lib/data/derive'
 import { periodosEnRango } from '@/lib/periodos'
+import { DIAS_NUEVO, prospectosNuevos } from '@/lib/prospectos-nuevos'
 
 // ============================================================================
 //  lib/server/propuestas-resumen-controller.ts — El tablero de propuestas por
@@ -45,10 +46,14 @@ export async function resumenPropuestasCtrl(
 ) {
   const d = validar(schema, query)
   // Las lecturas no dependen unas de otras: van a la vez, no en fila.
-  const [hoy, { propuestas, items }, atribucion] = await Promise.all([
+  const [hoy, { propuestas, items }, atribucion, nuevos] = await Promise.all([
     hoyDeLaBase(),
     filasPropuestasResumen(soloDe),
     conGanancia ? filasAtribucionRenta() : null,
+    // 19/11 · los prospectos nuevos no dependen del periodo elegido: son los
+    // de la última semana, siempre. Viajan aquí porque ésta es la ruta que
+    // alimenta el Resumen, y con la MISMA regla `soloDe` que sus propuestas.
+    filasProspectosNuevos(soloDe, DIAS_NUEVO),
   ])
   let periodo
   try {
@@ -73,7 +78,13 @@ export async function resumenPropuestasCtrl(
     costoRenta: conGanancia ? (costoDe.get(p.id) ?? null) : null,
   }))
 
-  return { periodo, hoy, conGanancia, resumen: resumirPropuestas(props, periodo, conGanancia) }
+  return {
+    periodo,
+    hoy,
+    conGanancia,
+    resumen: resumirPropuestas(props, periodo, conGanancia),
+    prospectosNuevos: prospectosNuevos(nuevos, new Date()),
+  }
 }
 
 function costosDeRenta(
