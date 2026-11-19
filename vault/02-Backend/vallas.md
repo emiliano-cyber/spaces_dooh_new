@@ -5,6 +5,10 @@ actualizado: 2026-11-19
 tags: [backend, vallas, inventario, reglas, competencia, rojo]
 archivos:
   - db/migrations/20261119_vallas_esqueleto.sql
+  - db/migrations/20261119_vallas_sembrar_competencia_por_omision.sql
+  - apps/web/lib/vallas/competencia-por-omision.ts
+  - apps/web/lib/roles.ts
+  - apps/web/lib/server/cuentas-controller.ts
   - apps/web/lib/vallas/tipos.ts
   - apps/web/lib/vallas/numeracion.ts
   - apps/web/lib/vallas/reglas/tipos.ts
@@ -25,6 +29,7 @@ archivos:
   - apps/web/lib/data/vallas-api.ts
   - apps/web/lib/i18n/textos/vallas.ts
   - apps/web/lib/test/vallas.e2e.test.ts
+  - apps/web/lib/test/alta-organizacion.e2e.test.ts
 ---
 
 # Vallas (esqueleto, 19/11)
@@ -33,9 +38,22 @@ Pedido del dueño el 2026-11-19: un módulo propio para las **vallas publicitari
 al estilo de Imprenta/imprentas, donde se irán metiendo **más reglas de negocio**.
 Decisión de forma en el [ADR 0052](../../docs/adr/0052-vallas-modulo-con-reglas-enchufables.md).
 
-> [!danger] ROJO R3 · la migración `20261119_vallas_esqueleto.sql` espera al dueño
-> Aplicada solo a la base de e2e y, por pedido del dueño, a `spaces_hoy` (5434,
-> local, para probarla). **A ningún servidor.**
+> [!danger] ROJO R3 · las migraciones de vallas esperan al dueño para servidores
+> `20261119_vallas_esqueleto.sql` está aplicada solo a la base de e2e y, por pedido
+> del dueño, a `spaces_hoy` (5434, local, para probarla).
+> `20261119_vallas_sembrar_competencia_por_omision.sql` (las categorías por
+> omisión, abajo) la aprobó el dueño para LOCAL el 19/11. **A ningún servidor.**
+
+> [!success] 2026-11-19 · decisiones del dueño sobre la competencia de marcas
+> 1. **Solo avisa, nunca bloquea.** El nivel está fijo en `aviso`
+>    (`configuracion.ts` lo tipa como literal y la regla lo escribe fijo al emitir).
+> 2. **Aplica a todo el sitio**: alcance por omisión `sitio`.
+> 3. **Las categorías las edita SOLO el Dueño** (crear, editar, dar de baja). Ver,
+>    quien ve Inventario.
+> 4. **Cada organización trae doce categorías por omisión**, editables.
+>
+> Rama `feat/vallas-decisiones` desde `integra/18-11` `3e73f5e5`. Apunte en el
+> [ADR 0052](../../docs/adr/0052-vallas-modulo-con-reglas-enchufables.md).
 
 ## Qué reutiliza y qué agrega
 
@@ -105,9 +123,17 @@ fechas que se solapan (**inclusivas**: tocarse un día ya es solape). Las marcas
 comparan normalizadas («Coca-Cola» = «coca cola»); la misma marca no compite consigo
 misma; una marca fuera del catálogo no compite con nadie.
 
-Configuración por omisión: **`nivel: 'aviso'`**, **`alcance: 'grupo_imagen'`** (la
-misma valla y las de su grupo si el grupo es una sola imagen). Otros alcances:
-`valla`, `grupo` (cualquier modo) y `sitio` (vecinas).
+Configuración por omisión (decisión del dueño, 19/11): **`nivel: 'aviso'`** —fijo,
+no hay forma de configurarla para que bloquee— y **`alcance: 'sitio'`**: cualquier
+valla del mismo sitio, **más las de su grupo** (un grupo se vende junto aunque cruzara
+de sitio). Los alcances más estrechos siguen en el código (`valla`, `grupo_imagen`,
+`grupo`) y con prueba, por si el dueño cambia de idea.
+
+Con alcance `sitio` el aviso se agrupa **por sitio, campaña y marca**: como la reserva
+ocupa todas las vallas del sitio, sin agrupar una misma campaña de Pepsi daría un aviso
+idéntico por cada valla. El aviso nombra la valla propia si también está ocupada. El
+texto de la pantalla: «No van en el mismo sitio en las mismas fechas · Solo avisa, no
+bloquea. Las edita el Dueño.»
 
 **Las ocupaciones salen de las reservas, que hoy son por SITIO**: una reserva viva
 (no cancelada; tentativa sin caducar) ocupa **todas** las vallas de su sitio. Es la
@@ -132,21 +158,87 @@ aproximación honesta mientras la reserva no sepa en qué cuadro cae.
 Una valla en un sitio ajeno, o un grupo con vallas ajenas, es **400** (el repo lo
 pregunta antes; la FK compuesta lo impide igual en la base).
 
+Las categorías: **ver** con `inventario.ver`; **crear y editar (incluida la baja,
+`activo: false`) SOLO el Dueño**: `puedeEditarCompetencia(rol)` (`lib/roles.ts`,
+`rol === 'DUENO'`, el mismo patrón que `puedeEncuadrar`). Los demás reciben **403**
+«Solo el Dueño puede editar las marcas que compiten» (traducido en
+`errores-servidor.ts`). El Administrador también, aunque tenga `inventario.crear`: la
+puerta es el ROL, no el permiso. En PATCH el 403 va antes del 404, para no revelar qué
+ids existen. La pantalla esconde los botones con la misma función.
+
+## Categorías por omisión
+
+Cada organización trae estas doce (`lib/vallas/competencia-por-omision.ts`), editables
+por el Dueño:
+
+| Categoría | Marcas |
+|---|---|
+| Refrescos de cola | Coca-Cola, Pepsi |
+| Tiendas departamentales | El Palacio de Hierro, Liverpool, Sears |
+| Telefonía | Telcel, AT&T, Movistar |
+| Bancos | BBVA, Banorte, Santander, Citibanamex, HSBC |
+| Cerveza | Grupo Modelo, Heineken México |
+| Comida rápida | McDonald's, Burger King, KFC, Carl's Jr. |
+| Pizzas | Domino's, Pizza Hut, Little Caesars |
+| Autoservicio | Walmart, Soriana, Chedraui, La Comer |
+| Tiendas de conveniencia | OXXO, 7-Eleven, Circle K |
+| Automotriz | Nissan, Volkswagen, Chevrolet, Toyota, KIA |
+| Streaming | Netflix, Disney+, Prime Video, Max |
+| Aerolíneas | Aeroméxico, Volaris, Viva Aerobus |
+
+**Cómo llegan**, por dos caminos y una sola lista:
+
+- **Organizaciones nuevas**: `crearOrgConDueno` (`cuentas-controller.ts`) llama a
+  `sembrarCompetenciaPorOmision(client, tenantId)` (`vallas-repo.ts`) **dentro de la
+  transacción del alta, después de `fijarTenant`**: la tabla tiene RLS forzada y el
+  tenant tiene que coincidir; si el alta se deshace, las categorías se van con ella.
+  Cubre `/api/tenants`, `/api/signup` y `/api/bootstrap`, que pasan todas por ahí.
+- **Organizaciones que ya existían**: la migración
+  `20261119_vallas_sembrar_competencia_por_omision.sql`, `@tipo: esquema` (para que
+  `update.sh` la aplique sin `--con-datos`), fijando `app.tenant_id` organización por
+  organización, `on conflict do nothing`.
+- **Se descartó** sembrarlas al leer la primera vez (un GET que escribe, con carreras)
+  y un trigger en `tenants` (tendría que cambiar `app.tenant_id` a mitad del alta).
+
+La lista vive dos veces (TS y SQL, porque una migración no importa TS) y
+`competencia-por-omision.test.ts` **exige que sean idénticas** (mutado: cambiar
+«Max» por «HBO» en la migración la pone roja). Si la lista cambia, la migración
+aplicada **no se edita**: va otra migración.
+
+Ojo con el nombre: `..._vallas_competencia_por_omision.sql` habría ordenado ANTES de
+`..._vallas_esqueleto.sql` ('c' < 'e') y la tabla no existiría. Con `sembrar` ('s' >
+'e') el orden sale por nombre y **no hace falta tocar `ANTES_DE`**.
+
+Lo que NO las recibe: las organizaciones que siembran a mano los scripts de demo
+(`scripts/semilla-*.mjs`) después de migrar, ni `sembrarTenant` de las e2e.
+
 ## Pruebas
 
-- `lib/vallas/numeracion.test.ts` y `lib/vallas/reglas/reglas.test.ts`: 33 unitarias
-  (solapes, misma valla, grupo una imagen / separadas, alcances, marcas de categorías
-  distintas, misma marca, evaluador). Vistas en rojo antes del código.
-- `lib/test/vallas.e2e.test.ts`: 11 casos contra Postgres y Next reales — CRUD, 403
+- `lib/vallas/numeracion.test.ts` y `lib/vallas/reglas/reglas.test.ts`: unitarias
+  (solapes, misma valla, grupo una imagen / separadas, alcances, sitio por omisión,
+  un aviso por campaña y sitio, nunca bloqueo, evaluador). Vistas en rojo antes del
+  código, también las del 19/11 (alcance sitio y nivel fijo).
+- `lib/vallas/competencia-por-omision.test.ts`: la lista (12, sin marcas repetidas
+  entre categorías, límites de la tabla) y que la migración traiga la misma.
+- `lib/roles.test.ts` · `puedeEditarCompetencia`: solo `DUENO`.
+- `lib/test/vallas.e2e.test.ts`: 13 casos contra Postgres y Next reales — CRUD, 403
   de COMERCIAL, 409, aislamiento por API y con el rol de la app (RLS y FK compuestas),
-  y la verificación. Vistas en rojo (404) antes de las rutas.
+  la verificación (otra valla del mismo sitio avisa; otro sitio no), **403 de
+  Administrador, Vendedor y Comercial al crear/editar/dar de baja categorías y 201 del
+  Dueño**, y la migración sembrando a todas las organizaciones sin duplicar al
+  repetirse y respetando una categoría propia con el mismo nombre.
+- `lib/test/alta-organizacion.e2e.test.ts`: una organización nueva nace con las 12.
 
 ## Preguntas abiertas al dueño
 
-¿Bloquea o avisa? ¿Alcance: misma valla, grupo una imagen, cualquier grupo o mismo
-sitio? ¿Quién edita las categorías (hoy `inventario.crear`)? ¿La numeración la pone
-el usuario o la asigna el sistema? ¿Una valla puede estar en más de un grupo? ¿La
-reserva pasará a ser por valla? ¿Hace falta un catálogo de marcas ligado al cliente?
+Resueltas el 19/11: ~~¿bloquea o avisa?~~ (avisa) · ~~¿alcance?~~ (el sitio) ·
+~~¿quién edita las categorías?~~ (solo el Dueño) · ~~¿categorías de entrada?~~ (las
+doce de arriba).
+
+Siguen abiertas: ¿la numeración la pone el usuario o la asigna el sistema? ¿Una valla
+puede estar en más de un grupo? ¿La reserva pasará a ser por valla? ¿Hace falta un
+catálogo de marcas ligado al cliente? ¿La lista por omisión cambia por país cuando
+una instancia no sea de México?
 
 ## Relacionadas
 [[02-Backend/_indice]] · [[inventario-y-sitios]] · [[operaciones-y-ot]] · [[MOC-Proyecto]]

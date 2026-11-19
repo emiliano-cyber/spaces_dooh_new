@@ -39,3 +39,26 @@ El inventario ya tiene sitios de tipo `VALLA` con ancho, alto y caras, y las cam
   puede avisar de más, nunca de menos.
 - El nivel y el alcance viven en código; si cada organización debe poder cambiarlos, irán a
   `config_negocio` en otra migración.
+
+## Apunte 2026-11-19 · decisiones del dueño sobre la competencia
+
+El mismo día el dueño cerró cuatro de las preguntas abiertas. **Cambian la configuración y
+el punto 4 de la decisión; la forma (reglas puras, registro, evaluador) no cambia.**
+
+1. **La competencia solo avisa, nunca bloquea.** `ConfigCompetencia.nivel` pasa a ser el
+   literal `'aviso'` y la regla lo escribe fijo. `NivelRegla` conserva `'bloqueo'` para
+   otras reglas: el evaluador es común.
+2. **Alcance por omisión: el sitio** (cualquier valla del mismo sitio, más las de su grupo).
+   Se agrupa un aviso por sitio, campaña y marca.
+3. **Las categorías de competencia las edita solo el Dueño** (`puedeEditarCompetencia` en
+   `lib/roles.ts`, 403 a los demás aunque tengan `inventario.crear`). Ver sigue siendo de
+   `inventario.ver`. Esto sustituye, para las categorías, el punto 4 («permisos de
+   `inventario`»); vallas y grupos siguen con `inventario.crear`.
+4. **Doce categorías por omisión** (México) en cada organización: las nuevas en la
+   transacción del alta (`crearOrgConDueno`), las existentes por la migración
+   `20261119_vallas_sembrar_competencia_por_omision.sql` (ROJO R3; aprobada en local, en
+   servidores pendiente). Una sola lista en `lib/vallas/competencia-por-omision.ts`, con una
+   prueba que exige que la migración traiga la misma.
+
+Rama `feat/vallas-decisiones`, desde `integra/18-11` `3e73f5e5`. Detalle en
+`vault/02-Backend/vallas.md`.

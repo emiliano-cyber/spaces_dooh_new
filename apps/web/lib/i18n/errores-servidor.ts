@@ -738,6 +738,8 @@ export const CATALOGO_ERRORES: Record<string, string> = {
     'Competitor category not found',
   'Ya existe una categoría de competencia con ese nombre':
     'A competitor category with that name already exists',
+  'Solo el Dueño puede editar las marcas que compiten':
+    'Only the Owner can edit the competing brands',
   'La medida debe ser mayor que cero':
     'The size must be greater than zero',
   'El número es requerido':
@@ -1409,6 +1411,8 @@ export const CATALOGO_ERRORES_IT: Partial<Record<string, string>> = {
     'Categoria di concorrenza non trovata',
   'Ya existe una categoría de competencia con ese nombre':
     'Esiste già una categoria di concorrenza con questo nome',
+  'Solo el Dueño puede editar las marcas que compiten':
+    'Solo il Titolare può modificare i marchi concorrenti',
   'La medida debe ser mayor que cero':
     'La misura deve essere maggiore di zero',
   'El número es requerido':
@@ -1848,6 +1852,8 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
     'Categoria de concorrência não encontrada',
   'Ya existe una categoría de competencia con ese nombre':
     'Já existe uma categoria de concorrência com esse nome',
+  'Solo el Dueño puede editar las marcas que compiten':
+    'Somente o Titular pode editar as marcas concorrentes',
   'La medida debe ser mayor que cero':
     'A medida deve ser maior que zero',
   'El número es requerido':

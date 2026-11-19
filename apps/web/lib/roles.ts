@@ -198,3 +198,21 @@ export function puedeEncuadrar(rol: string | null | undefined): boolean {
 export function puedeAprobarEnCampana(rol: string | null | undefined): boolean {
   return rol === 'DUENO' || rol === 'ADMINISTRADOR'
 }
+
+/**
+ * ¿Puede este rol crear, editar o dar de baja las CATEGORÍAS DE COMPETENCIA de
+ * las vallas (las marcas que compiten: «Refrescos de cola»: Coca-Cola, Pepsi)?
+ * Solo el Dueño — decisión del dueño del 2026-11-19.
+ *
+ * El Administrador se queda fuera a propósito aunque tenga `inventario.crear`:
+ * el catálogo decide qué marcas se avisan como rivales en TODA la organización
+ * y el dueño quiere que sea suyo. Ver las categorías sigue siendo de quien ve
+ * Inventario. La puerta de verdad está en `app/api/vallas/competencia/`, que
+ * usa ESTA función; la pantalla solo esconde los botones.
+ *
+ * Toma `string` por lo mismo que `puedeEncuadrar`: cualquier otro valor da
+ * false, que es el lado seguro.
+ */
+export function puedeEditarCompetencia(rol: string | null | undefined): boolean {
+  return rol === 'DUENO'
+}

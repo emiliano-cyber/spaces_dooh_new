@@ -10,6 +10,12 @@ import type { Valla } from '../tipos'
 //  categoría ACTIVA de `competencia_categorias`. Chocan si están en la zona de
 //  la valla (según `alcance`) con fechas que se solapan (inclusivas).
 //
+//  Decisiones del dueño (19/11): SOLO AVISA —el nivel se escribe fijo en
+//  'aviso' aunque alguien cuele otra cosa en la configuración— y el alcance por
+//  omisión es el SITIO entero (`configuracion.ts`). Como las reservas son por
+//  sitio y ocupan todas sus vallas, con alcance `sitio` una misma campaña rival
+//  avisa UNA vez por sitio, no una por cada valla que ocupa.
+//
 //  La marca se compara normalizada (sin mayúsculas, acentos, espacios ni
 //  signos): «Coca-Cola» = «coca cola». La misma marca nunca compite consigo
 //  misma, y una marca fuera del catálogo no compite con nadie.
@@ -34,7 +40,6 @@ function zonaDe(v: Valla, ctx: ContextoVallas, cfg: ConfigCompetencia): Map<stri
   if (cfg.alcance === 'valla') return zona
   if (cfg.alcance === 'sitio') {
     for (const o of ctx.vallas) if (o.sitioId === v.sitioId && !zona.has(o.id)) zona.set(o.id, null)
-    return zona
   }
   const g = v.grupoId ? ctx.grupos.find((x) => x.id === v.grupoId && x.activo) : undefined
   if (!g) return zona
@@ -43,10 +48,15 @@ function zonaDe(v: Valla, ctx: ContextoVallas, cfg: ConfigCompetencia): Map<stri
   return zona
 }
 
+/** Las ocupaciones de la propia valla primero: el aviso nombra la suya si puede. */
+function propiasPrimero(v: Valla, ocupaciones: ContextoVallas['ocupaciones']) {
+  return [...ocupaciones].sort((a, b) => Number(b.vallaId === v.id) - Number(a.vallaId === v.id))
+}
+
 export function crearReglaCompetencia(cfg: ConfigCompetencia): Regla {
   return {
     id: 'competencia-marcas',
-    descripcion: 'Marcas de la misma categoría no comparten valla (ni grupo) en las mismas fechas',
+    descripcion: 'Marcas de la misma categoría no van en el mismo sitio en las mismas fechas',
     evaluar(ctx) {
       const c = ctx.candidata
       const propia = normalizarMarca(c.marca)
@@ -60,7 +70,7 @@ export function crearReglaCompetencia(cfg: ConfigCompetencia): Regla {
         const v = ctx.vallas.find((x) => x.id === vallaId)
         if (!v) continue
         const zona = zonaDe(v, ctx, cfg)
-        for (const o of ctx.ocupaciones) {
+        for (const o of propiasPrimero(v, ctx.ocupaciones)) {
           if (!zona.has(o.vallaId)) continue
           if (c.excluirCampanaId && o.campanaId === c.excluirCampanaId) continue
           if (!seSolapan(c, o)) continue
@@ -68,14 +78,23 @@ export function crearReglaCompetencia(cfg: ConfigCompetencia): Regla {
           if (!otra || otra === propia) continue
           const cat = categorias.find((k) => k.marcas.some((m) => normalizarMarca(m) === otra))
           if (!cat) continue
-          const clave = `${v.id}|${o.vallaId}|${o.campanaId}|${otra}`
+          // Por sitio, la clave es el sitio: la misma campaña rival ocupa todas
+          // sus vallas y daría un aviso idéntico por cada una.
+          const clave =
+            cfg.alcance === 'sitio' && zona.get(o.vallaId) == null
+              ? `sitio|${v.sitioId}|${o.campanaId}|${otra}`
+              : `${v.id}|${o.vallaId}|${o.campanaId}|${otra}`
           if (vistos.has(clave)) continue
           vistos.add(clave)
           const ocupada = ctx.vallas.find((x) => x.id === o.vallaId)
-          const donde = o.vallaId === v.id ? `la valla ${v.numero}` : `la valla ${ocupada?.numero ?? o.vallaId}, junto a la ${v.numero}`
+          const donde =
+            o.vallaId === v.id
+              ? `la valla ${v.numero}`
+              : `la valla ${ocupada?.numero ?? o.vallaId}, en el mismo sitio o grupo que la ${v.numero}`
           hallazgos.push({
             regla: 'competencia-marcas',
-            nivel: cfg.nivel,
+            // Fijo: decisión del dueño (19/11), esta regla nunca bloquea.
+            nivel: 'aviso',
             mensaje: `${c.marca} compite con ${o.marca} (${cat.nombre}), que ya está en ${donde} del ${o.inicio} al ${o.fin}`,
             datos: {
               vallaId: v.id,

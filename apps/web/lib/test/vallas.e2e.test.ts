@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 import bcrypt from 'bcryptjs'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { recrearEsquema, cerrarPool, poolTest, poolApp, comoTenant } from './db-e2e'
 import { sembrarTenant, asegurarPermisos, PASSWORD_DEMO, enDias } from './semillas-e2e'
 import { arrancarServidor, pararServidor, Cliente } from './servidor-e2e'
@@ -13,7 +15,11 @@ import { arrancarServidor, pararServidor, Cliente } from './servidor-e2e'
 //      cuelga de un sitio ajeno ni entra en un grupo ajeno (API y FK compuesta);
 //      con el rol de la app y sin tenant, cero filas.
 //   3. `POST /api/vallas/verificar`: Coca-Cola junto a una reserva de Pepsi en
-//      la misma valla, o en su grupo «una sola imagen», da un AVISO.
+//      el MISMO SITIO (cualquier valla) da un AVISO, nunca un bloqueo.
+//   4. Decisiones del dueño del 19/11: las categorías de competencia las edita
+//      SOLO el Dueño (el Administrador, con `inventario.crear`, recibe 403), y
+//      la migración `20261119_vallas_sembrar_competencia_por_omision.sql` las siembra a
+//      las organizaciones que ya existían, sin duplicar al repetirse.
 // ============================================================================
 
 let org: Awaited<ReturnType<typeof sembrarTenant>>
@@ -21,6 +27,8 @@ let otra: Awaited<ReturnType<typeof sembrarTenant>>
 let dueno: Cliente
 let duenoOtra: Cliente
 let comercial: Cliente
+let admin: Cliente
+let vendedor: Cliente
 
 beforeAll(async () => {
   await recrearEsquema()
@@ -32,7 +40,31 @@ beforeAll(async () => {
      values ('Comercial', 'comercial@vallas-org.test', 'COMERCIAL'::rol_demo, $1, true, $2)`,
     [await bcrypt.hash(PASSWORD_DEMO, 4), org.id],
   )
+  // ADMINISTRADOR y VENDEDOR con la rejilla REAL de la matriz de roles
+  // (`20260929_roles_de_venta_matriz.sql`): el Administrador SÍ tiene
+  // `inventario.crear`, y por eso es el caso que muestra que la puerta de las
+  // categorías es el ROL y no el permiso.
+  await poolTest().query(
+    `insert into rol_permisos (rol, modulo, accion) values
+       ('ADMINISTRADOR','inventario','ver'),('ADMINISTRADOR','inventario','crear'),
+       ('VENDEDOR','inventario','ver')
+     on conflict do nothing`,
+  )
+  for (const [rol, email] of [
+    ['ADMINISTRADOR', 'admin@vallas-org.test'],
+    ['VENDEDOR', 'vendedor@vallas-org.test'],
+  ]) {
+    await poolTest().query(
+      `insert into usuarios (nombre, email, rol, password_hash, activo, tenant_id)
+       values ($1::text, $2, $1::text::rol_demo, $3, true, $4)`,
+      [rol, email, await bcrypt.hash(PASSWORD_DEMO, 4), org.id],
+    )
+  }
   await arrancarServidor()
+  admin = new Cliente()
+  await admin.entrar('admin@vallas-org.test', PASSWORD_DEMO)
+  vendedor = new Cliente()
+  await vendedor.entrar('vendedor@vallas-org.test', PASSWORD_DEMO)
   dueno = new Cliente()
   await dueno.entrar(org.usuarioEmail, PASSWORD_DEMO)
   duenoOtra = new Cliente()
@@ -210,12 +242,69 @@ describe('competencia de marcas', () => {
     expect(e.datos.marcas).toEqual(['Coca-Cola', 'Pepsi', 'RC Cola'])
   })
 
-  it('verificar: aviso en la misma valla y en el grupo «una sola imagen»; nada en otra valla suelta', async () => {
+  it('SOLO el Dueño crea, edita y da de baja categorías: Administrador y Vendedor reciben 403, y todos las ven', async () => {
+    const k = await dueno.pedir('/api/vallas/competencia/', { cuerpo: { nombre: 'Refrescos de cola', marcas: ['Coca-Cola', 'Pepsi'] } })
+    expect(k.status).toBe(201)
+
+    for (const c of [admin, vendedor, comercial]) {
+      expect((await c.pedir('/api/vallas/competencia/')).status).toBe(200)
+      const r = await c.pedir('/api/vallas/competencia/', { cuerpo: { nombre: 'Cerveza', marcas: ['Corona', 'Tecate'] } })
+      expect(r.status).toBe(403)
+      expect((await c.pedir(`/api/vallas/competencia/${k.datos.id}/`, { metodo: 'PATCH', cuerpo: { marcas: ['Pepsi'] } })).status).toBe(403)
+      expect((await c.pedir(`/api/vallas/competencia/${k.datos.id}/`, { metodo: 'PATCH', cuerpo: { activo: false } })).status).toBe(403)
+    }
+    expect((await admin.pedir('/api/vallas/competencia/', { cuerpo: { nombre: 'Cerveza', marcas: [] } })).datos.error).toBe(
+      'Solo el Dueño puede editar las marcas que compiten',
+    )
+    // Nada cambió por los intentos de los demás.
+    const filas = await poolTest().query('select nombre, marcas, activo from competencia_categorias where tenant_id = $1', [org.id])
+    expect(filas.rows).toEqual([{ nombre: 'Refrescos de cola', marcas: ['Coca-Cola', 'Pepsi'], activo: true }])
+
+    // El Administrador SÍ sigue dando de alta vallas (la puerta es solo de las categorías).
+    expect((await alta(admin, { sitioId: org.sitioId, numero: 'ADM-1', ancho: 4, alto: 3 })).status).toBe(201)
+
+    // Y el Dueño da de baja (y de vuelta de alta).
+    expect((await dueno.pedir(`/api/vallas/competencia/${k.datos.id}/`, { metodo: 'PATCH', cuerpo: { activo: false } })).datos.activo).toBe(false)
+    expect((await dueno.pedir(`/api/vallas/competencia/${k.datos.id}/`, { metodo: 'PATCH', cuerpo: { activo: true } })).datos.activo).toBe(true)
+  })
+
+  it('la migración de las categorías por omisión siembra a TODAS las organizaciones existentes, y repetirla no duplica', async () => {
+    const sql = readFileSync(join(process.cwd(), '..', '..', 'db', 'migrations', '20261119_vallas_sembrar_competencia_por_omision.sql'), 'utf8')
+    // Una categoría propia con el MISMO nombre que una de las de omisión: se respeta.
+    await dueno.pedir('/api/vallas/competencia/', { cuerpo: { nombre: 'refrescos de cola', marcas: ['Jarritos', 'Boing'] } })
+    await poolTest().query(sql)
+    await poolTest().query(sql)
+    const porTenant = await poolTest().query(
+      `select t.slug, count(k.id)::int as n
+         from tenants t left join competencia_categorias k on k.tenant_id = t.id
+        group by t.slug order by t.slug`,
+    )
+    expect(porTenant.rows.length).toBeGreaterThanOrEqual(2)
+    for (const r of porTenant.rows) expect(r.n, r.slug).toBe(12)
+    const colas = await poolTest().query(
+      `select nombre, marcas from competencia_categorias where tenant_id = $1 and lower(nombre) = 'refrescos de cola'`,
+      [org.id],
+    )
+    expect(colas.rows).toEqual([{ nombre: 'refrescos de cola', marcas: ['Jarritos', 'Boing'] }])
+    const bancos = await poolTest().query(`select marcas from competencia_categorias where tenant_id = $1 and nombre = 'Bancos'`, [otra.id])
+    expect(bancos.rows[0].marcas).toEqual(['BBVA', 'Banorte', 'Santander', 'Citibanamex', 'HSBC'])
+    // Y el Dueño ve las doce por la API.
+    expect((await dueno.pedir('/api/vallas/competencia/')).datos).toHaveLength(12)
+  })
+
+  it('verificar: aviso en cualquier valla del MISMO sitio y en su grupo; nada en otro sitio', async () => {
     await dueno.pedir('/api/vallas/competencia/', { cuerpo: { nombre: 'Refrescos de cola', marcas: ['Coca-Cola', 'Pepsi'] } })
     const s2 = await sitioValla(org, 'Valla Periférico')
     const a = (await alta(dueno, { sitioId: org.sitioId, numero: 'A-1', ancho: 6, alto: 3 })).datos
     const b = (await alta(dueno, { sitioId: s2, numero: 'B-1', ancho: 6, alto: 3 })).datos
     await reservaDeMarca(org, org.sitioId, 'Pepsi', 10, 40)
+
+    // Otra valla del MISMO sitio (alcance por omisión: el sitio entero).
+    const vecina = (await alta(dueno, { sitioId: org.sitioId, numero: 'A-2', ancho: 6, alto: 3 })).datos
+    const enVecina = await dueno.pedir('/api/vallas/verificar/', { cuerpo: { marca: 'Coca-Cola', fechaInicio: enDias(30), fechaFin: enDias(60), vallaIds: [vecina.id] } })
+    expect(enVecina.datos.bloquea).toBe(false)
+    expect(enVecina.datos.hallazgos).toHaveLength(1)
+    expect(enVecina.datos.hallazgos[0]).toMatchObject({ nivel: 'aviso', datos: { vallaId: vecina.id, marcaExistente: 'Pepsi' } })
 
     const misma = await dueno.pedir('/api/vallas/verificar/', { cuerpo: { marca: 'coca cola', fechaInicio: enDias(30), fechaFin: enDias(60), vallaIds: [a.id] } })
     expect(misma.status).toBe(200)

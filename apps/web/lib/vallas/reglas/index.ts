@@ -14,6 +14,8 @@ import { crearReglaCompetencia } from './competencia-marcas'
 //  (`lib/server/campanas-repo.ts`). Cuando la reserva sepa en qué vallas cae,
 //  allí se arma el contexto con `contextoParaVerificar` y, si `bloquea`, se
 //  responde 409 con los hallazgos; si solo hay avisos, se guardan y se pintan.
+//  La competencia de marcas NUNCA bloquea (decisión del dueño, 19/11): solo
+//  una regla futura que devuelva `bloqueo` podría frenar una reserva.
 // ============================================================================
 
 export const REGLAS: Regla[] = [crearReglaCompetencia(CONFIG_POR_OMISION.competencia)]
