@@ -231,7 +231,10 @@ describe('el esquema base no trae la organización de nadie', () => {
     //   · 73 el 2026-11-18: `20261118_imprentas_y_requisitos.sql` anade
     //     `imprentas`, cada proveedor de impresion con sus requisitos de arte
     //     (IMP-REQ). Subido a la vez que la migracion.
-    expect(trasMigrar.tablas).toBe(73)
+    //   · 76 el 2026-11-19: `20261119_vallas_esqueleto.sql` anade TRES
+    //     --`vallas`, `vallas_grupos` y `competencia_categorias`--, el
+    //     esqueleto del modulo Vallas. Subido a la vez que la migracion.
+    expect(trasMigrar.tablas).toBe(76)
     // Lo que de verdad importa: ni las migraciones resucitan al owner.
     expect(trasMigrar.tenants).toBe(0)
   })

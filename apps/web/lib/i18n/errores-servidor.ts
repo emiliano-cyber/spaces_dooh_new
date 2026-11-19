@@ -721,6 +721,31 @@ export const CATALOGO_ERRORES: Record<string, string> = {
     'The password must include at least one number',
   'La contraseña no puede contener espacios':
     'The password cannot contain spaces',
+  // VALLAS (19/11) · vallas-controller.ts / vallas-repo.ts
+  'Valla no encontrada':
+    'Billboard not found',
+  'Ya existe una valla con ese número':
+    'A billboard with that number already exists',
+  'Grupo de vallas no encontrado':
+    'Billboard group not found',
+  'Ya existe un grupo de vallas con ese número':
+    'A billboard group with that number already exists',
+  'Ese sitio no es de tu organización':
+    'That site is not in your organization',
+  'Alguna de esas vallas no es de tu organización':
+    'One of those billboards is not in your organization',
+  'Categoría de competencia no encontrada':
+    'Competitor category not found',
+  'Ya existe una categoría de competencia con ese nombre':
+    'A competitor category with that name already exists',
+  'La medida debe ser mayor que cero':
+    'The size must be greater than zero',
+  'El número es requerido':
+    'The number is required',
+  'El número no puede pasar de 40 caracteres':
+    'The number cannot be longer than 40 characters',
+  'La marca es requerida':
+    'The brand is required',
 }
 
 
@@ -1367,6 +1392,31 @@ export const CATALOGO_ERRORES_IT: Partial<Record<string, string>> = {
     'La password deve contenere almeno un numero',
   'La contraseña no puede contener espacios':
     'La password non può contenere spazi',
+  // VALLAS (19/11) · vallas-controller.ts / vallas-repo.ts
+  'Valla no encontrada':
+    'Cartellone non trovato',
+  'Ya existe una valla con ese número':
+    'Esiste già un cartellone con questo numero',
+  'Grupo de vallas no encontrado':
+    'Gruppo di cartelloni non trovato',
+  'Ya existe un grupo de vallas con ese número':
+    'Esiste già un gruppo di cartelloni con questo numero',
+  'Ese sitio no es de tu organización':
+    'Questo impianto non è della tua organizzazione',
+  'Alguna de esas vallas no es de tu organización':
+    'Uno di quei cartelloni non è della tua organizzazione',
+  'Categoría de competencia no encontrada':
+    'Categoria di concorrenza non trovata',
+  'Ya existe una categoría de competencia con ese nombre':
+    'Esiste già una categoria di concorrenza con questo nome',
+  'La medida debe ser mayor que cero':
+    'La misura deve essere maggiore di zero',
+  'El número es requerido':
+    'Il numero è obbligatorio',
+  'El número no puede pasar de 40 caracteres':
+    'Il numero non può superare i 40 caratteri',
+  'La marca es requerida':
+    'Il marchio è obbligatorio',
 }
 
 /** El de `lib/` sale del diccionario, como `CATALOGO_LIB`: se escribe una vez, en `textos/servidor.ts`. */
@@ -1781,6 +1831,31 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
   'La contraseña debe incluir al menos una letra': 'A senha deve incluir pelo menos uma letra',
   'La contraseña debe incluir al menos un número': 'A senha deve incluir pelo menos um número',
   'La contraseña no puede contener espacios': 'A senha não pode conter espaços',
+  // VALLAS (19/11) · vallas-controller.ts / vallas-repo.ts
+  'Valla no encontrada':
+    'Painel não encontrado',
+  'Ya existe una valla con ese número':
+    'Já existe um painel com esse número',
+  'Grupo de vallas no encontrado':
+    'Grupo de painéis não encontrado',
+  'Ya existe un grupo de vallas con ese número':
+    'Já existe um grupo de painéis com esse número',
+  'Ese sitio no es de tu organización':
+    'Esse ponto não é da sua organização',
+  'Alguna de esas vallas no es de tu organización':
+    'Algum desses painéis não é da sua organização',
+  'Categoría de competencia no encontrada':
+    'Categoria de concorrência não encontrada',
+  'Ya existe una categoría de competencia con ese nombre':
+    'Já existe uma categoria de concorrência com esse nome',
+  'La medida debe ser mayor que cero':
+    'A medida deve ser maior que zero',
+  'El número es requerido':
+    'O número é obrigatório',
+  'El número no puede pasar de 40 caracteres':
+    'O número não pode passar de 40 caracteres',
+  'La marca es requerida':
+    'A marca é obrigatória',
 }
 
 /** El de `lib/` sale del diccionario, como `CATALOGO_LIB_IT`: se escribe una vez, en `textos/servidor.ts`. */
