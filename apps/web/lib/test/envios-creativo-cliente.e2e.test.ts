@@ -26,6 +26,22 @@ import { arrancarServidor, pararServidor, Cliente, BASE } from './servidor-e2e'
 const PNG =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
 
+// Un PNG con la cabecera de la medida que se pida: la validación de contenido
+// mira la firma, y la de proporción lee el ancho y el alto de IHDR. Así se
+// prueba la regla sin cargar imágenes de megas.
+function pngDe(w: number, h: number): string {
+  const b = Buffer.alloc(33)
+  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(b, 0)
+  b.writeUInt32BE(13, 8)
+  b.write('IHDR', 12, 'ascii')
+  b.writeUInt32BE(w, 16)
+  b.writeUInt32BE(h, 20)
+  b[24] = 8
+  b[25] = 6
+  return `data:image/png;base64,${b.toString('base64')}`
+}
+const VERTICAL = pngDe(1080, 1920)
+
 let alfa: Awaited<ReturnType<typeof sembrarTenant>>
 let beta: Awaited<ReturnType<typeof sembrarTenant>>
 let dueno: Cliente
@@ -172,7 +188,8 @@ describe('1 · la puerta pública', () => {
     const antes = await creatividades()
     const r = await enviar(
       prop.token,
-      { archivo: PNG, nombre: '../../etc/arte "final".png', sitioId: sitioB, ancho: 1080, alto: 1920 },
+      // El navegador dice 10×10; manda la cabecera del archivo (1080×1920).
+      { archivo: VERTICAL, nombre: '../../etc/arte "final".png', sitioId: sitioB, ancho: 10, alto: 10 },
       '201.141.22.87',
     )
     expect(r.status, r.texto).toBe(201)
@@ -194,7 +211,7 @@ describe('1 · la puerta pública', () => {
       alto_px: 1920,
       ip_truncada: '201.141.22.0',
     })
-    expect(fila[0].contenido).toBe(PNG)
+    expect(fila[0].contenido).toBe(VERTICAL)
     // El equipo se entera: aviso en la campana y renglón de bitácora.
     expect(await contar(`select count(*)::int as n from notificaciones where tenant_id=$1 and link=$2`, [alfa.id, `/campanas/${camp}`])).toBe(1)
     expect(await contar(`select count(*)::int as n from acciones where tenant_id=$1 and usuario_nombre='Cliente (liga pública)'`, [alfa.id])).toBe(1)
@@ -233,6 +250,55 @@ describe('1 · la puerta pública', () => {
   })
 })
 
+// 18/11 · decisión del dueño: «sí, rechazar» el envío cuya proporción no
+// coincide con la del sitio elegido. Tolerancia: la de la valoración del arte
+// (3 %). La medida se lee del ARCHIVO, no de lo que diga el navegador.
+describe('1b · la proporción del sitio', () => {
+  let p43: { id: string; token: string }
+  let sitio43: string
+  beforeAll(async () => {
+    const pr = await poolTest().query('select predio_id from sitios where id=$1', [alfa.sitioId])
+    sitio43 = (
+      await poolTest().query(
+        `insert into sitios (nombre, clave_interna, codigo_proveedor, tipo_medio, estatus_comercial,
+                             alcaldia, ciudad, total_spots, tarifa_publicada, tarifa_mensual,
+                             predio_id, tenant_id, exhibicion, resolucion_px)
+         values ('Pantalla 4:3','ENVALFA-043','ENVALFA-PROV-043','PANTALLA_DIGITAL','DISPONIBLE','Cuauhtémoc','CDMX',
+                 12,45000,45000,$1,$2,'digital','1024x768') returning id`,
+        [pr.rows[0].predio_id, alfa.id],
+      )
+    ).rows[0].id
+    p43 = await propuesta(dueno, alfa, 'Proporción')
+    await campanaDe(alfa, p43.id, { sitios: [sitio43, alfa.sitioId] })
+  })
+  const enviosDe = () =>
+    contar(
+      `select count(*)::int as n from envios_creativo_cliente e join campanas c on c.id = e.campana_id where c.propuesta_id = $1`,
+      [p43.id],
+    )
+
+  it('16:9 en un sitio 4:3: 422 y nada guardado, aunque el navegador diga otra medida', async () => {
+    const r = await enviar(p43.token, { archivo: pngDe(1920, 1080), nombre: 'ancha.png', sitioId: sitio43 })
+    expect(r.status, r.texto).toBe(422)
+    expect(r.datos.error).toContain('proporción')
+    const mentira = await enviar(p43.token, { archivo: pngDe(1920, 1080), nombre: 'ancha.png', sitioId: sitio43, ancho: 1024, alto: 768 })
+    expect(mentira.status).toBe(422)
+    expect(await enviosDe()).toBe(0)
+  })
+
+  it('dentro de la tolerancia: 201 (4:3 exacto y 1450×1080, a 0,7 %)', async () => {
+    expect((await enviar(p43.token, { archivo: pngDe(1440, 1080), nombre: 'exacta.png', sitioId: sitio43 })).status).toBe(201)
+    expect((await enviar(p43.token, { archivo: pngDe(1450, 1080), nombre: 'casi.png', sitioId: sitio43 })).status).toBe(201)
+    expect(await enviosDe()).toBe(2)
+  })
+
+  it('un sitio SIN medida no rechaza por proporción', async () => {
+    const r = await enviar(p43.token, { archivo: pngDe(1920, 1080), nombre: 'libre.png', sitioId: alfa.sitioId })
+    expect(r.status, r.texto).toBe(201)
+    expect(await enviosDe()).toBe(3)
+  })
+})
+
 describe('2 · R2: nadie de fuera lo ve ni lo toca', () => {
   let envioId: string
   beforeAll(async () => {
@@ -246,7 +312,7 @@ describe('2 · R2: nadie de fuera lo ve ni lo toca', () => {
       try {
         await cli.query('begin')
         if (tenant) await cli.query(`select set_config('app.tenant_id', $1, true)`, [tenant])
-        const n = Number((await cli.query('select count(*)::int as n from envios_creativo_cliente')).rows[0].n)
+        const n = Number((await cli.query('select count(*)::int as n from envios_creativo_cliente where campana_id = $1', [camp])).rows[0].n)
         await cli.query('rollback')
         return n
       } finally {
@@ -304,7 +370,7 @@ describe('3 · el Dueño revisa en la ficha', () => {
     const cr = (await poolTest().query('select * from creatividades where campana_id=$1', [camp])).rows
     expect(cr).toHaveLength(1)
     expect(cr[0]).toMatchObject({ tenant_id: alfa.id, estatus_validacion: 'VALIDADA', nombre: 'arte final .png', formato: 'text/html', resolucion: '1080x1920' })
-    expect(cr[0].codigo).toContain(PNG)
+    expect(cr[0].codigo).toContain(VERTICAL)
     expect(await contar('select count(*)::int as n from envios_creativo_cliente where id=$1', [id])).toBe(0)
     // La autoasignación de siempre: las dos pantallas digitales lo reciben.
     const res = (await poolTest().query('select creativos from reservas where campana_id=$1', [camp])).rows

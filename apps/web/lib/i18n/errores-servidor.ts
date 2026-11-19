@@ -510,6 +510,10 @@ export const CATALOGO_ERRORES: Record<string, string> = {
     'We have already received several files today for this campaign. Try again tomorrow or write to your account manager.',
   'Solo el Dueño o un Administrador pueden revisar los creativos que envía el cliente':
     'Only the Owner or an Administrator can review the creatives sent by the client',
+  'No pudimos leer la medida de la imagen':
+    'We could not read the size of the image',
+  'La proporción de la imagen no coincide con la del sitio elegido':
+    'The image’s aspect ratio does not match the chosen site',
   'Envío no encontrado':
     'Submission not found',
   'No se pudo aprobar el creativo':
@@ -1168,6 +1172,10 @@ export const CATALOGO_ERRORES_IT: Partial<Record<string, string>> = {
     'Oggi abbiamo già ricevuto diversi file per questa campagna. Riprova domani o scrivi al tuo consulente.',
   'Solo el Dueño o un Administrador pueden revisar los creativos que envía el cliente':
     'Solo il Titolare o un Amministratore possono rivedere le creatività inviate dal cliente',
+  'No pudimos leer la medida de la imagen':
+    'Non siamo riusciti a leggere la misura dell’immagine',
+  'La proporción de la imagen no coincide con la del sitio elegido':
+    'La proporzione dell’immagine non coincide con quella del sito scelto',
   'Envío no encontrado':
     'Invio non trovato',
   'No se pudo aprobar el creativo':
@@ -1627,6 +1635,10 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
     'Já recebemos vários arquivos hoje para esta campanha. Tente amanhã ou escreva ao seu consultor.',
   'Solo el Dueño o un Administrador pueden revisar los creativos que envía el cliente':
     'Somente o Titular ou um Administrador podem revisar os criativos enviados pelo cliente',
+  'No pudimos leer la medida de la imagen':
+    'Não conseguimos ler a medida da imagem',
+  'La proporción de la imagen no coincide con la del sitio elegido':
+    'A proporção da imagem não coincide com a do ponto escolhido',
   'Envío no encontrado':
     'Envio não encontrado',
   'No se pudo aprobar el creativo':

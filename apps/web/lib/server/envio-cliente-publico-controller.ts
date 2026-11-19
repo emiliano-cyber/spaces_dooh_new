@@ -9,7 +9,10 @@ import { hoyEnMexico } from '@/lib/doohmain-estado'
 import { imagenAHtml } from '@/lib/creativo-html'
 import {
   LIMITE_ENVIOS_POR_DIA,
+  dimensionesDeImagen,
   leerImagenEnvio,
+  proporcionDePantalla,
+  revisarProporcionEnvio,
   sanearNombreArchivo,
   truncarIp,
 } from '@/lib/envio-creativo-cliente'
@@ -26,7 +29,11 @@ import {
 //   4. La pantalla elegida tiene que ser de ESA campaña (400).
 //   5. La validación del creativo NORMAL (`crearSchema`: bytes reales contra el
 //      tipo declarado, tope de la imagen envuelta) → 422, como en la ficha.
-//   6. Tope diario por campaña (429).
+//   6. La PROPORCIÓN (decisión del dueño, 18/11: «sí, rechazar»): la medida
+//      se lee de la cabecera del archivo, no de lo que diga el navegador, y
+//      fuera de la tolerancia de la valoración del arte → 422. Un sitio sin
+//      medida no se rechaza por proporción: no hay contra qué comparar.
+//   7. Tope diario por campaña (429).
 //  Y solo entonces se guarda, en `envios_creativo_cliente` y en ningún otro
 //  sitio. La respuesta es mínima: ni id, ni campaña, ni tenant.
 // ============================================================================
@@ -80,7 +87,12 @@ export async function enviarCreativoClienteCtrl(
   if (!sitioId && pantallas.length > 1) throw new AppError('Elige a qué pantalla va tu creativo', 400)
 
   const nombre = sanearNombreArchivo(d.nombre)
-  const resolucion = d.ancho && d.alto ? `${d.ancho}x${d.alto}` : null
+  // La medida REAL, de la cabecera. Lo que mande el navegador solo cuenta si
+  // la cabecera no se puede leer y el sitio no exige proporción.
+  const real = dimensionesDeImagen(Buffer.from(d.archivo.trim().split(',')[1] ?? '', 'base64'))
+  const ancho = real?.ancho ?? d.ancho ?? null
+  const alto = real?.alto ?? d.alto ?? null
+  const resolucion = ancho && alto ? `${ancho}x${alto}` : null
   // La MISMA validación que el alta de un creativo desde la ficha, con el
   // creativo tal como se va a crear al aprobar (la imagen envuelta en HTML).
   validarAltaCreatividad({
@@ -90,6 +102,14 @@ export async function enviarCreativoClienteCtrl(
     formato: 'text/html',
     resolucion,
   })
+
+  const pantalla = pantallas.find((p) => p.id === sitioId) ?? null
+  if (pantalla && proporcionDePantalla(pantalla) != null) {
+    if (!real) throw new AppError('No pudimos leer la medida de la imagen', 422)
+    if (revisarProporcionEnvio(pantalla, real.ancho, real.alto)) {
+      throw new AppError('La proporción de la imagen no coincide con la del sitio elegido', 422)
+    }
+  }
 
   if ((await contarEnviosDeHoy(leido.tenantId, leido.campana.id)) >= LIMITE_ENVIOS_POR_DIA) {
     throw new AppError('Ya recibimos varios archivos hoy para esta campaña. Inténtalo mañana o escribe a tu asesor.', 429)
@@ -105,14 +125,16 @@ export async function enviarCreativoClienteCtrl(
       nombreArchivo: nombre,
       tipoMime: img.tipo,
       tamanoBytes: img.bytes,
-      anchoPx: d.ancho ?? null,
-      altoPx: d.alto ?? null,
+      anchoPx: ancho,
+      altoPx: alto,
       contenido: d.archivo.trim(),
       ipTruncada: truncarIp(ip),
     },
     {
+      // Las frases son plantillas de `notificaciones.campana.envio-cliente*`:
+      // la campana las pinta en el idioma de quien la lee.
       titulo: 'El cliente envió un creativo para revisión',
-      detalle: `${camp.folio ? `${camp.folio} · ` : ''}${camp.nombre} — ${nombre}${sitioNombre ? ` (${sitioNombre})` : ''}`,
+      detalle: `${camp.folio ? `${camp.folio} · ` : ''}${camp.nombre} — archivo «${nombre}»${sitioNombre ? ` para ${sitioNombre}` : ''}`,
       link: `/campanas/${camp.id}`,
     },
   )

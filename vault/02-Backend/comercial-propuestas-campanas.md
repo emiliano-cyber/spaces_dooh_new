@@ -992,10 +992,25 @@ dueño eligió **«Tabla temporal en la BD»**: `envios_creativo_cliente`
   Límite 10 cada 10 min por IP y 10 al día por campaña (429). Responde
   `{ ok, nombre, estatus }`, nada interno. El nombre del archivo se sanea
   (`sanearNombreArchivo`) y nunca es ruta: el archivo vive en la base.
-- **Proporción**: el creativo normal no la valida, así que el envío tampoco la
-  rechaza; la liga le dice al cliente la proporción y la medida de la pantalla
-  elegida (`orientacionDePantalla`) y si su imagen se recortará
-  (`ajusteEnMarco`, lo mismo que Imprenta).
+- **Proporción — SE RECHAZA** (decisión del dueño, 18/11, a la duda 1): si la
+  proporción de la imagen no coincide con la del sitio elegido, fuera de la
+  tolerancia de la valoración del arte (`TOLERANCIA_AJUSTE`, 3 %; el
+  `ajusteEnMarco` de Imprenta), no se acepta. `revisarProporcionEnvio` en
+  `lib/envio-creativo-cliente.ts`, con prueba.
+  - **En la liga**, antes de mandar: aviso con la medida que pide, p. ej.
+    «Tu imagen es 1920×1080 px (16:9); este sitio pide 1024 × 768 px (4:3).
+    Mándala en 1920×1440 px o similar», y el botón deshabilitado.
+  - **En el servidor**, otra vez: la medida se lee de la CABECERA del archivo
+    (`dimensionesDeImagen`: PNG, JPEG y los tres WebP, sin dependencias), no de
+    lo que diga el navegador → 422 «La proporción de la imagen no coincide con
+    la del sitio elegido» (o «No pudimos leer la medida…»). La liga lo traduce
+    con `traducirError`. La medida guardada (`ancho_px`/`alto_px`) también
+    sale de la cabecera.
+  - **Un sitio sin medida** (sin resolución ni metros) no rechaza por
+    proporción: no hay contra qué comparar.
+  - La tolerancia es la constante `TOLERANCIA_AJUSTE`, la misma de Imprenta:
+    los requisitos por imprenta (IMP-REQ) configuran DPI, margen y formatos,
+    no la proporción, que es la del sitio.
 - **En la ficha de campaña** (`EnviosClienteCampana.tsx`, debajo de
   Creativos): solo **Dueño y Administrador** (`puedeAprobarEnCampana`, la regla
   de ACT-CAMP sin cambiarla), con vista previa y **Aprobar / Rechazar**. Rutas

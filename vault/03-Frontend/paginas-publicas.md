@@ -125,7 +125,9 @@ alguna empezara a leer la cookie, la exención se vuelve un agujero.
 > `SubirCreativoCliente.tsx`, dentro del seguimiento: con
 > `puedeSubirCreativo` el cliente elige la imagen (JPG/PNG/WebP, 4 MB), y si la
 > campaña tiene varias pantallas, a cuál va; se le dice la proporción y la
-> medida y si su imagen se recortará. Manda a
+> medida; si su imagen no tiene la proporción del sitio (±3 %), se le dice
+> qué medida en píxeles mandar y el botón se deshabilita (el servidor lo
+> vuelve a comprobar leyendo el archivo). Manda a
 > `POST /api/propuestas/publica/[id]/creativos` (la página le pasa `urlEnvio`).
 > Abajo, «Lo que nos enviaste»: «En revisión» o «No aprobado · Por qué: …».
 > **No hay ninguna acción de aprobar en la liga**: lo aprueba un Dueño o
