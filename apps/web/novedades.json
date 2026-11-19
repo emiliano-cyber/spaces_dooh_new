@@ -1,5 +1,59 @@
 [
   {
+    "version": "v0.12.15",
+    "fecha": "2026-11-19",
+    "items": [
+      {
+        "tipo": "AJUSTADO",
+        "texto": "El CRM vuelve a llamarse Propuestas y se ordena en cuatro pestañas: Resumen (la primera en abrirse), Propuestas, Seguimiento y Prospectos. El embudo pasa a llamarse Seguimiento, va por columnas y desaparece la pestaña Oportunidades. Quien tenga guardada la dirección anterior llega al mismo sitio.",
+        "en": "The CRM is called Proposals again and is organised in four tabs: Summary (the first one to open), Proposals, Follow-up and Prospects. The pipeline is now called Follow-up, is laid out in columns, and the Opportunities tab is gone. Anyone with the old address saved still lands in the same place.",
+        "it": "Il CRM torna a chiamarsi Proposte ed è organizzato in quattro schede: Riepilogo (la prima ad aprirsi), Proposte, Monitoraggio e Prospect. La pipeline ora si chiama Monitoraggio, è a colonne e la scheda Opportunità non c’è più. Chi ha salvato il vecchio indirizzo arriva comunque nello stesso posto."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Prospectos: cuando un prospecto pasa a Contactado o a una etapa posterior, el vendedor elige si lo sigue trabajando como prospecto o lo convierte en oportunidad, y al convertirlo se abre el formulario para capturar presupuesto y fechas. Un prospecto solo puede tener una oportunidad abierta a la vez; cuando todas se cierran, vuelve a aparecer en Seguimiento. Los prospectos que todavía no tienen oportunidad también se ven ahí.",
+        "en": "Prospects: when a prospect moves to Contacted or a later stage, the salesperson chooses whether to keep working it as a prospect or convert it into an opportunity, and converting it opens the form to enter budget and dates. A prospect can only have one open opportunity at a time; once they are all closed, it shows up in Follow-up again. Prospects that do not have an opportunity yet are shown there too.",
+        "it": "Prospect: quando un prospect passa a Contattato o a una fase successiva, il venditore sceglie se continuare a seguirlo come prospect o convertirlo in opportunità, e convertendolo si apre il modulo per inserire budget e date. Un prospect può avere una sola opportunità aperta alla volta; quando sono tutte chiuse, torna in Monitoraggio. Lì si vedono anche i prospect che non hanno ancora un’opportunità."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "En Seguimiento las tarjetas se arrastran de una columna a otra. Al soltarla se abre un cuadro con el cambio para confirmarlo y dejar una nota; si se cancela, la tarjeta se queda donde estaba.",
+        "en": "In Follow-up, cards can be dragged from one column to another. Dropping one opens a box with the change so you can confirm it and leave a note; if you cancel, the card stays where it was.",
+        "it": "In Monitoraggio le schede si trascinano da una colonna all’altra. Rilasciandola si apre un riquadro con la modifica per confermarla e lasciare una nota; se si annulla, la scheda resta dov’era."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "La liga del cliente mejora: el avance de la campaña se ve en horizontal, el botón dice «Ver negociación acordada», cada sitio tiene «Ver fotos y ubicación» con su mapa, y el cliente puede mandar su anuncio desde ahí. Si la imagen no tiene la proporción de la pantalla, se le avisa y no se manda. El Dueño o un Administrador lo aprueban o lo rechazan desde la ficha de la campaña, y al aprobarlo el anuncio va solo a la pantalla que eligió el cliente.",
+        "en": "The client’s link is better: the campaign’s progress is shown horizontally, the button says “See agreed negotiation”, each site has “See photos and location” with its map, and the client can send their ad from there. If the image does not match the screen’s proportions, they are told and it is not sent. The Owner or an Administrator approves or rejects it from the campaign page, and once approved the ad goes only to the screen the client chose.",
+        "it": "Il link del cliente migliora: l’avanzamento della campagna si vede in orizzontale, il pulsante dice «Vedi trattativa concordata», ogni sito ha «Vedi foto e posizione» con la sua mappa, e il cliente può inviare il suo annuncio da lì. Se l’immagine non ha le proporzioni dello schermo, viene avvisato e non si invia. Il Titolare o un Amministratore lo approvano o lo rifiutano dalla scheda della campagna, e una volta approvato l’annuncio va solo allo schermo scelto dal cliente."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "En la ficha de una campaña publicada aparece «Actualizar campaña»: en un solo paso se conservan o quitan anuncios, se suben nuevos y se mandan a DOOHmain. En esa ficha solo el Dueño o un Administrador pueden aprobar.",
+        "en": "A published campaign’s page now has “Update campaign”: in a single step you keep or remove ads, upload new ones and send them to DOOHmain. On that page only the Owner or an Administrator can approve.",
+        "it": "Nella scheda di una campagna pubblicata compare «Aggiorna campagna»: in un solo passaggio si mantengono o si tolgono annunci, se ne caricano di nuovi e si inviano a DOOHmain. In quella scheda solo il Titolare o un Amministratore possono approvare."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Imprenta: antes de subir el arte de una lona se ve si sirve para imprimir (verde, ámbar o rojo, a la escala real de la lona), también desde la ficha de la campaña; el tope es de 15 MB y un arte en rojo solo avisa. Cada imprenta puede tener sus propios requisitos (resolución, margen y formatos) y, si no los tiene, se usan los de la empresa.",
+        "en": "Print shop: before uploading a billboard’s artwork you can see whether it is good enough to print (green, amber or red, at the billboard’s real scale), also from the campaign page; the limit is 15 MB and red artwork only warns. Each print shop can have its own requirements (resolution, margin and formats) and, if it has none, the company’s are used.",
+        "it": "Tipografia: prima di caricare la grafica di un telone si vede se va bene per la stampa (verde, ambra o rosso, alla scala reale del telone), anche dalla scheda della campagna; il limite è 15 MB e una grafica in rosso dà solo un avviso. Ogni tipografia può avere i propri requisiti (risoluzione, margine e formati) e, se non li ha, si usano quelli dell’azienda."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Inventario se filtra con pestañas Todos, Fijos y Digitales, y por zona: primero la ciudad y luego la alcaldía, con la opción «Sin alcaldía» para los sitios que no la tienen.",
+        "en": "Inventory can be filtered with All, Static and Digital tabs, and by area: first the city and then the district, with a “No district” option for sites that have none.",
+        "it": "L’Inventario si filtra con le schede Tutti, Fissi e Digitali, e per zona: prima la città e poi il quartiere, con l’opzione «Senza quartiere» per i siti che non ce l’hanno."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Si la empresa no tiene logo cargado, la liga, el portal, la hoja de firma y los correos ya no muestran una imagen rota. La liga dice «Pantalla digital» en vez del nombre interno y no muestra el tipo técnico de los anuncios. Con la interfaz en inglés, italiano o portugués, la Actividad, las cifras y las medidas salen en el idioma de quien la usa.",
+        "en": "If the company has no logo uploaded, the link, the portal, the signature sheet and the emails no longer show a broken image. The link says “Digital screen” instead of the internal name and no longer shows the ads’ technical type. With the interface in English, Italian or Portuguese, Activity, figures and measurements appear in the user’s language.",
+        "it": "Se l’azienda non ha caricato un logo, il link, il portale, il foglio di firma e le email non mostrano più un’immagine rotta. Il link dice «Schermo digitale» invece del nome interno e non mostra più il tipo tecnico degli annunci. Con l’interfaccia in inglese, italiano o portoghese, l’Attività, le cifre e le misure compaiono nella lingua di chi la usa."
+      }
+    ]
+  },
+  {
     "version": "v0.12.14",
     "fecha": "2026-11-18",
     "items": [
