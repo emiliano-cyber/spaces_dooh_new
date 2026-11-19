@@ -1,6 +1,7 @@
 import 'server-only'
 import { qRaw1, qConTenant } from './db'
 import type { DatosSeguimiento, EstatusCreativo, EstatusImprenta, TipoCampanaSeg } from '@/lib/seguimiento-campana'
+import { formatoParaCliente } from '@/lib/seguimiento-campana'
 
 // ============================================================================
 //  lib/server/seguimiento-publico-repo.ts — MODEL del seguimiento de campaña
@@ -157,7 +158,8 @@ export async function leerSeguimientoPorToken(token: string): Promise<Seguimient
       },
       creativos: creas.map((r) => ({
         nombre: r.nombre,
-        formato: r.formato ?? null,
+        // Sin el tipo MIME interno (`text/html` de la imagen envuelta): A2, 19/11.
+        formato: formatoParaCliente(r.formato),
         resolucion: r.resolucion ?? null,
         estatus: r.estatus_validacion as EstatusCreativo,
         creadoEn: iso(r.creado_en),

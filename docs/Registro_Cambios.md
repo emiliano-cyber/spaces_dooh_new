@@ -5,6 +5,13 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-19 · La liga ya no enseña «text/html» bajo el anuncio
+
+- En el seguimiento de la campaña que ve el cliente, bajo cada anuncio salía algo como «text/html · 1920x1080». Ese «text/html» es cómo se guarda la imagen por dentro y no le dice nada al cliente.
+- Ahora sale solo la medida (por ejemplo «1920x1080»). Si el archivo es de otro tipo, se dice con su nombre corto (PNG, JPG, MP4, PDF).
+
+---
+
 ## 2026-11-19 · Imprenta: el formato que la imprenta no recibe lo dice claro
 
 - Cuando la imprenta tiene su lista de formatos y el archivo es de otro, la valoración del arte sale en rojo y ahora lo dice con sus palabras: por ejemplo, «Formato PNG: esta imprenta no lo recibe (acepta PDF, TIFF)».

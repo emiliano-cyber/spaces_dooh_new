@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { armarSeguimiento, avanceImprenta, type DatosSeguimiento } from './seguimiento-campana'
+import { armarSeguimiento, avanceImprenta, formatoParaCliente, type DatosSeguimiento } from './seguimiento-campana'
 
 // SEG-CLIENTE (17/11) · la línea de seguimiento que ve el cliente en su liga.
 
@@ -230,5 +230,27 @@ describe('puedeSubirCreativo', () => {
     const s = armarSeguimiento(base({}, { pantallas: pant, envios: env }), '2026-11-10')
     expect(s.pantallas).toEqual(pant)
     expect(s.envios).toEqual(env)
+  })
+})
+
+// Hallazgo A2 (19/11): bajo el anuncio que mandó el cliente salía
+// «text/html · 1920x1080». La imagen se guarda envuelta en HTML (`imagenAHtml`)
+// para el reproductor, y ese tipo interno no le dice nada al cliente.
+describe('formatoParaCliente', () => {
+  it('el HTML interno (imagen envuelta) no se enseña: queda solo la medida', () => {
+    expect(formatoParaCliente('text/html')).toBeNull()
+    expect(formatoParaCliente('TEXT/HTML; charset=utf-8')).toBeNull()
+  })
+  it('un tipo MIME de imagen, vídeo o PDF se dice con su nombre corto', () => {
+    expect(formatoParaCliente('image/png')).toBe('PNG')
+    expect(formatoParaCliente('image/jpeg')).toBe('JPG')
+    expect(formatoParaCliente('video/mp4')).toBe('MP4')
+    expect(formatoParaCliente('application/pdf')).toBe('PDF')
+  })
+  it('lo que ya es un nombre legible se deja tal cual, y lo vacío es null', () => {
+    expect(formatoParaCliente('PDF/X-1a')).toBe('PDF/X-1a')
+    expect(formatoParaCliente('VIDEO')).toBe('VIDEO')
+    expect(formatoParaCliente(null)).toBeNull()
+    expect(formatoParaCliente('  ')).toBeNull()
   })
 })

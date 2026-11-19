@@ -96,6 +96,11 @@ alguna empezara a leer la cookie, la exención se vuelve un agujero.
 >
 > - Los textos van por `cuenta.seguimiento.*` (es/en/it/pt); la regla de los pasos
 >   es pura en `lib/seguimiento-campana.ts`.
+>   - **Desde el 19/11 (hallazgo A2)** el formato de cada anuncio pasa por
+>     `formatoParaCliente()` en el repo: el tipo MIME interno no llega al cliente.
+>     Una imagen subida se guarda envuelta en HTML (`imagenAHtml`) y salía
+>     «text/html · 1920x1080»; ahora `text/*` es `null` (queda solo la medida) y
+>     los demás MIME se acortan (`image/png` → PNG, `video/mp4` → MP4).
 > - **El nombre de la imprenta llega `null` por omisión** (solo lo enciende el
 >   vendedor): sin nombre no se pinta ni «Imprime» ni hueco.
 >   El interruptor está en la ficha interna de la propuesta, solo si ya tiene
