@@ -6,6 +6,12 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!important] 2026-11-19 · **Vallas: esqueleto del módulo** — `feat/vallas-esqueleto`, desde `integra/18-11` `18cbad3e` · **ROJO R3** (migración aprobada solo para LOCAL)
+> `20261119_vallas_esqueleto.sql` (3 tablas), `/api/vallas/**` (7 rutas), `/vallas` en Inventario y las reglas enchufables en
+> `lib/vallas/reglas/` con la competencia de marcas como aviso. Typecheck, unitarias, build y e2e propias en verde.
+> **Zonas tomadas y liberadas:** Inventario (archivos nuevos), **`nav.ts`** y **`lib/modulos.ts`** (alto contacto), `lib/i18n/**`,
+> `db/migrations/` (20261119_*), `esquema-sin-owner.e2e.test.ts` (73 → 76), Z12 · Docs y `docs/Registro_Cambios.md`. Ver [[02-Backend/vallas]] y [[2026-11-19]].
+
 > [!success] 2026-11-19 · **El creativo del cliente va solo a su pantalla** — `fix/envio-cliente-solo-su-pantalla` (`dcc504bc`), fusionada en `integra/18-11` (`6b996b58`), sin empujar · ÁMBAR (sin migración, sin sesión, sin dinero)
 > Decisión del dueño: al aprobar el envío de la liga, el creativo va solo a la pantalla que eligió el cliente (`validarCreatividadEnSitio` + `sumarAlSpot`). Typecheck, 10 864 unitarias y e2e `envios-creativo-cliente` + `imprentas` 30/30. Recorrido en Chrome de imprentas, proporción y el arreglo en el 3420 sobre `spaces_hoy`. **Zonas tomadas y liberadas:** Z5 (envíos del cliente), Z12 · Docs, `docs/Registro_Cambios.md`. Detalle en [[07-Agentes/diario/2026-11-19]].
 

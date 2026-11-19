@@ -32,6 +32,7 @@ import {
   Megaphone,
   BadgeCheck,
   TriangleAlert,
+  Columns3,
 } from 'lucide-react'
 import { ROLES_ASIGNABLES, rolLabel } from '@/lib/roles'
 import type { RolDemo } from '@/lib/data/types'
@@ -155,6 +156,12 @@ export const NAV: NavItem[] = [
   // carga masiva, exportación—, no solo el alta. El nombre prometía menos de lo
   // que hay y escondía la consulta a quien no entraba a curiosear.
   { key: 'inventario', label: 'Inventario', href: '/inventario', icon: PackagePlus, roles: [...MANDO], grupo: 'patrimonio' },
+  // VALLAS (esqueleto, 19/11) va en Inventario y no en Operaciones: una valla
+  // es un cuadro del patrimonio (vive en un sitio, con su número y su medida),
+  // no una tarea. Imprenta está en Operaciones porque ejecuta lo vendido; las
+  // vallas son lo que se vende. Mismos roles que Inventario porque la autoriza
+  // el mismo módulo (`inventario`, ver `lib/modulos.ts`).
+  { key: 'vallas', label: 'Vallas', href: '/vallas', icon: Columns3, roles: [...MANDO], grupo: 'patrimonio' },
   // Arrendadores va pegado a Inventario y no suelto en medio del ciclo
   // comercial: una pantalla no es tuya, es de alguien que te la renta, y el
   // contrato con ese alguien es lo que te deja venderla (ADR 0003).

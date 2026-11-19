@@ -21,6 +21,7 @@ import { ES_INICIO, EN_INICIO, IT_INICIO, PT_INICIO } from './textos/inicio'
 import { ES_ENERGIA, EN_ENERGIA, IT_ENERGIA, PT_ENERGIA } from './textos/energia'
 import { ES_REPORTES, EN_REPORTES, IT_REPORTES, PT_REPORTES } from './textos/reportes'
 import { ES_NOTIFICACIONES, EN_NOTIFICACIONES, IT_NOTIFICACIONES, PT_NOTIFICACIONES } from './textos/notificaciones'
+import { ES_VALLAS, EN_VALLAS, IT_VALLAS, PT_VALLAS } from './textos/vallas'
 
 // ============================================================================
 //  lib/i18n/diccionario.ts — LOS TEXTOS, Y LA CONVENCION DE CLAVES.
@@ -255,6 +256,7 @@ const ES = {
   'nav.imprenta': 'Imprenta',
   'nav.operaciones': 'Operaciones',
   'nav.energia': 'Consumo de luz',
+  'nav.vallas': 'Vallas',
   'nav.finanzas': 'Finanzas',
   'nav.reportes': 'Reportes',
   'nav.comisiones': 'Comisiones',
@@ -294,6 +296,7 @@ const ES = {
   ...ES_ENERGIA,
   ...ES_REPORTES,
   ...ES_NOTIFICACIONES,
+  ...ES_VALLAS,
 } as const
 
 export type ClaveTexto = keyof typeof ES
@@ -451,6 +454,7 @@ const EN: Record<ClaveTexto, string> = {
   'nav.imprenta': 'Printing',
   'nav.operaciones': 'Operations',
   'nav.energia': 'Power usage',
+  'nav.vallas': 'Poster panels',
   'nav.finanzas': 'Finance',
   'nav.reportes': 'Reports',
   'nav.comisiones': 'Commissions',
@@ -483,6 +487,7 @@ const EN: Record<ClaveTexto, string> = {
   ...EN_ENERGIA,
   ...EN_REPORTES,
   ...EN_NOTIFICACIONES,
+  ...EN_VALLAS,
 }
 
 // ─── ITALIANO · ola 0 (2026-11-03) ──────────────────────────────────────────
@@ -649,6 +654,7 @@ const IT_BASE: Partial<Record<ClaveTexto, string>> = {
   'nav.imprenta': 'Stampa',
   'nav.operaciones': 'Operazioni',
   'nav.energia': 'Consumo elettrico',
+  'nav.vallas': 'Poster',
   'nav.finanzas': 'Finanza',
   'nav.reportes': 'Report',
   'nav.comisiones': 'Provvigioni',
@@ -694,6 +700,7 @@ export const AMBITOS_ITALIANO: ReadonlyArray<{
   { ambito: 'energia', es: ES_ENERGIA, it: IT_ENERGIA },
   { ambito: 'reportes', es: ES_REPORTES, it: IT_REPORTES },
   { ambito: 'notificaciones', es: ES_NOTIFICACIONES, it: IT_NOTIFICACIONES },
+  { ambito: 'vallas', es: ES_VALLAS, it: IT_VALLAS },
 ]
 
 const IT: Partial<Record<ClaveTexto, string>> = {
@@ -720,6 +727,7 @@ const IT: Partial<Record<ClaveTexto, string>> = {
   ...IT_ENERGIA,
   ...IT_REPORTES,
   ...IT_NOTIFICACIONES,
+  ...IT_VALLAS,
 }
 
 // ─── PORTUGUES (pt-BR) · ola 0 (2026-11-05) ─────────────────────────────────
@@ -856,6 +864,7 @@ const PT_BASE: Partial<Record<ClaveTexto, string>> = {
   'nav.imprenta': 'Gráfica',
   'nav.operaciones': 'Operações',
   'nav.energia': 'Consumo de energia',
+  'nav.vallas': 'Outdoors',
   'nav.finanzas': 'Finanças',
   'nav.reportes': 'Relatórios',
   'nav.comisiones': 'Comissões',
@@ -893,6 +902,7 @@ export const AMBITOS_PORTUGUES: ReadonlyArray<{
   { ambito: 'energia', es: ES_ENERGIA, pt: PT_ENERGIA },
   { ambito: 'reportes', es: ES_REPORTES, pt: PT_REPORTES },
   { ambito: 'notificaciones', es: ES_NOTIFICACIONES, pt: PT_NOTIFICACIONES },
+  { ambito: 'vallas', es: ES_VALLAS, pt: PT_VALLAS },
 ]
 
 const PT: Partial<Record<ClaveTexto, string>> = {
@@ -925,6 +935,7 @@ const PT: Partial<Record<ClaveTexto, string>> = {
   ...PT_ENERGIA,
   ...PT_REPORTES,
   ...PT_NOTIFICACIONES,
+  ...PT_VALLAS,
 }
 
 /** El portugues que YA esta escrito, sin la caida al espanol. Para la cobertura y los lotes. */
