@@ -1,10 +1,13 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-11-18
+actualizado: 2026-11-19
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
+
+> [!success] 2026-11-19 · **El creativo del cliente va solo a su pantalla** — `fix/envio-cliente-solo-su-pantalla` (`dcc504bc`), fusionada en `integra/18-11` (`6b996b58`), sin empujar · ÁMBAR (sin migración, sin sesión, sin dinero)
+> Decisión del dueño: al aprobar el envío de la liga, el creativo va solo a la pantalla que eligió el cliente (`validarCreatividadEnSitio` + `sumarAlSpot`). Typecheck, 10 864 unitarias y e2e `envios-creativo-cliente` + `imprentas` 30/30. Recorrido en Chrome de imprentas, proporción y el arreglo en el 3420 sobre `spaces_hoy`. **Zonas tomadas y liberadas:** Z5 (envíos del cliente), Z12 · Docs, `docs/Registro_Cambios.md`. Detalle en [[07-Agentes/diario/2026-11-19]].
 
 > [!important] 2026-11-19 · **`wip/18-11-pausa` retomada en `feat/imprentas-y-proporcion`**, desde `integra/18-11` `0fd07bb2`, sin empujar · ROJO R2/R3 aprobado
 > Dos commits: ENVIO-PROPORCION (la liga rechaza el creativo con otra proporción que el sitio) e IMP-REQ (imprentas con
