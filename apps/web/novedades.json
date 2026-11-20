@@ -56,6 +56,12 @@
         "texto": "Si la empresa no tiene logo cargado, la liga, el portal, la hoja de firma y los correos ya no muestran una imagen rota. La liga dice «Pantalla digital» en vez del nombre interno y no muestra el tipo técnico de los anuncios. Con la interfaz en inglés, italiano o portugués, la Actividad, las cifras y las medidas salen en el idioma de quien la usa.",
         "en": "If the company has no logo uploaded, the link, the portal, the signature sheet and the emails no longer show a broken image. The link says “Digital screen” instead of the internal name and no longer shows the ads’ technical type. With the interface in English, Italian or Portuguese, Activity, figures and measurements appear in the user’s language.",
         "it": "Se l’azienda non ha caricato un logo, il link, il portale, il foglio di firma e le email non mostrano più un’immagine rotta. Il link dice «Schermo digitale» invece del nome interno e non mostra più il tipo tecnico degli annunci. Con l’interfaccia in inglese, italiano o portoghese, l’Attività, le cifre e le misure compaiono nella lingua di chi la usa."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Vallas, en proceso: el módulo sale en todas las instancias como primera versión, con la etiqueta «En proceso» junto a «Vallas» en el menú y un aviso en la pantalla, porque las reglas y la numeración todavía pueden cambiar. En la instancia de demostración trae vallas de ejemplo, un grupo de una sola imagen, uno separado y un caso de marcas que compiten para enseñar el aviso.",
+        "en": "Poster panels, in progress: the module ships to every instance as a first version, with an “In progress” label next to “Poster panels” in the menu and a notice on the screen, because the rules and the numbering may still change. The demo instance includes sample panels, a single-image group, a separate one and a case of competing brands to show the warning.",
+        "it": "Poster, in corso: il modulo arriva in tutte le istanze come prima versione, con l’etichetta «In corso» accanto a «Poster» nel menu e un avviso nella schermata, perché le regole e la numerazione possono ancora cambiare. Nell’istanza dimostrativa ci sono poster di esempio, un gruppo a immagine unica, uno separato e un caso di marchi concorrenti per mostrare l’avviso."
       }
     ]
   },

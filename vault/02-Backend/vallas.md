@@ -2,7 +2,7 @@
 tipo: backend
 estado: en-curso
 actualizado: 2026-11-19
-tags: [backend, vallas, inventario, reglas, competencia, rojo]
+tags: [backend, vallas, inventario, reglas, competencia, rojo, en-proceso, demo]
 archivos:
   - db/migrations/20261119_vallas_esqueleto.sql
   - db/migrations/20261119_vallas_sembrar_competencia_por_omision.sql
@@ -30,6 +30,13 @@ archivos:
   - apps/web/lib/i18n/textos/vallas.ts
   - apps/web/lib/test/vallas.e2e.test.ts
   - apps/web/lib/test/alta-organizacion.e2e.test.ts
+  - apps/web/components/demo/shell/nav.ts
+  - apps/web/components/demo/shell/Sidebar.tsx
+  - apps/web/components/vallas/en-proceso.test.ts
+  - scripts/semilla-catalogo-modulos.mjs
+  - scripts/semilla-catalogo-demo.mjs
+  - scripts/semilla-catalogo-demo.test.ts
+  - apps/web/lib/test/semilla-vallas-demo.e2e.test.ts
 ---
 
 # Vallas (esqueleto, 19/11)
@@ -54,6 +61,72 @@ Decisión de forma en el [ADR 0052](../../docs/adr/0052-vallas-modulo-con-reglas
 >
 > Rama `feat/vallas-decisiones` desde `integra/18-11` `3e73f5e5`. Apunte en el
 > [ADR 0052](../../docs/adr/0052-vallas-modulo-con-reglas-enchufables.md).
+
+> [!important] 2026-11-19 · «En proceso» en todas las instancias, y datos de ejemplo en la demo
+> Pedido del dueño: el módulo sale **tal como está** a todas las versiones, diciendo que
+> todavía se construye. Rama `feat/vallas-en-proceso-demo` desde `integra/18-11` `dc5c2f9d`.
+>
+> **La leyenda.** `NavItem.insignia` (`components/demo/shell/nav.ts`) es una etiqueta
+> **genérica** junto al rótulo: hoy solo existe `'en-proceso'` y solo la lleva Vallas. Su
+> texto es `nav.insignia.<valor>` (es «En proceso» · en «In progress» · it «In corso» ·
+> pt «Em andamento»). `Sidebar.tsx` la pinta como la pastilla del Dashboard (`TONO.aviso`
+> de `components/demo/admin/Chip.tsx`) en chico y al final del renglón; con el menú
+> colapsado va en el globo y en el texto accesible. La cabecera de `/vallas` lleva la
+> misma pastilla junto al título y una franja de aviso (`FRANJA_AVISO`, `role="note"`):
+> «**En proceso:** Este módulo todavía se está construyendo; las reglas y la numeración
+> pueden cambiar.» (`vallas.en-proceso.aviso`). **Para quitarla** al terminar el módulo:
+> borrar `insignia` de la entrada y la franja de `Vallas.tsx`.
+>
+> **La demo.** Se enganchó al **mismo** mecanismo que siembra la demostración: el catálogo
+> (`scripts/semilla-catalogo-demo.mjs` → `semilla-catalogo-modulos.mjs`, ver
+> [[04-Datos/semilla-de-demostracion]]), que corre una persona con
+> `infra/scripts/sembrar-catalogo-demo.sh` y que **no viaja en la imagen** (el
+> `Dockerfile` copia `scripts/` por lista blanca). Por eso una instancia de cliente recibe
+> solo la leyenda y la pantalla vacía («Todavía no hay vallas. Da de alta la primera sobre
+> un sitio del inventario.»), y las doce categorías de siempre.
+>
+> Lo que siembra (`planVallas` / `sentenciasVallas`), todo con `CAT-` y guardado por número
+> o nombre con `not exists`:
+>
+> | | |
+> |---|---|
+> | Vallas | 8: `CAT-V01..V03` (CAT-F01, Espectacular Reforma Norte, 4.3 × 7.2 c/u), `CAT-V04/V05` (CAT-F02, caras 1 y 2), `CAT-V06` (CAT-F04, Valla Satélite, 8 × 3), `CAT-V07` (CAT-F06, Vallarta), `CAT-V08` (CAT-F11, de baja: **inactiva**) |
+> | Grupos | `CAT-G01` «una sola imagen» 12.9 × 7.2 (V01–V03) · `CAT-G02` «separadas» (V04, V05) |
+> | Categorías | las 12 por omisión si faltan (una organización creada con `--crear-org` no pasa por la migración ni por el alta) |
+> | Marcas | por **cliente**, en todas sus campañas: Refresquera → «Coca-Cola», Telefonía → «Telcel», Automotriz → «Nissan». Solo donde la marca está vacía o con la genérica que dejaba la ficha antes («Refresquera»); lo que alguien escribió no se pisa. Una base nueva ya nace con la buena |
+>
+> **El caso de competencia**, para enseñarlo: en «Verificar una marca», **Pepsi** con la
+> fecha de hoy y la valla **CAT-V01** → aviso, porque la campaña al aire de la Refresquera
+> (Coca-Cola) ocupa CAT-F01. Va por cliente porque el calendario se mueve con el ancla y la
+> campaña al aire cambia; la prueba lo comprueba cualquier día hasta 2028. También
+> **AT&T** en CAT-V04 (Telcel en CAT-F02) y **Toyota** en CAT-V06 en las fechas de la
+> CAT-CMP-018 (Nissan). Las campañas fijas del catálogo no admiten dos marcas a la vez en
+> el mismo sitio (lo exige `comprobarCoherencia`), así que la segunda marca es la que se
+> verifica, que es justo para lo que está la tarjeta.
+>
+> **Sin la migración.** Si la base no tiene `20261119_vallas_esqueleto.sql`,
+> `comprobarBase` lo dice («sin las tablas de vallas») y el catálogo se siembra **sin
+> vallas** (`sinVallas`), como ya pasaba con `espacios_comprados`; `--deshacer` tampoco las
+> toca. `--deshacer` borra las vallas `CAT-V`, las de sitios `CAT-` y las de grupos `CAT-G`
+> **antes** que los sitios (FK `restrict`), y **no** borra las categorías: son las de
+> omisión de toda organización.
+>
+> [!danger] ROJO R3 · para que llegue a una demo de servidor hace falta, en este orden
+> 1. que la migración de vallas llegue a esa base por su camino (imagen + `update.sh`), cuando
+>    el dueño la apruebe para servidores;
+> 2. y que **una persona** corra el catálogo (idempotente: solo mete lo que falta):
+>    ```
+>    cd /var/www/Spaces && git pull
+>    sudo bash infra/scripts/sembrar-catalogo-demo.sh spaces_demo --org=demo
+>    ```
+>    Esa es la demo del PADRE (la base `spaces_demo`, donde vive el catálogo). Si el
+>    catálogo de esa base se sembró con otro calendario y ya no es coherente hoy, el script
+>    se niega: ver «Opción A» en `docs/datos/20261103_base_demo_nueva.md`.
+>
+> **`demo.space-os.io` NO tiene el catálogo**: desde el ADR 0050 usa los datos de g500 tal
+> cual, y el script no está en su imagen. Sembrarle vallas de ejemplo ahí es meter el
+> catálogo `CAT-` entero en la organización de g500 —o un sembrado propio sobre sus sitios—,
+> y **eso lo decide el dueño**; no se hizo ni se escribió el comando.
 
 ## Qué reutiliza y qué agrega
 
@@ -213,6 +286,22 @@ Lo que NO las recibe: las organizaciones que siembran a mano los scripts de demo
 (`scripts/semilla-*.mjs`) después de migrar, ni `sembrarTenant` de las e2e.
 
 ## Pruebas
+
+- `components/vallas/en-proceso.test.ts`: la insignia en el menú (solo en Vallas) y el
+  aviso en la cabecera, rendidos de verdad en es/en/it/pt (14, vistas en rojo).
+- `scripts/semilla-catalogo-demo.test.ts` (sin base): 6–8 vallas sobre fijas tipo
+  valla/espectacular, un grupo de cada modo sin avisos de grupo, las categorías idénticas
+  a las de la app, el aviso Pepsi/Coca-Cola **cualquier día hasta 2028** con las reglas
+  reales, que muerde (la misma marca o una valla libre no avisan), la marca solo donde
+  está vacía o genérica, y el catálogo sin vallas cuando no hay tablas (8 nuevas, vistas en
+  rojo; más «deshacer cubre cada tabla» con `competencia_categorias` como excepción).
+- `lib/test/semilla-vallas-demo.e2e.test.ts`: las MISMAS sentencias del catálogo contra
+  Postgres y Next reales, las de vallas con el **rol de la app** (RLS forzada): sin tenant
+  o con el de otra organización no escribe; 8 vallas (1 inactiva), los dos grupos, 12
+  categorías y las marcas; la 2.ª corrida no mete nada; `GET /api/vallas` las ve;
+  `POST /api/vallas/verificar` con Pepsi en CAT-V01 da aviso (no bloqueo) y en CAT-V07
+  nada; `--deshacer` las quita y deja las categorías (mutante: sin las vallas en el
+  deshacer, el borrado de sitios muere por la FK → rojo).
 
 - `lib/vallas/numeracion.test.ts` y `lib/vallas/reglas/reglas.test.ts`: unitarias
   (solapes, misma valla, grupo una imagen / separadas, alcances, sitio por omisión,
