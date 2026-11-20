@@ -18,6 +18,7 @@ archivos:
   - apps/web/app/api/perfil/codigos-recuperacion/route.ts
   - apps/web/app/api/perfil/idioma/route.ts
   - apps/web/app/api/perfil/avisos/route.ts
+  - apps/web/app/api/space-eyes/campanas/excel/route.ts
   - apps/web/app/api/bienvenida/route.ts
   - apps/web/app/api/captacion/
   - apps/web/app/api/codigos-promocionales/
@@ -414,7 +415,7 @@ agrupa las cuatro pantallas en `lib/modulos.ts:77-83`.
 
 ## Space Eyes (ADR 0045, desde v0.11.0)
 
-Diez rutas, todas con el permiso de **inventario**: hablan con el Space Eye de
+Once rutas, todas con el permiso de **inventario**: hablan con el Space Eye de
 **esta** instancia y nunca exponen su dirección ni su llave al navegador.
 Detalle en [[08-Manuales/manual-tecnico-space-eyes]].
 
@@ -427,6 +428,7 @@ Detalle en [[08-Manuales/manual-tecnico-space-eyes]].
 | GET | `/api/space-eyes/foto` | `inventario:ver` | Sirve la foto o su miniatura con `Cache-Control: private, max-age=3600` (`foto/route.ts:76`) |
 | GET | `/api/space-eyes/descarga/[tipo]` | `inventario:ver` | Descargas (álbum, kit) |
 | GET | `/api/space-eyes/alta` | `inventario:ver`, o `:crear` si pide testigo | Códigos de vinculación |
+| GET | `/api/space-eyes/campanas/excel` | `inventario:ver` **y** un rol de la entrada «Space Eyes → Campañas» de `NAV` (Dueño, Administrador, venta) | El Excel de las campañas detectadas (19/11): `?desde&hasta` en `AAAA-MM-DD` (sin ellas, el mes en curso), `&equipo&campana`. Sin Space Eye, datos de demostración marcados. 400 fechas malas, 503 si Space Eye no responde |
 | GET·POST·PUT·DELETE | `/api/space-eyes/se/[...ruta]` | `inventario:ver` al leer, `:crear` al escribir; **fijar el encuadre** (`camera`, `stream-rotation` y `pantalla` de un equipo) solo el Dueño (19/10, `puedeEncuadrar`) | Pasarela al API de Space Eye con la llave de la instancia |
 
 Las **solicitudes de activación** que se ven arriba del módulo en el PADRE no

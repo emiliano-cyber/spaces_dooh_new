@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises'
 import { giroDeFoto } from '@/lib/space-eyes-marca'
 import { licenciaIncluyeModulo } from '@/lib/licencia'
 import { comoSeActualiza, type ComoSeActualiza } from '@/lib/space-eyes-actualizacion'
+import type { FotoDeteccionSE, CampanaReporteSE, EquipoReporteSE } from '@/lib/space-eyes-reporte-campanas'
 
 // ============================================================================
 //  lib/server/space-eye.ts — Cliente de la API de Space Eye (verificación de
@@ -861,4 +862,53 @@ export async function reenviarASpaceEye(
   }
   salida.set('Cache-Control', 'no-store')
   return new Response(r.body, { status: r.status, headers: salida })
+}
+
+// ─── Las detecciones de campañas, para el reporte en Excel (19/11) ──────────
+
+/** Cuántas detecciones trae como máximo un reporte: 40 páginas de 500. */
+export const MAX_DETECCIONES_REPORTE = 20_000
+const POR_PAGINA_REPORTE = 500
+
+/**
+ * Las fotos de campaña (`source=campana`: el equipo reconoció el arte) de un
+ * rango, con las campañas y los equipos para completar cliente y código.
+ *
+ * Se pagina hasta una página corta y NO por el `total`: Space Eye lo cuenta sin
+ * los filtros de fecha ni de origen (`listPhotos`, el `COUNT(*)` solo lleva
+ * dueño, equipo y campaña), así que con él se pararía tarde o nunca. Y con un
+ * tope: un rango largo de una flota grande no puede dejar la petición colgada
+ * minutos; si se llega, `truncado` y el reporte lo dice. Space Eye ordena de la
+ * más nueva a la más vieja, así que lo que queda fuera es lo más viejo.
+ *
+ * `desde`/`hasta` van en UTC (`limitesUTC`): Space Eye compara contra su
+ * `taken_at` tal cual.
+ */
+export async function deteccionesDeCampanas(f: {
+  desde: string
+  hasta: string
+  equipo?: number | null
+  campana?: number | null
+}): Promise<{ fotos: FotoDeteccionSE[]; campanas: CampanaReporteSE[]; equipos: EquipoReporteSE[]; truncado: boolean }> {
+  const filtros = new URLSearchParams({ source: 'campana', from: f.desde, to: f.hasta, limit: String(POR_PAGINA_REPORTE) })
+  if (f.equipo) filtros.set('device_id', String(f.equipo))
+  if (f.campana) filtros.set('campaign_id', String(f.campana))
+  const fotos: FotoDeteccionSE[] = []
+  let truncado = false
+  for (let pagina = 1; ; pagina++) {
+    filtros.set('page', String(pagina))
+    const { photos } = await api<{ photos: FotoDeteccionSE[] }>(`/api/photos?${filtros.toString()}`)
+    const lote = photos ?? []
+    fotos.push(...lote)
+    if (lote.length < POR_PAGINA_REPORTE) break
+    if (fotos.length >= MAX_DETECCIONES_REPORTE) {
+      truncado = true
+      break
+    }
+  }
+  const [{ campaigns }, { devices }] = await Promise.all([
+    api<{ campaigns: CampanaReporteSE[] }>('/api/campaigns'),
+    api<{ devices: EquipoReporteSE[] }>('/api/devices'),
+  ])
+  return { fotos: fotos.slice(0, MAX_DETECCIONES_REPORTE), campanas: campaigns ?? [], equipos: devices ?? [], truncado }
 }

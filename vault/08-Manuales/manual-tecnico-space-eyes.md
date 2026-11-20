@@ -1,12 +1,15 @@
 ---
 tipo: manual
 estado: vigente
-actualizado: 2026-10-14
+actualizado: 2026-11-19
 tags: [manual, tecnico, desarrollador, space-eyes, camaras, raspberry, telefono, campanas]
 archivos:
   - apps/web/lib/server/space-eye.ts
   - apps/web/lib/server/space-eyes-campanas.ts
   - apps/web/app/api/space-eyes/se/[...ruta]/route.ts
+  - apps/web/app/api/space-eyes/campanas/excel/route.ts
+  - apps/web/lib/server/space-eyes-reporte-controller.ts
+  - apps/web/lib/space-eyes-reporte-campanas.ts
   - apps/web/components/demo/space-eyes/
   - space-eye/ (servidor, agentes y app; ver space-eye/docs/)
   - docs/adr/0045-space-eye-vive-dentro-de-cada-instancia.md
@@ -75,7 +78,7 @@ flowchart LR
 | `/space-eyes/graficas` | `Graficas.tsx` | Telemetría y consumo de datos. |
 | `/space-eyes/texto` | `AjustarTexto.tsx` | Marca de texto (nombre/fecha/hora) sobre las fotos. |
 | `/space-eyes/programacion` | `Programacion.tsx` | Fotos programadas. |
-| `/space-eyes/campanas` | `CampanasEyes.tsx` | Campañas de verificación. Las que llegan de Operaciones salen marcadas «De Operaciones» y no se editan aquí. |
+| `/space-eyes/campanas` | `CampanasEyes.tsx` | Campañas de verificación. Las que llegan de Operaciones salen marcadas «De Operaciones» y no se editan aquí. Arriba, **«Descargar Excel»** de lo detectado (`ReporteCampanasExcel.tsx`, §3 bis). |
 | `/space-eyes/verificacion` | `Verificacion.tsx` | Resultados de la verificación con IA. |
 | `/space-eyes/fallas` | `FallasFlota.tsx` | Historial de fallas de toda la flota. |
 
@@ -144,6 +147,45 @@ sequenceDiagram
 - **Creativos en HTML** no tienen imagen que reconocer: los cubre la
   vigilancia de lo nuevo.
 
+## 3 bis. El Excel de lo detectado (19/11/2026)
+
+Pedido del dueño: en **Space Eyes → Campañas**, un reporte en Excel de las
+campañas que las cámaras detectaron, con fecha y hora.
+
+- **Qué es una detección**: una foto con `source = 'campana'` y su
+  `campaign_id` (el equipo reconoció el arte y subió la prueba, §3). Space Eye
+  no tiene duración de una detección —una foto es un instante—, así que el
+  reporte no la inventa: hoja **Detecciones** (fecha, hora, campaña, cliente
+  = `advertiser`, equipo, código de pantalla, sitio del tenant, verificación,
+  resultado, origen) y hoja **Resumen** (primera, última y cuántas por campaña
+  y equipo).
+- **En el servidor**, `GET /api/space-eyes/campanas/excel?desde&hasta&equipo&campana`
+  → `lib/server/space-eyes-reporte-controller.ts` → `deteccionesDeCampanas()`
+  en `lib/server/space-eye.ts` (pagina `GET /api/photos?source=campana` de 500
+  en 500 **hasta una página corta**, no por `total`: Space Eye lo cuenta sin los
+  filtros de fecha ni de origen; tope de 20 000 y aviso de «incompleto» en la
+  hoja). El navegador no lo arma porque la pantalla nunca carga las
+  detecciones, solo la lista de campañas.
+- **La hora**: Space Eye da UTC; el libro va en la zona del negocio
+  (`zonaDelNegocio()`, `TZ`, México por omisión) y como **número de serie de
+  Excel** con formato (`dd/mm/yyyy`, `mm/dd/yyyy` en inglés). El rango se pide a
+  Space Eye en UTC (`limitesUTC`: el día de México empieza a las 06:00 UTC).
+  Sin fechas, el mes en curso, y la hoja lo dice.
+- **Quién**: `inventario.ver` **y** los roles de la entrada del menú
+  (`NAV`, `space-eyes-campanas`: Dueño, Administrador y venta). Operaciones
+  tiene `inventario.ver` y aun así recibe 403 (e2e, mutado).
+- **Demostración**: con `estadoDelModulo() === 'no_contratado'` sale con los
+  equipos de ejemplo de `DemoSpaceEyes` y tres campañas inventadas,
+  deterministas y nunca en el futuro; la hoja lo dice en mayúsculas y el
+  archivo lleva `-demostracion` en el nombre. `DemoSpaceEyes` ofrece el botón
+  solo en `/space-eyes/campanas`. Con `sin_respuesta`, 503 (un Excel vacío
+  diría «no se detectó nada»).
+- **`xlsx`**: la que ya estaba (sin dependencias nuevas). Su hallazgo abierto
+  (H2, 13/11) es de **leer** archivos ajenos; aquí solo se escribe.
+- Pruebas: `lib/space-eyes-reporte-campanas.test.ts` (hora, rango, celdas,
+  idiomas) y `lib/test/space-eyes-reporte.e2e.test.ts` (401, 403, .xlsx válido,
+  demostración, 400).
+
 ## 4. La vigilancia de la pantalla (en el equipo)
 
 Todo el análisis corre **en el equipo**; al servidor solo viajan resultados y
@@ -208,6 +250,7 @@ Con la llave de la instancia (`Authorization: Bearer <SPACE_EYE_KEY>`):
 | `POST /api/campaigns/sincronizar` | la lista completa de campañas de Operaciones |
 | `POST /api/campaigns/:id/creative` | el arte (multipart `creative`, opcional `origen_sha`) |
 | `GET/POST /api/vinculaciones` | códigos de vinculación |
+| `GET /api/photos?source=campana&from&to&device_id&campaign_id` · `GET /api/campaigns` | el Excel de lo detectado (§3 bis) |
 
 Del equipo (`/api/device/*`, con su token): `register`, `status` (responde la
 huella `vigilancia`), `pending-commands`, `upload-photo`
