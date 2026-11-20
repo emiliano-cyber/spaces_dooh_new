@@ -769,6 +769,9 @@ ocupación del Dashboard no.
 - Comercial: la tarjeta «Reservas tentativas» pasó a «En propuesta» (una fila
   por propuesta abierta con algo por delante, con enlace a la propuesta). El
   indicador «Tentativas por confirmar» pasó a «En propuesta».
+  **20/11: la lista se quitó** a pedido del dueño (las propuestas se consultan
+  en Propuestas); queda solo el indicador con la cifra
+  (`app/(app)/(shell)/comercial/page.tsx`, prueba en `pantallas-comercial.test.ts`).
 - Ficha del sitio: el calendario pinta en ámbar los rangos de propuestas
   abiertas.
 - Dashboard: el pin ámbar es «en propuesta hoy», y un hueco avisa los folios que
