@@ -13,6 +13,7 @@ import { DICCIONARIOS as DIC, type ClaveTexto } from '@/lib/i18n/diccionario'
 import { useSesionCtx } from './SesionContext'
 import { NAV, GRUPOS, hrefActivo, rutasDe } from './nav'
 import { useMenuMovil } from './MenuMovilContext'
+import { TONO } from '@/components/demo/admin/Chip'
 
 // Globo con el nombre de la opción, para el sidebar colapsado. Va por el portal
 // de Radix: un tooltip posicionado dentro del <nav> lo recortaría su
@@ -110,9 +111,14 @@ function SidebarContent({
   const itemNav = (n: (typeof items)[number], o: { oculto?: boolean; sufijo?: string } = {}) => {
     const active = esActivo(n)
     const Icon = n.icon
+    // Insignia (19/11, «En proceso» de Vallas): la pastilla del Dashboard en
+    // tono aviso y más chica, al final del renglón. Colapsado no cabe: va
+    // dentro del globo y del texto accesible.
+    const insignia = n.insignia ? rotulo(`nav.insignia.${n.insignia}`, '') : ''
+    const nombre = rotulo(`nav.${n.key}`, n.label)
     return (
       <li key={o.sufijo ? `${n.key}-${o.sufijo}` : n.key}>
-        <Globo activo={colapsado} texto={rotulo(`nav.${n.key}`, n.label)}>
+        <Globo activo={colapsado} texto={insignia ? `${nombre} · ${insignia}` : nombre}>
           <Link
             href={n.href}
             onClick={onNavegar}
@@ -130,7 +136,18 @@ function SidebarContent({
             )}
           >
             <Icon className={cn('h-4 w-4 shrink-0', active ? 'text-accent' : '')} strokeWidth={1.75} />
-            <span className={cn(colapsado && 'sr-only')}>{rotulo(`nav.${n.key}`, n.label)}</span>
+            <span className={cn(colapsado && 'sr-only')}>{nombre}</span>
+            {insignia && (
+              <span
+                className={cn(
+                  colapsado
+                    ? 'sr-only'
+                    : cn('ml-auto shrink-0 whitespace-nowrap rounded-full border px-1.5 py-0.5 text-[10px] font-medium leading-none', TONO.aviso),
+                )}
+              >
+                {insignia}
+              </span>
+            )}
           </Link>
         </Globo>
       </li>

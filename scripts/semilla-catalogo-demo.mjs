@@ -1352,7 +1352,7 @@ export function sentenciasDelCatalogo(plan, T, clave, opciones = {}) {
     )
   }
 
-  out.push(...sentenciasModulos(plan, T))
+  out.push(...sentenciasModulos(plan, T, opciones))
   return out
 }
 
@@ -1368,14 +1368,14 @@ export function sentenciasDelCatalogo(plan, T, clave, opciones = {}) {
 // las del catálogo —una evidencia, una orden de impresión—, la clave ajena
 // para el borrado y la transacción vuelve atrás, en vez de llevarse por
 // delante algo que nadie listó aquí.
-export function sentenciasDeshacer(plan, T) {
+export function sentenciasDeshacer(plan, T, opciones = {}) {
   const rfcs = plan.clientes.map((c) => c.rfc)
   const predios = plan.predios.map((p) => p.nombre)
   const arrendadores = plan.arrendadores.map((a) => a.nombre)
   const correos = plan.usuarios.map((u) => u.email.toLowerCase())
   const q = (etiqueta, sql, valores = [T]) => ({ etiqueta, sql, valores })
   return [
-    ...deshacerModulos(plan, T),
+    ...deshacerModulos(plan, T, opciones),
     q('ordenes_impresion', `delete from ordenes_impresion where tenant_id = $1::uuid and folio like 'CAT-OI-%'`),
     // Solo los creativos sembrados (su nombre empieza por el folio CAT-): uno
     // que alguien suba en la demo no se borra aquí, y entonces el borrado de la
@@ -1444,10 +1444,13 @@ export function columnasDeLaSiembra(sentencias) {
 }
 
 const COLUMNAS_OPCIONALES = ['propuesta_items.espacios_comprados']
+// Las tablas de VALLAS (19/11) son opcionales enteras: una base que todavía no
+// tiene `20261119_vallas_esqueleto.sql` recibe el catálogo sin vallas.
+const TABLAS_VALLAS = ['vallas', 'vallas_grupos', 'competencia_categorias']
 const SIN_TENANT = '00000000-0000-4000-8000-000000000000'
 
 export async function comprobarBase(cli, plan, opciones = {}) {
-  const r = { tenantId: null, orgs: [], faltan: [], sinEspacios: false, ajenos: [], problemas: [] }
+  const r = { tenantId: null, orgs: [], faltan: [], sinEspacios: false, sinVallas: false, ajenos: [], problemas: [] }
 
   const orgs = await cli.query('select id, slug from tenants order by slug')
   r.orgs = orgs.rows.map((x) => x.slug)
@@ -1461,6 +1464,7 @@ export async function comprobarBase(cli, plan, opciones = {}) {
   for (const c of columnasDeLaSiembra(sentenciasDelCatalogo(plan, SIN_TENANT, 'x'.repeat(12)))) {
     if (hay.has(c)) continue
     if (COLUMNAS_OPCIONALES.includes(c)) r.sinEspacios = true
+    else if (TABLAS_VALLAS.includes(c.split('.')[0])) r.sinVallas = true
     else r.faltan.push(c)
   }
 
@@ -1621,7 +1625,8 @@ export async function main(argv = process.argv) {
     console.log(
       `comprobado en la base: organizacion ${base.tenantId ? 'existe' : 'NO existe'} · ` +
         `${base.faltan.length} columnas faltantes · ${base.ajenos.length} claves ajenas` +
-        (base.sinEspacios ? ' · sin espacios_comprados (se siembra sin ese dato)' : ''),
+        (base.sinEspacios ? ' · sin espacios_comprados (se siembra sin ese dato)' : '') +
+        (base.sinVallas ? ' · sin las tablas de vallas (se siembra sin vallas)' : ''),
     )
     if (base.problemas.length) {
       console.error('ERROR semilla-catalogo-demo: no se escribe nada:')
@@ -1674,7 +1679,7 @@ export async function main(argv = process.argv) {
     let nuevas = 0
     let ya = 0
     const porTabla = {}
-    for (const s of sentenciasDelCatalogo(plan, T, clave, { sinEspacios: base.sinEspacios })) {
+    for (const s of sentenciasDelCatalogo(plan, T, clave, { sinEspacios: base.sinEspacios, sinVallas: base.sinVallas })) {
       const r = await cli.query(s.sql, s.valores)
       const tabla = s.etiqueta.split(' ')[0]
       if (r.rowCount > 0) {
@@ -1728,7 +1733,9 @@ ${USO}`)
     await cli.query('begin')
     await cli.query('select set_config($1, $2, true)', ['app.tenant_id', T])
     const borradas = []
-    for (const s of sentenciasDeshacer(plan, T)) {
+    // Sin la migración de vallas, sus `delete` no tendrían tabla.
+    const conVallas = (await cli.query(`select to_regclass('public.vallas') is not null as hay`)).rows[0].hay
+    for (const s of sentenciasDeshacer(plan, T, { sinVallas: !conVallas })) {
       const r = await cli.query(s.sql, s.valores)
       if (r.rowCount) borradas.push(`${s.etiqueta} ${r.rowCount}`)
     }

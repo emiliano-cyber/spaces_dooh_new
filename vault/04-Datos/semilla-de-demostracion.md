@@ -9,6 +9,7 @@ archivos:
   - scripts/semilla-catalogo-demo.mjs
   - scripts/semilla-catalogo-demo.test.ts
   - scripts/semilla-catalogo-modulos.mjs
+  - apps/web/lib/test/semilla-vallas-demo.e2e.test.ts
   - scripts/semilla-arte-demo.mjs
   - scripts/semilla-pdf-demo.mjs
   - docs/datos/20261103_base_demo_nueva.md
@@ -23,6 +24,14 @@ archivos:
 ---
 
 # La semilla de demostración
+
+> [!important] 2026-11-19 · el catálogo trae VALLAS (módulo «en proceso»)
+> Ocho vallas `CAT-V01..V08` sobre las fijas tipo valla y espectacular, el grupo
+> `CAT-G01` «una sola imagen» y el `CAT-G02` «separadas», las doce categorías de
+> competencia si faltan y la marca por cliente (Coca-Cola, Telcel, Nissan) para que
+> «Verificar una marca» con **Pepsi** en **CAT-V01** enseñe el aviso. Si la base no tiene la
+> migración de vallas, se siembra sin ellas (`sinVallas`). `--deshacer` las quita antes que
+> los sitios y deja las categorías. Detalle en [[02-Backend/vallas]].
 
 > [!important] 2026-11-03 · el catálogo cubre TODOS los módulos (menos Space Eye)
 > Auditoría sobre una base nueva con el guion y el catálogo de `main`: **40 tablas

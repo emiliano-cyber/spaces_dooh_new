@@ -84,6 +84,14 @@ import type { RolDemo } from '@/lib/data/types'
 // rol de Operaciones ve dos entradas, no seis encabezados vacíos.
 export type GrupoNav = 'inicio' | 'patrimonio' | 'ojos' | 'vender' | 'entregar' | 'cobrar' | 'sistema'
 
+/**
+ * Etiqueta pequeña junto al rótulo de una entrada (19/11). Genérica a propósito:
+ * hoy solo existe «en proceso» (Vallas, pedido del dueño), y una próxima
+ * («nuevo», «beta») es un valor más aquí y su texto `nav.insignia.<valor>` en el
+ * diccionario, sin tocar `Sidebar.tsx`.
+ */
+export type InsigniaNav = 'en-proceso'
+
 export interface NavItem {
   key: string
   label: string
@@ -97,6 +105,8 @@ export interface NavItem {
    * esto, una ruta que dejó de tener entrada propia quedaría sin compuerta.
    */
   tambien?: string[]
+  /** Etiqueta junto al rótulo (ver `InsigniaNav`). Se quita cuando deja de ser cierta. */
+  insignia?: InsigniaNav
 }
 
 /** Todas las rutas de una entrada: la suya y las de `tambien`. */
@@ -161,7 +171,9 @@ export const NAV: NavItem[] = [
   // no una tarea. Imprenta está en Operaciones porque ejecuta lo vendido; las
   // vallas son lo que se vende. Mismos roles que Inventario porque la autoriza
   // el mismo módulo (`inventario`, ver `lib/modulos.ts`).
-  { key: 'vallas', label: 'Vallas', href: '/vallas', icon: Columns3, roles: [...MANDO], grupo: 'patrimonio' },
+  // «En proceso» (dueño, 19/11): sale a todas las instancias como esqueleto y
+  // lo dice; la cabecera de /vallas repite el aviso. Se quita al terminarlo.
+  { key: 'vallas', label: 'Vallas', href: '/vallas', icon: Columns3, roles: [...MANDO], grupo: 'patrimonio', insignia: 'en-proceso' },
   // Arrendadores va pegado a Inventario y no suelto en medio del ciclo
   // comercial: una pantalla no es tuya, es de alguien que te la renta, y el
   // contrato con ese alguien es lo que te deja venderla (ADR 0003).

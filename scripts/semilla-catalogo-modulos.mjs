@@ -364,12 +364,169 @@ export function planModulos(plan) {
     prospectos, codigos, canjes, paquetes, franjas, temporadas, tarifas, escalas,
     activos, movimientos, incidencias, evidencias, costosOt, abonos, extensiones,
     ordenesCompra, notificaciones, acciones, tickets, condiciones, sitiosExtra, arrendadoresExtra,
+    vallas: planVallas(plan),
   }
+}
+
+// ─── Vallas (esqueleto «en proceso», 19/11) ────────────────────────────────
+// Pedido del dueño: que el módulo se pueda ENSEÑAR en la demo aunque todavía
+// se esté construyendo. Ocho vallas sobre las fijas tipo valla y espectacular
+// del catálogo, un grupo «una sola imagen» y uno «separadas», y la marca en
+// las campañas de tres clientes para que «Verificar una marca» tenga con qué
+// chocar (ver `vault/02-Backend/vallas.md`):
+//
+//   · Refresquera DEMO del Norte → «Coca-Cola». Su campaña al aire ocupa
+//     CAT-F01, que es donde viven CAT-V01..V03 (el grupo de una imagen).
+//     Verificar «Pepsi» en CAT-V01 con fechas de hoy da el AVISO.
+//   · Telefonia DEMO Movil → «Telcel» (CAT-F02: «AT&T» en CAT-V04 avisa).
+//   · Automotriz DEMO del Bajio → «Nissan» (CAT-F04, la valla de Satélite,
+//     confirmada por delante: «Toyota» en CAT-V06 en esas fechas avisa).
+//
+// La marca va por CLIENTE y no por campaña: el calendario se mueve con el
+// ancla y la campaña al aire en CAT-F01 es siempre de la refresquera.
+//
+// Las tablas son de la migración `20261119_vallas_esqueleto.sql`. En una base
+// que todavía no la tiene, `comprobarBase` lo detecta y el catálogo se siembra
+// SIN esta parte (`sinVallas`), como `espacios_comprados`: le llega con la
+// imagen por `update.sh`, no a mano.
+
+/** Las doce categorías por omisión (copia de `apps/web/lib/vallas/competencia-por-omision.ts`;
+ *  `semilla-catalogo-demo.test.ts` exige que sean idénticas). */
+export const CATEGORIAS_COMPETENCIA = [
+  { nombre: 'Refrescos de cola', marcas: ['Coca-Cola', 'Pepsi'] },
+  { nombre: 'Tiendas departamentales', marcas: ['El Palacio de Hierro', 'Liverpool', 'Sears'] },
+  { nombre: 'Telefonía', marcas: ['Telcel', 'AT&T', 'Movistar'] },
+  { nombre: 'Bancos', marcas: ['BBVA', 'Banorte', 'Santander', 'Citibanamex', 'HSBC'] },
+  { nombre: 'Cerveza', marcas: ['Grupo Modelo', 'Heineken México'] },
+  { nombre: 'Comida rápida', marcas: ["McDonald's", 'Burger King', 'KFC', "Carl's Jr."] },
+  { nombre: 'Pizzas', marcas: ["Domino's", 'Pizza Hut', 'Little Caesars'] },
+  { nombre: 'Autoservicio', marcas: ['Walmart', 'Soriana', 'Chedraui', 'La Comer'] },
+  { nombre: 'Tiendas de conveniencia', marcas: ['OXXO', '7-Eleven', 'Circle K'] },
+  { nombre: 'Automotriz', marcas: ['Nissan', 'Volkswagen', 'Chevrolet', 'Toyota', 'KIA'] },
+  { nombre: 'Streaming', marcas: ['Netflix', 'Disney+', 'Prime Video', 'Max'] },
+  { nombre: 'Aerolíneas', marcas: ['Aeroméxico', 'Volaris', 'Viva Aerobus'] },
+]
+
+const MARCA_POR_CLIENTE = { C1: 'Coca-Cola', C5: 'Telcel', C4: 'Nissan' }
+
+/** La marca que la ficha de campaña siembra cuando el cliente no tiene una de
+ *  `MARCA_POR_CLIENTE`: la primera palabra del nombre («Refresquera»). Es la
+ *  que había en las demos sembradas antes del 19/11. */
+export const marcaGenerica = (cliente) => cliente.nombre.replace(' DEMO', '').split(' ')[0]
+export const marcaDeCliente = (cliente) => MARCA_POR_CLIENTE[cliente.clave] ?? marcaGenerica(cliente)
+
+// [numero, sitio, cara, ancho, alto, grupo, posicion, activo, notas]
+const VALLAS = [
+  ['CAT-V01', 'CAT-F01', 1, 4.3, 7.2, 'CAT-G01', 1, true, 'Cuadro izquierdo del espectacular.'],
+  ['CAT-V02', 'CAT-F01', 1, 4.3, 7.2, 'CAT-G01', 2, true, 'Cuadro central.'],
+  ['CAT-V03', 'CAT-F01', 1, 4.3, 7.2, 'CAT-G01', 3, true, 'Cuadro derecho.'],
+  ['CAT-V04', 'CAT-F02', 1, 12.9, 7.2, 'CAT-G02', 1, true, 'Cara norte.'],
+  ['CAT-V05', 'CAT-F02', 2, 12.9, 7.2, 'CAT-G02', 2, true, 'Cara sur.'],
+  ['CAT-V06', 'CAT-F04', 1, 8, 3, null, null, true, null],
+  ['CAT-V07', 'CAT-F06', 1, 12.9, 7.2, null, null, true, null],
+  ['CAT-V08', 'CAT-F11', 1, 8, 3, null, null, false, 'El sitio se dio de baja: la valla queda inactiva.'],
+]
+
+/**
+ * @typedef {{ numero: string, sitio: string, cara: number, ancho: number, alto: number,
+ *   grupo: string | null, posicion: number | null, activo: boolean, notas: string | null }} VallaSemilla
+ * @typedef {{ numero: string, nombre: string, modo: 'una_imagen' | 'separadas',
+ *   ancho: number | null, alto: number | null, notas: string }} GrupoSemilla
+ */
+
+/** @type {GrupoSemilla[]} */
+const GRUPOS_VALLAS = [
+  { numero: 'CAT-G01', nombre: 'Reforma Norte · tres cuadros, una imagen', modo: 'una_imagen', ancho: 12.9, alto: 7.2, notas: 'Se vende entero: un solo arte de 12.9 x 7.2 m.' },
+  { numero: 'CAT-G02', nombre: 'Reforma Sur · dos caras', modo: 'separadas', ancho: null, alto: null, notas: 'Se venden juntas; cada cara lleva su arte.' },
+]
+
+export function planVallas(plan) {
+  /** @type {VallaSemilla[]} */
+  const vallas = VALLAS.map(([numero, sitio, cara, ancho, alto, grupo, posicion, activo, notas]) => /** @type {VallaSemilla} */ ({
+    numero, sitio, cara, ancho, alto, grupo, posicion, activo, notas,
+  }))
+  const marcas = Object.entries(MARCA_POR_CLIENTE).map(([cliente, marca]) => ({
+    marca,
+    cliente,
+    // La que dejó la ficha en una demo sembrada antes del 19/11: esa sí se
+    // corrige, porque la puso esta semilla y no una persona.
+    anterior: marcaGenerica(plan.clientes.find((k) => k.clave === cliente)),
+    campanas: plan.campanas.filter((c) => c.cliente === cliente).map((c) => c.folio),
+  }))
+  return {
+    categorias: CATEGORIAS_COMPETENCIA,
+    grupos: GRUPOS_VALLAS,
+    vallas,
+    marcas,
+    // Lo que se teclea en «Verificar una marca» para enseñar el aviso.
+    casos: [
+      { marca: 'Pepsi', contra: 'Coca-Cola', valla: 'CAT-V01' },
+      { marca: 'AT&T', contra: 'Telcel', valla: 'CAT-V04' },
+      { marca: 'Toyota', contra: 'Nissan', valla: 'CAT-V06' },
+    ],
+  }
+}
+
+/** Las sentencias de vallas. Todas llevan `vallas: true` para poder reconocerlas. */
+export function sentenciasVallas(plan, T) {
+  const v = plan.modulos.vallas
+  const out = []
+  const add = (etiqueta, sql, valores, extra = {}) => out.push({ etiqueta, sql, valores, vallas: true, ...extra })
+
+  // Las categorías por omisión: la migración se las da a las organizaciones
+  // que ya existían y el alta a las nuevas, pero una organización creada por
+  // este script con `--crear-org` no pasa por ninguno de los dos.
+  for (const k of v.categorias)
+    add(
+      `competencia_categorias ${k.nombre}`,
+      `insert into competencia_categorias (tenant_id, nombre, marcas)
+       select $1::uuid, $2::text, $3::text[]
+        where not exists (select 1 from competencia_categorias x
+                           where x.tenant_id = $1::uuid and lower(btrim(x.nombre)) = lower(btrim($2::text)))`,
+      [T, k.nombre, k.marcas],
+      { silencioso: true },
+    )
+
+  for (const g of v.grupos)
+    add(
+      `vallas_grupos ${g.numero} (${g.modo})`,
+      `insert into vallas_grupos (tenant_id, numero, nombre, modo, ancho_m, alto_m, notas)
+       select $1::uuid, $2::text, $3::text, $4::text, $5::numeric, $6::numeric, $7::text
+        where not exists (select 1 from vallas_grupos x
+                           where x.tenant_id = $1::uuid and upper(btrim(x.numero)) = upper(btrim($2::text)))`,
+      [T, g.numero, g.nombre, g.modo, g.ancho, g.alto, g.notas],
+    )
+
+  for (const x of v.vallas)
+    add(
+      `vallas ${x.numero} (${x.sitio})`,
+      `insert into vallas (tenant_id, sitio_id, numero, cara, ancho_m, alto_m, grupo_id, posicion, notas, activo)
+       select $1::uuid, s.id, $2::text, $3::smallint, $4::numeric, $5::numeric,
+              (select g.id from vallas_grupos g where g.tenant_id = $1::uuid and upper(btrim(g.numero)) = upper(btrim($6::text))),
+              $7::smallint, $8::text, $9::boolean
+         from sitios s
+        where s.tenant_id = $1::uuid and s.clave_interna = $10::text
+          and not exists (select 1 from vallas y
+                           where y.tenant_id = $1::uuid and upper(btrim(y.numero)) = upper(btrim($2::text)))`,
+      [T, x.numero, x.cara, x.ancho, x.alto, x.grupo, x.posicion, x.notas, x.activo, x.sitio],
+    )
+
+  // La marca, solo donde sigue vacía o con la genérica que sembró la ficha
+  // antes del 19/11 («Refresquera»): lo que alguien escribió en la demo no se pisa.
+  for (const m of v.marcas)
+    add(
+      `campanas marca ${m.marca}`,
+      `update campanas set marca = $3::text
+        where tenant_id = $1::uuid and folio = any($2::text[])
+          and (nullif(btrim(marca), '') is null or marca = $4::text)`,
+      [T, m.campanas, m.marca, m.anterior],
+    )
+  return out
 }
 
 // ─── El SQL ────────────────────────────────────────────────────────────────
 
-export function sentenciasModulos(plan, T) {
+export function sentenciasModulos(plan, T, opciones = {}) {
   const m = plan.modulos
   const out = []
   const add = (etiqueta, sql, valores, extra = {}) => out.push({ etiqueta, sql, valores, ...extra })
@@ -742,7 +899,7 @@ export function sentenciasModulos(plan, T) {
               doohmain_dias = case when $4::boolean and doohmain_dias is null then array[1,2,3,4,5]::smallint[] else doohmain_dias end,
               contrato_url = coalesce(contrato_url, case when $5::boolean then $6::text end)
         where tenant_id = $1::uuid and folio = $2::text and marca is null`,
-      [T, c.folio, cliente.nombre.replace(' DEMO', '').split(' ')[0], horario,
+      [T, c.folio, marcaDeCliente(cliente), horario,
         ['ACTIVA', 'CONFIRMADA', 'LISTA_FACTURAR'].includes(c.estado),
         dataUrlDePdf('Contrato de publicidad exterior', [`Campana ${c.folio}`, `Cliente: ${cliente.razonSocial}`, `Vigencia: ${c.desde} a ${c.hasta}`, `Importe neto: $${c.neto.toLocaleString('en-US')} MXN mas IVA`])],
       { silencioso: true },
@@ -879,6 +1036,8 @@ export function sentenciasModulos(plan, T) {
       where tenant_id = $1::uuid and condiciones_propuesta is null`,
     [T, m.condiciones],
   )
+  // Vallas: aparte, y fuera si la base aún no tiene sus tablas.
+  if (!opciones.sinVallas) out.push(...sentenciasVallas(plan, T))
   return out
 }
 
@@ -886,13 +1045,24 @@ export function sentenciasModulos(plan, T) {
 // Va ANTES que la del catálogo: varias de estas filas cuelgan de las suyas.
 // Las columnas rellenadas en filas del catálogo se van con sus filas; las de
 // la organización se devuelven a vacío solo si siguen con el valor sembrado.
-export function deshacerModulos(plan, T) {
+export function deshacerModulos(plan, T, opciones = {}) {
   const m = plan.modulos
   const q = (etiqueta, sql, valores = [T]) => ({ etiqueta, sql, valores })
   const nombres = m.prospectos.map((p) => p.nombre)
   const deProspecto = (tabla) => q(tabla, `delete from ${tabla} where tenant_id = $1::uuid and prospecto_id in
         (select id from prospectos where tenant_id = $1::uuid and nombre = any($2::text[]))`, [T, nombres])
+  // Vallas primero: cuelgan de los sitios CAT con `restrict`. Se van también
+  // las que alguien dio de alta en la demo sobre un sitio o en un grupo CAT,
+  // porque sin ellos no pueden quedarse. Las categorías NO se borran: son las
+  // de omisión de toda organización (migración y alta), no un ejemplo.
+  const vallas = opciones.sinVallas ? [] : [
+    q('vallas', `delete from vallas where tenant_id = $1::uuid and (numero like 'CAT-V%'
+        or sitio_id in (select id from sitios where tenant_id = $1::uuid and clave_interna like 'CAT-%')
+        or grupo_id in (select id from vallas_grupos where tenant_id = $1::uuid and numero like 'CAT-G%'))`),
+    q('vallas_grupos', `delete from vallas_grupos where tenant_id = $1::uuid and numero like 'CAT-G%'`),
+  ]
   return [
+    ...vallas,
     deProspecto('prospecto_avances'),
     deProspecto('prospecto_contactos'),
     deProspecto('prospecto_competencia'),

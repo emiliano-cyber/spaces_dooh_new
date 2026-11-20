@@ -5,6 +5,16 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-19 · Vallas sale «En proceso», y con ejemplos en la demostración
+
+- **Vallas** aparece en todas las instancias tal como está hoy, con una etiqueta **«En proceso»** junto a su nombre en el menú y un aviso arriba de la pantalla: «En proceso: este módulo todavía se está construyendo; las reglas y la numeración pueden cambiar.»
+- En español, inglés («In progress»), italiano («In corso») y portugués («Em andamento»).
+- La **base de demostración** trae ahora ocho vallas de ejemplo con su número y su medida, un grupo que forma **una sola imagen** y otro de vallas **separadas**, y la marca puesta en las campañas de tres clientes (Coca-Cola, Telcel y Nissan). Para enseñar el aviso de competencia: en «Verificar una marca», escribir **Pepsi** con la fecha de hoy y elegir la valla **CAT-V01**.
+- Las instancias de clientes **no** reciben vallas de ejemplo: ven la pantalla vacía con «Todavía no hay vallas. Da de alta la primera sobre un sitio del inventario.»
+- Para que los ejemplos lleguen a una demostración de servidor hace falta el cambio de base de datos de vallas (que **sigue esperando al dueño**) y que una persona vuelva a correr la siembra de la demostración.
+
+---
+
 ## 2026-11-19 · Vallas: las marcas que compiten, como pidió el dueño
 
 - **Solo avisa**: si una marca va a quedar cerca de su competencia, el sistema lo advierte, pero **nunca impide** reservar.
