@@ -91,9 +91,9 @@ function SidebarContent({
   const here = norm(pathname ?? '/')
   // UN solo ítem encendido: el de href más largo (ver `hrefActivo`).
   // ADR 0051 · con las rutas de `tambien`: en /propuestas se enciende «CRM».
-  // La única excepción es un espejo (`nav.ts`, `espejo()`): Vallas está en
-  // Inventario y en Comercial con la MISMA ruta, y en /vallas se encienden las
-  // dos, a propósito: es la misma pantalla.
+  // La única excepción sería un espejo (`NavItem.espejoDe`): la MISMA ruta en
+  // dos grupos se encendería en los dos, a propósito. Hoy no hay ninguno (el de
+  // Vallas se retiró el 20/11).
   const activo = hrefActivo(here, items.flatMap((n) => rutasDe(n).map(norm)))
   const esActivo = (n: { href: string; tambien?: string[] }) => rutasDe(n).map(norm).includes(activo ?? '')
 

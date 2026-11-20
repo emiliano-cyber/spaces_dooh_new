@@ -7,20 +7,18 @@ import { ROLES_ASIGNABLES } from '@/lib/roles'
 import { NAV, rutasDe } from './nav'
 
 // ============================================================================
-//  «Vallas va igual en Comercial» (pedido del dueño, 19/11).
+//  Vallas, SOLO en Comercial (pedido del dueño, 20/11).
 // ----------------------------------------------------------------------------
-//  Vallas sigue en Inventario y sale TAMBIÉN en Comercial, después de
-//  Disponibilidad: las vallas son lo que se vende, y el equipo comercial las
-//  usa (p. ej. «Verificar una marca» antes de proponer).
+//  El 19/11 Vallas quedó en DOS sitios del menú: en Inventario y, como
+//  «espejo», en Comercial. Al verlo en el navegador el 20/11 el dueño pidió:
+//  «hay 2 menús de vallas, cámbialo a que solo haya uno, es en Comercial».
 //
-//  Es la MISMA pantalla en dos grupos. El menú lo expresa con una entrada
-//  ESPEJO (`espejoDe`) que copia href, rótulo, icono, roles e insignia de la
-//  original. Lo que estas pruebas fijan es lo que puede romperse en silencio:
-//   · que la compuerta (`AuthGate`) no pueda dudar de qué roles aplicar a
-//     /vallas —todas las entradas con esa ruta llevan los MISMOS roles—;
-//   · que la vea quien ve el grupo Comercial (mando y venta) y nadie más;
-//   · que no salga dos veces en el MISMO grupo;
-//   · que el menú REAL la pinte en la sección Comercial con su insignia.
+//  Lo que estas pruebas fijan:
+//   · una sola entrada lleva a /vallas, y está en Comercial, después de
+//     Disponibilidad;
+//   · Inventario ya no la tiene;
+//   · la ven los mismos que antes (mando y venta) y nadie más;
+//   · el menú REAL la pinta una sola vez, en Comercial, con «En proceso».
 // ============================================================================
 
 const MANDO: RolDemo[] = ['DUENO', 'ADMINISTRADOR']
@@ -28,54 +26,26 @@ const VENTA: RolDemo[] = ['DIRECTOR_COMERCIAL', 'GERENTE_VENTAS', 'VENDEDOR']
 const ROLES: RolDemo[] = ROLES_ASIGNABLES.map((r) => r.value)
 const paraRol = (rol: RolDemo) => NAV.filter((n) => n.roles.includes(rol))
 
-describe('Vallas en Comercial · el dato del menú', () => {
-  const original = NAV.find((n) => n.key === 'vallas')!
-  const espejo = NAV.find((n) => n.key === 'vallas-comercial')
-
-  it('sigue en Inventario y sale TAMBIÉN en Comercial, justo después de Disponibilidad', () => {
-    expect(original.grupo).toBe('patrimonio')
-    expect(espejo, 'no hay entrada de Vallas en Comercial').toBeDefined()
-    expect(espejo!.grupo).toBe('vender')
-    const i = (k: string) => NAV.findIndex((n) => n.key === k)
-    expect(i('vallas-comercial')).toBe(i('disponibilidad') + 1)
-  })
-
-  it('es la MISMA pantalla: copia href, rótulo, icono, roles e insignia de la original', () => {
-    expect(espejo!.espejoDe).toBe('vallas')
-    expect(espejo!.href).toBe(original.href)
-    expect(espejo!.label).toBe(original.label)
-    expect(espejo!.icon).toBe(original.icon)
-    expect(espejo!.roles).toEqual(original.roles)
-    expect(espejo!.insignia).toBe('en-proceso')
-  })
-
-  it('la ven mando y venta (los que ven Comercial), en los DOS grupos', () => {
-    for (const rol of [...MANDO, ...VENTA]) {
-      const suyas = paraRol(rol)
-      expect(suyas.filter((n) => n.grupo === 'vender').map((n) => n.key), rol).toContain('vallas-comercial')
-      expect(suyas.filter((n) => n.grupo === 'patrimonio').map((n) => n.key), rol).toContain('vallas')
-    }
-  })
-
-  it('y nadie más: Operaciones, Finanzas e Imprenta no la ven en ningún grupo', () => {
-    for (const rol of ROLES.filter((r) => ![...MANDO, ...VENTA].includes(r))) {
-      expect(paraRol(rol).filter((n) => n.href === '/vallas').map((n) => n.key), rol).toEqual([])
-    }
-  })
-
-  it('la compuerta no puede dudar: toda entrada con /vallas lleva los MISMOS roles, y el vendedor está', () => {
+describe('Vallas solo en Comercial · el dato del menú', () => {
+  it('una sola entrada lleva a /vallas: la de Comercial, justo después de Disponibilidad', () => {
     const conVallas = NAV.filter((n) => rutasDe(n).includes('/vallas'))
-    expect(conVallas.map((n) => n.key).sort()).toEqual(['vallas', 'vallas-comercial'])
-    for (const n of conVallas) {
-      expect(n.roles, n.key).toEqual(original.roles)
-      expect(n.roles, n.key).toContain('VENDEDOR')
-    }
+    expect(conVallas.map((n) => n.key)).toEqual(['vallas'])
+    const vallas = conVallas[0]
+    expect(vallas.grupo).toBe('vender')
+    expect(vallas.espejoDe).toBeUndefined()
+    expect(vallas.insignia).toBe('en-proceso')
+    const i = (k: string) => NAV.findIndex((n) => n.key === k)
+    expect(i('vallas')).toBe(i('disponibilidad') + 1)
   })
 
-  it('ningún rol la ve dos veces en el MISMO grupo', () => {
+  it('Inventario ya no la tiene', () => {
+    expect(NAV.filter((n) => n.grupo === 'patrimonio').map((n) => n.href)).not.toContain('/vallas')
+  })
+
+  it('la ven mando y venta, y nadie más', () => {
     for (const rol of ROLES) {
-      const grupos = paraRol(rol).filter((n) => n.href === '/vallas').map((n) => n.grupo)
-      expect(new Set(grupos).size, rol).toBe(grupos.length)
+      const ve = paraRol(rol).some((n) => n.href === '/vallas')
+      expect(ve, rol).toBe([...MANDO, ...VENTA].includes(rol))
     }
   })
 })
@@ -120,16 +90,8 @@ describe.each([...MANDO, ...VENTA])('el menú pintado para %s', (rol) => {
     expect(li).toContain('>En proceso<')
   })
 
-  it('e Inventario la conserva', async () => {
-    expect(seccion(await pintarSidebar(rol), 'patrimonio')).toContain('href="/vallas"')
-  })
-
-  it('en /vallas se encienden las dos: es la misma pantalla', async () => {
-    const html = await pintarSidebar(rol)
-    for (const g of ['patrimonio', 'vender']) {
-      const s = seccion(html, g)
-      const i = s.indexOf('href="/vallas"')
-      expect(s.slice(s.lastIndexOf('<a', i), s.indexOf('>', i)), g).toContain('aria-current="page"')
-    }
+  it('e Inventario ya no la lleva', async () => {
+    // Venta también ve Inventario (Prospección, Network): la sección existe para todos.
+    expect(seccion(await pintarSidebar(rol), 'patrimonio')).not.toContain('href="/vallas"')
   })
 })

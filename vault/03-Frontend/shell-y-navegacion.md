@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-11-19
+actualizado: 2026-11-20
 tags: [frontend, shell, navegacion, rbac]
 archivos:
   - apps/web/lib/host.ts
@@ -89,14 +89,22 @@ orden de ese arreglo **es** el orden en pantalla. Al 2026-10-05 (26 entradas):
 | Clave (código) | Rótulo (pantalla) | Entradas |
 |---|---|---|
 | `inicio` | *sin título* | Dashboard |
-| `patrimonio` | **Inventario** | **Prospección** · Inventario · **Vallas** («En proceso», 19/11) · Arrendadores · Network · Almacén |
+| `patrimonio` | **Inventario** | **Prospección** · Inventario · Arrendadores · Network · Almacén |
 | `ojos` | **Space Eyes** | Equipos · Comprobantes (PoD; antes «Galería», 17/11) · Gráficas · Ajustar texto · Programación · Campañas · Verificación · Fallas — desde v0.11.0 (08/10, ADR 0045); fuera de la cuenta de 26 de arriba. Ajustar texto y Programación solo MANDO; el resto MANDO + VENTA. `hrefActivo()` (`nav.ts:326-329`) enciende **una sola** entrada en sus subpáginas (v0.11.5) |
-| `vender` | **Comercial** | Clientes · Comercial · Disponibilidad · **Vallas** (espejo, 19/11) · **Propuestas** (fue «CRM» del 17 al 18/11) · Franjas y temporadas · Descuentos por volumen · Códigos de negociación · Paquetes cerrados |
+| `vender` | **Comercial** | Clientes · Comercial · Disponibilidad · **Vallas** («En proceso»; solo aquí desde el 20/11) · **Propuestas** (fue «CRM» del 17 al 18/11) · Franjas y temporadas · Descuentos por volumen · Códigos de negociación · Paquetes cerrados |
 | `entregar` | **Operaciones** | Campañas · **Creativos** · Imprenta · Operaciones · Consumo de luz |
 | `cobrar` | **Finanzas** | Finanzas · Reportes · Comisiones |
 | `sistema` | **Sistema** | Integraciones · Razones sociales · Actividad · Administración |
 
-> [!important] 2026-11-19 · **la misma pantalla en dos grupos: el ESPEJO** (Vallas)
+> [!important] 2026-11-20 · **el espejo de Vallas se retiró**
+> El dueño pidió una sola entrada de Vallas, en Comercial. Se quitaron el espejo
+> `vallas-comercial` y la función `espejo()`; la entrada `vallas` pasó al grupo `vender`.
+> **El mecanismo se queda** (`NavItem.espejoDe`, `claveDeTexto()`, la excepción del
+> Sidebar y los casos de `nav.test.ts`, que ahora exigen **cero** espejos): si vuelve a
+> pedirse la misma pantalla en dos grupos, se construye como
+> `{ ...original, key, grupo, espejoDe: original.key }`. Lo de abajo es la historia del 19/11.
+
+> [!note] 2026-11-19 · **la misma pantalla en dos grupos: el ESPEJO** (Vallas; retirado el 20/11)
 > Pedido del dueño: «Vallas va igual en Comercial». Hasta hoy una ruta pertenecía a UNA
 > entrada (`nav.test.ts`: claves y rutas únicas), porque `AuthGate` empareja por ruta y
 > dos entradas con roles distintos harían que la puerta dependiera del orden del arreglo.

@@ -262,18 +262,19 @@ describe('3 ter · los cuatro roles del ADR 0040 (2026-09-29)', () => {
 describe('4 · lo que ya se cumplía y no debe romperse al reordenar', () => {
   it('no hay claves ni rutas repetidas', () => {
     expect(new Set(NAV.map((n) => n.key)).size).toBe(NAV.length)
-    // Los espejos (Vallas en Comercial, 19/11) repiten la ruta de su original
-    // A PROPÓSITO; se cuentan aparte, en el caso de abajo.
+    // Un espejo repetiría la ruta de su original A PROPÓSITO; se cuenta
+    // aparte, en el caso de abajo. (El de Vallas se retiró el 20/11.)
     const propias = NAV.filter((n) => !n.espejoDe)
     expect(new Set(propias.map((n) => n.href)).size).toBe(propias.length)
   })
 
   it('un espejo es la MISMA pantalla que su original: ruta, rótulo, icono, roles e insignia', () => {
     // Si un espejo divergiera en roles, `AuthGate` (que empareja por ruta)
-    // aplicaría uno u otro según el orden del arreglo: la puerta de /vallas
-    // dependería de dónde se pegó la línea.
+    // aplicaría uno u otro según el orden del arreglo: la puerta de la ruta
+    // dependería de dónde se pegó la línea. Hoy no hay ninguno: el de Vallas
+    // se retiró el 20/11 (el dueño la quiso solo en Comercial).
     const espejos = NAV.filter((n) => n.espejoDe)
-    expect(espejos.map((n) => n.key)).toEqual(['vallas-comercial'])
+    expect(espejos.map((n) => n.key)).toEqual([])
     for (const e of espejos) {
       const o = NAV.find((n) => n.key === e.espejoDe)!
       expect(o, e.key).toBeDefined()
