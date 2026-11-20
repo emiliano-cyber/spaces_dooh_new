@@ -69,6 +69,7 @@ import { ElegirClienteDialog } from '@/components/demo/propuestas/ElegirClienteD
 import { BloqueCondicionesVigencia } from '@/components/demo/propuestas/BloqueCondicionesVigencia'
 import { useAvisosCompetencia, RecuadroCompetencia } from '@/components/demo/propuestas/AvisoCompetencia'
 import { BloqueMarcaPropuesta } from '@/components/demo/propuestas/MarcaPropuesta'
+import { DibujarPlanoPropuesta } from '@/components/demo/propuestas/DibujarPlanoPropuesta'
 import type { AvisoCompetencia } from '@/lib/data/estado-api'
 import { ImprentaVisibleCliente } from '@/components/demo/propuestas/ImprentaVisibleCliente'
 import { EnviarPropuestaDialog } from '@/components/demo/propuestas/EnviarPropuestaDialog'
@@ -517,8 +518,39 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
         onElegir={(clienteId) => generarCampana(clienteId)}
       />
 
+      {/* LA MARCA, ARRIBA (decisión del dueño, 20/11 noche): lo primero del
+          contenido de la ficha, antes de la barra de datos y de los sitios. */}
+      <div className="space-y-2" data-testid="marca-y-plano">
+        {/* PROP-MARCA (decisiones del dueño, 20/11) · editar la marca aquí,
+            con las reglas de las condiciones de abajo (`comercial.crear` y no
+            en una APROBADA), y el aviso informativo si no se parece al
+            cliente. */}
+        <BloqueMarcaPropuesta
+          propuestaId={p.id}
+          marca={p.marca ?? null}
+          cliente={cliente?.nombre ?? null}
+          editable={puedeEditar && p.estatus !== 'APROBADA'}
+          onAvisos={setAvisosGuardados}
+        />
+
+        {/* PROP-MARCA (20/11) · competencia de marcas en los sitios de esta
+            propuesta. Solo avisa; sin choques no pinta nada. Una aprobada ya
+            generó su campaña con la misma marca, y la misma marca no compite
+            consigo misma. */}
+        <RecuadroCompetencia avisos={avisosCompetencia} />
+
+        {/* «Dibujar plano» (20/11 noche) · las vallas de los sitios de esta
+            propuesta en sus fechas. Se despliega aquí; solo con
+            `inventario.ver` (ver el componente). */}
+        <DibujarPlanoPropuesta
+          sitioIds={[...new Set(p.items.map((i) => i.sitioId))]}
+          desde={desde ? String(desde).slice(0, 10) : ''}
+          hasta={hasta ? String(hasta).slice(0, 10) : ''}
+        />
+      </div>
+
       {/* Barra de metadatos (fechas / anunciante / agencia / comisión) */}
-      <Card className="overflow-hidden p-0">
+      <Card className="overflow-hidden p-0" data-testid="barra-datos-propuesta">
         <div className="grid grid-cols-2 divide-x divide-y divide-border sm:grid-cols-5 sm:divide-y-0">
           <Meta icon={<CalendarDays className="h-4 w-4" />} label={t('propuestas.ficha.meta.fechas')}
             value={desde && hasta ? `${formatFecha(desde, idioma)} – ${formatFecha(hasta, idioma)}` : '—'} />
@@ -539,23 +571,6 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
           />
         </div>
       </Card>
-
-      {/* PROP-MARCA (20/11) · competencia de marcas en los sitios de esta
-          propuesta. Solo avisa; sin choques no pinta nada. Una aprobada ya
-          generó su campaña con la misma marca, y la misma marca no compite
-          consigo misma. */}
-      <RecuadroCompetencia avisos={avisosCompetencia} />
-
-      {/* PROP-MARCA (decisiones del dueño, 20/11) · editar la marca aquí, con
-          las reglas de las condiciones de abajo (`comercial.crear` y no en
-          una APROBADA), y el aviso informativo si no se parece al cliente. */}
-      <BloqueMarcaPropuesta
-        propuestaId={p.id}
-        marca={p.marca ?? null}
-        cliente={cliente?.nombre ?? null}
-        editable={puedeEditar && p.estatus !== 'APROBADA'}
-        onAvisos={setAvisosGuardados}
-      />
 
       {/* Resumen económico (KPIs). PLEG-02 · el descuento tecleado vive en
           esta página y sobrevive a plegar; lo que se esté escribiendo en el

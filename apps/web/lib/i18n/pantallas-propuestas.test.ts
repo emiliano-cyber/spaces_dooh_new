@@ -127,7 +127,12 @@ vi.mock('@/components/demo/ui/CardColapsable', () => ({
 // MapLibre no existe en node, y el mapa no lleva texto del lote.
 vi.mock('@/components/demo/MapView', () => ({ MapView: () => createElement('div', null, '[mapa]') }))
 
-vi.mock('@/components/demo/shell/SesionContext', () => ({ usePuede: () => true }))
+// 20/11 noche · «Dibujar plano» solo se ofrece con `inventario.ver`: la
+// prueba puede negar permisos concretos («modulo.accion»).
+const permisos = vi.hoisted(() => ({ niega: [] as string[] }))
+vi.mock('@/components/demo/shell/SesionContext', () => ({
+  usePuede: (modulo: string, accion: string) => !permisos.niega.includes(`${modulo}.${accion}`),
+}))
 
 // ─── Datos de prueba ────────────────────────────────────────────────────────
 const SITIO_DIGITAL = {
@@ -228,6 +233,7 @@ beforeEach(() => {
   navegacion.q = 'vista=propuestas'
   datos.propuestas = [PROPUESTA]
   datos.contratos = []
+  permisos.niega = []
   vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
 })
 
@@ -1601,5 +1607,86 @@ describe('18/11 · Resumen · Propuestas: cada pestaña con lo suyo', () => {
     const { default: Ficha } = await import('../../app/(app)/(shell)/propuestas/[id]/page')
     const html = pintar('es', createElement(Ficha, { params: { id: 'nada' } }))
     expect(html).toContain('href="/propuestas?vista=propuestas"')
+  })
+})
+
+// ============================================================================
+//  Decisiones del dueño (20/11 noche):
+//   2. El aviso «la marca no coincide con el cliente» también al AGREGAR
+//      SITIOS (antes solo en alta, duplicar y ficha).
+//   3. En la ficha, el bloque de la Marca va ARRIBA, antes de la barra de
+//      datos, y junto a él «Dibujar plano» (las vallas de los sitios de la
+//      propuesta en sus fechas). La misma opción en «Nueva propuesta». Solo
+//      con `inventario.ver`, que es lo que piden `GET /api/vallas` y
+//      `GET /api/vallas/ocupacion`.
+// ============================================================================
+describe('marca arriba y «Dibujar plano» (20/11 noche)', () => {
+  const ficha = async (idioma: Idioma = 'es') => {
+    const { default: Ficha } = await import('../../app/(app)/(shell)/propuestas/[id]/page')
+    return texto(pintar(idioma, createElement(Ficha, { params: { id: 'p1' } })))
+  }
+
+  it('ficha: el bloque de la marca va antes de la barra de datos', async () => {
+    datos.propuestas = [{ ...PROPUESTA, marca: 'Pepsi' }]
+    const html = await ficha()
+    const marca = html.indexOf('data-testid="marca-y-plano"')
+    const editar = html.indexOf('data-testid="editar-marca"')
+    const barra = html.indexOf('data-testid="barra-datos-propuesta"')
+    expect(marca).toBeGreaterThan(-1)
+    expect(barra).toBeGreaterThan(-1)
+    expect(editar).toBeGreaterThan(marca)
+    expect(editar).toBeLessThan(barra)
+    // Y lo primero del contenido: nada de la ficha entre el encabezado y él.
+    expect(html.indexOf('Resumen económico')).toBeGreaterThan(marca)
+  })
+
+  it('ficha: «Dibujar plano» junto a la marca, plegado (no navega)', async () => {
+    const html = await ficha()
+    const bloque = html.slice(html.indexOf('data-testid="marca-y-plano"'), html.indexOf('data-testid="barra-datos-propuesta"'))
+    expect(bloque).toContain('Dibujar plano')
+    expect(bloque).toContain('aria-expanded="false"')
+    expect(bloque).not.toContain('href=')
+  })
+
+  it('ficha: el botón en los cuatro idiomas', async () => {
+    expect(await ficha('en')).toContain('Draw layout')
+    expect(await ficha('it')).toContain('Disegna la pianta')
+    expect(await ficha('pt')).toContain('Desenhar planta')
+  })
+
+  it('sin inventario.ver no se ofrece el botón (el servidor le daría 403)', async () => {
+    permisos.niega = ['inventario.ver']
+    const html = await ficha()
+    expect(html).not.toContain('Dibujar plano')
+    expect(html).toContain('data-testid="marca-y-plano"')
+  })
+
+  it('nueva propuesta: también ofrece «Dibujar plano»', async () => {
+    const { default: Pagina } = await import('../../app/(app)/(shell)/propuestas/page')
+    forzar(esFalse, true) // nuevoOpen
+    expect(texto(pintar('es', createElement(Pagina)))).toContain('Dibujar plano')
+  })
+
+  it('nueva propuesta sin inventario.ver: sin el botón', async () => {
+    permisos.niega = ['inventario.ver']
+    const { default: Pagina } = await import('../../app/(app)/(shell)/propuestas/page')
+    forzar(esFalse, true) // nuevoOpen
+    expect(texto(pintar('es', createElement(Pagina)))).not.toContain('Dibujar plano')
+  })
+
+  it('agregar sitios: avisa si la marca de la propuesta no coincide con su cliente', async () => {
+    const { default: Pagina } = await import('../../app/(app)/(shell)/propuestas/page')
+    forzar(esNull, { tipo: 'agregar', propuesta: { ...PROPUESTA, marca: 'Pepsi' } })
+    const html = texto(pintar('es', createElement(Pagina)))
+    expect(html).toContain('data-testid="aviso-marca-cliente"')
+    expect(html).toContain('La marca «Pepsi» no coincide con el cliente «Refrescos del Norte». Revisa que sea correcta.')
+  })
+
+  it('agregar sitios: sin marca, o coincidente, no avisa', async () => {
+    const { default: Pagina } = await import('../../app/(app)/(shell)/propuestas/page')
+    forzar(esNull, { tipo: 'agregar', propuesta: PROPUESTA })
+    expect(texto(pintar('es', createElement(Pagina)))).not.toContain('aviso-marca-cliente')
+    forzar(esNull, { tipo: 'agregar', propuesta: { ...PROPUESTA, marca: 'Refrescos del Norte' } })
+    expect(texto(pintar('es', createElement(Pagina)))).not.toContain('aviso-marca-cliente')
   })
 })

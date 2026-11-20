@@ -5,6 +5,15 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-20 · Propuestas: la marca arriba, «Dibujar plano» y un aviso de marca más estricto
+
+- En la **ficha de la propuesta**, la **marca** va ahora **arriba del todo**, antes de los datos y los sitios. Junto a ella hay un botón **«Dibujar plano»** que despliega, en la misma ficha, el plano de las **vallas de los sitios de esa propuesta** en **sus fechas**: qué cuadros hay y si están libres u ocupados. Si ninguno de esos sitios tiene vallas, lo dice. El mismo botón está al **crear una propuesta**, con los sitios y las fechas que se hayan elegido.
+- El botón solo aparece a quien puede ver el inventario (los roles de venta lo tienen).
+- El aviso gris «la marca no coincide con el cliente» sale ahora también al **agregar sitios** a una propuesta.
+- Y **avisa más**: una marca corta, como «GM», ya no se da por buena solo porque sus letras aparezcan dentro del nombre del cliente. «GM» con el cliente «General Motors» avisa; «Bimbo» con «Grupo Bimbo» no. Es solo un aviso: si sobra, el Dueño o el Administrador lo dejan como está.
+
+---
+
 ## 2026-11-20 · Propuestas: la marca se cambia desde la ficha y avisa si no es la del cliente
 
 - En la **ficha de la propuesta** ahora se puede **cambiar la marca** (o borrarla, y entonces cuenta el cliente) con su botón **Guardar**. Lo puede hacer quien puede crear propuestas, igual que las condiciones, y **no** en una propuesta ya aprobada. Al guardar, si la nueva marca compite con otra en esos sitios, aparece en seguida el recuadro ámbar.

@@ -31,6 +31,7 @@ archivos:
   - apps/web/components/vallas/plano.test.ts
   - apps/web/lib/vallas/plano.ts
   - apps/web/lib/vallas/plano.test.ts
+  - apps/web/components/demo/propuestas/DibujarPlanoPropuesta.tsx
   - apps/web/app/api/vallas/ocupacion/route.ts
   - apps/web/lib/test/vallas-plano.e2e.test.ts
   - apps/web/lib/data/vallas-api.ts
@@ -349,6 +350,22 @@ también**: con `2026-13-40` o `2026-02-30` responde **400** en vez de 500. Es e
 `fechaReal` de `vallas-controller.ts`, exportado y reutilizado también por la vista previa
 de las propuestas (`POST /api/propuestas/competencia`), no copiado.
 
+### El mismo plano en la propuesta (20/11, noche)
+
+El cuerpo del plano es `PlanoVallas` (fechas, leyenda y un dibujo por sitio); `TarjetaPlano`
+solo lo envuelve en la tarjeta plegable de `/vallas`, que **no cambia**. «Dibujar plano» de
+la propuesta (`components/demo/propuestas/DibujarPlanoPropuesta.tsx`, en la ficha y en
+Nueva propuesta) lo usa con:
+
+- `sitioIds`: solo los sitios de la propuesta. `armarPlano` filtra **después** de contar
+  los sitios de cada grupo, así que un grupo que sigue en un sitio ajeno a la propuesta
+  sigue diciendo «sigue en otro sitio». Lista vacía → plano vacío.
+- `fechas` fijas: sin campos Desde/Hasta; dice el periodo («Lo ocupado del … al …») y,
+  si aún no hay fechas, no marca nada ocupado y lo dice (`vallas.plano.sin-fechas`).
+- `textoVacio`: «Ninguno de los sitios de esta propuesta tiene vallas dadas de alta.»
+
+Solo se ofrece con `inventario.ver` (lo piden `GET /api/vallas` y `/ocupacion`).
+
 > [!important] Decisión del dueño (20/11): las vallas dadas de baja NO salen en el plano
 > Ni en un sitio que se quedó sin ninguna activa (no sale el sitio) ni en uno que conserva
 > otras (solo se dibujan las activas). Lo fija `lib/vallas/plano.test.ts` («en un sitio con
@@ -429,6 +446,8 @@ Lo que NO las recibe: las organizaciones que siembran a mano los scripts de demo
   real rendido en es/en/it/pt: número, medida, «Libre» en texto, el grupo con su modo,
   `aria-label`, «Pepsi +1» y el ancho proporcional). Vistas en rojo antes del código
   (19/19 y 17/17).
+  Desde el 20/11 (noche) son **25 y 21**: el filtro por `sitioIds` (5) y `PlanoVallas`
+  con fechas fijas y texto vacío (4), vistos en rojo (3 de 5 y 4 de 4) antes del código.
 - `lib/test/vallas-plano.e2e.test.ts` (20/11): `GET /api/vallas/ocupacion` contra Postgres
   y Next — el criterio (inclusivo, cancelada, tentativa caducada/vigente/sin caducidad,
   sitio sin vallas activas, marca vacía → cliente), aislamiento entre organizaciones,

@@ -278,3 +278,43 @@ describe('rangoPorOmision', () => {
     expect(rangoPorOmision(new Date(2026, 11, 15, 0, 5))).toEqual({ desde: '2026-12-15', hasta: '2027-01-14' })
   })
 })
+
+// ============================================================================
+//  «Dibujar plano» en la propuesta (dueño, 20/11 noche): el MISMO plano, solo
+//  con los sitios de esa propuesta. `sitioIds` filtra; sin él salen todos
+//  (la pantalla de Vallas no cambia).
+// ============================================================================
+describe('armarPlano · filtrado por los sitios de una propuesta', () => {
+  const vallas = [
+    valla({ id: 'p1', numero: 'V-001', sitioId: 'S1', grupoId: 'gx', posicion: 1 }),
+    valla({ id: 'p2', numero: 'V-002', sitioId: 'S2', grupoId: 'gx', posicion: 2 }),
+    valla({ id: 'p3', numero: 'V-003', sitioId: 'S2' }),
+  ]
+  const grupos = [grupo({ id: 'gx', numero: 'G-009' })]
+
+  it('sin sitioIds salen todos los sitios con vallas (como en /vallas)', () => {
+    expect(armarPlano({ vallas, grupos, sitios: SITIOS, ocupaciones: [] }).map((s) => s.sitioId)).toEqual(['S2', 'S1'])
+  })
+
+  it('con sitioIds solo esos sitios; las ocupaciones de otros no entran', () => {
+    const p = armarPlano({ vallas, grupos, sitios: SITIOS, ocupaciones: [ocup('S1', 'Pepsi', 'k1')], sitioIds: ['S2'] })
+    expect(p.map((s) => s.sitioId)).toEqual(['S2'])
+    expect(p[0].filas.flatMap((f) => f.bloques.flatMap((b) => b.cuadros)).every((c) => c.estado === 'libre')).toBe(true)
+  })
+
+  it('un grupo que sigue en un sitio que NO es de la propuesta se sigue marcando como que cruza', () => {
+    const [s1] = armarPlano({ vallas, grupos, sitios: SITIOS, ocupaciones: [], sitioIds: ['S1'] })
+    expect(s1.filas[0].bloques[0].grupo).toMatchObject({ numero: 'G-009', cruzaSitio: true })
+  })
+
+  it('sitios sin vallas, o la lista vacía → plano vacío', () => {
+    expect(armarPlano({ vallas, grupos, sitios: SITIOS, ocupaciones: [], sitioIds: ['S9'] })).toEqual([])
+    expect(armarPlano({ vallas, grupos, sitios: SITIOS, ocupaciones: [], sitioIds: [] })).toEqual([])
+  })
+
+  it('una valla dada de baja no sale aunque su sitio sea de la propuesta', () => {
+    const conBaja = [...vallas, valla({ id: 'p4', numero: 'V-004', sitioId: 'S1', activo: false })]
+    const [s1] = armarPlano({ vallas: conBaja, grupos, sitios: SITIOS, ocupaciones: [], sitioIds: ['S1'] })
+    expect(s1.filas.flatMap((f) => f.bloques.flatMap((b) => b.cuadros.map((c) => c.numero)))).toEqual(['V-001'])
+  })
+})
