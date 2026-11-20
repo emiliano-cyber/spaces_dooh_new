@@ -2,7 +2,7 @@
 tipo: backend
 estado: en-curso
 actualizado: 2026-11-20
-tags: [backend, vallas, inventario, reglas, competencia, rojo, en-proceso, demo]
+tags: [backend, vallas, inventario, reglas, competencia, rojo, en-proceso, demo, plano]
 archivos:
   - db/migrations/20261119_vallas_esqueleto.sql
   - db/migrations/20261119_vallas_sembrar_competencia_por_omision.sql
@@ -26,6 +26,12 @@ archivos:
   - apps/web/app/api/vallas/verificar/route.ts
   - apps/web/app/(app)/(shell)/vallas/page.tsx
   - apps/web/components/vallas/Vallas.tsx
+  - apps/web/components/vallas/PlanoVallas.tsx
+  - apps/web/components/vallas/plano.test.ts
+  - apps/web/lib/vallas/plano.ts
+  - apps/web/lib/vallas/plano.test.ts
+  - apps/web/app/api/vallas/ocupacion/route.ts
+  - apps/web/lib/test/vallas-plano.e2e.test.ts
   - apps/web/lib/data/vallas-api.ts
   - apps/web/lib/i18n/textos/vallas.ts
   - apps/web/lib/test/vallas.e2e.test.ts
@@ -63,6 +69,12 @@ Decisión de forma en el [ADR 0052](../../docs/adr/0052-vallas-modulo-con-reglas
 >
 > Rama `feat/vallas-decisiones` desde `integra/18-11` `3e73f5e5`. Apunte en el
 > [ADR 0052](../../docs/adr/0052-vallas-modulo-con-reglas-enchufables.md).
+
+> [!important] 2026-11-20 · el PLANO por sitio, arriba de todo en `/vallas`
+> Pedido del dueño: «tiene que estar un mapa del plano de las vallas». Eligió **un plano
+> por sitio** y aprobó el boceto (cuadros numerados en su lugar, a escala, el grupo
+> marcado debajo, y libre/ocupado). Rama `feat/vallas-plano-por-sitio` desde
+> `integra/18-11` `8f993be6`. **Sin migraciones.** Detalle en «El plano por sitio», abajo.
 
 > [!important] 2026-11-20 · Vallas también como PESTAÑA dentro de Inventario
 > Pedido del dueño, después de dejarla una sola vez en el menú: «en Inventario añade la
@@ -276,6 +288,55 @@ aproximación honesta mientras la reserva no sepa en qué cuadro cae.
 > y la reserva no sabe todavía en qué valla cae. Cuando se conecte: armar el contexto
 > con `contextoParaVerificar`, 409 con los hallazgos si `bloquea`, y mostrar los avisos.
 
+## El plano por sitio (20/11)
+
+La primera tarjeta de `/vallas` (`components/vallas/PlanoVallas.tsx`, `TarjetaPlano`) es
+un dibujo por sitio. Lo arma `armarPlano` (`lib/vallas/plano.ts`, puro) y el componente
+solo lo pinta:
+
+```
+Sitio: Periférico Sur 4500
+┌───────┬───────┬───────────────┐
+│ V-001 │ V-002 │    V-003      │
+│ 6x3 m │ 6x3 m │   12x3 m      │
+│ Libre │ Pepsi │   Libre       │
+└───────┴───────┴───────────────┘
+└─ G-001 (una imagen) ─┘
+```
+
+- **Forma**: sitio → **una fila por cara** (las sin cara al final) → bloques (un tramo de
+  grupo o una valla suelta) → cuadros. Solo vallas **activas**; un sitio sin ninguna no
+  sale. Sitios por nombre.
+- **Orden**. `posicion` la escribe `fijarMiembros` y es el orden **dentro del grupo**; una
+  valla suelta la tiene siempre nula. Ordenar la fila entera por `posicion` intercalaría
+  dos grupos y mandaría las sueltas al final, así que: dentro del grupo manda `posicion`
+  (nulos al final, luego número) y el grupo entero va donde cae su número más bajo. El
+  número se ordena como número (`V-2` antes que `V-10`).
+- **Escala**: el ancho de cada cuadro es `flex-grow` = sus metros, y cada fila mide lo que
+  suma respecto de la más ancha del sitio; el alto, relativo a la valla más alta del sitio.
+  Mínimos legibles: 5.5rem de ancho (`ANCHO_MINIMO_REL` en el dato) y `ALTO_MINIMO_REL`.
+  Si no cabe en un teléfono, el plano **de cada sitio** tiene su scroll horizontal; la
+  página no se ensancha.
+- **Grupos**: corchete debajo de sus cuadros con «G-001 (Una sola imagen)»; si el grupo
+  tiene vallas en otro sitio se marca en cada uno con «· sigue en otro sitio». Un grupo
+  repartido en dos caras sale en las dos filas.
+- **Ocupación**: selector de fechas (por omisión hoy → +30, fecha del navegador) y
+  `GET /api/vallas/ocupacion?desde&hasta`. **Las reservas son por SITIO**: una campaña
+  viva ocupa todos los cuadros del sitio, y la pantalla lo dice en la leyenda. El
+  criterio es **el mismo** que el de «Verificar una marca»: las dos leen
+  `reservasVivasEnSitiosConVallas` (`vallas-repo.ts`) —no cancelada, tentativa sin
+  caducar, solape inclusivo, solo sitios con vallas activas—, una sola consulta para toda
+  la organización. Cada cuadro dice «Libre» o la marca (sin marca, el cliente; sin
+  cliente, el nombre de la campaña) y «+n» si hay más campañas.
+- **Accesible**: el estado va en texto, no solo en color (verde libre, ámbar ocupada), y
+  cada cuadro lleva `aria-label` «Valla V-001, 6 × 3 m, Ocupada por Pepsi, Telcel».
+- **Idiomas**: claves `vallas.plano.*` en es/en/it/pt (en «Poster panel layout», it
+  «Pianta dei poster», pt «Planta dos outdoors»). «Ocupada» es «Occupied» en inglés, como
+  en Disponibilidad (lo exige `costura.test.ts`).
+
+`GET /api/vallas/ocupacion` valida que las fechas **existan** (`2026-13-40` pasa el patrón
+y Postgres lo rechazaría con 500). `POST /api/vallas/verificar` sigue con solo el patrón.
+
 ## API
 
 | Ruta | Permiso |
@@ -285,6 +346,7 @@ aproximación honesta mientras la reserva no sepa en qué cuadro cae.
 | `POST /api/vallas/grupos` · `PATCH`/`DELETE /api/vallas/grupos/[id]` (`vallaIds` deja EXACTAMENTE esas, en ese orden) | `inventario.crear` |
 | `GET`/`POST /api/vallas/competencia` · `PATCH /api/vallas/competencia/[id]` | `ver` / `crear` |
 | `POST /api/vallas/verificar` `{ marca, fechaInicio, fechaFin, vallaIds?, sitioIds?, excluirCampanaId? }` → `{ hallazgos, bloquea }` | `inventario.ver` |
+| `GET /api/vallas/ocupacion?desde&hasta` → `{ desde, hasta, ocupaciones: [{ sitioId, marca, campanaId, campanaNombre, inicio, fin }] }` (20/11, el plano) | `inventario.ver` |
 
 Una valla en un sitio ajeno, o un grupo con vallas ajenas, es **400** (el repo lo
 pregunta antes; la FK compuesta lo impide igual en la base).
@@ -345,6 +407,15 @@ Lo que NO las recibe: las organizaciones que siembran a mano los scripts de demo
 
 ## Pruebas
 
+- `lib/vallas/plano.test.ts` (19) y `components/vallas/plano.test.ts` (17, el componente
+  real rendido en es/en/it/pt: número, medida, «Libre» en texto, el grupo con su modo,
+  `aria-label`, «Pepsi +1» y el ancho proporcional). Vistas en rojo antes del código
+  (19/19 y 17/17).
+- `lib/test/vallas-plano.e2e.test.ts` (20/11): `GET /api/vallas/ocupacion` contra Postgres
+  y Next — el criterio (inclusivo, cancelada, tentativa caducada/vigente/sin caducidad,
+  sitio sin vallas activas, marca vacía → cliente), aislamiento entre organizaciones,
+  COMERCIAL 200 / FINANZAS sin `inventario.ver` 403 / sin sesión 401 y fechas malas 400.
+  **Escrita y NO corrida** el 20/11 (otro agente usaba el 3311 y el 5433).
 - `components/vallas/en-proceso.test.ts`: la insignia en el menú (solo en Vallas) y el
   aviso en la cabecera, rendidos de verdad en es/en/it/pt (14, vistas en rojo).
 - `scripts/semilla-catalogo-demo.test.ts` (sin base): 6–8 vallas sobre fijas tipo

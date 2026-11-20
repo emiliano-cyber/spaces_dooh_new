@@ -5,6 +5,17 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-20 · Vallas: el plano de cada sitio
+
+- Arriba de todo en **Vallas** hay una tarjeta nueva, **«Plano de las vallas»**: un dibujo por sitio con sus cuadros numerados (V-001, V-002…) en su lugar, cada uno del tamaño que le toca según su medida.
+- Los **grupos** se marcan con una línea debajo de sus cuadros, con su número y cómo se ven («G-001 (Una sola imagen)»). Si un grupo tiene vallas en otro sitio, se dice.
+- Cada cuadro dice si está **Libre** o qué **marca** lo ocupa (si hay varias, la primera y «+1», «+2»…) entre las fechas que se elijan. Por omisión, de hoy a 30 días.
+- Hoy las reservas se hacen **por sitio**: una campaña en un sitio ocupa todas sus vallas, y la tarjeta lo avisa. Cuenta igual que «Verificar una marca».
+- Si un sitio tiene varias caras, sale una fila por cara. En el teléfono, el dibujo se desliza de lado sin mover la página.
+- Está en español, inglés, italiano y portugués. La pantalla sigue marcada «En proceso».
+
+---
+
 ## 2026-11-20 · Vallas también dentro de Inventario
 
 - En la pantalla **Inventario**, junto a **Todos · Fijos · Digitales**, hay una pestaña **«Vallas»** (con su etiqueta «En proceso»). Abre lo mismo que Vallas en Comercial: dar de alta vallas y grupos, y **«Verificar una marca»** para ver si choca con la competencia.
