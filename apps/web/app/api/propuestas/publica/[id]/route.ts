@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { obtenerPropuestaPublica, aceptarPropuestaPublica, PropuestaError } from '@/lib/server/propuestas-repo'
+import { planoVallasDeLiga } from '@/lib/server/vallas-publicas-controller'
 import { limitar, ipDe } from '@/lib/server/rate-limit'
 
 export const runtime = 'nodejs'
@@ -7,10 +8,17 @@ export const dynamic = 'force-dynamic'
 
 // GET /api/propuestas/publica/:id → datos de solo lectura de una propuesta para
 // la liga compartible. SIN auth a propósito: cualquiera con la liga puede verla.
+//
+// `planoVallas` (dueño, 20/11) · solo si los sitios de la propuesta suman MÁS
+// de una valla activa: con 0 o 1 el campo NO se añade y la respuesta es la de
+// siempre. Va en esta misma respuesta, y no en una ruta aparte, para que la
+// liga sin vallas no haga ni una petición de más. Se resuelve por el MISMO
+// token y con el mismo mecanismo de tenant (`vallas-publicas-repo.ts`).
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const data = await obtenerPropuestaPublica(params.id)
   if (!data) return NextResponse.json({ error: 'Propuesta no encontrada' }, { status: 404 })
-  return NextResponse.json(data)
+  const planoVallas = await planoVallasDeLiga(params.id)
+  return NextResponse.json(planoVallas ? { ...data, planoVallas } : data)
 }
 
 // POST /api/propuestas/publica/:id → el CLIENTE acepta la propuesta desde la

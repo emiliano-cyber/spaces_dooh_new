@@ -116,6 +116,10 @@ export const ES_VALLAS = {
   'vallas.plano.esquina.izquierda': 'en esquina, dobla a la izquierda',
   'vallas.plano.esquina.derecha': 'en esquina, dobla a la derecha',
   'vallas.plano.grupo.esquina': 'dobla la esquina',
+  // ── Liga del cliente (20/11): «Así se ven tus vallas» ──
+  'vallas.plano.tuya': 'Tu valla',
+  'vallas.publico.titulo': 'Así se ven tus vallas',
+  'vallas.publico.detalle': 'Cada valla con su número y su medida, en su lugar y a escala.',
   'vallas.hallazgo.competencia':
     '{marca} compite con {otra} ({categoria}), que ya está en la valla {valla} del {inicio} al {fin} ({campana}).',
 } as const
@@ -218,6 +222,9 @@ export const EN_VALLAS: Record<ClaveVallas, string> = {
   'vallas.plano.esquina.izquierda': 'on a corner, turns left',
   'vallas.plano.esquina.derecha': 'on a corner, turns right',
   'vallas.plano.grupo.esquina': 'turns the corner',
+  'vallas.plano.tuya': 'Your panel',
+  'vallas.publico.titulo': 'How your poster panels look',
+  'vallas.publico.detalle': 'Each panel with its number and size, in its place and to scale.',
   'vallas.hallazgo.competencia':
     '{marca} competes with {otra} ({categoria}), already on poster panel {valla} from {inicio} to {fin} ({campana}).',
 }
@@ -318,6 +325,9 @@ export const IT_VALLAS: Record<ClaveVallas, string> = {
   'vallas.plano.esquina.izquierda': 'ad angolo, gira a sinistra',
   'vallas.plano.esquina.derecha': 'ad angolo, gira a destra',
   'vallas.plano.grupo.esquina': 'gira l’angolo',
+  'vallas.plano.tuya': 'Il tuo poster',
+  'vallas.publico.titulo': 'Ecco come appaiono i tuoi poster',
+  'vallas.publico.detalle': 'Ogni poster con il suo numero e la sua misura, al suo posto e in scala.',
   'vallas.hallazgo.competencia':
     '{marca} è in concorrenza con {otra} ({categoria}), già sul poster {valla} da {inicio} a {fin} ({campana}).',
 }
@@ -418,6 +428,9 @@ export const PT_VALLAS: Record<ClaveVallas, string> = {
   'vallas.plano.esquina.izquierda': 'na esquina, vira à esquerda',
   'vallas.plano.esquina.derecha': 'na esquina, vira à direita',
   'vallas.plano.grupo.esquina': 'dobra a esquina',
+  'vallas.plano.tuya': 'Seu outdoor',
+  'vallas.publico.titulo': 'Assim ficam seus outdoors',
+  'vallas.publico.detalle': 'Cada outdoor com seu número e sua medida, no seu lugar e em escala.',
   'vallas.hallazgo.competencia':
     '{marca} concorre com {otra} ({categoria}), que já está no outdoor {valla} de {inicio} a {fin} ({campana}).',
 }

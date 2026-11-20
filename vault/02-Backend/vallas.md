@@ -2,7 +2,7 @@
 tipo: backend
 estado: en-curso
 actualizado: 2026-11-20
-tags: [backend, vallas, inventario, reglas, competencia, rojo, en-proceso, demo, plano, esquinas]
+tags: [backend, vallas, inventario, reglas, competencia, rojo, en-proceso, demo, plano, esquinas, liga-publica]
 archivos:
   - db/migrations/20261119_vallas_esqueleto.sql
   - db/migrations/20261119_vallas_sembrar_competencia_por_omision.sql
@@ -50,6 +50,15 @@ archivos:
   - scripts/semilla-catalogo-demo.mjs
   - scripts/semilla-catalogo-demo.test.ts
   - apps/web/lib/test/semilla-vallas-demo.e2e.test.ts
+  - apps/web/lib/vallas/plano-publico.ts
+  - apps/web/lib/vallas/plano-publico.test.ts
+  - apps/web/lib/server/vallas-publicas-repo.ts
+  - apps/web/lib/server/vallas-publicas-controller.ts
+  - apps/web/lib/server/vallas-publicas-controller.test.ts
+  - apps/web/components/vallas/plano-cliente.test.ts
+  - apps/web/app/api/propuestas/publica/[id]/route.ts
+  - apps/web/app/(app)/p/[id]/page.tsx
+  - apps/web/lib/test/liga-plano-vallas.e2e.test.ts
 ---
 
 # Vallas (esqueleto, 19/11)
@@ -423,6 +432,40 @@ en el sitio porque el quiebre cae **entre dos cuadros concretos** de una cara.
 > una de baja y otra activa, solo se dibuja la activa»), que cae si se quita el filtro de
 > `activo` en `armarPlano`.
 
+### En la liga del cliente (20/11)
+
+Dueño: «En la liga que se le manda al cliente también debe estar, si es valla, cómo se ven
+las pantallas que rentará, si es más de 1; si solo es una, entonces sin tema, como se
+encuentra actualmente.»
+
+- **Cuándo**: si las vallas **activas** de los sitios de la propuesta suman **más de una**
+  (entre todos los sitios; `MINIMO_VALLAS_PLANO_LIGA = 2`, `lib/vallas/plano-publico.ts`).
+  Con 0 o 1 la respuesta de la liga **no trae el campo** y `/p/[id]` queda igual que antes.
+  Las de baja no cuentan.
+- **Dónde viaja**: campo `planoVallas` de `GET /api/propuestas/publica/[id]` (sin ruta
+  nueva: con 0 o 1 valla no hay ni una petición de más). `{ sitios: [{ id, nombre }],
+  vallas: [{ id, sitioId, numero, cara, ancho, alto, grupoId, posicion, dobla }], grupos:
+  [{ id, numero, nombre, modo, sigueFuera }] }`. `sitioId` es el mismo que la liga ya
+  expone en `items[]`; los ids de vallas y grupos son **opacos** (`v1`, `g1`) y solo unen
+  valla con grupo dentro de la respuesta.
+- **Tenant (R2)**: `lib/server/vallas-publicas-repo.ts` sigue el patrón de
+  `fotos-sitio-publico-repo.ts`: `propuesta_tenant_por_token($1)` con `qRaw1` (función
+  `security definer`, no lee filas con RLS) y UNA consulta bajo `qConTenant(tenant)` con
+  `tenant_id = $2` en `propuestas`, `sitios`, `vallas` y `vallas_grupos`. Solo sitios que
+  son renglón de ESA propuesta. `sigue_fuera` (el grupo tiene vallas activas en un sitio
+  que no es de la propuesta) se calcula en la base y sale como booleano: el otro sitio no
+  se lee hacia fuera.
+- **Lista blanca** (`vallas-publicas-controller.ts`): nada de notas, ocupación, reservas,
+  campañas, marcas ni clientes; un campo que se colara en la fila no llega al JSON. Si la
+  lectura falla, `null` + `console.error` y la liga sale sin plano (no se cae).
+- **Dibujo**: `PlanoVallasCliente` (`PlanoVallas.tsx`) → `planoDesdeLiga` → `armarPlano`
+  con `ocupaciones: []` y `gruposQueSiguenFuera` (opción nueva: el cliente no recibe las
+  vallas de fuera, así que el corchete no lo puede deducir). `PlanoDeSitio` en modo
+  `publico`: cada cuadro dice **«Tu valla»** (tono acento) en lugar de Libre/Ocupada, sin
+  fechas, sin leyenda, y **no pide nada** (ni `/api/vallas/ocupacion` ni sitios, que exigen
+  sesión). Esquinas y grupos igual que dentro. Tarjeta «Así se ven tus vallas», debajo de
+  los sitios. Textos `vallas.plano.tuya` y `vallas.publico.*` en es/en/it/pt.
+
 ## API
 
 | Ruta | Permiso |
@@ -503,6 +546,19 @@ Lo que NO las recibe: las organizaciones que siembran a mano los scripts de demo
   última que dobla, grupo que cruza, por cara; 6 de 6 en rojo) y el render en es/en
   (separador, giro, `aria-label`, izquierda, esquina final, grupo cortado, sin esquina;
   8 de 10 en rojo, los dos «sin esquina» pasaban ya).
+- **Liga del cliente (20/11)**: `lib/server/vallas-publicas-controller.test.ts` (9: token
+  malo no llega a la base, 0 y 1 valla → null, 2 en sitios distintos → plano, ids opacos,
+  lista blanca, grupo ajeno fuera, falla → null), `lib/vallas/plano-publico.test.ts` (4),
+  `armarPlano` con `gruposQueSiguenFuera` (2 en `plano.test.ts`) y
+  `components/vallas/plano-cliente.test.ts` (13: «Tu valla» en es/en/it/pt, sin
+  Libre/Ocupada ni fechas, «sigue en otro sitio», cero `fetch`): 14 en rojo antes del
+  código. La página real en `lib/i18n/pantallas-cuenta-shell.test.ts` (3: con dos vallas
+  sale la tarjeta; sin el campo o con una, no; escritas tras el código).
+  `lib/test/liga-plano-vallas.e2e.test.ts` (8) contra Postgres y Next: el plano con
+  número, medida, cara, posición, esquina y grupo `sigueFuera`; una sola activa (la otra de
+  baja) → sin campo; beta no ve las de alfa ni al revés; token inventado/mal formado 404;
+  ni marca ni campaña ni notas ni el sitio de fuera ni uuids ni el tenant en el texto
+  crudo. Vista en rojo contra un build sin el cambio de la ruta (2 de 8: los positivos).
 - `lib/server/vallas-controller.test.ts` (20/11, 9): `dobla` acepta izquierda/derecha/null
   y lo pasa al repo; sin la clave no se toca; `'arriba'`, `'Derecha'`, `''`, `1`, `true`
   son 400 sin llegar al repo (3 de 9 en rojo: los de rechazo ya los daba el `.strict()`).
@@ -561,6 +617,8 @@ Esquinas (20/11): ¿el dibujo del giro es el que espera? Hoy «a la derecha» ma
 siguiente **al fondo** y «a la izquierda» la trae **al frente**; si lo ve al revés, es
 cambiar el signo de `giro()` en `PlanoVallas.tsx`. ¿Una esquina puede ser de otro ángulo
 que 90° (ochavo)? Hoy solo izquierda/derecha.
+
+Liga del cliente (20/11): como la reserva es **por sitio**, la liga enseña como «Tu valla» **todas** las vallas activas de cada sitio de la propuesta. Cuando la reserva sepa en qué cuadro cae, ¿solo las contratadas? ¿Y el cliente debería ver también las fechas o la medida del grupo para el arte?
 
 ## Relacionadas
 [[02-Backend/_indice]] · [[inventario-y-sitios]] · [[operaciones-y-ot]] · [[MOC-Proyecto]]

@@ -432,3 +432,32 @@ describe('armarPlano · esquinas', () => {
     expect(p[0].filas.map((f) => f.tramos.length)).toEqual([2, 1])
   })
 })
+
+// ============================================================================
+//  LIGA DEL CLIENTE (dueño, 20/11): el cliente solo recibe las vallas de SU
+//  propuesta, así que armarPlano no puede deducir que un grupo sigue en otro
+//  sitio. El servidor lo dice con `gruposQueSiguenFuera` (sin decir cuál).
+// ============================================================================
+describe('armarPlano · grupos que siguen fuera de lo que se dibuja', () => {
+  it('un grupo marcado como que sigue fuera sale con cruzaSitio, aunque todas sus vallas estén aquí', () => {
+    const [s1] = armarPlano({
+      vallas: [valla({ numero: 'V-1', sitioId: 'S1', grupoId: 'g', posicion: 1 })],
+      grupos: [grupo({ id: 'g', numero: 'G-1' })],
+      sitios: SITIOS,
+      ocupaciones: [],
+      gruposQueSiguenFuera: ['g'],
+    })
+    expect(s1.filas[0].bloques[0].grupo?.cruzaSitio).toBe(true)
+  })
+
+  it('sin la marca, un grupo de un solo sitio no cruza (como siempre)', () => {
+    const [s1] = armarPlano({
+      vallas: [valla({ numero: 'V-1', sitioId: 'S1', grupoId: 'g', posicion: 1 })],
+      grupos: [grupo({ id: 'g', numero: 'G-1' })],
+      sitios: SITIOS,
+      ocupaciones: [],
+      gruposQueSiguenFuera: [],
+    })
+    expect(s1.filas[0].bloques[0].grupo?.cruzaSitio).toBe(false)
+  })
+})

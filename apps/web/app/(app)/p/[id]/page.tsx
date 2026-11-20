@@ -16,6 +16,8 @@ import { etiquetaTipoMedio } from '@/lib/tipo-medio'
 import { SeguimientoCampana } from '@/components/demo/propuestas/SeguimientoCampana'
 import type { Seguimiento } from '@/lib/seguimiento-campana'
 import { FotosYUbicacionSitio } from '@/components/demo/propuestas/FotosYUbicacionSitio'
+import { PlanoVallasCliente } from '@/components/vallas/PlanoVallas'
+import { mostrarPlanoEnLiga, type PlanoVallasLiga } from '@/lib/vallas/plano-publico'
 
 const API = '/spaces-dooh/api'
 
@@ -99,6 +101,9 @@ interface PropuestaPub {
   vigenteHasta?: string | null
   vencida?: boolean
   condiciones?: string | null
+  // LIGA + VALLAS (dueño, 20/11) · solo llega si los sitios suman MÁS de una
+  // valla activa; si no, ni el campo (la liga se ve como siempre).
+  planoVallas?: PlanoVallasLiga | null
   items: ItemPub[]
 }
 
@@ -334,6 +339,11 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
           )}
         </CardContent>
       </Card>
+
+      {/* «Así se ven tus vallas» (dueño, 20/11): «si es valla, cómo se ven las
+          pantallas que rentará, si es más de 1; si solo es una, sin tema». El
+          plano llega ya en la respuesta de la liga y no pide nada más. */}
+      {mostrarPlanoEnLiga(p.planoVallas) && <PlanoVallasCliente plano={p.planoVallas} />}
 
       {/* Mapa con la ubicación de las pantallas. Si ningún sitio tiene
           coordenadas lo decimos en vez de ocultar la tarjeta en silencio: la
