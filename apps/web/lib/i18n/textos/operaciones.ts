@@ -680,7 +680,7 @@ export const IT_OPERACIONES: Record<ClaveOperaciones, string> = {
   'operaciones.almacen.tipo.estructura': 'Struttura',
   'operaciones.almacen.tipo.lona': 'Telo',
   'operaciones.almacen.tipo.otro': 'Altro',
-  'operaciones.almacen.campo.marca': 'Marca',
+  'operaciones.almacen.campo.marca': 'Marchio',
   'operaciones.almacen.campo.modelo': 'Modello',
   'operaciones.almacen.campo.numero-serie': 'Numero di serie',
   'operaciones.almacen.campo.placas': 'Targa',

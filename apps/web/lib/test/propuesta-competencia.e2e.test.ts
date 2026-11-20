@@ -235,6 +235,38 @@ describe('vista previa de la pantalla', () => {
     expect((await previa(ca, { marca: 'Pepsi', fechaInicio: 'ayer' })).status).toBe(400)
   })
 
+  // 20/11 · una fecha con la forma buena que NO EXISTE pasaba el patrón y
+  // llegaba a Postgres: en `/api/vallas/verificar` reventaba con un 500 y en
+  // la vista previa se tragaba el error y decía «sin avisos» con un 200 —que
+  // es peor: parece que no hay competencia—. Ahora las dos responden 400, con
+  // la misma validación que `GET /api/vallas/ocupacion`.
+  it('fecha que no existe (2026-13-40, 2026-02-30) → 400 en la vista previa', async () => {
+    const r = await previa(ca, { marca: 'Pepsi', fechaInicio: '2026-13-40', fechaFin: '2026-13-41' })
+    expect(r.status, JSON.stringify(r.datos)).toBe(400)
+    expect((await previa(ca, { marca: 'Pepsi', fechaInicio: '2026-02-30', fechaFin: '2026-03-01' })).status).toBe(400)
+    expect((await previa(ca, { marca: 'Pepsi', fechaInicio: '2026-02-01', fechaFin: '2026-02-30' })).status).toBe(400)
+  })
+
+  // Medido al escribir esta prueba: el 500 que se temía NO salía —Postgres
+  // rechazaba la fecha y `respuestaError` traducía su SQLSTATE a un 400 «Fecha
+  // fuera de rango»—, pero solo DESPUÉS de leer la base y con otro mensaje que
+  // el resto de Vallas. Ahora se corta en la validación, antes de consultar,
+  // con el «Fecha inválida» de `GET /api/vallas/ocupacion` (más el nombre del campo).
+  it('fecha que no existe → 400 «Fecha inválida» en POST /api/vallas/verificar, antes de tocar la base', async () => {
+    const verificar = (fechaInicio: string, fechaFin: string) =>
+      ca.pedir('/api/vallas/verificar/', { cuerpo: { marca: 'Pepsi', fechaInicio, fechaFin, sitioIds: [alfa.sitioId] } })
+    const r = await verificar('2026-13-40', '2026-13-41')
+    expect(r.status, JSON.stringify(r.datos)).toBe(400)
+    expect(r.datos.error).toBe('Fecha de inicio: Fecha inválida')
+    const f = await verificar('2026-02-30', '2026-03-01')
+    expect(f.status).toBe(400)
+    expect(f.datos.error).toBe('Fecha de inicio: Fecha inválida')
+    // Y el negativo: con fechas reales sigue respondiendo (y avisando).
+    const bien = await verificar(enDias(INI), enDias(FIN))
+    expect(bien.status).toBe(200)
+    expect(bien.datos.hallazgos).toHaveLength(1)
+  })
+
   it('sin sesión → 401', async () => {
     expect((await previa(new Cliente(), { marca: 'Pepsi' })).status).toBe(401)
   })

@@ -67,24 +67,30 @@ const categoriaSchema = z
   .partial({ activo: true })
   .strict()
 
+// Una fecha que EXISTE: `2026-13-40` pasa el patrón y Postgres la rechazaría
+// al hacer `::date`, con un 500 en vez de un 400.
+//
+// La usan `GET /api/vallas/ocupacion`, `POST /api/vallas/verificar` (desde el
+// 20/11, tarde: antes llegaba a Postgres y salía un 400 «Fecha fuera de rango»
+// traducido de su SQLSTATE, DESPUÉS de leer la base) y la vista previa de las
+// propuestas (`propuestas-competencia.ts`). Una sola definición: exportada, no
+// copiada.
+export const fechaReal = fecha.refine((s) => {
+  const d = new Date(`${s}T00:00:00Z`)
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s
+}, 'Fecha inválida')
+
 const verificarSchema = z
   .object({
     marca: z.string().trim().min(1, 'La marca es requerida').max(120),
-    fechaInicio: fecha,
-    fechaFin: fecha,
+    fechaInicio: fechaReal,
+    fechaFin: fechaReal,
     vallaIds: z.array(uuid).max(500).optional(),
     sitioIds: z.array(uuid).max(500).optional(),
     excluirCampanaId: uuid.nullable().optional(),
   })
   .strict()
   .refine((d) => d.fechaInicio <= d.fechaFin, { message: 'La fecha de fin no puede ser anterior a la de inicio', path: ['fechaFin'] })
-
-// Una fecha que EXISTE: `2026-13-40` pasa el patrón y Postgres la rechazaría
-// al hacer `::date`, con un 500 en vez de un 400.
-const fechaReal = fecha.refine((s) => {
-  const d = new Date(`${s}T00:00:00Z`)
-  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s
-}, 'Fecha inválida')
 
 const ocupacionSchema = z
   .object({ desde: fechaReal, hasta: fechaReal })

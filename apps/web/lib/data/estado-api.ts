@@ -238,7 +238,7 @@ export async function actualizarPropuestaApi(
     // PROP-MARCA (20/11) · '' o null la quita (cuenta el cliente).
     marca?: string | null
   },
-): Promise<void> {
+): Promise<{ avisosCompetencia: AvisoCompetencia[] }> {
   const r = await fetch(`${API}/propuestas/${id}/`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
@@ -247,6 +247,10 @@ export async function actualizarPropuestaApi(
   const d = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(d.error ?? 'No se pudo actualizar la propuesta')
   await refrescarEstado()
+  // PROP-MARCA (20/11, tarde) · el PATCH con `marca` trae los avisos de
+  // competencia ya calculados con la marca nueva: la ficha los enseña al
+  // instante en su recuadro ámbar. Sin marca en el cuerpo no vienen → [].
+  return { avisosCompetencia: Array.isArray(d.avisosCompetencia) ? d.avisosCompetencia : [] }
 }
 
 // PROP-MARCA (20/11) · la competencia de marcas de Vallas para una propuesta

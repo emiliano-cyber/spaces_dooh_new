@@ -67,7 +67,9 @@ import {
 import { BloqueCodigoPropuesta } from '@/components/demo/codigos/BloqueCodigoPropuesta'
 import { ElegirClienteDialog } from '@/components/demo/propuestas/ElegirClienteDialog'
 import { BloqueCondicionesVigencia } from '@/components/demo/propuestas/BloqueCondicionesVigencia'
-import { AvisoCompetenciaPropuesta } from '@/components/demo/propuestas/AvisoCompetencia'
+import { useAvisosCompetencia, RecuadroCompetencia } from '@/components/demo/propuestas/AvisoCompetencia'
+import { BloqueMarcaPropuesta } from '@/components/demo/propuestas/MarcaPropuesta'
+import type { AvisoCompetencia } from '@/lib/data/estado-api'
 import { ImprentaVisibleCliente } from '@/components/demo/propuestas/ImprentaVisibleCliente'
 import { EnviarPropuestaDialog } from '@/components/demo/propuestas/EnviarPropuestaDialog'
 import {
@@ -137,6 +139,25 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
   const [catalogoPaq, setCatalogoPaq] = useState<PaqueteUI[]>([])
 
   const pActual = propuestas?.find((x) => x.id === id)
+
+  // PROP-MARCA · el recuadro ámbar de competencia. Lo mantiene al día la vista
+  // previa (`useAvisosCompetencia`); al GUARDAR la marca desde la ficha
+  // (decisión del dueño, 20/11) se enseñan en seguida los avisos que devolvió
+  // el PATCH, y en cuanto la vista previa responde con la marca nueva vuelve
+  // a mandar ella. El hook va aquí arriba, antes de los `return` tempranos:
+  // es un hook.
+  const fechasP = (pActual?.items ?? []).map((i) => i.fechaInicio).filter(Boolean).sort()
+  const finesP = (pActual?.items ?? []).map((i) => i.fechaFin).filter(Boolean).sort()
+  const avisosVivos = useAvisosCompetencia({
+    marca: pActual?.marca ?? null,
+    clienteId: pActual?.clienteId ?? null,
+    fechaInicio: fechasP[0] ? String(fechasP[0]).slice(0, 10) : '',
+    fechaFin: finesP.at(-1) ? String(finesP.at(-1)).slice(0, 10) : '',
+    sitioIds: [...new Set((pActual?.items ?? []).map((i) => i.sitioId))],
+  })
+  const [avisosGuardados, setAvisosGuardados] = useState<AvisoCompetencia[] | null>(null)
+  useEffect(() => setAvisosGuardados(null), [avisosVivos])
+  const avisosCompetencia = avisosGuardados ?? avisosVivos
   // Sincroniza el input de descuento con el valor actual al cargar/cambiar.
   useEffect(() => {
     if (pActual) setDescInput(pctConDosDecimales(pActual.descuentoPct))
@@ -523,12 +544,17 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
           propuesta. Solo avisa; sin choques no pinta nada. Una aprobada ya
           generó su campaña con la misma marca, y la misma marca no compite
           consigo misma. */}
-      <AvisoCompetenciaPropuesta
+      <RecuadroCompetencia avisos={avisosCompetencia} />
+
+      {/* PROP-MARCA (decisiones del dueño, 20/11) · editar la marca aquí, con
+          las reglas de las condiciones de abajo (`comercial.crear` y no en
+          una APROBADA), y el aviso informativo si no se parece al cliente. */}
+      <BloqueMarcaPropuesta
+        propuestaId={p.id}
         marca={p.marca ?? null}
-        clienteId={p.clienteId}
-        fechaInicio={desde ? String(desde).slice(0, 10) : ''}
-        fechaFin={hasta ? String(hasta).slice(0, 10) : ''}
-        sitioIds={[...new Set(p.items.map((i) => i.sitioId))]}
+        cliente={cliente?.nombre ?? null}
+        editable={puedeEditar && p.estatus !== 'APROBADA'}
+        onAvisos={setAvisosGuardados}
       />
 
       {/* Resumen económico (KPIs). PLEG-02 · el descuento tecleado vive en

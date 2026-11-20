@@ -258,7 +258,7 @@ export const IT_VALLAS: Record<ClaveVallas, string> = {
   'vallas.competencia.campo.activa': 'Attiva',
   'vallas.verificar.titulo': 'Verifica un marchio',
   'vallas.verificar.detalle': 'Applica le regole dei poster senza prenotare nulla',
-  'vallas.verificar.marca': 'Marca',
+  'vallas.verificar.marca': 'Marchio',
   'vallas.verificar.desde': 'Da',
   'vallas.verificar.hasta': 'Fino a',
   'vallas.verificar.vallas': 'Poster',

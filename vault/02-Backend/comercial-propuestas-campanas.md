@@ -10,6 +10,7 @@ archivos:
   - apps/web/lib/server/propuestas-competencia-repo.ts
   - apps/web/app/api/propuestas/competencia/route.ts
   - apps/web/components/demo/propuestas/AvisoCompetencia.tsx
+  - apps/web/components/demo/propuestas/MarcaPropuesta.tsx
   - apps/web/lib/test/propuesta-competencia.e2e.test.ts
   - apps/web/lib/prospectos-nuevos.ts
   - apps/web/components/demo/propuestas/ProspectosNuevos.tsx
@@ -1161,6 +1162,39 @@ propuesta, con las lógicas que ya están dentro». La regla es la de
 - Solo los sitios con vallas pueden chocar: una pantalla digital sin vallas no avisa.
 - Pruebas: `lib/server/propuestas-competencia.test.ts`, `lib/server/propuestas-marca.test.ts`
   y `lib/test/propuesta-competencia.e2e.test.ts`.
+
+### Ajustes del dueño (20/11, tarde)
+
+- **La marca se edita desde la ficha** (`BloqueMarcaPropuesta`,
+  `components/demo/propuestas/MarcaPropuesta.tsx`, debajo de la barra de metadatos).
+  Mismas reglas que las condiciones de esa ficha: quien tiene `comercial.crear` y **no
+  en una APROBADA** (el servidor la rechaza con 409: es inmutable). Manda solo
+  `{ marca }` (`cambioDeMarca`: recortada; vaciarla manda `null` y vuelve a contar el
+  cliente; sin cambio real no manda nada). `actualizarPropuestaApi` devuelve ahora
+  `{ avisosCompetencia }` y la ficha los pinta **en el mismo recuadro ámbar** al
+  instante; después lo mantiene al día la vista previa (`useAvisosCompetencia`).
+- **Aviso «la marca no coincide con el cliente»** (`AvisoMarcaCliente`): informativo,
+  tono neutro (no el ámbar de competencia), no bloquea. Sale en el alta mientras se
+  escribe, al duplicar y en la ficha (también en solo lectura). La regla es pura,
+  `marcaNoCoincideConCliente` en `lib/propuesta-marca.ts`: las dos se normalizan con
+  `normalizarMarca` de la competencia (`lib/vallas/reglas/competencia-marcas.ts`: sin
+  acentos, minúsculas, **sin signos ni espacios**) y **coinciden si una contiene a la
+  otra**. «Coca-Cola» / «Coca Cola FEMSA» coinciden; «Grupo Bimbo S.A.B.» / «Bimbo»
+  también; «Pepsi» / «Publicis México», no → aviso «La marca «Pepsi» no coincide con el
+  cliente «Publicis México». Revisa que sea correcta.». **Sin marca, sin cliente, o una
+  marca que normalizada queda vacía («***»): no hay aviso.** Al agregar sitios no sale:
+  ahí la marca no se edita.
+- **La vista previa valida que las fechas existan**: `POST /api/propuestas/competencia`
+  con `2026-13-40` o `2026-02-30` responde **400**. Antes pasaba el patrón, Postgres lo
+  rechazaba y, como la vista previa nunca lanza, contestaba **200 «sin avisos»** —que
+  parece «no hay competencia»—. Usa `fechaReal`, la misma de `GET /api/vallas/ocupacion`
+  (exportada de `vallas-controller.ts`, no copiada).
+- Italiano: la etiqueta es **«Marchio»** en Propuestas, Vallas y Almacén, como ya la
+  decían los errores del servidor (`CAMPO_IT`). Hasta hoy era «Marca» porque la costura
+  del italiano exige el mismo texto en las tres; `lib/i18n/textos/costura.test.ts` exige
+  ahora además que ese texto sea «Marchio». es/en/pt no cambian.
+- Pruebas: `lib/propuesta-marca.test.ts`, `components/demo/propuestas/MarcaPropuesta.test.ts`
+  y los 400 por fecha imposible en `lib/test/propuesta-competencia.e2e.test.ts`.
 
 ## Portal del cliente
 

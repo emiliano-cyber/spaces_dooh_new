@@ -70,6 +70,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowUpRight } from 'lucide-react'
 import { withTrail } from '@/lib/nav-trail'
 import { AvisoCompetenciaPropuesta } from '@/components/demo/propuestas/AvisoCompetencia'
+import { AvisoMarcaCliente } from '@/components/demo/propuestas/MarcaPropuesta'
 import { crearPropuestaApi, agregarSitiosPropuestaApi, cambiarEstatusPropuestaApi, aprobarItemPropuestaApi, generarCampanaDesdePropuestaApi, ConfirmacionCeroError, CodigoPendienteApiError } from '@/lib/data/estado-api'
 import {
   UNIDADES,
@@ -1447,6 +1448,10 @@ function NuevaPropuestaDialog({
               onChange={(e) => setMarca(e.target.value)}
             />
           </Campo>
+          {/* Decisión del dueño (20/11) · si la marca escrita no se parece al
+              cliente elegido, un aviso informativo mientras se escribe (y al
+              duplicar). No bloquea «Crear». */}
+          <AvisoMarcaCliente marca={marca} cliente={clientes?.find((c) => c.id === clienteId)?.nombre ?? null} />
           {/* Aviso de negociación sin validar (bloquea crear la propuesta) */}
           {negociacionPendiente && (
             <div className="flex items-start gap-2 rounded-md border border-[#f59e0b40] bg-[#f59e0b0d] p-2.5 text-[12px]">

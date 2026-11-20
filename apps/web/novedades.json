@@ -5,9 +5,9 @@
     "items": [
       {
         "tipo": "NUEVO",
-        "texto": "Propuestas: campo «Marca» (si va vacío cuenta el cliente) y un aviso cuando una marca que compite ya está en esos sitios y fechas, con las reglas de Vallas. Solo avisa, no bloquea; la marca pasa a la campaña al generarla.",
-        "en": "Proposals: a new “Brand” field (if left blank, the client is used) and a warning when a competing brand is already at those sites and dates, using the Poster panels rules. It only warns, it does not block; the brand is carried over to the campaign when it is generated.",
-        "it": "Proposte: nuovo campo «Marca» (se vuoto si usa il cliente) e un avviso quando un marchio concorrente è già in quei siti e in quelle date, con le regole dei Poster. Avvisa soltanto, non blocca; il marchio passa alla campagna quando viene generata."
+        "texto": "Propuestas: campo «Marca» (si va vacío cuenta el cliente) y un aviso cuando una marca que compite ya está en esos sitios y fechas, con las reglas de Vallas. Solo avisa, no bloquea; la marca pasa a la campaña al generarla. La marca se cambia también desde la ficha, y si no se parece al nombre del cliente sale un aviso para revisarla.",
+        "en": "Proposals: a new “Brand” field (if left blank, the client is used) and a warning when a competing brand is already at those sites and dates, using the Poster panels rules. It only warns, it does not block; the brand is carried over to the campaign when it is generated. The brand can also be changed from the proposal page, and if it does not resemble the client’s name a notice asks you to check it.",
+        "it": "Proposte: nuovo campo «Marchio» (se vuoto si usa il cliente) e un avviso quando un marchio concorrente è già in quei siti e in quelle date, con le regole dei Poster. Avvisa soltanto, non blocca; il marchio passa alla campagna quando viene generata. Il marchio si può cambiare anche dalla scheda, e se non somiglia al nome del cliente compare un avviso per controllarlo."
       },
       {
         "tipo": "NUEVO",

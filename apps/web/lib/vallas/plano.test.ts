@@ -202,6 +202,20 @@ describe('armarPlano · orden, caras y escala', () => {
     expect(p.map((s) => s.sitioId)).toEqual(['S2'])
   })
 
+  // Decisión del dueño (20/11): una valla dada de baja NO sale en el plano,
+  // tampoco en un sitio que conserva otras activas. Fija el comportamiento
+  // que ya había: si alguien quita el filtro de `activo`, esto cae.
+  it('en un sitio con una de baja y otra activa, solo se dibuja la activa', () => {
+    const p = armarPlano({
+      vallas: [valla({ numero: 'V-1', sitioId: 'S1', activo: false }), valla({ numero: 'V-2', sitioId: 'S1' })],
+      grupos: [],
+      sitios: SITIOS,
+      ocupaciones: [],
+    })
+    const numeros = p.flatMap((s) => s.filas.flatMap((f) => f.bloques.flatMap((b) => b.cuadros.map((c) => c.numero))))
+    expect(numeros).toEqual(['V-2'])
+  })
+
   it('los sitios salen por nombre; uno que no está en la lista sale igual, sin nombre', () => {
     const p = armarPlano({
       vallas: [valla({ numero: 'V-1', sitioId: 'S1' }), valla({ numero: 'V-2', sitioId: 'S2' }), valla({ numero: 'V-3', sitioId: 'S9' })],
