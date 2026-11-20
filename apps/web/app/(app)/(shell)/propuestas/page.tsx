@@ -71,6 +71,7 @@ import { ArrowUpRight } from 'lucide-react'
 import { withTrail } from '@/lib/nav-trail'
 import { AvisoCompetenciaPropuesta } from '@/components/demo/propuestas/AvisoCompetencia'
 import { AvisoMarcaCliente } from '@/components/demo/propuestas/MarcaPropuesta'
+import { DibujarPlanoPropuesta } from '@/components/demo/propuestas/DibujarPlanoPropuesta'
 import { crearPropuestaApi, agregarSitiosPropuestaApi, cambiarEstatusPropuestaApi, aprobarItemPropuestaApi, generarCampanaDesdePropuestaApi, ConfirmacionCeroError, CodigoPendienteApiError } from '@/lib/data/estado-api'
 import {
   UNIDADES,
@@ -1396,11 +1397,20 @@ function NuevaPropuestaDialog({
         {/* PROP-COMPLETA · al AGREGAR sitios, nombre, cliente, agencia, fechas y
             comisión son los de la propuesta y no se tocan aquí. */}
         {agregando ? (
+          <>
           <p className="rounded-md border border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">
             {interpolarNodos(t('propuestas.alta.periodo'), {
               periodo: <b className="text-ink">{formatFecha(fechaInicio, idioma)} – {formatFecha(fechaFin, idioma)}</b>,
             })}
           </p>
+          {/* Decisión del dueño (20/11 noche) · el aviso de marca distinta
+              también al AGREGAR SITIOS: la marca y el cliente son los de la
+              propuesta (aquí no se editan); se corrige en la ficha. */}
+          <AvisoMarcaCliente
+            marca={base!.marca ?? null}
+            cliente={clientes?.find((c) => c.id === base!.clienteId)?.nombre ?? null}
+          />
+          </>
         ) : (
           <>
           <Campo label={t('propuestas.alta.nombre')} obligatorio falta={ob.falta('nombre')}>
@@ -1924,6 +1934,15 @@ function NuevaPropuestaDialog({
           fechaInicio={fechaInicio}
           fechaFin={fechaFin}
           sitioIds={agregando ? [...new Set([...base!.items.map((i) => i.sitioId), ...sel])] : [...sel]}
+        />
+
+        {/* «Dibujar plano» (dueño, 20/11 noche) · las vallas de los sitios
+            elegidos en este momento (al agregar, también los que la propuesta
+            ya tiene), en las fechas elegidas. Solo con `inventario.ver`. */}
+        <DibujarPlanoPropuesta
+          sitioIds={agregando ? [...new Set([...base!.items.map((i) => i.sitioId), ...sel])] : [...sel]}
+          desde={fechaInicio}
+          hasta={fechaFin}
         />
 
         {/* Resumen del divisor en vivo */}

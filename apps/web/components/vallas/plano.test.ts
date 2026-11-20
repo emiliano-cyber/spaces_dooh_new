@@ -109,3 +109,45 @@ describe('el cuadro se dibuja a escala', () => {
     expect(html).toMatch(/flex-grow:12[^"]*"[^>]*aria-label="Valla V-003/)
   })
 })
+
+// ============================================================================
+//  «Dibujar plano» en la propuesta (dueño, 20/11 noche) · el cuerpo del plano
+//  (`PlanoVallas`) se reutiliza con los sitios y las fechas de la propuesta:
+//  sin campos de fecha (las fechas son las de la propuesta) y con un texto
+//  propio cuando ninguno de esos sitios tiene vallas.
+// ============================================================================
+describe('PlanoVallas con sitios y fechas fijos (la propuesta)', () => {
+  async function cuerpo(p: Record<string, unknown>) {
+    const { PlanoVallas } = await import('./PlanoVallas')
+    return renderToStaticMarkup(
+      createElement(ProveedorIdioma, { idioma: 'es' }, createElement(PlanoVallas, { vallas: VALLAS, grupos: GRUPOS, ...p } as never)),
+    )
+  }
+
+  it('sin fechas fijas pinta los campos Desde/Hasta (la pantalla de Vallas)', async () => {
+    expect(await cuerpo({})).toContain('type="date"')
+  })
+
+  it('con fechas fijas no hay campos de fecha: se dice el periodo', async () => {
+    const html = await cuerpo({ sitioIds: ['S1'], fechas: { desde: '2026-12-01', hasta: '2026-12-31' } })
+    expect(html).not.toContain('type="date"')
+    expect(html).toContain('01/12/2026')
+    expect(html).toContain('31/12/2026')
+    expect(html).toContain('>V-001<')
+  })
+
+  it('ninguno de los sitios tiene vallas → el texto que se le pase, y ningún cuadro', async () => {
+    const html = await cuerpo({
+      sitioIds: ['S9'],
+      fechas: { desde: '2026-12-01', hasta: '2026-12-31' },
+      textoVacio: 'Ninguno de los sitios de esta propuesta tiene vallas dadas de alta',
+    })
+    expect(html).toContain('Ninguno de los sitios de esta propuesta tiene vallas dadas de alta')
+    expect(html).not.toContain('>V-001<')
+  })
+
+  it('con fechas fijas vacías (aún no se eligen) lo dice en vez de marcar todo libre', async () => {
+    const html = await cuerpo({ sitioIds: ['S1'], fechas: { desde: '', hasta: '' } })
+    expect(html).toContain('Elige las fechas para ver qué está ocupado.')
+  })
+})

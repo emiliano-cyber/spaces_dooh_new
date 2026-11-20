@@ -94,12 +94,20 @@ export function armarPlano(entrada: {
   grupos: GrupoVallas[]
   sitios: { id: string; nombre: string }[]
   ocupaciones: OcupacionSitio[]
+  /**
+   * Solo estos sitios («Dibujar plano» de una propuesta, 20/11 noche). Sin él,
+   * todos (la pantalla de Vallas). Vacío → plano vacío.
+   */
+  sitioIds?: readonly string[]
 }): SitioPlano[] {
   const activas = entrada.vallas.filter((v) => v.activo)
+  const soloSitios = entrada.sitioIds ? new Set(entrada.sitioIds) : null
   const grupos = new Map(entrada.grupos.map((g) => [g.id, g]))
   const nombres = new Map(entrada.sitios.map((s) => [s.id, s.nombre]))
 
-  // Sitios de cada grupo, para saber si cruza.
+  // Sitios de cada grupo, para saber si cruza. Se cuenta con TODAS las
+  // activas, no solo las de los sitios pedidos: un grupo que sigue en un sitio
+  // que no es de la propuesta sigue cruzando, y el corchete lo tiene que decir.
   const sitiosDeGrupo = new Map<string, Set<string>>()
   for (const v of activas) {
     if (!v.grupoId || !grupos.has(v.grupoId)) continue
@@ -118,6 +126,7 @@ export function armarPlano(entrada: {
 
   const porSitio = new Map<string, Valla[]>()
   for (const v of activas) {
+    if (soloSitios && !soloSitios.has(v.sitioId)) continue
     if (!porSitio.has(v.sitioId)) porSitio.set(v.sitioId, [])
     porSitio.get(v.sitioId)!.push(v)
   }

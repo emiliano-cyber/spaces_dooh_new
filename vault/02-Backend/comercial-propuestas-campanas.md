@@ -11,6 +11,7 @@ archivos:
   - apps/web/app/api/propuestas/competencia/route.ts
   - apps/web/components/demo/propuestas/AvisoCompetencia.tsx
   - apps/web/components/demo/propuestas/MarcaPropuesta.tsx
+  - apps/web/components/demo/propuestas/DibujarPlanoPropuesta.tsx
   - apps/web/lib/test/propuesta-competencia.e2e.test.ts
   - apps/web/lib/prospectos-nuevos.ts
   - apps/web/components/demo/propuestas/ProspectosNuevos.tsx
@@ -1166,7 +1167,7 @@ propuesta, con las lógicas que ya están dentro». La regla es la de
 ### Ajustes del dueño (20/11, tarde)
 
 - **La marca se edita desde la ficha** (`BloqueMarcaPropuesta`,
-  `components/demo/propuestas/MarcaPropuesta.tsx`, debajo de la barra de metadatos).
+  `components/demo/propuestas/MarcaPropuesta.tsx`; desde el 20/11 noche, arriba del todo).
   Mismas reglas que las condiciones de esa ficha: quien tiene `comercial.crear` y **no
   en una APROBADA** (el servidor la rechaza con 409: es inmutable). Manda solo
   `{ marca }` (`cambioDeMarca`: recortada; vaciarla manda `null` y vuelve a contar el
@@ -1182,8 +1183,8 @@ propuesta, con las lógicas que ya están dentro». La regla es la de
   otra**. «Coca-Cola» / «Coca Cola FEMSA» coinciden; «Grupo Bimbo S.A.B.» / «Bimbo»
   también; «Pepsi» / «Publicis México», no → aviso «La marca «Pepsi» no coincide con el
   cliente «Publicis México». Revisa que sea correcta.». **Sin marca, sin cliente, o una
-  marca que normalizada queda vacía («***»): no hay aviso.** Al agregar sitios no sale:
-  ahí la marca no se edita.
+  marca que normalizada queda vacía («***»): no hay aviso.** (Desde el 20/11 noche la
+  contención exige 4 caracteres y el aviso sale también al agregar sitios: abajo.)
 - **La vista previa valida que las fechas existan**: `POST /api/propuestas/competencia`
   con `2026-13-40` o `2026-02-30` responde **400**. Antes pasaba el patrón, Postgres lo
   rechazaba y, como la vista previa nunca lanza, contestaba **200 «sin avisos»** —que
@@ -1195,6 +1196,43 @@ propuesta, con las lógicas que ya están dentro». La regla es la de
   ahora además que ese texto sea «Marchio». es/en/pt no cambian.
 - Pruebas: `lib/propuesta-marca.test.ts`, `components/demo/propuestas/MarcaPropuesta.test.ts`
   y los 400 por fecha imposible en `lib/test/propuesta-competencia.e2e.test.ts`.
+
+### Ajustes del dueño (20/11, noche)
+
+- **Marca vs cliente: «que avise de más, no de menos».** Con la contención a secas una
+  marca corta («GM», «A») cabía en casi cualquier cliente y el aviso no salía nunca.
+  Ahora (`marcaCoincideConCliente`, `MARCA_MIN_CONTENIDA = 4`): coinciden si son
+  **iguales** normalizadas, o si una contiene a la otra **y la más corta tiene al menos 4
+  caracteres** normalizada. «GM» / «General Motors» → avisa; «GM» / «GM» → no;
+  «GM» / «GM Financial» → avisa; «Coca-Cola» / «Coca Cola FEMSA» → no; «Bimbo» /
+  «Grupo Bimbo» → no; «Pepsi» / «Publicis México» → avisa. Si avisa de más, el Dueño o el
+  Administrador lo corrigen. Los permisos de edición no cambian.
+- **El aviso de marca distinta sale también al AGREGAR SITIOS** (con la marca y el
+  cliente de la propuesta, que ahí no se editan; se corrige en la ficha).
+- **En la ficha, la Marca va ARRIBA**: lo primero del contenido, antes de la barra de
+  datos (`data-testid="marca-y-plano"`): el bloque de la marca, el recuadro ámbar de
+  competencia y **«Dibujar plano»**.
+- **«Dibujar plano»** (`components/demo/propuestas/DibujarPlanoPropuesta.tsx`): despliega
+  en la misma pantalla, sin navegar, el plano de las vallas **de los sitios de la
+  propuesta en sus fechas**. Reutiliza `PlanoVallas` (`components/vallas/PlanoVallas.tsx`)
+  con `sitioIds` y `fechas` fijas, y `armarPlano` con `sitioIds` — no hay un segundo
+  plano. Pide las vallas (`GET /api/vallas`) la primera vez que se abre. Si ninguno de los
+  sitios tiene vallas: «Ninguno de los sitios de esta propuesta tiene vallas dadas de
+  alta.». La misma opción en **Nueva propuesta / agregar sitios**, con los sitios y las
+  fechas elegidos en ese momento (al agregar, también los que ya tiene); sin sitios lo
+  dice, y sin fechas dibuja sin marcar lo ocupado y lo dice.
+- **Permisos del botón**: `GET /api/vallas` y `GET /api/vallas/ocupacion` piden
+  `inventario.ver`. Todos los roles de venta sembrados lo tienen, pero los permisos se
+  editan por organización: **sin `inventario.ver` el botón no se ofrece** (sería un 403;
+  y quien no ve las vallas en Inventario tampoco las necesita aquí). Mismo criterio que
+  el bloque de paquetes de la ficha.
+- Textos `propuestas.plano.*` y `vallas.plano.periodo` / `vallas.plano.sin-fechas` en
+  es/en/it/pt (en «Draw layout», it «Disegna la pianta», pt «Desenhar planta»).
+- Pruebas: `lib/propuesta-marca.test.ts` (marcas cortas), `lib/vallas/plano.test.ts`
+  (filtro por sitios), `components/vallas/plano.test.ts` (fechas fijas, texto vacío) y
+  el bloque «marca arriba y «Dibujar plano»» de `lib/i18n/pantallas-propuestas.test.ts`
+  (orden en la ficha, botón, sin `inventario.ver`, alta y aviso al agregar). Sin
+  cambios de servidor ni migraciones.
 
 ## Portal del cliente
 

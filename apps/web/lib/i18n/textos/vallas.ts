@@ -103,6 +103,8 @@ export const ES_VALLAS = {
   'vallas.plano.grupo.cruza': 'sigue en otro sitio',
   'vallas.plano.nota': 'Las reservas son por sitio: una campaña ocupa todas las vallas de su sitio.',
   'vallas.plano.fechas.invalidas': 'La fecha de fin no puede ser anterior a la de inicio.',
+  'vallas.plano.periodo': 'Lo ocupado del {desde} al {hasta} (las fechas de la propuesta).',
+  'vallas.plano.sin-fechas': 'Elige las fechas para ver qué está ocupado.',
   'vallas.hallazgo.competencia':
     '{marca} compite con {otra} ({categoria}), que ya está en la valla {valla} del {inicio} al {fin} ({campana}).',
 } as const
@@ -193,6 +195,8 @@ export const EN_VALLAS: Record<ClaveVallas, string> = {
   'vallas.plano.grupo.cruza': 'continues at another site',
   'vallas.plano.nota': 'Bookings are per site: a campaign takes up every poster panel on its site.',
   'vallas.plano.fechas.invalidas': 'The end date cannot be earlier than the start date.',
+  'vallas.plano.periodo': 'Occupancy from {desde} to {hasta} (the proposal dates).',
+  'vallas.plano.sin-fechas': 'Choose the dates to see what is occupied.',
   'vallas.hallazgo.competencia':
     '{marca} competes with {otra} ({categoria}), already on poster panel {valla} from {inicio} to {fin} ({campana}).',
 }
@@ -281,6 +285,8 @@ export const IT_VALLAS: Record<ClaveVallas, string> = {
   'vallas.plano.grupo.cruza': 'continua in un altro sito',
   'vallas.plano.nota': 'Le prenotazioni sono per sito: una campagna occupa tutti i poster del suo sito.',
   'vallas.plano.fechas.invalidas': 'La data di fine non può essere precedente a quella di inizio.',
+  'vallas.plano.periodo': 'Occupazione da {desde} a {hasta} (le date della proposta).',
+  'vallas.plano.sin-fechas': 'Scegli le date per vedere cosa è occupato.',
   'vallas.hallazgo.competencia':
     '{marca} è in concorrenza con {otra} ({categoria}), già sul poster {valla} da {inicio} a {fin} ({campana}).',
 }
@@ -369,6 +375,8 @@ export const PT_VALLAS: Record<ClaveVallas, string> = {
   'vallas.plano.grupo.cruza': 'continua em outro ponto',
   'vallas.plano.nota': 'As reservas são por ponto: uma campanha ocupa todos os outdoors do seu ponto.',
   'vallas.plano.fechas.invalidas': 'A data de término não pode ser anterior à de início.',
+  'vallas.plano.periodo': 'Ocupação de {desde} a {hasta} (as datas da proposta).',
+  'vallas.plano.sin-fechas': 'Escolha as datas para ver o que está ocupado.',
   'vallas.hallazgo.competencia':
     '{marca} concorre com {otra} ({categoria}), que já está no outdoor {valla} de {inicio} a {fin} ({campana}).',
 }

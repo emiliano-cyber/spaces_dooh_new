@@ -6,7 +6,7 @@ import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Campo } from '@/components/demo/ui/Campo'
 import { TONO } from '@/components/demo/admin/Chip'
 import { cn } from '@/lib/cn'
-import { useSitios } from '@/lib/data/client'
+import { useSitios, formatFecha } from '@/lib/data/client'
 import { useIdioma } from '@/lib/i18n/contexto'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
 import { formatNumero } from '@/lib/formato-numero'
@@ -40,10 +40,46 @@ export function useMedida() {
 
 export function TarjetaPlano({ vallas, grupos }: { vallas: Valla[] | null; grupos: GrupoVallas[] }) {
   const { t } = useIdioma()
+  return (
+    <CardColapsable
+      id="vallas.plano"
+      titulo={t('vallas.plano.titulo')}
+      resumen={<span className="text-[12px] text-muted">{t('vallas.plano.detalle')}</span>}
+    >
+      <PlanoVallas vallas={vallas} grupos={grupos} />
+    </CardColapsable>
+  )
+}
+
+/**
+ * El cuerpo del plano: fechas, leyenda y un dibujo por sitio. Lo usan la
+ * tarjeta de Vallas (todos los sitios, fechas elegibles) y «Dibujar plano» de
+ * la propuesta (20/11 noche: `sitioIds` de la propuesta y `fechas` FIJAS, las
+ * suyas, sin campos para cambiarlas). Un solo plano: no se duplica.
+ */
+export function PlanoVallas({
+  vallas,
+  grupos,
+  sitioIds,
+  fechas,
+  textoVacio,
+}: {
+  vallas: Valla[] | null
+  grupos: GrupoVallas[]
+  /** Solo estos sitios; sin él, todos. */
+  sitioIds?: readonly string[]
+  /** Fechas fijas (las de la propuesta). Sin ellas, Desde/Hasta editables, hoy → +30 días. */
+  fechas?: { desde: string; hasta: string }
+  /** Lo que se dice si no hay nada que dibujar; por omisión, el de Vallas. */
+  textoVacio?: string
+}) {
+  const { t, idioma } = useIdioma()
   const sitios = useSitios()
   const [rango] = useState(() => rangoPorOmision())
-  const [desde, setDesde] = useState(rango.desde)
-  const [hasta, setHasta] = useState(rango.hasta)
+  const [desdeElegido, setDesde] = useState(rango.desde)
+  const [hastaElegido, setHasta] = useState(rango.hasta)
+  const desde = fechas ? fechas.desde : desdeElegido
+  const hasta = fechas ? fechas.hasta : hastaElegido
   const [ocupaciones, setOcupaciones] = useState<OcupacionSitio[]>([])
   const fechasValidas = Boolean(desde && hasta && desde <= hasta)
 
@@ -65,17 +101,22 @@ export function TarjetaPlano({ vallas, grupos }: { vallas: Valla[] | null; grupo
         grupos,
         sitios: (sitios ?? []).map((s) => ({ id: s.id, nombre: s.nombre })),
         ocupaciones: fechasValidas ? ocupaciones : [],
+        sitioIds,
       }),
-    [vallas, grupos, sitios, ocupaciones, fechasValidas],
+    [vallas, grupos, sitios, ocupaciones, fechasValidas, sitioIds],
   )
 
   return (
-    <CardColapsable
-      id="vallas.plano"
-      titulo={t('vallas.plano.titulo')}
-      resumen={<span className="text-[12px] text-muted">{t('vallas.plano.detalle')}</span>}
-    >
-      <div className="space-y-4">
+    <div className="space-y-4">
+      {fechas ? (
+        fechasValidas ? (
+          <p className="text-[12px] text-muted">
+            {t('vallas.plano.periodo', { desde: formatFecha(desde, idioma), hasta: formatFecha(hasta, idioma) })}
+          </p>
+        ) : (
+          <p className="text-[12px] text-muted">{t('vallas.plano.sin-fechas')}</p>
+        )
+      ) : (
         <div className="grid grid-cols-2 gap-3 sm:max-w-md">
           <Campo label={t('vallas.verificar.desde')}>
             <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className={ENTRADA} />
@@ -84,22 +125,25 @@ export function TarjetaPlano({ vallas, grupos }: { vallas: Valla[] | null; grupo
             <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className={ENTRADA} />
           </Campo>
         </div>
-        {!fechasValidas && desde && hasta && (
-          <p role="alert" className="text-[12px] text-error">
-            {t('vallas.plano.fechas.invalidas')}
-          </p>
-        )}
+      )}
+      {!fechasValidas && desde && hasta && (
+        <p role="alert" className="text-[12px] text-error">
+          {t('vallas.plano.fechas.invalidas')}
+        </p>
+      )}
+      {vallas && plano.length === 0 ? (
+        <p className="text-[12px] text-muted">{textoVacio ?? t('vallas.plano.vacio')}</p>
+      ) : (
         <div className="flex flex-wrap items-center gap-2 text-[12px] text-muted">
           <span className={cn('rounded border px-2 py-0.5 text-ink', TONO.exito)}>{t('vallas.plano.libre')}</span>
           <span className={cn('rounded border px-2 py-0.5 text-ink', TONO.aviso)}>{t('vallas.plano.leyenda.ocupada')}</span>
           <span>{t('vallas.plano.nota')}</span>
         </div>
-        {vallas && plano.length === 0 && <p className="text-[12px] text-muted">{t('vallas.plano.vacio')}</p>}
-        {plano.map((s) => (
-          <PlanoDeSitio key={s.sitioId} sitio={s} />
-        ))}
-      </div>
-    </CardColapsable>
+      )}
+      {plano.map((s) => (
+        <PlanoDeSitio key={s.sitioId} sitio={s} />
+      ))}
+    </div>
   )
 }
 

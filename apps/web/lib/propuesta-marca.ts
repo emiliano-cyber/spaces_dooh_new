@@ -34,15 +34,27 @@ export const marcaPropuesta = z
 //
 //  La normalización es LA de la competencia (`normalizarMarca`: sin acentos,
 //  minúsculas, sin signos ni espacios), importada y no copiada, para que
-//  «coincide» signifique aquí lo mismo que en la regla. Coinciden si una
-//  normalizada CONTIENE a la otra: «Coca-Cola» / «Coca Cola FEMSA» sí;
-//  «Pepsi» / «Publicis México» no. Sin marca, sin cliente, o con una marca que
-//  normalizada queda vacía («***»), no hay nada que comparar: no se avisa.
+//  «coincide» signifique aquí lo mismo que en la regla. Coinciden si son
+//  iguales normalizadas, o si una CONTIENE a la otra y la más corta tiene al
+//  menos `MARCA_MIN_CONTENIDA` (4) caracteres: «Coca-Cola» / «Coca Cola
+//  FEMSA» sí; «Bimbo» / «Grupo Bimbo» sí; «Pepsi» / «Publicis México» no.
+//  Sin marca, sin cliente, o con una marca que normalizada queda vacía
+//  («***»), no hay nada que comparar: no se avisa.
+//
+//  Por qué el mínimo (dueño, 20/11 noche: «que avise de más, no de menos»):
+//  con la contención a secas una marca corta —«GM», «A»— cabe dentro de casi
+//  cualquier nombre de cliente y el aviso NO salía nunca. Ahora una de menos
+//  de 4 solo coincide si es idéntica; si avisa de más, el Dueño o el
+//  Administrador lo corrigen.
 // ============================================================================
+
+export const MARCA_MIN_CONTENIDA = 4
 
 export function marcaCoincideConCliente(marca: string, cliente: string): boolean {
   const a = normalizarMarca(marca)
   const b = normalizarMarca(cliente)
+  if (a === b) return true
+  if (Math.min(a.length, b.length) < MARCA_MIN_CONTENIDA) return false
   return a.includes(b) || b.includes(a)
 }
 
