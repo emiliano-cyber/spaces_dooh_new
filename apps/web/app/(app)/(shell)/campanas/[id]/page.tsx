@@ -16,6 +16,7 @@ import { DatosFacturacion } from '@/components/demo/campanas/DatosFacturacion'
 import { ExtensionesCampana } from '@/components/demo/campanas/ExtensionesCampana'
 import { ValidacionPanel } from '@/components/demo/campanas/ValidacionPanel'
 import { EvidenciaGaleria } from '@/components/demo/campanas/EvidenciaGaleria'
+import { DescargarAlbum } from '@/components/demo/campanas/DescargarAlbum'
 import { PlaylogsPanel } from '@/components/demo/campanas/PlaylogsPanel'
 import { AgregarCreativo } from '@/components/demo/campanas/AgregarCreativo'
 import { EnviosClienteCampana } from '@/components/demo/campanas/EnviosClienteCampana'
@@ -246,7 +247,11 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
           Creativos arriba, aquí no
           se pliega ni cambia de sitio; `ValidacionPanel` trae su propio título y
           su estatus. */}
-      <ValidacionPanel campanaId={id} />
+      {/* `id="publicacion"`: aquí aterriza «Programar» desde Creativos
+          (FLUJO-CREA, 20/11), que lleva a «Enviar al dominio». */}
+      <div id="publicacion" className="scroll-mt-20">
+        <ValidacionPanel campanaId={id} />
+      </div>
 
       {/* Pipeline (pieza estrella) */}
       <CardColapsable id="campana.pipeline" titulo={t('campanas.ficha.pipeline')}>
@@ -460,6 +465,21 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
         titulo={t('campanas.ficha.evidencias')}
         icono={<Camera className="h-4 w-4 text-muted" />}
         estado={!tieneFija ? 'na' : misEvid.length > 0 ? 'hecho' : 'pendiente'}
+        accion={
+          // FLUJO-CREA (20/11) · el comprobante de exhibición: las fotos en un
+          // .zip, por sitio y fecha. Sin fotos, avisa y no baja nada.
+          tieneFija ? (
+            <DescargarAlbum
+              campana={{ folio: c.folio, nombre: c.nombre }}
+              fotos={misEvid.map((e) => ({
+                url: e.fotoUrl,
+                tomadaEn: e.tomadaEn,
+                subidaEn: e.timestamp,
+                sitioNombre: sitios?.find((s) => s.id === misOts.find((o) => o.id === e.otId)?.sitioId)?.nombre ?? null,
+              }))}
+            />
+          ) : undefined
+        }
       >
         <EvidenciaGaleria
           fotos={misEvid.map((e) => ({ url: e.fotoUrl, tomadaEn: e.tomadaEn, subidaEn: e.timestamp }))}
