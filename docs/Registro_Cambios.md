@@ -5,6 +5,13 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-20 · Vallas, una sola vez en el menú: en Comercial
+
+- **Vallas** sale ahora **solo** en el grupo **Comercial** del menú, después de Disponibilidad, con su etiqueta «En proceso». Ya **no** aparece en Inventario: antes salía en los dos sitios.
+- La ven las mismas personas que ayer (Dueño, Administrador y el equipo de ventas), y cada quien puede hacer lo mismo que ayer. No cambió ningún permiso.
+
+---
+
 ## 2026-11-19 · Space Eyes: Excel de las campañas detectadas
 
 - En **Space Eyes → Campañas** hay un recuadro nuevo, **«Reporte en Excel de lo detectado»**, con el botón **«Descargar Excel»**.

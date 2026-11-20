@@ -1,7 +1,7 @@
 ---
 tipo: backend
 estado: en-curso
-actualizado: 2026-11-19
+actualizado: 2026-11-20
 tags: [backend, vallas, inventario, reglas, competencia, rojo, en-proceso, demo]
 archivos:
   - db/migrations/20261119_vallas_esqueleto.sql
@@ -64,7 +64,23 @@ Decisión de forma en el [ADR 0052](../../docs/adr/0052-vallas-modulo-con-reglas
 > Rama `feat/vallas-decisiones` desde `integra/18-11` `3e73f5e5`. Apunte en el
 > [ADR 0052](../../docs/adr/0052-vallas-modulo-con-reglas-enchufables.md).
 
-> [!important] 2026-11-19 · Vallas va igual en Comercial
+> [!important] 2026-11-20 · Vallas, SOLO en Comercial (una sola entrada)
+> Al ver el menú en el navegador el dueño pidió: «hay 2 menús de vallas, cámbialo a que
+> solo haya uno, es en Comercial». Rama `fix/vallas-solo-en-comercial` desde
+> `integra/18-11` `0e13d222`.
+>
+> - La entrada `vallas` vive ahora en el grupo `vender` (Comercial), justo después de
+>   Disponibilidad, con la insignia «En proceso» y los mismos roles (`MANDO` + `VENTA`).
+> - **Inventario ya no la tiene**, y el espejo `vallas-comercial` y la función `espejo()`
+>   se retiraron. `NavItem.espejoDe` y `claveDeTexto()` se quedan, sin uso hoy.
+> - **Permisos del servidor sin cambios**: siguen siendo los de `inventario` (ver lee,
+>   crear escribe). Cambiar de grupo en el menú no toca `rol_permisos`.
+> - Lo fija `components/demo/shell/vallas-en-comercial.test.ts` (reescrita, vista en rojo
+>   7 de 13 antes del cambio).
+>
+> Lo de abajo (19/11) queda como historia: describe el espejo que este cambio retiró.
+
+> [!note] 2026-11-19 · Vallas va igual en Comercial (SUPERADO el 20/11: ver arriba)
 > Pedido del dueño: las vallas son lo que se vende, y el equipo comercial las usa
 > («Verificar una marca» antes de proponer). Rama `feat/vallas-en-comercial` desde
 > `integra/18-11` `6911c588`.
@@ -163,11 +179,10 @@ Decisión de forma en el [ADR 0052](../../docs/adr/0052-vallas-modulo-con-reglas
 - **Reutiliza `campanas.marca`** (texto) como la marca de una reserva. Si está vacía,
   cuenta el nombre del cliente. No hay tabla de marcas aparte.
 - **Reutiliza los permisos de `inventario`**: `ver` lee, `crear` escribe. Sin módulo
-  nuevo en `rol_permisos`. Entrada **«Vallas»** en el grupo **Inventario** del menú
-  y, desde el 19/11, también en **Comercial** (espejo), con `MANDO` + `VENTA` (ver
-  arriba; hasta ese día solo `MANDO`). Va en Inventario y no en Operaciones porque
-  una valla es patrimonio que se vende, no una tarea; Imprenta está en Operaciones
-  porque ejecuta lo vendido.
+  nuevo en `rol_permisos`. Entrada **«Vallas»** en el grupo **Comercial** del menú
+  (desde el 20/11, **solo** ahí; nació en Inventario y el 19/11 estuvo en los dos), con
+  `MANDO` + `VENTA` (hasta el 19/11 solo `MANDO`). Va en Comercial porque las vallas
+  son lo que se vende y el equipo comercial verifica la marca antes de proponer.
 
 Tablas nuevas (las tres con `tenant_id`, RLS fail-closed + FORCE y FK compuestas):
 
