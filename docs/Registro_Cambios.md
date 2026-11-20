@@ -5,6 +5,18 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-20 · Del creativo aprobado a la impresión: pendientes, fecha especial y álbum
+
+- Cuando un creativo queda **aprobado** en una campaña confirmada (lo haya mandado el cliente por la liga o lo hayamos subido nosotros), cada sitio de esa campaña queda **pendiente**: los **fijos**, de **«Mandar a impresión»**; los **digitales**, de **«Programar»**. **Nada se crea solo**: una persona lo confirma.
+- En **Imprenta** hay arriba una sección nueva, **«Por mandar a impresión»**, con cada sitio fijo pendiente, su medida, la campaña, el arte y **quién lo subió** («Lo subió el cliente (liga)» o «Lo subimos nosotros»). El botón **«Mandar a impresión»** abre el alta de la orden ya con la campaña, el sitio y la medida del sitio puestos (se pueden cambiar). Al crear la orden, el pendiente desaparece.
+- En **Creativos** sale arriba **«Pendientes por confirmar»**: lo que está **por aprobar** (con su origen y un enlace a la campaña, sin botón de imprimir), lo **por mandar a impresión** y lo **por programar**. «Programar» lleva a la ficha de la campaña, a «Enviar al dominio», que es lo de siempre; al enviarla, el pendiente desaparece.
+- Al aprobar un creativo con sitios fijos pendientes llega un aviso **«Por mandar a impresión»** a la campanita, **solo a quien tiene el módulo de Imprenta**.
+- En la cola de Imprenta cada orden dice si va **«Por inicio de campaña»** o **«Por fecha especial»**. La **fecha especial** (fecha requerida) se pone o se quita en la misma fila, o al mandar a impresión, y **manda sobre** el inicio de la campaña para el orden de la cola: una lona que se necesita antes sube; una que puede esperar baja. Las fechas de la campaña no cambian.
+- En la ficha de la campaña, en **Evidencias**, y en el portal del cliente hay un botón **«Descargar álbum»** que baja todas las fotos de evidencia en un .zip, cada una con el nombre del sitio y la fecha (por ejemplo «Valla_Reforma_2026-11-20.jpg»). Si no hay fotos, lo dice y no baja nada.
+- Por dentro: una columna nueva en la base (`ordenes_impresion.fecha_especial`), aprobada para la base local. Los importes no cambian.
+
+---
+
 ## 2026-11-20 · Propuestas: la marca se cambia desde la ficha y avisa si no es la del cliente
 
 - En la **ficha de la propuesta** ahora se puede **cambiar la marca** (o borrarla, y entonces cuenta el cliente) con su botón **Guardar**. Lo puede hacer quien puede crear propuestas, igual que las condiciones, y **no** en una propuesta ya aprobada. Al guardar, si la nueva marca compite con otra en esos sitios, aparece en seguida el recuadro ámbar.

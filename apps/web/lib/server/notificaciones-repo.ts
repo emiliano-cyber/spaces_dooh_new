@@ -110,13 +110,29 @@ export async function notificar(input: {
 // «Borrar todas» vacíe SU panel. Tampoco lo archivado para todos con el botón
 // de antes del 21/10. La fila sigue en la base; lo que se pierde es el sitio en
 // la campanita, que es justo lo que el usuario quería quitarse de encima.
-export async function listarNotificaciones(usuarioId: string) {
+// ─── Avisos que son de UN módulo (FLUJO-CREA, 20/11) ────────────────────────
+//
+// La bandeja es una por empresa: todo aviso lo ve todo el equipo. El de «Por
+// mandar a impresión» es trabajo de Imprenta, y el pedido del dueño fue
+// avisarle al rol IMPRENTA. Sin columna nueva: el TIPO dice de qué módulo es, y
+// quien no tiene `ver` en ese módulo no lo recibe. Las rutas pasan los tipos
+// ocultos de quien pregunta (`tiposOcultosPara`, con sus permisos).
+const TIPO_DE_MODULO: Record<string, string> = { IMPRESION: 'imprenta' }
+
+export function tiposOcultosPara(permisos: Record<string, string[]>): string[] {
+  return Object.entries(TIPO_DE_MODULO)
+    .filter(([, modulo]) => !(permisos[modulo] ?? []).includes('ver'))
+    .map(([tipo]) => tipo)
+}
+
+export async function listarNotificaciones(usuarioId: string, tiposOcultos: string[] = []) {
   const rows = await q(
     `select n.*, ${LEIDA_DE_USUARIO}
      ${VISTA_DE_USUARIO}
       where n.tenant_id = $1 and n.archivada_en is null and nu.borrada_en is null
+        and not (n.tipo = any($3::text[]))
       order by n.creado_en desc limit 100`,
-    [await tenantActual(), usuarioId],
+    [await tenantActual(), usuarioId, tiposOcultos],
   )
   return rows.map(rowToNotif)
 }
@@ -139,15 +155,16 @@ export async function listarNotificaciones(usuarioId: string) {
 // salía otra vez en cada sondeo, cada 15 s (08/10). Redondearla hacia arriba
 // tampoco sirve: se saltaría otra creada en el mismo milisegundo.
 // `notificaciones-una-vez.e2e.test.ts` lo prueba contra Postgres real.
-export async function notificacionesDesde(desde: string, usuarioId: string) {
+export async function notificacionesDesde(desde: string, usuarioId: string, tiposOcultos: string[] = []) {
   const rows = await q(
     `select n.*, ${LEIDA_DE_USUARIO},
             to_char(n.creado_en at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as marca
      ${VISTA_DE_USUARIO}
       where n.tenant_id = $1 and n.creado_en > $3::timestamptz
         and n.archivada_en is null and nu.borrada_en is null
+        and not (n.tipo = any($4::text[]))
       order by n.creado_en asc limit 20`,
-    [await tenantActual(), usuarioId, desde],
+    [await tenantActual(), usuarioId, desde, tiposOcultos],
   )
   return {
     notificaciones: rows.map(rowToNotif),

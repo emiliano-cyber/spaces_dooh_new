@@ -555,6 +555,7 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   'No se puede eliminar: la pantalla tiene reservas u órdenes asociadas.':
     'It cannot be deleted: the screen has bookings or orders attached.',
   // 2 sitios · lib/server/impresion-controller.ts:26
+  'Sitio no encontrado': 'Site not found',
   'Orden no encontrada':
     'Order not found',
   // IMP-REQ (18/11) · imprentas-controller.ts / imprentas-repo.ts
@@ -1248,6 +1249,7 @@ export const CATALOGO_ERRORES_IT: Partial<Record<string, string>> = {
     'Versione non valida',
   'No se puede eliminar: la pantalla tiene reservas u órdenes asociadas.':
     'Non si può eliminare: l’impianto ha prenotazioni o ordini associati.',
+  'Sitio no encontrado': 'Sito non trovato',
   'Orden no encontrada':
     'Ordine non trovato',
   // IMP-REQ (18/11) · imprentas-controller.ts / imprentas-repo.ts
@@ -1747,6 +1749,7 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
   'Versión inválida': 'Versão inválida',
   'No se puede eliminar: la pantalla tiene reservas u órdenes asociadas.':
     'Não é possível excluir: o ponto tem reservas ou ordens associadas.',
+  'Sitio no encontrado': 'Ponto não encontrado',
   'Orden no encontrada': 'Ordem não encontrada',
   'Imprenta no encontrada': 'Gráfica não encontrada',
   'Ya existe una imprenta con ese nombre': 'Já existe uma gráfica com esse nome',

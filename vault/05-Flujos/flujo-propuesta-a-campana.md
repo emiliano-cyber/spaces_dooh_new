@@ -1,7 +1,7 @@
 ---
 tipo: flujo
 estado: verificado
-actualizado: 2026-10-13
+actualizado: 2026-11-20
 tags: [flujo, comercial, principal]
 archivos:
   - apps/web/app/(app)/(shell)/propuestas/page.tsx
@@ -10,6 +10,8 @@ archivos:
   - apps/web/lib/server/propuestas-controller.ts
   - apps/web/lib/server/campanas-repo.ts
   - apps/web/lib/server/creativos-repo.ts
+  - apps/web/lib/pendientes-creativo.ts
+  - apps/web/lib/server/pendientes-creativo-repo.ts
   - apps/web/lib/server/contratos-sitio.ts
   - apps/web/lib/server/paquetes-repo.ts
   - apps/web/lib/server/paquetes-controller.ts
@@ -91,6 +93,24 @@ sequenceDiagram
 > - **La publicación en DOOHmain la dispara aprobar, no enviar**
 >   (`app/api/campanas/[id]/validar/route.ts:38`). Un fallo ahí no revierte la
 >   aprobación.
+
+> [!important] 2026-11-20 · después de aprobar el creativo: la «tarea 1» (FLUJO-CREA)
+> Con un creativo **aprobado** —el que manda el cliente por la liga y aprueba un
+> Dueño/Administrador, o el nuestro— cada sitio de una campaña CONFIRMADA o
+> ACTIVA queda **pendiente**, derivado y sin tabla (`lib/pendientes-creativo.ts`):
+>
+> - **fijo** → «Mandar a impresión»: `POST /api/impresion` con el sitio (y,
+>   opcional, la fecha especial). Con la orden creada, el pendiente se va. Aviso
+>   `IMPRESION` a la bandeja, solo para quien tiene `imprenta.ver`.
+> - **digital** → «Programar»: la ficha, `#publicacion`, «Enviar al dominio» (lo
+>   de arriba). Con `enviada_dominio` el pendiente se va.
+>
+> Nada se crea solo. Se ve en **Imprenta** («Por mandar a impresión») y en
+> **Creativos** («Pendientes por confirmar», con quién subió el arte). La cola
+> de impresión sigue el inicio de la campaña salvo que la orden tenga **fecha
+> especial**, y el comprobante de exhibición de los fijos se baja como **álbum
+> .zip** desde la ficha y el portal. Detalle en
+> [[02-Backend/operaciones-y-ot]].
 
 ## Los tres candados de este flujo
 
