@@ -389,6 +389,13 @@ export function planModulos(plan) {
 // que todavía no la tiene, `comprobarBase` lo detecta y el catálogo se siembra
 // SIN esta parte (`sinVallas`), como `espacios_comprados`: le llega con la
 // imagen por `update.sh`, no a mano.
+//
+// ESQUINA (dueño, 20/11): CAT-V02 dobla a la derecha, así el plano enseña una
+// esquina, y el grupo de una imagen CAT-G01 la cruza (CAT-V03 queda en la otra
+// pared). La columna `vallas.dobla` es de `20261120_vallas_esquina.sql`: va en
+// un `update` aparte (no en el `insert`) para que una base con las tablas de
+// vallas pero SIN esa migración reciba las vallas igual, rectas
+// (`sinEsquinas`, lo detecta `comprobarBase`).
 
 /** Las doce categorías por omisión (copia de `apps/web/lib/vallas/competencia-por-omision.ts`;
  *  `semilla-catalogo-demo.test.ts` exige que sean idénticas). */
@@ -427,9 +434,13 @@ const VALLAS = [
   ['CAT-V08', 'CAT-F11', 1, 8, 3, null, null, false, 'El sitio se dio de baja: la valla queda inactiva.'],
 ]
 
+/** Las vallas de ejemplo que están en esquina: después de ellas la pared dobla. */
+const ESQUINAS_VALLAS = { 'CAT-V02': 'derecha' }
+
 /**
  * @typedef {{ numero: string, sitio: string, cara: number, ancho: number, alto: number,
- *   grupo: string | null, posicion: number | null, activo: boolean, notas: string | null }} VallaSemilla
+ *   grupo: string | null, posicion: number | null, activo: boolean, notas: string | null,
+ *   dobla: 'izquierda' | 'derecha' | null }} VallaSemilla
  * @typedef {{ numero: string, nombre: string, modo: 'una_imagen' | 'separadas',
  *   ancho: number | null, alto: number | null, notas: string }} GrupoSemilla
  */
@@ -444,6 +455,7 @@ export function planVallas(plan) {
   /** @type {VallaSemilla[]} */
   const vallas = VALLAS.map(([numero, sitio, cara, ancho, alto, grupo, posicion, activo, notas]) => /** @type {VallaSemilla} */ ({
     numero, sitio, cara, ancho, alto, grupo, posicion, activo, notas,
+    dobla: ESQUINAS_VALLAS[numero] ?? null,
   }))
   const marcas = Object.entries(MARCA_POR_CLIENTE).map(([cliente, marca]) => ({
     marca,
@@ -467,8 +479,9 @@ export function planVallas(plan) {
   }
 }
 
-/** Las sentencias de vallas. Todas llevan `vallas: true` para poder reconocerlas. */
-export function sentenciasVallas(plan, T) {
+/** Las sentencias de vallas. Todas llevan `vallas: true` para poder reconocerlas.
+ *  `sinEsquinas`: la base no tiene `vallas.dobla`; las vallas van rectas. */
+export function sentenciasVallas(plan, T, opciones = {}) {
   const v = plan.modulos.vallas
   const out = []
   const add = (etiqueta, sql, valores, extra = {}) => out.push({ etiqueta, sql, valores, vallas: true, ...extra })
@@ -510,6 +523,17 @@ export function sentenciasVallas(plan, T) {
                            where y.tenant_id = $1::uuid and upper(btrim(y.numero)) = upper(btrim($2::text)))`,
       [T, x.numero, x.cara, x.ancho, x.alto, x.grupo, x.posicion, x.notas, x.activo, x.sitio],
     )
+
+  // La esquina, solo donde sigue recta: si alguien la cambió en la demo, no
+  // se pisa, y la 2.ª corrida no toca nada.
+  if (!opciones.sinEsquinas)
+    for (const x of v.vallas.filter((y) => y.dobla))
+      add(
+        `vallas ${x.numero} dobla a la ${x.dobla}`,
+        `update vallas set dobla = $3::text
+          where tenant_id = $1::uuid and upper(btrim(numero)) = upper(btrim($2::text)) and dobla is null`,
+        [T, x.numero, x.dobla],
+      )
 
   // La marca, solo donde sigue vacía o con la genérica que sembró la ficha
   // antes del 19/11 («Refresquera»): lo que alguien escribió en la demo no se pisa.
@@ -1037,7 +1061,7 @@ export function sentenciasModulos(plan, T, opciones = {}) {
     [T, m.condiciones],
   )
   // Vallas: aparte, y fuera si la base aún no tiene sus tablas.
-  if (!opciones.sinVallas) out.push(...sentenciasVallas(plan, T))
+  if (!opciones.sinVallas) out.push(...sentenciasVallas(plan, T, opciones))
   return out
 }
 

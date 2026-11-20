@@ -2,10 +2,13 @@
 tipo: backend
 estado: en-curso
 actualizado: 2026-11-20
-tags: [backend, vallas, inventario, reglas, competencia, rojo, en-proceso, demo, plano]
+tags: [backend, vallas, inventario, reglas, competencia, rojo, en-proceso, demo, plano, esquinas]
 archivos:
   - db/migrations/20261119_vallas_esqueleto.sql
   - db/migrations/20261119_vallas_sembrar_competencia_por_omision.sql
+  - db/migrations/20261120_vallas_esquina.sql
+  - apps/web/lib/server/vallas-controller.test.ts
+  - apps/web/lib/test/vallas-esquina.e2e.test.ts
   - apps/web/lib/vallas/competencia-por-omision.ts
   - apps/web/lib/roles.ts
   - apps/web/lib/server/cuentas-controller.ts
@@ -77,6 +80,14 @@ Decisión de forma en el [ADR 0052](../../docs/adr/0052-vallas-modulo-con-reglas
 > por sitio** y aprobó el boceto (cuadros numerados en su lugar, a escala, el grupo
 > marcado debajo, y libre/ocupado). Rama `feat/vallas-plano-por-sitio` desde
 > `integra/18-11` `8f993be6`. **Sin migraciones.** Detalle en «El plano por sitio», abajo.
+
+> [!important] 2026-11-20 · ESQUINAS: la pared dobla a la derecha o a la izquierda
+> Pedido del dueño: «recuerda que hay vallas que están en esquinas y doblan a la derecha
+> o izquierda, para que se muestre». Rama `feat/vallas-esquinas` desde `integra/18-11`
+> `2ad1152c`. **Una migración (ROJO R3)**: `20261120_vallas_esquina.sql` agrega
+> `vallas.dobla` (`null` | `'izquierda'` | `'derecha'`, CHECK `vallas_dobla_ck`).
+> **Aprobada por el dueño SOLO para local**; aplicada solo a la base de e2e. Detalle en
+> «Las esquinas», abajo.
 
 > [!important] 2026-11-20 · Vallas también como PESTAÑA dentro de Inventario
 > Pedido del dueño, después de dejarla una sola vez en el menú: «en Inventario añade la
@@ -366,6 +377,46 @@ Nueva propuesta) lo usa con:
 
 Solo se ofrece con `inventario.ver` (lo piden `GET /api/vallas` y `/ocupacion`).
 
+### Las esquinas (20/11)
+
+Cada valla puede decir **«Después de esta valla la pared dobla»**: `vallas.dobla` =
+`null` (sigue recta, lo de siempre) · `'izquierda'` · `'derecha'`
+(`20261120_vallas_esquina.sql`, CHECK con nombre `vallas_dobla_ck`). Va en la valla y no
+en el sitio porque el quiebre cae **entre dos cuadros concretos** de una cara.
+
+- **Alta y edición** (`components/vallas/Vallas.tsx`, `FormValla`): selector «Esquina:
+  No dobla / Dobla a la izquierda / Dobla a la derecha» con la ayuda «Después de esta
+  valla, la pared da vuelta». La lista de vallas lo repite («Esquina · dobla a la
+  derecha»). Servidor: `dobla: z.enum(DOBLECES).nullable()` en `vallaSchema`
+  (`vallas-controller.ts`): otro valor es **400** antes de tocar la base; sin la clave no
+  se toca (editar otra cosa no borra la esquina); `null` la quita. El repo la escribe en
+  el `insert` y en la lista de columnas del `update` (`tenant_id = $2`, `q`).
+- **Dato del plano** (`lib/vallas/plano.ts`, `partirEnEsquinas`): cada fila se parte
+  **después de ordenarla**, en `tramos` rectos. Se corta DESPUÉS de cada cuadro con
+  `dobla`; el tramo siguiente lleva `gira` = esa dirección. Si la que dobla es la
+  **última** de la cara no se abre un tramo vacío: queda `esquinaFinal`. Un grupo que
+  cruza la esquina sale en los dos tramos (`cortadoAntes` / `cortadoDespues`) para que
+  su corchete lo siga abarcando entero. `bloques` sigue siendo la fila entera; cada
+  cuadro trae su `dobla`. El quiebre es **por cara**.
+- **Dibujo** (`PlanoVallas.tsx`): entre dos tramos va un separador de esquina —una flecha
+  (`CornerUpRight` / `CornerUpLeft`), una línea vertical punteada y el texto
+  «Esquina · dobla a la derecha»—; la última que dobla deja el mismo separador al final.
+  El tramo de después se dibuja **girado en perspectiva** (`perspective(700px)
+  rotateY(∓28deg)`, eje en su borde izquierdo, pegado a la esquina): **a la derecha la
+  pared se va al fondo** (su borde derecho se achica) y **a la izquierda viene hacia el
+  frente** (se agranda). 28° deja leer número, medida y estado. El grupo cortado deja
+  abierto (punteado) el lado del corte y añade «· dobla la esquina». El `aria-label` del
+  cuadro que dobla termina en «…, en esquina, dobla a la derecha». El giro no ocupa sitio
+  en el flujo: en móvil lo absorbe el scroll propio del plano, no la página.
+- **Idiomas**: `vallas.campo.dobla*` y `vallas.plano.esquina.*` en es/en/it/pt (en
+  «Corner · turns right», it «Angolo · gira a destra», pt «Esquina · vira à direita»).
+- **Demo**: CAT-V02 dobla a la derecha (`ESQUINAS_VALLAS` en
+  `scripts/semilla-catalogo-modulos.mjs`), así el grupo de una imagen CAT-G01 cruza la
+  esquina y CAT-V03 queda en la otra pared. Va en un `update` aparte (`and dobla is
+  null`: no pisa lo que alguien cambió y la 2.ª corrida no toca nada); una base con las
+  tablas de vallas pero sin la columna la detecta `comprobarBase` (`sinEsquinas`) y
+  recibe las vallas rectas, sin tronar.
+
 > [!important] Decisión del dueño (20/11): las vallas dadas de baja NO salen en el plano
 > Ni en un sitio que se quedó sin ninguna activa (no sale el sitio) ni en uno que conserva
 > otras (solo se dibujan las activas). Lo fija `lib/vallas/plano.test.ts` («en un sitio con
@@ -448,6 +499,17 @@ Lo que NO las recibe: las organizaciones que siembran a mano los scripts de demo
   (19/19 y 17/17).
   Desde el 20/11 (noche) son **25 y 21**: el filtro por `sitioIds` (5) y `PlanoVallas`
   con fechas fijas y texto vacío (4), vistos en rojo (3 de 5 y 4 de 4) antes del código.
+  **Esquinas (20/11): 31 y 31** — `partirEnEsquinas` (6: recta, derecha, dos quiebres,
+  última que dobla, grupo que cruza, por cara; 6 de 6 en rojo) y el render en es/en
+  (separador, giro, `aria-label`, izquierda, esquina final, grupo cortado, sin esquina;
+  8 de 10 en rojo, los dos «sin esquina» pasaban ya).
+- `lib/server/vallas-controller.test.ts` (20/11, 9): `dobla` acepta izquierda/derecha/null
+  y lo pasa al repo; sin la clave no se toca; `'arriba'`, `'Derecha'`, `''`, `1`, `true`
+  son 400 sin llegar al repo (3 de 9 en rojo: los de rechazo ya los daba el `.strict()`).
+- `lib/test/vallas-esquina.e2e.test.ts` (20/11): la migración (columna + CHECK, que la base
+  hace cumplir con 23514), alta y edición con `dobla` (editar otra cosa no la borra,
+  `null` la quita), 400 en alta y edición sin escribir, y aislamiento (la otra
+  organización 404 y no la ve; rol de la app sin tenant, cero filas).
 - `lib/test/vallas-plano.e2e.test.ts` (20/11): `GET /api/vallas/ocupacion` contra Postgres
   y Next — el criterio (inclusivo, cancelada, tentativa caducada/vigente/sin caducidad,
   sitio sin vallas activas, marca vacía → cliente), aislamiento entre organizaciones,
@@ -494,6 +556,11 @@ Siguen abiertas: ¿la numeración la pone el usuario o la asigna el sistema? ¿U
 puede estar en más de un grupo? ¿La reserva pasará a ser por valla? ¿Hace falta un
 catálogo de marcas ligado al cliente? ¿La lista por omisión cambia por país cuando
 una instancia no sea de México?
+
+Esquinas (20/11): ¿el dibujo del giro es el que espera? Hoy «a la derecha» manda la pared
+siguiente **al fondo** y «a la izquierda» la trae **al frente**; si lo ve al revés, es
+cambiar el signo de `giro()` en `PlanoVallas.tsx`. ¿Una esquina puede ser de otro ángulo
+que 90° (ochavo)? Hoy solo izquierda/derecha.
 
 ## Relacionadas
 [[02-Backend/_indice]] · [[inventario-y-sitios]] · [[operaciones-y-ot]] · [[MOC-Proyecto]]

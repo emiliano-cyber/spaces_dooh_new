@@ -5,6 +5,17 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-20 · Vallas: las que están en esquina se dibujan doblando
+
+- Al **dar de alta o editar una valla** hay un campo nuevo, **«Esquina»**: *No dobla*, *Dobla a la izquierda* o *Dobla a la derecha*. Quiere decir que **después de esa valla la pared da vuelta**.
+- En el **plano** (Vallas, la pestaña Vallas de Inventario y «Dibujar plano» de la propuesta), donde una valla dobla aparece una **marca de esquina** con una flecha y el texto «Esquina · dobla a la derecha» (o a la izquierda), y las vallas que siguen se dibujan **giradas**, como la otra pared vista de lado. Los números, las medidas y si están libres u ocupadas se siguen leyendo igual.
+- Si un **grupo** pasa por la esquina, se sigue marcando entero, en las dos paredes, con «dobla la esquina».
+- La valla que dobla también lo dice en la lista de vallas. Si no se elige nada, todo queda como antes: recto.
+- En la **demo**, la valla CAT-V02 dobla a la derecha para enseñarlo.
+- Lleva un cambio en la base de datos (un dato nuevo en cada valla); de momento solo está en la base de pruebas.
+
+---
+
 ## 2026-11-20 · Propuestas: la marca arriba, «Dibujar plano» y un aviso de marca más estricto
 
 - En la **ficha de la propuesta**, la **marca** va ahora **arriba del todo**, antes de los datos y los sitios. Junto a ella hay un botón **«Dibujar plano»** que despliega, en la misma ficha, el plano de las **vallas de los sitios de esa propuesta** en **sus fechas**: qué cuadros hay y si están libres u ocupados. Si ninguno de esos sitios tiene vallas, lo dice. El mismo botón está al **crear una propuesta**, con los sitios y las fechas que se hayan elegido.

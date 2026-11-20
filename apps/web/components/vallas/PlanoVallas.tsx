@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
+import { CornerUpLeft, CornerUpRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Campo } from '@/components/demo/ui/Campo'
@@ -10,8 +11,16 @@ import { useSitios, formatFecha } from '@/lib/data/client'
 import { useIdioma } from '@/lib/i18n/contexto'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
 import { formatNumero } from '@/lib/formato-numero'
-import type { Valla, GrupoVallas } from '@/lib/vallas/tipos'
-import { armarPlano, rangoPorOmision, type OcupacionSitio, type SitioPlano, type CuadroPlano, type BloquePlano } from '@/lib/vallas/plano'
+import type { Valla, GrupoVallas, Dobla } from '@/lib/vallas/tipos'
+import {
+  armarPlano,
+  rangoPorOmision,
+  type OcupacionSitio,
+  type SitioPlano,
+  type CuadroPlano,
+  type BloquePlano,
+  type TramoPlano,
+} from '@/lib/vallas/plano'
 import { ocupacionVallasApi } from '@/lib/data/vallas-api'
 
 // ============================================================================
@@ -27,7 +36,23 @@ import { ocupacionVallasApi } from '@/lib/data/vallas-api'
 //
 //  Móvil: el plano de cada sitio tiene su propio scroll horizontal; la página
 //  no se ensancha.
+//
+//  ESQUINAS (dueño, 20/11): «hay vallas que están en esquinas y doblan a la
+//  derecha o izquierda, para que se muestre». La fila llega partida en tramos
+//  (`partirEnEsquinas`); entre dos tramos va un separador de esquina —línea
+//  punteada, flecha y «Esquina · dobla a la derecha»— y el tramo siguiente se
+//  dibuja GIRADO en perspectiva (`rotateY`, con el eje en su borde izquierdo,
+//  pegado a la esquina): a la derecha la pared se va al fondo, a la izquierda
+//  viene hacia el frente. El giro es poco (`GIRO_GRADOS`) para que los números,
+//  la medida y el estado se sigan leyendo; el texto del separador y el
+//  aria-label del cuadro lo dicen igual, sin depender del dibujo. El
+//  transform no ocupa sitio en el flujo: el scroll propio del plano lo absorbe.
 // ============================================================================
+
+/** Lo que gira un tramo tras una esquina. Más se lee mal; menos no se nota. */
+const GIRO_GRADOS = 28
+const giro = (dobla: Dobla) =>
+  `perspective(700px) rotateY(${dobla === 'derecha' ? -GIRO_GRADOS : GIRO_GRADOS}deg)`
 
 const ENTRADA = 'w-full rounded border border-border-strong bg-surface px-2.5 py-2 text-[13px] text-ink'
 
@@ -165,10 +190,14 @@ export function PlanoDeSitio({ sitio }: { sitio: SitioPlano }) {
               {rotularCaras && f.cara != null && (
                 <div className="mb-1 text-[11px] text-muted">{t('vallas.lista.cara', { n: f.cara })}</div>
               )}
-              <div className="flex items-start gap-1" style={{ width: `${f.anchoRel * 100}%`, minWidth: 'max-content' }}>
-                {f.bloques.map((b) => (
-                  <Bloque key={b.grupo ? `g-${b.grupo.id}` : `v-${b.cuadros[0].id}`} bloque={b} />
+              <div className="flex items-stretch gap-1 py-1" style={{ width: `${f.anchoRel * 100}%`, minWidth: 'max-content' }}>
+                {f.tramos.map((tr) => (
+                  <Fragment key={tr.bloques[0].cuadros[0].id}>
+                    {tr.gira && <Esquina dobla={tr.gira} />}
+                    <Tramo tramo={tr} />
+                  </Fragment>
                 ))}
+                {f.esquinaFinal && <Esquina dobla={f.esquinaFinal} />}
               </div>
             </div>
           ))}
@@ -178,13 +207,49 @@ export function PlanoDeSitio({ sitio }: { sitio: SitioPlano }) {
   )
 }
 
+/** Un tramo recto de pared; tras una esquina, girado hacia donde dobla. */
+function Tramo({ tramo }: { tramo: TramoPlano }) {
+  return (
+    <div
+      data-gira={tramo.gira ?? undefined}
+      className="flex min-w-max items-start gap-1"
+      style={{
+        flexGrow: tramo.ancho,
+        flexBasis: 0,
+        ...(tramo.gira ? { transform: giro(tramo.gira), transformOrigin: 'left center' } : {}),
+      }}
+    >
+      {tramo.bloques.map((b) => (
+        <Bloque key={b.grupo ? `g-${b.grupo.id}` : `v-${b.cuadros[0].id}`} bloque={b} />
+      ))}
+    </div>
+  )
+}
+
+/** El separador de esquina: línea punteada, flecha y el texto. */
+function Esquina({ dobla }: { dobla: Dobla }) {
+  const { t } = useIdioma()
+  const Flecha = dobla === 'derecha' ? CornerUpRight : CornerUpLeft
+  return (
+    <div data-esquina={dobla} className="flex w-[4.5rem] shrink-0 flex-col items-center gap-1 self-stretch">
+      <Flecha aria-hidden="true" className="h-4 w-4 shrink-0 text-accent-hover" />
+      <div aria-hidden="true" className="min-h-[1.5rem] w-0 flex-1 border-l-2 border-dashed border-accent" />
+      <span className="text-center text-[10px] font-medium leading-tight text-accent-hover">
+        {t(`vallas.plano.esquina.rotulo.${dobla}` as ClaveTexto)}
+      </span>
+    </div>
+  )
+}
+
 function Bloque({ bloque }: { bloque: BloquePlano }) {
   const { t } = useIdioma()
   if (!bloque.grupo) return <Cuadro cuadro={bloque.cuadros[0]} />
   const g = bloque.grupo
+  const cortado = bloque.cortadoAntes || bloque.cortadoDespues
   const etiqueta =
     t('vallas.plano.grupo', { numero: g.numero, modo: t(`vallas.modo.${g.modo}` as ClaveTexto) }) +
-    (g.cruzaSitio ? ` · ${t('vallas.plano.grupo.cruza')}` : '')
+    (g.cruzaSitio ? ` · ${t('vallas.plano.grupo.cruza')}` : '') +
+    (cortado ? ` · ${t('vallas.plano.grupo.esquina')}` : '')
   return (
     <div role="group" aria-label={etiqueta} className="flex min-w-max flex-col" style={{ flexGrow: bloque.ancho, flexBasis: 0 }}>
       <div className="flex items-start gap-1">
@@ -192,8 +257,15 @@ function Bloque({ bloque }: { bloque: BloquePlano }) {
           <Cuadro key={c.id} cuadro={c} />
         ))}
       </div>
-      {/* El corchete del boceto: └─ G-001 (una imagen) ─┘ */}
-      <div className="mt-1 rounded-b border-x border-b border-accent px-1 pb-0.5 text-center">
+      {/* El corchete del boceto: └─ G-001 (una imagen) ─┘. Si el grupo cruza
+          una esquina, el lado del corte queda abierto: sigue en el otro tramo. */}
+      <div
+        className={cn(
+          'mt-1 border-b border-accent px-1 pb-0.5 text-center',
+          bloque.cortadoAntes ? 'border-dashed' : 'rounded-bl border-l',
+          bloque.cortadoDespues ? 'border-dashed' : 'rounded-br border-r',
+        )}
+      >
         <span className="demo-num text-[11px] font-medium text-accent-hover">{etiqueta}</span>
       </div>
     </div>
@@ -210,7 +282,10 @@ function Cuadro({ cuadro: c }: { cuadro: CuadroPlano }) {
     <div
       className={cn('flex min-w-[5.5rem] flex-col justify-between rounded border px-2 py-1.5', libre ? TONO.exito : TONO.aviso)}
       style={{ flexGrow: c.ancho, flexBasis: 0, height: `${Math.round(48 + c.altoRel * 64)}px` }}
-      aria-label={t('vallas.plano.cuadro', { numero: c.numero, medida: m, estado })}
+      aria-label={
+        t('vallas.plano.cuadro', { numero: c.numero, medida: m, estado }) +
+        (c.dobla ? `, ${t(`vallas.plano.esquina.${c.dobla}` as ClaveTexto)}` : '')
+      }
     >
       <span className="demo-num text-[12px] font-medium text-ink">{c.numero}</span>
       <span className="demo-num text-[11px] text-muted">{m}</span>

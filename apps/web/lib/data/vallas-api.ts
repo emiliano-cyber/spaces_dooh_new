@@ -1,4 +1,4 @@
-import type { Valla, GrupoVallas, CategoriaCompetencia, ModoGrupo } from '@/lib/vallas/tipos'
+import type { Valla, GrupoVallas, CategoriaCompetencia, ModoGrupo, Dobla } from '@/lib/vallas/tipos'
 import type { ResultadoReglas } from '@/lib/vallas/reglas/tipos'
 import type { OcupacionSitio } from '@/lib/vallas/plano'
 
@@ -21,7 +21,16 @@ async function pedir<T>(ruta: string, porOmision: string, init?: { method: strin
   return d as T
 }
 
-export type DatosVallaApi = { sitioId: string; numero: string; ancho: number; alto: number; cara?: number | null; notas?: string | null }
+export type DatosVallaApi = {
+  sitioId: string
+  numero: string
+  ancho: number
+  alto: number
+  cara?: number | null
+  notas?: string | null
+  /** Esquina: después de esta valla la pared dobla (20/11). */
+  dobla?: Dobla | null
+}
 export type DatosGrupoApi = {
   numero: string
   nombre?: string | null
