@@ -292,6 +292,7 @@ describe('diccionario de Space Eyes · italiano', () => {
     'spaceeyes.vivo.foto', // «Foto»
     'spaceeyes.fallas.zona', // «Zona»
     'spaceeyes.comun.periodo', // «Periodo»
+    'spaceeyes.reporte.col.cliente', // «Cliente», columna del Excel
     'spaceeyes.graficas.dispositivo', // «Dispositivo»
     'spaceeyes.graficas.nd', // «n/d»
     'spaceeyes.texto.centro', // «Centro»

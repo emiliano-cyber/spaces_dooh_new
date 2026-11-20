@@ -127,6 +127,9 @@ export const COGNADOS_PT_L1 = new Set<string>([
   'spaceeyes.prog.proxima-foto', // «Próxima foto»
   'spaceeyes.prog.aplicar-a', // «Aplicar a»
   'spaceeyes.verif.resultado', // «Resultado»
+  'spaceeyes.reporte.col.hora', // «Hora» (como spaceeyes.historial.hora)
+  'spaceeyes.reporte.col.resultado', // «Resultado»
+  'spaceeyes.reporte.col.cliente', // «Cliente»
   'spaceeyes.verif.pagina-anterior', // «Página anterior»
   'spaceeyes.graficas.semana', // «Semana»
   'spaceeyes.graficas.periodo.custom', // «Personalizado»

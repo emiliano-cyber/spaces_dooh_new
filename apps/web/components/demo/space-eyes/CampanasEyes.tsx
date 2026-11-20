@@ -10,6 +10,7 @@ import { useIdioma } from '@/lib/i18n/contexto'
 import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
 import type { Idioma } from '@/lib/i18n/idiomas'
 import { localeDe } from '@/lib/i18n/formato-idioma'
+import { ReporteCampanasExcel } from './ReporteCampanasExcel'
 
 // ============================================================================
 //  Space Eyes — campañas de verificación.
@@ -340,6 +341,10 @@ export function CampanasEyes() {
           </Button>
         </div>
       </div>
+
+      {/* El reporte en Excel de lo detectado (19/11): filtra con los equipos y
+          campañas que la pantalla ya cargó. */}
+      <ReporteCampanasExcel equipos={equipos} campanas={lista} />
 
       {aviso && (
         <div

@@ -5,6 +5,17 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-19 · Space Eyes: Excel de las campañas detectadas
+
+- En **Space Eyes → Campañas** hay un recuadro nuevo, **«Reporte en Excel de lo detectado»**, con el botón **«Descargar Excel»**.
+- El archivo trae las campañas que las cámaras **reconocieron al aire**: una fila por detección con su **fecha y hora** (en la hora del negocio, la de México salvo que la instancia diga otra), la campaña, el cliente, el equipo, el código de la pantalla, el sitio y si la foto quedó verificada. Una segunda hoja resume, por campaña y equipo, la **primera** y la **última** detección y **cuántas** hubo.
+- Se puede elegir **desde**, **hasta**, el **equipo** y la **campaña**. Sin fechas sale el **mes en curso**, y tanto la pantalla como el archivo lo dicen.
+- Las fechas son fechas de Excel de verdad: se pueden ordenar y filtrar. Las cabeceras salen en el idioma de quien lo descarga (español, inglés, italiano o portugués).
+- Lo descargan el **Dueño**, el **Administrador** y el **equipo de ventas**, los mismos que ven esa pantalla.
+- En una instancia **sin Space Eye conectado** el botón sale en la demostración y el archivo trae **datos de ejemplo**, avisándolo en mayúsculas arriba de la hoja.
+
+---
+
 ## 2026-11-19 · Vallas también en el menú Comercial
 
 - **Vallas** sale ahora también en el grupo **Comercial** del menú, después de Disponibilidad, con la misma etiqueta «En proceso». Sigue estando en **Inventario**: es la misma pantalla, y al abrirla se marcan las dos entradas.
