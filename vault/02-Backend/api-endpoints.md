@@ -1,7 +1,7 @@
 ---
 tipo: referencia
 estado: verificado
-actualizado: 2026-11-19
+actualizado: 2026-11-20
 tags: [backend, api, endpoints]
 archivos:
   - apps/web/app/api/
@@ -33,6 +33,7 @@ archivos:
   - apps/web/app/api/campanas/[id]/envios-cliente/route.ts
   - apps/web/app/api/campanas/[id]/envios-cliente/[envioId]/route.ts
   - apps/web/app/api/propuestas/[id]/items/route.ts
+  - apps/web/app/api/propuestas/competencia/route.ts
   - apps/web/app/api/rejilla/
   - apps/web/app/api/reportes/rentabilidad/route.ts
   - apps/web/app/api/sitios/[id]/modalidades/route.ts
@@ -43,6 +44,13 @@ archivos:
 ---
 
 # API — los 159 endpoints (medidos el 2026-10-29 con `recuentos.mjs`)
+
+> **2026-11-20 · 188 (PROP-MARCA, rama `feat/propuesta-marca-competencia`):** una
+> ruta nueva, `POST /api/propuestas/competencia` (vista previa de la competencia de
+> marcas, `comercial:crear`), y `avisosCompetencia` en las respuestas de
+> `POST /api/propuestas`, `POST /api/propuestas/[id]/items` y del `PATCH` con
+> `marca`. Medido con `recuentos.mjs` sobre esta rama (el 179 del 19/11 era
+> anterior a las rutas de Vallas). Ver [[comercial-propuestas-campanas]].
 
 > **2026-11-19 · 179 (IMP-REQ, rama `feat/imprentas-y-proporcion`):** tres
 > rutas para las imprentas y sus requisitos de arte —`GET·POST /api/imprentas`,
@@ -279,6 +287,7 @@ en `:230-237`) y **no** puede condicionarse a que la ruta
 | GET | `/api/propuestas/conteo-diario` | exigir (`comercial:ver`); sin `comercial:aprobar`, solo lo propio (sale de la sesión) | (17/11, CONTEO-DIA) creadas y aprobadas por día y por vendedor, en la zona del negocio; 30 días por omisión, 92 como máximo. Ver [[conteo-campanas-por-dia]] |
 | POST | `/api/propuestas` · PATCH `/api/propuestas/[id]` | exigir (`comercial:crear`). Desde `17fbd252` (01/10) el `POST` **recalcula la tarifa** de cada línea en el servidor; un precio distinto al centavo exige además `comercial:aprobar` del rol de la sesión, o 403 y no se guarda nada |
 | POST | `/api/propuestas/[id]/items` | (29/10, PROP-COMPLETA) `comercial:crear`. Agrega sitios a una BORRADOR o ENVIADA (sube versión) con el periodo de la propuesta; cuerpo `{ items }` como el alta y la MISMA tarifa del servidor (403 si una vendedora se aparta); otro estatus → 409 |
+| POST | `/api/propuestas/competencia` | (20/11, PROP-MARCA) `comercial:crear` (no `inventario:ver`). `{ marca?, clienteId?, fechaInicio, fechaFin, sitioIds }` → `{ avisosCompetencia }`: la competencia de marcas de Vallas sin guardar nada; marca vacía = el cliente. Solo avisa; el aviso no lleva la campaña rival. `POST /api/propuestas` y `…/items` devuelven el mismo `avisosCompetencia` tras guardar, y aceptan/devuelven `marca` (máx. 120, vacía → null); el `PATCH` acepta `{ marca }` |
 | DELETE | `/api/propuestas/items/[id]` | (29/10, PROP-COMPLETA) `comercial:crear`. Quita un sitio (BORRADOR o ENVIADA, sube versión); nunca el último (409); de otra organización → 404 |
 | DELETE | `/api/propuestas/[id]` | (29/10, PROP-COMPLETA, R5) `comercial:crear`. Borra un **BORRADOR** con sus líneas y su canje (devuelve el uso del cupón); otro estatus o con campaña → 409; de otra organización → 404 |
 | GET·PATCH | `/api/propuestas/[id]/imprenta-visible` | (17/11, SEG-CLIENTE) GET `comercial:ver` → `{ imprentaVisible, puedeCambiar }`; PATCH `comercial:crear` con `{ visible }`. **Oculta por omisión** (decisión del dueño): solo el vendedor que creó la propuesta (`usuario_id`) o un rol superior (ADR 0040; Dueño/Admin siempre; roles fuera de venta nunca) → si no, 403 sin escribir. Capas: `imprenta-visible-controller.ts` → `imprenta-visible-repo.ts`; regla pura `puedeCambiarImprentaVisible` en `lib/seguimiento-campana.ts` |

@@ -165,6 +165,9 @@ vi.mock('@/lib/server/propuestas-visibilidad', () => ({ siNoEsSuya: async () => 
 vi.mock('@/lib/server/oportunidades-controller', () => ({ soloDe: async () => null }))
 vi.mock('@/lib/server/notificaciones-repo', () => ({ notificar: vi.fn() }))
 vi.mock('@/lib/server/moneda-instancia', () => ({ monedaDeLaInstancia: vi.fn() }))
+// PROP-MARCA (20/11) · la ruta calcula la competencia de marcas al editar la
+// marca; el módulo real arrastra `tenant.ts` y `cache()`. Aquí no se mide.
+vi.mock('@/lib/server/propuestas-competencia', () => ({ avisosDePropuesta: async () => [] }))
 vi.mock('@/lib/i18n/servidor', () => ({ idiomaDeLaPeticion: () => idioma.actual }))
 
 describe('PATCH /api/propuestas/[id]', () => {

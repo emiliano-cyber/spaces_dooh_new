@@ -69,6 +69,7 @@ import {
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowUpRight } from 'lucide-react'
 import { withTrail } from '@/lib/nav-trail'
+import { AvisoCompetenciaPropuesta } from '@/components/demo/propuestas/AvisoCompetencia'
 import { crearPropuestaApi, agregarSitiosPropuestaApi, cambiarEstatusPropuestaApi, aprobarItemPropuestaApi, generarCampanaDesdePropuestaApi, ConfirmacionCeroError, CodigoPendienteApiError } from '@/lib/data/estado-api'
 import {
   UNIDADES,
@@ -744,6 +745,9 @@ function NuevaPropuestaDialog({
     !base ? '' : agregando ? base.nombre : t('propuestas.alta.nombre-copia', { nombre: base.nombre }),
   )
   const [comision, setComision] = useState(base ? String(base.comisionPct ?? 0) : '0')
+  // PROP-MARCA (20/11) · opcional; vacía = cuenta el cliente. Al duplicar se
+  // conserva; al agregar sitios es la de la propuesta y no se edita aquí.
+  const [marca, setMarca] = useState(base?.marca ?? '')
 
   // Agencias = clientes tipo AGENCIA (una agencia se asocia a un cliente directo).
   const agencias = (clientes ?? []).filter((c) => c.tipo === 'AGENCIA')
@@ -1317,6 +1321,7 @@ function NuevaPropuestaDialog({
         // Al duplicar viajan también las notas; las condiciones las pone la
         // plantilla vigente, como a toda propuesta nueva.
         ...(modo?.tipo === 'duplicar' ? { notas: base!.notas ?? null } : {}),
+        marca: marca.trim() || null,
         items,
       })
       onClose(creada.id)
@@ -1433,6 +1438,15 @@ function NuevaPropuestaDialog({
               )}
             </Campo>
           </div>
+          <Campo label={t('propuestas.alta.marca')}>
+            <input
+              className={inputCls}
+              value={marca}
+              maxLength={120}
+              placeholder={t('propuestas.alta.marca.placeholder')}
+              onChange={(e) => setMarca(e.target.value)}
+            />
+          </Campo>
           {/* Aviso de negociación sin validar (bloquea crear la propuesta) */}
           {negociacionPendiente && (
             <div className="flex items-start gap-2 rounded-md border border-[#f59e0b40] bg-[#f59e0b0d] p-2.5 text-[12px]">
@@ -1894,6 +1908,18 @@ function NuevaPropuestaDialog({
             ) : null}
           </div>
         )}
+
+        {/* PROP-MARCA (20/11) · la competencia de marcas de Vallas, con la
+            marca (o el cliente), las fechas y los sitios elegidos. Al agregar
+            sitios cuentan también los que la propuesta ya tiene. Solo avisa:
+            no deshabilita «Crear». */}
+        <AvisoCompetenciaPropuesta
+          marca={agregando ? (base!.marca ?? null) : marca}
+          clienteId={agregando ? base!.clienteId : clienteId || null}
+          fechaInicio={fechaInicio}
+          fechaFin={fechaFin}
+          sitioIds={agregando ? [...new Set([...base!.items.map((i) => i.sitioId), ...sel])] : [...sel]}
+        />
 
         {/* Resumen del divisor en vivo */}
         <div className="grid grid-cols-2 gap-x-6 gap-y-1 rounded-md border border-border bg-surface-2 p-3 text-[12px] sm:grid-cols-4">

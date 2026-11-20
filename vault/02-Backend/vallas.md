@@ -17,6 +17,7 @@ archivos:
   - apps/web/lib/vallas/reglas/competencia-marcas.ts
   - apps/web/lib/server/vallas-repo.ts
   - apps/web/lib/server/vallas-controller.ts
+  - apps/web/lib/server/propuestas-competencia.ts
   - apps/web/app/api/vallas/route.ts
   - apps/web/app/api/vallas/[id]/route.ts
   - apps/web/app/api/vallas/grupos/route.ts
@@ -255,11 +256,19 @@ bloquea. Las edita el Dueño.»
 (no cancelada; tentativa sin caducar) ocupa **todas** las vallas de su sitio. Es la
 aproximación honesta mientras la reserva no sepa en qué cuadro cae.
 
-> [!warning] Conectado solo a `POST /api/vallas/verificar` (y a «Verificar una marca»)
-> Solo informa. **No** está enganchada a `reservar` ni a
-> `generarCampanaDesdePropuesta` (`lib/server/campanas-repo.ts`): eso es dinero (R4)
-> y la reserva no sabe todavía en qué valla cae. Cuando se conecte: armar el contexto
-> con `contextoParaVerificar`, 409 con los hallazgos si `bloquea`, y mostrar los avisos.
+> [!warning] Conectada a `POST /api/vallas/verificar` y, desde el 20/11, a las PROPUESTAS
+> Solo informa, en los dos sitios. **Una sola puerta**: `verificarCompetencia`
+> (`vallas-controller.ts`) arma el contexto con `contextoParaVerificar` y corre
+> `evaluarReglas`; la usan la ruta de Vallas y `lib/server/propuestas-competencia.ts`
+> (PROP-MARCA, ver [[comercial-propuestas-campanas]]): al crear la propuesta, al
+> agregarle sitios, al editar su marca y en la vista previa de la pantalla
+> (`POST /api/propuestas/competencia`). La propuesta no tiene copia de la regla.
+>
+> **Sigue SIN enganchar** a `reservar` ni a `generarCampanaDesdePropuesta`
+> (`lib/server/campanas-repo.ts`): eso es dinero (R4) y la reserva no sabe todavía en
+> qué valla cae. Lo único que `generarCampanaDesdePropuesta` hace desde el 20/11 es
+> copiar `propuestas.marca` a `campanas.marca`, para que la regla vea la campaña con
+> la marca con que se vendió.
 
 ## API
 

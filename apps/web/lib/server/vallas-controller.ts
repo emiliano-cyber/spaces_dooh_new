@@ -16,8 +16,8 @@ import {
   GRUPO_NO_ENCONTRADO,
   CATEGORIA_NO_ENCONTRADA,
 } from './vallas-repo'
-import { MODOS_GRUPO } from '@/lib/vallas/tipos'
-import { evaluarReglas } from '@/lib/vallas/reglas'
+import { MODOS_GRUPO, type Valla } from '@/lib/vallas/tipos'
+import { evaluarReglas, type ResultadoReglas } from '@/lib/vallas/reglas'
 
 // ============================================================================
 //  lib/server/vallas-controller.ts — VALLAS (esqueleto, 19/11). Valida con zod
@@ -155,18 +155,40 @@ export async function actualizarCategoriaCtrl(id: string, body: unknown) {
   }
 }
 
-/** Corre todas las reglas de vallas sobre la candidata. Solo informa. */
-export async function verificarVallasCtrl(body: unknown) {
-  const d = validar(verificarSchema, cuerpo(body))
+/**
+ * Corre TODAS las reglas de vallas sobre una marca, unas fechas y unas vallas
+ * (o sitios, que se expanden a sus vallas). La comparten
+ * `POST /api/vallas/verificar` y, desde el 20/11, las propuestas
+ * (`propuestas-competencia.ts`): UNA sola puerta a `contextoParaVerificar` +
+ * `evaluarReglas`, para que la propuesta no tenga su copia de la regla.
+ *
+ * Devuelve también las vallas del contexto, para que quien llama sepa en qué
+ * SITIO cae cada hallazgo (`datos.vallaId` → `sitioId`) sin volver a leerlas.
+ */
+export async function verificarCompetencia(c: {
+  marca: string
+  fechaInicio: string
+  fechaFin: string
+  vallaIds?: string[]
+  sitioIds?: string[]
+  excluirCampanaId?: string | null
+}): Promise<ResultadoReglas & { vallas: Valla[] }> {
   const ctx = await contextoParaVerificar({
-    marca: d.marca,
-    inicio: d.fechaInicio,
-    fin: d.fechaFin,
-    vallaIds: d.vallaIds,
-    sitioIds: d.sitioIds,
-    excluirCampanaId: d.excluirCampanaId ?? null,
+    marca: c.marca,
+    inicio: c.fechaInicio,
+    fin: c.fechaFin,
+    vallaIds: c.vallaIds,
+    sitioIds: c.sitioIds,
+    excluirCampanaId: c.excluirCampanaId ?? null,
   })
-  return evaluarReglas(ctx)
+  return { ...evaluarReglas(ctx), vallas: ctx.vallas }
+}
+
+/** Corre todas las reglas de vallas sobre la candidata. Solo informa. */
+export async function verificarVallasCtrl(body: unknown): Promise<ResultadoReglas> {
+  const d = validar(verificarSchema, cuerpo(body))
+  const { hallazgos, bloquea } = await verificarCompetencia(d)
+  return { hallazgos, bloquea }
 }
 
 /** Un id que no es uuid haría fallar el cast de Postgres con un 500. */

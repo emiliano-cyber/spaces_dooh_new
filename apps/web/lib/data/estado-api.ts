@@ -174,6 +174,8 @@ export async function crearPropuestaApi(input: {
     primaRoadblockPct?: number | null
   }[]
   notas?: string | null
+  // PROP-MARCA (20/11) · opcional; vacía = cuenta el cliente.
+  marca?: string | null
 }): Promise<{ id: string | null }> {
   const r = await fetch(`${API}/propuestas/`, {
     method: 'POST',
@@ -233,6 +235,8 @@ export async function actualizarPropuestaApi(
     // PROP-COMPLETA (29/10) · términos y vigencia de ESTA propuesta.
     condiciones?: string | null
     vigenteHasta?: string | null
+    // PROP-MARCA (20/11) · '' o null la quita (cuenta el cliente).
+    marca?: string | null
   },
 ): Promise<void> {
   const r = await fetch(`${API}/propuestas/${id}/`, {
@@ -243,6 +247,43 @@ export async function actualizarPropuestaApi(
   const d = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(d.error ?? 'No se pudo actualizar la propuesta')
   await refrescarEstado()
+}
+
+// PROP-MARCA (20/11) · la competencia de marcas de Vallas para una propuesta
+// que se está armando (o ya guardada): marca —o el cliente, si va vacía—,
+// fechas y sitios. Solo avisa; un fallo aquí devuelve «sin avisos», nunca un
+// error que pare la pantalla.
+export interface AvisoCompetencia {
+  regla: string
+  nivel: 'aviso'
+  mensaje: string
+  marca: string
+  marcaExistente: string
+  categoria: string
+  sitioId: string | null
+  sitioNombre: string | null
+  inicio: string
+  fin: string
+}
+export async function avisosCompetenciaApi(input: {
+  marca?: string | null
+  clienteId?: string | null
+  fechaInicio: string
+  fechaFin: string
+  sitioIds: string[]
+}): Promise<AvisoCompetencia[]> {
+  try {
+    const r = await fetch(`${API}/propuestas/competencia/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    })
+    if (!r.ok) return []
+    const d = await r.json().catch(() => ({}))
+    return Array.isArray(d.avisosCompetencia) ? d.avisosCompetencia : []
+  } catch {
+    return []
+  }
 }
 
 // PROP-COMPLETA (29/10) · agrega sitios (misma forma que el alta) y quita uno.
