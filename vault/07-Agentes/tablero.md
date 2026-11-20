@@ -1,10 +1,13 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-11-19
+actualizado: 2026-11-20
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
+
+> [!success] 2026-11-20 (cierre) · **todo en `main` LOCAL (`542a3954`), sin empujar · zona tomada: ninguna salvo `feat/propuesta-mapa-y-fotos` a medias**
+> Detalle y pendientes en [[2026-11-20]].
 
 > [!success] 2026-11-19 (cierre) · **`integra/18-11` en `7eb80ec7`, limpia y sin empujar · ninguna zona tomada**
 > Junta todo lo del 18/11 y 19/11: imprentas con requisitos y proporción del envío (R3), el envío del cliente solo a su
