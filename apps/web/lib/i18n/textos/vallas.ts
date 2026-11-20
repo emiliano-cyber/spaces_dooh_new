@@ -12,6 +12,7 @@
 // ============================================================================
 
 export const ES_VALLAS = {
+  'vallas.en-proceso.aviso': 'Este módulo todavía se está construyendo; las reglas y la numeración pueden cambiar.',
   'vallas.descripcion':
     'Cada cuadro con su número y su medida, y los grupos que forman una imagen. Aquí se van sumando las reglas de las vallas.',
   'vallas.error.cargar': 'No se pudieron cargar las vallas',
@@ -94,6 +95,7 @@ export const ES_VALLAS = {
 export type ClaveVallas = keyof typeof ES_VALLAS
 
 export const EN_VALLAS: Record<ClaveVallas, string> = {
+  'vallas.en-proceso.aviso': 'This module is still being built; the rules and the numbering may change.',
   'vallas.descripcion':
     'Each panel with its number and size, and the groups that make up one image. Poster panel rules are added here.',
   'vallas.error.cargar': 'Could not load the poster panels',
@@ -166,6 +168,7 @@ export const EN_VALLAS: Record<ClaveVallas, string> = {
 }
 
 export const IT_VALLAS: Record<ClaveVallas, string> = {
+  'vallas.en-proceso.aviso': 'Questo modulo è ancora in costruzione; le regole e la numerazione possono cambiare.',
   'vallas.descripcion':
     'Ogni riquadro con il suo numero e la sua misura, e i gruppi che formano un’unica immagine. Qui si aggiungono le regole dei poster.',
   'vallas.error.cargar': 'Impossibile caricare i poster',
@@ -238,6 +241,7 @@ export const IT_VALLAS: Record<ClaveVallas, string> = {
 }
 
 export const PT_VALLAS: Record<ClaveVallas, string> = {
+  'vallas.en-proceso.aviso': 'Este módulo ainda está sendo construído; as regras e a numeração podem mudar.',
   'vallas.descripcion':
     'Cada quadro com seu número e sua medida, e os grupos que formam uma única imagem. Aqui vão sendo somadas as regras dos outdoors.',
   'vallas.error.cargar': 'Não foi possível carregar os outdoors',

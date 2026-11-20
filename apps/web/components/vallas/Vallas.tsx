@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { Pencil, Plus, Trash2, ShieldAlert, ShieldCheck } from 'lucide-react'
+import { Pencil, Plus, Trash2, ShieldAlert, ShieldCheck, Construction } from 'lucide-react'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Campo } from '@/components/demo/ui/Campo'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
+import { FRANJA_AVISO, TONO } from '@/components/demo/admin/Chip'
+import { cn } from '@/lib/cn'
 import { usePuede, useSesionCtx } from '@/components/demo/shell/SesionContext'
 import { puedeEditarCompetencia } from '@/lib/roles'
 import { useSitios } from '@/lib/data/client'
@@ -73,8 +75,21 @@ export function VallasPantalla() {
   return (
     <div className="w-full space-y-4">
       <div>
-        <h1 className="text-2xl text-ink">{t('nav.vallas')}</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-2xl text-ink">{t('nav.vallas')}</h1>
+          <span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium', TONO.aviso)}>
+            {t('nav.insignia.en-proceso')}
+          </span>
+        </div>
         <p className="mt-1 text-[13px] text-muted">{t('vallas.descripcion')}</p>
+      </div>
+      {/* «En proceso» (dueño, 19/11): el módulo sale a todas las instancias
+          como esqueleto. Se quita junto con la insignia del menú (`nav.ts`). */}
+      <div role="note" className={FRANJA_AVISO}>
+        <Construction className="mt-px h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+        <span>
+          <strong className="font-medium">{t('nav.insignia.en-proceso')}:</strong> {t('vallas.en-proceso.aviso')}
+        </span>
       </div>
       <TarjetaVallas vallas={vallas} grupos={grupos} recargar={recargar} />
       <TarjetaGrupos vallas={vallas ?? []} grupos={grupos} recargar={recargar} />
