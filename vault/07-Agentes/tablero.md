@@ -6,6 +6,14 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!success] 2026-11-19 (cierre) · **`integra/18-11` en `7eb80ec7`, limpia y sin empujar · ninguna zona tomada**
+> Junta todo lo del 18/11 y 19/11: imprentas con requisitos y proporción del envío (R3), el envío del cliente solo a su
+> pantalla, los hallazgos B/C/D/A2, notas de la **v0.12.15**, prospectos nuevos en el Resumen, **Vallas** (esqueleto,
+> decisiones del dueño, «En proceso», también en Comercial; migraciones `20261119_*` aprobadas **solo para local**) y el
+> **Excel** de campañas detectadas en Space Eyes. Todas las ramas `feat/*` y `fix/*` del día están fusionadas.
+> **Falta (persona):** push, PR, etiqueta `v0.12.15`, aprobar las migraciones de vallas para servidores y sembrar la demo.
+> Detalle y lista de pendientes en [[2026-11-19]] § «Cierre del día».
+
 > [!important] 2026-11-19 · **Vallas: esqueleto del módulo** — `feat/vallas-esqueleto`, desde `integra/18-11` `18cbad3e` · **ROJO R3** (migración aprobada solo para LOCAL)
 > `20261119_vallas_esqueleto.sql` (3 tablas), `/api/vallas/**` (7 rutas), `/vallas` en Inventario y las reglas enchufables en
 > `lib/vallas/reglas/` con la competencia de marcas como aviso. Typecheck, unitarias, build y e2e propias en verde.
@@ -18,7 +26,7 @@ archivos: []
 > [!important] 2026-11-19 · **`wip/18-11-pausa` retomada en `feat/imprentas-y-proporcion`**, desde `integra/18-11` `0fd07bb2`, sin empujar · ROJO R2/R3 aprobado
 > Dos commits: ENVIO-PROPORCION (la liga rechaza el creativo con otra proporción que el sitio) e IMP-REQ (imprentas con
 > requisitos de arte, `20261118_imprentas_y_requisitos.sql`). Verificada con typecheck, unitarias, build y e2e completas.
-> **Falta**: fusionarla a `integra/18-11` (lo decide el orquestador) y el recorrido en Chrome. Ver [[2026-11-18]] § «19/11».
+> ~~**Falta**: fusionarla a `integra/18-11` y el recorrido en Chrome~~ — fusionada en `3e0c0dee` y recorrida el 19/11. Ver [[2026-11-18]] § «19/11».
 
 > [!warning] 2026-11-18 (cierre) · **`integra/18-11` PAUSADA por el dueño en `a40eb49b`, sin empujar** · incluye ROJOS R2/R3 aprobados
 > Junta `main` v0.12.14, `feat/propuestas-sin-crm`, `feat/inventario-filtros`, `feat/actualizar-campana` y las tres ramas
