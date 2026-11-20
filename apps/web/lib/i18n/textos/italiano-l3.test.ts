@@ -30,7 +30,6 @@ const AMBITOS = [
 const COGNADOS = new Set<string>([
   'operaciones.disponibilidad.kpi.en-periodo', // in {periodo}
   'operaciones.disponibilidad.vista', // Vista
-  'operaciones.almacen.campo.marca', // Marca
   'operaciones.almacen.col.tipo', // Tipo
   'operaciones.almacen.alta.tipo', // Tipo
   'operaciones.almacen.mover.motivo', // Motivo / nota

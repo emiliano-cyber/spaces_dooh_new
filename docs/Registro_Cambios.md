@@ -5,6 +5,15 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-20 · Propuestas: la marca se cambia desde la ficha y avisa si no es la del cliente
+
+- En la **ficha de la propuesta** ahora se puede **cambiar la marca** (o borrarla, y entonces cuenta el cliente) con su botón **Guardar**. Lo puede hacer quien puede crear propuestas, igual que las condiciones, y **no** en una propuesta ya aprobada. Al guardar, si la nueva marca compite con otra en esos sitios, aparece en seguida el recuadro ámbar.
+- Si la marca escrita **no se parece al nombre del cliente**, sale un aviso gris: «La marca «Pepsi» no coincide con el cliente «Publicis México». Revisa que sea correcta.». Es solo para revisar: **no bloquea nada**. Sale al crear (mientras se escribe), al duplicar y en la ficha. Se consideran iguales si una contiene a la otra sin contar mayúsculas, acentos, espacios ni signos: «Coca-Cola» y «Coca Cola FEMSA» no dan aviso.
+- En **italiano** la marca se llama ahora **«Marchio»** en todas las pantallas (Propuestas, Vallas y Almacén).
+- Si a **«Verificar una marca»** (Vallas) o al aviso de competencia de la propuesta les llega una fecha que no existe (por ejemplo, el 30 de febrero), ahora responden «Fecha inválida» en vez de un error del servidor o de decir que no hay competencia.
+
+---
+
 ## 2026-11-20 · Propuestas: campo «Marca» y aviso de marcas que compiten
 
 - Al crear una propuesta hay un campo nuevo, **«Marca»**. Es opcional: si se deja vacío, cuenta el **nombre del cliente**.
