@@ -130,11 +130,18 @@ export function armarPlano(entrada: {
    * todos (la pantalla de Vallas). Vacío → plano vacío.
    */
   sitioIds?: readonly string[]
+  /**
+   * Grupos que SIGUEN en un sitio que no viene en `vallas` (la liga del
+   * cliente, 20/11: solo recibe las vallas de su propuesta, así que aquí no se
+   * puede deducir; el servidor lo dice sin decir cuál es el otro sitio).
+   */
+  gruposQueSiguenFuera?: readonly string[]
 }): SitioPlano[] {
   const activas = entrada.vallas.filter((v) => v.activo)
   const soloSitios = entrada.sitioIds ? new Set(entrada.sitioIds) : null
   const grupos = new Map(entrada.grupos.map((g) => [g.id, g]))
   const nombres = new Map(entrada.sitios.map((s) => [s.id, s.nombre]))
+  const siguenFuera = new Set(entrada.gruposQueSiguenFuera ?? [])
 
   // Sitios de cada grupo, para saber si cruza. Se cuenta con TODAS las
   // activas, no solo las de los sitios pedidos: un grupo que sigue en un sitio
@@ -166,7 +173,7 @@ export function armarPlano(entrada: {
   for (const [sitioId, vs] of porSitio) {
     const ocup = ocupantes.get(sitioId) ?? []
     const caras = [...new Set(vs.map((v) => v.cara))].sort((a, b) => (a ?? Infinity) - (b ?? Infinity))
-    const filasCrudas = caras.map((cara) => ({ cara, bloques: bloquesDeFila(vs.filter((v) => v.cara === cara), grupos, sitiosDeGrupo) }))
+    const filasCrudas = caras.map((cara) => ({ cara, bloques: bloquesDeFila(vs.filter((v) => v.cara === cara), grupos, sitiosDeGrupo, siguenFuera) }))
 
     const metrosFila = (f: { bloques: { ancho: number }[] }) => f.bloques.reduce((s, b) => s + b.ancho, 0)
     const masAncha = Math.max(...filasCrudas.map(metrosFila))
@@ -205,6 +212,7 @@ function bloquesDeFila(
   vallas: Valla[],
   grupos: Map<string, GrupoVallas>,
   sitiosDeGrupo: Map<string, Set<string>>,
+  siguenFuera: ReadonlySet<string>,
 ): { grupo: GrupoPlano | null; vallas: Valla[]; ancho: number }[] {
   const sueltas: Valla[] = []
   const miembros = new Map<string, Valla[]>()
@@ -224,7 +232,7 @@ function bloquesDeFila(
     )
     crudos.push({
       clave: [...ms].map((v) => v.numero).sort(comparaNumero)[0],
-      grupo: { id: g.id, numero: g.numero, nombre: g.nombre, modo: g.modo, cruzaSitio: (sitiosDeGrupo.get(gid)?.size ?? 1) > 1 },
+      grupo: { id: g.id, numero: g.numero, nombre: g.nombre, modo: g.modo, cruzaSitio: siguenFuera.has(gid) || (sitiosDeGrupo.get(gid)?.size ?? 1) > 1 },
       vallas: orden,
     })
   }

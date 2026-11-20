@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-11-19
+actualizado: 2026-11-20
 tags: [frontend, publico, tokens, amarillo]
 archivos:
   - apps/web/app/(app)/portal/[token]/
@@ -17,6 +17,9 @@ archivos:
   - apps/web/lib/seguimiento-campana.ts
   - apps/web/components/demo/propuestas/FotosYUbicacionSitio.tsx
   - apps/web/lib/server/fotos-sitio-publico-controller.ts
+  - apps/web/lib/server/vallas-publicas-controller.ts
+  - apps/web/lib/server/vallas-publicas-repo.ts
+  - apps/web/lib/vallas/plano-publico.ts
 ---
 
 # Páginas públicas (sin sesión)
@@ -153,6 +156,27 @@ alguna empezara a leer la cookie, la exención se vuelve un agujero.
 > ubicación y fotos (lista blanca en el controller). Un servidor anterior sin
 > `items[].sitioId` no enseña el botón. Detalle en
 > [[comercial-propuestas-campanas]].
+
+## «Así se ven tus vallas» (20/11)
+
+> [!note] 2026-11-20 · el plano de las vallas en `/p/[id]`
+> Pedido del dueño: «si es valla, cómo se ven las pantallas que rentará, si es
+> más de 1; si solo es una, sin tema». Si los sitios de la propuesta suman **más
+> de una valla activa**, `GET /api/propuestas/publica/[id]` añade el campo
+> `planoVallas` y la liga pinta, debajo de los sitios, la tarjeta «Así se ven tus
+> vallas» (`PlanoVallasCliente`, el mismo dibujo de [[02-Backend/vallas]] en modo
+> público: cada cuadro dice «Tu valla», sin fechas ni libre/ocupada). Con 0 o 1
+> valla el campo **no se añade** y la liga es la de antes, sin petición de más.
+>
+> Va en la misma respuesta, no en ruta aparte, para no pedir nada cuando no hay
+> plano. El tenant sale del token igual que en el resto de la liga
+> (`propuesta_tenant_por_token` con `qRaw1`, y la consulta bajo `qConTenant` con
+> `tenant_id = $2` en cada tabla: `lib/server/vallas-publicas-repo.ts`). Lista
+> blanca en `vallas-publicas-controller.ts`: número, medida, cara, posición,
+> esquina, grupo (número, nombre, modo, `sigueFuera`) y el nombre del sitio. Los
+> ids de vallas y grupos son **opacos** (`v1`, `g1`); nada de ocupación, marcas,
+> campañas ni notas, y un grupo que sigue en un sitio fuera de la propuesta solo
+> dice «sigue en otro sitio». Si la lectura falla, la liga sale sin plano.
 
 ## Marca en las páginas de cara al cliente
 

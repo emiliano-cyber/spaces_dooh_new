@@ -5,6 +5,12 @@
     "items": [
       {
         "tipo": "NUEVO",
+        "texto": "La liga que recibe el cliente enseña cómo se ven sus vallas cuando renta más de una: un plano por sitio con cada valla en su lugar, su número y su medida, los grupos y las esquinas. Cada cuadro dice «Tu valla»; no se ve nada de otras campañas ni marcas. Con una sola valla, la liga queda como antes.",
+        "en": "The link the client receives now shows how their poster panels look when they rent more than one: a layout per site with each panel in its place, its number and size, the groups and the corners. Each panel reads “Your panel”; nothing about other campaigns or brands is shown. With a single poster panel, the link stays as before.",
+        "it": "Il link che riceve il cliente mostra come appaiono i suoi poster quando ne affitta più di uno: una pianta per sito con ogni poster al suo posto, il suo numero e la sua misura, i gruppi e gli angoli. Ogni riquadro dice «Il tuo poster»; non si vede nulla di altre campagne o marchi. Con un solo poster, il link resta come prima."
+      },
+      {
+        "tipo": "NUEVO",
         "texto": "Del creativo aprobado a la impresión: cada sitio queda pendiente de «Mandar a impresión» (fijo) o «Programar» (digital), con quién subió el arte (el cliente por la liga o nosotros). Imprenta lo ve arriba y recibe un aviso; nada se crea solo. Cada orden puede llevar una «fecha especial» que manda sobre el inicio de la campaña en la cola. La ficha de campaña y el portal bajan el álbum de fotos de evidencia en un .zip, por sitio y fecha.",
         "en": "From approved creative to print: each site is left pending to “Send to print” (fixed) or “Schedule” (digital), showing who uploaded the artwork (the client through the link, or us). Printing sees it at the top and gets a notice; nothing is created automatically. Each order can have a “special date” that overrides the campaign start in the queue. The campaign page and the portal download the evidence photo album as a .zip, by site and date.",
         "it": "Dalla creatività approvata alla stampa: ogni sito resta in sospeso per «Manda in stampa» (fisso) o «Programma» (digitale), con chi ha caricato la grafica (il cliente dal link o noi). Stampa lo vede in alto e riceve un avviso; nulla si crea da solo. Ogni ordine può avere una «data speciale» che prevale sull’inizio della campagna nella coda. La scheda della campagna e il portale scaricano l’album delle foto di prova in un .zip, per sito e data."

@@ -5,6 +5,15 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-20 · Liga del cliente: «Así se ven tus vallas»
+
+- Cuando una propuesta incluye **más de una valla** (sumando todos sus sitios), la **liga que se le manda al cliente** muestra una sección nueva, **«Así se ven tus vallas»**: un plano por sitio con cada valla en su lugar, con su **número** y su **medida**, los **grupos** que forman una imagen y las **esquinas** donde la pared dobla.
+- Cada cuadro dice **«Tu valla»**. El cliente **no** ve si están libres u ocupadas, ni marcas, ni campañas, ni datos de otros clientes. Si un grupo continúa en un sitio que no está en su propuesta, solo dice «sigue en otro sitio», sin decir cuál.
+- Si la propuesta tiene **una sola valla**, o ninguna, la liga se ve **exactamente igual que antes**.
+- Las vallas dadas de baja no cuentan. Sale en el idioma de la instancia (español, inglés, italiano o portugués).
+
+---
+
 ## 2026-11-20 · Del creativo aprobado a la impresión: pendientes, fecha especial y álbum
 
 - Cuando un creativo queda **aprobado** en una campaña confirmada (lo haya mandado el cliente por la liga o lo hayamos subido nosotros), cada sitio de esa campaña queda **pendiente**: los **fijos**, de **«Mandar a impresión»**; los **digitales**, de **«Programar»**. **Nada se crea solo**: una persona lo confirma.

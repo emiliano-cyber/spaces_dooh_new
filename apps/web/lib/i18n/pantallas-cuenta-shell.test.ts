@@ -1612,3 +1612,43 @@ describe('seguimiento en la liga · lo que no se ve', () => {
     expect(html).not.toContain('Total que paga el cliente')
   })
 })
+
+// LIGA + VALLAS (dueño, 20/11) · «si es valla, cómo se ven las pantallas que
+// rentará, si es más de 1; si solo es una, sin tema». La página REAL: con el
+// campo `planoVallas` (solo llega con más de una) sale la tarjeta; sin él, o
+// con una sola valla, la liga es la de siempre.
+describe('liga · «Así se ven tus vallas»', () => {
+  const PLANO = {
+    sitios: [{ id: 's1', nombre: 'Muro Periférico' }],
+    vallas: [
+      { id: 'v1', sitioId: 's1', numero: 'V-101', cara: null, ancho: 6, alto: 3, grupoId: null, posicion: null, dobla: null },
+      { id: 'v2', sitioId: 's1', numero: 'V-102', cara: null, ancho: 6, alto: 3, grupoId: null, posicion: null, dobla: null },
+    ],
+    grupos: [],
+  }
+  async function pagina(extra: Record<string, unknown>) {
+    forzar(esUndef, { ...PUB, ...extra })
+    const { default: Pagina } = await import('../../app/(app)/p/[id]/page')
+    return texto(pintar('es', createElement(Pagina, { params: { id: 'p1' } })))
+  }
+
+  it('con dos vallas: la tarjeta, cada cuadro «Tu valla», sin Libre/Ocupada', async () => {
+    const t = await pagina({ planoVallas: PLANO })
+    expect(t).toContain('Así se ven tus vallas')
+    expect(t).toContain('>V-101<')
+    expect(t).toContain('>V-102<')
+    expect(t.split('>Tu valla<').length - 1).toBe(2)
+    expect(t).not.toContain('>Libre<')
+    expect(t).not.toContain('Ocupada')
+  })
+
+  it('sin el campo (0 o 1 valla): la liga de siempre, sin la tarjeta', async () => {
+    expect(await pagina({})).not.toContain('Así se ven tus vallas')
+  })
+
+  it('aunque llegara una sola valla, no se pinta', async () => {
+    const t = await pagina({ planoVallas: { ...PLANO, vallas: PLANO.vallas.slice(0, 1) } })
+    expect(t).not.toContain('Así se ven tus vallas')
+    expect(t).not.toContain('V-101')
+  })
+})

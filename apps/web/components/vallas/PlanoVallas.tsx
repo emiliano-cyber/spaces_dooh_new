@@ -22,6 +22,8 @@ import {
   type TramoPlano,
 } from '@/lib/vallas/plano'
 import { ocupacionVallasApi } from '@/lib/data/vallas-api'
+import { planoDesdeLiga, type PlanoVallasLiga } from '@/lib/vallas/plano-publico'
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 
 // ============================================================================
 //  PLANO DE LAS VALLAS (pedido del dueño, 20/11): «tiene que estar un mapa del
@@ -173,7 +175,7 @@ export function PlanoVallas({
 }
 
 /** El dibujo de un sitio. Exportado para la prueba de render. */
-export function PlanoDeSitio({ sitio }: { sitio: SitioPlano }) {
+export function PlanoDeSitio({ sitio, publico = false }: { sitio: SitioPlano; publico?: boolean }) {
   const { t } = useIdioma()
   const rotularCaras = sitio.filas.length > 1 || sitio.filas.some((f) => f.cara != null)
   return (
@@ -194,7 +196,7 @@ export function PlanoDeSitio({ sitio }: { sitio: SitioPlano }) {
                 {f.tramos.map((tr) => (
                   <Fragment key={tr.bloques[0].cuadros[0].id}>
                     {tr.gira && <Esquina dobla={tr.gira} />}
-                    <Tramo tramo={tr} />
+                    <Tramo tramo={tr} publico={publico} />
                   </Fragment>
                 ))}
                 {f.esquinaFinal && <Esquina dobla={f.esquinaFinal} />}
@@ -208,7 +210,7 @@ export function PlanoDeSitio({ sitio }: { sitio: SitioPlano }) {
 }
 
 /** Un tramo recto de pared; tras una esquina, girado hacia donde dobla. */
-function Tramo({ tramo }: { tramo: TramoPlano }) {
+function Tramo({ tramo, publico }: { tramo: TramoPlano; publico: boolean }) {
   return (
     <div
       data-gira={tramo.gira ?? undefined}
@@ -220,7 +222,7 @@ function Tramo({ tramo }: { tramo: TramoPlano }) {
       }}
     >
       {tramo.bloques.map((b) => (
-        <Bloque key={b.grupo ? `g-${b.grupo.id}` : `v-${b.cuadros[0].id}`} bloque={b} />
+        <Bloque key={b.grupo ? `g-${b.grupo.id}` : `v-${b.cuadros[0].id}`} bloque={b} publico={publico} />
       ))}
     </div>
   )
@@ -241,9 +243,9 @@ function Esquina({ dobla }: { dobla: Dobla }) {
   )
 }
 
-function Bloque({ bloque }: { bloque: BloquePlano }) {
+function Bloque({ bloque, publico }: { bloque: BloquePlano; publico: boolean }) {
   const { t } = useIdioma()
-  if (!bloque.grupo) return <Cuadro cuadro={bloque.cuadros[0]} />
+  if (!bloque.grupo) return <Cuadro cuadro={bloque.cuadros[0]} publico={publico} />
   const g = bloque.grupo
   const cortado = bloque.cortadoAntes || bloque.cortadoDespues
   const etiqueta =
@@ -254,7 +256,7 @@ function Bloque({ bloque }: { bloque: BloquePlano }) {
     <div role="group" aria-label={etiqueta} className="flex min-w-max flex-col" style={{ flexGrow: bloque.ancho, flexBasis: 0 }}>
       <div className="flex items-start gap-1">
         {bloque.cuadros.map((c) => (
-          <Cuadro key={c.id} cuadro={c} />
+          <Cuadro key={c.id} cuadro={c} publico={publico} />
         ))}
       </div>
       {/* El corchete del boceto: └─ G-001 (una imagen) ─┘. Si el grupo cruza
@@ -272,15 +274,18 @@ function Bloque({ bloque }: { bloque: BloquePlano }) {
   )
 }
 
-function Cuadro({ cuadro: c }: { cuadro: CuadroPlano }) {
+function Cuadro({ cuadro: c, publico }: { cuadro: CuadroPlano; publico: boolean }) {
   const { t } = useIdioma()
   const medida = useMedida()
   const m = medida(c.ancho, c.alto)
   const libre = c.estado === 'libre'
-  const estado = libre ? t('vallas.plano.libre') : t('vallas.plano.ocupada', { quien: c.ocupantes.map((o) => o.etiqueta).join(', ') })
+  // En la liga del cliente no hay libre ni ocupada: es SU valla (la ocupación
+  // es de la organización y no se pide).
+  const tuya = t('vallas.plano.tuya')
+  const estado = publico ? tuya : libre ? t('vallas.plano.libre') : t('vallas.plano.ocupada', { quien: c.ocupantes.map((o) => o.etiqueta).join(', ') })
   return (
     <div
-      className={cn('flex min-w-[5.5rem] flex-col justify-between rounded border px-2 py-1.5', libre ? TONO.exito : TONO.aviso)}
+      className={cn('flex min-w-[5.5rem] flex-col justify-between rounded border px-2 py-1.5', publico ? TONO.acento : libre ? TONO.exito : TONO.aviso)}
       style={{ flexGrow: c.ancho, flexBasis: 0, height: `${Math.round(48 + c.altoRel * 64)}px` }}
       aria-label={
         t('vallas.plano.cuadro', { numero: c.numero, medida: m, estado }) +
@@ -290,7 +295,9 @@ function Cuadro({ cuadro: c }: { cuadro: CuadroPlano }) {
       <span className="demo-num text-[12px] font-medium text-ink">{c.numero}</span>
       <span className="demo-num text-[11px] text-muted">{m}</span>
       <span className="truncate text-[11px] text-ink">
-        {libre ? (
+        {publico ? (
+          tuya
+        ) : libre ? (
           t('vallas.plano.libre')
         ) : (
           <>
@@ -305,5 +312,33 @@ function Cuadro({ cuadro: c }: { cuadro: CuadroPlano }) {
         )}
       </span>
     </div>
+  )
+}
+
+/**
+ * «Así se ven tus vallas» (dueño, 20/11) · la tarjeta de la LIGA DEL CLIENTE
+ * (`/p/[id]`). La página solo la monta con más de una valla
+ * (`mostrarPlanoEnLiga`). El mismo dibujo, en modo público: cada cuadro dice
+ * «Tu valla», sin fechas, sin leyenda de libre/ocupada y SIN pedir nada al
+ * servidor — ni la ocupación ni los sitios, que exigen sesión y son de la
+ * organización. Todo llega ya en la respuesta pública de la liga.
+ */
+export function PlanoVallasCliente({ plano }: { plano: PlanoVallasLiga }) {
+  const { t } = useIdioma()
+  const sitios = useMemo(() => planoDesdeLiga(plano), [plano])
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t('vallas.publico.titulo')}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="mb-3 text-[12px] text-muted">{t('vallas.publico.detalle')}</p>
+        <div className="space-y-4">
+          {sitios.map((s) => (
+            <PlanoDeSitio key={s.sitioId} sitio={s} publico />
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   )
 }
