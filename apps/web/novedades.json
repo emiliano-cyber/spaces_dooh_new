@@ -5,6 +5,12 @@
     "items": [
       {
         "tipo": "NUEVO",
+        "texto": "Propuestas: campo «Marca» (si va vacío cuenta el cliente) y un aviso cuando una marca que compite ya está en esos sitios y fechas, con las reglas de Vallas. Solo avisa, no bloquea; la marca pasa a la campaña al generarla.",
+        "en": "Proposals: a new “Brand” field (if left blank, the client is used) and a warning when a competing brand is already at those sites and dates, using the Poster panels rules. It only warns, it does not block; the brand is carried over to the campaign when it is generated.",
+        "it": "Proposte: nuovo campo «Marca» (se vuoto si usa il cliente) e un avviso quando un marchio concorrente è già in quei siti e in quelle date, con le regole dei Poster. Avvisa soltanto, non blocca; il marchio passa alla campagna quando viene generata."
+      },
+      {
+        "tipo": "NUEVO",
         "texto": "Vallas tiene arriba un plano por sitio: cada cuadro con su número y su medida, dibujado a escala en su lugar, con los grupos marcados y si está libre o qué marca lo ocupa entre las fechas que se elijan (por omisión, los próximos 30 días). Como las reservas son por sitio, una campaña ocupa todas las vallas de su sitio.",
         "en": "Poster panels now has a layout per site at the top: each panel with its number and size, drawn to scale in its place, with groups marked and whether it is free or which brand occupies it between the chosen dates (by default, the next 30 days). Since bookings are per site, a campaign occupies every poster panel on its site.",
         "it": "Poster ha in alto una pianta per sito: ogni poster con il suo numero e la sua misura, disegnato in scala al suo posto, con i gruppi evidenziati e se è libero o quale marchio lo occupa tra le date scelte (per impostazione, i prossimi 30 giorni). Poiché le prenotazioni sono per sito, una campagna occupa tutti i poster del suo sito."

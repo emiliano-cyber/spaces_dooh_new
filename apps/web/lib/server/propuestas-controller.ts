@@ -28,6 +28,7 @@ import {
 } from '@/lib/calculadora-spots'
 import { datosDelLoop, datosParaTarifar } from './tarifas-repo'
 import { usuarioActual, tienePermiso } from './auth'
+import { marcaPropuesta } from '@/lib/propuesta-marca'
 
 // ============================================================================
 //  lib/server/propuestas-controller.ts — Alta de propuestas y aprobación de sus
@@ -160,6 +161,9 @@ const crearSchema = z
     notas: z.string().nullish(),
     // ADR 0051 §3 · opcional; quién puede usarla lo decide la ruta.
     oportunidadId: z.string().uuid().nullish(),
+    // PROP-MARCA (20/11) · la marca que se anuncia, para la competencia de
+    // marcas de Vallas. Opcional: vacía → null, que es «cuenta el cliente».
+    marca: marcaPropuesta,
   })
   .refine((d) => new Date(d.fechaFin) >= new Date(d.fechaInicio), {
     message: 'La fecha fin no puede ser anterior a la de inicio',

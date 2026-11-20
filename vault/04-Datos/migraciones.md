@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-11-19
+actualizado: 2026-11-20
 tags: [datos, migraciones, despliegue, rojo]
 archivos:
   - db/migrations/
@@ -60,6 +60,7 @@ archivos:
   - db/migrations/20261118_imprentas_y_requisitos.sql
   - db/migrations/20261119_vallas_esqueleto.sql
   - db/migrations/20261119_vallas_sembrar_competencia_por_omision.sql
+  - db/migrations/20261120_propuestas_marca.sql
   - db/migrations/20261023_contrato_versiones_firmadas.sql
 ---
 
@@ -68,7 +69,7 @@ archivos:
 > [!important] 2026-10-05 · puesta al día — ninguna de las de abajo está ya «sin fusionar»
 > Medido hoy con `node scripts/recuentos.mjs` sobre el árbol de
 > `integra/riesgos-presentacion-14-oct` (salida de `main` en `09c65ca2`):
-> **137 migraciones y 76 tablas** (19/11, `feat/vallas-decisiones` con `20261119_vallas_sembrar_competencia_por_omision.sql`: solo filas, ninguna tabla) (19/11, 136 y 76, `feat/vallas-esqueleto` con `20261119_vallas_esqueleto.sql`: crea `vallas`, `vallas_grupos` y `competencia_categorias`) (19/11, 135 y 73, `feat/imprentas-y-proporcion` con `20261118_imprentas_y_requisitos.sql`: crea `imprentas`, IMP-REQ) (18/11, 134 y 72, `integra/18-11` con `20261118_envios_creativo_cliente.sql`: crea `envios_creativo_cliente`, ENVIO-CLIENTE) (18/11, 133 y 71, `integra/18-11` con `20261118_idiomas_servidor_sin_espanol_obligatorio.sql`: solo cambia un CHECK, ninguna tabla) (17/11, 132, `integra/17-11`: las del CRM y `20261117_propuesta_imprenta_visible.sql`) (17/11, 131, `feat/crm-comercial` con `20261117_propuesta_cambios_por_trigger.sql`: el historial de propuestas por trigger, sin tablas) (17/11, 130, con `20261117_crm_oportunidades.sql`: las tres tablas del CRM comercial, ADR 0051) (12/11, 129 y 68, `feat/avisos-por-canal` con `20261112_avisos_por_canal.sql`: crea `avisos_usuario` y la columna `usuarios.telefono_whatsapp`) (09/11, 127, `feat/borrar-usuarios` con `20261109_acciones_sin_fk_usuario.sql`: ninguna tabla ni columna, solo quita una FK) (05/11, 126, `feat/portugues-documentos` con `20261105_idioma_portugues.sql` de P3 del portugués: ninguna columna ni tabla, solo los dos CHECK) (04/11, 125, `integra/idiomas` con `20261103_usuarios_idioma_preferido.sql` de IDIOMA-USUARIO, una columna y ninguna tabla) (03/11, 124, con `20261103_idioma_documentos_por_instancia.sql`, una columna y ninguna tabla) (02/11, 123, con `20261102_moneda_inmutable_por_instancia.sql`, ninguna tabla) (29/10, 122, con `20261029_propuestas_condiciones_vigencia_vendedor.sql`, cinco columnas y ninguna tabla) (29/10, 121, con `20261029_campana_extensiones.sql`, que crea `campana_extensiones`) (22/10, 117 y 64, con `20261022_campana_horario_doohmain.sql`, tres columnas en `campanas`) (22/10, 116 y 64, con `20261022_comercial_negociacion.sql`, que crea las cuatro tablas de Comercial negociación) (21/10, 115 y 60, con `20261021_notificaciones_por_usuario.sql`, que crea `notificaciones_usuario`: esta vez el 60 es una tabla de verdad) (19/10, 114 y 59, con `20261019_cobranza_abono_comprobante.sql`; antes 113) —el «60» que decía aquí el 13/10 era falso:
+> **138 migraciones y 76 tablas** (20/11, `feat/propuesta-marca-competencia` con `20261120_propuestas_marca.sql`: una columna, ninguna tabla) (19/11, 137 y 76, `feat/vallas-decisiones` con `20261119_vallas_sembrar_competencia_por_omision.sql`: solo filas, ninguna tabla) (19/11, 136 y 76, `feat/vallas-esqueleto` con `20261119_vallas_esqueleto.sql`: crea `vallas`, `vallas_grupos` y `competencia_categorias`) (19/11, 135 y 73, `feat/imprentas-y-proporcion` con `20261118_imprentas_y_requisitos.sql`: crea `imprentas`, IMP-REQ) (18/11, 134 y 72, `integra/18-11` con `20261118_envios_creativo_cliente.sql`: crea `envios_creativo_cliente`, ENVIO-CLIENTE) (18/11, 133 y 71, `integra/18-11` con `20261118_idiomas_servidor_sin_espanol_obligatorio.sql`: solo cambia un CHECK, ninguna tabla) (17/11, 132, `integra/17-11`: las del CRM y `20261117_propuesta_imprenta_visible.sql`) (17/11, 131, `feat/crm-comercial` con `20261117_propuesta_cambios_por_trigger.sql`: el historial de propuestas por trigger, sin tablas) (17/11, 130, con `20261117_crm_oportunidades.sql`: las tres tablas del CRM comercial, ADR 0051) (12/11, 129 y 68, `feat/avisos-por-canal` con `20261112_avisos_por_canal.sql`: crea `avisos_usuario` y la columna `usuarios.telefono_whatsapp`) (09/11, 127, `feat/borrar-usuarios` con `20261109_acciones_sin_fk_usuario.sql`: ninguna tabla ni columna, solo quita una FK) (05/11, 126, `feat/portugues-documentos` con `20261105_idioma_portugues.sql` de P3 del portugués: ninguna columna ni tabla, solo los dos CHECK) (04/11, 125, `integra/idiomas` con `20261103_usuarios_idioma_preferido.sql` de IDIOMA-USUARIO, una columna y ninguna tabla) (03/11, 124, con `20261103_idioma_documentos_por_instancia.sql`, una columna y ninguna tabla) (02/11, 123, con `20261102_moneda_inmutable_por_instancia.sql`, ninguna tabla) (29/10, 122, con `20261029_propuestas_condiciones_vigencia_vendedor.sql`, cinco columnas y ninguna tabla) (29/10, 121, con `20261029_campana_extensiones.sql`, que crea `campana_extensiones`) (22/10, 117 y 64, con `20261022_campana_horario_doohmain.sql`, tres columnas en `campanas`) (22/10, 116 y 64, con `20261022_comercial_negociacion.sql`, que crea las cuatro tablas de Comercial negociación) (21/10, 115 y 60, con `20261021_notificaciones_por_usuario.sql`, que crea `notificaciones_usuario`: esta vez el 60 es una tabla de verdad) (19/10, 114 y 59, con `20261019_cobranza_abono_comprobante.sql`; antes 113) —el «60» que decía aquí el 13/10 era falso:
 > `recuentos.mjs` contaba como tabla la palabra `if` de un comentario de
 > `20261013_doohmain_seguimiento_unicas.sql`; corregido el 14/10 quitando los
 > comentarios antes de medir— (13/10, con `20261013_sitios_pantalla_doohmain.sql`; antes 112) (13/10, con `20261013_doohmain_seguimiento_unicas.sql`; antes 111) (12/10, con `20261012_razon_social_principal.sql`; antes 110) (07/10, con `20261011_contrato_cambios_solo_insercion.sql`; antes 109) (07/10, con `20261010_contrato_cambios.sql`; antes 108 y 58) (06/10, con `20261009_propuestas_fechas_estatus.sql`; antes 107) (06/10, con `20261008_cobranza_abonos.sql`). Es el recuento vigente; los de los recuadros
@@ -79,6 +80,7 @@ archivos:
 >
 > | Migración | Decía | Entró en `main` |
 > |---|---|---|
+> | `20261120_propuestas_marca.sql` | rama `feat/propuesta-marca-competencia`, **aprobada por el dueño para LOCAL el 20/11** (ROJO R3); servidores pendiente | **Sin publicar.** La columna `propuestas.marca`. Ver la sección de abajo |
 > | `20261119_vallas_sembrar_competencia_por_omision.sql` | rama `feat/vallas-decisiones`, **aprobada por el dueño para LOCAL el 19/11** (ROJO R3 + R2); servidores pendiente | **Sin publicar.** Siembra las 12 categorías de competencia por omisión en cada organización existente. Ver la sección de abajo |
 > | `20261119_vallas_esqueleto.sql` | rama `feat/vallas-esqueleto` (ADR 0052), aprobada para LOCAL (`spaces_hoy`) el 19/11 (ROJO R3 + R2) | **Sin publicar.** Crea `vallas`, `vallas_grupos` y `competencia_categorias`. Ver [[02-Backend/vallas]] |
 > | `20261118_imprentas_y_requisitos.sql` | rama `feat/imprentas-y-proporcion` (IMP-REQ, opción B), **aprobada por el dueño el 18/11** (ROJO R3 + R2) | **Sin publicar.** Crea `imprentas`, `config_negocio.requisitos_impresion` y `ordenes_impresion.imprenta_id` con FK compuesta. Ver la sección de abajo |
@@ -1461,6 +1463,16 @@ de entidades añadía en paralelo. Si la necesitas, cuéntala, no la copies.
 >
 > Runner ×2 contra base desechable: **94 aplicadas** en la primera pasada, **0**
 > en la segunda, sin divergencia de checksum. Ver [[02-Backend/costo-real-de-ot]].
+
+## `20261120_propuestas_marca.sql` — la marca de una propuesta (20/11)
+
+`@tipo: esquema`, transaccional e idempotente (`add column if not exists`). Añade
+`propuestas.marca text` (NULL = cuenta el nombre del cliente), con su `comment on
+column`. No rellena nada: toda propuesta anterior queda en NULL, que es exactamente
+el comportamiento de antes. La longitud (120) la acota el servidor, no un CHECK. La
+usa la competencia de marcas de Vallas al crear la propuesta y pasa a
+`campanas.marca` al generar la campaña. Ver [[comercial-propuestas-campanas]].
+Ordena después de las de Vallas por nombre; no toca `ANTES_DE`.
 
 ## `20261119_vallas_sembrar_competencia_por_omision.sql` — las categorías de competencia que trae cada organización (19/11)
 

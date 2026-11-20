@@ -67,6 +67,7 @@ import {
 import { BloqueCodigoPropuesta } from '@/components/demo/codigos/BloqueCodigoPropuesta'
 import { ElegirClienteDialog } from '@/components/demo/propuestas/ElegirClienteDialog'
 import { BloqueCondicionesVigencia } from '@/components/demo/propuestas/BloqueCondicionesVigencia'
+import { AvisoCompetenciaPropuesta } from '@/components/demo/propuestas/AvisoCompetencia'
 import { ImprentaVisibleCliente } from '@/components/demo/propuestas/ImprentaVisibleCliente'
 import { EnviarPropuestaDialog } from '@/components/demo/propuestas/EnviarPropuestaDialog'
 import {
@@ -497,14 +498,38 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
 
       {/* Barra de metadatos (fechas / anunciante / agencia / comisión) */}
       <Card className="overflow-hidden p-0">
-        <div className="grid grid-cols-2 divide-x divide-y divide-border sm:grid-cols-4 sm:divide-y-0">
+        <div className="grid grid-cols-2 divide-x divide-y divide-border sm:grid-cols-5 sm:divide-y-0">
           <Meta icon={<CalendarDays className="h-4 w-4" />} label={t('propuestas.ficha.meta.fechas')}
             value={desde && hasta ? `${formatFecha(desde, idioma)} – ${formatFecha(hasta, idioma)}` : '—'} />
           <Meta label={t('propuestas.ficha.meta.anunciante')} value={cliente?.nombre ?? t('propuestas.comun.sin-cliente')} />
           <Meta label={t('propuestas.comun.agencia')} value={agencia?.nombre ?? t('propuestas.ficha.meta.directa')} />
           <Meta label={t('propuestas.ficha.meta.comision')} value={`${comisionPct}%`} />
+          {/* PROP-MARCA (20/11) · la marca con que cuenta la competencia de
+              Vallas: la escrita o, si no hay, la del cliente (y se dice). */}
+          <Meta
+            label={t('propuestas.ficha.meta.marca')}
+            value={
+              p.marca
+                ? p.marca
+                : cliente?.nombre
+                  ? t('propuestas.ficha.meta.marca-cliente', { cliente: cliente.nombre })
+                  : '—'
+            }
+          />
         </div>
       </Card>
+
+      {/* PROP-MARCA (20/11) · competencia de marcas en los sitios de esta
+          propuesta. Solo avisa; sin choques no pinta nada. Una aprobada ya
+          generó su campaña con la misma marca, y la misma marca no compite
+          consigo misma. */}
+      <AvisoCompetenciaPropuesta
+        marca={p.marca ?? null}
+        clienteId={p.clienteId}
+        fechaInicio={desde ? String(desde).slice(0, 10) : ''}
+        fechaFin={hasta ? String(hasta).slice(0, 10) : ''}
+        sitioIds={[...new Set(p.items.map((i) => i.sitioId))]}
+      />
 
       {/* Resumen económico (KPIs). PLEG-02 · el descuento tecleado vive en
           esta página y sobrevive a plegar; lo que se esté escribiendo en el

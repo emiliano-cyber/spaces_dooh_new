@@ -1,9 +1,16 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-11-19
+actualizado: 2026-11-20
 tags: [backend, comercial, propuestas, campanas, amarillo, precio, extension, contrato]
 archivos:
+  - db/migrations/20261120_propuestas_marca.sql
+  - apps/web/lib/propuesta-marca.ts
+  - apps/web/lib/server/propuestas-competencia.ts
+  - apps/web/lib/server/propuestas-competencia-repo.ts
+  - apps/web/app/api/propuestas/competencia/route.ts
+  - apps/web/components/demo/propuestas/AvisoCompetencia.tsx
+  - apps/web/lib/test/propuesta-competencia.e2e.test.ts
   - apps/web/lib/prospectos-nuevos.ts
   - apps/web/components/demo/propuestas/ProspectosNuevos.tsx
   - apps/web/components/demo/propuestas/TableroPropuestas.tsx
@@ -1120,6 +1127,40 @@ propuesta, por sitio, en la ficha interna y en la liga del cliente.
   fuera de la propuesta → 404; tokens cruzados entre organizaciones → 404;
   token inventado o mal formado → 404; sin arrendador, renta, tarifa ni clave
   en el texto crudo; `/api/sitios/:id/media` sigue exigiendo sesión).
+
+## La marca y la competencia de marcas en la propuesta (PROP-MARCA, 20/11)
+
+Pedido del dueño: «la validación de la competencia también debe estar al crear la
+propuesta, con las lógicas que ya están dentro». La regla es la de
+[[vallas]] (Regla 1, competencia de marcas) y **solo avisa, nunca bloquea**.
+
+- **Campo «Marca»** en la propuesta (`propuestas.marca`, migración
+  `20261120_propuestas_marca.sql`), opcional. Forma en `lib/propuesta-marca.ts`:
+  recortada, máx. 120, vacía → `null`. **Vacía cuenta el nombre del cliente**, con
+  la misma expresión que las campañas (`coalesce(nullif(btrim(marca),''), cl.nombre)`).
+  Se acepta al crear (`crearSchema`), al editar (`PATCH /api/propuestas/[id]`
+  `{ marca }`; ausente no la toca, `''` la quita) y al duplicar (la pantalla la
+  precarga). Viaja en la propuesta como `marca`; la liga pública no la lleva.
+- **Al generar la campaña** `generarCampanaDesdePropuesta` escribe
+  `campanas.marca = nullif(btrim(propuestas.marca),'')`. Es la única columna que
+  toca: nada del cálculo (R4).
+- **Dónde se avisa**: `POST /api/propuestas` (201) y `POST /api/propuestas/[id]/items`
+  (201) devuelven `avisosCompetencia`, calculados DESPUÉS de guardar; el PATCH los
+  devuelve si vino `marca`. `POST /api/propuestas/competencia` es la vista previa de
+  la pantalla, sin guardar nada. Todos van por `lib/server/propuestas-competencia.ts`
+  → `verificarCompetencia` (`vallas-controller.ts`) → `contextoParaVerificar` +
+  `evaluarReglas`. **Nunca lanza**: si algo falla, cero avisos.
+- **Pantalla**: el campo «Marca» (placeholder «Si se deja vacío se usa el cliente») y
+  el recuadro ámbar `RecuadroCompetencia` (`components/demo/propuestas/AvisoCompetencia.tsx`)
+  en el alta —también al agregar sitios y al duplicar— y en la ficha, que además
+  enseña la marca (o «{cliente} (del cliente)») en la barra de metadatos.
+- **Permisos (decisión de esta tarea)**: la vista previa pide `comercial.crear`, no
+  `inventario.ver`, para que el aviso le salga a quien vende. A cambio, el aviso solo
+  lleva marca, marca rival, categoría, sitio y fechas: **ni el id ni el nombre de la
+  campaña rival ni su cliente** (el vendedor solo ve lo suyo, ADR 0051).
+- Solo los sitios con vallas pueden chocar: una pantalla digital sin vallas no avisa.
+- Pruebas: `lib/server/propuestas-competencia.test.ts`, `lib/server/propuestas-marca.test.ts`
+  y `lib/test/propuesta-competencia.e2e.test.ts`.
 
 ## Portal del cliente
 

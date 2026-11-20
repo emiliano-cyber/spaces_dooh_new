@@ -748,6 +748,9 @@ export const CATALOGO_ERRORES: Record<string, string> = {
     'The number cannot be longer than 40 characters',
   'La marca es requerida':
     'The brand is required',
+  // PROP-MARCA (20/11) · la marca de la propuesta.
+  'La marca no puede pasar de 120 caracteres':
+    'The brand cannot be longer than 120 characters',
 }
 
 
@@ -780,6 +783,7 @@ export const CATALOGO_LIB: Record<string, string> = Object.fromEntries(
 // izquierda: el espejo de `CAMPO_ES` (`lib/server/errores.ts`).
 export const CAMPO_EN: Record<string, string> = {
   'Nombre': 'Name',
+  'Marca': 'Brand',
   'Correo': 'Email',
   'Contraseña': 'Password',
   'Contraseña actual': 'Current password',
@@ -1421,6 +1425,8 @@ export const CATALOGO_ERRORES_IT: Partial<Record<string, string>> = {
     'Il numero non può superare i 40 caratteri',
   'La marca es requerida':
     'Il marchio è obbligatorio',
+  'La marca no puede pasar de 120 caracteres':
+    'Il marchio non può superare i 120 caratteri',
 }
 
 /** El de `lib/` sale del diccionario, como `CATALOGO_LIB`: se escribe una vez, en `textos/servidor.ts`. */
@@ -1433,6 +1439,7 @@ export const CATALOGO_LIB_IT: Partial<Record<string, string>> = Object.fromEntri
 /** El espejo de `CAMPO_EN`. */
 export const CAMPO_IT: Partial<Record<string, string>> = {
   'Nombre': 'Nome',
+  'Marca': 'Marchio',
   'Correo': 'Email',
   'Contraseña': 'Password',
   'Contraseña actual': 'Password attuale',
@@ -1862,6 +1869,8 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
     'O número não pode passar de 40 caracteres',
   'La marca es requerida':
     'A marca é obrigatória',
+  'La marca no puede pasar de 120 caracteres':
+    'A marca não pode passar de 120 caracteres',
 }
 
 /** El de `lib/` sale del diccionario, como `CATALOGO_LIB_IT`: se escribe una vez, en `textos/servidor.ts`. */
@@ -1874,6 +1883,7 @@ export const CATALOGO_LIB_PT: Partial<Record<string, string>> = Object.fromEntri
 /** El espejo de `CAMPO_EN`. */
 export const CAMPO_PT: Partial<Record<string, string>> = {
   'Nombre': 'Nome',
+  'Marca': 'Marca',
   'Correo': 'E-mail',
   'Contraseña': 'Senha',
   'Contraseña actual': 'Senha atual',

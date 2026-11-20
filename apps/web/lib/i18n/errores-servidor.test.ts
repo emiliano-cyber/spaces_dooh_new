@@ -402,6 +402,9 @@ describe('GUARDIA · ningun mensaje de error puede quedarse fuera EN SILENCIO', 
       'El número es requerido',
       'El número no puede pasar de 40 caracteres',
       'La marca es requerida',
+      // PROP-MARCA (20/11): el zod de `lib/propuesta-marca.ts`, por `validar()`
+      // al crear y a mano (`traducirError`) al editar.
+      'La marca no puede pasar de 120 caracteres',
     ])
     const muertas = Object.keys(CATALOGO_ERRORES).filter(
       (k) => !vivos.has(k) && !EXENTAS.has(k),

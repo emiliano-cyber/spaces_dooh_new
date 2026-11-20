@@ -5,6 +5,16 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-20 · Propuestas: campo «Marca» y aviso de marcas que compiten
+
+- Al crear una propuesta hay un campo nuevo, **«Marca»**. Es opcional: si se deja vacío, cuenta el **nombre del cliente**.
+- Mientras se eligen la marca, las fechas y los sitios, la pantalla avisa en un recuadro ámbar si una **marca que compite** ya está en alguno de esos sitios en esas fechas, por ejemplo: «Pepsi compite con Coca-Cola (Refrescos de cola) en Periférico Sur del 1 al 15 de diciembre». Son las mismas reglas de **Vallas → Marcas que compiten** (las edita el Dueño).
+- **Solo avisa, no bloquea**: la propuesta se guarda igual. El aviso sale también al **agregar sitios**, al **duplicar** y en la **ficha** de la propuesta, que además enseña la marca.
+- Solo avisan los sitios que tienen **vallas** dadas de alta. El aviso dice la marca rival, el sitio y las fechas, pero **no** el nombre de la campaña ni del cliente rival.
+- Al **generar la campaña**, la marca de la propuesta pasa a la campaña. Los importes no cambian.
+
+---
+
 ## 2026-11-20 · Vallas: el plano de cada sitio
 
 - Arriba de todo en **Vallas** hay una tarjeta nueva, **«Plano de las vallas»**: un dibujo por sitio con sus cuadros numerados (V-001, V-002…) en su lugar, cada uno del tamaño que le toca según su medida.

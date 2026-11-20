@@ -746,9 +746,13 @@ export async function generarCampanaDesdePropuesta(
     // propio de `folioCampana`.
     const campanaId = (
       await client.query(
-        `insert into campanas (folio, nombre, cliente_id, agencia, fecha_inicio, fecha_fin, estado_comercial, tipo_campana, propuesta_id, moneda, tenant_id)
-         values ($1,$2,$3,$4,$5,$6,'CONFIRMADA',$7,$8,coalesce((select moneda from tenants where id=$9),'MXN'),$9) returning id`,
-        [prop.folio, prop.nombre, prop.cliente_id, agenciaNombre, fechaInicio, fechaFin, tipoCampana, propuestaId, await tenantActual()],
+        `insert into campanas (folio, nombre, cliente_id, agencia, fecha_inicio, fecha_fin, estado_comercial, tipo_campana, propuesta_id, moneda, tenant_id, marca)
+         values ($1,$2,$3,$4,$5,$6,'CONFIRMADA',$7,$8,coalesce((select moneda from tenants where id=$9),'MXN'),$9,nullif(btrim($10), '')) returning id`,
+        // PROP-MARCA (20/11) · la campaña hereda la MARCA de la propuesta, para
+        // que la competencia de Vallas la vea con el mismo nombre con que se
+        // vendió. Solo esa columna: nada del cálculo de abajo cambia (R4). Sin
+        // marca queda NULL, que la regla lee como «el nombre del cliente».
+        [prop.folio, prop.nombre, prop.cliente_id, agenciaNombre, fechaInicio, fechaFin, tipoCampana, propuestaId, await tenantActual(), prop.marca ?? null],
       )
     ).rows[0].id
 

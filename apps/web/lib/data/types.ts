@@ -592,6 +592,9 @@ export interface Propuesta {
   descuentoPct: number // descuento comercial sobre la tarifa de lista (≠ comisión)
   version: number // versión de la propuesta (sube en cada renegociación)
   notas: string | null
+  // PROP-MARCA (20/11) · la marca que se anuncia; null = cuenta el cliente
+  // (competencia de marcas de Vallas). Opcional: la liga pública no la manda.
+  marca?: string | null
   creadoEn: string
   // DASH-REF (26/10) · opcionales: la liga pública no los manda. `null` en las
   // aprobadas antes del 09/10, cuando la fecha no se guardaba.

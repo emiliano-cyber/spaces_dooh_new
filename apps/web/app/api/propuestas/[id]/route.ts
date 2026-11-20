@@ -22,6 +22,8 @@ import { traducirError } from '@/lib/i18n/errores-servidor'
 import { idiomaDeLaPeticion } from '@/lib/i18n/servidor'
 import { notificar } from '@/lib/server/notificaciones-repo'
 import { textoBitacoraPropuesta } from '@/lib/descuento'
+import { marcaPropuesta } from '@/lib/propuesta-marca'
+import { avisosDePropuesta } from '@/lib/server/propuestas-competencia'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -86,11 +88,20 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (
     body.estatus == null &&
     (body.descuentoPct != null || body.nombre != null || body.notas !== undefined ||
-      body.condiciones !== undefined || body.vigenteHasta !== undefined)
+      body.condiciones !== undefined || body.vigenteHasta !== undefined || body.marca !== undefined)
   ) {
     const extra = camposDocumento.safeParse({ condiciones: body.condiciones, vigenteHasta: body.vigenteHasta })
     if (!extra.success) {
       return NextResponse.json({ error: extra.error.issues[0]?.message ?? 'Datos inválidos' }, { status: 400 })
+    }
+    // PROP-MARCA (20/11) · la marca solo se toca si viene: `marcaPropuesta`
+    // convierte «ausente» en null, y eso BORRARÍA la marca al editar el nombre.
+    const marca = body.marca === undefined ? undefined : marcaPropuesta.safeParse(body.marca)
+    if (marca && !marca.success) {
+      return NextResponse.json(
+        { error: traducirError(marca.error.issues[0]?.message ?? 'Datos inválidos', idiomaDeLaPeticion()) },
+        { status: 400 },
+      )
     }
     try {
       const res = await actualizarPropuesta(params.id, {
@@ -101,6 +112,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         condiciones:
           extra.data.condiciones === undefined ? undefined : extra.data.condiciones?.trim() || null,
         vigenteHasta: extra.data.vigenteHasta,
+        marca: marca ? marca.data : undefined,
       })
       if (!res) return NextResponse.json({ error: 'Propuesta no encontrada' }, { status: 404 })
       const prop = res.propuesta
@@ -120,7 +132,11 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         textoBitacoraPropuesta(prop.version, res.descuentoAplicado),
         prop.nombre,
       )
-      return NextResponse.json(prop)
+      // PROP-MARCA (20/11) · cambiar la marca puede crear o quitar un choque.
+      // Solo avisa; solo se calcula si la marca vino en el cuerpo.
+      return NextResponse.json(
+        body.marca !== undefined ? { ...prop, avisosCompetencia: await avisosDePropuesta(params.id) } : prop,
+      )
     } catch (e) {
       const status = e instanceof PropuestaError ? 409 : 400
       // I18N (ola 6) · esta respuesta tampoco pasa por `respuestaError()`: la

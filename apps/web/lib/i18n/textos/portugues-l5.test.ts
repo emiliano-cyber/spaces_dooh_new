@@ -186,6 +186,7 @@ const PLURALES_INVARIABLES = new Set<string>([
 
 // Mensajes del servidor que en portugues se escriben igual que en espanol o ingles.
 const COGNADOS_SERVIDOR = new Set<string>([
+  'Marca', // PROP-MARCA (20/11): el campo «Marca» es igual en portugués
   'CURP inválida',
   'RFC inválido',
   'RFC',
