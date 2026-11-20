@@ -12,6 +12,14 @@
 export const MODOS_GRUPO = ['una_imagen', 'separadas'] as const
 export type ModoGrupo = (typeof MODOS_GRUPO)[number]
 
+/**
+ * Hacia dónde da vuelta la pared DESPUÉS de una valla (dueño, 20/11: «hay
+ * vallas que están en esquinas y doblan a la derecha o izquierda»).
+ * `20261120_vallas_esquina.sql` lo hace cumplir con `vallas_dobla_ck`.
+ */
+export const DOBLECES = ['izquierda', 'derecha'] as const
+export type Dobla = (typeof DOBLECES)[number]
+
 export type Valla = {
   id: string
   sitioId: string
@@ -27,6 +35,12 @@ export type Valla = {
   posicion: number | null
   notas: string | null
   activo: boolean
+  /**
+   * Después de esta valla la pared dobla (esquina). null o ausente = sigue
+   * recta. Opcional en el tipo para que lo que arma vallas a mano (semillas,
+   * pruebas) no tenga que decirlo; el servidor siempre lo devuelve.
+   */
+  dobla?: Dobla | null
 }
 
 export type GrupoVallas = {

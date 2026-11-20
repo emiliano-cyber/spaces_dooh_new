@@ -318,3 +318,117 @@ describe('armarPlano · filtrado por los sitios de una propuesta', () => {
     expect(s1.filas.flatMap((f) => f.bloques.flatMap((b) => b.cuadros.map((c) => c.numero)))).toEqual(['V-001'])
   })
 })
+
+// ============================================================================
+//  ESQUINAS (dueño, 20/11): «hay vallas que están en esquinas y doblan a la
+//  derecha o izquierda, para que se muestre». Una valla con `dobla` parte su
+//  cara en TRAMOS: lo que viene después va en un tramo nuevo, marcado con la
+//  dirección del quiebre. La fila entera (`bloques`) no cambia.
+// ============================================================================
+describe('armarPlano · esquinas', () => {
+  const numeros = (t: { bloques: { cuadros: { numero: string }[] }[] }) => t.bloques.flatMap((b) => b.cuadros.map((c) => c.numero))
+
+  it('sin `dobla`: un solo tramo recto con toda la fila y sin esquina al final', () => {
+    const p = armarPlano({
+      vallas: [valla({ numero: 'E-001', sitioId: 'S1' }), valla({ numero: 'E-002', sitioId: 'S1' })],
+      grupos: [],
+      sitios: SITIOS,
+      ocupaciones: [],
+    })
+    const f = p[0].filas[0]
+    expect(f.tramos).toHaveLength(1)
+    expect(f.tramos[0].gira).toBeNull()
+    expect(numeros(f.tramos[0])).toEqual(['E-001', 'E-002'])
+    expect(f.esquinaFinal).toBeNull()
+    expect(f.bloques.flatMap((b) => b.cuadros).map((c) => c.dobla)).toEqual([null, null])
+  })
+
+  it('una valla que dobla a la derecha parte la fila: el tramo siguiente gira a la derecha', () => {
+    const p = armarPlano({
+      vallas: [
+        valla({ numero: 'E-001', sitioId: 'S1' }),
+        valla({ numero: 'E-002', sitioId: 'S1', dobla: 'derecha' }),
+        valla({ numero: 'E-003', sitioId: 'S1', ancho: 12 }),
+      ],
+      grupos: [],
+      sitios: SITIOS,
+      ocupaciones: [],
+    })
+    const f = p[0].filas[0]
+    expect(f.tramos.map((t) => t.gira)).toEqual([null, 'derecha'])
+    expect(f.tramos.map(numeros)).toEqual([['E-001', 'E-002'], ['E-003']])
+    // La valla que dobla sigue siendo un cuadro normal, con su dato.
+    expect(f.tramos[0].bloques[1].cuadros[0]).toMatchObject({ numero: 'E-002', dobla: 'derecha', ancho: 6 })
+    expect(f.tramos.map((t) => t.ancho)).toEqual([12, 12])
+    expect(f.esquinaFinal).toBeNull()
+    // La fila entera, la de siempre.
+    expect(f.bloques.flatMap((b) => b.cuadros).map((c) => c.numero)).toEqual(['E-001', 'E-002', 'E-003'])
+  })
+
+  it('dos quiebres: izquierda y luego derecha → tres tramos', () => {
+    const p = armarPlano({
+      vallas: [
+        valla({ numero: 'E-001', sitioId: 'S1', dobla: 'izquierda' }),
+        valla({ numero: 'E-002', sitioId: 'S1', dobla: 'derecha' }),
+        valla({ numero: 'E-003', sitioId: 'S1' }),
+      ],
+      grupos: [],
+      sitios: SITIOS,
+      ocupaciones: [],
+    })
+    expect(p[0].filas[0].tramos.map((t) => [t.gira, numeros(t)])).toEqual([
+      [null, ['E-001']],
+      ['izquierda', ['E-002']],
+      ['derecha', ['E-003']],
+    ])
+  })
+
+  it('la ÚLTIMA valla que dobla no abre tramo vacío: la esquina queda al final', () => {
+    const p = armarPlano({
+      vallas: [valla({ numero: 'E-001', sitioId: 'S1' }), valla({ numero: 'E-002', sitioId: 'S1', dobla: 'izquierda' })],
+      grupos: [],
+      sitios: SITIOS,
+      ocupaciones: [],
+    })
+    const f = p[0].filas[0]
+    expect(f.tramos).toHaveLength(1)
+    expect(f.esquinaFinal).toBe('izquierda')
+  })
+
+  it('un grupo que cruza la esquina sale en los dos tramos, marcado completo y con los cortes dichos', () => {
+    const p = armarPlano({
+      vallas: [
+        valla({ numero: 'E-001', sitioId: 'S1', grupoId: 'g1', posicion: 1 }),
+        valla({ numero: 'E-002', sitioId: 'S1', grupoId: 'g1', posicion: 2, dobla: 'derecha' }),
+        valla({ numero: 'E-003', sitioId: 'S1', grupoId: 'g1', posicion: 3 }),
+        valla({ numero: 'E-004', sitioId: 'S1' }),
+      ],
+      grupos: [grupo({ id: 'g1', numero: 'G-001' })],
+      sitios: SITIOS,
+      ocupaciones: [],
+    })
+    const [t1, t2] = p[0].filas[0].tramos
+    expect(t1.bloques).toHaveLength(1)
+    expect(t1.bloques[0]).toMatchObject({ grupo: { numero: 'G-001' }, cortadoAntes: false, cortadoDespues: true, ancho: 12 })
+    expect(t2.gira).toBe('derecha')
+    expect(t2.bloques[0]).toMatchObject({ grupo: { numero: 'G-001' }, cortadoAntes: true, cortadoDespues: false, ancho: 6 })
+    expect(numeros(t2)).toEqual(['E-003', 'E-004'])
+    // Fuera de la esquina, el bloque no está cortado.
+    expect(t2.bloques[1]).toMatchObject({ grupo: null, cortadoAntes: false, cortadoDespues: false })
+  })
+
+  it('el quiebre es por cara: una cara que dobla no parte a la otra', () => {
+    const p = armarPlano({
+      vallas: [
+        valla({ numero: 'E-001', sitioId: 'S1', cara: 1, dobla: 'derecha' }),
+        valla({ numero: 'E-002', sitioId: 'S1', cara: 1 }),
+        valla({ numero: 'E-003', sitioId: 'S1', cara: 2 }),
+        valla({ numero: 'E-004', sitioId: 'S1', cara: 2 }),
+      ],
+      grupos: [],
+      sitios: SITIOS,
+      ocupaciones: [],
+    })
+    expect(p[0].filas.map((f) => f.tramos.length)).toEqual([2, 1])
+  })
+})

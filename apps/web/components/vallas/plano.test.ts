@@ -151,3 +151,65 @@ describe('PlanoVallas con sitios y fechas fijos (la propuesta)', () => {
     expect(html).toContain('Elige las fechas para ver qué está ocupado.')
   })
 })
+
+// ============================================================================
+//  ESQUINAS (dueño, 20/11): la valla que dobla sigue siendo un cuadro normal;
+//  entre tramos va un separador con la etiqueta de la esquina, el tramo
+//  siguiente se dibuja girado en perspectiva, y el aria-label del cuadro lo
+//  dice. La última valla que dobla deja la marca al final.
+// ============================================================================
+describe.each([
+  ['es', 'Esquina · dobla a la derecha', 'Esquina · dobla a la izquierda', 'Valla E-002, 6 × 3 m, Libre, en esquina, dobla a la derecha', 'dobla la esquina'],
+  ['en', 'Corner · turns right', 'Corner · turns left', 'Poster panel E-002, 6 × 3 m, Free, on a corner, turns right', 'turns the corner'],
+] as const)('la esquina en el plano (%s)', (idioma, rotuloDerecha, rotuloIzquierda, aria, cruza) => {
+  async function pintarEsquina(vallas: Valla[], grupos: GrupoVallas[] = []) {
+    const { PlanoDeSitio } = await import('./PlanoVallas')
+    const [sitio] = armarPlano({ vallas, grupos, sitios: SITIOS, ocupaciones: [] })
+    return renderToStaticMarkup(createElement(ProveedorIdioma, { idioma }, createElement(PlanoDeSitio, { sitio })))
+  }
+
+  it('separador con la etiqueta, tramo girado y aria-label del cuadro', async () => {
+    const html = await pintarEsquina([
+      v({ id: 'e1', numero: 'E-001' }),
+      v({ id: 'e2', numero: 'E-002', dobla: 'derecha' }),
+      v({ id: 'e3', numero: 'E-003' }),
+    ])
+    expect(html).toContain(`>${rotuloDerecha}<`)
+    expect(html).toContain(`aria-label="${escapar(aria)}"`)
+    // El tramo de después va girado (perspectiva) y lo dice en un atributo.
+    expect(html).toMatch(/data-gira="derecha"[^>]*style="[^"]*rotateY\(-/)
+    // Los tres cuadros siguen ahí, con su número.
+    for (const n of ['E-001', 'E-002', 'E-003']) expect(html).toContain(`>${n}<`)
+    expect(html.split(`>${rotuloDerecha}<`).length - 1).toBe(1)
+  })
+
+  it('a la izquierda gira al revés', async () => {
+    const html = await pintarEsquina([v({ id: 'e1', numero: 'E-001', dobla: 'izquierda' }), v({ id: 'e2', numero: 'E-002' })])
+    expect(html).toContain(`>${rotuloIzquierda}<`)
+    expect(html).toMatch(/data-gira="izquierda"[^>]*style="[^"]*rotateY\(\d/)
+  })
+
+  it('la última valla que dobla deja la marca de esquina al final', async () => {
+    const html = await pintarEsquina([v({ id: 'e1', numero: 'E-001' }), v({ id: 'e2', numero: 'E-002', dobla: 'derecha' })])
+    expect(html).toContain(`>${rotuloDerecha}<`)
+    expect(html).not.toContain('data-gira=')
+  })
+
+  it('un grupo que cruza la esquina se marca en los dos tramos y lo dice', async () => {
+    const html = await pintarEsquina(
+      [
+        v({ id: 'e1', numero: 'E-001', grupoId: 'g1', posicion: 1, dobla: 'derecha' }),
+        v({ id: 'e2', numero: 'E-002', grupoId: 'g1', posicion: 2 }),
+      ],
+      GRUPOS,
+    )
+    expect(html.split(escapar(cruza)).length - 1).toBeGreaterThanOrEqual(2)
+    expect(html.split('role="group"').length - 1).toBe(2)
+  })
+
+  it('sin esquinas no hay separador ni giro', async () => {
+    const html = await pintarEsquina(VALLAS, GRUPOS)
+    expect(html).not.toContain(rotuloDerecha)
+    expect(html).not.toContain('rotateY')
+  })
+})

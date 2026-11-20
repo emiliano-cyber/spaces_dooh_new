@@ -17,12 +17,22 @@
 //  número más bajo entre las sueltas. Así los miembros quedan juntos y el
 //  corchete del grupo abarca exactamente sus cuadros.
 //
+//  LAS ESQUINAS (dueño, 20/11: «hay vallas que están en esquinas y doblan a
+//  la derecha o izquierda, para que se muestre»). Una valla con `dobla` parte
+//  su cara en TRAMOS: lo que sigue después de ella va en un tramo nuevo,
+//  marcado con la dirección del quiebre (`gira`). Se parte DESPUÉS de ordenar
+//  la fila, así que el orden de siempre manda; un grupo que cruza la esquina
+//  sale en los dos tramos (`cortadoAntes`/`cortadoDespues`) para que su
+//  corchete lo siga abarcando entero. Si la que dobla es la última de la cara,
+//  no hay tramo vacío: queda `esquinaFinal`. `bloques` sigue siendo la fila
+//  entera, sin partir.
+//
 //  LA OCUPACIÓN. Las reservas hoy son POR SITIO: una reserva viva ocupa TODAS
 //  las vallas del sitio (la misma aproximación que `contextoParaVerificar`).
 //  Cuando la reserva sepa en qué cuadro cae, aquí se filtra por valla.
 // ============================================================================
 
-import type { Valla, GrupoVallas, ModoGrupo } from './tipos'
+import type { Valla, GrupoVallas, ModoGrupo, Dobla } from './tipos'
 
 /** Una reserva viva en un sitio en las fechas pedidas (`GET /api/vallas/ocupacion`). */
 export type OcupacionSitio = {
@@ -49,6 +59,8 @@ export type CuadroPlano = {
   altoRel: number
   estado: 'libre' | 'ocupada'
   ocupantes: Ocupante[]
+  /** Después de este cuadro la pared dobla (esquina); null = sigue recta. */
+  dobla: Dobla | null
 }
 
 export type GrupoPlano = {
@@ -65,11 +77,30 @@ export type BloquePlano = {
   cuadros: CuadroPlano[]
   /** Suma de anchos en metros. */
   ancho: number
+  /** En un tramo: el bloque viene de ANTES de una esquina (es su continuación). */
+  cortadoAntes: boolean
+  /** En un tramo: el bloque sigue DESPUÉS de una esquina. */
+  cortadoDespues: boolean
+}
+
+/** Un tramo recto de pared, entre esquinas. */
+export type TramoPlano = {
+  /** Hacia dónde dobló la pared ANTES de este tramo; null en el primero. */
+  gira: Dobla | null
+  /** Los bloques (o los pedazos de bloque, si un grupo cruza la esquina). */
+  bloques: BloquePlano[]
+  /** Metros del tramo. */
+  ancho: number
 }
 
 export type FilaPlano = {
   cara: number | null
+  /** La fila entera, sin partir en esquinas. */
   bloques: BloquePlano[]
+  /** La misma fila partida en cada esquina; sin esquinas, un solo tramo. */
+  tramos: TramoPlano[]
+  /** La última valla de la fila dobla: la esquina queda al final, sin tramo. */
+  esquinaFinal: Dobla | null
   /** Metros totales de la fila respecto de la más ancha del sitio (0..1). */
   anchoRel: number
 }
@@ -141,12 +172,12 @@ export function armarPlano(entrada: {
     const masAncha = Math.max(...filasCrudas.map(metrosFila))
     const masAlta = Math.max(...vs.map((v) => v.alto))
 
-    const filas: FilaPlano[] = filasCrudas.map((f) => ({
-      cara: f.cara,
-      anchoRel: redondea(metrosFila(f) / masAncha),
-      bloques: f.bloques.map((b) => ({
+    const filas: FilaPlano[] = filasCrudas.map((f) => {
+      const bloques: BloquePlano[] = f.bloques.map((b) => ({
         grupo: b.grupo,
         ancho: b.ancho,
+        cortadoAntes: false,
+        cortadoDespues: false,
         cuadros: b.vallas.map((v) => ({
           id: v.id,
           numero: v.numero,
@@ -156,9 +187,11 @@ export function armarPlano(entrada: {
           altoRel: Math.max(ALTO_MINIMO_REL, redondea(v.alto / masAlta)),
           estado: ocup.length ? 'ocupada' : 'libre',
           ocupantes: ocup,
+          dobla: v.dobla ?? null,
         })),
-      })),
-    }))
+      }))
+      return { cara: f.cara, anchoRel: redondea(metrosFila(f) / masAncha), bloques, ...partirEnEsquinas(bloques) }
+    })
     plano.push({ sitioId, nombre: nombres.get(sitioId) ?? null, filas })
   }
 
@@ -198,6 +231,43 @@ function bloquesDeFila(
   return crudos
     .sort((a, b) => comparaNumero(a.clave, b.clave))
     .map((c) => ({ grupo: c.grupo, vallas: c.vallas, ancho: c.vallas.reduce((s, v) => s + v.ancho, 0) }))
+}
+
+/**
+ * Parte una fila ya ordenada en tramos rectos: corta DESPUÉS de cada cuadro con
+ * `dobla`, salvo el último de la fila (esa esquina queda en `esquinaFinal`).
+ * Un bloque cortado aparece en los dos tramos con los cuadros de cada lado.
+ */
+export function partirEnEsquinas(bloques: BloquePlano[]): { tramos: TramoPlano[]; esquinaFinal: Dobla | null } {
+  const total = bloques.reduce((s, b) => s + b.cuadros.length, 0)
+  const tramos: TramoPlano[] = []
+  let actual: TramoPlano = { gira: null, bloques: [], ancho: 0 }
+  let vistos = 0
+  let esquinaFinal: Dobla | null = null
+
+  for (const b of bloques) {
+    let pedazo: BloquePlano = { ...b, cuadros: [], ancho: 0, cortadoAntes: false, cortadoDespues: false }
+    b.cuadros.forEach((c, i) => {
+      pedazo.cuadros.push(c)
+      pedazo.ancho += c.ancho
+      actual.ancho += c.ancho
+      vistos += 1
+      if (!c.dobla) return
+      if (vistos === total) {
+        esquinaFinal = c.dobla
+        return
+      }
+      const quedan = i < b.cuadros.length - 1
+      pedazo.cortadoDespues = quedan
+      actual.bloques.push(pedazo)
+      tramos.push(actual)
+      actual = { gira: c.dobla, bloques: [], ancho: 0 }
+      pedazo = { ...b, cuadros: [], ancho: 0, cortadoAntes: quedan, cortadoDespues: false }
+    })
+    if (pedazo.cuadros.length) actual.bloques.push(pedazo)
+  }
+  if (actual.bloques.length) tramos.push(actual)
+  return { tramos, esquinaFinal }
 }
 
 const dosDigitos = (n: number) => String(n).padStart(2, '0')

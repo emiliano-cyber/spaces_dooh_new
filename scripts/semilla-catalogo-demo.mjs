@@ -1450,7 +1450,7 @@ const TABLAS_VALLAS = ['vallas', 'vallas_grupos', 'competencia_categorias']
 const SIN_TENANT = '00000000-0000-4000-8000-000000000000'
 
 export async function comprobarBase(cli, plan, opciones = {}) {
-  const r = { tenantId: null, orgs: [], faltan: [], sinEspacios: false, sinVallas: false, ajenos: [], problemas: [] }
+  const r = { tenantId: null, orgs: [], faltan: [], sinEspacios: false, sinVallas: false, sinEsquinas: false, ajenos: [], problemas: [] }
 
   const orgs = await cli.query('select id, slug from tenants order by slug')
   r.orgs = orgs.rows.map((x) => x.slug)
@@ -1467,6 +1467,10 @@ export async function comprobarBase(cli, plan, opciones = {}) {
     else if (TABLAS_VALLAS.includes(c.split('.')[0])) r.sinVallas = true
     else r.faltan.push(c)
   }
+  // La esquina de una valla (`20261120_vallas_esquina.sql`) va en un `update`
+  // aparte, que `columnasDeLaSiembra` no ve: se mira a mano. Sin la columna,
+  // las vallas se siembran rectas.
+  r.sinEsquinas = !r.sinVallas && !hay.has('vallas.dobla')
 
   // Claves únicas en TODA la base que ya tenga otra organización.
   const consultas = [
@@ -1626,7 +1630,8 @@ export async function main(argv = process.argv) {
       `comprobado en la base: organizacion ${base.tenantId ? 'existe' : 'NO existe'} · ` +
         `${base.faltan.length} columnas faltantes · ${base.ajenos.length} claves ajenas` +
         (base.sinEspacios ? ' · sin espacios_comprados (se siembra sin ese dato)' : '') +
-        (base.sinVallas ? ' · sin las tablas de vallas (se siembra sin vallas)' : ''),
+        (base.sinVallas ? ' · sin las tablas de vallas (se siembra sin vallas)' : '') +
+        (base.sinEsquinas ? ' · sin vallas.dobla (las vallas van rectas)' : ''),
     )
     if (base.problemas.length) {
       console.error('ERROR semilla-catalogo-demo: no se escribe nada:')
@@ -1679,7 +1684,11 @@ export async function main(argv = process.argv) {
     let nuevas = 0
     let ya = 0
     const porTabla = {}
-    for (const s of sentenciasDelCatalogo(plan, T, clave, { sinEspacios: base.sinEspacios, sinVallas: base.sinVallas })) {
+    for (const s of sentenciasDelCatalogo(plan, T, clave, {
+      sinEspacios: base.sinEspacios,
+      sinVallas: base.sinVallas,
+      sinEsquinas: base.sinEsquinas,
+    })) {
       const r = await cli.query(s.sql, s.valores)
       const tabla = s.etiqueta.split(' ')[0]
       if (r.rowCount > 0) {

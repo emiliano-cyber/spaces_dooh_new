@@ -14,7 +14,15 @@ import { puedeEditarCompetencia } from '@/lib/roles'
 import { useSitios } from '@/lib/data/client'
 import { useIdioma } from '@/lib/i18n/contexto'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
-import { MODOS_GRUPO, type Valla, type GrupoVallas, type CategoriaCompetencia, type ModoGrupo } from '@/lib/vallas/tipos'
+import {
+  MODOS_GRUPO,
+  DOBLECES,
+  type Valla,
+  type GrupoVallas,
+  type CategoriaCompetencia,
+  type ModoGrupo,
+  type Dobla,
+} from '@/lib/vallas/tipos'
 import { medidaParaArte, medidaSugeridaDeGrupo, problemasDeGrupo, siguienteNumero } from '@/lib/vallas/numeracion'
 import type { Hallazgo, ResultadoReglas } from '@/lib/vallas/reglas/tipos'
 import {
@@ -140,6 +148,11 @@ function TarjetaVallas({ vallas, grupos, recargar }: { vallas: Valla[] | null; g
                   <span className="demo-num">{v.numero}</span>
                   <span className="font-normal text-muted">{nombreSitio(v.sitioId)}</span>
                   {v.cara != null && <span className="text-[12px] font-normal text-muted">{t('vallas.lista.cara', { n: v.cara })}</span>}
+                  {v.dobla && (
+                    <span className="text-[12px] font-normal text-accent-hover">
+                      {t(`vallas.plano.esquina.rotulo.${v.dobla}` as ClaveTexto)}
+                    </span>
+                  )}
                 </div>
                 <div className="demo-num text-[12px] text-muted">
                   {medida(v.ancho, v.alto)} · {g ? t('vallas.lista.grupo', { numero: g.numero }) : t('vallas.lista.sin-grupo')} ·{' '}
@@ -202,6 +215,8 @@ function FormValla({
   const [ancho, setAncho] = useState(valla ? String(valla.ancho) : '')
   const [alto, setAlto] = useState(valla ? String(valla.alto) : '')
   const [notas, setNotas] = useState(valla?.notas ?? '')
+  // Esquina (dueño, 20/11): '' = no dobla.
+  const [dobla, setDobla] = useState<Dobla | ''>(valla?.dobla ?? '')
   const [enviando, setEnviando] = useState(false)
 
   // Al elegir un sitio, se proponen sus medidas si la valla aún no tiene.
@@ -224,6 +239,7 @@ function FormValla({
       alto: Number(alto),
       cara: cara ? Number(cara) : null,
       notas: notas.trim() || null,
+      dobla: dobla || null,
     }
     try {
       if (valla) await actualizarVallaApi(valla.id, d)
@@ -274,6 +290,17 @@ function FormValla({
           </Campo>
         </div>
         {!valla && <p className="text-[11px] text-muted">{t('vallas.campo.numero.sugerido', { n: sugerido })}</p>}
+        <Campo label={t('vallas.campo.dobla')}>
+          <select value={dobla} onChange={(e) => setDobla(e.target.value as Dobla | '')} className={ENTRADA}>
+            <option value="">{t('vallas.campo.dobla.no')}</option>
+            {DOBLECES.map((d) => (
+              <option key={d} value={d}>
+                {t(`vallas.campo.dobla.${d}` as ClaveTexto)}
+              </option>
+            ))}
+          </select>
+          <span className="mt-1 block text-[11px] text-muted">{t('vallas.campo.dobla.ayuda')}</span>
+        </Campo>
         <Campo label={t('vallas.campo.notas')}>
           <textarea value={notas} maxLength={1000} rows={2} onChange={(e) => setNotas(e.target.value)} className={ENTRADA} />
         </Campo>

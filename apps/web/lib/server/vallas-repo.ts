@@ -4,7 +4,7 @@ import { q, q1, withTenantTx } from './db'
 import { tenantActual } from './tenant'
 import { normalizarNumero } from '@/lib/vallas/numeracion'
 import { normalizarMarca } from '@/lib/vallas/reglas/competencia-marcas'
-import type { Valla, GrupoVallas, CategoriaCompetencia, Ocupacion, ModoGrupo } from '@/lib/vallas/tipos'
+import type { Valla, GrupoVallas, CategoriaCompetencia, Ocupacion, ModoGrupo, Dobla } from '@/lib/vallas/tipos'
 import { CATEGORIAS_COMPETENCIA_POR_OMISION } from '@/lib/vallas/competencia-por-omision'
 import type { ContextoVallas, Candidata } from '@/lib/vallas/reglas'
 import type { OcupacionSitio } from '@/lib/vallas/plano'
@@ -56,6 +56,9 @@ export function rowToValla(r: any): Valla {
     posicion: r.posicion ?? null,
     notas: r.notas ?? null,
     activo: r.activo !== false,
+    // Esquina (20/11, `20261120_vallas_esquina.sql`). `?? null` también cubre
+    // una base sin la columna: `select *` no la trae y la valla sale recta.
+    dobla: (r.dobla as Dobla | null | undefined) ?? null,
   }
 }
 
@@ -106,15 +109,17 @@ export type DatosValla = {
   cara?: number | null
   notas?: string | null
   activo?: boolean
+  /** Después de esta valla la pared dobla (esquina); null = recta. */
+  dobla?: Dobla | null
 }
 
 export async function crearValla(d: DatosValla): Promise<Valla> {
   if (!(await sitioEsMio(d.sitioId))) throw new VallaError(SITIO_AJENO, 400)
   try {
     const rows = await q(
-      `insert into vallas (tenant_id, sitio_id, numero, ancho_m, alto_m, cara, notas)
-       values ($1,$2,$3,$4,$5,$6,$7) returning *`,
-      [await tenantActual(), d.sitioId, normalizarNumero(d.numero), d.ancho, d.alto, d.cara ?? null, d.notas ?? null],
+      `insert into vallas (tenant_id, sitio_id, numero, ancho_m, alto_m, cara, notas, dobla)
+       values ($1,$2,$3,$4,$5,$6,$7,$8) returning *`,
+      [await tenantActual(), d.sitioId, normalizarNumero(d.numero), d.ancho, d.alto, d.cara ?? null, d.notas ?? null, d.dobla ?? null],
     )
     return rowToValla(rows[0])
   } catch (e) {
@@ -134,6 +139,7 @@ export async function actualizarValla(id: string, d: Partial<DatosValla>): Promi
     ['cara', 'cara', (v) => v],
     ['notas', 'notas', (v) => v],
     ['activo', 'activo', (v) => v],
+    ['dobla', 'dobla', (v) => v],
   ]
   const vals: unknown[] = [id, await tenantActual()]
   const sets: string[] = []

@@ -17,7 +17,7 @@ import {
   GRUPO_NO_ENCONTRADO,
   CATEGORIA_NO_ENCONTRADA,
 } from './vallas-repo'
-import { MODOS_GRUPO, type Valla } from '@/lib/vallas/tipos'
+import { MODOS_GRUPO, DOBLECES, type Valla } from '@/lib/vallas/tipos'
 import { evaluarReglas, type ResultadoReglas } from '@/lib/vallas/reglas'
 
 // ============================================================================
@@ -40,8 +40,12 @@ const vallaSchema = z
     cara: z.coerce.number().int().min(1).max(50).nullable(),
     notas,
     activo: z.boolean(),
+    // Esquina (dueño, 20/11): después de esta valla la pared dobla. Solo los
+    // dos valores del CHECK `vallas_dobla_ck`; otro es 400 aquí y no un 500
+    // allá. null = no dobla (quita la esquina).
+    dobla: z.enum(DOBLECES).nullable(),
   })
-  .partial({ cara: true, notas: true, activo: true })
+  .partial({ cara: true, notas: true, activo: true, dobla: true })
   .strict()
 
 const grupoSchema = z

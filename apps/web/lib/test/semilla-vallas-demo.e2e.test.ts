@@ -18,6 +18,7 @@ import { planCatalogo, sentenciasDelCatalogo, sentenciasDeshacer } from '../../.
 //
 //   1. Siembra 8 vallas, los dos grupos (una imagen y separadas), las 12
 //      categorías y la marca de las campañas; la 2.ª corrida no mete nada.
+//      CAT-V02 dobla a la derecha (la esquina del plano, 20/11).
 //   2. Con el tenant de OTRA organización no escribe ni ve nada.
 //   3. «Verificar una marca» con Pepsi junto a la Coca-Cola al aire da AVISO.
 //   4. `--deshacer` se lleva las vallas antes que los sitios y deja las
@@ -133,6 +134,10 @@ describe('la semilla del catálogo trae vallas para la demo', () => {
       'CAT-V01',
       'CAT-V02',
       'CAT-V03',
+    ])
+    // La esquina (20/11): CAT-V02 dobla a la derecha y las demás van rectas.
+    expect(r.datos.vallas.filter((v: { dobla: string | null }) => v.dobla).map((v: { numero: string; dobla: string }) => [v.numero, v.dobla])).toEqual([
+      ['CAT-V02', 'derecha'],
     ])
   })
 

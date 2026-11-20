@@ -420,4 +420,22 @@ describe('semilla-catalogo-demo', () => {
     expect(sentenciasDeshacer(plan(), TENANT, { sinVallas: true }).some((x) => /from vallas/.test(x.sql))).toBe(false)
     expect(sentenciasDeshacer(plan(), TENANT).some((x) => /delete from vallas /.test(x.sql))).toBe(true)
   })
+
+  // ESQUINA (dueño, 20/11): una valla de ejemplo dobla para que el plano la
+  // enseñe. Va en un `update` aparte, que solo pisa una valla todavía recta, y
+  // que sale si la base no tiene `vallas.dobla` (las vallas van igual, rectas).
+  it('vallas: CAT-V02 dobla a la derecha, en un update aparte que no pisa y se puede omitir', () => {
+    const p = plan()
+    expect(p.modulos.vallas.vallas.filter((x) => x.dobla).map((x) => [x.numero, x.dobla])).toEqual([['CAT-V02', 'derecha']])
+    const con = sentenciasDelCatalogo(p, TENANT, 'x'.repeat(12))
+    const esquina = con.filter((x) => x.vallas && /set dobla/.test(x.sql))
+    expect(esquina).toHaveLength(1)
+    expect(esquina[0].valores).toEqual([TENANT, 'CAT-V02', 'derecha'])
+    expect(esquina[0].sql).toContain('and dobla is null')
+    // El insert de las vallas no la menciona: una base sin la columna las recibe.
+    expect(columnasDeLaSiembra(con)).not.toContain('vallas.dobla')
+    const sin = sentenciasDelCatalogo(p, TENANT, 'x'.repeat(12), { sinEsquinas: true })
+    expect(sin.some((x) => /dobla/.test(x.sql))).toBe(false)
+    expect(sin.filter((x) => x.vallas).length).toBe(con.filter((x) => x.vallas).length - 1)
+  })
 })
