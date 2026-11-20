@@ -5,6 +5,13 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-20 · Comercial ya no lista las propuestas abiertas
+
+- En la pantalla **Comercial** se quitó la sección **«En propuesta»** que listaba las propuestas abiertas y sus pantallas. Las propuestas se consultan en **Propuestas**.
+- Arriba sigue la tarjeta **«En propuesta»** con cuántas pantallas piden propuestas abiertas.
+
+---
+
 ## 2026-11-20 · Vallas, una sola vez en el menú: en Comercial
 
 - **Vallas** sale ahora **solo** en el grupo **Comercial** del menú, después de Disponibilidad, con su etiqueta «En proceso». Ya **no** aparece en Inventario: antes salía en los dos sitios.

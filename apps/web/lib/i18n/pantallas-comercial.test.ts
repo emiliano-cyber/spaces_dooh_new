@@ -325,10 +325,6 @@ const PANTALLAS: Pantalla[] = [
       'pantallas en 1 propuesta abierta · no bloquean',
       'Bloqueadas por contrato',
       'contrato incompleto: se arreglan en Arrendadores',
-      'pantallas que piden propuestas abiertas · avisan, no bloquean',
-      ' · sin cliente todavía',
-      '1 pantalla · ',
-      'Enviada',
       'Buscar avenida, distrito…',
       'Todos los tipos',
       'Pantalla digital',
@@ -356,7 +352,6 @@ const PANTALLAS: Pantalla[] = [
       'Free to sell',
       'In a proposal',
       'Blocked by contract',
-      'Nov 1, 2026',
       'Incomplete contract',
       'Owned',
       'Available',
@@ -1500,7 +1495,7 @@ const DATOS_PT = ['Pantalla Reforma', 'Azotea Insurgentes 1420', 'Seguros Andino
 const PORTUGUES: Record<string, string[]> = {
   'comercial · la lista con una propuesta abierta': [
     'Sua rede no mapa · 3 pontos', 'Novo ponto', 'de 3 pontos', 'pontos em 1 proposta aberta · não bloqueiam',
-    'Reservado · sem PC', '3 resultados', 'Ocupado ou bloqueado', '1 ponto · 1 de nov. de 2026–30 de nov. de 2099',
+    'Reservado · sem PC', '3 resultados', 'Ocupado ou bloqueado',
   ],
   'comercial · filtros sin resultados': [
     'Limpar (3)', 'de 0 pontos filtrados',
@@ -1595,5 +1590,23 @@ describe('lote L2 · COMERCIAL en PORTUGUES', () => {
     const html = texto(pintar('pt', createElement(ReservaDialog, { open: true, onOpenChange: () => {}, sitios: sitios as never, onReserved: () => {} })))
     expect(html).toContain('>2.400<')
     expect(html).not.toContain('2,400')
+  })
+})
+
+// ─── «En propuesta» fuera de la pantalla Comercial (dueño, 20/11) ───────────
+// Al validar en el navegador el dueño pidió borrar de Comercial «la parte de en
+// propuesta»: la lista de propuestas abiertas. Las propuestas viven en
+// Propuestas. La tarjeta de arriba (la cifra) se queda.
+describe('Comercial sin la lista «En propuesta» (20/11)', () => {
+  it('con propuestas abiertas, la pantalla no lista propuestas ni enlaza a ellas', async () => {
+    const html = texto(pintar('es', createElement(await comercial())))
+    expect(html).not.toContain('pantallas que piden propuestas abiertas')
+    expect(html).not.toContain('href="/propuestas/')
+    expect(html).not.toContain('sin cliente todavía')
+  })
+
+  it('la tarjeta con la cifra «En propuesta» se queda', async () => {
+    const html = texto(pintar('es', createElement(await comercial())))
+    expect(html).toContain('pantallas en 1 propuesta abierta · no bloquean')
   })
 })
