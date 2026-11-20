@@ -5,6 +5,13 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-20 · Vallas también dentro de Inventario
+
+- En la pantalla **Inventario**, junto a **Todos · Fijos · Digitales**, hay una pestaña **«Vallas»** (con su etiqueta «En proceso»). Abre lo mismo que Vallas en Comercial: dar de alta vallas y grupos, y **«Verificar una marca»** para ver si choca con la competencia.
+- En el menú Vallas sigue saliendo una sola vez, en Comercial.
+
+---
+
 ## 2026-11-20 · Comercial ya no lista las propuestas abiertas
 
 - En la pantalla **Comercial** se quitó la sección **«En propuesta»** que listaba las propuestas abiertas y sus pantallas. Las propuestas se consultan en **Propuestas**.

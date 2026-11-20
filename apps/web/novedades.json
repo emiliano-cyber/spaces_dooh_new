@@ -59,9 +59,9 @@
       },
       {
         "tipo": "NUEVO",
-        "texto": "Vallas, en proceso: el módulo sale en todas las instancias como primera versión, con la etiqueta «En proceso» junto a «Vallas» en el menú Comercial y un aviso en la pantalla, porque las reglas y la numeración todavía pueden cambiar. En la instancia de demostración trae vallas de ejemplo, un grupo de una sola imagen, uno separado y un caso de marcas que compiten para enseñar el aviso.",
-        "en": "Poster panels, in progress: the module ships to every instance as a first version, with an “In progress” label next to “Poster panels” in the Sales menu and a notice on the screen, because the rules and the numbering may still change. The demo instance includes sample panels, a single-image group, a separate one and a case of competing brands to show the warning.",
-        "it": "Poster, in corso: il modulo arriva in tutte le istanze come prima versione, con l’etichetta «In corso» accanto a «Poster» nel menu Vendite e un avviso nella schermata, perché le regole e la numerazione possono ancora cambiare. Nell’istanza dimostrativa ci sono poster di esempio, un gruppo a immagine unica, uno separato e un caso di marchi concorrenti per mostrare l’avviso."
+        "texto": "Vallas, en proceso: el módulo sale en todas las instancias como primera versión, con la etiqueta «En proceso» junto a «Vallas» en el menú Comercial (y como pestaña en Inventario) y un aviso en la pantalla, porque las reglas y la numeración todavía pueden cambiar. En la instancia de demostración trae vallas de ejemplo, un grupo de una sola imagen, uno separado y un caso de marcas que compiten para enseñar el aviso.",
+        "en": "Poster panels, in progress: the module ships to every instance as a first version, with an “In progress” label next to “Poster panels” in the Sales menu (and as a tab in Inventory) and a notice on the screen, because the rules and the numbering may still change. The demo instance includes sample panels, a single-image group, a separate one and a case of competing brands to show the warning.",
+        "it": "Poster, in corso: il modulo arriva in tutte le istanze come prima versione, con l’etichetta «In corso» accanto a «Poster» nel menu Vendite (e come scheda in Inventario) e un avviso nella schermata, perché le regole e la numerazione possono ancora cambiare. Nell’istanza dimostrativa ci sono poster di esempio, un gruppo a immagine unica, uno separato e un caso di marchi concorrenti per mostrare l’avviso."
       },
       {
         "tipo": "NUEVO",
