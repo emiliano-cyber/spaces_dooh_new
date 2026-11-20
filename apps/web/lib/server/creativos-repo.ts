@@ -3,6 +3,7 @@ import { pool, q, q1, fijarTenant } from './db'
 import { tenantActual } from './tenant'
 import { esPantallaDigitalSql } from './pantalla-digital-sql'
 import { asignacionDePantalla, autollenadoDeSpot, sumarAlSpot } from '@/lib/reparto-creativos'
+import type { DatosOrigen, OrigenCreativo } from '@/lib/origen-creativo'
 
 // ============================================================================
 //  lib/server/creativos-repo.ts — Creativos (imágenes) por campaña: alta,
@@ -27,10 +28,19 @@ function rowToCreatividad(r: any) {
     rechazadoMotivo: r.rechazado_motivo,
     retiradoEn: r.retirado_en ? iso(r.retirado_en) : null,
     creadoEn: iso(r.creado_en),
+    // CREA-ORIGEN (20/11): quién lo subió. NULL = anterior, «origen
+    // desconocido». El uuid de `subido_por` no viaja: basta el nombre congelado.
+    origen: (r.origen ?? null) as OrigenCreativo | null,
+    subidoPorNombre: (r.subido_por_nombre ?? null) as string | null,
   }
 }
 
 // Alta de un creativo: imagen (data URL) o código (HTML/UTF). Uno de los dos.
+//
+// `origen` es OBLIGATORIO (CREA-ORIGEN, 20/11): quién lo subió se guarda como
+// dato y no se deduce después. Lo decide el llamador del SERVIDOR —la ruta con
+// la sesión (`origenInterno`) o la aprobación del envío del cliente
+// (`origenCliente`)—, nunca el cuerpo de la petición.
 export async function crearCreatividad(input: {
   campanaId: string
   nombre: string
@@ -38,6 +48,7 @@ export async function crearCreatividad(input: {
   codigo?: string | null
   formato?: string | null
   resolucion?: string | null
+  origen: DatosOrigen
 }) {
   // IMP-CREA (17/11, decisión del dueño) · una campaña FIJA (OOH) SÍ recibe
   // creativo: es el arte que Imprenta manda a imprimir y que ahora se ve en su
@@ -52,8 +63,9 @@ export async function crearCreatividad(input: {
   const camp = await q1<any>('select tipo_campana from campanas where id=$1', [input.campanaId])
   if (!camp) throw new CreatividadError('Campaña no encontrada')
   const rows = await q(
-    `insert into creatividades (campana_id, nombre, archivo_url, codigo, formato, resolucion, estatus_validacion, tenant_id)
-     values ($1,$2,$3,$4,$5,$6,'PENDIENTE',$7) returning *`,
+    `insert into creatividades (campana_id, nombre, archivo_url, codigo, formato, resolucion, estatus_validacion, tenant_id,
+                                origen, subido_por, subido_por_nombre)
+     values ($1,$2,$3,$4,$5,$6,'PENDIENTE',$7,$8,$9,$10) returning *`,
     [
       input.campanaId,
       input.nombre,
@@ -62,6 +74,9 @@ export async function crearCreatividad(input: {
       input.formato ?? null,
       input.resolucion ?? null,
       await tenantActual(),
+      input.origen.origen,
+      input.origen.subidoPor,
+      input.origen.subidoPorNombre,
     ],
   )
   return rowToCreatividad(rows[0])
@@ -257,6 +272,10 @@ export async function retirarCreatividadSoft(id: string) {
 
 // Reemplaza el arte de un creativo: actualiza su contenido, lo regresa a
 // PENDIENTE (debe re-validarse) y lo desasigna de spots. Devuelve el creativo.
+//
+// CREA-ORIGEN (20/11): «lo que importa es el contenido». Con el arte nuevo, el
+// creativo lo «subió» quien puso ese arte: el origen se reescribe con `origen`.
+// Si no se tocara, un arte nuestro seguiría diciendo «Subido por: el cliente».
 export async function reemplazarCreatividad(
   id: string,
   input: {
@@ -265,6 +284,7 @@ export async function reemplazarCreatividad(
     codigo?: string | null
     formato?: string | null
   },
+  origen: DatosOrigen,
 ) {
   const rows = await q(
     `update creatividades set
@@ -273,9 +293,22 @@ export async function reemplazarCreatividad(
         codigo = $4,
         formato = $5,
         estatus_validacion = 'PENDIENTE',
-        rechazado_motivo = null
-      where id=$1 returning *`,
-    [id, input.nombre ?? null, input.archivoUrl ?? null, input.codigo ?? null, input.formato ?? null],
+        rechazado_motivo = null,
+        origen = $7,
+        subido_por = $8,
+        subido_por_nombre = $9
+      where id=$1 and tenant_id=$6 returning *`,
+    [
+      id,
+      input.nombre ?? null,
+      input.archivoUrl ?? null,
+      input.codigo ?? null,
+      input.formato ?? null,
+      await tenantActual(),
+      origen.origen,
+      origen.subidoPor,
+      origen.subidoPorNombre,
+    ],
   )
   if (!rows[0]) return null
   await q(

@@ -15,6 +15,7 @@ import { CandadoPanel } from '@/components/demo/campanas/CandadoPanel'
 import { DatosFacturacion } from '@/components/demo/campanas/DatosFacturacion'
 import { ExtensionesCampana } from '@/components/demo/campanas/ExtensionesCampana'
 import { ValidacionPanel } from '@/components/demo/campanas/ValidacionPanel'
+import { OrigenCreativoBadge } from '@/components/operaciones/PendientesCreativo'
 import { EvidenciaGaleria } from '@/components/demo/campanas/EvidenciaGaleria'
 import { DescargarAlbum } from '@/components/demo/campanas/DescargarAlbum'
 import { PlaylogsPanel } from '@/components/demo/campanas/PlaylogsPanel'
@@ -218,8 +219,12 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
           {misCreas.length > 0 ? (
             <ul className="m-0 list-none space-y-2 p-0">
               {misCreas.map((cr) => (
-                <li key={cr.id} className="flex items-center justify-between text-[13px]">
-                  <span className="text-ink">{cr.nombre}</span>
+                <li key={cr.id} className="flex items-center justify-between gap-2 text-[13px]">
+                  <span className="flex min-w-0 flex-wrap items-center gap-1.5">
+                    <span className="text-ink">{cr.nombre}</span>
+                    {/* CREA-ORIGEN (20/11): «Subido por: …», el dato del creativo. */}
+                    <OrigenCreativoBadge origen={cr.origen} subidoPorNombre={cr.subidoPorNombre} />
+                  </span>
                   <StatusBadge tono={CREATIVIDAD_TONO[cr.estatusValidacion]}>
                     {t(CLAVE_CREATIVIDAD[cr.estatusValidacion])}
                   </StatusBadge>

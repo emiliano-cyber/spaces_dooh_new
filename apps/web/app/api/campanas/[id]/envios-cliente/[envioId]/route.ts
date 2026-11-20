@@ -7,7 +7,6 @@ import { aprobarEnvioCtrl, exigirQuienAprueba, rechazarEnvioCtrl } from '@/lib/s
 import { decodificarDataUrl } from '@/lib/data-url'
 import { textoAccionPublicacion } from '@/lib/doohmain-resultado'
 import { conteo } from '@/lib/plural'
-import { ACCION_APROBO_ENVIO_CLIENTE } from '@/lib/server/pendientes-creativo-repo'
 import { avisarPendientesImpresion } from '@/lib/server/pendientes-creativo-controller'
 
 export const runtime = 'nodejs'
@@ -50,10 +49,10 @@ export async function POST(req: Request, { params }: { params: { id: string; env
     const body = await req.json().catch(() => ({}))
     if (body?.accion === 'aprobar') {
       const r = await aprobarEnvioCtrl(params.id, params.envioId)
-      // El texto es la CONSTANTE con la que `pendientes-creativo-repo.ts` deduce
-      // que este creativo lo subió el cliente (FLUJO-CREA, 20/11): no se cambia
-      // aquí sin cambiarlo allí.
-      await registrarAccion(g.usuario, ACCION_APROBO_ENVIO_CLIENTE, r.creativo.nombre)
+      // Solo bitácora. Hasta el 20/11 este texto servía además para DEDUCIR
+      // que el creativo era del cliente; desde CREA-ORIGEN el origen se guarda
+      // en `creatividades.origen` al crearlo y esta línea ya no decide nada.
+      await registrarAccion(g.usuario, 'Aprobó creativo enviado por el cliente', r.creativo.nombre)
       await avisarPendientesImpresion(params.id)
       if (r.autoasignadas > 0) {
         await registrarAccion(

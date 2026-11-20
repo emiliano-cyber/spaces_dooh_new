@@ -12,7 +12,8 @@ import { useIdioma } from '@/lib/i18n/contexto'
 import { cifraIlegible } from '@/lib/captura-cifra'
 import { medidaEnIdioma } from '@/components/operaciones/ArteEnSitio'
 import { crearOrdenImpresionApi, type ImprentaApi } from '@/lib/data/estado-api'
-import type { Pendiente, OrigenCreativo } from '@/lib/pendientes-creativo'
+import type { Pendiente } from '@/lib/pendientes-creativo'
+import { subidoPor, type OrigenCreativo } from '@/lib/origen-creativo'
 
 // ============================================================================
 //  La «tarea 1» del flujo del creativo, en pantalla (FLUJO-CREA, 20/11).
@@ -40,12 +41,24 @@ export function usePendientes(ruta: 'impresion' | 'creativos', activo = true) {
   return { pendientes: lista, recargar }
 }
 
-/** «Lo subió el cliente por la liga» / «Lo subimos nosotros». */
-export function OrigenCreativoBadge({ origen }: { origen: OrigenCreativo }) {
+/**
+ * «Subido por: el cliente (Nombre)» / «Subido por: Ana López» / «Origen
+ * desconocido» (CREA-ORIGEN, 20/11). El origen es un DATO del creativo; el
+ * texto lo decide `subidoPor` (`lib/origen-creativo.ts`, con pruebas). Lo usan
+ * Creativos, Imprenta y la ficha de la campaña.
+ */
+export function OrigenCreativoBadge({
+  origen,
+  subidoPorNombre,
+}: {
+  origen?: OrigenCreativo | null
+  subidoPorNombre?: string | null
+}) {
   const { t } = useIdioma()
+  const { clave, vars } = subidoPor({ origen, subidoPorNombre })
   return (
-    <StatusBadge tono={origen === 'CLIENTE' ? 'azul' : 'neutro'}>
-      {t(origen === 'CLIENTE' ? 'operaciones.imprenta.pendientes.origen.cliente' : 'operaciones.imprenta.pendientes.origen.interno')}
+    <StatusBadge tono={origen === 'CLIENTE' ? 'azul' : 'neutro'} className="px-1.5 py-0 text-[10px]">
+      {t(clave, vars)}
     </StatusBadge>
   )
 }

@@ -789,7 +789,7 @@ function PendientesImpresionCard({
               <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
                 {p.creativos.map((cr, i) => (
                   <span key={cr.id ?? i} className="inline-flex items-center gap-1.5 text-[12px] text-ink">
-                    {cr.nombre} <OrigenCreativoBadge origen={cr.origen} />
+                    {cr.nombre} <OrigenCreativoBadge origen={cr.origen} subidoPorNombre={cr.subidoPorNombre} />
                   </span>
                 ))}
               </div>

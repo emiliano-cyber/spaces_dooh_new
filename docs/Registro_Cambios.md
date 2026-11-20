@@ -5,6 +5,18 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-20 · Cada creativo dice quién lo subió
+
+- Cada creativo **guarda quién lo subió**, en el momento de subirlo. Antes el sistema lo **adivinaba** mirando el historial y el nombre del archivo, y dos creativos con el **mismo nombre** se podían confundir. Ahora no: aunque se llamen igual, cada uno conserva el suyo, porque lo que cuenta es el contenido.
+- Se ve como **«Subido por: Ana López»** cuando lo subió alguien del equipo, o **«Subido por: el cliente»** cuando llegó por la liga y se aprobó. (Si algún día la liga pide el nombre de quien manda el archivo, saldrá entre paréntesis: «el cliente (Nombre)».)
+- Aparece en **Creativos** (en cada tarjeta y en «Pendientes por confirmar»), en **Imprenta** («Por mandar a impresión») y en la **ficha de la campaña** (la lista de creativos).
+- Si se **reemplaza el arte** de un creativo, pasa a decir quién puso el arte nuevo: el contenido ya es otro.
+- Lo que se subió **antes de hoy** dice **«Origen desconocido»**: no hay forma segura de saberlo y no se inventa.
+- Si se borra a un usuario, sus creativos siguen diciendo su nombre.
+- Por dentro: tres datos nuevos en cada creativo en la base, aprobados de momento solo para la base de pruebas. Los importes no cambian.
+
+---
+
 ## 2026-11-20 · Del creativo aprobado a la impresión: pendientes, fecha especial y álbum
 
 - Cuando un creativo queda **aprobado** en una campaña confirmada (lo haya mandado el cliente por la liga o lo hayamos subido nosotros), cada sitio de esa campaña queda **pendiente**: los **fijos**, de **«Mandar a impresión»**; los **digitales**, de **«Programar»**. **Nada se crea solo**: una persona lo confirma.

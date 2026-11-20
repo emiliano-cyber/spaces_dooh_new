@@ -743,6 +743,11 @@ export interface Creatividad {
   // quitarlo). null = activo. Marca el estado honesto de "pendiente en DOOHmain".
   retiradoEn: string | null
   creadoEn: string
+  // CREA-ORIGEN (20/11): quién lo subió, guardado al crearlo. null = anterior
+  // al 20/11, «Origen desconocido». Opcionales porque el portal público no los
+  // manda (al cliente no se le enseña quién del equipo subió qué).
+  origen?: 'CLIENTE' | 'INTERNO' | null
+  subidoPorNombre?: string | null
 }
 
 export interface ChecklistItem {

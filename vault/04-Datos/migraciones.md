@@ -4,6 +4,7 @@ estado: verificado
 actualizado: 2026-11-20
 tags: [datos, migraciones, despliegue, rojo]
 archivos:
+  - db/migrations/20261120_z_creatividades_origen.sql
   - db/migrations/
   - db/schema.sql
   - db/semilla-desarrollo.sql
@@ -70,6 +71,7 @@ archivos:
 > [!important] 2026-10-05 · puesta al día — ninguna de las de abajo está ya «sin fusionar»
 > Medido hoy con `node scripts/recuentos.mjs` sobre el árbol de
 > `integra/riesgos-presentacion-14-oct` (salida de `main` en `09c65ca2`):
+> **141 migraciones y 76 tablas** (20/11, `feat/creativo-origen` con `20261120_z_creatividades_origen.sql`, CREA-ORIGEN: tres columnas en `creatividades`, ninguna tabla; medido con `recuentos.mjs`).
 > **140 migraciones y 76 tablas** (20/11, `main` con `20261120_vallas_esquina.sql` y `20261120_impresion_fecha_especial.sql` juntas).
 > **139 migraciones y 76 tablas** (20/11, `feat/vallas-esquinas` con `20261120_vallas_esquina.sql`: una columna y un CHECK, ninguna tabla) (20/11, 138 y 76, `feat/propuesta-marca-competencia` con `20261120_propuestas_marca.sql`: una columna, ninguna tabla) (19/11, 137 y 76, `feat/vallas-decisiones` con `20261119_vallas_sembrar_competencia_por_omision.sql`: solo filas, ninguna tabla) (19/11, 136 y 76, `feat/vallas-esqueleto` con `20261119_vallas_esqueleto.sql`: crea `vallas`, `vallas_grupos` y `competencia_categorias`) (19/11, 135 y 73, `feat/imprentas-y-proporcion` con `20261118_imprentas_y_requisitos.sql`: crea `imprentas`, IMP-REQ) (18/11, 134 y 72, `integra/18-11` con `20261118_envios_creativo_cliente.sql`: crea `envios_creativo_cliente`, ENVIO-CLIENTE) (18/11, 133 y 71, `integra/18-11` con `20261118_idiomas_servidor_sin_espanol_obligatorio.sql`: solo cambia un CHECK, ninguna tabla) (17/11, 132, `integra/17-11`: las del CRM y `20261117_propuesta_imprenta_visible.sql`) (17/11, 131, `feat/crm-comercial` con `20261117_propuesta_cambios_por_trigger.sql`: el historial de propuestas por trigger, sin tablas) (17/11, 130, con `20261117_crm_oportunidades.sql`: las tres tablas del CRM comercial, ADR 0051) (12/11, 129 y 68, `feat/avisos-por-canal` con `20261112_avisos_por_canal.sql`: crea `avisos_usuario` y la columna `usuarios.telefono_whatsapp`) (09/11, 127, `feat/borrar-usuarios` con `20261109_acciones_sin_fk_usuario.sql`: ninguna tabla ni columna, solo quita una FK) (05/11, 126, `feat/portugues-documentos` con `20261105_idioma_portugues.sql` de P3 del portugués: ninguna columna ni tabla, solo los dos CHECK) (04/11, 125, `integra/idiomas` con `20261103_usuarios_idioma_preferido.sql` de IDIOMA-USUARIO, una columna y ninguna tabla) (03/11, 124, con `20261103_idioma_documentos_por_instancia.sql`, una columna y ninguna tabla) (02/11, 123, con `20261102_moneda_inmutable_por_instancia.sql`, ninguna tabla) (29/10, 122, con `20261029_propuestas_condiciones_vigencia_vendedor.sql`, cinco columnas y ninguna tabla) (29/10, 121, con `20261029_campana_extensiones.sql`, que crea `campana_extensiones`) (22/10, 117 y 64, con `20261022_campana_horario_doohmain.sql`, tres columnas en `campanas`) (22/10, 116 y 64, con `20261022_comercial_negociacion.sql`, que crea las cuatro tablas de Comercial negociación) (21/10, 115 y 60, con `20261021_notificaciones_por_usuario.sql`, que crea `notificaciones_usuario`: esta vez el 60 es una tabla de verdad) (19/10, 114 y 59, con `20261019_cobranza_abono_comprobante.sql`; antes 113) —el «60» que decía aquí el 13/10 era falso:
 > **139 migraciones y 76 tablas** (20/11, `feat/flujo-creativo-impresion` con `20261120_impresion_fecha_especial.sql`: una columna, ninguna tabla) (20/11, 138 y 76, `feat/propuesta-marca-competencia` con `20261120_propuestas_marca.sql`: una columna, ninguna tabla) (19/11, 137 y 76, `feat/vallas-decisiones` con `20261119_vallas_sembrar_competencia_por_omision.sql`: solo filas, ninguna tabla) (19/11, 136 y 76, `feat/vallas-esqueleto` con `20261119_vallas_esqueleto.sql`: crea `vallas`, `vallas_grupos` y `competencia_categorias`) (19/11, 135 y 73, `feat/imprentas-y-proporcion` con `20261118_imprentas_y_requisitos.sql`: crea `imprentas`, IMP-REQ) (18/11, 134 y 72, `integra/18-11` con `20261118_envios_creativo_cliente.sql`: crea `envios_creativo_cliente`, ENVIO-CLIENTE) (18/11, 133 y 71, `integra/18-11` con `20261118_idiomas_servidor_sin_espanol_obligatorio.sql`: solo cambia un CHECK, ninguna tabla) (17/11, 132, `integra/17-11`: las del CRM y `20261117_propuesta_imprenta_visible.sql`) (17/11, 131, `feat/crm-comercial` con `20261117_propuesta_cambios_por_trigger.sql`: el historial de propuestas por trigger, sin tablas) (17/11, 130, con `20261117_crm_oportunidades.sql`: las tres tablas del CRM comercial, ADR 0051) (12/11, 129 y 68, `feat/avisos-por-canal` con `20261112_avisos_por_canal.sql`: crea `avisos_usuario` y la columna `usuarios.telefono_whatsapp`) (09/11, 127, `feat/borrar-usuarios` con `20261109_acciones_sin_fk_usuario.sql`: ninguna tabla ni columna, solo quita una FK) (05/11, 126, `feat/portugues-documentos` con `20261105_idioma_portugues.sql` de P3 del portugués: ninguna columna ni tabla, solo los dos CHECK) (04/11, 125, `integra/idiomas` con `20261103_usuarios_idioma_preferido.sql` de IDIOMA-USUARIO, una columna y ninguna tabla) (03/11, 124, con `20261103_idioma_documentos_por_instancia.sql`, una columna y ninguna tabla) (02/11, 123, con `20261102_moneda_inmutable_por_instancia.sql`, ninguna tabla) (29/10, 122, con `20261029_propuestas_condiciones_vigencia_vendedor.sql`, cinco columnas y ninguna tabla) (29/10, 121, con `20261029_campana_extensiones.sql`, que crea `campana_extensiones`) (22/10, 117 y 64, con `20261022_campana_horario_doohmain.sql`, tres columnas en `campanas`) (22/10, 116 y 64, con `20261022_comercial_negociacion.sql`, que crea las cuatro tablas de Comercial negociación) (21/10, 115 y 60, con `20261021_notificaciones_por_usuario.sql`, que crea `notificaciones_usuario`: esta vez el 60 es una tabla de verdad) (19/10, 114 y 59, con `20261019_cobranza_abono_comprobante.sql`; antes 113) —el «60» que decía aquí el 13/10 era falso:
@@ -83,6 +85,7 @@ archivos:
 >
 > | Migración | Decía | Entró en `main` |
 > |---|---|---|
+> | `20261120_z_creatividades_origen.sql` | rama `feat/creativo-origen` (CREA-ORIGEN), **aprobada por el dueño para LOCAL el 20/11** (ROJO R3); servidores pendiente | **Sin publicar.** Quién subió cada creativo: `creatividades.origen`, `subido_por` y `subido_por_nombre`. Ver la sección de abajo |
 > | `20261120_impresion_fecha_especial.sql` | rama `feat/flujo-creativo-impresion` (FLUJO-CREA), **aprobada por el dueño para LOCAL el 20/11** (ROJO R3); servidores pendiente | **Sin publicar.** La columna `ordenes_impresion.fecha_especial`. Ver la sección de abajo |
 > | `20261120_vallas_esquina.sql` | rama `feat/vallas-esquinas`, **aprobada por el dueño para LOCAL el 20/11** (ROJO R3); servidores pendiente | **Sin publicar.** La columna `vallas.dobla` (esquinas). Ver la sección de abajo |
 > | `20261120_propuestas_marca.sql` | rama `feat/propuesta-marca-competencia`, **aprobada por el dueño para LOCAL el 20/11** (ROJO R3); servidores pendiente | **Sin publicar.** La columna `propuestas.marca`. Ver la sección de abajo |
@@ -1468,6 +1471,32 @@ de entidades añadía en paralelo. Si la necesitas, cuéntala, no la copies.
 >
 > Runner ×2 contra base desechable: **94 aplicadas** en la primera pasada, **0**
 > en la segunda, sin divergencia de checksum. Ver [[02-Backend/costo-real-de-ot]].
+
+## `20261120_z_creatividades_origen.sql` — quién subió cada creativo (20/11)
+
+`@tipo: esquema`, transaccional e idempotente (`add column if not exists` y los
+dos constraints dentro de un `do $$` que mira `pg_constraint`). Añade a
+`creatividades` tres columnas que admiten null, cada una con su `comment on
+column`: `origen text` (check `creatividades_origen_ck`: `CLIENTE` | `INTERNO`
+| null), `subido_por uuid` (FK `creatividades_subido_por_fk` →
+`usuarios(id) on delete set null`) y `subido_por_nombre text` (el nombre
+congelado). **Sin backfill, a propósito**: el envío del cliente se borra al
+aprobarlo y la bitácora guarda el nombre del creativo, no su id, así que nada se
+sabe con certeza; todo lo anterior queda NULL, «Origen desconocido».
+
+**La FK es simple y no compuesta `(subido_por, tenant_id)`**: los usuarios se
+borran de verdad y `on delete set null` sobre una FK compuesta anularía también
+`tenant_id` (not null), con lo que borrar al usuario fallaría; la forma
+`set null (subido_por)` es de PostgreSQL 15 y aquí se exige la 14. El id sale
+siempre de la sesión (`origenInterno`), nunca del cuerpo.
+
+**El nombre lleva `z_`** para ir, por orden lexicográfico (`ordenar()`),
+**después** de las otras tres del 20/11 (`impresion_fecha_especial`,
+`propuestas_marca`, `vallas_esquina`), que pueden estar ya aplicadas en una base
+local; no toca `ANTES_DE` (comprobado con `ordenar()`). LF. Vuelta atrás: los
+tres `drop column if exists`. Lo prueba `lib/test/creativo-origen.e2e.test.ts`
+(tipos, nullable, comentarios, el check y el borrado del usuario que conserva el
+nombre). Ver [[02-Backend/operaciones-y-ot]].
 
 ## `20261120_impresion_fecha_especial.sql` — la fecha especial de una orden de impresión (20/11)
 

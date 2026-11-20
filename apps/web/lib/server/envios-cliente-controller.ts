@@ -13,6 +13,7 @@ import {
 } from './envios-cliente-repo'
 import { imagenAHtml } from '@/lib/creativo-html'
 import { puedeAprobarEnCampana } from '@/lib/roles'
+import { origenCliente } from '@/lib/origen-creativo'
 
 // ============================================================================
 //  lib/server/envios-cliente-controller.ts — Aprobar o rechazar, desde la
@@ -74,13 +75,16 @@ export async function aprobarEnvioCtrl(campanaId: string, envioId: string): Prom
   let creadoId: string | null = null
   let aprobado: Awaited<ReturnType<typeof validarCreatividad>> | Awaited<ReturnType<typeof validarCreatividadEnSitio>>
   try {
+    // CREA-ORIGEN (20/11): CLIENTE, sin usuario interno. Quien aprueba (Dueño
+    // o Administrador) NO es quien lo subió; eso queda en la bitácora. La liga
+    // no pide nombre al cliente, así que `origenCliente()` va sin nombre.
     const crea = await crearCreatividadCtrl({
       campanaId,
       nombre: e.nombreArchivo,
       codigo: imagenAHtml(e.contenido, e.nombreArchivo),
       formato: 'text/html',
       resolucion: e.anchoPx && e.altoPx ? `${e.anchoPx}x${e.altoPx}` : null,
-    })
+    }, origenCliente())
     creadoId = crea.id
     // 19/11 · decisión del dueño: SOLO a la pantalla que eligió el cliente.
     // Con `validarCreatividad` iba a todas las digitales vacías de la campaña.

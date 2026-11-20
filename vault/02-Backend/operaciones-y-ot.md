@@ -14,6 +14,8 @@ archivos:
   - apps/web/components/operaciones/PendientesCreativo.tsx
   - apps/web/components/demo/campanas/DescargarAlbum.tsx
   - db/migrations/20261120_impresion_fecha_especial.sql
+  - db/migrations/20261120_z_creatividades_origen.sql
+  - apps/web/lib/origen-creativo.ts
   - apps/web/lib/server/operaciones-eventos.ts
   - apps/web/lib/server/almacen-repo.ts
   - apps/web/lib/server/almacen-controller.ts
@@ -312,7 +314,7 @@ exhibición, se descarga álbum».
 |---|---|---|
 | **El pendiente se DERIVA, sin tabla de tareas** | `lib/pendientes-creativo.ts` (puro, con pruebas) + `lib/server/pendientes-creativo-repo.ts` (lee con `q` y `tenant_id = $1` en cada tabla) | IMPRIMIR = campaña OOH/HÍBRIDA en CONFIRMADA/ACTIVA, con creativo VALIDADA no retirado, y un sitio **fijo** reservado (reserva no cancelada) **sin** orden de impresión de esa campaña y ese sitio. PROGRAMAR = campaña DOOH/HÍBRIDA viva, pantalla **digital** con un creativo aprobado asignado (`reservas.creativos`) y `campanas.enviada_dominio = false`. POR_APROBAR = envío del cliente PENDIENTE o creativo nuestro PENDIENTE. Una tabla de tareas habría que sincronizarla en cada alta, rechazo, reemplazo y baja |
 | **Nada se crea solo** | — | «Mandar a impresión» es el mismo `POST /api/impresion` (`imprenta.crear`) con `sitioId` y, opcional, `fechaEspecial`; con la orden creada el pendiente se va. «Programar» lleva a la ficha (`/campanas/[id]#publicacion`), a «Enviar al dominio»: no se duplica esa lógica |
-| **Quién subió el creativo** | `pendientes-creativo-repo.ts` (`ACCION_APROBO_ENVIO_CLIENTE`) | `creatividades` **no guarda el origen** y el envío del cliente se **borra** al aprobarlo. Se deduce de la bitácora: CLIENTE si existe «Aprobó creativo enviado por el cliente» con su nombre, en la organización, ≤ 10 min después de su alta. **Es una deducción**: dos creativos con el mismo nombre en esa ventana se confundirían. La forma exacta (una columna de origen) quedó como pregunta al dueño |
+| **Quién subió el creativo** | `creatividades.origen` / `subido_por` / `subido_por_nombre` (`20261120_z_creatividades_origen.sql`, CREA-ORIGEN); se leen en `pendientes-creativo-repo.ts` | **Es un DATO desde el 20/11** (decisión del dueño: «aunque tengan el mismo nombre; lo que importa es el contenido»). Hasta entonces se DEDUCÍA de la bitácora («Aprobó creativo enviado por el cliente» con el mismo nombre ≤ 10 min tras el alta) y dos creativos llamados igual se confundían; la constante y la ventana se borraron. NULL = «Origen desconocido» (lo anterior), y viaja como `null`, no como INTERNO. Ver la sección CREA-ORIGEN abajo |
 | **El sitio de la orden tiene que ser propio** | `impresion-controller.ts` (`sitioEsPropio`) | La FK `ordenes_impresion.sitio_id` es simple: sin la comprobación, una orden podía apuntar a la pantalla de otra organización. Ajeno → 400 «Sitio no encontrado» |
 | **Aviso solo a Imprenta** | `avisarPendientesImpresion` (al aprobar en `PATCH /api/creatividades/[id]` y al aprobar un envío del cliente) + `tiposOcultosPara` en `notificaciones-repo.ts` | La bandeja es una por empresa. Sin columna nueva: el tipo `IMPRESION` es de `imprenta`, y quien no tiene `imprenta.ver` no lo recibe ni en `/api/estado` ni en `/api/notificaciones/nuevas`. Plantilla `notificaciones.impresion.por-mandar` en los cuatro idiomas |
 | **La fecha especial** | `20261120_impresion_fecha_especial.sql`, `PATCH /api/impresion/[id]/fecha-especial`, `lib/prioridad-imprenta.ts` (`base: 'ESPECIAL' \| 'INICIO'`) | Si está puesta **manda** sobre el inicio de la campaña para el grupo y el lugar (puede adelantar o atrasar). Se lee como texto (`::text`) para que no se corra un día en UTC-6. Fecha que no existe → 400 «Fecha inválida»; id ajeno → 404 |
@@ -329,6 +331,27 @@ organizaciones, la fecha especial reordena, migración aplicada).
 > Las pantallas en un navegador real (Imprenta, Creativos, ficha y portal) al
 > cerrar este cambio, ni el álbum con fotos guardadas en Spaces (URL firmada:
 > depende del CORS del bucket; si falla, esas fotos se cuentan como no leídas).
+
+### Quién subió cada creativo, como dato (CREA-ORIGEN, 2026-11-20)
+
+Decisión del dueño (20/11): «Debemos poner quién subió cada creativo aunque
+tengan el mismo nombre; lo que importa es el contenido». Sustituye a la
+deducción por bitácora de FLUJO-CREA.
+
+| Qué | Dónde | Por qué así |
+|---|---|---|
+| **Tres columnas en `creatividades`** | `db/migrations/20261120_z_creatividades_origen.sql` | `origen` (`CLIENTE` \| `INTERNO`, check `creatividades_origen_ck`, NULL = desconocido), `subido_por` (uuid del usuario) y `subido_por_nombre` (congelado). Sin backfill: el envío del cliente se borra al aprobarlo y la bitácora solo guarda el nombre, así que **nada** se sabe con certeza |
+| **`subido_por` con FK simple, no compuesta** | misma migración | Los usuarios se borran de verdad (`borrarUsuario`). Una FK `(subido_por, tenant_id)` con `on delete set null` pondría a null también `tenant_id` y el borrado fallaría; `set null (columna)` es de PG 15 y se exige la 14. Queda `references usuarios(id) on delete set null`; el nombre congelado sobrevive. El tenant lo garantiza la aplicación: el id sale siempre de la sesión |
+| **Lo fija el servidor, nunca el cuerpo** | `lib/origen-creativo.ts` (`origenInterno`, `origenCliente`, puro y con pruebas) → `crearCreatividadCtrl(body, origen)` → `crearCreatividad` | Alta interna (`POST /api/creatividades`: Creativos, ficha, «Actualizar campaña», Imprenta) → `origenInterno(g.usuario)`. Aprobar el envío del cliente (`aprobarEnvioCtrl`) → `origenCliente()`: quien aprueba **no** es quien lo subió. La liga no pide nombre, así que el nombre del cliente queda NULL |
+| **Reemplazar el arte cambia el origen** | `PUT /api/creatividades/[id]` → `reemplazarCreatividad(id, arte, origenInterno(g.usuario))` | El contenido es otro: lo «subió» quien puso el arte nuevo |
+| **Se devuelve en las lecturas** | `rowToCreatividad`, `listarCreatividades` (`/api/estado`), `pendientes-creativo-repo.ts` | `origen` y `subidoPorNombre`; `subido_por` (uuid) no viaja a la pantalla |
+| **El texto** | `subidoPor()` en `lib/origen-creativo.ts` + `OrigenCreativoBadge` (`components/operaciones/PendientesCreativo.tsx`) | «Subido por: el cliente (Nombre)», «Subido por: el cliente», «Subido por: Ana López», o «Origen desconocido». Claves `creativos.origen.*` en es/en/it/pt (`lib/i18n/textos/operaciones2.ts`). En Creativos (tarjetas y pendientes), Imprenta («Por mandar a impresión») y la ficha de campaña |
+
+Pruebas: `lib/origen-creativo.test.ts`, `lib/pendientes-creativo.test.ts` (el
+origen viaja, NULL no se vuelve INTERNO, mismo nombre) y
+`lib/test/creativo-origen.e2e.test.ts` (migración, alta interna con el usuario de
+la sesión aunque el cuerpo diga otra cosa, envío aprobado → CLIENTE, mismo
+nombre con orígenes distintos, reemplazo, NULL como desconocido, aislamiento).
 
 ## Cómo se ven las pantallas (rediseño del 26/10)
 
