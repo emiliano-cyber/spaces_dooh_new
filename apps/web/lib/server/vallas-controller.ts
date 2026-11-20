@@ -11,6 +11,7 @@ import {
   crearCategoria,
   actualizarCategoria,
   contextoParaVerificar,
+  ocupacionDeVallas,
   VallaError,
   VALLA_NO_ENCONTRADA,
   GRUPO_NO_ENCONTRADO,
@@ -77,6 +78,18 @@ const verificarSchema = z
   })
   .strict()
   .refine((d) => d.fechaInicio <= d.fechaFin, { message: 'La fecha de fin no puede ser anterior a la de inicio', path: ['fechaFin'] })
+
+// Una fecha que EXISTE: `2026-13-40` pasa el patrón y Postgres la rechazaría
+// al hacer `::date`, con un 500 en vez de un 400.
+const fechaReal = fecha.refine((s) => {
+  const d = new Date(`${s}T00:00:00Z`)
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s
+}, 'Fecha inválida')
+
+const ocupacionSchema = z
+  .object({ desde: fechaReal, hasta: fechaReal })
+  .strict()
+  .refine((d) => d.desde <= d.hasta, { message: 'La fecha de fin no puede ser anterior a la de inicio', path: ['hasta'] })
 
 function mapear(e: unknown): never {
   if (e instanceof VallaError) throw new AppError(e.message, e.status)
@@ -167,6 +180,16 @@ export async function verificarVallasCtrl(body: unknown) {
     excluirCampanaId: d.excluirCampanaId ?? null,
   })
   return evaluarReglas(ctx)
+}
+
+/**
+ * Para el plano (`GET /api/vallas/ocupacion?desde&hasta`): qué campañas ocupan
+ * cada sitio con vallas en esas fechas. Las dos son obligatorias: las por
+ * omisión (hoy → +30) las pone la pantalla, que sabe en qué día está quien mira.
+ */
+export async function ocupacionVallasCtrl(params: URLSearchParams) {
+  const d = validar(ocupacionSchema, { desde: params.get('desde') ?? '', hasta: params.get('hasta') ?? '' })
+  return { desde: d.desde, hasta: d.hasta, ocupaciones: await ocupacionDeVallas(d.desde, d.hasta) }
 }
 
 /** Un id que no es uuid haría fallar el cast de Postgres con un 500. */

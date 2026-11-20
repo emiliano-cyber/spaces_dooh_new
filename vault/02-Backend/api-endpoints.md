@@ -1,7 +1,7 @@
 ---
 tipo: referencia
 estado: verificado
-actualizado: 2026-11-19
+actualizado: 2026-11-20
 tags: [backend, api, endpoints]
 archivos:
   - apps/web/app/api/
@@ -19,6 +19,7 @@ archivos:
   - apps/web/app/api/perfil/idioma/route.ts
   - apps/web/app/api/perfil/avisos/route.ts
   - apps/web/app/api/space-eyes/campanas/excel/route.ts
+  - apps/web/app/api/vallas/ocupacion/route.ts
   - apps/web/app/api/bienvenida/route.ts
   - apps/web/app/api/captacion/
   - apps/web/app/api/codigos-promocionales/
@@ -44,6 +45,11 @@ archivos:
 
 # API — los 159 endpoints (medidos el 2026-10-29 con `recuentos.mjs`)
 
+> **2026-11-20 · 188 (rama `feat/vallas-plano-por-sitio`):** `GET
+> /api/vallas/ocupacion?desde&hasta`, qué campañas ocupan cada sitio con vallas
+> en esas fechas, para el plano de `/vallas`. Medido con `recuentos.mjs`. Las
+> siete de `/api/vallas/**` del 19/11 están en [[vallas]], no en esta tabla.
+>
 > **2026-11-19 · 179 (IMP-REQ, rama `feat/imprentas-y-proporcion`):** tres
 > rutas para las imprentas y sus requisitos de arte —`GET·POST /api/imprentas`,
 > `PATCH /api/imprentas/[id]` y `PATCH /api/impresion/[id]/imprenta`—. Medido
@@ -245,6 +251,7 @@ en `:230-237`) y **no** puede condicionarse a que la ruta
 | POST | `/api/licencias` · PATCH·DELETE `/api/licencias/[id]` | exigir |
 | PATCH | `/api/sitios/[id]/modalidades` | (05/10) **SENSIBLE** `inventario:crear` — tarifas por unidad de venta; ruta aparte porque `sitio_modalidades.tarifa_publicada` es el mismo dinero que `sitios.tarifa_publicada` |
 | GET · PATCH | `/api/sitios/[id]/rejilla` | (05/10) `inventario:ver` · **SENSIBLE** `inventario:crear` — la rejilla franja×temporada de la pantalla, [[rejilla-franja-y-temporada]] |
+| GET | `/api/vallas/ocupacion?desde&hasta` | (20/11) `inventario:ver` — para el plano de las vallas: `{ desde, hasta, ocupaciones: [{ sitioId, marca, campanaId, campanaNombre, inicio, fin }] }`, POR SITIO (las reservas son por sitio) y con el mismo criterio que `POST /api/vallas/verificar` (no cancelada, tentativa sin caducar, solape inclusivo, solo sitios con vallas activas). Fechas obligatorias, reales y en orden, o 400. Ver [[vallas]] |
 | GET·POST | `/api/energia/consumos` | (05/10) `operaciones:ver` · `operaciones:crear` — [[energia-consumos]] |
 | DELETE | `/api/energia/consumos/[id]` | (05/10) `operaciones:aprobar` |
 | POST | `/api/energia/recibos` | (05/10) `operaciones:crear` — sube los PDF de CFE y **propone**, no guarda nada: el alta sigue siendo `POST /api/energia/consumos`. Pide `crear` aunque no escriba, porque lo que devuelve es el borrador de un alta — [[recibos-cfe-pdf]] |

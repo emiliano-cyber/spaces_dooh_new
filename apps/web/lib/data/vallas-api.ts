@@ -1,5 +1,6 @@
 import type { Valla, GrupoVallas, CategoriaCompetencia, ModoGrupo } from '@/lib/vallas/tipos'
 import type { ResultadoReglas } from '@/lib/vallas/reglas/tipos'
+import type { OcupacionSitio } from '@/lib/vallas/plano'
 
 // ============================================================================
 //  lib/data/vallas-api.ts — VALLAS (esqueleto, 19/11). Llamadas del navegador
@@ -49,3 +50,9 @@ export const actualizarCategoriaApi = (id: string, d: { nombre?: string; marcas?
 
 export const verificarVallasApi = (d: { marca: string; fechaInicio: string; fechaFin: string; vallaIds?: string[]; sitioIds?: string[] }) =>
   pedir<ResultadoReglas>('/verificar/', 'No se pudo verificar', { method: 'POST', body: d })
+
+export const ocupacionVallasApi = (desde: string, hasta: string) =>
+  pedir<{ desde: string; hasta: string; ocupaciones: OcupacionSitio[] }>(
+    `/ocupacion/?desde=${encodeURIComponent(desde)}&hasta=${encodeURIComponent(hasta)}`,
+    'No se pudieron cargar las vallas',
+  )

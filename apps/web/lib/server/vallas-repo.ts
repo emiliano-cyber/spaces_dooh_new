@@ -7,6 +7,7 @@ import { normalizarMarca } from '@/lib/vallas/reglas/competencia-marcas'
 import type { Valla, GrupoVallas, CategoriaCompetencia, Ocupacion, ModoGrupo } from '@/lib/vallas/tipos'
 import { CATEGORIAS_COMPETENCIA_POR_OMISION } from '@/lib/vallas/competencia-por-omision'
 import type { ContextoVallas, Candidata } from '@/lib/vallas/reglas'
+import type { OcupacionSitio } from '@/lib/vallas/plano'
 
 // ============================================================================
 //  lib/server/vallas-repo.ts — VALLAS (esqueleto, 19/11).
@@ -346,6 +347,53 @@ export async function actualizarCategoria(
 
 // ─── Contexto para las reglas ──────────────────────────────────────────────
 
+type ReservaViva = { sitio_id: string; inicio: string; fin: string; campana_id: string; campana: string; marca: string | null }
+
+/**
+ * LAS reservas vivas que ocupan vallas: el criterio ÚNICO que comparten las
+ * reglas (`contextoParaVerificar`) y el plano (`ocupacionDeVallas`), para que
+ * «Verificar una marca» y el dibujo no puedan contar distinto.
+ *
+ * Viva = no cancelada, y si es tentativa, sin caducar. Solape INCLUSIVO
+ * (tocarse un día ya ocupa). Solo sitios con alguna valla activa: las
+ * reservas son por SITIO, y un sitio sin vallas no tiene nada que ocupar.
+ * Una sola consulta para toda la organización, no una por sitio.
+ */
+async function reservasVivasEnSitiosConVallas(tenant: string | null, inicio: string, fin: string): Promise<ReservaViva[]> {
+  return q<ReservaViva>(
+    `select r.sitio_id, r.fecha_inicio::text as inicio, r.fecha_fin::text as fin,
+            c.id as campana_id, c.nombre as campana,
+            coalesce(nullif(btrim(c.marca), ''), cl.nombre) as marca
+       from reservas r
+       join campanas c on c.id = r.campana_id and c.tenant_id = $1
+       left join clientes cl on cl.id = c.cliente_id and cl.tenant_id = $1
+      where r.tenant_id = $1
+        and r.sitio_id in (select v.sitio_id from vallas v where v.tenant_id = $1 and v.activo)
+        and r.estatus <> 'CANCELADA'
+        and (r.estatus <> 'TENTATIVA' or r.expira_en is null or r.expira_en > now())
+        and r.fecha_inicio <= $3::date and r.fecha_fin >= $2::date
+      order by r.fecha_inicio asc, c.nombre asc, c.id asc`,
+    [tenant, inicio, fin],
+  )
+}
+
+/**
+ * Para el plano (`GET /api/vallas/ocupacion`): qué campañas ocupan cada sitio
+ * con vallas entre `desde` y `hasta`. Se devuelve por SITIO, no por valla,
+ * porque es lo que la reserva sabe hoy; el plano lo extiende a sus cuadros.
+ */
+export async function ocupacionDeVallas(desde: string, hasta: string): Promise<OcupacionSitio[]> {
+  const rows = await reservasVivasEnSitiosConVallas(await tenantActual(), desde, hasta)
+  return rows.map((r) => ({
+    sitioId: r.sitio_id,
+    marca: r.marca ?? null,
+    campanaId: r.campana_id,
+    campanaNombre: r.campana,
+    inicio: r.inicio,
+    fin: r.fin,
+  }))
+}
+
 /**
  * Lee de la base lo que las reglas necesitan para verificar una candidata.
  * `sitioIds` se expande a todas las vallas de esos sitios. Ids ajenos o
@@ -361,23 +409,7 @@ export async function contextoParaVerificar(
   const sitiosPedidos = new Set(c.sitioIds ?? [])
   const vallaIds = activas.filter((v) => pedidas.has(v.id) || sitiosPedidos.has(v.sitioId)).map((v) => v.id)
 
-  const sitios = [...new Set(activas.map((v) => v.sitioId))]
-  const reservas = sitios.length
-    ? await q<{ sitio_id: string; inicio: string; fin: string; campana_id: string; campana: string; marca: string }>(
-        `select r.sitio_id, r.fecha_inicio::text as inicio, r.fecha_fin::text as fin,
-                c.id as campana_id, c.nombre as campana,
-                coalesce(nullif(btrim(c.marca), ''), cl.nombre) as marca
-           from reservas r
-           join campanas c on c.id = r.campana_id and c.tenant_id = $1
-           left join clientes cl on cl.id = c.cliente_id and cl.tenant_id = $1
-          where r.tenant_id = $1
-            and r.sitio_id = any($2::uuid[])
-            and r.estatus <> 'CANCELADA'
-            and (r.estatus <> 'TENTATIVA' or r.expira_en is null or r.expira_en > now())
-            and r.fecha_inicio <= $4::date and r.fecha_fin >= $3::date`,
-        [tenant, sitios, c.inicio, c.fin],
-      )
-    : []
+  const reservas = await reservasVivasEnSitiosConVallas(tenant, c.inicio, c.fin)
   const ocupaciones: Ocupacion[] = []
   for (const r of reservas) {
     if (!r.marca) continue

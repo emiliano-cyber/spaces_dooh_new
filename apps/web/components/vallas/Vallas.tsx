@@ -14,7 +14,6 @@ import { puedeEditarCompetencia } from '@/lib/roles'
 import { useSitios } from '@/lib/data/client'
 import { useIdioma } from '@/lib/i18n/contexto'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
-import { formatNumero } from '@/lib/formato-numero'
 import { MODOS_GRUPO, type Valla, type GrupoVallas, type CategoriaCompetencia, type ModoGrupo } from '@/lib/vallas/tipos'
 import { medidaParaArte, medidaSugeridaDeGrupo, problemasDeGrupo, siguienteNumero } from '@/lib/vallas/numeracion'
 import type { Hallazgo, ResultadoReglas } from '@/lib/vallas/reglas/tipos'
@@ -31,9 +30,11 @@ import {
   actualizarCategoriaApi,
   verificarVallasApi,
 } from '@/lib/data/vallas-api'
+import { TarjetaPlano, useMedida } from './PlanoVallas'
 
 // ============================================================================
-//  VALLAS (esqueleto, 19/11). Cuatro tarjetas: las vallas (un número por
+//  VALLAS (esqueleto, 19/11). Arriba, el PLANO por sitio (20/11,
+//  `PlanoVallas.tsx`); luego cuatro tarjetas: las vallas (un número por
 //  cuadro), los grupos (un número por grupo y su modo), las marcas que
 //  compiten y «Verificar una marca», que corre todas las reglas de
 //  `lib/vallas/reglas/` sin reservar nada.
@@ -42,12 +43,6 @@ import {
 // ============================================================================
 
 const ENTRADA = 'w-full rounded border border-border-strong bg-surface px-2.5 py-2 text-[13px] text-ink'
-
-function useMedida() {
-  const { t, idioma } = useIdioma()
-  return (ancho: number, alto: number) =>
-    t('vallas.medida', { ancho: formatNumero(ancho, ancho % 1 ? 2 : 0, idioma), alto: formatNumero(alto, alto % 1 ? 2 : 0, idioma) })
-}
 
 export function VallasPantalla() {
   const { t } = useIdioma()
@@ -91,6 +86,7 @@ export function VallasPantalla() {
           <strong className="font-medium">{t('nav.insignia.en-proceso')}:</strong> {t('vallas.en-proceso.aviso')}
         </span>
       </div>
+      <TarjetaPlano vallas={vallas} grupos={grupos} />
       <TarjetaVallas vallas={vallas} grupos={grupos} recargar={recargar} />
       <TarjetaGrupos vallas={vallas ?? []} grupos={grupos} recargar={recargar} />
       <TarjetaCompetencia categorias={categorias} recargar={recargar} />
