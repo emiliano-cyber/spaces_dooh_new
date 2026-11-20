@@ -55,6 +55,8 @@ export const AREAS: AreaProducto[] = [
   { clave: 'inventario', label: 'Inventario', modulo: 'inventario', apiPropia: true },
   // VALLAS (esqueleto, 19/11): cuadros, grupos y competencia de marcas. Sus
   // rutas (`/api/vallas/**`) exigen `inventario.ver` / `inventario.crear`.
+  // Sale en el menú en Inventario Y en Comercial (espejo, `nav.ts`), pero es
+  // UNA área: el módulo que la autoriza es el mismo desde los dos grupos.
   { clave: 'vallas', label: 'Vallas', modulo: 'inventario', apiPropia: true },
   // Las ocho pantallas de Space Eyes (equipos, galería, vivo, programación,
   // campañas, verificación, fallas) exigen `inventario.ver` / `inventario.crear`.

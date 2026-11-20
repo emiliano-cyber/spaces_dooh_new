@@ -262,7 +262,27 @@ describe('3 ter · los cuatro roles del ADR 0040 (2026-09-29)', () => {
 describe('4 · lo que ya se cumplía y no debe romperse al reordenar', () => {
   it('no hay claves ni rutas repetidas', () => {
     expect(new Set(NAV.map((n) => n.key)).size).toBe(NAV.length)
-    expect(new Set(NAV.map((n) => n.href)).size).toBe(NAV.length)
+    // Los espejos (Vallas en Comercial, 19/11) repiten la ruta de su original
+    // A PROPÓSITO; se cuentan aparte, en el caso de abajo.
+    const propias = NAV.filter((n) => !n.espejoDe)
+    expect(new Set(propias.map((n) => n.href)).size).toBe(propias.length)
+  })
+
+  it('un espejo es la MISMA pantalla que su original: ruta, rótulo, icono, roles e insignia', () => {
+    // Si un espejo divergiera en roles, `AuthGate` (que empareja por ruta)
+    // aplicaría uno u otro según el orden del arreglo: la puerta de /vallas
+    // dependería de dónde se pegó la línea.
+    const espejos = NAV.filter((n) => n.espejoDe)
+    expect(espejos.map((n) => n.key)).toEqual(['vallas-comercial'])
+    for (const e of espejos) {
+      const o = NAV.find((n) => n.key === e.espejoDe)!
+      expect(o, e.key).toBeDefined()
+      expect(o.espejoDe, `${e.key}: un espejo de un espejo`).toBeUndefined()
+      expect(e.grupo, `${e.key}: un espejo en el mismo grupo saldría dos veces`).not.toBe(o.grupo)
+      expect({ href: e.href, label: e.label, icon: e.icon, roles: e.roles, insignia: e.insignia, tambien: e.tambien }).toEqual({
+        href: o.href, label: o.label, icon: o.icon, roles: o.roles, insignia: o.insignia, tambien: o.tambien,
+      })
+    }
   })
 
   it('todos los roles ven al menos un módulo', () => {
@@ -339,7 +359,8 @@ describe('ADR 0051 · «Propuestas» con las oportunidades dentro', () => {
   })
 
   it('ninguna ruta pertenece a dos entradas: la compuerta no puede dudar de qué roles aplicar', () => {
-    const todas = NAV.flatMap((n) => rutasDe(n))
+    // Salvo un espejo, que copia los roles de su original (ver arriba).
+    const todas = NAV.filter((n) => !n.espejoDe).flatMap((n) => rutasDe(n))
     expect(new Set(todas).size).toBe(todas.length)
   })
 })
