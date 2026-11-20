@@ -344,7 +344,16 @@ Sitio: Periférico Sur 4500
   en Disponibilidad (lo exige `costura.test.ts`).
 
 `GET /api/vallas/ocupacion` valida que las fechas **existan** (`2026-13-40` pasa el patrón
-y Postgres lo rechazaría con 500). `POST /api/vallas/verificar` sigue con solo el patrón.
+y Postgres lo rechazaría con 500). **Desde el 20/11 (tarde) `POST /api/vallas/verificar`
+también**: con `2026-13-40` o `2026-02-30` responde **400** en vez de 500. Es el mismo
+`fechaReal` de `vallas-controller.ts`, exportado y reutilizado también por la vista previa
+de las propuestas (`POST /api/propuestas/competencia`), no copiado.
+
+> [!important] Decisión del dueño (20/11): las vallas dadas de baja NO salen en el plano
+> Ni en un sitio que se quedó sin ninguna activa (no sale el sitio) ni en uno que conserva
+> otras (solo se dibujan las activas). Lo fija `lib/vallas/plano.test.ts` («en un sitio con
+> una de baja y otra activa, solo se dibuja la activa»), que cae si se quita el filtro de
+> `activo` en `armarPlano`.
 
 ## API
 

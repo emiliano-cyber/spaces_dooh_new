@@ -1,7 +1,7 @@
 import 'server-only'
 import { z } from 'zod'
 import { validar } from './errores'
-import { verificarCompetencia } from './vallas-controller'
+import { verificarCompetencia, fechaReal } from './vallas-controller'
 import { nombreDeCliente, nombresDeSitios, datosCompetenciaDePropuesta } from './propuestas-competencia-repo'
 
 // ============================================================================
@@ -140,13 +140,15 @@ export async function avisosDePropuesta(propuestaId: string): Promise<AvisoCompe
   }
 }
 
-const fecha = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida')
+// 20/11 · `fechaReal` (la de Vallas) y no solo el patrón: `2026-13-40` lo pasa,
+// Postgres lo rechaza y, como `avisosCompetencia` nunca lanza, la respuesta era
+// un 200 «sin avisos» —que se lee como «no hay competencia»—. Ahora es un 400.
 const previaSchema = z
   .object({
     marca: z.string().max(120, 'La marca no puede pasar de 120 caracteres').nullish(),
     clienteId: z.string().uuid().nullish(),
-    fechaInicio: fecha,
-    fechaFin: fecha,
+    fechaInicio: fechaReal,
+    fechaFin: fechaReal,
     sitioIds: z.array(z.string().uuid()).max(500),
   })
   .refine((d) => d.fechaInicio <= d.fechaFin, {
