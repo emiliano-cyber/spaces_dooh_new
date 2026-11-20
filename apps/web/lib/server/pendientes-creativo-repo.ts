@@ -15,18 +15,15 @@ import type { DatosPendientes } from '@/lib/pendientes-creativo'
 //  mira; así la lectura no crece con el histórico. `campanaId` acota a una
 //  campaña (para el aviso al aprobar).
 //
-//  EL ORIGEN DEL CREATIVO. `creatividades` no guarda quién lo subió, y el envío
-//  del cliente se BORRA al aprobarlo (`tomarEnvioPendiente`). Lo que sí queda
-//  es la bitácora: la ruta de aprobación anota «Aprobó creativo enviado por el
-//  cliente» con el NOMBRE del creativo en el mismo instante en que lo crea.
-//  Se toma como CLIENTE el creativo que tiene esa acción, con su nombre, en la
-//  misma organización y dentro de los 10 minutos siguientes a su alta. Es una
-//  deducción, no un dato: dos creativos con el mismo nombre subidos en esos 10
-//  minutos se confundirían. La forma exacta es una columna de origen en
-//  `creatividades` (migración aparte, pendiente de decisión del dueño).
+//  EL ORIGEN DEL CREATIVO se LEE de `creatividades.origen` y
+//  `subido_por_nombre` (CREA-ORIGEN, 20/11), que fija el servidor al crearlo.
+//  Hasta ese día se DEDUCÍA de la bitácora: CLIENTE si había un «Aprobó
+//  creativo enviado por el cliente» con el mismo NOMBRE en los 10 minutos tras
+//  el alta. Se borró —la constante y la ventana— porque dos creativos llamados
+//  igual en esos 10 minutos se confundían, y el dueño decidió (20/11) que «lo
+//  que importa es el contenido», no el nombre. No vuelvas a leer la bitácora
+//  para esto: sin origen guardado es «Origen desconocido» (null), no se adivina.
 // ============================================================================
-
-export const ACCION_APROBO_ENVIO_CLIENTE = 'Aprobó creativo enviado por el cliente'
 
 export async function leerDatosPendientes(campanaId?: string | null): Promise<DatosPendientes> {
   const t = await tenantActual()
@@ -53,18 +50,11 @@ export async function leerDatosPendientes(campanaId?: string | null): Promise<Da
     ),
     q<any>(
       `select cr.id, cr.campana_id, cr.nombre, cr.estatus_validacion, cr.retirado_en is not null as retirado,
-              exists (
-                select 1 from acciones a
-                 where a.tenant_id = cr.tenant_id
-                   and a.accion = $3
-                   and a.entidad = cr.nombre
-                   and a.timestamp >= cr.creado_en - interval '1 minute'
-                   and a.timestamp <= cr.creado_en + interval '10 minutes'
-              ) as del_cliente
+              cr.origen, cr.subido_por_nombre
          from creatividades cr
         where cr.tenant_id = $1 and cr.campana_id = any($2::uuid[])
         order by cr.creado_en asc`,
-      [t, ids, ACCION_APROBO_ENVIO_CLIENTE],
+      [t, ids],
     ),
     q<any>(
       `select e.id, e.campana_id, e.sitio_id, s.nombre as sitio_nombre, e.nombre_archivo
@@ -108,7 +98,8 @@ export async function leerDatosPendientes(campanaId?: string | null): Promise<Da
       campanaId: String(c.campana_id),
       nombre: c.nombre,
       estatus: c.estatus_validacion,
-      origen: c.del_cliente ? ('CLIENTE' as const) : ('INTERNO' as const),
+      origen: c.origen === 'CLIENTE' || c.origen === 'INTERNO' ? (c.origen as 'CLIENTE' | 'INTERNO') : null,
+      subidoPorNombre: c.subido_por_nombre ?? null,
       retirado: c.retirado === true,
     })),
     envios: envios.map((e) => ({

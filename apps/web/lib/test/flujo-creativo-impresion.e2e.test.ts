@@ -169,7 +169,8 @@ describe('1 · el pendiente aparece al aprobar, y nada se crea solo', () => {
         accion: 'POR_APROBAR',
         campanaId: c,
         sitioId: sitioFijo,
-        creativos: [{ id: null, nombre: 'lona-cliente.png', estatus: 'PENDIENTE', origen: 'CLIENTE' }],
+        // CREA-ORIGEN (20/11): la liga no pide nombre al cliente.
+        creativos: [{ id: null, nombre: 'lona-cliente.png', estatus: 'PENDIENTE', origen: 'CLIENTE', subidoPorNombre: null }],
       }),
     ])
     // Por aprobar NO es trabajo de Imprenta todavía.

@@ -23,6 +23,10 @@
 //   · POR_APROBAR = un envío del cliente por la liga aún PENDIENTE, o un
 //                 creativo nuestro PENDIENTE. Se enseña con su origen y sin
 //                 botón de imprimir: primero se aprueba.
+//
+//  EL ORIGEN es un DATO de `creatividades` desde el 20/11 (CREA-ORIGEN,
+//  `lib/origen-creativo.ts`): aquí solo viaja. Un creativo sin origen
+//  (anterior) viaja con `origen: null` —«Origen desconocido»—, no como INTERNO.
 //  Una tabla de tareas habría que mantenerla al día en cada alta, baja,
 //  rechazo y reemplazo, y se desincronizaría en el primero que se olvide.
 //
@@ -30,7 +34,8 @@
 //  tenant y esto decide. Así la regla se prueba sin base.
 // ============================================================================
 
-export type OrigenCreativo = 'CLIENTE' | 'INTERNO'
+import type { OrigenCreativo } from './origen-creativo'
+export type { OrigenCreativo } from './origen-creativo'
 export type AccionPendiente = 'IMPRIMIR' | 'PROGRAMAR' | 'POR_APROBAR'
 export type EstatusCreativo = 'PENDIENTE' | 'VALIDADA' | 'RECHAZADA'
 
@@ -59,7 +64,9 @@ export interface DatosPendientes {
     campanaId: string
     nombre: string
     estatus: EstatusCreativo
-    origen: OrigenCreativo
+    // null = origen desconocido (creado antes del 20/11).
+    origen: OrigenCreativo | null
+    subidoPorNombre?: string | null
     retirado?: boolean
   }[]
   // Envíos del cliente por la liga que siguen PENDIENTES (aún no son creativo).
@@ -72,7 +79,9 @@ export interface CreativoDelPendiente {
   id: string | null
   nombre: string
   estatus: EstatusCreativo
-  origen: OrigenCreativo
+  origen: OrigenCreativo | null
+  // Nombre congelado de quien lo subió (CREA-ORIGEN, 20/11).
+  subidoPorNombre: string | null
 }
 
 export interface Pendiente {
@@ -143,7 +152,8 @@ export function derivarPendientes(d: DatosPendientes): Pendiente[] {
         sitioNombre: e.sitioNombre ?? r?.sitioNombre ?? null,
         sitioAncho: r?.ancho ?? null,
         sitioAlto: r?.alto ?? null,
-        creativos: [{ id: null, nombre: e.nombreArchivo, estatus: 'PENDIENTE', origen: 'CLIENTE' }],
+        // La liga no pide nombre al cliente: sin nombre.
+        creativos: [{ id: null, nombre: e.nombreArchivo, estatus: 'PENDIENTE', origen: 'CLIENTE', subidoPorNombre: null }],
       })
     }
     for (const cr of suyos.filter((x) => x.estatus === 'PENDIENTE')) {
@@ -172,7 +182,7 @@ export function derivarPendientes(d: DatosPendientes): Pendiente[] {
 }
 
 function vista(cr: DatosPendientes['creativos'][number]): CreativoDelPendiente {
-  return { id: cr.id, nombre: cr.nombre, estatus: cr.estatus, origen: cr.origen }
+  return { id: cr.id, nombre: cr.nombre, estatus: cr.estatus, origen: cr.origen, subidoPorNombre: cr.subidoPorNombre ?? null }
 }
 
 /** Lo que ve Imprenta: solo lo que hay que mandar a imprimir. */

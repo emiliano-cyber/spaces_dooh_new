@@ -307,6 +307,10 @@ describe('notificaciones · las plantillas son los literales del servidor', () =
     ['lib/server/ot-repo.ts', `titulo: '${ES['notificaciones.ot.vencida']}'`],
     ['lib/server/ot-repo.ts', "`${ot.folio}${ot.sitio ? ` · ${ot.sitio}` : ''} no se cerró a tiempo${ot.asignado_a ? '' : ' (sin asignar)'}`"],
     ['lib/recordatorios-contratos.ts', "const cual = c.predioNombre || c.sitioNombre || 'un espacio'"],
+    // FLUJO-CREA (20/11): el aviso a Imprenta al aprobar un creativo. Su
+    // plantilla es `notificaciones.impresion.por-mandar` (lib/i18n/notificaciones.ts);
+    // faltaba declararlo aquí y esta lista quedó en rojo en `main` f3f43fa9.
+    ['lib/server/pendientes-creativo-controller.ts', `titulo: '${ES['notificaciones.impresion.por-mandar']}'`],
   ]
 
   for (const [archivo, fragmento] of FUENTES) {
@@ -335,6 +339,7 @@ describe('notificaciones · las plantillas son los literales del servidor', () =
       'lib/server/envio-cliente-publico-repo.ts',
       'lib/server/finanzas-repo.ts',
       'lib/server/ot-repo.ts',
+      'lib/server/pendientes-creativo-controller.ts',
       'lib/server/propuestas-repo.ts',
     ]
     const { execSync } = require('node:child_process') as typeof import('node:child_process')

@@ -178,7 +178,7 @@ export async function listarCreatividades() {
     // miniaturas se vuelven a montar como documentos de 1 MB. Hay una prueba que
     // ata las dos.
     `select id, campana_id, nombre, formato, resolucion, estatus_validacion,
-            rechazado_motivo, retirado_en, creado_en,
+            rechazado_motivo, retirado_en, creado_en, origen, subido_por_nombre,
             (archivo_url like 'data:image%'
              or codigo ~ '<img[^>]+src="data:image/') as es_imagen
        from creatividades where tenant_id = $1 order by creado_en asc`,
@@ -194,6 +194,9 @@ export async function listarCreatividades() {
     rechazadoMotivo: r.rechazado_motivo,
     retiradoEn: r.retirado_en ? iso(r.retirado_en) : null,
     creadoEn: iso(r.creado_en),
+    // CREA-ORIGEN (20/11): quién lo subió; null = origen desconocido.
+    origen: r.origen ?? null,
+    subidoPorNombre: r.subido_por_nombre ?? null,
   }))
 }
 

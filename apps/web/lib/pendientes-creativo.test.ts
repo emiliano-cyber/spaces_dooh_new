@@ -40,7 +40,7 @@ describe('derivarPendientes · fijos → «Mandar a impresión»', () => {
       sitioAlto: 7.2,
       campanaInicio: '2026-12-01',
     })
-    expect(p[0].creativos).toEqual([{ id: 'k1', nombre: 'arte.jpg', estatus: 'VALIDADA', origen: 'INTERNO' }])
+    expect(p[0].creativos).toEqual([{ id: 'k1', nombre: 'arte.jpg', estatus: 'VALIDADA', origen: 'INTERNO', subidoPorNombre: null }])
   })
 
   it('con la orden de impresión de ESE sitio ya creada, el pendiente desaparece', () => {
@@ -79,6 +79,34 @@ describe('derivarPendientes · fijos → «Mandar a impresión»', () => {
   it('el origen del creativo viaja: CLIENTE si llegó por la liga', () => {
     const p = derivarPendientes(base({ creativos: [{ id: 'k1', campanaId: 'c1', nombre: 'del-cliente.png', estatus: 'VALIDADA', origen: 'CLIENTE' }] }))
     expect(p[0].creativos[0].origen).toBe('CLIENTE')
+  })
+
+  // CREA-ORIGEN (20/11): el origen es un DATO de la fila; aquí solo viaja.
+  it('quién lo subió viaja tal cual: el nombre congelado de la persona', () => {
+    const p = derivarPendientes(
+      base({ creativos: [{ id: 'k1', campanaId: 'c1', nombre: 'a.png', estatus: 'VALIDADA', origen: 'INTERNO', subidoPorNombre: 'Ana López' }] }),
+    )
+    expect(p[0].creativos[0]).toMatchObject({ origen: 'INTERNO', subidoPorNombre: 'Ana López' })
+  })
+
+  it('sin origen guardado (anterior al 20/11) viaja como null: no se adivina INTERNO', () => {
+    const p = derivarPendientes(base({ creativos: [{ id: 'k1', campanaId: 'c1', nombre: 'viejo.png', estatus: 'VALIDADA', origen: null }] }))
+    expect(p[0].creativos[0]).toEqual({ id: 'k1', nombre: 'viejo.png', estatus: 'VALIDADA', origen: null, subidoPorNombre: null })
+  })
+
+  it('dos creativos con el MISMO nombre conservan cada uno su origen', () => {
+    const p = derivarPendientes(
+      base({
+        creativos: [
+          { id: 'k1', campanaId: 'c1', nombre: 'lona.png', estatus: 'VALIDADA', origen: 'CLIENTE', subidoPorNombre: null },
+          { id: 'k2', campanaId: 'c1', nombre: 'lona.png', estatus: 'VALIDADA', origen: 'INTERNO', subidoPorNombre: 'Ana López' },
+        ],
+      }),
+    )
+    expect(p[0].creativos.map((c) => [c.id, c.origen, c.subidoPorNombre])).toEqual([
+      ['k1', 'CLIENTE', null],
+      ['k2', 'INTERNO', 'Ana López'],
+    ])
   })
 
   it('un sitio reservado dos veces en la misma campaña sale una sola vez', () => {
@@ -139,7 +167,7 @@ describe('derivarPendientes · «por aprobar», con su origen', () => {
       expect.objectContaining({
         accion: 'POR_APROBAR',
         sitioId: 's-fijo',
-        creativos: [{ id: null, nombre: 'lona.png', estatus: 'PENDIENTE', origen: 'CLIENTE' }],
+        creativos: [{ id: null, nombre: 'lona.png', estatus: 'PENDIENTE', origen: 'CLIENTE', subidoPorNombre: null }],
       }),
     ])
   })
@@ -147,7 +175,7 @@ describe('derivarPendientes · «por aprobar», con su origen', () => {
   it('un creativo nuestro PENDIENTE → POR_APROBAR de origen INTERNO, sin botón de imprimir (no es IMPRIMIR)', () => {
     const p = derivarPendientes(base({ creativos: [{ id: 'k2', campanaId: 'c1', nombre: 'nuestro.jpg', estatus: 'PENDIENTE', origen: 'INTERNO' }] }))
     expect(p.map((x) => x.accion)).toEqual(['POR_APROBAR'])
-    expect(p[0].creativos[0]).toEqual({ id: 'k2', nombre: 'nuestro.jpg', estatus: 'PENDIENTE', origen: 'INTERNO' })
+    expect(p[0].creativos[0]).toEqual({ id: 'k2', nombre: 'nuestro.jpg', estatus: 'PENDIENTE', origen: 'INTERNO', subidoPorNombre: null })
     expect(soloImpresion(p)).toEqual([])
   })
 })

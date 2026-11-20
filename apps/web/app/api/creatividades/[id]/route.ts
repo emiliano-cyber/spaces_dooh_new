@@ -14,6 +14,7 @@ import { validarReemplazoCreatividad } from '@/lib/server/creativos-controller'
 import { respuestaError } from '@/lib/server/errores'
 import { conteo } from '@/lib/plural'
 import { avisarPendientesImpresion } from '@/lib/server/pendientes-creativo-controller'
+import { origenInterno } from '@/lib/origen-creativo'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -110,7 +111,8 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
         )
       }
     }
-    const crea = await reemplazarCreatividad(params.id, arte)
+    // CREA-ORIGEN (20/11): arte nuevo = contenido nuevo = lo subió quien reemplaza.
+    const crea = await reemplazarCreatividad(params.id, arte, origenInterno(g.usuario))
     if (!crea) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
     await registrarAccion(g.usuario, 'Reemplazó creativo', crea.nombre)
     await avisarCambioDeCampanas()
