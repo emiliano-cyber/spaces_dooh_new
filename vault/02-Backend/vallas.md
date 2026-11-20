@@ -64,6 +64,21 @@ Decisión de forma en el [ADR 0052](../../docs/adr/0052-vallas-modulo-con-reglas
 > Rama `feat/vallas-decisiones` desde `integra/18-11` `3e73f5e5`. Apunte en el
 > [ADR 0052](../../docs/adr/0052-vallas-modulo-con-reglas-enchufables.md).
 
+> [!important] 2026-11-20 · Vallas también como PESTAÑA dentro de Inventario
+> Pedido del dueño, después de dejarla una sola vez en el menú: «en Inventario añade la
+> parte de vallas para que también se tenga esa opción y validación». El **menú no cambia**
+> (una entrada, en Comercial). En la pantalla **Inventario**, junto a Todos · Fijos ·
+> Digitales, hay una pestaña **«Vallas · En proceso»** que monta `VallasPantalla` tal cual
+> (alta, grupos, plano, «Verificar una marca»). Rama `feat/inventario-pestana-vallas`.
+>
+> - `PestanasMedio` (`components/demo/inventario/ResumenInventario.tsx`) acepta `vallas?:
+>   { activa, onElegir }`; solo Inventario la ofrece. Con Vallas activa ninguna pestaña de
+>   medio queda marcada.
+> - `app/(app)/(shell)/inventario/page.tsx`: estado `vista`; volver por «Fijos» rearma la
+>   tabla con ese filtro (`InventarioTabla` `medioInicial`).
+> - Permisos sin cambios: la pantalla Inventario ya es solo Dueño y Administrador.
+> - Prueba: `components/demo/inventario/pestana-vallas.test.ts` (vista en rojo, 3 de 4).
+
 > [!important] 2026-11-20 · Vallas, SOLO en Comercial (una sola entrada)
 > Al ver el menú en el navegador el dueño pidió: «hay 2 menús de vallas, cámbialo a que
 > solo haya uno, es en Comercial». Rama `fix/vallas-solo-en-comercial` desde

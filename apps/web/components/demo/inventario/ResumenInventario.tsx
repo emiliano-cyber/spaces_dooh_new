@@ -1,6 +1,7 @@
 'use client'
 
-import { Monitor, CheckCircle2, FileWarning, Home, Layers, MonitorPlay, Signpost, MapPin } from 'lucide-react'
+import { Monitor, CheckCircle2, FileWarning, Home, Layers, MonitorPlay, Signpost, MapPin, Columns3 } from 'lucide-react'
+import { TONO } from '@/components/demo/admin/Chip'
 import { cn } from '@/lib/cn'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { KPICard } from '@/components/demo/KPICard'
@@ -315,11 +316,20 @@ export const PestanasMedio = ({
   sitios,
   medio,
   onCambio,
+  vallas,
 }: {
   sitios: Sitio[]
   medio: ClaseMedio | null
   onCambio: (m: ClaseMedio | null) => void
+  /**
+   * 20/11 · el dueño pidió Vallas también DENTRO de Inventario (el menú la
+   * lleva una sola vez, en Comercial). Es opcional: solo la pantalla
+   * Inventario la ofrece. No es un filtro de la tabla sino otra vista, así que
+   * con `activa` ninguna pestaña de medio queda marcada a la vez.
+   */
+  vallas?: { activa: boolean; onElegir: () => void }
 }) => {
+  const enVallas = vallas?.activa === true
   const t = useTexto()
   const medios = cuenta(sitios.map(claseMedio))
   const opciones: { valor: ClaseMedio | null; etiqueta: string; n: number; icono: React.ReactNode }[] = [
@@ -338,22 +348,37 @@ export const PestanasMedio = ({
           key={o.valor ?? 'todos'}
           type="button"
           role="tab"
-          aria-selected={medio === o.valor}
+          aria-selected={!enVallas && medio === o.valor}
           onClick={() => onCambio(o.valor)}
-          className={clasePestana(medio === o.valor)}
+          className={clasePestana(!enVallas && medio === o.valor)}
         >
           {o.icono}
           {o.etiqueta}
           <span
             className={cn(
               'demo-num rounded-full px-1.5 text-[11px]',
-              medio === o.valor ? 'bg-accent-soft text-ink' : 'bg-surface text-muted',
+              !enVallas && medio === o.valor ? 'bg-accent-soft text-ink' : 'bg-surface text-muted',
             )}
           >
             {o.n}
           </span>
         </button>
       ))}
+      {vallas && (
+        <button
+          type="button"
+          role="tab"
+          aria-selected={enVallas}
+          onClick={vallas.onElegir}
+          className={clasePestana(enVallas)}
+        >
+          <Columns3 className="h-4 w-4" />
+          {t('nav.vallas')}
+          <span className={cn('whitespace-nowrap rounded-full border px-1.5 py-0.5 text-[10px] font-medium leading-none', TONO.aviso)}>
+            {t('nav.insignia.en-proceso')}
+          </span>
+        </button>
+      )}
     </div>
   )
 }
