@@ -1,12 +1,19 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-11-19
+actualizado: 2026-11-20
 tags: [backend, operaciones, ot, imprenta, amarillo, almacen, checklist]
 archivos:
   - apps/web/lib/server/ot-repo.ts
   - apps/web/lib/server/ot-controller.ts
   - apps/web/lib/server/impresion-repo.ts
+  - apps/web/lib/pendientes-creativo.ts
+  - apps/web/lib/server/pendientes-creativo-repo.ts
+  - apps/web/lib/server/pendientes-creativo-controller.ts
+  - apps/web/lib/album-evidencias.ts
+  - apps/web/components/operaciones/PendientesCreativo.tsx
+  - apps/web/components/demo/campanas/DescargarAlbum.tsx
+  - db/migrations/20261120_impresion_fecha_especial.sql
   - apps/web/lib/server/operaciones-eventos.ts
   - apps/web/lib/server/almacen-repo.ts
   - apps/web/lib/server/almacen-controller.ts
@@ -294,6 +301,34 @@ Textos en es/en/it/pt (`operaciones.imprenta.imprentas.*`, errores en
 > [!warning] Lo que NO se verificó
 > El navegador (queda para el recorrido en Chrome) ni la migración contra una
 > base con historia de producción.
+
+### Del creativo aprobado a la cola: la «tarea 1», la fecha especial y el álbum (FLUJO-CREA, 2026-11-20)
+
+Pedido del dueño: «se cierra venta → se recibe el creativo → tarea 1: se manda a
+impresión o se programa → impresión va a la cola con prioridad → comprobante de
+exhibición, se descarga álbum».
+
+| Qué | Dónde | Por qué así |
+|---|---|---|
+| **El pendiente se DERIVA, sin tabla de tareas** | `lib/pendientes-creativo.ts` (puro, con pruebas) + `lib/server/pendientes-creativo-repo.ts` (lee con `q` y `tenant_id = $1` en cada tabla) | IMPRIMIR = campaña OOH/HÍBRIDA en CONFIRMADA/ACTIVA, con creativo VALIDADA no retirado, y un sitio **fijo** reservado (reserva no cancelada) **sin** orden de impresión de esa campaña y ese sitio. PROGRAMAR = campaña DOOH/HÍBRIDA viva, pantalla **digital** con un creativo aprobado asignado (`reservas.creativos`) y `campanas.enviada_dominio = false`. POR_APROBAR = envío del cliente PENDIENTE o creativo nuestro PENDIENTE. Una tabla de tareas habría que sincronizarla en cada alta, rechazo, reemplazo y baja |
+| **Nada se crea solo** | — | «Mandar a impresión» es el mismo `POST /api/impresion` (`imprenta.crear`) con `sitioId` y, opcional, `fechaEspecial`; con la orden creada el pendiente se va. «Programar» lleva a la ficha (`/campanas/[id]#publicacion`), a «Enviar al dominio»: no se duplica esa lógica |
+| **Quién subió el creativo** | `pendientes-creativo-repo.ts` (`ACCION_APROBO_ENVIO_CLIENTE`) | `creatividades` **no guarda el origen** y el envío del cliente se **borra** al aprobarlo. Se deduce de la bitácora: CLIENTE si existe «Aprobó creativo enviado por el cliente» con su nombre, en la organización, ≤ 10 min después de su alta. **Es una deducción**: dos creativos con el mismo nombre en esa ventana se confundirían. La forma exacta (una columna de origen) quedó como pregunta al dueño |
+| **El sitio de la orden tiene que ser propio** | `impresion-controller.ts` (`sitioEsPropio`) | La FK `ordenes_impresion.sitio_id` es simple: sin la comprobación, una orden podía apuntar a la pantalla de otra organización. Ajeno → 400 «Sitio no encontrado» |
+| **Aviso solo a Imprenta** | `avisarPendientesImpresion` (al aprobar en `PATCH /api/creatividades/[id]` y al aprobar un envío del cliente) + `tiposOcultosPara` en `notificaciones-repo.ts` | La bandeja es una por empresa. Sin columna nueva: el tipo `IMPRESION` es de `imprenta`, y quien no tiene `imprenta.ver` no lo recibe ni en `/api/estado` ni en `/api/notificaciones/nuevas`. Plantilla `notificaciones.impresion.por-mandar` en los cuatro idiomas |
+| **La fecha especial** | `20261120_impresion_fecha_especial.sql`, `PATCH /api/impresion/[id]/fecha-especial`, `lib/prioridad-imprenta.ts` (`base: 'ESPECIAL' \| 'INICIO'`) | Si está puesta **manda** sobre el inicio de la campaña para el grupo y el lugar (puede adelantar o atrasar). Se lee como texto (`::text`) para que no se corra un día en UTC-6. Fecha que no existe → 400 «Fecha inválida»; id ajeno → 404 |
+| **El álbum de evidencias** | `lib/album-evidencias.ts` + `components/demo/campanas/DescargarAlbum.tsx` (ficha y portal) | Reutiliza `crearZip`/`descargarBlob` de Space Eyes. Nombre «Sitio_YYYY-MM-DD.ext» (día local de la toma, si no de la subida); repetidos numerados por `nombresUnicos`. Las que no se leen (URL firmada caducada, `mock://`) se saltan y se cuentan |
+
+Pruebas: `lib/pendientes-creativo.test.ts`, `lib/prioridad-imprenta.test.ts`
+(fecha especial), `lib/album-evidencias.test.ts` y
+`lib/test/flujo-creativo-impresion.e2e.test.ts` (14 casos contra Postgres y Next
+reales: pendiente al aprobar el del cliente y el nuestro, la orden lo quita,
+digital hasta enviar al dominio, 403 sin permiso, aislamiento entre
+organizaciones, la fecha especial reordena, migración aplicada).
+
+> [!warning] Lo que NO se verificó
+> Las pantallas en un navegador real (Imprenta, Creativos, ficha y portal) al
+> cerrar este cambio, ni el álbum con fotos guardadas en Spaces (URL firmada:
+> depende del CORS del bucket; si falla, esas fotos se cuentan como no leídas).
 
 ## Cómo se ven las pantallas (rediseño del 26/10)
 

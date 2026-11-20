@@ -814,6 +814,8 @@ export async function reportarIncidenciaApi(input: {
 export async function crearOrdenImpresionApi(input: {
   campanaId: string; sitioId?: string | null; material?: string
   alto?: number; ancho?: number; proveedor?: string; imprentaId?: string | null
+  // FLUJO-CREA (20/11) · fecha requerida ('YYYY-MM-DD'), opcional.
+  fechaEspecial?: string | null
 }): Promise<void> {
   const r = await fetch(`${API}/impresion/`, {
     method: 'POST',
@@ -899,6 +901,19 @@ export async function guardarRequisitosEmpresaApi(requisitos: RequisitosParciale
       body: JSON.stringify({ requisitosImpresion: requisitos }),
     }),
     'No se pudieron guardar los requisitos',
+  )
+  await refrescarEstado()
+}
+
+// FLUJO-CREA (20/11) · pone o quita (null) la fecha especial de una orden.
+export async function fijarFechaEspecialApi(ordenId: string, fechaEspecial: string | null): Promise<void> {
+  await jsonO(
+    await fetch(`${API}/impresion/${ordenId}/fecha-especial/`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fechaEspecial }),
+    }),
+    'No se pudo guardar la fecha especial',
   )
   await refrescarEstado()
 }

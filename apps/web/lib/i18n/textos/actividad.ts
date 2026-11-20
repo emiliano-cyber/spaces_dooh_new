@@ -146,6 +146,8 @@ const FILAS = [
   ['actividad.alta-categoria-competencia', 'Dio de alta una categoría de competencia', 'Added a competing brands category', 'Ha aggiunto una categoria di marchi concorrenti', 'Cadastrou uma categoria de marcas concorrentes'],
   ['actividad.actualizo-categoria-competencia', 'Actualizó una categoría de competencia', 'Updated a competing brands category', 'Ha aggiornato una categoria di marchi concorrenti', 'Atualizou uma categoria de marcas concorrentes'],
   ['actividad.asigno-imprenta', 'Asignó la imprenta de una orden', 'Set the print shop of an order', 'Ha assegnato la tipografia di un ordine', 'Definiu a gráfica de uma ordem'],
+  ['actividad.puso-fecha-especial', 'Puso fecha especial de impresión: {fecha}', 'Set a special print date: {fecha}', 'Ha impostato una data speciale di stampa: {fecha}', 'Definiu uma data especial de impressão: {fecha}'],
+  ['actividad.quito-fecha-especial', 'Quitó la fecha especial de impresión', 'Removed the special print date', 'Ha tolto la data speciale di stampa', 'Removeu a data especial de impressão'],
   ['actividad.aprobo-prueba-color', 'Aprobó prueba de color', 'Approved a color proof', 'Ha approvato una prova colore', 'Aprovou uma prova de cor'],
   ['actividad.prueba-color-pendiente', 'Marcó prueba de color pendiente', 'Marked a color proof as pending', 'Ha segnato una prova colore come in sospeso', 'Marcou uma prova de cor como pendente'],
   ['actividad.creo-ot', 'Creó OT', 'Created a work order', 'Ha creato un OdL', 'Criou uma OS'],

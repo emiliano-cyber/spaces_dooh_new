@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
-import { exigir } from '@/lib/server/auth'
-import { notificacionesDesde } from '@/lib/server/notificaciones-repo'
+import { exigir, permisosDeRol } from '@/lib/server/auth'
+import { notificacionesDesde, tiposOcultosPara } from '@/lib/server/notificaciones-repo'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -25,5 +25,7 @@ export async function GET(req: Request) {
   // por el usuario de la sesión: lo que él borró no revive como aviso
   // emergente (NOTIF-USUARIO, 21/10).
   // `marca` es la `desde` de la siguiente pregunta (ver notificacionesDesde).
-  return NextResponse.json(await notificacionesDesde(desde, g.usuario.id))
+  // FLUJO-CREA (20/11) · los avisos de un módulo, solo a quien lo ve.
+  const ocultos = tiposOcultosPara(await permisosDeRol(g.usuario.rol))
+  return NextResponse.json(await notificacionesDesde(desde, g.usuario.id, ocultos))
 }

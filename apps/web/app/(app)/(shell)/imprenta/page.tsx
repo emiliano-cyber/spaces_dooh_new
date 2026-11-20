@@ -3,7 +3,7 @@
 import { toast } from 'sonner'
 import { useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ArrowUpRight, Ruler, Plus, ChevronRight, Upload, ImageOff, Check, X } from 'lucide-react'
+import { ArrowUpRight, Ruler, Plus, ChevronRight, Upload, ImageOff, Check, X, Printer, CalendarClock } from 'lucide-react'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
@@ -30,8 +30,12 @@ import {
   crearCreatividadApi,
   validarCreatividadApi,
   asignarImprentaApi,
+  fijarFechaEspecialApi,
   type ImprentaApi,
 } from '@/lib/data/estado-api'
+import { MandarAImpresionDialog, OrigenCreativoBadge, usePendientes } from '@/components/operaciones/PendientesCreativo'
+import type { Pendiente } from '@/lib/pendientes-creativo'
+import { formatFecha } from '@/lib/data/client'
 import {
   useOrdenesImpresion,
   useCampanas,
@@ -120,6 +124,10 @@ export default function ImprentaPage() {
   // IMP-REQ (18/11) · las imprentas de la organización, para elegirlas en la
   // orden y gestionarlas con sus requisitos.
   const { imprentas, recargar: recargarImprentas } = useImprentas(true)
+  // FLUJO-CREA (20/11) · «Por mandar a impresión»: sitios fijos con creativo
+  // aprobado y sin orden. Derivado en el servidor; nada se crea solo.
+  const { pendientes, recargar: recargarPendientes } = usePendientes('impresion')
+  const [mandando, setMandando] = useState<Pendiente | null>(null)
   const archivoRef = useRef<HTMLInputElement>(null)
   const destinoSubida = useRef<OrdenVista | null>(null)
 
@@ -254,6 +262,12 @@ export default function ImprentaPage() {
           </Button>
         )}
       </div>
+
+      {/* FLUJO-CREA (20/11) · la «tarea 1»: lo aprobado que falta mandar a
+          imprimir, arriba de todo. Solo aparece si hay algo. */}
+      {pendientes && pendientes.length > 0 && (
+        <PendientesImpresionCard pendientes={pendientes} puedeCrear={puedeCrear} onMandar={setMandando} />
+      )}
 
       {/* Dónde está el trabajo, de un vistazo (lenguaje del Dashboard). Sale
           de `oisVisibles`, la misma lista de abajo: sin endpoint nuevo. */}
@@ -449,6 +463,13 @@ export default function ImprentaPage() {
       />
 
       <NuevaOrdenDialog open={nueva} onClose={() => setNueva(false)} imprentas={imprentas} />
+
+      <MandarAImpresionDialog
+        pendiente={mandando}
+        imprentas={imprentas}
+        onClose={() => setMandando(null)}
+        onHecho={recargarPendientes}
+      />
     </div>
   )
 }
@@ -502,6 +523,9 @@ function FilaOrden({
               <span className="text-[14px] font-medium text-ink">{o.material || t('operaciones.imprenta.sin-material')}</span>
               <TextoDias p={p} />
             </div>
+            {/* FLUJO-CREA (20/11) · qué fecha manda en esta orden; la especial
+                se pone o se quita aquí mismo. */}
+            {p.grupo !== 'LISTA' && <FechaEspecial p={p} puedeCrear={puedeCrear} />}
             <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted">
               <span className="inline-flex items-center gap-1.5">
                 <Ruler className="h-3.5 w-3.5" />
@@ -649,13 +673,137 @@ function TextoDias({ p }: { p: Priorizada<OrdenVista> }) {
   const color =
     p.grupo === 'ATRASADA' ? 'text-[#b42318]' : p.grupo === 'SEMANA' ? 'text-[#9a6700]' : 'text-muted'
   const n = Math.abs(p.dias)
+  // Con fecha especial no «arranca»: «se requiere» ese día.
+  const esp = p.base === 'ESPECIAL'
   const texto =
     p.dias === 0
-      ? t('operaciones.imprenta.dias.hoy')
+      ? t(esp ? 'operaciones.imprenta.dias.especial.hoy' : 'operaciones.imprenta.dias.hoy')
       : p.dias > 0
-        ? t(n === 1 ? 'operaciones.imprenta.dias.falta.uno' : 'operaciones.imprenta.dias.falta.otros', { n })
-        : t(n === 1 ? 'operaciones.imprenta.dias.paso.uno' : 'operaciones.imprenta.dias.paso.otros', { n })
+        ? esp
+          ? t(n === 1 ? 'operaciones.imprenta.dias.especial.falta.uno' : 'operaciones.imprenta.dias.especial.falta.otros', { n })
+          : t(n === 1 ? 'operaciones.imprenta.dias.falta.uno' : 'operaciones.imprenta.dias.falta.otros', { n })
+        : esp
+          ? t(n === 1 ? 'operaciones.imprenta.dias.especial.paso.uno' : 'operaciones.imprenta.dias.especial.paso.otros', { n })
+          : t(n === 1 ? 'operaciones.imprenta.dias.paso.uno' : 'operaciones.imprenta.dias.paso.otros', { n })
   return <span className={`demo-num text-[12px] font-medium ${color}`}>{texto}</span>
+}
+
+// FLUJO-CREA (20/11) · «Por inicio de campaña» o «Por fecha especial: …», y
+// con `imprenta.crear` un campo de fecha para ponerla o quitarla
+// (`PATCH /api/impresion/[id]/fecha-especial`). La cola se reordena sola al
+// refrescar el estado.
+function FechaEspecial({ p, puedeCrear }: { p: Priorizada<OrdenVista>; puedeCrear: boolean }) {
+  const { t, idioma } = useIdioma()
+  const o = p.orden
+  const [valor, setValor] = useState(o.fechaEspecial ?? '')
+  const [guardando, setGuardando] = useState(false)
+  async function guardar(fecha: string | null) {
+    setGuardando(true)
+    try {
+      await fijarFechaEspecialApi(o.id, fecha)
+      toast.success(t(fecha ? 'operaciones.imprenta.fecha-especial.guardada' : 'operaciones.imprenta.fecha-especial.quitada'))
+      if (!fecha) setValor('')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t('operaciones.imprenta.error'))
+    }
+    setGuardando(false)
+  }
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-muted">
+      <span className="inline-flex items-center gap-1">
+        <CalendarClock className="h-3.5 w-3.5" />
+        {o.fechaEspecial
+          ? t('operaciones.imprenta.fecha-especial.por-especial', { fecha: formatFecha(o.fechaEspecial, idioma) })
+          : t('operaciones.imprenta.fecha-especial.por-inicio')}
+      </span>
+      {puedeCrear && (
+        <>
+          <input
+            type="date"
+            aria-label={t('operaciones.imprenta.fecha-especial.poner')}
+            title={t('operaciones.imprenta.fecha-especial.ayuda')}
+            value={valor}
+            disabled={guardando}
+            onChange={(e) => {
+              setValor(e.target.value)
+              if (e.target.value && e.target.value !== o.fechaEspecial) void guardar(e.target.value)
+            }}
+            className="demo-num rounded border border-border bg-surface px-1.5 py-0.5 text-[12px] text-ink"
+          />
+          {o.fechaEspecial && (
+            <button
+              type="button"
+              disabled={guardando}
+              onClick={() => guardar(null)}
+              className="font-medium text-info hover:underline disabled:opacity-50"
+            >
+              {t('operaciones.imprenta.fecha-especial.quitar')}
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+// FLUJO-CREA (20/11) · «Por mandar a impresión». Cada sitio fijo con creativo
+// aprobado y sin orden, con quién subió el arte y el botón para confirmarlo.
+// Sin `imprenta.crear` se ve la lista sin botón (y el servidor daría 403).
+function PendientesImpresionCard({
+  pendientes,
+  puedeCrear,
+  onMandar,
+}: {
+  pendientes: Pendiente[]
+  puedeCrear: boolean
+  onMandar: (p: Pendiente) => void
+}) {
+  const { t, idioma } = useIdioma()
+  return (
+    <CardColapsable
+      id="imprenta.pendientes"
+      titulo={t('operaciones.imprenta.pendientes.titulo')}
+      resumen={
+        <span className="demo-num text-[12px] text-muted">
+          {t(pendientes.length === 1 ? 'operaciones.imprenta.pendientes.uno' : 'operaciones.imprenta.pendientes.otros', { n: pendientes.length })}
+        </span>
+      }
+    >
+      <p className="mb-2 text-[12px] text-muted">{t('operaciones.imprenta.pendientes.detalle')}</p>
+      <ul className="m-0 list-none divide-y divide-border p-0">
+        {pendientes.map((p) => (
+          <li key={p.clave} className="flex flex-col gap-2 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-baseline gap-x-2">
+                <span className="text-[14px] font-medium text-ink">{p.sitioNombre}</span>
+                {p.sitioAncho && p.sitioAlto ? (
+                  <span className="demo-num text-[12px] text-muted">{medidaEnIdioma(p.sitioAncho, p.sitioAlto, idioma)}</span>
+                ) : null}
+              </div>
+              <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted">
+                <span>{t('operaciones.imprenta.campana', { nombre: p.campanaNombre })}</span>
+                {p.campanaInicio && (
+                  <span className="demo-num">{t('operaciones.imprenta.pendientes.arranca', { fecha: formatFecha(p.campanaInicio, idioma) })}</span>
+                )}
+              </div>
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                {p.creativos.map((cr, i) => (
+                  <span key={cr.id ?? i} className="inline-flex items-center gap-1.5 text-[12px] text-ink">
+                    {cr.nombre} <OrigenCreativoBadge origen={cr.origen} />
+                  </span>
+                ))}
+              </div>
+            </div>
+            {puedeCrear && (
+              <Button size="sm" variant="primary" className="shrink-0" onClick={() => onMandar(p)}>
+                <Printer className="h-3.5 w-3.5" /> {t('operaciones.imprenta.pendientes.mandar')}
+              </Button>
+            )}
+          </li>
+        ))}
+      </ul>
+    </CardColapsable>
+  )
 }
 
 // El arte en grande, en el marco del sitio: a sangre (como sale la lona) o

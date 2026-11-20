@@ -131,7 +131,18 @@ describe('las dos lecturas son de ESA persona', () => {
     expect(norm()).toContain('left join notificaciones_usuario')
     expect(norm()).toContain('borrada_en is null')
     expect(norm()).toContain('archivada_en is null')
-    expect(queries[0].params).toEqual(['tenant-A', 'U-ana'])
+    // FLUJO-CREA (20/11) · el tercero: los tipos que esa persona no ve (ninguno aquí).
+    expect(queries[0].params).toEqual(['tenant-A', 'U-ana', []])
+  })
+
+  it('FLUJO-CREA · los avisos de un módulo se esconden a quien no lo ve', async () => {
+    const { tiposOcultosPara } = await import('./notificaciones-repo')
+    expect(tiposOcultosPara({ imprenta: ['ver', 'crear'] })).toEqual([])
+    expect(tiposOcultosPara({ comercial: ['ver'] })).toEqual(['IMPRESION'])
+    expect(tiposOcultosPara({ imprenta: ['crear'] })).toEqual(['IMPRESION'])
+    await listarNotificaciones('U-ana', ['IMPRESION'])
+    expect(norm()).toContain('not (n.tipo = any($3::text[]))')
+    expect(queries[0].params).toEqual(['tenant-A', 'U-ana', ['IMPRESION']])
   })
 
   it('el sondeo también: si no, lo recién borrado revive como aviso emergente', async () => {

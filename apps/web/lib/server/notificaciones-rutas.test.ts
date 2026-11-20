@@ -10,12 +10,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 // ============================================================================
 
 const { auth, repo } = vi.hoisted(() => ({
-  auth: { exigir: vi.fn() },
+  auth: { exigir: vi.fn(), permisosDeRol: vi.fn(async () => ({ comercial: ['ver'] })) },
   repo: {
     borrarNotificacion: vi.fn(async () => true),
     marcarNotificacionLeida: vi.fn(async () => ({ id: 'x', leida: true })),
     archivarTodasNotificaciones: vi.fn(async () => 3),
     notificacionesDesde: vi.fn(async () => ({ notificaciones: [], marca: 'm' })),
+    tiposOcultosPara: vi.fn(() => ['IMPRESION']),
   },
 }))
 vi.mock('@/lib/server/auth', () => auth)
@@ -89,6 +90,7 @@ describe('las demás rutas también van por el usuario de la sesión', () => {
   it('el sondeo', async () => {
     const desde = '2030-01-01T00:00:00.000Z'
     await NUEVAS(new Request(`http://x/spaces-dooh/api/notificaciones/nuevas/?desde=${desde}`))
-    expect(repo.notificacionesDesde).toHaveBeenCalledWith(desde, 'U-sesion')
+    // FLUJO-CREA (20/11) · con los tipos que esa persona no ve, según SUS permisos.
+    expect(repo.notificacionesDesde).toHaveBeenCalledWith(desde, 'U-sesion', ['IMPRESION'])
   })
 })

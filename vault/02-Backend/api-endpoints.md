@@ -53,6 +53,13 @@ archivos:
 > en esas fechas, para el plano de `/vallas`. Medido con `recuentos.mjs`. Las
 > siete de `/api/vallas/**` del 19/11 están en [[vallas]], no en esta tabla.
 >
+> **2026-11-20 · 192 (FLUJO-CREA, rama `feat/flujo-creativo-impresion`):** tres
+> rutas para la «tarea 1» del creativo aprobado y la cola de Imprenta —`GET
+> /api/impresion/pendientes`, `GET /api/creativos/pendientes` y `PATCH
+> /api/impresion/[id]/fecha-especial`—. `POST /api/impresion` acepta además
+> `fechaEspecial` y exige que `sitioId` sea de la organización. Medido con
+> `recuentos.mjs` (antes 189 en `integra/18-11`). Ver [[operaciones-y-ot]].
+>
 > **2026-11-20 · 188 (PROP-MARCA, rama `feat/propuesta-marca-competencia`):** una
 > ruta nueva, `POST /api/propuestas/competencia` (vista previa de la competencia de
 > marcas, `comercial:crear`), y `avisosCompetencia` en las respuestas de
@@ -385,7 +392,10 @@ agrupa las cuatro pantallas en `lib/modulos.ts:77-83`.
 | POST | `/api/ot/[id]/cerrar` | exigir |
 | PATCH | `/api/ot/[id]/costo` | exigirCambioSensible (`operaciones.costear`) · **409** si la OT está `COMPLETADA` (desde el 08/10; de otra organización, 404) — [[costo-real-de-ot]] |
 | PATCH | `/api/ot/[id]/checklist` | exigir (`operaciones.crear`) — un punto por petición, 2026-09-30 |
-| GET·POST | `/api/impresion` · PATCH `/api/impresion/[id]` | exigir |
+| GET·POST | `/api/impresion` · PATCH `/api/impresion/[id]` | exigir — (20/11, FLUJO-CREA) el `POST` acepta `fechaEspecial` (`YYYY-MM-DD` que exista; si no → 400 «Fecha inválida») y un `sitioId` de otra organización → 400 «Sitio no encontrado». Las órdenes traen `fechaEspecial` |
+| GET | `/api/impresion/pendientes` | exigir `imprenta.ver` — (20/11, FLUJO-CREA) sitios **fijos** con creativo aprobado y sin orden de impresión («Por mandar a impresión»), derivados sin tabla (`lib/pendientes-creativo.ts`). Capas `pendientes-creativo-controller.ts` → `pendientes-creativo-repo.ts` |
+| GET | `/api/creativos/pendientes` | exigir `comercial.ver` — (20/11, FLUJO-CREA) la «tarea 1» completa: `POR_APROBAR` (con origen CLIENTE/INTERNO), `IMPRIMIR` y `PROGRAMAR` |
+| PATCH | `/api/impresion/[id]/fecha-especial` | exigir `imprenta.crear` — (20/11, FLUJO-CREA) `{ fechaEspecial: 'YYYY-MM-DD' \| null }`: la fecha requerida, que manda sobre el inicio de la campaña en la cola. Fecha que no existe → 400; id no uuid, ajeno o inexistente → 404 |
 | PATCH | `/api/impresion/[id]/prueba-color` | exigir |
 | PATCH | `/api/impresion/[id]/imprenta` | exigir `imprenta.crear` — (19/11, IMP-REQ) `{ imprentaId \| null }`: la imprenta que imprime la orden. Ajena o dada de baja → 400; id no uuid → 404 |
 | GET·POST | `/api/imprentas` · PATCH `/api/imprentas/[id]` | exigir `imprenta.ver` / `imprenta.crear` — (19/11, IMP-REQ) proveedores de impresión con sus requisitos de arte (`{ nombre, requisitos?, activo? }`, zod `.strict()`); nombre repetido en la organización → 409; **sin DELETE** (baja lógica). Capas `imprentas-controller.ts` → `imprentas-repo.ts`. El alta de `POST /api/impresion` acepta `imprentaId` |

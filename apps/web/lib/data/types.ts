@@ -853,6 +853,8 @@ export interface OrdenImpresion {
   pruebaColorUrl: string | null      // prueba de color (probatorio)
   pruebaColorAprobada: boolean
   creadoEn: string
+  // FLUJO-CREA (20/11) · fecha requerida; manda sobre el inicio en la cola.
+  fechaEspecial?: string | null
   // IMP-CREA (17/11) · lo que Imprenta necesita sin depender de Comercial
   // (`listarOrdenesImpresion`). Opcionales: la demo en memoria no los trae y
   // la pantalla cae a `useCampanas`/`useSitios`/`useCreatividades`.
