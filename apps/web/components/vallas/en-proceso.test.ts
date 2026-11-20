@@ -71,8 +71,8 @@ describe('la insignia del menú es genérica, y hoy solo la lleva Vallas', () =>
     expect(NAV.find((n) => n.key === 'vallas')!.insignia).toBe('en-proceso')
   })
 
-  it('ninguna otra entrada la lleva', () => {
-    expect(NAV.filter((n) => n.insignia).map((n) => n.key)).toEqual(['vallas'])
+  it('ninguna otra entrada la lleva (salvo Vallas en Comercial, que es la misma pantalla)', () => {
+    expect(NAV.filter((n) => n.insignia).map((n) => n.key)).toEqual(['vallas', 'vallas-comercial'])
   })
 })
 

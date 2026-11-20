@@ -20,6 +20,10 @@ import { arrancarServidor, pararServidor, Cliente } from './servidor-e2e'
 //      SOLO el Dueño (el Administrador, con `inventario.crear`, recibe 403), y
 //      la migración `20261119_vallas_sembrar_competencia_por_omision.sql` las siembra a
 //      las organizaciones que ya existían, sin duplicar al repetirse.
+//   5. Vallas también en Comercial (dueño, 19/11): los TRES roles de venta,
+//      con la matriz que deja la migración (sin filas a mano), leen vallas y
+//      grupos y usan «Verificar una marca»; no dan de alta ni editan vallas ni
+//      grupos, y las categorías siguen siendo solo del Dueño.
 // ============================================================================
 
 let org: Awaited<ReturnType<typeof sembrarTenant>>
@@ -29,6 +33,8 @@ let duenoOtra: Cliente
 let comercial: Cliente
 let admin: Cliente
 let vendedor: Cliente
+let director: Cliente
+let gerente: Cliente
 
 beforeAll(async () => {
   await recrearEsquema()
@@ -50,9 +56,13 @@ beforeAll(async () => {
        ('VENDEDOR','inventario','ver')
      on conflict do nothing`,
   )
+  // DIRECTOR_COMERCIAL y GERENTE_VENTAS van SIN filas a mano: lo que miden es
+  // la matriz que siembra `20260929_roles_de_venta_matriz.sql`, la de verdad.
   for (const [rol, email] of [
     ['ADMINISTRADOR', 'admin@vallas-org.test'],
     ['VENDEDOR', 'vendedor@vallas-org.test'],
+    ['DIRECTOR_COMERCIAL', 'director@vallas-org.test'],
+    ['GERENTE_VENTAS', 'gerente@vallas-org.test'],
   ]) {
     await poolTest().query(
       `insert into usuarios (nombre, email, rol, password_hash, activo, tenant_id)
@@ -71,6 +81,10 @@ beforeAll(async () => {
   await duenoOtra.entrar(otra.usuarioEmail, PASSWORD_DEMO)
   comercial = new Cliente()
   await comercial.entrar('comercial@vallas-org.test', PASSWORD_DEMO)
+  director = new Cliente()
+  await director.entrar('director@vallas-org.test', PASSWORD_DEMO)
+  gerente = new Cliente()
+  await gerente.entrar('gerente@vallas-org.test', PASSWORD_DEMO)
 }, 120_000)
 
 afterAll(async () => {
@@ -336,5 +350,69 @@ describe('competencia de marcas', () => {
     const r = await dueno.pedir('/api/vallas/verificar/', { cuerpo: { marca: 'Coca-Cola', fechaInicio: enDias(20), fechaFin: enDias(30), vallaIds: [ajena.id] } })
     expect(r.status).toBe(200)
     expect(r.datos.hallazgos).toEqual([])
+  })
+})
+
+// Pedido del dueño del 19/11: «Vallas va igual en Comercial». El menú la pone
+// también en el grupo Comercial (`nav.ts`, entrada espejo) y la compuerta deja
+// entrar a /vallas a los tres roles de venta. Esto comprueba que el SERVIDOR
+// cuadra con esa puerta: leer y verificar sí; escribir, no. Sin tocar ni una
+// ruta: los tres tienen `inventario.ver` y ninguno `inventario.crear`.
+describe('Vallas en Comercial · los tres roles de venta', () => {
+  it('la matriz de la migración les da inventario.ver y NO inventario.crear', async () => {
+    const r = await poolTest().query(
+      `select rol::text, accion from rol_permisos
+        where modulo = 'inventario' and rol::text in ('DIRECTOR_COMERCIAL','GERENTE_VENTAS','VENDEDOR')
+        order by 1, 2`,
+    )
+    expect(r.rows).toEqual([
+      { rol: 'DIRECTOR_COMERCIAL', accion: 'ver' },
+      { rol: 'GERENTE_VENTAS', accion: 'ver' },
+      { rol: 'VENDEDOR', accion: 'ver' },
+    ])
+  })
+
+  it('leen vallas, grupos y categorías y usan «Verificar una marca»', async () => {
+    await dueno.pedir('/api/vallas/competencia/', { cuerpo: { nombre: 'Refrescos de cola', marcas: ['Coca-Cola', 'Pepsi'] } })
+    const a = (await alta(dueno, { sitioId: org.sitioId, numero: 'C-1', ancho: 6, alto: 3 })).datos
+    await dueno.pedir('/api/vallas/grupos/', { cuerpo: { numero: 'G-C', modo: 'separadas', vallaIds: [a.id] } })
+    await reservaDeMarca(org, org.sitioId, 'Pepsi', 10, 40)
+
+    for (const [nombre, c] of [['vendedor', vendedor], ['gerente', gerente], ['director', director]] as const) {
+      const l = await c.pedir('/api/vallas/')
+      expect(l.status, nombre).toBe(200)
+      expect(l.datos.vallas.map((v: any) => v.numero), nombre).toEqual(['C-1'])
+      expect(l.datos.grupos.map((g: any) => g.numero), nombre).toEqual(['G-C'])
+      expect((await c.pedir('/api/vallas/competencia/')).status, nombre).toBe(200)
+
+      const v = await c.pedir('/api/vallas/verificar/', { cuerpo: { marca: 'Coca-Cola', fechaInicio: enDias(30), fechaFin: enDias(60), vallaIds: [a.id] } })
+      expect(v.status, nombre).toBe(200)
+      expect(v.datos.bloquea, nombre).toBe(false)
+      expect(v.datos.hallazgos[0], nombre).toMatchObject({ regla: 'competencia-marcas', nivel: 'aviso', datos: { marcaExistente: 'Pepsi' } })
+    }
+  })
+
+  it('pero reciben 403 al dar de alta, editar o borrar vallas y grupos, y al tocar categorías', async () => {
+    const k = await dueno.pedir('/api/vallas/competencia/', { cuerpo: { nombre: 'Refrescos de cola', marcas: ['Coca-Cola', 'Pepsi'] } })
+    const a = (await alta(dueno, { sitioId: org.sitioId, numero: 'C-2', ancho: 6, alto: 3 })).datos
+    const g = (await dueno.pedir('/api/vallas/grupos/', { cuerpo: { numero: 'G-D', modo: 'separadas', vallaIds: [] } })).datos
+
+    for (const [nombre, c] of [['vendedor', vendedor], ['gerente', gerente], ['director', director]] as const) {
+      expect((await alta(c, { sitioId: org.sitioId, numero: 'X-1', ancho: 2, alto: 3 })).status, nombre).toBe(403)
+      expect((await c.pedir(`/api/vallas/${a.id}/`, { metodo: 'PATCH', cuerpo: { ancho: 9 } })).status, nombre).toBe(403)
+      expect((await c.pedir(`/api/vallas/${a.id}/`, { metodo: 'DELETE' })).status, nombre).toBe(403)
+      expect((await c.pedir('/api/vallas/grupos/', { cuerpo: { numero: 'G-X', modo: 'separadas', vallaIds: [] } })).status, nombre).toBe(403)
+      expect((await c.pedir(`/api/vallas/grupos/${g.id}/`, { metodo: 'PATCH', cuerpo: { numero: 'G-Y' } })).status, nombre).toBe(403)
+      expect((await c.pedir(`/api/vallas/grupos/${g.id}/`, { metodo: 'DELETE' })).status, nombre).toBe(403)
+      expect((await c.pedir('/api/vallas/competencia/', { cuerpo: { nombre: 'Cerveza', marcas: ['Corona'] } })).status, nombre).toBe(403)
+      expect((await c.pedir(`/api/vallas/competencia/${k.datos.id}/`, { metodo: 'PATCH', cuerpo: { marcas: ['Pepsi'] } })).status, nombre).toBe(403)
+    }
+    // Nada cambió por los intentos.
+    const vallas = await poolTest().query('select numero, ancho_m::float8 as ancho from vallas where tenant_id = $1', [org.id])
+    expect(vallas.rows).toEqual([{ numero: 'C-2', ancho: 6 }])
+    const grupos = await poolTest().query('select numero from vallas_grupos where tenant_id = $1', [org.id])
+    expect(grupos.rows).toEqual([{ numero: 'G-D' }])
+    const cats = await poolTest().query('select nombre, marcas from competencia_categorias where tenant_id = $1', [org.id])
+    expect(cats.rows).toEqual([{ nombre: 'Refrescos de cola', marcas: ['Coca-Cola', 'Pepsi'] }])
   })
 })

@@ -177,9 +177,11 @@ describe('cobertura del menu lateral', () => {
     // lucide al resto de las pruebas.
     const { NAV, GRUPOS } = await import('../../components/demo/shell/nav')
     const faltan: string[] = []
+    // Un espejo (Vallas en Comercial) se traduce con la clave de su original.
     for (const item of NAV) {
+      const k = item.espejoDe ?? item.key
       for (const idioma of IDIOMAS) {
-        if (!(`nav.${item.key}` in DICCIONARIOS[idioma])) faltan.push(`${idioma}:nav.${item.key}`)
+        if (!(`nav.${k}` in DICCIONARIOS[idioma])) faltan.push(`${idioma}:nav.${k}`)
       }
     }
     for (const g of GRUPOS) {
@@ -200,8 +202,9 @@ describe('cobertura del menu lateral', () => {
     return import('../../components/demo/shell/nav').then(({ NAV, GRUPOS }) => {
       const desviados: string[] = []
       for (const item of NAV) {
-        const esperado = DICCIONARIOS.es[`nav.${item.key}` as never] as unknown as string
-        if (esperado !== item.label) desviados.push(`nav.${item.key}: «${esperado}» != «${item.label}»`)
+        const k = item.espejoDe ?? item.key
+        const esperado = DICCIONARIOS.es[`nav.${k}` as never] as unknown as string
+        if (esperado !== item.label) desviados.push(`nav.${k}: «${esperado}» != «${item.label}»`)
       }
       for (const g of GRUPOS) {
         if (g.titulo === null) continue

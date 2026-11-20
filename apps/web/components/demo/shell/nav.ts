@@ -107,6 +107,30 @@ export interface NavItem {
   tambien?: string[]
   /** Etiqueta junto al rótulo (ver `InsigniaNav`). Se quita cuando deja de ser cierta. */
   insignia?: InsigniaNav
+  /**
+   * ESPEJO (19/11, «Vallas va igual en Comercial»): esta entrada es la MISMA
+   * pantalla que la de clave `espejoDe`, repetida en otro grupo. No se escribe
+   * a mano: sale de `espejo()`, que copia href, rótulo, icono, roles e
+   * insignia, así que la compuerta (`AuthGate`, que empareja por ruta) no
+   * puede encontrar dos roles distintos para la misma URL. El texto se busca
+   * por la clave de la original (`claveDeTexto`).
+   */
+  espejoDe?: string
+}
+
+/** La clave con la que se traduce una entrada: la de su original si es espejo. */
+export function claveDeTexto(n: Pick<NavItem, 'key' | 'espejoDe'>): string {
+  return n.espejoDe ?? n.key
+}
+
+/**
+ * La misma pantalla en otro grupo. Solo cambian la clave (única, para React y
+ * para las pruebas) y el grupo. Las dos se encienden a la vez en esa ruta:
+ * son la misma página, y recordar «desde qué grupo se entró» pediría estado
+ * fuera de la URL para no ganar nada.
+ */
+function espejo(original: NavItem, key: string, grupo: GrupoNav): NavItem {
+  return { ...original, key, grupo, espejoDe: original.key }
 }
 
 /** Todas las rutas de una entrada: la suya y las de `tambien`. */
@@ -148,6 +172,25 @@ const MANDO: RolDemo[] = ['DUENO', 'ADMINISTRADOR']
 const VENTA: RolDemo[] = ['DIRECTOR_COMERCIAL', 'GERENTE_VENTAS', 'VENDEDOR']
 const JEFES_VENTA: RolDemo[] = ['DIRECTOR_COMERCIAL', 'GERENTE_VENTAS']
 
+// VALLAS (esqueleto, 19/11) va en Inventario y no en Operaciones: una valla
+// es un cuadro del patrimonio (vive en un sitio, con su número y su medida),
+// no una tarea. Imprenta está en Operaciones porque ejecuta lo vendido; las
+// vallas son lo que se vende.
+// «En proceso» (dueño, 19/11): sale a todas las instancias como esqueleto y
+// lo dice; la cabecera de /vallas repite el aviso. Se quita al terminarlo.
+//
+// «Vallas va igual en Comercial» (dueño, 19/11, el mismo día): el equipo
+// comercial las usa —«Verificar una marca» antes de proponer—, así que sale
+// TAMBIÉN en Comercial, como espejo (ver `espejo()`). Por eso los roles son
+// mando Y venta: quien ve Comercial. No abre escritura a nadie: los tres
+// roles de venta tienen `inventario.ver` y no `inventario.crear` en la matriz
+// (`20260929_roles_de_venta_matriz.sql`), así que leen y verifican, y la
+// pantalla les esconde las altas (`usePuede('inventario','crear')`). Las
+// categorías de competencia siguen siendo solo del Dueño (`puedeEditarCompetencia`).
+// Venta la ve también en Inventario: es la misma entrada, y ahí ya ve
+// Prospección y Network.
+const VALLAS: NavItem = { key: 'vallas', label: 'Vallas', href: '/vallas', icon: Columns3, roles: [...MANDO, ...VENTA], grupo: 'patrimonio', insignia: 'en-proceso' }
+
 export const NAV: NavItem[] = [
   { key: 'dashboard', label: 'Dashboard', href: '/inicio', icon: LayoutDashboard, roles: [...MANDO, ...VENTA], grupo: 'inicio' },
 
@@ -166,14 +209,8 @@ export const NAV: NavItem[] = [
   // carga masiva, exportación—, no solo el alta. El nombre prometía menos de lo
   // que hay y escondía la consulta a quien no entraba a curiosear.
   { key: 'inventario', label: 'Inventario', href: '/inventario', icon: PackagePlus, roles: [...MANDO], grupo: 'patrimonio' },
-  // VALLAS (esqueleto, 19/11) va en Inventario y no en Operaciones: una valla
-  // es un cuadro del patrimonio (vive en un sitio, con su número y su medida),
-  // no una tarea. Imprenta está en Operaciones porque ejecuta lo vendido; las
-  // vallas son lo que se vende. Mismos roles que Inventario porque la autoriza
-  // el mismo módulo (`inventario`, ver `lib/modulos.ts`).
-  // «En proceso» (dueño, 19/11): sale a todas las instancias como esqueleto y
-  // lo dice; la cabecera de /vallas repite el aviso. Se quita al terminarlo.
-  { key: 'vallas', label: 'Vallas', href: '/vallas', icon: Columns3, roles: [...MANDO], grupo: 'patrimonio', insignia: 'en-proceso' },
+  // Vallas: ver `VALLAS` arriba (está también en Comercial).
+  VALLAS,
   // Arrendadores va pegado a Inventario y no suelto en medio del ciclo
   // comercial: una pantalla no es tuya, es de alguien que te la renta, y el
   // contrato con ese alguien es lo que te deja venderla (ADR 0003).
@@ -215,6 +252,9 @@ export const NAV: NavItem[] = [
   { key: 'clientes', label: 'Clientes', href: '/clientes', icon: Users, roles: [...MANDO, ...VENTA], grupo: 'vender' },
   { key: 'comercial', label: 'Comercial', href: '/comercial', icon: Map, roles: [...MANDO, ...VENTA], grupo: 'vender' },
   { key: 'disponibilidad', label: 'Disponibilidad', href: '/disponibilidad', icon: CalendarRange, roles: [...MANDO, ...VENTA], grupo: 'vender' },
+  // Vallas, la MISMA pantalla que en Inventario (dueño, 19/11): después de
+  // ver si está libre, se verifica que la marca no choque con la competencia.
+  espejo(VALLAS, 'vallas-comercial', 'vender'),
   // ADR 0051: el 17/11 «CRM» tomó el lugar de «Propuestas»; el 18/11 el dueño
   // lo deshizo: «en el CRM no se debe de llamar CRM sino Propuestas». La
   // entrada vuelve a ser la de siempre, y lo del CRM son pestañas dentro de
@@ -300,7 +340,8 @@ export const NAV: NavItem[] = [
   //
   // Se MUEVE, nunca se duplica: `nav.test.ts` exige claves y rutas únicas, y
   // `AuthGate` empareja por `href`, así que dos entradas con la misma ruta se
-  // encenderían las dos a la vez.
+  // encenderían las dos a la vez. (Desde el 19/11 hay UNA forma admitida de
+  // repetir una ruta, el espejo de Vallas: ver `espejo()`. Aquí no se pidió.)
   { key: 'creativos', label: 'Creativos', href: '/creativos', icon: Images, roles: [...MANDO, ...VENTA], grupo: 'entregar' },
   { key: 'imprenta', label: 'Imprenta', href: '/imprenta', icon: Printer, roles: [...MANDO, 'IMPRENTA'], grupo: 'entregar' },
   { key: 'operaciones', label: 'Operaciones', href: '/operaciones', icon: ClipboardList, roles: [...MANDO, 'OPERACIONES', 'FINANZAS'], grupo: 'entregar' },

@@ -5,6 +5,15 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-19 · Vallas también en el menú Comercial
+
+- **Vallas** sale ahora también en el grupo **Comercial** del menú, después de Disponibilidad, con la misma etiqueta «En proceso». Sigue estando en **Inventario**: es la misma pantalla, y al abrirla se marcan las dos entradas.
+- La ven el Dueño, el Administrador y el equipo de ventas (Director comercial, Gerente de ventas y Vendedor). Antes solo la veían el Dueño y el Administrador.
+- El equipo de ventas puede **ver** las vallas y sus grupos y usar **«Verificar una marca»** antes de proponer. **No** puede dar de alta, editar ni borrar vallas o grupos (no tiene los botones, y si lo intenta el sistema lo rechaza), y las marcas que compiten las sigue editando **solo el Dueño**.
+- No cambió ningún permiso de la base de datos: el equipo de ventas ya podía consultar el inventario.
+
+---
+
 ## 2026-11-19 · Vallas sale «En proceso», y con ejemplos en la demostración
 
 - **Vallas** aparece en todas las instancias tal como está hoy, con una etiqueta **«En proceso»** junto a su nombre en el menú y un aviso arriba de la pantalla: «En proceso: este módulo todavía se está construyendo; las reglas y la numeración pueden cambiar.»

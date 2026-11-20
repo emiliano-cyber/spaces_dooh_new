@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-11-18
+actualizado: 2026-11-19
 tags: [frontend, shell, navegacion, rbac]
 archivos:
   - apps/web/lib/host.ts
@@ -10,6 +10,7 @@ archivos:
   - apps/web/components/demo/shell/SesionContext.tsx
   - apps/web/components/demo/shell/nav.ts
   - apps/web/components/demo/shell/Sidebar.tsx
+  - apps/web/components/demo/shell/vallas-en-comercial.test.ts
   - apps/web/components/demo/shell/compuerta.ts
   - apps/web/components/demo/shell/NovedadesDeVersion.tsx
   - apps/web/components/demo/shell/BandaLicencia.tsx
@@ -88,12 +89,39 @@ orden de ese arreglo **es** el orden en pantalla. Al 2026-10-05 (26 entradas):
 | Clave (código) | Rótulo (pantalla) | Entradas |
 |---|---|---|
 | `inicio` | *sin título* | Dashboard |
-| `patrimonio` | **Inventario** | **Prospección** · Inventario · Arrendadores · Network · Almacén |
+| `patrimonio` | **Inventario** | **Prospección** · Inventario · **Vallas** («En proceso», 19/11) · Arrendadores · Network · Almacén |
 | `ojos` | **Space Eyes** | Equipos · Comprobantes (PoD; antes «Galería», 17/11) · Gráficas · Ajustar texto · Programación · Campañas · Verificación · Fallas — desde v0.11.0 (08/10, ADR 0045); fuera de la cuenta de 26 de arriba. Ajustar texto y Programación solo MANDO; el resto MANDO + VENTA. `hrefActivo()` (`nav.ts:326-329`) enciende **una sola** entrada en sus subpáginas (v0.11.5) |
-| `vender` | **Comercial** | Clientes · Comercial · Disponibilidad · **Propuestas** (fue «CRM» del 17 al 18/11) · Franjas y temporadas · Descuentos por volumen · Códigos de negociación · Paquetes cerrados |
+| `vender` | **Comercial** | Clientes · Comercial · Disponibilidad · **Vallas** (espejo, 19/11) · **Propuestas** (fue «CRM» del 17 al 18/11) · Franjas y temporadas · Descuentos por volumen · Códigos de negociación · Paquetes cerrados |
 | `entregar` | **Operaciones** | Campañas · **Creativos** · Imprenta · Operaciones · Consumo de luz |
 | `cobrar` | **Finanzas** | Finanzas · Reportes · Comisiones |
 | `sistema` | **Sistema** | Integraciones · Razones sociales · Actividad · Administración |
+
+> [!important] 2026-11-19 · **la misma pantalla en dos grupos: el ESPEJO** (Vallas)
+> Pedido del dueño: «Vallas va igual en Comercial». Hasta hoy una ruta pertenecía a UNA
+> entrada (`nav.test.ts`: claves y rutas únicas), porque `AuthGate` empareja por ruta y
+> dos entradas con roles distintos harían que la puerta dependiera del orden del arreglo.
+>
+> El cambio genérico mínimo es **`NavItem.espejoDe`**: una entrada construida con
+> `espejo(original, clave, grupo)` (`nav.ts`) que copia ruta, rótulo, icono, roles,
+> `tambien` e insignia de la original y cambia solo clave y grupo. Así:
+> - **Compuerta**: las dos entradas de `/vallas` tienen los MISMOS roles; da igual cuál
+>   gane en `moduloDe()`. `nav.test.ts` lo exige para todo espejo (y que no sea espejo de
+>   un espejo ni esté en el grupo de su original), y la unicidad de rutas se mide sobre las
+>   entradas que no son espejo.
+> - **Texto**: se traduce con la clave de la original (`claveDeTexto()`, `nav.vallas`); no
+>   hay `nav.vallas-comercial` en el diccionario y `diccionario.test.ts` lo sabe.
+> - **Resaltado**: en `/vallas` se encienden **las dos** (Inventario y Comercial). Es la
+>   misma página; marcar solo la del grupo desde el que se entró pediría estado fuera de
+>   la URL (o un `?desde=`) para no ganar nada. Con una sección plegada, la entrada actual
+>   se queda a la vista bajo su título como siempre; colapsado, se ven los dos iconos
+>   encendidos, cada uno en su tramo.
+> - **Atajos del 404, matriz de Administración (`lib/modulos.ts`)**: sin cambios; Vallas
+>   sigue siendo una sola área del módulo `inventario`.
+>
+> Los roles de Vallas pasan de `MANDO` a `MANDO` + `VENTA` (quien ve Comercial), y la ven
+> en los dos grupos. Ningún permiso del servidor cambió: ver [[02-Backend/vallas]]. Lo
+> vigila `components/demo/shell/vallas-en-comercial.test.ts`, que pinta el `Sidebar` real
+> para cada rol.
 
 > [!important] 2026-11-18 · **vuelve «Propuestas»**: lo de abajo duró un día
 > Pedido del dueño: «en el CRM no se debe de llamar CRM sino Propuestas». La

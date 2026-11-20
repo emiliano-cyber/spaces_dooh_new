@@ -11,7 +11,7 @@ import { TOKEN_TELCO, useConfigNegocio } from '@/lib/data/client'
 import { useIdioma } from '@/lib/i18n/contexto'
 import { DICCIONARIOS as DIC, type ClaveTexto } from '@/lib/i18n/diccionario'
 import { useSesionCtx } from './SesionContext'
-import { NAV, GRUPOS, hrefActivo, rutasDe } from './nav'
+import { NAV, GRUPOS, claveDeTexto, hrefActivo, rutasDe } from './nav'
 import { useMenuMovil } from './MenuMovilContext'
 import { TONO } from '@/components/demo/admin/Chip'
 
@@ -91,6 +91,9 @@ function SidebarContent({
   const here = norm(pathname ?? '/')
   // UN solo ítem encendido: el de href más largo (ver `hrefActivo`).
   // ADR 0051 · con las rutas de `tambien`: en /propuestas se enciende «CRM».
+  // La única excepción es un espejo (`nav.ts`, `espejo()`): Vallas está en
+  // Inventario y en Comercial con la MISMA ruta, y en /vallas se encienden las
+  // dos, a propósito: es la misma pantalla.
   const activo = hrefActivo(here, items.flatMap((n) => rutasDe(n).map(norm)))
   const esActivo = (n: { href: string; tambien?: string[] }) => rutasDe(n).map(norm).includes(activo ?? '')
 
@@ -115,7 +118,8 @@ function SidebarContent({
     // tono aviso y más chica, al final del renglón. Colapsado no cabe: va
     // dentro del globo y del texto accesible.
     const insignia = n.insignia ? rotulo(`nav.insignia.${n.insignia}`, '') : ''
-    const nombre = rotulo(`nav.${n.key}`, n.label)
+    // Un espejo (Vallas en Comercial, 19/11) se traduce con la clave de su original.
+    const nombre = rotulo(`nav.${claveDeTexto(n)}`, n.label)
     return (
       <li key={o.sufijo ? `${n.key}-${o.sufijo}` : n.key}>
         <Globo activo={colapsado} texto={insignia ? `${nombre} · ${insignia}` : nombre}>

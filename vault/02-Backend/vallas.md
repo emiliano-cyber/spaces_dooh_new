@@ -33,6 +33,8 @@ archivos:
   - apps/web/components/demo/shell/nav.ts
   - apps/web/components/demo/shell/Sidebar.tsx
   - apps/web/components/vallas/en-proceso.test.ts
+  - apps/web/components/demo/shell/vallas-en-comercial.test.ts
+  - apps/web/lib/modulos.ts
   - scripts/semilla-catalogo-modulos.mjs
   - scripts/semilla-catalogo-demo.mjs
   - scripts/semilla-catalogo-demo.test.ts
@@ -61,6 +63,31 @@ Decisión de forma en el [ADR 0052](../../docs/adr/0052-vallas-modulo-con-reglas
 >
 > Rama `feat/vallas-decisiones` desde `integra/18-11` `3e73f5e5`. Apunte en el
 > [ADR 0052](../../docs/adr/0052-vallas-modulo-con-reglas-enchufables.md).
+
+> [!important] 2026-11-19 · Vallas va igual en Comercial
+> Pedido del dueño: las vallas son lo que se vende, y el equipo comercial las usa
+> («Verificar una marca» antes de proponer). Rama `feat/vallas-en-comercial` desde
+> `integra/18-11` `6911c588`.
+>
+> **Menú.** Sigue en **Inventario** y sale **también en Comercial**, justo después de
+> Disponibilidad, con la misma insignia «En proceso». Es una entrada **espejo**
+> (`NavItem.espejoDe`, construida con `espejo()` en `components/demo/shell/nav.ts`): copia
+> ruta, rótulo, icono, roles e insignia de la original y solo cambia clave
+> (`vallas-comercial`) y grupo. Detalle del patrón en [[03-Frontend/shell-y-navegacion]].
+>
+> **Quién la ve.** Los roles de la entrada pasan de `MANDO` a **`MANDO` + `VENTA`**
+> (Dueño, Administrador, Director comercial, Gerente de ventas, Vendedor), en los dos
+> grupos. Operaciones, Finanzas e Imprenta siguen sin verla.
+>
+> **Permisos del servidor: NO cambió ninguno.** Los tres roles de venta ya tienen
+> `inventario.ver` y no `inventario.crear` en la matriz por omisión
+> (`20260929_roles_de_venta_matriz.sql`). Con eso leen vallas, grupos y categorías y usan
+> `POST /api/vallas/verificar`; dar de alta, editar o borrar vallas y grupos les da 403, y
+> las categorías siguen siendo **solo del Dueño** (`puedeEditarCompetencia`). Lo único que
+> se abrió es la **puerta de la pantalla** (`AuthGate`, que empareja por ruta con el `NAV`):
+> antes un vendedor que abría `/vallas` era devuelto a su inicio. La pantalla ya escondía
+> las altas con `usePuede('inventario','crear')`. Lo vigila `vallas.e2e.test.ts` (bloque
+> «Vallas en Comercial», con la matriz de la migración y sin filas a mano).
 
 > [!important] 2026-11-19 · «En proceso» en todas las instancias, y datos de ejemplo en la demo
 > Pedido del dueño: el módulo sale **tal como está** a todas las versiones, diciendo que
@@ -136,8 +163,9 @@ Decisión de forma en el [ADR 0052](../../docs/adr/0052-vallas-modulo-con-reglas
 - **Reutiliza `campanas.marca`** (texto) como la marca de una reserva. Si está vacía,
   cuenta el nombre del cliente. No hay tabla de marcas aparte.
 - **Reutiliza los permisos de `inventario`**: `ver` lee, `crear` escribe. Sin módulo
-  nuevo en `rol_permisos`. Entrada **«Vallas»** en el grupo **Inventario** del menú,
-  con los roles de Inventario (`MANDO`). Va en Inventario y no en Operaciones porque
+  nuevo en `rol_permisos`. Entrada **«Vallas»** en el grupo **Inventario** del menú
+  y, desde el 19/11, también en **Comercial** (espejo), con `MANDO` + `VENTA` (ver
+  arriba; hasta ese día solo `MANDO`). Va en Inventario y no en Operaciones porque
   una valla es patrimonio que se vende, no una tarea; Imprenta está en Operaciones
   porque ejecuta lo vendido.
 
