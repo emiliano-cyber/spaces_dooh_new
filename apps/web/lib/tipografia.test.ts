@@ -23,8 +23,9 @@ import { join, relative, sep } from 'node:path'
 //     nuestro.
 //   · **Latencia.** Una conexión más, a otro host, antes de pintar texto.
 //
-//  Con `next/font/google` los archivos se descargan EN EL BUILD y se sirven
-//  desde el mismo origen. No hay petición a terceros en tiempo de ejecución, así
+//  Con `next/font/local` los archivos viven en el repositorio (`app/fuentes/`)
+//  y se sirven desde el mismo origen. No hay petición a terceros ni en tiempo
+//  de ejecución ni en el build (ver la guardia de `next/font/google`), así
 //  que `style-src 'self'` y `font-src 'self'` bastan — y la CSP puede pasar de
 //  modo reporte a ENCENDIDA, que es lo que la hace servir de algo.
 //
@@ -110,9 +111,8 @@ function sinComentarios(texto: string): string {
 
 describe('tipografía institucional', () => {
   it('ningun archivo pide fuentes a un CDN ajeno', () => {
-    // `next/font/google` descarga los archivos EN EL BUILD: que el nombre
-    // «google» aparezca en un import NO es una petición en tiempo de ejecución.
-    // Por eso se buscan los HOSTS, no los nombres de proveedor.
+    // Se buscan los HOSTS, no los nombres de proveedor: lo que se vigila aquí
+    // es una petición del NAVEGADOR a un tercero.
     const culpables = CODIGO.filter(([, texto]) =>
       CDN_PROHIBIDOS.some((cdn) => texto.includes(cdn)),
     ).map(([ruta]) => rel(ruta))
@@ -126,14 +126,32 @@ describe('tipografía institucional', () => {
     expect(culpables).toEqual([])
   })
 
-  it('el layout raiz sirve Source Serif 4 e Inter con next/font', () => {
+  it('el layout raiz sirve Source Serif 4 e Inter con next/font/local', () => {
     // En el layout RAÍZ y no en `(app)/`: `next/font` inyecta la declaración
     // en el HTML que lo monta, y las páginas públicas —propuesta, portal— no
     // cuelgan de `(app)`. Servirlas desde ahí las dejaría sin tipografía.
     const layout = readFileSync(join(RAIZ_WEB, 'app/layout.tsx'), 'utf8')
-    expect(layout).toMatch(/from 'next\/font\/google'/)
-    expect(layout).toMatch(/Source_Serif_4/)
-    expect(layout).toMatch(/\bInter\b/)
+    expect(layout).toMatch(/from 'next\/font\/local'/)
+    for (const archivo of ['source-serif-4-latin.woff2', 'inter-latin.woff2']) {
+      expect(layout).toContain(`./fuentes/${archivo}`)
+      const ruta = join(RAIZ_WEB, 'app/fuentes', archivo)
+      expect(existsSync(ruta), `falta app/fuentes/${archivo}`).toBe(true)
+      // La firma de WOFF2. Un archivo vacío o una página de error guardada con
+      // ese nombre compila igual y deja la aplicación sin tipografía.
+      expect(readFileSync(ruta).subarray(0, 4).toString('latin1')).toBe('wOF2')
+    }
+  })
+
+  it('ningun archivo usa next/font/google: el build no depende de Google', () => {
+    // 23/11: el CI del PR de integración murió en `next/font` con «Cannot read
+    // properties of null (reading '1')» porque Google le contestó a la máquina
+    // del CI una dirección de fuente sin extensión. `next/font/google` descarga
+    // en CADA build —también al construir la imagen de las instancias—, así que
+    // el build quedaba a merced de un tercero. Las fuentes viven en el repo.
+    const culpables = CODIGO.filter(([, texto]) =>
+      /from ['"]next\/font\/google['"]/.test(sinComentarios(texto)),
+    ).map(([ruta]) => rel(ruta))
+    expect(culpables).toEqual([])
   })
 
   it('los tres tokens de familia salen de una variable, no de un literal', () => {

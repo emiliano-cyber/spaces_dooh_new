@@ -73,9 +73,8 @@ vi.mock('next/headers', () => ({
   headers: () => ({ get: () => null }),
 }))
 
-vi.mock('next/font/google', () => ({
-  Inter: () => ({ variable: 'f-inter' }),
-  Source_Serif_4: () => ({ variable: 'f-serif' }),
+vi.mock('next/font/local', () => ({
+  default: (o: { variable: string }) => ({ variable: o.variable }),
 }))
 vi.mock('@/lib/server/moneda-instancia', () => ({ monedaDeLaInstancia: async () => 'MXN' }))
 vi.mock('@/lib/server/idioma-instancia', () => ({ idiomaDeLaInstancia: async () => 'es' }))
