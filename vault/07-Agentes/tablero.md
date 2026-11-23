@@ -7,7 +7,7 @@ archivos: []
 ---
 
 > [!success] 2026-11-23 · **`integra/23-11`: todo lo aprobado + Space Eyes de Jose + `fix/idioma-al-entrar`, y las fuentes pasan al repositorio (`next/font/local`) porque el CI murió bajándolas de Google** · zona tomada: ninguna
-> Detalle en [[2026-11-23]].
+> **En `main` por el PR #120 (`16b370fc`)**, CI en verde. Falta release beta → DEMO → estable. Detalle en [[2026-11-23]].
 
 > [!success] 2026-11-20 (cierre) · **todo en `main` LOCAL (`542a3954`), sin empujar · zona tomada: ninguna salvo `feat/propuesta-mapa-y-fotos` a medias**
 > Detalle y pendientes en [[2026-11-20]].
