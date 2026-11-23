@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { crearSesion, cookieSesion, cookieCsrf, nuevoCsrfToken, permisosDeRol } from '@/lib/server/auth'
 import { cookieIdiomaCuenta } from '@/lib/server/idioma-cuenta'
-import { idiomasActivos, normalizarIdioma } from '@/lib/i18n/idiomas'
+import { idiomaDeLaCuentaAlEntrar } from '@/lib/server/idioma-al-entrar'
 import { qConTenant } from '@/lib/server/db'
 import { usarCodigo } from '@/lib/server/codigos-recuperacion-repo'
 import { limitar, ipDe } from '@/lib/server/rate-limit'
@@ -100,6 +100,8 @@ async function entrarConCodigo(codigo: string): Promise<NextResponse> {
 
   const token = await crearSesion(u.id, 'password')
   const permisos = await permisosDeRol(u.rol)
+  // El mismo valor para el cuerpo y para la cookie: ver `idioma-al-entrar.ts`.
+  const idioma = await idiomaDeLaCuentaAlEntrar(u.idioma_preferido)
   const res = NextResponse.json({
     usuario: { id: u.id, nombre: u.nombre, email: u.email, cargo: u.cargo, rol: u.rol, activo: u.activo },
     permisos,
@@ -107,10 +109,10 @@ async function entrarConCodigo(codigo: string): Promise<NextResponse> {
     // enterarse y descubriría que se quedó sin puerta el día que la necesitara.
     codigosRestantes: r.quedan,
     // Igual que el login con contraseña: para que la pantalla sepa si recargar.
-    idioma: normalizarIdioma(u.idioma_preferido, idiomasActivos()),
+    idioma,
   })
   res.cookies.set(cookieSesion(token))
   res.cookies.set(cookieCsrf(nuevoCsrfToken()))
-  res.cookies.set(cookieIdiomaCuenta(token, normalizarIdioma(u.idioma_preferido)))
+  res.cookies.set(cookieIdiomaCuenta(token, idioma))
   return res
 }

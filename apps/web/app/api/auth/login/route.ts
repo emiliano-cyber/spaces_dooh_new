@@ -4,7 +4,7 @@ import { verifyPassword, crearSesion, cookieSesion, cookieCsrf, nuevoCsrfToken, 
 import { limitar, consultar, olvidar, ipDe } from '@/lib/server/rate-limit'
 import { respuestaError } from '@/lib/server/errores'
 import { cookieIdiomaCuenta } from '@/lib/server/idioma-cuenta'
-import { idiomasActivos, normalizarIdioma } from '@/lib/i18n/idiomas'
+import { idiomaDeLaCuentaAlEntrar } from '@/lib/server/idioma-al-entrar'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -132,18 +132,20 @@ async function entrar(email: string, password: string): Promise<NextResponse> {
 
   const token = await crearSesion(u.id, 'password')
   const permisos = await permisosDeRol(u.rol)
+  // El mismo valor para el cuerpo y para la cookie: ver `idioma-al-entrar.ts`.
+  const idioma = await idiomaDeLaCuentaAlEntrar(banderas?.idioma_preferido)
   const res = NextResponse.json({
     usuario: { id: u.id, nombre: u.nombre, email: u.email, cargo: u.cargo, rol: u.rol, activo: u.activo },
     permisos,
     // El idioma de la cuenta, si está encendido. La pantalla de entrar lo usa
     // para saber si tiene que recargar: la navegación de Next no vuelve a pintar
     // el layout raíz, que es quien lleva el idioma.
-    idioma: normalizarIdioma(banderas?.idioma_preferido, idiomasActivos()),
+    idioma,
   })
   res.cookies.set(cookieSesion(token))
   // La preferencia de la cuenta, atada a ESTA sesión. Sin preferencia la
   // borra: si alguien usó antes este navegador, su elección no se hereda.
-  res.cookies.set(cookieIdiomaCuenta(token, normalizarIdioma(banderas?.idioma_preferido)))
+  res.cookies.set(cookieIdiomaCuenta(token, idioma))
   // Emite el token anti-CSRF junto con la sesión (double-submit). El front lo
   // lee de esta cookie y lo reenvía en X-CSRF-Token; el middleware lo exige.
   res.cookies.set(cookieCsrf(nuevoCsrfToken()))
