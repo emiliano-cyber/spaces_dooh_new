@@ -1,7 +1,7 @@
 [
   {
     "version": "v0.12.15",
-    "fecha": "2026-11-19",
+    "fecha": "2026-11-23",
     "items": [
       {
         "tipo": "NUEVO",
@@ -92,6 +92,24 @@
         "texto": "Space Eyes → Campañas: «Descargar Excel» con las campañas que las cámaras detectaron al aire, con la fecha y la hora de cada detección (en la hora del negocio) y una hoja de resumen con la primera, la última y cuántas por campaña y equipo. Se puede elegir el rango de fechas, el equipo y la campaña; sin fechas sale el mes en curso. Lo bajan el Dueño, el Administrador y el equipo de venta. Sin Space Eye conectado sale con datos de ejemplo, y el archivo lo dice.",
         "en": "Space Eyes → Campaigns: “Download Excel” with the campaigns the cameras detected on air, with the date and time of each detection (in the business’s time zone) and a summary sheet with the first, the last and how many per campaign and device. You can choose the date range, the device and the campaign; with no dates it covers the current month. The Owner, the Administrator and the sales team can download it. Without Space Eye connected it comes with sample data, and the file says so.",
         "it": "Space Eyes → Campagne: «Scarica Excel» con le campagne che le telecamere hanno rilevato in onda, con data e ora di ogni rilevamento (nel fuso orario dell’azienda) e un foglio di riepilogo con il primo, l’ultimo e quanti per campagna e dispositivo. Si possono scegliere l’intervallo di date, il dispositivo e la campagna; senza date copre il mese in corso. Lo scaricano il Titolare, l’Amministratore e il team vendite. Senza Space Eye collegato esce con dati di esempio, e il file lo indica."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Space Eyes tiene un apartado de Ajustes: Ajustar texto, Programación, Verificación y Gráficas dejan de ser entradas sueltas del menú y pasan a ser sus pestañas, junto con «Brillo por horas», que muestra de un vistazo el tramo de noche de toda la flota. Las direcciones de antes siguen funcionando. La ficha del equipo abre en Comprobantes y la pestaña de fotos se llama «En vivo». Una pantalla caída ya no pasa desapercibida: lleva un sello en su tarjeta, una banda en su ficha y un aviso encima de cualquier pantalla de la aplicación, que se quita solo cuando la pantalla vuelve.",
+        "en": "Space Eyes has a Settings section: Photo label, Scheduling, Verification and Charts are no longer separate menu entries and become its tabs, together with “Brightness by hour”, which shows the night schedule of the whole fleet at a glance. The old addresses still work. The device page opens on PoD and the photo tab is now called “Live”. A screen that is down no longer goes unnoticed: it gets a badge on its card, a banner on its page and an alert on top of any screen of the application, which goes away by itself when the screen is back.",
+        "it": "Space Eyes ha una sezione Impostazioni: Etichetta delle foto, Programmazione, Verifica e Grafici non sono più voci separate del menu e diventano le sue schede, insieme a «Luminosità per ora», che mostra a colpo d’occhio la fascia notturna di tutta la flotta. I vecchi indirizzi funzionano ancora. La scheda del dispositivo si apre su PoD e la scheda delle foto si chiama «Dal vivo». Uno schermo spento non passa più inosservato: ha un sigillo sulla sua scheda, una fascia nella sua pagina e un avviso sopra qualsiasi schermata dell’applicazione, che sparisce da solo quando lo schermo torna."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "Space Eyes: cuando una persona marca como resuelta una falla, el equipo manda una foto de cómo volvió la pantalla, igual que cuando se resuelve sola. Un camión o un vehículo delante de la pantalla ya no se registra como un anuncio nuevo: queda como falla «obstrucción» con su foto y se cierra sola cuando la pantalla vuelve a verse. Y cada anuncio guarda por día en cuántas revisiones apareció y una foto de ese día.",
+        "en": "Space Eyes: when someone marks a fault as resolved, the device sends a photo of how the screen came back, just like when it resolves by itself. A truck or vehicle in front of the screen is no longer recorded as a new ad: it becomes an “obstruction” fault with its photo and closes by itself when the screen can be seen again. And each ad keeps, per day, how many checks it appeared in and a photo from that day.",
+        "it": "Space Eyes: quando una persona segna un guasto come risolto, il dispositivo invia una foto di come è tornato lo schermo, come quando si risolve da solo. Un camion o un veicolo davanti allo schermo non viene più registrato come un nuovo annuncio: diventa un guasto «ostruzione» con la sua foto e si chiude da solo quando lo schermo torna visibile. E ogni annuncio conserva, giorno per giorno, in quanti controlli è apparso e una foto di quel giorno."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Al iniciar sesión se respeta el idioma elegido aunque ese idioma se haya encendido desde Administración → Idiomas del servidor. Antes, con contraseña, código o Google, la aplicación volvía a abrir en español.",
+        "en": "When you sign in, the language you chose is kept even if that language was turned on from Administration → Server languages. Before, with password, code or Google, the application opened in Spanish again.",
+        "it": "All’accesso viene rispettata la lingua scelta anche se quella lingua è stata attivata da Impostazioni → Lingue del server. Prima, con password, codice o Google, l’applicazione si riapriva in spagnolo."
       }
     ]
   },
