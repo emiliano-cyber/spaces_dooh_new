@@ -341,6 +341,9 @@ describe('notificaciones · las plantillas son los literales del servidor', () =
       'lib/server/ot-repo.ts',
       'lib/server/pendientes-creativo-controller.ts',
       'lib/server/propuestas-repo.ts',
+      // Space Eyes: una pantalla caida avisa por la campanita ademas de por
+      // correo, para que salte encima de cualquier pantalla de la aplicacion.
+      'lib/server/space-eyes-aviso-fallas.ts',
     ]
     const { execSync } = require('node:child_process') as typeof import('node:child_process')
     const salida = execSync('git grep -l -E "notificar\\(\\{|insert into notificaciones \\(" -- app lib', { cwd: RAIZ, encoding: 'utf8' })

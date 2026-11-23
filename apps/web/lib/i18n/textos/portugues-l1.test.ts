@@ -34,6 +34,8 @@ const AMBITOS: ReadonlyArray<readonly [string, Dic, Dic, DicP]> = [
 
 // Iguales al espanol o al ingles A PROPOSITO.
 export const COGNADOS_PT_L1 = new Set<string>([
+  'spaceeyes.ficha.falla.desde', // «desde» se escribe igual en los dos idiomas
+  'spaceeyes.ficha.tab.fotos', // «Fotos»
   // Leidos uno por uno (05/11): en portugues se escriben igual que en espanol
   // (Fotos, Comparar, Ampliar, Nitidez, Obturador, Pausar, Próxima foto…) o
   // que en ingles (Latitude, Total, Normal). Y a proposito, aunque no sean
@@ -53,7 +55,6 @@ export const COGNADOS_PT_L1 = new Set<string>([
   'spaceeyes.lista.empresa', // «Empresa»
   'spaceeyes.lista.alt-captura', // «Última captura de {nombre}»
   'spaceeyes.comun.modelo', // «Modelo»
-  'spaceeyes.ficha.tab.fotos', // «Fotos»
   'spaceeyes.ficha.comparar', // «Comparar»
   'spaceeyes.ficha.barra.captura', // «Última captura {valor}»
   'spaceeyes.ficha.ampliar', // «Ampliar»

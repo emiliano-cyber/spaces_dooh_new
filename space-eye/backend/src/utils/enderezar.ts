@@ -229,3 +229,68 @@ export function medirPantalla(gris: Gris): Medida {
     apagada: (brillo < BRILLO_MAX && desv < DESVIACION_MAX) || desv < DESVIACION_PAREJA,
   };
 }
+
+// --- ¿Esto es un anuncio nuevo, o algo delante de la pantalla? ----------------
+//
+// LA IDEA, Y ES UNA SOLA. Un anuncio nuevo cambia la pantalla ENTERA: es otra
+// imagen en el mismo marco. Un camion que pasa, o que se estaciona enfrente,
+// tapa un TROZO y deja el resto exactamente como estaba.
+//
+// Asi que no hace falta reconocer camiones. Basta con preguntar cuanto de la
+// pantalla sigue siendo lo que ya conociamos: si una parte buena sigue igual,
+// lo que cambio esta DELANTE de la pantalla, no EN la pantalla.
+//
+// POR QUE NO LO VE EL EQUIPO. La huella (`huella.ts`) resume la pantalla entera
+// en 64 bits: tapar un cuarto de la imagen mueve esos bits lo mismo que
+// cambiaria un anuncio distinto, y desde un solo numero las dos cosas son
+// indistinguibles. Hay que mirar POR ZONAS, y para eso hace falta la imagen de
+// antes -que la tiene el servidor, en el catalogo, y el equipo no-.
+export const REJILLA = 8;
+
+export type Bloque = { media: number; desv: number };
+
+/**
+ * La pantalla resumida en REJILLA x REJILLA zonas, cada una con su media y su
+ * variacion. Dos fotos del MISMO anuncio dan zonas casi iguales aunque la luz
+ * del dia no sea la misma; dos anuncios distintos no.
+ */
+export function bloquesDe(gris: Gris): Bloque[] {
+  const salida: Bloque[] = [];
+  const anchoB = Math.max(1, Math.floor(gris.ancho / REJILLA));
+  const altoB = Math.max(1, Math.floor(gris.alto / REJILLA));
+  for (let by = 0; by < REJILLA; by++) {
+    for (let bx = 0; bx < REJILLA; bx++) {
+      const x0 = bx * anchoB;
+      const y0 = by * altoB;
+      const x1 = bx === REJILLA - 1 ? gris.ancho : x0 + anchoB;
+      const y1 = by === REJILLA - 1 ? gris.alto : y0 + altoB;
+      let n = 0;
+      let suma = 0;
+      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { suma += gris.datos[y * gris.ancho + x]; n++; }
+      const media = n ? suma / n : 0;
+      let acc = 0;
+      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) { const d = gris.datos[y * gris.ancho + x] - media; acc += d * d; }
+      salida.push({ media, desv: n ? Math.sqrt(acc / n) : 0 });
+    }
+  }
+  return salida;
+}
+
+/**
+ * Cuanta de la pantalla sigue siendo la misma, de 0 a 1.
+ *
+ * Los margenes son anchos a proposito: entre dos fotos del mismo anuncio
+ * cambian la hora, la ganancia de la camara y el brillo del LED. Lo que NO
+ * cambia es el reparto de luz y textura por zonas, y eso es lo que se compara.
+ */
+export const MEDIA_IGUAL = 18;
+export const DESV_IGUAL = 12;
+
+export function parecidoPorBloques(a: Bloque[], b: Bloque[]): number {
+  if (a.length !== b.length || !a.length) return 0;
+  let iguales = 0;
+  for (let i = 0; i < a.length; i++) {
+    if (Math.abs(a[i].media - b[i].media) <= MEDIA_IGUAL && Math.abs(a[i].desv - b[i].desv) <= DESV_IGUAL) iguales++;
+  }
+  return iguales / a.length;
+}

@@ -264,7 +264,9 @@ const CAMPO_HORA =
   'h-9 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 const ETIQUETA = 'mb-1 block text-[12px] font-medium text-ink'
 
-export function Programacion() {
+// `encabezado` lo apaga la pantalla de Ajustes, que ya pone el suyo: dos
+// titulos grandes seguidos no son dos secciones, son un descuido.
+export function Programacion({ encabezado = true }: { encabezado?: boolean }) {
   const { t, idioma } = useIdioma()
   const [programas, setProgramas] = useState<Programa[] | null>(null)
   const [equipos, setEquipos] = useState<Equipo[]>([])
@@ -406,13 +408,17 @@ export function Programacion() {
   return (
     <div className="w-full space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
-          <CalendarClock className="h-5 w-5" strokeWidth={1.75} />
-        </span>
-        <div className="min-w-[12rem] flex-1">
-          <h1 className="text-2xl text-ink">{t('spaceeyes.prog.titulo')}</h1>
-          <p className="text-[13px] text-muted">{t('spaceeyes.prog.descripcion')}</p>
-        </div>
+        {encabezado && (
+          <>
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
+            <CalendarClock className="h-5 w-5" strokeWidth={1.75} />
+          </span>
+          <div className="min-w-[12rem] flex-1">
+            <h1 className="text-2xl text-ink">{t('spaceeyes.prog.titulo')}</h1>
+            <p className="text-[13px] text-muted">{t('spaceeyes.prog.descripcion')}</p>
+          </div>
+          </>
+        )}
         <div className="flex items-center gap-2">
           <Button variant="secondary" size="sm" onClick={() => void cargar()} disabled={cargando}>
             {cargando ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-1.5 h-3.5 w-3.5" />}

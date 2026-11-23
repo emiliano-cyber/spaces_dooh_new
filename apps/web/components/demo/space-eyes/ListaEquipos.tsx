@@ -77,8 +77,13 @@ export function ListaEquipos() {
 
   // «Atención» no es solo estar caído: una batería por debajo de 20% en un sitio
   // sin corriente es el aviso que llega DÍAS antes de que el equipo se apague.
+  //
+  // Y una pantalla con falla abierta entra aquí aunque el equipo esté en línea
+  // y con batería llena: el teléfono puede estar perfectamente y la pantalla
+  // que vigila, apagada. Ese es justo el caso que este módulo existe para ver.
   const necesitaAtencion = useCallback(
-    (e: { enLinea: boolean; bateriaPct: number | null }) => !e.enLinea || tonoBateria(e.bateriaPct) === 'rojo',
+    (e: { enLinea: boolean; bateriaPct: number | null; falla?: unknown }) =>
+      !e.enLinea || tonoBateria(e.bateriaPct) === 'rojo' || !!e.falla,
     [],
   )
 
@@ -340,6 +345,18 @@ function TarjetaEquipo({ equipo: e, enLinea }: { equipo: EquipoResumen; enLinea:
           </div>
         )}
         <PildoraConexion online={enLinea} pendiente={!e.ultimaConexion} sobreFoto className="absolute left-2 top-2" />
+        {/* La falla abierta, ENCIMA de la foto y mientras dure. El correo avisa
+            una vez y de madrugada no lo lee nadie; esto sigue aquí a la mañana
+            siguiente y se va solo cuando la pantalla se recupera. */}
+        {e.falla && (
+          <span className="absolute right-2 top-2 inline-flex max-w-[85%] items-center gap-1.5 rounded-full bg-error px-2 py-0.5 text-[10.5px] font-medium text-white shadow-sm">
+            <AlertTriangle className="h-3 w-3 shrink-0" strokeWidth={2.2} />
+            <span className="truncate">
+              {e.falla.nombre}
+              {e.falla.cuantas > 1 ? ` +${e.falla.cuantas - 1}` : ''}
+            </span>
+          </span>
+        )}
         {e.ultimaFoto?.tomadaEn && (
           <span className="absolute bottom-2 right-2 inline-flex items-center gap-1.5 rounded-full bg-black/60 px-2 py-0.5 text-[10.5px] text-white backdrop-blur-sm">
             <Clock className="h-3 w-3" strokeWidth={2} />
@@ -362,6 +379,12 @@ function TarjetaEquipo({ equipo: e, enLinea }: { equipo: EquipoResumen; enLinea:
             <span className="italic">{t('spaceeyes.comun.sin-pantalla')}</span>
           )}
         </div>
+
+        {e.falla && (
+          <div className="mt-1.5 text-[11.5px] font-medium text-error" title={`${e.falla.nombre} · ${e.falla.donde}`}>
+            {t('spaceeyes.lista.falla', { cuando: hace(e.falla.desde), donde: e.falla.donde })}
+          </div>
+        )}
 
         {e.actualizacion && !e.actualizacion.sola && (
           <div

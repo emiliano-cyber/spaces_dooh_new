@@ -26,13 +26,10 @@ import {
   Package,
   Handshake,
   Eye,
-  LineChart,
-  Type,
-  CalendarClock,
   Megaphone,
-  BadgeCheck,
   TriangleAlert,
   Columns3,
+  SlidersHorizontal,
 } from 'lucide-react'
 import { ROLES_ASIGNABLES, rolLabel } from '@/lib/roles'
 import type { RolDemo } from '@/lib/data/types'
@@ -215,12 +212,21 @@ export const NAV: NavItem[] = [
   // se operaba en el dashboard propio de Space Eye vive aqui, con los mismos
   // roles. Todo habla con el Space Eye de ESTA instancia por /api/space-eyes/se.
   { key: 'space-eyes-galeria', label: 'Comprobantes', href: '/space-eyes/galeria', icon: Images, roles: [...MANDO, ...VENTA], grupo: 'ojos' },
-  { key: 'space-eyes-graficas', label: 'Gráficas', href: '/space-eyes/graficas', icon: LineChart, roles: [...MANDO, ...VENTA], grupo: 'ojos' },
-  { key: 'space-eyes-texto', label: 'Ajustar texto', href: '/space-eyes/texto', icon: Type, roles: [...MANDO], grupo: 'ojos' },
-  { key: 'space-eyes-programacion', label: 'Programación', href: '/space-eyes/programacion', icon: CalendarClock, roles: [...MANDO], grupo: 'ojos' },
   { key: 'space-eyes-campanas', label: 'Campañas', href: '/space-eyes/campanas', icon: Megaphone, roles: [...MANDO, ...VENTA], grupo: 'ojos' },
-  { key: 'space-eyes-verificacion', label: 'Verificación', href: '/space-eyes/verificacion', icon: BadgeCheck, roles: [...MANDO, ...VENTA], grupo: 'ojos' },
   { key: 'space-eyes-fallas', label: 'Fallas', href: '/space-eyes/fallas', icon: TriangleAlert, roles: [...MANDO, ...VENTA], grupo: 'ojos' },
+  // Ajustar texto, Programacion, Verificacion y Graficas eran cuatro entradas
+  // sueltas y ahora son pestanas de aqui, con el brillo de noche de la flota.
+  // El criterio es el mismo que ordena el resto del menu: las entradas nombran
+  // sitios a los que se ENTRA A MIRAR -los equipos, la galeria, las fallas-, y
+  // esto otro se configura una vez y no se vuelve a tocar en meses. Con nueve
+  // entradas pesando lo mismo, el menu ya no decia a que se entra.
+  //
+  // Las direcciones viejas siguen sirviendo: redirigen a su pestana (ver
+  // `space-eyes/texto/page.tsx` y hermanas). Hay enlaces a ellas en la ficha
+  // del equipo, y una direccion que deja de funcionar es una llamada.
+  // Venta entra, pero solo a Verificacion: la pantalla reparte sus pestanas
+  // por rol. Dejarla fuera del menu le quitaria una pantalla que si tenia.
+  { key: 'space-eyes-ajustes', label: 'Ajustes', href: '/space-eyes/ajustes', icon: SlidersHorizontal, roles: [...MANDO, ...VENTA], grupo: 'ojos' },
 
   // ─── Vender ──────────────────────────────────────────────────────────────
   // En el orden en que se hace: a quién le vendes, qué le enseñas, si está

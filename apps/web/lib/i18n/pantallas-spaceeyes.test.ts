@@ -484,15 +484,14 @@ pantalla({
     const C = await ficha()
     forzar(esNull, DATOS_FICHA)
     forzar(esTrue, false)
-    return pintar(idioma, el(C, { id: 7 }))
+    return pintar(idioma, el(C, { id: 7, pestana: 'fotos', vista: 'equipo' }))
   },
   espanol: [
     'Tomar foto',
     'Subir foto',
     'Actualizar estado',
-    'Fotos',
+    'Comprobantes',
     'Pantalla y fallas',
-    'Creativos',
     'Equipo',
     'En vivo',
     'Captura Space Eyes',
@@ -538,7 +537,7 @@ pantalla({
     'Take photo',
     'Upload photo',
     'Screen and faults',
-    'Creatives',
+    'PoD',
     'Space Eyes capture',
     'SPACE EYES CAPTURE',
     ' · On demand',
@@ -559,7 +558,7 @@ pantalla({
     const C = await ficha()
     forzar(esNull, { ...DATOS_FICHA, equipo: { ...DETALLE, fotos: [FOTO_EQUIPO(0, { origen: 'campana', campana: 'Dessea' })] } })
     forzar(esTrue, false)
-    return pintar(idioma, el(C, { id: 7 }))
+    return pintar(idioma, el(C, { id: 7, pestana: 'fotos', vista: 'equipo' }))
   },
   espanol: [' · Campaña · Dessea'],
   ingles: [' · Campaign · Dessea'],
@@ -571,7 +570,7 @@ pantalla({
     forzar(esNull, DATOS_FICHA_SIN)
     forzar(esTrue, false)
     forzar(es('equipo'), 'cliente')
-    return pintar(idioma, el(C, { id: 7 }))
+    return pintar(idioma, el(C, { id: 7, pestana: 'fotos', vista: 'equipo' }))
   },
   espanol: [
     'sin pantalla asignada',
@@ -598,7 +597,7 @@ pantalla({
     forzar(esNull, DATOS_FICHA_COMPARAR)
     forzar(esTrue, false)
     forzar(es('equipo'), 'comparar')
-    return pintar(idioma, el(C, { id: 7 }))
+    return pintar(idioma, el(C, { id: 7, pestana: 'fotos', vista: 'equipo' }))
   },
   espanol: [
     'FOTO DEL CLIENTE',
@@ -622,7 +621,7 @@ pantalla({
     forzar(esNull, DATOS_FICHA_PENDIENTE)
     forzar(esTrue, false)
     forzar(es('equipo'), 'cliente')
-    return pintar(idioma, el(C, { id: 7 }))
+    return pintar(idioma, el(C, { id: 7, pestana: 'fotos', vista: 'equipo' }))
   },
   espanol: ['FOTO DEL CLIENTE', 'Subida a la galería de la pantalla', 'Verificación de IA pendiente'],
   ingles: [
@@ -637,7 +636,7 @@ pantalla({
     forzar(esTrue, false)
     forzar(es('quieto'), 'esperando')
     forzar(esNull, 'ORDEN-OK') // el mensaje lo manda el servidor: dato
-    return pintar(idioma, el(C, { id: 7 }))
+    return pintar(idioma, el(C, { id: 7, pestana: 'fotos', vista: 'equipo' }))
   },
   espanol: ['Esperando la foto…', 'Pidiéndole la foto al equipo…', 'Suele tardar entre 5 y 20 segundos'],
   ingles: [
@@ -654,7 +653,7 @@ pantalla({
     forzar(esTrue, false)
     forzar(es('equipo'), 'cliente')
     forzar(es('quieto'), 'pidiendo')
-    return pintar(idioma, el(C, { id: 7 }))
+    return pintar(idioma, el(C, { id: 7, pestana: 'fotos', vista: 'equipo' }))
   },
   espanol: ['Nadie ha subido todavía una foto de esta pantalla. Usa «Subir foto».', 'Pidiendo…'],
   ingles: [
@@ -667,7 +666,7 @@ pantalla({
   pintar: async (idioma) => {
     const C = await ficha()
     forzar(esTrue, false)
-    return pintar(idioma, el(C, { id: 7 }))
+    return pintar(idioma, el(C, { id: 7, pestana: 'fotos', vista: 'equipo' }))
   },
   espanol: ['No se pudo abrir el equipo', 'Equipo no encontrado'],
   ingles: [
@@ -697,7 +696,7 @@ pantalla({
     const C = await historial()
     forzar(esFalse, true)
     forzar(esNull, TELEMETRIA)
-    return pintar(idioma, el(C, { id: 7 }))
+    return pintar(idioma, el(C, { id: 7, pestana: 'fotos', vista: 'equipo' }))
   },
   espanol: [
     'Histórico del equipo',
@@ -730,7 +729,7 @@ pantalla({
     const C = await historial()
     forzar(esFalse, true)
     forzar(esNull, { muestras: 0, serie: [], alertas: [] })
-    return pintar(idioma, el(C, { id: 7 }))
+    return pintar(idioma, el(C, { id: 7, pestana: 'fotos', vista: 'equipo' }))
   },
   espanol: [
     'Este equipo no reportó nada en el rango elegido, así que no hay nada que dibujar. Prueba con un rango más amplio.',
@@ -747,7 +746,7 @@ pantalla({
     const C = await historial()
     forzar(esFalse, true)
     forzar(esNull, { muestras: 3, serie: [{ bucket: '2026-11-02 10:00:00', battery_pct: 50, signal_dbm: null }], alertas: [] })
-    return pintar(idioma, el(C, { id: 7 }))
+    return pintar(idioma, el(C, { id: 7, pestana: 'fotos', vista: 'equipo' }))
   },
   espanol: ['sin dato', 'Señal por hora. Peor valor del rango: sin dato dBm.'],
   ingles: [],
@@ -2125,7 +2124,7 @@ pantalla({
     'No se pudieron leer las fallas',
     'Sin fallas con este filtro.',
     'Marcar como arreglada',
-    'Se cierra sin esperar a que el equipo lo compruebe en su próxima foto.',
+    'Se cierra sin esperar al equipo, y se le pide una foto ahora para dejar constancia de cómo quedó.',
     'Por ejemplo: se cambió la fuente',
     'Marcar arreglada',
   ],

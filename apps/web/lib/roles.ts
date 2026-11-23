@@ -174,6 +174,35 @@ export function puedeEliminarUsuarios(rol: RolDemo | null | undefined): boolean 
  * exige un `as` para poder llamarse es una guarda que alguien acabará
  * rodeando. Cualquier texto que no sea 'DUENO' da false, que es el lado seguro.
  */
+/**
+ * Quien administra la instancia: el Dueno y el Administrador.
+ *
+ * Es la misma lista que `MANDO` en el menu, y existe aqui porque la pantalla
+ * de Ajustes de Space Eyes tiene que repartir sus pestanas por rol: venta
+ * entra a Verificacion -lo necesita para ensenar una pantalla a un cliente-
+ * pero no a la luz de noche ni a la programacion de fotos. Ofrecer una
+ * pestana que al guardar contesta 403 es el «encierro» que este repositorio ya
+ * documento dos veces.
+ */
+export function esMando(rol: string | null | undefined): boolean {
+  return rol === 'DUENO' || rol === 'ADMINISTRADOR'
+}
+
+/**
+ * Quien tiene Space Eyes en su menu: mando y venta, los mismos que Comercial.
+ *
+ * Es la lista de `nav.ts` para el grupo `ojos`, declarada aqui porque tambien
+ * la necesita el servidor —el sondeo de la campanita, para no ponerse a mirar
+ * la flota por alguien que no puede abrirla—. Dos copias de un reparto de
+ * roles es como un rol se queda fuera sin que nadie lo note.
+ */
+export function veSpaceEyes(rol: string | null | undefined): boolean {
+  return (
+    rol === 'DUENO' || rol === 'ADMINISTRADOR' ||
+    rol === 'DIRECTOR_COMERCIAL' || rol === 'GERENTE_VENTAS' || rol === 'VENDEDOR'
+  )
+}
+
 export function puedeEncuadrar(rol: string | null | undefined): boolean {
   return rol === 'DUENO'
 }

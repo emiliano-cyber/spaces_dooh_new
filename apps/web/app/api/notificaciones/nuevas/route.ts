@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { exigir, permisosDeRol } from '@/lib/server/auth'
 import { notificacionesDesde, tiposOcultosPara } from '@/lib/server/notificaciones-repo'
+import { avisarFallasEyes } from '@/lib/server/space-eyes-aviso-fallas'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -16,6 +17,15 @@ export const dynamic = 'force-dynamic'
 export async function GET(req: Request) {
   const g = await exigir()
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
+
+  // Space Eyes: una pantalla CAIDA tiene que saltar encima de cualquier
+  // pantalla de la aplicacion, y este es el unico sondeo que corre con la
+  // pestana QUIETA —`/api/estado` solo se llama al navegar o cuando ya hay
+  // novedades, asi que colgarlo de alli no avisaria a quien lleva una hora en
+  // la misma pantalla, que es justo el caso—. Aparte de la respuesta, con
+  // respiro de 2 min por empresa (da igual cuantas pestanas haya abiertas) y
+  // sin lanzar nunca.
+  void avisarFallasEyes({ rol: g.usuario.rol })
 
   const desde = new URL(req.url).searchParams.get('desde')
   if (!desde || Number.isNaN(Date.parse(desde))) {
