@@ -6,6 +6,7 @@ import { registrarAccion } from '@/lib/server/acciones-repo'
 import { agregarSitiosCtrl } from '@/lib/server/propuestas-controller'
 import { textoBitacoraAjusteTarifa } from '@/lib/tarifa-calculada'
 import { monedaDeLaInstancia } from '@/lib/server/moneda-instancia'
+import { avisosDePropuesta } from '@/lib/server/propuestas-competencia'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -36,7 +37,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     for (const a of ajustes) {
       await registrarAccion(g.usuario, textoBitacoraAjusteTarifa(a), propuesta.nombre)
     }
-    return NextResponse.json(propuesta, { status: 201 })
+    // PROP-MARCA (20/11) · como al crear: los sitios nuevos pueden chocar con
+    // otra marca. Solo avisa, y después de guardar.
+    return NextResponse.json(
+      { ...propuesta, avisosCompetencia: await avisosDePropuesta(params.id) },
+      { status: 201 },
+    )
   } catch (e) {
     return respuestaError(e)
   }

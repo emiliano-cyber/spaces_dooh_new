@@ -43,7 +43,9 @@ import { pinTono } from '@/components/demo/StatusBadge'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { TableroPropuestas } from '@/components/demo/propuestas/TableroPropuestas'
 import { CotejoPorCliente } from '@/components/demo/propuestas/CotejoPorCliente'
-import { PestanasCrm } from '@/components/demo/crm/PestanasCrm'
+import { PestanasCrm, pestanaDeParametros, rutaListaPropuestas } from '@/components/demo/crm/PestanasCrm'
+import { Seguimiento } from '@/components/demo/crm/Seguimiento'
+import { Captacion } from '@/components/demo/captacion/Captacion'
 import {
   usePropuestas,
   useFunnelPropuestas,
@@ -64,9 +66,12 @@ import {
   type EstPropuesta,
   type FunnelPropuestas,
 } from '@/lib/data/client'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowUpRight } from 'lucide-react'
 import { withTrail } from '@/lib/nav-trail'
+import { AvisoCompetenciaPropuesta } from '@/components/demo/propuestas/AvisoCompetencia'
+import { AvisoMarcaCliente } from '@/components/demo/propuestas/MarcaPropuesta'
+import { DibujarPlanoPropuesta } from '@/components/demo/propuestas/DibujarPlanoPropuesta'
 import { crearPropuestaApi, agregarSitiosPropuestaApi, cambiarEstatusPropuestaApi, aprobarItemPropuestaApi, generarCampanaDesdePropuestaApi, ConfirmacionCeroError, CodigoPendienteApiError } from '@/lib/data/estado-api'
 import {
   UNIDADES,
@@ -109,6 +114,15 @@ export default function PropuestasPage() {
   const puedeEditar = usePuede('comercial', 'crear')
   const [nuevoOpen, setNuevoOpen] = useState(false)
   const router = useRouter()
+  // ADR 0051 · las pestañas de Propuestas viven en `?vista=` (18/11). Sin ella,
+  // el Resumen: «que sea la primera en abrirse» (tercer pedido del 18/11). La
+  // lista es `?vista=propuestas`; un `?duplicar=`/`?agregar=` viejo, sin vista,
+  // también cae en ella.
+  const parametros = useSearchParams()
+  const pestana = pestanaDeParametros(parametros)
+  // 18/11 · la tarjeta de un prospecto en Seguimiento abre Prospectos con él.
+  const prospectoAbierto = parametros?.get('prospecto') ?? null
+  const [nuevaOportunidad, setNuevaOportunidad] = useState(false)
   // PROP-COMPLETA (29/10) · «Agregar sitios» y «Duplicar» se piden desde la
   // ficha con `?agregar=<id>` / `?duplicar=<id>` y abren ESTE formulario
   // precargado: el formulario es el único sitio que sabe cotizar una línea
@@ -179,24 +193,53 @@ export default function PropuestasPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl text-ink">{t('propuestas.lista.titulo')}</h1>
-          <p className="mt-1 text-[13px] text-muted">{t('propuestas.lista.subtitulo')}</p>
+          <p className="mt-1 text-[13px] text-muted">
+            {pestana === 'resumen'
+              ? t('crm.resumen.subtitulo')
+              : pestana === 'propuestas'
+              ? t('propuestas.lista.subtitulo')
+              : pestana === 'prospectos'
+              ? t('crm.prospectos.subtitulo')
+              : t('crm.subtitulo')}
+          </p>
         </div>
-        {puedeEditar && (
+        {/* El botón principal, siempre en este sitio y del mismo verde: en el
+            Resumen y en la lista da de alta una propuesta (el Resumen es lo
+            que se abre al entrar, y no debe costar un clic más empezar una);
+            en Seguimiento, una oportunidad. Prospectos trae el suyo junto a
+            sus filtros. */}
+        {puedeEditar && (pestana === 'resumen' || pestana === 'propuestas') && (
           <Button variant="success" size="sm" onClick={() => setNuevoOpen(true)}>
             <Plus className="h-3.5 w-3.5" /> {t('propuestas.lista.nueva')}
           </Button>
         )}
+        {puedeEditar && pestana === 'seguimiento' && (
+          <Button variant="success" size="sm" onClick={() => setNuevaOportunidad(true)}>
+            <Plus className="h-3.5 w-3.5" /> {t('crm.nueva')}
+          </Button>
+        )}
       </div>
 
-      {/* ADR 0051 · Fase 4: Propuestas es la cuarta pestaña del CRM. La
-          dirección no cambia; solo se llega desde «CRM» en el menú. */}
-      <PestanasCrm activa="propuestas" />
+      {/* ADR 0051 · lo del 17/11 son pestañas DE Propuestas desde el 18/11,
+          por pedido del dueño: «no se debe de llamar CRM sino Propuestas». La
+          lista es la primera; el embudo pasó a «Seguimiento» (columnas por
+          etapa) y la pestaña «Oportunidades» se quitó por ser casi igual. */}
+      <PestanasCrm activa={pestana} />
 
-      {/* Rediseño del 26/10: KPIs → lista → análisis. Las cuatro cifras del
-          antiguo «Embudo de propuestas» suben aquí como tarjetas, con las
-          mismas fuentes (`useFunnelPropuestas`). Son HISTÓRICAS —todas las
-          propuestas—, y así lo dicen: el Dashboard mide la tasa de cierre en
-          una ventana de días y el Resumen de abajo en el periodo elegido. */}
+      {pestana === 'seguimiento' && (
+        <Seguimiento nuevaAbierta={nuevaOportunidad} onCerrarNueva={() => setNuevaOportunidad(false)} puedeCrear={puedeEditar} />
+      )}
+      {pestana === 'prospectos' && <Captacion tipoFijo="CLIENTE" abrirId={prospectoAbierto} />}
+
+      {pestana === 'resumen' && (
+      <>
+
+      {/* 18/11 · el Resumen es su propia pestaña, y la primera. Junta lo que
+          el rediseño del 26/10 había puesto alrededor de la lista: arriba, las
+          cuatro cifras del antiguo «Embudo de propuestas» (`useFunnelPropuestas`),
+          que son HISTÓRICAS —todas las propuestas— y así lo dicen; debajo, el
+          tablero del periodo elegido. Las dos son «cómo vamos», y ninguna es
+          la lista que se trabaja. */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {!funnel ? (
           <>
@@ -252,6 +295,13 @@ export default function PropuestasPage() {
         )}
       </div>
 
+      {/* Cómo va el periodo: generadas, aprobadas, rechazadas y ganancia (06/10). */}
+      <TableroPropuestas />
+      </>
+      )}
+
+      {pestana === 'propuestas' && (
+      <>
       {!propuestas ? (
         <div className="h-40 animate-pulse rounded-md bg-surface-2" />
       ) : propuestas.length === 0 ? (
@@ -277,6 +327,7 @@ export default function PropuestasPage() {
         >
           {/* Filtros en una fila: estatus con su conteo, cliente y búsqueda. */}
           <div className="mb-3 flex flex-wrap items-center gap-2">
+            {/* ADR 0051 (17/11) · la misma lista vista por cliente, con su cotejo. */}
             <div className="flex items-center gap-1.5" role="group" aria-label={t('crm.vista.grupo')}>
               <ChipFiltro activo={vista === 'propuesta'} onClick={() => setVista('propuesta')}>
                 {t('crm.vista.propuesta')}
@@ -323,8 +374,9 @@ export default function PropuestasPage() {
             </div>
           </div>
 
-          {/* El embudo, ahora franja secundaria: sus cifras grandes subieron a
-              las tarjetas de arriba. */}
+          {/* El embudo, ahora franja secundaria: sus cifras grandes son las
+              tarjetas del Resumen (pestaña propia desde el 18/11). Se queda
+              aquí porque es el contexto de los filtros por estatus. */}
           {funnel && funnel.total > 0 && <FunnelStrip f={funnel} />}
 
           {vista === 'cliente' ? (
@@ -361,11 +413,8 @@ export default function PropuestasPage() {
           )}
         </CardColapsable>
       )}
-
-      {/* Cómo va el periodo: generadas, aprobadas, rechazadas y ganancia (06/10).
-          Va DEBAJO de la lista desde el 26/10: es análisis, y la lista es lo
-          que se trabaja. */}
-      <TableroPropuestas />
+      </>
+      )}
 
       {nuevoOpen && <NuevaPropuestaDialog onClose={() => setNuevoOpen(false)} />}
       {modo && <NuevaPropuestaDialog modo={modo} onClose={cerrarModo} />}
@@ -534,7 +583,7 @@ function PropuestaCard({
               <div className="text-[11px] text-muted">{t('propuestas.comun.total-con-iva')}</div>
             </div>
             <Link
-              href={withTrail(`/propuestas/${p.id}`, [{ label: t('propuestas.lista.titulo'), href: '/propuestas' }])}
+              href={withTrail(`/propuestas/${p.id}`, [{ label: t('propuestas.lista.titulo'), href: rutaListaPropuestas() }])}
               className="inline-flex items-center gap-1 rounded border border-border-strong px-2.5 py-1.5 text-[12px] font-medium text-info hover:bg-surface-2"
             >
               {t('propuestas.fila.abrir')} <ArrowUpRight className="h-3.5 w-3.5" />
@@ -698,6 +747,9 @@ function NuevaPropuestaDialog({
     !base ? '' : agregando ? base.nombre : t('propuestas.alta.nombre-copia', { nombre: base.nombre }),
   )
   const [comision, setComision] = useState(base ? String(base.comisionPct ?? 0) : '0')
+  // PROP-MARCA (20/11) · opcional; vacía = cuenta el cliente. Al duplicar se
+  // conserva; al agregar sitios es la de la propuesta y no se edita aquí.
+  const [marca, setMarca] = useState(base?.marca ?? '')
 
   // Agencias = clientes tipo AGENCIA (una agencia se asocia a un cliente directo).
   const agencias = (clientes ?? []).filter((c) => c.tipo === 'AGENCIA')
@@ -1271,6 +1323,7 @@ function NuevaPropuestaDialog({
         // Al duplicar viajan también las notas; las condiciones las pone la
         // plantilla vigente, como a toda propuesta nueva.
         ...(modo?.tipo === 'duplicar' ? { notas: base!.notas ?? null } : {}),
+        marca: marca.trim() || null,
         items,
       })
       onClose(creada.id)
@@ -1344,11 +1397,20 @@ function NuevaPropuestaDialog({
         {/* PROP-COMPLETA · al AGREGAR sitios, nombre, cliente, agencia, fechas y
             comisión son los de la propuesta y no se tocan aquí. */}
         {agregando ? (
+          <>
           <p className="rounded-md border border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">
             {interpolarNodos(t('propuestas.alta.periodo'), {
               periodo: <b className="text-ink">{formatFecha(fechaInicio, idioma)} – {formatFecha(fechaFin, idioma)}</b>,
             })}
           </p>
+          {/* Decisión del dueño (20/11 noche) · el aviso de marca distinta
+              también al AGREGAR SITIOS: la marca y el cliente son los de la
+              propuesta (aquí no se editan); se corrige en la ficha. */}
+          <AvisoMarcaCliente
+            marca={base!.marca ?? null}
+            cliente={clientes?.find((c) => c.id === base!.clienteId)?.nombre ?? null}
+          />
+          </>
         ) : (
           <>
           <Campo label={t('propuestas.alta.nombre')} obligatorio falta={ob.falta('nombre')}>
@@ -1387,6 +1449,19 @@ function NuevaPropuestaDialog({
               )}
             </Campo>
           </div>
+          <Campo label={t('propuestas.alta.marca')}>
+            <input
+              className={inputCls}
+              value={marca}
+              maxLength={120}
+              placeholder={t('propuestas.alta.marca.placeholder')}
+              onChange={(e) => setMarca(e.target.value)}
+            />
+          </Campo>
+          {/* Decisión del dueño (20/11) · si la marca escrita no se parece al
+              cliente elegido, un aviso informativo mientras se escribe (y al
+              duplicar). No bloquea «Crear». */}
+          <AvisoMarcaCliente marca={marca} cliente={clientes?.find((c) => c.id === clienteId)?.nombre ?? null} />
           {/* Aviso de negociación sin validar (bloquea crear la propuesta) */}
           {negociacionPendiente && (
             <div className="flex items-start gap-2 rounded-md border border-[#f59e0b40] bg-[#f59e0b0d] p-2.5 text-[12px]">
@@ -1849,6 +1924,27 @@ function NuevaPropuestaDialog({
           </div>
         )}
 
+        {/* PROP-MARCA (20/11) · la competencia de marcas de Vallas, con la
+            marca (o el cliente), las fechas y los sitios elegidos. Al agregar
+            sitios cuentan también los que la propuesta ya tiene. Solo avisa:
+            no deshabilita «Crear». */}
+        <AvisoCompetenciaPropuesta
+          marca={agregando ? (base!.marca ?? null) : marca}
+          clienteId={agregando ? base!.clienteId : clienteId || null}
+          fechaInicio={fechaInicio}
+          fechaFin={fechaFin}
+          sitioIds={agregando ? [...new Set([...base!.items.map((i) => i.sitioId), ...sel])] : [...sel]}
+        />
+
+        {/* «Dibujar plano» (dueño, 20/11 noche) · las vallas de los sitios
+            elegidos en este momento (al agregar, también los que la propuesta
+            ya tiene), en las fechas elegidas. Solo con `inventario.ver`. */}
+        <DibujarPlanoPropuesta
+          sitioIds={agregando ? [...new Set([...base!.items.map((i) => i.sitioId), ...sel])] : [...sel]}
+          desde={fechaInicio}
+          hasta={fechaFin}
+        />
+
         {/* Resumen del divisor en vivo */}
         <div className="grid grid-cols-2 gap-x-6 gap-y-1 rounded-md border border-border bg-surface-2 p-3 text-[12px] sm:grid-cols-4">
           <Dato label={t('propuestas.comun.bruto')} valor={formatMonto(bruto, idioma)} />
@@ -2126,8 +2222,8 @@ function Dato({ label, valor }: { label: string; valor: string }) {
 
 // Tira de funnel comercial: enviadas → aprobadas → perdidas.
 // Desde el 26/10 es una franja secundaria DENTRO de la lista y no una tarjeta:
-// el pipeline, lo ganado y la tasa de cierre subieron a las `KPICard` de arriba
-// (eran las mismas cuatro cifras), y aquí queda solo el embudo en barras.
+// el pipeline, lo ganado y la tasa de cierre subieron a las `KPICard` (desde el
+// 18/11, en la pestaña Resumen), y aquí queda solo el embudo en barras.
 function FunnelStrip({ f }: { f: FunnelPropuestas }) {
   const t = useTexto()
   // Ancho relativo del embudo (enviadas alguna vez = base).

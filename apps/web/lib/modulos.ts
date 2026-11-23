@@ -31,9 +31,12 @@ export const AREAS: AreaProducto[] = [
   { clave: 'comercial', label: 'Comercial', modulo: 'comercial', apiPropia: true },
   { clave: 'clientes', label: 'Clientes', modulo: 'comercial', apiPropia: true },
   { clave: 'propuestas', label: 'Propuestas', modulo: 'comercial', apiPropia: true },
-  // ADR 0051 · el CRM (embudo, oportunidades y su ficha) cuelga de `comercial`:
-  // quien tiene `comercial.aprobar` ve las de todo el equipo.
-  { clave: 'crm', label: 'CRM', modulo: 'comercial', apiPropia: true },
+  // ADR 0051 · las oportunidades (embudo, lista y ficha, pestañas de Propuestas)
+  // cuelgan de `comercial`: quien tiene `comercial.aprobar` ve las de todo el
+  // equipo. La clave sigue siendo `crm`; el rótulo dejó de serlo el 18/11
+  // («no se debe de llamar CRM», pedido del dueño). En otro idioma lo pinta
+  // `nav.crm` (Administración, `etiquetaArea`).
+  { clave: 'crm', label: 'Oportunidades', modulo: 'comercial', apiPropia: true },
   { clave: 'campanas', label: 'Campañas', modulo: 'comercial', apiPropia: true },
   { clave: 'disponibilidad', label: 'Disponibilidad', modulo: 'comercial', apiPropia: false },
   { clave: 'creativos', label: 'Creativos', modulo: 'comercial', apiPropia: false },
@@ -50,6 +53,11 @@ export const AREAS: AreaProducto[] = [
   // `comercial` la pantalla se habría abierto a quien no puede leer su API.
   { clave: 'comercial-opex', label: 'Prospección', modulo: 'captacion', apiPropia: true },
   { clave: 'inventario', label: 'Inventario', modulo: 'inventario', apiPropia: true },
+  // VALLAS (esqueleto, 19/11): cuadros, grupos y competencia de marcas. Sus
+  // rutas (`/api/vallas/**`) exigen `inventario.ver` / `inventario.crear`.
+  // Sale en el menú en Inventario Y en Comercial (espejo, `nav.ts`), pero es
+  // UNA área: el módulo que la autoriza es el mismo desde los dos grupos.
+  { clave: 'vallas', label: 'Vallas', modulo: 'inventario', apiPropia: true },
   // Las ocho pantallas de Space Eyes (equipos, galería, vivo, programación,
   // campañas, verificación, fallas) exigen `inventario.ver` / `inventario.crear`.
   // Sin esta línea, quien marcaba «Inventario» abría las cámaras y las fotos de

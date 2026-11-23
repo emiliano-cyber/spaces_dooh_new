@@ -6,6 +6,7 @@ import { esErrorDeDesbloqueo } from '@/lib/cambios-candado'
 import type { ResultadoLote } from '@/lib/cambios-lote'
 import type { RespuestaPublicacion } from '@/lib/doohmain-resultado'
 import type { VistaPreviaDoohmain } from '@/lib/server/doohmain'
+import type { RequisitosParciales } from '@/lib/requisitos-impresion'
 
 // ============================================================================
 //  lib/data/estado-api.ts — Estado persistido (BD) → store, y mutaciones de
@@ -173,6 +174,8 @@ export async function crearPropuestaApi(input: {
     primaRoadblockPct?: number | null
   }[]
   notas?: string | null
+  // PROP-MARCA (20/11) · opcional; vacía = cuenta el cliente.
+  marca?: string | null
 }): Promise<{ id: string | null }> {
   const r = await fetch(`${API}/propuestas/`, {
     method: 'POST',
@@ -232,8 +235,10 @@ export async function actualizarPropuestaApi(
     // PROP-COMPLETA (29/10) · términos y vigencia de ESTA propuesta.
     condiciones?: string | null
     vigenteHasta?: string | null
+    // PROP-MARCA (20/11) · '' o null la quita (cuenta el cliente).
+    marca?: string | null
   },
-): Promise<void> {
+): Promise<{ avisosCompetencia: AvisoCompetencia[] }> {
   const r = await fetch(`${API}/propuestas/${id}/`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
@@ -242,6 +247,47 @@ export async function actualizarPropuestaApi(
   const d = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(d.error ?? 'No se pudo actualizar la propuesta')
   await refrescarEstado()
+  // PROP-MARCA (20/11, tarde) · el PATCH con `marca` trae los avisos de
+  // competencia ya calculados con la marca nueva: la ficha los enseña al
+  // instante en su recuadro ámbar. Sin marca en el cuerpo no vienen → [].
+  return { avisosCompetencia: Array.isArray(d.avisosCompetencia) ? d.avisosCompetencia : [] }
+}
+
+// PROP-MARCA (20/11) · la competencia de marcas de Vallas para una propuesta
+// que se está armando (o ya guardada): marca —o el cliente, si va vacía—,
+// fechas y sitios. Solo avisa; un fallo aquí devuelve «sin avisos», nunca un
+// error que pare la pantalla.
+export interface AvisoCompetencia {
+  regla: string
+  nivel: 'aviso'
+  mensaje: string
+  marca: string
+  marcaExistente: string
+  categoria: string
+  sitioId: string | null
+  sitioNombre: string | null
+  inicio: string
+  fin: string
+}
+export async function avisosCompetenciaApi(input: {
+  marca?: string | null
+  clienteId?: string | null
+  fechaInicio: string
+  fechaFin: string
+  sitioIds: string[]
+}): Promise<AvisoCompetencia[]> {
+  try {
+    const r = await fetch(`${API}/propuestas/competencia/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    })
+    if (!r.ok) return []
+    const d = await r.json().catch(() => ({}))
+    return Array.isArray(d.avisosCompetencia) ? d.avisosCompetencia : []
+  } catch {
+    return []
+  }
 }
 
 // PROP-COMPLETA (29/10) · agrega sitios (misma forma que el alta) y quita uno.
@@ -767,7 +813,9 @@ export async function reportarIncidenciaApi(input: {
 // ─── Imprenta (órdenes de impresión + OC) ───────────────────────────────────
 export async function crearOrdenImpresionApi(input: {
   campanaId: string; sitioId?: string | null; material?: string
-  alto?: number; ancho?: number; proveedor?: string
+  alto?: number; ancho?: number; proveedor?: string; imprentaId?: string | null
+  // FLUJO-CREA (20/11) · fecha requerida ('YYYY-MM-DD'), opcional.
+  fechaEspecial?: string | null
 }): Promise<void> {
   const r = await fetch(`${API}/impresion/`, {
     method: 'POST',
@@ -788,6 +836,85 @@ export async function aprobarPruebaColorApi(id: string, aprobada: boolean): Prom
   })
   const d = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(d.error ?? 'No se pudo registrar la prueba de color')
+  await refrescarEstado()
+}
+
+// ─── IMP-REQ (18/11) · imprentas y sus requisitos de arte ──────────────────
+export type ImprentaApi = { id: string; nombre: string; requisitos: RequisitosParciales; activo: boolean }
+
+async function jsonO(r: Response, porOmision: string) {
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? porOmision)
+  return d
+}
+
+export async function listarImprentasApi(): Promise<ImprentaApi[]> {
+  return jsonO(await fetch(`${API}/imprentas/`), 'No se pudieron leer las imprentas')
+}
+
+export async function crearImprentaApi(input: { nombre: string; requisitos?: RequisitosParciales }): Promise<ImprentaApi> {
+  return jsonO(
+    await fetch(`${API}/imprentas/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    }),
+    'No se pudo dar de alta la imprenta',
+  )
+}
+
+export async function actualizarImprentaApi(
+  id: string,
+  input: { nombre?: string; requisitos?: RequisitosParciales; activo?: boolean },
+): Promise<ImprentaApi> {
+  const d = await jsonO(
+    await fetch(`${API}/imprentas/${id}/`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    }),
+    'No se pudo guardar la imprenta',
+  )
+  // Las órdenes traen los requisitos de su imprenta: se releen.
+  await refrescarEstado()
+  return d
+}
+
+export async function asignarImprentaApi(ordenId: string, imprentaId: string | null): Promise<void> {
+  await jsonO(
+    await fetch(`${API}/impresion/${ordenId}/imprenta/`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imprentaId }),
+    }),
+    'No se pudo cambiar la imprenta de la orden',
+  )
+  await refrescarEstado()
+}
+
+/** Los requisitos POR OMISIÓN de la empresa (`PATCH /api/config`, administracion.crear). */
+export async function guardarRequisitosEmpresaApi(requisitos: RequisitosParciales): Promise<void> {
+  await jsonO(
+    await fetch(`${API}/config/`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requisitosImpresion: requisitos }),
+    }),
+    'No se pudieron guardar los requisitos',
+  )
+  await refrescarEstado()
+}
+
+// FLUJO-CREA (20/11) · pone o quita (null) la fecha especial de una orden.
+export async function fijarFechaEspecialApi(ordenId: string, fechaEspecial: string | null): Promise<void> {
+  await jsonO(
+    await fetch(`${API}/impresion/${ordenId}/fecha-especial/`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fechaEspecial }),
+    }),
+    'No se pudo guardar la fecha especial',
+  )
   await refrescarEstado()
 }
 
@@ -1013,7 +1140,7 @@ export async function crearCreatividadApi(input: {
   codigo?: string | null
   formato?: string | null
   resolucion?: string | null
-}): Promise<void> {
+}, opciones: { refrescar?: boolean } = {}): Promise<{ id: string }> {
   const r = await fetch(`${API}/creatividades/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1021,7 +1148,10 @@ export async function crearCreatividadApi(input: {
   })
   const d = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error((d as any).error ?? 'No se pudo subir el creativo')
-  await refrescarEstado()
+  // «Actualizar campaña» (18/11) necesita el id para aprobarlo en el mismo
+  // paso, y encadena varias llamadas: refresca una sola vez al final.
+  if (opciones.refrescar !== false) await refrescarEstado()
+  return { id: (d as { id: string }).id }
 }
 
 export async function validarCreatividadApi(

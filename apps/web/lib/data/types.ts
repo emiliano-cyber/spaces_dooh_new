@@ -22,6 +22,8 @@
 //  defaults son MX/MXN pero son sólo defaults — no requieren cambio de schema.
 // ============================================================================
 
+import type { RequisitosParciales } from '@/lib/requisitos-impresion'
+
 // ─── Enums (verbatim de Prisma) ─────────────────────────────────────────────
 
 export type TipoMedio =
@@ -590,6 +592,9 @@ export interface Propuesta {
   descuentoPct: number // descuento comercial sobre la tarifa de lista (≠ comisión)
   version: number // versión de la propuesta (sube en cada renegociación)
   notas: string | null
+  // PROP-MARCA (20/11) · la marca que se anuncia; null = cuenta el cliente
+  // (competencia de marcas de Vallas). Opcional: la liga pública no la manda.
+  marca?: string | null
   creadoEn: string
   // DASH-REF (26/10) · opcionales: la liga pública no los manda. `null` en las
   // aprobadas antes del 09/10, cuando la fecha no se guardaba.
@@ -738,6 +743,11 @@ export interface Creatividad {
   // quitarlo). null = activo. Marca el estado honesto de "pendiente en DOOHmain".
   retiradoEn: string | null
   creadoEn: string
+  // CREA-ORIGEN (20/11): quién lo subió, guardado al crearlo. null = anterior
+  // al 20/11, «Origen desconocido». Opcionales porque el portal público no los
+  // manda (al cliente no se le enseña quién del equipo subió qué).
+  origen?: 'CLIENTE' | 'INTERNO' | null
+  subidoPorNombre?: string | null
 }
 
 export interface ChecklistItem {
@@ -848,6 +858,8 @@ export interface OrdenImpresion {
   pruebaColorUrl: string | null      // prueba de color (probatorio)
   pruebaColorAprobada: boolean
   creadoEn: string
+  // FLUJO-CREA (20/11) · fecha requerida; manda sobre el inicio en la cola.
+  fechaEspecial?: string | null
   // IMP-CREA (17/11) · lo que Imprenta necesita sin depender de Comercial
   // (`listarOrdenesImpresion`). Opcionales: la demo en memoria no los trae y
   // la pantalla cae a `useCampanas`/`useSitios`/`useCreatividades`.
@@ -859,6 +871,10 @@ export interface OrdenImpresion {
   sitioAncho?: number | null
   sitioAlto?: number | null
   creativos?: CreativoDeImpresion[]
+  // IMP-REQ (18/11) · la imprenta que imprime la orden y sus requisitos.
+  imprentaId?: string | null
+  imprentaNombre?: string | null
+  imprentaRequisitos?: RequisitosParciales | null
 }
 
 // El arte de la campaña de una orden de impresión, sin la fuente (la sirve
@@ -980,6 +996,9 @@ export interface ConfigNegocio {
   // dejaría al navegador calculando el costo con una tabla distinta a la del
   // servidor, que es la divergencia que se está cerrando.
   costosOt?: Partial<Record<TipoOT, number>>
+  // IMP-REQ (18/11) · requisitos de arte por omisión de la empresa (saneados;
+  // {} = mandan las constantes). Las imprentas pueden pisarlos.
+  requisitosImpresion?: RequisitosParciales
 }
 
 export interface Notificacion {

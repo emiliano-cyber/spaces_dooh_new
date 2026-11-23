@@ -73,9 +73,8 @@ vi.mock('next/headers', () => ({
   headers: () => ({ get: () => null }),
 }))
 
-vi.mock('next/font/google', () => ({
-  Inter: () => ({ variable: 'f-inter' }),
-  Source_Serif_4: () => ({ variable: 'f-serif' }),
+vi.mock('next/font/local', () => ({
+  default: (o: { variable: string }) => ({ variable: o.variable }),
 }))
 vi.mock('@/lib/server/moneda-instancia', () => ({ monedaDeLaInstancia: async () => 'MXN' }))
 vi.mock('@/lib/server/idioma-instancia', () => ({ idiomaDeLaInstancia: async () => 'es' }))
@@ -262,6 +261,24 @@ const SEG_HIBRIDA_AL_AIRE = {
   pasoActual: 'al_aire',
   mensaje: 'al_aire',
   pasos: PASOS_SEG('hecho', { instalacion: 'hecho', al_aire: 'actual', finalizada: 'pendiente' }),
+}
+// ENVIO-CLIENTE (18/11) · la liga con «Envía tu creativo»: dos sitios para
+// elegir, un envío rechazado con su motivo y otro en revisión.
+const SEG_SUBIR = {
+  ...SEG_BASE,
+  tipo: 'OOH',
+  pasoActual: 'material',
+  mensaje: 'material.esperando-arte',
+  pasos: PASOS_SEG('actual'),
+  puedeSubirCreativo: true,
+  pantallas: [
+    { id: 's1', nombre: 'Pantalla Reforma', tipoMedio: 'ESPECTACULAR', ancho: 12.9, alto: 7.2, resolucionPx: null },
+    { id: 's2', nombre: 'Muro Insurgentes', tipoMedio: 'MURO', ancho: 3, alto: 9, resolucionPx: null },
+  ],
+  envios: [
+    { nombre: 'arte-v2.png', estatus: 'PENDIENTE', motivo: null, creadoEn: '2026-11-06T10:00:00Z', sitioNombre: 'Pantalla Reforma' },
+    { nombre: 'arte-v1.png', estatus: 'RECHAZADO', motivo: 'Falta el logo', creadoEn: '2026-11-05T10:00:00Z', sitioNombre: 'Pantalla Reforma' },
+  ],
 }
 const SEG_CANCELADA = { ...SEG_BASE, tipo: 'OOH', cancelada: true, pasoActual: 'material', mensaje: 'cancelada', pasos: PASOS_SEG('actual') }
 
@@ -940,8 +957,10 @@ const PANTALLAS: Pantalla[] = [
       'placeholder="Tu nombre y cargo"',
       'Aceptar propuesta',
       'Spaces · propuesta comercial',
-      // Ola 5: el tipo de medio va como codigo en español (asi era); en ingles salia «PANTALLA_DIGITAL».
-      ' · PANTALLA_DIGITAL',
+      // 18/11: el tipo de medio va con su etiqueta legible también en español. Hasta
+      // hoy salía el código crudo «PANTALLA_DIGITAL» en la liga que lee el cliente
+      // (lo vieron los recorridos de italiano e inglés del 18/11).
+      ' · Pantalla digital',
     ],
     ingles: [
       'Sales proposal',
@@ -1046,7 +1065,8 @@ const PANTALLAS: Pantalla[] = [
       'Prueba de color aprobada',
       'Sitio por confirmar',
       '>Impresa<',
-      'Ver la propuesta que aceptaste',
+      // 18/11, pedido del dueño: el botón dice «Ver negociación acordada».
+      'Ver negociación acordada',
     ],
     ingles: [
       'Your campaign tracking',
@@ -1063,7 +1083,34 @@ const PANTALLAS: Pantalla[] = [
       'Banner, 12.9 × 7.2 m',
       'Color proof approved',
       'Site to be confirmed',
-      'See the proposal you accepted',
+      'View agreed negotiation',
+    ],
+  },
+  {
+    nombre: 'cuenta · seguimiento de la campana, envia tu creativo (ENVIO-CLIENTE)',
+    pintar: (idioma) => pintarConSeguimiento(idioma, SEG_SUBIR),
+    espanol: [
+      'Envía tu creativo',
+      'Imagen JPG, PNG o WebP de hasta 4 MB. Tu asesor la revisa antes de usarla.',
+      '¿Para qué sitio es?',
+      'Elige un sitio',
+      'Subir creativo',
+      'Cuando lo aprobemos pasará a imprenta.',
+      'Lo que nos enviaste',
+      'No aprobado',
+      'Por qué: Falta el logo',
+      '>En revisión<',
+    ],
+    ingles: [
+      'Send your creative',
+      'JPG, PNG or WebP image up to 4 MB. Your account manager reviews it before it is used.',
+      'Which site is it for?',
+      'Choose a site',
+      'Upload creative',
+      'Once we approve it, it will go to print.',
+      'What you sent us',
+      'Not approved',
+      'Why: Falta el logo',
     ],
   },
   {
@@ -1515,6 +1562,45 @@ describe('seguimiento en la liga · lo que no se ve', () => {
     const html = await pintarConSeguimiento('es', SEG_OOH)
     expect(html.split('aria-current="step"').length - 1).toBe(1)
   })
+  // 18/11 · pedido del dueño: «el pipeline debe de ser en horizontal en la
+  // liga». Horizontal SIEMPRE (también en el teléfono): en angosto se desplaza
+  // DENTRO de su caja, nunca la página entera.
+  it('la línea de pasos es horizontal y se desplaza dentro de su propia caja', async () => {
+    const html = await pintarConSeguimiento('es', SEG_OOH)
+    const ol = /<ol[^>]*data-orientacion="([^"]+)"[^>]*>/.exec(html)
+    expect(ol?.[1]).toBe('horizontal')
+    expect(ol?.[0]).toContain('flex')
+    // La caja que envuelve la línea es la que hace scroll, no la página.
+    expect(html).toMatch(/<div[^>]*data-pasos-scroll="1"[^>]*class="[^"]*overflow-x-auto/)
+    // Seis pasos, en orden, todos en la misma fila.
+    expect(html.split('data-paso=').length - 1).toBe(6)
+  })
+  it('horizontal conserva el estado en palabra: «Ahora» visible y el resto para el lector', async () => {
+    const t = texto(await pintarConSeguimiento('es', SEG_OOH))
+    expect(t).toContain('Ahora')
+    expect(t).toContain('Completado')
+    expect(t).toContain('Pendiente')
+  })
+  // ENVIO-CLIENTE (18/11) · «obvio no se puede aprobar más que por los perfiles
+  // seleccionados»: la liga no ofrece aprobar ni en un botón ni en un texto.
+  it('la liga con «Envía tu creativo» no expone ninguna acción de aprobar', async () => {
+    for (const idioma of ['es', 'en'] as const) {
+      const html = await pintarConSeguimiento(idioma, SEG_SUBIR)
+      const botones = [...html.matchAll(/<button[^>]*>([\s\S]*?)<\/button>/g)].map((m) => texto(m[1]))
+      expect(botones.length).toBeGreaterThan(0)
+      for (const b of botones) expect(b).not.toMatch(/aprob|approv|rechaz|reject/i)
+    }
+  })
+  it('con un solo sitio no se pregunta, y se dice su proporción y medida', async () => {
+    const seg = { ...SEG_SUBIR, pantallas: [SEG_SUBIR.pantallas[0]], envios: [] }
+    const t = texto(await pintarConSeguimiento('es', seg))
+    expect(t).not.toContain('¿Para qué sitio es?')
+    expect(t).toContain('Proporción 16:9 · 12.9 × 7.2 m')
+  })
+  it('sin `puedeSubirCreativo` ni envíos, no hay tarjeta de subir', async () => {
+    const t = texto(await pintarConSeguimiento('es', SEG_OOH))
+    expect(t).not.toContain('Envía tu creativo')
+  })
   it('corriendo no dice «terminó», y cancelada no pinta los pasos', async () => {
     expect(texto(await pintarConSeguimiento('es', SEG_HIBRIDA_AL_AIRE))).not.toContain('Tu campaña terminó')
     expect(texto(await pintarConSeguimiento('es', SEG_CANCELADA))).not.toContain('Pasos de tu campaña')
@@ -1523,5 +1609,45 @@ describe('seguimiento en la liga · lo que no se ve', () => {
     const html = texto(await pintarConSeguimiento('es', SEG_OOH))
     expect(html).not.toContain('Resumen económico')
     expect(html).not.toContain('Total que paga el cliente')
+  })
+})
+
+// LIGA + VALLAS (dueño, 20/11) · «si es valla, cómo se ven las pantallas que
+// rentará, si es más de 1; si solo es una, sin tema». La página REAL: con el
+// campo `planoVallas` (solo llega con más de una) sale la tarjeta; sin él, o
+// con una sola valla, la liga es la de siempre.
+describe('liga · «Así se ven tus vallas»', () => {
+  const PLANO = {
+    sitios: [{ id: 's1', nombre: 'Muro Periférico' }],
+    vallas: [
+      { id: 'v1', sitioId: 's1', numero: 'V-101', cara: null, ancho: 6, alto: 3, grupoId: null, posicion: null, dobla: null },
+      { id: 'v2', sitioId: 's1', numero: 'V-102', cara: null, ancho: 6, alto: 3, grupoId: null, posicion: null, dobla: null },
+    ],
+    grupos: [],
+  }
+  async function pagina(extra: Record<string, unknown>) {
+    forzar(esUndef, { ...PUB, ...extra })
+    const { default: Pagina } = await import('../../app/(app)/p/[id]/page')
+    return texto(pintar('es', createElement(Pagina, { params: { id: 'p1' } })))
+  }
+
+  it('con dos vallas: la tarjeta, cada cuadro «Tu valla», sin Libre/Ocupada', async () => {
+    const t = await pagina({ planoVallas: PLANO })
+    expect(t).toContain('Así se ven tus vallas')
+    expect(t).toContain('>V-101<')
+    expect(t).toContain('>V-102<')
+    expect(t.split('>Tu valla<').length - 1).toBe(2)
+    expect(t).not.toContain('>Libre<')
+    expect(t).not.toContain('Ocupada')
+  })
+
+  it('sin el campo (0 o 1 valla): la liga de siempre, sin la tarjeta', async () => {
+    expect(await pagina({})).not.toContain('Así se ven tus vallas')
+  })
+
+  it('aunque llegara una sola valla, no se pinta', async () => {
+    const t = await pagina({ planoVallas: { ...PLANO, vallas: PLANO.vallas.slice(0, 1) } })
+    expect(t).not.toContain('Así se ven tus vallas')
+    expect(t).not.toContain('V-101')
   })
 })

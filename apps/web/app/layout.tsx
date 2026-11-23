@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Inter, Source_Serif_4 } from 'next/font/google'
+import localFont from 'next/font/local'
 import './globals.css'
 import { Providers } from './providers'
 import { idiomaDeLaPeticion } from '@/lib/i18n/servidor'
@@ -30,29 +30,49 @@ export function generateMetadata(): Metadata {
 // portal— no cuelgan de ese grupo, y servirlas desde alli las dejaria sin
 // tipografia. Este layout lo monta TODO.
 //
-// `next/font/google` descarga los archivos EN EL BUILD y los sirve desde el
-// propio origen. Antes habia un `<link>` a `api.fontshare.com` por Cabinet
-// Grotesk y General Sans, y la CSP en modo reporte lo cazo el 27/08: dos
-// violaciones —`style-src` y quince de `font-src`— en cada carga de pagina.
-// Con esto la CSP puede pasar de aviso a ENCENDIDA sin ampliar nada.
+// Los archivos viven EN EL REPOSITORIO (`app/fuentes/`) y `next/font/local` los
+// sirve desde el propio origen. Antes habia un `<link>` a `api.fontshare.com`
+// por Cabinet Grotesk y General Sans, y la CSP en modo reporte lo cazo el 27/08:
+// dos violaciones —`style-src` y quince de `font-src`— en cada carga de
+// pagina. Con esto la CSP puede pasar de aviso a ENCENDIDA sin ampliar nada.
+//
+// Y no `next/font/google`, aunque fue lo primero: esa variante DESCARGA las
+// fuentes de Google EN CADA BUILD, y el 23/11 el CI del PR de integracion murio
+// con «An error occurred in `next/font`. TypeError: Cannot read properties of
+// null (reading '1')» (`google/loader.js:112`): Google contesto a la maquina
+// del CI una direccion de fuente sin extension. El codigo no tenia nada; el
+// build dependia de que un tercero contestara bien. Lo mismo valia para cada
+// imagen que se construye para las instancias. Con los archivos en el repo el
+// build no sale a la red por tipografia.
+//
+// Son los MISMOS archivos que servia Google (subconjunto latin, que cubre
+// espanol, ingles, italiano y portugues), y los dos son VARIABLES: uno solo
+// lleva todos los grosores. Inter de 100 a 900; Source Serif 4 se usa en 600
+// (titulos) y 700 (el wordmark), y Google entregaba el mismo archivo para los
+// dos. Para cambiar de version, sustituye el .woff2 y ya.
 //
 // `display: 'swap'` es deliberado: el texto se pinta con la fuente de respaldo
 // y se cambia al llegar la buena. La alternativa —`block`— deja la pagina muda
 // hasta 3 s si la descarga se atasca, y una instancia lenta se veria ROTA en
 // vez de sencilla.
-const serif = Source_Serif_4({
-  subsets: ['latin'],
+const serif = localFont({
+  src: './fuentes/source-serif-4-latin.woff2',
+  weight: '600 700',
   variable: '--font-source-serif',
   display: 'swap',
-  // Solo los grosores que se usan: 600 en titulos, 700 en el wordmark. Pedir la
-  // familia entera son cientos de kB que nadie llega a ver.
-  weight: ['600', '700'],
+  fallback: ['Georgia', 'Times New Roman', 'serif'],
+  // Lo que hacia `next/font/google` para una serif: la fuente de respaldo se
+  // ajusta con las metricas de Times New Roman, no las de Arial (el valor por
+  // omision de `next/font/local`), para que el titulo no salte al cargar.
+  adjustFontFallback: 'Times New Roman',
 })
 
-const inter = Inter({
-  subsets: ['latin'],
+const inter = localFont({
+  src: './fuentes/inter-latin.woff2',
+  weight: '100 900',
   variable: '--font-inter',
   display: 'swap',
+  fallback: ['system-ui', 'Segoe UI', 'Arial', 'sans-serif'],
 })
 
 // ── El idioma se decide AQUI, en el servidor, antes del primer byte ─────────
@@ -102,8 +122,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // que se pintan en el navegador (el comprobante). Fail-closed como la
   // moneda: si la base no contesta, la pagina falla en vez de suponer espanol.
   const idiomaDocumentos = await idiomaDeLaInstancia()
-  // Los idiomas ENCENDIDOS (ola 0 del italiano, 2026-11-03). Con uno solo —el
-  // espanol— no hay nada que elegir y el selector no se pinta.
+  // Los idiomas ENCENDIDOS (ola 0 del italiano, 2026-11-03). Con uno solo no
+  // hay nada que elegir y el selector no se pinta. Desde el 18/11
+  // (IDIOMAS-SIN-ES) puede no incluir el espanol; `idiomaDeLaPeticion()` de
+  // arriba ya elige siempre uno de ESTA lista, asi que `idioma` y
+  // `disponibles` no se contradicen.
   const disponibles = idiomasActivos()
   // PALETA-01 (10/11) · el color de la instancia, que se elige AL INSTALAR
   // (`--paleta` del alta → `PALETA` en `app.env`) y no desde la aplicacion.

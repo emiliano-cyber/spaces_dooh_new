@@ -178,7 +178,7 @@ export async function listarCreatividades() {
     // miniaturas se vuelven a montar como documentos de 1 MB. Hay una prueba que
     // ata las dos.
     `select id, campana_id, nombre, formato, resolucion, estatus_validacion,
-            rechazado_motivo, retirado_en, creado_en,
+            rechazado_motivo, retirado_en, creado_en, origen, subido_por_nombre,
             (archivo_url like 'data:image%'
              or codigo ~ '<img[^>]+src="data:image/') as es_imagen
        from creatividades where tenant_id = $1 order by creado_en asc`,
@@ -194,6 +194,9 @@ export async function listarCreatividades() {
     rechazadoMotivo: r.rechazado_motivo,
     retiradoEn: r.retirado_en ? iso(r.retirado_en) : null,
     creadoEn: iso(r.creado_en),
+    // CREA-ORIGEN (20/11): quién lo subió; null = origen desconocido.
+    origen: r.origen ?? null,
+    subidoPorNombre: r.subido_por_nombre ?? null,
   }))
 }
 
@@ -746,9 +749,13 @@ export async function generarCampanaDesdePropuesta(
     // propio de `folioCampana`.
     const campanaId = (
       await client.query(
-        `insert into campanas (folio, nombre, cliente_id, agencia, fecha_inicio, fecha_fin, estado_comercial, tipo_campana, propuesta_id, moneda, tenant_id)
-         values ($1,$2,$3,$4,$5,$6,'CONFIRMADA',$7,$8,coalesce((select moneda from tenants where id=$9),'MXN'),$9) returning id`,
-        [prop.folio, prop.nombre, prop.cliente_id, agenciaNombre, fechaInicio, fechaFin, tipoCampana, propuestaId, await tenantActual()],
+        `insert into campanas (folio, nombre, cliente_id, agencia, fecha_inicio, fecha_fin, estado_comercial, tipo_campana, propuesta_id, moneda, tenant_id, marca)
+         values ($1,$2,$3,$4,$5,$6,'CONFIRMADA',$7,$8,coalesce((select moneda from tenants where id=$9),'MXN'),$9,nullif(btrim($10), '')) returning id`,
+        // PROP-MARCA (20/11) · la campaña hereda la MARCA de la propuesta, para
+        // que la competencia de Vallas la vea con el mismo nombre con que se
+        // vendió. Solo esa columna: nada del cálculo de abajo cambia (R4). Sin
+        // marca queda NULL, que la regla lee como «el nombre del cliente».
+        [prop.folio, prop.nombre, prop.cliente_id, agenciaNombre, fechaInicio, fechaFin, tipoCampana, propuestaId, await tenantActual(), prop.marca ?? null],
       )
     ).rows[0].id
 

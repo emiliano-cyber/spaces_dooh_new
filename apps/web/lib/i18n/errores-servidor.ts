@@ -82,6 +82,9 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // IDIOMAS-SERVIDOR (10/11) · los idiomas del servidor, desde Administracion.
   'Los idiomas no son validos':
     'The languages are not valid',
+  // IDIOMAS-SIN-ES (18/11) · el espanol ya no es obligatorio, pero vacia no.
+  'Hay que elegir al menos un idioma':
+    'At least one language must be chosen',
   'La moneda debe ser MXN o USD':
     'The currency must be MXN or USD',
   'La moneda de la instancia ya está fijada: una organización nueva nace en la misma que las demás':
@@ -492,6 +495,29 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   // 1 sitio · lib/server/usuarios-controller.ts:251
   'Solo el Dueño o un Administrador pueden eliminar usuarios':
     'Only the Owner or an Administrator can delete users',
+  'Solo el Dueño o un Administrador pueden aprobar o rechazar la publicación':
+    'Only the Owner or an Administrator can approve or reject the publication',
+  // ENVIO-CLIENTE (18/11) · el creativo que manda el cliente por la liga
+  'Tu propuesta todavía no es campaña: el creativo se envía cuando la confirmemos':
+    'Your proposal is not a campaign yet: send the creative once we confirm it',
+  'Esta campaña ya no recibe creativos desde la liga. Escribe a tu asesor.':
+    'This campaign no longer accepts creatives from the link. Write to your account manager.',
+  'Esa pantalla no es de tu campaña':
+    'That screen is not part of your campaign',
+  'Elige a qué pantalla va tu creativo':
+    'Choose which screen your creative is for',
+  'Ya recibimos varios archivos hoy para esta campaña. Inténtalo mañana o escribe a tu asesor.':
+    'We have already received several files today for this campaign. Try again tomorrow or write to your account manager.',
+  'Solo el Dueño o un Administrador pueden revisar los creativos que envía el cliente':
+    'Only the Owner or an Administrator can review the creatives sent by the client',
+  'No pudimos leer la medida de la imagen':
+    'We could not read the size of the image',
+  'La proporción de la imagen no coincide con la del sitio elegido':
+    'The image’s aspect ratio does not match the chosen site',
+  'Envío no encontrado':
+    'Submission not found',
+  'No se pudo aprobar el creativo':
+    'The creative could not be approved',
   'Solo el Dueño puede cambiar los permisos':
     'Only the Owner can change permissions',
   // 1 sitio · lib/server/imprenta-visible-controller.ts:32
@@ -529,8 +555,18 @@ export const CATALOGO_ERRORES: Record<string, string> = {
   'No se puede eliminar: la pantalla tiene reservas u órdenes asociadas.':
     'It cannot be deleted: the screen has bookings or orders attached.',
   // 2 sitios · lib/server/impresion-controller.ts:26
+  'Sitio no encontrado': 'Site not found',
   'Orden no encontrada':
     'Order not found',
+  // IMP-REQ (18/11) · imprentas-controller.ts / imprentas-repo.ts
+  'Imprenta no encontrada':
+    'Print shop not found',
+  'Ya existe una imprenta con ese nombre':
+    'A print shop with that name already exists',
+  'Esa imprenta no es de tu organización o está dada de baja':
+    'That print shop is not in your organization or is inactive',
+  'El mínimo aceptable no puede ser mayor que el recomendado':
+    'The acceptable minimum cannot be higher than the recommended one',
   // 2 sitios · lib/server/arrendadores-controller.ts:350
   'Pago no encontrado':
     'Payment not found',
@@ -607,6 +643,9 @@ export const CATALOGO_ERRORES: Record<string, string> = {
     'Choose the client or the prospect',
   'Solo un prospecto de tipo cliente puede tener oportunidades':
     'Only a client prospect can have opportunities',
+  // 18/11 · una sola oportunidad abierta por prospecto.
+  'Ese prospecto ya tiene una oportunidad abierta. Se puede abrir otra cuando esa se gane o se pierda':
+    'That prospect already has an open opportunity. Another one can be opened once it is won or lost',
   'Ese prospecto ya es otro cliente':
     'That prospect is already a different client',
   'Ese cliente no existe':
@@ -683,6 +722,36 @@ export const CATALOGO_ERRORES: Record<string, string> = {
     'The password must include at least one number',
   'La contraseña no puede contener espacios':
     'The password cannot contain spaces',
+  // VALLAS (19/11) · vallas-controller.ts / vallas-repo.ts
+  'Valla no encontrada':
+    'Billboard not found',
+  'Ya existe una valla con ese número':
+    'A billboard with that number already exists',
+  'Grupo de vallas no encontrado':
+    'Billboard group not found',
+  'Ya existe un grupo de vallas con ese número':
+    'A billboard group with that number already exists',
+  'Ese sitio no es de tu organización':
+    'That site is not in your organization',
+  'Alguna de esas vallas no es de tu organización':
+    'One of those billboards is not in your organization',
+  'Categoría de competencia no encontrada':
+    'Competitor category not found',
+  'Ya existe una categoría de competencia con ese nombre':
+    'A competitor category with that name already exists',
+  'Solo el Dueño puede editar las marcas que compiten':
+    'Only the Owner can edit the competing brands',
+  'La medida debe ser mayor que cero':
+    'The size must be greater than zero',
+  'El número es requerido':
+    'The number is required',
+  'El número no puede pasar de 40 caracteres':
+    'The number cannot be longer than 40 characters',
+  'La marca es requerida':
+    'The brand is required',
+  // PROP-MARCA (20/11) · la marca de la propuesta.
+  'La marca no puede pasar de 120 caracteres':
+    'The brand cannot be longer than 120 characters',
 }
 
 
@@ -715,6 +784,7 @@ export const CATALOGO_LIB: Record<string, string> = Object.fromEntries(
 // izquierda: el espejo de `CAMPO_ES` (`lib/server/errores.ts`).
 export const CAMPO_EN: Record<string, string> = {
   'Nombre': 'Name',
+  'Marca': 'Brand',
   'Correo': 'Email',
   'Contraseña': 'Password',
   'Contraseña actual': 'Current password',
@@ -852,6 +922,8 @@ export const CATALOGO_ERRORES_IT: Partial<Record<string, string>> = {
     'Le preferenze di notifica non sono valide.',
   'Los idiomas no son validos':
     'Le lingue non sono valide',
+  'Hay que elegir al menos un idioma':
+    'Bisogna scegliere almeno una lingua',
   'La moneda debe ser MXN o USD':
     'La valuta deve essere MXN o USD',
   'La moneda de la instancia ya está fijada: una organización nueva nace en la misma que las demás':
@@ -1126,6 +1198,29 @@ export const CATALOGO_ERRORES_IT: Partial<Record<string, string>> = {
     'Non è arrivato nessun file.',
   'Solo el Dueño o un Administrador pueden eliminar usuarios':
     'Solo il Titolare o un Amministratore possono eliminare utenti',
+  'Solo el Dueño o un Administrador pueden aprobar o rechazar la publicación':
+    'Solo il Titolare o un Amministratore possono approvare o rifiutare la pubblicazione',
+  // ENVIO-CLIENTE (18/11) · el creativo que manda el cliente por la liga
+  'Tu propuesta todavía no es campaña: el creativo se envía cuando la confirmemos':
+    'La tua proposta non è ancora una campagna: invia la creatività quando la confermeremo',
+  'Esta campaña ya no recibe creativos desde la liga. Escribe a tu asesor.':
+    'Questa campagna non riceve più creatività dal link. Scrivi al tuo consulente.',
+  'Esa pantalla no es de tu campaña':
+    'Quello schermo non fa parte della tua campagna',
+  'Elige a qué pantalla va tu creativo':
+    'Scegli a quale schermo va la tua creatività',
+  'Ya recibimos varios archivos hoy para esta campaña. Inténtalo mañana o escribe a tu asesor.':
+    'Oggi abbiamo già ricevuto diversi file per questa campagna. Riprova domani o scrivi al tuo consulente.',
+  'Solo el Dueño o un Administrador pueden revisar los creativos que envía el cliente':
+    'Solo il Titolare o un Amministratore possono rivedere le creatività inviate dal cliente',
+  'No pudimos leer la medida de la imagen':
+    'Non siamo riusciti a leggere la misura dell’immagine',
+  'La proporción de la imagen no coincide con la del sitio elegido':
+    'La proporzione dell’immagine non coincide con quella del sito scelto',
+  'Envío no encontrado':
+    'Invio non trovato',
+  'No se pudo aprobar el creativo':
+    'Non è stato possibile approvare la creatività',
   'Solo el Dueño puede cambiar los permisos':
     'Solo il Titolare può modificare i permessi',
   'Solo el vendedor que creó la propuesta o un superior puede mostrar la imprenta al cliente':
@@ -1154,8 +1249,18 @@ export const CATALOGO_ERRORES_IT: Partial<Record<string, string>> = {
     'Versione non valida',
   'No se puede eliminar: la pantalla tiene reservas u órdenes asociadas.':
     'Non si può eliminare: l’impianto ha prenotazioni o ordini associati.',
+  'Sitio no encontrado': 'Sito non trovato',
   'Orden no encontrada':
     'Ordine non trovato',
+  // IMP-REQ (18/11) · imprentas-controller.ts / imprentas-repo.ts
+  'Imprenta no encontrada':
+    'Tipografia non trovata',
+  'Ya existe una imprenta con ese nombre':
+    'Esiste già una tipografia con questo nome',
+  'Esa imprenta no es de tu organización o está dada de baja':
+    'Questa tipografia non è della tua organizzazione o è dismessa',
+  'El mínimo aceptable no puede ser mayor que el recomendado':
+    'Il minimo accettabile non può superare quello consigliato',
   'Pago no encontrado':
     'Pagamento non trovato',
   'Para cambiar tu propia contraseña usa Configuración.':
@@ -1221,6 +1326,8 @@ export const CATALOGO_ERRORES_IT: Partial<Record<string, string>> = {
     'Scegli il cliente o il prospect',
   'Solo un prospecto de tipo cliente puede tener oportunidades':
     'Solo un prospect di tipo cliente può avere opportunità',
+  'Ese prospecto ya tiene una oportunidad abierta. Se puede abrir otra cuando esa se gane o se pierda':
+    'Quel prospect ha già un’opportunità aperta. Se ne può aprire un’altra quando quella viene vinta o persa',
   'Ese prospecto ya es otro cliente':
     'Questo prospect è già un altro cliente',
   'Ese cliente no existe':
@@ -1293,6 +1400,35 @@ export const CATALOGO_ERRORES_IT: Partial<Record<string, string>> = {
     'La password deve contenere almeno un numero',
   'La contraseña no puede contener espacios':
     'La password non può contenere spazi',
+  // VALLAS (19/11) · vallas-controller.ts / vallas-repo.ts
+  'Valla no encontrada':
+    'Cartellone non trovato',
+  'Ya existe una valla con ese número':
+    'Esiste già un cartellone con questo numero',
+  'Grupo de vallas no encontrado':
+    'Gruppo di cartelloni non trovato',
+  'Ya existe un grupo de vallas con ese número':
+    'Esiste già un gruppo di cartelloni con questo numero',
+  'Ese sitio no es de tu organización':
+    'Questo impianto non è della tua organizzazione',
+  'Alguna de esas vallas no es de tu organización':
+    'Uno di quei cartelloni non è della tua organizzazione',
+  'Categoría de competencia no encontrada':
+    'Categoria di concorrenza non trovata',
+  'Ya existe una categoría de competencia con ese nombre':
+    'Esiste già una categoria di concorrenza con questo nome',
+  'Solo el Dueño puede editar las marcas que compiten':
+    'Solo il Titolare può modificare i marchi concorrenti',
+  'La medida debe ser mayor que cero':
+    'La misura deve essere maggiore di zero',
+  'El número es requerido':
+    'Il numero è obbligatorio',
+  'El número no puede pasar de 40 caracteres':
+    'Il numero non può superare i 40 caratteri',
+  'La marca es requerida':
+    'Il marchio è obbligatorio',
+  'La marca no puede pasar de 120 caracteres':
+    'Il marchio non può superare i 120 caratteri',
 }
 
 /** El de `lib/` sale del diccionario, como `CATALOGO_LIB`: se escribe una vez, en `textos/servidor.ts`. */
@@ -1305,6 +1441,7 @@ export const CATALOGO_LIB_IT: Partial<Record<string, string>> = Object.fromEntri
 /** El espejo de `CAMPO_EN`. */
 export const CAMPO_IT: Partial<Record<string, string>> = {
   'Nombre': 'Nome',
+  'Marca': 'Marchio',
   'Correo': 'Email',
   'Contraseña': 'Password',
   'Contraseña actual': 'Password attuale',
@@ -1375,6 +1512,7 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
   'El idioma de los documentos de la instancia solo se elige al darla de alta':
     'O idioma dos documentos da instância só é escolhido ao criá-la',
   'Los idiomas no son validos': 'Os idiomas não são válidos',
+  'Hay que elegir al menos un idioma': 'É preciso escolher pelo menos um idioma',
   'La moneda debe ser MXN o USD': 'A moeda deve ser MXN ou USD',
   'La moneda de la instancia ya está fijada: una organización nueva nace en la misma que las demás':
     'A moeda da instância já está definida: uma organização nova nasce na mesma moeda das demais',
@@ -1481,7 +1619,7 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
     'Este contrato já está assinado. Escreva o motivo da alteração: a versão assinada será arquivada e será preciso assiná-lo de novo.',
   'Este contrato ya fue firmado con este enlace.': 'Este contrato já foi assinado com este link.',
   'Este enlace ya se usó. Solicita uno nuevo.': 'Este link já foi usado. Solicite um novo.',
-  'Este prospecto ya se decidió': 'Este prospect já foi decidido',
+  'Este prospecto ya se decidió': 'Este prospecto já foi decidido',
   'Falta el id del ticket': 'Falta o id do ticket',
   'Falta el recibo a borrar': 'Falta a conta a excluir',
   'Fechas inválidas (se espera YYYY-MM-DD)': 'Datas inválidas (o formato esperado é AAAA-MM-DD)',
@@ -1563,6 +1701,29 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
   'No llego ningun archivo.': 'Nenhum arquivo chegou.',
   'Solo el Dueño o un Administrador pueden eliminar usuarios':
     'Somente o Titular ou um Administrador podem excluir usuários',
+  'Solo el Dueño o un Administrador pueden aprobar o rechazar la publicación':
+    'Somente o Titular ou um Administrador podem aprovar ou rejeitar a publicação',
+  // ENVIO-CLIENTE (18/11) · el creativo que manda el cliente por la liga
+  'Tu propuesta todavía no es campaña: el creativo se envía cuando la confirmemos':
+    'Sua proposta ainda não é uma campanha: envie o criativo quando a confirmarmos',
+  'Esta campaña ya no recibe creativos desde la liga. Escribe a tu asesor.':
+    'Esta campanha não recebe mais criativos pelo link. Escreva ao seu consultor.',
+  'Esa pantalla no es de tu campaña':
+    'Essa tela não faz parte da sua campanha',
+  'Elige a qué pantalla va tu creativo':
+    'Escolha para qual tela vai o seu criativo',
+  'Ya recibimos varios archivos hoy para esta campaña. Inténtalo mañana o escribe a tu asesor.':
+    'Já recebemos vários arquivos hoje para esta campanha. Tente amanhã ou escreva ao seu consultor.',
+  'Solo el Dueño o un Administrador pueden revisar los creativos que envía el cliente':
+    'Somente o Titular ou um Administrador podem revisar os criativos enviados pelo cliente',
+  'No pudimos leer la medida de la imagen':
+    'Não conseguimos ler a medida da imagem',
+  'La proporción de la imagen no coincide con la del sitio elegido':
+    'A proporção da imagem não coincide com a do ponto escolhido',
+  'Envío no encontrado':
+    'Envio não encontrado',
+  'No se pudo aprobar el creativo':
+    'Não foi possível aprovar o criativo',
   'Solo el Dueño puede cambiar los permisos':
     'Somente o Titular pode alterar as permissões',
   'Solo el vendedor que creó la propuesta o un superior puede mostrar la imprenta al cliente':
@@ -1588,7 +1749,12 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
   'Versión inválida': 'Versão inválida',
   'No se puede eliminar: la pantalla tiene reservas u órdenes asociadas.':
     'Não é possível excluir: o ponto tem reservas ou ordens associadas.',
+  'Sitio no encontrado': 'Ponto não encontrado',
   'Orden no encontrada': 'Ordem não encontrada',
+  'Imprenta no encontrada': 'Gráfica não encontrada',
+  'Ya existe una imprenta con ese nombre': 'Já existe uma gráfica com esse nome',
+  'Esa imprenta no es de tu organización o está dada de baja': 'Essa gráfica não é da sua organização ou está inativa',
+  'El mínimo aceptable no puede ser mayor que el recomendado': 'O mínimo tolerado não pode ser maior que o indicado',
   'Pago no encontrado': 'Pagamento não encontrado',
   'Para cambiar tu propia contraseña usa Configuración.': 'Para alterar a sua própria senha, use Configurações.',
   'Predio no encontrado': 'Imóvel não encontrado',
@@ -1618,14 +1784,16 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
   'Selecciona una opción válida': 'Selecione uma opção válida',
   'El texto tiene un formato inválido': 'O texto tem um formato inválido',
   'El valor no es válido': 'O valor não é válido',
-  'Ese prospecto no existe': 'Esse prospect não existe',
+  'Ese prospecto no existe': 'Esse prospecto não existe',
   // ADR 0051 · as oportunidades do CRM comercial.
   'Esa oportunidad no existe': 'Essa oportunidade não existe',
   'El presupuesto mínimo no puede ser mayor que el máximo': 'O orçamento mínimo não pode ser maior que o máximo',
   'La fecha de inicio no puede ir después de la de fin': 'A data de início não pode ser depois da data de término',
-  'Elige el cliente o el prospecto': 'Escolha o cliente ou o prospect',
-  'Solo un prospecto de tipo cliente puede tener oportunidades': 'Só um prospect do tipo cliente pode ter oportunidades',
-  'Ese prospecto ya es otro cliente': 'Esse prospect já é outro cliente',
+  'Elige el cliente o el prospecto': 'Escolha o cliente ou o prospecto',
+  'Solo un prospecto de tipo cliente puede tener oportunidades': 'Só um prospecto do tipo cliente pode ter oportunidades',
+  'Ese prospecto ya tiene una oportunidad abierta. Se puede abrir otra cuando esa se gane o se pierda':
+    'Esse prospecto já tem uma oportunidade aberta. Outra pode ser aberta quando ela for ganha ou perdida',
+  'Ese prospecto ya es otro cliente': 'Esse prospecto já é outro cliente',
   'Ese cliente no existe': 'Esse cliente não existe',
   'La oportunidad ya está cerrada': 'A oportunidade já está fechada',
   'La oportunidad ya está en esa etapa': 'A oportunidade já está nessa etapa',
@@ -1677,6 +1845,35 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
   'La contraseña debe incluir al menos una letra': 'A senha deve incluir pelo menos uma letra',
   'La contraseña debe incluir al menos un número': 'A senha deve incluir pelo menos um número',
   'La contraseña no puede contener espacios': 'A senha não pode conter espaços',
+  // VALLAS (19/11) · vallas-controller.ts / vallas-repo.ts
+  'Valla no encontrada':
+    'Painel não encontrado',
+  'Ya existe una valla con ese número':
+    'Já existe um painel com esse número',
+  'Grupo de vallas no encontrado':
+    'Grupo de painéis não encontrado',
+  'Ya existe un grupo de vallas con ese número':
+    'Já existe um grupo de painéis com esse número',
+  'Ese sitio no es de tu organización':
+    'Esse ponto não é da sua organização',
+  'Alguna de esas vallas no es de tu organización':
+    'Algum desses painéis não é da sua organização',
+  'Categoría de competencia no encontrada':
+    'Categoria de concorrência não encontrada',
+  'Ya existe una categoría de competencia con ese nombre':
+    'Já existe uma categoria de concorrência com esse nome',
+  'Solo el Dueño puede editar las marcas que compiten':
+    'Somente o Titular pode editar as marcas concorrentes',
+  'La medida debe ser mayor que cero':
+    'A medida deve ser maior que zero',
+  'El número es requerido':
+    'O número é obrigatório',
+  'El número no puede pasar de 40 caracteres':
+    'O número não pode passar de 40 caracteres',
+  'La marca es requerida':
+    'A marca é obrigatória',
+  'La marca no puede pasar de 120 caracteres':
+    'A marca não pode passar de 120 caracteres',
 }
 
 /** El de `lib/` sale del diccionario, como `CATALOGO_LIB_IT`: se escribe una vez, en `textos/servidor.ts`. */
@@ -1689,6 +1886,7 @@ export const CATALOGO_LIB_PT: Partial<Record<string, string>> = Object.fromEntri
 /** El espejo de `CAMPO_EN`. */
 export const CAMPO_PT: Partial<Record<string, string>> = {
   'Nombre': 'Nome',
+  'Marca': 'Marca',
   'Correo': 'E-mail',
   'Contraseña': 'Senha',
   'Contraseña actual': 'Senha atual',
@@ -2435,7 +2633,7 @@ export const PERIODICIDAD_PT: Record<string, string> = {
 // Detras de «ele»: cada etapa lleva su verbo («ainda é um prospect», «está
 // em negociação»), porque «ele está um prospect» no se dice.
 export const ETAPA_PT: Record<string, string> = {
-  prospecto: 'ainda é um prospect',
+  prospecto: 'ainda é um prospecto',
   contactado: 'já foi contatado',
   visita: 'está na fase de visita',
   negociación: 'está em negociação',
@@ -2579,7 +2777,7 @@ const PATRONES_PT: Record<string, { pt: string; huecosPt?: Record<number, (valor
     pt: 'Esta campanha vai até $1. Estender só pode deixá-la mais longa: escolha uma data posterior.',
   },
   'This prospect cannot be edited: it is $1': {
-    pt: 'Não é possível editar este prospect: ele $1',
+    pt: 'Não é possível editar este prospecto: ele $1',
     huecosPt: { 1: deTablaPt(ETAPA_PT) },
   },
   'To send it for review, it still needs: $1': {

@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises'
 import { giroDeFoto } from '@/lib/space-eyes-marca'
 import { licenciaIncluyeModulo } from '@/lib/licencia'
 import { comoSeActualiza, type ComoSeActualiza } from '@/lib/space-eyes-actualizacion'
+import type { FotoDeteccionSE, CampanaReporteSE, EquipoReporteSE } from '@/lib/space-eyes-reporte-campanas'
 
 // ============================================================================
 //  lib/server/space-eye.ts — Cliente de la API de Space Eye (verificación de
@@ -232,6 +233,22 @@ export interface SEEquipoResumen {
   ultimaFoto: { url: string; miniatura: string; tomadaEn: string | null; giro: number } | null
   /** Si se actualiza sin que nadie toque el equipo (ver lib/space-eyes-actualizacion). */
   actualizacion: ComoSeActualiza
+  /**
+   * La falla ABIERTA de este equipo, si tiene alguna, para que la lista avise
+   * sin que haya que entrar a mirar. Es la mas ANTIGUA de las abiertas: la que
+   * lleva mas tiempo sin arreglarse es la que urge, no la ultima que entro.
+   */
+  falla?: FallaAbierta | null
+}
+
+/** Lo justo para avisar en una tarjeta; el detalle vive en Fallas. */
+export interface FallaAbierta {
+  id: number
+  nombre: string
+  donde: string
+  desde: string
+  /** Cuantas abiertas tiene el equipo en total, contando esta. */
+  cuantas: number
 }
 
 export interface SEEquipoDetalle extends SEEquipoResumen {
@@ -307,7 +324,7 @@ export function urlAbsolutaDeFoto(storagePath: string): string {
   return `${BASE}${storagePath}`
 }
 
-function resumen(d: SEDeviceFila, foto?: SEPhoto): SEEquipoResumen {
+function resumen(d: SEDeviceFila, foto?: SEPhoto, falla?: FallaAbierta | null): SEEquipoResumen {
   return {
     id: d.id,
     nombre: d.name,
@@ -330,6 +347,7 @@ function resumen(d: SEDeviceFila, foto?: SEPhoto): SEEquipoResumen {
       app_actualiza_sola: d.app_actualiza_sola ?? null,
       app_actualiza_motivo: d.app_actualiza_motivo ?? null,
     }),
+    falla: falla ?? null,
   }
 }
 
@@ -355,7 +373,44 @@ export async function listarEquipos(): Promise<SEEquipoResumen[]> {
     ultimas = new Map()
   }
 
-  return devices.map((d) => resumen(d, ultimas.get(d.id)))
+  // Las fallas ABIERTAS de la flota, en una sola consulta. Igual que las fotos:
+  // si esto no contesta, la lista se pinta sin el aviso en vez de no pintarse.
+  //
+  // Va aqui y no en cada tarjeta porque una pantalla caida es justo lo que hay
+  // que ver SIN entrar: el correo avisa una vez y de noche no lo lee nadie; el
+  // aviso en la lista sigue ahi a la manana siguiente, y se va solo cuando la
+  // falla se recupera.
+  const abiertas = new Map<number, FallaAbierta>()
+  try {
+    const { fallas } = await api<{ fallas: Record<string, any>[] }>('/api/fallas?estado=abierta&limit=500')
+    for (const f of fallas ?? []) {
+      // El estado se comprueba AQUI aunque ya se pidio filtrado. En la
+      // demostracion, `datosDemo('fallas')` devuelve el historial ENTERO e
+      // ignora la consulta: sin esto, cada equipo con una falla vieja ya
+      // recuperada saldria marcado en rojo como si estuviera caido ahora.
+      if (f.estado !== 'abierta') continue
+      const did = Number(f.device_id)
+      if (!Number.isFinite(did)) continue
+      const ya = abiertas.get(did)
+      const desde = String(f.detectada_en)
+      // Se queda la MAS ANTIGUA, y se cuentan todas.
+      if (!ya || desde < ya.desde) {
+        abiertas.set(did, {
+          id: Number(f.id),
+          nombre: String(f.nombre ?? f.tipo),
+          donde: dondeDeFalla(f as any),
+          desde,
+          cuantas: (ya?.cuantas ?? 0) + 1,
+        })
+      } else {
+        ya.cuantas += 1
+      }
+    }
+  } catch {
+    abiertas.clear()
+  }
+
+  return devices.map((d) => resumen(d, ultimas.get(d.id), abiertas.get(d.id)))
 }
 
 /** Un equipo con todo lo que la ficha enseña, incluidas sus últimas fotos. */
@@ -861,4 +916,53 @@ export async function reenviarASpaceEye(
   }
   salida.set('Cache-Control', 'no-store')
   return new Response(r.body, { status: r.status, headers: salida })
+}
+
+// ─── Las detecciones de campañas, para el reporte en Excel (19/11) ──────────
+
+/** Cuántas detecciones trae como máximo un reporte: 40 páginas de 500. */
+export const MAX_DETECCIONES_REPORTE = 20_000
+const POR_PAGINA_REPORTE = 500
+
+/**
+ * Las fotos de campaña (`source=campana`: el equipo reconoció el arte) de un
+ * rango, con las campañas y los equipos para completar cliente y código.
+ *
+ * Se pagina hasta una página corta y NO por el `total`: Space Eye lo cuenta sin
+ * los filtros de fecha ni de origen (`listPhotos`, el `COUNT(*)` solo lleva
+ * dueño, equipo y campaña), así que con él se pararía tarde o nunca. Y con un
+ * tope: un rango largo de una flota grande no puede dejar la petición colgada
+ * minutos; si se llega, `truncado` y el reporte lo dice. Space Eye ordena de la
+ * más nueva a la más vieja, así que lo que queda fuera es lo más viejo.
+ *
+ * `desde`/`hasta` van en UTC (`limitesUTC`): Space Eye compara contra su
+ * `taken_at` tal cual.
+ */
+export async function deteccionesDeCampanas(f: {
+  desde: string
+  hasta: string
+  equipo?: number | null
+  campana?: number | null
+}): Promise<{ fotos: FotoDeteccionSE[]; campanas: CampanaReporteSE[]; equipos: EquipoReporteSE[]; truncado: boolean }> {
+  const filtros = new URLSearchParams({ source: 'campana', from: f.desde, to: f.hasta, limit: String(POR_PAGINA_REPORTE) })
+  if (f.equipo) filtros.set('device_id', String(f.equipo))
+  if (f.campana) filtros.set('campaign_id', String(f.campana))
+  const fotos: FotoDeteccionSE[] = []
+  let truncado = false
+  for (let pagina = 1; ; pagina++) {
+    filtros.set('page', String(pagina))
+    const { photos } = await api<{ photos: FotoDeteccionSE[] }>(`/api/photos?${filtros.toString()}`)
+    const lote = photos ?? []
+    fotos.push(...lote)
+    if (lote.length < POR_PAGINA_REPORTE) break
+    if (fotos.length >= MAX_DETECCIONES_REPORTE) {
+      truncado = true
+      break
+    }
+  }
+  const [{ campaigns }, { devices }] = await Promise.all([
+    api<{ campaigns: CampanaReporteSE[] }>('/api/campaigns'),
+    api<{ devices: EquipoReporteSE[] }>('/api/devices'),
+  ])
+  return { fotos: fotos.slice(0, MAX_DETECCIONES_REPORTE), campanas: campaigns ?? [], equipos: devices ?? [], truncado }
 }

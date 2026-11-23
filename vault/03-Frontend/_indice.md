@@ -49,7 +49,7 @@ Router en uso**.
 
 | Layout | Qué aporta |
 |---|---|
-| `app/layout.tsx` | HTML raíz, **las fuentes con `next/font`** (Source Serif 4 + Inter, desde el 28/08), `Providers` |
+| `app/layout.tsx` | HTML raíz, **las fuentes con `next/font/local`** (Source Serif 4 + Inter, desde el 28/08; los `.woff2` viven en `app/fuentes/` desde el 23/11, para que el build no dependa de Google), `Providers` |
 | `app/(app)/layout.tsx` | Tokens del design system (`.demo-root`), `demo.css`, Toaster |
 | `app/(app)/(shell)/layout.tsx` | Sidebar + Topbar + sesión + guards |
 

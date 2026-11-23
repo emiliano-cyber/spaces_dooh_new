@@ -15,6 +15,9 @@ import { claveTipoMedio } from '@/components/demo/comercial/claves'
 import { etiquetaTipoMedio } from '@/lib/tipo-medio'
 import { SeguimientoCampana } from '@/components/demo/propuestas/SeguimientoCampana'
 import type { Seguimiento } from '@/lib/seguimiento-campana'
+import { FotosYUbicacionSitio } from '@/components/demo/propuestas/FotosYUbicacionSitio'
+import { PlanoVallasCliente } from '@/components/vallas/PlanoVallas'
+import { mostrarPlanoEnLiga, type PlanoVallasLiga } from '@/lib/vallas/plano-publico'
 
 const API = '/spaces-dooh/api'
 
@@ -24,6 +27,9 @@ interface ItemPub {
   franjaId?: string | null
   franjaNombre?: string | null
   franjaHorario?: string | null
+  // FOTOS-UBIC (18/11) · con qué pedir las fotos del renglón. Opcional: un
+  // servidor anterior no lo manda, y entonces no se ofrece el botón.
+  sitioId?: string
   sitioNombre: string
   alcaldia: string | null
   tipoMedio: string | null
@@ -95,6 +101,9 @@ interface PropuestaPub {
   vigenteHasta?: string | null
   vencida?: boolean
   condiciones?: string | null
+  // LIGA + VALLAS (dueño, 20/11) · solo llega si los sitios suman MÁS de una
+  // valla activa; si no, ni el campo (la liga se ve como siempre).
+  planoVallas?: PlanoVallasLiga | null
   items: ItemPub[]
 }
 
@@ -283,9 +292,9 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
                         {it.direccion ? <span className="text-ink">{it.direccion}</span> : null}
                         {it.direccion && zonaDe(it) ? <br /> : null}
                         {zonaDe(it) ?? (it.direccion ? null : t('cuenta.publica.sin-ubicacion'))}
-                        {/* Ola 5: en español el tipo va como siempre (el codigo); en ingles,
-                            su etiqueta, porque «ESPECTACULAR» es una palabra española. */}
-                        {it.tipoMedio ? ` · ${idioma === 'es' ? it.tipoMedio : tipoMedioIngles(it.tipoMedio)}` : ''}
+                        {/* El tipo con su etiqueta legible en todos los idiomas. Hasta el 18/11, en
+                            español salía el código crudo («PANTALLA_DIGITAL») en la liga del cliente. */}
+                        {it.tipoMedio ? ` · ${tipoMedioIngles(it.tipoMedio)}` : ''}
                       </span>
                     </div>
                     {it.lat != null && it.lng != null && (
@@ -300,6 +309,18 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
                           {it.lat.toFixed(5)}, {it.lng.toFixed(5)}
                         </span>
                       </a>
+                    )}
+                    {/* FOTOS-UBIC (18/11) · «ver fotos de la pantalla y lugar».
+                        Va por la ruta PÚBLICA con el mismo token de la liga:
+                        `/api/sitios/:id/media` exige sesión y el cliente no
+                        la tiene. Las fotos se piden al abrir, no aquí. */}
+                    {it.sitioId && (
+                      <div className="mt-1.5">
+                        <FotosYUbicacionSitio
+                          sitio={{ ...it, nombre: it.sitioNombre }}
+                          urlFotos={`${API}/propuestas/publica/${params.id}/sitios/${it.sitioId}/`}
+                        />
+                      </div>
                     )}
                   </div>
                   <span className="demo-num shrink-0 text-[13px] text-ink">{formatMonto(it.precio, idioma)}</span>
@@ -318,6 +339,11 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
           )}
         </CardContent>
       </Card>
+
+      {/* «Así se ven tus vallas» (dueño, 20/11): «si es valla, cómo se ven las
+          pantallas que rentará, si es más de 1; si solo es una, sin tema». El
+          plano llega ya en la respuesta de la liga y no pide nada más. */}
+      {mostrarPlanoEnLiga(p.planoVallas) && <PlanoVallasCliente plano={p.planoVallas} />}
 
       {/* Mapa con la ubicación de las pantallas. Si ningún sitio tiene
           coordenadas lo decimos en vez de ocultar la tarjeta en silencio: la
@@ -522,7 +548,7 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
       <main className="w-full space-y-4 px-6 py-6">
         {seguimiento ? (
           <>
-            <SeguimientoCampana seguimiento={seguimiento} />
+            <SeguimientoCampana seguimiento={seguimiento} urlEnvio={`${API}/propuestas/publica/${params.id}/creativos/`} />
             {/* La propuesta aceptada, plegada: ya no es lo que el cliente viene
                 a ver, pero sigue siendo el documento de lo que contrató. Se
                 MONTA al abrirla (no solo se oculta): el mapa medido dentro de un

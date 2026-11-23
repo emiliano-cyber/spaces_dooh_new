@@ -1,0 +1,215 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { ProveedorIdioma } from '@/lib/i18n/contexto'
+import type { Idioma } from '@/lib/i18n/idiomas'
+import { armarPlano } from '@/lib/vallas/plano'
+import type { Valla, GrupoVallas } from '@/lib/vallas/tipos'
+
+// ============================================================================
+//  PLANO DE LAS VALLAS (dueño, 20/11) · se rinde el componente REAL, en los
+//  cuatro idiomas, con el boceto que aprobó el dueño:
+//
+//    Sitio: Periférico Sur 4500
+//    │ V-001 6x3 Libre │ V-002 6x3 Pepsi │ V-003 12x3 Libre │
+//    └─ G-001 (una imagen) ─┘
+//
+//  (Aquí las reservas son por sitio: con Pepsi, el sitio entero sale ocupado.)
+// ============================================================================
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
+  usePathname: () => '/vallas',
+}))
+
+beforeEach(() => {
+  vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
+})
+
+const v = (p: Partial<Valla> & { id: string; numero: string }): Valla => ({
+  sitioId: 'S1',
+  cara: null,
+  ancho: 6,
+  alto: 3,
+  grupoId: null,
+  posicion: null,
+  notas: null,
+  activo: true,
+  ...p,
+})
+
+const VALLAS = [
+  v({ id: 'a', numero: 'V-001', grupoId: 'g1', posicion: 1 }),
+  v({ id: 'b', numero: 'V-002', grupoId: 'g1', posicion: 2 }),
+  v({ id: 'c', numero: 'V-003', ancho: 12 }),
+]
+const GRUPOS: GrupoVallas[] = [
+  { id: 'g1', numero: 'G-001', nombre: null, modo: 'una_imagen', ancho: 12, alto: 3, notas: null, activo: true },
+]
+const SITIOS = [{ id: 'S1', nombre: 'Periférico Sur 4500' }]
+
+const TEXTO: Record<Idioma, { sitio: string; libre: string; modo: string; cuadro: string; ocupada: string }> = {
+  es: { sitio: 'Sitio: Periférico Sur 4500', libre: 'Libre', modo: 'G-001 (Una sola imagen)', cuadro: 'Valla V-003, 12 × 3 m, Libre', ocupada: 'Valla V-001, 6 × 3 m, Ocupada por Pepsi, Telcel' },
+  en: { sitio: 'Site: Periférico Sur 4500', libre: 'Free', modo: 'G-001 (Single image)', cuadro: 'Poster panel V-003, 12 × 3 m, Free', ocupada: 'Poster panel V-001, 6 × 3 m, Occupied by Pepsi, Telcel' },
+  it: { sitio: 'Sito: Periférico Sur 4500', libre: 'Libero', modo: 'G-001 (Immagine unica)', cuadro: 'Poster V-003, 12 × 3 m, Libero', ocupada: 'Poster V-001, 6 × 3 m, Occupato da Pepsi, Telcel' },
+  pt: { sitio: 'Ponto: Periférico Sur 4500', libre: 'Livre', modo: 'G-001 (Imagem única)', cuadro: 'Outdoor V-003, 12 × 3 m, Livre', ocupada: 'Outdoor V-001, 6 × 3 m, Ocupado por Pepsi, Telcel' },
+}
+
+async function pintar(idioma: Idioma, ocupado: boolean): Promise<string> {
+  const { PlanoDeSitio } = await import('./PlanoVallas')
+  const [sitio] = armarPlano({
+    vallas: VALLAS,
+    grupos: GRUPOS,
+    sitios: SITIOS,
+    ocupaciones: ocupado
+      ? [
+          { sitioId: 'S1', marca: 'Pepsi', campanaId: 'k1', campanaNombre: 'Pepsi Navidad', inicio: '2026-11-20', fin: '2026-12-20' },
+          { sitioId: 'S1', marca: 'Telcel', campanaId: 'k2', campanaNombre: 'Telcel', inicio: '2026-11-25', fin: '2026-12-20' },
+        ]
+      : [],
+  })
+  return renderToStaticMarkup(createElement(ProveedorIdioma, { idioma }, createElement(PlanoDeSitio, { sitio })))
+}
+
+const escapar = (s: string) => s.replace(/'/g, '&#x27;')
+
+describe.each(['es', 'en', 'it', 'pt'] as Idioma[])('el plano de un sitio en %s', (idioma) => {
+  it('dice el sitio, cada número con su medida y «Libre» en TEXTO (no solo color)', async () => {
+    const html = await pintar(idioma, false)
+    expect(html).toContain(escapar(TEXTO[idioma].sitio))
+    for (const n of ['V-001', 'V-002', 'V-003']) expect(html).toContain(`>${n}<`)
+    expect(html).toContain('>6 × 3 m<')
+    expect(html).toContain('>12 × 3 m<')
+    expect(html.split(`>${TEXTO[idioma].libre}<`).length - 1).toBe(3)
+  })
+
+  it('marca el grupo con su número y su modo', async () => {
+    const html = await pintar(idioma, false)
+    expect(html).toContain(escapar(TEXTO[idioma].modo))
+  })
+
+  it('cada cuadro lleva aria-label con número, medida y estado', async () => {
+    expect(await pintar(idioma, false)).toContain(`aria-label="${escapar(TEXTO[idioma].cuadro)}"`)
+    expect(await pintar(idioma, true)).toContain(`aria-label="${escapar(TEXTO[idioma].ocupada)}"`)
+  })
+
+  it('ocupado: la primera marca y «+n»', async () => {
+    const html = await pintar(idioma, true)
+    expect(html).toContain('>Pepsi<')
+    expect(html).toContain('>+1<')
+    expect(html).not.toContain(`>${TEXTO[idioma].libre}<`)
+  })
+})
+
+describe('el cuadro se dibuja a escala', () => {
+  it('el ancho de cada cuadro va en proporción a sus metros', async () => {
+    const html = await pintar('es', false)
+    // V-001 y V-002 miden 6 m; V-003, 12: el doble de crecimiento.
+    expect(html).toMatch(/flex-grow:6[^"]*"[^>]*aria-label="Valla V-001/)
+    expect(html).toMatch(/flex-grow:12[^"]*"[^>]*aria-label="Valla V-003/)
+  })
+})
+
+// ============================================================================
+//  «Dibujar plano» en la propuesta (dueño, 20/11 noche) · el cuerpo del plano
+//  (`PlanoVallas`) se reutiliza con los sitios y las fechas de la propuesta:
+//  sin campos de fecha (las fechas son las de la propuesta) y con un texto
+//  propio cuando ninguno de esos sitios tiene vallas.
+// ============================================================================
+describe('PlanoVallas con sitios y fechas fijos (la propuesta)', () => {
+  async function cuerpo(p: Record<string, unknown>) {
+    const { PlanoVallas } = await import('./PlanoVallas')
+    return renderToStaticMarkup(
+      createElement(ProveedorIdioma, { idioma: 'es' }, createElement(PlanoVallas, { vallas: VALLAS, grupos: GRUPOS, ...p } as never)),
+    )
+  }
+
+  it('sin fechas fijas pinta los campos Desde/Hasta (la pantalla de Vallas)', async () => {
+    expect(await cuerpo({})).toContain('type="date"')
+  })
+
+  it('con fechas fijas no hay campos de fecha: se dice el periodo', async () => {
+    const html = await cuerpo({ sitioIds: ['S1'], fechas: { desde: '2026-12-01', hasta: '2026-12-31' } })
+    expect(html).not.toContain('type="date"')
+    expect(html).toContain('01/12/2026')
+    expect(html).toContain('31/12/2026')
+    expect(html).toContain('>V-001<')
+  })
+
+  it('ninguno de los sitios tiene vallas → el texto que se le pase, y ningún cuadro', async () => {
+    const html = await cuerpo({
+      sitioIds: ['S9'],
+      fechas: { desde: '2026-12-01', hasta: '2026-12-31' },
+      textoVacio: 'Ninguno de los sitios de esta propuesta tiene vallas dadas de alta',
+    })
+    expect(html).toContain('Ninguno de los sitios de esta propuesta tiene vallas dadas de alta')
+    expect(html).not.toContain('>V-001<')
+  })
+
+  it('con fechas fijas vacías (aún no se eligen) lo dice en vez de marcar todo libre', async () => {
+    const html = await cuerpo({ sitioIds: ['S1'], fechas: { desde: '', hasta: '' } })
+    expect(html).toContain('Elige las fechas para ver qué está ocupado.')
+  })
+})
+
+// ============================================================================
+//  ESQUINAS (dueño, 20/11): la valla que dobla sigue siendo un cuadro normal;
+//  entre tramos va un separador con la etiqueta de la esquina, el tramo
+//  siguiente se dibuja girado en perspectiva, y el aria-label del cuadro lo
+//  dice. La última valla que dobla deja la marca al final.
+// ============================================================================
+describe.each([
+  ['es', 'Esquina · dobla a la derecha', 'Esquina · dobla a la izquierda', 'Valla E-002, 6 × 3 m, Libre, en esquina, dobla a la derecha', 'dobla la esquina'],
+  ['en', 'Corner · turns right', 'Corner · turns left', 'Poster panel E-002, 6 × 3 m, Free, on a corner, turns right', 'turns the corner'],
+] as const)('la esquina en el plano (%s)', (idioma, rotuloDerecha, rotuloIzquierda, aria, cruza) => {
+  async function pintarEsquina(vallas: Valla[], grupos: GrupoVallas[] = []) {
+    const { PlanoDeSitio } = await import('./PlanoVallas')
+    const [sitio] = armarPlano({ vallas, grupos, sitios: SITIOS, ocupaciones: [] })
+    return renderToStaticMarkup(createElement(ProveedorIdioma, { idioma }, createElement(PlanoDeSitio, { sitio })))
+  }
+
+  it('separador con la etiqueta, tramo girado y aria-label del cuadro', async () => {
+    const html = await pintarEsquina([
+      v({ id: 'e1', numero: 'E-001' }),
+      v({ id: 'e2', numero: 'E-002', dobla: 'derecha' }),
+      v({ id: 'e3', numero: 'E-003' }),
+    ])
+    expect(html).toContain(`>${rotuloDerecha}<`)
+    expect(html).toContain(`aria-label="${escapar(aria)}"`)
+    // El tramo de después va girado (perspectiva) y lo dice en un atributo.
+    expect(html).toMatch(/data-gira="derecha"[^>]*style="[^"]*rotateY\(-/)
+    // Los tres cuadros siguen ahí, con su número.
+    for (const n of ['E-001', 'E-002', 'E-003']) expect(html).toContain(`>${n}<`)
+    expect(html.split(`>${rotuloDerecha}<`).length - 1).toBe(1)
+  })
+
+  it('a la izquierda gira al revés', async () => {
+    const html = await pintarEsquina([v({ id: 'e1', numero: 'E-001', dobla: 'izquierda' }), v({ id: 'e2', numero: 'E-002' })])
+    expect(html).toContain(`>${rotuloIzquierda}<`)
+    expect(html).toMatch(/data-gira="izquierda"[^>]*style="[^"]*rotateY\(\d/)
+  })
+
+  it('la última valla que dobla deja la marca de esquina al final', async () => {
+    const html = await pintarEsquina([v({ id: 'e1', numero: 'E-001' }), v({ id: 'e2', numero: 'E-002', dobla: 'derecha' })])
+    expect(html).toContain(`>${rotuloDerecha}<`)
+    expect(html).not.toContain('data-gira=')
+  })
+
+  it('un grupo que cruza la esquina se marca en los dos tramos y lo dice', async () => {
+    const html = await pintarEsquina(
+      [
+        v({ id: 'e1', numero: 'E-001', grupoId: 'g1', posicion: 1, dobla: 'derecha' }),
+        v({ id: 'e2', numero: 'E-002', grupoId: 'g1', posicion: 2 }),
+      ],
+      GRUPOS,
+    )
+    expect(html.split(escapar(cruza)).length - 1).toBeGreaterThanOrEqual(2)
+    expect(html.split('role="group"').length - 1).toBe(2)
+  })
+
+  it('sin esquinas no hay separador ni giro', async () => {
+    const html = await pintarEsquina(VALLAS, GRUPOS)
+    expect(html).not.toContain(rotuloDerecha)
+    expect(html).not.toContain('rotateY')
+  })
+})

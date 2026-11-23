@@ -114,7 +114,7 @@ describe('sin una pieza portuguesa, el mensaje sale ENTERO en espanol', () => {
     const msg = 'No se puede editar un prospecto perdido'
     const p = patron(msg)
     expect(p.huecos).toBeDefined()
-    expect(traducirError(msg, 'pt')).toBe('Não é possível editar este prospect: ele foi perdido')
+    expect(traducirError(msg, 'pt')).toBe('Não é possível editar este prospecto: ele foi perdido')
     quitarPatron(p, 'huecosPt')
     expect(traducirError(msg, 'pt')).toBe(msg)
   })

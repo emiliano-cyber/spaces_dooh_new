@@ -574,3 +574,61 @@ describe('8 · el cotejo con y sin IVA lleva la tasa de cada cliente', () => {
     expect(props.find((p) => p.folio === 'CRM-IVA-16').ivaPct).toBe(16)
   })
 })
+
+// ───────────────────────────────────────────────────────────────────────────
+// 18/11 · el dueño: no se puede crear una segunda oportunidad del mismo
+// prospecto mientras la anterior esté abierta; con todas cerradas (GANADA o
+// PERDIDA), sí. La comprobación es por organización, NO por vendedor: cuenta
+// también la abierta de otro vendedor que quien crea no ve.
+describe('9 · una sola oportunidad abierta por prospecto', () => {
+  const alta = (c: Cliente, prospectoId: string, nombre = 'Otra') =>
+    c.pedir('/api/oportunidades/', { cuerpo: { nombre, prospectoId } })
+
+  it('con una abierta de OTRO vendedor (que no ve): 409 con el motivo, y no nace nada', async () => {
+    const lead = await sembrarProspecto('CLIENTE', 'Lead con dueña ajena', org.id, idVendedor)
+    // La abierta es de Luis, sembrada directa: Mariana no la ve en su lista.
+    await poolTest().query(
+      `insert into oportunidades (tenant_id, prospecto_id, nombre, usuario_id) values ($1,$2,'De Luis',$3)`,
+      [org.id, lead, idVendedor2],
+    )
+    const lista = (await vendedor.pedir('/api/oportunidades/')).datos.oportunidades as any[]
+    expect(lista.some((o) => o.prospectoId === lead)).toBe(false)
+
+    const r = await alta(vendedor, lead)
+    expect(r.status).toBe(409)
+    expect(r.datos.error).toBe('Ese prospecto ya tiene una oportunidad abierta. Se puede abrir otra cuando esa se gane o se pierda')
+    // No revela nada de la ajena: ni su id, ni su nombre, ni su vendedor.
+    expect(JSON.stringify(r.datos)).not.toMatch(/De Luis|Luis Herrera/)
+    const n = await poolTest().query('select count(*)::int as n from oportunidades where prospecto_id = $1', [lead])
+    expect(n.rows[0].n).toBe(1)
+  })
+
+  it('con una abierta propia: 409 también', async () => {
+    const lead = await sembrarProspecto('CLIENTE', 'Lead repetido', org.id, idVendedor)
+    expect((await alta(vendedor, lead, 'Primera')).status).toBe(201)
+    expect((await alta(vendedor, lead, 'Segunda')).status).toBe(409)
+  })
+
+  it('con todas cerradas (perdida y ganada): 201', async () => {
+    const lead = await sembrarProspecto('CLIENTE', 'Lead que vuelve', org.id, idVendedor)
+    const a = (await alta(vendedor, lead, 'Se perdió')).datos
+    expect(
+      (await vendedor.pedir(ruta(a.id, 'etapa/'), { cuerpo: { etapa: 'PERDIDA', motivoPerdida: 'Precio' } })).status,
+    ).toBe(200)
+    const b = await alta(vendedor, lead, 'Segunda vuelta')
+    expect(b.status).toBe(201)
+    expect((await vendedor.pedir(ruta(b.datos.id, 'etapa/'), { cuerpo: { etapa: 'GANADA' } })).status).toBe(200)
+    expect((await alta(vendedor, lead, 'Tercera')).status).toBe(201)
+  })
+
+  it('otra organización no cuenta ni se entera: su intento sobre este prospecto es 404, no 409', async () => {
+    const lead = await sembrarProspecto('CLIENTE', 'Lead ocupado', org.id, idVendedor)
+    expect((await alta(vendedor, lead, 'Abierta')).status).toBe(201)
+    expect((await alta(duenoOtra, lead)).status).toBe(404)
+    // Y lo abierto en la otra organización no estorba aquí.
+    const suyo = await sembrarProspecto('CLIENTE', 'Lead de la otra', otra.id, null)
+    expect((await alta(duenoOtra, suyo, 'De la otra')).status).toBe(201)
+    const mio = await sembrarProspecto('CLIENTE', 'Lead libre', org.id, idVendedor)
+    expect((await alta(vendedor, mio, 'Libre')).status).toBe(201)
+  })
+})

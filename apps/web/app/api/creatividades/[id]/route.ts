@@ -13,6 +13,8 @@ import { esCreativoPropio } from '@/lib/server/creativos-repo'
 import { validarReemplazoCreatividad } from '@/lib/server/creativos-controller'
 import { respuestaError } from '@/lib/server/errores'
 import { conteo } from '@/lib/plural'
+import { avisarPendientesImpresion } from '@/lib/server/pendientes-creativo-controller'
+import { origenInterno } from '@/lib/origen-creativo'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -40,6 +42,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       crea.nombre,
     )
   }
+  // FLUJO-CREA (20/11) · con el creativo aprobado, los sitios fijos de su
+  // campaña quedan «Por mandar a impresión»: aviso a Imprenta. No crea nada.
+  if (body.aprobar) await avisarPendientesImpresion(crea.campanaId)
   // Space Eyes: un creativo aprobado (o rechazado) cambia lo que esperan ver los equipos.
   await avisarCambioDeCampanas()
   return NextResponse.json(crea)
@@ -106,7 +111,8 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
         )
       }
     }
-    const crea = await reemplazarCreatividad(params.id, arte)
+    // CREA-ORIGEN (20/11): arte nuevo = contenido nuevo = lo subió quien reemplaza.
+    const crea = await reemplazarCreatividad(params.id, arte, origenInterno(g.usuario))
     if (!crea) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
     await registrarAccion(g.usuario, 'Reemplazó creativo', crea.nombre)
     await avisarCambioDeCampanas()

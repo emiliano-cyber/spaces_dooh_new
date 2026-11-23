@@ -1,12 +1,21 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-11-17
+actualizado: 2026-11-20
 tags: [backend, operaciones, ot, imprenta, amarillo, almacen, checklist]
 archivos:
   - apps/web/lib/server/ot-repo.ts
   - apps/web/lib/server/ot-controller.ts
   - apps/web/lib/server/impresion-repo.ts
+  - apps/web/lib/pendientes-creativo.ts
+  - apps/web/lib/server/pendientes-creativo-repo.ts
+  - apps/web/lib/server/pendientes-creativo-controller.ts
+  - apps/web/lib/album-evidencias.ts
+  - apps/web/components/operaciones/PendientesCreativo.tsx
+  - apps/web/components/demo/campanas/DescargarAlbum.tsx
+  - db/migrations/20261120_impresion_fecha_especial.sql
+  - db/migrations/20261120_z_creatividades_origen.sql
+  - apps/web/lib/origen-creativo.ts
   - apps/web/lib/server/operaciones-eventos.ts
   - apps/web/lib/server/almacen-repo.ts
   - apps/web/lib/server/almacen-controller.ts
@@ -26,6 +35,19 @@ archivos:
   - apps/web/lib/prioridad-imprenta.ts
   - apps/web/lib/proporcion-pantalla.ts
   - apps/web/components/operaciones/ArteEnSitio.tsx
+  - apps/web/components/operaciones/ValoracionArte.tsx
+  - apps/web/lib/valoracion-arte.ts
+  - apps/web/lib/arte-impresion.ts
+  - apps/web/lib/requisitos-impresion.ts
+  - apps/web/lib/server/imprentas-repo.ts
+  - apps/web/lib/server/imprentas-controller.ts
+  - apps/web/app/api/imprentas/route.ts
+  - apps/web/app/api/imprentas/[id]/route.ts
+  - apps/web/app/api/impresion/[id]/imprenta/route.ts
+  - apps/web/components/operaciones/Imprentas.tsx
+  - db/migrations/20261118_imprentas_y_requisitos.sql
+  - apps/web/components/demo/campanas/AgregarCreativo.tsx
+  - infra/nginx/instancia.conf.tpl
   - apps/web/app/api/creativos/[id]/arte/route.ts
   - apps/web/lib/server/creativos-repo.ts
   - apps/web/lib/data/derive.ts
@@ -176,6 +198,161 @@ condición de la orden → 6 de 8 en rojo.
 > La pantalla en un navegador real (Chrome) a la hora de cerrar este cambio:
 > ver el diario del 17/11.
 
+### La valoración del arte para la lona (IMP-VAL, 2026-11-18)
+
+Pedido del dueño: «en la pantalla de Imprenta debemos tener cambios a la hora de
+la valoración del arte a subir, ya que se debe dejar en claro y mostrar el
+ejemplo de cómo se vería el arte en el tamaño de la lona». Sin migración, sin
+rutas nuevas y sin tocar el servidor: las dimensiones del archivo se leen en el
+navegador (`createImageBitmap`, y si no hay, `Image`).
+
+| Qué | Dónde | Por qué así |
+|---|---|---|
+| **Elegir el archivo ya no lo sube** | `imprenta/page.tsx` (`onArchivo` → `ConfirmarArteDialog` → `subirArte`) | Antes «Subir arte» mandaba el archivo en cuanto se elegía. Ahora se lee (data URL y píxeles) y se abre «Revisa el arte antes de subirlo» con la lona y la valoración. Rojo **no** impide subir —el botón pasa a «Subir de todos modos»—; lo único que lo apaga es el peso, porque el servidor lo rechazaría. Quién sube (`comercial.crear`) y el flujo de estatus no cambian |
+| **El arte ya subido se revisa igual** | `VerArteDialog` → `RevisionArte` | El diálogo de aprobar mide la imagen servida por `/arte/` y enseña la misma lona y la misma valoración (sin formato ni peso: el archivo original ya no existe, se guardó envuelto en HTML). Un creativo en código no se puede medir: se pinta con `ArteEnSitio` y se dice |
+| **La lona a escala** | `components/operaciones/ValoracionArte.tsx` (`LonaAEscala`) | SVG cuyo `viewBox` es la lona **en metros**: cotas de ancho y alto en el idioma de quien lee, el margen de seguridad punteado y una persona de 1,70 m de pie al borde de abajo, todo a escala real. «A sangre»: lo que sobra se ve atenuado y rayado FUERA de la lona (se pierde; acotado a media lona por lado para que la lona no se vuelva una raya). «Sin recortar»: el arte entero y las franjas en blanco rayadas. **No hay modo «estirar»**: la convención de IMP-CREA es que la imprenta no deforma |
+| **La valoración** | `lib/valoracion-arte.ts` (puro) | Semáforo general = el peor de cuatro criterios. **Proporción**: ≤ 3 % de recorte verde (`TOLERANCIA_AJUSTE`), ≤ 15 % ámbar con los cm que se pierden por lado, más rojo con la proporción en que pedirlo. **Resolución efectiva a tamaño real**: px ÷ m a sangre (manda el lado que más se estira) → DPI. **Formato**: PNG/JPG/WebP verde, otro ámbar. **Peso**: hasta `IMAGEN_CREATIVO_MAX_MB` verde, más rojo |
+
+> [!important] Umbrales ORIENTATIVOS, decididos aquí (no había convención)
+> - **Margen de seguridad**: 5 cm por lado (`MARGEN_SEGURIDAD_M`). Se rotula
+>   como orientativo: cada imprenta tiene el suyo.
+> - **Gran formato** (un lado ≥ 6 m, se ve de lejos): verde ≥ **10 DPI**, ámbar
+>   ≥ 5. La guía de exterior es «72 dpi al 10 %» ≈ 7 DPI a tamaño real. Se
+>   eligió 10 y no 20–30 porque el tope de subida es de **4 MB**: 20 DPI en
+>   12,9 m son ~10 200 px de ancho, que no caben, y un semáforo que nunca da
+>   verde enseña a no mirarlo.
+> - **Lona cercana** (< 6 m, se ve a pocos metros): verde ≥ **30 DPI**, ámbar ≥ 15.
+>
+> Si el dueño o la imprenta dan otras cifras, se cambian en `UMBRALES_DPI`,
+> `LADO_GRAN_FORMATO_M` y `MARGEN_SEGURIDAD_M`; las pruebas leen las constantes.
+
+Pruebas: `lib/valoracion-arte.test.ts` (21, en rojo primero: el módulo no
+existía) y `components/operaciones/ValoracionArte.test.ts` (6, rinde la revisión
+con `renderToStaticMarkup` y lee los textos). Dos mutantes, uno en cada archivo
+(invertir costados/arriba-abajo; la fórmula del recorte), muertos. Textos en
+es/en/it/pt (`operaciones.imprenta.valoracion.*`).
+
+#### Respuestas del dueño (18/11, misma tarde)
+
+- **El arte de la ficha también pasa por la revisión.** `AgregarCreativo`
+  (ficha de campaña) abre la misma lona y la misma valoración al elegir una
+  imagen, contra los sitios FIJOS de la campaña con medida
+  (`lonasDeCampana`, `lib/arte-impresion.ts`; manda la medida de la orden de
+  impresión del sitio si la hay) y con un selector si hay varias. En una OOH
+  no se pinta la vista del player (no va a pantalla); en una híbrida, las dos.
+  No se tocó `campanas/[id]/page.tsx`: el componente lee sus propios hooks.
+- **Tope del arte de impresión: 15 MB, solo campañas OOH** (`topeArteMb`).
+  Híbridas y digitales siguen en 4 MB (comparten el arte con sus pantallas).
+  Por encima de 4 MB la imagen viaja SOLA en `archivoUrl` (`cuerpoArte`), no
+  envuelta: el servidor ya aceptaba 15 MB por esa vía
+  (`LIMITES.creatividadImagen`, tipo real por magic bytes), así que **no se
+  abrió ningún endpoint ni se tocó `creativos-controller.ts`**. `/arte/` y
+  DOOHmain ya leían ese caso.
+  - **Por qué 15 y no 25**: el arte vive como data URL en la base. 15 MB son
+    ~20 MB por fila (y por respaldo). 25 MB serían ~33 MB solos, y envueltos
+    —la envoltura guarda la imagen dos veces— ~67 MB por fila y ~250 MB de
+    memoria de Node por subida. Hoy el máximo era ~10,7 MB por fila.
+  - Ojo: `crearCreatividad` responde con `returning *` y devuelve el data URL
+    entero; con 15 MB son ~20 MB de vuelta. Funciona, pero conviene recortarlo.
+  - **nginx (R6)**: las plantillas cortan a 12M por servidor. Cada `location /`
+    que hace proxy en `instancia.conf.tpl`, `demo.space-os.io.conf`,
+    `padre-ip.conf` y los cuatro bloques de `space-os.io.conf` lleva ahora una
+    `location ~ ^/spaces-dooh/api/creatividades/?$` anidada con
+    `client_max_body_size 22M` (hereda cabeceras y tiempos; repite
+    `proxy_pass`). Prueba: `lib/arte-impresion.test.ts`. **No se aplicó en
+    ningún servidor.** En cada uno, una persona: copia el archivo que le toca
+    a `/etc/nginx/sites-available/`, `sudo nginx -t` y, si sale bien,
+    `sudo systemctl reload nginx`. En una instancia, regenerar su conf desde
+    `instancia.conf.tpl` con su dominio (el mismo paso de aprovisionamiento).
+    Hasta que se haga, un arte de más de ~9 MB recibe 413 de nginx.
+- **Umbrales configurables (por imprenta)**: pedían migración y el dueño
+  eligió la **opción B** (R3 aprobado). Hecho en IMP-REQ, ver la sección
+  siguiente. Las constantes de `lib/valoracion-arte.ts` quedan como respaldo.
+- **Un arte en rojo solo avisa**, como estaba.
+
+> [!warning] Lo que NO se verificó
+> El navegador (lo prueba el orquestador en Chrome), `nginx -t` (no hay nginx
+> en esta máquina) ni una subida real de 15 MB contra el servidor.
+
+### Imprentas y sus requisitos de arte (IMP-REQ, 2026-11-18/19)
+
+Decisión del dueño: «la imprenta usada es de terceros por ahora y, como se
+vende el proyecto, la imprenta puede ser de cualquiera». Así que los umbrales de
+IMP-VAL dejan de ser fijos: **cada imprenta tiene los suyos, la empresa tiene
+unos por omisión y, si nadie dice nada, mandan las constantes de siempre**. Un
+arte en rojo **sigue solo avisando**; el tope del arte OOH sigue en **15 MB**.
+
+| Qué | Dónde | Por qué así |
+|---|---|---|
+| **Migración (R3 + R2, aprobada)** | `db/migrations/20261118_imprentas_y_requisitos.sql` | Solo agrega: `config_negocio.requisitos_impresion jsonb` (`{}` = sin configurar), la tabla `imprentas` (RLS fail-closed + FORCE, nombre único por organización sin distinguir mayúsculas ni espacios) y `ordenes_impresion.imprenta_id` opcional. `proveedor` (texto) **se queda**: las órdenes de antes lo usan. La orden apunta con **FK compuesta** `(imprenta_id, tenant_id)` porque los chequeos de FK saltan la RLS. `on delete restrict` (y no `set null`, que con FK compuesta anularía `tenant_id`; `set null (col)` es PG 15 y g500 corre 14): la baja es **lógica** (`activo = false`) y el rol de la app no tiene DELETE |
+| **La regla** | `lib/requisitos-impresion.ts` (puro) | `resolverRequisitos(imprenta, empresa)`: imprenta > empresa > `REQUISITOS_RESPALDO`, **campo por campo**. `sanearRequisitos` al leer y al escribir (como `costos_ot`): un valor inválido cae al siguiente nivel, **nunca a 0** (0 DPI daría todo por bueno). Un ámbar por encima de su verde se descarta. Campos: DPI verde/ámbar de gran formato y de lona cercana, corte de gran formato (m), margen (cm) y formatos aceptados |
+| **La valoración** | `lib/valoracion-arte.ts` | `valorarArte(…, req)` y `valorarResolucion(…, req)` reciben los requisitos (por omisión, las constantes). Con lista de **formatos**, uno fuera de ella es rojo («esa imprenta no lo recibe»); sin lista, como antes. **Desde el 19/11** el rojo tiene su propio texto en `PanelValoracion` (`…valoracion.formato.rojo`: «Formato PNG: esta imprenta no lo recibe (acepta PDF, TIFF)»); antes caía en el del ámbar y el punto rojo decía «revísalo con la imprenta» |
+| **Rutas** | `GET·POST /api/imprentas`, `PATCH /api/imprentas/[id]`, `PATCH /api/impresion/[id]/imprenta` | Capas `route.ts` → `imprentas-controller.ts` (zod `.strict()` con los mismos rangos que el saneo) → `imprentas-repo.ts` (`q` con `and tenant_id = $n`). Permisos **existentes**: ver con `imprenta.ver`, alta/edición/asignar con `imprenta.crear`. Asignar una imprenta ajena o dada de baja → 400; un id que no es uuid → 404 sin tocar la base. Los de la empresa van por `PATCH /api/config { requisitosImpresion }` (`administracion.crear`) |
+| **La orden** | `impresion-repo.ts` | El alta acepta `imprentaId`; el listado trae `imprentaNombre` e `imprentaRequisitos` (saneados) con un `left join` por `tenant_id` |
+| **Pantalla** | `components/operaciones/Imprentas.tsx` en `/imprenta` | Tarjeta «Imprentas»: los requisitos de la empresa y la lista de imprentas con alta, edición y baja. Cada orden tiene su selector de imprenta, y el diálogo de arte dice «Valorado con los requisitos de …». La ficha de campaña (`AgregarCreativo` → `lonasDeCampana`) valora la lona con los de la imprenta de la orden de ese sitio |
+
+Pruebas: `lib/requisitos-impresion.test.ts` (unitarias de saneo y resolución),
+`lib/arte-impresion.test.ts` (la lona trae los requisitos de su orden) y
+`lib/test/imprentas.e2e.test.ts` contra Postgres y Next reales: CRUD con y sin
+permiso, nombre único por organización, **aislamiento** por la API y con el rol
+de la app directo (sin tenant cero filas, no inserta en otra, no borra), la FK
+compuesta rechazando la imprenta ajena, y `PATCH /api/config` con basura → 400.
+Textos en es/en/it/pt (`operaciones.imprenta.imprentas.*`, errores en
+`errores-servidor.ts`).
+
+> [!warning] Lo que NO se verificó
+> El navegador (queda para el recorrido en Chrome) ni la migración contra una
+> base con historia de producción.
+
+### Del creativo aprobado a la cola: la «tarea 1», la fecha especial y el álbum (FLUJO-CREA, 2026-11-20)
+
+Pedido del dueño: «se cierra venta → se recibe el creativo → tarea 1: se manda a
+impresión o se programa → impresión va a la cola con prioridad → comprobante de
+exhibición, se descarga álbum».
+
+| Qué | Dónde | Por qué así |
+|---|---|---|
+| **El pendiente se DERIVA, sin tabla de tareas** | `lib/pendientes-creativo.ts` (puro, con pruebas) + `lib/server/pendientes-creativo-repo.ts` (lee con `q` y `tenant_id = $1` en cada tabla) | IMPRIMIR = campaña OOH/HÍBRIDA en CONFIRMADA/ACTIVA, con creativo VALIDADA no retirado, y un sitio **fijo** reservado (reserva no cancelada) **sin** orden de impresión de esa campaña y ese sitio. PROGRAMAR = campaña DOOH/HÍBRIDA viva, pantalla **digital** con un creativo aprobado asignado (`reservas.creativos`) y `campanas.enviada_dominio = false`. POR_APROBAR = envío del cliente PENDIENTE o creativo nuestro PENDIENTE. Una tabla de tareas habría que sincronizarla en cada alta, rechazo, reemplazo y baja |
+| **Nada se crea solo** | — | «Mandar a impresión» es el mismo `POST /api/impresion` (`imprenta.crear`) con `sitioId` y, opcional, `fechaEspecial`; con la orden creada el pendiente se va. «Programar» lleva a la ficha (`/campanas/[id]#publicacion`), a «Enviar al dominio»: no se duplica esa lógica |
+| **Quién subió el creativo** | `creatividades.origen` / `subido_por` / `subido_por_nombre` (`20261120_z_creatividades_origen.sql`, CREA-ORIGEN); se leen en `pendientes-creativo-repo.ts` | **Es un DATO desde el 20/11** (decisión del dueño: «aunque tengan el mismo nombre; lo que importa es el contenido»). Hasta entonces se DEDUCÍA de la bitácora («Aprobó creativo enviado por el cliente» con el mismo nombre ≤ 10 min tras el alta) y dos creativos llamados igual se confundían; la constante y la ventana se borraron. NULL = «Origen desconocido» (lo anterior), y viaja como `null`, no como INTERNO. Ver la sección CREA-ORIGEN abajo |
+| **El sitio de la orden tiene que ser propio** | `impresion-controller.ts` (`sitioEsPropio`) | La FK `ordenes_impresion.sitio_id` es simple: sin la comprobación, una orden podía apuntar a la pantalla de otra organización. Ajeno → 400 «Sitio no encontrado» |
+| **Aviso solo a Imprenta** | `avisarPendientesImpresion` (al aprobar en `PATCH /api/creatividades/[id]` y al aprobar un envío del cliente) + `tiposOcultosPara` en `notificaciones-repo.ts` | La bandeja es una por empresa. Sin columna nueva: el tipo `IMPRESION` es de `imprenta`, y quien no tiene `imprenta.ver` no lo recibe ni en `/api/estado` ni en `/api/notificaciones/nuevas`. Plantilla `notificaciones.impresion.por-mandar` en los cuatro idiomas |
+| **La fecha especial** | `20261120_impresion_fecha_especial.sql`, `PATCH /api/impresion/[id]/fecha-especial`, `lib/prioridad-imprenta.ts` (`base: 'ESPECIAL' \| 'INICIO'`) | Si está puesta **manda** sobre el inicio de la campaña para el grupo y el lugar (puede adelantar o atrasar). Se lee como texto (`::text`) para que no se corra un día en UTC-6. Fecha que no existe → 400 «Fecha inválida»; id ajeno → 404 |
+| **El álbum de evidencias** | `lib/album-evidencias.ts` + `components/demo/campanas/DescargarAlbum.tsx` (ficha y portal) | Reutiliza `crearZip`/`descargarBlob` de Space Eyes. Nombre «Sitio_YYYY-MM-DD.ext» (día local de la toma, si no de la subida); repetidos numerados por `nombresUnicos`. Las que no se leen (URL firmada caducada, `mock://`) se saltan y se cuentan |
+
+Pruebas: `lib/pendientes-creativo.test.ts`, `lib/prioridad-imprenta.test.ts`
+(fecha especial), `lib/album-evidencias.test.ts` y
+`lib/test/flujo-creativo-impresion.e2e.test.ts` (14 casos contra Postgres y Next
+reales: pendiente al aprobar el del cliente y el nuestro, la orden lo quita,
+digital hasta enviar al dominio, 403 sin permiso, aislamiento entre
+organizaciones, la fecha especial reordena, migración aplicada).
+
+> [!warning] Lo que NO se verificó
+> Las pantallas en un navegador real (Imprenta, Creativos, ficha y portal) al
+> cerrar este cambio, ni el álbum con fotos guardadas en Spaces (URL firmada:
+> depende del CORS del bucket; si falla, esas fotos se cuentan como no leídas).
+
+### Quién subió cada creativo, como dato (CREA-ORIGEN, 2026-11-20)
+
+Decisión del dueño (20/11): «Debemos poner quién subió cada creativo aunque
+tengan el mismo nombre; lo que importa es el contenido». Sustituye a la
+deducción por bitácora de FLUJO-CREA.
+
+| Qué | Dónde | Por qué así |
+|---|---|---|
+| **Tres columnas en `creatividades`** | `db/migrations/20261120_z_creatividades_origen.sql` | `origen` (`CLIENTE` \| `INTERNO`, check `creatividades_origen_ck`, NULL = desconocido), `subido_por` (uuid del usuario) y `subido_por_nombre` (congelado). Sin backfill: el envío del cliente se borra al aprobarlo y la bitácora solo guarda el nombre, así que **nada** se sabe con certeza |
+| **`subido_por` con FK simple, no compuesta** | misma migración | Los usuarios se borran de verdad (`borrarUsuario`). Una FK `(subido_por, tenant_id)` con `on delete set null` pondría a null también `tenant_id` y el borrado fallaría; `set null (columna)` es de PG 15 y se exige la 14. Queda `references usuarios(id) on delete set null`; el nombre congelado sobrevive. El tenant lo garantiza la aplicación: el id sale siempre de la sesión |
+| **Lo fija el servidor, nunca el cuerpo** | `lib/origen-creativo.ts` (`origenInterno`, `origenCliente`, puro y con pruebas) → `crearCreatividadCtrl(body, origen)` → `crearCreatividad` | Alta interna (`POST /api/creatividades`: Creativos, ficha, «Actualizar campaña», Imprenta) → `origenInterno(g.usuario)`. Aprobar el envío del cliente (`aprobarEnvioCtrl`) → `origenCliente()`: quien aprueba **no** es quien lo subió. La liga no pide nombre, así que el nombre del cliente queda NULL |
+| **Reemplazar el arte cambia el origen** | `PUT /api/creatividades/[id]` → `reemplazarCreatividad(id, arte, origenInterno(g.usuario))` | El contenido es otro: lo «subió» quien puso el arte nuevo |
+| **Se devuelve en las lecturas** | `rowToCreatividad`, `listarCreatividades` (`/api/estado`), `pendientes-creativo-repo.ts` | `origen` y `subidoPorNombre`; `subido_por` (uuid) no viaja a la pantalla |
+| **El texto** | `subidoPor()` en `lib/origen-creativo.ts` + `OrigenCreativoBadge` (`components/operaciones/PendientesCreativo.tsx`) | «Subido por: el cliente (Nombre)», «Subido por: el cliente», «Subido por: Ana López», o «Origen desconocido». Claves `creativos.origen.*` en es/en/it/pt (`lib/i18n/textos/operaciones2.ts`). En Creativos (tarjetas y pendientes), Imprenta («Por mandar a impresión») y la ficha de campaña |
+
+Pruebas: `lib/origen-creativo.test.ts`, `lib/pendientes-creativo.test.ts` (el
+origen viaja, NULL no se vuelve INTERNO, mismo nombre) y
+`lib/test/creativo-origen.e2e.test.ts` (migración, alta interna con el usuario de
+la sesión aunque el cuerpo diga otra cosa, envío aprobado → CLIENTE, mismo
+nombre con orígenes distintos, reemplazo, NULL como desconocido, aislamiento).
+
 ## Cómo se ven las pantallas (rediseño del 26/10)
 
 Solo presentación, con el lenguaje del Dashboard. Mismos datos, mismos
@@ -205,6 +382,8 @@ permisos, mismas acciones.
   por grupo de urgencia, cada grupo filtra la lista), la lista va agrupada y
   ordenada por esa prioridad con el lugar en la cola y «Arranca en N días», y
   bajo cada orden su arte en la proporción del sitio (ver arriba).
+  **Desde el 18/11**, subir o abrir un arte enseña la lona a escala y la
+  valoración para imprimir (IMP-VAL, ver arriba).
 
 ## OT automáticas
 

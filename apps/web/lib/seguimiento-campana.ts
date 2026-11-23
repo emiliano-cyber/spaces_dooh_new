@@ -20,6 +20,8 @@
 //  (ADR 0048, la liga la abre el cliente con el idioma de su navegador).
 // ============================================================================
 
+import type { EnvioParaCliente, PantallaParaCliente } from './envio-creativo-cliente'
+
 export type TipoCampanaSeg = 'OOH' | 'DOOH' | 'HIBRIDA'
 
 export type ClavePaso = 'aceptada' | 'confirmada' | 'material' | 'instalacion' | 'al_aire' | 'finalizada'
@@ -65,6 +67,10 @@ export interface DatosSeguimiento {
     actualizadoEn: string | null
   }[]
   montajes: { estatus: string; fechaCompletada: string | null }[]
+  /** ENVIO-CLIENTE (18/11) · las pantallas de la campaña, para elegir a cuál va el arte. */
+  pantallas?: PantallaParaCliente[]
+  /** ENVIO-CLIENTE (18/11) · lo que el cliente mandó y sigue en espera o se rechazó. */
+  envios?: EnvioParaCliente[]
 }
 
 export interface Seguimiento {
@@ -87,6 +93,17 @@ export interface Seguimiento {
   imprentaListas: number
   /** Las imprentas distintas que están trabajando la campaña (sin repetir, sin vacíos). */
   proveedores: string[]
+  /**
+   * ENVIO-CLIENTE (18/11) · la liga ofrece «Subir creativo». Regla: mientras la
+   * campaña NO esté al aire — en el paso de material siempre; y si lleva
+   * pantallas, también en instalación y mientras espera su fecha (el anuncio
+   * se puede cambiar hasta que sale). Una lona ya impresa o montada, no.
+   * Nunca cancelada ni terminada (ni vencida).
+   * El servidor la vuelve a calcular al recibir el archivo: esto solo pinta.
+   */
+  puedeSubirCreativo: boolean
+  pantallas: PantallaParaCliente[]
+  envios: EnvioParaCliente[]
 }
 
 const ORDEN: ClavePaso[] = ['aceptada', 'confirmada', 'material', 'instalacion', 'al_aire', 'finalizada']
@@ -95,6 +112,26 @@ const usaImprenta = (t: TipoCampanaSeg) => t === 'OOH' || t === 'HIBRIDA'
 const usaCreativo = (t: TipoCampanaSeg) => t === 'DOOH' || t === 'HIBRIDA'
 
 /** 0..1 — cuánto lleva una orden de imprenta dentro de sus cinco estatus. */
+// El formato de un creativo, como lo ve el CLIENTE (hallazgo A2, 19/11). La
+// columna `creatividades.formato` guarda a veces un tipo MIME interno: una
+// imagen subida se guarda envuelta en HTML para el reproductor (`imagenAHtml`)
+// y queda como `text/html`, que bajo el anuncio aprobado se leía
+// «text/html · 1920x1080». Ese HTML no es un formato que el cliente haya
+// mandado, así que no se dice; los demás tipos MIME se acortan a su nombre
+// (PNG, MP4, PDF). Lo que ya es legible («PDF/X-1a», «VIDEO») pasa igual.
+const MIME = /^(text|image|video|audio|application)\/([a-z0-9.+-]+)/i
+const NOMBRE_MIME: Record<string, string> = { jpeg: 'JPG', 'svg+xml': 'SVG', quicktime: 'MOV' }
+export function formatoParaCliente(formato: string | null | undefined): string | null {
+  const f = (formato ?? '').trim()
+  if (!f) return null
+  const m = MIME.exec(f)
+  if (!m) return f
+  const [, familia, sub] = m
+  if (familia.toLowerCase() === 'text') return null
+  const s = sub.toLowerCase()
+  return NOMBRE_MIME[s] ?? s.toUpperCase()
+}
+
 export function avanceImprenta(estatus: EstatusImprenta): number {
   const i = PROCESO_IMPRENTA.indexOf(estatus)
   return i < 0 ? 0 : (i + 1) / PROCESO_IMPRENTA.length
@@ -215,6 +252,12 @@ export function armarSeguimiento(d: DatosSeguimiento, hoy: string): Seguimiento 
 
   const proveedores = [...new Set(d.imprenta.map((o) => (o.proveedor ?? '').trim()).filter(Boolean))]
 
+  const puedeSubirCreativo =
+    !cancelada &&
+    !terminada &&
+    !alAire &&
+    (pasoActual === 'material' || (usaCreativo(tipo) && (pasoActual === 'instalacion' || pasoActual === 'al_aire')))
+
   return {
     folio: c.folio,
     nombre: c.nombre,
@@ -230,6 +273,9 @@ export function armarSeguimiento(d: DatosSeguimiento, hoy: string): Seguimiento 
     imprenta: usaImprenta(tipo) ? d.imprenta.map((o) => ({ ...o, avance: avanceImprenta(o.estatus) })) : [],
     imprentaListas: usaImprenta(tipo) ? imprentaListas : 0,
     proveedores: usaImprenta(tipo) ? proveedores : [],
+    puedeSubirCreativo,
+    pantallas: d.pantallas ?? [],
+    envios: d.envios ?? [],
   }
 }
 

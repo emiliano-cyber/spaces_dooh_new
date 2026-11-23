@@ -29,6 +29,7 @@ import {
   repartirPaquete,
 } from '@/lib/paquete'
 import { rutaLogo } from '@/lib/medios-url'
+import { sqlTokenLogoServible } from '@/lib/server/logo-sql'
 import { fechaDia, hoyDeVigencia, propuestaVencida } from '@/lib/propuesta-vigencia'
 
 /**
@@ -262,6 +263,9 @@ function armarPropuesta(p: any, items: any[]) {
     descuentoPct,
     version,
     notas: p.notas ?? null,
+    // PROP-MARCA (20/11) · la marca escrita, o null («cuenta el cliente»). La
+    // liga pública arma su respuesta a mano y NO la lleva.
+    marca: p.marca ?? null,
     creadoEn: iso(p.creado_en),
     // DASH-REF (26/10) · para el pipeline del Dashboard: lo ganado en el mes se
     // mide por la fecha de aprobación, y el reparto por vendedor por quien la
@@ -812,7 +816,7 @@ export async function obtenerPropuestaPublica(codigo: string, opts: { conFotos?:
   // va por `/api/logo/<token>` y no como data URL para no meter hasta 2 MB de
   // base64 en un payload que se pide en cada apertura de la liga.
   const org = await qPub1<any>('select nombre from tenants where id = $1', [tenantId])
-  const cfg = await qPub1<any>('select logo_token from config_negocio where tenant_id = $1', [tenantId])
+  const cfg = await qPub1<any>(`select ${sqlTokenLogoServible()} from config_negocio where tenant_id = $1`, [tenantId])
 
   const sitioIds = (items as any[]).map((i) => i.sitio_id)
   const sitios = sitioIds.length
@@ -888,6 +892,10 @@ export async function obtenerPropuestaPublica(codigo: string, opts: { conFotos?:
     items: armado.items.map((it) => {
       const s = byId.get(it.sitioId)
       return {
+        // FOTOS-UBIC (18/11) · con qué pedir «Ver fotos y ubicación» de ESTE
+        // renglón (`/api/propuestas/publica/<token>/sitios/<sitioId>`). El id
+        // ya viajaba en `paquete.sitios`; sin el token no abre nada.
+        sitioId: it.sitioId,
         sitioNombre: s?.nombre ?? it.sitioId,
         alcaldia: s?.alcaldia ?? null,
         tipoMedio: s?.tipo_medio ?? null,
@@ -1245,6 +1253,8 @@ export interface PropuestaInput {
     primaRoadblockPct?: number | null
   }[]
   notas?: string | null
+  // PROP-MARCA (20/11) · la marca que se anuncia; null = cuenta el cliente.
+  marca?: string | null
 }
 
 // S1-1: valida que la fecha fin no sea anterior a la de inicio (rango válido).
@@ -1372,9 +1382,9 @@ export async function crearPropuesta(
     }
     const prop = (
       await client.query(
-        `insert into propuestas (folio, cliente_id, agencia_id, nombre, comision_pct, notas, token_publico, usuario_id, vendedor_nombre, condiciones, tenant_id, oportunidad_id)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) returning *`,
-        [await folio(), input.clienteId ?? null, input.agenciaId ?? null, input.nombre, input.comisionPct ?? 0, input.notas ?? null, tokenPublico(), vendedorId, vendedor?.nombre ?? null, plantilla, tenantProp, input.oportunidadId ?? null],
+        `insert into propuestas (folio, cliente_id, agencia_id, nombre, comision_pct, notas, token_publico, usuario_id, vendedor_nombre, condiciones, tenant_id, oportunidad_id, marca)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) returning *`,
+        [await folio(), input.clienteId ?? null, input.agenciaId ?? null, input.nombre, input.comisionPct ?? 0, input.notas ?? null, tokenPublico(), vendedorId, vendedor?.nombre ?? null, plantilla, tenantProp, input.oportunidadId ?? null, input.marca?.trim() || null],
       )
     ).rows[0]
     // Siempre asociar la agencia con el cliente: si la propuesta lleva cliente y
@@ -1744,6 +1754,9 @@ export async function actualizarPropuesta(
     // (`AAAA-MM-DD`) por la ruta; `null` la quita (sin vigencia).
     condiciones?: string | null
     vigenteHasta?: string | null
+    // PROP-MARCA (20/11) · ya recortada por la ruta; null la quita (cuenta el
+    // cliente). No sube versión: no cambia el precio.
+    marca?: string | null
   },
 ): Promise<PropuestaActualizada | null> {
   const cur = await q1<any>(
@@ -1823,6 +1836,7 @@ export async function actualizarPropuesta(
   if (input.notas !== undefined) { sets.push(`notas=$${i++}`); vals.push(input.notas) }
   if (input.condiciones !== undefined) { sets.push(`condiciones=$${i++}`); vals.push(input.condiciones) }
   if (input.vigenteHasta !== undefined) { sets.push(`vigente_hasta=$${i++}::date`); vals.push(input.vigenteHasta) }
+  if (input.marca !== undefined) { sets.push(`marca=$${i++}`); vals.push(input.marca) }
   if (subeVersion) sets.push('version = version + 1')
   if (sets.length) await q(`update propuestas set ${sets.join(', ')} where id=$1`, vals)
 

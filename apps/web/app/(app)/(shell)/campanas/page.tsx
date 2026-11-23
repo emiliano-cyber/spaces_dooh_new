@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { rutaListaPropuestas } from '@/components/demo/crm/PestanasCrm'
 import {
   LockOpen,
   ArrowRight,
@@ -266,7 +267,7 @@ export default function CampanasPage() {
             titulo={t('campanas.lista.vacia.titulo')}
             detalle={t('campanas.lista.vacia.texto')}
             accion={
-              <Link href="/propuestas">
+              <Link href={rutaListaPropuestas()}>
                 <Button>{t('campanas.lista.vacia.ir')}</Button>
               </Link>
             }

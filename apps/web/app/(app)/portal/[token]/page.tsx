@@ -5,6 +5,7 @@ import { Radio, MapPin, CalendarDays, CircleHelp } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { PipelineView } from '@/components/demo/campanas/PipelineView'
 import { EvidenciaGaleria } from '@/components/demo/campanas/EvidenciaGaleria'
+import { DescargarAlbum } from '@/components/demo/campanas/DescargarAlbum'
 import { hidratarPortalPublico, type OrgPortal } from '@/lib/data/estado-api'
 import {
   useCampanas,
@@ -160,8 +161,20 @@ export default function PortalPage({ params }: { params: { token: string } }) {
 
         {/* Evidencias */}
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between gap-2">
             <CardTitle>{t('cuenta.portal.evidencias')}</CardTitle>
+            {/* FLUJO-CREA (20/11) · el comprobante de exhibicion en un .zip. */}
+            {misEvid.length > 0 && (
+              <DescargarAlbum
+                campana={{ folio: campana.folio, nombre: campana.nombre }}
+                fotos={misEvid.map((e) => ({
+                  url: e.fotoUrl,
+                  tomadaEn: e.tomadaEn,
+                  subidaEn: e.timestamp,
+                  sitioNombre: (sitios ?? []).find((s) => s.id === misOts.find((o) => o.id === e.otId)?.sitioId)?.nombre ?? null,
+                }))}
+              />
+            )}
           </CardHeader>
           <CardContent>
             <EvidenciaGaleria

@@ -1,10 +1,56 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-11-17
+actualizado: 2026-11-23
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
+
+> [!success] 2026-11-23 · **`integra/23-11`: todo lo aprobado + Space Eyes de Jose + `fix/idioma-al-entrar`, y las fuentes pasan al repositorio (`next/font/local`) porque el CI murió bajándolas de Google** · zona tomada: ninguna
+> Detalle en [[2026-11-23]].
+
+> [!success] 2026-11-20 (cierre) · **todo en `main` LOCAL (`542a3954`), sin empujar · zona tomada: ninguna salvo `feat/propuesta-mapa-y-fotos` a medias**
+> Detalle y pendientes en [[2026-11-20]].
+
+> [!success] 2026-11-19 (cierre) · **`integra/18-11` en `7eb80ec7`, limpia y sin empujar · ninguna zona tomada**
+> Junta todo lo del 18/11 y 19/11: imprentas con requisitos y proporción del envío (R3), el envío del cliente solo a su
+> pantalla, los hallazgos B/C/D/A2, notas de la **v0.12.15**, prospectos nuevos en el Resumen, **Vallas** (esqueleto,
+> decisiones del dueño, «En proceso», también en Comercial; migraciones `20261119_*` aprobadas **solo para local**) y el
+> **Excel** de campañas detectadas en Space Eyes. Todas las ramas `feat/*` y `fix/*` del día están fusionadas.
+> **Falta (persona):** push, PR, etiqueta `v0.12.15`, aprobar las migraciones de vallas para servidores y sembrar la demo.
+> Detalle y lista de pendientes en [[2026-11-19]] § «Cierre del día».
+
+> [!important] 2026-11-19 · **Vallas: esqueleto del módulo** — `feat/vallas-esqueleto`, desde `integra/18-11` `18cbad3e` · **ROJO R3** (migración aprobada solo para LOCAL)
+> `20261119_vallas_esqueleto.sql` (3 tablas), `/api/vallas/**` (7 rutas), `/vallas` en Inventario y las reglas enchufables en
+> `lib/vallas/reglas/` con la competencia de marcas como aviso. Typecheck, unitarias, build y e2e propias en verde.
+> **Zonas tomadas y liberadas:** Inventario (archivos nuevos), **`nav.ts`** y **`lib/modulos.ts`** (alto contacto), `lib/i18n/**`,
+> `db/migrations/` (20261119_*), `esquema-sin-owner.e2e.test.ts` (73 → 76), Z12 · Docs y `docs/Registro_Cambios.md`. Ver [[02-Backend/vallas]] y [[2026-11-19]].
+
+> [!success] 2026-11-19 · **El creativo del cliente va solo a su pantalla** — `fix/envio-cliente-solo-su-pantalla` (`dcc504bc`), fusionada en `integra/18-11` (`6b996b58`), sin empujar · ÁMBAR (sin migración, sin sesión, sin dinero)
+> Decisión del dueño: al aprobar el envío de la liga, el creativo va solo a la pantalla que eligió el cliente (`validarCreatividadEnSitio` + `sumarAlSpot`). Typecheck, 10 864 unitarias y e2e `envios-creativo-cliente` + `imprentas` 30/30. Recorrido en Chrome de imprentas, proporción y el arreglo en el 3420 sobre `spaces_hoy`. **Zonas tomadas y liberadas:** Z5 (envíos del cliente), Z12 · Docs, `docs/Registro_Cambios.md`. Detalle en [[07-Agentes/diario/2026-11-19]].
+
+> [!important] 2026-11-19 · **`wip/18-11-pausa` retomada en `feat/imprentas-y-proporcion`**, desde `integra/18-11` `0fd07bb2`, sin empujar · ROJO R2/R3 aprobado
+> Dos commits: ENVIO-PROPORCION (la liga rechaza el creativo con otra proporción que el sitio) e IMP-REQ (imprentas con
+> requisitos de arte, `20261118_imprentas_y_requisitos.sql`). Verificada con typecheck, unitarias, build y e2e completas.
+> ~~**Falta**: fusionarla a `integra/18-11` y el recorrido en Chrome~~ — fusionada en `3e0c0dee` y recorrida el 19/11. Ver [[2026-11-18]] § «19/11».
+
+> [!warning] 2026-11-18 (cierre) · **`integra/18-11` PAUSADA por el dueño en `a40eb49b`, sin empujar** · incluye ROJOS R2/R3 aprobados
+> Junta `main` v0.12.14, `feat/propuestas-sin-crm`, `feat/inventario-filtros`, `feat/actualizar-campana` y las tres ramas
+> `i18n/*-18-11`, más lo hecho encima ese día (Seguimiento por columnas y arrastre, prospectos y Contactado, una oportunidad
+> abierta por prospecto, Resumen, fotos del sitio, liga horizontal y «Ver negociación acordada», envíos de creativo del cliente,
+> valoración del arte en Imprenta). Migraciones nuevas: `20261118_idiomas_servidor_sin_espanol_obligatorio.sql` y
+> `20261118_envios_creativo_cliente.sql`. **A medias en `wip/18-11-pausa` (`c88769e4`)**: imprentas con requisitos
+> (`20261118_imprentas_y_requisitos.sql`) y rechazo por proporción del envío del cliente — sin verificar.
+> **Zonas que quedan tomadas hasta retomar:** Z5 · Comercial (propuestas, crm, liga pública), Imprenta/Operaciones,
+> `lib/i18n/**`, `db/migrations/` (20261118_*), `infra/nginx/*` (plantillas, sin aplicar) y Z12 · Docs.
+> Pendientes y decisiones en [[2026-11-18]] § «Cierre del día».
+
+> [!important] 2026-11-18 · **«Actualizar campaña» + aprobar en la ficha solo Dueño/Administrador** — `feat/actualizar-campana`, desde `main` `6d4226bf`
+> Un botón en la ficha de campaña publicada: conservar/eliminar creativos, subir nuevos con «¿Apruebas este creativo?» y
+> mandar a DOOHmain en un paso. Aprobar en la ficha (creativo y publicación) solo Dueño y Administrador; la pantalla
+> Creativos sigue igual. Typecheck, 10 401 unitarias, build y e2e en verde. **Sin empujar.** **Zonas tomadas y liberadas:**
+> Z5 · Comercial (`components/demo/campanas/`, `app/api/campanas/[id]/validar`), Z11 (`lib/actualizar-campana.ts`,
+> `lib/roles.ts`), Z12 · Docs y `docs/Registro_Cambios.md`. Detalle en [[2026-11-18]].
 
 > [!success] 2026-11-17 · **CRM-04 · Fase 4 del ADR 0051: la pantalla del CRM — HECHA, sin empujar** — rama `feat/crm-comercial` · ÁMBAR
 > `/crm` (Embudo · Oportunidades · Prospectos), la ficha `/crm/oportunidades/[id]`, pestañas en `/propuestas`, «CRM» en el menú con

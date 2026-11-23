@@ -86,6 +86,10 @@ export interface ContextoIdioma {
 // ingles; sin el, solo espanol. Es lo que reciben las pruebas de pantallas,
 // que pasan `puedeElegir: true` y nada mas, y asi su HTML no cambia.
 const ANTES_DEL_ITALIANO: readonly Idioma[] = ['es', 'en']
+// Fuera del proveedor (una prueba, un Storybook) no hay servidor que decida, y
+// se pinta el espanol de siempre. NO es «el espanol esta encendido»: con
+// proveedor y sin selector, `disponibles` es el idioma que el servidor mando
+// (IDIOMAS-SIN-ES, 18/11: puede ser, p. ej., solo ingles).
 const SOLO_ESPANOL: readonly Idioma[] = [IDIOMA_POR_OMISION]
 
 // El valor por omision existe para que un componente montado fuera del
@@ -109,7 +113,10 @@ export function ProveedorIdioma({
   disponibles?: readonly Idioma[]
   children?: React.ReactNode
 }) {
-  const disponibles = disponiblesDelServidor ?? (puedeElegir ? ANTES_DEL_ITALIANO : SOLO_ESPANOL)
+  const disponibles = useMemo<readonly Idioma[]>(
+    () => disponiblesDelServidor ?? (puedeElegir ? ANTES_DEL_ITALIANO : [idiomaDelServidor]),
+    [disponiblesDelServidor, puedeElegir, idiomaDelServidor],
+  )
   const router = useRouter()
   const [idioma, setIdioma] = useState<Idioma>(idiomaDelServidor)
 

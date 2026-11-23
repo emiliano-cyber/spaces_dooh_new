@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { usePathname } from 'next/navigation'
 import {
   AlertTriangle,
   Battery,
@@ -24,6 +25,7 @@ import { crearTicketApi } from '@/lib/data/tickets-api'
 import { useTexto } from '@/lib/i18n/contexto'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
 import { interpolarNodos } from '@/lib/i18n/nodos'
+import { ReporteCampanasExcel } from './ReporteCampanasExcel'
 
 // ============================================================================
 //  Space Eyes para una empresa que todavía no lo tiene.
@@ -152,6 +154,9 @@ const ESTADO_EJEMPLO: [ClaveTexto, ClaveTexto][] = [
 export function DemoSpaceEyes() {
   const t = useTexto()
   const puedeSolicitar = usePuede('administracion', 'crear')
+  // En Space Eyes → Campañas la demostración ofrece también el Excel (19/11):
+  // sale con datos de ejemplo y lo dice dentro. Para una demo de venta.
+  const enCampanas = /\/space-eyes\/campanas\/?$/.test(usePathname() ?? '')
   const [enviando, setEnviando] = useState(false)
   const [resultado, setResultado] = useState<'ok' | 'error' | null>(null)
   // El folio del ticket: prueba de que la solicitud SÍ se creó (y con qué
@@ -207,6 +212,8 @@ export function DemoSpaceEyes() {
           {interpolarNodos(t('spaceeyes.demo.aviso'), { demo: <strong>{t('spaceeyes.demo.aviso.demo')}</strong> })}
         </span>
       </div>
+
+      {enCampanas && <ReporteCampanasExcel demostracion />}
 
       {/* Presentación */}
       <section className="grid items-center gap-6 rounded-md border border-border bg-surface p-5 lg:grid-cols-[1.1fr_1fr]">

@@ -33,7 +33,7 @@ import { interpolarNodos } from '@/lib/i18n/nodos'
 
 type Estado = 'abierta' | 'recuperada' | 'descartada'
 
-interface FallaSE {
+export interface FallaSE {
   id: number
   device_id: number
   equipo: string
@@ -78,7 +78,7 @@ const FILTROS: [Estado | '', ClaveTexto][] = [
 ]
 
 /** Dónde falló, como lo diría una persona. Igual que Pantalla.donde de Space Eye. */
-function donde(f: FallaSE, idioma: Idioma): string {
+export function donde(f: FallaSE, idioma: Idioma): string {
   const tr = (clave: ClaveTexto, valores?: Record<string, string | number>) => traducir(idioma, clave, valores)
   if (f.gabinete) {
     return tr('spaceeyes.fallas.donde.gabinete', { n: f.gabinete, fila: (f.fila ?? 0) + 1, columna: (f.columna ?? 0) + 1 })
@@ -94,6 +94,10 @@ function donde(f: FallaSE, idioma: Idioma): string {
   }
   if (f.tipo === 'camara_movida') return tr('spaceeyes.fallas.donde.camara')
   if (f.tipo === 'sin_imagen') return tr('spaceeyes.fallas.donde.sin-imagen')
+  // La abre el SERVIDOR al ver que la pantalla sigue siendo la de antes con
+  // algo encima, asi que no trae fila ni columna: sin este caso diria
+  // «Toda la pantalla», que es justo lo que NO es.
+  if (f.tipo === 'obstruccion_vehiculo') return tr('spaceeyes.fallas.donde.obstruccion')
   return tr('spaceeyes.fallas.donde.toda')
 }
 

@@ -12,6 +12,7 @@ import { usePuede } from '@/components/demo/shell/SesionContext'
 import { Button } from '@/components/demo/ui/Button'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
 import { useIdioma } from '@/lib/i18n/contexto'
+import { formatFecha } from '@/lib/data/derive'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 
 // ============================================================================
@@ -193,6 +194,9 @@ function HorarioIndividual({
   )
 }
 
+// El tipo de cliente tal como lo escribe `clienteDoohmain` → su rótulo.
+const TIPO_CLIENTE: Record<string, ClaveTexto> = { Directo: 'clientes.tipo.directo', Agencia: 'clientes.tipo.agencia' }
+
 export function ProgramacionDoohmain({ campanaId, clave }: { campanaId: string; clave: string }) {
   const { t, idioma } = useIdioma()
   const [v, setV] = useState<(VistaPreviaDoohmain & { publicacionEncendida: boolean }) | null>(null)
@@ -220,7 +224,14 @@ export function ProgramacionDoohmain({ campanaId, clave }: { campanaId: string; 
   if (!v) return <div className="mt-3 h-16 w-full animate-pulse rounded-md bg-surface-2" />
 
   const c = v.cliente
-  const datosCliente = [c.rfc && `RFC ${c.rfc}`, c.razonSocial, c.direccion, c.tipo].filter(Boolean).join(' · ')
+  // Recorrido del italiano (18/11): el tipo llega como se manda a DOOHmain
+  // («Directo»/«Agencia», `clienteDoohmain`) y salía así en italiano. Lo que
+  // viaja no cambia; solo se rotula en el idioma de quien lee.
+  const tipoCliente = c.tipo && TIPO_CLIENTE[c.tipo] ? t(TIPO_CLIENTE[c.tipo]) : c.tipo
+  const datosCliente = [c.rfc && `RFC ${c.rfc}`, c.razonSocial, c.direccion, tipoCliente].filter(Boolean).join(' · ')
+  // Y las fechas del pie, que iban en ISO («2026-11-10»). En español, como
+  // siempre: lo fija `pantallas-campanas-finanzas.test.ts`.
+  const fechaPie = (iso: string) => (idioma === 'es' ? iso : formatFecha(iso, idioma))
 
   return (
     <div className="mt-3 rounded-md border border-border bg-surface-2/40 p-3">
@@ -300,7 +311,7 @@ export function ProgramacionDoohmain({ campanaId, clave }: { campanaId: string; 
         </div>
       )}
       <p className="m-0 mt-2 text-[11px] text-muted">
-        {t('campanas.doohmain.pie', { inicio: v.fechaInicio, fin: v.fechaFin })}
+        {t('campanas.doohmain.pie', { inicio: fechaPie(v.fechaInicio), fin: fechaPie(v.fechaFin) })}
       </p>
     </div>
   )

@@ -6,8 +6,8 @@
 //  salía en orden de alta (`creado_en asc`), y una lona para una campaña que
 //  arranca mañana podía quedar debajo de diez que arrancan en dos meses.
 //
-//  La urgencia la manda la FECHA DE INICIO DE LA CAMPAÑA, no la de alta de la
-//  orden: la lona tiene que estar impresa y montada antes de ese día. Lo que ya
+//  La urgencia la manda la FECHA DE INICIO DE LA CAMPAÑA —o, desde el 20/11, la
+//  FECHA ESPECIAL de la orden si alguien la puso—, no la de alta de la orden: la lona tiene que estar impresa y montada antes de ese día. Lo que ya
 //  está «Listo para montaje» deja de ser trabajo de imprenta y se va al final,
 //  pase lo que pase con su fecha.
 //
@@ -32,16 +32,27 @@ export interface EntradaPrioridad {
   estatus: string
   // Fecha de inicio de la campaña (ISO o YYYY-MM-DD). null si no hay campaña.
   inicioCampana: string | null
+  // FLUJO-CREA (20/11) · la «fecha especial» (fecha requerida) de la orden. Si
+  // está puesta MANDA sobre el inicio de la campaña: una lona que el cliente
+  // quiere antes del arranque —o una que puede esperar— se mueve en la cola
+  // sin tocar las fechas de la campaña. null o ausente = manda el inicio.
+  fechaEspecial?: string | null
 }
+
+// De dónde sale la fecha que ordena: la especial de la orden o el inicio de su
+// campaña. null = no hay ninguna (SIN_FECHA). La pantalla lo dice en cada fila.
+export type BasePrioridad = 'ESPECIAL' | 'INICIO'
 
 export interface Priorizada<T> {
   orden: T
   grupo: GrupoPrioridad
-  // Días naturales desde hoy hasta el inicio. Negativo = ya arrancó. null = sin fecha.
+  // Días naturales desde hoy hasta la fecha que manda. Negativo = ya pasó. null = sin fecha.
   dias: number | null
   // Lugar en la cola de trabajo (1 = la primera que hay que imprimir). Las
   // listas para montaje no cuentan: ya no son trabajo de imprenta.
   lugar: number | null
+  // Qué fecha manda en esta orden (FLUJO-CREA, 20/11).
+  base: BasePrioridad | null
 }
 
 const ESTATUS_LISTA = 'LISTO_MONTAJE'
@@ -78,8 +89,10 @@ export function grupoDe(estatus: string, dias: number | null): GrupoPrioridad {
  */
 export function priorizarImpresion<T extends EntradaPrioridad>(ordenes: T[], hoy: string): Priorizada<T>[] {
   const conDatos = ordenes.map((orden) => {
-    const dias = orden.inicioCampana ? diasEntre(hoy, orden.inicioCampana) : null
-    return { orden, dias, grupo: grupoDe(orden.estatus, dias) }
+    const base: BasePrioridad | null = orden.fechaEspecial ? 'ESPECIAL' : orden.inicioCampana ? 'INICIO' : null
+    const fecha = base === 'ESPECIAL' ? orden.fechaEspecial : orden.inicioCampana
+    const dias = fecha ? diasEntre(hoy, fecha) : null
+    return { orden, dias, base, grupo: grupoDe(orden.estatus, dias) }
   })
   conDatos.sort((a, b) => {
     const g = ORDEN_GRUPOS.indexOf(a.grupo) - ORDEN_GRUPOS.indexOf(b.grupo)

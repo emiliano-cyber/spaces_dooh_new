@@ -1,7 +1,7 @@
 ---
 tipo: backend
 estado: en-curso
-actualizado: 2026-11-17
+actualizado: 2026-11-18
 tags: [backend, crm, comercial, oportunidades, adr-0051, rojo]
 archivos:
   - db/migrations/20261117_propuesta_cambios_por_trigger.sql
@@ -18,6 +18,9 @@ archivos:
   - apps/web/lib/server/clientes-repo.ts
   - apps/web/lib/server/clientes-controller.ts
   - apps/web/lib/i18n/errores-servidor.ts
+  - apps/web/components/demo/crm/Seguimiento.tsx
+  - apps/web/components/demo/crm/FormOportunidad.tsx
+  - apps/web/components/demo/captacion/Captacion.tsx
   - apps/web/lib/i18n/errores-crm.test.ts
   - apps/web/lib/data/oportunidades-api.ts
   - apps/web/app/(app)/(shell)/crm/page.tsx
@@ -25,6 +28,15 @@ archivos:
   - apps/web/components/demo/crm/
   - apps/web/lib/i18n/textos/crm.ts
   - apps/web/lib/i18n/pantallas-crm.test.ts
+  - apps/web/app/(app)/(shell)/propuestas/page.tsx
+  - apps/web/lib/prospecto-contactado.ts
+  - apps/web/components/demo/captacion/CuadroContactado.tsx
+  - apps/web/components/demo/captacion/contactado-oportunidad.test.ts
+  - apps/web/lib/server/oportunidades-repo.una-abierta.test.ts
+  - apps/web/lib/seguimiento-arrastre.ts
+  - apps/web/lib/seguimiento-arrastre.test.ts
+  - apps/web/components/demo/crm/ModalCambioEtapa.tsx
+  - apps/web/components/demo/crm/seguimiento-arrastre.test.ts
 ---
 
 # CRM comercial — las oportunidades (ADR 0051, Fases 2 a 4)
@@ -157,12 +169,245 @@ build anterior: 7 fallos).
 
 ## Fase 4 — la pantalla
 
+> [!important] 2026-11-18 · YA NO SE LLAMA «CRM»: son pestañas de Propuestas
+> Pedido del dueño: «en el CRM no se debe de llamar CRM sino Propuestas;
+> además corrígelo porque debe de ser similar al que ya existía de
+> Propuestas». Se invirtió la relación del 17/11: ya no es `/crm` con
+> Propuestas como cuarta pestaña, sino **`/propuestas` con cuatro pestañas**
+> —Propuestas (la lista, por omisión) · Embudo · Oportunidades · Prospectos—,
+> en `?vista=` (`propuestas/page.tsx:116`, `PestanasCrm.tsx`). El menú vuelve a
+> decir «Propuestas» ([[shell-y-navegacion]]). **`/crm` solo redirige** a la
+> pestaña equivalente (`crm/page.tsx`, `redirect()` del servidor), y la ficha
+> se queda en `/crm/oportunidades/[id]`, que enciende «Propuestas» por
+> `tambien: ['/crm']`. Las claves internas (`crm.*`, el área `crm` de
+> `lib/modulos.ts`, `/api/oportunidades`) **no se renombraron**: no se ven.
+>
+> **Y se ve como Propuestas**: título y botón verde principal en el encabezado
+> («Nueva oportunidad» en el sitio de «Nueva propuesta», con el mismo permiso
+> `comercial.crear` que exige el `POST`), pestañas subrayadas como `ui/Tabs`,
+> cuatro `KPICard` (abiertas · presupuesto en juego · ganado · cotizaciones),
+> el embudo y la lista dentro de `CardColapsable` (`propuestas.embudo`,
+> `propuestas.oportunidades`), chips de filtro iguales a los de estatus, tabla
+> con el estilo de Clientes, y las etapas con el dibujo del estatus de una
+> propuesta (`COLOR_ETAPA` reutiliza `EST`: ganada = aprobada, perdida =
+> rechazada, cotizando = enviada). La ficha copia la de una propuesta:
+> «Volver» + migas, insignia junto al nombre, resumen en `KPICard` y cada
+> sección en `CardColapsable` `oportunidad.<seccion>`.
+>
+> Ninguna pantalla ni texto `crm.*` dice «CRM» en ningún idioma, y lo vigila
+> `pantallas-crm.test.ts` (bloque «18/11»).
+
+> [!important] 2026-11-18, tarde · TRES pestañas: Propuestas · Seguimiento · Prospectos
+> Segundo pedido del dueño ese día: quitar la pestaña «Oportunidades» («es
+> casi igual al embudo») y que el embudo se llame **«Seguimiento»**
+> (inglés Follow-up, italiano Monitoraggio, portugués Acompanhamento; «Pipeline» descartado), con
+> **columnas por etapa tipo Kanban** (`components/demo/crm/Seguimiento.tsx`,
+> que sustituye a `Oportunidades.tsx`). `?vista=seguimiento`; los marcadores
+> `?vista=embudo` y `?vista=oportunidades` caen en Seguimiento
+> (`pestanaDeVista`, `PestanasCrm.tsx`), y `/crm` también.
+>
+> - Columnas Contacto · Necesidad · Cotizando · Negociando · Ganada, cada una
+>   con su cuenta y la suma de presupuestos (`agruparEmbudo`). **Perdida va
+>   plegada**: un chip «Ver perdidas (n)» la enseña como sexta columna.
+> - Tarjeta = enlace a la ficha: cliente (o prospecto), nombre, rango de
+>   presupuesto, cotizaciones, días negociando (`diasNegociando`, `lib/crm.ts`:
+>   del alta al cierre o a hoy) y vendedor. **Ya no lleva el `<select>` de
+>   etapa**: un control dentro de un enlace no se pulsa bien en celular, y la
+>   ficha tiene «Mover a otra etapa», que es además donde se pide el motivo de
+>   una perdida.
+> - Lo que tenía la lista quitada vive arriba: búsqueda por cliente u
+>   oportunidad (sin acentos) y filtro de vendedor **solo si `veTodas`** (es
+>   comodidad de pantalla: el servidor ya recorta por vendedor). Las cuatro
+>   `KPICard` no cambian al filtrar.
+> - Celular: columnas de ancho fijo (`w-64`) que se desplazan DENTRO de su
+>   contenedor (`overflow-x-auto`); en `xl`, rejilla de 5 o 6 columnas.
+> - Tarjeta plegable `propuestas.seguimiento` (antes `propuestas.embudo` y
+>   `propuestas.oportunidades`: quien las tenía plegadas la verá abierta una vez).
+
+> [!important] 2026-11-18, noche · los PROSPECTOS sin oportunidad también salen en Seguimiento
+> Tercer pedido del dueño: «los prospectos se deben de ver también en
+> Seguimiento; creé uno y no se vio». Crear un prospecto (pestaña Prospectos,
+> tabla `prospectos`) **no crea oportunidad**, y Seguimiento solo pintaba
+> oportunidades. Sin migración ni API nueva:
+>
+> - `Seguimiento.tsx` pide además `GET /api/captacion?tipo=CLIENTE` (el MISMO
+>   `prospectosApi` de la pestaña Prospectos, con su regla `soloDe`: quien no
+>   aprueba solo ve los suyos; los primeros 100) y pinta como **tarjeta
+>   punteada en Contacto**, con la etiqueta «Prospecto», los que **no tienen
+>   ninguna oportunidad** (abierta o cerrada) entre las que llegaron.
+> - **Estatus:** fuera `PERDIDO` y `RECHAZADO` (lo mismo que ofrece el alta de
+>   oportunidad). Un `APROBADO` sin oportunidad **sí sale**: ya es cliente,
+>   pero nadie le da seguimiento. `EN_REVISION` también.
+> - Tarjeta: nombre, contacto · razón social, «Registrado hace N días» (desde
+>   `creadoEn`) y el captador. Cuentan en el número de Contacto (no en el
+>   monto ni en las KPI, que siguen siendo de oportunidades); la búsqueda
+>   (nombre, contacto o razón social, sin acentos: `prospectoCoincide`) y el
+>   filtro de vendedor los incluyen.
+> - Pulsar la tarjeta abre `/propuestas?vista=prospectos&prospecto=<id>`, y
+>   `Captacion` abre ese panel solo (`abrirId`). El botón verde **«Crear
+>   oportunidad»** (solo con `comercial.crear`, que la página pasa como
+>   `puedeCrear`) va FUERA del enlace y abre `FormOportunidad` con el
+>   prospecto ya elegido (`prospecto`); el servidor sigue comprobando tipo
+>   CLIENTE y visibilidad. Al crearla se recarga y la tarjeta suelta se va.
+> - Límite conocido: se compara contra las primeras 100 oportunidades; con
+>   más, un prospecto con oportunidad vieja podría salir también suelto.
+> - Pruebas: `pantallas-crm.test.ts`, bloque «los prospectos sin oportunidad
+>   se ven en Seguimiento».
+
+> [!important] 2026-11-18, noche · de **Contactado en adelante**, el vendedor elige: prospecto u oportunidad — y solo UNA abierta por prospecto
+> Pedido del dueño: «si el prospecto ya entró a Contactado se convierte; si
+> no, sigue como prospecto». Al preguntarle cómo: **«darle la opción al
+> vendedor de ponerlo como prospecto o dejarlo solo como oportunidad»**. Una
+> primera versión (`07951119`) preguntaba solo al entrar a Contactado y creaba
+> la oportunidad directa; el dueño contestó las dudas el mismo día y quedó así:
+>
+> - **Dónde sale.** En el panel del prospecto (`Captacion.tsx`, `Detalle`),
+>   al pulsar «Guardar avance». Es el ÚNICO sitio de la pantalla donde cambia
+>   la etapa de un CLIENTE (la pestaña Prospectos de `/propuestas` y
+>   `/captacion` usan el mismo componente; Comercial negociación solo maneja
+>   predios y pantallas). «Aprobar» (quien aprueba) no pregunta.
+> - **Cuándo** (`preguntarAlContactar`, `lib/prospecto-contactado.ts`):
+>   tipo CLIENTE, ENTRA a una etapa de Contactado en adelante
+>   (`ETAPAS_QUE_PREGUNTAN`: Contactado, Visita, Negociación, En revisión,
+>   Aprobado; nunca Prospecto, Perdido ni Rechazado; una nota sin cambiar de
+>   etapa no pregunta), quien guarda tiene `comercial.crear` y el prospecto
+>   **no tiene oportunidad ABIERTA** (`tieneOportunidadAbierta`: GANADA y
+>   PERDIDA no cuentan) entre las que quien guarda ve (`GET
+>   /api/oportunidades`, las primeras 100). Si esa lectura falla, no pregunta
+>   y guarda como siempre. Quien siguió como prospecto vuelve a ver el cuadro
+>   en cada cambio de etapa siguiente.
+> - **Las salidas** (`aplicarEleccion`): **Cancelar** (o cerrar) no manda
+>   nada. **Seguir como prospecto** solo manda el avance. **Convertir en
+>   oportunidad** abre `FormOportunidad` con el prospecto elegido (para
+>   presupuesto, fechas, medios); el avance se guarda **después**, en
+>   `trasCrearOportunidad`, cuando la oportunidad ya existe. Así cerrar el
+>   formulario sin crear deja la etapa como estaba, y un 409 del servidor lo
+>   dice el propio formulario (toast) sin guardar el avance. Si la oportunidad
+>   entra y el avance no, se dice (`crm.contactado.error`). El panel trae
+>   «Se creó la oportunidad» con enlace a su ficha.
+> - **Servidor — una sola abierta por prospecto** (`crearOportunidad`,
+>   `oportunidades-repo.ts`): tras leer el prospecto con la regla de Captación
+>   (uno que no se ve sigue siendo **404** y no revela nada), `select 1 from
+>   oportunidades where prospecto_id = $1 and tenant_id = $2 and etapa not in
+>   ('GANADA','PERDIDA')`. **Sin `soloDe`**: cuenta también la abierta de otro
+>   vendedor que quien crea no ve. Si hay una: **409** «Ese prospecto ya tiene
+>   una oportunidad abierta. Se puede abrir otra cuando esa se gane o se
+>   pierda», sin decir de quién ni cómo se llama (traducido en
+>   `errores-servidor.ts`). El prospecto se bloquea con `for no key update`
+>   (antes `for share`, que dejaba pasar dos altas simultáneas). Sin índice
+>   único parcial a propósito: sería migración (R3). `PATCH` no puede cambiar
+>   el prospecto (`edicionSchema` no lo admite) y una cerrada no se reabre
+>   (`problemaCambioEtapa`), así que el alta es el único camino.
+> - **Seguimiento**: la tarjeta punteada de un prospecto que va en una etapa
+>   distinta de Prospecto lleva, junto a «Prospecto», su etapa («Contactado»,
+>   «Visita»…). «Crear oportunidad» sigue ahí y muestra el 409 si lo hay.
+>   La tarjeta suelta se oculta **solo con una oportunidad ABIERTA**
+>   (`tieneOportunidadAbierta`, la misma regla del cuadro y del 409): con
+>   todas cerradas (GANADA o PERDIDA) vuelve a Contacto con su etapa y «Crear
+>   oportunidad» (el dueño: «sí, que vuelva a aparecer como prospecto»).
+>   También el APROBADO con su oportunidad ganada: el dueño lo quiso en
+>   general. Pruebas: `pantallas-crm.test.ts`, bloque «el prospecto con todas
+>   sus oportunidades cerradas vuelve a Seguimiento» (2 en rojo antes).
+> - Pruebas: `components/demo/captacion/contactado-oportunidad.test.ts`
+>   (19), dos estados en `pantallas-clientes.test.ts` (el cuadro con la etapa,
+>   y el formulario al convertir; mutados dan 2 en rojo cada uno),
+>   `lib/server/oportunidades-repo.una-abierta.test.ts` (6: forma de la
+>   consulta, sin vendedor, orden y bloqueo; 3 en rojo antes del cambio) y
+>   `oportunidades.e2e.test.ts` § 9 (abierta de otro vendedor → 409 sin
+>   revelar nada; propia → 409; cerradas → 201; otra organización → 404 y no
+>   estorba). Mutada la comprobación, con build: 2 en rojo.
+
+> [!important] 2026-11-18, noche · CUATRO pestañas: **Resumen** · Propuestas · Seguimiento · Prospectos
+> Pedido del dueño: «en Propuestas, el resumen de propuestas hazlo su propia
+> sección y que sea la primera en abrirse». **`/propuestas` a secas (lo que
+> abre el menú) es ahora el Resumen**; la lista se mudó a
+> **`?vista=propuestas`** (`PestanasCrm.tsx`, `rutaListaPropuestas()`).
+>
+> - **Resumen** = las cuatro `KPICard` históricas (pipeline, enviadas sin
+>   respuesta, ganado, tasa de cierre; `useFunnelPropuestas`) + el
+>   `TableroPropuestas` del periodo. Antes las cifras iban ARRIBA de la lista
+>   y el tablero DEBAJO; las dos son «cómo vamos» y ninguna es la lista que
+>   se trabaja, así que se fueron juntas. La franja del embudo en barras
+>   (`FunnelStrip`) se queda en la lista, junto a los chips de estatus.
+> - **Propuestas** = la lista (por propuesta o por cliente) con sus filtros.
+> - Botón verde «Nueva propuesta» en Resumen **y** en la lista (con
+>   `comercial.crear`): el Resumen es lo que se abre al entrar y empezar una
+>   no debe costar un clic más.
+> - `pestanaDeVista`: sin vista o con cualquier cosa desconocida → `resumen`;
+>   `propuestas` → la lista; `embudo`/`oportunidades` → Seguimiento.
+>   `pestanaDeParametros` además manda a la lista un `?duplicar=`/`?agregar=`
+>   SIN vista (marcadores de antes de hoy).
+> - Llevan a la lista (`?vista=propuestas`): «Volver» y migas por omisión de
+>   la ficha `/propuestas/[id]`, el «Volver a propuestas» de una propuesta que
+>   no existe, borrar una propuesta, «Duplicar» y «Agregar sitios»
+>   (`?vista=propuestas&duplicar=…`), la miga de las filas de la lista y del
+>   cotejo por cliente, y el «Ir a propuestas» de Campañas vacía. **Se quedan
+>   en `/propuestas` (Resumen)**: el menú, los atajos del 404, los enlaces de
+>   las tarjetas Pipeline y Conteo del Dashboard (son resumen) y la raíz de
+>   las migas de Seguimiento y de la ficha de oportunidad (es el módulo).
+> - Textos `crm.pestana.resumen` (Resumen / Summary / Riepilogo / Resumo, la
+>   misma palabra que `crm.ficha.resumen`) y `crm.resumen.subtitulo`.
+> - Pruebas: `pantallas-crm.test.ts` (cuatro pestañas en los cuatro idiomas,
+>   `pestanaDeVista`, `pestanaDeParametros`) y `pantallas-propuestas.test.ts`
+>   (pantalla «resumen de propuestas», bloque «Resumen · Propuestas: cada
+>   pestaña con lo suyo»; ahí la navegación por omisión es `vista=propuestas`).
+
+> [!important] 2026-11-18, noche · las tarjetas de Seguimiento se ARRASTRAN entre columnas
+> Pedido del dueño: «que se pueda mover y se vea la animación arrastrando entre
+> cada columna, y solo al terminar de moverlo abrir un modal con los campos para
+> llenar el cambio». Sin API nueva, sin migración y **sin dependencias**
+> (Pointer Events nativos):
+>
+> - **Ratón**: arranca al pasar 6 px (`UMBRAL_ARRASTRE_PX`); menos es un clic
+>   y abre la ficha. **Dedo**: pulsación larga de 350 ms
+>   (`PULSACION_LARGA_MS`); deslizar antes (más de 10 px) es scroll y el
+>   tablero se desplaza como siempre. Ya arrastrando, un `touchmove` no pasivo
+>   frena el scroll del navegador, y cerca del borde el tablero (y la ventana)
+>   se desplazan solos. **Teclado**: botón «Mover de etapa» (icono, fuera del
+>   enlace) en cada tarjeta abierta, que abre el mismo modal con un selector.
+> - **La animación**: una copia sigue al puntero en un portal (levantada,
+>   inclinada, con sombra), el original queda tenue, la columna bajo el puntero
+>   se resalta con un hueco «Suelta aquí», y las que no aceptan se apagan con
+>   «Aquí no». La vuelta a su sitio (soltar fuera, Cancelar, error) y la caída
+>   en el destino son un FLIP con Web Animations. Con
+>   `prefers-reduced-motion` no hay vuelo ni inclinación.
+> - **Qué acepta cada columna** (`aceptaColumna`, `lib/seguimiento-arrastre.ts`):
+>   la regla del servidor, `problemaCambioEtapa`: una abierta va a cualquier
+>   otra etapa; GANADA y PERDIDA no se arrastran. Soltar en la propia columna,
+>   fuera o con Escape no hace nada.
+> - **El modal** (`ModalCambioEtapa.tsx`) pide lo que acepta `POST …/etapa`
+>   (`.strict()`: `etapa`, `nota`, `motivoPerdida`): la nota siempre; el
+>   motivo obligatorio a PERDIDA; a GANADA una casilla de confirmación (solo de
+>   pantalla: se cierra para siempre). Mientras está abierto, la tarjeta se ve
+>   en el destino «Pendiente de guardar» (`aplicarPendiente`, sin tocar la
+>   lista). Guardar → se queda y se relee; Cancelar → vuelve sin llamar a la
+>   API; error (409/400) → vuelve, el texto del servidor en un toast y se
+>   relee.
+> - **Prospectos**: se arrastran solo a Necesidad, Cotizando o Negociando
+>   (Contacto es su columna; ganar o perder no tienen sentido desde el alta).
+>   Abre `FormOportunidad` con el prospecto y un aviso («Al crearla se moverá
+>   a…»). `POST /api/oportunidades` **no acepta etapa** (a propósito: la etapa
+>   solo cambia por su ruta), así que la oportunidad nace en Contacto y
+>   `moverTrasCrear` la pasa al destino con `…/etapa` justo después; si eso
+>   falla, queda creada en Contacto y se dice. Cerrar el formulario sin crear
+>   la devuelve.
+> - **Permiso**: sin `comercial.crear` (el de `…/etapa`) no hay ni arrastre ni
+>   botón.
+> - Pruebas: `lib/seguimiento-arrastre.test.ts` (21, en rojo sin el módulo) y
+>   `components/demo/crm/seguimiento-arrastre.test.ts` (16: el modal por etapa
+>   en los cuatro idiomas y el tablero con y sin permiso; 7 en rojo antes de la
+>   pantalla). Mutadas la confirmación de GANADA, la regla de la propia columna
+>   y el campo del motivo: rojo cada una. El arrastre en sí (DOM, puntero) no
+>   se prueba en unitarias: queda para el recorrido en navegador.
+
 | Pantalla | Qué hay |
 |---|---|
-| `/crm` (Embudo, por omisión) | Una columna por etapa con su total. Una tarjeta se mueve a otra etapa abierta o a GANADA; a PERDIDA no, porque exige el motivo y eso va en la ficha (`components/demo/crm/Oportunidades.tsx:34`) |
-| `/crm?vista=oportunidades` | La lista, con chips por etapa y la columna de vendedor. «Nueva oportunidad» abre `FormOportunidad` |
-| `/crm?vista=prospectos` | Los leads de tipo cliente: la pantalla de Captación con `tipoFijo="CLIENTE"` (`crm/page.tsx:33`), sin otra pantalla de leads |
+| `/propuestas` | **Resumen** (por omisión, 18/11): cuatro `KPICard` históricas + `TableroPropuestas` del periodo; botón «Nueva propuesta» |
+| `/propuestas?vista=propuestas` | La lista de propuestas (por propuesta o por cliente), con sus filtros y la franja del embudo; `&duplicar=`/`&agregar=` abren el formulario precargado |
+| `/propuestas?vista=seguimiento` | Columnas por etapa (Perdida plegada) con cuenta y monto; tarjetas que abren la ficha y se arrastran entre columnas (modal del cambio al soltar, 18/11); los prospectos de tipo cliente sin oportunidad, punteados en Contacto con «Crear oportunidad»; búsqueda y vendedor arriba. «Nueva oportunidad» (encabezado de la página, `comercial.crear`) abre `FormOportunidad` (`components/demo/crm/Seguimiento.tsx`) |
+| `/propuestas?vista=prospectos` | Los leads de tipo cliente: la pantalla de Captación con `tipoFijo="CLIENTE"` (`propuestas/page.tsx:229`), sin otra pantalla de leads; `&prospecto=<id>` abre ese prospecto |
 | `/crm/oportunidades/[id]` | La ficha (`FichaOportunidad`): lo pedido, el cotejo por cotización, días en cada etapa, actividades, cambio de etapa, ligar y desligar propuestas, y la línea de tiempo unida, filtrable por persona |
+| `/crm`, `/crm?vista=…` | Redirige a `/propuestas?vista=prospectos` si trae esa vista; si no (sin `vista`, `embudo`, `oportunidades`), a `?vista=seguimiento` |
 
 Todo pasa por `lib/data/oportunidades-api.ts`; el servidor ya filtra por
 vendedor, la pantalla no decide quién ve qué. El menú y las pestañas, en

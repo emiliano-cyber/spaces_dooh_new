@@ -5,7 +5,6 @@ import {
   idiomasActivos,
   COOKIE_IDIOMA,
   COOKIE_IDIOMA_CUENTA,
-  IDIOMA_POR_OMISION,
   idiomaDeCookieCuenta,
   type Idioma,
 } from './idiomas'
@@ -84,7 +83,9 @@ export function idiomaDeLaPeticion(): Idioma {
   // ENCENDIDOS» (`idiomasActivos`). Con todo apagado sigue sin mirarse nada; con
   // alguno encendido, un idioma APAGADO se trata como uno que no hablamos.
   const permitidos = idiomasActivos()
-  if (permitidos.length === 1) return IDIOMA_POR_OMISION
+  // Uno solo: ese, sin mirar nada. Ya no tiene por que ser el espanol
+  // (IDIOMAS-SIN-ES, 18/11: el servidor puede ofrecer solo, p. ej., ingles).
+  if (permitidos.length === 1) return permitidos[0]
   // La preferencia de la CUENTA (IDIOMA-USUARIO, 2026-11-03): viaja en su
   // propia cookie, atada a la sesion por la huella del token. Si la sesion de
   // esta peticion no es la que la puso —otra persona en el mismo navegador, o

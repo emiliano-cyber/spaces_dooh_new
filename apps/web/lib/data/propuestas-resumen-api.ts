@@ -2,6 +2,7 @@
 
 import type { Periodo, TipoPeriodo } from '@/lib/finanzas-periodo'
 import type { ResumenPropuestas } from '@/lib/propuestas-periodo'
+import type { ProspectosNuevos } from '@/lib/prospectos-nuevos'
 
 // ============================================================================
 //  lib/data/propuestas-resumen-api.ts — El tablero de propuestas por periodo
@@ -16,6 +17,8 @@ export interface RespuestaResumenPropuestas {
   /** false = la sesión no ve finanzas: costo y ganancia vienen en null. */
   conGanancia: boolean
   resumen: ResumenPropuestas
+  /** 19/11 · los de la última semana, con la misma regla de quién ve qué. */
+  prospectosNuevos: ProspectosNuevos
 }
 
 export async function resumenPropuestasApi(opts: {

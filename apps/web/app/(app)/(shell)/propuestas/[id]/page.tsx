@@ -13,6 +13,7 @@ import { etiquetaCalculadora } from '@/lib/calculadora-spots'
 import { AvisoFranjaCMS } from '@/components/demo/rejilla/AvisoFranjaCMS'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { rutaListaPropuestas } from '@/components/demo/crm/PestanasCrm'
 import { useRouter } from 'next/navigation'
 import { KPICard } from '@/components/demo/KPICard'
 import { EST, CLAVE_ESTATUS } from '@/components/demo/propuestas/estatus'
@@ -37,7 +38,12 @@ import {
   Trash2,
   Copy,
   Plus,
+  ExternalLink,
 } from 'lucide-react'
+import { FotosYUbicacionSitio } from '@/components/demo/propuestas/FotosYUbicacionSitio'
+import { enlaceGoogleMaps } from '@/lib/fotos-sitio'
+import { puntoUtil } from '@/lib/coordenadas'
+import { ubicacion } from '@/lib/ubicacion'
 import { Card } from '@/components/demo/ui/Card'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
@@ -61,6 +67,10 @@ import {
 import { BloqueCodigoPropuesta } from '@/components/demo/codigos/BloqueCodigoPropuesta'
 import { ElegirClienteDialog } from '@/components/demo/propuestas/ElegirClienteDialog'
 import { BloqueCondicionesVigencia } from '@/components/demo/propuestas/BloqueCondicionesVigencia'
+import { useAvisosCompetencia, RecuadroCompetencia } from '@/components/demo/propuestas/AvisoCompetencia'
+import { BloqueMarcaPropuesta } from '@/components/demo/propuestas/MarcaPropuesta'
+import { DibujarPlanoPropuesta } from '@/components/demo/propuestas/DibujarPlanoPropuesta'
+import type { AvisoCompetencia } from '@/lib/data/estado-api'
 import { ImprentaVisibleCliente } from '@/components/demo/propuestas/ImprentaVisibleCliente'
 import { EnviarPropuestaDialog } from '@/components/demo/propuestas/EnviarPropuestaDialog'
 import {
@@ -130,6 +140,25 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
   const [catalogoPaq, setCatalogoPaq] = useState<PaqueteUI[]>([])
 
   const pActual = propuestas?.find((x) => x.id === id)
+
+  // PROP-MARCA · el recuadro ámbar de competencia. Lo mantiene al día la vista
+  // previa (`useAvisosCompetencia`); al GUARDAR la marca desde la ficha
+  // (decisión del dueño, 20/11) se enseñan en seguida los avisos que devolvió
+  // el PATCH, y en cuanto la vista previa responde con la marca nueva vuelve
+  // a mandar ella. El hook va aquí arriba, antes de los `return` tempranos:
+  // es un hook.
+  const fechasP = (pActual?.items ?? []).map((i) => i.fechaInicio).filter(Boolean).sort()
+  const finesP = (pActual?.items ?? []).map((i) => i.fechaFin).filter(Boolean).sort()
+  const avisosVivos = useAvisosCompetencia({
+    marca: pActual?.marca ?? null,
+    clienteId: pActual?.clienteId ?? null,
+    fechaInicio: fechasP[0] ? String(fechasP[0]).slice(0, 10) : '',
+    fechaFin: finesP.at(-1) ? String(finesP.at(-1)).slice(0, 10) : '',
+    sitioIds: [...new Set((pActual?.items ?? []).map((i) => i.sitioId))],
+  })
+  const [avisosGuardados, setAvisosGuardados] = useState<AvisoCompetencia[] | null>(null)
+  useEffect(() => setAvisosGuardados(null), [avisosVivos])
+  const avisosCompetencia = avisosGuardados ?? avisosVivos
   // Sincroniza el input de descuento con el valor actual al cargar/cambiar.
   useEffect(() => {
     if (pActual) setDescInput(pctConDosDecimales(pActual.descuentoPct))
@@ -251,10 +280,10 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
   const [trail, setTrail] = useState<Crumb[]>([])
   useEffect(() => {
     const rastro = trailFromLocation()
-    setTrail(rastro.length ? rastro : [{ label: t('propuestas.lista.titulo'), href: '/propuestas' }])
+    setTrail(rastro.length ? rastro : [{ label: t('propuestas.lista.titulo'), href: rutaListaPropuestas() }])
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  const volver = trail.length ? trail[trail.length - 1] : { label: t('propuestas.lista.titulo'), href: '/propuestas' }
+  const volver = trail.length ? trail[trail.length - 1] : { label: t('propuestas.lista.titulo'), href: rutaListaPropuestas() }
 
   if (!propuestas) {
     return <div className="h-64 w-full animate-pulse rounded-md bg-surface-2" />
@@ -264,7 +293,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
     return (
       <div className="w-full">
         <p className="text-[13px] text-muted">{t('propuestas.ficha.no-encontrada')}</p>
-        <Link href="/propuestas" className="mt-2 inline-flex items-center gap-1 text-[13px] text-info">
+        <Link href={rutaListaPropuestas()} className="mt-2 inline-flex items-center gap-1 text-[13px] text-info">
           <ArrowLeft className="h-3.5 w-3.5" /> {t('propuestas.ficha.volver')}
         </Link>
       </div>
@@ -338,7 +367,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
     try {
       await borrarPropuestaApi(id)
       toast.success(t('propuestas.ficha.borrar.hecho'))
-      router.push('/propuestas')
+      router.push(rutaListaPropuestas())
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t('propuestas.comun.error'))
     }
@@ -436,7 +465,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
           {/* PROP-COMPLETA · duplicar abre el formulario de alta precargado
               (mismos sitios y contratación, tarifa de hoy, sin cupón). */}
           {puedeEditar && (
-            <Button size="sm" variant="secondary" onClick={() => router.push(`/propuestas?duplicar=${p.id}`)}>
+            <Button size="sm" variant="secondary" onClick={() => router.push(rutaListaPropuestas(`duplicar=${p.id}`))}>
               <Copy className="h-3.5 w-3.5" /> {t('propuestas.ficha.duplicar')}
             </Button>
           )}
@@ -489,14 +518,57 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
         onElegir={(clienteId) => generarCampana(clienteId)}
       />
 
+      {/* LA MARCA, ARRIBA (decisión del dueño, 20/11 noche): lo primero del
+          contenido de la ficha, antes de la barra de datos y de los sitios. */}
+      <div className="space-y-2" data-testid="marca-y-plano">
+        {/* PROP-MARCA (decisiones del dueño, 20/11) · editar la marca aquí,
+            con las reglas de las condiciones de abajo (`comercial.crear` y no
+            en una APROBADA), y el aviso informativo si no se parece al
+            cliente. */}
+        <BloqueMarcaPropuesta
+          propuestaId={p.id}
+          marca={p.marca ?? null}
+          cliente={cliente?.nombre ?? null}
+          editable={puedeEditar && p.estatus !== 'APROBADA'}
+          onAvisos={setAvisosGuardados}
+        />
+
+        {/* PROP-MARCA (20/11) · competencia de marcas en los sitios de esta
+            propuesta. Solo avisa; sin choques no pinta nada. Una aprobada ya
+            generó su campaña con la misma marca, y la misma marca no compite
+            consigo misma. */}
+        <RecuadroCompetencia avisos={avisosCompetencia} />
+
+        {/* «Dibujar plano» (20/11 noche) · las vallas de los sitios de esta
+            propuesta en sus fechas. Se despliega aquí; solo con
+            `inventario.ver` (ver el componente). */}
+        <DibujarPlanoPropuesta
+          sitioIds={[...new Set(p.items.map((i) => i.sitioId))]}
+          desde={desde ? String(desde).slice(0, 10) : ''}
+          hasta={hasta ? String(hasta).slice(0, 10) : ''}
+        />
+      </div>
+
       {/* Barra de metadatos (fechas / anunciante / agencia / comisión) */}
-      <Card className="overflow-hidden p-0">
-        <div className="grid grid-cols-2 divide-x divide-y divide-border sm:grid-cols-4 sm:divide-y-0">
+      <Card className="overflow-hidden p-0" data-testid="barra-datos-propuesta">
+        <div className="grid grid-cols-2 divide-x divide-y divide-border sm:grid-cols-5 sm:divide-y-0">
           <Meta icon={<CalendarDays className="h-4 w-4" />} label={t('propuestas.ficha.meta.fechas')}
             value={desde && hasta ? `${formatFecha(desde, idioma)} – ${formatFecha(hasta, idioma)}` : '—'} />
           <Meta label={t('propuestas.ficha.meta.anunciante')} value={cliente?.nombre ?? t('propuestas.comun.sin-cliente')} />
           <Meta label={t('propuestas.comun.agencia')} value={agencia?.nombre ?? t('propuestas.ficha.meta.directa')} />
           <Meta label={t('propuestas.ficha.meta.comision')} value={`${comisionPct}%`} />
+          {/* PROP-MARCA (20/11) · la marca con que cuenta la competencia de
+              Vallas: la escrita o, si no hay, la del cliente (y se dice). */}
+          <Meta
+            label={t('propuestas.ficha.meta.marca')}
+            value={
+              p.marca
+                ? p.marca
+                : cliente?.nombre
+                  ? t('propuestas.ficha.meta.marca-cliente', { cliente: cliente.nombre })
+                  : '—'
+            }
+          />
         </div>
       </Card>
 
@@ -829,7 +901,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
               formulario de alta en modo «agregar», con el periodo de la propuesta. */}
           {puedeEditar && sitiosEditables && (
             <div className="mb-3 flex flex-wrap items-center gap-2">
-              <Button size="sm" variant="secondary" onClick={() => router.push(`/propuestas?agregar=${p.id}`)}>
+              <Button size="sm" variant="secondary" onClick={() => router.push(rutaListaPropuestas(`agregar=${p.id}`))}>
                 <Plus className="h-3.5 w-3.5" /> {t('propuestas.comun.agregar-sitios')}
               </Button>
               {p.estatus === 'ENVIADA' && (
@@ -863,6 +935,8 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                   {p.items.map((it) => {
                     const s = sitios?.find((x) => x.id === it.sitioId)
                     const renta = rentaDe(it.sitioId)
+                    const punto = s ? puntoUtil(s.lat, s.lng) : null
+                    const enlaceMapa = s ? enlaceGoogleMaps(s.lat, s.lng) : null
                     const digital =
                       !!s &&
                       (s.tipoMedio === 'PANTALLA_DIGITAL' ||
@@ -887,9 +961,42 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                               </span>
                             )}
                           </div>
-                          <div className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-muted">
-                            <MapPin className="h-3 w-3" /> {s?.alcaldia ?? '—'}
+                          {/* FOTOS-UBIC (18/11) · la ubicación como en la liga
+                              del cliente: dirección, zona y coordenadas que
+                              abren Google Maps. Antes aquí solo salía la
+                              alcaldía, y el vendedor veía MENOS que su cliente. */}
+                          <div className="mt-0.5 flex items-start gap-1 text-[11px] text-muted">
+                            <MapPin className="mt-0.5 h-3 w-3 shrink-0" />
+                            <span>
+                              {s?.direccion ? <span className="text-ink">{s.direccion}</span> : null}
+                              {s?.direccion ? <br /> : null}
+                              {ubicacion([s?.alcaldia, s?.ciudad, s?.estado], ' · ') || (s?.direccion ? null : '—')}
+                            </span>
                           </div>
+                          {punto && enlaceMapa && (
+                            <a
+                              href={enlaceMapa}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-medium text-info hover:underline"
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                              <span className="demo-num">
+                                {punto.lat.toFixed(5)}, {punto.lng.toFixed(5)}
+                              </span>
+                            </a>
+                          )}
+                          {/* «Ver fotos y ubicación»: la galería se pide al abrir
+                              (`/api/sitios/:id/media`, permiso `network.ver`),
+                              no al pintar la tabla. */}
+                          {s && (
+                            <div className="mt-1.5">
+                              <FotosYUbicacionSitio
+                                sitio={s}
+                                urlFotos={`/spaces-dooh/api/sitios/${s.id}/media/`}
+                              />
+                            </div>
+                          )}
                         </td>
                         <td className="py-2.5 pr-3">
                           {renta ? (

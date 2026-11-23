@@ -2119,7 +2119,7 @@ export const PT_COMERCIAL: Record<ClaveComercial, string> = {
   'comercial.negociacion.oferta.contraoferta': 'Contraproposta',
   'comercial.negociacion.oferta.rechazada': 'Recusada',
   'comercial.negociacion.oferta.aceptada': 'Aceita',
-  'comercial.negociacion.etapa.prospecto': 'Prospect',
+  'comercial.negociacion.etapa.prospecto': 'Prospecto',
   'comercial.negociacion.etapa.contactado': 'Contatado',
   'comercial.negociacion.etapa.visita': 'Visita',
   'comercial.negociacion.etapa.negociacion': 'Negociação',

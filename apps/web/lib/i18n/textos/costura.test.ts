@@ -20,7 +20,7 @@ import { ES_INICIO, EN_INICIO } from './inicio'
 import { ES_ENERGIA, EN_ENERGIA } from './energia'
 import { ES_REPORTES, EN_REPORTES } from './reportes'
 import { DICCIONARIOS, AMBITOS_ITALIANO, IT_PARCIAL, AMBITOS_PORTUGUES, PT_PARCIAL } from '../diccionario'
-import { traducirError } from '../errores-servidor'
+import { traducirError, CAMPO_IT } from '../errores-servidor'
 
 // ============================================================================
 //  LA COSTURA DE LOS LOTES DEL INGLES (2026-11-02).
@@ -350,6 +350,26 @@ describe('costura del italiano · los lotes dicen lo mismo de la misma manera', 
     ]
     expect(divergenciasItaliano(muestra, {})).toEqual(['«Guardar» → «Salva» (a:x) / «Memorizza» (b:x)'])
     expect(divergenciasItaliano(muestra, { Guardar: 'porque si' })).toEqual([])
+  })
+
+  // Decisión del dueño (20/11): en italiano la marca es «Marchio» en TODAS
+  // las pantallas (Propuestas, Vallas, Almacén) — como ya lo decían los
+  // errores del servidor. La regla de arriba exige que se diga IGUAL en todas;
+  // esta fija CUÁL, para que la coherencia no se recupere volviendo a «Marca».
+  it('la etiqueta «Marca» en italiano es «Marchio», en todas las pantallas', () => {
+    const ES_D = DICCIONARIOS.es as Record<string, string>
+    const IT = IT_PARCIAL as Record<string, string>
+    const claves = Object.keys(ES_D).filter((k) => ES_D[k] === 'Marca')
+    expect(claves).toEqual(
+      expect.arrayContaining([
+        'propuestas.alta.marca',
+        'propuestas.ficha.meta.marca',
+        'vallas.verificar.marca',
+        'operaciones.almacen.campo.marca',
+      ]),
+    )
+    expect(claves.map((k) => `${k}: ${IT[k]}`)).toEqual(claves.map((k) => `${k}: Marchio`))
+    expect(CAMPO_IT['Marca']).toBe('Marchio') // el nombre del campo en los errores del servidor
   })
 
   it('el apostrofo italiano es el tipografico (’): «l’ordine», no «l\'ordine»', () => {

@@ -1,7 +1,7 @@
 ---
 tipo: referencia
 estado: verificado
-actualizado: 2026-11-17
+actualizado: 2026-11-20
 tags: [backend, api, endpoints]
 archivos:
   - apps/web/app/api/
@@ -18,6 +18,8 @@ archivos:
   - apps/web/app/api/perfil/codigos-recuperacion/route.ts
   - apps/web/app/api/perfil/idioma/route.ts
   - apps/web/app/api/perfil/avisos/route.ts
+  - apps/web/app/api/space-eyes/campanas/excel/route.ts
+  - apps/web/app/api/vallas/ocupacion/route.ts
   - apps/web/app/api/bienvenida/route.ts
   - apps/web/app/api/captacion/
   - apps/web/app/api/codigos-promocionales/
@@ -27,7 +29,12 @@ archivos:
   - apps/web/app/api/propuestas/[id]/enviar/route.ts
   - apps/web/app/api/propuestas/[id]/imprenta-visible/route.ts
   - apps/web/app/api/propuestas/publica/[id]/seguimiento/route.ts
+  - apps/web/app/api/propuestas/publica/[id]/sitios/[sitioId]/route.ts
+  - apps/web/app/api/propuestas/publica/[id]/creativos/route.ts
+  - apps/web/app/api/campanas/[id]/envios-cliente/route.ts
+  - apps/web/app/api/campanas/[id]/envios-cliente/[envioId]/route.ts
   - apps/web/app/api/propuestas/[id]/items/route.ts
+  - apps/web/app/api/propuestas/competencia/route.ts
   - apps/web/app/api/rejilla/
   - apps/web/app/api/reportes/rentabilidad/route.ts
   - apps/web/app/api/sitios/[id]/modalidades/route.ts
@@ -39,6 +46,38 @@ archivos:
 
 # API — los 159 endpoints (medidos el 2026-10-29 con `recuentos.mjs`)
 
+> **2026-11-20 · 189 (las dos ramas del 20/11 juntas en `integra/18-11`):** ver las dos entradas de abajo.
+>
+> **2026-11-20 · 188 (rama `feat/vallas-plano-por-sitio`):** `GET
+> /api/vallas/ocupacion?desde&hasta`, qué campañas ocupan cada sitio con vallas
+> en esas fechas, para el plano de `/vallas`. Medido con `recuentos.mjs`. Las
+> siete de `/api/vallas/**` del 19/11 están en [[vallas]], no en esta tabla.
+>
+> **2026-11-20 · 192 (FLUJO-CREA, rama `feat/flujo-creativo-impresion`):** tres
+> rutas para la «tarea 1» del creativo aprobado y la cola de Imprenta —`GET
+> /api/impresion/pendientes`, `GET /api/creativos/pendientes` y `PATCH
+> /api/impresion/[id]/fecha-especial`—. `POST /api/impresion` acepta además
+> `fechaEspecial` y exige que `sitioId` sea de la organización. Medido con
+> `recuentos.mjs` (antes 189 en `integra/18-11`). Ver [[operaciones-y-ot]].
+>
+> **2026-11-20 · 188 (PROP-MARCA, rama `feat/propuesta-marca-competencia`):** una
+> ruta nueva, `POST /api/propuestas/competencia` (vista previa de la competencia de
+> marcas, `comercial:crear`), y `avisosCompetencia` en las respuestas de
+> `POST /api/propuestas`, `POST /api/propuestas/[id]/items` y del `PATCH` con
+> `marca`. Medido con `recuentos.mjs` sobre esta rama (el 179 del 19/11 era
+> anterior a las rutas de Vallas). Ver [[comercial-propuestas-campanas]].
+
+> **2026-11-19 · 179 (IMP-REQ, rama `feat/imprentas-y-proporcion`):** tres
+> rutas para las imprentas y sus requisitos de arte —`GET·POST /api/imprentas`,
+> `PATCH /api/imprentas/[id]` y `PATCH /api/impresion/[id]/imprenta`—. Medido
+> con `recuentos.mjs`. Ver [[operaciones-y-ot]].
+>
+> **2026-11-18 · 176 (ENVIO-CLIENTE, rama `integra/18-11`):** tres rutas para el
+> creativo que manda el cliente por la liga —la pública `POST
+> /api/propuestas/publica/[id]/creativos` y, con sesión, `GET
+> /api/campanas/[id]/envios-cliente` y `GET·POST …/envios-cliente/[envioId]`—.
+> Medido con `recuentos.mjs`.
+>
 > **2026-11-17 · 169 (ADR 0051, Fase 2, rama `feat/crm-comercial`):** las cuatro
 > rutas de las oportunidades del CRM —`/api/oportunidades`, `…/[id]`,
 > `…/[id]/etapa` y `…/[id]/actividades`—. Medido con `recuentos.mjs`. Ver
@@ -167,7 +206,7 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 | GET·POST | `/api/tenants` | exigir | el admin acepta `entraConGoogle` |
 | POST | `/api/tenant-activo` | exigir | Cambio de CRM del super-admin |
 | PATCH | `/api/organizacion` | exigir | |
-| GET·PATCH | `/api/config` | exigir | Desde el 12/10 el `PATCH` toma `entidadPrincipalId` (uuid de una de [[entidades-fiscales]]) y **rechaza `razonSocial`** con 400 por el `.strict()` (`config/route.ts:92-94`). **Desde el 02/11 (ADR 0048) rechaza `moneda` con 400**, sea cual sea el valor y antes de guardar nada: la moneda de la instancia no se cambia |
+| GET·PATCH | `/api/config` | exigir | Desde el 12/10 el `PATCH` toma `entidadPrincipalId` (uuid de una de [[entidades-fiscales]]) y **rechaza `razonSocial`** con 400 por el `.strict()` (`config/route.ts:92-94`). **Desde el 02/11 (ADR 0048) rechaza `moneda` con 400**, sea cual sea el valor y antes de guardar nada: la moneda de la instancia no se cambia. **Desde el 19/11 (IMP-REQ)** acepta `requisitosImpresion` (los requisitos de arte por omisión de la empresa; mismo esquema que los de una imprenta, se guarda saneado) |
 | GET·PUT | `/api/cambios` | exigir | Interruptor de reautenticación |
 | POST·DELETE | `/api/cambios/desbloquear` | exigir | |
 | GET | `/api/estado` | exigir | Devuelve **todo** el tenant. Desde el 08/10 incluye `usuarios` (id, nombre, rol, activo; sin correo) para nombrar al responsable de cada OT — [[operaciones-y-ot]] |
@@ -229,6 +268,7 @@ en `:230-237`) y **no** puede condicionarse a que la ruta
 | POST | `/api/licencias` · PATCH·DELETE `/api/licencias/[id]` | exigir |
 | PATCH | `/api/sitios/[id]/modalidades` | (05/10) **SENSIBLE** `inventario:crear` — tarifas por unidad de venta; ruta aparte porque `sitio_modalidades.tarifa_publicada` es el mismo dinero que `sitios.tarifa_publicada` |
 | GET · PATCH | `/api/sitios/[id]/rejilla` | (05/10) `inventario:ver` · **SENSIBLE** `inventario:crear` — la rejilla franja×temporada de la pantalla, [[rejilla-franja-y-temporada]] |
+| GET | `/api/vallas/ocupacion?desde&hasta` | (20/11) `inventario:ver` — para el plano de las vallas: `{ desde, hasta, ocupaciones: [{ sitioId, marca, campanaId, campanaNombre, inicio, fin }] }`, POR SITIO (las reservas son por sitio) y con el mismo criterio que `POST /api/vallas/verificar` (no cancelada, tentativa sin caducar, solape inclusivo, solo sitios con vallas activas). Fechas obligatorias, reales y en orden, o 400. Ver [[vallas]] |
 | GET·POST | `/api/energia/consumos` | (05/10) `operaciones:ver` · `operaciones:crear` — [[energia-consumos]] |
 | DELETE | `/api/energia/consumos/[id]` | (05/10) `operaciones:aprobar` |
 | POST | `/api/energia/recibos` | (05/10) `operaciones:crear` — sube los PDF de CFE y **propone**, no guarda nada: el alta sigue siendo `POST /api/energia/consumos`. Pide `crear` aunque no escriba, porque lo que devuelve es el borrador de un alta — [[recibos-cfe-pdf]] |
@@ -263,6 +303,7 @@ en `:230-237`) y **no** puede condicionarse a que la ruta
 | GET | `/api/propuestas/conteo-diario` | exigir (`comercial:ver`); sin `comercial:aprobar`, solo lo propio (sale de la sesión) | (17/11, CONTEO-DIA) creadas y aprobadas por día y por vendedor, en la zona del negocio; 30 días por omisión, 92 como máximo. Ver [[conteo-campanas-por-dia]] |
 | POST | `/api/propuestas` · PATCH `/api/propuestas/[id]` | exigir (`comercial:crear`). Desde `17fbd252` (01/10) el `POST` **recalcula la tarifa** de cada línea en el servidor; un precio distinto al centavo exige además `comercial:aprobar` del rol de la sesión, o 403 y no se guarda nada |
 | POST | `/api/propuestas/[id]/items` | (29/10, PROP-COMPLETA) `comercial:crear`. Agrega sitios a una BORRADOR o ENVIADA (sube versión) con el periodo de la propuesta; cuerpo `{ items }` como el alta y la MISMA tarifa del servidor (403 si una vendedora se aparta); otro estatus → 409 |
+| POST | `/api/propuestas/competencia` | (20/11, PROP-MARCA) `comercial:crear` (no `inventario:ver`). `{ marca?, clienteId?, fechaInicio, fechaFin, sitioIds }` → `{ avisosCompetencia }`: la competencia de marcas de Vallas sin guardar nada; marca vacía = el cliente. Solo avisa; el aviso no lleva la campaña rival. `POST /api/propuestas` y `…/items` devuelven el mismo `avisosCompetencia` tras guardar, y aceptan/devuelven `marca` (máx. 120, vacía → null); el `PATCH` acepta `{ marca }` |
 | DELETE | `/api/propuestas/items/[id]` | (29/10, PROP-COMPLETA) `comercial:crear`. Quita un sitio (BORRADOR o ENVIADA, sube versión); nunca el último (409); de otra organización → 404 |
 | DELETE | `/api/propuestas/[id]` | (29/10, PROP-COMPLETA, R5) `comercial:crear`. Borra un **BORRADOR** con sus líneas y su canje (devuelve el uso del cupón); otro estatus o con campaña → 409; de otra organización → 404 |
 | GET·PATCH | `/api/propuestas/[id]/imprenta-visible` | (17/11, SEG-CLIENTE) GET `comercial:ver` → `{ imprentaVisible, puedeCambiar }`; PATCH `comercial:crear` con `{ visible }`. **Oculta por omisión** (decisión del dueño): solo el vendedor que creó la propuesta (`usuario_id`) o un rol superior (ADR 0040; Dueño/Admin siempre; roles fuera de venta nunca) → si no, 403 sin escribir. Capas: `imprenta-visible-controller.ts` → `imprenta-visible-repo.ts`; regla pura `puedeCambiarImprentaVisible` en `lib/seguimiento-campana.ts` |
@@ -280,8 +321,10 @@ en `:230-237`) y **no** puede condicionarse a que la ruta
 | POST | `/api/campanas/[id]/contrato` | exigir |
 | GET·POST | `/api/campanas/[id]/extender` | GET `comercial:ver` (las extensiones con su contrato) · POST `comercial:crear`, `{ fechaFin, contratoUrl }`: sin el contrato firmado de la extensión, 422 (EXT-CONTRATO, 29/10); ver [[comercial-propuestas-campanas]] |
 | POST | `/api/campanas/[id]/oc` | exigir |
-| POST | `/api/campanas/[id]/validar` | exigir |
+| POST | `/api/campanas/[id]/validar` | `comercial:crear` **y** rol Dueño o Administrador (`puedeAprobarEnCampana`, 18/11): cualquier otro rol, 403; ver [[comercial-propuestas-campanas]] |
 | POST | `/api/campanas/[id]/reintentar-publicacion` | `comercial:crear` — vuelve a mandar a DOOHmain una publicación YA aprobada, sin cambiar la campaña (13/10); ver [[integraciones-externas]] |
+| GET | `/api/campanas/[id]/envios-cliente` | `comercial:crear` **y** `puedeAprobarEnCampana` (Dueño/Administrador; 403 a los demás) — (18/11, ENVIO-CLIENTE) los envíos PENDIENTES del cliente de esa campaña, sin el archivo |
+| GET·POST | `/api/campanas/[id]/envios-cliente/[envioId]` | igual — GET sirve la imagen (vista previa, `no-store`, CSP `sandbox`); POST `{ accion: 'aprobar' }` crea el creativo YA aprobado (`crearCreatividadCtrl` + `validarCreatividad`, autoasignación incluida), borra el envío y, si la campaña es digital con la publicación aprobada, publica como «Volver a publicar»; `{ accion: 'rechazar', motivo? }` deja el motivo y borra el archivo. 404 si el envío no es de ESA campaña y tenant |
 | POST | `/api/campanas/[id]/creativos/repartir` | exigir |
 | POST | `/api/campanas/[id]/enviar-dominio` | exigir |
 | GET·POST | `/api/campanas/[id]/playlogs` | exigir — POST con `tipo: 'pantallas'` consulta `get_metrics` de las pantallas donde se publicó (29/10) |
@@ -349,8 +392,13 @@ agrupa las cuatro pantallas en `lib/modulos.ts:77-83`.
 | POST | `/api/ot/[id]/cerrar` | exigir |
 | PATCH | `/api/ot/[id]/costo` | exigirCambioSensible (`operaciones.costear`) · **409** si la OT está `COMPLETADA` (desde el 08/10; de otra organización, 404) — [[costo-real-de-ot]] |
 | PATCH | `/api/ot/[id]/checklist` | exigir (`operaciones.crear`) — un punto por petición, 2026-09-30 |
-| GET·POST | `/api/impresion` · PATCH `/api/impresion/[id]` | exigir |
+| GET·POST | `/api/impresion` · PATCH `/api/impresion/[id]` | exigir — (20/11, FLUJO-CREA) el `POST` acepta `fechaEspecial` (`YYYY-MM-DD` que exista; si no → 400 «Fecha inválida») y un `sitioId` de otra organización → 400 «Sitio no encontrado». Las órdenes traen `fechaEspecial` |
+| GET | `/api/impresion/pendientes` | exigir `imprenta.ver` — (20/11, FLUJO-CREA) sitios **fijos** con creativo aprobado y sin orden de impresión («Por mandar a impresión»), derivados sin tabla (`lib/pendientes-creativo.ts`). Capas `pendientes-creativo-controller.ts` → `pendientes-creativo-repo.ts` |
+| GET | `/api/creativos/pendientes` | exigir `comercial.ver` — (20/11, FLUJO-CREA) la «tarea 1» completa: `POR_APROBAR` (con origen CLIENTE/INTERNO), `IMPRIMIR` y `PROGRAMAR` |
+| PATCH | `/api/impresion/[id]/fecha-especial` | exigir `imprenta.crear` — (20/11, FLUJO-CREA) `{ fechaEspecial: 'YYYY-MM-DD' \| null }`: la fecha requerida, que manda sobre el inicio de la campaña en la cola. Fecha que no existe → 400; id no uuid, ajeno o inexistente → 404 |
 | PATCH | `/api/impresion/[id]/prueba-color` | exigir |
+| PATCH | `/api/impresion/[id]/imprenta` | exigir `imprenta.crear` — (19/11, IMP-REQ) `{ imprentaId \| null }`: la imprenta que imprime la orden. Ajena o dada de baja → 400; id no uuid → 404 |
+| GET·POST | `/api/imprentas` · PATCH `/api/imprentas/[id]` | exigir `imprenta.ver` / `imprenta.crear` — (19/11, IMP-REQ) proveedores de impresión con sus requisitos de arte (`{ nombre, requisitos?, activo? }`, zod `.strict()`); nombre repetido en la organización → 409; **sin DELETE** (baja lógica). Capas `imprentas-controller.ts` → `imprentas-repo.ts`. El alta de `POST /api/impresion` acepta `imprentaId` |
 
 ## Finanzas
 
@@ -395,7 +443,7 @@ agrupa las cuatro pantallas en `lib/modulos.ts:77-83`.
 
 ## Space Eyes (ADR 0045, desde v0.11.0)
 
-Diez rutas, todas con el permiso de **inventario**: hablan con el Space Eye de
+Once rutas, todas con el permiso de **inventario**: hablan con el Space Eye de
 **esta** instancia y nunca exponen su dirección ni su llave al navegador.
 Detalle en [[08-Manuales/manual-tecnico-space-eyes]].
 
@@ -408,6 +456,7 @@ Detalle en [[08-Manuales/manual-tecnico-space-eyes]].
 | GET | `/api/space-eyes/foto` | `inventario:ver` | Sirve la foto o su miniatura con `Cache-Control: private, max-age=3600` (`foto/route.ts:76`) |
 | GET | `/api/space-eyes/descarga/[tipo]` | `inventario:ver` | Descargas (álbum, kit) |
 | GET | `/api/space-eyes/alta` | `inventario:ver`, o `:crear` si pide testigo | Códigos de vinculación |
+| GET | `/api/space-eyes/campanas/excel` | `inventario:ver` **y** un rol de la entrada «Space Eyes → Campañas» de `NAV` (Dueño, Administrador, venta) | El Excel de las campañas detectadas (19/11): `?desde&hasta` en `AAAA-MM-DD` (sin ellas, el mes en curso), `&equipo&campana`. Sin Space Eye, datos de demostración marcados. 400 fechas malas, 503 si Space Eye no responde |
 | GET·POST·PUT·DELETE | `/api/space-eyes/se/[...ruta]` | `inventario:ver` al leer, `:crear` al escribir; **fijar el encuadre** (`camera`, `stream-rotation` y `pantalla` de un equipo) solo el Dueño (19/10, `puedeEncuadrar`) | Pasarela al API de Space Eye con la llave de la instancia |
 
 Las **solicitudes de activación** que se ven arriba del módulo en el PADRE no
@@ -523,7 +572,9 @@ el 26/08 y su cerrojo real es que `tenants` esté vacía, no el token).
 |---|---|---|
 | GET | `/api/portal/[token]` | `campanas.portal_token` |
 | GET·POST | `/api/firma/[token]` | token de firma del contrato |
-| GET·POST | `/api/propuestas/publica/[id]` | `propuestas.token_publico` — con el cupón **PENDIENTE** (COD-03) el GET no lo trae ni en el JSON y su total va sin él; el POST acepta **sin** cupón y devuelve el uso |
+| GET·POST | `/api/propuestas/publica/[id]` | `propuestas.token_publico` — con el cupón **PENDIENTE** (COD-03) el GET no lo trae ni en el JSON y su total va sin él; el POST acepta **sin** cupón y devuelve el uso. (20/11) Con **más de una valla activa** entre los sitios de la propuesta el GET añade `planoVallas: { sitios, vallas, grupos }` (ids opacos, sin ocupación ni marcas; ver [[vallas]]); con 0 o 1 el campo no viene. Capas: `vallas-publicas-controller.ts` → `vallas-publicas-repo.ts` (bajo `qConTenant` con el tenant del token, R2) |
+| GET | `/api/propuestas/publica/[id]/sitios/[sitioId]` | `propuestas.token_publico` — (18/11, FOTOS-UBIC) fotos y ubicación de UNA pantalla que sea renglón de esa propuesta, para «Ver fotos y ubicación» de la liga: `{ nombre, tipoMedio, direccion, alcaldia, ciudad, estado, lat, lng, fotos }` en lista blanca. Mismo 404 para token falso y sitio ajeno. Límite 60/min por IP. Capas: `fotos-sitio-publico-controller.ts` → `fotos-sitio-publico-repo.ts` (bajo `qConTenant` con el tenant del token, R2) |
+| POST | `/api/propuestas/publica/[id]/creativos` | `propuestas.token_publico` — (18/11, ENVIO-CLIENTE) el cliente manda su creativo desde la liga: `{ archivo (data URL JPG/PNG/WebP), nombre?, sitioId?, ancho?, alto? }` → 201 `{ ok, nombre, estatus: 'PENDIENTE' }`, nada más. Escribe SOLO en `envios_creativo_cliente` (+ aviso y bitácora); **nunca** en `creatividades` ni DOOHmain. 404 token falso o mal formado · 409 sin campaña, o campaña que ya no admite material · 400 tipo, JSON o pantalla ajena (y falta elegir con varias) · 413 > 4 MB · 422 bytes que no son lo que dicen (la validación de `crearSchema`) o proporción fuera de ±3 % del sitio elegido, leída de la cabecera del archivo (un sitio sin medida no la exige) · 429 por IP (10 cada 10 min) o por campaña (10 al día). Capas: `envio-cliente-publico-controller.ts` → `seguimiento-publico-repo.ts` + `envio-cliente-publico-repo.ts` (bajo `qConTenant`, R2) |
 | GET | `/api/propuestas/publica/[id]/seguimiento` | `propuestas.token_publico` — (17/11, SEG-CLIENTE) el avance de la campaña que nació de la propuesta, estilo rastreo de pedido: `{ hayCampana:false }` o `{ hayCampana:true, seguimiento }` (6 pasos, creativos, órdenes de imprenta, `retrasada`). Límite 60/min por IP. Capas: `seguimiento-publico-controller.ts` → `seguimiento-publico-repo.ts` (bajo `qConTenant` con el tenant del token, R2) → regla pura `lib/seguimiento-campana.ts`. **No lee** montos, OC, facturas, motivos de rechazo ni URLs; el `proveedor` se anula en el SELECT salvo `imprenta_visible` |
 | GET | `/api/logo/[token]` | `config_negocio.logo_token` |
 

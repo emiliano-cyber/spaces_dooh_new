@@ -6,8 +6,10 @@ import { deviceJwt } from '../utils/jwt';
 import { z } from 'zod';
 import { versionVigilancia } from '../utils/versionVigilancia';
 import { uploadPhoto } from '../services/photoStorage.service';
-import { configDe, registrarRecorrido, ligarFoto, yaConocida, medirPantallaEnFoto, refrescarCreativo, refrescarConFoto, tocaRefoto } from './creativos.controller';
-import { registrarResumen } from './monitoreo.controller';
+import { configDe, registrarRecorrido, ligarFoto, yaConocida, medirPantallaEnFoto, obstruccionEnFoto, refrescarCreativo, refrescarConFoto, tocaRefoto } from './creativos.controller';
+import {
+  adjuntarFotoDeRecuperacion, abrirObstruccion, cerrarObstruccion, registrarResumen,
+} from './monitoreo.controller';
 import { apkInfo } from '../utils/apkInfo';
 import { redis } from '../config/redis';
 import { comprobar, pareceLlave } from '../utils/llaveServicio';
@@ -434,6 +436,40 @@ export async function uploadPhotoEndpoint(req: Request, res: Response) {
       return res.json({ ok: true, descartada: 'pantalla_apagada' });
     }
 
+    // SEGUNDO: ¿lo que cambio esta EN la pantalla, o DELANTE de ella?
+    //
+    // Un trailer que pasa -o que se estaciona enfrente- tapa un trozo y deja el
+    // resto igual. La huella del equipo no puede verlo: resume la pantalla
+    // entera en 64 bits y tapar un tercio los mueve tanto como cambiar el
+    // anuncio. El servidor si, porque tiene las fotos de antes.
+    //
+    // No se descarta en silencio: se abre una falla que DICE lo que pasa
+    // -«algo tapando la pantalla»- y que el propio servidor cierra en cuanto
+    // la pantalla vuelve a verse entera. Antes esto entraba al catalogo como un
+    // anuncio que no existe.
+    const obs = await obstruccionEnFoto(did, req.file.buffer).catch(() => null);
+    if (obs?.obstruido) {
+      const pct = Math.round(obs.parecido * 100);
+      await pool.query(
+        `INSERT INTO device_logs (device_id, level, category, message) VALUES (?, 'warning', 'creative', ?)`,
+        [did, `Creativo nuevo descartado: el ${pct}% de la pantalla sigue siendo un creativo conocido, `
+          + `asi que lo que cambio esta DELANTE. No entra al catalogo.`]
+      ).catch(() => null);
+      // La foto se guarda aparte para que la falla tenga evidencia: es la unica
+      // forma de que alguien pueda mirar y decir «si, es un camion».
+      let fotoId: number | null = null;
+      try {
+        const r = await uploadPhoto({
+          deviceId: did, fileBuffer: req.file.buffer, mimetype: req.file.mimetype,
+          taken_at: meta.taken_at ?? new Date(), source: 'falla', watermark_baked: baked,
+        });
+        fotoId = r.photo_id;
+      } catch { /* sin foto, la falla se abre igual */ }
+      await abrirObstruccion(did, fotoId, obs.parecido,
+        `El ${pct}% de la pantalla sigue siendo el anuncio de antes`).catch(() => null);
+      return res.json({ ok: true, descartada: 'obstruccion' });
+    }
+
     const conocida = await yaConocida(did, meta.phash).catch(() => null);
     if (conocida) {
       const cfg = await configDe(did).catch(() => null);
@@ -486,10 +522,25 @@ export async function uploadPhotoEndpoint(req: Request, res: Response) {
     //
     // Nunca tumba la subida ni la retrasa de verdad: es decodificar un JPEG.
     try {
-      await refrescarConFoto(did, req.file.buffer, result.photo_id);
+      const reconocido = await refrescarConFoto(did, req.file.buffer, result.photo_id);
+      // Basta con RECONOCER la pantalla -no con refrescar su foto- para cerrar
+      // una obstruccion: la pantalla volvio a verse entera. Mirar el refresco
+      // seria mirar la pregunta equivocada, porque solo toca una vez cada
+      // tantas horas y la alerta se quedaria encendida hasta entonces.
+      if (reconocido) await cerrarObstruccion(did, result.photo_id).catch(() => null);
     } catch (err) {
       console.error('[creativos] no se pudo poner al dia el catalogo:', (err as any)?.message);
     }
+  }
+
+  // ¿La pedimos nosotros para probar que la imagen volvio? (migracion 032).
+  // Va despues del catalogo y aparte: son dos preguntas distintas sobre la
+  // misma foto, y ninguna de las dos puede tumbar la subida.
+  try {
+    const falla = await adjuntarFotoDeRecuperacion(did, result.photo_id);
+    if (falla) console.log(`[monitoreo] falla ${falla}: foto de recuperacion adjuntada`);
+  } catch (err) {
+    console.error('[monitoreo] no se pudo adjuntar la foto de recuperacion:', (err as any)?.message);
   }
 
   res.json(result);

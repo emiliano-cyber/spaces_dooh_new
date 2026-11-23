@@ -13,6 +13,12 @@ import {
 import { pngDeArte, imagenAHtml as imagenAHtmlSemilla } from './semilla-arte-demo.mjs'
 import { pdfDeTexto } from './semilla-pdf-demo.mjs'
 import { imagenAHtml, imagenDeHtml } from '@/lib/creativo-html'
+import { CATEGORIAS_COMPETENCIA } from './semilla-catalogo-modulos.mjs'
+import { CATEGORIAS_COMPETENCIA_POR_OMISION } from '@/lib/vallas/competencia-por-omision'
+import { evaluarReglas } from '@/lib/vallas/reglas'
+import { problemasDeGrupo } from '@/lib/vallas/numeracion'
+import type { ContextoVallas } from '@/lib/vallas/reglas/tipos'
+import type { Valla, GrupoVallas } from '@/lib/vallas/tipos'
 
 // ============================================================================
 //  El CATÁLOGO de la demo, probado sin Postgres.
@@ -200,9 +206,11 @@ describe('semilla-catalogo-demo', () => {
         .map((s) => /delete from (\w+)/.exec(s.sql)?.[1])
         .filter((t): t is string => !!t),
     )
-    // `acciones` es la única excepción, y no por elección: la bitácora es
-    // append-only por trigger y no admite DELETE.
-    expect([...sembradas].filter((t) => !borradas.has(t))).toEqual(['acciones'])
+    // `acciones` es la única excepción por obligación: la bitácora es
+    // append-only por trigger y no admite DELETE. `competencia_categorias`, por
+    // decisión: son las doce por omisión que toda organización trae (migración
+    // y alta), no un ejemplo de la demo; deshacer el catálogo no se las quita.
+    expect([...sembradas].filter((t) => !borradas.has(t)).sort()).toEqual(['acciones', 'competencia_categorias'])
   })
 
   it('la bitácora de ejemplo no queda atada a los usuarios demo (si no, no se podrían borrar)', () => {
@@ -298,5 +306,136 @@ describe('semilla-catalogo-demo', () => {
     const xref = Number(/startxref\n(\d+)/.exec(t)![1])
     expect(t.slice(xref, xref + 4)).toBe('xref')
     expect(t).toContain('campana')
+  })
+
+  // ─── Vallas «en proceso» (pedido del dueño, 19/11) ─────────────────────────
+  // El contexto de las reglas armado desde el PLAN, igual que lo arma
+  // `contextoParaVerificar` (vallas-repo.ts) desde la base: una reserva viva
+  // ocupa TODAS las vallas de su sitio, con la marca de su campaña.
+  function contextoDelPlan(p: ReturnType<typeof plan>, candidata: { marca: string; valla: string; inicio: string; fin: string }): ContextoVallas {
+    const v = p.modulos.vallas
+    const sitioId = (clave: string) => clave
+    const grupos: GrupoVallas[] = v.grupos.map((g) => ({ id: g.numero, numero: g.numero, nombre: g.nombre, modo: g.modo, ancho: g.ancho, alto: g.alto, notas: g.notas, activo: true }))
+    const vallas: Valla[] = v.vallas
+      .filter((x) => x.activo)
+      .map((x) => ({ id: x.numero, sitioId: sitioId(x.sitio), numero: x.numero, cara: x.cara, ancho: x.ancho, alto: x.alto, grupoId: x.grupo, posicion: x.posicion, notas: x.notas, activo: true }))
+    const marcaDe = (folio: string) => v.marcas.find((m) => m.campanas.includes(folio))?.marca ?? null
+    const ocupaciones = p.reservas
+      .filter((r) => r.estatus !== 'CANCELADA' && r.estatus !== 'TENTATIVA' && marcaDe(r.campanaFolio))
+      .flatMap((r) =>
+        vallas
+          .filter((x) => x.sitioId === r.sitio)
+          .map((x) => ({ vallaId: x.id, marca: marcaDe(r.campanaFolio)!, inicio: r.desde, fin: r.hasta, campanaId: r.campanaFolio, campanaNombre: r.campanaFolio })),
+      )
+    return {
+      vallas,
+      grupos,
+      categorias: v.categorias.map((k, i) => ({ id: String(i), nombre: k.nombre, marcas: [...k.marcas], activo: true })),
+      ocupaciones,
+      candidata: { marca: candidata.marca, inicio: candidata.inicio, fin: candidata.fin, vallaIds: [candidata.valla] },
+    }
+  }
+
+  it('vallas: 6–8 sobre fijas tipo valla o espectacular, con número y medida', () => {
+    const p = plan()
+    const v = p.modulos.vallas
+    expect(v.vallas.length).toBeGreaterThanOrEqual(6)
+    expect(v.vallas.length).toBeLessThanOrEqual(8)
+    for (const x of v.vallas) {
+      const s = p.sitios.find((k) => k.clave === x.sitio)!
+      expect(s, x.numero).toBeDefined()
+      expect(['VALLA', 'ESPECTACULAR'], x.numero).toContain(s.tipoMedio)
+      expect(x.numero).toMatch(/^CAT-V\d{2}$/)
+      expect(x.ancho).toBeGreaterThan(0)
+      expect(x.alto).toBeGreaterThan(0)
+    }
+    expect(new Set(v.vallas.map((x) => x.numero)).size).toBe(v.vallas.length)
+  })
+
+  it('vallas: un grupo «una sola imagen» y uno «separadas», sin avisos de grupo', () => {
+    const v = plan().modulos.vallas
+    expect(new Set(v.grupos.map((g) => g.modo))).toEqual(new Set(['una_imagen', 'separadas']))
+    for (const g of v.grupos) {
+      const suyas = v.vallas.filter((x) => x.grupo === g.numero)
+      const grupo: GrupoVallas = { id: g.numero, numero: g.numero, nombre: g.nombre, modo: g.modo, ancho: g.ancho, alto: g.alto, notas: null, activo: true }
+      const vallas = suyas.map((x) => ({ id: x.numero, sitioId: x.sitio, numero: x.numero, cara: x.cara, ancho: x.ancho, alto: x.alto, grupoId: g.numero, posicion: x.posicion, notas: null, activo: true }))
+      // Lo que la pantalla avisaría (sin medida, menos de dos, sitios distintos): nada.
+      expect(problemasDeGrupo(grupo, vallas), g.numero).toEqual([])
+    }
+    // La medida del grupo de una imagen es la suma de sus cuadros.
+    const una = v.grupos.find((g) => g.modo === 'una_imagen')!
+    const anchos = v.vallas.filter((x) => x.grupo === una.numero).reduce((a, x) => a + x.ancho, 0)
+    expect(Math.round(anchos * 100) / 100).toBe(una.ancho)
+  })
+
+  it('vallas: las categorías de la semilla son las doce de la app, idénticas', () => {
+    expect(CATEGORIAS_COMPETENCIA).toEqual(CATEGORIAS_COMPETENCIA_POR_OMISION.map((k) => ({ nombre: k.nombre, marcas: [...k.marcas] })))
+  })
+
+  it('vallas: «Pepsi» junto a la Coca-Cola al aire AVISA, cualquier día hasta 2028', () => {
+    // La campaña al aire en CAT-F01 cambia con el calendario; la marca va por
+    // cliente para que siempre haya una Coca-Cola puesta hoy.
+    for (const d of ['2026-10-06', '2026-11-19', '2027-03-15', '2027-09-01', '2028-06-30']) {
+      const p = plan(d)
+      const r = evaluarReglas(contextoDelPlan(p, { marca: 'Pepsi', valla: 'CAT-V01', inicio: d, fin: d }))
+      expect(r.bloquea, d).toBe(false)
+      expect(r.hallazgos.length, d).toBeGreaterThan(0)
+      expect(r.hallazgos.every((h) => h.nivel === 'aviso'), d).toBe(true)
+      expect(JSON.stringify(r.hallazgos[0].datos), d).toContain('Coca-Cola')
+    }
+  })
+
+  it('vallas: y MUERDE: la misma Coca-Cola, o Pepsi en una valla libre, no avisan', () => {
+    const d = '2026-11-19'
+    const p = plan(d)
+    expect(evaluarReglas(contextoDelPlan(p, { marca: 'Coca-Cola', valla: 'CAT-V01', inicio: d, fin: d })).hallazgos).toEqual([])
+    expect(evaluarReglas(contextoDelPlan(p, { marca: 'Pepsi', valla: 'CAT-V07', inicio: d, fin: d })).hallazgos).toEqual([])
+  })
+
+  it('vallas: los otros dos casos (Telcel/AT&T y Nissan/Toyota) también avisan en sus fechas', () => {
+    const p = plan('2026-11-19')
+    const c014 = p.campanas.find((c) => c.folio === 'CAT-CMP-014')!
+    const c018 = p.campanas.find((c) => c.folio === 'CAT-CMP-018')!
+    expect(evaluarReglas(contextoDelPlan(p, { marca: 'AT&T', valla: 'CAT-V04', inicio: c014.desde, fin: c014.desde })).hallazgos.length).toBeGreaterThan(0)
+    expect(evaluarReglas(contextoDelPlan(p, { marca: 'Toyota', valla: 'CAT-V06', inicio: c018.desde, fin: c018.desde })).hallazgos.length).toBeGreaterThan(0)
+  })
+
+  it('vallas: la marca solo se escribe donde está vacía o con la genérica que sembró la ficha', () => {
+    const s = sentenciasDelCatalogo(plan(), TENANT, 'x'.repeat(12)).filter((x) => x.etiqueta.startsWith('campanas marca'))
+    expect(s.map((x) => x.valores[2]).sort()).toEqual(['Coca-Cola', 'Nissan', 'Telcel'])
+    for (const x of s) expect(x.sql).toContain("(nullif(btrim(marca), '') is null or marca = $4::text)")
+    expect(s.find((x) => x.valores[2] === 'Coca-Cola')!.valores[3]).toBe('Refresquera')
+    // Y la ficha de una base nueva ya nace con la marca buena.
+    const ficha = sentenciasDelCatalogo(plan(), TENANT, 'x'.repeat(12)).find((x) => x.etiqueta === 'ficha campana CAT-CMP-013')!
+    expect(ficha.valores[2]).toBe('Coca-Cola')
+  })
+
+  it('vallas: sin sus tablas el catálogo se siembra igual, sin vallas y sin borrarlas', () => {
+    const con = sentenciasDelCatalogo(plan(), TENANT, 'x'.repeat(12))
+    const sin = sentenciasDelCatalogo(plan(), TENANT, 'x'.repeat(12), { sinVallas: true })
+    expect(con.filter((x) => x.vallas).length).toBeGreaterThan(0)
+    expect(sin.filter((x) => x.vallas)).toEqual([])
+    expect(sin.length).toBe(con.length - con.filter((x) => x.vallas).length)
+    expect(columnasDeLaSiembra(sin).some((c) => /^(vallas|vallas_grupos|competencia_categorias)\./.test(c))).toBe(false)
+    expect(sentenciasDeshacer(plan(), TENANT, { sinVallas: true }).some((x) => /from vallas/.test(x.sql))).toBe(false)
+    expect(sentenciasDeshacer(plan(), TENANT).some((x) => /delete from vallas /.test(x.sql))).toBe(true)
+  })
+
+  // ESQUINA (dueño, 20/11): una valla de ejemplo dobla para que el plano la
+  // enseñe. Va en un `update` aparte, que solo pisa una valla todavía recta, y
+  // que sale si la base no tiene `vallas.dobla` (las vallas van igual, rectas).
+  it('vallas: CAT-V02 dobla a la derecha, en un update aparte que no pisa y se puede omitir', () => {
+    const p = plan()
+    expect(p.modulos.vallas.vallas.filter((x) => x.dobla).map((x) => [x.numero, x.dobla])).toEqual([['CAT-V02', 'derecha']])
+    const con = sentenciasDelCatalogo(p, TENANT, 'x'.repeat(12))
+    const esquina = con.filter((x) => x.vallas && /set dobla/.test(x.sql))
+    expect(esquina).toHaveLength(1)
+    expect(esquina[0].valores).toEqual([TENANT, 'CAT-V02', 'derecha'])
+    expect(esquina[0].sql).toContain('and dobla is null')
+    // El insert de las vallas no la menciona: una base sin la columna las recibe.
+    expect(columnasDeLaSiembra(con)).not.toContain('vallas.dobla')
+    const sin = sentenciasDelCatalogo(p, TENANT, 'x'.repeat(12), { sinEsquinas: true })
+    expect(sin.some((x) => /dobla/.test(x.sql))).toBe(false)
+    expect(sin.filter((x) => x.vallas).length).toBe(con.filter((x) => x.vallas).length - 1)
   })
 })

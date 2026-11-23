@@ -26,7 +26,17 @@ import { claveMedio } from './etiquetas'
 //  alta, con la regla de Captación). Al editar eso ya no cambia.
 //
 //  El vendedor NO se elige: lo pone el servidor desde la sesión.
+//
+//  18/11 · `prospecto`: el alta que se abre desde la tarjeta de un prospecto
+//  en Seguimiento llega con ese prospecto ya elegido. El servidor vuelve a
+//  comprobar que sea de tipo cliente y que quien la crea lo pueda ver.
 // ============================================================================
+
+/** El prospecto con el que se abre el alta, ya elegido. */
+export interface ProspectoElegido {
+  id: string
+  nombre: string
+}
 
 const inputCls =
   'h-9 w-full rounded border border-border-strong bg-surface px-2.5 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
@@ -75,12 +85,19 @@ export function FormOportunidad({
   abierto,
   onCerrar,
   ficha,
+  prospecto = null,
+  aviso = null,
   onGuardada,
 }: {
   abierto: boolean
   onCerrar: () => void
   /** Si viene, se edita; si no, es un alta. */
   ficha?: FichaOportunidad | null
+  /** Solo en un alta: el prospecto ya elegido. */
+  prospecto?: ProspectoElegido | null
+  /** 18/11 · un aviso arriba del formulario: el prospecto arrastrado a otra
+   *  columna dice a qué etapa se moverá al crearla. */
+  aviso?: string | null
   onGuardada: (f: FichaOportunidad) => void
 }) {
   const { t, idioma } = useIdioma()
@@ -91,8 +108,11 @@ export function FormOportunidad({
   const editando = !!ficha
 
   useEffect(() => {
-    if (abierto) setV(ficha ? deFicha(ficha) : vacio())
-  }, [abierto, ficha])
+    if (!abierto) return
+    if (ficha) setV(deFicha(ficha))
+    else if (prospecto) setV({ ...vacio(), origen: 'prospecto', prospectoId: prospecto.id })
+    else setV(vacio())
+  }, [abierto, ficha, prospecto])
 
   // Los prospectos solo se piden al elegir «un prospecto»: la mayoría de las
   // altas son de clientes que ya existen.
@@ -145,13 +165,16 @@ export function FormOportunidad({
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={onCerrar}>{t('crm.form.cancelar')}</Button>
-          <Button variant="success" disabled={guardando || !v.nombre.trim()} onClick={guardar}>
+          <Button variant={editando ? 'primary' : 'success'} disabled={guardando || !v.nombre.trim()} onClick={guardar}>
             {editando ? t('crm.form.guardar') : t('crm.form.crear')}
           </Button>
         </div>
       }
     >
       <div className="grid gap-3 sm:grid-cols-2">
+        {aviso && (
+          <p className="rounded border border-border bg-accent-soft px-3 py-2 text-[12px] text-ink sm:col-span-2">{aviso}</p>
+        )}
         <Campo label={t('crm.form.nombre')} obligatorio className="sm:col-span-2">
           <input className={inputCls} value={v.nombre} maxLength={200} placeholder={t('crm.form.nombre-ejemplo')}
             onChange={(e) => cambia('nombre', e.target.value)} />
@@ -175,12 +198,17 @@ export function FormOportunidad({
                   <option value="">{t('crm.form.elige')}</option>
                   {(clientes ?? []).map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
                 </select>
-              ) : prospectos && prospectos.length === 0 ? (
+              ) : prospectos && prospectos.length === 0 && !prospecto ? (
                 <p className="text-[13px] text-muted">{t('crm.form.sin-prospectos')}</p>
               ) : (
                 <select aria-label={t('crm.form.prospecto')} className={inputCls} value={v.prospectoId}
                   onChange={(e) => cambia('prospectoId', e.target.value)}>
                   <option value="">{t('crm.form.elige')}</option>
+                  {/* El elegido de antemano sale aunque la lista no lo traiga
+                      (todavía cargando, o más allá de los primeros 100). */}
+                  {prospecto && !(prospectos ?? []).some((p) => p.id === prospecto.id) && (
+                    <option value={prospecto.id}>{prospecto.nombre}</option>
+                  )}
                   {(prospectos ?? []).map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
                 </select>
               )}

@@ -101,7 +101,12 @@ vi.mock('@/components/demo/ui/CardColapsable', () => ({
     createElement('section', null, createElement('h3', null, p.titulo), p.subtitulo as never,
       p.resumen as never, p.accion as never, p.children as never),
 }))
-vi.mock('@/components/demo/shell/SesionContext', () => ({ usePuede: () => datos.puede }))
+// El rol: desde el 18/11 aprobar en la ficha es solo de Dueño y Administrador
+// (`puedeAprobarEnCampana`). Dueño, para que se rindan los botones de siempre.
+vi.mock('@/components/demo/shell/SesionContext', () => ({
+  usePuede: () => datos.puede,
+  useSesionCtx: () => ({ sesion: { usuario: { rol: 'DUENO' } } }),
+}))
 // Componentes de OTRO lote que la pagina de Finanzas monta: aqui no cuentan.
 vi.mock('@/components/demo/arrendadores/PagosRentaCard', () => ({ PagosRentaCard: () => null }))
 vi.mock('@/components/demo/arrendadores/CompromisoRentaCard', () => ({ CompromisoRentaCard: () => null }))
@@ -276,7 +281,9 @@ const VISTA_DOOHMAIN = {
   publicacionEncendida: false,
   horarioIndividual: { horaInicio: '08:00', horaFin: '20:00', dias: [1, 2] },
   franjaCampana: { origen: 'programada', nombre: 'Mañana', horaInicio: '06:00', horaFin: '12:00' },
-  cliente: { nombre: 'Refrescos del Norte', rfc: 'RFN010101AAA', razonSocial: 'Refrescos SA', direccion: null, tipo: null },
+  // `tipo` como lo escribe `clienteDoohmain` para DOOHmain: en italiano salía
+  // «Directo» tal cual (recorrido del 18/11).
+  cliente: { nombre: 'Refrescos del Norte', rfc: 'RFN010101AAA', razonSocial: 'Refrescos SA', direccion: null, tipo: 'Directo' },
   lista: 'L-1',
   filas: [
     { sitio: 's1', sitioNombre: 'Pantalla Reforma', destino: 'doohmain', screen: 'scr-1', creativoNombre: 'Arte 1',
@@ -1286,6 +1293,9 @@ describe('lote CAMPANAS y FINANZAS · en ITALIANO', () => {
       ['candado con el monto ilegible', ['L’importo non si capisce: il punto separa le migliaia e la virgola i decimali (212.500,50).']],
       ['generar factura en parcialidades', ['Incassa a rate']],
       ['estado de cuenta sin movimientos, con un rango a mano', ['Nessuna fattura né pagamento tra 5 gen 2026 e 9 mar 2026.']],
+      // Recorrido del 18/11: el tipo del cliente y las fechas del pie salían
+      // «Directo» y «2026-01-01 – 2026-06-30» con la interfaz en italiano.
+      ['lo que se manda a DOOHmain (con franja y horario propio)', ['Refrescos SA · Diretto', 'Periodo: 1 gen 2026 – 30 giu 2026.']],
     ]
     const faltan: string[] = []
     for (const [nombre, frases] of vistas) {
@@ -1407,6 +1417,22 @@ describe('lote CAMPANAS y FINANZAS · en PORTUGUES', () => {
       faltan.push(...frases.filter((f) => !html.includes(f)).map((f) => `${nombre} · ${f}`))
     }
     expect(faltan).toEqual([])
+  })
+
+  // Recorrido del 18/11: la vista previa de DOOHmain pintaba «Directo» (el
+  // tipo de cliente que VIAJA a DOOHmain en espanol) en una ficha portuguesa.
+  it('18/11 · el tipo de cliente de la vista previa de DOOHmain sale en portugues', async () => {
+    const { ProgramacionDoohmain } = await import('../../components/demo/campanas/ProgramacionDoohmain')
+    for (const [tipo, pt] of [['Directo', 'Direto'], ['Agencia', 'Agência']] as const) {
+      reiniciar()
+      forzar(esNull, { ...VISTA_DOOHMAIN, cliente: { ...VISTA_DOOHMAIN.cliente, tipo } })
+      const enPt = texto(pintar('pt', createElement(ProgramacionDoohmain, { campanaId: 'c1', clave: 'k' })))
+      expect(enPt).toContain(`Refrescos SA · ${pt}`)
+      expect(enPt).not.toContain(`Refrescos SA · ${tipo}`)
+      reiniciar()
+      forzar(esNull, { ...VISTA_DOOHMAIN, cliente: { ...VISTA_DOOHMAIN.cliente, tipo } })
+      expect(texto(pintar('es', createElement(ProgramacionDoohmain, { campanaId: 'c1', clave: 'k' })))).toContain(`Refrescos SA · ${tipo}`)
+    }
   })
 
   afterEach(() => fijarMonedaInstancia('MXN'))

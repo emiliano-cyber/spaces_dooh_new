@@ -9,6 +9,7 @@ import {
 } from './creativos-repo'
 import { LIMITES, validarUpload } from './uploads'
 import { imagenAHtml, imagenDeHtml, IMAGEN_CREATIVO_MAX_MB } from '@/lib/creativo-html'
+import type { DatosOrigen } from '@/lib/origen-creativo'
 
 // ============================================================================
 //  lib/server/creativos-controller.ts — Alta de creativos y asignación a
@@ -126,8 +127,22 @@ const crearSchema = z
     path: ['archivoUrl'],
   })
 
-export async function crearCreatividadCtrl(body: unknown) {
-  const d = validar(crearSchema, body)
+/**
+ * La validación del ALTA de un creativo, sola: la misma que corre
+ * `crearCreatividadCtrl`. ENVIO-CLIENTE (18/11) la usa al RECIBIR el archivo
+ * del cliente, para rechazarlo en la liga y no después, cuando alguien ya lo
+ * aprobó en la ficha (ahí vuelve a pasar por `crearCreatividadCtrl`).
+ */
+export function validarAltaCreatividad(body: unknown) {
+  return validar(crearSchema, body)
+}
+
+// `origen` va APARTE del cuerpo, a propósito (CREA-ORIGEN, 20/11): quién subió
+// el creativo lo decide el servidor —la sesión o la aprobación del envío del
+// cliente—. El esquema de zod no lo lee, así que un `origen` en el cuerpo se
+// ignora.
+export async function crearCreatividadCtrl(body: unknown, origen: DatosOrigen) {
+  const d = validarAltaCreatividad(body)
   try {
     return await crearCreatividad({
       campanaId: d.campanaId,
@@ -136,6 +151,7 @@ export async function crearCreatividadCtrl(body: unknown) {
       codigo: d.codigo ?? null,
       formato: d.formato ?? null,
       resolucion: d.resolucion ?? null,
+      origen,
     })
   } catch (e) {
     if (e instanceof CreatividadError) throw new AppError(e.message, 409)

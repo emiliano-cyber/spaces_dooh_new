@@ -89,7 +89,11 @@ vi.mock('@/lib/data/client', async (importOriginal) => {
     // IMP-CREA (17/11) · Imprenta lee también los creativos (respaldo de la demo
     // en memoria). El real lleva su propio `useState(false)` y, llamado desde
     // `ImprentaPage`, se comía el forzado del alta.
-    useCreatividades: () => [] }
+    useCreatividades: () => [],
+    // IMP-REQ (18/11) · y la config, por los requisitos de arte de la empresa:
+    // el real pasa por `useMounted` (otro `useState(false)`) y se comía el
+    // mismo forzado.
+    useConfigNegocio: () => undefined }
 })
 
 beforeEach(() => {
@@ -630,4 +634,23 @@ describe('lote OPERACIONES · en PORTUGUES, sin formatos ajenos, sin espanol del
       expect((PORTUGUES[e.nombre] ?? []).filter((f) => !html.includes(f))).toEqual([])
     })
   }
+})
+
+// Recorrido del 18/11 en portugues: la fila de cada orden de impresion pintaba
+// la medida con el literal `${ancho} × ${alto} m` —«12.9 × 7.2 m», con PUNTO
+// decimal— justo al lado del «12,9 × 7,2 m» de la arte, que ya iba por
+// `formatNumero`. Los formatos de arriba no lo veian: las ordenes de prueba
+// median 6 × 3, sin decimales.
+describe('18/11 · la medida de una orden de impresion lleva la coma decimal del idioma', () => {
+  const conDecimales = [oi('9', { ancho: 12.9, alto: 7.2 })]
+  it.each([
+    ['pt', '12,9 × 7,2 m', '12.9 × 7.2 m'],
+    ['it', '12,9 × 7,2 m', '12.9 × 7.2 m'],
+    ['es', '12.9 × 7.2 m', '12,9 × 7,2 m'],
+  ] as const)('%s', async (idioma, bien, mal) => {
+    datos.ois = conDecimales
+    const html = texto(pintar(idioma, createElement(await imprenta())))
+    expect(html).toContain(bien)
+    expect(html.split(mal).length - 1).toBe(0)
+  })
 })

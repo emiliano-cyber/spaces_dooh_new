@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Upload, Code2, Eye } from 'lucide-react'
 import { Button } from '@/components/demo/ui/Button'
@@ -8,8 +8,12 @@ import { Modal } from '@/components/demo/ui/Modal'
 import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { crearCreatividadApi } from '@/lib/data/estado-api'
-import { imagenAHtml, IMAGEN_CREATIVO_MAX_MB } from '@/lib/creativo-html'
+import { imagenAHtml } from '@/lib/creativo-html'
 import { useTexto } from '@/lib/i18n/contexto'
+import { useCampanas, useConfigNegocio, useOrdenesImpresion, useReservas, useSitios } from '@/lib/data/client'
+import { resolverRequisitos } from '@/lib/requisitos-impresion'
+import { cuerpoArte, lonasDeCampana, topeArteMb } from '@/lib/arte-impresion'
+import { RevisionArte, pixelesDeImagen } from '@/components/operaciones/ValoracionArte'
 
 // ============================================================================
 //  Alta rápida de creativos desde la FICHA DE CAMPAÑA: subir una imagen o pegar
@@ -22,7 +26,13 @@ import { useTexto } from '@/lib/i18n/contexto'
 // ============================================================================
 
 // Lo que se está por subir, ya convertido al HTML del creativo (lo que se guarda).
-type Previa = { nombre: string; codigo: string }
+// IMP-VAL (18/11) · si es una IMAGEN, también el archivo tal cual: con él se
+// revisa contra la lona y, en una OOH de más de 4 MB, se sube sin envolver.
+type Previa = {
+  nombre: string
+  codigo: string
+  imagen?: { dataUrl: string; tipo: string; bytes: number; pixeles: { ancho: number; alto: number } | null }
+}
 
 export function AgregarCreativo({ campanaId }: { campanaId: string }) {
   const puede = usePuede('comercial', 'crear')
@@ -37,6 +47,24 @@ export function AgregarCreativo({ campanaId }: { campanaId: string }) {
   // OBLIG-01 · al pegar código, el código es lo único obligatorio (sin él no
   // hay creativo); el nombre cae a «Creativo (código)».
   const ob = useObligatorios({ codigo }, ['codigo'])
+  // IMP-VAL (18/11) · decisión del dueño: el arte que se sube desde la ficha
+  // pasa por la misma revisión contra la lona que en Imprenta. Las lonas son
+  // los sitios FIJOS de la campaña con medida (`lonasDeCampana`).
+  const campanas = useCampanas()
+  const reservas = useReservas()
+  const sitios = useSitios()
+  const ois = useOrdenesImpresion()
+  // IMP-REQ (18/11) · la lona se valora con los requisitos de la imprenta de
+  // la orden de ese sitio, si no con los de la empresa.
+  const config = useConfigNegocio()
+  const tipoCampana = campanas?.find((c) => c.id === campanaId)?.tipoCampana ?? null
+  const lonas = useMemo(
+    () => lonasDeCampana(campanaId, reservas ?? [], sitios ?? [], ois ?? []),
+    [campanaId, reservas, sitios, ois],
+  )
+  const [lonaId, setLonaId] = useState<string | null>(null)
+  const lona = lonas.find((l) => l.id === lonaId) ?? lonas[0] ?? null
+  const tope = topeArteMb(tipoCampana)
 
   if (!puede) return null
 
@@ -44,16 +72,21 @@ export function AgregarCreativo({ campanaId }: { campanaId: string }) {
     const f = e.target.files?.[0]
     e.target.value = ''
     if (!f) return
-    if (f.size > IMAGEN_CREATIVO_MAX_MB * 1024 * 1024) {
-      toast.error(t('campanas.creativo.imagen-supera', { mb: IMAGEN_CREATIVO_MAX_MB }))
+    if (f.size > tope * 1024 * 1024) {
+      toast.error(t('campanas.creativo.imagen-supera', { mb: tope }))
       return
     }
     const reader = new FileReader()
-    reader.onload = () => {
+    reader.onload = async () => {
       const dataUrl = reader.result as string
+      const pixeles = await pixelesDeImagen(f)
       // Toda imagen se convierte al creativo HTML adaptativo (como en Creativos)
       // y se muestra en vista previa antes de subir.
-      setPrevia({ nombre: f.name, codigo: imagenAHtml(dataUrl, f.name) })
+      setPrevia({
+        nombre: f.name,
+        codigo: imagenAHtml(dataUrl, f.name),
+        imagen: { dataUrl, tipo: f.type, bytes: f.size, pixeles },
+      })
     }
     reader.readAsDataURL(f)
   }
@@ -67,12 +100,17 @@ export function AgregarCreativo({ campanaId }: { campanaId: string }) {
     if (!previa) return
     setSubiendo(true)
     try {
-      await crearCreatividadApi({
-        campanaId,
-        nombre: previa.nombre,
-        codigo: previa.codigo,
-        formato: 'text/html',
-      })
+      await crearCreatividadApi(
+        previa.imagen
+          ? cuerpoArte({
+              campanaId,
+              nombre: previa.nombre,
+              dataUrl: previa.imagen.dataUrl,
+              tipo: previa.imagen.tipo,
+              bytes: previa.imagen.bytes,
+            })
+          : { campanaId, nombre: previa.nombre, codigo: previa.codigo, formato: 'text/html' },
+      )
       toast.success(t('campanas.creativo.agregado'))
       setPrevia(null)
       setCodigo('')
@@ -136,6 +174,7 @@ export function AgregarCreativo({ campanaId }: { campanaId: string }) {
       {/* Modal de vista previa del creativo a subir */}
       <Modal
         open={!!previa}
+        size={previa?.imagen && lona ? 'lg' : 'md'}
         onOpenChange={(v) => { if (!v && !subiendo) setPrevia(null) }}
         title={t('campanas.creativo.vista-previa.titulo')}
         subtitle={previa?.nombre}
@@ -149,6 +188,40 @@ export function AgregarCreativo({ campanaId }: { campanaId: string }) {
         }
       >
         <div className="space-y-2">
+          {/* IMP-VAL · la lona a escala y la valoración, si la campaña tiene
+              sitios fijos con medida. Una OOH no se ve en una pantalla, así
+              que no lleva la vista del player. */}
+          {previa?.imagen && lona && (
+            <div className="space-y-2">
+              {lonas.length > 1 && (
+                <label className="flex flex-wrap items-center gap-2 text-[12px] text-muted">
+                  {t('operaciones.imprenta.valoracion.revisar-contra')}
+                  <select
+                    value={lona.id}
+                    onChange={(e) => setLonaId(e.target.value)}
+                    className="max-w-full rounded border border-border-strong bg-surface px-2 py-1 text-[12px] text-ink"
+                  >
+                    {lonas.map((l) => (
+                      <option key={l.id} value={l.id}>{l.nombre}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <RevisionArte
+                key={lona.id}
+                medida={lona}
+                src={previa.imagen.dataUrl}
+                imagen
+                pixeles={previa.imagen.pixeles}
+                tipo={previa.imagen.tipo}
+                bytes={previa.imagen.bytes}
+                maxMb={tope}
+                requisitos={resolverRequisitos(lona.requisitos, config?.requisitosImpresion)}
+              />
+            </div>
+          )}
+          {!(previa?.imagen && lona && tipoCampana === 'OOH') && (
+          <>
           <p className="text-[12px] text-muted">{t('campanas.creativo.asi-se-vera')}</p>
           <div className="overflow-hidden rounded-md border border-border bg-black">
             {previa && (
@@ -163,6 +236,8 @@ export function AgregarCreativo({ campanaId }: { campanaId: string }) {
               />
             )}
           </div>
+          </>
+          )}
         </div>
       </Modal>
     </div>

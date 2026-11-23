@@ -1,36 +1,25 @@
-'use client'
-
-import { useSearchParams } from 'next/navigation'
-import { useTexto } from '@/lib/i18n/contexto'
-import { PestanasCrm } from '@/components/demo/crm/PestanasCrm'
-import { Oportunidades } from '@/components/demo/crm/Oportunidades'
-import { Captacion } from '@/components/demo/captacion/Captacion'
+import { redirect } from 'next/navigation'
 
 // ============================================================================
-//  /crm — el CRM comercial (ADR 0051, Fase 4).
+//  /crm — ya no es una pantalla: redirige a Propuestas.
 // ----------------------------------------------------------------------------
-//  Tres de sus cuatro pestañas viven aquí (`?vista=`): el embudo (por omisión),
-//  la lista de oportunidades y los prospectos de tipo cliente. La cuarta,
-//  Propuestas, es `/propuestas` tal cual: no cambió de dirección.
+//  El 17/11 (ADR 0051, Fase 4) esto era «CRM comercial», con Propuestas como
+//  cuarta pestaña. El 18/11 el dueño pidió lo contrario: «en el CRM no se debe
+//  de llamar CRM sino Propuestas; además corrígelo porque debe de ser similar
+//  al que ya existía de Propuestas». El embudo, las oportunidades y los
+//  prospectos son ahora pestañas de `/propuestas?vista=…`.
 //
-//  Encabezado con el patrón del Dashboard (título y una línea, sin icono), que
-//  el dueño dio por referencia el 26/10.
+//  La dirección se conserva redirigiendo, y no se borra, porque ya estuvo un
+//  día en el menú: un marcador de `/crm?vista=prospectos` cae en Prospectos, y
+//  cualquier otro (`/crm`, `?vista=embudo`, `?vista=oportunidades`) en
+//  Seguimiento, que desde el 18/11 sustituye al embudo y a la lista de
+//  oportunidades (esa pestaña se quitó por ser casi igual al embudo).
+//  La ficha de una oportunidad sigue en `/crm/oportunidades/[id]` (su ruta no
+//  se ve en ningún rótulo y la enciende «Propuestas» en el menú: `nav.ts`).
 // ============================================================================
 
-export default function CrmPage() {
-  const t = useTexto()
-  const v = useSearchParams()?.get('vista')
-  const vista = v === 'oportunidades' || v === 'prospectos' ? v : 'embudo'
-  return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl text-ink">{t('crm.titulo')}</h1>
-        <p className="mt-1 text-[13px] text-muted">
-          {vista === 'prospectos' ? t('crm.prospectos.subtitulo') : t('crm.subtitulo')}
-        </p>
-      </div>
-      <PestanasCrm activa={vista} />
-      {vista === 'prospectos' ? <Captacion tipoFijo="CLIENTE" /> : <Oportunidades vista={vista} />}
-    </div>
-  )
+export default function CrmPage({ searchParams }: { searchParams: { vista?: string | string[] } }) {
+  const v = Array.isArray(searchParams.vista) ? searchParams.vista[0] : searchParams.vista
+  const vista = v === 'prospectos' ? v : 'seguimiento'
+  redirect(`/propuestas?vista=${vista}`)
 }

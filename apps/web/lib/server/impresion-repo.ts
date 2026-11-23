@@ -3,6 +3,7 @@ import { q, q1 } from './db'
 import { tenantActual } from './tenant'
 import { folioDocumento } from './folios'
 import { rutaArteCreativo } from '@/lib/medios-url'
+import { sanearRequisitos } from '@/lib/requisitos-impresion'
 
 // ============================================================================
 //  lib/server/impresion-repo.ts — Imprenta: órdenes de impresión (arte→montaje)
@@ -30,8 +31,15 @@ function rowToOrdenImpresion(r: any) {
     ancho: r.ancho == null ? 0 : Number(r.ancho),
     estatus: r.estatus as EstOI,
     proveedor: r.proveedor ?? null,
+    // IMP-REQ (18/11) · la imprenta de la orden (sus requisitos mandan en la
+    // valoración del arte). Nombre y requisitos solo los trae el listado.
+    imprentaId: r.imprenta_id ?? null,
     pruebaColorUrl: r.prueba_color_url ?? null,
     pruebaColorAprobada: !!r.prueba_color_aprobada,
+    // FLUJO-CREA (20/11) · la fecha requerida, si la hay; manda sobre el inicio
+    // de la campaña en la cola. Llega como TEXTO (`fecha_especial_txt`): una
+    // columna `date` como `Date` de JS se corre un día en UTC-6.
+    fechaEspecial: r.fecha_especial_txt ?? null,
     creadoEn: r.creado_en instanceof Date ? r.creado_en.toISOString() : r.creado_en,
   }
 }
@@ -41,7 +49,7 @@ export async function aprobarPruebaColor(id: string, aprobada: boolean, url?: st
   const rows = await q(
     `update ordenes_impresion
         set prueba_color_aprobada=$2, prueba_color_url=coalesce($3, prueba_color_url)
-      where id=$1 returning *`,
+      where id=$1 returning *, fecha_especial::text as fecha_especial_txt`,
     [id, aprobada, url ?? null],
   )
   return rows[0] ? rowToOrdenImpresion(rows[0]) : null
@@ -59,13 +67,15 @@ export async function aprobarPruebaColor(id: string, aprobada: boolean, url?: st
 export async function listarOrdenesImpresion() {
   const tenant = await tenantActual()
   const rows = await q(
-    `select oi.*,
+    `select oi.*, oi.fecha_especial::text as fecha_especial_txt,
             c.nombre as campana_nombre, c.tipo_campana,
             c.fecha_inicio::text as campana_inicio, c.fecha_fin::text as campana_fin,
-            s.nombre as sitio_nombre, s.ancho as sitio_ancho, s.alto as sitio_alto
+            s.nombre as sitio_nombre, s.ancho as sitio_ancho, s.alto as sitio_alto,
+            im.nombre as imprenta_nombre, im.requisitos as imprenta_requisitos
        from ordenes_impresion oi
        left join campanas c on c.id = oi.campana_id and c.tenant_id = oi.tenant_id
        left join sitios s on s.id = oi.sitio_id and s.tenant_id = oi.tenant_id
+       left join imprentas im on im.id = oi.imprenta_id and im.tenant_id = oi.tenant_id
       where oi.tenant_id = $1
       order by oi.creado_en asc`,
     [tenant],
@@ -94,6 +104,8 @@ export async function listarOrdenesImpresion() {
     sitioNombre: r.sitio_nombre ?? null,
     sitioAncho: r.sitio_ancho == null ? null : Number(r.sitio_ancho),
     sitioAlto: r.sitio_alto == null ? null : Number(r.sitio_alto),
+    imprentaNombre: r.imprenta_nombre ?? null,
+    imprentaRequisitos: r.imprenta_id ? sanearRequisitos(r.imprenta_requisitos) : null,
     creativos: creas
       .filter((cr: any) => cr.campana_id === r.campana_id)
       .map((cr: any) => ({
@@ -133,6 +145,9 @@ export async function crearOrdenImpresion(input: {
   alto?: number | null
   ancho?: number | null
   proveedor?: string | null
+  imprentaId?: string | null
+  // FLUJO-CREA (20/11) · YYYY-MM-DD ya validada por el controlador, o null.
+  fechaEspecial?: string | null
 }) {
   // Máquina de estados (server-side): una campaña digital (DOOH) NO genera
   // orden de impresión. Fija (OOH) e híbrida sí. La UI ya lo oculta; esto lo
@@ -143,8 +158,8 @@ export async function crearOrdenImpresion(input: {
     throw new ImpresionError('Una campaña digital (DOOH) no genera orden de impresión')
   }
   const rows = await q(
-    `insert into ordenes_impresion (folio, campana_id, sitio_id, material, alto, ancho, proveedor, tenant_id)
-     values ($1,$2,$3,$4,$5,$6,$7,$8) returning *`,
+    `insert into ordenes_impresion (folio, campana_id, sitio_id, material, alto, ancho, proveedor, tenant_id, imprenta_id, fecha_especial)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::date) returning *, fecha_especial::text as fecha_especial_txt`,
     [
       await folioOI(),
       input.campanaId,
@@ -154,9 +169,45 @@ export async function crearOrdenImpresion(input: {
       input.ancho ?? null,
       input.proveedor ?? null,
       await tenantActual(),
+      input.imprentaId ?? null,
+      input.fechaEspecial ?? null,
     ],
   )
   return rowToOrdenImpresion(rows[0])
+}
+
+/**
+ * IMP-REQ (18/11) · cambia (o quita, con null) la imprenta de una orden. Quien
+ * llama ya comprobó que la imprenta es de esta organización y está activa
+ * (`imprentaUsable`); la FK compuesta lo impide igual en la base.
+ */
+export async function asignarImprentaAOrden(id: string, imprentaId: string | null) {
+  const rows = await q(
+    'update ordenes_impresion set imprenta_id = $3 where id = $1 and tenant_id = $2 returning *, fecha_especial::text as fecha_especial_txt',
+    [id, await tenantActual(), imprentaId],
+  )
+  return rows[0] ? rowToOrdenImpresion(rows[0]) : null
+}
+
+/**
+ * FLUJO-CREA (20/11) · pone (YYYY-MM-DD ya validada) o quita (null) la fecha
+ * especial de una orden. `and tenant_id` además de la RLS: una orden de otra
+ * organización da null → 404, sin escribir nada.
+ */
+export async function fijarFechaEspecial(id: string, fecha: string | null) {
+  const rows = await q(
+    `update ordenes_impresion set fecha_especial = $3::date
+      where id = $1 and tenant_id = $2
+      returning *, fecha_especial::text as fecha_especial_txt`,
+    [id, await tenantActual(), fecha],
+  )
+  return rows[0] ? rowToOrdenImpresion(rows[0]) : null
+}
+
+/** ¿El sitio es de esta organización? (RLS + `tenant_id`). */
+export async function sitioEsPropio(sitioId: string): Promise<boolean> {
+  if (!/^[0-9a-f-]{36}$/i.test(sitioId)) return false
+  return !!(await q1('select 1 from sitios where id = $1 and tenant_id = $2', [sitioId, await tenantActual()]))
 }
 
 // Avanza la orden al siguiente estatus del proceso (no retrocede ni pasa el final).
@@ -166,11 +217,11 @@ export async function avanzarOrdenImpresion(id: string) {
   const i = PROCESO.indexOf(actual.estatus)
   if (i < 0 || i >= PROCESO.length - 1) {
     // Ya está en el último paso: devolvemos la orden tal cual.
-    const r = await q1<any>('select * from ordenes_impresion where id=$1', [id])
+    const r = await q1<any>('select *, fecha_especial::text as fecha_especial_txt from ordenes_impresion where id=$1', [id])
     return r ? rowToOrdenImpresion(r) : null
   }
   const rows = await q(
-    'update ordenes_impresion set estatus=$2 where id=$1 returning *',
+    'update ordenes_impresion set estatus=$2 where id=$1 returning *, fecha_especial::text as fecha_especial_txt',
     [id, PROCESO[i + 1]],
   )
   return rowToOrdenImpresion(rows[0])

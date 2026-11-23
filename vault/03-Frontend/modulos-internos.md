@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-11-17
+actualizado: 2026-11-19
 tags: [frontend, modulos, pantallas, verde]
 archivos:
   - apps/web/app/(app)/(shell)/
@@ -10,6 +10,8 @@ archivos:
   - apps/web/lib/campanas-vista.ts
   - apps/web/lib/campanas-menu.ts
   - apps/web/components/demo/campanas/CampanasNav.tsx
+  - apps/web/components/demo/campanas/ActualizarCampana.tsx
+  - apps/web/lib/actualizar-campana.ts
   - apps/web/lib/tarifa-calculada.ts
   - apps/web/lib/calculadora-spots.ts
   - apps/web/app/(app)/(shell)/novedades/page.tsx
@@ -36,20 +38,20 @@ archivos:
 | `/actividad` | Bitácora | `acciones` | — |
 | `/comercial` | Buscador de inventario | `/api/sitios` | `SiteFicha`, `ReservaDialog`, `AltaSitioDialog`, `SpaceEyeVision` |
 | `/disponibilidad` | Calendario — en las **digitales**, cada celda dice los **slots que quedan libres** (06/10) | `/api/sitios` | `SlotsBadge`; la rejilla es local de la página y la calcula `disponibilidad()` (`lib/data/derive.ts`) |
-| `/inventario` | Alta y carga masiva | `/api/sitios`, `/api/sitios/import` | `InventarioTabla`, `ResumenInventario` (indicadores y chips de filtro, 26/10), `ImportarInventarioDialog`, `NuevaPantallaForm`, `ContratoWizard`, `AgregarInventario`, `InfoAnadidaModal`. **Desde el 22/10** la tabla y la ficha enseñan el **id de DOOHmain que se usa** al publicar y de dónde sale (ficha, mapa del servidor o por omisión): antes, una pantalla publicada por el mapa se veía con el campo vacío |
+| `/inventario` | Alta y carga masiva | `/api/sitios`, `/api/sitios/import` | `InventarioTabla`, `ResumenInventario` (indicadores y chips de filtro, 26/10; **desde el 18/11** también las pestañas **Todos / Fijos / Digitales** —`PestanasMedio`, el medio deja de ser un chip— y el **selector de zona** ciudad → alcaldía —`SelectorZona`, con `zonasInventario()` y `enZona()` probadas en `zonas-inventario.test.ts`—, sacadas del propio inventario en memoria, sin endpoint nuevo; **desde el 19/11** la alcaldía ofrece al final «Sin alcaldía (n)» —`SIN_ALCALDIA`, con `sinAlcaldia` en cada zona— para que la suma de zonas cuadre con la ciudad: antes «CDMX (9)» sumaba 5 en sus zonas y las otras 4 no se podían filtrar), `ImportarInventarioDialog`, `NuevaPantallaForm`, `ContratoWizard`, `AgregarInventario`, `InfoAnadidaModal`. **Desde el 22/10** la tabla y la ficha enseñan el **id de DOOHmain que se usa** al publicar y de dónde sale (ficha, mapa del servidor o por omisión): antes, una pantalla publicada por el mapa se veía con el campo vacío |
 | `/network` | Pantallas en red | `sitios.en_network` | — |
 | `/arrendadores` | Arrendadores, predios, contratos | `/api/arrendadores`, `/api/contratos` | `ContratoSheet`, `PagosRentaCard`, `CompromisoRentaCard`, `ConciliacionCard`, `PanelFirmas`, `ConstanciaFirmas`, `LicenciasCard`, `GestionRazonesSociales`, `BarraDocumento`, `BajaPropietarioDialog` |
 | `/clientes` | Clientes — al pulsar el nombre, **ficha con su pipeline y sus campañas** (20/10) | `/api/clientes`; la ficha lee lo que ya trae `/api/estado` | `ClientesBadge`, `BorrarClienteDialog`, `FichaCliente`, `PipelineCliente`, `CampanasDelCliente` |
-| `/crm` | CRM comercial (ADR 0051, Fase 4, 17/11) — **la entrada «CRM» del menú**, en el lugar de Propuestas. Pestañas `?vista=`: **Embudo** (por omisión: una columna por etapa con su total), **Oportunidades** (lista con chips por etapa) y **Prospectos** (los leads de tipo cliente); la cuarta, Propuestas, es `/propuestas` | `/api/oportunidades` (GET, POST), `/api/oportunidades/[id]/etapa`; Prospectos, `/api/captacion/*` | `PestanasCrm`, `Oportunidades`, `FormOportunidad`, `Captacion` con `tipoFijo="CLIENTE"` — ver [[crm-oportunidades]] |
+| `/crm` | **Solo redirige** (18/11) a `/propuestas?vista=seguimiento` (o a `?vista=prospectos` si la trae): el 17/11 fue la pantalla «CRM» y el dueño pidió que se llamara Propuestas y viviera dentro de ella | — | `redirect()` del servidor — ver [[crm-oportunidades]] |
 | `/crm/oportunidades/[id]` | Ficha de la oportunidad: lo que pide el cliente, el **cotejo** de cada cotización ligada contra el presupuesto (con IVA) y las fechas, días en cada etapa, actividades, cambio de etapa, ligar y desligar propuestas, y la línea de tiempo unida (actividades + cambios de las propuestas + bitácora del lead si se ve), filtrable por persona | `/api/oportunidades/[id]` (GET, PATCH), `…/etapa`, `…/actividades`, `PATCH /api/propuestas/[id]` con `{ oportunidadId }`; los totales, de la lista de propuestas ya cargada (`/api/estado`) | `FichaOportunidad`, `FormOportunidad`, `etiquetas.ts` |
-| `/propuestas`, `/propuestas/[id]` | Propuestas, con **tarifa calculada** y **calculadora de spots**; la lista se ve **por propuesta o por cliente** (cotejo del CRM, Fase 1 del ADR 0051: `CotejoPorCliente` sobre `lib/crm-cotejo.ts`, 17/11). **Desde el 17/11 (Fase 4) es la cuarta pestaña del CRM**: lleva `PestanasCrm` arriba de la lista (`propuestas/page.tsx:193`), sin entrada propia en el menú (enciende «CRM») y **con la misma dirección** | `/api/propuestas`, `/api/rejilla/*`, `/api/volumen/escalas` | `AvisoFranjaCMS`, `MapView`, `CalculadoraSpotsLinea` (local de la página), `CotejoPorCliente`, `PestanasCrm` |
+| `/propuestas`, `/propuestas/[id]` | Propuestas, con **tarifa calculada** y **calculadora de spots**; la lista se ve **por propuesta o por cliente** (cotejo, Fase 1 del ADR 0051: `CotejoPorCliente` sobre `lib/crm-cotejo.ts`, 17/11). **Desde el 18/11 lleva cuatro pestañas** (`PestanasCrm`, `propuestas/page.tsx:224`, en `?vista=`): **Resumen** (por omisión, lo primero que se ve: las cuatro KPI históricas + «Resumen de propuestas» del periodo), **Propuestas** (la lista, `?vista=propuestas`; ahí llevan «Volver» de la ficha, borrar, duplicar y agregar sitios), **Seguimiento** (columnas por etapa tipo Kanban, Perdida plegada, tarjetas que abren la ficha, búsqueda y filtro de vendedor; sustituye al «Embudo» y a la pestaña «Oportunidades», que se quitó; `?vista=embudo`/`oportunidades` caen aquí) y **Prospectos** (los leads de tipo cliente). Mismo encabezado en las cuatro; el botón verde es «Nueva propuesta» (Resumen y lista) o «Nueva oportunidad» (Seguimiento). Entrada «Propuestas» del menú | `/api/propuestas`, `/api/rejilla/*`, `/api/volumen/escalas`; `/api/oportunidades` (GET, POST), `…/[id]/etapa`; Prospectos, `/api/captacion/*` | `AvisoFranjaCMS`, `MapView`, `CalculadoraSpotsLinea` (local de la página), `CotejoPorCliente`, `PestanasCrm`, `Seguimiento`, `FormOportunidad`, `Captacion` con `tipoFijo="CLIENTE"` — ver [[crm-oportunidades]] |
 | `/captacion` | Captación (CAP-01) — **fuera del menú desde el 30/09** | `/api/captacion/*` | `Captacion` — ver [[02-Backend/captacion]] |
 | `/comercial-opex` | Comercial negociación: prospección de arrendadores — **funcional desde NEG-01 (22/10)**, encima de Captación | `/api/captacion/*`, `/api/geo/buscar` | `ComercialOpex`, `SelectorUbicacion` — ver [[comercial-opex]] |
 | `/franjas-y-temporadas` | Catálogo de franjas y temporadas, y **horario de transmisión** | `/api/rejilla/*`, `/api/campanas/franja-programada` | `GestionRejilla`, `ProgramacionPorFranja` (PROG-01) |
 | `/descuentos-por-volumen` | Escala de volumen (VOL-01) | `/api/volumen/escalas` | `GestionVolumen` — ver [[02-Backend/descuento-por-volumen]] |
 | `/codigos-promocionales` | Códigos de negociación: cupones (COD-01) | `/api/codigos-promocionales` | `GestionCodigos` — ver [[02-Backend/codigo-promocional]] |
 | `/paquetes` | Paquetes cerrados (PAQ-01) | `/api/paquetes` | `GestionPaquetes` — ver [[02-Backend/paquete-cerrado]] |
-| `/campanas`, `/campanas/[id]` | Campañas | `/api/campanas/*` | `PipelineView`, `CandadoPanel`, `ValidacionPanel`, `PlaylogsPanel`, `DatosFacturacion`, `EvidenciaGaleria`, `AgregarCreativo`, `FranjaProgramadaCampana` (horario de transmisión, PROG-01), `ProgramacionDoohmain` (22/10: lo que se manda a DOOHmain antes de mandarlo). **Desde el 22/10 los Creativos son lo PRIMERO de la ficha**, siempre abiertos y fuera de las `Seccion` plegables: se ven y se suben en cualquier momento, aunque la campaña esté cerrada |
+| `/campanas`, `/campanas/[id]` | Campañas | `/api/campanas/*` | `PipelineView`, `CandadoPanel`, `ValidacionPanel`, `PlaylogsPanel`, `DatosFacturacion`, `EvidenciaGaleria`, `AgregarCreativo`, `FranjaProgramadaCampana` (horario de transmisión, PROG-01), `ProgramacionDoohmain` (22/10: lo que se manda a DOOHmain antes de mandarlo). **Desde el 22/10 los Creativos son lo PRIMERO de la ficha**, siempre abiertos y fuera de las `Seccion` plegables: se ven y se suben en cualquier momento, aunque la campaña esté cerrada. **Desde el 18/11**, `ActualizarCampana`: el botón «Actualizar campaña» junto a los Creativos (solo con la publicación aprobada) cambia creativos y vuelve a mandar a DOOHmain en una ventana; aprobar ahí, y Aprobar/Rechazar la publicación, solo Dueño y Administrador — ver [[comercial-propuestas-campanas]] |
 | `/creativos` | Creativos | `/api/creatividades` | — **v0.12.3 (sin publicar):** en un spot digital se MARCAN los creativos que van y rotan en partes iguales (`rotacionEnSpot`, `lib/reparto-creativos.ts`); ya no se escribe un número por creativo ni sale «2 de 1» en rojo. Al aprobar, un spot vacío recibe todos los aprobados y uno con la rotación automática suma al nuevo; uno ajustado a mano no se toca (`autollenadoDeSpot`, `autoasignarRotacion` en `creativos-repo.ts`). Sustituye la regla del «creativo único» de M14 por decisión del dueño (22/10) |
 | `/operaciones`, `/operaciones/ot/[id]` | Órdenes de trabajo | `/api/ot` | `OTVista` |
 | `/imprenta` | Imprenta | `/api/impresion` | — |
@@ -262,8 +264,10 @@ confirmación, cálculo ni nombre de campo cambió.
   `KPICard` del primer periodo con las cifras de `resumenPrimer`, controles en
   una fila, chip «N de M libres» por pantalla, celdas con texto («Libre»,
   «Tentativa», «Ocupada»).
-- **`/propuestas`**: KPIs (pipeline, enviadas sin respuesta, ganado histórico,
-  **tasa de cierre histórica**) → lista con filtros (chips de estatus con conteo,
+- **`/propuestas`**: desde el 18/11 en dos pestañas: **Resumen** (por omisión)
+  = KPIs (pipeline, enviadas sin respuesta, ganado histórico, **tasa de cierre
+  histórica**) + «Resumen de propuestas»; **Propuestas** (`?vista=propuestas`)
+  = la lista. Antes del 18/11 era todo una columna: KPIs → lista con filtros (chips de estatus con conteo,
   cliente, búsqueda) en `divide-y`, con fechas en la fila → «Resumen de
   propuestas» debajo y **plegado al entrar**, con su «Tasa de cierre del
   periodo». El «Embudo» dejó de ser tarjeta: sus cifras son las KPIs y sus barras

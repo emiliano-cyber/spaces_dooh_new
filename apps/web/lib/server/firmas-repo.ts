@@ -7,6 +7,7 @@ import { datosContrato, expedienteContrato, type DatosContrato } from './contrat
 import { JOIN_PRINCIPAL } from './config-repo'
 import { documentoATexto, fechaISO, generarContrato, hashParaCotejar } from '@/lib/contrato-documento'
 import { rutaLogo } from '@/lib/medios-url'
+import { sqlTokenLogoServible } from '@/lib/server/logo-sql'
 import type { PoolClient } from 'pg'
 
 // ============================================================================
@@ -449,7 +450,7 @@ export async function firmaPorToken(token: string): Promise<{
   // de qué empresa venía.
   const cfg = await qConTenant<{ logo_token: string | null }>(
     tenantId,
-    'select logo_token from config_negocio where tenant_id = $1',
+    `select ${sqlTokenLogoServible()} from config_negocio where tenant_id = $1`,
     [tenantId],
   )
 

@@ -76,7 +76,7 @@ type Estado = {
 type Publicado = { disponible: boolean; version?: string; version_code?: number }
 type Versiones = Publicado & { agente_pc?: Publicado; agente_pi?: Publicado }
 type Registro = { id: number; level: string; category: string | null; message: string; logged_at: string }
-type Ajustes = Record<string, number | string | boolean | null | undefined>
+export type Ajustes = Record<string, number | string | boolean | null | undefined>
 
 const CAMPO =
   'h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none placeholder:text-muted focus-visible:ring-2 focus-visible:ring-accent disabled:bg-surface-2 disabled:text-muted'
@@ -171,7 +171,7 @@ type Tipo = 'pi' | 'android' | 'pc'
  * no este dejaria a toda la flota clasificada como telefono, y una Raspberry
  * perderia los mandos que si aplica.
  */
-const tipoDe = (v: string | null | undefined): Tipo => (esPi(v) ? 'pi' : esPc(v) ? 'pc' : 'android')
+export const tipoDe = (v: string | null | undefined): Tipo => (esPi(v) ? 'pi' : esPc(v) ? 'pc' : 'android')
 
 type Capacidades = {
   sliders: Control[]
@@ -182,7 +182,7 @@ type Capacidades = {
   noche: { campo: string; min: number; max: number; paso: number; pordefecto: number; ayuda: ClaveTexto } | null
 }
 
-const CAPACIDADES: Record<Tipo, Capacidades> = {
+export const CAPACIDADES: Record<Tipo, Capacidades> = {
   pi: {
     sliders: CONTROLES_PI,
     balance: { campo: 'awb', opciones: BALANCE_PI },
@@ -219,7 +219,7 @@ function mensaje(e: unknown, idioma: Idioma): string {
   return textoDeError(e, idioma) ?? String(e)
 }
 
-function leerAjustes(v: Equipo['camera_ajustes']): Ajustes {
+export function leerAjustes(v: Equipo['camera_ajustes']): Ajustes {
   if (!v) return {}
   if (typeof v !== 'string') return { ...v }
   try {
@@ -229,7 +229,7 @@ function leerAjustes(v: Equipo['camera_ajustes']): Ajustes {
   }
 }
 
-type Noche = { activo: boolean; inicio: string; fin: string; valor: number }
+export type Noche = { activo: boolean; inicio: string; fin: string; valor: number }
 
 /**
  * El tramo de noche guardado, o el de siempre si no hay nada puesto.
@@ -243,7 +243,9 @@ type Noche = { activo: boolean; inicio: string; fin: string; valor: number }
  * a propósito: en un teléfono nunca hizo nada, y rescatarlo sería arrastrar al
  * control nuevo el número de una escala que no es la suya.
  */
-function leerNoche(equipo: Equipo): Noche {
+export type EquipoDeNoche = Pick<Equipo, 'app_version' | 'camera_ajustes_noche' | 'noche_inicio' | 'noche_fin'>
+
+export function leerNoche(equipo: EquipoDeNoche): Noche {
   const cap = CAPACIDADES[tipoDe(equipo.app_version)].noche
   const vacio: Noche = { activo: false, inicio: '19:00', fin: '07:00', valor: cap?.pordefecto ?? 0 }
   const aj = leerAjustes(equipo.camera_ajustes_noche ?? null)

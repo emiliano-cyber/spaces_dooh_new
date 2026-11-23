@@ -22,11 +22,10 @@ import {
 import { useIdioma } from '@/lib/i18n/contexto'
 import { interpolarNodos } from '@/lib/i18n/nodos'
 import type { ClaveTexto } from '@/lib/i18n/diccionario'
-import { CLAVE_ESTATUS } from '@/components/demo/propuestas/estatus'
 import { CLAVE_SITIO_ESTATUS, CLAVE_TIPO_MEDIO } from '@/components/demo/comercial/claves'
 import { cn } from '@/lib/cn'
 import { descargarInventario } from '@/lib/inventario-export'
-import { itemsEnPropuesta, agruparPorPropuesta, type PropuestaEnVeremos } from '@/lib/data/en-propuesta'
+import { itemsEnPropuesta, agruparPorPropuesta } from '@/lib/data/en-propuesta'
 import Link from 'next/link'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { TIPO_MEDIO_LABEL } from '@/lib/tipo-medio'
@@ -45,7 +44,6 @@ import {
   rangosDePrecio,
   formatMonto,
   formatMontoCorto,
-  formatFecha,
   type Sitio,
 } from '@/lib/data/client'
 
@@ -70,13 +68,6 @@ function leyendaMapa(t: (c: ClaveTexto, v?: Record<string, string | number>) => 
     },
     { color: '#f59e0b', label: t(CLAVE_SITIO_ESTATUS.RESERVADO) },
   ]
-}
-
-// El chip de cada propuesta abierta: el MISMO texto que la lista de
-// Propuestas (`CLAVE_ESTATUS`, «Borrador» / «Enviada»).
-const ESTATUS_PROPUESTA_CLAVE: Record<PropuestaEnVeremos['estatus'], ClaveTexto> = {
-  BORRADOR: CLAVE_ESTATUS.BORRADOR,
-  ENVIADA: CLAVE_ESTATUS.ENVIADA,
 }
 
 export default function ComercialPage() {
@@ -318,41 +309,9 @@ export default function ComercialPage() {
         )}
       </div>
 
-      {/* En propuesta (TENT-PROP, 26/10): las propuestas abiertas y qué
-          pantallas piden. Sustituye a «Reservas tentativas», que listaba un
-          estado de reserva que nada creaba. No hay Confirmar aquí: lo que
-          confirma una pantalla es aprobar la propuesta y generar la campaña,
-          y eso vive en Propuestas. */}
-      {enVeremos.props.length > 0 && (
-        <CardColapsable
-          id="comercial.en-propuesta"
-          titulo={t('comercial.pagina.en-propuesta')}
-          subtitulo={t('comercial.pagina.en-propuesta.sub')}
-          icono={<FileText className="h-4 w-4 text-[#9a6700]" />}
-          className="bg-warning-soft"
-          headerClassName="px-3 pt-3 pb-2"
-          contentClassName="px-3 pb-2"
-        >
-          <ul className="m-0 list-none divide-y divide-border p-0">
-            {enVeremos.props.map((p) => (
-              <li key={p.propuestaId} className="flex flex-wrap items-center justify-between gap-2 py-2">
-                <div className="min-w-0">
-                  <Link href={`/propuestas/${p.propuestaId}`} className="text-[13px] font-medium text-ink hover:underline">
-                    {p.folio}
-                  </Link>
-                  <span className="text-[13px] text-muted"> · {p.clienteNombre ?? t('comercial.pagina.en-propuesta.sin-cliente')}</span>
-                  <div className="demo-num text-[11px] text-muted">
-                    {nPantallas(p.pantallas)} · {formatFecha(p.desde, idioma)}–{formatFecha(p.hasta, idioma)}
-                  </div>
-                </div>
-                <span className="shrink-0 rounded-full border border-[#f59e0b40] bg-surface px-2 py-0.5 text-[12px] font-medium text-[#9a6700]">
-                  {t(ESTATUS_PROPUESTA_CLAVE[p.estatus])}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </CardColapsable>
-      )}
+      {/* La lista «En propuesta» (TENT-PROP, 26/10: propuestas abiertas y qué
+          pantallas piden) se quitó el 20/11 a pedido del dueño: las propuestas
+          se consultan en Propuestas. Queda la tarjeta con la cifra, arriba. */}
 
       {/* Filtros */}
       <div className="flex flex-wrap items-center gap-2">

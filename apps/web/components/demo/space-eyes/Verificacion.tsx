@@ -44,7 +44,9 @@ function num(v: number | string | null | undefined): number | null {
   return Number.isFinite(n) ? n : null
 }
 
-export function Verificacion() {
+// `encabezado` lo apaga la pantalla de Ajustes, que ya pone el suyo: dos
+// titulos grandes seguidos no son dos secciones, son un descuido.
+export function Verificacion({ encabezado = true }: { encabezado?: boolean }) {
   const { t, idioma } = useIdioma()
   const [filas, setFilas] = useState<Verificacion[] | null>(null)
   const [resultado, setResultado] = useState<Resultado>('')
@@ -76,13 +78,17 @@ export function Verificacion() {
   return (
     <div className="w-full space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
-          <ShieldCheck className="h-5 w-5" strokeWidth={1.75} />
-        </span>
-        <div className="min-w-[12rem] flex-1">
-          <h1 className="text-2xl text-ink">{t('spaceeyes.verif.titulo')}</h1>
-          <p className="text-[13px] text-muted">{t('spaceeyes.verif.descripcion')}</p>
-        </div>
+        {encabezado && (
+          <>
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
+            <ShieldCheck className="h-5 w-5" strokeWidth={1.75} />
+          </span>
+          <div className="min-w-[12rem] flex-1">
+            <h1 className="text-2xl text-ink">{t('spaceeyes.verif.titulo')}</h1>
+            <p className="text-[13px] text-muted">{t('spaceeyes.verif.descripcion')}</p>
+          </div>
+          </>
+        )}
         <Button variant="secondary" size="sm" onClick={() => void cargar()} disabled={cargando}>
           {cargando ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-1.5 h-3.5 w-3.5" />}
           {t('spaceeyes.comun.actualizar')}

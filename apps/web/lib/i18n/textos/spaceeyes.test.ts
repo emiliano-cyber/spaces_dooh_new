@@ -280,6 +280,7 @@ describe('diccionario de Space Eyes · italiano', () => {
     'spaceeyes.lista.filtro.linea', // «Online · {n}»
     'spaceeyes.solicitudes.folio', // « · ticket {folio}»
     'spaceeyes.galeria.titulo', // «PoD»: proof of display, como lo dice el sector (dueño, 17/11)
+    'spaceeyes.ficha.tab.creativos', // «PoD», la misma pestana que la galeria (integracion 23/11 con la rama de Jose)
     'spaceeyes.demo.aviso.demo', // «demo»
     'spaceeyes.fallas.donde.gabinetes.uno', // «Cabinet {lista}»: «cabinet» es invariable
     'spaceeyes.graficas.pct', // «{n}%»
@@ -292,6 +293,7 @@ describe('diccionario de Space Eyes · italiano', () => {
     'spaceeyes.vivo.foto', // «Foto»
     'spaceeyes.fallas.zona', // «Zona»
     'spaceeyes.comun.periodo', // «Periodo»
+    'spaceeyes.reporte.col.cliente', // «Cliente», columna del Excel
     'spaceeyes.graficas.dispositivo', // «Dispositivo»
     'spaceeyes.graficas.nd', // «n/d»
     'spaceeyes.texto.centro', // «Centro»

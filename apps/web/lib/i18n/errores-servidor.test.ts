@@ -380,6 +380,31 @@ describe('GUARDIA · ningun mensaje de error puede quedarse fuera EN SILENCIO', 
       // variable (`AppError(v.error)`). Que no estén muertas lo vigila
       // `avisos.test.ts` («los mensajes llegan traducidos»).
       ...Object.values(MSG_AVISO),
+      // IMP-REQ (18/11) · las constantes de `imprentas-repo.ts`
+      // (`AppError(e.message)`, `AppError(IMPRENTA_AJENA, 400)`) y el `refine`
+      // de `requisitosSchema` en `imprentas-controller.ts`, que llega por
+      // `validar()`. Que lleguen con su status lo vigila `imprentas.e2e.test.ts`.
+      'Imprenta no encontrada',
+      'Ya existe una imprenta con ese nombre',
+      'Esa imprenta no es de tu organización o está dada de baja',
+      'El mínimo aceptable no puede ser mayor que el recomendado',
+      // VALLAS (19/11): constantes de vallas-repo.ts y mensajes de zod de vallas-controller.ts
+      'Valla no encontrada',
+      'Ya existe una valla con ese número',
+      'Grupo de vallas no encontrado',
+      'Ya existe un grupo de vallas con ese número',
+      'Ese sitio no es de tu organización',
+      'Alguna de esas vallas no es de tu organización',
+      'Categoría de competencia no encontrada',
+      'Ya existe una categoría de competencia con ese nombre',
+      'Solo el Dueño puede editar las marcas que compiten',
+      'La medida debe ser mayor que cero',
+      'El número es requerido',
+      'El número no puede pasar de 40 caracteres',
+      'La marca es requerida',
+      // PROP-MARCA (20/11): el zod de `lib/propuesta-marca.ts`, por `validar()`
+      // al crear y a mano (`traducirError`) al editar.
+      'La marca no puede pasar de 120 caracteres',
     ])
     const muertas = Object.keys(CATALOGO_ERRORES).filter(
       (k) => !vivos.has(k) && !EXENTAS.has(k),

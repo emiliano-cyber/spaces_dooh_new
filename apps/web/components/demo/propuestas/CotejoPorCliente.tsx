@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
+import { rutaListaPropuestas } from '@/components/demo/crm/PestanasCrm'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { conteo } from '@/lib/plural'
@@ -145,7 +146,7 @@ export function CotejoPorCliente({ propuestas, clientes }: { propuestas: Propues
                       <span className="text-muted">{formatFecha(p.creadoEn, idioma)}</span>
                       <span className="demo-num w-28 text-right text-ink">{formatMonto(p.total, idioma)}</span>
                       <Link
-                        href={withTrail(`/propuestas/${p.id}`, [{ label: t('propuestas.lista.titulo'), href: '/propuestas' }])}
+                        href={withTrail(`/propuestas/${p.id}`, [{ label: t('propuestas.lista.titulo'), href: rutaListaPropuestas() }])}
                         className="text-[12px] font-medium text-accent hover:underline"
                       >
                         {t('crm.cotejo.ver')}

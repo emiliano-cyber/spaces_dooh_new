@@ -7,6 +7,7 @@ import type { NextPageContext } from 'next'
 import { traducir } from '@/lib/i18n/diccionario'
 import {
   resolverIdioma,
+  idiomaDeRespaldo,
   idiomasActivos,
   COOKIE_IDIOMA,
   IDIOMA_POR_OMISION,
@@ -21,7 +22,9 @@ import {
 function idiomaDeReq(req: NextPageContext['req']): Idioma {
   // Los idiomas ENCENDIDOS, como el layout (ola 0 del italiano, 2026-11-03).
   const permitidos = idiomasActivos()
-  if (!req || permitidos.length === 1) return IDIOMA_POR_OMISION
+  // Sin peticion, o con un solo idioma, el primero de los encendidos: el
+  // espanol si esta, y si no el elegido (IDIOMAS-SIN-ES, 18/11).
+  if (!req || permitidos.length === 1) return idiomaDeRespaldo(permitidos)
   const cookie = String(req.headers?.cookie ?? '')
     .split(';')
     .map((c) => c.trim())

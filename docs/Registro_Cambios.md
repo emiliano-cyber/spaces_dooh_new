@@ -5,6 +5,472 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-20 · Cada creativo dice quién lo subió
+
+- Cada creativo **guarda quién lo subió**, en el momento de subirlo. Antes el sistema lo **adivinaba** mirando el historial y el nombre del archivo, y dos creativos con el **mismo nombre** se podían confundir. Ahora no: aunque se llamen igual, cada uno conserva el suyo, porque lo que cuenta es el contenido.
+- Se ve como **«Subido por: Ana López»** cuando lo subió alguien del equipo, o **«Subido por: el cliente»** cuando llegó por la liga y se aprobó. (Si algún día la liga pide el nombre de quien manda el archivo, saldrá entre paréntesis: «el cliente (Nombre)».)
+- Aparece en **Creativos** (en cada tarjeta y en «Pendientes por confirmar»), en **Imprenta** («Por mandar a impresión») y en la **ficha de la campaña** (la lista de creativos).
+- Si se **reemplaza el arte** de un creativo, pasa a decir quién puso el arte nuevo: el contenido ya es otro.
+- Lo que se subió **antes de hoy** dice **«Origen desconocido»**: no hay forma segura de saberlo y no se inventa.
+- Si se borra a un usuario, sus creativos siguen diciendo su nombre.
+- Por dentro: tres datos nuevos en cada creativo en la base, aprobados de momento solo para la base de pruebas. Los importes no cambian.
+
+---
+
+## 2026-11-20 · Liga del cliente: «Así se ven tus vallas»
+
+- Cuando una propuesta incluye **más de una valla** (sumando todos sus sitios), la **liga que se le manda al cliente** muestra una sección nueva, **«Así se ven tus vallas»**: un plano por sitio con cada valla en su lugar, con su **número** y su **medida**, los **grupos** que forman una imagen y las **esquinas** donde la pared dobla.
+- Cada cuadro dice **«Tu valla»**. El cliente **no** ve si están libres u ocupadas, ni marcas, ni campañas, ni datos de otros clientes. Si un grupo continúa en un sitio que no está en su propuesta, solo dice «sigue en otro sitio», sin decir cuál.
+- Si la propuesta tiene **una sola valla**, o ninguna, la liga se ve **exactamente igual que antes**.
+- Las vallas dadas de baja no cuentan. Sale en el idioma de la instancia (español, inglés, italiano o portugués).
+
+---
+
+## 2026-11-20 · Del creativo aprobado a la impresión: pendientes, fecha especial y álbum
+
+- Cuando un creativo queda **aprobado** en una campaña confirmada (lo haya mandado el cliente por la liga o lo hayamos subido nosotros), cada sitio de esa campaña queda **pendiente**: los **fijos**, de **«Mandar a impresión»**; los **digitales**, de **«Programar»**. **Nada se crea solo**: una persona lo confirma.
+- En **Imprenta** hay arriba una sección nueva, **«Por mandar a impresión»**, con cada sitio fijo pendiente, su medida, la campaña, el arte y **quién lo subió** («Lo subió el cliente (liga)» o «Lo subimos nosotros»). El botón **«Mandar a impresión»** abre el alta de la orden ya con la campaña, el sitio y la medida del sitio puestos (se pueden cambiar). Al crear la orden, el pendiente desaparece.
+- En **Creativos** sale arriba **«Pendientes por confirmar»**: lo que está **por aprobar** (con su origen y un enlace a la campaña, sin botón de imprimir), lo **por mandar a impresión** y lo **por programar**. «Programar» lleva a la ficha de la campaña, a «Enviar al dominio», que es lo de siempre; al enviarla, el pendiente desaparece.
+- Al aprobar un creativo con sitios fijos pendientes llega un aviso **«Por mandar a impresión»** a la campanita, **solo a quien tiene el módulo de Imprenta**.
+- En la cola de Imprenta cada orden dice si va **«Por inicio de campaña»** o **«Por fecha especial»**. La **fecha especial** (fecha requerida) se pone o se quita en la misma fila, o al mandar a impresión, y **manda sobre** el inicio de la campaña para el orden de la cola: una lona que se necesita antes sube; una que puede esperar baja. Las fechas de la campaña no cambian.
+- En la ficha de la campaña, en **Evidencias**, y en el portal del cliente hay un botón **«Descargar álbum»** que baja todas las fotos de evidencia en un .zip, cada una con el nombre del sitio y la fecha (por ejemplo «Valla_Reforma_2026-11-20.jpg»). Si no hay fotos, lo dice y no baja nada.
+- Por dentro: una columna nueva en la base (`ordenes_impresion.fecha_especial`), aprobada para la base local. Los importes no cambian.
+
+---
+
+## 2026-11-20 · Vallas: las que están en esquina se dibujan doblando
+
+- Al **dar de alta o editar una valla** hay un campo nuevo, **«Esquina»**: *No dobla*, *Dobla a la izquierda* o *Dobla a la derecha*. Quiere decir que **después de esa valla la pared da vuelta**.
+- En el **plano** (Vallas, la pestaña Vallas de Inventario y «Dibujar plano» de la propuesta), donde una valla dobla aparece una **marca de esquina** con una flecha y el texto «Esquina · dobla a la derecha» (o a la izquierda), y las vallas que siguen se dibujan **giradas**, como la otra pared vista de lado. Los números, las medidas y si están libres u ocupadas se siguen leyendo igual.
+- Si un **grupo** pasa por la esquina, se sigue marcando entero, en las dos paredes, con «dobla la esquina».
+- La valla que dobla también lo dice en la lista de vallas. Si no se elige nada, todo queda como antes: recto.
+- En la **demo**, la valla CAT-V02 dobla a la derecha para enseñarlo.
+- Lleva un cambio en la base de datos (un dato nuevo en cada valla); de momento solo está en la base de pruebas.
+
+---
+
+## 2026-11-20 · Propuestas: la marca arriba, «Dibujar plano» y un aviso de marca más estricto
+
+- En la **ficha de la propuesta**, la **marca** va ahora **arriba del todo**, antes de los datos y los sitios. Junto a ella hay un botón **«Dibujar plano»** que despliega, en la misma ficha, el plano de las **vallas de los sitios de esa propuesta** en **sus fechas**: qué cuadros hay y si están libres u ocupados. Si ninguno de esos sitios tiene vallas, lo dice. El mismo botón está al **crear una propuesta**, con los sitios y las fechas que se hayan elegido.
+- El botón solo aparece a quien puede ver el inventario (los roles de venta lo tienen).
+- El aviso gris «la marca no coincide con el cliente» sale ahora también al **agregar sitios** a una propuesta.
+- Y **avisa más**: una marca corta, como «GM», ya no se da por buena solo porque sus letras aparezcan dentro del nombre del cliente. «GM» con el cliente «General Motors» avisa; «Bimbo» con «Grupo Bimbo» no. Es solo un aviso: si sobra, el Dueño o el Administrador lo dejan como está.
+
+---
+
+## 2026-11-20 · Propuestas: la marca se cambia desde la ficha y avisa si no es la del cliente
+
+- En la **ficha de la propuesta** ahora se puede **cambiar la marca** (o borrarla, y entonces cuenta el cliente) con su botón **Guardar**. Lo puede hacer quien puede crear propuestas, igual que las condiciones, y **no** en una propuesta ya aprobada. Al guardar, si la nueva marca compite con otra en esos sitios, aparece en seguida el recuadro ámbar.
+- Si la marca escrita **no se parece al nombre del cliente**, sale un aviso gris: «La marca «Pepsi» no coincide con el cliente «Publicis México». Revisa que sea correcta.». Es solo para revisar: **no bloquea nada**. Sale al crear (mientras se escribe), al duplicar y en la ficha. Se consideran iguales si una contiene a la otra sin contar mayúsculas, acentos, espacios ni signos: «Coca-Cola» y «Coca Cola FEMSA» no dan aviso.
+- En **italiano** la marca se llama ahora **«Marchio»** en todas las pantallas (Propuestas, Vallas y Almacén).
+- Si a **«Verificar una marca»** (Vallas) o al aviso de competencia de la propuesta les llega una fecha que no existe (por ejemplo, el 30 de febrero), ahora responden «Fecha inválida» en vez de un error del servidor o de decir que no hay competencia.
+
+---
+
+## 2026-11-20 · Propuestas: campo «Marca» y aviso de marcas que compiten
+
+- Al crear una propuesta hay un campo nuevo, **«Marca»**. Es opcional: si se deja vacío, cuenta el **nombre del cliente**.
+- Mientras se eligen la marca, las fechas y los sitios, la pantalla avisa en un recuadro ámbar si una **marca que compite** ya está en alguno de esos sitios en esas fechas, por ejemplo: «Pepsi compite con Coca-Cola (Refrescos de cola) en Periférico Sur del 1 al 15 de diciembre». Son las mismas reglas de **Vallas → Marcas que compiten** (las edita el Dueño).
+- **Solo avisa, no bloquea**: la propuesta se guarda igual. El aviso sale también al **agregar sitios**, al **duplicar** y en la **ficha** de la propuesta, que además enseña la marca.
+- Solo avisan los sitios que tienen **vallas** dadas de alta. El aviso dice la marca rival, el sitio y las fechas, pero **no** el nombre de la campaña ni del cliente rival.
+- Al **generar la campaña**, la marca de la propuesta pasa a la campaña. Los importes no cambian.
+
+---
+
+## 2026-11-20 · Vallas: el plano de cada sitio
+
+- Arriba de todo en **Vallas** hay una tarjeta nueva, **«Plano de las vallas»**: un dibujo por sitio con sus cuadros numerados (V-001, V-002…) en su lugar, cada uno del tamaño que le toca según su medida.
+- Los **grupos** se marcan con una línea debajo de sus cuadros, con su número y cómo se ven («G-001 (Una sola imagen)»). Si un grupo tiene vallas en otro sitio, se dice.
+- Cada cuadro dice si está **Libre** o qué **marca** lo ocupa (si hay varias, la primera y «+1», «+2»…) entre las fechas que se elijan. Por omisión, de hoy a 30 días.
+- Hoy las reservas se hacen **por sitio**: una campaña en un sitio ocupa todas sus vallas, y la tarjeta lo avisa. Cuenta igual que «Verificar una marca».
+- Si un sitio tiene varias caras, sale una fila por cara. En el teléfono, el dibujo se desliza de lado sin mover la página.
+- Está en español, inglés, italiano y portugués. La pantalla sigue marcada «En proceso».
+
+---
+
+## 2026-11-20 · Vallas también dentro de Inventario
+
+- En la pantalla **Inventario**, junto a **Todos · Fijos · Digitales**, hay una pestaña **«Vallas»** (con su etiqueta «En proceso»). Abre lo mismo que Vallas en Comercial: dar de alta vallas y grupos, y **«Verificar una marca»** para ver si choca con la competencia.
+- En el menú Vallas sigue saliendo una sola vez, en Comercial.
+
+---
+
+## 2026-11-20 · Comercial ya no lista las propuestas abiertas
+
+- En la pantalla **Comercial** se quitó la sección **«En propuesta»** que listaba las propuestas abiertas y sus pantallas. Las propuestas se consultan en **Propuestas**.
+- Arriba sigue la tarjeta **«En propuesta»** con cuántas pantallas piden propuestas abiertas.
+
+---
+
+## 2026-11-20 · Vallas, una sola vez en el menú: en Comercial
+
+- **Vallas** sale ahora **solo** en el grupo **Comercial** del menú, después de Disponibilidad, con su etiqueta «En proceso». Ya **no** aparece en Inventario: antes salía en los dos sitios.
+- La ven las mismas personas que ayer (Dueño, Administrador y el equipo de ventas), y cada quien puede hacer lo mismo que ayer. No cambió ningún permiso.
+
+---
+
+## 2026-11-19 · Space Eyes: Excel de las campañas detectadas
+
+- En **Space Eyes → Campañas** hay un recuadro nuevo, **«Reporte en Excel de lo detectado»**, con el botón **«Descargar Excel»**.
+- El archivo trae las campañas que las cámaras **reconocieron al aire**: una fila por detección con su **fecha y hora** (en la hora del negocio, la de México salvo que la instancia diga otra), la campaña, el cliente, el equipo, el código de la pantalla, el sitio y si la foto quedó verificada. Una segunda hoja resume, por campaña y equipo, la **primera** y la **última** detección y **cuántas** hubo.
+- Se puede elegir **desde**, **hasta**, el **equipo** y la **campaña**. Sin fechas sale el **mes en curso**, y tanto la pantalla como el archivo lo dicen.
+- Las fechas son fechas de Excel de verdad: se pueden ordenar y filtrar. Las cabeceras salen en el idioma de quien lo descarga (español, inglés, italiano o portugués).
+- Lo descargan el **Dueño**, el **Administrador** y el **equipo de ventas**, los mismos que ven esa pantalla.
+- En una instancia **sin Space Eye conectado** el botón sale en la demostración y el archivo trae **datos de ejemplo**, avisándolo en mayúsculas arriba de la hoja.
+
+---
+
+## 2026-11-19 · Vallas también en el menú Comercial
+
+- **Vallas** sale ahora también en el grupo **Comercial** del menú, después de Disponibilidad, con la misma etiqueta «En proceso». Sigue estando en **Inventario**: es la misma pantalla, y al abrirla se marcan las dos entradas.
+- La ven el Dueño, el Administrador y el equipo de ventas (Director comercial, Gerente de ventas y Vendedor). Antes solo la veían el Dueño y el Administrador.
+- El equipo de ventas puede **ver** las vallas y sus grupos y usar **«Verificar una marca»** antes de proponer. **No** puede dar de alta, editar ni borrar vallas o grupos (no tiene los botones, y si lo intenta el sistema lo rechaza), y las marcas que compiten las sigue editando **solo el Dueño**.
+- No cambió ningún permiso de la base de datos: el equipo de ventas ya podía consultar el inventario.
+
+---
+
+## 2026-11-19 · Vallas sale «En proceso», y con ejemplos en la demostración
+
+- **Vallas** aparece en todas las instancias tal como está hoy, con una etiqueta **«En proceso»** junto a su nombre en el menú y un aviso arriba de la pantalla: «En proceso: este módulo todavía se está construyendo; las reglas y la numeración pueden cambiar.»
+- En español, inglés («In progress»), italiano («In corso») y portugués («Em andamento»).
+- La **base de demostración** trae ahora ocho vallas de ejemplo con su número y su medida, un grupo que forma **una sola imagen** y otro de vallas **separadas**, y la marca puesta en las campañas de tres clientes (Coca-Cola, Telcel y Nissan). Para enseñar el aviso de competencia: en «Verificar una marca», escribir **Pepsi** con la fecha de hoy y elegir la valla **CAT-V01**.
+- Las instancias de clientes **no** reciben vallas de ejemplo: ven la pantalla vacía con «Todavía no hay vallas. Da de alta la primera sobre un sitio del inventario.»
+- Para que los ejemplos lleguen a una demostración de servidor hace falta el cambio de base de datos de vallas (que **sigue esperando al dueño**) y que una persona vuelva a correr la siembra de la demostración.
+
+---
+
+## 2026-11-19 · Vallas: las marcas que compiten, como pidió el dueño
+
+- **Solo avisa**: si una marca va a quedar cerca de su competencia, el sistema lo advierte, pero **nunca impide** reservar.
+- **Todo el sitio**: ya no basta con mirar la misma valla. Si Coca-Cola y Pepsi quedarían en **cualquier valla del mismo sitio** con fechas que se cruzan, avisa. El aviso sale **una sola vez por campaña**, aunque esa campaña ocupe varias vallas del sitio.
+- **Solo el Dueño** puede crear, editar o dar de baja las categorías de marcas que compiten. Los demás las ven, pero no tienen los botones, y si lo intentan el sistema lo rechaza con «Solo el Dueño puede editar las marcas que compiten».
+- **Doce categorías de entrada**, en todas las organizaciones (las que ya existen y las nuevas): refrescos de cola, tiendas departamentales, telefonía, bancos, cerveza, comida rápida, pizzas, autoservicio, tiendas de conveniencia, automotriz, streaming y aerolíneas, con sus marcas más conocidas en México. El Dueño las puede cambiar.
+- En español, inglés, italiano y portugués.
+- Las categorías de entrada para las organizaciones que ya existen llegan con un cambio en la base de datos aprobado para la base local; **para los servidores sigue esperando al dueño**.
+
+---
+
+## 2026-11-19 · Vallas: primera versión del módulo (para revisión del dueño)
+
+- En el menú **Inventario** hay una entrada nueva, **«Vallas»**. Ahí cada valla (cada cuadro o cara) se da de alta sobre un sitio del inventario con **su número** y **sus medidas** (ancho × alto en metros). El sistema sugiere el siguiente número (V-001, V-002…), pero se puede escribir cualquiera.
+- Varias vallas se pueden **agrupar** con un **número de grupo** propio y su **medida total**, eligiendo si se ven como **una sola imagen** o **separadas**. Con «una sola imagen», la medida que cuenta para el arte es la del grupo, y la pantalla lo dice en cada valla.
+- **Marcas que compiten**: se capturan categorías (por ejemplo «Refrescos de cola»: Coca-Cola, Pepsi). «Verificar una marca» avisa si la marca quedaría en la misma valla, o en el mismo grupo de una sola imagen, que una marca competidora con fechas que se cruzan. Por ahora **solo avisa** y no impide reservar.
+- La ven y la editan quienes ya pueden con Inventario. En español, inglés, italiano y portugués.
+- Necesita un cambio en la base de datos que **espera la aprobación del dueño** para los servidores.
+
+---
+
+## 2026-11-19 · Propuestas: el Resumen enseña los prospectos nuevos y ya no se pliega
+
+- En **Propuestas → Resumen** hay un bloque nuevo, **«Prospectos nuevos»**: los clientes potenciales dados de alta en los **últimos 7 días**, los más recientes primero (hasta 6), cada uno con la etiqueta **«Nuevo»**.
+- De cada uno se ve el nombre, la razón social, en qué etapa va, quién lo lleva, cuándo se dio de alta («hace 2 días») y el contacto si se capturó. Al pulsarlo se abre el prospecto en la pestaña Prospectos. Si hay más de 6, un enlace lleva a todos.
+- El vendedor ve solo los suyos; quien aprueba en Comercial ve los de todo el equipo, igual que el resto de Propuestas.
+- Además, el Resumen queda **siempre abierto**: el «Resumen de propuestas» (el tablero por periodo) antes abría plegado y recordaba si alguien lo había cerrado; ahora se ve siempre completo y ya no tiene la flecha para plegarlo. Las demás pantallas no cambian.
+- En español, inglés, italiano y portugués.
+
+---
+
+## 2026-11-19 · La liga ya no enseña «text/html» bajo el anuncio
+
+- En el seguimiento de la campaña que ve el cliente, bajo cada anuncio salía algo como «text/html · 1920x1080». Ese «text/html» es cómo se guarda la imagen por dentro y no le dice nada al cliente.
+- Ahora sale solo la medida (por ejemplo «1920x1080»). Si el archivo es de otro tipo, se dice con su nombre corto (PNG, JPG, MP4, PDF).
+
+---
+
+## 2026-11-19 · Imprenta: el formato que la imprenta no recibe lo dice claro
+
+- Cuando la imprenta tiene su lista de formatos y el archivo es de otro, la valoración del arte sale en rojo y ahora lo dice con sus palabras: por ejemplo, «Formato PNG: esta imprenta no lo recibe (acepta PDF, TIFF)».
+- Antes el punto salía rojo pero la frase era la de un aviso suave («no se puede medir aquí; revísalo con la imprenta»).
+- En español, inglés, italiano y portugués.
+
+---
+
+## 2026-11-19 · Inventario: «Sin alcaldía» en el filtro de zona
+
+- En **Inventario**, al elegir una ciudad, la lista «Alcaldía o zona» trae ahora al final la opción **«Sin alcaldía»** con cuántas pantallas tiene.
+- Antes, las pantallas sin alcaldía no tenían opción propia: la ciudad decía, por ejemplo, 9 pantallas y sus zonas sumaban 5. Ahora los números cuadran y esas pantallas se pueden encontrar.
+- En español, inglés, italiano y portugués.
+
+---
+
+## 2026-11-19 · Sin logo, la liga ya no enseña una imagen rota
+
+- Si la organización **no ha cargado su logo**, la cabecera de la liga de la propuesta mostraba un icono de imagen rota. Ahora, sin logo, simplemente no se pinta nada y queda el nombre de la organización.
+- Lo mismo en el portal del cliente, la hoja de firma del contrato y los correos (propuesta, avisos y recordatorios): sin logo cargado no se intenta poner uno.
+- Con logo cargado todo sigue igual.
+
+---
+
+## 2026-11-19 · El creativo del cliente va solo a la pantalla que eligió
+
+Decisión del dueño: el creativo que manda el cliente desde la liga debe ir **solo a la pantalla que eligió**.
+
+- Al aprobar en la ficha de campaña un creativo enviado por el cliente, ahora se asigna **únicamente a la pantalla que el cliente escogió** al mandarlo. Antes se ponía en todas las pantallas digitales de la campaña que estaban vacías.
+- Si en esa pantalla ya rotaban otros creativos puestos automáticamente, el nuevo se suma y rotan en partes iguales. Si alguien la ajustó a mano, no se toca.
+- Las demás pantallas se llenan como siempre desde Creativos; mientras alguna esté sin creativo, la campaña no se puede mandar a publicar (igual que antes).
+- La actividad lo dice: «Se asignó solo a la pantalla que eligió el cliente».
+
+---
+
+## 2026-11-19 · Imprenta: cada imprenta con lo que pide del arte
+
+Decisión del dueño: «la imprenta usada es de terceros por ahora y, como se vende el proyecto, la imprenta puede ser de cualquiera».
+
+- En **Imprenta** hay una tarjeta nueva, **«Imprentas»**, para dar de alta a cada proveedor de impresión con lo que pide del arte: la resolución mínima recomendada y aceptable (en lonas grandes y en lonas chicas), desde qué medida una lona cuenta como grande, el margen de seguridad y, si quiere, los formatos que recibe.
+- Ahí mismo están **los requisitos de la empresa**: los que se usan cuando la orden no tiene imprenta o la imprenta no dijo algo. Si nadie configura nada, siguen las cifras de siempre.
+- Cada **orden de impresión** puede llevar su imprenta (al crearla o después, desde la lista). El arte de esa orden se valora con los requisitos de su imprenta, y la ventana del arte dice con cuáles se valoró. En la ficha de la campaña pasa lo mismo.
+- Si la imprenta tiene una lista de formatos, un archivo de otro formato sale en rojo.
+- **Un arte en rojo sigue solo avisando**: se puede subir igual. El tope del arte de una campaña fija sigue en 15 MB.
+- Una imprenta **no se borra**: se da de baja y deja de ofrecerse en las órdenes nuevas; las órdenes que ya la tenían la conservan.
+- Pueden dar de alta y editar imprentas quienes ya podían crear órdenes de impresión; los requisitos de la empresa, quienes pueden cambiar la configuración. Cada organización ve solo las suyas.
+- En español, inglés, italiano y portugués.
+
+---
+
+## 2026-11-19 · La liga no acepta un creativo con otra proporción que el sitio
+
+Respuesta del dueño: «sí, rechazar» el creativo del cliente cuya proporción no coincide con la del sitio elegido.
+
+- Si la imagen que elige el cliente no tiene la forma del sitio (por ejemplo, una imagen horizontal para una pantalla vertical), la liga se lo dice antes de mandarla: qué medida tiene su imagen, qué pide el sitio y en qué medida en píxeles debería mandarla. El botón de enviar queda deshabilitado.
+- Se permite una diferencia pequeña (hasta 3 %), la misma con la que Imprenta da por buena la proporción de un arte.
+- El servidor lo vuelve a comprobar leyendo la medida del propio archivo, así que no se puede saltar.
+- Si el sitio no tiene medida capturada, no se rechaza por proporción.
+
+---
+
+## 2026-11-18 · Imprenta: antes de subir un arte se ve cómo quedaría en la lona y si sirve
+
+Pedido del dueño: «se debe dejar en claro y mostrar el ejemplo de cómo se vería el arte en el tamaño de la lona».
+
+- **Al elegir el archivo** con «Subir arte» ya no se sube de inmediato: se abre una ventana «Revisa el arte antes de subirlo». Ahí se ve **la lona dibujada en su medida real** (con el ancho y el alto en metros), el arte puesto como quedaría impreso, una línea punteada con el **margen de seguridad** (5 cm, orientativo) y una **persona de 1,70 m** al lado para darse idea del tamaño.
+- **A sangre** (como sale la lona): lo que no cabe se ve rayado y atenuado fuera de la lona, porque se pierde. **Sin recortar**: el arte entero y, rayado, lo que quedaría en blanco.
+- Junto al dibujo, **un semáforo** con lo que importa, en palabras: «Sirve para imprimir», «Sirve, con observaciones» o «No conviene imprimirlo así», y una línea por punto:
+  - la **proporción** («Sirve con recorte: se pierden 13 cm arriba y otro tanto abajo», o «No ajusta… Pide el arte en 1:3»);
+  - la **resolución a tamaño real** («Resolución baja: 3.8 DPI; se verá pixelado. Pide al menos 5,079 × 2,835 px»);
+  - el **formato** (PNG, JPG o WebP sirven) y el **peso** del archivo (el tope sigue siendo 4 MB).
+- Un arte en rojo **se puede subir igual** («Subir de todos modos»): quién lo aprueba y los pasos de la orden no cambian. Solo un archivo de más de 4 MB deja el botón apagado.
+- **Al abrir un arte ya subido** para aprobarlo o rechazarlo se ve la misma lona y la misma valoración (sin formato ni peso, que ya no se conservan).
+- Las cifras de referencia son **orientativas**: en lonas de 6 m o más (se ven de lejos) sirve con 10 DPI; en lonas más chicas, que se ven de cerca, con 30.
+- En español, inglés, italiano y portugués, con los números en el formato de cada idioma.
+- **También desde la ficha de la campaña**: al subir una imagen se ve la misma lona y la misma valoración, con los sitios fijos de la campaña (si son varios, se elige contra cuál revisar).
+- **El arte de una campaña fija (OOH) puede pesar hasta 15 MB** (antes 4). Las campañas híbridas y digitales siguen en 4 MB, porque ese arte también va a las pantallas. **Falta un paso en cada servidor** (lo hace una persona): mientras no se actualice la configuración de nginx, un arte de más de ~9 MB se rechaza al subirlo.
+
+## 2026-11-18 · Propuestas › Seguimiento: las tarjetas se arrastran de una columna a otra
+
+Pedido del dueño: «que se pueda mover y se vea la animación arrastrando entre cada columna, y solo al terminar de moverlo abrir un modal con los campos para llenar el cambio».
+
+- **Con el ratón**: se toma la tarjeta y se lleva a otra columna. La tarjeta se levanta y sigue al puntero, la columna de debajo se ilumina con un hueco donde caerá, y las columnas donde no se puede soltar se ven apagadas con «Aquí no». Un clic normal sigue abriendo la ficha.
+- **En el celular o la tableta**: se mantiene pulsada la tarjeta un momento y luego se arrastra. Deslizar el dedo sin esperar sigue moviendo el tablero de lado, como antes. Al llegar al borde, el tablero avanza solo.
+- **Al soltar en otra columna** se abre una ventana con lo que pide el cambio: una nota (opcional) siempre; **el motivo** si se pasa a Perdida (obligatorio); y **una confirmación** si se pasa a Ganada, porque una oportunidad ganada o perdida ya no se mueve después. Mientras la ventana está abierta, la tarjeta espera en la columna nueva marcada «Pendiente de guardar».
+- **Guardar** la deja ahí. **Cancelar**, o si el sistema no deja el cambio (por ejemplo, porque otra persona la cerró mientras tanto), la tarjeta vuelve sola a su columna y se dice por qué.
+- Soltar fuera del tablero, en la misma columna o con **Escape** no hace nada: la tarjeta regresa.
+- **Un prospecto** (las tarjetas punteadas de Contacto) se puede arrastrar a Necesidad, Cotizando o Negociando: se abre el formulario de «Crear oportunidad» con él, avisando a qué etapa irá. Al crearla, nace en Contacto y se mueve sola a esa etapa.
+- **Sin arrastrar**: cada tarjeta tiene un botón «Mover de etapa» (las flechas de la esquina) que abre la misma ventana con la etapa a elegir. Sirve con el teclado.
+- Solo quien puede crear en Comercial puede mover tarjetas. Las ganadas y perdidas no se arrastran.
+- Si la computadora tiene activado «reducir movimiento», las tarjetas se mueven sin animaciones.
+
+---
+
+## 2026-11-18 · El cliente puede mandar su creativo desde la liga de su propuesta
+
+Pedido del dueño: «de la liga se pueda subir el creativo que veremos desde la pantalla de Campañas, y obvio no se puede aprobar más que por los perfiles seleccionados».
+
+- Cuando la propuesta ya es campaña y todavía no sale al aire, la liga que se le manda al cliente muestra **«Envía tu creativo»**. El cliente elige su imagen (JPG, PNG o WebP de hasta 4 MB) y, si la campaña tiene varias pantallas, a cuál va. Se le dice la proporción y la medida de esa pantalla, y si su imagen se va a recortar.
+- Lo que manda **no es todavía un creativo**: queda guardado aparte, en espera, y no llega a DOOHmain ni a imprenta.
+- En **Campañas**, en la ficha de la campaña, el **Dueño y el Administrador** ven lo que mandó el cliente, con su vista previa, y lo **aprueban o rechazan**. Los demás perfiles no lo ven. También llega un aviso a la campana.
+- **Aprobar** lo convierte en creativo ya aprobado, lo reparte en las pantallas como siempre y, si la publicación de la campaña ya estaba aprobada, lo manda a DOOHmain. Si DOOHmain falla, el creativo queda aprobado y la ficha avisa que falta volver a publicar. En una campaña de lonas, queda aprobado para Imprenta.
+- **Rechazar** borra el archivo y deja el motivo, que el cliente ve en su liga.
+- En la liga el cliente ve cada archivo que mandó: «En revisión» o «No aprobado» con el motivo. No hay ningún botón para aprobar.
+- Por seguridad hay límites: unos cuantos archivos por campaña al día y por conexión.
+
+---
+
+## 2026-11-18 · El seguimiento de la campaña en la liga del cliente va en horizontal
+
+Pedido del dueño: «el pipeline debe de ser en horizontal en la liga que se envía al cliente».
+
+- Los seis pasos (propuesta aceptada → campaña confirmada → material → instalación → al aire → terminada) ahora van en una fila, como el rastreo de un pedido: círculos unidos por una línea, los completados con palomita y en color, el actual resaltado con «Ahora», los pendientes en gris, y debajo de cada uno su nombre y su fecha.
+- En el teléfono sigue en horizontal: la fila se desliza con el dedo dentro de su recuadro y se abre centrada en el paso en el que va la campaña. La página no se mueve de lado.
+- Lo demás no cambia: el aviso ámbar cuando hay que ajustar el anuncio, «va con un poco de retraso», el nombre de la imprenta oculto, y una campaña cancelada sin pasos.
+
+---
+
+## 2026-11-18 · La liga del cliente: «Ver negociación acordada»
+
+- En la liga que se le manda al cliente, cuando la propuesta ya es campaña, el botón que despliega lo aceptado ya no dice «Ver la propuesta que aceptaste»: dice **«Ver negociación acordada»** (y «Ocultar negociación acordada» al cerrarlo). También en inglés, italiano y portugués.
+
+---
+
+## 2026-11-18 · La liga del cliente dice «Pantalla digital», no «PANTALLA_DIGITAL»
+
+- En la propuesta que abre el cliente, cada sitio decía su tipo con el código interno en mayúsculas («PANTALLA_DIGITAL», «ESPECTACULAR»). Ahora dice el nombre legible («Pantalla digital», «Espectacular»), en español como en los demás idiomas.
+
+---
+
+## 2026-11-18 · Actividad: la bitácora sale en el idioma de quien la lee
+
+Pedido del dueño: «no todo está traducido al idioma correspondiente: hay pedazos en español».
+
+- Con la aplicación en inglés (o en italiano o portugués), la pantalla **Actividad** salía entera en español: «Creó propuesta», «Propuesta → ENVIADA…», «Avanzó impresión → EN_PRODUCCION», «Sistema»…
+- Ahora cada renglón se lee en el idioma de la persona: «Created a proposal», «Proposal → Sent…», «Moved printing forward → In production», «System». Los importes salen con el formato del idioma y los estados con su nombre, no en mayúsculas.
+- Lo que la aplicación guarda **no cambia**: la bitácora se sigue guardando en español, así que se ve igual para quien la usa en español y los filtros funcionan como antes. Solo cambia cómo se pinta.
+- Los nombres que escribe la gente (propuestas, clientes, pantallas) no se traducen.
+- Si aparece un renglón que la aplicación no reconoce, se muestra tal como se guardó.
+- El italiano y el portugués llevan una primera versión que repasarán sus revisores.
+
+---
+
+## 2026-11-18 · Italiano: lo que todavía salía en español o con cifras a la española
+
+Pedido del dueño: «no todo está traducido: hay pedazos en español». Se recorrió toda la aplicación en italiano con una cuenta de prueba, pantalla por pantalla. Casi todo ya estaba en italiano; lo que se colaba eran valores pintados tal cual. Arreglado:
+
+- **Propuestas › Seguimiento › ficha de una oportunidad**, en la «Cronologia»: decía «BORRADOR → ENVIADA» y «— → 2026-12-18». Ahora dice «Bozza → Inviata» y «— → 18 dic 2026», y las cifras con coma («0 → 12,5»).
+- En la misma ficha, el «Sopra di … (4.5%)» lleva ya la coma italiana: «(4,5%)».
+- **Ficha de la campaña › Cosa viene inviato su DOOHmain**: el tipo de cliente decía «Directo» y el periodo «2026-11-10 – 2026-12-09». Ahora «Diretto» y «10 nov 2026 – 9 dic 2026». Lo que se manda a DOOHmain no cambia.
+- **Stampa** (Imprenta): la medida de cada orden decía «12.9 × 7.2 m»; ahora «12,9 × 7,2 m», como el arte de al lado.
+- **Impostazioni › Ruoli e permessi**: el módulo de prospección salía como «Captacion»; ahora «Acquisizione siti». Lo mismo arregla el inglés y el portugués de esa fila.
+
+En español todo se ve exactamente igual que antes. Los cuatro primeros arreglos también le sirven al inglés y al portugués (fechas, estatus y «Direct»/«Direto» en su idioma).
+
+Lo que **no** se cambió, a propósito: la liga pública de una propuesta (`/p/…`) y su seguimiento se ven en el **idioma de los documentos de la instancia**, no en el de quien la abre; en una instancia en español salen en español aunque la abra alguien con la interfaz en italiano. Y los nombres, notas y datos que escribe la gente no se traducen.
+
+---
+
+## 2026-11-18 · Portugués: «Prospectos», el tipo de cliente y las medidas de imprenta
+
+Pedido del dueño: «no todo está traducido: hay pedazos en español y está en portugués». Se recorrió la aplicación entera en portugués.
+
+- La pestaña **Prospects** (y todo lo que decía «prospect») ahora dice **Prospectos** / **prospecto**: en Propuestas, en Seguimiento, en la ficha de una oportunidad y en los mensajes de error.
+- En la ficha de una campaña, en «O que é enviado ao DOOHmain», el tipo de cliente decía «Directo»; ahora dice **Direto** (o **Agência**). Lo que se manda a DOOHmain no cambia.
+- En Imprenta, la medida de cada orden salía con punto («12.9 × 7.2 m»); ahora sale con coma, **12,9 × 7,2 m**, como el resto de la pantalla. También en italiano.
+- Los títulos del menú ya estaban en portugués: **Inventário**, **Space Eyes** (nombre del producto) y **Comercial** (se escribe igual en portugués). Si en algún servidor se ven sin acento, es que tiene una versión anterior.
+- Siguen en español, a propósito: el **Registro de atividades** (es la bitácora tal como se guardó) y la liga que recibe el cliente, que va en el idioma de la empresa.
+
+---
+
+## 2026-11-18 · Idiomas del servidor: al elegirlos a mano se empieza de cero, y el español también es opcional
+
+Pedido del dueño: «el idioma predefinido es el del servidor, pero si lo cambia, las 4 opciones de abajo deben estar sin seleccionar para que el usuario elija el idioma». Y el español, «también sin marcar y elegible».
+
+- En **Administración → Idiomas del servidor** sigue marcada por omisión «Usar los que digan las variables del servidor».
+- Al **quitar** esa casilla, los cuatro idiomas (español, inglés, italiano y portugués) quedan **sin marcar**, para elegir de cero. El español ya no está fijo ni dice «siempre»: se puede dejar fuera.
+- **Guardar idiomas** no se activa hasta marcar al menos uno, y un aviso lo dice.
+- Si el servidor ya tenía idiomas elegidos, al abrir la tarjeta se ven marcados como estaban.
+- Si el español no está elegido, la aplicación se muestra en el **primero de los elegidos** (por ejemplo, con inglés y portugués, en inglés) y el selector solo ofrece esos. Lo que falte por traducir se sigue viendo en español, como hasta hoy.
+- El idioma de los documentos de cada instancia (contratos, propuestas) no cambia.
+- Cambio en la base de datos aprobado por el dueño: la regla que obligaba a incluir el español ahora pide al menos un idioma.
+
+---
+
+## 2026-11-18 · Prospectos: de Contactado en adelante, eliges si sigue como prospecto o se convierte en oportunidad
+
+Pedido del dueño: «si el prospecto ya entró a Contactado se convierte; si no, sigue como prospecto», y que lo decida el vendedor.
+
+- En la pestaña **Prospectos**, al registrar el avance de un prospecto de tipo cliente a **Contactado o a cualquier etapa posterior** (Visita, Negociación, En revisión), sale un cuadro con dos opciones:
+  - **Seguir como prospecto**: guarda el avance y nada más. En Seguimiento sigue como tarjeta de prospecto. En el siguiente cambio de etapa se vuelve a preguntar.
+  - **Convertir en oportunidad**: abre el formulario de la oportunidad con el prospecto ya elegido, para capturar presupuesto, fechas y medios. Al crearla se guarda también el avance y el panel trae el enlace **Ver oportunidad**. Si cierras el formulario sin crearla, la etapa no cambia.
+- **Cancelar** cierra el cuadro sin cambiar la etapa.
+- El cuadro no sale si el prospecto ya tiene una oportunidad abierta, si pasa a Perdido o Rechazado, si es un predio, pantalla o arrendador, ni a quien no puede crear oportunidades: para ellos todo sigue igual.
+- **Una sola oportunidad abierta por prospecto**: el sistema no deja crear otra mientras la anterior siga abierta, aunque la lleve otro vendedor. Lo dice con un aviso claro, sin mostrar de quién es. Cuando la anterior se gana o se pierde, sí se puede abrir otra.
+- En **Seguimiento**, la tarjeta de un prospecto que ya va en Contactado (o más adelante) lo dice junto a «Prospecto», para distinguirlo de uno recién captado. El botón **Crear oportunidad** sigue disponible.
+- En **Seguimiento**, cuando todas las oportunidades de un prospecto están cerradas (ganadas o perdidas), el prospecto vuelve a aparecer como tarjeta de prospecto, con su etapa y **Crear oportunidad**. Mientras tenga una abierta, se ve solo por su oportunidad.
+
+---
+
+## 2026-11-18 · Propuestas: el resumen es su propia pestaña, y la primera
+
+Pedido del dueño: «en Propuestas, el resumen de propuestas hazlo su propia sección y que sea la primera en abrirse».
+
+- Propuestas tiene ahora cuatro pestañas: **Resumen · Propuestas · Seguimiento · Prospectos**.
+- Al entrar a Propuestas desde el menú se abre **Resumen**. Ahí están las cuatro cifras de siempre (en pipeline, enviadas sin respuesta, ganado y tasa de cierre) y, debajo, el **Resumen de propuestas** del periodo que elijas (generadas, aprobadas, rechazadas y ganancia).
+- La pestaña **Propuestas** es la lista, con sus filtros, igual que antes, pero ya sin esas cifras arriba ni el resumen abajo.
+- El botón verde **Nueva propuesta** está en Resumen y en la lista.
+- Al volver de una propuesta, al borrarla y al usar **Duplicar** o **Agregar sitios**, se cae en la lista, como antes.
+
+---
+
+## 2026-11-18 · Propuestas › Seguimiento: los prospectos también se ven
+
+Pedido del dueño: «los prospectos se deben de ver también en Seguimiento; creé uno y no se vio».
+
+- Al dar de alta un prospecto en la pestaña **Prospectos**, ahora aparece también en **Seguimiento**, en la columna **Contacto**, con la etiqueta **Prospecto** y el borde punteado.
+- La tarjeta dice el nombre, el contacto y la razón social, hace cuántos días se registró y quién lo captó. Cuenta en el número de la columna.
+- El buscador y el filtro de vendedor de Seguimiento también los encuentran.
+- Al pulsar la tarjeta se abre el prospecto en la pestaña Prospectos.
+- El botón verde **Crear oportunidad** abre el formulario de siempre con ese prospecto ya elegido. Al crearla, la tarjeta del prospecto se va y queda la de la oportunidad.
+- No salen los prospectos **perdidos** ni los **rechazados**, ni los que ya tienen una oportunidad (esos se ven por su oportunidad). Un prospecto **aprobado** que todavía no tiene oportunidad sí sale.
+- Cada vendedor sigue viendo solo sus prospectos, igual que en la pestaña Prospectos.
+
+---
+
+## 2026-11-18 · «Actualizar campaña»: cambiar creativos y volver a mandar a DOOHmain en un solo paso
+
+- En la ficha de una campaña digital que **ya está publicada**, junto a **Creativos**, aparece el botón **Actualizar campaña**.
+- Abre una ventana con los creativos de la campaña: en cada uno eliges **Conservar** o **Eliminar**.
+- Ahí mismo subes los creativos nuevos (puedes elegir varias imágenes a la vez, o pegar código) y los ves antes de mandarlos. Junto a cada uno está la pregunta **«¿Apruebas este creativo?»**.
+- El botón **Actualizar y enviar a DOOHmain** hace todo junto: sube lo nuevo, elimina lo que marcaste, aprueba lo que palomeaste y lo manda a DOOHmain. Al terminar enseña qué pasó en cada pantalla.
+- Antes eran cuatro pasos en tres lugares: subir en la ficha, aprobar en Creativos, borrar uno por uno y pulsar «Volver a publicar». Esos caminos siguen funcionando igual.
+- No te deja quedarte sin ningún creativo aprobado: las pantallas no tendrían nada que pasar.
+- Si algo falla a la mitad, se detiene y te dice qué sí se hizo.
+- **Aprobar desde la ficha de campaña es solo del Dueño y del Administrador**: la pregunta «¿Apruebas este creativo?» y los botones **Aprobar / Rechazar** de la publicación solo les aparecen a ellos. Los demás ven el aviso de que espera su aprobación; si actualizan la campaña, lo que suben queda pendiente.
+- La pantalla **Creativos** no cambia: ahí se sigue aprobando como hasta hoy.
+
+---
+
+## 2026-11-18 · Inventario: pestañas Fijos / Digitales y filtro por zona
+
+- Arriba de la tabla de pantallas hay ahora tres pestañas grandes: **Todos**, **Fijos** y **Digitales**, cada una con cuántas pantallas tiene. Antes ese filtro era un chip pequeño entre otros seis.
+- Al lado, un **filtro por zona**: primero eliges la **ciudad** y luego, si quieres, la **alcaldía o zona** dentro de ella. Solo aparecen las zonas donde tienes pantallas, con su número entre paréntesis (y ese número respeta si estás viendo Fijos o Digitales).
+- Los filtros se combinan con el buscador y con los chips de disponibilidad y contrato. **Quitar filtros** los limpia todos, también la zona.
+- Descargar a Excel o CSV y el cambio masivo de tarifa o renta siguen trabajando sobre lo que se ve filtrado.
+
+---
+
+## 2026-11-18 · sin versión todavía · Propuestas: «Ver fotos y ubicación» de cada sitio, también para el cliente
+
+Pedido del dueño: añadir el cuadro para ver las fotos de la pantalla y del lugar en la propuesta, por cada sitio, tanto en nuestra ficha como en la que ve el cliente. Todavía no está en ninguna versión publicada.
+
+- **Cada sitio de la propuesta tiene ahora el botón «Ver fotos y ubicación».** Abre un cuadro con las fotos de la pantalla (una grande y, debajo, las demás en chico para ir cambiando), la dirección, la zona, las coordenadas que abren Google Maps y un mapa pequeño con el punto.
+- **Está en los dos lados**: en la ficha de la propuesta que usamos dentro del sistema y en la liga que se le manda al cliente.
+- **En nuestra ficha, cada sitio enseña además su dirección completa y sus coordenadas**, como ya las veía el cliente. Antes solo decía la alcaldía.
+- **El cliente solo ve las fotos y la ubicación de las pantallas de SU propuesta**: ni las de otras propuestas, ni las de otra empresa, ni nada del arrendador, la renta o los costos.
+- Las fotos son las mismas que se suben en la ficha de la pantalla. Si una pantalla todavía no tiene fotos, el cuadro lo dice y enseña igual la ubicación.
+- Las fotos se cargan solo al abrir el cuadro, para que la propuesta no tarde más en abrir.
+- Está en español, inglés, italiano y portugués.
+
+---
+
+## 2026-11-18 · sin versión todavía · Propuestas: «Embudo» pasa a llamarse «Seguimiento» y se ve por columnas
+
+Pedido del dueño, el mismo día: quitar la pestaña «Oportunidades» porque era casi igual al embudo, y que el embudo se llame «Seguimiento». Todavía no está en ninguna versión publicada.
+
+- **Propuestas tiene ahora tres pestañas: Propuestas, Seguimiento y Prospectos.** La pestaña «Oportunidades» ya no está; lo que tenía se ve en Seguimiento.
+- **Seguimiento enseña las oportunidades en columnas, una por etapa**: Contacto, Necesidad, Cotizando, Negociando y Ganada. Arriba de cada columna dice cuántas hay y cuánto suman sus presupuestos.
+- **Las perdidas no ocupan espacio**: están escondidas, y el botón redondo «Ver perdidas» (con cuántas hay) las enseña como una columna más.
+- **Cada tarjeta dice** el cliente, el nombre de la oportunidad, el presupuesto que dio (de cuánto a cuánto), cuántas cotizaciones lleva, cuántos días lleva la negociación y quién es el vendedor. Al pulsarla se abre la oportunidad; ahí se cambia de etapa, como antes.
+- **Arriba siguen las cuatro tarjetas de cifras** (abiertas, presupuesto en juego, ganado y cotizaciones), y hay un buscador por cliente u oportunidad. Quien ve las oportunidades de todo el equipo tiene además un filtro por vendedor.
+- **En el celular** las columnas se recorren deslizando de lado dentro del recuadro, sin que se mueva la página.
+- El botón verde «Nueva oportunidad» sigue en Seguimiento, para quien puede crear en Comercial.
+- Si alguien tenía guardada la dirección del embudo, de Oportunidades o del CRM viejo, lo lleva a Seguimiento.
+- En inglés se llama «Follow-up», en italiano «Monitoraggio» y en portugués «Acompanhamento».
+
+---
+
+## 2026-11-18 · sin versión todavía · El CRM vuelve a llamarse «Propuestas» y se ve como Propuestas
+
+Pedido del dueño: «en el CRM no se debe de llamar CRM sino Propuestas; además corrígelo porque debe de ser similar al que ya existía de Propuestas». Todavía no está en ninguna versión publicada.
+
+- **En el menú, dentro de Comercial, la entrada vuelve a llamarse «Propuestas»** (Proposals, Proposte, Propostas), en el mismo lugar y para las mismas personas. La palabra «CRM» ya no aparece en ninguna de estas pantallas, en ningún idioma.
+- **Al entrar se ve la lista de propuestas de siempre**, primero. Arriba de ella hay cuatro pestañas: **Propuestas**, **Embudo**, **Oportunidades** y **Prospectos**. Las tres últimas son lo que antes estaba en «CRM»; nada se perdió.
+- **Las pestañas nuevas se ven como Propuestas**: el mismo título, cuatro tarjetas de cifras arriba (oportunidades abiertas, presupuesto en juego, lo ganado y las cotizaciones), la lista dentro de una tarjeta que se puede plegar, los mismos filtros redondos y las mismas etiquetas de color (una oportunidad ganada se pinta como una propuesta aprobada, una perdida como una rechazada).
+- **El botón verde de arriba a la derecha cambia según la pestaña**: «Nueva propuesta» en la lista, «Nueva oportunidad» en Embudo y en Oportunidades. Solo lo ve quien puede crear en Comercial, igual que «Nueva propuesta».
+- **Al abrir una oportunidad**, la ficha se parece a la de una propuesta: «Volver» y el camino (Propuestas › Oportunidades › nombre) arriba, la etapa junto al nombre, las cifras en tarjetas y cada sección plegable.
+- El botón para ligar una cotización a la oportunidad ahora es azul (asignar), igual que «Guardar cambios» al editar una oportunidad: se sigue la regla de colores de los botones.
+- Si alguien tenía guardada la dirección vieja del CRM, sigue sirviendo: lo lleva a la pestaña que corresponde dentro de Propuestas.
+- Está en español, inglés, italiano y portugués.
+
+---
+
 ## 2026-11-17 · sin versión todavía · CRM: el presupuesto con y sin IVA, y sin porcentaje de cierre
 
 Son dos decisiones del dueño sobre la pantalla del CRM. Todavía no está en ninguna versión publicada.

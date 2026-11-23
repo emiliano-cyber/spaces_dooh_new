@@ -91,3 +91,42 @@ describe('priorizarImpresion', () => {
     expect(c).toEqual({ ATRASADA: 0, SEMANA: 1, MES: 0, DESPUES: 0, SIN_FECHA: 0, LISTA: 0 })
   })
 })
+
+// FLUJO-CREA (20/11) · la «fecha especial» (fecha requerida) de una orden MANDA
+// sobre la de inicio de la campaña para su grupo y su lugar en la cola.
+describe('priorizarImpresion · fecha especial', () => {
+  const conEspecial = (folio: string, inicioCampana: string | null, fechaEspecial: string | null, estatus = 'ARTE_RECIBIDO') => ({
+    ...oi(folio, inicioCampana, estatus),
+    fechaEspecial,
+  })
+
+  it('una orden con fecha especial cercana se adelanta a otra que arranca antes', () => {
+    const r = priorizarImpresion(
+      [conEspecial('OI-1', '2026-11-20', null), conEspecial('OI-2', '2027-03-01', '2026-11-18')],
+      HOY,
+    )
+    expect(r.map((x) => x.orden.folio)).toEqual(['OI-2', 'OI-1'])
+    expect(r[0]).toMatchObject({ grupo: 'SEMANA', dias: 1, lugar: 1, base: 'ESPECIAL' })
+    expect(r[1]).toMatchObject({ dias: 3, lugar: 2, base: 'INICIO' })
+  })
+
+  it('también puede ATRASAR: una fecha especial lejana la manda al grupo de después', () => {
+    const [x] = priorizarImpresion([conEspecial('OI-1', '2026-11-18', '2027-01-30')], HOY)
+    expect(x).toMatchObject({ grupo: 'DESPUES', base: 'ESPECIAL' })
+  })
+
+  it('sin campaña con fecha pero con fecha especial: deja de ser SIN_FECHA', () => {
+    const [x] = priorizarImpresion([conEspecial('OI-1', null, '2026-11-15')], HOY)
+    expect(x).toMatchObject({ grupo: 'ATRASADA', dias: -2, base: 'ESPECIAL' })
+  })
+
+  it('sin fecha especial todo sigue como antes (base INICIO, o null si no hay fecha)', () => {
+    const r = priorizarImpresion([oi('OI-1', '2026-11-20'), oi('OI-2', null)], HOY)
+    expect(r.map((x) => x.base)).toEqual(['INICIO', null])
+  })
+
+  it('una lista para montaje sigue al final aunque tenga fecha especial', () => {
+    const [x] = priorizarImpresion([conEspecial('OI-1', null, '2026-11-10', 'LISTO_MONTAJE')], HOY)
+    expect(x).toMatchObject({ grupo: 'LISTA', lugar: null })
+  })
+})

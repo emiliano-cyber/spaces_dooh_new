@@ -187,6 +187,9 @@ exports[`diccionario de inventario · instantanea > el ESPANOL no cambia sin que
   "inventario.lote.uno-uno": "{frase} Confirmar aplica SOLO la que falta; la que ya cambió no se vuelve a tocar. {base}",
   "inventario.medio.digital": "Digital",
   "inventario.medio.fija": "Fija",
+  "inventario.pestana.digitales": "Digitales",
+  "inventario.pestana.fijos": "Fijos",
+  "inventario.pestana.todos": "Todos",
   "inventario.propia.title": "Pantalla propia: sin renta ni contrato; su costo es luz y operación",
   "inventario.renta.actualizada": "Renta de "{nombre}" actualizada",
   "inventario.renta.compartida-confirm": "Esta renta es del contrato del predio y la comparten {n} pantallas. Cambiarla a {monto} aplica a todas. ¿Continuar?",
@@ -362,6 +365,12 @@ exports[`diccionario de inventario · instantanea > el ESPANOL no cambia sin que
   "inventario.wizard.telefono": "Teléfono",
   "inventario.wizard.tipo-medio": "Tipo de medio",
   "inventario.wizard.todas-asignadas": "Todas tus pantallas ya están asignadas a un predio. Cambia a “Pantalla nueva”.",
+  "inventario.zona.alcaldia": "Alcaldía o zona",
+  "inventario.zona.ciudad": "Ciudad",
+  "inventario.zona.elige-ciudad": "Elige primero una ciudad",
+  "inventario.zona.sin-alcaldia": "Sin alcaldía",
+  "inventario.zona.todas-alcaldias": "Todas las zonas",
+  "inventario.zona.todas-ciudades": "Todas las ciudades",
 }
 `;
 
@@ -552,6 +561,9 @@ exports[`diccionario de inventario · instantanea > el INGLES tampoco 1`] = `
   "inventario.lote.uno-uno": "{frase} Confirming applies ONLY the one left; the one already changed is not touched again. {base}",
   "inventario.medio.digital": "Digital",
   "inventario.medio.fija": "Static",
+  "inventario.pestana.digitales": "Digital",
+  "inventario.pestana.fijos": "Static",
+  "inventario.pestana.todos": "All",
   "inventario.propia.title": "Owned screen: no rent or contract; its costs are electricity and operations",
   "inventario.renta.actualizada": "Rent for “{nombre}” updated",
   "inventario.renta.compartida-confirm": "This rent belongs to the property’s contract and is shared by {n} screens. Changing it to {monto} applies to all of them. Continue?",
@@ -727,5 +739,11 @@ exports[`diccionario de inventario · instantanea > el INGLES tampoco 1`] = `
   "inventario.wizard.telefono": "Phone",
   "inventario.wizard.tipo-medio": "Media type",
   "inventario.wizard.todas-asignadas": "All your screens are already assigned to a property. Switch to “New screen”.",
+  "inventario.zona.alcaldia": "District or zone",
+  "inventario.zona.ciudad": "City",
+  "inventario.zona.elige-ciudad": "Choose a city first",
+  "inventario.zona.sin-alcaldia": "No district",
+  "inventario.zona.todas-alcaldias": "All zones",
+  "inventario.zona.todas-ciudades": "All cities",
 }
 `;

@@ -21,6 +21,7 @@ import { ES_INICIO, EN_INICIO, IT_INICIO, PT_INICIO } from './textos/inicio'
 import { ES_ENERGIA, EN_ENERGIA, IT_ENERGIA, PT_ENERGIA } from './textos/energia'
 import { ES_REPORTES, EN_REPORTES, IT_REPORTES, PT_REPORTES } from './textos/reportes'
 import { ES_NOTIFICACIONES, EN_NOTIFICACIONES, IT_NOTIFICACIONES, PT_NOTIFICACIONES } from './textos/notificaciones'
+import { ES_VALLAS, EN_VALLAS, IT_VALLAS, PT_VALLAS } from './textos/vallas'
 
 // ============================================================================
 //  lib/i18n/diccionario.ts — LOS TEXTOS, Y LA CONVENCION DE CLAVES.
@@ -230,18 +231,17 @@ const ES = {
   'nav.almacen': 'Almacén',
   'nav.space-eyes': 'Equipos',
   'nav.space-eyes-galeria': 'Comprobantes',
-  'nav.space-eyes-graficas': 'Gráficas',
-  'nav.space-eyes-texto': 'Ajustar texto',
-  'nav.space-eyes-programacion': 'Programación',
+  'nav.space-eyes-ajustes': 'Ajustes',
   'nav.space-eyes-campanas': 'Campañas',
-  'nav.space-eyes-verificacion': 'Verificación',
   'nav.space-eyes-fallas': 'Fallas',
   'nav.clientes': 'Clientes',
   'nav.comercial': 'Comercial',
   'nav.disponibilidad': 'Disponibilidad',
   'nav.propuestas': 'Propuestas',
-  // ADR 0051 · Fase 4: «CRM» toma el lugar de «Propuestas» en el menú.
-  'nav.crm': 'CRM',
+  // ADR 0051 · ya NO es una entrada del menú (18/11: volvió a ser
+  // «Propuestas»). Queda como rótulo del área `crm` de `lib/modulos.ts` en la
+  // matriz de Administración, que se traduce por `nav.<clave>`.
+  'nav.crm': 'Oportunidades',
   'nav.captacion': 'Captación',
   'nav.comercial-opex': 'Prospección',
   'nav.franjas-y-temporadas': 'Franjas y temporadas',
@@ -253,6 +253,8 @@ const ES = {
   'nav.imprenta': 'Imprenta',
   'nav.operaciones': 'Operaciones',
   'nav.energia': 'Consumo de luz',
+  'nav.vallas': 'Vallas',
+  'nav.insignia.en-proceso': 'En proceso',
   'nav.finanzas': 'Finanzas',
   'nav.reportes': 'Reportes',
   'nav.comisiones': 'Comisiones',
@@ -292,6 +294,7 @@ const ES = {
   ...ES_ENERGIA,
   ...ES_REPORTES,
   ...ES_NOTIFICACIONES,
+  ...ES_VALLAS,
 } as const
 
 export type ClaveTexto = keyof typeof ES
@@ -427,17 +430,14 @@ const EN: Record<ClaveTexto, string> = {
   'nav.almacen': 'Warehouse',
   'nav.space-eyes': 'Devices',
   'nav.space-eyes-galeria': 'PoD',
-  'nav.space-eyes-graficas': 'Charts',
-  'nav.space-eyes-texto': 'Photo label',
-  'nav.space-eyes-programacion': 'Scheduling',
+  'nav.space-eyes-ajustes': 'Settings',
   'nav.space-eyes-campanas': 'Campaigns',
-  'nav.space-eyes-verificacion': 'Verification',
   'nav.space-eyes-fallas': 'Faults',
   'nav.clientes': 'Clients',
   'nav.comercial': 'Sales',
   'nav.disponibilidad': 'Availability',
   'nav.propuestas': 'Proposals',
-  'nav.crm': 'CRM',
+  'nav.crm': 'Opportunities',
   'nav.captacion': 'Prospecting',
   'nav.comercial-opex': 'Prospecting',
   'nav.franjas-y-temporadas': 'Dayparts and seasons',
@@ -449,6 +449,8 @@ const EN: Record<ClaveTexto, string> = {
   'nav.imprenta': 'Printing',
   'nav.operaciones': 'Operations',
   'nav.energia': 'Power usage',
+  'nav.vallas': 'Poster panels',
+  'nav.insignia.en-proceso': 'In progress',
   'nav.finanzas': 'Finance',
   'nav.reportes': 'Reports',
   'nav.comisiones': 'Commissions',
@@ -481,6 +483,7 @@ const EN: Record<ClaveTexto, string> = {
   ...EN_ENERGIA,
   ...EN_REPORTES,
   ...EN_NOTIFICACIONES,
+  ...EN_VALLAS,
 }
 
 // ─── ITALIANO · ola 0 (2026-11-03) ──────────────────────────────────────────
@@ -624,17 +627,14 @@ const IT_BASE: Partial<Record<ClaveTexto, string>> = {
   'nav.almacen': 'Magazzino',
   'nav.space-eyes': 'Dispositivi',
   'nav.space-eyes-galeria': 'PoD',
-  'nav.space-eyes-graficas': 'Grafici',
-  'nav.space-eyes-texto': 'Etichetta delle foto',
-  'nav.space-eyes-programacion': 'Programmazione',
+  'nav.space-eyes-ajustes': 'Impostazioni',
   'nav.space-eyes-campanas': 'Campagne',
-  'nav.space-eyes-verificacion': 'Verifica',
   'nav.space-eyes-fallas': 'Guasti',
   'nav.clientes': 'Clienti',
   'nav.comercial': 'Vendite',
   'nav.disponibilidad': 'Disponibilità',
   'nav.propuestas': 'Proposte',
-  'nav.crm': 'CRM',
+  'nav.crm': 'Opportunità',
   // Captacion es buscar espacios nuevos que arrendar, no clientes.
   'nav.captacion': 'Acquisizione siti',
   'nav.comercial-opex': 'Prospezione',
@@ -647,6 +647,8 @@ const IT_BASE: Partial<Record<ClaveTexto, string>> = {
   'nav.imprenta': 'Stampa',
   'nav.operaciones': 'Operazioni',
   'nav.energia': 'Consumo elettrico',
+  'nav.vallas': 'Poster',
+  'nav.insignia.en-proceso': 'In corso',
   'nav.finanzas': 'Finanza',
   'nav.reportes': 'Report',
   'nav.comisiones': 'Provvigioni',
@@ -692,6 +694,7 @@ export const AMBITOS_ITALIANO: ReadonlyArray<{
   { ambito: 'energia', es: ES_ENERGIA, it: IT_ENERGIA },
   { ambito: 'reportes', es: ES_REPORTES, it: IT_REPORTES },
   { ambito: 'notificaciones', es: ES_NOTIFICACIONES, it: IT_NOTIFICACIONES },
+  { ambito: 'vallas', es: ES_VALLAS, it: IT_VALLAS },
 ]
 
 const IT: Partial<Record<ClaveTexto, string>> = {
@@ -718,6 +721,7 @@ const IT: Partial<Record<ClaveTexto, string>> = {
   ...IT_ENERGIA,
   ...IT_REPORTES,
   ...IT_NOTIFICACIONES,
+  ...IT_VALLAS,
 }
 
 // ─── PORTUGUES (pt-BR) · ola 0 (2026-11-05) ─────────────────────────────────
@@ -832,17 +836,14 @@ const PT_BASE: Partial<Record<ClaveTexto, string>> = {
   'nav.almacen': 'Almoxarifado',
   'nav.space-eyes': 'Dispositivos',
   'nav.space-eyes-galeria': 'Comprovantes',
-  'nav.space-eyes-graficas': 'Gráficos',
-  'nav.space-eyes-texto': 'Legenda das fotos',
-  'nav.space-eyes-programacion': 'Programação',
+  'nav.space-eyes-ajustes': 'Configurações',
   'nav.space-eyes-campanas': 'Campanhas',
-  'nav.space-eyes-verificacion': 'Verificação',
   'nav.space-eyes-fallas': 'Falhas',
   'nav.clientes': 'Clientes',
   'nav.comercial': 'Comercial',
   'nav.disponibilidad': 'Disponibilidade',
   'nav.propuestas': 'Propostas',
-  'nav.crm': 'CRM',
+  'nav.crm': 'Oportunidades',
   'nav.captacion': 'Captação',
   'nav.comercial-opex': 'Prospecção',
   'nav.franjas-y-temporadas': 'Faixas horárias e temporadas',
@@ -854,6 +855,8 @@ const PT_BASE: Partial<Record<ClaveTexto, string>> = {
   'nav.imprenta': 'Gráfica',
   'nav.operaciones': 'Operações',
   'nav.energia': 'Consumo de energia',
+  'nav.vallas': 'Outdoors',
+  'nav.insignia.en-proceso': 'Em andamento',
   'nav.finanzas': 'Finanças',
   'nav.reportes': 'Relatórios',
   'nav.comisiones': 'Comissões',
@@ -891,6 +894,7 @@ export const AMBITOS_PORTUGUES: ReadonlyArray<{
   { ambito: 'energia', es: ES_ENERGIA, pt: PT_ENERGIA },
   { ambito: 'reportes', es: ES_REPORTES, pt: PT_REPORTES },
   { ambito: 'notificaciones', es: ES_NOTIFICACIONES, pt: PT_NOTIFICACIONES },
+  { ambito: 'vallas', es: ES_VALLAS, pt: PT_VALLAS },
 ]
 
 const PT: Partial<Record<ClaveTexto, string>> = {
@@ -923,6 +927,7 @@ const PT: Partial<Record<ClaveTexto, string>> = {
   ...PT_ENERGIA,
   ...PT_REPORTES,
   ...PT_NOTIFICACIONES,
+  ...PT_VALLAS,
 }
 
 /** El portugues que YA esta escrito, sin la caida al espanol. Para la cobertura y los lotes. */

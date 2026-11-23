@@ -80,6 +80,7 @@ export const COGNADOS_PT_L3 = new Set<string>([
   'inventario.kpi.disponibles.sub', // de {total}
   'inventario.chips.contrato', // Contrato
   'inventario.medio.digital', // Digital
+  'inventario.pestana.todos', // Todos (18/11, pestaña del medio)
   'inventario.disponibilidad.ocupado', // Ocupado
   'inventario.lote.unidad.contrato', // contrato
   'inventario.lote.unidad.contratos', // contratos

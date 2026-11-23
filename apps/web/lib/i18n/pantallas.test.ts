@@ -36,13 +36,12 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/login',
 }))
 
-// `next/font/google` NO es una libreria normal: es una transformacion del
-// BUILD de Next, que descarga los archivos y devuelve las clases. Fuera de
+// `next/font/local` NO es una libreria normal: es una transformacion del
+// BUILD de Next, que empaqueta los archivos y devuelve las clases. Fuera de
 // `next build` no existe, asi que se sustituye por lo unico que el layout le
 // pide: un objeto con `variable`. La tipografia no es lo que aqui se mide.
-vi.mock('next/font/google', () => ({
-  Inter: () => ({ variable: '--font-inter' }),
-  Source_Serif_4: () => ({ variable: '--font-source-serif' }),
+vi.mock('next/font/local', () => ({
+  default: (o: { variable: string }) => ({ variable: o.variable }),
 }))
 
 // `next/headers` solo existe dentro de una peticion. Se simula para poder

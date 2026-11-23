@@ -176,7 +176,9 @@ function etiquetaTiempo(p: Punto, granularidad: 'raw' | 'hour', idioma: Idioma):
 
 const mensajeError = (e: unknown, defecto: string, idioma: Idioma) => textoDeError(e, idioma) ?? defecto
 
-export function Graficas() {
+// `encabezado` lo apaga la pantalla de Ajustes, que ya pone el suyo: dos
+// titulos grandes seguidos no son dos secciones, son un descuido.
+export function Graficas({ encabezado = true }: { encabezado?: boolean }) {
   const { t, idioma } = useIdioma()
   const [equipos, setEquipos] = useState<Equipo[] | null>(null)
   const [errorEquipos, setErrorEquipos] = useState<string | null>(null)
@@ -322,13 +324,17 @@ export function Graficas() {
           texto empezaban más abajo que sus vecinas. */}
       {/* Encabezado, el mismo patrón del listado */}
       <div className="flex flex-wrap items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
-          <BarChart3 className="h-5 w-5" strokeWidth={1.75} />
-        </span>
-        <div className="min-w-[12rem] flex-1">
-          <h1 className="text-2xl text-ink">{t('spaceeyes.graficas.titulo')}</h1>
-          <p className="text-[13px] text-muted">{t('spaceeyes.graficas.descripcion')}</p>
-        </div>
+        {encabezado && (
+          <>
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
+            <BarChart3 className="h-5 w-5" strokeWidth={1.75} />
+          </span>
+          <div className="min-w-[12rem] flex-1">
+            <h1 className="text-2xl text-ink">{t('spaceeyes.graficas.titulo')}</h1>
+            <p className="text-[13px] text-muted">{t('spaceeyes.graficas.descripcion')}</p>
+          </div>
+          </>
+        )}
         <div className="flex items-center gap-2">
           <Button
             variant="secondary"

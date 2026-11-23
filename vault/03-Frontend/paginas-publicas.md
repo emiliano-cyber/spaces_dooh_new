@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-11-17
+actualizado: 2026-11-20
 tags: [frontend, publico, tokens, amarillo]
 archivos:
   - apps/web/app/(app)/portal/[token]/
@@ -10,10 +10,16 @@ archivos:
   - apps/web/app/(app)/m/ot/[id]/
   - apps/web/app/(app)/contrato/[id]/
   - apps/web/lib/server/portal-repo.ts
+  - apps/web/lib/server/logo-sql.ts
   - apps/web/middleware.ts
   - apps/web/components/demo/rejilla/AvisoFranjaCMS.tsx
   - apps/web/components/demo/propuestas/SeguimientoCampana.tsx
   - apps/web/lib/seguimiento-campana.ts
+  - apps/web/components/demo/propuestas/FotosYUbicacionSitio.tsx
+  - apps/web/lib/server/fotos-sitio-publico-controller.ts
+  - apps/web/lib/server/vallas-publicas-controller.ts
+  - apps/web/lib/server/vallas-publicas-repo.ts
+  - apps/web/lib/vallas/plano-publico.ts
 ---
 
 # Páginas públicas (sin sesión)
@@ -85,14 +91,19 @@ alguna empezara a leer la cookie, la exención se vuelve un agujero.
 > [!note] 2026-11-17 · el rastreo «tipo Mercado Libre» en `/p/[id]`
 > La página pide en paralelo la propuesta y `GET /api/propuestas/publica/[id]/seguimiento`
 > y se pinta cuando llegan las dos. Con `hayCampana: true` va ARRIBA
-> `SeguimientoCampana` (banner con el mensaje y la fecha clave, línea vertical de
-> seis pasos con un solo `aria-current="step"`, lonas con «1 de 2 lonas impresas»
+> `SeguimientoCampana` (banner con el mensaje y la fecha clave, línea HORIZONTAL de
+> seis pasos con un solo `aria-current="step"` —ver abajo—, lonas con «1 de 2 lonas impresas»
 > y detalle plegable, anuncios con su estatus) y la propuesta se pliega debajo,
 > montada solo al abrirla (el mapa oculto se dibuja roto). Con `hayCampana: false`
 > o si el fetch falla, la página es la de siempre.
 >
 > - Los textos van por `cuenta.seguimiento.*` (es/en/it/pt); la regla de los pasos
 >   es pura en `lib/seguimiento-campana.ts`.
+>   - **Desde el 19/11 (hallazgo A2)** el formato de cada anuncio pasa por
+>     `formatoParaCliente()` en el repo: el tipo MIME interno no llega al cliente.
+>     Una imagen subida se guarda envuelta en HTML (`imagenAHtml`) y salía
+>     «text/html · 1920x1080»; ahora `text/*` es `null` (queda solo la medida) y
+>     los demás MIME se acortan (`image/png` → PNG, `video/mp4` → MP4).
 > - **El nombre de la imprenta llega `null` por omisión** (solo lo enciende el
 >   vendedor): sin nombre no se pinta ni «Imprime» ni hueco.
 >   El interruptor está en la ficha interna de la propuesta, solo si ya tiene
@@ -104,6 +115,68 @@ alguna empezara a leer la cookie, la exención se vuelve un agujero.
 >   corriendo vale «finalizada».
 > - Pruebas: `lib/i18n/pantallas-cuenta-shell.test.ts` (tres estados en cuatro
 >   idiomas y lo que NO debe verse).
+>
+> [!note] 2026-11-18 · la línea de pasos es HORIZONTAL (pedido del dueño)
+> «El pipeline debe de ser en horizontal en la liga que se envía al cliente».
+> `LineaPasos`/`PasoColumna` en `SeguimientoCampana.tsx`: círculos unidos por
+> un tramo de centro a centro (sólido hasta donde se llegó, punteado lo que
+> falta), completados con palomita, el actual con «Ahora» o «Requiere
+> atención», pendientes en gris; etiqueta y fecha debajo. En el teléfono
+> **sigue horizontal**: cada paso mide 92 px y la caja
+> (`data-pasos-scroll`, `overflow-x-auto`) se desplaza por dentro, centrando el
+> paso actual con `scrollLeft` al abrir (no `scrollIntoView`, que movería la
+> página en vertical). La página no tiene scroll horizontal. Desde `sm` los
+> seis reparten el ancho. El resumen «1 de 2 lonas impresas» pasó de dentro del
+> paso a debajo de la línea. Prueba: «la línea de pasos es horizontal…» en
+> `pantallas-cuenta-shell.test.ts`.
+
+> [!note] 2026-11-18 · «Envía tu creativo» (ENVIO-CLIENTE)
+> `SubirCreativoCliente.tsx`, dentro del seguimiento: con
+> `puedeSubirCreativo` el cliente elige la imagen (JPG/PNG/WebP, 4 MB), y si la
+> campaña tiene varias pantallas, a cuál va; se le dice la proporción y la
+> medida; si su imagen no tiene la proporción del sitio (±3 %), se le dice
+> qué medida en píxeles mandar y el botón se deshabilita (el servidor lo
+> vuelve a comprobar leyendo el archivo). Manda a
+> `POST /api/propuestas/publica/[id]/creativos` (la página le pasa `urlEnvio`).
+> Abajo, «Lo que nos enviaste»: «En revisión» o «No aprobado · Por qué: …».
+> **No hay ninguna acción de aprobar en la liga**: lo aprueba un Dueño o
+> Administrador en la ficha de campaña. Los errores se traducen por el STATUS
+> (el servidor contesta en español). Detalle en
+> [[02-Backend/comercial-propuestas-campanas]].
+
+## Fotos y ubicación de cada pantalla
+
+> [!note] 2026-11-18 · «Ver fotos y ubicación» en `/p/[id]` (FOTOS-UBIC)
+> Cada renglón de sitios lleva el botón «Ver fotos y ubicación», que abre un
+> cuadro con la galería de la pantalla (foto grande + miniaturas), la dirección,
+> la zona, las coordenadas con enlace a Google Maps y un mapa chico. Las fotos
+> se piden **al abrir** a `GET /api/propuestas/publica/[id]/sitios/[sitioId]`,
+> con el mismo token de la liga: `/api/sitios/:id/media` exige sesión y **no se
+> abrió**. La ruta solo responde sitios que son renglón de ESA propuesta, y solo
+> ubicación y fotos (lista blanca en el controller). Un servidor anterior sin
+> `items[].sitioId` no enseña el botón. Detalle en
+> [[comercial-propuestas-campanas]].
+
+## «Así se ven tus vallas» (20/11)
+
+> [!note] 2026-11-20 · el plano de las vallas en `/p/[id]`
+> Pedido del dueño: «si es valla, cómo se ven las pantallas que rentará, si es
+> más de 1; si solo es una, sin tema». Si los sitios de la propuesta suman **más
+> de una valla activa**, `GET /api/propuestas/publica/[id]` añade el campo
+> `planoVallas` y la liga pinta, debajo de los sitios, la tarjeta «Así se ven tus
+> vallas» (`PlanoVallasCliente`, el mismo dibujo de [[02-Backend/vallas]] en modo
+> público: cada cuadro dice «Tu valla», sin fechas ni libre/ocupada). Con 0 o 1
+> valla el campo **no se añade** y la liga es la de antes, sin petición de más.
+>
+> Va en la misma respuesta, no en ruta aparte, para no pedir nada cuando no hay
+> plano. El tenant sale del token igual que en el resto de la liga
+> (`propuesta_tenant_por_token` con `qRaw1`, y la consulta bajo `qConTenant` con
+> `tenant_id = $2` en cada tabla: `lib/server/vallas-publicas-repo.ts`). Lista
+> blanca en `vallas-publicas-controller.ts`: número, medida, cara, posición,
+> esquina, grupo (número, nombre, modo, `sigueFuera`) y el nombre del sitio. Los
+> ids de vallas y grupos son **opacos** (`v1`, `g1`); nada de ocupación, marcas,
+> campañas ni notas, y un grupo que sigue en un sitio fuera de la propuesta solo
+> dice «sigue en otro sitio». Si la lectura falla, la liga sale sin plano.
 
 ## Marca en las páginas de cara al cliente
 
@@ -117,6 +190,18 @@ mira, así que no hay logo correcto que poner.
 
 El logo se sirve por `GET /api/logo/[token]` (público, token en
 `config_negocio.logo_token`).
+
+> [!warning] 2026-11-19 · el token existe SIEMPRE; el logo, no (hallazgo B)
+> `logo_token` es NOT NULL desde `20260805_logo_publico.sql`, así que toda
+> organización tiene uno aunque no haya cargado logo. Los membretes armaban la
+> URL con el token a secas y `/api/logo/<token>` respondía **404** → icono de
+> imagen rota en la cabecera de la liga pública. Ahora el token sale de la base
+> solo si hay imagen: `sqlTokenLogoServible()` (`apps/web/lib/server/logo-sql.ts`)
+> devuelve `case when logo_url ilike 'data:image/%' then logo_token end`, y la
+> usan los seis lectores —liga de propuesta, portal, hoja de firma, correo de la
+> propuesta, avisos y recordatorios—. Sin logo, `orgLogoUrl`/`logoUrl` es `null`
+> y no se pinta `<img>`. Lo cuidan `lib/server/logo-sql.test.ts` (ningún lector
+> vuelve a seleccionar `logo_token` a pelo) y `lib/test/logo-sin-imagen.e2e.test.ts`.
 
 > [!note] La barra final del logo ya costó un redespliegue
 > Commit `104c019`: *"la URL del logo termina en barra, o en el correo

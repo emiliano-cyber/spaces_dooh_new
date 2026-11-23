@@ -13,6 +13,9 @@ import { Campo, useObligatorios } from '@/components/demo/ui/Campo'
 import { ConfirmDialog } from '@/components/demo/ui/ConfirmDialog'
 import { EmptyState } from '@/components/demo/EmptyState'
 import { usePuede } from '@/components/demo/shell/SesionContext'
+import { MandarAImpresionDialog, OrigenCreativoBadge, usePendientes } from '@/components/operaciones/PendientesCreativo'
+import { useImprentas } from '@/components/operaciones/Imprentas'
+import type { Pendiente } from '@/lib/pendientes-creativo'
 import {
   crearCreatividadApi,
   validarCreatividadApi,
@@ -106,6 +109,11 @@ export default function CreativosPage() {
   const [q, setQ] = useState('')
   const [filtro, setFiltro] = useState('')
   const t = useIdioma().t
+  // FLUJO-CREA (20/11) · los pendientes por confirmar (`GET /api/creativos/pendientes`).
+  const puedeImprimir = usePuede('imprenta', 'crear')
+  const { pendientes, recargar: recargarPendientes } = usePendientes('creativos')
+  const { imprentas } = useImprentas(puedeImprimir)
+  const [mandando, setMandando] = useState<Pendiente | null>(null)
 
   if (!campanas || !creatividades || !reservas || !sitios) {
     return (
@@ -184,6 +192,21 @@ export default function CreativosPage() {
           {t('operaciones2.creativos.descripcion')}
         </p>
       </div>
+
+      {pendientes && pendientes.length > 0 && (
+        <PendientesCreativosCard
+          pendientes={pendientes}
+          puedeImprimir={puedeImprimir}
+          puedeProgramar={puede}
+          onMandar={setMandando}
+        />
+      )}
+      <MandarAImpresionDialog
+        pendiente={mandando}
+        imprentas={imprentas}
+        onClose={() => setMandando(null)}
+        onHecho={recargarPendientes}
+      />
 
       {gestionables.length > 0 && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -682,6 +705,8 @@ function CampanaCard({
                       </span>
                     )}
                   </div>
+                  {/* CREA-ORIGEN (20/11): quién subió este arte, guardado como dato. */}
+                  <OrigenCreativoBadge origen={cr.origen} subidoPorNombre={cr.subidoPorNombre} />
                   {cr.retiradoEn ? (
                     <div
                       className="inline-flex items-center gap-1 rounded-full border border-transparent bg-warning-soft px-2 py-0.5 text-[10px] font-medium text-[#9a6700]"
@@ -1014,5 +1039,82 @@ function EstadoCrea({ estatus, motivo }: { estatus: EstValidacionCreatividad; mo
       <StatusBadge tono={tono}>{t(label[estatus] ? clave[estatus] : clave.PENDIENTE)}</StatusBadge>
       {estatus === 'RECHAZADA' && motivo && <p className="m-0 text-[11px] text-error">{motivo}</p>}
     </div>
+  )
+}
+
+// FLUJO-CREA (20/11) · la «tarea 1» vista desde Creativos: por aprobar (con
+// quién lo subió), por mandar a impresión y por programar. Aquí SÍ salen las
+// campañas fijas: es la lista de lo que falta confirmar, no la gestión del
+// arte. Los botones respetan los permisos de cada acción: imprimir con
+// `imprenta.crear` (el servidor responde 403 si no), programar lleva a la
+// ficha de la campaña, a «Enviar al dominio» (la acción de siempre).
+function PendientesCreativosCard({
+  pendientes,
+  puedeImprimir,
+  puedeProgramar,
+  onMandar,
+}: {
+  pendientes: Pendiente[]
+  puedeImprimir: boolean
+  puedeProgramar: boolean
+  onMandar: (p: Pendiente) => void
+}) {
+  const { t } = useIdioma()
+  const etiqueta: Record<Pendiente['accion'], { clave: ClaveTexto; tono: 'ambar' | 'azul' | 'verde' }> = {
+    POR_APROBAR: { clave: 'operaciones2.creativos.kpi.por-aprobar', tono: 'ambar' },
+    IMPRIMIR: { clave: 'operaciones.imprenta.pendientes.titulo', tono: 'azul' },
+    PROGRAMAR: { clave: 'operaciones2.creativos.pendientes.programar', tono: 'azul' },
+  }
+  return (
+    <CardColapsable
+      id="creativos.pendientes"
+      titulo={t('operaciones2.creativos.pendientes.titulo')}
+      resumen={
+        <span className="demo-num text-[12px] text-muted">
+          {t(pendientes.length === 1 ? 'operaciones.imprenta.pendientes.uno' : 'operaciones.imprenta.pendientes.otros', { n: pendientes.length })}
+        </span>
+      }
+    >
+      <p className="mb-2 text-[12px] text-muted">{t('operaciones2.creativos.pendientes.detalle')}</p>
+      <ul className="m-0 list-none divide-y divide-border p-0">
+        {pendientes.map((p) => (
+          <li key={p.clave} className="flex flex-col gap-2 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusBadge tono={etiqueta[p.accion].tono}>{t(etiqueta[p.accion].clave)}</StatusBadge>
+                <span className="text-[14px] font-medium text-ink">
+                  {p.sitioNombre ?? t('operaciones2.creativos.pendientes.sin-sitio')}
+                </span>
+                <span className="text-[12px] text-muted">{p.campanaNombre}</span>
+              </div>
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                {p.creativos.map((cr, i) => (
+                  <span key={cr.id ?? i} className="inline-flex items-center gap-1.5 text-[12px] text-ink">
+                    {cr.nombre} <OrigenCreativoBadge origen={cr.origen} subidoPorNombre={cr.subidoPorNombre} />
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              {p.accion === 'IMPRIMIR' && puedeImprimir && (
+                <Button size="sm" variant="primary" onClick={() => onMandar(p)}>
+                  {t('operaciones.imprenta.pendientes.mandar')}
+                </Button>
+              )}
+              {p.accion === 'PROGRAMAR' && puedeProgramar && (
+                <Link href={`/campanas/${p.campanaId}#publicacion`}>
+                  <Button size="sm" variant="primary">{t('operaciones2.creativos.pendientes.boton-programar')}</Button>
+                </Link>
+              )}
+              {p.accion === 'POR_APROBAR' && (
+                <Link href={`/campanas/${p.campanaId}`} className="text-[12px] font-medium text-info hover:underline">
+                  {t('operaciones2.creativos.pendientes.revisar')}
+                </Link>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </CardColapsable>
   )
 }

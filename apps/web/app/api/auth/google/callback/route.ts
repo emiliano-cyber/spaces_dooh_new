@@ -4,7 +4,7 @@ import { qRaw1 } from '@/lib/server/db'
 import { crearSesion, cookieSesion, cookieCsrf, nuevoCsrfToken, passwordAleatoria } from '@/lib/server/auth'
 import { cookieIdiomaCuenta } from '@/lib/server/idioma-cuenta'
 import { idiomaPreferidoAlEntrar } from '@/lib/server/usuarios-repo'
-import { normalizarIdioma } from '@/lib/i18n/idiomas'
+import { idiomaDeLaCuentaAlEntrar } from '@/lib/server/idioma-al-entrar'
 import { crearOrgConDueno } from '@/lib/server/cuentas-controller'
 import { limitar, ipDe } from '@/lib/server/rate-limit'
 import {
@@ -85,7 +85,7 @@ function limpiar(res: NextResponse): NextResponse {
 // así que la página de destino ya sale en ese idioma sin hacer nada más.
 async function abrirSesion(req: Request, usuarioId: string, tenantId: string): Promise<NextResponse> {
   const token = await crearSesion(usuarioId, 'google')
-  const idioma = normalizarIdioma(await idiomaPreferidoAlEntrar(usuarioId, tenantId))
+  const idioma = await idiomaDeLaCuentaAlEntrar(await idiomaPreferidoAlEntrar(usuarioId, tenantId))
   const base = process.env.APP_URL || new URL(req.url).origin
   const res = NextResponse.redirect(`${base}/spaces-dooh/inicio/`, 302)
   res.cookies.set(cookieSesion(token))

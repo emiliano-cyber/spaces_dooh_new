@@ -28,7 +28,7 @@ import {
 import { listarEntidades } from '@/lib/server/entidades-repo'
 import { listarPropuestas } from '@/lib/server/propuestas-repo'
 import { listarOrdenesCompra } from '@/lib/server/ordenes-compra-repo'
-import { listarNotificaciones } from '@/lib/server/notificaciones-repo'
+import { listarNotificaciones, tiposOcultosPara } from '@/lib/server/notificaciones-repo'
 import { obtenerConfig } from '@/lib/server/config-repo'
 import { listarNombresDeUsuarios } from '@/lib/server/usuarios-repo'
 
@@ -132,7 +132,8 @@ export async function GET() {
       // usuario y la segunda es la identidad del tenant que pinta el shell.
       // «Del propio usuario» es literal desde el 21/10 (NOTIF-USUARIO): leída y
       // borrada son de quien pregunta, por eso va su id de la sesión.
-      listarNotificaciones(g.usuario.id),
+      // FLUJO-CREA (20/11) · sin los avisos de un módulo que no ve.
+      listarNotificaciones(g.usuario.id, tiposOcultosPara(permisos)),
       obtenerConfig(),
       si('arrendadores', listarPredios),
       si('arrendadores', listarRazonesSociales),

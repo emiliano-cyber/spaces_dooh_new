@@ -12,6 +12,8 @@ import { rfcTenant, textoTenant } from '@/lib/server/config-fiscal'
 import { esEmailValido, EMAIL_INVALIDO } from '@/lib/validacion'
 import { sanearCostosOt } from '@/lib/costos-ot'
 import { TODOS_TIPOS_OT } from '@/lib/tipos-ot'
+import { requisitosSchema } from '@/lib/server/imprentas-controller'
+import { sanearRequisitos } from '@/lib/requisitos-impresion'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -106,6 +108,10 @@ const configSchema = z
     // «Razones sociales» es la principal (20261012_razon_social_principal.sql).
     // Un cliente viejo que mande `razonSocial` recibe 400 por el `.strict()`, en
     // vez de escribir una columna que ya nadie lee.
+    // IMP-REQ (18/11) · requisitos de arte por omisión de la empresa. El mismo
+    // esquema que el de cada imprenta (`imprentas-controller.ts`); {} los quita
+    // todos y vuelven a mandar las constantes.
+    requisitosImpresion: requisitosSchema,
     entidadPrincipalId: z.string().uuid('Elige una razón social de la lista'),
     nombreComercial: z.string().trim().max(200).nullable(),
     // Datos fiscales de la parte ARRENDATARIA (los recita el contrato).
@@ -189,6 +195,7 @@ export async function PATCH(req: Request) {
     vigenciaPropuestaDias: 'vigencia_propuesta_dias',
     emailRemitente: 'email_remitente',
     costosOt: 'costos_ot',
+    requisitosImpresion: 'requisitos_impresion',
   }
   // Vaciar el campo es QUITAR el correo, no guardar una cadena vacía: un
   // Reply-To vacío es una cabecera rota, y el CHECK de la columna la rechaza
@@ -203,6 +210,7 @@ export async function PATCH(req: Request) {
   // y no solo al leer porque dejar basura entrar a la columna es arrastrarla en
   // cada respaldo y que el siguiente que lea el jsonb crudo se la crea.
   if (b.costosOt !== undefined) b.costosOt = JSON.stringify(sanearCostosOt(b.costosOt))
+  if (b.requisitosImpresion !== undefined) b.requisitosImpresion = JSON.stringify(sanearRequisitos(b.requisitosImpresion))
   // La identidad fiscal va PRIMERO: es la única parte que puede rechazar por
   // un dato de otra tabla (una principal ajena o dada de baja → 400), y si
   // fuera al final, ese 400 llegaría con el resto de la petición ya guardado.

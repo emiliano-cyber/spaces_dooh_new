@@ -15,9 +15,13 @@ import { CandadoPanel } from '@/components/demo/campanas/CandadoPanel'
 import { DatosFacturacion } from '@/components/demo/campanas/DatosFacturacion'
 import { ExtensionesCampana } from '@/components/demo/campanas/ExtensionesCampana'
 import { ValidacionPanel } from '@/components/demo/campanas/ValidacionPanel'
+import { OrigenCreativoBadge } from '@/components/operaciones/PendientesCreativo'
 import { EvidenciaGaleria } from '@/components/demo/campanas/EvidenciaGaleria'
+import { DescargarAlbum } from '@/components/demo/campanas/DescargarAlbum'
 import { PlaylogsPanel } from '@/components/demo/campanas/PlaylogsPanel'
 import { AgregarCreativo } from '@/components/demo/campanas/AgregarCreativo'
+import { EnviosClienteCampana } from '@/components/demo/campanas/EnviosClienteCampana'
+import { ActualizarCampana } from '@/components/demo/campanas/ActualizarCampana'
 import { FranjaProgramadaCampana } from '@/components/demo/campanas/FranjaProgramadaCampana'
 import { ResumenCampana } from '@/components/demo/campanas/ResumenCampana'
 import { ListaImpresionCampana, ListaOTCampana } from '@/components/demo/campanas/ListasCampana'
@@ -199,19 +203,28 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
                   : t('campanas.ficha.creativos.por-aprobar')}
             </StatusBadge>
           </h2>
-          <Link
-            href={withTrail('/creativos', trail)}
-            className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline"
-          >
-            {t('campanas.ficha.creativos.gestionar')} <ExternalLink className="h-3.5 w-3.5" />
-          </Link>
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            {/* 18/11 · cambiar creativos de una campaña ya publicada en un paso
+                (solo aparece con la publicación aprobada; ver el componente). */}
+            <ActualizarCampana campanaId={id} />
+            <Link
+              href={withTrail('/creativos', trail)}
+              className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline"
+            >
+              {t('campanas.ficha.creativos.gestionar')} <ExternalLink className="h-3.5 w-3.5" />
+            </Link>
+          </div>
         </div>
         <div className="space-y-3">
           {misCreas.length > 0 ? (
             <ul className="m-0 list-none space-y-2 p-0">
               {misCreas.map((cr) => (
-                <li key={cr.id} className="flex items-center justify-between text-[13px]">
-                  <span className="text-ink">{cr.nombre}</span>
+                <li key={cr.id} className="flex items-center justify-between gap-2 text-[13px]">
+                  <span className="flex min-w-0 flex-wrap items-center gap-1.5">
+                    <span className="text-ink">{cr.nombre}</span>
+                    {/* CREA-ORIGEN (20/11): «Subido por: …», el dato del creativo. */}
+                    <OrigenCreativoBadge origen={cr.origen} subidoPorNombre={cr.subidoPorNombre} />
+                  </span>
                   <StatusBadge tono={CREATIVIDAD_TONO[cr.estatusValidacion]}>
                     {t(CLAVE_CREATIVIDAD[cr.estatusValidacion])}
                   </StatusBadge>
@@ -225,6 +238,10 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
         </div>
       </section>
 
+      {/* ENVIO-CLIENTE (18/11) · lo que mandó el cliente desde su liga, para
+          aprobarlo o rechazarlo. Solo Dueño y Administrador; sin envíos, nada. */}
+      <EnviosClienteCampana campanaId={id} />
+
       {/* Validación de publicación — SIEMPRE abierta, sin importar el estatus
           (pedido del dueño, 23/10). Era una `Seccion`: nacía abierta solo si
           estaba pendiente, y aprobada —o en una campaña que no es digital— se
@@ -235,7 +252,11 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
           Creativos arriba, aquí no
           se pliega ni cambia de sitio; `ValidacionPanel` trae su propio título y
           su estatus. */}
-      <ValidacionPanel campanaId={id} />
+      {/* `id="publicacion"`: aquí aterriza «Programar» desde Creativos
+          (FLUJO-CREA, 20/11), que lleva a «Enviar al dominio». */}
+      <div id="publicacion" className="scroll-mt-20">
+        <ValidacionPanel campanaId={id} />
+      </div>
 
       {/* Pipeline (pieza estrella) */}
       <CardColapsable id="campana.pipeline" titulo={t('campanas.ficha.pipeline')}>
@@ -449,6 +470,21 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
         titulo={t('campanas.ficha.evidencias')}
         icono={<Camera className="h-4 w-4 text-muted" />}
         estado={!tieneFija ? 'na' : misEvid.length > 0 ? 'hecho' : 'pendiente'}
+        accion={
+          // FLUJO-CREA (20/11) · el comprobante de exhibición: las fotos en un
+          // .zip, por sitio y fecha. Sin fotos, avisa y no baja nada.
+          tieneFija ? (
+            <DescargarAlbum
+              campana={{ folio: c.folio, nombre: c.nombre }}
+              fotos={misEvid.map((e) => ({
+                url: e.fotoUrl,
+                tomadaEn: e.tomadaEn,
+                subidaEn: e.timestamp,
+                sitioNombre: sitios?.find((s) => s.id === misOts.find((o) => o.id === e.otId)?.sitioId)?.nombre ?? null,
+              }))}
+            />
+          ) : undefined
+        }
       >
         <EvidenciaGaleria
           fotos={misEvid.map((e) => ({ url: e.fotoUrl, tomadaEn: e.tomadaEn, subidaEn: e.timestamp }))}

@@ -6,6 +6,7 @@ import { respuestaError } from '@/lib/server/errores'
 import { registrarAccion } from '@/lib/server/acciones-repo'
 import { textoBitacoraAjusteTarifa } from '@/lib/tarifa-calculada'
 import { monedaDeLaInstancia } from '@/lib/server/moneda-instancia'
+import { avisosDePropuesta } from '@/lib/server/propuestas-competencia'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -31,7 +32,13 @@ export async function POST(req: Request) {
     for (const a of ajustes) {
       await registrarAccion(g.usuario, textoBitacoraAjusteTarifa(a), propuesta.nombre)
     }
-    return NextResponse.json(propuesta, { status: 201 })
+    // PROP-MARCA (20/11) · la competencia de marcas de Vallas, ya con la
+    // propuesta guardada. SOLO AVISA: `avisosDePropuesta` nunca lanza, y se
+    // calcula DESPUÉS de guardar, así que no hay forma de que impida el alta.
+    return NextResponse.json(
+      { ...propuesta, avisosCompetencia: await avisosDePropuesta(propuesta.id) },
+      { status: 201 },
+    )
   } catch (e) {
     return respuestaError(e)
   }

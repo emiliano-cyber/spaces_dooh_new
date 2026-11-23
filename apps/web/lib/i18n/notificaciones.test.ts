@@ -53,6 +53,18 @@ const CASOS: Array<[string, string | null, string, string | null]> = [
     'Verano 2026 was submitted for publishing and is awaiting publication review',
   ],
   ['Publicación aprobada', 'Verano 2026 fue validada y está al aire', 'Publication approved', 'Verano 2026 was approved and is on air'],
+  [
+    'El cliente envió un creativo para revisión',
+    'CA-0012 · Verano 2026 — archivo «arte.png» para Pantalla Reforma',
+    'The client sent a creative for review',
+    'CA-0012 · Verano 2026 — file “arte.png” for Pantalla Reforma',
+  ],
+  [
+    'El cliente envió un creativo para revisión',
+    'Verano 2026 — archivo «arte.png»',
+    'The client sent a creative for review',
+    'Verano 2026 — file “arte.png”',
+  ],
   ['Publicación rechazada', 'Verano 2026 fue rechazada', 'Publication rejected', 'Verano 2026 was rejected'],
   [
     'Publicación rechazada',
@@ -282,6 +294,8 @@ describe('notificaciones · las plantillas son los literales del servidor', () =
     ['app/api/campanas/[id]/validar/route.ts', `titulo: body?.aprobar ? '${ES['notificaciones.publicacion.aprobada']}' : '${ES['notificaciones.publicacion.rechazada']}'`],
     ['app/api/campanas/[id]/validar/route.ts', '`${c.nombre} fue validada y está al aire`'],
     ['app/api/campanas/[id]/validar/route.ts', "`${c.nombre} fue rechazada${c.validacionMotivo ? `: ${c.validacionMotivo}` : ''}`"],
+    ['lib/server/envio-cliente-publico-controller.ts', `titulo: '${ES['notificaciones.campana.envio-cliente']}'`],
+    ['lib/server/envio-cliente-publico-controller.ts', "`${camp.folio ? `${camp.folio} · ` : ''}${camp.nombre} — archivo «${nombre}»${sitioNombre ? ` para ${sitioNombre}` : ''}`"],
     ['app/api/campanas/[id]/facturar/route.ts', `titulo: '${ES['notificaciones.factura.emitida']}'`],
     ['app/api/ordenes-compra/route.ts', `titulo: '${ES['notificaciones.odc.registrada']}'`],
     ['app/api/cobranzas/[id]/pagar/route.ts', `titulo: c.liquidado ? '${ES['notificaciones.pago.liquidada']}' : '${ES['notificaciones.pago.abono']}', detalle: c.folio ?? '${ES['notificaciones.pago.sin-folio']}'`],
@@ -293,6 +307,10 @@ describe('notificaciones · las plantillas son los literales del servidor', () =
     ['lib/server/ot-repo.ts', `titulo: '${ES['notificaciones.ot.vencida']}'`],
     ['lib/server/ot-repo.ts', "`${ot.folio}${ot.sitio ? ` · ${ot.sitio}` : ''} no se cerró a tiempo${ot.asignado_a ? '' : ' (sin asignar)'}`"],
     ['lib/recordatorios-contratos.ts', "const cual = c.predioNombre || c.sitioNombre || 'un espacio'"],
+    // FLUJO-CREA (20/11): el aviso a Imprenta al aprobar un creativo. Su
+    // plantilla es `notificaciones.impresion.por-mandar` (lib/i18n/notificaciones.ts);
+    // faltaba declararlo aquí y esta lista quedó en rojo en `main` f3f43fa9.
+    ['lib/server/pendientes-creativo-controller.ts', `titulo: '${ES['notificaciones.impresion.por-mandar']}'`],
   ]
 
   for (const [archivo, fragmento] of FUENTES) {
@@ -318,9 +336,14 @@ describe('notificaciones · las plantillas son los literales del servidor', () =
       'app/api/propuestas/[id]/generar-campana/route.ts',
       'app/api/propuestas/[id]/route.ts',
       'app/api/recordatorios/route.ts',
+      'lib/server/envio-cliente-publico-repo.ts',
       'lib/server/finanzas-repo.ts',
       'lib/server/ot-repo.ts',
+      'lib/server/pendientes-creativo-controller.ts',
       'lib/server/propuestas-repo.ts',
+      // Space Eyes: una pantalla caida avisa por la campanita ademas de por
+      // correo, para que salte encima de cualquier pantalla de la aplicacion.
+      'lib/server/space-eyes-aviso-fallas.ts',
     ]
     const { execSync } = require('node:child_process') as typeof import('node:child_process')
     const salida = execSync('git grep -l -E "notificar\\(\\{|insert into notificaciones \\(" -- app lib', { cwd: RAIZ, encoding: 'utf8' })

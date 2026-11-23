@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { Plus, Clock, CheckCircle2, XCircle } from 'lucide-react'
 import { Button } from '@/components/demo/ui/Button'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
@@ -40,6 +41,16 @@ import {
   type ProspectoForm,
 } from '@/lib/data/captacion-api'
 import { localeDe } from '@/lib/i18n/formato-idioma'
+import { usePuede } from '@/components/demo/shell/SesionContext'
+import { oportunidadesApi } from '@/lib/data/oportunidades-api'
+import {
+  aplicarEleccion,
+  preguntarAlContactar,
+  tieneOportunidadAbierta,
+  type EleccionContactado,
+} from '@/lib/prospecto-contactado'
+import { CuadroContactado } from './CuadroContactado'
+import { FormOportunidad } from '@/components/demo/crm/FormOportunidad'
 
 // ============================================================================
 //  La bitácora de captación.  CAP-01.
@@ -301,11 +312,14 @@ function FormularioProspecto({
 function Detalle({
   p,
   puedeAprobar,
+  puedeConvertir = false,
   onCambio,
   onEditar,
 }: {
   p: ProspectoDetalle
   puedeAprobar: boolean
+  /** `comercial.crear`: si se ofrece convertirlo en oportunidad al contactarlo. */
+  puedeConvertir?: boolean
   onCambio: (p: ProspectoDetalle) => void
   onEditar: () => void
 }) {
@@ -317,6 +331,17 @@ function Detalle({
   const [motivo, setMotivo] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [duplicado, setDuplicado] = useState(false)
+  // 18/11 · el cuadro de «pasa a Contactado» (`lib/prospecto-contactado.ts`).
+  // Van DESPUÉS de `duplicado`: `pantallas-clientes.test.ts` fuerza los
+  // estados por orden y el primer `false` de aquí tiene que seguir siendo él.
+  const [pregunta, setPregunta] = useState(false)
+  const [ocupado, setOcupado] = useState(false)
+  const [oportunidadCreada, setOportunidadCreada] = useState<string | null>(null)
+  // «Convertir en oportunidad» abre `FormOportunidad` con el prospecto elegido.
+  const [convirtiendo, setConvirtiendo] = useState(false)
+  // Estable: `FormOportunidad` se reinicia cada vez que cambia `prospecto`, y
+  // un objeto nuevo en cada render borraba lo que se iba tecleando.
+  const elegido = useMemo(() => ({ id: p.id, nombre: p.nombre }), [p.id, p.nombre])
   // OBLIG-01 · el avance exige etapa y nota (`captacion-controller.ts:192-193`).
   const ob = useObligatorios({ etapa, nota }, ['etapa', 'nota'])
 
@@ -332,18 +357,74 @@ function Detalle({
   const posibles = ETAPAS.filter((e) => motivoAvanceInvalido(p.etapa, e) === null)
   const faltan = faltantesParaRevision(p, idioma)
 
+  // 18/11 · un CLIENTE que entra a una etapa de Contactado en adelante: el
+  // vendedor decide si sigue como prospecto o se convierte en oportunidad. Si
+  // ya tiene una ABIERTA, no se pregunta. Se mira contra las oportunidades
+  // que quien guarda puede ver (las primeras 100, como Seguimiento); una
+  // abierta que no ve la para el servidor con 409 al crear. Si esa lectura
+  // falla, no se pregunta y se guarda como siempre.
+  // Va ANTES de `guardarAvance`: `textos/clientes.test.ts` exige que entre
+  // `avanceApi(` y su mensaje de error no se cuele otra API.
+  async function hayQuePreguntar(): Promise<boolean> {
+    const candidato = { tipo: p.tipo, etapaActual: p.etapa, etapaNueva: etapa, tieneOportunidadAbierta: false, puedeConvertir }
+    if (!preguntarAlContactar(candidato)) return false
+    try {
+      const { oportunidades } = await oportunidadesApi({ porPagina: 100 })
+      return preguntarAlContactar({ ...candidato, tieneOportunidadAbierta: tieneOportunidadAbierta(p.id, oportunidades) })
+    } catch {
+      return false
+    }
+  }
+
+  const guardarAvance = () =>
+    avanceApi(p.id, { etapa, nota, siguientePaso: siguiente || null, siguientePasoFecha: fecha || null })
+
   async function avanzar() {
     setError(null)
+    setOportunidadCreada(null)
     if (!ob.validar()) return
     if (etapa === 'EN_REVISION' && p.etapa !== 'EN_REVISION' && faltan.length) {
       return setError(t('clientes.captacion.para-revision', { faltan: faltan.join(', ') }))
     }
+    if (await hayQuePreguntar()) return setPregunta(true)
     try {
-      onCambio(await avanceApi(p.id, { etapa, nota, siguientePaso: siguiente || null, siguientePasoFecha: fecha || null }))
+      onCambio(await guardarAvance())
       setNota('')
       ob.reiniciar()
     } catch (e) {
       setError(e instanceof Error ? e.message : t('clientes.captacion.error.avance'))
+    }
+  }
+
+  async function elegir(eleccion: EleccionContactado) {
+    setOcupado(true)
+    try {
+      const guardado = await aplicarEleccion(eleccion, { guardarAvance, abrirFormulario: () => setConvirtiendo(true) })
+      if (guardado) {
+        onCambio(guardado)
+        setNota('')
+        ob.reiniciar()
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('clientes.captacion.error.avance'))
+    } finally {
+      setOcupado(false)
+      setPregunta(false)
+    }
+  }
+
+  // La oportunidad ya existe (la creó el formulario): ahora sí, el avance. Si
+  // el servidor la negó —p. ej. el 409 de «ya tiene una abierta»—, el
+  // formulario lo dijo y sigue abierto; aquí no se llega y el avance no se
+  // guarda. Cerrar el formulario sin crear = la etapa no cambia.
+  async function trasCrearOportunidad(id: string) {
+    setOportunidadCreada(id)
+    try {
+      onCambio(await guardarAvance())
+      setNota('')
+      ob.reiniciar()
+    } catch (e) {
+      setError(t('crm.contactado.error', { error: e instanceof Error ? e.message : String(e) }))
     }
   }
 
@@ -378,6 +459,13 @@ function Detalle({
       {error && (
         <p role="alert" className="rounded-md border border-border bg-error-soft px-3 py-2 text-[13px] text-error">
           {error}
+        </p>
+      )}
+
+      {oportunidadCreada && (
+        <p role="status" className="rounded-md border border-[#10b98140] bg-success-soft px-3 py-2 text-[13px] text-[#0f7a55]">
+          {t('crm.contactado.creada')}{' '}
+          <Link href={`/crm/oportunidades/${oportunidadCreada}`} className="font-medium underline">{t('crm.contactado.ver')}</Link>
         </p>
       )}
 
@@ -479,6 +567,16 @@ function Detalle({
         </section>
       )}
 
+      <CuadroContactado abierto={pregunta} nombre={p.nombre} etapa={etapa} ocupado={ocupado} onElegir={(e) => void elegir(e)} />
+      {convirtiendo && (
+        <FormOportunidad
+          abierto
+          prospecto={elegido}
+          onCerrar={() => setConvirtiendo(false)}
+          onGuardada={(f) => void trasCrearOportunidad(f.id)}
+        />
+      )}
+
       <section>
         <h3 className="mb-2 text-sm font-semibold">{t('clientes.captacion.bitacora')}</h3>
         <ol className="m-0 list-none space-y-3 border-l border-border py-0 pl-4 pr-0">
@@ -506,8 +604,13 @@ function Detalle({
 // ─── La pantalla ─────────────────────────────────────────────────────────────
 // ADR 0051 · `tipoFijo`: la pestaña «Prospectos» del CRM la usa con CLIENTE,
 // sin el selector de tipo (lo de espacios vive en Prospección, en Inventario).
-export function Captacion({ tipoFijo }: { tipoFijo?: TipoProspecto } = {}) {
+// `abrirId` (18/11): la tarjeta de un prospecto en Seguimiento enlaza aquí con
+// `?prospecto=<id>`, y el panel de ese prospecto se abre solo. Lo lee con
+// `GET /api/captacion/<id>`, así que uno ajeno contesta 404 como siempre.
+export function Captacion({ tipoFijo, abrirId = null }: { tipoFijo?: TipoProspecto; abrirId?: string | null } = {}) {
   const { t, idioma } = useIdioma()
+  // 18/11 · quien puede crear oportunidades ve el cuadro de «pasa a Contactado».
+  const puedeConvertir = usePuede('comercial', 'crear')
   const [vista, setVista] = useState<(typeof VISTAS)[number]['clave']>('curso')
   const [tipo, setTipo] = useState<TipoProspecto | ''>(tipoFijo ?? '')
   const [pagina, setPagina] = useState<PaginaProspectos | null>(null)
@@ -558,6 +661,12 @@ export function Captacion({ tipoFijo }: { tipoFijo?: TipoProspecto } = {}) {
       setError(e instanceof Error ? e.message : t('clientes.captacion.error.abrir'))
     }
   }
+
+  useEffect(() => {
+    if (abrirId) void abrir(abrirId)
+    // Solo cuando cambia el id pedido: `abrir` es estable en lo que importa.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [abrirId])
 
   async function guardar() {
     if (!form) return
@@ -726,6 +835,7 @@ export function Captacion({ tipoFijo }: { tipoFijo?: TipoProspecto } = {}) {
           <Detalle
             p={abierto}
             puedeAprobar={!!pagina?.puedeAprobar}
+            puedeConvertir={puedeConvertir}
             onCambio={(p) => { setAbierto(p); void cargar() }}
             onEditar={() => abrirForm({ valor: aForm(abierto), id: abierto.id })}
           />

@@ -14,7 +14,6 @@ import {
   Images,
   Users,
   FileText,
-  Target,
   Plug,
   Percent,
   CalendarRange,
@@ -27,12 +26,10 @@ import {
   Package,
   Handshake,
   Eye,
-  LineChart,
-  Type,
-  CalendarClock,
   Megaphone,
-  BadgeCheck,
   TriangleAlert,
+  Columns3,
+  SlidersHorizontal,
 } from 'lucide-react'
 import { ROLES_ASIGNABLES, rolLabel } from '@/lib/roles'
 import type { RolDemo } from '@/lib/data/types'
@@ -84,6 +81,14 @@ import type { RolDemo } from '@/lib/data/types'
 // rol de Operaciones ve dos entradas, no seis encabezados vacíos.
 export type GrupoNav = 'inicio' | 'patrimonio' | 'ojos' | 'vender' | 'entregar' | 'cobrar' | 'sistema'
 
+/**
+ * Etiqueta pequeña junto al rótulo de una entrada (19/11). Genérica a propósito:
+ * hoy solo existe «en proceso» (Vallas, pedido del dueño), y una próxima
+ * («nuevo», «beta») es un valor más aquí y su texto `nav.insignia.<valor>` en el
+ * diccionario, sin tocar `Sidebar.tsx`.
+ */
+export type InsigniaNav = 'en-proceso'
+
 export interface NavItem {
   key: string
   label: string
@@ -97,6 +102,28 @@ export interface NavItem {
    * esto, una ruta que dejó de tener entrada propia quedaría sin compuerta.
    */
   tambien?: string[]
+  /** Etiqueta junto al rótulo (ver `InsigniaNav`). Se quita cuando deja de ser cierta. */
+  insignia?: InsigniaNav
+  /**
+   * ESPEJO (19/11, «Vallas va igual en Comercial»): esta entrada es la MISMA
+   * pantalla que la de clave `espejoDe`, repetida en otro grupo. No se escribe
+   * a mano: sale de `espejo()`, que copia href, rótulo, icono, roles e
+   * insignia, así que la compuerta (`AuthGate`, que empareja por ruta) no
+   * puede encontrar dos roles distintos para la misma URL. El texto se busca
+   * por la clave de la original (`claveDeTexto`).
+   *
+   * 20/11: el único espejo (Vallas) se retiró —el dueño quiso Vallas solo en
+   * Comercial— y `espejo()` con él. El campo y `claveDeTexto` se quedan
+   * porque el Sidebar y las pruebas del diccionario ya lo respetan; si vuelve a
+   * pedirse la misma pantalla en dos grupos, se construye como
+   * `{ ...original, key, grupo, espejoDe: original.key }`.
+   */
+  espejoDe?: string
+}
+
+/** La clave con la que se traduce una entrada: la de su original si es espejo. */
+export function claveDeTexto(n: Pick<NavItem, 'key' | 'espejoDe'>): string {
+  return n.espejoDe ?? n.key
 }
 
 /** Todas las rutas de una entrada: la suya y las de `tambien`. */
@@ -137,6 +164,7 @@ export const GRUPOS: { key: GrupoNav; titulo: string | null }[] = [
 const MANDO: RolDemo[] = ['DUENO', 'ADMINISTRADOR']
 const VENTA: RolDemo[] = ['DIRECTOR_COMERCIAL', 'GERENTE_VENTAS', 'VENDEDOR']
 const JEFES_VENTA: RolDemo[] = ['DIRECTOR_COMERCIAL', 'GERENTE_VENTAS']
+
 
 export const NAV: NavItem[] = [
   { key: 'dashboard', label: 'Dashboard', href: '/inicio', icon: LayoutDashboard, roles: [...MANDO, ...VENTA], grupo: 'inicio' },
@@ -184,12 +212,21 @@ export const NAV: NavItem[] = [
   // se operaba en el dashboard propio de Space Eye vive aqui, con los mismos
   // roles. Todo habla con el Space Eye de ESTA instancia por /api/space-eyes/se.
   { key: 'space-eyes-galeria', label: 'Comprobantes', href: '/space-eyes/galeria', icon: Images, roles: [...MANDO, ...VENTA], grupo: 'ojos' },
-  { key: 'space-eyes-graficas', label: 'Gráficas', href: '/space-eyes/graficas', icon: LineChart, roles: [...MANDO, ...VENTA], grupo: 'ojos' },
-  { key: 'space-eyes-texto', label: 'Ajustar texto', href: '/space-eyes/texto', icon: Type, roles: [...MANDO], grupo: 'ojos' },
-  { key: 'space-eyes-programacion', label: 'Programación', href: '/space-eyes/programacion', icon: CalendarClock, roles: [...MANDO], grupo: 'ojos' },
   { key: 'space-eyes-campanas', label: 'Campañas', href: '/space-eyes/campanas', icon: Megaphone, roles: [...MANDO, ...VENTA], grupo: 'ojos' },
-  { key: 'space-eyes-verificacion', label: 'Verificación', href: '/space-eyes/verificacion', icon: BadgeCheck, roles: [...MANDO, ...VENTA], grupo: 'ojos' },
   { key: 'space-eyes-fallas', label: 'Fallas', href: '/space-eyes/fallas', icon: TriangleAlert, roles: [...MANDO, ...VENTA], grupo: 'ojos' },
+  // Ajustar texto, Programacion, Verificacion y Graficas eran cuatro entradas
+  // sueltas y ahora son pestanas de aqui, con el brillo de noche de la flota.
+  // El criterio es el mismo que ordena el resto del menu: las entradas nombran
+  // sitios a los que se ENTRA A MIRAR -los equipos, la galeria, las fallas-, y
+  // esto otro se configura una vez y no se vuelve a tocar en meses. Con nueve
+  // entradas pesando lo mismo, el menu ya no decia a que se entra.
+  //
+  // Las direcciones viejas siguen sirviendo: redirigen a su pestana (ver
+  // `space-eyes/texto/page.tsx` y hermanas). Hay enlaces a ellas en la ficha
+  // del equipo, y una direccion que deja de funcionar es una llamada.
+  // Venta entra, pero solo a Verificacion: la pantalla reparte sus pestanas
+  // por rol. Dejarla fuera del menu le quitaria una pantalla que si tenia.
+  { key: 'space-eyes-ajustes', label: 'Ajustes', href: '/space-eyes/ajustes', icon: SlidersHorizontal, roles: [...MANDO, ...VENTA], grupo: 'ojos' },
 
   // ─── Vender ──────────────────────────────────────────────────────────────
   // En el orden en que se hace: a quién le vendes, qué le enseñas, si está
@@ -197,10 +234,28 @@ export const NAV: NavItem[] = [
   { key: 'clientes', label: 'Clientes', href: '/clientes', icon: Users, roles: [...MANDO, ...VENTA], grupo: 'vender' },
   { key: 'comercial', label: 'Comercial', href: '/comercial', icon: Map, roles: [...MANDO, ...VENTA], grupo: 'vender' },
   { key: 'disponibilidad', label: 'Disponibilidad', href: '/disponibilidad', icon: CalendarRange, roles: [...MANDO, ...VENTA], grupo: 'vender' },
-  // ADR 0051 · Fase 4 (17/11): «CRM» toma el lugar de «Propuestas». Propuestas
-  // es una de sus pestañas y conserva su dirección (`tambien`), con los MISMOS
-  // roles: quien abría /propuestas la sigue abriendo, y nadie más.
-  { key: 'crm', label: 'CRM', href: '/crm', tambien: ['/propuestas'], icon: Target, roles: [...MANDO, ...VENTA], grupo: 'vender' },
+  // VALLAS (esqueleto, 19/11), SOLO en Comercial desde el 20/11. Nació en
+  // Inventario (una valla es un cuadro de un sitio) y el 19/11 se repitió en
+  // Comercial como espejo; al verlo en el navegador el dueño pidió «solo haya
+  // uno, es en Comercial»: las vallas son lo que se vende, y el equipo
+  // comercial las usa —«Verificar una marca» antes de proponer—. Va después de
+  // Disponibilidad: ver si está libre y luego si la marca choca.
+  // «En proceso» (dueño, 19/11): sale a todas las instancias como esqueleto y
+  // lo dice; la cabecera de /vallas repite el aviso. Se quita al terminarlo.
+  // Roles: mando Y venta. No abre escritura a nadie: los tres roles de venta
+  // tienen `inventario.ver` y no `inventario.crear` en la matriz
+  // (`20260929_roles_de_venta_matriz.sql`), así que leen y verifican, y la
+  // pantalla les esconde las altas (`usePuede('inventario','crear')`). Las
+  // categorías de competencia siguen siendo solo del Dueño
+  // (`puedeEditarCompetencia`). Los permisos del servidor siguen siendo los de
+  // `inventario`: moverla de grupo no los cambia.
+  { key: 'vallas', label: 'Vallas', href: '/vallas', icon: Columns3, roles: [...MANDO, ...VENTA], grupo: 'vender', insignia: 'en-proceso' },
+  // ADR 0051: el 17/11 «CRM» tomó el lugar de «Propuestas»; el 18/11 el dueño
+  // lo deshizo: «en el CRM no se debe de llamar CRM sino Propuestas». La
+  // entrada vuelve a ser la de siempre, y lo del CRM son pestañas dentro de
+  // ella. `/crm` (que redirige aquí) y la ficha `/crm/oportunidades/[id]`
+  // encienden ESTA entrada (`tambien`), con los MISMOS roles.
+  { key: 'propuestas', label: 'Propuestas', href: '/propuestas', tambien: ['/crm'], icon: FileText, roles: [...MANDO, ...VENTA], grupo: 'vender' },
   // CAP-01 · la bitacora de captacion: OCULTA del menu desde el 2026-09-30.
   // Pedido del dueno: «elimina captacion por ahora u ocultalo»; se solapaba con
   // Comercial OPEX, que es la forma que prefiere. Solo se quita la ENTRADA: las
@@ -280,7 +335,8 @@ export const NAV: NavItem[] = [
   //
   // Se MUEVE, nunca se duplica: `nav.test.ts` exige claves y rutas únicas, y
   // `AuthGate` empareja por `href`, así que dos entradas con la misma ruta se
-  // encenderían las dos a la vez.
+  // encenderían las dos a la vez. (Hay UNA forma admitida de repetir una ruta,
+  // el espejo: ver `NavItem.espejoDe`. Hoy no hay ninguno.)
   { key: 'creativos', label: 'Creativos', href: '/creativos', icon: Images, roles: [...MANDO, ...VENTA], grupo: 'entregar' },
   { key: 'imprenta', label: 'Imprenta', href: '/imprenta', icon: Printer, roles: [...MANDO, 'IMPRENTA'], grupo: 'entregar' },
   { key: 'operaciones', label: 'Operaciones', href: '/operaciones', icon: ClipboardList, roles: [...MANDO, 'OPERACIONES', 'FINANZAS'], grupo: 'entregar' },

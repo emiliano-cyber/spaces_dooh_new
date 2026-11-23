@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { repartirSpots, asignacionDePantalla } from './reparto-creativos'
+import { repartirSpots, asignacionDePantalla, sumarAlSpot } from './reparto-creativos'
 
 // ============================================================================
 //  El reparto de spots entre creativos.
@@ -92,5 +92,23 @@ describe('asignacionDePantalla', () => {
     // No es lo mismo que una fija: es una digital mal capturada. Asignarle algo
     // seria inventar repeticiones que no caben en ningun loop.
     expect(asignacionDePantalla(['a'], 0)).toEqual([])
+  })
+})
+
+describe('sumarAlSpot (envío del cliente, 19/11)', () => {
+  it('spot vacío: SOLO el nuevo, no los demás aprobados', () => {
+    expect(sumarAlSpot([], 'n', 6)).toEqual([{ creatividadId: 'n', veces: 6 }])
+  })
+  it('con rotación automática: se suma y rotan en partes iguales', () => {
+    expect(sumarAlSpot([{ creatividadId: 'a', veces: 6 }], 'n', 6)).toEqual([
+      { creatividadId: 'a', veces: 3 },
+      { creatividadId: 'n', veces: 3 },
+    ])
+  })
+  it('ajustado a mano: no se pisa', () => {
+    expect(sumarAlSpot([{ creatividadId: 'a', veces: 2 }, { creatividadId: 'b', veces: 4 }], 'n', 6)).toBeNull()
+  })
+  it('ya lo tiene: nada que hacer', () => {
+    expect(sumarAlSpot([{ creatividadId: 'n', veces: 6 }], 'n', 6)).toBeNull()
   })
 })

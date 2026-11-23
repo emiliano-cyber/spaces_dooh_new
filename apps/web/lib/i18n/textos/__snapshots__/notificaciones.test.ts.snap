@@ -2,6 +2,9 @@
 
 exports[`diccionario de NOTIFICACIONES · instantanea > el ESPANOL no cambia sin que se vea 1`] = `
 {
+  "notificaciones.campana.envio-cliente": "El cliente envió un creativo para revisión",
+  "notificaciones.campana.envio-cliente.detalle": "{campana} — archivo «{archivo}»",
+  "notificaciones.campana.envio-cliente.sitio": "{campana} — archivo «{archivo}» para {sitio}",
   "notificaciones.campana.generada": "Campaña generada desde propuesta",
   "notificaciones.campana.no-generada": "No se pudo generar la campaña",
   "notificaciones.campana.por-validar": "Campaña por validar",
@@ -34,6 +37,9 @@ exports[`diccionario de NOTIFICACIONES · instantanea > el ESPANOL no cambia sin
   "notificaciones.correo.resumen.vencido.otros": "{n} vencidos",
   "notificaciones.correo.resumen.vencido.uno": "{n} vencido",
   "notificaciones.factura.emitida": "Factura emitida",
+  "notificaciones.impresion.por-mandar": "Por mandar a impresión",
+  "notificaciones.impresion.por-mandar.detalle.otros": "{campana} — {n} sitios fijos con creativo aprobado, sin orden de impresión",
+  "notificaciones.impresion.por-mandar.detalle.uno": "{campana} — {n} sitio fijo con creativo aprobado, sin orden de impresión",
   "notificaciones.odc.registrada": "ODC registrada",
   "notificaciones.ot.vencida": "OT vencida",
   "notificaciones.ot.vencida.detalle": "{ot} no se cerró a tiempo",
@@ -56,6 +62,9 @@ exports[`diccionario de NOTIFICACIONES · instantanea > el ESPANOL no cambia sin
 
 exports[`diccionario de NOTIFICACIONES · instantanea > el INGLES tampoco 1`] = `
 {
+  "notificaciones.campana.envio-cliente": "The client sent a creative for review",
+  "notificaciones.campana.envio-cliente.detalle": "{campana} — file “{archivo}”",
+  "notificaciones.campana.envio-cliente.sitio": "{campana} — file “{archivo}” for {sitio}",
   "notificaciones.campana.generada": "Campaign generated from proposal",
   "notificaciones.campana.no-generada": "Could not generate the campaign",
   "notificaciones.campana.por-validar": "Campaign awaiting publication review",
@@ -88,6 +97,9 @@ exports[`diccionario de NOTIFICACIONES · instantanea > el INGLES tampoco 1`] = 
   "notificaciones.correo.resumen.vencido.otros": "{n} expired",
   "notificaciones.correo.resumen.vencido.uno": "{n} expired",
   "notificaciones.factura.emitida": "Invoice issued",
+  "notificaciones.impresion.por-mandar": "Ready to send to print",
+  "notificaciones.impresion.por-mandar.detalle.otros": "{campana} — {n} fixed sites with an approved creative and no print order",
+  "notificaciones.impresion.por-mandar.detalle.uno": "{campana} — {n} fixed site with an approved creative and no print order",
   "notificaciones.odc.registrada": "PO recorded",
   "notificaciones.ot.vencida": "Overdue work order",
   "notificaciones.ot.vencida.detalle": "{ot} was not closed on time",

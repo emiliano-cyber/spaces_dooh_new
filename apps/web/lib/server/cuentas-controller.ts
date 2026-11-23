@@ -5,6 +5,7 @@ import { validarPassword, passwordDeAlta } from './auth'
 import { googleHabilitado } from './google-oauth'
 import { esEmailValido } from '@/lib/validacion'
 import { crearTenant } from './tenant'
+import { sembrarCompetenciaPorOmision } from './vallas-repo'
 import { withTxBootstrap } from './db'
 import { crearUsuario, emailExiste } from './usuarios-repo'
 import type { Moneda } from '@/lib/i18n/dinero'
@@ -116,6 +117,11 @@ export async function crearOrgConDueno(args: {
       },
       client,
     )
+    // VALLAS (decisión del dueño, 19/11): la organización nace con las
+    // categorías de marcas que compiten. DENTRO de la transacción y DESPUÉS de
+    // `fijarTenant`: la tabla tiene RLS forzada, y si algo falla después no
+    // quedan categorías de una organización que no existe.
+    await sembrarCompetenciaPorOmision(client, tenant.id)
     return { tenant, usuario }
   })
   // ADR 0048 · DESPUES del commit: si la transaccion se deshace no hay

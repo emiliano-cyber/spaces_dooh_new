@@ -174,6 +174,74 @@ export function puedeEliminarUsuarios(rol: RolDemo | null | undefined): boolean 
  * exige un `as` para poder llamarse es una guarda que alguien acabará
  * rodeando. Cualquier texto que no sea 'DUENO' da false, que es el lado seguro.
  */
+/**
+ * Quien administra la instancia: el Dueno y el Administrador.
+ *
+ * Es la misma lista que `MANDO` en el menu, y existe aqui porque la pantalla
+ * de Ajustes de Space Eyes tiene que repartir sus pestanas por rol: venta
+ * entra a Verificacion -lo necesita para ensenar una pantalla a un cliente-
+ * pero no a la luz de noche ni a la programacion de fotos. Ofrecer una
+ * pestana que al guardar contesta 403 es el «encierro» que este repositorio ya
+ * documento dos veces.
+ */
+export function esMando(rol: string | null | undefined): boolean {
+  return rol === 'DUENO' || rol === 'ADMINISTRADOR'
+}
+
+/**
+ * Quien tiene Space Eyes en su menu: mando y venta, los mismos que Comercial.
+ *
+ * Es la lista de `nav.ts` para el grupo `ojos`, declarada aqui porque tambien
+ * la necesita el servidor —el sondeo de la campanita, para no ponerse a mirar
+ * la flota por alguien que no puede abrirla—. Dos copias de un reparto de
+ * roles es como un rol se queda fuera sin que nadie lo note.
+ */
+export function veSpaceEyes(rol: string | null | undefined): boolean {
+  return (
+    rol === 'DUENO' || rol === 'ADMINISTRADOR' ||
+    rol === 'DIRECTOR_COMERCIAL' || rol === 'GERENTE_VENTAS' || rol === 'VENDEDOR'
+  )
+}
+
 export function puedeEncuadrar(rol: string | null | undefined): boolean {
+  return rol === 'DUENO'
+}
+
+/**
+ * ¿Puede este rol APROBAR desde la ficha de campaña? Solo Dueño y
+ * Administrador — pedido del dueño el 2026-11-18, junto con «Actualizar
+ * campaña».
+ *
+ * Cubre las dos aprobaciones que viven en esa ficha: «¿Apruebas este
+ * creativo?» (al actualizar la campaña) y Aprobar / Rechazar la publicación.
+ *
+ * SOLO la ficha, a propósito y aclarado el mismo día: «los demás perfiles se
+ * deben de quedar igual». La pantalla Creativos sigue dejando aprobar a quien
+ * tiene `comercial.crear`, y por eso `PATCH /api/creatividades/:id` NO usa esta
+ * función. La aprobación de la publicación, en cambio, solo existe en la
+ * ficha, así que ahí la puerta de verdad es `POST /api/campanas/:id/validar`.
+ *
+ * Toma `string` por lo mismo que `puedeEncuadrar`: el rol de la sesión llega
+ * como texto, y cualquier otro valor da false, que es el lado seguro.
+ */
+export function puedeAprobarEnCampana(rol: string | null | undefined): boolean {
+  return rol === 'DUENO' || rol === 'ADMINISTRADOR'
+}
+
+/**
+ * ¿Puede este rol crear, editar o dar de baja las CATEGORÍAS DE COMPETENCIA de
+ * las vallas (las marcas que compiten: «Refrescos de cola»: Coca-Cola, Pepsi)?
+ * Solo el Dueño — decisión del dueño del 2026-11-19.
+ *
+ * El Administrador se queda fuera a propósito aunque tenga `inventario.crear`:
+ * el catálogo decide qué marcas se avisan como rivales en TODA la organización
+ * y el dueño quiere que sea suyo. Ver las categorías sigue siendo de quien ve
+ * Inventario. La puerta de verdad está en `app/api/vallas/competencia/`, que
+ * usa ESTA función; la pantalla solo esconde los botones.
+ *
+ * Toma `string` por lo mismo que `puedeEncuadrar`: cualquier otro valor da
+ * false, que es el lado seguro.
+ */
+export function puedeEditarCompetencia(rol: string | null | undefined): boolean {
   return rol === 'DUENO'
 }

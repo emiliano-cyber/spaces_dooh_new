@@ -286,6 +286,24 @@ const ajustesSchema = z.object({
   awb_rojo: z.number().min(0.1).max(8).nullable().optional(),
   awb_azul: z.number().min(0.1).max(8).nullable().optional(),
   ruido: z.enum(['auto', 'off', 'cdn_off', 'cdn_fast', 'cdn_hq']).optional(),
+  // --- Los dos del TELEFONO, que faltaban ---------------------------------
+  //
+  // `exposicion` y `balance` son los mandos de la APK. Los escribe el vivo con
+  // JSON_SET (ver `cameraControl`) y los lee la APK en cada foto, pero NO
+  // estaban declarados aqui, y zod borra en silencio lo que no declara.
+  //
+  // Dos consecuencias, las dos mudas. Al guardar el panel de imagen de un
+  // telefono, la exposicion y el balance que el vivo habia dejado puestos se
+  // iban: el 200 decia que si. Y el tramo de noche de un telefono guardaba su
+  // perfil `{ exposicion: -4 }` como `{}`, asi que las horas quedaban escritas,
+  // el perfil vacio, y la pantalla volvia a decir «sin tramo de noche» sin que
+  // nada explicara por que. Medido en local el 17-nov-2026 con la pantalla
+  // nueva de «Brillo por horas»: el equipo 14 quedo con `{}` y 19:00-07:00.
+  //
+  // El rango es el mismo que exige el control en vivo (-12..12, entero): un
+  // indice fuera de ahi no existe en ninguna camara.
+  exposicion: z.number().int().min(-12).max(12).optional(),
+  balance: z.enum(['auto', 'daylight', 'cloudy', 'incandescent', 'fluorescent']).optional(),
   // --- Exposicion y lineas de la pantalla ---------------------------------
   // 'brillo' NO sirve para una pantalla de LED: suma luz sobre la imagen ya
   // revelada y no puede devolver un canal recortado. Medido en la Raspberry el

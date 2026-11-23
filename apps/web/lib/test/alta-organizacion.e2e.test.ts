@@ -170,4 +170,36 @@ describe('F5.1 · el camino normal sigue igual', () => {
     ])
     expect(u.rows[0].n).toBe(1)
   })
+
+  // VALLAS (decisión del dueño, 19/11): toda organización nace con las
+  // categorías de marcas que compiten por omisión, sembradas DENTRO de la
+  // misma transacción del alta (`crearOrgConDueno`). Las que ya existían las
+  // recibe la migración `20261119_vallas_sembrar_competencia_por_omision.sql`.
+  it('la organización nueva nace con las categorías de competencia por omisión', async () => {
+    const c = await comoDuenoDeLaPlataforma()
+    const r = await c.pedir('/api/tenants/', {
+      cuerpo: {
+        nombre: 'Organizacion con vallas',
+        slug: SLUG_HUERFANO,
+        admin: { nombre: 'Duena', email: 'duena-vallas-f51@ejemplo.com', password: 'UnaClaveLarga123' },
+      },
+    })
+    expect(r.status).toBe(201)
+    const k = await poolTest().query(
+      `select nombre, marcas, activo from competencia_categorias
+        where tenant_id = $1 order by creado_en, nombre`,
+      [r.datos.tenant.id],
+    )
+    expect(k.rows.map((x) => x.nombre)).toContain('Refrescos de cola')
+    expect(k.rows).toHaveLength(12)
+    expect(k.rows.every((x) => x.activo)).toBe(true)
+    expect(k.rows.find((x) => x.nombre === 'Refrescos de cola')?.marcas).toEqual(['Coca-Cola', 'Pepsi'])
+
+    // Y la Dueña de esa organización las ve por la API.
+    const d = new Cliente()
+    expect((await d.pedir('/api/auth/login/', { cuerpo: { email: 'duena-vallas-f51@ejemplo.com', password: 'UnaClaveLarga123' } })).status).toBe(200)
+    const l = await d.pedir('/api/vallas/competencia/')
+    expect(l.status).toBe(200)
+    expect(l.datos).toHaveLength(12)
+  })
 })

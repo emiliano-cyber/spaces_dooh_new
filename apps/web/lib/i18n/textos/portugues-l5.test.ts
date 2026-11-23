@@ -86,7 +86,7 @@ export const COGNADOS_PT_L5 = new Set<string>([
   'nav.grupo.vender',                                // "Comercial"
   'nav.grupo.sistema',                               // "Sistema"
   'nav.dashboard',                                   // "Dashboard"
-  'nav.crm',                                         // "CRM", sigla (ADR 0051)
+  'nav.crm',                                         // "Oportunidades" (ADR 0051, area de Administracion)
   'nav.network',                                     // "Network"
   'nav.clientes',                                    // "Clientes"
   'nav.comercial',                                   // "Comercial"
@@ -186,6 +186,7 @@ const PLURALES_INVARIABLES = new Set<string>([
 
 // Mensajes del servidor que en portugues se escriben igual que en espanol o ingles.
 const COGNADOS_SERVIDOR = new Set<string>([
+  'Marca', // PROP-MARCA (20/11): el campo «Marca» es igual en portugués
   'CURP inválida',
   'RFC inválido',
   'RFC',
@@ -346,7 +347,7 @@ describe('portugues L5 · los catalogos del servidor', () => {
 
   it('los huecos con espanol dentro salen en portugues (y lo desconocido no sale a medias)', () => {
     expect(traducirError('No se puede editar un prospecto negociación', 'pt')).toBe(
-      'Não é possível editar este prospect: ele está em negociação',
+      'Não é possível editar este prospecto: ele está em negociação',
     )
     const cola =
       '. Un predio es un solo inmueble y su renta se reparte entre las pantallas que cuelgan de él, así que una que está lejos ' +

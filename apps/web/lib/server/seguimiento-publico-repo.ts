@@ -1,6 +1,7 @@
 import 'server-only'
 import { qRaw1, qConTenant } from './db'
 import type { DatosSeguimiento, EstatusCreativo, EstatusImprenta, TipoCampanaSeg } from '@/lib/seguimiento-campana'
+import { formatoParaCliente } from '@/lib/seguimiento-campana'
 
 // ============================================================================
 //  lib/server/seguimiento-publico-repo.ts — MODEL del seguimiento de campaña
@@ -39,6 +40,13 @@ const dia = (v: unknown): string => {
 export interface SeguimientoLeido {
   /** La propuesta existe (el token es válido). */
   propuestaId: string
+  /**
+   * SOLO para el servidor (ENVIO-CLIENTE, 18/11): el controller del envío
+   * escribe con este tenant y esta campaña. El controller del GET no los
+   * copia a la respuesta: arma la suya con `armarSeguimiento`.
+   */
+  tenantId: string
+  campana: { id: string; folio: string | null; nombre: string } | null
   /** `null` si la propuesta todavía no se convirtió en campaña. */
   datos: DatosSeguimiento | null
 }
@@ -71,9 +79,9 @@ export async function leerSeguimientoPorToken(token: string): Promise<Seguimient
       [p.id, tenantId],
     )
   )[0]
-  if (!c) return { propuestaId: p.id, datos: null }
+  if (!c) return { propuestaId: p.id, tenantId, campana: null, datos: null }
 
-  const [creas, ois, ots] = await Promise.all([
+  const [creas, ois, ots, pants, envs] = await Promise.all([
     qt<any>(
       `select nombre, formato, resolucion, estatus_validacion, creado_en
          from creatividades
@@ -106,11 +114,35 @@ export async function leerSeguimientoPorToken(token: string): Promise<Seguimient
           and tipo in ('MONTAJE_LONA', 'MONTAJE_DIGITAL')`,
       [c.id, tenantId],
     ),
+    // ENVIO-CLIENTE (18/11) · las pantallas de la campaña, para que el cliente
+    // elija a cuál va su arte. Solo nombre y MEDIDA: ni clave interna, ni
+    // tarifas, ni arrendador. Las reservas canceladas no son pantallas suyas.
+    qt<any>(
+      `select distinct on (s.id) s.id, s.nombre, s.tipo_medio, s.ancho, s.alto, s.resolucion_px
+         from reservas r
+         join sitios s on s.id = r.sitio_id and s.tenant_id = r.tenant_id
+        where r.campana_id = $1 and r.tenant_id = $2 and r.estatus <> 'CANCELADA'
+        order by s.id`,
+      [c.id, tenantId],
+    ),
+    // Lo que el cliente mandó y sigue en revisión o se rechazó (lo aprobado ya
+    // es un creativo y sale arriba). Sin el archivo, sin id, sin IP ni revisor.
+    qt<any>(
+      `select e.nombre_archivo, e.estatus, e.motivo_rechazo, e.creado_en, s.nombre as sitio_nombre
+         from envios_creativo_cliente e
+         left join sitios s on s.id = e.sitio_id and s.tenant_id = e.tenant_id
+        where e.campana_id = $1 and e.tenant_id = $2
+        order by e.creado_en desc
+        limit 20`,
+      [c.id, tenantId],
+    ),
   ])
 
   const publicada = !!c.enviada_dominio && c.validacion_estatus === 'APROBADA'
   return {
     propuestaId: p.id,
+    tenantId,
+    campana: { id: c.id, folio: c.folio ?? null, nombre: c.nombre },
     datos: {
       aceptadoEn: iso(p.aceptado_en),
       campana: {
@@ -126,7 +158,8 @@ export async function leerSeguimientoPorToken(token: string): Promise<Seguimient
       },
       creativos: creas.map((r) => ({
         nombre: r.nombre,
-        formato: r.formato ?? null,
+        // Sin el tipo MIME interno (`text/html` de la imagen envuelta): A2, 19/11.
+        formato: formatoParaCliente(r.formato),
         resolucion: r.resolucion ?? null,
         estatus: r.estatus_validacion as EstatusCreativo,
         creadoEn: iso(r.creado_en),
@@ -143,6 +176,23 @@ export async function leerSeguimientoPorToken(token: string): Promise<Seguimient
         actualizadoEn: iso(r.actualizado_en),
       })),
       montajes: ots.map((r) => ({ estatus: r.estatus, fechaCompletada: iso(r.fecha_completada) })),
+      pantallas: pants
+        .map((r) => ({
+          id: String(r.id),
+          nombre: r.nombre,
+          tipoMedio: r.tipo_medio ?? null,
+          ancho: r.ancho == null ? null : Number(r.ancho),
+          alto: r.alto == null ? null : Number(r.alto),
+          resolucionPx: r.resolucion_px ?? null,
+        }))
+        .sort((a, b) => String(a.nombre).localeCompare(String(b.nombre), 'es')),
+      envios: envs.map((r) => ({
+        nombre: r.nombre_archivo,
+        estatus: r.estatus,
+        motivo: r.motivo_rechazo ?? null,
+        creadoEn: iso(r.creado_en),
+        sitioNombre: r.sitio_nombre ?? null,
+      })),
     },
   }
 }

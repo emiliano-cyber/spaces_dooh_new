@@ -5,6 +5,7 @@ import { tenantActual } from './tenant'
 import { sanearCostosOt } from '../costos-ot'
 import { topeDescuentoValido, TOPE_DESCUENTO_RESPALDO } from '../descuento'
 import { vigenciaDiasValida } from '../propuesta-vigencia'
+import { sanearRequisitos } from '../requisitos-impresion'
 
 // ============================================================================
 //  lib/server/config-repo.ts — Configuración del negocio. UNA FILA POR TENANT
@@ -67,6 +68,10 @@ export function rowToConfig(r: any) {
     // que existiera el saneo (o lo que meta una corrección a mano en la base).
     // Objeto vacío = sin configurar → manda `COSTOS_OT_RESPALDO`.
     costosOt: sanearCostosOt(r.costos_ot),
+    // IMP-REQ (18/11) · requisitos de arte POR OMISIÓN de la empresa (las
+    // imprentas pueden pisarlos). Saneado al leer, como `costosOt`: sin la
+    // migración llega `undefined` y queda {} (mandan las constantes).
+    requisitosImpresion: sanearRequisitos(r.requisitos_impresion),
   }
 }
 

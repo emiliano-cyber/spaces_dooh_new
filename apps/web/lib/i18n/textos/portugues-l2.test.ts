@@ -45,6 +45,8 @@ const sinHuecos = (s: string) => s.replace(/\{\w+\}/g, '')
 // (cognados), anglicismos del sector que se quedan (D-P4), marcas, datos de
 // ejemplo y plantillas sin texto.
 export const COGNADOS_PT_L2 = new Set<string>([
+  'propuestas.alta.marca', // "Marca" (PROP-MARCA, 20/11)
+  'propuestas.ficha.meta.marca', // "Marca"
   'comercial.unidad.resultado', // "resultado"
   'comercial.unidad.resultados', // "resultados"
   'comercial.comun.editar', // "Editar"
@@ -106,7 +108,7 @@ export const COGNADOS_PT_L2 = new Set<string>([
   'comercial.eye.foto', // "foto"
   'comercial.negociacion.canal.whatsapp', // "WhatsApp"
   'comercial.negociacion.oferta.enviada', // "Enviada"
-  'comercial.negociacion.etapa.prospecto', // "Prospect" (= ingles)
+  'comercial.negociacion.etapa.prospecto', // "Prospecto" (= espanol; dueno 18/11)
   'comercial.negociacion.etapa.visita', // "Visita"
   'comercial.negociacion.etapa.perdido', // "Perdido"
   'comercial.negociacion.ficha', // "Ficha técnica"

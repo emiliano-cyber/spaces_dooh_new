@@ -110,6 +110,20 @@ export function diasPorEtapa(
   ) as Partial<Record<EtapaOportunidad, number>>
 }
 
+/**
+ * Cuántos días lleva (o llevó) abierta la oportunidad: del alta hasta que se
+ * ganó o se perdió, o hasta `ahora` si sigue abierta. Es la cifra de cada
+ * tarjeta de Seguimiento (18/11). Días completos, como `diasPorEtapa`.
+ */
+export function diasNegociando(
+  o: { creadoEn: string; ganadaEn: string | null; perdidaEn: string | null },
+  ahora: Date = new Date(),
+): number {
+  const cierre = o.ganadaEn ?? o.perdidaEn
+  const fin = cierre ? Date.parse(cierre) : ahora.getTime()
+  return Math.max(0, Math.floor((fin - Date.parse(o.creadoEn)) / DIA_MS))
+}
+
 export type PosicionPresupuesto = 'SIN_PRESUPUESTO' | 'DEBAJO' | 'DENTRO' | 'ENCIMA'
 
 /**

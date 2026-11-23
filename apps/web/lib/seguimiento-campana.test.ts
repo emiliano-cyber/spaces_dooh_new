@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { armarSeguimiento, avanceImprenta, type DatosSeguimiento } from './seguimiento-campana'
+import { armarSeguimiento, avanceImprenta, formatoParaCliente, type DatosSeguimiento } from './seguimiento-campana'
 
 // SEG-CLIENTE (17/11) · la línea de seguimiento que ve el cliente en su liga.
 
@@ -177,5 +177,80 @@ describe('puedeCambiarImprentaVisible', () => {
   it('creador borrado: decide un superior a vendedor', () => {
     expect(puedeCambiarImprentaVisible({ id: 'v', rol: 'VENDEDOR' }, prop(null, null))).toBe(false)
     expect(puedeCambiarImprentaVisible({ id: 'g', rol: 'GERENTE_VENTAS' }, prop(null, null))).toBe(true)
+  })
+})
+
+// ENVIO-CLIENTE (18/11) · ¿cuándo enseña la liga «Subir creativo»? Mientras la
+// campaña NO esté al aire: en el paso de material, y en el de instalación solo
+// si lleva pantallas (todavía no se publica). Nunca cancelada ni terminada.
+describe('puedeSubirCreativo', () => {
+  it('en el paso de material, sí (OOH y DOOH)', () => {
+    expect(armarSeguimiento(base(), '2026-11-10').puedeSubirCreativo).toBe(true)
+    expect(armarSeguimiento(base({ tipo: 'DOOH' }), '2026-11-10').puedeSubirCreativo).toBe(true)
+  })
+  it('DOOH con el creativo aprobado y sin publicar (instalación): sí', () => {
+    const s = armarSeguimiento(
+      base({ tipo: 'DOOH' }, { creativos: [{ nombre: 'a', formato: null, resolucion: null, estatus: 'VALIDADA', creadoEn: null }] }),
+      '2026-11-10',
+    )
+    expect(s.pasoActual).toBe('instalacion')
+    expect(s.puedeSubirCreativo).toBe(true)
+  })
+  it('DOOH publicada que espera su fecha: sí, hasta que salga al aire', () => {
+    const s = armarSeguimiento(base({ tipo: 'DOOH', publicada: true }), '2026-11-10')
+    expect(s.pasoActual).toBe('al_aire')
+    expect(s.puedeSubirCreativo).toBe(true)
+  })
+  it('OOH montada que espera su fecha: no, la lona ya está puesta', () => {
+    const s = armarSeguimiento(base({}, { imprenta: [oi('IMPRESO')], montajes: [{ estatus: 'COMPLETADA', fechaCompletada: null }] }), '2026-11-10')
+    expect(s.pasoActual).toBe('al_aire')
+    expect(s.puedeSubirCreativo).toBe(false)
+  })
+  it('OOH con las lonas impresas (instalación): ya no, la lona está hecha', () => {
+    const s = armarSeguimiento(base({}, { imprenta: [oi('IMPRESO')] }), '2026-11-10')
+    expect(s.pasoActual).toBe('instalacion')
+    expect(s.puedeSubirCreativo).toBe(false)
+  })
+  it('al aire, terminada o cancelada: no', () => {
+    const alAire = armarSeguimiento(base({ tipo: 'DOOH', publicada: true, fechaInicio: '2026-11-01' }), '2026-11-10')
+    expect(alAire.pasoActual).toBe('al_aire')
+    expect(alAire.puedeSubirCreativo).toBe(false)
+    expect(armarSeguimiento(base({ estado: 'CANCELADA' }), '2026-11-10').puedeSubirCreativo).toBe(false)
+    // Pasó la fecha de fin sin instalar: el paso actual sigue en material, pero
+    // una campaña vencida ya no recibe material.
+    expect(armarSeguimiento(base({ fechaFin: '2026-11-05' }), '2026-11-10').puedeSubirCreativo).toBe(false)
+    expect(armarSeguimiento(base({ estado: 'COMPLETADA' }), '2026-11-10').puedeSubirCreativo).toBe(false)
+  })
+  it('pasa las pantallas y los envíos tal cual, y vacíos si no vienen', () => {
+    const s0 = armarSeguimiento(base(), '2026-11-10')
+    expect(s0.pantallas).toEqual([])
+    expect(s0.envios).toEqual([])
+    const pant = [{ id: 's1', nombre: 'Reforma', tipoMedio: 'ESPECTACULAR', ancho: 12.9, alto: 7.2, resolucionPx: null }]
+    const env = [{ nombre: 'arte.png', estatus: 'RECHAZADO' as const, motivo: 'Falta el logo', creadoEn: '2026-11-09T10:00:00Z', sitioNombre: 'Reforma' }]
+    const s = armarSeguimiento(base({}, { pantallas: pant, envios: env }), '2026-11-10')
+    expect(s.pantallas).toEqual(pant)
+    expect(s.envios).toEqual(env)
+  })
+})
+
+// Hallazgo A2 (19/11): bajo el anuncio que mandó el cliente salía
+// «text/html · 1920x1080». La imagen se guarda envuelta en HTML (`imagenAHtml`)
+// para el reproductor, y ese tipo interno no le dice nada al cliente.
+describe('formatoParaCliente', () => {
+  it('el HTML interno (imagen envuelta) no se enseña: queda solo la medida', () => {
+    expect(formatoParaCliente('text/html')).toBeNull()
+    expect(formatoParaCliente('TEXT/HTML; charset=utf-8')).toBeNull()
+  })
+  it('un tipo MIME de imagen, vídeo o PDF se dice con su nombre corto', () => {
+    expect(formatoParaCliente('image/png')).toBe('PNG')
+    expect(formatoParaCliente('image/jpeg')).toBe('JPG')
+    expect(formatoParaCliente('video/mp4')).toBe('MP4')
+    expect(formatoParaCliente('application/pdf')).toBe('PDF')
+  })
+  it('lo que ya es un nombre legible se deja tal cual, y lo vacío es null', () => {
+    expect(formatoParaCliente('PDF/X-1a')).toBe('PDF/X-1a')
+    expect(formatoParaCliente('VIDEO')).toBe('VIDEO')
+    expect(formatoParaCliente(null)).toBeNull()
+    expect(formatoParaCliente('  ')).toBeNull()
   })
 })

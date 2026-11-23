@@ -68,9 +68,15 @@ vi.mock('react', async (importOriginal) => {
   return { ...real, default: { ...real, useState }, useState }
 })
 
+// 18/11 · la pestaña de Propuestas sale de `?vista=`. Sin ella se abre el
+// Resumen (3.er pedido del dueño); casi todas las pantallas de aquí son de la
+// lista, así que por omisión se pinta `?vista=propuestas` y la del Resumen lo
+// pide a propósito.
+const navegacion = vi.hoisted(() => ({ q: 'vista=propuestas' }))
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
   usePathname: () => '/propuestas',
+  useSearchParams: () => new URLSearchParams(navegacion.q),
   notFound: () => {
     throw new Error('notFound')
   },
@@ -121,7 +127,12 @@ vi.mock('@/components/demo/ui/CardColapsable', () => ({
 // MapLibre no existe en node, y el mapa no lleva texto del lote.
 vi.mock('@/components/demo/MapView', () => ({ MapView: () => createElement('div', null, '[mapa]') }))
 
-vi.mock('@/components/demo/shell/SesionContext', () => ({ usePuede: () => true }))
+// 20/11 noche · «Dibujar plano» solo se ofrece con `inventario.ver`: la
+// prueba puede negar permisos concretos («modulo.accion»).
+const permisos = vi.hoisted(() => ({ niega: [] as string[] }))
+vi.mock('@/components/demo/shell/SesionContext', () => ({
+  usePuede: (modulo: string, accion: string) => !permisos.niega.includes(`${modulo}.${accion}`),
+}))
 
 // ─── Datos de prueba ────────────────────────────────────────────────────────
 const SITIO_DIGITAL = {
@@ -219,8 +230,10 @@ vi.mock('@/lib/server/propuestas-repo', () => ({
 beforeEach(() => {
   process.env.IDIOMA_INGLES = '1'
   forzado.cola = []
+  navegacion.q = 'vista=propuestas'
   datos.propuestas = [PROPUESTA]
   datos.contratos = []
+  permisos.niega = []
   vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
 })
 
@@ -273,15 +286,6 @@ const PANTALLAS: Pantalla[] = [
     espanol: [
       'Cotizaciones con método del divisor (bruto / neto)',
       'Nueva propuesta',
-      'En pipeline',
-      '2 propuestas en borrador o enviadas · total c/IVA',
-      'Enviadas sin respuesta',
-      'esperan que el cliente apruebe o rechace',
-      'Ganado (histórico)',
-      '1 aprobada · perdido',
-      'en 1 rechazada',
-      'Tasa de cierre histórica',
-      'aprobadas sobre 2 cerradas, desde siempre',
       'Lista de propuestas',
       'Todos los clientes',
       'Folio o nombre…',
@@ -300,9 +304,34 @@ const PANTALLAS: Pantalla[] = [
       'Neto aprobado',
       'aprobado',
       'Rechazar',
-      'Resumen de propuestas',
     ],
     ingles: ['New proposal', 'Proposal list', 'All clients', 'Historical funnel', 'Negotiation code pending', 'Nov 1, 2026 – Nov 30, 2026'],
+  },
+  {
+    // 18/11 (3.er pedido) · «el resumen de propuestas hazlo su propia sección
+    // y que sea la primera en abrirse»: `/propuestas` a secas. Lleva las cuatro
+    // cifras históricas y el Resumen del periodo, que antes iban arriba y
+    // debajo de la lista.
+    nombre: 'resumen de propuestas (la pestaña que se abre al entrar)',
+    pintar: async (idioma) => {
+      const { default: Pagina } = await import('../../app/(app)/(shell)/propuestas/page')
+      navegacion.q = ''
+      return pintar(idioma, createElement(Pagina))
+    },
+    espanol: [
+      'Nueva propuesta',
+      'En pipeline',
+      '2 propuestas en borrador o enviadas · total c/IVA',
+      'Enviadas sin respuesta',
+      'esperan que el cliente apruebe o rechace',
+      'Ganado (histórico)',
+      '1 aprobada · perdido',
+      'en 1 rechazada',
+      'Tasa de cierre histórica',
+      'aprobadas sobre 2 cerradas, desde siempre',
+      'Resumen de propuestas',
+    ],
+    ingles: ['New proposal', 'Summary', 'Proposal summary'],
   },
   {
     nombre: 'nueva propuesta (el dialogo de alta)',
@@ -1141,8 +1170,11 @@ function legible(crudo: string): string {
 }
 
 const ITALIANO: Record<string, string[]> = {
+  // 18/11 · las cifras históricas se mudaron de la lista a la pestaña Resumen.
+  'resumen de propuestas (la pestaña que se abre al entrar)': [
+    '2 proposte in bozza o inviate · totale IVA incl.', '1 approvata · perso ', ' su 1 rifiutata', 'Riepilogo',
+  ],
   'lista de propuestas (con una fila desplegada)': [
-    '2 proposte in bozza o inviate · totale IVA incl.', '1 approvata · perso ', ' su 1 rifiutata',
     'Provvigione 15% · divisore 0,85', '× 0,85', 'Approvato · 1/2 siti', '−5%',
   ],
   'ficha de la propuesta': [
@@ -1423,8 +1455,11 @@ describe('B79 · la prima ilegible de la calculadora para el alta en italiano', 
 const DATOS_PT = ['Pago a 30 días.', 'Campaña Navidad', 'Refrescos del Norte', 'Agencia Uno', 'Pantalla Reforma', 'VERANO20']
 
 const PORTUGUES: Record<string, string[]> = {
+  // 18/11 · las cifras históricas se mudaron de la lista a la pestaña Resumen.
+  'resumen de propuestas (la pestaña que se abre al entrar)': [
+    '2 propostas em rascunho ou enviadas · total c/ IVA', '1 aprovada · perdido ', ' em 1 recusada', 'Resumo',
+  ],
   'lista de propuestas (con una fila desplegada)': [
-    '2 propostas em rascunho ou enviadas · total c/ IVA', '1 aprovada · perdido ', ' em 1 recusada',
     'Comissão 15% · divisor 0,85', '× 0,85', 'Aprovado · 1/2 pontos', '−5%', 'Código pendente',
   ],
   'ficha de la propuesta': [
@@ -1535,3 +1570,123 @@ function volcarPt(nombre: string, html: string) {
   mkdirSync(dir, { recursive: true })
   writeFileSync(path.join(dir, `${nombre.replace(/[^\w]+/g, '_')}_en_PORTUGUES.html`), html)
 }
+
+// ─── 18/11 (3.er pedido) · el Resumen es su propia sección, y la primera ────
+// Lo que se vigila es el REPARTO: el Resumen no arrastra la lista, la lista no
+// arrastra las cifras, y todo lo que antes llevaba a `/propuestas` esperando la
+// lista (volver de la ficha, duplicar, agregar sitios) sigue cayendo en ella.
+describe('18/11 · Resumen · Propuestas: cada pestaña con lo suyo', () => {
+  const pagina = async (q: string) => {
+    const { default: Pagina } = await import('../../app/(app)/(shell)/propuestas/page')
+    navegacion.q = q
+    return pintar('es', createElement(Pagina))
+  }
+
+  it('/propuestas a secas pinta el Resumen (cifras y tablero) y no la lista', async () => {
+    const html = await pagina('')
+    expect(html).toContain('Resumen de propuestas')
+    expect(html).toContain('En pipeline')
+    expect(html).not.toContain('Lista de propuestas')
+    expect(html).toMatch(/aria-current="page"[^>]*>Resumen</)
+  })
+
+  it('?vista=propuestas pinta la lista, sin las cifras ni el tablero', async () => {
+    const html = await pagina('vista=propuestas')
+    expect(html).toContain('Lista de propuestas')
+    expect(html).not.toContain('En pipeline')
+    expect(html).not.toContain('Resumen de propuestas')
+    expect(html).toMatch(/aria-current="page"[^>]*>Propuestas</)
+  })
+
+  it('un ?duplicar= de antes (sin vista) cae en la lista, no en el Resumen', async () => {
+    const html = await pagina('duplicar=p1')
+    expect(html).toMatch(/aria-current="page"[^>]*>Propuestas</)
+  })
+
+  it('el «Volver a propuestas» de la ficha lleva a la lista', async () => {
+    const { default: Ficha } = await import('../../app/(app)/(shell)/propuestas/[id]/page')
+    const html = pintar('es', createElement(Ficha, { params: { id: 'nada' } }))
+    expect(html).toContain('href="/propuestas?vista=propuestas"')
+  })
+})
+
+// ============================================================================
+//  Decisiones del dueño (20/11 noche):
+//   2. El aviso «la marca no coincide con el cliente» también al AGREGAR
+//      SITIOS (antes solo en alta, duplicar y ficha).
+//   3. En la ficha, el bloque de la Marca va ARRIBA, antes de la barra de
+//      datos, y junto a él «Dibujar plano» (las vallas de los sitios de la
+//      propuesta en sus fechas). La misma opción en «Nueva propuesta». Solo
+//      con `inventario.ver`, que es lo que piden `GET /api/vallas` y
+//      `GET /api/vallas/ocupacion`.
+// ============================================================================
+describe('marca arriba y «Dibujar plano» (20/11 noche)', () => {
+  const ficha = async (idioma: Idioma = 'es') => {
+    const { default: Ficha } = await import('../../app/(app)/(shell)/propuestas/[id]/page')
+    return texto(pintar(idioma, createElement(Ficha, { params: { id: 'p1' } })))
+  }
+
+  it('ficha: el bloque de la marca va antes de la barra de datos', async () => {
+    datos.propuestas = [{ ...PROPUESTA, marca: 'Pepsi' }]
+    const html = await ficha()
+    const marca = html.indexOf('data-testid="marca-y-plano"')
+    const editar = html.indexOf('data-testid="editar-marca"')
+    const barra = html.indexOf('data-testid="barra-datos-propuesta"')
+    expect(marca).toBeGreaterThan(-1)
+    expect(barra).toBeGreaterThan(-1)
+    expect(editar).toBeGreaterThan(marca)
+    expect(editar).toBeLessThan(barra)
+    // Y lo primero del contenido: nada de la ficha entre el encabezado y él.
+    expect(html.indexOf('Resumen económico')).toBeGreaterThan(marca)
+  })
+
+  it('ficha: «Dibujar plano» junto a la marca, plegado (no navega)', async () => {
+    const html = await ficha()
+    const bloque = html.slice(html.indexOf('data-testid="marca-y-plano"'), html.indexOf('data-testid="barra-datos-propuesta"'))
+    expect(bloque).toContain('Dibujar plano')
+    expect(bloque).toContain('aria-expanded="false"')
+    expect(bloque).not.toContain('href=')
+  })
+
+  it('ficha: el botón en los cuatro idiomas', async () => {
+    expect(await ficha('en')).toContain('Draw layout')
+    expect(await ficha('it')).toContain('Disegna la pianta')
+    expect(await ficha('pt')).toContain('Desenhar planta')
+  })
+
+  it('sin inventario.ver no se ofrece el botón (el servidor le daría 403)', async () => {
+    permisos.niega = ['inventario.ver']
+    const html = await ficha()
+    expect(html).not.toContain('Dibujar plano')
+    expect(html).toContain('data-testid="marca-y-plano"')
+  })
+
+  it('nueva propuesta: también ofrece «Dibujar plano»', async () => {
+    const { default: Pagina } = await import('../../app/(app)/(shell)/propuestas/page')
+    forzar(esFalse, true) // nuevoOpen
+    expect(texto(pintar('es', createElement(Pagina)))).toContain('Dibujar plano')
+  })
+
+  it('nueva propuesta sin inventario.ver: sin el botón', async () => {
+    permisos.niega = ['inventario.ver']
+    const { default: Pagina } = await import('../../app/(app)/(shell)/propuestas/page')
+    forzar(esFalse, true) // nuevoOpen
+    expect(texto(pintar('es', createElement(Pagina)))).not.toContain('Dibujar plano')
+  })
+
+  it('agregar sitios: avisa si la marca de la propuesta no coincide con su cliente', async () => {
+    const { default: Pagina } = await import('../../app/(app)/(shell)/propuestas/page')
+    forzar(esNull, { tipo: 'agregar', propuesta: { ...PROPUESTA, marca: 'Pepsi' } })
+    const html = texto(pintar('es', createElement(Pagina)))
+    expect(html).toContain('data-testid="aviso-marca-cliente"')
+    expect(html).toContain('La marca «Pepsi» no coincide con el cliente «Refrescos del Norte». Revisa que sea correcta.')
+  })
+
+  it('agregar sitios: sin marca, o coincidente, no avisa', async () => {
+    const { default: Pagina } = await import('../../app/(app)/(shell)/propuestas/page')
+    forzar(esNull, { tipo: 'agregar', propuesta: PROPUESTA })
+    expect(texto(pintar('es', createElement(Pagina)))).not.toContain('aviso-marca-cliente')
+    forzar(esNull, { tipo: 'agregar', propuesta: { ...PROPUESTA, marca: 'Refrescos del Norte' } })
+    expect(texto(pintar('es', createElement(Pagina)))).not.toContain('aviso-marca-cliente')
+  })
+})

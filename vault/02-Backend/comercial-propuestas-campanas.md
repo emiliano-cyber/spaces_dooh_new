@@ -1,9 +1,26 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-11-17
+actualizado: 2026-11-20
 tags: [backend, comercial, propuestas, campanas, amarillo, precio, extension, contrato]
 archivos:
+  - db/migrations/20261120_propuestas_marca.sql
+  - apps/web/lib/propuesta-marca.ts
+  - apps/web/lib/server/propuestas-competencia.ts
+  - apps/web/lib/server/propuestas-competencia-repo.ts
+  - apps/web/app/api/propuestas/competencia/route.ts
+  - apps/web/components/demo/propuestas/AvisoCompetencia.tsx
+  - apps/web/components/demo/propuestas/MarcaPropuesta.tsx
+  - apps/web/components/demo/propuestas/DibujarPlanoPropuesta.tsx
+  - apps/web/lib/test/propuesta-competencia.e2e.test.ts
+  - apps/web/lib/prospectos-nuevos.ts
+  - apps/web/components/demo/propuestas/ProspectosNuevos.tsx
+  - apps/web/components/demo/propuestas/TableroPropuestas.tsx
+  - apps/web/lib/server/propuestas-resumen-repo.ts
+  - apps/web/lib/fotos-sitio.ts
+  - apps/web/lib/server/fotos-sitio-publico-repo.ts
+  - apps/web/lib/server/fotos-sitio-publico-controller.ts
+  - apps/web/components/demo/propuestas/FotosYUbicacionSitio.tsx
   - apps/web/lib/seguimiento-campana.ts
   - apps/web/lib/server/seguimiento-publico-repo.ts
   - apps/web/lib/server/seguimiento-publico-controller.ts
@@ -69,6 +86,28 @@ archivos:
 > `usuario_id`, en la lista (`/api/estado`), en el resumen y en cada ruta por id
 > (404). Y cada cambio queda en `propuesta_cambios`, campo por campo, escrito por
 > un trigger. Detalle en [[crm-oportunidades]].
+
+> [!important] 18/11 · ADR 0051: lo del CRM son PESTAÑAS de Propuestas
+> Pedido del dueño: «no se debe de llamar CRM sino Propuestas» y que se parezca
+> a la Propuestas que ya existía. `/propuestas` enseña primero su lista de
+> siempre y arriba cuatro pestañas (Propuestas · Embudo · Oportunidades ·
+> Prospectos, en `?vista=`); el menú vuelve a decir «Propuestas» y `/crm` solo
+> redirige. Las pestañas nuevas usan los mismos KPIs, tarjetas plegables,
+> chips e insignias que la lista de propuestas. Detalle en [[crm-oportunidades]].
+>
+> **Y esa misma tarde, tres pestañas**: Propuestas · **Seguimiento** ·
+> Prospectos. «Oportunidades» se quitó (casi igual al embudo) y el embudo pasó
+> a llamarse Seguimiento, en columnas por etapa tipo Kanban con búsqueda y
+> filtro de vendedor; `?vista=embudo`, `?vista=oportunidades` y `/crm` llevan a
+> `?vista=seguimiento`.
+>
+> **Y por la noche, cuatro**: **Resumen** · Propuestas · Seguimiento ·
+> Prospectos. Pedido: «el resumen de propuestas hazlo su propia sección y que
+> sea la primera en abrirse». `/propuestas` a secas es el Resumen (las cuatro
+> `KPICard` históricas + `TableroPropuestas`); la lista vive en
+> `?vista=propuestas` (`rutaListaPropuestas()`), y a ella llevan «Volver» de
+> la ficha, borrar, «Duplicar» y «Agregar sitios». Detalle en
+> [[crm-oportunidades]].
 
 ## El recorrido
 
@@ -262,6 +301,47 @@ Un creativo puede ser **imagen** o **código HTML** (`creatividades.codigo`).
 
 El **reparto** a todas las pantallas está en `lib/reparto-creativos.ts` (puro,
 con tests) y se invoca desde `POST /api/campanas/[id]/creativos/repartir`.
+
+### «Actualizar campaña» (ACT-CAMP, 18/11)
+
+Pedido del dueño: cambiar los creativos de una campaña **ya publicada** costaba
+cuatro sitios —subir en la ficha, aprobar en Creativos, borrar uno por uno en
+Validación y «Volver a publicar»—. Ahora es una ventana desde la ficha
+(`components/demo/campanas/ActualizarCampana.tsx`): cada creativo de antes se
+marca **Conservar** o **Eliminar**, se suben nuevos (varias imágenes o código)
+con vista previa, cada uno con **«¿Apruebas este creativo?»**, y un botón hace
+todo y manda a DOOHmain.
+
+- **Sin endpoint nuevo, a propósito.** Cada paso reusa la ruta de siempre con sus
+  guardas: `POST /api/creatividades`, `DELETE /api/creatividades/[id]` (retira
+  de DOOHmain antes de borrar), `PATCH …` (aprueba y autoasigna la rotación) y
+  `POST /api/campanas/[id]/reintentar-publicacion`.
+- **El orden es lo que hace que funcione** (`lib/actualizar-campana.ts`, con
+  pruebas que lo fijan y una mutación que lo comprueba): **subir → eliminar →
+  aprobar → publicar**. Subir primero, para que un archivo que falla no deje nada
+  borrado. Eliminar **antes** de aprobar, porque la autoasignación llena con
+  todos los aprobados los spots que quedaron VACÍOS: así el nuevo entra en las
+  pantallas del que se fue. Al revés, un spot ajustado a mano se quedaría vacío
+  y la republicación lo rechazaría. Al primer fallo se para y se dice qué quedó
+  hecho.
+- **No deja la campaña sin ningún aprobado** (`revisarPlan`): las pantallas se
+  quedarían a oscuras, y se sabría solo después de borrar.
+- **Solo aparece con la publicación APROBADA** y en campañas digitales. Una que
+  aún no sale al aire sigue su camino (enviar al dominio → aprobar).
+
+> [!important] Aprobar en la ficha es solo de Dueño y Administrador (18/11)
+> `puedeAprobarEnCampana()` (`lib/roles.ts`). Cubre «¿Apruebas este
+> creativo?» de la ventana y **Aprobar / Rechazar la publicación**. La de la
+> publicación tiene puerta en el servidor: `POST /api/campanas/[id]/validar`
+> responde **403** a cualquier otro rol aunque tenga `comercial.crear`
+> (e2e `lib/test/aprobar-en-campana.e2e.test.ts`).
+>
+> **SOLO la ficha, aclarado por el dueño el mismo día:** «los demás perfiles se
+> deben de quedar igual». `PATCH /api/creatividades/[id]` **no** usa la regla y
+> la pantalla Creativos sigue dejando aprobar a quien tiene `comercial.crear`;
+> la misma e2e comprueba que un Vendedor sigue aprobando ahí, para que nadie
+> «complete» la regla por error. Un Vendedor puede usar «Actualizar campaña»:
+> lo que sube queda pendiente.
 
 ## Qué se vendió, no solo cuánto — `unidad`, `cantidad` y `spots_por_dia`
 
@@ -512,6 +592,36 @@ Las cuentas, puras, en `lib/propuestas-periodo.ts`; la ruta,
 al aprobar/rechazar —con un mutante contra build reconstruido—, renta del
 contrato, permisos, migración).
 
+### Prospectos nuevos en el Resumen (19/11)
+
+Pedido del dueño: que en **Propuestas → Resumen** se vean los prospectos
+nuevos. La misma ruta trae ahora `prospectosNuevos: { dias, total, lista }`
+(sin ruta nueva ni migración):
+
+- **Criterio** (`lib/prospectos-nuevos.ts`): prospectos de tipo **CLIENTE**
+  (los de la pestaña Prospectos) dados de alta en los **últimos 7 días**
+  (`DIAS_NUEVO`), más recientes primero, **6 como máximo** (`MAX_NUEVOS`) y el
+  total para «y N más». Fuera PERDIDO y RECHAZADO, como en Seguimiento. No
+  depende del periodo elegido en el tablero.
+- **Quién ve qué**: el MISMO `soloDe` del Resumen (`soloDePropuestas`,
+  `comercial.aprobar`). El SQL está en `filasProspectosNuevos`
+  (`propuestas-resumen-repo.ts`), con `q`, `tenant_id = $1` y el tenant
+  también en el `join` a `usuarios`; tope de 50 filas por peso.
+- **Cada tarjeta**: etiqueta «Nuevo», nombre, razón social, etapa, vendedor,
+  «hace N días» y el contacto (nombre, teléfono o correo) si existe. Abre
+  `/propuestas?vista=prospectos&prospecto=<id>`, el panel del prospecto.
+  **No hay campo «origen»** en `prospectos`: no se enseña.
+- **Siempre desplegado** (pedido del 19/11): el Resumen ya no tiene nada que
+  se pliegue. `TableroPropuestas` dejó `CardColapsable` (abría plegado y
+  recordaba `propuestas.resumen` en `localStorage`) por una `Card` fija; un
+  `propuestas.resumen` guardado de antes simplemente se ignora. Las demás
+  pantallas siguen con su plegado.
+
+Cobertura: `lib/prospectos-nuevos.test.ts` y
+`lib/test/prospectos-nuevos.e2e.test.ts` (el vendedor no recibe los del
+otro, ni viejos, perdidos, predios ni de otra organización; rojo demostrado
+pasando `null` como `soloDe` contra build reconstruido).
+
 ## CPS, CPM y el folio de venta (07/10)
 
 Pedido de ventas del 06/10: «cps y cpm» y «asociar el id con el no. de venta; si
@@ -668,6 +778,9 @@ ocupación del Dashboard no.
 - Comercial: la tarjeta «Reservas tentativas» pasó a «En propuesta» (una fila
   por propuesta abierta con algo por delante, con enlace a la propuesta). El
   indicador «Tentativas por confirmar» pasó a «En propuesta».
+  **20/11: la lista se quitó** a pedido del dueño (las propuestas se consultan
+  en Propuestas); queda solo el indicador con la cifra
+  (`app/(app)/(shell)/comercial/page.tsx`, prueba en `pantallas-comercial.test.ts`).
 - Ficha del sitio: el calendario pinta en ámbar los rangos de propuestas
   abiertas.
 - Dashboard: el pin ámbar es «en propuesta hoy», y un hueco avisa los folios que
@@ -888,7 +1001,238 @@ seleccionado y cómo va su avance».
   (`imprenta-visible-controller.ts` → `imprenta-visible-repo.ts`), con la
   regla `puedeCambiarImprentaVisible` y el interruptor
   `components/demo/propuestas/ImprentaVisibleCliente.tsx` en la ficha.
+  **18/11:** las dos rutas llaman a `siNoEsSuya` antes que nada (ADR 0051):
+  una propuesta de otro vendedor es 404 al leer y al cambiar. Al integrarse
+  con el CRM contestaban 200 y 403, que delataban que existía
+  (`seguimiento-campana.e2e.test.ts`, caso «otro VENDEDOR»).
+- **18/11:** la línea de pasos de la liga es horizontal (pedido del dueño);
+  la regla de los pasos no cambió. Detalle en la UI pública.
 - UI pública: [[03-Frontend/paginas-publicas]].
+
+## El cliente manda su creativo desde la liga (ENVIO-CLIENTE, 18/11)
+
+Pedido del dueño (18/11): «de la liga se pueda subir el creativo que veremos
+desde la pantalla de Campañas, y obvio no se puede aprobar más que por los
+perfiles seleccionados». Y el mismo día, al ver la primera propuesta: «el subir
+el creativo no debe de poderse guardar en la BD; solo mandar el archivo para que
+lo vean los usuarios permitidos, y ellos al aprobarlo se apruebe automáticamente
+y ahora sí se guarde y se suba el creativo a DOOHmain». Fuera de la base no
+había dónde (el contenedor de una instancia no tiene volumen de escritura), y el
+dueño eligió **«Tabla temporal en la BD»**: `envios_creativo_cliente`
+(R3 aprobado; ver [[04-Datos/migraciones]]).
+
+- **Cuándo ofrece la liga «Subir creativo»** (`puedeSubirCreativo` en
+  `lib/seguimiento-campana.ts`, con prueba): mientras la campaña **no esté al
+  aire** — siempre en el paso de material; si lleva pantallas (DOOH/híbrida),
+  también en instalación y mientras espera su fecha. Una lona ya impresa o
+  montada, no. Nunca cancelada, terminada ni vencida. El servidor la vuelve a
+  calcular al recibir (409 si no).
+- **La ruta pública** `POST /api/propuestas/publica/[id]/creativos` →
+  `envio-cliente-publico-controller.ts` → `seguimiento-publico-repo.ts` (token →
+  `propuesta_tenant_por_token` → `qConTenant`) + `envio-cliente-publico-repo.ts`.
+  Escribe **solo** el envío PENDIENTE, el aviso (`notificaciones`, tipo
+  `CAMPANA`, y correo a quien lo encendió) y la bitácora («Cliente (liga
+  pública)»), en una sentencia. Valida tipo (400), tamaño (413, 4 MB como la
+  imagen envuelta del creativo normal), la pantalla de ESA campaña (400) y, con
+  `validarAltaCreatividad`, **la misma `crearSchema` del alta normal** (422).
+  Límite 10 cada 10 min por IP y 10 al día por campaña (429). Responde
+  `{ ok, nombre, estatus }`, nada interno. El nombre del archivo se sanea
+  (`sanearNombreArchivo`) y nunca es ruta: el archivo vive en la base.
+- **Proporción — SE RECHAZA** (decisión del dueño, 18/11, a la duda 1): si la
+  proporción de la imagen no coincide con la del sitio elegido, fuera de la
+  tolerancia de la valoración del arte (`TOLERANCIA_AJUSTE`, 3 %; el
+  `ajusteEnMarco` de Imprenta), no se acepta. `revisarProporcionEnvio` en
+  `lib/envio-creativo-cliente.ts`, con prueba.
+  - **En la liga**, antes de mandar: aviso con la medida que pide, p. ej.
+    «Tu imagen es 1920×1080 px (16:9); este sitio pide 1024 × 768 px (4:3).
+    Mándala en 1920×1440 px o similar», y el botón deshabilitado.
+  - **En el servidor**, otra vez: la medida se lee de la CABECERA del archivo
+    (`dimensionesDeImagen`: PNG, JPEG y los tres WebP, sin dependencias), no de
+    lo que diga el navegador → 422 «La proporción de la imagen no coincide con
+    la del sitio elegido» (o «No pudimos leer la medida…»). La liga lo traduce
+    con `traducirError`. La medida guardada (`ancho_px`/`alto_px`) también
+    sale de la cabecera.
+  - **Un sitio sin medida** (sin resolución ni metros) no rechaza por
+    proporción: no hay contra qué comparar.
+  - La tolerancia es la constante `TOLERANCIA_AJUSTE`, la misma de Imprenta:
+    los requisitos por imprenta (IMP-REQ) configuran DPI, margen y formatos,
+    no la proporción, que es la del sitio.
+- **En la ficha de campaña** (`EnviosClienteCampana.tsx`, debajo de
+  Creativos): solo **Dueño y Administrador** (`puedeAprobarEnCampana`, la regla
+  de ACT-CAMP sin cambiarla), con vista previa y **Aprobar / Rechazar**. Rutas
+  `GET /api/campanas/[id]/envios-cliente` y `GET·POST
+  …/envios-cliente/[envioId]` → `envios-cliente-controller.ts` →
+  `envios-cliente-repo.ts` (`q` + `and tenant_id` + `and campana_id`). Las
+  tres dan 403 a otro rol.
+- **Aprobar, en un paso**: se TOMA el envío (se borra: un segundo clic da 404),
+  `crearCreatividadCtrl` (el alta normal) y `validarCreatividadEnSitio(id,
+  sitioId)` (`creativos-repo.ts`). **Va SOLO a la pantalla que eligió el
+  cliente** (decisión del dueño, 19/11): hasta ese día se aprobaba con
+  `validarCreatividad(id, true)`, cuya autoasignación lo metía en TODAS las
+  pantallas digitales vacías de la campaña. En el spot elegido entra con
+  `sumarAlSpot` (`lib/reparto-creativos.ts`, con prueba): vacío → solo él (no
+  todos los aprobados, que pueden ser de otra pantalla); con rotación
+  automática → se suma y rotan; ajustado a mano → no se pisa. Las demás
+  pantallas se llenan como siempre (reparto de Creativos), y hasta entonces el
+  guard de M14 no deja publicar. `validarCreatividad` no cambió para los demás
+  flujos; un envío sin pantalla (anterior) sigue usándola. La bitácora dice «Se
+  asignó solo a la pantalla que eligió el cliente». Si falla, se borra el creativo a
+  medias y se devuelve el envío. Después, si la campaña es digital y su
+  publicación ya está aprobada, publica por el camino de «Volver a publicar»
+  (`reintentarPublicacionCtrl` + `publicarCampanaEnDoohmain`); si aún no, entra
+  cuando se apruebe la publicación; una OOH queda aprobada para Imprenta. Si
+  DOOHmain falla, el creativo ya quedó aprobado y la ficha lo dice
+  (`campanas.envios.aprobado.fallo`).
+- **Rechazar**: la fila queda `RECHAZADO` con el motivo y **sin el archivo**;
+  la liga dice «No aprobado · Por qué: …».
+- **Lo que no hace**: no toca `creatividades`, DOOHmain ni imprenta hasta
+  aprobar; la liga no tiene ninguna acción de aprobar (prueba en
+  `pantallas-cuenta-shell.test.ts`).
+- Pruebas: `lib/envio-creativo-cliente.test.ts`, `lib/seguimiento-campana.test.ts`
+  y `lib/test/envios-creativo-cliente.e2e.test.ts` (16, con R2 por el rol de la
+  app directo).
+- UI pública: [[03-Frontend/paginas-publicas]].
+
+## «Ver fotos y ubicación» de cada sitio (FOTOS-UBIC, 18/11)
+
+Pedido del dueño: «añadir el cuadro de ver fotos de la pantalla y lugar» en la
+propuesta, por sitio, en la ficha interna y en la liga del cliente.
+
+- **Un componente para las dos caras**:
+  `components/demo/propuestas/FotosYUbicacionSitio.tsx`. Botón secundario «Ver
+  fotos y ubicación» por renglón → `Modal` con la galería (foto grande +
+  miniaturas) y la ubicación (dirección, zona, coordenadas que abren Google
+  Maps y un `MapView` chico). Recibe la URL de la galería, que responde
+  `{ fotos: string[] }`; la ubicación ya la trae quien lo pinta.
+- **Las fotos se piden AL ABRIR**, no al pintar la tabla: son data URLs en
+  `sitios.fotos` (`text[]`) de cientos de kB cada una. No hay fotos «del
+  lugar» aparte: es UNA galería y se enseña entera. `lib/fotos-sitio.ts`
+  (`fotosMostrables`) deja pasar solo `data:image/*` y `https://`, sin
+  repetir y con tope de 12 — la liga es pública y lo que va a un `src` tiene
+  que ser una imagen.
+- **Interna** (`/propuestas/[id]`): galería por `GET /api/sitios/:id/media`
+  (permiso `network.ver`, sin cambios). El renglón enseña además dirección,
+  zona y coordenadas, como la liga del cliente (antes solo la alcaldía).
+- **Cliente** (`/p/[token]`): ruta pública nueva
+  `GET /api/propuestas/publica/[id]/sitios/[sitioId]` →
+  `fotos-sitio-publico-controller.ts` (forma del token y UUID antes de la
+  base; respuesta en LISTA BLANCA: nombre, tipo de medio, dirección, alcaldía,
+  ciudad, estado, lat/lng y fotos) → `fotos-sitio-publico-repo.ts`
+  (`propuesta_tenant_por_token` + `qConTenant`; join
+  `propuestas → propuesta_items → sitios` con `tenant_id` en cada tabla: el
+  sitio tiene que ser RENGLÓN de esa propuesta). Mismo 404 para token falso y
+  sitio ajeno. Límite 60/min por IP. **R2.** El payload de la liga gana
+  `items[].sitioId` (el id ya viajaba en `paquete.sitios`).
+- Pruebas: `lib/fotos-sitio.test.ts`,
+  `lib/server/fotos-sitio-publico-controller.test.ts` y
+  `lib/test/fotos-sitio-publico.e2e.test.ts` (sitio de la misma organización
+  fuera de la propuesta → 404; tokens cruzados entre organizaciones → 404;
+  token inventado o mal formado → 404; sin arrendador, renta, tarifa ni clave
+  en el texto crudo; `/api/sitios/:id/media` sigue exigiendo sesión).
+
+## La marca y la competencia de marcas en la propuesta (PROP-MARCA, 20/11)
+
+Pedido del dueño: «la validación de la competencia también debe estar al crear la
+propuesta, con las lógicas que ya están dentro». La regla es la de
+[[vallas]] (Regla 1, competencia de marcas) y **solo avisa, nunca bloquea**.
+
+- **Campo «Marca»** en la propuesta (`propuestas.marca`, migración
+  `20261120_propuestas_marca.sql`), opcional. Forma en `lib/propuesta-marca.ts`:
+  recortada, máx. 120, vacía → `null`. **Vacía cuenta el nombre del cliente**, con
+  la misma expresión que las campañas (`coalesce(nullif(btrim(marca),''), cl.nombre)`).
+  Se acepta al crear (`crearSchema`), al editar (`PATCH /api/propuestas/[id]`
+  `{ marca }`; ausente no la toca, `''` la quita) y al duplicar (la pantalla la
+  precarga). Viaja en la propuesta como `marca`; la liga pública no la lleva.
+- **Al generar la campaña** `generarCampanaDesdePropuesta` escribe
+  `campanas.marca = nullif(btrim(propuestas.marca),'')`. Es la única columna que
+  toca: nada del cálculo (R4).
+- **Dónde se avisa**: `POST /api/propuestas` (201) y `POST /api/propuestas/[id]/items`
+  (201) devuelven `avisosCompetencia`, calculados DESPUÉS de guardar; el PATCH los
+  devuelve si vino `marca`. `POST /api/propuestas/competencia` es la vista previa de
+  la pantalla, sin guardar nada. Todos van por `lib/server/propuestas-competencia.ts`
+  → `verificarCompetencia` (`vallas-controller.ts`) → `contextoParaVerificar` +
+  `evaluarReglas`. **Nunca lanza**: si algo falla, cero avisos.
+- **Pantalla**: el campo «Marca» (placeholder «Si se deja vacío se usa el cliente») y
+  el recuadro ámbar `RecuadroCompetencia` (`components/demo/propuestas/AvisoCompetencia.tsx`)
+  en el alta —también al agregar sitios y al duplicar— y en la ficha, que además
+  enseña la marca (o «{cliente} (del cliente)») en la barra de metadatos.
+- **Permisos (decisión de esta tarea)**: la vista previa pide `comercial.crear`, no
+  `inventario.ver`, para que el aviso le salga a quien vende. A cambio, el aviso solo
+  lleva marca, marca rival, categoría, sitio y fechas: **ni el id ni el nombre de la
+  campaña rival ni su cliente** (el vendedor solo ve lo suyo, ADR 0051).
+- Solo los sitios con vallas pueden chocar: una pantalla digital sin vallas no avisa.
+- Pruebas: `lib/server/propuestas-competencia.test.ts`, `lib/server/propuestas-marca.test.ts`
+  y `lib/test/propuesta-competencia.e2e.test.ts`.
+
+### Ajustes del dueño (20/11, tarde)
+
+- **La marca se edita desde la ficha** (`BloqueMarcaPropuesta`,
+  `components/demo/propuestas/MarcaPropuesta.tsx`; desde el 20/11 noche, arriba del todo).
+  Mismas reglas que las condiciones de esa ficha: quien tiene `comercial.crear` y **no
+  en una APROBADA** (el servidor la rechaza con 409: es inmutable). Manda solo
+  `{ marca }` (`cambioDeMarca`: recortada; vaciarla manda `null` y vuelve a contar el
+  cliente; sin cambio real no manda nada). `actualizarPropuestaApi` devuelve ahora
+  `{ avisosCompetencia }` y la ficha los pinta **en el mismo recuadro ámbar** al
+  instante; después lo mantiene al día la vista previa (`useAvisosCompetencia`).
+- **Aviso «la marca no coincide con el cliente»** (`AvisoMarcaCliente`): informativo,
+  tono neutro (no el ámbar de competencia), no bloquea. Sale en el alta mientras se
+  escribe, al duplicar y en la ficha (también en solo lectura). La regla es pura,
+  `marcaNoCoincideConCliente` en `lib/propuesta-marca.ts`: las dos se normalizan con
+  `normalizarMarca` de la competencia (`lib/vallas/reglas/competencia-marcas.ts`: sin
+  acentos, minúsculas, **sin signos ni espacios**) y **coinciden si una contiene a la
+  otra**. «Coca-Cola» / «Coca Cola FEMSA» coinciden; «Grupo Bimbo S.A.B.» / «Bimbo»
+  también; «Pepsi» / «Publicis México», no → aviso «La marca «Pepsi» no coincide con el
+  cliente «Publicis México». Revisa que sea correcta.». **Sin marca, sin cliente, o una
+  marca que normalizada queda vacía («***»): no hay aviso.** (Desde el 20/11 noche la
+  contención exige 4 caracteres y el aviso sale también al agregar sitios: abajo.)
+- **La vista previa valida que las fechas existan**: `POST /api/propuestas/competencia`
+  con `2026-13-40` o `2026-02-30` responde **400**. Antes pasaba el patrón, Postgres lo
+  rechazaba y, como la vista previa nunca lanza, contestaba **200 «sin avisos»** —que
+  parece «no hay competencia»—. Usa `fechaReal`, la misma de `GET /api/vallas/ocupacion`
+  (exportada de `vallas-controller.ts`, no copiada).
+- Italiano: la etiqueta es **«Marchio»** en Propuestas, Vallas y Almacén, como ya la
+  decían los errores del servidor (`CAMPO_IT`). Hasta hoy era «Marca» porque la costura
+  del italiano exige el mismo texto en las tres; `lib/i18n/textos/costura.test.ts` exige
+  ahora además que ese texto sea «Marchio». es/en/pt no cambian.
+- Pruebas: `lib/propuesta-marca.test.ts`, `components/demo/propuestas/MarcaPropuesta.test.ts`
+  y los 400 por fecha imposible en `lib/test/propuesta-competencia.e2e.test.ts`.
+
+### Ajustes del dueño (20/11, noche)
+
+- **Marca vs cliente: «que avise de más, no de menos».** Con la contención a secas una
+  marca corta («GM», «A») cabía en casi cualquier cliente y el aviso no salía nunca.
+  Ahora (`marcaCoincideConCliente`, `MARCA_MIN_CONTENIDA = 4`): coinciden si son
+  **iguales** normalizadas, o si una contiene a la otra **y la más corta tiene al menos 4
+  caracteres** normalizada. «GM» / «General Motors» → avisa; «GM» / «GM» → no;
+  «GM» / «GM Financial» → avisa; «Coca-Cola» / «Coca Cola FEMSA» → no; «Bimbo» /
+  «Grupo Bimbo» → no; «Pepsi» / «Publicis México» → avisa. Si avisa de más, el Dueño o el
+  Administrador lo corrigen. Los permisos de edición no cambian.
+- **El aviso de marca distinta sale también al AGREGAR SITIOS** (con la marca y el
+  cliente de la propuesta, que ahí no se editan; se corrige en la ficha).
+- **En la ficha, la Marca va ARRIBA**: lo primero del contenido, antes de la barra de
+  datos (`data-testid="marca-y-plano"`): el bloque de la marca, el recuadro ámbar de
+  competencia y **«Dibujar plano»**.
+- **«Dibujar plano»** (`components/demo/propuestas/DibujarPlanoPropuesta.tsx`): despliega
+  en la misma pantalla, sin navegar, el plano de las vallas **de los sitios de la
+  propuesta en sus fechas**. Reutiliza `PlanoVallas` (`components/vallas/PlanoVallas.tsx`)
+  con `sitioIds` y `fechas` fijas, y `armarPlano` con `sitioIds` — no hay un segundo
+  plano. Pide las vallas (`GET /api/vallas`) la primera vez que se abre. Si ninguno de los
+  sitios tiene vallas: «Ninguno de los sitios de esta propuesta tiene vallas dadas de
+  alta.». La misma opción en **Nueva propuesta / agregar sitios**, con los sitios y las
+  fechas elegidos en ese momento (al agregar, también los que ya tiene); sin sitios lo
+  dice, y sin fechas dibuja sin marcar lo ocupado y lo dice.
+- **Permisos del botón**: `GET /api/vallas` y `GET /api/vallas/ocupacion` piden
+  `inventario.ver`. Todos los roles de venta sembrados lo tienen, pero los permisos se
+  editan por organización: **sin `inventario.ver` el botón no se ofrece** (sería un 403;
+  y quien no ve las vallas en Inventario tampoco las necesita aquí). Mismo criterio que
+  el bloque de paquetes de la ficha.
+- Textos `propuestas.plano.*` y `vallas.plano.periodo` / `vallas.plano.sin-fechas` en
+  es/en/it/pt (en «Draw layout», it «Disegna la pianta», pt «Desenhar planta»).
+- Pruebas: `lib/propuesta-marca.test.ts` (marcas cortas), `lib/vallas/plano.test.ts`
+  (filtro por sitios), `components/vallas/plano.test.ts` (fechas fijas, texto vacío) y
+  el bloque «marca arriba y «Dibujar plano»» de `lib/i18n/pantallas-propuestas.test.ts`
+  (orden en la ficha, botón, sin `inventario.ver`, alta y aviso al agregar). Sin
+  cambios de servidor ni migraciones.
 
 ## Portal del cliente
 

@@ -1,7 +1,7 @@
 ---
 tipo: tablero
 estado: en-curso
-actualizado: 2026-11-05
+actualizado: 2026-11-18
 tags: [frontend, i18n, portugues, olas, agentes, dinero]
 archivos:
   - apps/web/lib/i18n/idiomas.ts
@@ -39,6 +39,8 @@ archivos:
   - apps/web/lib/captura-cifra.ts
   - apps/web/lib/captura-cifra.portugues.test.ts
   - apps/web/components/demo/ui/EntradaCifra.tsx
+  - apps/web/components/demo/campanas/ProgramacionDoohmain.tsx
+  - apps/web/app/(app)/(shell)/imprenta/page.tsx
 ---
 
 # La versión en portugués (Brasil), ola por ola
@@ -387,7 +389,8 @@ apóstrofo casi no aparece. Cifras, dinero y fechas los pone `FORMATO_IDIOMA.pt`
 
 spot · loop · DOOH · CPM · CPS · «loops/h» · Roadblock · slot · Dashboard ·
 Network · DOOHmain · Space Eyes · CRM · e-mail (con guion, como se escribe en
-Brasil) · link · prospect · login no (se dice **entrar**).
+Brasil) · link · login no (se dice **entrar**). ~~prospect~~: desde el
+18/11 es **prospecto** (decisión del dueño, §2 sexies).
 
 ### Las palabras de todos
 
@@ -420,7 +423,7 @@ Brasil) · link · prospect · login no (se dice **entrar**).
 | predio | **imóvel** | |
 | Captación (menú y título) | **Captação** | decisión del dueño (05/11, costura): la página lleva también clientes; donde una frase hable solo de pontos puede decir «captação de pontos» |
 | Comercial negociación | **Negociação de locações** | |
-| prospecto | **prospect** (pl. prospects) | uso del sector |
+| prospecto | **prospecto** (pl. prospectos) | **decisión del dueño, 18/11**: «Prospects» se leía en inglés. Hasta esa fecha era *prospect* «por uso del sector» |
 | cobranza · factura · abono | **cobrança · fatura · pagamento parcial** | un abono no es un adelanto |
 | recordatorio de cobro · estado de cuenta | **lembrete de cobrança · extrato** | |
 | razón social · RFC · régimen fiscal · CP fiscal · uso de CFDI | **razão social · RFC · regime tributário · CEP fiscal · uso do CFDI** | «razão social» es el término brasileño exacto; RFC y CFDI son mexicanos y no se traducen |
@@ -643,6 +646,40 @@ aprobada por el dueño el 05/11. Sale de `integra/portugues` (`a97c171d`).
   servidor, API, base ni sesión: los formularios mandan las mismas cifras, y
   eso lo miden `cifras-formularios.test.ts` y `cifras-d18.test.ts` contra la
   API simulada.
+
+## 2 sexies · Recorrido en el navegador del 18/11 (rama `i18n/pt-18-11`)
+
+Queja del dueño (18/11): «no todo está traducido: hay pedazos en español y
+está en portugués»; en su captura, los grupos del menú «INVENTARIO», «SPACE
+EYES», «COMERCIAL» y la pestaña «Prospects» en inglés. Recorrido con
+`pt@hoy.test` sobre `spaces_hoy` (servidor propio en el 3433, build de
+`integra/18-11` `ff89ff28`): todo el menú, las cuatro pestañas de Propuestas,
+la ficha de oportunidad, una propuesta y «Ver fotos e localização», dos fichas
+de campaña, Imprenta, Inventario (Fixos/Digitais, zona), Configurações y la
+liga pública `/p/<token>`. Más un barrido estático del diccionario (portugués
+igual al inglés y distinto del español).
+
+| Pantalla | Lo que salía | Arreglo |
+|---|---|---|
+| Propuestas (pestaña), Prospectos, Seguimiento, ficha de oportunidad, Prospecção, errores del servidor | **«Prospects» / «prospect»** en inglés (18 claves de `clientes`, `crm`, `comercial` y 7 mensajes de `errores-servidor.ts`) | **«Prospectos» / «prospecto»** (decisión del dueño). Sale igual que el español, y se declara como cognado en las pruebas |
+| Ficha de campaña › «O que é enviado ao DOOHmain» | «Cliente: … · **Directo** · lista …» (el tipo que VIAJA a DOOHmain en español, `clienteDoohmain`) | Se pinta con `campanas.ficha.directo/agencia` («Direto», «Agência»); lo que se manda no cambia |
+| Imprenta › cada orden | «**12.9 × 7.2 m**» con punto, al lado del «12,9 × 7,2 m» de la arte | `formatNumero(…, idioma)`; arregla también el italiano |
+
+**Lo que NO es un fallo:** los grupos del menú ya salían en portugués en el
+código actual —**Inventário** (con acento), **Space Eyes** (nombre de
+producto), **Comercial** (la misma palabra en portugués)—; si la captura dice
+«INVENTARIO» sin acento, venía de un servidor con una versión anterior. Los
+datos de ejemplo («Caso · …», «Lonas del Bajío») son datos.
+
+**Lo que sigue en español a propósito:** el **Registro de atividades**
+(`acciones.accion`, bitácora guardada en español, §8 de [[idiomas-es-en]]) y
+la liga pública `/p/<token>` con su seguimiento, que va en el idioma de la
+**instancia** (ADR 0049, P3; esta instancia es `es`), no en el de quien mira.
+
+Pruebas: `pantallas-crm` (las pestañas en pt dicen «Prospectos»),
+`pantallas-campanas-finanzas` (el tipo de cliente de DOOHmain, rojo sin el
+arreglo) y `pantallas-operaciones` (la medida con coma en pt e it, rojo sin el
+arreglo).
 
 ## 3 · P3: la base sabe portugués, y los papeles también (05/11)
 

@@ -7,6 +7,8 @@
 //  unitarias no ven la RLS: simulan la base (CLAUDE.md §3, R2).
 // ============================================================================
 
+import { sqlTokenLogoServible } from './logo-sql'
+
 /** $1 usuario · $2 tenant */
 export const SQL_TELEFONO_PROPIO =
   'select telefono_whatsapp from usuarios where id = $1 and tenant_id = $2'
@@ -57,6 +59,6 @@ export const SQL_DESTINATARIOS = `
 
 /** $1 tenant */
 export const SQL_IDENTIDAD_ORG = `
-  select t.nombre, c.email_remitente, c.logo_token
+  select t.nombre, c.email_remitente, ${sqlTokenLogoServible('c')}
     from tenants t left join config_negocio c on c.tenant_id = t.id
    where t.id = $1`
