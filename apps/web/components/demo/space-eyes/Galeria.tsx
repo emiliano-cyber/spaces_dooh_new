@@ -174,7 +174,7 @@ export function Galeria() {
       setError(mensaje(e, t('spaceeyes.galeria.error'), idioma))
     }
     setCargando(false)
-  }, [filtros, pagina, t, idioma])
+  }, [filtros, pagina, porPagina, t, idioma])
 
   useEffect(() => {
     if (listo) void cargar()
