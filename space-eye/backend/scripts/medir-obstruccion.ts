@@ -25,6 +25,7 @@ import { pool } from '../src/config/database';
 import { enderezarDeEquipo } from '../src/controllers/creativos.controller';
 import { bloquesDe, parecidoPorBloques } from '../src/utils/enderezar';
 import { leerStored } from '../src/services/photoStorage.service';
+import { PARECIDO_OBSTRUIDO } from '../src/utils/obstruccion';
 
 const DID = Number(process.argv[2] || 0);
 
@@ -85,7 +86,7 @@ async function main() {
       }
       (Number(c.vistas) <= 1 ? unaVez : varias).push(mejor);
       console.log(`   visto ${String(c.vistas).padStart(4)} vez(ces)   se parece ${(mejor * 100).toFixed(0).padStart(3)}% al mas parecido`
-        + (mejor >= 0.45 ? '   <- lo marcaria como ALGO DELANTE' : ''));
+        + (mejor >= PARECIDO_OBSTRUIDO ? '   <- lo marcaria como ALGO DELANTE' : ''));
     }
   }
 
@@ -93,7 +94,7 @@ async function main() {
     if (!xs.length) return `${nombre}: ninguno`;
     const ord = [...xs].sort((a, b) => a - b);
     const mediana = ord[Math.floor(ord.length / 2)];
-    const sobre = xs.filter((x) => x >= 0.45).length;
+    const sobre = xs.filter((x) => x >= PARECIDO_OBSTRUIDO).length;
     return `${nombre}: ${xs.length}  ·  mediana ${(mediana * 100).toFixed(0)}%  ·  ${sobre} por encima del umbral`;
   };
   console.log('\n' + resumen('Vistos UNA sola vez (candidatos a camion)', unaVez));

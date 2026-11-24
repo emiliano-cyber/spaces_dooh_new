@@ -97,6 +97,11 @@ const schema = z.object({
   // vinculacion (o el testigo de alta de los instaladores de antes). 'no' lo
   // apaga, solo para emergencias: vuelve a dejar entrar a cualquiera.
   VINCULACION_OBLIGATORIA: z.enum(['si', 'no']).default('si'),
+  // El portero de «algo delante de la pantalla» (utils/obstruccion.ts). 'no'
+  // -por omision- solo anota el parecido y el creativo entra al catalogo; 'si'
+  // descarta la foto. Se apago el 24/11: medido en g500, la mitad de los
+  // anuncios de verdad caian en la banda. No encenderlo sin volver a medir.
+  OBSTRUCCION_DESCARTA: z.enum(['si', 'no']).default('no'),
   INSTANCIA_LLAVE: z.string().default(''),
   INSTANCIA_TESTIGO: z.string().default(''),
   ADMIN_EMAIL: z.string().default(''),

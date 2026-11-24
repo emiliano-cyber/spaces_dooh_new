@@ -126,7 +126,22 @@ aditivas y el código viejo las ignora.
 1.1 GB el 2-nov). Su `mysqldump` es solo de la base, y se queda en el mismo
 droplet. Para un respaldo de verdad hay que sacarlo fuera.
 
-## 7 · Lo que NO hay que dar por bueno todavía
+## 7 · El portero de obstrucción: MEDIDO el 24/11, y apagado
+
+> [!danger] El 0.45 no separa
+> Corrido `medir-obstruccion.ts` en g500 (contenedor desechable de
+> `node:22-slim`, fotos montadas `:ro`): de 64 anuncios de verdad, **32 caían
+> en la banda 0.45-0.95** y no habrían entrado al catálogo. Iban del 16 % al
+> 89 %; ningún umbral los separa. De camiones había **4** muestras.
+>
+> Desde la **0.16.26** el portero **solo anota** (`device_logs`, «Posible
+> obstrucción (solo se anota)…») y el creativo sigue al catálogo.
+> `OBSTRUCCION_DESCARTA=si` en `eyes.env` devuelve la regla de antes: **no
+> encenderlo sin volver a medir** con esas anotaciones.
+
+Lo de abajo es el texto original, que explicaba por qué había que medirlo:
+
+### Lo que no había que dar por bueno
 
 **El portero de obstrucción («algo tapando la pantalla») tiene el umbral sin
 medir.** El 0.45 sale de la geometría del caso —un vehículo tapa entre un cuarto
