@@ -21,6 +21,11 @@ archivos:
   - apps/web/lib/server/fotos-sitio-publico-repo.ts
   - apps/web/lib/server/fotos-sitio-publico-controller.ts
   - apps/web/components/demo/propuestas/FotosYUbicacionSitio.tsx
+  - apps/web/components/demo/propuestas/FotosPantallasPropuesta.tsx
+  - apps/web/app/api/propuestas/[id]/fotos/route.ts
+  - apps/web/lib/server/propuestas-fotos-controller.ts
+  - apps/web/lib/server/propuestas-fotos-repo.ts
+  - apps/web/lib/test/propuesta-fotos.e2e.test.ts
   - apps/web/lib/seguimiento-campana.ts
   - apps/web/lib/server/seguimiento-publico-repo.ts
   - apps/web/lib/server/seguimiento-publico-controller.ts
@@ -1092,6 +1097,43 @@ dueño eligió **«Tabla temporal en la BD»**: `envios_creativo_cliente`
   y `lib/test/envios-creativo-cliente.e2e.test.ts` (16, con R2 por el rol de la
   app directo).
 - UI pública: [[03-Frontend/paginas-publicas]].
+
+## «Mapa de las pantallas» y «Fotos de las pantallas» en la ficha (20/11)
+
+Pedido del dueño: «en Propuestas añadiremos 2 cuadros más: el mapa de
+pantallas elegidas y fotos de cada pantalla, si es que están». Los dos van en
+la ficha interna (`/propuestas/[id]`) **justo debajo de «Sitios y renta»** y
+antes de «Condiciones y vigencia», como `CardColapsable` abiertas por omisión.
+
+- **Mapa de las pantallas** (`id="propuesta.mapa"`): es la tarjeta que ya
+  existía al FINAL de la ficha como «Ubicación de las pantallas»; sube y
+  cambia de título (clave `propuestas.ficha.mapa-pantallas`; la liga del
+  cliente sigue con `propuestas.ficha.mapa`). Mismo `MapView` y los mismos
+  datos (`useSitios`, el (0,0) no cuenta). Nuevo: debajo, **«Sin ubicación:
+  A, B»** con los nombres de los sitios sin punto útil (antes solo decía
+  cuántos). Sale de `p.items`, así que se rehace al agregar o quitar sitios.
+- **Fotos de las pantallas** (`id="propuesta.fotos"`):
+  `components/demo/propuestas/FotosPantallasPropuesta.tsx`. Por sitio, sus
+  miniaturas; «Sin fotos» si no tiene; si NINGUNO tiene, una sola frase
+  («Ninguna pantalla de esta propuesta tiene fotos.»). Pulsar una miniatura
+  abre el **mismo visor** que «Ver fotos y ubicación»: `GaleriaFotos` se
+  extrajo de `FotosYUbicacionSitio.tsx` y lo usan los dos.
+- **Una consulta por propuesta**: `GET /api/propuestas/[id]/fotos` →
+  `propuestas-fotos-controller.ts` (LISTA BLANCA `{ sitioId, nombre, fotos }`
+  y `fotosMostrables`, el filtro de la liga) → `propuestas-fotos-repo.ts`
+  (`q`, no `qRaw`; `propuesta_items` agrupado por sitio en el orden en que
+  entró, join a `sitios` con `tenant_id` en las dos tablas). Se pide al montar
+  y al cambiar la lista de sitios; la ruta contesta `no-store` para que ese
+  segundo pedido no vea la respuesta anterior en caché. Plegar la tarjeta la
+  desmonta y ahorra la descarga.
+- **Permiso `comercial.ver`, no `network.ver`**: es el mismo con el que se ve
+  la propuesta, y las fotos ya las ve el CLIENTE en la liga pública que
+  cualquiera con `comercial.ver` abre desde esta ficha. Pedir `network.ver`
+  no protegería nada y dejaría un cuadro en 403 para quien sí ve la propuesta
+  (los permisos son editables por rol). El vendedor solo ve las de sus
+  propuestas (`siNoEsSuya`, ADR 0051): ajena → 404. **R2**, cubierto por
+  `lib/test/propuesta-fotos.e2e.test.ts` (otra organización 404, rol sin
+  `comercial.ver` 403, vendedor ajeno 404, id que no es uuid 404).
 
 ## «Ver fotos y ubicación» de cada sitio (FOTOS-UBIC, 18/11)
 

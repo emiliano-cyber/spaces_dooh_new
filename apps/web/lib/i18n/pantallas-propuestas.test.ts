@@ -469,8 +469,10 @@ const PANTALLAS: Pantalla[] = [
       'un usuario dado de baja',
       'Quitar de la propuesta',
       'Condiciones y vigencia',
-      'Ubicación de las pantallas',
+      'Mapa de las pantallas',
       '1 de 2 pantallas no tienen coordenadas y no aparecen en el mapa.',
+      'Sin ubicación: Muro Insurgentes',
+      'Fotos de las pantallas',
       'Borrador',
       'Enviada',
     ],
@@ -1688,5 +1690,115 @@ describe('marca arriba y «Dibujar plano» (20/11 noche)', () => {
     expect(texto(pintar('es', createElement(Pagina)))).not.toContain('aviso-marca-cliente')
     forzar(esNull, { tipo: 'agregar', propuesta: { ...PROPUESTA, marca: 'Refrescos del Norte' } })
     expect(texto(pintar('es', createElement(Pagina)))).not.toContain('aviso-marca-cliente')
+  })
+})
+
+// ============================================================================
+//  Pedido del dueño (20/11): «en Propuestas añadiremos 2 cuadros más: el mapa
+//  de pantallas elegidas y fotos de cada pantalla, si es que están».
+//
+//   · «Mapa de las pantallas»: un pin por sitio con coordenadas; los que no
+//     tienen, listados debajo («Sin ubicación: …»).
+//   · «Fotos de las pantallas»: por sitio, sus miniaturas; «Sin fotos» si no
+//     tiene; «Ninguna pantalla de esta propuesta tiene fotos» si ninguna.
+//   · Los dos, justo DEBAJO de «Sitios y renta» y antes de las condiciones.
+// ============================================================================
+describe('mapa y fotos de las pantallas en la ficha (20/11)', () => {
+  const ficha = async (idioma: Idioma = 'es') => {
+    const { default: Ficha } = await import('../../app/(app)/(shell)/propuestas/[id]/page')
+    return texto(pintar(idioma, createElement(Ficha, { params: { id: 'p1' } })))
+  }
+  const cuadro = async (idioma: Idioma, estado: unknown) => {
+    const { CuadroFotosPantallas } = await import('@/components/demo/propuestas/FotosPantallasPropuesta')
+    return texto(pintar(idioma, createElement(CuadroFotosPantallas, { estado: estado as never })))
+  }
+  const FOTO_A = 'data:image/png;base64,AAAA'
+  const FOTO_B = 'data:image/jpeg;base64,BBBB'
+
+  it('los dos cuadros van debajo de «Sitios y renta» y antes de las condiciones', async () => {
+    const html = await ficha()
+    const sitios = html.indexOf('<h3>Sitios y renta</h3>')
+    const mapa = html.indexOf('<h3>Mapa de las pantallas</h3>')
+    const fotos = html.indexOf('<h3>Fotos de las pantallas</h3>')
+    const condiciones = html.indexOf('<h3>Condiciones y vigencia</h3>')
+    expect(sitios).toBeGreaterThan(-1)
+    expect(mapa).toBeGreaterThan(sitios)
+    expect(fotos).toBeGreaterThan(mapa)
+    expect(condiciones).toBeGreaterThan(fotos)
+  })
+
+  it('mapa: el sitio sin coordenadas se lista debajo, por su nombre', async () => {
+    const html = await ficha()
+    const mapa = html.slice(html.indexOf('<h3>Mapa de las pantallas</h3>'), html.indexOf('<h3>Fotos de las pantallas</h3>'))
+    expect(mapa).toContain('[mapa]')
+    expect(mapa).toContain('Sin ubicación: Muro Insurgentes')
+    // El que sí tiene coordenadas no está en la lista de «sin ubicación».
+    expect(mapa).not.toContain('Sin ubicación: Pantalla Reforma')
+  })
+
+  it('mapa: si todos tienen coordenadas, no hay lista de «sin ubicación»', async () => {
+    datos.propuestas = [{ ...PROPUESTA, items: [PROPUESTA.items[0]] }]
+    expect(await ficha()).not.toContain('Sin ubicación:')
+  })
+
+  it('fotos: mientras llegan, «Cargando fotos…» (se piden UNA vez por propuesta)', async () => {
+    const html = await ficha()
+    const fotos = html.slice(html.indexOf('<h3>Fotos de las pantallas</h3>'), html.indexOf('<h3>Condiciones y vigencia</h3>'))
+    expect(fotos).toContain('Cargando fotos…')
+  })
+
+  it('fotos: un sitio con fotos enseña sus miniaturas; el que no, «Sin fotos»', async () => {
+    const html = await cuadro('es', [
+      { sitioId: 's1', nombre: 'Pantalla Reforma', fotos: [FOTO_A, FOTO_B] },
+      { sitioId: 's2', nombre: 'Muro Insurgentes', fotos: [] },
+    ])
+    expect(html).toContain('Pantalla Reforma')
+    expect(html).toContain(`src="${FOTO_A}"`)
+    expect(html).toContain(`src="${FOTO_B}"`)
+    expect(html).toContain('aria-label="Abrir la foto 2 de Pantalla Reforma"')
+    expect(html).toContain('Muro Insurgentes')
+    expect(html).toContain('Sin fotos')
+    expect(html).not.toContain('Ninguna pantalla de esta propuesta tiene fotos')
+  })
+
+  it('fotos: si ninguna pantalla tiene, una sola frase y nada más', async () => {
+    const html = await cuadro('es', [
+      { sitioId: 's1', nombre: 'Pantalla Reforma', fotos: [] },
+      { sitioId: 's2', nombre: 'Muro Insurgentes', fotos: [] },
+    ])
+    expect(html).toContain('Ninguna pantalla de esta propuesta tiene fotos.')
+    expect(html).not.toContain('Sin fotos')
+    expect(html).not.toContain('Muro Insurgentes')
+  })
+
+  it('fotos: al pulsar una miniatura se abre el visor en grande en esa foto', async () => {
+    forzar(esNull, { sitio: 0, foto: 1 })
+    const html = await cuadro('es', [{ sitioId: 's1', nombre: 'Pantalla Reforma', fotos: [FOTO_A, FOTO_B] }])
+    expect(html).toContain('<h2>Pantalla Reforma</h2>')
+    expect(html).toContain('Foto 2 de 2')
+  })
+
+  it('fotos: si la consulta falla, lo dice sin romper la ficha', async () => {
+    expect(await cuadro('es', 'error')).toContain('No se pudieron cargar las fotos.')
+  })
+
+  it('los textos nuevos en los cuatro idiomas', async () => {
+    const vacio = [{ sitioId: 's1', nombre: 'X', fotos: [] }]
+    const uno = [{ sitioId: 's1', nombre: 'X', fotos: [FOTO_A] }, { sitioId: 's2', nombre: 'Y', fotos: [] }]
+    expect(await ficha('en')).toContain('Screen map')
+    expect(await ficha('en')).toContain('No location: Muro Insurgentes')
+    expect(await ficha('en')).toContain('Screen photos')
+    expect(await cuadro('en', vacio)).toContain('None of the screens in this proposal have photos.')
+    expect(await cuadro('en', uno)).toContain('No photos')
+    expect(await ficha('it')).toContain('Mappa degli impianti')
+    expect(await ficha('it')).toContain('Senza posizione: Muro Insurgentes')
+    expect(await ficha('it')).toContain('Foto degli impianti')
+    expect(await cuadro('it', vacio)).toContain('Nessun impianto di questa proposta ha foto.')
+    expect(await cuadro('it', uno)).toContain('Nessuna foto')
+    expect(await ficha('pt')).toContain('Mapa dos pontos')
+    expect(await ficha('pt')).toContain('Sem localização: Muro Insurgentes')
+    expect(await ficha('pt')).toContain('Fotos dos pontos')
+    expect(await cuadro('pt', vacio)).toContain('Nenhum ponto desta proposta tem fotos.')
+    expect(await cuadro('pt', uno)).toContain('Sem fotos')
   })
 })
