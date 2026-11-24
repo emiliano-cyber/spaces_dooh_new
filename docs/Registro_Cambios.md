@@ -5,6 +5,17 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-24 · Vallas: lo del inventario sale solo, y el plano se edita
+
+- **Inventario → Vallas** ahora es una pestaña como **Fijos** y **Digitales**: la lista de los sitios de tipo Valla, con su cuenta. Antes abría la pantalla de Vallas entera.
+- **Todo sitio de tipo Valla aparece solo en Comercial → Vallas**, con un cuadro por cara y las medidas del sitio. Antes había que dar de alta cada cuadro a mano, y mientras nadie lo hiciera la pantalla salía vacía aunque el inventario tuviera vallas.
+- Si el sitio no tiene medidas capturadas, el cuadro sale de 1 × 1 m con la nota «Medida por capturar», para corregirla.
+- **En el plano de Vallas**, al tocar un cuadro se edita ahí mismo (medidas, cara, esquina), y con las flechas ← → se mueve de lugar en su fila. Un grupo nunca queda partido. Solo quien puede dar de alta vallas ve los botones.
+- Ojo: si se borran **todos** los cuadros de un sitio de tipo Valla, vuelven a salir. Para quitar un sitio del módulo, se le cambia el tipo.
+- Nada cambia en la base de datos (sin migraciones) ni en los importes.
+
+---
+
 ## 2026-11-24 · Space Eyes: el filtro de «algo delante de la pantalla» ya no tira anuncios
 
 - Desde la versión anterior, Space Eyes intentaba distinguir un **camión delante de la pantalla** de un **anuncio nuevo**, y si creía que era un camión, la foto **no entraba** al catálogo.

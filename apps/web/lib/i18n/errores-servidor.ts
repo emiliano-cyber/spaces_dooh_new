@@ -735,6 +735,12 @@ export const CATALOGO_ERRORES: Record<string, string> = {
     'That site is not in your organization',
   'Alguna de esas vallas no es de tu organización':
     'One of those billboards is not in your organization',
+  'Solo se puede acomodar una fila: un sitio y una cara':
+    'Only one row can be arranged: one site and one face',
+  'Falta acomodar alguna valla de esa fila; recarga e intenta de nuevo':
+    'A billboard in that row is missing; reload and try again',
+  'Un grupo de vallas no se puede partir':
+    'A billboard group cannot be split',
   'Categoría de competencia no encontrada':
     'Competitor category not found',
   'Ya existe una categoría de competencia con ese nombre':
@@ -1413,6 +1419,12 @@ export const CATALOGO_ERRORES_IT: Partial<Record<string, string>> = {
     'Questo impianto non è della tua organizzazione',
   'Alguna de esas vallas no es de tu organización':
     'Uno di quei cartelloni non è della tua organizzazione',
+  'Solo se puede acomodar una fila: un sitio y una cara':
+    'Si può sistemare una sola fila: un sito e una faccia',
+  'Falta acomodar alguna valla de esa fila; recarga e intenta de nuevo':
+    'Manca un cartellone di quella fila; ricarica e riprova',
+  'Un grupo de vallas no se puede partir':
+    'Un gruppo di cartelloni non si può dividere',
   'Categoría de competencia no encontrada':
     'Categoria di concorrenza non trovata',
   'Ya existe una categoría de competencia con ese nombre':
@@ -1858,6 +1870,12 @@ export const CATALOGO_ERRORES_PT: Partial<Record<string, string>> = {
     'Esse ponto não é da sua organização',
   'Alguna de esas vallas no es de tu organización':
     'Algum desses painéis não é da sua organização',
+  'Solo se puede acomodar una fila: un sitio y una cara':
+    'Só é possível organizar uma fileira: um local e uma face',
+  'Falta acomodar alguna valla de esa fila; recarga e intenta de nuevo':
+    'Falta um painel dessa fileira; recarregue e tente de novo',
+  'Un grupo de vallas no se puede partir':
+    'Um grupo de painéis não pode ser dividido',
   'Categoría de competencia no encontrada':
     'Categoria de concorrência não encontrada',
   'Ya existe una categoría de competencia con ese nombre':

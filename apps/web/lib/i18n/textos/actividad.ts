@@ -140,6 +140,8 @@ const FILAS = [
   ['actividad.alta-valla', 'Dio de alta una valla', 'Added a poster panel', 'Ha aggiunto un poster', 'Cadastrou um outdoor'],
   ['actividad.actualizo-valla', 'Actualizó una valla', 'Updated a poster panel', 'Ha aggiornato un poster', 'Atualizou um outdoor'],
   ['actividad.borro-valla', 'Borró una valla', 'Deleted a poster panel', 'Ha eliminato un poster', 'Excluiu um outdoor'],
+  // Mover con flechas desde el plano (dueño, 24/11) · app/api/vallas/orden
+  ['actividad.reacomodo-vallas', 'Reacomodó vallas en el plano', 'Rearranged poster panels on the layout', 'Ha riordinato i poster nella pianta', 'Reorganizou os outdoors na planta'],
   ['actividad.alta-grupo-vallas', 'Dio de alta un grupo de vallas', 'Added a poster panel group', 'Ha aggiunto un gruppo di poster', 'Cadastrou um grupo de outdoors'],
   ['actividad.actualizo-grupo-vallas', 'Actualizó un grupo de vallas', 'Updated a poster panel group', 'Ha aggiornato un gruppo di poster', 'Atualizou um grupo de outdoors'],
   ['actividad.borro-grupo-vallas', 'Borró un grupo de vallas', 'Deleted a poster panel group', 'Ha eliminato un gruppo di poster', 'Excluiu um grupo de outdoors'],
