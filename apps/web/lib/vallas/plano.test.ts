@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { armarPlano, rangoPorOmision, ANCHO_MINIMO_REL, type OcupacionSitio } from './plano'
+import { armarPlano, rangoPorOmision, ordenTrasMover, ANCHO_MINIMO_REL, type OcupacionSitio } from './plano'
 import type { Valla, GrupoVallas } from './tipos'
 
 // ============================================================================
@@ -459,5 +459,83 @@ describe('armarPlano · grupos que siguen fuera de lo que se dibuja', () => {
       gruposQueSiguenFuera: [],
     })
     expect(s1.filas[0].bloques[0].grupo?.cruzaSitio).toBe(false)
+  })
+})
+
+// ============================================================================
+//  MOVER DESDE EL PLANO (dueño, 24/11: «tocar y flechas»). Una fila que alguien
+//  ya reacomodó tiene `posicion` en TODAS sus vallas y el plano la respeta;
+//  una que nadie tocó se ordena como siempre (por número, el grupo donde cae
+//  su número más bajo). `ordenTrasMover` da la fila entera, ya movida, para
+//  guardarla de una vez.
+// ============================================================================
+describe('armarPlano · fila reacomodada a mano', () => {
+  it('con posición en TODAS las vallas manda la posición, también entre sueltas y grupos', () => {
+    const p = armarPlano({
+      vallas: [
+        valla({ id: 'a', numero: 'V-001', sitioId: 'S1', posicion: 4 }),
+        valla({ id: 'b', numero: 'V-002', sitioId: 'S1', grupoId: 'g', posicion: 2 }),
+        valla({ id: 'c', numero: 'V-003', sitioId: 'S1', grupoId: 'g', posicion: 3 }),
+        valla({ id: 'd', numero: 'V-004', sitioId: 'S1', posicion: 1 }),
+      ],
+      grupos: [grupo({ id: 'g', numero: 'G-1' })],
+      sitios: SITIOS,
+      ocupaciones: [],
+    })
+    expect(p[0].filas[0].bloques.map((x) => x.cuadros.map((c) => c.numero))).toEqual([['V-004'], ['V-002', 'V-003'], ['V-001']])
+  })
+
+  it('si a una sola le falta la posición, la fila se ordena como siempre (filas que nadie tocó)', () => {
+    const p = armarPlano({
+      vallas: [
+        valla({ numero: 'V-001', sitioId: 'S1', posicion: null }),
+        valla({ numero: 'V-002', sitioId: 'S1', grupoId: 'g', posicion: 1 }),
+        valla({ numero: 'V-003', sitioId: 'S1', grupoId: 'g', posicion: 2 }),
+      ],
+      grupos: [grupo({ id: 'g', numero: 'G-1' })],
+      sitios: SITIOS,
+      ocupaciones: [],
+    })
+    expect(p[0].filas[0].bloques.map((x) => x.cuadros.map((c) => c.numero))).toEqual([['V-001'], ['V-002', 'V-003']])
+  })
+})
+
+describe('ordenTrasMover', () => {
+  const fila = () =>
+    armarPlano({
+      vallas: [
+        valla({ id: 'a', numero: 'V-001', sitioId: 'S1' }),
+        valla({ id: 'b', numero: 'V-002', sitioId: 'S1', grupoId: 'g', posicion: 1 }),
+        valla({ id: 'c', numero: 'V-003', sitioId: 'S1', grupoId: 'g', posicion: 2 }),
+        valla({ id: 'd', numero: 'V-004', sitioId: 'S1' }),
+      ],
+      grupos: [grupo({ id: 'g', numero: 'G-1' })],
+      sitios: SITIOS,
+      ocupaciones: [],
+    })[0].filas[0]
+
+  it('una valla suelta a la derecha salta el grupo entero (el grupo no se parte)', () => {
+    expect(ordenTrasMover(fila(), 'a', 'derecha')).toEqual(['b', 'c', 'a', 'd'])
+  })
+
+  it('una valla suelta a la izquierda, igual', () => {
+    expect(ordenTrasMover(fila(), 'd', 'izquierda')).toEqual(['a', 'd', 'b', 'c'])
+  })
+
+  it('dentro del grupo se cambia con su vecina del grupo', () => {
+    expect(ordenTrasMover(fila(), 'b', 'derecha')).toEqual(['a', 'c', 'b', 'd'])
+    expect(ordenTrasMover(fila(), 'c', 'izquierda')).toEqual(['a', 'c', 'b', 'd'])
+  })
+
+  it('en la orilla no se mueve: null', () => {
+    expect(ordenTrasMover(fila(), 'a', 'izquierda')).toBeNull()
+    expect(ordenTrasMover(fila(), 'd', 'derecha')).toBeNull()
+    // La orilla del GRUPO también: un miembro no sale de su grupo con flechas.
+    expect(ordenTrasMover(fila(), 'b', 'izquierda')).toBeNull()
+    expect(ordenTrasMover(fila(), 'c', 'derecha')).toBeNull()
+  })
+
+  it('una valla que no está en la fila: null', () => {
+    expect(ordenTrasMover(fila(), 'zz', 'derecha')).toBeNull()
   })
 })

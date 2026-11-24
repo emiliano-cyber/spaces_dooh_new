@@ -41,6 +41,7 @@ import {
   ExternalLink,
 } from 'lucide-react'
 import { FotosYUbicacionSitio } from '@/components/demo/propuestas/FotosYUbicacionSitio'
+import { FotosPantallasPropuesta } from '@/components/demo/propuestas/FotosPantallasPropuesta'
 import { enlaceGoogleMaps } from '@/lib/fotos-sitio'
 import { puntoUtil } from '@/lib/coordenadas'
 import { ubicacion } from '@/lib/ubicacion'
@@ -343,6 +344,18 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
     return [{ id: s.id, lat: s.lat, lng: s.lng, tono: pinTono(s), label: s.nombre }]
   })
   const sinCoords = p.items.length - puntos.length
+  // Cada sitio una vez, en el orden de la propuesta (un sitio puede ir en dos
+  // renglones con fechas distintas).
+  const sitiosDePropuesta = [...new Set(p.items.map((it) => it.sitioId))]
+  // Los que no tienen un punto útil, por nombre. Mientras `sitios` no llega no
+  // se lista nada: se diría «sin ubicación» de sitios que sí la tienen.
+  const sinUbicacion =
+    sitios === undefined
+      ? []
+      : sitiosDePropuesta.flatMap((sid) => {
+          const s = sitios.find((x) => x.id === sid)
+          return s && coordUtil(s.lat, s.lng) ? [] : [s?.nombre ?? sid]
+        })
 
   async function cambiar(estatus: EstPropuesta, confirmarCero = false) {
     try {
@@ -1123,25 +1136,12 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
           )}
       </CardColapsable>
 
-      {/* PROP-COMPLETA (29/10) · lo que el cliente lee además de los
-          importes: hasta cuándo puede aceptar y en qué términos. */}
-      <CardColapsable id="propuesta.condiciones" titulo={t('propuestas.ficha.condiciones')}>
-        <BloqueCondicionesVigencia
-          propuestaId={p.id}
-          condiciones={p.condiciones ?? null}
-          vigenteHasta={p.vigenteHasta ?? null}
-          vencida={!!p.vencida}
-          editable={puedeEditar && p.estatus !== 'APROBADA'}
-        />
-      </CardColapsable>
-
-      {/* SEG-CLIENTE (17/11) · solo con campaña: antes no hay seguimiento en
-          la liga y el interruptor no cambiaría nada que el cliente vea. */}
-      {campanas?.some((c) => c.propuestaId === p.id) && <ImprentaVisibleCliente propuestaId={p.id} />}
-
-      {/* Mapa con la ubicación de las pantallas. PLEG-02 · plegado, el mapa se
-          desmonta: al volver a abrirlo se redibuja con el encuadre inicial. */}
-      <CardColapsable id="propuesta.mapa" titulo={t('propuestas.ficha.mapa')}>
+      {/* «Mapa de las pantallas» (dueño, 20/11: «el mapa de pantallas elegidas»).
+          Ya existía al FINAL de la ficha como «Ubicación de las pantallas»;
+          sube aquí, debajo de los sitios, y nombra los que no tienen
+          coordenadas. PLEG-02 · plegado, el mapa se desmonta: al volver a
+          abrirlo se redibuja con el encuadre inicial. */}
+      <CardColapsable id="propuesta.mapa" titulo={t('propuestas.ficha.mapa-pantallas')}>
           <div className="h-[360px] w-full overflow-hidden rounded border border-border">
             {puntos.length ? (
               <MapView points={puntos} zoom={11} />
@@ -1163,7 +1163,38 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
               })}
             </p>
           )}
+          {/* Los que no salen en el mapa, por su nombre: «2 de 5 no tienen
+              coordenadas» no dice CUÁLES hay que ir a capturar. */}
+          {sinUbicacion.length > 0 && (
+            <p className="mt-2 text-[12px] text-muted" data-testid="mapa-sin-ubicacion">
+              {t('propuestas.ficha.mapa.sin-ubicacion', { sitios: sinUbicacion.join(', ') })}
+            </p>
+          )}
       </CardColapsable>
+
+      {/* «Fotos de las pantallas» (dueño, 20/11: «fotos de cada pantalla, si
+          es que están»). Una sola consulta por propuesta
+          (`GET /api/propuestas/:id/fotos`, permiso `comercial.ver`); dentro de
+          la tarjeta para que plegarla ahorre la descarga. */}
+      <CardColapsable id="propuesta.fotos" titulo={t('propuestas.ficha.fotos')}>
+        <FotosPantallasPropuesta propuestaId={p.id} sitioIds={sitiosDePropuesta} />
+      </CardColapsable>
+
+      {/* PROP-COMPLETA (29/10) · lo que el cliente lee además de los
+          importes: hasta cuándo puede aceptar y en qué términos. */}
+      <CardColapsable id="propuesta.condiciones" titulo={t('propuestas.ficha.condiciones')}>
+        <BloqueCondicionesVigencia
+          propuestaId={p.id}
+          condiciones={p.condiciones ?? null}
+          vigenteHasta={p.vigenteHasta ?? null}
+          vencida={!!p.vencida}
+          editable={puedeEditar && p.estatus !== 'APROBADA'}
+        />
+      </CardColapsable>
+
+      {/* SEG-CLIENTE (17/11) · solo con campaña: antes no hay seguimiento en
+          la liga y el interruptor no cambiaría nada que el cliente vea. */}
+      {campanas?.some((c) => c.propuestaId === p.id) && <ImprentaVisibleCliente propuestaId={p.id} />}
 
       {/* «Costo · método del divisor» se retiró el 26/10 (rediseño de módulos):
           repetía la escalera de bruto a total de «Resumen económico», y su

@@ -118,6 +118,10 @@ export const ES_VALLAS = {
   'vallas.plano.grupo.esquina': 'dobla la esquina',
   // ── Liga del cliente (20/11): «Así se ven tus vallas» ──
   'vallas.plano.tuya': 'Tu valla',
+  'vallas.plano.editar.ayuda': 'Toca un cuadro para editarlo; con las flechas lo mueves de lugar en su fila.',
+  'vallas.plano.mover.izquierda': 'Mover {numero} a la izquierda',
+  'vallas.plano.mover.derecha': 'Mover {numero} a la derecha',
+  'vallas.plano.editar.cuadro': 'Editar {numero}',
   'vallas.publico.titulo': 'Así se ven tus vallas',
   'vallas.publico.detalle': 'Cada valla con su número y su medida, en su lugar y a escala.',
   'vallas.hallazgo.competencia':
@@ -223,6 +227,10 @@ export const EN_VALLAS: Record<ClaveVallas, string> = {
   'vallas.plano.esquina.derecha': 'on a corner, turns right',
   'vallas.plano.grupo.esquina': 'turns the corner',
   'vallas.plano.tuya': 'Your panel',
+  'vallas.plano.editar.ayuda': 'Tap a panel to edit it; use the arrows to move it within its row.',
+  'vallas.plano.mover.izquierda': 'Move {numero} left',
+  'vallas.plano.mover.derecha': 'Move {numero} right',
+  'vallas.plano.editar.cuadro': 'Edit {numero}',
   'vallas.publico.titulo': 'How your poster panels look',
   'vallas.publico.detalle': 'Each panel with its number and size, in its place and to scale.',
   'vallas.hallazgo.competencia':
@@ -326,6 +334,10 @@ export const IT_VALLAS: Record<ClaveVallas, string> = {
   'vallas.plano.esquina.derecha': 'ad angolo, gira a destra',
   'vallas.plano.grupo.esquina': 'gira l’angolo',
   'vallas.plano.tuya': 'Il tuo poster',
+  'vallas.plano.editar.ayuda': 'Tocca un poster per modificarlo; con le frecce lo sposti nella sua fila.',
+  'vallas.plano.mover.izquierda': 'Sposta {numero} a sinistra',
+  'vallas.plano.mover.derecha': 'Sposta {numero} a destra',
+  'vallas.plano.editar.cuadro': 'Modifica {numero}',
   'vallas.publico.titulo': 'Ecco come appaiono i tuoi poster',
   'vallas.publico.detalle': 'Ogni poster con il suo numero e la sua misura, al suo posto e in scala.',
   'vallas.hallazgo.competencia':
@@ -429,6 +441,10 @@ export const PT_VALLAS: Record<ClaveVallas, string> = {
   'vallas.plano.esquina.derecha': 'na esquina, vira à direita',
   'vallas.plano.grupo.esquina': 'dobra a esquina',
   'vallas.plano.tuya': 'Seu outdoor',
+  'vallas.plano.editar.ayuda': 'Toque um outdoor para editá-lo; com as setas você o move na fileira.',
+  'vallas.plano.mover.izquierda': 'Mover {numero} para a esquerda',
+  'vallas.plano.mover.derecha': 'Mover {numero} para a direita',
+  'vallas.plano.editar.cuadro': 'Editar {numero}',
   'vallas.publico.titulo': 'Assim ficam seus outdoors',
   'vallas.publico.detalle': 'Cada outdoor com seu número e sua medida, no seu lugar e em escala.',
   'vallas.hallazgo.competencia':

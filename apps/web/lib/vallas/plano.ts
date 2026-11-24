@@ -236,9 +236,45 @@ function bloquesDeFila(
       vallas: orden,
     })
   }
+  // FILA REACOMODADA A MANO (dueño, 24/11: «tocar y flechas»). Mover desde el
+  // plano guarda la posición de TODAS las vallas de la fila de una vez
+  // (`PUT /api/vallas/orden`), así que «todas tienen posición» es la marca de
+  // una fila que alguien acomodó: ahí manda la posición, también entre sueltas
+  // y grupos. Si a una sola le falta, es una fila que nadie tocó (las sueltas
+  // nacen sin posición) y se ordena como siempre, por número.
+  const aMano = vallas.length > 0 && vallas.every((v) => v.posicion != null)
+  const lugar = (c: Crudo) => Math.min(...c.vallas.map((v) => v.posicion ?? Infinity))
   return crudos
-    .sort((a, b) => comparaNumero(a.clave, b.clave))
+    .sort((a, b) => (aMano ? lugar(a) - lugar(b) : 0) || comparaNumero(a.clave, b.clave))
     .map((c) => ({ grupo: c.grupo, vallas: c.vallas, ancho: c.vallas.reduce((s, v) => s + v.ancho, 0) }))
+}
+
+export type Direccion = 'izquierda' | 'derecha'
+
+/**
+ * La fila entera (ids, de izquierda a derecha) después de mover una valla un
+ * lugar. Una valla de un grupo se cambia con su vecina DEL GRUPO y no sale de
+ * él con flechas (para sacarla está el grupo); una suelta salta el bloque de
+ * al lado entero, así un grupo nunca queda partido. `null` si no se puede
+ * mover (orilla, o la valla no está en la fila).
+ */
+export function ordenTrasMover(fila: Pick<FilaPlano, 'bloques'>, vallaId: string, dir: Direccion): string[] | null {
+  const bloques = fila.bloques.map((b) => ({ grupo: b.grupo, ids: b.cuadros.map((c) => c.id) }))
+  const i = bloques.findIndex((b) => b.ids.includes(vallaId))
+  if (i < 0) return null
+  const paso = dir === 'derecha' ? 1 : -1
+  const b = bloques[i]
+  if (b.grupo) {
+    const j = b.ids.indexOf(vallaId)
+    const k = j + paso
+    if (k < 0 || k >= b.ids.length) return null
+    ;[b.ids[j], b.ids[k]] = [b.ids[k], b.ids[j]]
+  } else {
+    const k = i + paso
+    if (k < 0 || k >= bloques.length) return null
+    ;[bloques[i], bloques[k]] = [bloques[k], bloques[i]]
+  }
+  return bloques.flatMap((x) => x.ids)
 }
 
 /**

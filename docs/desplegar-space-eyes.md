@@ -116,17 +116,48 @@ Tres comprobaciones, en orden de lo que más se rompe:
    WHERE dia = CURDATE();` en la base de la instancia. A la hora de que los
    equipos reporten tiene que haber filas.
 
+> [!warning] 24/11 · reconstruir con el MISMO nombre no cambiaba la API
+> Hasta el 24/11, `update-eyes.sh` hacía `up -d api` sin `--force-recreate` y
+> tiraba su salida. Compose no recrea un contenedor si el nombre de la imagen
+> no cambia, aunque apunte a otro ID: al reconstruir `space-eye:0.16.26-local`
+> por segunda vez en g500, la API siguió en su contenedor, la salud contestó
+> desde ESE contenedor y el guion dijo `listo`. Desde entonces recrea siempre y
+> comprueba que la API corra el ID nuevo antes de dar nada por hecho.
+> Comprobación a mano: `docker ps` tiene que mostrar el **nombre** de la
+> imagen; si sale un hash suelto, el contenedor corre una imagen que ya perdió
+> su etiqueta.
+
 ## 6 · Volver atrás
 
 Dejar `EYES_IMAGEN` en la versión anterior y correr `update-eyes.sh`. La imagen
-vieja sigue en el droplet. Las columnas de las migraciones se quedan, pero son
+vieja sigue en el droplet.
+
+**La copia de `eyes.env` se hace UNA vez por versión.** Si el paso de copiar y
+cambiar `EYES_IMAGEN` se corre dos veces, la segunda copia ya trae la versión
+nueva y la vuelta atrás no vuelve a nada: pasó en g500 el 24/11 con
+`eyes.env.antes-0.16.26`. Antes de copiar, `test -e` la copia y no la pises. Las columnas de las migraciones se quedan, pero son
 aditivas y el código viejo las ignora.
 
 **Lo que `update-eyes.sh` NO respalda: las fotos** (volumen `space-eyes_fotos`,
 1.1 GB el 2-nov). Su `mysqldump` es solo de la base, y se queda en el mismo
 droplet. Para un respaldo de verdad hay que sacarlo fuera.
 
-## 7 · Lo que NO hay que dar por bueno todavía
+## 7 · El portero de obstrucción: MEDIDO el 24/11, y apagado
+
+> [!danger] El 0.45 no separa
+> Corrido `medir-obstruccion.ts` en g500 (contenedor desechable de
+> `node:22-slim`, fotos montadas `:ro`): de 64 anuncios de verdad, **32 caían
+> en la banda 0.45-0.95** y no habrían entrado al catálogo. Iban del 16 % al
+> 89 %; ningún umbral los separa. De camiones había **4** muestras.
+>
+> Desde la **0.16.26** el portero **solo anota** (`device_logs`, «Posible
+> obstrucción (solo se anota)…») y el creativo sigue al catálogo.
+> `OBSTRUCCION_DESCARTA=si` en `eyes.env` devuelve la regla de antes: **no
+> encenderlo sin volver a medir** con esas anotaciones.
+
+Lo de abajo es el texto original, que explicaba por qué había que medirlo:
+
+### Lo que no había que dar por bueno
 
 **El portero de obstrucción («algo tapando la pantalla») tiene el umbral sin
 medir.** El 0.45 sale de la geometría del caso —un vehículo tapa entre un cuarto

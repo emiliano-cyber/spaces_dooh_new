@@ -20,6 +20,7 @@ archivos:
   - apps/web/app/api/perfil/avisos/route.ts
   - apps/web/app/api/space-eyes/campanas/excel/route.ts
   - apps/web/app/api/vallas/ocupacion/route.ts
+  - apps/web/app/api/vallas/orden/route.ts
   - apps/web/app/api/bienvenida/route.ts
   - apps/web/app/api/captacion/
   - apps/web/app/api/codigos-promocionales/
@@ -34,6 +35,7 @@ archivos:
   - apps/web/app/api/campanas/[id]/envios-cliente/route.ts
   - apps/web/app/api/campanas/[id]/envios-cliente/[envioId]/route.ts
   - apps/web/app/api/propuestas/[id]/items/route.ts
+  - apps/web/app/api/propuestas/[id]/fotos/route.ts
   - apps/web/app/api/propuestas/competencia/route.ts
   - apps/web/app/api/rejilla/
   - apps/web/app/api/reportes/rentabilidad/route.ts
@@ -269,6 +271,7 @@ en `:230-237`) y **no** puede condicionarse a que la ruta
 | PATCH | `/api/sitios/[id]/modalidades` | (05/10) **SENSIBLE** `inventario:crear` — tarifas por unidad de venta; ruta aparte porque `sitio_modalidades.tarifa_publicada` es el mismo dinero que `sitios.tarifa_publicada` |
 | GET · PATCH | `/api/sitios/[id]/rejilla` | (05/10) `inventario:ver` · **SENSIBLE** `inventario:crear` — la rejilla franja×temporada de la pantalla, [[rejilla-franja-y-temporada]] |
 | GET | `/api/vallas/ocupacion?desde&hasta` | (20/11) `inventario:ver` — para el plano de las vallas: `{ desde, hasta, ocupaciones: [{ sitioId, marca, campanaId, campanaNombre, inicio, fin }] }`, POR SITIO (las reservas son por sitio) y con el mismo criterio que `POST /api/vallas/verificar` (no cancelada, tentativa sin caducar, solape inclusivo, solo sitios con vallas activas). Fechas obligatorias, reales y en orden, o 400. Ver [[vallas]] |
+| PUT | `/api/vallas/orden` | (24/11) `inventario:crear` — mover con flechas desde el plano: `{ vallaIds }` = la fila ENTERA de un sitio y una cara, de izquierda a derecha, con cada grupo junto; escribe `posicion` 1..n en todas. Si no es la fila completa, mezcla filas, parte un grupo o trae una ajena, 400. Ver [[vallas]] |
 | GET·POST | `/api/energia/consumos` | (05/10) `operaciones:ver` · `operaciones:crear` — [[energia-consumos]] |
 | DELETE | `/api/energia/consumos/[id]` | (05/10) `operaciones:aprobar` |
 | POST | `/api/energia/recibos` | (05/10) `operaciones:crear` — sube los PDF de CFE y **propone**, no guarda nada: el alta sigue siendo `POST /api/energia/consumos`. Pide `crear` aunque no escriba, porque lo que devuelve es el borrador de un alta — [[recibos-cfe-pdf]] |
@@ -307,6 +310,7 @@ en `:230-237`) y **no** puede condicionarse a que la ruta
 | DELETE | `/api/propuestas/items/[id]` | (29/10, PROP-COMPLETA) `comercial:crear`. Quita un sitio (BORRADOR o ENVIADA, sube versión); nunca el último (409); de otra organización → 404 |
 | DELETE | `/api/propuestas/[id]` | (29/10, PROP-COMPLETA, R5) `comercial:crear`. Borra un **BORRADOR** con sus líneas y su canje (devuelve el uso del cupón); otro estatus o con campaña → 409; de otra organización → 404 |
 | GET·PATCH | `/api/propuestas/[id]/imprenta-visible` | (17/11, SEG-CLIENTE) GET `comercial:ver` → `{ imprentaVisible, puedeCambiar }`; PATCH `comercial:crear` con `{ visible }`. **Oculta por omisión** (decisión del dueño): solo el vendedor que creó la propuesta (`usuario_id`) o un rol superior (ADR 0040; Dueño/Admin siempre; roles fuera de venta nunca) → si no, 403 sin escribir. Capas: `imprenta-visible-controller.ts` → `imprenta-visible-repo.ts`; regla pura `puedeCambiarImprentaVisible` en `lib/seguimiento-campana.ts` |
+| GET | `/api/propuestas/[id]/fotos` | (20/11) `comercial:ver` + `siNoEsSuya` (vendedor ajeno → 404). `{ sitios: [{ sitioId, nombre, fotos }] }`: las fotos de CADA sitio de la propuesta en UNA consulta, filtradas con `fotosMostrables`, `no-store`. El cuadro «Fotos de las pantallas» de la ficha. Capas: `propuestas-fotos-controller.ts` → `propuestas-fotos-repo.ts` |
 | POST | `/api/propuestas/[id]/enviar` | (29/10, PROP-COMPLETA) `comercial:crear`. Cuerpo `{ para, mensaje? }`. Manda la liga por correo (canal de operación, copia a quien envía) y **después** deja la propuesta ENVIADA; si Resend falla, 502 y no cambia nada; sin correo configurado solo cambia el estatus (`correo: 'no_configurado'`). Vale para BORRADOR y ENVIADA (reenviar); lo demás 409 — `lib/server/propuestas-envio.ts` |
 | POST · DELETE | `/api/propuestas/[id]/paquete` | (05/10) `comercial:crear` — aplicar o quitar un paquete cerrado; el cuerpo lleva **solo** `paqueteId`, el precio lo copia el servidor bajo RLS — [[paquete-cerrado]] |
 | PATCH | `/api/propuestas/items/[id]` | exigir |

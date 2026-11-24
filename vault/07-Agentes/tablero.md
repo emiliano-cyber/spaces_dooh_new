@@ -1,13 +1,16 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-11-23
+actualizado: 2026-11-24
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!success] 2026-11-24 · **mapa y fotos de la propuesta en `main` LOCAL (`66d8b59e`), sin empujar · zona tomada: ninguna**
+> 11 229 unitarias en verde; e2e sin correr (sin Docker). Paquete de Space Eye 0.16.25 listo para g500, lo corre el dueño. Detalle en [[2026-11-24]].
+
 > [!success] 2026-11-23 · **`integra/23-11`: todo lo aprobado + Space Eyes de Jose + `fix/idioma-al-entrar`, y las fuentes pasan al repositorio (`next/font/local`) porque el CI murió bajándolas de Google** · zona tomada: ninguna
-> **En `main` por el PR #120 (`16b370fc`)**, CI en verde. Falta release beta → DEMO → estable. Detalle en [[2026-11-23]].
+> **En `main` por el PR #120 (`16b370fc`)**, v0.12.15 en `estable`, DEMO con vallas de ejemplo y Space Eyes en demostración. **Mañana:** Space Eye nuevo en g500. Detalle en [[2026-11-23]].
 
 > [!success] 2026-11-20 (cierre) · **todo en `main` LOCAL (`542a3954`), sin empujar · zona tomada: ninguna salvo `feat/propuesta-mapa-y-fotos` a medias**
 > Detalle y pendientes en [[2026-11-20]].

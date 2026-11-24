@@ -90,14 +90,13 @@ export function avisoDeLote(lote: Lote | null, unidad: UnidadLote, t: T): string
 // Tabla del inventario completo con columnas (incluye propietario, renta y
 // periodicidad de pago tomados del contrato vigente de cada sitio).
 /**
- * `medioInicial` y `onVallas` (20/11): la pantalla Inventario ofrece la pestaña
- * Vallas junto a las de medio; al volver de Vallas a «Fijos» la tabla nace con
- * ese filtro. Sin ellas, la tabla es la de siempre.
+ * `medioInicial`: el filtro de medio con el que nace la tabla. (El 20/11 la
+ * pestaña Vallas abría el módulo entero y hacía falta volver con él; desde el
+ * 24/11 Vallas es una pestaña de medio más y la tabla la filtra sola.)
  */
 export function InventarioTabla({
   medioInicial = null,
-  onVallas,
-}: { medioInicial?: ClaseMedio | null; onVallas?: () => void } = {}) {
+}: { medioInicial?: ClaseMedio | null } = {}) {
   const sitios = useSitios()
   const contratos = useContratos()
   const arrendadores = useArrendadores()
@@ -458,7 +457,6 @@ export function InventarioTabla({
           sitios={sitios}
           medio={filtros.medio}
           onCambio={(medio) => setFiltros({ ...filtros, medio })}
-          vallas={onVallas ? { activa: false, onElegir: onVallas } : undefined}
         />
         <SelectorZona sitios={sitios} filtros={filtros} onCambio={setFiltros} />
       </div>

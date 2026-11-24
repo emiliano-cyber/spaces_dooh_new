@@ -1,7 +1,7 @@
 ---
 tipo: backend
 estado: en-curso
-actualizado: 2026-11-20
+actualizado: 2026-11-24
 tags: [backend, vallas, inventario, reglas, competencia, rojo, en-proceso, demo, plano, esquinas, liga-publica]
 archivos:
   - db/migrations/20261119_vallas_esqueleto.sql
@@ -59,6 +59,14 @@ archivos:
   - apps/web/app/api/propuestas/publica/[id]/route.ts
   - apps/web/app/(app)/p/[id]/page.tsx
   - apps/web/lib/test/liga-plano-vallas.e2e.test.ts
+  - apps/web/lib/vallas/cuadros-de-sitio.ts
+  - apps/web/lib/vallas/cuadros-de-sitio.test.ts
+  - apps/web/lib/vallas/orden-fila.ts
+  - apps/web/lib/vallas/orden-fila.test.ts
+  - apps/web/app/api/vallas/orden/route.ts
+  - apps/web/components/demo/inventario/ResumenInventario.tsx
+  - apps/web/components/demo/inventario/pestana-vallas.test.ts
+  - apps/web/app/(app)/(shell)/inventario/page.tsx
 ---
 
 # Vallas (esqueleto, 19/11)
@@ -83,6 +91,15 @@ Decisión de forma en el [ADR 0052](../../docs/adr/0052-vallas-modulo-con-reglas
 >
 > Rama `feat/vallas-decisiones` desde `integra/18-11` `3e73f5e5`. Apunte en el
 > [ADR 0052](../../docs/adr/0052-vallas-modulo-con-reglas-enchufables.md).
+
+> [!important] 2026-11-24 · lo del inventario sale SOLO en Vallas, y el plano se edita
+> El dueño vio en la DEMO las vallas en Inventario y la pantalla de Vallas vacía (la
+> organización `demo` tenía 3 sitios VALLA y **0 cuadros**: el módulo solo leía la
+> tabla `vallas`, que nadie había llenado). Decidió: «del inventario se tiene que ver
+> como el resto, como las fijas y las digitales; en su propio módulo es donde se tiene
+> que ver detallado», solo tipo **VALLA**, y editar el plano con **«tocar y flechas»**.
+> Detalle en «Del inventario al módulo» y «Tocar y flechas», abajo. Rama
+> `feat/vallas-desde-inventario`. **Sin migraciones.**
 
 > [!important] 2026-11-20 · el PLANO por sitio, arriba de todo en `/vallas`
 > Pedido del dueño: «tiene que estar un mapa del plano de las vallas». Eligió **un plano
@@ -476,6 +493,12 @@ encuentra actualmente.»
 | `GET`/`POST /api/vallas/competencia` · `PATCH /api/vallas/competencia/[id]` | `ver` / `crear` |
 | `POST /api/vallas/verificar` `{ marca, fechaInicio, fechaFin, vallaIds?, sitioIds?, excluirCampanaId? }` → `{ hallazgos, bloquea }` | `inventario.ver` |
 | `GET /api/vallas/ocupacion?desde&hasta` → `{ desde, hasta, ocupaciones: [{ sitioId, marca, campanaId, campanaNombre, inicio, fin }] }` (20/11, el plano) | `inventario.ver` |
+| `PUT /api/vallas/orden` `{ vallaIds }` → `{ ok }` (24/11): la fila ENTERA de un sitio y una cara, de izquierda a derecha, con cada grupo junto; si no, 400 | `inventario.crear` |
+
+`GET /api/vallas` **escribe** antes de listar (24/11): completa los cuadros de los
+sitios VALLA que no tienen ninguno (ver «Del inventario al módulo»). Lo hace aunque
+quien lista solo tenga `inventario.ver`, porque no es decisión de esa persona: el
+inventario ya dice que el sitio es una valla. Si falla, lista igual.
 
 Una valla en un sitio ajeno, o un grupo con vallas ajenas, es **400** (el repo lo
 pregunta antes; la FK compuesta lo impide igual en la base).
@@ -487,6 +510,44 @@ Las categorías: **ver** con `inventario.ver`; **crear y editar (incluida la baj
 `errores-servidor.ts`). El Administrador también, aunque tenga `inventario.crear`: la
 puerta es el ROL, no el permiso. En PATCH el 403 va antes del 404, para no revelar qué
 ids existen. La pantalla esconde los botones con la misma función.
+
+## Del inventario al módulo (24/11)
+
+- **Inventario → pestaña Vallas** es una pestaña de MEDIO más (`ClaseMedio` suma
+  `valla`; `claseMedio` da `valla` a todo sitio `tipoMedio === 'VALLA'` que no sea
+  digital). Filtra la tabla, con su cuenta. El 20/11 abría el módulo entero; eso se
+  quitó (`VistaVallas` ya no existe). El KPI «fijas» sigue sumando las vallas.
+- **Todo sitio VALLA sin cuadros recibe uno por cara** al abrir Vallas
+  (`completarCuadrosDeSitiosValla`, vallas-repo.ts; la regla pura es
+  `cuadrosFaltantes`, `lib/vallas/cuadros-de-sitio.ts`): número `V-nnn` siguiendo lo
+  que ya hay en la organización, cara 1..n (1..50), medidas del sitio. Sin medida en
+  el sitio, 1 × 1 con la nota «Medida por capturar»: la base exige > 0 y no se
+  inventa una. Los de BAJA no. Un candado por organización
+  (`pg_advisory_xact_lock`) y `on conflict do nothing` evitan duplicados.
+- **Un sitio con al menos un cuadro no se toca.** Consecuencia conocida: si alguien
+  borra TODOS los cuadros de un sitio VALLA, vuelven a salir. Para sacarlo del
+  módulo, se cambia el tipo del sitio.
+- La liga del cliente y «Dibujar plano» leen la tabla `vallas`: un sitio VALLA
+  recién dado de alta sale ahí después de que alguien abra Vallas.
+
+## Tocar y flechas (24/11)
+
+- En el plano de `/vallas`, con `inventario.crear`, cada cuadro es un **botón** que
+  abre su edición (el mismo `FormValla` de la lista) y lleva **dos flechas**. La
+  propuesta y la liga no pasan `acciones` y el plano sigue siendo un dibujo.
+- `ordenTrasMover` (plano.ts, pura): una valla de grupo se cambia con su vecina DEL
+  GRUPO y no sale de él con flechas; una suelta salta el bloque de al lado entero. En
+  la orilla, la flecha sale deshabilitada.
+- Se guarda la **fila entera** (`PUT /api/vallas/orden`): `posicion` = 1..n en todas.
+  `armarPlano` toma «todas las vallas de la fila tienen posición» como la marca de una
+  fila acomodada a mano y ahí ordena por posición, también entre sueltas y grupos;
+  si a una le falta, la fila se ordena como siempre. Sin migración: `posicion`
+  (1..999) ya existía y era solo el orden dentro del grupo.
+- `problemaDeOrden` (`lib/vallas/orden-fila.ts`) valida dentro de la transacción y
+  con `for update`: ajena, mezcla de filas, incompleta o grupo partido → 400.
+- Ojo: editar los miembros de un grupo (`fijarMiembros`) reescribe sus posiciones a
+  1..k y quita la de las vallas que salen; la fila vuelve al orden de siempre hasta
+  que alguien la mueva otra vez.
 
 ## Categorías por omisión
 

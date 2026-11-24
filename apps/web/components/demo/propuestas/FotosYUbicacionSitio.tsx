@@ -81,7 +81,6 @@ export function FotosYUbicacionSitio({
   const mapa = enlaceGoogleMaps(sitio.lat ?? null, sitio.lng ?? null)
   const zona = ubicacion([sitio.alcaldia, sitio.ciudad, sitio.estado], ' · ')
   const lista = Array.isArray(fotos) ? fotos : []
-  const grande = lista[Math.min(actual, Math.max(lista.length - 1, 0))]
 
   return (
     <>
@@ -110,35 +109,7 @@ export function FotosYUbicacionSitio({
                 {fotos === 'error' ? t('propuestas.fotos.error') : t('propuestas.fotos.sin-fotos')}
               </div>
             ) : (
-              <>
-                <div className="overflow-hidden rounded border border-border bg-surface-2">
-                  {/* eslint-disable-next-line @next/next/no-img-element -- data URLs: next/image no las optimiza */}
-                  <img src={grande} alt={`${sitio.nombre} · ${t('propuestas.fotos.foto-n', { n: actual + 1, total: lista.length })}`} className="aspect-video w-full object-contain" />
-                </div>
-                <div className="mt-1 text-[11px] text-muted">
-                  {t('propuestas.fotos.foto-n', { n: actual + 1, total: lista.length })}
-                </div>
-                {lista.length > 1 && (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {lista.map((f, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => setActual(i)}
-                        aria-label={t('propuestas.fotos.ver-foto', { n: i + 1 })}
-                        aria-current={i === actual || undefined}
-                        className={cn(
-                          'h-14 w-20 overflow-hidden rounded border bg-surface-2',
-                          i === actual ? 'border-accent ring-2 ring-accent' : 'border-border hover:border-accent',
-                        )}
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element -- miniatura de un data URL */}
-                        <img src={f} alt="" className="h-full w-full object-cover" />
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </>
+              <GaleriaFotos nombre={sitio.nombre} fotos={lista} actual={actual} onActual={setActual} />
             )}
           </div>
 
@@ -189,6 +160,57 @@ export function FotosYUbicacionSitio({
           </div>
         </div>
       </Modal>
+    </>
+  )
+}
+
+/**
+ * La galería del visor: la foto grande y, debajo, las miniaturas para
+ * cambiarla. Sale de aquí para que el cuadro «Fotos de las pantallas» de la
+ * ficha (20/11) abra sus fotos con EL MISMO visor y no con una copia.
+ */
+export function GaleriaFotos({
+  nombre,
+  fotos: lista,
+  actual,
+  onActual: setActual,
+}: {
+  nombre: string
+  fotos: string[]
+  actual: number
+  onActual: (i: number) => void
+}) {
+  const { t } = useIdioma()
+  const grande = lista[Math.min(actual, Math.max(lista.length - 1, 0))]
+  return (
+    <>
+      <div className="overflow-hidden rounded border border-border bg-surface-2">
+        {/* eslint-disable-next-line @next/next/no-img-element -- data URLs: next/image no las optimiza */}
+        <img src={grande} alt={`${nombre} · ${t('propuestas.fotos.foto-n', { n: actual + 1, total: lista.length })}`} className="aspect-video w-full object-contain" />
+      </div>
+      <div className="mt-1 text-[11px] text-muted">
+        {t('propuestas.fotos.foto-n', { n: actual + 1, total: lista.length })}
+      </div>
+      {lista.length > 1 && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {lista.map((f, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => setActual(i)}
+              aria-label={t('propuestas.fotos.ver-foto', { n: i + 1 })}
+              aria-current={i === actual || undefined}
+              className={cn(
+                'h-14 w-20 overflow-hidden rounded border bg-surface-2',
+                i === actual ? 'border-accent ring-2 ring-accent' : 'border-border hover:border-accent',
+              )}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element -- miniatura de un data URL */}
+              <img src={f} alt="" className="h-full w-full object-cover" />
+            </button>
+          ))}
+        </div>
+      )}
     </>
   )
 }

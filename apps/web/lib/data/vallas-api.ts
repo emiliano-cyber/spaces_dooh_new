@@ -45,6 +45,9 @@ export const crearVallaApi = (d: DatosVallaApi) => pedir<Valla>('/', 'No se pudo
 export const actualizarVallaApi = (id: string, d: Partial<DatosVallaApi>) =>
   pedir<Valla>(`/${id}/`, 'No se pudo guardar', { method: 'PATCH', body: d })
 export const borrarVallaApi = (id: string) => pedir<{ ok: true }>(`/${id}/`, 'No se pudo borrar', { method: 'DELETE' })
+/** La fila entera del plano, de izquierda a derecha (dueño, 24/11: mover con flechas). */
+export const ordenarFilaVallasApi = (vallaIds: string[]) =>
+  pedir<{ ok: true }>('/orden/', 'No se pudo mover la valla', { method: 'PUT', body: { vallaIds } })
 
 export const crearGrupoApi = (d: DatosGrupoApi) => pedir<GrupoVallas>('/grupos/', 'No se pudo guardar', { method: 'POST', body: d })
 export const actualizarGrupoApi = (id: string, d: Partial<DatosGrupoApi>) =>

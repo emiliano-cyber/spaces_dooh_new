@@ -1,8 +1,44 @@
 [
   {
+    "version": "v0.12.16",
+    "fecha": "2026-11-24",
+    "items": [
+      {
+        "tipo": "NUEVO",
+        "texto": "Vallas: todo sitio de tipo Valla del inventario aparece solo en Comercial → Vallas, con un cuadro por cara y las medidas del sitio. Ya no hay que dar de alta cada cuadro a mano para verlo en el plano.",
+        "en": "Poster panels: every Poster panel site in the inventory now shows up on its own in Sales → Poster panels, with one panel per face and the site’s measurements. You no longer have to add each panel by hand to see it on the layout.",
+        "it": "Poster: ogni sito di tipo Poster dell’inventario compare da solo in Vendite → Poster, con un poster per faccia e le misure del sito. Non serve più registrare ogni poster a mano per vederlo nella pianta."
+      },
+      {
+        "tipo": "NUEVO",
+        "texto": "En el plano de Vallas, toca un cuadro para editarlo ahí mismo (medidas, cara, esquina) y usa las flechas ← → para moverlo de lugar en su fila. Un grupo nunca queda partido.",
+        "en": "On the Poster panels layout, tap a panel to edit it right there (measurements, face, corner) and use the ← → arrows to move it within its row. A group is never split.",
+        "it": "Nella pianta dei Poster, tocca un poster per modificarlo lì stesso (misure, faccia, angolo) e usa le frecce ← → per spostarlo nella sua fila. Un gruppo non viene mai diviso."
+      },
+      {
+        "tipo": "AJUSTADO",
+        "texto": "Inventario: la pestaña Vallas ahora es una lista de sitios como Fijos y Digitales, con su cuenta. El detalle de cada valla está en Comercial → Vallas.",
+        "en": "Inventory: the Poster panels tab is now a list of sites, like Static and Digital, with its count. Each panel’s details are in Sales → Poster panels.",
+        "it": "Inventario: la scheda Poster ora è un elenco di siti come Fissi e Digitali, con il suo conteggio. Il dettaglio di ogni poster è in Vendite → Poster."
+      },
+      {
+        "tipo": "CORREGIDO",
+        "texto": "Space Eyes: el aviso de «algo tapando la pantalla» ya no impide registrar anuncios nuevos. Medido con fotos reales, confundía la mitad de los anuncios con camiones; ahora el anuncio entra y la sospecha solo se anota.",
+        "en": "Space Eyes: the “something blocking the screen” check no longer stops new ads from being recorded. Measured with real photos, it mistook half the ads for trucks; now the ad is recorded and the suspicion is only logged.",
+        "it": "Space Eyes: il controllo «qualcosa copre lo schermo» non impedisce più di registrare nuovi annunci. Misurato con foto reali, scambiava metà degli annunci per camion; ora l’annuncio entra e il sospetto viene solo annotato."
+      }
+    ]
+  },
+  {
     "version": "v0.12.15",
     "fecha": "2026-11-23",
     "items": [
+      {
+        "tipo": "NUEVO",
+        "texto": "La ficha de la propuesta tiene, debajo de los sitios, el «Mapa de las pantallas» (con los sitios sin ubicación nombrados debajo) y las «Fotos de las pantallas»: las fotos de cada sitio en miniatura, que se abren en grande; «Sin fotos» si un sitio no tiene. Se actualizan al agregar o quitar sitios.",
+        "en": "The proposal page now has, below the sites, the “Screen map” (with the sites that have no location listed underneath) and “Screen photos”: each site’s photos as thumbnails that open full size; “No photos” when a site has none. Both update when sites are added or removed.",
+        "it": "La scheda della proposta ha, sotto i siti, la «Mappa degli impianti» (con i siti senza posizione elencati sotto) e le «Foto degli impianti»: le foto di ogni sito in miniatura, che si aprono in grande; «Nessuna foto» se un sito non ne ha. Si aggiornano quando si aggiungono o tolgono siti."
+      },
       {
         "tipo": "NUEVO",
         "texto": "La liga que recibe el cliente enseña cómo se ven sus vallas cuando renta más de una: un plano por sitio con cada valla en su lugar, su número y su medida, los grupos y las esquinas. Cada cuadro dice «Tu valla»; no se ve nada de otras campañas ni marcas. Con una sola valla, la liga queda como antes.",

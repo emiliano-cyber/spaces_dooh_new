@@ -5,6 +5,44 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-24 · Space Eyes: la actualización ya no dice «listo» sin haber cambiado
+
+- Al instalar Space Eyes 0.16.26 en g500, el actualizador dijo «listo» pero el servicio **siguió con la versión de antes**: cuando la versión nueva se construye en el propio servidor con el mismo nombre, el cambio no se aplicaba y nadie se enteraba.
+- Ahora el actualizador **reinicia siempre el servicio con la versión nueva** y comprueba que de verdad quedó corriendo esa, antes de dar la actualización por hecha. Si no, vuelve solo a la anterior.
+- En g500 se corrigió a mano el mismo 24/11: ya corre la 0.16.26. Nada cambia en SPACE OS ni en los importes.
+
+---
+
+## 2026-11-24 · Vallas: lo del inventario sale solo, y el plano se edita
+
+- **Inventario → Vallas** ahora es una pestaña como **Fijos** y **Digitales**: la lista de los sitios de tipo Valla, con su cuenta. Antes abría la pantalla de Vallas entera.
+- **Todo sitio de tipo Valla aparece solo en Comercial → Vallas**, con un cuadro por cara y las medidas del sitio. Antes había que dar de alta cada cuadro a mano, y mientras nadie lo hiciera la pantalla salía vacía aunque el inventario tuviera vallas.
+- Si el sitio no tiene medidas capturadas, el cuadro sale de 1 × 1 m con la nota «Medida por capturar», para corregirla.
+- **En el plano de Vallas**, al tocar un cuadro se edita ahí mismo (medidas, cara, esquina), y con las flechas ← → se mueve de lugar en su fila. Un grupo nunca queda partido. Solo quien puede dar de alta vallas ve los botones.
+- Ojo: si se borran **todos** los cuadros de un sitio de tipo Valla, vuelven a salir. Para quitar un sitio del módulo, se le cambia el tipo.
+- Nada cambia en la base de datos (sin migraciones) ni en los importes.
+
+---
+
+## 2026-11-24 · Space Eyes: el filtro de «algo delante de la pantalla» ya no tira anuncios
+
+- Desde la versión anterior, Space Eyes intentaba distinguir un **camión delante de la pantalla** de un **anuncio nuevo**, y si creía que era un camión, la foto **no entraba** al catálogo.
+- Lo medimos con las fotos reales de g500 y **se equivocaba en la mitad de los anuncios de verdad**: los habría tomado por camiones y no se habrían registrado.
+- Ahora **todo anuncio nuevo entra al catálogo como antes**. Cuando la foto se parece a uno conocido, solo se anota en el registro del equipo, para juntar ejemplos y afinar el filtro más adelante.
+- Ya no se abren fallas de «obstrucción» por esto. Nada cambia en SPACE OS ni en los importes.
+
+---
+
+## 2026-11-20 · Propuestas: mapa y fotos de las pantallas en la ficha
+
+- En la ficha de una propuesta, **justo debajo de «Sitios y renta»**, hay dos cuadros:
+- **«Mapa de las pantallas»**: un punto por cada sitio de la propuesta que tiene coordenadas, con su nombre. Los que no tienen ubicación capturada se listan debajo por nombre («Sin ubicación: …»), para saber cuáles hay que completar. (Este mapa ya existía al final de la ficha; ahora sube y nombra los que faltan.)
+- **«Fotos de las pantallas»**: por cada sitio, sus fotos en miniatura; al pulsar una se abre en grande, con el mismo visor de «Ver fotos y ubicación». Si un sitio no tiene fotos dice «Sin fotos»; si ninguno tiene, «Ninguna pantalla de esta propuesta tiene fotos».
+- Los dos se actualizan solos al agregar o quitar sitios, y se pueden plegar. Las fotos las ve quien puede ver la propuesta; un vendedor, solo las de sus propuestas.
+- En español, inglés, italiano y portugués. Nada cambia en la base ni en los importes.
+
+---
+
 ## 2026-11-20 · Cada creativo dice quién lo subió
 
 - Cada creativo **guarda quién lo subió**, en el momento de subirlo. Antes el sistema lo **adivinaba** mirando el historial y el nombre del archivo, y dos creativos con el **mismo nombre** se podían confundir. Ahora no: aunque se llamen igual, cada uno conserva el suyo, porque lo que cuenta es el contenido.

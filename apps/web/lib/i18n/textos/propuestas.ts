@@ -409,6 +409,12 @@ export const ES_PROPUESTAS = {
   'propuestas.ficha.mapa.sin-coords.otros':
     'Ninguna de las {n} pantallas de esta propuesta tiene coordenadas capturadas.',
   'propuestas.ficha.mapa.parcial': '{n} de {pantallas} no tienen coordenadas y no aparecen en el mapa.',
+  'propuestas.ficha.mapa-pantallas': 'Mapa de las pantallas',
+  'propuestas.ficha.mapa.sin-ubicacion': 'Sin ubicación: {sitios}',
+  'propuestas.ficha.fotos': 'Fotos de las pantallas',
+  'propuestas.ficha.fotos.sin-fotos': 'Sin fotos',
+  'propuestas.ficha.fotos.ninguna': 'Ninguna pantalla de esta propuesta tiene fotos.',
+  'propuestas.ficha.fotos.abrir': 'Abrir la foto {n} de {sitio}',
   'propuestas.ficha.pasos': 'Estado de la propuesta',
 
   // ── El codigo de negociacion (`components/demo/codigos/BloqueCodigoPropuesta.tsx`) ──
@@ -962,6 +968,12 @@ export const EN_PROPUESTAS: Record<ClavePropuestas, string> = {
   'propuestas.ficha.mapa.sin-coords.uno': 'The only screen in this proposal has no coordinates entered.',
   'propuestas.ficha.mapa.sin-coords.otros': 'None of the {n} screens in this proposal have coordinates entered.',
   'propuestas.ficha.mapa.parcial': 'Screens without coordinates (not shown on the map): {n} of {pantallas}.',
+  'propuestas.ficha.mapa-pantallas': 'Screen map',
+  'propuestas.ficha.mapa.sin-ubicacion': 'No location: {sitios}',
+  'propuestas.ficha.fotos': 'Screen photos',
+  'propuestas.ficha.fotos.sin-fotos': 'No photos',
+  'propuestas.ficha.fotos.ninguna': 'None of the screens in this proposal have photos.',
+  'propuestas.ficha.fotos.abrir': 'Open photo {n} of {sitio}',
   'propuestas.ficha.pasos': 'Proposal status',
 
   'propuestas.codigo.elige-o-teclea': 'Choose or type the negotiation code',
@@ -1523,6 +1535,12 @@ export const IT_PROPUESTAS: Record<ClavePropuestas, string> = {
   'propuestas.ficha.mapa.sin-coords.uno': 'L’unico impianto di questa proposta non ha coordinate inserite.',
   'propuestas.ficha.mapa.sin-coords.otros': 'Nessuno dei {n} impianti di questa proposta ha coordinate inserite.',
   'propuestas.ficha.mapa.parcial': 'Impianti senza coordinate (non compaiono sulla mappa): {n} su {pantallas}.',
+  'propuestas.ficha.mapa-pantallas': 'Mappa degli impianti',
+  'propuestas.ficha.mapa.sin-ubicacion': 'Senza posizione: {sitios}',
+  'propuestas.ficha.fotos': 'Foto degli impianti',
+  'propuestas.ficha.fotos.sin-fotos': 'Nessuna foto',
+  'propuestas.ficha.fotos.ninguna': 'Nessun impianto di questa proposta ha foto.',
+  'propuestas.ficha.fotos.abrir': 'Apri la foto {n} di {sitio}',
   'propuestas.ficha.pasos': 'Stato della proposta',
 
   'propuestas.codigo.elige-o-teclea': 'Scegli o digita il codice di negoziazione',
@@ -2090,6 +2108,12 @@ export const PT_PROPUESTAS: Record<ClavePropuestas, string> = {
     'Nenhum dos {n} pontos desta proposta tem coordenadas cadastradas.',
   // Sin concordancia con ninguna cifra (la leccion del L5, `cuenta.publica.mapa.parcial`).
   'propuestas.ficha.mapa.parcial': 'Pontos sem coordenadas (não aparecem no mapa): {n} de {pantallas}.',
+  'propuestas.ficha.mapa-pantallas': 'Mapa dos pontos',
+  'propuestas.ficha.mapa.sin-ubicacion': 'Sem localização: {sitios}',
+  'propuestas.ficha.fotos': 'Fotos dos pontos',
+  'propuestas.ficha.fotos.sin-fotos': 'Sem fotos',
+  'propuestas.ficha.fotos.ninguna': 'Nenhum ponto desta proposta tem fotos.',
+  'propuestas.ficha.fotos.abrir': 'Abrir a foto {n} de {sitio}',
   'propuestas.ficha.pasos': 'Situação da proposta',
 
   // ── El codigo de negociacion (`BloqueCodigoPropuesta`) ──

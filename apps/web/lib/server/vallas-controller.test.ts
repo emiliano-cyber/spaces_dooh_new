@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 //  `vallas_dobla_ck` no tenga que dar un 500.
 // ============================================================================
 
-const { creada, editada } = vi.hoisted(() => ({ creada: vi.fn(), editada: vi.fn() }))
+const { creada, editada, ordenada } = vi.hoisted(() => ({ creada: vi.fn(), editada: vi.fn(), ordenada: vi.fn() }))
 
 vi.mock('./vallas-repo', () => ({
   crearValla: creada,
@@ -20,13 +20,14 @@ vi.mock('./vallas-repo', () => ({
   actualizarCategoria: vi.fn(),
   contextoParaVerificar: vi.fn(),
   ocupacionDeVallas: vi.fn(),
+  guardarOrdenDeFila: ordenada,
   VallaError: class extends Error {},
   VALLA_NO_ENCONTRADA: 'Valla no encontrada',
   GRUPO_NO_ENCONTRADO: 'Grupo de vallas no encontrado',
   CATEGORIA_NO_ENCONTRADA: 'Categoría de competencia no encontrada',
 }))
 
-const { crearVallaCtrl, actualizarVallaCtrl } = await import('./vallas-controller')
+const { crearVallaCtrl, actualizarVallaCtrl, ordenVallasCtrl } = await import('./vallas-controller')
 
 const SITIO = '7f1c2a54-3b1e-4c8e-9a51-1b2c3d4e5f60'
 const BASE = { sitioId: SITIO, numero: 'V-001', ancho: 6, alto: 3 }
@@ -54,5 +55,30 @@ describe('dobla en el alta y la edición de una valla', () => {
     await expect(actualizarVallaCtrl('x', { dobla })).rejects.toMatchObject({ status: 400 })
     expect(creada).not.toHaveBeenCalled()
     expect(editada).not.toHaveBeenCalled()
+  })
+})
+
+// ============================================================================
+//  MOVER DESDE EL PLANO (dueño, 24/11). El controller solo deja pasar una lista
+//  de uuids; que sea la fila entera y con los grupos juntos lo revisa el repo
+//  contra la base (`problemaDeOrden`, con su propia prueba).
+// ============================================================================
+describe('ordenVallasCtrl', () => {
+  beforeEach(() => ordenada.mockReset().mockResolvedValue(undefined))
+
+  it('una lista de uuids pasa al repo tal cual, en ese orden', async () => {
+    const ids = [SITIO, '11111111-2222-4333-8444-555555555555']
+    await expect(ordenVallasCtrl({ vallaIds: ids })).resolves.toEqual({ ok: true })
+    expect(ordenada).toHaveBeenCalledWith(ids)
+  })
+
+  it.each([
+    ['sin lista', {}],
+    ['lista vacía', { vallaIds: [] }],
+    ['algo que no es uuid', { vallaIds: ['V-001'] }],
+    ['un campo de más', { vallaIds: [SITIO], sitioId: SITIO }],
+  ])('%s → 400 sin tocar la base', async (_n, body) => {
+    await expect(ordenVallasCtrl(body)).rejects.toMatchObject({ status: 400 })
+    expect(ordenada).not.toHaveBeenCalled()
   })
 })

@@ -8,6 +8,8 @@ import type { Valla, GrupoVallas, CategoriaCompetencia, Ocupacion, ModoGrupo, Do
 import { CATEGORIAS_COMPETENCIA_POR_OMISION } from '@/lib/vallas/competencia-por-omision'
 import type { ContextoVallas, Candidata } from '@/lib/vallas/reglas'
 import type { OcupacionSitio } from '@/lib/vallas/plano'
+import { cuadrosFaltantes } from '@/lib/vallas/cuadros-de-sitio'
+import { problemaDeOrden, type ProblemaOrden } from '@/lib/vallas/orden-fila'
 
 // ============================================================================
 //  lib/server/vallas-repo.ts — VALLAS (esqueleto, 19/11).
@@ -91,6 +93,91 @@ export async function listarVallasYGrupos(): Promise<{ vallas: Valla[]; grupos: 
     q('select * from vallas_grupos where tenant_id = $1 order by upper(numero) asc', [t]),
   ])
   return { vallas: vallas.map(rowToValla), grupos: grupos.map(rowToGrupo) }
+}
+
+/**
+ * Todo sitio VALLA del inventario sin ningún cuadro recibe uno por cara
+ * (dueño, 24/11; la regla, pura, en `lib/vallas/cuadros-de-sitio.ts`). Se
+ * corre al listar, así que un sitio que se da de alta o se cambia a VALLA sale
+ * en el módulo la próxima vez que alguien lo abre, sin migración ni botón.
+ *
+ * Escribe aunque quien lista solo tenga `inventario.ver`: no es una decisión
+ * de esa persona, es lo que el inventario ya dice (el sitio ES una valla).
+ *
+ * Un candado por organización (`pg_advisory_xact_lock`) para que dos pantallas
+ * abiertas a la vez no calculen lo mismo en paralelo; y aun sin él, el índice
+ * único del número haría que la segunda no duplicara nada (`on conflict`).
+ * Devuelve cuántos creó.
+ */
+export async function completarCuadrosDeSitiosValla(): Promise<number> {
+  const tenant = await tenantActual()
+  return withTenantTx(async (c) => {
+    await c.query(`select pg_advisory_xact_lock(hashtext('vallas-cuadros:' || $1::text))`, [tenant])
+    const [sitios, vallas] = await Promise.all([
+      c.query(
+        `select id, tipo_medio::text as tipo, caras, ancho, alto, estatus_comercial::text = 'BAJA' as baja
+           from sitios where tenant_id = $1 and tipo_medio::text = 'VALLA'`,
+        [tenant],
+      ),
+      c.query('select sitio_id, numero from vallas where tenant_id = $1', [tenant]),
+    ])
+    const nuevos = cuadrosFaltantes(
+      sitios.rows.map((s) => ({
+        id: s.id,
+        tipoMedio: s.tipo,
+        caras: s.caras == null ? null : Number(s.caras),
+        ancho: num(s.ancho),
+        alto: num(s.alto),
+        baja: s.baja === true,
+      })),
+      vallas.rows.map((v) => ({ sitioId: v.sitio_id, numero: v.numero })),
+    )
+    let creados = 0
+    for (const n of nuevos) {
+      const r = await c.query(
+        `insert into vallas (tenant_id, sitio_id, numero, ancho_m, alto_m, cara, notas)
+         values ($1,$2,$3,$4,$5,$6,$7) on conflict do nothing`,
+        [tenant, n.sitioId, n.numero, n.ancho, n.alto, n.cara, n.notas],
+      )
+      creados += r.rowCount ?? 0
+    }
+    return creados
+  })
+}
+
+export const ORDEN_INVALIDO: Record<ProblemaOrden, string> = {
+  ajena: 'Alguna de esas vallas no es de tu organización',
+  mezcla: 'Solo se puede acomodar una fila: un sitio y una cara',
+  incompleta: 'Falta acomodar alguna valla de esa fila; recarga e intenta de nuevo',
+  'grupo-partido': 'Un grupo de vallas no se puede partir',
+}
+
+/**
+ * Guarda el orden de UNA fila del plano (un sitio, una cara) escribiendo la
+ * posición de todas sus vallas, de izquierda a derecha (dueño, 24/11: mover
+ * con flechas desde el plano). La validación es `problemaDeOrden`, contra lo
+ * que hay en la base dentro de la misma transacción (`for update`).
+ */
+export async function guardarOrdenDeFila(vallaIds: string[]): Promise<void> {
+  const tenant = await tenantActual()
+  await withTenantTx(async (c) => {
+    const r = await c.query(
+      `select id, sitio_id, cara, grupo_id, activo from vallas
+        where tenant_id = $1
+          and (sitio_id, coalesce(cara, 0)) in (
+                select sitio_id, coalesce(cara, 0) from vallas where tenant_id = $1 and id = any($2::uuid[]))
+        for update`,
+      [tenant, vallaIds],
+    )
+    const problema = problemaDeOrden(
+      r.rows.map((v) => ({ id: v.id, sitioId: v.sitio_id, cara: v.cara ?? null, grupoId: v.grupo_id ?? null, activo: v.activo !== false })),
+      vallaIds,
+    )
+    if (problema) throw new VallaError(ORDEN_INVALIDO[problema], 400)
+    for (const [i, id] of vallaIds.entries()) {
+      await c.query('update vallas set posicion = $3 where id = $1 and tenant_id = $2', [id, tenant, i + 1])
+    }
+  })
 }
 
 async function sitioEsMio(sitioId: string): Promise<boolean> {
