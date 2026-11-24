@@ -1,7 +1,6 @@
 'use client'
 
 import { Monitor, CheckCircle2, FileWarning, Home, Layers, MonitorPlay, Signpost, MapPin, Columns3 } from 'lucide-react'
-import { TONO } from '@/components/demo/admin/Chip'
 import { cn } from '@/lib/cn'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { KPICard } from '@/components/demo/KPICard'
@@ -28,7 +27,9 @@ import type { ClaveTexto } from '@/lib/i18n/diccionario'
 
 /** De quién depende el costo de la pantalla: contrato de renta, ninguno, o propia. */
 export type ClaseContrato = 'con' | 'sin' | 'propia'
-export type ClaseMedio = 'digital' | 'fija'
+// 'valla' (24/11): los sitios tipo VALLA tienen su pestaña, como Fijos y
+// Digitales. Antes contaban como fijos.
+export type ClaseMedio = 'digital' | 'fija' | 'valla'
 
 /**
  * Misma resolución que la columna Arrendador/Renta de la tabla: una pantalla
@@ -41,7 +42,8 @@ export function claseContrato(s: Pick<Sitio, 'propio'>, tieneContrato: boolean):
 }
 
 export function claseMedio(s: Sitio): ClaseMedio {
-  return esDigital(s) ? 'digital' : 'fija'
+  if (esDigital(s)) return 'digital'
+  return s.tipoMedio === 'VALLA' ? 'valla' : 'fija'
 }
 
 /** El tono de `disponibilidadInventario` agrupa la disponibilidad que ya se pinta en la fila. */
@@ -172,7 +174,7 @@ export const IndicadoresInventario = ({
         <KPICard
           label={t('inventario.kpi.pantallas')}
           value={String(total)}
-          sub={t('inventario.kpi.medios', { digitales: medios.get('digital') ?? 0, fijas: medios.get('fija') ?? 0 })}
+          sub={t('inventario.kpi.medios', { digitales: medios.get('digital') ?? 0, fijas: (medios.get('fija') ?? 0) + (medios.get('valla') ?? 0) })}
           icon={<Monitor className="h-4 w-4" />}
         />
         {/* Disponibles = las que se venden enteras hoy. Una digital con parte
@@ -316,26 +318,22 @@ export const PestanasMedio = ({
   sitios,
   medio,
   onCambio,
-  vallas,
 }: {
   sitios: Sitio[]
   medio: ClaseMedio | null
   onCambio: (m: ClaseMedio | null) => void
-  /**
-   * 20/11 · el dueño pidió Vallas también DENTRO de Inventario (el menú la
-   * lleva una sola vez, en Comercial). Es opcional: solo la pantalla
-   * Inventario la ofrece. No es un filtro de la tabla sino otra vista, así que
-   * con `activa` ninguna pestaña de medio queda marcada a la vez.
-   */
-  vallas?: { activa: boolean; onElegir: () => void }
 }) => {
-  const enVallas = vallas?.activa === true
   const t = useTexto()
   const medios = cuenta(sitios.map(claseMedio))
+  // Vallas (24/11): una pestaña de MEDIO como las otras, que filtra la tabla
+  // a los sitios tipo VALLA. El 20/11 abría la pantalla del módulo entera; el
+  // dueño lo corrigió: «del inventario se tiene que ver como el resto … en su
+  // propio módulo es donde se tiene que ver detallado» (Comercial → Vallas).
   const opciones: { valor: ClaseMedio | null; etiqueta: string; n: number; icono: React.ReactNode }[] = [
     { valor: null, etiqueta: t('inventario.pestana.todos'), n: sitios.length, icono: <Layers className="h-4 w-4" /> },
     { valor: 'fija', etiqueta: t('inventario.pestana.fijos'), n: medios.get('fija') ?? 0, icono: <Signpost className="h-4 w-4" /> },
     { valor: 'digital', etiqueta: t('inventario.pestana.digitales'), n: medios.get('digital') ?? 0, icono: <MonitorPlay className="h-4 w-4" /> },
+    { valor: 'valla', etiqueta: t('nav.vallas'), n: medios.get('valla') ?? 0, icono: <Columns3 className="h-4 w-4" /> },
   ]
   return (
     <div
@@ -348,37 +346,22 @@ export const PestanasMedio = ({
           key={o.valor ?? 'todos'}
           type="button"
           role="tab"
-          aria-selected={!enVallas && medio === o.valor}
+          aria-selected={medio === o.valor}
           onClick={() => onCambio(o.valor)}
-          className={clasePestana(!enVallas && medio === o.valor)}
+          className={clasePestana(medio === o.valor)}
         >
           {o.icono}
           {o.etiqueta}
           <span
             className={cn(
               'demo-num rounded-full px-1.5 text-[11px]',
-              !enVallas && medio === o.valor ? 'bg-accent-soft text-ink' : 'bg-surface text-muted',
+              medio === o.valor ? 'bg-accent-soft text-ink' : 'bg-surface text-muted',
             )}
           >
             {o.n}
           </span>
         </button>
       ))}
-      {vallas && (
-        <button
-          type="button"
-          role="tab"
-          aria-selected={enVallas}
-          onClick={vallas.onElegir}
-          className={clasePestana(enVallas)}
-        >
-          <Columns3 className="h-4 w-4" />
-          {t('nav.vallas')}
-          <span className={cn('whitespace-nowrap rounded-full border px-1.5 py-0.5 text-[10px] font-medium leading-none', TONO.aviso)}>
-            {t('nav.insignia.en-proceso')}
-          </span>
-        </button>
-      )}
     </div>
   )
 }

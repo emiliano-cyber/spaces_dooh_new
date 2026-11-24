@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { exigir } from '@/lib/server/auth'
-import { listarVallasYGrupos } from '@/lib/server/vallas-repo'
+import { listarVallasYGrupos, completarCuadrosDeSitiosValla } from '@/lib/server/vallas-repo'
 import { crearVallaCtrl } from '@/lib/server/vallas-controller'
 import { respuestaError } from '@/lib/server/errores'
 import { registrarAccion } from '@/lib/server/acciones-repo'
@@ -13,9 +13,18 @@ export const dynamic = 'force-dynamic'
 // módulo de permisos nuevo (eso pediría sembrar `rol_permisos`).
 
 // GET /api/vallas → { vallas, grupos } de la organización.
+//
+// Antes de listar, todo sitio VALLA del inventario sin cuadros recibe uno por
+// cara (dueño, 24/11: lo que está en Inventario tiene que verse aquí). Si eso
+// falla, se lista igual: la pantalla no puede quedarse en blanco por esto.
 export async function GET() {
   const g = await exigir('inventario', 'ver')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
+  try {
+    await completarCuadrosDeSitiosValla()
+  } catch (e) {
+    console.error('[vallas] no se pudieron completar los cuadros de los sitios VALLA', e)
+  }
   return NextResponse.json(await listarVallasYGrupos())
 }
 

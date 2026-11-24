@@ -3,7 +3,8 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { ProveedorIdioma } from '@/lib/i18n/contexto'
 import type { Idioma } from '@/lib/i18n/idiomas'
-import { PestanasMedio } from './ResumenInventario'
+import type { Sitio } from '@/lib/data/client'
+import { PestanasMedio, claseMedio } from './ResumenInventario'
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
@@ -11,17 +12,14 @@ vi.mock('next/navigation', () => ({
 }))
 
 // ============================================================================
-//  Vallas también dentro de Inventario (pedido del dueño, 20/11).
+//  Vallas en Inventario · CAMBIO del 24/11.
 // ----------------------------------------------------------------------------
-//  El menú lleva Vallas UNA sola vez, en Comercial. En la pantalla Inventario
-//  el dueño quiere la misma opción como pestaña, junto a Todos · Fijos ·
-//  Digitales, con su etiqueta «En proceso». Al elegirla se ve la pantalla de
-//  Vallas (alta, grupos, plano y «Verificar una marca»).
-//
-//  Lo que se fija aquí es lo que puede romperse en silencio:
-//   · la pestaña solo sale si quien la pinta la ofrece (otras pantallas que
-//     usen las pestañas de medio no la heredan);
-//   · con Vallas elegida, ninguna pestaña de medio queda marcada a la vez.
+//  El 20/11 la pestaña Vallas de Inventario abría la pantalla del módulo
+//  entera (alta, grupos, plano). El 24/11 el dueño lo corrigió: «del
+//  inventario se tiene que ver como el resto, como las fijas y las digitales;
+//  en su propio módulo es donde se tiene que ver detallado». Así que Vallas es
+//  una pestaña de MEDIO más: filtra la tabla a los sitios tipo VALLA, con su
+//  cuenta, y el detalle vive en Comercial → Vallas.
 // ============================================================================
 
 const pintar = (props: Parameters<typeof PestanasMedio>[0], idioma: Idioma = 'es') =>
@@ -33,28 +31,33 @@ const pestanas = (html: string) =>
     texto: m[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
   }))
 
+const sitio = (id: string, tipoMedio: string, extra: Partial<Sitio> = {}) =>
+  ({ id, nombre: id, tipoMedio, esRotativo: false, exhibicion: 'fija', ...extra }) as unknown as Sitio
+
 describe('pestaña Vallas en Inventario', () => {
-  it('sin ofrecerla, solo están Todos · Fijos · Digitales', () => {
+  it('Todos · Fijos · Digitales · Vallas, cada una con su cuenta', () => {
+    const sitios = [sitio('a', 'VALLA'), sitio('b', 'VALLA'), sitio('c', 'ESPECTACULAR'), sitio('d', 'PANTALLA_DIGITAL', { exhibicion: 'digital' } as Partial<Sitio>)]
+    const p = pestanas(pintar({ sitios, medio: null, onCambio: () => {} }))
+    expect(p.map((x) => x.texto)).toEqual(['Todos 4', 'Fijos 1', 'Digitales 1', 'Vallas 2'])
+  })
+
+  it('un sitio VALLA cuenta como valla, no como fijo', () => {
+    expect(claseMedio(sitio('a', 'VALLA'))).toBe('valla')
+    expect(claseMedio(sitio('b', 'ESPECTACULAR'))).toBe('fija')
+  })
+
+  it('elegida, es la marcada como cualquier otra pestaña de medio', () => {
+    const p = pestanas(pintar({ sitios: [], medio: 'valla', onCambio: () => {} }))
+    expect(p.filter((x) => x.marcada).map((x) => x.texto)).toEqual(['Vallas 0'])
+  })
+
+  it('ya no lleva «En proceso»: es una lista del inventario, no el módulo', () => {
     const html = pintar({ sitios: [], medio: null, onCambio: () => {} })
-    expect(pestanas(html).map((p) => p.texto.split(' ')[0])).toEqual(['Todos', 'Fijos', 'Digitales'])
+    expect(html).not.toContain('En proceso')
   })
 
-  it('ofrecida, sale al final con «En proceso», sin marcar', () => {
-    const html = pintar({ sitios: [], medio: null, onCambio: () => {}, vallas: { activa: false, onElegir: () => {} } })
-    const p = pestanas(html)
-    expect(p).toHaveLength(4)
-    expect(p[3].texto).toBe('Vallas En proceso')
-    expect(p[3].marcada).toBe(false)
-    expect(p[0].marcada).toBe(true)
-  })
-
-  it('elegida, es la ÚNICA marcada aunque el filtro de medio diga otra cosa', () => {
-    const html = pintar({ sitios: [], medio: 'fija', onCambio: () => {}, vallas: { activa: true, onElegir: () => {} } })
-    expect(pestanas(html).filter((p) => p.marcada).map((p) => p.texto)).toEqual(['Vallas En proceso'])
-  })
-
-  it('en inglés se traduce con las claves del menú', () => {
-    const html = pintar({ sitios: [], medio: null, onCambio: () => {}, vallas: { activa: false, onElegir: () => {} } }, 'en')
-    expect(pestanas(html)[3].texto).toBe('Poster panels In progress')
+  it('en inglés se traduce con la clave del menú', () => {
+    const p = pestanas(pintar({ sitios: [], medio: null, onCambio: () => {} }, 'en'))
+    expect(p[3].texto).toBe('Poster panels 0')
   })
 })

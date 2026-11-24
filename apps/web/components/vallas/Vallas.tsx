@@ -37,8 +37,10 @@ import {
   crearCategoriaApi,
   actualizarCategoriaApi,
   verificarVallasApi,
+  ordenarFilaVallasApi,
 } from '@/lib/data/vallas-api'
-import { TarjetaPlano, useMedida } from './PlanoVallas'
+import { ordenTrasMover, type Direccion, type FilaPlano } from '@/lib/vallas/plano'
+import { TarjetaPlano, useMedida, type AccionesPlano } from './PlanoVallas'
 
 // ============================================================================
 //  VALLAS (esqueleto, 19/11). Arriba, el PLANO por sitio (20/11,
@@ -75,6 +77,31 @@ export function VallasPantalla() {
     void recargar()
   }, [recargar])
 
+  // Desde el plano (dueño, 24/11: «tocar y flechas»). Solo quien puede
+  // escribir vallas recibe las acciones; para los demás el plano es un dibujo.
+  const puedeEscribir = usePuede('inventario', 'crear')
+  const [editando, setEditando] = useState<Valla | null>(null)
+  const [moviendo, setMoviendo] = useState(false)
+  async function mover(fila: FilaPlano, vallaId: string, dir: Direccion) {
+    const ids = ordenTrasMover(fila, vallaId, dir)
+    if (!ids || moviendo) return
+    setMoviendo(true)
+    try {
+      await ordenarFilaVallasApi(ids)
+      await recargar()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t('vallas.error.guardar'))
+    }
+    setMoviendo(false)
+  }
+  const acciones: AccionesPlano | undefined = puedeEscribir
+    ? {
+        editar: (id) => setEditando(vallas?.find((v) => v.id === id) ?? null),
+        mover: (fila, id, dir) => void mover(fila, id, dir),
+        ocupado: moviendo,
+      }
+    : undefined
+
   return (
     <div className="w-full space-y-4">
       <div>
@@ -94,7 +121,15 @@ export function VallasPantalla() {
           <strong className="font-medium">{t('nav.insignia.en-proceso')}:</strong> {t('vallas.en-proceso.aviso')}
         </span>
       </div>
-      <TarjetaPlano vallas={vallas} grupos={grupos} />
+      <TarjetaPlano vallas={vallas} grupos={grupos} acciones={acciones} />
+      {editando && (
+        <FormValla
+          valla={editando}
+          sugerido={editando.numero}
+          onClose={() => setEditando(null)}
+          onGuardado={recargar}
+        />
+      )}
       <TarjetaVallas vallas={vallas} grupos={grupos} recargar={recargar} />
       <TarjetaGrupos vallas={vallas ?? []} grupos={grupos} recargar={recargar} />
       <TarjetaCompetencia categorias={categorias} recargar={recargar} />

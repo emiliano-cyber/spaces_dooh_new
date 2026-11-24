@@ -1,7 +1,7 @@
 'use client'
 
 import { Fragment, useEffect, useMemo, useState } from 'react'
-import { CornerUpLeft, CornerUpRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CornerUpLeft, CornerUpRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Campo } from '@/components/demo/ui/Campo'
@@ -15,6 +15,9 @@ import type { Valla, GrupoVallas, Dobla } from '@/lib/vallas/tipos'
 import {
   armarPlano,
   rangoPorOmision,
+  ordenTrasMover,
+  type Direccion,
+  type FilaPlano,
   type OcupacionSitio,
   type SitioPlano,
   type CuadroPlano,
@@ -65,7 +68,20 @@ export function useMedida() {
     t('vallas.medida', { ancho: formatNumero(ancho, ancho % 1 ? 2 : 0, idioma), alto: formatNumero(alto, alto % 1 ? 2 : 0, idioma) })
 }
 
-export function TarjetaPlano({ vallas, grupos }: { vallas: Valla[] | null; grupos: GrupoVallas[] }) {
+/**
+ * Lo que se puede hacer desde el plano de la pantalla de Vallas (dueño, 24/11:
+ * «tocar y flechas»): tocar un cuadro lo edita y las flechas lo mueven en su
+ * fila. Solo lo recibe quien puede escribir vallas; la propuesta y la liga del
+ * cliente no lo pasan y el plano sigue siendo un dibujo.
+ */
+export type AccionesPlano = {
+  editar: (vallaId: string) => void
+  mover: (fila: FilaPlano, vallaId: string, dir: Direccion) => void
+  /** Mientras se guarda un movimiento, las flechas esperan. */
+  ocupado?: boolean
+}
+
+export function TarjetaPlano({ vallas, grupos, acciones }: { vallas: Valla[] | null; grupos: GrupoVallas[]; acciones?: AccionesPlano }) {
   const { t } = useIdioma()
   return (
     <CardColapsable
@@ -73,7 +89,7 @@ export function TarjetaPlano({ vallas, grupos }: { vallas: Valla[] | null; grupo
       titulo={t('vallas.plano.titulo')}
       resumen={<span className="text-[12px] text-muted">{t('vallas.plano.detalle')}</span>}
     >
-      <PlanoVallas vallas={vallas} grupos={grupos} />
+      <PlanoVallas vallas={vallas} grupos={grupos} acciones={acciones} />
     </CardColapsable>
   )
 }
@@ -90,6 +106,7 @@ export function PlanoVallas({
   sitioIds,
   fechas,
   textoVacio,
+  acciones,
 }: {
   vallas: Valla[] | null
   grupos: GrupoVallas[]
@@ -99,6 +116,7 @@ export function PlanoVallas({
   fechas?: { desde: string; hasta: string }
   /** Lo que se dice si no hay nada que dibujar; por omisión, el de Vallas. */
   textoVacio?: string
+  acciones?: AccionesPlano
 }) {
   const { t, idioma } = useIdioma()
   const sitios = useSitios()
@@ -167,15 +185,16 @@ export function PlanoVallas({
           <span>{t('vallas.plano.nota')}</span>
         </div>
       )}
+      {acciones && plano.length > 0 && <p className="text-[12px] text-muted">{t('vallas.plano.editar.ayuda')}</p>}
       {plano.map((s) => (
-        <PlanoDeSitio key={s.sitioId} sitio={s} />
+        <PlanoDeSitio key={s.sitioId} sitio={s} acciones={acciones} />
       ))}
     </div>
   )
 }
 
 /** El dibujo de un sitio. Exportado para la prueba de render. */
-export function PlanoDeSitio({ sitio, publico = false }: { sitio: SitioPlano; publico?: boolean }) {
+export function PlanoDeSitio({ sitio, publico = false, acciones }: { sitio: SitioPlano; publico?: boolean; acciones?: AccionesPlano }) {
   const { t } = useIdioma()
   const rotularCaras = sitio.filas.length > 1 || sitio.filas.some((f) => f.cara != null)
   return (
@@ -196,7 +215,7 @@ export function PlanoDeSitio({ sitio, publico = false }: { sitio: SitioPlano; pu
                 {f.tramos.map((tr) => (
                   <Fragment key={tr.bloques[0].cuadros[0].id}>
                     {tr.gira && <Esquina dobla={tr.gira} />}
-                    <Tramo tramo={tr} publico={publico} />
+                    <Tramo tramo={tr} publico={publico} fila={f} acciones={acciones} />
                   </Fragment>
                 ))}
                 {f.esquinaFinal && <Esquina dobla={f.esquinaFinal} />}
@@ -210,7 +229,7 @@ export function PlanoDeSitio({ sitio, publico = false }: { sitio: SitioPlano; pu
 }
 
 /** Un tramo recto de pared; tras una esquina, girado hacia donde dobla. */
-function Tramo({ tramo, publico }: { tramo: TramoPlano; publico: boolean }) {
+function Tramo({ tramo, publico, fila, acciones }: { tramo: TramoPlano; publico: boolean; fila: FilaPlano; acciones?: AccionesPlano }) {
   return (
     <div
       data-gira={tramo.gira ?? undefined}
@@ -222,7 +241,7 @@ function Tramo({ tramo, publico }: { tramo: TramoPlano; publico: boolean }) {
       }}
     >
       {tramo.bloques.map((b) => (
-        <Bloque key={b.grupo ? `g-${b.grupo.id}` : `v-${b.cuadros[0].id}`} bloque={b} publico={publico} />
+        <Bloque key={b.grupo ? `g-${b.grupo.id}` : `v-${b.cuadros[0].id}`} bloque={b} publico={publico} fila={fila} acciones={acciones} />
       ))}
     </div>
   )
@@ -243,9 +262,9 @@ function Esquina({ dobla }: { dobla: Dobla }) {
   )
 }
 
-function Bloque({ bloque, publico }: { bloque: BloquePlano; publico: boolean }) {
+function Bloque({ bloque, publico, fila, acciones }: { bloque: BloquePlano; publico: boolean; fila: FilaPlano; acciones?: AccionesPlano }) {
   const { t } = useIdioma()
-  if (!bloque.grupo) return <Cuadro cuadro={bloque.cuadros[0]} publico={publico} />
+  if (!bloque.grupo) return <Cuadro cuadro={bloque.cuadros[0]} publico={publico} fila={fila} acciones={acciones} />
   const g = bloque.grupo
   const cortado = bloque.cortadoAntes || bloque.cortadoDespues
   const etiqueta =
@@ -256,7 +275,7 @@ function Bloque({ bloque, publico }: { bloque: BloquePlano; publico: boolean }) 
     <div role="group" aria-label={etiqueta} className="flex min-w-max flex-col" style={{ flexGrow: bloque.ancho, flexBasis: 0 }}>
       <div className="flex items-start gap-1">
         {bloque.cuadros.map((c) => (
-          <Cuadro key={c.id} cuadro={c} publico={publico} />
+          <Cuadro key={c.id} cuadro={c} publico={publico} fila={fila} acciones={acciones} />
         ))}
       </div>
       {/* El corchete del boceto: └─ G-001 (una imagen) ─┘. Si el grupo cruza
@@ -274,7 +293,17 @@ function Bloque({ bloque, publico }: { bloque: BloquePlano; publico: boolean }) 
   )
 }
 
-function Cuadro({ cuadro: c, publico }: { cuadro: CuadroPlano; publico: boolean }) {
+function Cuadro({
+  cuadro: c,
+  publico,
+  fila,
+  acciones,
+}: {
+  cuadro: CuadroPlano
+  publico: boolean
+  fila?: FilaPlano
+  acciones?: AccionesPlano
+}) {
   const { t } = useIdioma()
   const medida = useMedida()
   const m = medida(c.ancho, c.alto)
@@ -283,15 +312,66 @@ function Cuadro({ cuadro: c, publico }: { cuadro: CuadroPlano; publico: boolean 
   // es de la organización y no se pide).
   const tuya = t('vallas.plano.tuya')
   const estado = publico ? tuya : libre ? t('vallas.plano.libre') : t('vallas.plano.ocupada', { quien: c.ocupantes.map((o) => o.etiqueta).join(', ') })
+  const etiqueta =
+    t('vallas.plano.cuadro', { numero: c.numero, medida: m, estado }) +
+    (c.dobla ? `, ${t(`vallas.plano.esquina.${c.dobla}` as ClaveTexto)}` : '')
+  const clases = cn('flex min-w-[5.5rem] flex-col justify-between rounded border px-2 py-1.5', publico ? TONO.acento : libre ? TONO.exito : TONO.aviso)
+  const alto = `${Math.round(48 + c.altoRel * 64)}px`
+
+  // Con acciones (pantalla de Vallas, quien puede escribir): el cuadro es un
+  // botón que abre su edición, y debajo van las flechas. Una flecha que no
+  // puede mover (orilla de la fila o del grupo) sale deshabilitada, no oculta:
+  // así se entiende por qué no se mueve.
+  if (acciones && fila && !publico) {
+    const puede = (dir: Direccion) => !acciones.ocupado && ordenTrasMover(fila, c.id, dir) !== null
+    const flecha = 'inline-flex h-6 w-6 items-center justify-center rounded border border-border bg-surface text-muted hover:text-ink disabled:opacity-40 disabled:hover:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent'
+    return (
+      <div className="flex min-w-[5.5rem] flex-col gap-1" style={{ flexGrow: c.ancho, flexBasis: 0 }}>
+        <button
+          type="button"
+          onClick={() => acciones.editar(c.id)}
+          title={t('vallas.plano.editar.cuadro', { numero: c.numero })}
+          className={cn(clases, 'w-full text-left hover:ring-2 hover:ring-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent')}
+          style={{ height: alto }}
+          aria-label={`${t('vallas.plano.editar.cuadro', { numero: c.numero })}. ${etiqueta}`}
+        >
+          <ContenidoCuadro c={c} m={m} publico={publico} libre={libre} tuya={tuya} />
+        </button>
+        <div className="flex justify-center gap-1">
+          <button
+            type="button"
+            className={flecha}
+            disabled={!puede('izquierda')}
+            onClick={() => acciones.mover(fila, c.id, 'izquierda')}
+            aria-label={t('vallas.plano.mover.izquierda', { numero: c.numero })}
+          >
+            <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className={flecha}
+            disabled={!puede('derecha')}
+            onClick={() => acciones.mover(fila, c.id, 'derecha')}
+            aria-label={t('vallas.plano.mover.derecha', { numero: c.numero })}
+          >
+            <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div
-      className={cn('flex min-w-[5.5rem] flex-col justify-between rounded border px-2 py-1.5', publico ? TONO.acento : libre ? TONO.exito : TONO.aviso)}
-      style={{ flexGrow: c.ancho, flexBasis: 0, height: `${Math.round(48 + c.altoRel * 64)}px` }}
-      aria-label={
-        t('vallas.plano.cuadro', { numero: c.numero, medida: m, estado }) +
-        (c.dobla ? `, ${t(`vallas.plano.esquina.${c.dobla}` as ClaveTexto)}` : '')
-      }
-    >
+    <div className={clases} style={{ flexGrow: c.ancho, flexBasis: 0, height: alto }} aria-label={etiqueta}>
+      <ContenidoCuadro c={c} m={m} publico={publico} libre={libre} tuya={tuya} />
+    </div>
+  )
+}
+
+function ContenidoCuadro({ c, m, publico, libre, tuya }: { c: CuadroPlano; m: string; publico: boolean; libre: boolean; tuya: string }) {
+  const { t } = useIdioma()
+  return (
+    <>
       <span className="demo-num text-[12px] font-medium text-ink">{c.numero}</span>
       <span className="demo-num text-[11px] text-muted">{m}</span>
       <span className="truncate text-[11px] text-ink">
@@ -311,7 +391,7 @@ function Cuadro({ cuadro: c, publico }: { cuadro: CuadroPlano; publico: boolean 
           </>
         )}
       </span>
-    </div>
+    </>
   )
 }
 

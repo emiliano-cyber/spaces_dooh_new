@@ -12,6 +12,7 @@ import {
   actualizarCategoria,
   contextoParaVerificar,
   ocupacionDeVallas,
+  guardarOrdenDeFila,
   VallaError,
   VALLA_NO_ENCONTRADA,
   GRUPO_NO_ENCONTRADO,
@@ -123,6 +124,21 @@ export async function actualizarVallaCtrl(id: string, body: unknown) {
     const r = await actualizarValla(id, d)
     if (!r) throw new AppError(VALLA_NO_ENCONTRADA, 404)
     return r
+  } catch (e) {
+    mapear(e)
+  }
+}
+
+// PUT /api/vallas/orden (dueño, 24/11: mover con flechas desde el plano). La
+// fila ENTERA, de izquierda a derecha; lo demás lo revisa el repo contra la
+// base (misma fila, completa, grupos juntos).
+const ordenSchema = z.object({ vallaIds: z.array(uuid).min(1).max(200) }).strict()
+
+export async function ordenVallasCtrl(body: unknown) {
+  const d = validar(ordenSchema, cuerpo(body))
+  try {
+    await guardarOrdenDeFila(d.vallaIds)
+    return { ok: true }
   } catch (e) {
     mapear(e)
   }

@@ -213,3 +213,39 @@ describe.each([
     expect(html).not.toContain('rotateY')
   })
 })
+
+// ============================================================================
+//  TOCAR Y FLECHAS (dueño, 24/11). Con acciones (la pantalla de Vallas, quien
+//  puede escribir) cada cuadro es un botón y lleva dos flechas; en la orilla
+//  la flecha sale DESHABILITADA. Sin acciones (propuesta, liga del cliente) el
+//  plano sigue siendo un dibujo, sin un solo botón.
+// ============================================================================
+describe('plano con acciones', () => {
+  async function pintarCon(acciones: boolean) {
+    const { PlanoDeSitio } = await import('./PlanoVallas')
+    const [sitio] = armarPlano({ vallas: VALLAS, grupos: GRUPOS, sitios: [{ id: 'S1', nombre: 'Periférico Sur 4500' }], ocupaciones: [] })
+    const props = acciones ? { sitio, acciones: { editar: () => {}, mover: () => {} } } : { sitio }
+    return renderToStaticMarkup(createElement(ProveedorIdioma, { idioma: 'es' as Idioma }, createElement(PlanoDeSitio, props)))
+  }
+  const botones = (html: string) =>
+    [...html.matchAll(/<button[^>]*?(disabled="")?[^>]*aria-label="([^"]+)"/g)].map((m) => ({ label: m[2], deshabilitado: /disabled=""/.test(m[0]) }))
+
+  it('sin acciones no hay botones (propuesta y liga del cliente)', async () => {
+    expect(await pintarCon(false)).not.toContain('<button')
+  })
+
+  it('cada cuadro se edita tocándolo', async () => {
+    const b = botones(await pintarCon(true))
+    expect(b.filter((x) => x.label.startsWith('Editar')).map((x) => x.label.split('.')[0])).toEqual(['Editar V-001', 'Editar V-002', 'Editar V-003'])
+  })
+
+  it('las flechas de la orilla están deshabilitadas: de la fila y del grupo', async () => {
+    const b = botones(await pintarCon(true))
+    const flecha = (l: string) => b.find((x) => x.label === l)!
+    expect(flecha('Mover V-001 a la izquierda').deshabilitado).toBe(true) // orilla del grupo
+    expect(flecha('Mover V-001 a la derecha').deshabilitado).toBe(false)
+    expect(flecha('Mover V-002 a la derecha').deshabilitado).toBe(true) // orilla del grupo
+    expect(flecha('Mover V-003 a la izquierda').deshabilitado).toBe(false) // salta el grupo
+    expect(flecha('Mover V-003 a la derecha').deshabilitado).toBe(true) // orilla de la fila
+  })
+})

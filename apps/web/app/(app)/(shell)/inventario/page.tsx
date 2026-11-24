@@ -7,9 +7,6 @@ import { ImportarInventarioDialog } from '@/components/demo/inventario/ImportarI
 import { NuevaPantallaForm } from '@/components/demo/inventario/NuevaPantallaForm'
 import { InventarioTabla } from '@/components/demo/inventario/InventarioTabla'
 import { ContratoWizard } from '@/components/demo/inventario/ContratoWizard'
-import { PestanasMedio, type ClaseMedio } from '@/components/demo/inventario/ResumenInventario'
-import { VallasPantalla } from '@/components/vallas/Vallas'
-import { useSitios } from '@/lib/data/client'
 import { useSesionCtx } from '@/components/demo/shell/SesionContext'
 import { useTexto } from '@/lib/i18n/contexto'
 
@@ -56,10 +53,6 @@ export default function AgregarInventarioPage() {
   const [modo, setModo] = useState<'lista' | 'contrato' | 'masiva' | 'manual'>('lista')
   const [resetKey, setResetKey] = useState(0)
   const [toast, setToast] = useState<string | null>(null)
-  // 20/11 · pestaña Vallas dentro de Inventario (pedido del dueño). `medio` es
-  // con qué filtro vuelve la tabla al salir de Vallas por una pestaña de medio.
-  const [vista, setVista] = useState<'pantallas' | 'vallas'>('pantallas')
-  const [medio, setMedio] = useState<ClaseMedio | null>(null)
 
   // Solo quien administra la instancia: el Dueño y, desde el ADR 0040
   // (2026-09-29), también el ADMINISTRADOR. La nav ya lo oculta para los demás;
@@ -149,15 +142,10 @@ export default function AgregarInventarioPage() {
         </button>
       )}
 
-      {modo === 'lista' && vista === 'vallas' ? (
-        <VistaVallas
-          onMedio={(m) => {
-            setMedio(m)
-            setVista('pantallas')
-          }}
-        />
-      ) : modo === 'lista' ? (
-        <InventarioTabla key={medio ?? 'todos'} medioInicial={medio} onVallas={() => setVista('vallas')} />
+      {/* Vallas (24/11) es una pestaña de medio DENTRO de la tabla, como Fijos
+          y Digitales; el detalle vive en su módulo (Comercial → Vallas). */}
+      {modo === 'lista' ? (
+        <InventarioTabla />
       ) : modo === 'contrato' ? (
         <ContratoWizard
           key={`contrato-${resetKey}`}
@@ -202,22 +190,6 @@ export default function AgregarInventarioPage() {
           </span>
         </div>
       )}
-    </div>
-  )
-}
-
-// Vallas dentro de Inventario (20/11): las MISMAS pestañas que la tabla, con
-// Vallas marcada, y debajo la pantalla de Vallas tal cual —alta de vallas y
-// grupos, plano y «Verificar una marca»—, sin copiarla. El menú sigue llevando
-// Vallas una sola vez, en Comercial; esto es la misma pantalla en otro lugar.
-function VistaVallas({ onMedio }: { onMedio: (m: ClaseMedio | null) => void }) {
-  const sitios = useSitios()
-  return (
-    <div className="space-y-4">
-      <div className="rounded-md border border-border bg-surface-2/40 px-3 py-2.5">
-        <PestanasMedio sitios={sitios ?? []} medio={null} onCambio={onMedio} vallas={{ activa: true, onElegir: () => {} }} />
-      </div>
-      <VallasPantalla />
     </div>
   )
 }
