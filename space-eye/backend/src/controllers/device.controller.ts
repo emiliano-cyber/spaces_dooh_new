@@ -17,6 +17,7 @@ import { duenoPorOmision, enModoInstancia } from '../utils/instancia';
 import * as vinc from '../utils/vinculaciones';
 import { env } from '../config/env';
 import { medirRelojConFoto } from '../utils/relojEquipo';
+import { veredictoObstruccion } from '../utils/obstruccion';
 
 // Los limites reflejan el tamaño real de las columnas: sin ellos, un dato mas
 // largo llegaba a MySQL, reventaba el INSERT y el error tumbaba el proceso. Se
@@ -447,8 +448,23 @@ export async function uploadPhotoEndpoint(req: Request, res: Response) {
     // -«algo tapando la pantalla»- y que el propio servidor cierra en cuanto
     // la pantalla vuelve a verse entera. Antes esto entraba al catalogo como un
     // anuncio que no existe.
+    //
+    // OJO: desde el 24/11 esto por omision solo ANOTA (utils/obstruccion.ts).
+    // Medido en g500, la mitad de los anuncios de verdad caian en la banda y
+    // se habrian quedado fuera del catalogo con una falla que no era cierta.
     const obs = await obstruccionEnFoto(did, req.file.buffer).catch(() => null);
-    if (obs?.obstruido) {
+    const veredicto = obs ? veredictoObstruccion(obs.parecido, env.OBSTRUCCION_DESCARTA === 'si') : 'nada';
+    if (obs && veredicto === 'anotar') {
+      // La constancia que falta para medir el umbral: el parecido y la huella,
+      // para cruzarla despues con lo que el creativo resulto ser (si se vio
+      // muchas veces era un anuncio; si una sola, quiza un camion).
+      await pool.query(
+        `INSERT INTO device_logs (device_id, level, category, message) VALUES (?, 'info', 'creative', ?)`,
+        [did, `Posible obstruccion (solo se anota): el ${Math.round(obs.parecido * 100)}% de la pantalla `
+          + `se parece a un creativo conocido. Huella ${obs.phash ?? '-'}. Sigue al catalogo.`]
+      ).catch(() => null);
+    }
+    if (obs && veredicto === 'descartar') {
       const pct = Math.round(obs.parecido * 100);
       await pool.query(
         `INSERT INTO device_logs (device_id, level, category, message) VALUES (?, 'warning', 'creative', ?)`,

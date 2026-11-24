@@ -5,6 +5,15 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-24 · Space Eyes: el filtro de «algo delante de la pantalla» ya no tira anuncios
+
+- Desde la versión anterior, Space Eyes intentaba distinguir un **camión delante de la pantalla** de un **anuncio nuevo**, y si creía que era un camión, la foto **no entraba** al catálogo.
+- Lo medimos con las fotos reales de g500 y **se equivocaba en la mitad de los anuncios de verdad**: los habría tomado por camiones y no se habrían registrado.
+- Ahora **todo anuncio nuevo entra al catálogo como antes**. Cuando la foto se parece a uno conocido, solo se anota en el registro del equipo, para juntar ejemplos y afinar el filtro más adelante.
+- Ya no se abren fallas de «obstrucción» por esto. Nada cambia en SPACE OS ni en los importes.
+
+---
+
 ## 2026-11-20 · Propuestas: mapa y fotos de las pantallas en la ficha
 
 - En la ficha de una propuesta, **justo debajo de «Sitios y renta»**, hay dos cuadros:

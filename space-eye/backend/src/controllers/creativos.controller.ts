@@ -19,6 +19,7 @@ import { z } from 'zod';
 import { firmarFilas } from '../utils/firmaArchivos';
 import { encuadreDe } from './dashboard.controller';
 import { ordenarEquipo } from '../utils/espejo';
+import { PARECIDO_OBSTRUIDO, PARECIDO_ES_LA_MISMA } from '../utils/obstruccion';
 
 /** Bits distintos entre dos huellas de 256 bits en hexadecimal. */
 export function distancia(a: string, b: string): number {
@@ -758,17 +759,12 @@ export async function reaprender(req: Request, res: Response) {
 // pantalla sigue siendo un creativo que ya conociamos, lo que cambio esta
 // DELANTE y no EN la pantalla.
 //
-// EL UMBRAL ESTA SIN MEDIR CONTRA FOTOS REALES DE CAMIONES, y eso hay que
-// decirlo: 0.45 sale de la geometria del caso -un vehiculo tapa entre un cuarto
-// y la mitad de la pantalla desde la altura de la camara-, no de un conteo.
-// Para medirlo hace falta el catalogo de produccion, donde esas fotos ya estan
-// guardadas como «creativos» que se vieron UNA vez y nunca mas. El guion
-// `scripts/medir-obstruccion.ts` hace exactamente esa cuenta.
-const PARECIDO_OBSTRUIDO = 0.45;
-// Por encima de esto es la MISMA imagen; eso ya lo caza la huella y no es
-// asunto de aqui. Esta cota evita contar como obstruccion una foto que el
-// catalogo reconoceria igual.
-const PARECIDO_ES_LA_MISMA = 0.95;
+// EL UMBRAL SE MIDIO EL 24/11 Y NO SEPARA: 0.45 sale de la geometria del caso
+// -un vehiculo tapa entre un cuarto y la mitad de la pantalla-, y contra el
+// catalogo real de g500 (`scripts/medir-obstruccion.ts`) la mitad de los
+// anuncios de verdad caian en la banda. Por eso la decision de DESCARTAR vive
+// en `utils/obstruccion.ts` y por omision solo se anota. Aqui se mide.
+// `obstruido` dice si cayo en la banda; que se haga con eso no es asunto de aqui.
 // Cuantos creativos del catalogo se comparan. Los mas vistos primero: el que
 // estaba en pantalla cuando paso el camion es, casi siempre, uno de ellos.
 const CATALOGO_A_COMPARAR = 6;
