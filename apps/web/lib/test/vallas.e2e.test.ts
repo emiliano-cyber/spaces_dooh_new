@@ -381,7 +381,10 @@ describe('Vallas en Comercial · los tres roles de venta', () => {
     for (const [nombre, c] of [['vendedor', vendedor], ['gerente', gerente], ['director', director]] as const) {
       const l = await c.pedir('/api/vallas/')
       expect(l.status, nombre).toBe(200)
-      expect(l.datos.vallas.map((v: any) => v.numero), nombre).toEqual(['C-1'])
+      // Solo las del sitio de esta prueba: desde el 24/11 el GET completa los
+      // sitios VALLA sin cuadros, y «Valla Periférico» (competencia, arriba)
+      // sigue en la base porque el beforeEach borra vallas, no sitios.
+      expect(l.datos.vallas.filter((v: any) => v.sitioId === org.sitioId).map((v: any) => v.numero), nombre).toEqual(['C-1'])
       expect(l.datos.grupos.map((g: any) => g.numero), nombre).toEqual(['G-C'])
       expect((await c.pedir('/api/vallas/competencia/')).status, nombre).toBe(200)
 
@@ -414,5 +417,47 @@ describe('Vallas en Comercial · los tres roles de venta', () => {
     expect(grupos.rows).toEqual([{ numero: 'G-D' }])
     const cats = await poolTest().query('select nombre, marcas from competencia_categorias where tenant_id = $1', [org.id])
     expect(cats.rows).toEqual([{ nombre: 'Refrescos de cola', marcas: ['Coca-Cola', 'Pepsi'] }])
+  })
+})
+
+// 24/11: «del inventario se tiene que ver como el resto». Al listar, un sitio
+// VALLA sin cuadros recibe uno por cara (`completarCuadrosDeSitiosValla`).
+// Escribe dentro del GET y bajo RLS, así que se prueba contra Postgres real:
+// las unitarias de `cuadros-de-sitio.ts` no ven tenant ni índices. Va al final
+// del archivo porque los sitios que crea se quedan (el beforeEach no borra
+// sitios) y cualquier GET posterior los completaría.
+describe('del inventario al módulo: los cuadros salen solos', () => {
+  it('un sitio VALLA sin cuadros sale con uno por cara, una sola vez y solo en su organización', async () => {
+    const mio = await sitioValla(org, 'Valla Autopista (auto)')
+    const ajeno = await sitioValla(otra, 'Valla ajena (auto)')
+    const baja = await sitioValla(org, 'Valla dada de baja (auto)')
+    await poolTest().query(`update sitios set estatus_comercial = 'BAJA' where id = $1`, [baja])
+    const delSitio = (l: any, s: string) => l.datos.vallas.filter((v: any) => v.sitioId === s)
+
+    const l1 = await dueno.pedir('/api/vallas/')
+    expect(l1.status).toBe(200)
+    const cuadros = delSitio(l1, mio)
+    expect(cuadros.map((v: any) => [v.cara, v.ancho, v.alto, v.notas])).toEqual([
+      [1, 12, 3, null],
+      [2, 12, 3, null],
+    ])
+    expect(cuadros.every((v: any) => /^V-\d{3}$/.test(v.numero))).toBe(true)
+    // De baja no se completa, y el GET de una organización no escribe en la otra.
+    expect(delSitio(l1, baja)).toEqual([])
+    expect(delSitio(l1, ajeno)).toEqual([])
+    const enAjeno = await poolTest().query('select count(*)::int as n from vallas where sitio_id = $1', [ajeno])
+    expect(enAjeno.rows[0].n).toBe(0)
+
+    // Otra vuelta no duplica.
+    expect(delSitio(await dueno.pedir('/api/vallas/'), mio)).toHaveLength(2)
+
+    // La otra organización completa lo suyo y no ve lo de esta.
+    const lo = await duenoOtra.pedir('/api/vallas/')
+    expect(delSitio(lo, ajeno)).toHaveLength(2)
+    expect(delSitio(lo, mio)).toEqual([])
+
+    // Con un cuadro que quede, ya decidió una persona: no se rellena.
+    expect((await dueno.pedir(`/api/vallas/${cuadros[1].id}/`, { metodo: 'DELETE' })).status).toBe(200)
+    expect(delSitio(await dueno.pedir('/api/vallas/'), mio).map((v: any) => v.cara)).toEqual([1])
   })
 })
