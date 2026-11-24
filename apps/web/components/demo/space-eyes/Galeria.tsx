@@ -52,7 +52,15 @@ import { interpolarNodos } from '@/lib/i18n/nodos'
 //  con la foto girada (con CSS, la marca quedaba en la caja sin girar).
 // ============================================================================
 
-const POR_PAGINA = 20
+// Cuantas fotos se piden de una vez. Es ELEGIBLE porque el trabajo de revisar
+// un mes no es el mismo que el de mirar lo de ayer: con 20 por pagina, auditar
+// una campana entera eran decenas de clics en «siguiente».
+//
+// Mil sigue estando porque alguien lo va a querer, no porque sea gratis: son
+// mil miniaturas en la pagina, y en un telefono se nota. El valor de fabrica
+// es 50, que es el que cubre el caso de todos los dias sin castigar a nadie.
+const PASOS_POR_PAGINA = [20, 50, 100, 200, 500, 1000] as const
+const POR_PAGINA_INICIAL = 20
 
 interface FotoSE extends FotoConMarca {
   device_id: number
@@ -115,6 +123,7 @@ export function Galeria() {
   const [filtros, setFiltros] = useState<Filtros>(SIN_FILTROS)
   const [listo, setListo] = useState(false) // ya se leyó ?device_id= de la URL
   const [pagina, setPagina] = useState(1)
+  const [porPagina, setPorPagina] = useState<number>(POR_PAGINA_INICIAL)
   const [fotos, setFotos] = useState<FotoSE[] | null>(null)
   const [total, setTotal] = useState(0)
   const [cargando, setCargando] = useState(true)
@@ -157,7 +166,7 @@ export function Galeria() {
     try {
       const q = consulta(filtros)
       const d = await seApi<{ photos: FotoSE[]; total: number }>(
-        `photos?page=${pagina}&limit=${POR_PAGINA}${q ? `&${q}` : ''}`,
+        `photos?page=${pagina}&limit=${porPagina}${q ? `&${q}` : ''}`,
       )
       setFotos(d?.photos ?? [])
       setTotal(Number(d?.total) || 0)
@@ -180,8 +189,8 @@ export function Galeria() {
   // Space Eye cuenta el total solo por equipo: con fechas u origen, ese total es
   // de más. Por eso «hay siguiente» también mira si esta página vino llena.
   const totalExacto = !filtros.desde && !filtros.hasta && !filtros.origen
-  const paginas = Math.max(1, Math.ceil(total / POR_PAGINA))
-  const haySiguiente = (fotos?.length ?? 0) === POR_PAGINA && pagina * POR_PAGINA < total
+  const paginas = Math.max(1, Math.ceil(total / porPagina))
+  const haySiguiente = (fotos?.length ?? 0) === porPagina && pagina * porPagina < total
 
   const borrar = async () => {
     if (!aBorrar) return
@@ -280,6 +289,21 @@ export function Galeria() {
           <p className="text-[13px] text-muted">{t('spaceeyes.galeria.descripcion')}</p>
         </div>
         <div className="flex items-center gap-2">
+          {/* Al cambiar el tamano se vuelve a la pagina 1: quedarse en la 7 con
+              mil por pagina seria pedir la foto numero 7000, que casi nunca
+              existe, y la galeria saldria vacia sin motivo visible. */}
+          <label className="flex items-center gap-1.5 text-[12px] text-muted">
+            {t('spaceeyes.galeria.por-pagina')}
+            <select
+              value={porPagina}
+              onChange={(e) => { setPorPagina(Number(e.target.value)); setPagina(1) }}
+              className="rounded-md border border-border-strong bg-surface px-2 py-1 text-[13px] text-ink"
+            >
+              {PASOS_POR_PAGINA.map((n) => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+          </label>
           <Button variant="secondary" size="sm" onClick={() => void cargar()} disabled={cargando}>
             {cargando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
             {t('spaceeyes.comun.actualizar')}
@@ -381,7 +405,7 @@ export function Galeria() {
             )}
           >
             {fotos!.map((f) => (
-              <Miniatura key={f.id} foto={f} onAbrir={() => setAbierta(f)} onBorrar={() => setABorrar(f)} />
+              <Miniatura key={f.id} foto={f} onAbrir={() => setAbierta(f)} onBorrar={() => setABorrar(f)} onAviso={avisar} />
             ))}
           </div>
 
@@ -474,11 +498,40 @@ function Verificacion({ foto }: { foto: FotoSE }) {
   return <span className="text-muted">{TEXTO_VERIFICACION[st] ? t(TEXTO_VERIFICACION[st]) : st}</span>
 }
 
-function Miniatura({ foto, onAbrir, onBorrar }: { foto: FotoSE; onAbrir: () => void; onBorrar: () => void }) {
+function Miniatura({
+  foto,
+  onAbrir,
+  onBorrar,
+  onAviso,
+}: {
+  foto: FotoSE
+  onAbrir: () => void
+  onBorrar: () => void
+  onAviso: (texto: string, tono: 'exito' | 'error' | 'info') => void
+}) {
   const { t, idioma } = useIdioma()
   const [rota, setRota] = useState(false)
+  const [bajando, setBajando] = useState(false)
   const src = fotoSE(foto.thumbnail_path || foto.storage_path)
   const giro = giroDeFoto(foto)
+
+  // La misma descarga que el visor: se baja la foto GRANDE renderizada, no la
+  // miniatura que se ve aqui. Lo que se descarga tiene que ser la foto, no su
+  // vista previa.
+  const descargar = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (bajando) return
+    setBajando(true)
+    try {
+      const url = fotoSE(foto.storage_path)
+      if (!url) throw new Error(t('spaceeyes.galeria.sin-archivo'))
+      descargarBlob(await renderizarFoto(url, giro, marcaDeFoto(foto)), nombreDescarga(foto), 4000)
+      onAviso(t('spaceeyes.galeria.descargando-foto'), 'exito')
+    } catch (err) {
+      onAviso(t('spaceeyes.galeria.no-descargar', { motivo: mensaje(err, t('spaceeyes.comun.error-desconocido'), idioma) }), 'error')
+    }
+    setBajando(false)
+  }
   return (
     <div className="group overflow-hidden rounded-md border border-border bg-surface transition-colors duration-150 hover:border-border-strong">
       <div className="relative aspect-[4/3] overflow-hidden bg-surface-2">
@@ -508,6 +561,21 @@ function Miniatura({ foto, onAbrir, onBorrar }: { foto: FotoSE; onAbrir: () => v
             {selloDeFoto(foto.source, foto.campaign_name, idioma)}
           </span>
         )}
+        {/* Descargar y borrar juntos, y en ese orden: lo que se usa a diario
+            queda lejos del borde donde esta el irreversible. La foto se
+            descarga RENDERIZADA -con su marca y su giro-, igual que desde el
+            visor y que en el album: si no, la que se baja de aqui no seria la
+            misma imagen que la que se ve. */}
+        <button
+          type="button"
+          onClick={descargar}
+          disabled={bajando}
+          title={t('spaceeyes.galeria.descargar-esta')}
+          aria-label={t('spaceeyes.galeria.descargar-esta')}
+          className="absolute right-11 top-2 flex h-8 w-8 items-center justify-center rounded border border-border-strong bg-surface text-ink transition-opacity hover:bg-surface-2 disabled:opacity-60 focus-visible:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
+        >
+          {bajando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+        </button>
         <button
           type="button"
           onClick={onBorrar}

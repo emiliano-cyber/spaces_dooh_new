@@ -667,11 +667,43 @@ export async function listarDeEquipo(req: Request, res: Response) {
     [did]
   );
 
+  // La auditoria por dia (migracion 033), pegada a cada creativo.
+  //
+  // Catorce dias y no mas: es lo que cabe en una tira que se lee de un vistazo,
+  // y el historial completo de un sitio con cien anuncios serian miles de filas
+  // por cada vez que alguien abre la ficha. El dia que haga falta un mes, se
+  // pide con un parametro; hoy nadie lo ha pedido.
+  const DIAS_A_LA_VISTA = 14;
+  const [porDia] = await pool.query<any[]>(
+    `SELECT d.phash, d.dia, d.apariciones, d.revisiones,
+            p.thumbnail_path, p.storage_path
+       FROM device_creative_dias d
+       LEFT JOIN photos p ON p.id = d.photo_id
+      WHERE d.device_id = ? AND d.dia >= CURDATE() - INTERVAL ? DAY
+      ORDER BY d.dia DESC`,
+    [did, DIAS_A_LA_VISTA - 1]
+  );
+  const dias = new Map<string, any[]>();
+  for (const f of firmarFilas(porDia as any[])) {
+    const lista = dias.get(f.phash) ?? [];
+    lista.push({
+      dia: typeof f.dia === 'string' ? f.dia.slice(0, 10) : new Date(f.dia).toISOString().slice(0, 10),
+      apariciones: Number(f.apariciones) || 0,
+      revisiones: Number(f.revisiones) || 0,
+      foto: f.storage_path ?? null,
+      miniatura: f.thumbnail_path ?? f.storage_path ?? null,
+    });
+    dias.set(f.phash, lista);
+  }
+
   const config = await configDe(did);
   res.json({
     config,
     fotos_hoy: await fotosDeHoy(did),
-    creativos: firmarFilas(filas as any[]),
+    // `dias` viene ordenado del mas reciente al mas viejo, igual que lo pide la
+    // consulta: la tira de la ficha se lee de izquierda a derecha empezando por
+    // hoy, y reordenarlo en el navegador seria hacer dos veces el mismo trabajo.
+    creativos: firmarFilas(filas as any[]).map((c: any) => ({ ...c, dias: dias.get(c.phash) ?? [] })),
   });
 }
 

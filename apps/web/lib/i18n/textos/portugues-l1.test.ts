@@ -34,6 +34,7 @@ const AMBITOS: ReadonlyArray<readonly [string, Dic, Dic, DicP]> = [
 
 // Iguales al espanol o al ingles A PROPOSITO.
 export const COGNADOS_PT_L1 = new Set<string>([
+  'spaceeyes.galeria.por-pagina', // «Fotos por página» se escribe igual en los dos
   'spaceeyes.ficha.falla.desde', // «desde» se escribe igual en los dos idiomas
   'spaceeyes.ficha.tab.fotos', // «Fotos»
   // Leidos uno por uno (05/11): en portugues se escriben igual que en espanol

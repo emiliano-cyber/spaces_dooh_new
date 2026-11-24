@@ -64,6 +64,26 @@ type Creativo = {
   ultima_thumbnail_path?: string | null
   ultima_storage_path?: string | null
   ultima_taken_at?: string | null
+  // La auditoria por dia (Space Eye, migracion 033): en cuantas revisiones de
+  // cada dia salio este anuncio, y la foto de ese dia. Viene del mas reciente
+  // al mas viejo y llega vacia contra un Space Eye anterior a esa migracion.
+  dias?: DiaCreativo[]
+}
+
+/**
+ * Un dia de un creativo.
+ *
+ * `apariciones` NO son reproducciones y por eso viaja con `revisiones`: la
+ * camara mira cada tantos minutos, asi que puede decir en cuantas de SUS
+ * miradas estaba el anuncio, no cuantas veces lo saco el reproductor. Sin el
+ * denominador, «37» no se puede leer.
+ */
+type DiaCreativo = {
+  dia: string
+  apariciones: number
+  revisiones: number
+  foto: string | null
+  miniatura: string | null
 }
 type Resp = { config: Config | null; fotos_hoy: number; creativos: Creativo[] }
 
@@ -475,6 +495,7 @@ export function CreativosConfig({
                               hace: hace(c.ultima_vez, idioma),
                             })}
                           </div>
+                          <DiasDelCreativo dias={c.dias} onAmpliar={onAmpliar} />
                           {puedeOperar && (
                             <Button
                               size="sm"
@@ -572,6 +593,68 @@ function Aviso({ tono, children }: { tono: 'info' | 'alerta' | 'falla'; children
     <div className={cn('flex items-start gap-2 rounded-md border border-border border-l-[3px] p-2.5 text-[12px] text-ink', estilo)}>
       <Icono className={cn('mt-0.5 h-3.5 w-3.5 shrink-0', color)} />
       <div className="min-w-0">{children}</div>
+    </div>
+  )
+}
+
+/**
+ * Los ultimos dias de un creativo: cuanto salio hoy, y una tira con la foto de
+ * cada dia.
+ *
+ * LA TIRA ES EL PUNTO. Una fila de catorce cuadros dice de un vistazo lo que
+ * una tabla de catorce renglones obliga a leer: que dias estuvo en rotacion,
+ * cuales no, y como se veia cada uno. Un dia sin foto se pinta igual, en gris:
+ * el hueco es informacion -ese dia no se consiguio la foto- y esconderlo
+ * dejaria una tira mas corta que parece otra cosa.
+ *
+ * Contra un Space Eye sin la migracion 033 no llega nada y no se pinta nada,
+ * que es lo correcto: una tira vacia diria que el anuncio no salio ningun dia.
+ */
+function DiasDelCreativo({
+  dias,
+  onAmpliar,
+}: {
+  dias?: DiaCreativo[]
+  onAmpliar?: (url: string) => void
+}) {
+  const { t, idioma } = useIdioma()
+  if (!dias?.length) return null
+  const hoy = new Date().toISOString().slice(0, 10)
+  const deHoy = dias.find((d) => d.dia === hoy)
+  const fecha = (d: string) =>
+    new Date(d + 'T12:00:00').toLocaleDateString(idioma === 'es' ? 'es-MX' : idioma, { day: '2-digit', month: 'short' })
+
+  return (
+    <div className="mt-1.5 border-t border-border pt-1.5">
+      <div className="text-ink">
+        {deHoy && deHoy.apariciones > 0
+          ? t('spaceeyes.creativo.hoy', { n: deHoy.apariciones, total: deHoy.revisiones })
+          : t('spaceeyes.creativo.hoy.no')}
+      </div>
+      <div className="mt-1 flex flex-wrap gap-0.5" title={t('spaceeyes.creativo.dias.titulo')}>
+        {dias.map((d) => {
+          const mini = fotoSE(d.miniatura || d.foto)
+          const grande = fotoSE(d.foto || d.miniatura)
+          const pie = mini
+            ? t('spaceeyes.creativo.dia', { fecha: fecha(d.dia), n: d.apariciones, total: d.revisiones })
+            : t('spaceeyes.creativo.dia.sin-foto', { fecha: fecha(d.dia) })
+          if (!mini) {
+            return <span key={d.dia} title={pie} className="h-7 w-7 rounded-sm border border-border bg-surface-2" />
+          }
+          return (
+            <button
+              key={d.dia}
+              type="button"
+              title={pie}
+              onClick={() => grande && onAmpliar?.(grande)}
+              className="h-7 w-7 overflow-hidden rounded-sm border border-border bg-surface-2 hover:border-border-strong"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={mini} alt={pie} className="h-full w-full object-cover" />
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }
