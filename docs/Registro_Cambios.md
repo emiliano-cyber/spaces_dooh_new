@@ -5,6 +5,14 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-24 · Space Eyes: la actualización ya no dice «listo» sin haber cambiado
+
+- Al instalar Space Eyes 0.16.26 en g500, el actualizador dijo «listo» pero el servicio **siguió con la versión de antes**: cuando la versión nueva se construye en el propio servidor con el mismo nombre, el cambio no se aplicaba y nadie se enteraba.
+- Ahora el actualizador **reinicia siempre el servicio con la versión nueva** y comprueba que de verdad quedó corriendo esa, antes de dar la actualización por hecha. Si no, vuelve solo a la anterior.
+- En g500 se corrigió a mano el mismo 24/11: ya corre la 0.16.26. Nada cambia en SPACE OS ni en los importes.
+
+---
+
 ## 2026-11-24 · Vallas: lo del inventario sale solo, y el plano se edita
 
 - **Inventario → Vallas** ahora es una pestaña como **Fijos** y **Digitales**: la lista de los sitios de tipo Valla, con su cuenta. Antes abría la pantalla de Vallas entera.

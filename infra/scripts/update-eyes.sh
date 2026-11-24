@@ -165,23 +165,41 @@ if ! EYES_IMAGEN="$IMAGEN" "${C[@]}" run --rm --no-deps -T -e MIGRACIONES_BASE="
 fi
 
 # ─── 6. cambiar ─────────────────────────────────────────────────────────────
+# --force-recreate porque `up -d` a secas NO recrea el contenedor cuando el
+# NOMBRE de la imagen no cambia aunque apunte a otro ID. Con imagenes del
+# registro no se nota (cada version cambia de etiqueta), pero con una imagen
+# local reconstruida con el mismo nombre (`space-eye:<v>-local`) la API se
+# quedaba en su contenedor viejo, la salud pasaba contra ESE contenedor y el
+# guion decia "listo". Paso en g500 el 24/11 con la 0.16.26.
 [[ -n "$ACTUAL" ]] && docker tag "$ACTUAL" "space-eye-local:anterior" >/dev/null 2>&1
-if ! EYES_IMAGEN="$IMAGEN" "${C[@]}" up -d api >/dev/null 2>&1; then
-  di "no se pudo arrancar la API nueva"
-fi
+SALIDA_UP="$(EYES_IMAGEN="$IMAGEN" "${C[@]}" up -d --no-deps --force-recreate api 2>&1)" || {
+  di "no se pudo arrancar la API nueva:"
+  printf '%s\n' "$SALIDA_UP" | tail -10
+}
+
+# La salud sola no prueba nada si respondio el contenedor de antes: se mira
+# que la API corra de verdad el ID que se acaba de jalar.
+corre_la_nueva() {
+  local cont
+  cont="$("${C[@]}" ps -q api 2>/dev/null)"
+  [[ -n "$cont" && "$(docker inspect --format '{{.Image}}' "$cont" 2>/dev/null)" == "$NUEVA" ]]
+}
 
 # ─── 7. salud y vuelta atras ────────────────────────────────────────────────
-if salud; then
+if ! corre_la_nueva; then
+  di "la API no corre la imagen nueva ($NUEVA)"
+elif salud; then
   date -u +"%Y-%m-%dT%H:%M:%SZ $IMAGEN $NUEVA" > "$EYES_DIR/version"
   rm -f "$EYES_DIR/vetada"
   di "listo: $IMAGEN"
   exit 0
+else
+  di "la version nueva no respondio en $SALUD_URL"
 fi
-di "la version nueva no respondio en $SALUD_URL"
 echo "$NUEVA" > "$EYES_DIR/vetada"
 if [[ -z "$ACTUAL" ]]; then di "era la primera instalacion: no hay a donde volver"; exit 6; fi
 restaurar
-EYES_IMAGEN="space-eye-local:anterior" "${C[@]}" up -d api >/dev/null 2>&1
+EYES_IMAGEN="space-eye-local:anterior" "${C[@]}" up -d --no-deps --force-recreate api 2>&1 | tail -10
 if salud; then di "vuelta atras hecha: sigue la version anterior"; exit 6; fi
 di "LA VUELTA ATRAS TAMPOCO RESPONDE: intervenir"
 exit 7

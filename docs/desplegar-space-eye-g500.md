@@ -96,7 +96,8 @@ APK está compilada contra otro servidor y no debe servirse desde g500.
 ### 4. Apuntar `EYES_IMAGEN` a la imagen nueva
 
 ```bash
-cp /etc/space-os/eyes.env /etc/space-os/eyes.env.antes-avisos
+# Una sola vez: si la copia ya existe, NO se pisa (ya trae la versión de antes)
+test -e /etc/space-os/eyes.env.antes-avisos || cp -p /etc/space-os/eyes.env /etc/space-os/eyes.env.antes-avisos
 sed -i 's|^EYES_IMAGEN=.*|EYES_IMAGEN=space-eye:<nueva-versión>-local|' /etc/space-os/eyes.env
 grep EYES_IMAGEN /etc/space-os/eyes.env
 ```
@@ -118,7 +119,8 @@ pasa de madrugada sin nadie mirando.
 ### 6. Comprobar
 
 ```bash
-docker ps | grep -i eye              # el contenedor api con la imagen nueva
+docker ps | grep -i eye              # el contenedor api con el NOMBRE de la imagen nueva
+                                     # (un hash suelto = sigue la imagen de antes)
 ```
 
 En la base de Space Eye (la tabla de migraciones es `_migrations`, no
