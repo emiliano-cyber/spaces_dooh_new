@@ -5,6 +5,16 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-11-20 · Propuestas: mapa y fotos de las pantallas en la ficha
+
+- En la ficha de una propuesta, **justo debajo de «Sitios y renta»**, hay dos cuadros:
+- **«Mapa de las pantallas»**: un punto por cada sitio de la propuesta que tiene coordenadas, con su nombre. Los que no tienen ubicación capturada se listan debajo por nombre («Sin ubicación: …»), para saber cuáles hay que completar. (Este mapa ya existía al final de la ficha; ahora sube y nombra los que faltan.)
+- **«Fotos de las pantallas»**: por cada sitio, sus fotos en miniatura; al pulsar una se abre en grande, con el mismo visor de «Ver fotos y ubicación». Si un sitio no tiene fotos dice «Sin fotos»; si ninguno tiene, «Ninguna pantalla de esta propuesta tiene fotos».
+- Los dos se actualizan solos al agregar o quitar sitios, y se pueden plegar. Las fotos las ve quien puede ver la propuesta; un vendedor, solo las de sus propuestas.
+- En español, inglés, italiano y portugués. Nada cambia en la base ni en los importes.
+
+---
+
 ## 2026-11-20 · Cada creativo dice quién lo subió
 
 - Cada creativo **guarda quién lo subió**, en el momento de subirlo. Antes el sistema lo **adivinaba** mirando el historial y el nombre del archivo, y dos creativos con el **mismo nombre** se podían confundir. Ahora no: aunque se llamen igual, cada uno conserva el suyo, porque lo que cuenta es el contenido.

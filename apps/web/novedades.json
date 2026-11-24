@@ -5,6 +5,12 @@
     "items": [
       {
         "tipo": "NUEVO",
+        "texto": "La ficha de la propuesta tiene, debajo de los sitios, el «Mapa de las pantallas» (con los sitios sin ubicación nombrados debajo) y las «Fotos de las pantallas»: las fotos de cada sitio en miniatura, que se abren en grande; «Sin fotos» si un sitio no tiene. Se actualizan al agregar o quitar sitios.",
+        "en": "The proposal page now has, below the sites, the “Screen map” (with the sites that have no location listed underneath) and “Screen photos”: each site’s photos as thumbnails that open full size; “No photos” when a site has none. Both update when sites are added or removed.",
+        "it": "La scheda della proposta ha, sotto i siti, la «Mappa degli impianti» (con i siti senza posizione elencati sotto) e le «Foto degli impianti»: le foto di ogni sito in miniatura, che si aprono in grande; «Nessuna foto» se un sito non ne ha. Si aggiornano quando si aggiungono o tolgono siti."
+      },
+      {
+        "tipo": "NUEVO",
         "texto": "La liga que recibe el cliente enseña cómo se ven sus vallas cuando renta más de una: un plano por sitio con cada valla en su lugar, su número y su medida, los grupos y las esquinas. Cada cuadro dice «Tu valla»; no se ve nada de otras campañas ni marcas. Con una sola valla, la liga queda como antes.",
         "en": "The link the client receives now shows how their poster panels look when they rent more than one: a layout per site with each panel in its place, its number and size, the groups and the corners. Each panel reads “Your panel”; nothing about other campaigns or brands is shown. With a single poster panel, the link stays as before.",
         "it": "Il link che riceve il cliente mostra come appaiono i suoi poster quando ne affitta più di uno: una pianta per sito con ogni poster al suo posto, il suo numero e la sua misura, i gruppi e gli angoli. Ogni riquadro dice «Il tuo poster»; non si vede nulla di altre campagne o marchi. Con un solo poster, il link resta come prima."

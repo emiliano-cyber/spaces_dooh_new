@@ -34,6 +34,7 @@ archivos:
   - apps/web/app/api/campanas/[id]/envios-cliente/route.ts
   - apps/web/app/api/campanas/[id]/envios-cliente/[envioId]/route.ts
   - apps/web/app/api/propuestas/[id]/items/route.ts
+  - apps/web/app/api/propuestas/[id]/fotos/route.ts
   - apps/web/app/api/propuestas/competencia/route.ts
   - apps/web/app/api/rejilla/
   - apps/web/app/api/reportes/rentabilidad/route.ts
@@ -307,6 +308,7 @@ en `:230-237`) y **no** puede condicionarse a que la ruta
 | DELETE | `/api/propuestas/items/[id]` | (29/10, PROP-COMPLETA) `comercial:crear`. Quita un sitio (BORRADOR o ENVIADA, sube versión); nunca el último (409); de otra organización → 404 |
 | DELETE | `/api/propuestas/[id]` | (29/10, PROP-COMPLETA, R5) `comercial:crear`. Borra un **BORRADOR** con sus líneas y su canje (devuelve el uso del cupón); otro estatus o con campaña → 409; de otra organización → 404 |
 | GET·PATCH | `/api/propuestas/[id]/imprenta-visible` | (17/11, SEG-CLIENTE) GET `comercial:ver` → `{ imprentaVisible, puedeCambiar }`; PATCH `comercial:crear` con `{ visible }`. **Oculta por omisión** (decisión del dueño): solo el vendedor que creó la propuesta (`usuario_id`) o un rol superior (ADR 0040; Dueño/Admin siempre; roles fuera de venta nunca) → si no, 403 sin escribir. Capas: `imprenta-visible-controller.ts` → `imprenta-visible-repo.ts`; regla pura `puedeCambiarImprentaVisible` en `lib/seguimiento-campana.ts` |
+| GET | `/api/propuestas/[id]/fotos` | (20/11) `comercial:ver` + `siNoEsSuya` (vendedor ajeno → 404). `{ sitios: [{ sitioId, nombre, fotos }] }`: las fotos de CADA sitio de la propuesta en UNA consulta, filtradas con `fotosMostrables`, `no-store`. El cuadro «Fotos de las pantallas» de la ficha. Capas: `propuestas-fotos-controller.ts` → `propuestas-fotos-repo.ts` |
 | POST | `/api/propuestas/[id]/enviar` | (29/10, PROP-COMPLETA) `comercial:crear`. Cuerpo `{ para, mensaje? }`. Manda la liga por correo (canal de operación, copia a quien envía) y **después** deja la propuesta ENVIADA; si Resend falla, 502 y no cambia nada; sin correo configurado solo cambia el estatus (`correo: 'no_configurado'`). Vale para BORRADOR y ENVIADA (reenviar); lo demás 409 — `lib/server/propuestas-envio.ts` |
 | POST · DELETE | `/api/propuestas/[id]/paquete` | (05/10) `comercial:crear` — aplicar o quitar un paquete cerrado; el cuerpo lleva **solo** `paqueteId`, el precio lo copia el servidor bajo RLS — [[paquete-cerrado]] |
 | PATCH | `/api/propuestas/items/[id]` | exigir |
