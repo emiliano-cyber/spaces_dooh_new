@@ -966,6 +966,16 @@ export async function listPhotos(req: Request, res: Response) {
     gps_lat: p.gps_lat == null ? null : Number(p.gps_lat),
     gps_lng: p.gps_lng == null ? null : Number(p.gps_lng),
   }));
+  // De que campana son, cuando se esta mirando una sola. Es el mismo caso que
+  // el creativo -un filtro al que se llega desde otra pantalla- y la galeria
+  // necesita poder titularlo: un `campaign_id=7` en la barra de direcciones no
+  // le dice a nadie que esta mirando los comprobantes de Dessea.
+  let campanaNombre: string | null = null;
+  if (campaign_id) {
+    const [ca] = await pool.query<any[]>(`SELECT name FROM campaigns WHERE id = ?`, [campaign_id]);
+    campanaNombre = (ca as any[])[0]?.name ?? null;
+  }
+
   let creativoNombre: string | null = null;
   if (creativo) {
     const [c] = await pool.query<any[]>(
@@ -995,6 +1005,7 @@ export async function listPhotos(req: Request, res: Response) {
     // -porque ambas se llaman dentro de funciones- y revienta el dia que
     // alguien mueva una constante al nivel del modulo.
     creativo_nombre: creativoNombre,
+    campana_nombre: campanaNombre,
   });
 }
 

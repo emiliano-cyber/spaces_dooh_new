@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import { AlertTriangle, ImageIcon, Loader2, Plus, RefreshCw, ScanEye } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
@@ -631,7 +632,15 @@ function TarjetaCampana({ campana: c, onEditar }: { campana: CampanaSE; onEditar
 
         <div className="mt-3 grid grid-cols-3 gap-2 text-[12px]">
           <Dato titulo={t('spaceeyes.comun.equipos')} valor={c.device_count} />
-          <Dato titulo={t('spaceeyes.ficha.tab.fotos')} valor={c.photo_count} />
+          {/* El numero de fotos es la pregunta «¿y donde las veo?», asi que
+              es el enlace. Sin esto habia que ir a la galeria, acordarse del
+              nombre de la campana y filtrar por equipo y fechas a mano. */}
+          <Dato
+            titulo={t('spaceeyes.ficha.tab.fotos')}
+            valor={c.photo_count}
+            enlace={c.photo_count ? `/space-eyes/galeria/?campaign_id=${c.id}` : undefined}
+            ayuda={t('spaceeyes.campanas.ver-fotos')}
+          />
           <Dato titulo={t('spaceeyes.comun.periodo')} valor={periodo(c, idioma)} />
         </div>
 
@@ -661,12 +670,32 @@ function TarjetaCampana({ campana: c, onEditar }: { campana: CampanaSE; onEditar
   )
 }
 
-function Dato({ titulo, valor }: { titulo: string; valor: number | string }) {
+function Dato({
+  titulo,
+  valor,
+  enlace,
+  ayuda,
+}: {
+  titulo: string
+  valor: number | string
+  // Con enlace el dato se vuelve pulsable. Sin el -una campana sin fotos- se
+  // pinta igual pero muerto: un enlace que lleva a una galeria vacia promete
+  // algo que no hay.
+  enlace?: string
+  ayuda?: string
+}) {
   const { idioma } = useIdioma()
+  const texto = typeof valor === 'number' ? formatNumero(valor, 0, idioma) : valor
   return (
     <div className="min-w-0">
       <div className="text-[11px] text-muted">{titulo}</div>
-      <div className="demo-num truncate font-medium text-ink">{typeof valor === 'number' ? formatNumero(valor, 0, idioma) : valor}</div>
+      {enlace ? (
+        <Link href={enlace} title={ayuda} className="demo-num block truncate font-medium text-accent hover:underline">
+          {texto}
+        </Link>
+      ) : (
+        <div className="demo-num truncate font-medium text-ink">{texto}</div>
+      )}
     </div>
   )
 }

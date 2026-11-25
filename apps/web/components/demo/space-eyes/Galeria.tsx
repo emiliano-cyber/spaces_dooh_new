@@ -90,9 +90,12 @@ interface Filtros {
   // puede leer ni reconocer- sino que se llega aqui desde su tarjeta en la
   // ficha del equipo, que es donde se ve de cual se trata.
   creativo: string
+  // Una campana de verificacion: todas las fotos que se tomaron para ella. Se
+  // llega desde su tarjeta en Campanas, por la misma razon que el creativo.
+  campana: string
 }
 
-const SIN_FILTROS: Filtros = { desde: '', hasta: '', origen: '', equipo: '', creativo: '' }
+const SIN_FILTROS: Filtros = { desde: '', hasta: '', origen: '', equipo: '', creativo: '', campana: '' }
 
 // El catálogo vive en lib/space-eyes-origenes: aquí faltaba 'campana', así que
 // una prueba de campaña no tenía etiqueta ni se podía filtrar. Cada origen
@@ -121,6 +124,7 @@ function consulta(f: Filtros): string {
   if (f.hasta) p.push(`to=${encodeURIComponent(`${f.hasta} 23:59:59`)}`)
   if (f.origen) p.push(`source=${encodeURIComponent(f.origen)}`)
   if (f.creativo) p.push(`creativo=${encodeURIComponent(f.creativo)}`)
+  if (f.campana) p.push(`campaign_id=${encodeURIComponent(f.campana)}`)
   return p.join('&')
 }
 
@@ -168,6 +172,7 @@ export function Galeria() {
 
   // De quién son, cuando se mira un solo creativo y alguien le puso nombre.
   const [nombreCreativo, setNombreCreativo] = useState<string | null>(null)
+  const [nombreCampana, setNombreCampana] = useState<string | null>(null)
   const [aviso, setAviso] = useState<Aviso | null>(null)
   const avisoT = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -185,7 +190,15 @@ export function Galeria() {
     const url = new URLSearchParams(window.location.search)
     const id = url.get('device_id')
     const cre = url.get('creativo')
-    if (id || cre) setFiltros((f) => ({ ...f, equipo: id ?? f.equipo, creativo: cre ?? f.creativo }))
+    const cam = url.get('campaign_id')
+    if (id || cre || cam) {
+      setFiltros((f) => ({
+        ...f,
+        equipo: id ?? f.equipo,
+        creativo: cre ?? f.creativo,
+        campana: cam ?? f.campana,
+      }))
+    }
     setListo(true)
   }, [])
 
@@ -202,13 +215,20 @@ export function Galeria() {
     setError(null)
     try {
       const q = consulta(filtros)
-      const d = await seApi<{ photos: FotoSE[]; total: number; exacto?: boolean; creativo_nombre?: string | null }>(
+      const d = await seApi<{
+        photos: FotoSE[]
+        total: number
+        exacto?: boolean
+        creativo_nombre?: string | null
+        campana_nombre?: string | null
+      }>(
         `photos?page=${pagina}&limit=${porPagina}${q ? `&${q}` : ''}`,
       )
       setFotos(d?.photos ?? [])
       setTotal(Number(d?.total) || 0)
       setExacto(!!d?.exacto)
       setNombreCreativo(d?.creativo_nombre ?? null)
+      setNombreCampana(d?.campana_nombre ?? null)
     } catch (e) {
       setError(mensaje(e, t('spaceeyes.galeria.error'), idioma))
     }
@@ -223,7 +243,7 @@ export function Galeria() {
     setFiltros((f) => ({ ...f, [k]: v }))
     setPagina(1)
   }
-  const hayFiltros = filtros.desde || filtros.hasta || filtros.origen || filtros.equipo || filtros.creativo
+  const hayFiltros = filtros.desde || filtros.hasta || filtros.origen || filtros.equipo || filtros.creativo || filtros.campana
 
   // Space Eye viejo cuenta el total solo por equipo: con fechas u origen, ese
   // total es de más. Por eso «hay siguiente» también mira si esta página vino
@@ -315,10 +335,11 @@ export function Galeria() {
   // Como se llama el archivo que se baja. Con el nombre del creativo cuando
   // lo hay: un correo con «comprobantes.zip» obliga a quien lo recibe a abrirlo
   // para saber de qué campaña es.
-  const nombreDelPaquete = () =>
-    nombreCreativo
-      ? `${nombreCreativo.replace(/[^\p{L}\p{N} _-]/gu, '').trim().replace(/\s+/g, '_') || 'comprobantes'}.zip`
-      : 'comprobantes.zip'
+  const nombreDelPaquete = () => {
+    const como = nombreCampana || nombreCreativo
+    if (!como) return 'comprobantes.zip'
+    return `${como.replace(/[^\p{L}\p{N} _-]/gu, '').trim().replace(/\s+/g, '_') || 'comprobantes'}.zip`
+  }
 
   // Todas las fotos que coinciden con los filtros, de 100 en 100, con su marca.
   const descargarAlbum = async () => {
@@ -470,14 +491,22 @@ export function Galeria() {
           elegir de una lista: se llega aquí desde la tarjeta del anuncio, en la
           ficha del equipo. Lo que sí hace falta es DECIRLO -si no, la galería
           parece vacía sin motivo- y poder salirse de un clic. */}
-      {filtros.creativo && (
+      {(filtros.creativo || filtros.campana) && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-surface-2 px-3 py-2 text-[12px]">
           <span className="text-ink">
-            {nombreCreativo
-              ? t('spaceeyes.galeria.de-este-creativo', { nombre: nombreCreativo })
-              : t('spaceeyes.galeria.de-un-creativo')}
+            {filtros.campana
+              ? nombreCampana
+                ? t('spaceeyes.galeria.de-esta-campana', { nombre: nombreCampana })
+                : t('spaceeyes.galeria.de-una-campana')
+              : nombreCreativo
+                ? t('spaceeyes.galeria.de-este-creativo', { nombre: nombreCreativo })
+                : t('spaceeyes.galeria.de-un-creativo')}
           </span>
-          <Button variant="ghost" size="sm" onClick={() => cambiarFiltro('creativo', '')}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => cambiarFiltro(filtros.campana ? 'campana' : 'creativo', '')}
+          >
             <X className="h-3.5 w-3.5" />
             {t('spaceeyes.galeria.todo-el-creativo')}
           </Button>
