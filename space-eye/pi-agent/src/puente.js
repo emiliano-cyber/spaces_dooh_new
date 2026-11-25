@@ -27,6 +27,43 @@ const MAX_CUERPO = 25 * 1024 * 1024;     // una evidencia en base64 cabe holgada
 const ESPERA_REARRANQUE_MS = 30 * 1000;
 const ESPERA_SIN_PYTHON_MS = 60 * 60 * 1000;
 
+/**
+ * Dos bitacoras que esperan juntas (036).
+ *
+ * Son INCREMENTOS, asi que se suman: los vistazos de la hora, y las pasadas de
+ * cada creativo en cada hora, quedandose con la primera y la ultima de las dos.
+ *
+ * De dias DISTINTOS no se suman: son dos filas distintas en el servidor y
+ * mezclarlas pondria las pasadas de ayer dentro de hoy, que es justo el error
+ * que una auditoria no puede permitirse. Se queda la nueva; lo que se pierda
+ * lo declara el cierre, que trae el total del equipo y existe para eso.
+ */
+function unirBitacora(a, b) {
+  if (!a) return b;
+  if (!b) return a;
+  if (a.dia !== b.dia) return b;
+  const horas = new Map();
+  for (const h of [...(a.horas || []), ...(b.horas || [])]) {
+    horas.set(h.hora, (horas.get(h.hora) || 0) + h.vistazos);
+  }
+  const pasadas = new Map();
+  for (const p of [...(a.pasadas || []), ...(b.pasadas || [])]) {
+    const k = `${p.h}|${p.hora}`;
+    const y = pasadas.get(k);
+    if (!y) { pasadas.set(k, { ...p }); continue; }
+    y.n += p.n;
+    if (p.desde && (!y.desde || p.desde < y.desde)) y.desde = p.desde;
+    if (p.hasta && (!y.hasta || p.hasta > y.hasta)) y.hasta = p.hasta;
+  }
+  return {
+    dia: a.dia,
+    vistazos: (a.vistazos || 0) + (b.vistazos || 0),
+    horas: [...horas.entries()].sort((x, y) => x[0] - y[0]).map(([hora, vistazos]) => ({ hora, vistazos })),
+    // El servidor acepta 2000; el recorte se nota en el cierre, que no se recorta.
+    pasadas: [...pasadas.values()].sort((x, y) => y.n - x.n).slice(0, 2000),
+  };
+}
+
 class Puente {
   /**
    * @param {object} o
@@ -61,12 +98,27 @@ class Puente {
     if (p.creativos) {
       const unir = (x, y) => [...new Set([...(x || []), ...(y || [])])].slice(0, 60);
       a.creativos = a.creativos
-        ? { vistas: unir(a.creativos.vistas, p.creativos.vistas), nuevas: unir(a.creativos.nuevas, p.creativos.nuevas) }
+        ? {
+          vistas: unir(a.creativos.vistas, p.creativos.vistas),
+          nuevas: unir(a.creativos.nuevas, p.creativos.nuevas),
+          bitacora: unirBitacora(a.creativos.bitacora, p.creativos.bitacora),
+          // El cierre es UNO al dia. Si ya habia uno esperando, ese es el que
+          // lleva mas tiempo sin salir y el que se queda; dos a la vez solo
+          // pasa si el equipo estuvo mas de un dia sin poder reportar, y lo
+          // que se pierda lo declara el total del cierre que si llegue.
+          cierre: a.creativos.cierre || p.creativos.cierre,
+        }
         : p.creativos;
     }
     if (p.salud) a.salud = p.salud;
   }
 
+  /**
+   * Dos bitacoras del MISMO dia se suman; de dias distintos no, porque son
+   * dos filas distintas del servidor y mezclarlas pondria las pasadas de
+   * ayer en el dia de hoy. Se queda la nueva: lo que falte sale en el cierre,
+   * que trae el total del equipo y por eso existe.
+   */
   tomarPendiente() {
     const p = this.pendiente;
     this.pendiente = null;

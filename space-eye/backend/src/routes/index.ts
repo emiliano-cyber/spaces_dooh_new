@@ -13,6 +13,7 @@ import * as verification from '../controllers/verification.controller';
 import * as telemetry from '../controllers/telemetry.controller';
 import * as users from '../controllers/users.controller';
 import * as creativos from '../controllers/creativos.controller';
+import * as auditoria from '../controllers/auditoria.controller';
 import * as monitoreo from '../controllers/monitoreo.controller';
 import * as avisos from '../controllers/avisos.controller';
 import * as vinculaciones from '../controllers/vinculaciones.controller';
@@ -129,7 +130,14 @@ export function createRoutes() {
   router.get('/api/devices/:id/creativos', requireUser, creativos.listarDeEquipo);
   router.put('/api/devices/:id/creativos', requireUser, requireRole('admin', 'operator'), creativos.configurar);
   router.post('/api/devices/:id/creativos/reaprender', requireUser, requireRole('admin'), creativos.reaprender);
-  router.put('/api/creativos/:id', requireUser, requireRole('admin', 'operator'), creativos.descartar);
+  router.put('/api/creativos/:id', requireUser, requireRole('admin', 'operator'), creativos.editarCreativo);
+
+  // La bitacora: que salio, cuando y cuanto (036). Solo lectura y solo para
+  // quien ya puede ver el equipo: `deEquipo` comprueba el dueno igual que
+  // `listarDeEquipo`. No lleva `requireRole` porque un reporte no cambia nada
+  // y quien opera la pantalla es justo quien tiene que poder sacarlo.
+  router.get('/api/devices/:id/auditoria', requireUser, auditoria.deEquipo);
+  router.get('/api/campaigns/:id/auditoria', requireUser, auditoria.deCampana);
 
   // Photos
   // Foto ya, en varios equipos de una vez (sin device_ids = toda la flota).

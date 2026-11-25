@@ -68,6 +68,7 @@ from seguimiento import Camara, Observacion, Seguimiento, clave, clave_del_servi
 from lote import LoteCreativos
 from apagada_rapida import DetectorApagada
 from campanas import Campanas
+from bitacora import Bitacora
 
 REINTENTO_MIN = 15
 APAGADO_MIN = 60
@@ -271,8 +272,12 @@ class ApiPuente:
 
     def resumen(self, p):
         """Lo pega Node al proximo reporte de estado (creativos se unen, de salud
-        vale el mas reciente: la misma regla de Monitor.devolver)."""
-        self._p.pedir_json("POST", "/resumen", p)
+        vale el mas reciente: la misma regla de Monitor.devolver).
+
+        Devuelve si Node lo acepto. El cierre del dia es uno solo y hay que
+        poder reintentarlo."""
+        estado, _ = self._p.pedir_json("POST", "/resumen", p)
+        return estado == 200
 
 
 # --- El monitor -------------------------------------------------------------
@@ -311,6 +316,10 @@ class Monitor:
         self.detector_apagada = DetectorApagada()
         # Campanas vendidas en SPACE OS para esta pantalla: su prueba del dia.
         self.campanas = Campanas(self.dir, self.api.referencia_campana, ahora)
+        # Cuantas veces salio cada creativo y a que hora (036). El conjunto
+        # `vistas` de aqui abajo dice QUE se vio; esto dice CUANTO y CUANDO,
+        # que es lo que hace falta para auditar.
+        self.bitacora = Bitacora(self.dir, self.reloj)
         self.estado_archivo = os.path.join(self.dir, "seguimiento.json")
         self.pendientes_archivo = os.path.join(self.dir, "pendientes.json")
         self.firma_seguimiento = ""
@@ -505,6 +514,8 @@ class Monitor:
         else:
             aprendiendo_c = True
         vistas = {}            # conjunto que guarda el orden (linkedSetOf)
+        if c_cfg is not None:
+            self.bitacora.empezar_vuelta()
         nuevas = []
         candidata = None       # (huella, rasgos)
         fotos = 0
@@ -572,8 +583,12 @@ class Monitor:
                     h = None if apagada else huella.calcular(gris, v.pantalla.shape[1], v.pantalla.shape[0])
                     if h is None:
                         candidata = None   # apagada, sin contraste, o lente tapada
+                        # No entra en el denominador: una mirada que no podia
+                        # ensenar nada no puede contar contra los anuncios.
+                        self.bitacora.ciego()
                     else:
                         reconocibles += 1
+                        hora_b, reloj_b = self.bitacora.vistazo()
                         rasgos = vision.rasgos(v.pantalla)
                         id_, puntos = self.reconocedor.reconocer(rasgos)
                         previa = candidata
@@ -593,12 +608,14 @@ class Monitor:
                                     self.subir_campana(foto_prueba, camp)
                             if id_ is not None and puntos >= UMBRAL_CREATIVO:
                                 vistas[id_] = True
+                                self.bitacora.pasada(id_, hora_b, reloj_b)
                             else:
                                 # Que el catalogo la conozca: cuando la campana termine
                                 # no debe volver como "nueva".
                                 self.reconocedor.agregar(h, rasgos)
                         elif id_ is not None and puntos >= UMBRAL_CREATIVO:
                             vistas[id_] = True
+                            self.bitacora.pasada(id_, hora_b, reloj_b)
                             self.reconocedor.aprender_variante(id_, rasgos, puntos)
                             candidata = None
                             # Espera su envio agrupado: si esta mirada sale mas
@@ -648,8 +665,27 @@ class Monitor:
                 self.reconocedor.termino_vuelta()
             for n in nuevas:
                 vistas.pop(n, None)
-            if vistas or nuevas:
-                self.api.resumen({"creativos": {"vistas": list(vistas), "nuevas": list(nuevas)}})
+            # Un creativo recien descubierto no lleva bitacora de esta vuelta:
+            # el servidor todavia no lo tiene en el catalogo y la descartaria.
+            # Desde la siguiente vuelta ya cuenta.
+            bit = self.bitacora.de_la_vuelta()
+            if bit is not None:
+                fuera = set(nuevas)
+                bit["pasadas"] = [x for x in bit["pasadas"] if x["h"] not in fuera]
+            cierre = self.bitacora.tomar_cierre()
+            if vistas or nuevas or bit or cierre:
+                c = {"vistas": list(vistas), "nuevas": list(nuevas)}
+                if bit is not None:
+                    c["bitacora"] = bit
+                if cierre is not None:
+                    c["cierre"] = cierre
+                # El cierre es UNO al dia: si el resumen no se pudo encolar, se
+                # guarda otra vez en vez de perderlo. La bitacora de una vuelta
+                # suelta no se reintenta -seria contarla dos veces si el fallo
+                # fue de respuesta y no de entrega-; lo que falte lo declara el
+                # propio cierre, que trae el total del equipo.
+                if not self.api.resumen({"creativos": c}) and cierre is not None:
+                    self.bitacora.devolver_cierre(cierre)
             # Lo que queda del tope del dia, para las vueltas que reutilizan la
             # configuracion sin volver a pedirla.
             c_cfg["restantes_hoy"] = restantes_c

@@ -19,6 +19,7 @@ import { z } from 'zod';
 import { firmarFilas } from '../utils/firmaArchivos';
 import { encuadreDe } from './dashboard.controller';
 import { ordenarEquipo } from '../utils/espejo';
+import { anotarVuelta, type Pasadas } from './auditoria.controller';
 
 /** Bits distintos entre dos huellas de 256 bits en hexadecimal. */
 export function distancia(a: string, b: string): number {
@@ -120,44 +121,6 @@ export async function paraElEquipo(req: Request, res: Response) {
   });
 }
 
-/**
- * El resultado de un recorrido, que llega pegado al reporte de estado.
- *
- * `vistas` son huellas del catalogo que se volvieron a ver (solo refrescan la
- * fecha, para saber que sigue en rotacion). `nuevas` son las que el equipo no
- * reconocio; de esas normalmente ya viene la foto por su cuenta.
- */
-// --- La auditoria por DIA (migracion 033) -----------------------------------
-//
-// El equipo reporta en cada vuelta las huellas que reconocio. Ese dato se
-// estaba sumando a un contador de por vida, que no sirve para auditar: no dice
-// si el anuncio estuvo en rotacion AYER. Aqui se guarda por dia, y con su
-// denominador.
-//
-// `revisiones` sube una vez por vuelta para TODOS los creativos que el catalogo
-// tiene ese dia, no solo para los vistos: el denominador de «salio en 37 de 96»
-// tiene que ser el mismo para los dos anuncios que se comparan, o la cuenta
-// miente a favor del que se vio mas.
-async function anotarElDia(deviceId: number, vistos: string[], catalogo: string[]) {
-  if (!catalogo.length) return;
-  // Una sola sentencia para los dos contadores: la fila del dia se crea sola la
-  // primera vez que ese creativo aparece en el reporte.
-  const filas = catalogo.map(() => '(?, ?, CURDATE(), 0, 0)').join(', ');
-  await pool.query(
-    `INSERT INTO device_creative_dias (device_id, phash, dia, apariciones, revisiones)
-     VALUES ${filas}
-     ON DUPLICATE KEY UPDATE revisiones = revisiones + 1`,
-    catalogo.flatMap((h) => [deviceId, h]));
-  // `revisiones` no sube en el INSERT de la fila nueva (empieza en 0 y la
-  // primera vuelta cuenta), asi que se pone a 1 a las recien creadas.
-  await pool.query(
-    `UPDATE device_creative_dias SET revisiones = 1
-      WHERE device_id = ? AND dia = CURDATE() AND revisiones = 0`, [deviceId]);
-  if (!vistos.length) return;
-  await pool.query(
-    `UPDATE device_creative_dias SET apariciones = apariciones + 1
-      WHERE device_id = ? AND dia = CURDATE() AND phash IN (?)`, [deviceId, vistos]);
-}
 
 /**
  * Cuantas fotos de auditoria diaria lleva PEDIDAS hoy este equipo.
@@ -205,11 +168,27 @@ async function pedirFotoDelDia(deviceId: number, vistos: string[], topeDia: numb
   await ordenarEquipo(deviceId, 'TAKE_PHOTO', { ...(await encuadreDe(deviceId)), motivo: 'refoto' });
 }
 
+/**
+ * El resultado de un recorrido, que llega pegado al reporte de estado.
+ *
+ * `vistas` son huellas del catalogo que se volvieron a ver (refrescan la fecha,
+ * para saber que sigue en rotacion). `nuevas` son las que el equipo no
+ * reconocio; de esas normalmente ya viene la foto por su cuenta. `pasadas` es
+ * el detalle de la bitacora -cuantas veces y a que hora-, que solo mandan los
+ * equipos actualizables.
+ *
+ * Lo que esta funcion decide es QUE ES CADA HUELLA; lo que se hace con eso una
+ * vez decidido -la cuenta del dia, la bitacora por hora- vive en
+ * auditoria.controller.
+ */
 export async function registrarRecorrido(
   deviceId: number,
   vistas: string[],
   nuevas: string[],
   aprendiendo: boolean,
+  // El detalle de la bitacora (036), cuando el equipo sabe contarlo. Los
+  // telefonos no lo mandan y no lo van a mandar: su APK ya esta en la calle.
+  pasadas?: Pasadas | null,
 ) {
   const limpias = (lista: string[]) =>
     [...new Set((lista || []).filter((h) => HUELLA.test(h)).map((h) => h.toLowerCase()))].slice(0, 60);
@@ -254,9 +233,10 @@ export async function registrarRecorrido(
     );
   }
 
-  // La cuenta del dia, y la foto del dia. Ninguna de las dos puede tumbar el
-  // reporte del equipo: es lo que trae tambien la salud de la pantalla.
-  await anotarElDia(deviceId, [...refrescar], catalogo).catch((err) =>
+  // La auditoria del dia -la cuenta, y la bitacora por hora- y la foto del
+  // dia. Ninguna de las dos puede tumbar el reporte del equipo: es lo que trae
+  // tambien la salud de la pantalla.
+  await anotarVuelta(deviceId, [...refrescar], catalogo, pasadas).catch((err) =>
     console.error('[creativos] no se pudo anotar el dia:', err?.message));
   await pedirFotoDelDia(deviceId, [...refrescar], Number(cfg?.fotos_dia ?? 6)).catch((err) =>
     console.error('[creativos] no se pudo pedir la foto del dia:', err?.message));

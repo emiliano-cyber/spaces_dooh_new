@@ -358,7 +358,16 @@ def test_un_creativo_nuevo_confirmado_dos_veces_se_sube(entorno):
     una_vuelta(puente, reloj, d, a)
     assert puente.creativos == []
     r2 = [r["creativos"] for r in puente.resumenes if "creativos" in r][-1]
-    assert r2 == {"vistas": r1["nuevas"], "nuevas": []}
+    assert r2["vistas"] == r1["nuevas"] and r2["nuevas"] == []
+    # Y con la vuelta va su bitacora (036): las veces que se vio y en que hora.
+    # `vistas` dice QUE salio; esto dice CUANTO, que es lo que se audita.
+    bit = r2["bitacora"]
+    assert bit["vistazos"] == sum(x["vistazos"] for x in bit["horas"])
+    (p,) = bit["pasadas"]
+    assert p["h"] == r1["nuevas"][0]
+    # Se vio en todas las miradas de la vuelta: la pantalla no cambio.
+    assert p["n"] == bit["vistazos"]
+    assert p["desde"] <= p["hasta"]
 
     # ...y aparece B: se mira dos veces y se sube UNA foto, con su huella.
     una_vuelta(puente, reloj, d, b)

@@ -6,6 +6,7 @@ import { deviceJwt } from '../utils/jwt';
 import { z } from 'zod';
 import { versionVigilancia } from '../utils/versionVigilancia';
 import { uploadPhoto } from '../services/photoStorage.service';
+import { cerrarDia, cierreSchema, pasadasSchema } from './auditoria.controller';
 import { configDe, registrarRecorrido, ligarFoto, yaConocida, medirPantallaEnFoto, obstruccionEnFoto, refrescarCreativo, catalogarFoto, tocaRefoto } from './creativos.controller';
 import {
   adjuntarFotoDeRecuperacion, abrirObstruccion, cerrarObstruccion, registrarResumen,
@@ -161,6 +162,13 @@ const statusSchema = z.object({
   creativos: z.object({
     vistas: z.array(z.string()).optional(),
     nuevas: z.array(z.string()).optional(),
+    // La bitacora (036): cuantas veces salio cada uno y a que hora. Opcional
+    // a proposito y para siempre: la APK de los telefonos ya esta en la calle
+    // y nunca va a mandarla. Un equipo que no la manda se sigue auditando con
+    // resolucion de vuelta, que es la que tenia.
+    bitacora: pasadasSchema.optional(),
+    // El resumen de fin de dia, que lo cierra.
+    cierre: cierreSchema.optional(),
   }).optional(),
   // Resumen de la ultima vuelta del monitoreo de la pantalla (APK 0.15.0+).
   // Unos cientos de bytes; solo sirve para que el dashboard diga "ultima
@@ -267,9 +275,26 @@ export async function reportStatus(req: Request, res: Response) {
   if (d.creativos && (d.creativos.vistas?.length || d.creativos.nuevas?.length)) {
     try {
       const cfg = await configDe(did);
-      await registrarRecorrido(did, d.creativos.vistas || [], d.creativos.nuevas || [], !!cfg?.aprendiendo);
+      await registrarRecorrido(did, d.creativos.vistas || [], d.creativos.nuevas || [],
+                               !!cfg?.aprendiendo, d.creativos.bitacora);
     } catch (err) {
       console.error('[creativos] no se pudo registrar el recorrido:', (err as any)?.message);
+    }
+  }
+
+  // El cierre del dia va APARTE del recorrido: llega en un latido que puede no
+  // traer ninguna vuelta -el equipo cierra cuando cambia el dia, no cuando ve
+  // algo- y si se colgara del `if` de arriba, el dia de una pantalla apagada
+  // de madrugada no se cerraria nunca.
+  if (d.creativos?.cierre) {
+    try {
+      const r = await cerrarDia(did, d.creativos.cierre);
+      if (r.perdidos > 0) {
+        console.warn(`[auditoria] equipo ${did} cerro ${d.creativos.cierre.dia} con ${r.perdidos} ` +
+                     `miradas que nunca llegaron (guardadas ${r.guardados})`);
+      }
+    } catch (err) {
+      console.error('[auditoria] no se pudo cerrar el dia:', (err as any)?.message);
     }
   }
 
