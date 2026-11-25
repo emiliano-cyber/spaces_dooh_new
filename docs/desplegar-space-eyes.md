@@ -62,7 +62,7 @@ Tres cosas que cuestan una hora si no se saben:
 **Si solo se cambia `EYES_IMAGEN` y no se corre el guion**, el despliegue ocurre
 igual, pero a las **4:27 AM** por cron, sin nadie mirando. Mejor correrlo.
 
-## 3 · Las migraciones: 031, 032, 033, 034 y 035
+## 3 · Las migraciones: 031 a 036
 
 **En las instancias se aplican solas.** `update-eyes.sh` las corre con la imagen
 NUEVA, en un contenedor desechable, **antes** de cambiar de versión; si una
@@ -77,6 +77,7 @@ En el **`:4000` de producción sí van a mano**: ahí no corre ese guion.
 033_creativo_por_dia.sql         la auditoría diaria de creativos
 034_foto_de_que_creativo.sql     qué creativo enseña cada foto
 035_creativo_de_que_campana.sql  de qué campaña es cada creativo
+036_bitacora_de_pasadas.sql      cuántas veces salió cada uno y a qué hora
 ```
 
 La tabla de control es **`_migrations`**, no `migrations`.
@@ -179,9 +180,18 @@ corresponde al paquete que hay. El de la rama sí:
 
 ```
 space-eye/pi-agent/dist/space-eye-pi-agent.tar.gz
-    versión 0.7.11 · 742 843 bytes
-    sha256 69d92200faf01ff81554955b283e8835716fa346f08b857f18509350c80acf80
+    versión 0.7.12 · 746 564 bytes
+    sha256 ab7d3c927ae4df2f332193b3ad7d25888222a34c28e278f1f84bf413d91ed5b9
 ```
+
+**El paquete viaja EN LA RAMA y la imagen lo mete dentro**
+(`Dockerfile.instancia:39` lo copia a `/app/agentes/`). Si alguien cambia el
+código del agente y no vuelve a correr `npm run empaquetar` en `pi-agent/`, la
+rama sigue llevando el paquete anterior y se construye una imagen con el agente
+viejo: el cambio no llega a ninguna Raspberry y nada avisa, porque el build no
+falla. Al tocar `pi-agent/`, los tres pasos van juntos: subir la versión en
+`package.json` **y** en `src/index.js` (el empaquetador se planta si no
+coinciden), empaquetar, y commitear `dist/`.
 
 Se copian los dos al `frontend/public/` del servidor, el **manifiesto al final**:
 
@@ -195,6 +205,43 @@ no está y rechazan la actualización.
 Esta versión lleva el arreglo de la cámara movida. **En los teléfonos ese mismo
 arreglo no entra**: necesita APK, y las que hay están en la calle. Por eso el
 servidor lleva su propio filtro.
+
+## 3 quater · Lo que cambia de comportamiento con la 036
+
+**El equipo empieza a contar las veces, no solo a decir qué vio.** Hasta ahora
+reportaba las huellas reconocidas como un conjunto, así que doce apariciones
+dentro de una vuelta de cinco minutos se guardaban como una. Desde la 036 la
+Raspberry cuenta cada mirada, la mete en su hora, y al cambiar el día manda un
+cierre con su total.
+
+**Los teléfonos no mandan nada de esto y no lo van a mandar**: su APK ya está
+en la calle. Esos equipos conservan la resolución que tenían -la vuelta- y
+siguen dentro de la auditoría; cada fila declara con qué vara se midió
+(`medida` = `vuelta` o `vistazo`) y de dónde salió la hora (`zona` = `equipo` o
+`servidor`). Un reporte que mezcle las dos sin decirlo es un reporte que no se
+puede defender, así que la vara de un periodo es la **peor** de sus días.
+
+**Esto no son reproducciones.** Una cámara que mira cada tantos segundos puede
+decir en cuántas de SUS MIRADAS estaba el anuncio, no cuántas veces lo sacó el
+reproductor. Por eso ningún número sale sin su denominador y la palabra no
+aparece en el código.
+
+**El cierre es una suma de comprobación.** El equipo manda el total del día; lo
+que no cuadre con lo que fue llegando queda en `device_dias.perdidos`. En el
+registro sale como:
+
+```
+[auditoria] equipo 900000022 cerro 2026-11-26 con 14 miradas que nunca
+            llegaron (guardadas 1826)
+```
+
+Un día con huecos sigue sirviendo; lo que no puede es no saberse.
+
+**No hay pantalla todavía.** La 036 trae la base, los agentes y dos rutas de
+lectura (`/api/devices/:id/auditoria` y `/api/campaigns/:id/auditoria`), pero
+nada en el panel las enseña aún. Desplegarla igualmente tiene sentido: la
+bitácora empieza a acumularse desde el primer día, y cuando la pantalla llegue
+habrá historia que enseñar en vez de empezar de cero.
 
 ## 5 · Comprobar que quedó
 
