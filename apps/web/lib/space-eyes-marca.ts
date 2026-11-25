@@ -224,11 +224,22 @@ export function nombreDescarga(foto: Pick<FotoConMarca, 'taken_at' | 'device_nam
 }
 
 /**
- * El nombre dentro del .zip. Se corta la consulta: desde que /storage exige
- * firma, la ruta trae `?exp=...&sig=...`, y `?` y `&` no valen en un nombre de
- * archivo de Windows.
+ * El nombre dentro del .zip: el MISMO que si se bajara suelta.
+ *
+ * Antes era el del archivo en el disco -`1552.jpg`-, que es el nombre con el
+ * que Space Eye lo guardó y no le dice nada a nadie. Un paquete de
+ * comprobantes es lo que se le manda a un cliente, y ahí dentro cada foto
+ * tiene que decir de QUÉ pantalla es y de CUÁNDO, igual que la que se baja de
+ * una en una. Que dos nombres distintos salieran de la misma foto según por
+ * dónde se bajara era, además, una diferencia que nadie podía explicar.
+ *
+ * Sin equipo ni fecha se cae al nombre del archivo, y de ahí al id: lo que
+ * importa es que el .zip nunca traiga una entrada sin nombre. La consulta se
+ * corta porque desde que /storage exige firma la ruta trae `?exp=...&sig=...`,
+ * y `?` y `&` no valen en un nombre de archivo de Windows.
  */
-export function nombreEnZip(foto: Pick<FotoConMarca, 'id' | 'storage_path'>): string {
+export function nombreEnZip(foto: Pick<FotoConMarca, 'id' | 'storage_path' | 'taken_at' | 'device_name'>): string {
+  if (foto.device_name && foto.taken_at) return nombreDescarga(foto)
   const base = (foto.storage_path || '').split('?')[0].split('/').pop()
   return base || `photo_${foto.id}.jpg`
 }

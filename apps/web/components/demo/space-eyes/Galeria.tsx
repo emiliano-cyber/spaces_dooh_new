@@ -10,6 +10,8 @@ import {
   ImageOff,
   Images,
   Loader2,
+  CheckSquare,
+  Square,
   RefreshCw,
   RotateCw,
   Trash2,
@@ -83,9 +85,14 @@ interface Filtros {
   hasta: string
   origen: string
   equipo: string
+  // La huella de UN creativo: todas las fotos en las que salio ese anuncio
+  // (Space Eye, migracion 034). No se elige de una lista -una huella no se
+  // puede leer ni reconocer- sino que se llega aqui desde su tarjeta en la
+  // ficha del equipo, que es donde se ve de cual se trata.
+  creativo: string
 }
 
-const SIN_FILTROS: Filtros = { desde: '', hasta: '', origen: '', equipo: '' }
+const SIN_FILTROS: Filtros = { desde: '', hasta: '', origen: '', equipo: '', creativo: '' }
 
 // El catálogo vive en lib/space-eyes-origenes: aquí faltaba 'campana', así que
 // una prueba de campaña no tenía etiqueta ni se podía filtrar. Cada origen
@@ -113,6 +120,7 @@ function consulta(f: Filtros): string {
   if (f.desde) p.push(`from=${encodeURIComponent(f.desde)}`)
   if (f.hasta) p.push(`to=${encodeURIComponent(`${f.hasta} 23:59:59`)}`)
   if (f.origen) p.push(`source=${encodeURIComponent(f.origen)}`)
+  if (f.creativo) p.push(`creativo=${encodeURIComponent(f.creativo)}`)
   return p.join('&')
 }
 
@@ -135,6 +143,31 @@ export function Galeria() {
   const [borrando, setBorrando] = useState(false)
 
   const [album, setAlbum] = useState<string | null>(null) // progreso, o null si no se está bajando
+
+  // Las fotos elegidas, ENTERAS y no solo sus números.
+  //
+  // Guardar los ids obligaría a tenerlas todas en pantalla para poder
+  // empaquetarlas, y la gracia es justo la contraria: ir juntando lo que sirve
+  // de varias páginas -y de varios filtros- y mandarlo de una vez. Lo que se
+  // elige no se pierde al pasar de página ni al cambiar un filtro; se quita
+  // cuando quien mira decide quitarlo.
+  const [elegidas, setElegidas] = useState<Map<number, FotoSE>>(new Map())
+  const elegir = useCallback((f: FotoSE) => {
+    setElegidas((m) => {
+      const n = new Map(m)
+      if (n.has(f.id)) n.delete(f.id)
+      else n.set(f.id, f)
+      return n
+    })
+  }, [])
+
+  // Lo dice el servidor (Space Eye, migración 034): antes el total solo
+  // contaba por equipo y con un filtro de fecha salía de más. Un Space Eye
+  // anterior no manda `exacto` y la pantalla sigue diciendo «filtradas».
+  const [exacto, setExacto] = useState(false)
+
+  // De quién son, cuando se mira un solo creativo y alguien le puso nombre.
+  const [nombreCreativo, setNombreCreativo] = useState<string | null>(null)
   const [aviso, setAviso] = useState<Aviso | null>(null)
   const avisoT = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -145,10 +178,14 @@ export function Galeria() {
   }, [])
   useEffect(() => () => { if (avisoT.current) clearTimeout(avisoT.current) }, [])
 
-  // La ficha de un equipo puede abrir la galería con ?device_id=4.
+  // La ficha de un equipo puede abrir la galería con ?device_id=4, y la
+  // tarjeta de un creativo con &creativo=<huella>: ahí es donde se pide «todos
+  // los comprobantes de este anuncio».
   useEffect(() => {
-    const id = new URLSearchParams(window.location.search).get('device_id')
-    if (id) setFiltros((f) => ({ ...f, equipo: id }))
+    const url = new URLSearchParams(window.location.search)
+    const id = url.get('device_id')
+    const cre = url.get('creativo')
+    if (id || cre) setFiltros((f) => ({ ...f, equipo: id ?? f.equipo, creativo: cre ?? f.creativo }))
     setListo(true)
   }, [])
 
@@ -165,11 +202,13 @@ export function Galeria() {
     setError(null)
     try {
       const q = consulta(filtros)
-      const d = await seApi<{ photos: FotoSE[]; total: number }>(
+      const d = await seApi<{ photos: FotoSE[]; total: number; exacto?: boolean; creativo_nombre?: string | null }>(
         `photos?page=${pagina}&limit=${porPagina}${q ? `&${q}` : ''}`,
       )
       setFotos(d?.photos ?? [])
       setTotal(Number(d?.total) || 0)
+      setExacto(!!d?.exacto)
+      setNombreCreativo(d?.creativo_nombre ?? null)
     } catch (e) {
       setError(mensaje(e, t('spaceeyes.galeria.error'), idioma))
     }
@@ -184,13 +223,29 @@ export function Galeria() {
     setFiltros((f) => ({ ...f, [k]: v }))
     setPagina(1)
   }
-  const hayFiltros = filtros.desde || filtros.hasta || filtros.origen || filtros.equipo
+  const hayFiltros = filtros.desde || filtros.hasta || filtros.origen || filtros.equipo || filtros.creativo
 
-  // Space Eye cuenta el total solo por equipo: con fechas u origen, ese total es
-  // de más. Por eso «hay siguiente» también mira si esta página vino llena.
-  const totalExacto = !filtros.desde && !filtros.hasta && !filtros.origen
+  // Space Eye viejo cuenta el total solo por equipo: con fechas u origen, ese
+  // total es de más. Por eso «hay siguiente» también mira si esta página vino
+  // llena, y por eso el número solo se enseña cuando el servidor dice que es
+  // el bueno.
+  const totalExacto = exacto || (!filtros.desde && !filtros.hasta && !filtros.origen && !filtros.creativo)
   const paginas = Math.max(1, Math.ceil(total / porPagina))
   const haySiguiente = (fotos?.length ?? 0) === porPagina && pagina * porPagina < total
+
+  // Si ya está entera elegida, el mismo botón la quita: es el comportamiento
+  // de cualquier «seleccionar todo» y evita tener dos botones para una cosa.
+  const todaLaPagina = (fotos?.length ?? 0) > 0 && fotos!.every((f) => elegidas.has(f.id))
+  const elegirPagina = () => {
+    setElegidas((m) => {
+      const n = new Map(m)
+      for (const f of fotos ?? []) {
+        if (todaLaPagina) n.delete(f.id)
+        else n.set(f.id, f)
+      }
+      return n
+    })
+  }
 
   const borrar = async () => {
     if (!aBorrar) return
@@ -209,6 +264,62 @@ export function Galeria() {
     setBorrando(false)
   }
 
+  /**
+   * Empaqueta un puñado de fotos con su marca grabada y lo baja.
+   *
+   * Es el mismo trabajo para el álbum entero y para las elegidas a mano, y por
+   * eso está una sola vez: lo que cambia es QUÉ fotos entran, no cómo se
+   * empaquetan. Cada una se dibuja en un lienzo con su marca y su giro, igual
+   * que en el visor, para que lo que se manda como comprobante sea exactamente
+   * lo que se vio en pantalla.
+   */
+  const empaquetar = async (todas: FotoSE[], nombreZip: string) => {
+    const entradas: { nombre: string; datos: Uint8Array }[] = []
+    let fallidas = 0
+    for (let i = 0; i < todas.length; i++) {
+      const f = todas[i]
+      try {
+        const url = fotoSE(f.storage_path)
+        if (!url) throw new Error('sin ruta')
+        const marca = marcaDeFoto(f)
+        const giro = giroDeFoto(f)
+        let blob: Blob
+        // Sin marca pero torcida se endereza igual: si no, el álbum saldría
+        // con unas fotos derechas y otras de cabeza.
+        if (marca || giro) blob = await renderizarFoto(url, giro, marca)
+        else {
+          const r = await fetch(url)
+          if (!r.ok) throw new Error(String(r.status))
+          blob = await r.blob()
+        }
+        entradas.push({ nombre: nombreEnZip(f), datos: new Uint8Array(await blob.arrayBuffer()) })
+      } catch {
+        fallidas++ // se omite la que falle, como en Space Eye
+      }
+      setAlbum(`${i + 1}/${todas.length}`)
+    }
+    if (entradas.length === 0) {
+      avisar(t('spaceeyes.galeria.album.ninguna'), 'error')
+      return
+    }
+    const zip = crearZip(entradas)
+    descargarBlob(new Blob([zip as BlobPart], { type: 'application/zip' }), nombreZip)
+    avisar(
+      fallidas
+        ? t(fallidas === 1 ? 'spaceeyes.galeria.album.parcial.uno' : 'spaceeyes.galeria.album.parcial.otros', { n: fallidas })
+        : t('spaceeyes.galeria.album.listo'),
+      fallidas ? 'info' : 'exito',
+    )
+  }
+
+  // Como se llama el archivo que se baja. Con el nombre del creativo cuando
+  // lo hay: un correo con «comprobantes.zip» obliga a quien lo recibe a abrirlo
+  // para saber de qué campaña es.
+  const nombreDelPaquete = () =>
+    nombreCreativo
+      ? `${nombreCreativo.replace(/[^\p{L}\p{N} _-]/gu, '').trim().replace(/\s+/g, '_') || 'comprobantes'}.zip`
+      : 'comprobantes.zip'
+
   // Todas las fotos que coinciden con los filtros, de 100 en 100, con su marca.
   const descargarAlbum = async () => {
     if (album) return
@@ -226,42 +337,21 @@ export function Galeria() {
         avisar(t('spaceeyes.galeria.album.vacio'), 'info')
         return
       }
-      const entradas: { nombre: string; datos: Uint8Array }[] = []
-      let fallidas = 0
-      for (let i = 0; i < todas.length; i++) {
-        const f = todas[i]
-        try {
-          const url = fotoSE(f.storage_path)
-          if (!url) throw new Error('sin ruta')
-          const marca = marcaDeFoto(f)
-          const giro = giroDeFoto(f)
-          let blob: Blob
-          // Sin marca pero torcida se endereza igual: si no, el álbum saldría
-          // con unas fotos derechas y otras de cabeza.
-          if (marca || giro) blob = await renderizarFoto(url, giro, marca)
-          else {
-            const r = await fetch(url)
-            if (!r.ok) throw new Error(String(r.status))
-            blob = await r.blob()
-          }
-          entradas.push({ nombre: nombreEnZip(f), datos: new Uint8Array(await blob.arrayBuffer()) })
-        } catch {
-          fallidas++ // se omite la que falle, como en Space Eye
-        }
-        setAlbum(`${i + 1}/${todas.length}`)
-      }
-      if (entradas.length === 0) {
-        avisar(t('spaceeyes.galeria.album.ninguna'), 'error')
-        return
-      }
-      const zip = crearZip(entradas)
-      descargarBlob(new Blob([zip as BlobPart], { type: 'application/zip' }), 'album_fotos.zip')
-      avisar(
-        fallidas
-          ? t(fallidas === 1 ? 'spaceeyes.galeria.album.parcial.uno' : 'spaceeyes.galeria.album.parcial.otros', { n: fallidas })
-          : t('spaceeyes.galeria.album.listo'),
-        fallidas ? 'info' : 'exito',
-      )
+      await empaquetar(todas, 'album_fotos.zip')
+    } catch (e) {
+      avisar(t('spaceeyes.galeria.album.error', { motivo: mensaje(e, t('spaceeyes.comun.error-desconocido'), idioma) }), 'error')
+    } finally {
+      setAlbum(null)
+    }
+  }
+
+  // Y solo las elegidas, que es lo que de verdad se le manda a un cliente: el
+  // álbum trae lo que coincide con los filtros, no lo que alguien escogió.
+  const descargarElegidas = async () => {
+    if (album || elegidas.size === 0) return
+    setAlbum(t('spaceeyes.galeria.preparando'))
+    try {
+      await empaquetar([...elegidas.values()], nombreDelPaquete())
     } catch (e) {
       avisar(t('spaceeyes.galeria.album.error', { motivo: mensaje(e, t('spaceeyes.comun.error-desconocido'), idioma) }), 'error')
     } finally {
@@ -376,6 +466,24 @@ export function Galeria() {
         )}
       </div>
 
+      {/* Filtrar por creativo no tiene control porque una huella no se puede
+          elegir de una lista: se llega aquí desde la tarjeta del anuncio, en la
+          ficha del equipo. Lo que sí hace falta es DECIRLO -si no, la galería
+          parece vacía sin motivo- y poder salirse de un clic. */}
+      {filtros.creativo && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-surface-2 px-3 py-2 text-[12px]">
+          <span className="text-ink">
+            {nombreCreativo
+              ? t('spaceeyes.galeria.de-este-creativo', { nombre: nombreCreativo })
+              : t('spaceeyes.galeria.de-un-creativo')}
+          </span>
+          <Button variant="ghost" size="sm" onClick={() => cambiarFiltro('creativo', '')}>
+            <X className="h-3.5 w-3.5" />
+            {t('spaceeyes.galeria.todo-el-creativo')}
+          </Button>
+        </div>
+      )}
+
       {error ? (
         <div className="flex items-start gap-2 rounded-md border border-error bg-error-soft p-3 text-[12px]">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-error" />
@@ -398,6 +506,34 @@ export function Galeria() {
         </div>
       ) : (
         <>
+          {/* Elegir y mandar.
+              El álbum baja TODO lo que coincide con los filtros; esto baja lo
+              que alguien escogió, que casi nunca es lo mismo. La cuenta y el
+              botón viven arriba -no flotando sobre las fotos- para que se vean
+              igual en el teléfono, donde no hay sitio para una barra encima de
+              la cuadrícula. */}
+          <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-surface px-3 py-2">
+            <Button variant="ghost" size="sm" onClick={elegirPagina}>
+              {todaLaPagina ? <CheckSquare className="h-3.5 w-3.5" /> : <Square className="h-3.5 w-3.5" />}
+              {t('spaceeyes.galeria.elegir-pagina')}
+            </Button>
+            {elegidas.size > 0 && (
+              <>
+                <span className="text-[12px] text-muted">
+                  {t(elegidas.size === 1 ? 'spaceeyes.galeria.elegidas.uno' : 'spaceeyes.galeria.elegidas.otros', { n: elegidas.size })}
+                </span>
+                <Button variant="ghost" size="sm" onClick={() => setElegidas(new Map())}>
+                  <X className="h-3.5 w-3.5" />
+                  {t('spaceeyes.galeria.quitar-eleccion')}
+                </Button>
+                <Button variant="secondary" size="sm" className="ml-auto" onClick={() => void descargarElegidas()} disabled={!!album}>
+                  {album ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                  {album ? t('spaceeyes.galeria.descargando', { progreso: album }) : t('spaceeyes.galeria.bajar-elegidas')}
+                </Button>
+              </>
+            )}
+          </div>
+
           <div
             className={cn(
               'grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6',
@@ -405,7 +541,15 @@ export function Galeria() {
             )}
           >
             {fotos!.map((f) => (
-              <Miniatura key={f.id} foto={f} onAbrir={() => setAbierta(f)} onBorrar={() => setABorrar(f)} onAviso={avisar} />
+              <Miniatura
+                key={f.id}
+                foto={f}
+                elegida={elegidas.has(f.id)}
+                onElegir={() => elegir(f)}
+                onAbrir={() => setAbierta(f)}
+                onBorrar={() => setABorrar(f)}
+                onAviso={avisar}
+              />
             ))}
           </div>
 
@@ -500,11 +644,15 @@ function Verificacion({ foto }: { foto: FotoSE }) {
 
 function Miniatura({
   foto,
+  elegida,
+  onElegir,
   onAbrir,
   onBorrar,
   onAviso,
 }: {
   foto: FotoSE
+  elegida: boolean
+  onElegir: () => void
   onAbrir: () => void
   onBorrar: () => void
   onAviso: (texto: string, tono: 'exito' | 'error' | 'info') => void
@@ -533,7 +681,15 @@ function Miniatura({
     setBajando(false)
   }
   return (
-    <div className="group overflow-hidden rounded-md border border-border bg-surface transition-colors duration-150 hover:border-border-strong">
+    <div
+      className={cn(
+        'group overflow-hidden rounded-md border bg-surface transition-colors duration-150',
+        // Elegida se ve en la TARJETA entera, no solo en la casilla: con
+        // veinte miniaturas parecidas, un cuadrito marcado en una esquina no
+        // se distingue de un reflejo de la foto.
+        elegida ? 'border-accent ring-1 ring-accent' : 'border-border hover:border-border-strong',
+      )}
+    >
       <div className="relative aspect-[4/3] overflow-hidden bg-surface-2">
         <button
           type="button"
@@ -566,6 +722,25 @@ function Miniatura({
             descarga RENDERIZADA -con su marca y su giro-, igual que desde el
             visor y que en el album: si no, la que se baja de aqui no seria la
             misma imagen que la que se ve. */}
+        {/* La casilla SIEMPRE se ve, no solo al pasar por encima como los dos
+            botones de arriba: es lo que hace falta para poder mirar la
+            cuadricula y saber que llevas elegido. Abajo a la izquierda porque
+            arriba a la izquierda esta el sello del origen. */}
+        <button
+          type="button"
+          onClick={onElegir}
+          title={t(elegida ? 'spaceeyes.galeria.elegida' : 'spaceeyes.galeria.elegir')}
+          aria-label={t(elegida ? 'spaceeyes.galeria.elegida' : 'spaceeyes.galeria.elegir')}
+          aria-pressed={elegida}
+          className={cn(
+            'absolute bottom-2 left-2 flex h-8 w-8 items-center justify-center rounded border',
+            elegida
+              ? 'border-accent bg-accent text-white'
+              : 'border-border-strong bg-surface/90 text-muted hover:text-ink',
+          )}
+        >
+          {elegida ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+        </button>
         <button
           type="button"
           onClick={descargar}

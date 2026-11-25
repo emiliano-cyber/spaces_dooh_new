@@ -62,7 +62,7 @@ Tres cosas que cuestan una hora si no se saben:
 **Si solo se cambia `EYES_IMAGEN` y no se corre el guion**, el despliegue ocurre
 igual, pero a las **4:27 AM** por cron, sin nadie mirando. Mejor correrlo.
 
-## 3 · Las migraciones: 031, 032 y 033
+## 3 · Las migraciones: 031, 032, 033 y 034
 
 **En las instancias se aplican solas.** `update-eyes.sh` las corre con la imagen
 NUEVA, en un contenedor desechable, **antes** de cambiar de versión; si una
@@ -72,12 +72,57 @@ mano.
 En el **`:4000` de producción sí van a mano**: ahí no corre ese guion.
 
 ```
-031_avisos_por_correo.sql     avisos por correo
-032_foto_al_recuperar.sql     la foto cuando una persona marca la falla
-033_creativo_por_dia.sql      la auditoría diaria de creativos
+031_avisos_por_correo.sql        avisos por correo
+032_foto_al_recuperar.sql        la foto cuando una persona marca la falla
+033_creativo_por_dia.sql         la auditoría diaria de creativos
+034_foto_de_que_creativo.sql     qué creativo enseña cada foto
 ```
 
 La tabla de control es **`_migrations`**, no `migrations`.
+
+### Después de la 034: etiquetar las fotos de antes (opcional)
+
+La 034 hace que **cada foto nueva** quede marcada con el creativo que enseña, y
+eso es lo que permite juntar los comprobantes de una campaña de un clic. Las
+fotos **anteriores** quedan sin marcar, que es la verdad: nadie miró qué
+enseñaban. El reconocimiento hacia atrás va aparte, **equipo por equipo**:
+
+```
+# Primero en ENSAYO: no escribe nada, solo dice cuántas reconocería.
+docker compose -p space-eyes exec api node dist/etiquetar-fotos.js <device_id> --tope=200
+
+# Y si el resultado convence:
+docker compose -p space-eyes exec api node dist/etiquetar-fotos.js <device_id> --tope=200 --aplicar
+```
+
+**Va despacio a propósito**: hay que decodificar y enderezar cada JPEG, y
+medido en la instancia local sale a **varios segundos por foto**. Con 3 000
+fotos son horas. Por eso lleva `--tope` y se corre por equipo, fuera de las
+horas de más subidas. No estorba a nada: si se corta a la mitad, lo etiquetado
+se queda etiquetado y se puede seguir otro día.
+
+Lo que **no** hace es registrar creativos que no estén ya en el catálogo. En
+vivo sí los registra -ahí la foto acaba de llegar y se sabe de cuándo es-, pero
+en lote, sobre meses de historia, llenaría el catálogo de anuncios que ya no
+existen con fecha de hoy.
+
+## 3 bis · Lo que cambia de comportamiento con la 034
+
+Dos cosas que conviene saber ANTES de desplegar, porque se notan solas:
+
+1. **El catálogo de creativos va a crecer.** Hasta ahora un anuncio solo
+   entraba si el equipo lo detectaba por esquinas (ORB), y con programática
+   -Hivestack- eso se pierde casi siempre. Ahora el servidor mira también las
+   fotos por horario y registra lo que no conocía, marcándolo como
+   `descubierto='servidor'`. En un sitio con programática eso pueden ser
+   decenas al día: no es un error, es lo que ya estaba pasando en la pantalla
+   y no se contaba. Hay un freno de 100 al día por equipo, y si se alcanza lo
+   dice en el registro del equipo: eso sí es señal de que algo está mal
+   (cámara movida, encuadre perdido).
+
+2. **No cuesta datos móviles.** Ni una foto más: todo sale de las que ya
+   llegaban. Lo que cuesta es CPU del droplet en cada subida, y no es nueva:
+   el servidor ya enderezaba cada foto para decidir si tocaba refoto.
 
 ## 4 · El agente de Raspberry
 

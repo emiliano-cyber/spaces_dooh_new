@@ -6,7 +6,7 @@ import { deviceJwt } from '../utils/jwt';
 import { z } from 'zod';
 import { versionVigilancia } from '../utils/versionVigilancia';
 import { uploadPhoto } from '../services/photoStorage.service';
-import { configDe, registrarRecorrido, ligarFoto, yaConocida, medirPantallaEnFoto, obstruccionEnFoto, refrescarCreativo, refrescarConFoto, tocaRefoto } from './creativos.controller';
+import { configDe, registrarRecorrido, ligarFoto, yaConocida, medirPantallaEnFoto, obstruccionEnFoto, refrescarCreativo, catalogarFoto, tocaRefoto } from './creativos.controller';
 import {
   adjuntarFotoDeRecuperacion, abrirObstruccion, cerrarObstruccion, registrarResumen,
 } from './monitoreo.controller';
@@ -515,14 +515,28 @@ export async function uploadPhotoEndpoint(req: Request, res: Response) {
   } else {
     // Cualquier OTRA foto del sitio -la de por horario, la que pidio alguien
     // desde el panel- tambien ensena la pantalla. El servidor la endereza, le
-    // saca la huella y, si reconoce un creativo del catalogo, la deja como su
-    // "asi se ve ahora". Es la unica forma de que esa segunda foto exista sin
-    // publicar una APK nueva, y no cuesta un solo byte de datos moviles: la
-    // foto ya estaba subida.
+    // saca la huella y la compara con el catalogo. Con lo que salga de ahi hace
+    // tres cosas, y las tres sin gastar un solo byte de datos moviles, porque
+    // la foto ya estaba subida:
     //
-    // Nunca tumba la subida ni la retrasa de verdad: es decodificar un JPEG.
+    //   · la ETIQUETA con el creativo que sale en ella (034), que es lo que
+    //     permite juntar despues los comprobantes de una campana sin abrirlas
+    //     una por una;
+    //   · si ese creativo no tenia foto de HOY, esta se la queda;
+    //   · y si no lo conociamos, lo registra. Ese es el caso de la
+    //     programatica: con Hivestack el loop cambia solo y el detector por
+    //     esquinas del equipo no lo ve, asi que hasta ahora ese anuncio no
+    //     existia para el sistema aunque estuviera retratado.
+    //
+    // Nunca tumba la subida, pero SI la alarga: enderezar la pantalla de un
+    // JPEG se midio en varios segundos, y el equipo espera la respuesta. Ese
+    // costo ya existia -el servidor enderezaba cada foto desde la 029 para
+    // decidir si tocaba refoto- y por eso aqui se endereza UNA sola vez y el
+    // resultado se reparte entre las tres preguntas. Lo unico que se suma de
+    // verdad es la comprobacion de obstruccion, y solo cuando la pantalla no
+    // casa con nada del catalogo.
     try {
-      const reconocido = await refrescarConFoto(did, req.file.buffer, result.photo_id);
+      const reconocido = await catalogarFoto(did, req.file.buffer, result.photo_id);
       // Basta con RECONOCER la pantalla -no con refrescar su foto- para cerrar
       // una obstruccion: la pantalla volvio a verse entera. Mirar el refresco
       // seria mirar la pregunta equivocada, porque solo toca una vez cada

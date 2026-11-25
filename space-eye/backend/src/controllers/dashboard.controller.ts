@@ -902,7 +902,7 @@ export async function capturarAhora(req: Request, res: Response) {
 
 // --- PHOTOS ---
 export async function listPhotos(req: Request, res: Response) {
-  const { device_id, campaign_id, from, to, source, page = '1', limit = '20' } = req.query;
+  const { device_id, campaign_id, from, to, source, creativo, page = '1', limit = '20' } = req.query;
   // `taken_at` sale corregido con el desfase del reloj del equipo (migracion
   // 018). Se corrige AL LEER y no al guardar: asi el crudo sigue en la tabla
   // -es el unico testigo de que ese reloj esta mal- y poner el desfase en 0
@@ -917,31 +917,44 @@ export async function listPhotos(req: Request, res: Response) {
                     c.name as campaign_name
              FROM photos p JOIN devices d ON p.device_id = d.id
              LEFT JOIN campaigns c ON c.id = p.campaign_id WHERE 1=1`;
+  // Las condiciones se escriben UNA vez y las usan la lista y el conteo.
+  //
+  // Antes eran dos juegos distintos: la lista filtraba por fecha, origen y
+  // equipo, y el conteo solo por equipo. El total salia de mas en cuanto habia
+  // un filtro de fecha -«1 de 3204» con doce fotos en pantalla- y la pantalla
+  // tenia que taparlo diciendo «filtradas» en vez del numero. Con el mismo
+  // `donde` para las dos, el total es el total y se puede decir cuantas fotos
+  // tiene una campana, que es justo lo que hacia falta para los comprobantes.
+  //
+  // Y sigue llevando el alcance del servicio, que es lo que de verdad no puede
+  // faltar: sin `d.owner` en el conteo, una llave de instancia recibia sus
+  // pocas fotos pero el total de toda la flota. No ve contenido ajeno, pero
+  // sabe cuanto hay, y la paginacion se vuelve mentira.
+  const donde: string[] = [];
   const params: any[] = [];
 
   // Mismo alcance que en la lista de equipos: una foto pertenece a su equipo.
-  if (req.servicio?.owner) { sql += ` AND d.owner = ?`; params.push(req.servicio.owner); }
+  if (req.servicio?.owner) { donde.push(`d.owner = ?`); params.push(req.servicio.owner); }
 
-  if (device_id) { sql += ` AND p.device_id = ?`; params.push(device_id); }
-  if (campaign_id) { sql += ` AND p.campaign_id = ?`; params.push(campaign_id); }
-  if (from) { sql += ` AND p.taken_at >= ?`; params.push(from); }
-  if (to) { sql += ` AND p.taken_at <= ?`; params.push(to); }
-  if (source) { sql += ` AND p.source = ?`; params.push(source); }
+  if (device_id) { donde.push(`p.device_id = ?`); params.push(device_id); }
+  if (campaign_id) { donde.push(`p.campaign_id = ?`); params.push(campaign_id); }
+  if (from) { donde.push(`p.taken_at >= ?`); params.push(from); }
+  if (to) { donde.push(`p.taken_at <= ?`); params.push(to); }
+  if (source) { donde.push(`p.source = ?`); params.push(source); }
+  // Todas las fotos en las que salio ESTE creativo (034): los comprobantes de
+  // una campana, sin abrirlas una por una.
+  if (creativo) { donde.push(`p.creativo = ?`); params.push(String(creativo).toLowerCase()); }
 
+  const filtros = donde.length ? ` AND ${donde.join(' AND ')}` : '';
   const offset = (Number(page) - 1) * Number(limit);
-  sql += ` ORDER BY p.taken_at DESC LIMIT ? OFFSET ?`;
-  params.push(Number(limit), offset);
-
-  const [rows] = await pool.query(sql, params);
+  const [rows] = await pool.query(
+    `${sql}${filtros} ORDER BY p.taken_at DESC LIMIT ? OFFSET ?`,
+    [...params, Number(limit), offset]
+  );
 
   const [countResult] = await pool.query<any[]>(
-    // El conteo lleva el MISMO alcance que la lista. Sin esto, una llave de
-    // instancia recibia sus pocas fotos pero un total de toda la flota: no ve el
-    // contenido ajeno, pero sabe cuanto hay, y la paginacion se vuelve mentira.
-    `SELECT COUNT(*) as total FROM photos p JOIN devices d ON d.id = p.device_id WHERE 1=1` +
-    (req.servicio?.owner ? ` AND d.owner = ${pool.escape(req.servicio.owner)}` : '') +
-    (device_id ? ` AND p.device_id = ${Number(device_id)}` : '') +
-    (campaign_id ? ` AND p.campaign_id = ${Number(campaign_id)}` : ''),
+    `SELECT COUNT(*) as total FROM photos p JOIN devices d ON d.id = p.device_id WHERE 1=1${filtros}`,
+    params,
   );
 
   // Las rutas salen FIRMADAS: /storage exige firma desde el 2026-09-14.
@@ -953,7 +966,36 @@ export async function listPhotos(req: Request, res: Response) {
     gps_lat: p.gps_lat == null ? null : Number(p.gps_lat),
     gps_lng: p.gps_lng == null ? null : Number(p.gps_lng),
   }));
-  res.json({ photos: fotos, total: (countResult as any[])[0]?.total || 0 });
+  let creativoNombre: string | null = null;
+  if (creativo) {
+    const [c] = await pool.query<any[]>(
+      `SELECT nombre FROM device_creatives WHERE phash = ? AND nombre IS NOT NULL LIMIT 1`,
+      [String(creativo).toLowerCase()]
+    );
+    creativoNombre = (c as any[])[0]?.nombre ?? null;
+  }
+
+  // `exacto` lo dice el SERVIDOR y no lo adivina la pantalla.
+  //
+  // SPACE OS y Space Eye se despliegan por separado: la pantalla nueva puede
+  // estar hablando con un Space Eye viejo, cuyo total si era aproximado. Si
+  // fuera la pantalla la que decidiera «ya es exacto», ensenaria un numero
+  // redondo y falso en toda instancia sin actualizar. Al venir en la respuesta,
+  // la de antes no lo manda, la pantalla no lo ve y sigue siendo prudente.
+  res.json({
+    photos: fotos,
+    total: (countResult as any[])[0]?.total || 0,
+    exacto: true,
+    // De quien son, cuando se esta mirando un solo creativo: con eso la
+    // galeria puede titular el filtro y nombrar el paquete que se baja.
+    //
+    // La consulta va aqui, suelta, y no importando una funcion de
+    // `creativos.controller`: ese modulo ya importa de este (`encuadreDe`), y
+    // hacerlo en los dos sentidos crea un ciclo que hoy funciona de milagro
+    // -porque ambas se llaman dentro de funciones- y revienta el dia que
+    // alguien mueva una constante al nivel del modulo.
+    creativo_nombre: creativoNombre,
+  });
 }
 
 // Elimina una foto tomada por error: borra archivos (full + thumb) y la fila.

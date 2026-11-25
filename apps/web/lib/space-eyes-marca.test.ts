@@ -136,9 +136,13 @@ describe('dibujarMarca', () => {
 })
 
 describe('nombres', () => {
-  it('quita la firma del nombre dentro del zip', () => {
-    expect(nombreEnZip(base)).toBe('abc.jpg')
-    expect(nombreEnZip({ id: 3, storage_path: '' })).toBe('photo_3.jpg')
+  it('dentro del zip, cada foto se llama como si se bajara sola', () => {
+    // El paquete es lo que se le manda a un cliente: `1552.jpg` no dice nada.
+    expect(nombreEnZip(base)).toBe('Reforma_222_2026-10-01T15-30-05.jpg')
+  })
+  it('y si no sabe de que equipo es, cae al archivo y de ahi al id', () => {
+    expect(nombreEnZip({ ...base, device_name: null })).toBe('abc.jpg')
+    expect(nombreEnZip({ id: 3, storage_path: '', taken_at: null, device_name: null })).toBe('photo_3.jpg')
   })
   it('arma el nombre de descarga con el equipo y la hora', () => {
     expect(nombreDescarga(base)).toBe('Reforma_222_2026-10-01T15-30-05.jpg')

@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import Link from 'next/link'
 import { AlertTriangle, Info, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { Button } from '@/components/demo/ui/Button'
@@ -48,6 +49,9 @@ type Config = {
 }
 type Creativo = {
   id: number
+  // La huella es la IDENTIDAD del creativo, no un detalle interno: es con lo
+  // que la galeria junta todas sus fotos (Space Eye, migracion 034).
+  phash: string
   photo_id: number | null
   descartado: number | boolean
   primera_vez: string
@@ -68,6 +72,19 @@ type Creativo = {
   // cada dia salio este anuncio, y la foto de ese dia. Viene del mas reciente
   // al mas viejo y llega vacia contra un Space Eye anterior a esa migracion.
   dias?: DiaCreativo[]
+  // Cuantas fotos del sitio salieron con este anuncio en pantalla, y entre
+  // que fechas (Space Eye, migracion 034). 0 contra un Space Eye anterior, y
+  // tambien en un sitio recien actualizado: las fotos de antes no dicen que
+  // ensenaban, y contarlas seria inventar.
+  fotos?: number
+  fotos_desde?: string | null
+  fotos_hasta?: string | null
+  // Quien lo encontro. 'servidor' es el que aparecio en una foto por horario y
+  // que el detector del equipo no vio: el caso de la programatica.
+  descubierto?: 'equipo' | 'servidor'
+  // De quien es, puesto a mano (Space Eye, migracion 034). Es lo que convierte
+  // «las fotos de un creativo» en «los comprobantes de Dessea».
+  nombre?: string | null
 }
 
 /**
@@ -85,7 +102,15 @@ type DiaCreativo = {
   foto: string | null
   miniatura: string | null
 }
-type Resp = { config: Config | null; fotos_hoy: number; creativos: Creativo[] }
+type Resp = {
+  config: Config | null
+  fotos_hoy: number
+  creativos: Creativo[]
+  // Cuantos creativos nuevos lleva el sitio (Space Eye, migracion 034). Falta
+  // contra un Space Eye anterior, y entonces no se pinta nada: un «0 hoy»
+  // inventado diria que la pantalla no cambio, que es lo contrario del dato.
+  nuevos?: { hoy: number; semana: number; del_servidor: number; total: number }
+}
 
 // Cuándo manda las fotos nuevas. Mirar no cambia: el equipo sigue mirando
 // todo el tiempo y no se le escapa un creativo que sale una sola vez.
@@ -249,6 +274,21 @@ export function CreativosConfig({
     }
   }
 
+  // El nombre se guarda al salir del campo, no con un boton: es un dato de una
+  // linea y un boton «guardar» por tarjeta llenaria la rejilla de botones que
+  // casi nunca se pulsan. Si no cambio, no se manda nada.
+  async function ponerNombre(c: Creativo, nombre: string) {
+    if ((c.nombre ?? '') === nombre) return
+    setAviso(null)
+    try {
+      await seApi(`creativos/${c.id}`, { method: 'PUT', body: { nombre } })
+      await cargar()
+      onCambio?.()
+    } catch (e) {
+      setAviso(t('spaceeyes.comun.no-guardar', { motivo: mensaje(e, idioma) }))
+    }
+  }
+
   async function descartar(c: Creativo) {
     setDescartando(c.id)
     setAviso(null)
@@ -361,6 +401,20 @@ export function CreativosConfig({
               <div className="rounded-md border border-border p-3">
                 <p className="text-[11px] uppercase tracking-wide text-muted">{t('spaceeyes.creativos.catalogo')}</p>
                 <p className="mt-1 text-lg tabular-nums text-ink">{(datos.creativos ?? []).length}</p>
+                {/* Cuantos son NUEVOS. El tamano del catalogo no lo dice: un
+                    sitio con programatica y uno con un loop fijo pueden tener
+                    los mismos cuarenta anuncios y no parecerse en nada. */}
+                {datos.nuevos && (
+                  <p className="mt-0.5 text-[11px] text-muted">
+                    {t('spaceeyes.creativos.nuevos.cuenta', { hoy: datos.nuevos.hoy, semana: datos.nuevos.semana })}
+                    {datos.nuevos.del_servidor > 0 && (
+                      <>
+                        <br />
+                        {t('spaceeyes.creativos.nuevos.servidor', { n: datos.nuevos.del_servidor })}
+                      </>
+                    )}
+                  </p>
+                )}
               </div>
               <div
                 className="col-span-2 rounded-md border border-border p-3"
@@ -496,6 +550,37 @@ export function CreativosConfig({
                             })}
                           </div>
                           <DiasDelCreativo dias={c.dias} onAmpliar={onAmpliar} />
+                          {/* TODAS sus fotos, de un clic. Es lo que convierte
+                              la ficha en comprobantes: el dato ya existe por
+                              foto desde la 034, y sin este enlace habria que
+                              mirarlas una por una para juntar las de un
+                              cliente. */}
+                          {!!c.fotos && (
+                            <Link
+                              href={`/space-eyes/galeria/?device_id=${equipoId}&creativo=${c.phash}`}
+                              className="mt-1 inline-block text-accent hover:underline"
+                            >
+                              {t(c.fotos === 1 ? 'spaceeyes.creativo.comprobantes.uno' : 'spaceeyes.creativo.comprobantes.otros', { n: c.fotos })}
+                            </Link>
+                          )}
+                          {c.descubierto === 'servidor' && (
+                            <div className="text-muted">{t('spaceeyes.creativo.del-servidor')}</div>
+                          )}
+                          {puedeOperar ? (
+                            <input
+                              type="text"
+                              defaultValue={c.nombre ?? ''}
+                              maxLength={120}
+                              placeholder={t('spaceeyes.creativo.nombre.marcador')}
+                              title={t('spaceeyes.creativo.nombre.ayuda')}
+                              aria-label={t('spaceeyes.creativo.nombre')}
+                              onBlur={(e) => void ponerNombre(c, e.target.value.trim())}
+                              onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }}
+                              className="mt-1.5 w-full rounded border border-border bg-surface px-1.5 py-1 text-[11px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                            />
+                          ) : (
+                            c.nombre && <div className="mt-1 text-ink">{c.nombre}</div>
+                          )}
                           {puedeOperar && (
                             <Button
                               size="sm"

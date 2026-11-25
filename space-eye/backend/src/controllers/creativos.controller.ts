@@ -543,12 +543,15 @@ export async function enderezarDeEquipo(deviceId: number, jpeg: Buffer): Promise
 export async function medirPantallaEnFoto(
   deviceId: number,
   jpeg: Buffer,
-): Promise<(Medida & { phash: string | null }) | null> {
+): Promise<(Medida & { phash: string | null; gris: Gris }) | null> {
   const gris = await enderezarDeEquipo(deviceId, jpeg);
   if (!gris) return null;
   // Sin huella no hay creativo: lente tapada o noche cerrada. Es la misma regla
   // con la que el equipo decide no gastar una foto.
-  return { ...medirPantalla(gris), phash: calcular(gris.datos, gris.ancho, gris.alto) };
+  //
+  // La foto enderezada SALE con la medida para que nadie tenga que volver a
+  // enderezarla: es lo caro de este camino y da siempre lo mismo.
+  return { ...medirPantalla(gris), phash: calcular(gris.datos, gris.ancho, gris.alto), gris };
 }
 
 export async function reconocerEnFoto(
@@ -578,15 +581,157 @@ export async function reconocerEnFoto(
  * una vez cada `refoto_h` horas-. Devolver solo la segunda dejaba la
  * obstruccion abierta para siempre: casi ninguna foto toca refresco.
  */
-export async function refrescarConFoto(
+/** Lo que resulto ensenar una foto cualquiera del sitio. */
+export type Catalogada = {
+  /** El creativo del catalogo: el de siempre, o el que se acaba de registrar. */
+  phash: string;
+  /** No estaba en el catalogo y lo encontro el servidor en ESTA foto. */
+  nuevo: boolean;
+  /** Ademas quedo como la foto de «ahora» de ese creativo. */
+  refrescada: boolean;
+};
+
+/**
+ * Deja apuntado en la foto QUE creativo salio en ella (migracion 034).
+ *
+ * Es una linea de SQL y es la que hace posible sacar los comprobantes de una
+ * campana sin abrir las fotos una por una. El dato ya se calculaba en cada
+ * subida desde la migracion 029 -hay que enderezar la pantalla y sacar la
+ * huella para decidir si tocaba refoto- y se tiraba en cuanto se respondia.
+ */
+async function etiquetarFoto(photoId: number, phash: string) {
+  await pool.query(`UPDATE photos SET creativo = ? WHERE id = ?`, [phash, photoId]).catch(() => null);
+}
+
+/**
+ * La foto de HOY de ese creativo, si todavia no tenia una.
+ *
+ * `COALESCE` y no `VALUES`: la del dia es la PRIMERA buena del dia y no cambia
+ * a lo largo de la tarde. Una fila que se repisa con cada foto hace que el
+ * cuadro del dia ensene algo distinto cada vez que alguien lo abre, y que un
+ * comprobante que ya se mando deje de corresponder con lo que se ve. El
+ * refresco explicito -cada `creative_refoto_h` horas- si la cambia, porque
+ * para eso existe.
+ *
+ * No cuesta datos moviles: la foto ya estaba subida y pagada. Es lo que hace
+ * que un creativo tenga su foto de cada dia aunque nadie pida una refoto.
+ */
+async function fotoDelDiaSiFalta(deviceId: number, phash: string, photoId: number) {
+  await pool.query(
+    `INSERT INTO device_creative_dias (device_id, phash, dia, photo_id)
+     VALUES (?, ?, CURDATE(), ?)
+     ON DUPLICATE KEY UPDATE photo_id = COALESCE(photo_id, VALUES(photo_id))`,
+    [deviceId, phash, photoId]).catch(() => null);
+}
+
+// Freno de emergencia, no una politica.
+//
+// Un sitio con programatica puede sacar decenas de creativos distintos en un
+// dia y TODOS deben contarse: es justo lo que se pidio. Este tope solo existe
+// para que una camara movida o una noche con reflejos no metan mil filas de
+// basura mientras nadie mira. Si se alcanza se dice en el registro: es una
+// senal de que algo esta mal en el sitio, no un limite que ajustar.
+const NUEVOS_POR_DIA_TOPE = 100;
+
+/**
+ * Un creativo que NO estaba en el catalogo y aparecio en una foto por horario.
+ *
+ * POR QUE HACE FALTA. El equipo detecta cambios por esquinas (ORB) y eso se le
+ * va con la programatica: Hivestack cambia el loop solo, y entre dos anuncios
+ * distintos puede no haber esquinas que casar. La foto por horario SI lo
+ * retrata, pero hasta ahora nadie la miraba contra el catalogo, asi que ese
+ * anuncio no existia para el sistema: no se contaba, no tenia ficha y no
+ * aparecia en ningun comprobante. Lo reporto el dueno el 24-nov-2026.
+ *
+ * No cuesta una sola foto nueva: la que se mira es la que ya llego.
+ *
+ * Antes de registrarlo se comprueba que lo que cambio este EN la pantalla y no
+ * DELANTE. Sin eso, el primer camion que se estacione enfrente entraria al
+ * catalogo como un anuncio -que es el bug que se arreglo el 23-nov para las
+ * fotos de hallazgo, y seria el mismo bug otra vez por otra puerta-.
+ */
+async function registrarDeFoto(
   deviceId: number,
   jpeg: Buffer,
   photoId: number,
-): Promise<{ phash: string; refrescada: boolean } | null> {
-  const r = await reconocerEnFoto(deviceId, jpeg);
-  if (!r) return null;
-  const { conocida } = r;
-  if (!tocaRefoto(conocida, r.refoto_h)) return { phash: conocida.phash, refrescada: false };
+  phash: string,
+  aprendiendo: boolean,
+  yaDerecha: Gris,
+): Promise<Catalogada | null> {
+  const obs = await obstruccionEnFoto(deviceId, jpeg, yaDerecha).catch(() => null);
+  if (obs?.obstruido) {
+    await pool.query(
+      `INSERT INTO device_logs (device_id, level, category, message) VALUES (?, 'warning', 'creative', ?)`,
+      // Lo que se sabe y nada mas. Que la pantalla se parezca a un creativo
+      // conocido y que su huella NO case admite dos lecturas -algo delante, o
+      // el mismo anuncio con otra luz- y el registro no puede elegir una: lo
+      // unico seguro es que esto no entra al catalogo como anuncio nuevo.
+      [deviceId, `Foto del sitio NO catalogada: el ${Math.round(obs.parecido * 100)}% de la pantalla sigue siendo `
+        + `un creativo conocido, pero su huella no casa. Puede ser algo delante de la pantalla, o el mismo `
+        + `anuncio con otra luz. No se registra como nuevo.`]
+    ).catch(() => null);
+    return null;
+  }
+
+  const [cuenta] = await pool.query<any[]>(
+    `SELECT COUNT(*) AS n FROM device_creatives
+      WHERE device_id = ? AND descubierto = 'servidor' AND DATE(primera_vez) = CURDATE()`,
+    [deviceId]);
+  if (Number((cuenta as any[])[0]?.n ?? 0) >= NUEVOS_POR_DIA_TOPE) {
+    await pool.query(
+      `INSERT INTO device_logs (device_id, level, category, message) VALUES (?, 'error', 'creative', ?)`,
+      [deviceId, `Freno: ${NUEVOS_POR_DIA_TOPE} creativos nuevos encontrados en fotos HOY. Dejo de catalogar `
+        + `en este sitio hasta manana; revisa el encuadre de la camara.`]
+    ).catch(() => null);
+    return null;
+  }
+
+  await pool.query(
+    `INSERT INTO device_creatives (device_id, phash, photo_id, aprendido, descubierto)
+     VALUES (?, ?, ?, ?, 'servidor')
+     ON DUPLICATE KEY UPDATE vistas = vistas + 1, ultima_vez = NOW(),
+       photo_id = COALESCE(photo_id, VALUES(photo_id)), sin_foto = NULL`,
+    [deviceId, phash, photoId, aprendiendo ? 1 : 0]);
+  await etiquetarFoto(photoId, phash);
+  await fotoDelDiaSiFalta(deviceId, phash, photoId);
+  await pool.query(
+    `INSERT INTO device_logs (device_id, level, category, message) VALUES (?, 'info', 'creative', ?)`,
+    [deviceId, 'Creativo nuevo encontrado por el servidor en una foto del sitio (el equipo no lo reporto)']
+  ).catch(() => null);
+  return { phash, nuevo: true, refrescada: true };
+}
+
+/**
+ * Mira una foto cualquiera del sitio, dice que creativo ensena y lo guarda.
+ *
+ * Devuelve null solo si no se puede decir nada: el sitio no vigila, la pantalla
+ * se ve apagada, o lo que cambio estaba delante de ella. En cualquier otro caso
+ * la foto QUEDA ETIQUETADA con su creativo, que es lo que permite juntar
+ * despues todos los comprobantes de una campana.
+ *
+ * Quien llama necesita las tres respuestas por separado -cual, si es nuevo y si
+ * ademas tocaba refoto-, porque son tres preguntas distintas sobre la misma
+ * foto. Devolver solo la ultima dejaba las obstrucciones abiertas para siempre:
+ * casi ninguna foto toca refresco.
+ */
+export async function catalogarFoto(
+  deviceId: number,
+  jpeg: Buffer,
+  photoId: number,
+): Promise<Catalogada | null> {
+  const cfg = await configDe(deviceId);
+  if (!cfg?.vigilar) return null;
+
+  const m = await medirPantallaEnFoto(deviceId, jpeg);
+  if (!m?.phash || m.apagada) return null;
+
+  const conocida = await yaConocida(deviceId, m.phash);
+  if (!conocida) return registrarDeFoto(deviceId, jpeg, photoId, m.phash, cfg.aprendiendo, m.gris);
+
+  // Lo primero, y pase lo que pase despues: esta foto ensena este creativo.
+  await etiquetarFoto(photoId, conocida.phash);
+  await fotoDelDiaSiFalta(deviceId, conocida.phash, photoId);
+  if (!tocaRefoto(conocida, cfg.refoto_h)) return { phash: conocida.phash, nuevo: false, refrescada: false };
 
   await ligarFoto(deviceId, conocida.phash, photoId);
   // Y la fila de HOY se queda con ella: la de ayer sigue en la fila de ayer,
@@ -605,7 +750,7 @@ export async function refrescarConFoto(
     `INSERT INTO device_logs (device_id, level, category, message) VALUES (?, 'info', 'creative', ?)`,
     [deviceId, `Creativo puesto al dia con una foto del sitio (${conocida.bits} bits de diferencia)`]
   ).catch(() => null);
-  return { phash: conocida.phash, refrescada: true };
+  return { phash: conocida.phash, nuevo: false, refrescada: true };
 }
 
 /** Se volvio a ver: solo refresca la fecha y la cuenta. */
@@ -643,6 +788,11 @@ export async function ligarFoto(deviceId: number, phash: string, photoId: number
        ultima_vez = NOW(), sin_foto = NULL`,
     [deviceId, phash.toLowerCase(), photoId]
   );
+  // Y la foto se queda sabiendo a QUE creativo pertenece (034). Va aqui y no en
+  // cada uno de los tres sitios que ligan: ligar una foto a un creativo es
+  // exactamente la afirmacion «en esta foto sale este anuncio», y tenerla en un
+  // solo lugar es lo que evita que el cuarto sitio que ligue se olvide.
+  await etiquetarFoto(photoId, phash.toLowerCase());
 }
 
 // --- Dashboard --------------------------------------------------------------
@@ -696,14 +846,58 @@ export async function listarDeEquipo(req: Request, res: Response) {
     dias.set(f.phash, lista);
   }
 
+  // Cuantas fotos hay de cada creativo, y entre que fechas.
+  //
+  // Es el numero que convierte la ficha en comprobantes: «este anuncio tiene 37
+  // fotos entre el 2 y el 24» es lo que se le manda a un cliente, y desde ahi
+  // se abren todas juntas en la galeria. Solo cuenta las etiquetadas (034), asi
+  // que en un sitio recien actualizado empieza en 1 y sube: las de antes no
+  // dicen que ensenaban y contarlas seria inventar.
+  const [cuentas] = await pool.query<any[]>(
+    `SELECT creativo, COUNT(*) AS fotos, MIN(taken_at) AS desde, MAX(taken_at) AS hasta
+       FROM photos
+      WHERE device_id = ? AND creativo IS NOT NULL
+      GROUP BY creativo`,
+    [did]
+  );
+  const porCreativo = new Map<string, any>();
+  for (const f of cuentas as any[]) porCreativo.set(String(f.creativo), f);
+
+  // Cuantos creativos nuevos lleva el sitio, y cuantos los encontro el servidor
+  // en fotos que ya estaban pagadas (los de la programatica, que el equipo no
+  // ve). Las dos cuentas juntas porque la segunda sin la primera no se puede
+  // leer: lo que importa es que proporcion del loop esta entrando por ahi.
+  const [resumen] = await pool.query<any[]>(
+    `SELECT
+       SUM(DATE(primera_vez) = CURDATE())                       AS hoy,
+       SUM(primera_vez >= CURDATE() - INTERVAL 6 DAY)           AS semana,
+       SUM(descubierto = 'servidor')                            AS del_servidor,
+       COUNT(*)                                                 AS total
+     FROM device_creatives WHERE device_id = ? AND descartado = 0`,
+    [did]
+  );
+  const r = (resumen as any[])[0] ?? {};
+
   const config = await configDe(did);
   res.json({
     config,
+    nuevos: {
+      hoy: Number(r.hoy) || 0,
+      semana: Number(r.semana) || 0,
+      del_servidor: Number(r.del_servidor) || 0,
+      total: Number(r.total) || 0,
+    },
     fotos_hoy: await fotosDeHoy(did),
     // `dias` viene ordenado del mas reciente al mas viejo, igual que lo pide la
     // consulta: la tira de la ficha se lee de izquierda a derecha empezando por
     // hoy, y reordenarlo en el navegador seria hacer dos veces el mismo trabajo.
-    creativos: firmarFilas(filas as any[]).map((c: any) => ({ ...c, dias: dias.get(c.phash) ?? [] })),
+    creativos: firmarFilas(filas as any[]).map((c: any) => ({
+      ...c,
+      dias: dias.get(c.phash) ?? [],
+      fotos: Number(porCreativo.get(c.phash)?.fotos) || 0,
+      fotos_desde: porCreativo.get(c.phash)?.desde ?? null,
+      fotos_hasta: porCreativo.get(c.phash)?.hasta ?? null,
+    })),
   });
 }
 
@@ -752,15 +946,34 @@ export async function configurar(req: Request, res: Response) {
   res.json({ ok: true, config: await configDe(Number(req.params.id)) });
 }
 
-/** "Esto no era un creativo nuevo": deja de contarlo como hallazgo. */
-export async function descartar(req: Request, res: Response) {
-  const schema = z.object({ descartado: z.boolean() });
+/**
+ * Lo que una persona puede cambiarle a un creativo.
+ *
+ *   descartado  «esto no era un creativo nuevo»: deja de contarlo como hallazgo
+ *   nombre      de quien es, para poder nombrar sus comprobantes
+ *
+ * Los dos en el mismo sitio porque son la misma frase -«lo que decide una
+ * persona mirando la tarjeta»- y porque un segundo endpoint para un VARCHAR
+ * seria una ruta mas que proteger con el mismo permiso.
+ */
+export async function editarCreativo(req: Request, res: Response) {
+  const schema = z.object({
+    descartado: z.boolean().optional(),
+    // Vacio BORRA el nombre: es como se quita, y hace falta que se pueda.
+    nombre: z.string().trim().max(120).optional(),
+  });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
 
+  const campos: string[] = [];
+  const valores: any[] = [];
+  if (parsed.data.descartado !== undefined) { campos.push('descartado = ?'); valores.push(parsed.data.descartado); }
+  if (parsed.data.nombre !== undefined) { campos.push('nombre = ?'); valores.push(parsed.data.nombre || null); }
+  if (!campos.length) return res.status(400).json({ error: 'no_fields' });
+
   await pool.query(
-    `UPDATE device_creatives SET descartado = ? WHERE id = ?`,
-    [parsed.data.descartado, req.params.id]
+    `UPDATE device_creatives SET ${campos.join(', ')} WHERE id = ?`,
+    [...valores, req.params.id]
   );
   res.json({ ok: true });
 }
@@ -796,6 +1009,18 @@ export async function reaprender(req: Request, res: Response) {
 // Para medirlo hace falta el catalogo de produccion, donde esas fotos ya estan
 // guardadas como «creativos» que se vieron UNA vez y nunca mas. El guion
 // `scripts/medir-obstruccion.ts` hace exactamente esa cuenta.
+// MEDIDO el 24-nov-2026 en la instancia local, sobre los 9 creativos con foto
+// de TLALPAN (36 pares de anuncios DISTINTOS del mismo sitio):
+//
+//   mediana 0.078 · p90 0.250 · maximo 0.547
+//   solo 1 de 36 pares pasa de 0.45
+//
+// Es decir: dos anuncios distintos en la misma pantalla casi nunca se parecen
+// por bloques, y 0.45 los deja fuera. El umbral no estaba medido cuando se
+// escribio -salia de la geometria del caso- y desde la 034 decide algo mas
+// grave que antes: si un creativo nuevo se registra o se descarta. Con estos
+// numeros aguanta ese peso. Conviene repetir la medida en g500, donde las
+// pantallas y los encuadres son otros.
 const PARECIDO_OBSTRUIDO = 0.45;
 // Por encima de esto es la MISMA imagen; eso ya lo caza la huella y no es
 // asunto de aqui. Esta cota evita contar como obstruccion una foto que el
@@ -836,8 +1061,19 @@ async function zonasDeFotoGuardada(deviceId: number, ruta: string) {
  * ¿Lo que cambio esta delante de la pantalla? Devuelve null si no se puede
  * decidir (sin pantalla marcada, sin catalogo con fotos, foto ilegible).
  */
-export async function obstruccionEnFoto(deviceId: number, jpeg: Buffer): Promise<Obstruccion | null> {
-  const gris = await enderezarDeEquipo(deviceId, jpeg);
+export async function obstruccionEnFoto(
+  deviceId: number,
+  jpeg: Buffer,
+  // La foto ya enderezada, si quien llama acaba de hacerlo.
+  //
+  // Enderezar es deformar la perspectiva de un JPEG entero y es LO CARO de
+  // todo esto: medido en la instancia local, segundos por foto. Quien viene de
+  // `catalogarFoto` ya la enderezo para sacarle la huella, y volver a hacerlo
+  // aqui duplicaba el tiempo de cada subida -con el equipo esperando en una red
+  // movil- para llegar exactamente al mismo mapa de bits.
+  yaDerecha?: Gris | null,
+): Promise<Obstruccion | null> {
+  const gris = yaDerecha ?? (await enderezarDeEquipo(deviceId, jpeg));
   if (!gris) return null;
   const ahora = bloquesDe(gris);
 
