@@ -11,7 +11,7 @@ import { Request, Response } from 'express';
 import { pool } from '../config/database';
 import { leerStored } from '../services/photoStorage.service';
 import {
-  enderezarPantalla, medirPantalla, bloquesDe, parecidoPorBloques, type Medida, type Gris,
+  enderezarPantalla, medirPantalla, bloquesDe, parecidoPorBloques, type Medida, type Gris, type Punto,
 } from '../utils/enderezar';
 import { calcular } from '../utils/huella';
 import { equipoAjeno } from '../utils/dueno';
@@ -299,6 +299,10 @@ export async function registrarRecorrido(
          sin_foto = IF(photo_id IS NULL, COALESCE(sin_foto, VALUES(sin_foto)), NULL)`,
       [deviceId, h, aprendiendo ? 1 : 0, sinFoto]
     );
+    // De quien es, si su arte esta registrado como campana (035). Va aqui y no
+    // donde llega la foto porque la huella basta: un creativo que nunca
+    // consiguio foto -los del aprendizaje- tambien queda identificado.
+    await identificarYGuardar(deviceId, h);
     catalogo.push(h);
   }
 }
@@ -694,9 +698,13 @@ async function registrarDeFoto(
     [deviceId, phash, photoId, aprendiendo ? 1 : 0]);
   await etiquetarFoto(photoId, phash);
   await fotoDelDiaSiFalta(deviceId, phash, photoId);
+  // Y de paso, de quien es: si su arte esta registrado como campana, el
+  // anuncio queda identificado sin que nadie teclee nada.
+  const dequien = await identificarYGuardar(deviceId, phash);
   await pool.query(
     `INSERT INTO device_logs (device_id, level, category, message) VALUES (?, 'info', 'creative', ?)`,
-    [deviceId, 'Creativo nuevo encontrado por el servidor en una foto del sitio (el equipo no lo reporto)']
+    [deviceId, 'Creativo nuevo encontrado por el servidor en una foto del sitio (el equipo no lo reporto)'
+      + (dequien ? `. Es de la campana «${dequien.nombre}» (${dequien.bits} bits).` : '')]
   ).catch(() => null);
   return { phash, nuevo: true, refrescada: true };
 }
@@ -795,6 +803,121 @@ export async function ligarFoto(deviceId: number, phash: string, photoId: number
   await etiquetarFoto(photoId, phash.toLowerCase());
 }
 
+// ─── De quien es un creativo ────────────────────────────────────────────────
+//
+// La camara ve la pantalla, no la factura: sabe QUE anuncio esta puesto, no de
+// quien es. Pero el dato ya esta en la base -cada campana trae su creatividad
+// de referencia y su anunciante- y lo unico que faltaba era comparar.
+//
+// Se compara con lo que ya hay y sin gastar nada: la creatividad pasa por el
+// MISMO normalizador que la pantalla enderezada -320 px de ancho, en gris- y
+// de ahi sale la misma huella de 256 bits. Ni un servicio nuevo, ni una llave,
+// ni una llamada a internet.
+
+// Una creatividad ya viene de frente: su «pantalla» es la imagen entera.
+const IMAGEN_ENTERA: Punto[] = [[0, 0], [1, 0], [1, 1], [0, 1]];
+
+// MEDIDO el 25-nov-2026 contra los creativos de las pantallas DEMO: los que
+// eran de una campana casaron a 1-10 bits y el que no era de ninguna salio a
+// 85. Esa separacion es la de un caso facil -la foto se hizo del mismo arte-,
+// asi que el umbral se queda MUY por debajo de la tolerancia normal (24): en
+// campo hay reflejos, angulo y noche, y lo que esta en duda se deja sin
+// identificar. Un anunciante equivocado en un comprobante es peor que ninguno.
+const IDENTIFICAR_BITS = 20;
+
+// Y tiene que ganar por diferencia. Entre dos artes distintas a 18 y 19 bits no
+// se puede elegir, y elegir mal pone a un cliente en el comprobante de otro.
+// Dos campanas que comparten el MISMO arte no cuentan como empate: es la misma
+// imagen, y da igual cual de las dos se apunte.
+const VENTAJA_MINIMA = 6;
+
+// Las huellas de las creatividades, recordadas.
+//
+// CON CADUCIDAD, al contrario que las zonas de las fotos: una foto guardada no
+// cambia nunca, pero una creatividad vive siempre en la misma ruta
+// (/storage/creatividades/<id>/referencia.jpg) y se reemplaza cuando el cliente
+// manda otro arte. Sin caducidad, el catalogo seguiria casando contra el arte
+// viejo hasta que alguien reiniciara el contenedor.
+const ARTE_VIGENCIA_MS = 30 * 60_000;
+const artesRecordadas = new Map<string, { phash: string | null; en: number }>();
+
+async function huellaDeArte(ruta: string): Promise<string | null> {
+  const ya = artesRecordadas.get(ruta);
+  if (ya && Date.now() - ya.en < ARTE_VIGENCIA_MS) return ya.phash;
+  let phash: string | null = null;
+  try {
+    const g = await enderezarPantalla(await leerStored(ruta), IMAGEN_ENTERA, 0);
+    if (g) phash = calcular(g.datos, g.ancho, g.alto);
+  } catch { phash = null; }
+  artesRecordadas.set(ruta, { phash, en: Date.now() });
+  return phash;
+}
+
+export type Identificada = {
+  campaign_id: number;
+  bits: number;
+  nombre: string;
+  anunciante: string | null;
+};
+
+/**
+ * A que campana pertenece este creativo, o null si no se puede afirmar.
+ *
+ * No hace falta la foto: `phash` es la huella de la pantalla enderezada, que
+ * es justo lo que se compara. Por eso un creativo que nunca consiguio foto
+ * -los del aprendizaje, los que no se pudieron subir- tambien se identifica.
+ */
+export async function identificarCreativo(phash: string): Promise<Identificada | null> {
+  if (!HUELLA.test(phash || '')) return null;
+  const [campanas] = await pool.query<any[]>(
+    `SELECT id, name, advertiser, creative_path FROM campaigns
+      WHERE creative_path IS NOT NULL
+      ORDER BY active DESC, end_date DESC
+      LIMIT 300`
+  );
+
+  let mejor: (Identificada & { arte: string }) | null = null;
+  let segundo: { bits: number; arte: string } | null = null;
+  for (const c of campanas as any[]) {
+    const h = await huellaDeArte(String(c.creative_path));
+    if (!h) continue;
+    const bits = distancia(phash.toLowerCase(), h);
+    if (!mejor || bits < mejor.bits) {
+      if (mejor && mejor.arte !== h) segundo = { bits: mejor.bits, arte: mejor.arte };
+      mejor = { campaign_id: Number(c.id), bits, nombre: String(c.name), anunciante: c.advertiser ?? null, arte: h };
+    } else if (h !== mejor.arte && (!segundo || bits < segundo.bits)) {
+      segundo = { bits, arte: h };
+    }
+  }
+
+  if (!mejor || mejor.bits > IDENTIFICAR_BITS) return null;
+  if (segundo && segundo.bits - mejor.bits < VENTAJA_MINIMA) return null;
+  const { arte: _arte, ...sinArte } = mejor;
+  return sinArte;
+}
+
+/**
+ * Lo de arriba, y lo deja apuntado en el catalogo.
+ *
+ * Nunca pisa el `nombre` que escribio una persona: eso es una correccion, y la
+ * maquina no corrige a quien la corrigio. Tampoco tumba nada si falla.
+ */
+export async function identificarYGuardar(deviceId: number, phash: string) {
+  try {
+    const id = await identificarCreativo(phash);
+    if (!id) return null;
+    await pool.query(
+      `UPDATE device_creatives SET campaign_id = ?, campana_bits = ?
+        WHERE device_id = ? AND phash = ?`,
+      [id.campaign_id, Math.min(255, id.bits), deviceId, phash.toLowerCase()]
+    );
+    return id;
+  } catch (err) {
+    console.error('[creativos] no se pudo identificar la campana:', (err as any)?.message);
+    return null;
+  }
+}
+
 // --- Dashboard --------------------------------------------------------------
 
 export async function listarDeEquipo(req: Request, res: Response) {
@@ -804,14 +927,18 @@ export async function listarDeEquipo(req: Request, res: Response) {
   // Dos LEFT JOIN a `photos`: la del hallazgo y la mas reciente. Las columnas
   // de la segunda van con prefijo `ultima_` para no pisar a las de la primera,
   // que es lo que la ficha ya pintaba.
+  // El nombre de la campana se LEE de la campana, no se copia al catalogo: si
+  // se copiara, renombrarla dejaria el catalogo diciendo lo de antes (035).
   const [filas] = await pool.query<any[]>(
     `SELECT c.*, p.thumbnail_path, p.storage_path, p.taken_at,
             u.thumbnail_path AS ultima_thumbnail_path,
             u.storage_path  AS ultima_storage_path,
-            u.taken_at      AS ultima_taken_at
+            u.taken_at      AS ultima_taken_at,
+            k.name AS campana_nombre, k.advertiser AS campana_anunciante
      FROM device_creatives c
      LEFT JOIN photos p ON p.id = c.photo_id
      LEFT JOIN photos u ON u.id = c.photo_id_ultima
+     LEFT JOIN campaigns k ON k.id = c.campaign_id
      WHERE c.device_id = ?
      ORDER BY c.ultima_vez DESC`,
     [did]

@@ -937,7 +937,22 @@ export async function listPhotos(req: Request, res: Response) {
   if (req.servicio?.owner) { donde.push(`d.owner = ?`); params.push(req.servicio.owner); }
 
   if (device_id) { donde.push(`p.device_id = ?`); params.push(device_id); }
-  if (campaign_id) { donde.push(`p.campaign_id = ?`); params.push(campaign_id); }
+  // Las fotos de una campana son DOS cosas, y las dos son comprobantes:
+  //
+  //   · las que se pidieron PARA ella (p.campaign_id, la prueba de campana);
+  //   · y todas en las que salio su anuncio, aunque la foto fuera por horario.
+  //
+  // Lo segundo es lo que se pidio el 24-nov-2026 -«en fotos programadas sale
+  // un creativo de la campana»- y hasta la 035 no se podia preguntar: la foto
+  // no sabia que anuncio ensenaba (034) y el anuncio no sabia de quien era.
+  // Juntarlas aqui es lo que hace que el numero de la tarjeta de la campana
+  // sea el numero de comprobantes que de verdad hay.
+  if (campaign_id) {
+    donde.push(`(p.campaign_id = ? OR EXISTS (
+      SELECT 1 FROM device_creatives dc
+       WHERE dc.device_id = p.device_id AND dc.phash = p.creativo AND dc.campaign_id = ?))`);
+    params.push(campaign_id, campaign_id);
+  }
   if (from) { donde.push(`p.taken_at >= ?`); params.push(from); }
   if (to) { donde.push(`p.taken_at <= ?`); params.push(to); }
   if (source) { donde.push(`p.source = ?`); params.push(source); }
@@ -1176,7 +1191,15 @@ export async function listCampaigns(req: Request, res: Response) {
   const [rows] = await pool.query(
     `SELECT c.*,
        (SELECT COUNT(*) FROM campaign_devices cd WHERE cd.campaign_id = c.id) as device_count,
-       (SELECT COUNT(*) FROM photos p WHERE p.campaign_id = c.id) as photo_count
+       -- La MISMA cuenta que devuelve la galeria al filtrar por esta campana
+       -- (035). Si contara solo p.campaign_id, la tarjeta diria 12 y al
+       -- pulsarla saldrian 400: el numero es la etiqueta del enlace y tiene
+       -- que ser el numero al que lleva.
+       (SELECT COUNT(*) FROM photos p
+         WHERE p.campaign_id = c.id
+            OR EXISTS (SELECT 1 FROM device_creatives dc
+                        WHERE dc.device_id = p.device_id AND dc.phash = p.creativo
+                          AND dc.campaign_id = c.id)) as photo_count
      FROM campaigns c ORDER BY c.created_at DESC`
   );
   // creative_path se muestra con <img> en la pantalla de campanas: va firmada.

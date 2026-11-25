@@ -59,6 +59,17 @@ async function main() {
   // No se exige `creative_watch`: un sitio puede tener catalogo de cuando lo
   // tenia encendido, y esas fotos se pueden etiquetar igual. Lo que si hace
   // falta es catalogo, porque sin el no hay con que comparar.
+  // Sin la pantalla marcada no se puede enderezar NADA, y sin enderezar no hay
+  // huella que comparar. Se comprueba antes de empezar porque si no el guion
+  // se pasa horas decodificando fotos para terminar diciendo «ilegibles», que
+  // manda a buscar archivos rotos cuando lo que falta es marcar la pantalla.
+  const [marca] = await pool.query<any[]>(
+    `SELECT pantalla IS NOT NULL AS marcada FROM devices WHERE id = ?`, [DID]);
+  if (!Number((marca as any[])[0]?.marcada)) {
+    console.error(`el equipo ${DID} no tiene la pantalla marcada: marcala en su ficha y vuelve a correrlo`);
+    process.exit(1);
+  }
+
   const [cat] = await pool.query<any[]>(
     `SELECT COUNT(*) AS n FROM device_creatives WHERE device_id = ? AND descartado = 0`, [DID]);
   const enCatalogo = Number((cat as any[])[0]?.n || 0);

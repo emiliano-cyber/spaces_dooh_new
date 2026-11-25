@@ -62,7 +62,7 @@ Tres cosas que cuestan una hora si no se saben:
 **Si solo se cambia `EYES_IMAGEN` y no se corre el guion**, el despliegue ocurre
 igual, pero a las **4:27 AM** por cron, sin nadie mirando. Mejor correrlo.
 
-## 3 · Las migraciones: 031, 032, 033 y 034
+## 3 · Las migraciones: 031, 032, 033, 034 y 035
 
 **En las instancias se aplican solas.** `update-eyes.sh` las corre con la imagen
 NUEVA, en un contenedor desechable, **antes** de cambiar de versión; si una
@@ -76,6 +76,7 @@ En el **`:4000` de producción sí van a mano**: ahí no corre ese guion.
 032_foto_al_recuperar.sql        la foto cuando una persona marca la falla
 033_creativo_por_dia.sql         la auditoría diaria de creativos
 034_foto_de_que_creativo.sql     qué creativo enseña cada foto
+035_creativo_de_que_campana.sql  de qué campaña es cada creativo
 ```
 
 La tabla de control es **`_migrations`**, no `migrations`.
@@ -106,6 +107,41 @@ vivo sí los registra -ahí la foto acaba de llegar y se sabe de cuándo es-, pe
 en lote, sobre meses de historia, llenaría el catálogo de anuncios que ya no
 existen con fecha de hoy.
 
+**Antes de correrlo, el equipo necesita la pantalla marcada.** Sin las esquinas
+no se puede enderezar nada y no hay nada que comparar; el guion lo comprueba y
+se planta en vez de pasarse horas para decir «ilegibles».
+
+### Después de la 035: de quién es cada creativo (recomendado)
+
+Esto es lo que pone nombre a los anuncios **sin que nadie teclee nada y sin
+costar un peso**: compara cada creativo del catálogo con la creatividad que
+Operaciones ya subió para su campaña. Mismo normalizador, misma huella de 256
+bits, cero llamadas a internet.
+
+```
+# Toda la flota, en ENSAYO:
+docker compose -p space-eyes exec api node dist/identificar-creativos.js
+
+# Un solo equipo:
+docker compose -p space-eyes exec api node dist/identificar-creativos.js <device_id>
+
+# Y cuando el resultado convenza:
+docker compose -p space-eyes exec api node dist/identificar-creativos.js --aplicar
+```
+
+Va rápido: compara huellas ya calculadas, no vuelve a leer fotos. En vivo cada
+creativo nuevo se identifica solo al registrarse, así que esto solo hace falta
+**una vez** para el catálogo que ya existe, y después de que Operaciones suba
+campañas nuevas (lo que ya se había visto en pantalla queda identificado hacia
+atrás).
+
+Medido el 25-nov-2026 en el ensayo local: 43 de 324 creativos casaron, a 0-10
+bits; los 281 restantes son de un sitio sin campañas registradas y se quedan
+sin identificar, que es la respuesta correcta. El umbral está deliberadamente
+corto (20 bits, contra los 24 de tolerancia normal): lo dudoso se deja sin
+nombre, porque un anunciante equivocado en un comprobante es peor que
+ninguno.
+
 ## 3 bis · Lo que cambia de comportamiento con la 034
 
 Dos cosas que conviene saber ANTES de desplegar, porque se notan solas:
@@ -123,6 +159,18 @@ Dos cosas que conviene saber ANTES de desplegar, porque se notan solas:
 2. **No cuesta datos móviles.** Ni una foto más: todo sale de las que ya
    llegaban. Lo que cuesta es CPU del droplet en cada subida, y no es nueva:
    el servidor ya enderezaba cada foto para decidir si tocaba refoto.
+
+## 3 ter · Lo que cambia de comportamiento con la 035
+
+**El número de fotos de una campaña va a subir.** Hasta ahora eran solo las que
+se pidieron PARA ella; ahora también cuentan todas en las que salió su anuncio,
+aunque la foto fuera por horario. Eso es exactamente lo que se pidió -«en fotos
+programadas sale un creativo de la campaña»- y es el número que aparece en la
+tarjeta y al que lleva el enlace, así que los dos dicen lo mismo.
+
+Ese número solo crece para las fotos que estén **etiquetadas** (034). Las
+viejas no lo están hasta que se corra `etiquetar-fotos`, así que en los
+primeros días la cuenta subirá poco a poco.
 
 ## 4 · El agente de Raspberry
 

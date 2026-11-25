@@ -85,6 +85,13 @@ type Creativo = {
   // De quien es, puesto a mano (Space Eye, migracion 034). Es lo que convierte
   // «las fotos de un creativo» en «los comprobantes de Dessea».
   nombre?: string | null
+  // De quien es, reconocido SOLO (Space Eye, migracion 035): el servidor
+  // comparo este anuncio con las creatividades que Operaciones subio y encontro
+  // de cual es. `campana_bits` dice a que distancia caso, para poder juzgarlo.
+  campaign_id?: number | null
+  campana_nombre?: string | null
+  campana_anunciante?: string | null
+  campana_bits?: number | null
 }
 
 /**
@@ -565,6 +572,18 @@ export function CreativosConfig({
                           )}
                           {c.descubierto === 'servidor' && (
                             <div className="text-muted">{t('spaceeyes.creativo.del-servidor')}</div>
+                          )}
+                          {/* De quien es, cuando el servidor pudo decirlo solo.
+                              Enlaza a los comprobantes de ESA campana: es la
+                              pregunta siguiente, siempre. */}
+                          {c.campaign_id && c.campana_nombre && (
+                            <Link
+                              href={`/space-eyes/galeria/?campaign_id=${c.campaign_id}`}
+                              title={t('spaceeyes.creativo.es-de.ayuda', { bits: c.campana_bits ?? 0 })}
+                              className="mt-1 block truncate text-accent hover:underline"
+                            >
+                              {t('spaceeyes.creativo.es-de', { campana: c.campana_anunciante || c.campana_nombre })}
+                            </Link>
                           )}
                           {puedeOperar ? (
                             <input
