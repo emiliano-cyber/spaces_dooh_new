@@ -274,6 +274,23 @@ export async function cerrarDia(deviceId: number, c: Cierre) {
 // una pantalla en continuo son decenas de miles de filas de bitacora, y
 // traerlas para sumarlas aqui seria pagar memoria por nada.
 
+/**
+ * Un DATE de MySQL, como texto, sin que se le mueva el dia.
+ *
+ * El pool va con `dateStrings: false` y `timezone: 'Z'`, asi que un DATE llega
+ * como Date a medianoche UTC. Mandarlo tal cual es mandar
+ * «2026-11-25T00:00:00.000Z», que en un navegador al oeste de Greenwich se
+ * pinta como el 24. En una auditoria eso no es un detalle de formato: es una
+ * fila de comprobantes atribuida al dia que no fue. Mismo arreglo que ya hace
+ * creativos.controller con la tira de dias.
+ */
+function soloElDia(v: unknown): string | null {
+  if (!v) return null;
+  if (typeof v === 'string') return v.slice(0, 10);
+  const d = v instanceof Date ? v : new Date(v as any);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+}
+
 /** Un periodo sano: como mucho un trimestre, y `hasta` nunca antes que `desde`. */
 function periodo(req: Request): { desde: string; hasta: string } {
   const hoy = new Date().toISOString().slice(0, 10);
@@ -374,7 +391,7 @@ export async function deEquipo(req: Request, res: Response) {
     medida: d.length && d.every((x) => x.medida === 'vistazo') ? 'vistazo' : 'vuelta',
     zona: d.length && d.every((x) => x.zona === 'equipo') ? 'equipo' : 'servidor',
     dias: d.map((x) => ({
-      dia: x.dia, vistazos: Number(x.vistazos), vueltas: Number(x.vueltas),
+      dia: soloElDia(x.dia), vistazos: Number(x.vistazos), vueltas: Number(x.vueltas),
       primera: x.primera, ultima: x.ultima, medida: x.medida, zona: x.zona,
       perdidos: Number(x.perdidos), cerrado: !!Number(x.cerrado),
     })),
@@ -392,8 +409,8 @@ export async function deEquipo(req: Request, res: Response) {
       apariciones: Number(c.apariciones),
       revisiones: Number(c.revisiones),
       dias: Number(c.dias),
-      primer_dia: c.primer_dia,
-      ultimo_dia: c.ultimo_dia,
+      primer_dia: soloElDia(c.primer_dia),
+      ultimo_dia: soloElDia(c.ultimo_dia),
       medida: Number(c.siempre_vistazo) ? 'vistazo' : 'vuelta',
       mezclada: !!Number(c.tuvo_vistazo) && !Number(c.siempre_vistazo),
       horas: porHuella.get(c.phash) || [],
@@ -470,11 +487,11 @@ export async function deCampana(req: Request, res: Response) {
       device_id: x.device_id, equipo: x.equipo,
       pasadas: Number(x.pasadas), apariciones: Number(x.apariciones),
       revisiones: Number(x.revisiones), dias: Number(x.dias),
-      primer_dia: x.primer_dia, ultimo_dia: x.ultimo_dia,
+      primer_dia: soloElDia(x.primer_dia), ultimo_dia: soloElDia(x.ultimo_dia),
       medida: Number(x.siempre_vistazo) ? 'vistazo' : 'vuelta',
     })),
     por_dia: (porDia as any[]).map((x) => ({
-      dia: x.dia, pasadas: Number(x.pasadas), pantallas: Number(x.pantallas),
+      dia: soloElDia(x.dia), pasadas: Number(x.pasadas), pantallas: Number(x.pantallas),
     })),
     por_hora: (porHora as any[]).map((x) => ({ hora: Number(x.hora), pasadas: Number(x.pasadas) })),
   });

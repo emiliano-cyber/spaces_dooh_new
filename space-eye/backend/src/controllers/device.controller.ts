@@ -166,9 +166,17 @@ const statusSchema = z.object({
     // a proposito y para siempre: la APK de los telefonos ya esta en la calle
     // y nunca va a mandarla. Un equipo que no la manda se sigue auditando con
     // resolucion de vuelta, que es la que tenia.
-    bitacora: pasadasSchema.optional(),
-    // El resumen de fin de dia, que lo cierra.
-    cierre: cierreSchema.optional(),
+    //
+    // SIN VALIDAR AQUI, A PROPOSITO. Puesta como `pasadasSchema.optional()`,
+    // una bitacora mal formada hacia que Zod rechazara el reporte ENTERO con
+    // un 400: bateria, señal, GPS y consumo de datos se perdian con ella, y
+    // un equipo con el archivo de bitacora corrupto desaparecia del panel.
+    // Es la misma regla que ya tenia `salud` dos campos mas abajo. Se
+    // comprueba abajo, con safeParse, donde lo que se pierde es la bitacora y
+    // nada mas.
+    bitacora: z.unknown().optional(),
+    // El resumen de fin de dia, que lo cierra. Igual de laxo y por lo mismo.
+    cierre: z.unknown().optional(),
   }).optional(),
   // Resumen de la ultima vuelta del monitoreo de la pantalla (APK 0.15.0+).
   // Unos cientos de bytes; solo sirve para que el dashboard diga "ultima
@@ -275,8 +283,16 @@ export async function reportStatus(req: Request, res: Response) {
   if (d.creativos && (d.creativos.vistas?.length || d.creativos.nuevas?.length)) {
     try {
       const cfg = await configDe(did);
+      // Una bitacora que no cuadra se tira sola y el recorrido se registra
+      // igual, con resolucion de vuelta: perder el detalle de una vuelta es
+      // mucho menos grave que perder el recorrido.
+      const bit = pasadasSchema.safeParse(d.creativos.bitacora);
+      if (d.creativos.bitacora !== undefined && !bit.success) {
+        console.warn(`[auditoria] equipo ${did} mando una bitacora que no cuadra, se ignora:`,
+                     bit.error.issues[0]?.message);
+      }
       await registrarRecorrido(did, d.creativos.vistas || [], d.creativos.nuevas || [],
-                               !!cfg?.aprendiendo, d.creativos.bitacora);
+                               !!cfg?.aprendiendo, bit.success ? bit.data : null);
     } catch (err) {
       console.error('[creativos] no se pudo registrar el recorrido:', (err as any)?.message);
     }
@@ -286,11 +302,17 @@ export async function reportStatus(req: Request, res: Response) {
   // traer ninguna vuelta -el equipo cierra cuando cambia el dia, no cuando ve
   // algo- y si se colgara del `if` de arriba, el dia de una pantalla apagada
   // de madrugada no se cerraria nunca.
-  if (d.creativos?.cierre) {
+  if (d.creativos?.cierre !== undefined) {
     try {
-      const r = await cerrarDia(did, d.creativos.cierre);
+      const c = cierreSchema.safeParse(d.creativos.cierre);
+      if (!c.success) {
+        console.warn(`[auditoria] equipo ${did} mando un cierre que no cuadra, se ignora:`,
+                     c.error.issues[0]?.message);
+        throw new Error('cierre invalido');
+      }
+      const r = await cerrarDia(did, c.data);
       if (r.perdidos > 0) {
-        console.warn(`[auditoria] equipo ${did} cerro ${d.creativos.cierre.dia} con ${r.perdidos} ` +
+        console.warn(`[auditoria] equipo ${did} cerro ${c.data.dia} con ${r.perdidos} ` +
                      `miradas que nunca llegaron (guardadas ${r.guardados})`);
       }
     } catch (err) {
