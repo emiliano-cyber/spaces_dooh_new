@@ -237,11 +237,31 @@ registro sale como:
 
 Un día con huecos sigue sirviendo; lo que no puede es no saberse.
 
-**No hay pantalla todavía.** La 036 trae la base, los agentes y dos rutas de
-lectura (`/api/devices/:id/auditoria` y `/api/campaigns/:id/auditoria`), pero
-nada en el panel las enseña aún. Desplegarla igualmente tiene sentido: la
-bitácora empieza a acumularse desde el primer día, y cuando la pantalla llegue
-habrá historia que enseñar en vez de empezar de cero.
+**La pantalla sale el primer día con la historia que ya hay.** La auditoría se
+ve en dos sitios: la pestaña «Auditoría» de cada equipo y el desplegable
+«Dónde y cuándo salió» de cada tarjeta de campaña, las dos por el pasamanos
+(`/api/devices/:id/auditoria` y `/api/campaigns/:id/auditoria`).
+
+Lo que enseña el primer día NO es una pantalla vacía. `device_dias` -las
+miradas- nace con la 036 y empieza de cero, pero la 033 lleva meses guardando
+los recorridos de cada día, y el reporte se apoya en las DOS tablas: un equipo
+con historia aparece con sus recorridos desde el minuto uno y sus miradas van
+entrando a partir del despliegue. El titular cambia solo -«1 277 recorridos»
+mientras no haya miradas, «1 840 miradas» cuando las haya- y el sello dice con
+qué vara se midió cada día.
+
+**Comprobarlo despues de desplegar:**
+
+```
+docker exec -it <contenedor> node dist/prueba-auditoria.js
+```
+
+Solo lee. Avisa si algun equipo con historia saldria «sin nada medido», si
+algun anuncio aparece mas veces que recorridos tuvo el dia, y si la cuenta de
+una campana se pasa de los recorridos de su pantalla. Tambien dice si esa
+ultima comprobacion pudo fallar con los datos que miro: donde ninguna campana
+tiene dos artes en la misma pantalla, sale verde aunque el codigo este roto, y
+mas vale saberlo que leer un «ok» como una garantia.
 
 ## 5 · Comprobar que quedó
 

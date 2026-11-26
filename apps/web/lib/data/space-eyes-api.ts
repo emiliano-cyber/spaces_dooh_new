@@ -295,6 +295,11 @@ export interface AuditoriaCampana {
   dias_medidos: number
   dias_cerrados: number
   pasadas: number
+  /** Recorridos en los que salió, y de cuántos: lo único medible cuando el
+   *  equipo no cuenta mirada a mirada (teléfonos, y toda la historia
+   *  anterior a la bitácora). */
+  apariciones: number
+  revisiones: number
   pantallas: number
   medida: Medida
   equipos: {

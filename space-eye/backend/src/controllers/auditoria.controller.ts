@@ -326,12 +326,38 @@ export async function deEquipo(req: Request, res: Response) {
   if (!did || (await equipoAjeno(req, did))) return res.status(404).json({ error: 'not_found' });
   const { desde, hasta } = periodo(req);
 
+  // LOS DIAS SON LA UNION DE LAS DOS TABLAS, Y TIENE QUE SERLO.
+  //
+  // `device_dias` nace con la 036: antes de ella ningun equipo mandaba su
+  // bitacora, asi que esa tabla esta vacia para toda la historia. Pero la 033
+  // si guardaba, dia a dia, cuantos recorridos hizo el equipo
+  // (`device_creative_dias.revisiones`). Mirar solo la 036 hacia que la ficha
+  // dijera «todavia no hay nada medido en este periodo» mientras la misma
+  // campana, mas abajo, enseñaba «en 411 de 1 277 recorridos»: dos frases
+  // sobre los mismos dias que no pueden ser las dos verdad.
+  //
+  // El dia de la 033 entra con `vistazos = 0` -no se midio mirada a mirada, y
+  // rellenarlo seria inventar el denominador- y con sus recorridos en
+  // `vueltas`, que es exactamente lo que ese dia se sabe.
+  //
+  // `NOT EXISTS` y no un GROUP BY de las dos: un dia que esta en las DOS
+  // tablas es un dia de la 036 y se cuenta una sola vez, con su medida. Sin
+  // eso, la rama vieja -que siempre dice 'vuelta'- rebajaria para siempre la
+  // vara de los dias bien medidos.
   const [dias] = await pool.query<any[]>(
-    `SELECT dia, vistazos, vueltas, primera, ultima, medida, zona, perdidos,
-            cerrado_at IS NOT NULL AS cerrado
+    `SELECT dia, vistazos, vueltas, primera, ultima,
+            medida = 'vistazo' AS es_vistazo, zona = 'equipo' AS es_equipo,
+            perdidos, cerrado_at IS NOT NULL AS cerrado
        FROM device_dias
       WHERE device_id = ? AND dia BETWEEN ? AND ?
-      ORDER BY dia DESC`, [did, desde, hasta]);
+     UNION ALL
+     SELECT d.dia, 0, MAX(d.revisiones), NULL, NULL, 0, 0, 0, 0
+       FROM device_creative_dias d
+      WHERE d.device_id = ? AND d.dia BETWEEN ? AND ?
+        AND NOT EXISTS (SELECT 1 FROM device_dias dd
+                         WHERE dd.device_id = d.device_id AND dd.dia = d.dia)
+      GROUP BY d.dia
+      ORDER BY dia DESC`, [did, desde, hasta, did, desde, hasta]);
 
   const [creativos] = await pool.query<any[]>(
     `SELECT d.phash,
@@ -388,11 +414,13 @@ export async function deEquipo(req: Request, res: Response) {
     // vuelta, el total esta medido por vuelta. Decir 'vistazo' porque la
     // mayoria lo fue seria redondear hacia arriba la calidad del dato, que es
     // justo lo que no puede hacer una auditoria.
-    medida: d.length && d.every((x) => x.medida === 'vistazo') ? 'vistazo' : 'vuelta',
-    zona: d.length && d.every((x) => x.zona === 'equipo') ? 'equipo' : 'servidor',
+    medida: d.length && d.every((x) => Number(x.es_vistazo)) ? 'vistazo' : 'vuelta',
+    zona: d.length && d.every((x) => Number(x.es_equipo)) ? 'equipo' : 'servidor',
     dias: d.map((x) => ({
       dia: soloElDia(x.dia), vistazos: Number(x.vistazos), vueltas: Number(x.vueltas),
-      primera: x.primera, ultima: x.ultima, medida: x.medida, zona: x.zona,
+      primera: x.primera, ultima: x.ultima,
+      medida: Number(x.es_vistazo) ? 'vistazo' : 'vuelta',
+      zona: Number(x.es_equipo) ? 'equipo' : 'servidor',
       perdidos: Number(x.perdidos), cerrado: !!Number(x.cerrado),
     })),
     horas_vistazos: Object.fromEntries(
@@ -431,20 +459,39 @@ export async function deCampana(req: Request, res: Response) {
   if (!kid) return res.status(404).json({ error: 'not_found' });
   const { desde, hasta } = periodo(req);
 
+  // PRIMERO SE CIERRA EL DIA DE CADA PANTALLA, Y DESPUES SE SUMAN LOS DIAS.
+  //
+  // `revisiones` es cuantos recorridos hizo el equipo ese dia, y la 033 lo
+  // guarda REPETIDO en la fila de cada creativo del catalogo. Sumarlo de
+  // frente multiplicaba el denominador por el numero de creativos que la
+  // campana tiene en esa pantalla: un dia de 97 recorridos con seis artes
+  // salia como 582. Se toma una vez con MAX, que es el mismo numero.
+  //
+  // Y las apariciones de dos artes de la MISMA campana pueden caer en el
+  // mismo recorrido -una pantalla pasa las dos en cinco minutos-, asi que su
+  // suma puede pasarse del dia. Se recorta al dia con LEAST: «en 198 de 97
+  // recorridos» no es un numero optimista, es un numero imposible.
   const [filas] = await pool.query<any[]>(
-    `SELECT d.device_id, v.name AS equipo,
-            SUM(d.pasadas)     AS pasadas,
-            SUM(d.apariciones) AS apariciones,
-            SUM(d.revisiones)  AS revisiones,
-            COUNT(DISTINCT d.dia) AS dias,
-            MIN(d.dia) AS primer_dia, MAX(d.dia) AS ultimo_dia,
-            MIN(d.medida = 'vistazo') AS siempre_vistazo
-       FROM device_creative_dias d
-       JOIN device_creatives c ON c.device_id = d.device_id AND c.phash = d.phash
-       JOIN devices v ON v.id = d.device_id
-      WHERE c.campaign_id = ? AND d.dia BETWEEN ? AND ?
-      GROUP BY d.device_id, v.name
-      ORDER BY pasadas DESC`, [kid, desde, hasta]);
+    `SELECT t.device_id, v.name AS equipo,
+            SUM(t.pasadas)     AS pasadas,
+            SUM(t.apariciones) AS apariciones,
+            SUM(t.revisiones)  AS revisiones,
+            COUNT(*) AS dias,
+            MIN(t.dia) AS primer_dia, MAX(t.dia) AS ultimo_dia,
+            MIN(t.siempre_vistazo) AS siempre_vistazo
+       FROM (SELECT d.device_id, d.dia,
+                    SUM(d.pasadas) AS pasadas,
+                    LEAST(SUM(d.apariciones), MAX(d.revisiones)) AS apariciones,
+                    MAX(d.revisiones) AS revisiones,
+                    MIN(d.medida = 'vistazo') AS siempre_vistazo
+               FROM device_creative_dias d
+               JOIN device_creatives c
+                 ON c.device_id = d.device_id AND c.phash = d.phash
+              WHERE c.campaign_id = ? AND d.dia BETWEEN ? AND ?
+              GROUP BY d.device_id, d.dia) t
+       JOIN devices v ON v.id = t.device_id
+      GROUP BY t.device_id, v.name
+      ORDER BY pasadas DESC, apariciones DESC`, [kid, desde, hasta]);
 
   const [porDia] = await pool.query<any[]>(
     `SELECT d.dia, SUM(d.pasadas) AS pasadas, COUNT(DISTINCT d.device_id) AS pantallas
@@ -463,12 +510,26 @@ export async function deCampana(req: Request, res: Response) {
   // El denominador: las miradas de ESAS pantallas en ESOS dias. Sin el, el
   // total de la campana es un numero suelto.
   const equipos = (filas as any[]).map((f) => f.device_id);
+  // La misma union que en la ficha del equipo: un dia que solo tiene
+  // recorridos es un dia medido, y contarlo fuera dejaba el sello en «0 de 0
+  // dias cerrados» encima de una lista con meses de historia. Se cuenta por
+  // PANTALLA Y DIA, que es como se audita: un dia abierto en una de cinco
+  // pantallas no cierra el dia de la campana.
   const [den] = equipos.length
     ? await pool.query<any[]>(
-        `SELECT SUM(vistazos) AS vistazos, SUM(perdidos) AS perdidos,
-                SUM(cerrado_at IS NOT NULL) AS cerrados, COUNT(*) AS medidos
-           FROM device_dias WHERE device_id IN (?) AND dia BETWEEN ? AND ?`,
-        [equipos, desde, hasta])
+        `SELECT SUM(x.vistazos) AS vistazos, SUM(x.perdidos) AS perdidos,
+                SUM(x.cerrado) AS cerrados, COUNT(*) AS medidos
+           FROM (SELECT vistazos, perdidos, cerrado_at IS NOT NULL AS cerrado
+                   FROM device_dias
+                  WHERE device_id IN (?) AND dia BETWEEN ? AND ?
+                 UNION ALL
+                 SELECT 0, 0, 0
+                   FROM device_creative_dias d
+                  WHERE d.device_id IN (?) AND d.dia BETWEEN ? AND ?
+                    AND NOT EXISTS (SELECT 1 FROM device_dias dd
+                                     WHERE dd.device_id = d.device_id AND dd.dia = d.dia)
+                  GROUP BY d.device_id, d.dia) x`,
+        [equipos, desde, hasta, equipos, desde, hasta])
     : [[{}] as any[]];
 
   const r = (den as any[])[0] || {};
@@ -480,6 +541,11 @@ export async function deCampana(req: Request, res: Response) {
     dias_medidos: Number(r.medidos || 0),
     dias_cerrados: Number(r.cerrados || 0),
     pasadas: (filas as any[]).reduce((a, x) => a + Number(x.pasadas), 0),
+    // Lo que se puede decir cuando NO hubo vistazos. Sin esto la cabecera de
+    // la campana tenia que escribir «0 pasadas, 0 de 0 miradas» encima de
+    // unas filas que decian «en 411 de 1 277 recorridos».
+    apariciones: (filas as any[]).reduce((a, x) => a + Number(x.apariciones), 0),
+    revisiones: (filas as any[]).reduce((a, x) => a + Number(x.revisiones), 0),
     pantallas: (filas as any[]).length,
     medida: (filas as any[]).length && (filas as any[]).every((x) => Number(x.siempre_vistazo))
       ? 'vistazo' : 'vuelta',

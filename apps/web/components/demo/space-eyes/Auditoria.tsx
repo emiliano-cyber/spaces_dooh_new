@@ -131,16 +131,26 @@ export function Auditoria({ id }: { id: number }) {
           {/* ── La cabecera: el total y, pegada, la vara con que se midió ── */}
           <div className="rounded-md border border-border bg-surface p-3">
             <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              {/* Sin miradas, el titular son los RECORRIDOS. Escribir «0
+                  miradas» encima de una lista con meses de historia no es
+                  prudencia: es una cifra falsa. */}
               <span className="text-[20px] font-semibold tabular-nums text-fg">
-                {t('spaceeyes.auditoria.miradas', { n: n(datos.vistazos) })}
+                {datos.vistazos > 0
+                  ? t('spaceeyes.auditoria.miradas', { n: n(datos.vistazos) })
+                  : t('spaceeyes.auditoria.recorridos', { n: n(datos.vueltas) })}
               </span>
               <span className="text-[12px] text-muted">
                 {t('spaceeyes.auditoria.en-dias', { n: n(datos.dias_medidos) })}
               </span>
             </div>
 
+            {/* La misma advertencia, con la palabra que esta en pantalla:
+                hablar de «miradas» encima de una lista de recorridos deja la
+                frase coja justo donde tiene que sostenerse. */}
             <p className="mt-1.5 max-w-prose text-[12px] leading-snug text-muted">
-              {t('spaceeyes.auditoria.que-es')}
+              {t(datos.vistazos > 0
+                ? 'spaceeyes.auditoria.que-es'
+                : 'spaceeyes.auditoria.que-es.vuelta')}
             </p>
 
             <div className="mt-2.5 flex flex-wrap gap-1.5">
@@ -215,7 +225,9 @@ export function Auditoria({ id }: { id: number }) {
                 >
                   <span className="w-16 shrink-0 font-medium text-fg">{dia(d.dia, idioma)}</span>
                   <span className="tabular-nums text-fg">
-                    {t('spaceeyes.auditoria.miradas', { n: n(d.vistazos) })}
+                    {d.vistazos > 0
+                      ? t('spaceeyes.auditoria.miradas', { n: n(d.vistazos) })
+                      : t('spaceeyes.auditoria.recorridos', { n: n(d.vueltas) })}
                   </span>
                   {d.primera && d.ultima && (
                     <span className="tabular-nums text-muted">
@@ -307,6 +319,7 @@ function FilaCreativo({
         type="button"
         onClick={() => setAbierto((v) => !v)}
         disabled={!hayHoras}
+        title={hayHoras ? undefined : t('spaceeyes.auditoria.horas.ninguna')}
         className={cn(
           'flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-left text-[12px]',
           hayHoras && 'hover:bg-surface-2',
@@ -484,12 +497,28 @@ export function AuditoriaCampana({ id, dias = 30 }: { id: number; dias?: number 
   return (
     <div className="flex flex-col gap-3 p-3">
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <span className="text-[16px] font-semibold tabular-nums text-fg">
-          {t('spaceeyes.auditoria.pasadas', { n: n(datos.pasadas) })}
-        </span>
-        <span className="text-[12px] text-muted">
-          {t('spaceeyes.auditoria.de-miradas', { n: n(datos.pasadas), total: n(datos.vistazos) })}
-        </span>
+        {/* Medida por recorrido -o sin bitácora todavía- la campaña no tiene
+            pasadas que enseñar: tiene apariciones, y van con su denominador. */}
+        {datos.vistazos > 0 ? (
+          <>
+            <span className="text-[16px] font-semibold tabular-nums text-fg">
+              {t('spaceeyes.auditoria.pasadas', { n: n(datos.pasadas) })}
+            </span>
+            <span className="text-[12px] text-muted">
+              {t('spaceeyes.auditoria.de-miradas', {
+                n: n(datos.pasadas),
+                total: n(datos.vistazos),
+              })}
+            </span>
+          </>
+        ) : (
+          <span className="text-[16px] font-semibold tabular-nums text-fg">
+            {t('spaceeyes.auditoria.apariciones', {
+              n: n(datos.apariciones),
+              total: n(datos.revisiones),
+            })}
+          </span>
+        )}
         <span className="text-[12px] text-muted">
           ·{' '}
           {datos.pantallas === 1
@@ -499,7 +528,9 @@ export function AuditoriaCampana({ id, dias = 30 }: { id: number; dias?: number 
       </div>
 
       <p className="max-w-prose text-[12px] leading-snug text-muted">
-        {t('spaceeyes.auditoria.que-es')}
+        {t(datos.vistazos > 0
+          ? 'spaceeyes.auditoria.que-es'
+          : 'spaceeyes.auditoria.que-es.vuelta')}
       </p>
 
       <div className="flex flex-wrap gap-1.5">
