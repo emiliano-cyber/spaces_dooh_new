@@ -27,14 +27,16 @@ export const dynamic = 'force-dynamic'
 // ============================================================================
 
 const PERMITIDAS = [
-  /^devices(\/\d+(\/(command|logs|telemetry(\/export)?|camera|overlay|stream-rotation|stream-status|camera-control|pantalla|salud|creativos(\/reaprender)?))?)?$/,
+  /^devices(\/\d+(\/(command|logs|telemetry(\/export)?|camera|overlay|stream-rotation|stream-status|camera-control|pantalla|salud|creativos(\/reaprender)?|auditoria))?)?$/,
   /^photos(\/\d+)?$/,
   /^fallas(\/\d+)?$/,
   // A quién se le avisa por correo cuando una pantalla falla.
   /^avisos(\/prueba)?$/,
   /^creativos\/\d+$/,
   /^schedules(\/\d+)?$/,
-  /^campaigns(\/\d+(\/creative)?)?$/,
+  // `auditoria` (Space Eye 036): que salio, cuando y cuanto. Solo lectura, y
+  // por eso entra con `inventario.ver` como el resto de los GET.
+  /^campaigns(\/\d+(\/(creative|auditoria))?)?$/,
   /^verifications$/,
   /^capture$/,
   /^ice-servers$/,

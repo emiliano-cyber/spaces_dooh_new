@@ -14,6 +14,7 @@
 
 import { traducir } from '@/lib/i18n/diccionario'
 import type { Idioma } from '@/lib/i18n/idiomas'
+import { seApi } from '@/lib/data/space-eyes-se'
 
 const API = '/spaces-dooh/api/space-eyes'
 
@@ -223,4 +224,114 @@ export function fallasApi(id: number, idioma: Idioma = 'es'): Promise<PantallaEq
 /** Los anuncios distintos que han pasado por la pantalla del equipo. */
 export function creativosApi(id: number, idioma: Idioma = 'es'): Promise<CreativosEquipo> {
   return leer(`${API}/${id}/creativos/`, { cache: 'no-store' }, idioma)
+}
+
+// ─── La bitácora: qué salió, cuándo y cuánto (Space Eye 036) ────────────────
+//
+// Los nombres llegan tal cual de Space Eye, sin traducir a camelCase: son el
+// vocabulario de la auditoría y cambiarlos aquí obligaría a traducirlos de
+// vuelta en cada sitio. `medida` y `zona` no son adorno: sin ellas los números
+// de abajo no se pueden leer, y la pantalla tiene que decirlo.
+
+/** Con qué vara se midió: cada mirada, o solo el recorrido en que salió. */
+export type Medida = 'vistazo' | 'vuelta'
+
+export interface DiaAuditado {
+  dia: string
+  vistazos: number
+  vueltas: number
+  primera: string | null
+  ultima: string | null
+  medida: Medida
+  /** De dónde salió la hora: del equipo, o supuesta por el servidor. */
+  zona: 'equipo' | 'servidor'
+  /** Miradas que el equipo contó y nunca llegaron (red caída, reinicio). */
+  perdidos: number
+  cerrado: boolean
+}
+
+export interface CreativoAuditado {
+  phash: string
+  nombre: string | null
+  descartado: boolean
+  campaign_id: number | null
+  campana_nombre: string | null
+  campana_anunciante: string | null
+  campana_bits: number | null
+  /** Miradas en las que estaba. NO son reproducciones: ver `medida`. */
+  pasadas: number
+  /** Recorridos en los que salió (lo único que mandan los teléfonos). */
+  apariciones: number
+  revisiones: number
+  dias: number
+  primer_dia: string | null
+  ultimo_dia: string | null
+  medida: Medida
+  /** Días con una vara y días con la otra: el total mezcla dos cosas. */
+  mezclada: boolean
+  horas: { hora: number; pasadas: number; primera: string | null; ultima: string | null }[]
+}
+
+export interface AuditoriaEquipo {
+  desde: string
+  hasta: string
+  vistazos: number
+  vueltas: number
+  perdidos: number
+  dias_medidos: number
+  dias_cerrados: number
+  medida: Medida
+  zona: 'equipo' | 'servidor'
+  dias: DiaAuditado[]
+  horas_vistazos: Record<string, number>
+  creativos: CreativoAuditado[]
+}
+
+export interface AuditoriaCampana {
+  desde: string
+  hasta: string
+  vistazos: number
+  perdidos: number
+  dias_medidos: number
+  dias_cerrados: number
+  pasadas: number
+  pantallas: number
+  medida: Medida
+  equipos: {
+    device_id: number
+    equipo: string
+    pasadas: number
+    apariciones: number
+    revisiones: number
+    dias: number
+    primer_dia: string | null
+    ultimo_dia: string | null
+    medida: Medida
+  }[]
+  por_dia: { dia: string; pasadas: number; pantallas: number }[]
+  por_hora: { hora: number; pasadas: number }[]
+}
+
+function periodo(desde?: string, hasta?: string): string {
+  const p = new URLSearchParams()
+  if (desde) p.set('desde', desde)
+  if (hasta) p.set('hasta', hasta)
+  const q = p.toString()
+  return q ? `?${q}` : ''
+}
+
+// Van por `seApi` y no por `leer` como sus vecinas de arriba: la puerta del
+// modulo (ADR 0045) ya trae el corte por tiempo que hace falta cuando el Space
+// Eye de la instancia es mas viejo que esta interfaz y la ruta no existe. Sin
+// el, la promesa no se resuelve nunca y la pantalla espera en silencio para
+// siempre, que es lo que paso en g500 el 9-nov.
+
+/** La bitacora de una pantalla en un periodo. */
+export function auditoriaApi(id: number, desde?: string, hasta?: string): Promise<AuditoriaEquipo> {
+  return seApi<AuditoriaEquipo>(`devices/${id}/auditoria${periodo(desde, hasta)}`, { esperaMax: 20000 })
+}
+
+/** La misma bitacora, cruzando las pantallas de una campana. */
+export function auditoriaCampanaApi(id: number, desde?: string, hasta?: string): Promise<AuditoriaCampana> {
+  return seApi<AuditoriaCampana>(`campaigns/${id}/auditoria${periodo(desde, hasta)}`, { esperaMax: 20000 })
 }

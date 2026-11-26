@@ -12,6 +12,7 @@ import { traducir, type ClaveTexto } from '@/lib/i18n/diccionario'
 import type { Idioma } from '@/lib/i18n/idiomas'
 import { localeDe } from '@/lib/i18n/formato-idioma'
 import { ReporteCampanasExcel } from './ReporteCampanasExcel'
+import { AuditoriaCampana } from './Auditoria'
 
 // ============================================================================
 //  Space Eyes — campañas de verificación.
@@ -577,6 +578,7 @@ function Campo({ etiqueta, htmlFor, children }: { etiqueta: string; htmlFor: str
 
 function TarjetaCampana({ campana: c, onEditar }: { campana: CampanaSE; onEditar: () => void }) {
   const { t, idioma } = useIdioma()
+  const [bitacora, setBitacora] = useState(false)
   const img = fotoSE(c.creative_path)
   const verifica = !!c.verification_enabled
   return (
@@ -642,6 +644,24 @@ function TarjetaCampana({ campana: c, onEditar }: { campana: CampanaSE; onEditar
             ayuda={t('spaceeyes.campanas.ver-fotos')}
           />
           <Dato titulo={t('spaceeyes.comun.periodo')} valor={periodo(c, idioma)} />
+        </div>
+
+        {/* La bitacora de ESTA campana: donde salio su anuncio, cuando y
+            cuanto. Plegada por omision -son varias peticiones a Space Eye y la
+            rejilla puede tener treinta tarjetas-: se pide al abrirla. */}
+        <div className="mt-3 border-t border-border pt-2.5">
+          <button
+            type="button"
+            onClick={() => setBitacora((v) => !v)}
+            className="text-[12px] text-accent hover:underline"
+          >
+            {t('spaceeyes.auditoria.campana.titulo')}
+          </button>
+          {bitacora && (
+            <div className="mt-2 overflow-hidden rounded-md border border-border bg-surface-2">
+              <AuditoriaCampana id={c.id} />
+            </div>
+          )}
         </div>
 
         <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-2.5">

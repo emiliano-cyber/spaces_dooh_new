@@ -39,6 +39,7 @@ import { Historial } from './Historial'
 import { PantallaYCreativos } from './PantallaYCreativos'
 import { VistaEnVivo } from './VistaEnVivo'
 import { PantallaConfig } from './PantallaConfig'
+import { Auditoria } from './Auditoria'
 import { CreativosConfig } from './CreativosConfig'
 import { EquipoAdmin } from './EquipoAdmin'
 import { Tabs, TabPanel } from '@/components/demo/ui/Tabs'
@@ -83,7 +84,7 @@ const SONDEOS_MAX = 15
 type FallaAbierta = FallaSE & { id: number; device_id: number; estado: string; nombre: string; detectada_en: string }
 
 /** Las pestañas de la ficha, en el orden en que se preguntan. */
-export type PestanaFicha = 'creativos' | 'fotos' | 'pantalla' | 'equipo'
+export type PestanaFicha = 'creativos' | 'auditoria' | 'fotos' | 'pantalla' | 'equipo'
 
 /**
  * `pestana` y `vista` abren la ficha por otro sitio que el de siempre.
@@ -464,6 +465,11 @@ export function FichaEquipo({
         defaultValue={pestana}
         tabs={[
           { value: 'creativos', label: t('spaceeyes.ficha.tab.creativos') },
+          // Detecciones contesta QUE salio, con su foto; esto contesta CUANTO
+          // y A QUE HORA, que es lo que se factura. Son dos preguntas y por eso
+          // son dos pestanas: metido dentro de la otra, el catalogo de anuncios
+          // -que es lo que la gente viene a ver- quedaria debajo de una tabla.
+          { value: 'auditoria', label: t('spaceeyes.ficha.tab.auditoria') },
           { value: 'fotos', label: t('spaceeyes.ficha.tab.vivo') },
           { value: 'pantalla', label: t('spaceeyes.pantalla.titulo') },
           { value: 'equipo', label: t('spaceeyes.comun.equipo') },
@@ -795,6 +801,10 @@ export function FichaEquipo({
 
       <TabPanel value="creativos" className="pt-4">
         <CreativosConfig equipoId={equipo.id} puedeOperar={puedeOperar} onAmpliar={setAmpliada} onCambio={() => setVersion((v) => v + 1)} />
+      </TabPanel>
+
+      <TabPanel value="auditoria" className="pt-4">
+        <Auditoria id={equipo.id} />
       </TabPanel>
 
       <TabPanel value="equipo" className="pt-4">
